@@ -12,13 +12,14 @@
     "magic_table_sha256": "65fc5586826c433fdcf6b06b6bd334aa057d1433dd0a8c86a45c043901974f16",
     "pattern_grammar_sha256": "42e9431c8f85bf6507573f7bb6ec562daf334ec0bb88303e91c40e575786644a",
     "plaintext_inventory_sha256": "9115b9990d87e2df763a8bb69c76f7749a9b2e87a363908d970d88ad2616028b",
-    "post_commit_verification_sha256": "f6b0128394dc8da084bfdd6e90332e4e35b5a0dca6ac99fe0ee285ad2a611b76",
-    "pre_first_push_note_sha256": "222c2a4cf26ba6c9a61b4842b2cb5240e5bda9751452a72a3c091c61e0d043c9",
+    "post_commit_verification_sha256": "71072786d1893513cab5ff3139e08329d953647afff2138b8e0008643ba41419",
+    "pre_first_push_note_sha256": "99020e284fc28474245c4452b614890ee89c6dd9a4bb906abf651282a1989172",
     "prototype_snapshot_tree_sha256": "cb57c45fcf44ce552feec9fd9072e3437c229152a73889f65313fa028df9699d",
     "public_manifest_sha256": "03552ae592806f79be73ce5072e74d477991b5bfc659273d97d814cde4fd8576",
-    "public_scanner_tree_sha256": "7719784776b5e5910edf657c0a29f2bf83d2342ca26155ddef51a2b7bbaad72a",
+    "public_scanner_tree_sha256": "7bafd064ef902a3affe75090d0b2cd23cd71518692f6b755915f5df6a8d9b220",
     "public_surfaces_sha256": "96099cc16cc73ffd95f98a303e79b1d18290445a91a63938289aaa69b96c7205",
     "public_tokenizer_sha256": "ecb34b9bbb7aaab52ee98e17ad27c74bfab34ca955c47d414a64122614711be7",
+    "settings_readback_sha256": "e95e67f871162f6734f380f3d1719dc02207e9d5852cdfd8fec5f3c9208c12a1",
     "snapshot_digest_algorithm": "sorted root-relative POSIX paths, 8-byte big-endian path length, path bytes, raw per-file sha256",
     "wordlist_sha256": "a7723a9845d9d1e2d9c8a389097cf74d3dcd4db5cd2a58a9333b0e00065b2f38",
     "wordlist_sources_sha256": "1875c7c212ce8634d23b0a0284310b4c2e9131fd0a5a4105cfd66bf88336a849"
@@ -26,7 +27,7 @@
   "date": "2026-08-07",
   "entry_count": 2065,
   "n_max": 578,
-  "note": "v2 refresh at the Phase 0 closure conditions: binds, in the declared order, the pre-push note for this tree, the evidence-reconciliation record preserving every supersession link, and the round-4 post-commit record whose promised binding had not occurred. A new post-commit record for the refresh commit follows and is bound at the next refresh; no record binds itself.",
+  "note": "v2 refresh at closure conditions R2-C1/R2-C2: binds, in the declared order, the pre-push note for this tree, the evidence-reconciliation record, the signed repository-settings readback establishing the two active Actions values with GitHub's own response headers, and the previous post-commit record. A new post-commit record for the refresh commit follows and is bound at the next refresh; no record binds itself.",
   "refresh_triggers": "any change to a file in the public scanner tree, or to any bound private input, requires a fresh private coverage run and a fresh signature",
   "result": "pass"
 }
