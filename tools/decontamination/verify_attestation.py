@@ -73,6 +73,7 @@ REQUIRED_HEX_BINDINGS = (
     "all_objects_tool_sha256",
     "coverage_tool_sha256",
     "denial_seed_sha256",
+    "evidence_reconciliation_sha256",
     "extraction_script_sha256",
     "freeze_record_sha256",
     "inventory_review_round1_sha256",
