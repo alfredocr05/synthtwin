@@ -72,6 +72,40 @@ with open(args.out, "w", encoding="utf-8", newline="") as handle:
     handle.write("row-" + str(args.seed) + "\\n")
 """
 
+# A generator that builds a raw socket through the low-level C module,
+# below the high-level socket wrapper. Used to prove the audit-hook
+# guard holds even when a generator sidesteps the importable socket
+# names entirely (review item R2-B11).
+LOW_LEVEL_SOCKET_GENERATOR_SOURCE = """\
+import argparse
+import _socket
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--seed", type=int, required=True)
+parser.add_argument("--out", required=True)
+args = parser.parse_args()
+raw = _socket.socket(_socket.AF_INET, _socket.SOCK_STREAM)
+raw.close()
+with open(args.out, "w", encoding="utf-8", newline="") as handle:
+    handle.write("row-" + str(args.seed) + "\\n")
+"""
+
+# A generator that tries to start an external program before writing
+# its output. Used to prove the guard also stops process creation.
+SUBPROCESS_GENERATOR_SOURCE = """\
+import argparse
+import subprocess
+import sys
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--seed", type=int, required=True)
+parser.add_argument("--out", required=True)
+args = parser.parse_args()
+subprocess.run([sys.executable, "-c", "print('external')"], check=True)
+with open(args.out, "w", encoding="utf-8", newline="") as handle:
+    handle.write("row-" + str(args.seed) + "\\n")
+"""
+
 # A generator that drops a sentinel file next to itself when executed.
 # Used to prove that a rejected manifest entry is refused BEFORE its
 # generator script ever runs.
@@ -94,7 +128,9 @@ with open(args.out, "w", encoding="utf-8", newline="") as handle:
 
 # Suffixes added to the checker's data-format gate for common
 # real-derived artifact forms (JSON Lines, Arrow family, columnar and
-# array stores, statistical packages, databases, spreadsheets).
+# array stores, statistical packages and transport files, databases,
+# spreadsheets, XML exports, and SQL dumps). YAML is tested separately
+# because it carries a .github/ exemption.
 EXTENDED_DATA_SUFFIXES = [
     ".jsonl",
     ".ndjson",
@@ -115,6 +151,14 @@ EXTENDED_DATA_SUFFIXES = [
     ".mdb",
     ".accdb",
     ".ods",
+    ".xml",
+    ".sql",
+    ".duckdb",
+    ".ddb",
+    ".db3",
+    ".dbf",
+    ".xpt",
+    ".por",
 ]
 
 
@@ -286,9 +330,15 @@ def test_is_data_format_covers_json_and_extended_suffixes() -> None:
     assert _CHECKER_MODULE.is_data_format("rows.jsonl")
     for suffix in EXTENDED_DATA_SUFFIXES:
         assert _CHECKER_MODULE.is_data_format("stray" + suffix), suffix
+    # YAML is data-format at the suffix level; only check_tree grants
+    # the .github/ exemption.
+    assert _CHECKER_MODULE.is_data_format("schema.yaml")
+    assert _CHECKER_MODULE.is_data_format("schema.yml")
     # Case-insensitive on the final extension.
     assert _CHECKER_MODULE.is_data_format("model.RData")
     assert _CHECKER_MODULE.is_data_format("STORE.H5")
+    assert _CHECKER_MODULE.is_data_format("DUMP.SQL")
+    assert _CHECKER_MODULE.is_data_format("SCHEMA.YAML")
     # Ordinary source and docs are untouched.
     assert not _CHECKER_MODULE.is_data_format("script.py")
     assert not _CHECKER_MODULE.is_data_format("README.md")
@@ -356,6 +406,81 @@ def test_every_extended_data_suffix_fails(tmp_path: Path) -> None:
     assert result.returncode == 1
     for suffix in EXTENDED_DATA_SUFFIXES:
         assert "stray" + suffix in result.stderr, suffix
+
+
+# ---------------------------------------------------------------------------
+# R2-B7: YAML, XML, SQL-dump, DuckDB, DBF, and transport routes are
+# closed. YAML is allowed only under .github/ or via the manifest.
+# ---------------------------------------------------------------------------
+
+
+def test_stray_yaml_outside_github_fails(tmp_path: Path) -> None:
+    """Mutation: .yaml and .yml files at the tree root, both reported."""
+    write_manifest(tmp_path, [])
+    (tmp_path / "schema.yaml").write_text(
+        "columns:\n  - a\n  - b\n", encoding="utf-8"
+    )
+    (tmp_path / "profile.yml").write_text(
+        "count: 12\nmean: 3.5\n", encoding="utf-8"
+    )
+
+    result = run_checker(tmp_path)
+    assert result.returncode == 1, (
+        "expected exit code 1, got " + str(result.returncode) + ":\n"
+        + result.stdout
+        + result.stderr
+    )
+    assert "schema.yaml" in result.stderr
+    assert "profile.yml" in result.stderr
+    assert "outside the .github/ directory" in result.stderr
+
+
+def test_yaml_under_github_passes(tmp_path: Path) -> None:
+    """A workflow file under .github/ is accepted without a manifest entry."""
+    write_manifest(tmp_path, [])
+    workflows = tmp_path / ".github" / "workflows"
+    workflows.mkdir(parents=True)
+    (workflows / "ci.yml").write_text(
+        "name: neutral workflow stand-in\n", encoding="utf-8"
+    )
+
+    result = run_checker(tmp_path)
+    assert result.returncode == 0, (
+        "expected a clean pass:\n" + result.stdout + result.stderr
+    )
+    assert "passed" in result.stdout
+
+
+def test_stray_sql_dump_fails(tmp_path: Path) -> None:
+    """Mutation: an SQL dump placed in the tree with no allowlist entry."""
+    write_manifest(tmp_path, [])
+    (tmp_path / "dump.sql").write_text(
+        "CREATE TABLE t (a INTEGER);\n", encoding="utf-8"
+    )
+
+    result = run_checker(tmp_path)
+    assert result.returncode == 1, (
+        "expected exit code 1, got " + str(result.returncode) + ":\n"
+        + result.stdout
+        + result.stderr
+    )
+    assert "dump.sql" in result.stderr
+    assert "not on the fixture allowlist" in result.stderr
+
+
+def test_stray_duckdb_fails(tmp_path: Path) -> None:
+    """Mutation: a DuckDB store placed in the tree with no allowlist entry."""
+    write_manifest(tmp_path, [])
+    (tmp_path / "store.duckdb").write_bytes(b"neutral placeholder bytes")
+
+    result = run_checker(tmp_path)
+    assert result.returncode == 1, (
+        "expected exit code 1, got " + str(result.returncode) + ":\n"
+        + result.stdout
+        + result.stderr
+    )
+    assert "store.duckdb" in result.stderr
+    assert "not on the fixture allowlist" in result.stderr
 
 
 # ---------------------------------------------------------------------------
@@ -541,3 +666,200 @@ def test_fully_tracked_git_tree_passes(tmp_path: Path) -> None:
         "expected a clean pass:\n" + result.stdout + result.stderr
     )
     assert "passed" in result.stdout
+
+
+# ---------------------------------------------------------------------------
+# R2-B11: the guard runner is built on sys.addaudithook, so socket,
+# process, and native-code routes below the high-level modules are
+# stopped and the generator cannot uninstall the guard.
+# ---------------------------------------------------------------------------
+
+GUARD_RUNNER = REPO_ROOT / "tools" / "provenance" / "guard_runner.py"
+
+
+def _load_guard_runner_module():
+    """Import the guard runner for direct unit checks (no hook install)."""
+    spec = importlib.util.spec_from_file_location(
+        "guard_runner_under_test", GUARD_RUNNER
+    )
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_guard_event_policy_covers_every_named_route() -> None:
+    """The audit-event policy names socket, process, and native routes."""
+    module = _load_guard_runner_module()
+    blocked = [
+        "socket.__new__",
+        "socket.connect",
+        "socket.bind",
+        "socket.getaddrinfo",
+        "socket.sendto",
+        "subprocess.Popen",
+        "os.system",
+        "os.exec",
+        "os.posix_spawn",
+        "os.spawn",
+        "os.fork",
+        "os.forkpty",
+        "os.startfile",
+        "ctypes.dlopen",
+    ]
+    for event in blocked:
+        assert module.event_is_blocked(event), event
+    # Ordinary interpreter activity a generator legitimately needs.
+    allowed = ["open", "import", "compile", "exec", "os.mkdir", "os.putenv"]
+    for event in allowed:
+        assert not module.event_is_blocked(event), event
+
+
+def test_generator_low_level_socket_attempt_fails(tmp_path: Path) -> None:
+    """Mutation: a socket built below the high-level module is stopped.
+
+    The generator imports the underlying C socket module directly --
+    the route that bypassed the earlier name-replacement guard. The
+    audit hook sees the constructor event no matter which module name
+    the generator used.
+    """
+    seed = 7
+    payload = b"placeholder\n"
+    (tmp_path / "gen_fixture.py").write_text(
+        LOW_LEVEL_SOCKET_GENERATOR_SOURCE, encoding="utf-8"
+    )
+    fixture_dir = tmp_path / "fixtures"
+    fixture_dir.mkdir()
+    (fixture_dir / "sample.txt").write_bytes(payload)
+    write_manifest(
+        tmp_path,
+        [make_entry("fixtures/sample.txt", "gen_fixture.py", seed, payload)],
+    )
+
+    result = run_checker(tmp_path)
+    assert result.returncode == 1, (
+        "expected exit code 1, got " + str(result.returncode) + ":\n"
+        + result.stdout
+        + result.stderr
+    )
+    assert "no-network fixture guard" in result.stderr
+    assert "socket.__new__" in result.stderr
+
+
+def test_generator_subprocess_attempt_fails(tmp_path: Path) -> None:
+    """Mutation: a generator that starts an external program is stopped."""
+    seed = 7
+    payload = b"placeholder\n"
+    (tmp_path / "gen_fixture.py").write_text(
+        SUBPROCESS_GENERATOR_SOURCE, encoding="utf-8"
+    )
+    fixture_dir = tmp_path / "fixtures"
+    fixture_dir.mkdir()
+    (fixture_dir / "sample.txt").write_bytes(payload)
+    write_manifest(
+        tmp_path,
+        [make_entry("fixtures/sample.txt", "gen_fixture.py", seed, payload)],
+    )
+
+    result = run_checker(tmp_path)
+    assert result.returncode == 1, (
+        "expected exit code 1, got " + str(result.returncode) + ":\n"
+        + result.stdout
+        + result.stderr
+    )
+    assert "no-network fixture guard" in result.stderr
+    assert "subprocess.Popen" in result.stderr
+
+
+def test_guard_runner_allows_innocent_generator(tmp_path: Path) -> None:
+    """The audit-hook guard does not disturb an ordinary file-writing run."""
+    generator = tmp_path / "gen_fixture.py"
+    generator.write_text(GENERATOR_SOURCE, encoding="utf-8")
+    out_path = tmp_path / "out.txt"
+
+    proc = subprocess.run(
+        [
+            sys.executable,
+            str(GUARD_RUNNER),
+            str(generator),
+            "--seed",
+            "7",
+            "--out",
+            str(out_path),
+        ],
+        capture_output=True,
+        check=False,
+        text=True,
+        timeout=120,
+    )
+    assert proc.returncode == 0, (
+        "the guard broke an innocent generator:\n" + proc.stdout + proc.stderr
+    )
+    assert out_path.read_bytes() == expected_generator_bytes(7)
+
+
+# ---------------------------------------------------------------------------
+# R2-M2: the hook installer never destroys an existing pre-push hook.
+# Re-running over its own hook stays quiet; a different hook is refused.
+# ---------------------------------------------------------------------------
+
+INSTALLER = REPO_ROOT / "tools" / "hooks" / "install.sh"
+
+
+def run_installer(repo: Path) -> subprocess.CompletedProcess:
+    """Run the hook installer from inside the given git repository."""
+    env = dict(os.environ)
+    env["GIT_CONFIG_GLOBAL"] = os.devnull
+    env["GIT_CONFIG_SYSTEM"] = os.devnull
+    return subprocess.run(
+        ["sh", str(INSTALLER)],
+        cwd=str(repo),
+        capture_output=True,
+        check=False,
+        text=True,
+        timeout=60,
+        env=env,
+    )
+
+
+def test_installer_installs_and_rerun_stays_quiet(tmp_path: Path) -> None:
+    """First run installs the hook; an identical re-run is silent."""
+    git_in_tree(tmp_path, "init")
+
+    first = run_installer(tmp_path)
+    assert first.returncode == 0, first.stdout + first.stderr
+    hook = tmp_path / ".git" / "hooks" / "pre-push"
+    assert hook.is_file()
+    assert os.access(hook, os.X_OK)
+    installed = hook.read_bytes()
+    assert b"check_provenance.py" in installed
+    assert "Installed the advisory pre-push hook" in first.stdout
+
+    second = run_installer(tmp_path)
+    assert second.returncode == 0, second.stdout + second.stderr
+    assert second.stdout == ""
+    assert second.stderr == ""
+    assert hook.read_bytes() == installed
+    assert os.access(hook, os.X_OK)
+
+
+def test_installer_refuses_to_overwrite_foreign_hook(tmp_path: Path) -> None:
+    """Mutation: an existing different pre-push hook must survive intact."""
+    git_in_tree(tmp_path, "init")
+    hooks_dir = tmp_path / ".git" / "hooks"
+    hooks_dir.mkdir(parents=True, exist_ok=True)
+    hook = hooks_dir / "pre-push"
+    foreign = "#!/bin/sh\necho organizational security hook\n"
+    hook.write_text(foreign, encoding="utf-8")
+    hook.chmod(0o755)
+
+    result = run_installer(tmp_path)
+    assert result.returncode != 0, (
+        "the installer overwrote an existing hook without refusing:\n"
+        + result.stdout
+        + result.stderr
+    )
+    assert hook.read_text(encoding="utf-8") == foreign
+    assert "Refusing to overwrite" in result.stderr
+    assert "Chain manually" in result.stderr
+    assert not (hooks_dir / "pre-push.synthtwin.tmp").exists()

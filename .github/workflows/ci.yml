@@ -44,6 +44,13 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.14"
+      - name: Validate the requirement files before pip runs (text only)
+        # Review R2-B3: a non-executing structural check of
+        # requirements-dev.in and requirements-dev.lock, run before any
+        # pip command reads the lock. Any direct file, archive, path,
+        # VCS, editable, or URL reference is refused while it is still
+        # text, so pip never gets a chance to fetch or build it.
+        run: python tools/supply_chain/validate_lock.py
       - name: Install locked dev tools (frozen)
         run: |
           if [ ! -f "$LOCK_FILE" ]; then
@@ -64,6 +71,13 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.14"
+      - name: Validate the requirement files before pip runs (text only)
+        # Review R2-B3: a non-executing structural check of
+        # requirements-dev.in and requirements-dev.lock, run before any
+        # pip command reads the lock. Any direct file, archive, path,
+        # VCS, editable, or URL reference is refused while it is still
+        # text, so pip never gets a chance to fetch or build it.
+        run: python tools/supply_chain/validate_lock.py
       - name: Install locked dev tools (frozen)
         run: |
           if [ ! -f "$LOCK_FILE" ]; then
@@ -98,6 +112,13 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: ${{ matrix.python-version }}
+      - name: Validate the requirement files before pip runs (text only)
+        # Review R2-B3: a non-executing structural check of
+        # requirements-dev.in and requirements-dev.lock, run before any
+        # pip command reads the lock. Any direct file, archive, path,
+        # VCS, editable, or URL reference is refused while it is still
+        # text, so pip never gets a chance to fetch or build it.
+        run: python tools/supply_chain/validate_lock.py
       - name: Install locked dev tools (frozen)
         run: |
           if [ ! -f "$LOCK_FILE" ]; then
@@ -145,10 +166,20 @@ jobs:
           python --version
           python -m pip --version
           docker --version
+      - name: Validate the requirement files before pip runs (text only)
+        # Review R2-B3: the non-executing structural check runs before
+        # the networked prefetch below and before the in-container
+        # install that reuses the same checked-out lock. A lock line
+        # naming a file, archive, path, VCS, editable, or URL input is
+        # refused while it is still text; pip's own option handling is
+        # not trusted to do this (a hash-bound local source archive
+        # passes pip's binary-only download and executes build hooks).
+        run: python tools/supply_chain/validate_lock.py
       - name: Prefetch the wheelhouse (wheels only, hash-checked)
-        # The only step in this job that touches the network. Source
-        # distributions are refused outright; nothing here executes any
-        # package code (plan D5 acquisition gate).
+        # The only step in this job that touches the network. The
+        # structural validator above has already refused every
+        # non-index reference in the lock, so nothing here executes any
+        # package code (plan D5 acquisition rule).
         run: |
           if [ ! -f "$LOCK_FILE" ]; then
             echo "The lock file $LOCK_FILE is missing from the repository root."
@@ -201,53 +232,102 @@ jobs:
               sys.exit(1)
           print(f"verified {len(files)} wheels against the lock")
           SCRIPT
-      - name: Prefetch mutation - a local source tree must be refused unrun
-        # Plan D5: the lock itself, not just a command-line option, must
-        # reject source inputs. This step builds a local source tree whose
-        # setup.py writes a sentinel file the moment any metadata hook
-        # executes, then asks pip to fetch it alongside the lock WITHOUT
-        # any --only-binary or hash option on the command line. The lock's
-        # embedded "--only-binary :all:" line and its per-entry hashes must
-        # make the command fail, and the sentinel must not exist.
+      - name: Prefetch mutation - a hash-bound source archive must be refused unrun
+        # Review R2-B3: a future compiled lock could name a local source
+        # archive with its correct hash. pip's binary-only download
+        # accepts exactly that shape and executes its build hooks, so
+        # the structural validator - not pip - is the control that must
+        # refuse it. This step builds a source tree carrying a
+        # SELF-CONTAINED PEP 517 backend: backend-path points into the
+        # tree itself and the build-system requirement list is empty, so
+        # nothing outside the tree is needed for its hooks to run, and
+        # merely importing the backend module writes a sentinel file.
+        # The tree is packed into a .tar.gz, referenced with its real
+        # SHA-256 in a temporary requirements file, and the validator
+        # must refuse that file for the archive/path reason while both
+        # sentinel paths stay absent: nothing executed, because the
+        # refusal happens before pip would ever run.
         run: |
-          if ! grep -q -- "--only-binary :all:" "$LOCK_FILE"; then
-            echo "The lock file no longer embeds the '--only-binary :all:'"
-            echo "line. The lock itself must refuse source inputs (plan D5)."
-            echo "Rebuild the lock from requirements-dev.in, which carries"
-            echo "the line, and commit the result."
+          MUT_SRC="$RUNNER_TEMP/malicious-src"
+          mkdir -p "$MUT_SRC"
+          cat > "$MUT_SRC/pyproject.toml" <<'PYPROJECT'
+          [build-system]
+          requires = []
+          build-backend = "hook_backend"
+          backend-path = ["."]
+
+          [project]
+          name = "malicious-demo"
+          version = "0.0.1"
+          PYPROJECT
+          cat > "$MUT_SRC/hook_backend.py" <<BACKEND
+          # Self-contained PEP 517 backend: importing this module is all it
+          # takes to prove execution, so the sentinel files are written at
+          # import time, before any hook function is even called.
+          import pathlib
+
+          for target in (
+              pathlib.Path("$RUNNER_TEMP/SENTINEL-HOOK-RAN.txt"),
+              pathlib.Path(__file__).resolve().parent / "SENTINEL-HOOK-RAN.txt",
+          ):
+              target.write_text("the backend module executed\n", encoding="utf-8")
+
+
+          def build_wheel(wheel_directory, config_settings=None, metadata_directory=None):
+              raise RuntimeError("this hook must never be reached")
+
+
+          def build_sdist(sdist_directory, config_settings=None):
+              raise RuntimeError("this hook must never be reached")
+
+
+          def prepare_metadata_for_build_wheel(metadata_directory, config_settings=None):
+              raise RuntimeError("this hook must never be reached")
+          BACKEND
+          ARCHIVE="$RUNNER_TEMP/malicious-demo-0.0.1.tar.gz"
+          tar -czf "$ARCHIVE" -C "$RUNNER_TEMP" malicious-src
+          DIGEST="$(sha256sum "$ARCHIVE" | cut -d' ' -f1)"
+          if [ "${#DIGEST}" -ne 64 ]; then
+            echo "Could not compute the mutation archive's SHA-256, so the"
+            echo "mutation cannot prove anything. Fix this step and rerun CI."
             exit 1
           fi
-          MUT_SRC="$RUNNER_TEMP/malicious-src"
-          SENTINEL="$MUT_SRC/SENTINEL-HOOK-RAN.txt"
-          mkdir -p "$MUT_SRC" "$RUNNER_TEMP/mutation-dest"
-          cat > "$MUT_SRC/setup.py" <<'HOOK'
-          import pathlib
-          pathlib.Path(__file__).resolve().parent.joinpath(
-              "SENTINEL-HOOK-RAN.txt"
-          ).write_text("the metadata hook executed\n", encoding="utf-8")
-          from setuptools import setup
-          setup(name="malicious-demo", version="0.0.1")
-          HOOK
+          REQS="$RUNNER_TEMP/mutation-requirements.txt"
+          {
+            echo "--only-binary :all:"
+            echo "$ARCHIVE --hash=sha256:$DIGEST"
+          } > "$REQS"
           set +e
-          python -m pip download --dest "$RUNNER_TEMP/mutation-dest" \
-            --no-index --find-links "$RUNNER_TEMP/wheelhouse" \
-            --requirement "$LOCK_FILE" "$MUT_SRC"
+          OUTPUT="$(python tools/supply_chain/validate_lock.py --lock "$REQS" 2>&1)"
           status=$?
           set -e
+          echo "$OUTPUT"
           if [ "$status" -eq 0 ]; then
-            echo "pip accepted a local source tree under the lock's rules."
-            echo "The lock must refuse every source input on its own"
-            echo "(plan D5). Do not merge until the rejection is restored."
+            echo "The structural validator ACCEPTED a lock line naming a"
+            echo "hash-bound local source archive. It must refuse every"
+            echo "archive and path reference before pip runs (plan D5)."
+            echo "Do not merge until the refusal is restored."
             exit 1
           fi
-          if [ -f "$SENTINEL" ]; then
-            echo "The rejected source tree's metadata hook STILL EXECUTED:"
-            echo "the sentinel file exists. Rejection must happen before"
-            echo "any hook runs (plan D5). Do not merge."
+          case "$OUTPUT" in
+            *"path separator"*|*"archive"*) ;;
+            *)
+              echo "The validator went red for a reason other than refusing"
+              echo "the archive/path reference. The mutation must prove the"
+              echo "exact refusal; read the output above and fix the"
+              echo "validator or this step."
+              exit 1
+              ;;
+          esac
+          if [ -f "$RUNNER_TEMP/SENTINEL-HOOK-RAN.txt" ] || [ -f "$MUT_SRC/SENTINEL-HOOK-RAN.txt" ]; then
+            echo "The refused source archive's backend EXECUTED: a sentinel"
+            echo "file exists. The structural check must stay purely textual"
+            echo "and must come before any pip run (plan D5). Do not merge."
             exit 1
           fi
-          echo "source tree refused (exit $status) and no hook ran: the"
-          echo "sentinel file does not exist"
+          echo "hash-bound source archive refused by the validator"
+          echo "(exit $status) and no backend code ran: both sentinel paths"
+          echo "are absent"
       - name: Pull the pinned build image and verify the observed digest
         # C5 condition: refuse a tag-only reference; verify the observed
         # digest before any build execution. The check lives in a small
@@ -692,10 +772,11 @@ jobs:
         with:
           python-version: "3.14"
       - name: Run the decontamination scanner
-        # Plan D7 / D9: scans all tracked files and paths, verifies the
-        # attestation signature and every recomputable digest, and runs
-        # the neutral mutation battery. All of that lives inside the
-        # checker itself.
+        # Plan D7 / D9: the checker scans all tracked files and paths
+        # against the hashed manifest. Attestation-signature checking
+        # and the neutral mutation battery are NOT inside the checker:
+        # they run as the two separate steps below, so removing either
+        # step removes that control (review R2-m3).
         run: |
           if [ ! -f tools/decontamination/check.py ]; then
             echo "The decontamination checker is missing:"
@@ -710,6 +791,13 @@ jobs:
         # attestation chain and run the full self-test battery, not just
         # the tree scan.
         run: python tools/decontamination/verify_attestation.py
+      - name: Validate the requirement files before pip runs (text only)
+        # Review R2-B3: a non-executing structural check of
+        # requirements-dev.in and requirements-dev.lock, run before any
+        # pip command reads the lock. Any direct file, archive, path,
+        # VCS, editable, or URL reference is refused while it is still
+        # text, so pip never gets a chance to fetch or build it.
+        run: python tools/supply_chain/validate_lock.py
       - name: Install locked dev tools for the battery (frozen)
         run: python -m pip install --require-hashes --only-binary=:all: -r "$LOCK_FILE"
       - name: Run the decontamination self-test battery
@@ -722,6 +810,13 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.14"
+      - name: Validate the requirement files before pip runs (text only)
+        # Review R2-B3: a non-executing structural check of
+        # requirements-dev.in and requirements-dev.lock, run before any
+        # pip command reads the lock. Any direct file, archive, path,
+        # VCS, editable, or URL reference is refused while it is still
+        # text, so pip never gets a chance to fetch or build it.
+        run: python tools/supply_chain/validate_lock.py
       - name: Install locked dev tools (frozen)
         run: |
           if [ ! -f "$LOCK_FILE" ]; then
@@ -757,6 +852,13 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.14"
+      - name: Validate the requirement files before pip runs (text only)
+        # Review R2-B3: a non-executing structural check of
+        # requirements-dev.in and requirements-dev.lock, run before any
+        # pip command reads the lock. Any direct file, archive, path,
+        # VCS, editable, or URL reference is refused while it is still
+        # text, so pip never gets a chance to fetch or build it.
+        run: python tools/supply_chain/validate_lock.py
       - name: Install locked dev tools (frozen)
         run: |
           if [ ! -f "$LOCK_FILE" ]; then
@@ -787,12 +889,15 @@ jobs:
         run: python -m pytest tests/test_provenance.py
 
   sensitive-paths:
-    # Plan D14: surface every pull-request change to the CI workflows or
-    # the checker tooling. The read-only token cannot apply a label, so
-    # the surfacing is a prominent warning annotation plus a step-summary
-    # section; the prompted human review is the control. This job never
-    # fails: on a push there is no base to compare, and on a pull request
-    # it only reports.
+    # Plan D14: surface every pull-request change to the CI workflow
+    # definitions or the checker tooling as a prominent warning
+    # annotation plus a step-summary section; the prompted human review
+    # is the control. Detection results never fail this job, but its
+    # own machinery must work: when the diff against the base commit
+    # cannot be produced, the job goes red instead of silently
+    # reporting nothing (review R2-B10). On a push there is no base to
+    # compare, so the report is produced on pull requests only. The
+    # job keeps the default read-only token.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -816,14 +921,16 @@ jobs:
           status=$?
           set -e
           if [ "$status" -ne 0 ]; then
-            echo "::warning title=Sensitive-path check could not compare::The diff against the base commit failed, so changes under .github/workflows/ or tools/ could not be listed. Review the changed files by hand."
+            echo "::error title=Sensitive-path comparison failed::The diff against the base commit failed (git diff exit $status), so changes under .github/workflows/ or tools/ could not be listed. This job fails so a broken comparison cannot pass silently. Fix the checkout depth or the base reference, rerun CI, and review the changed files by hand in the meantime."
             {
               echo "## Sensitive paths"
               echo ""
-              echo "The comparison against the base commit failed; review the"
-              echo "changed files by hand."
+              echo "The comparison against the base commit failed, so the"
+              echo "changed files could not be listed. This job stays red"
+              echo "until the comparison works; review the changed files by"
+              echo "hand in the meantime."
             } >> "$GITHUB_STEP_SUMMARY"
-            exit 0
+            exit 1
           fi
           if [ -z "$CHANGED" ]; then
             echo "No changes under .github/workflows/ or tools/ in this pull request."

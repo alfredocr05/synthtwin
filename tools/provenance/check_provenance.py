@@ -13,11 +13,14 @@ What this checker does:
    repository has no tracked files yet (fresh clone before the first
    commit), it walks the directory tree instead, skipping ``.git``.
 2. Fails on any data-format file (tabular, columnar, array, statistical-
-   package, database, spreadsheet, JSON/JSON Lines, and archive forms;
-   see DATA_SUFFIXES and ARCHIVE_SUFFIXES below) that is not listed in
-   the manifest allowlist. A tracked .json file is allowed only when it
-   is one of the checker's known configuration files (KNOWN_CONFIG_JSON)
-   or listed in the fixture manifest; every other .json is a violation.
+   package, transport, database, spreadsheet, JSON/JSON Lines, YAML,
+   XML, SQL dump, and archive forms; see DATA_SUFFIXES, YAML_SUFFIXES,
+   and ARCHIVE_SUFFIXES below) that is not listed in the manifest
+   allowlist. A tracked .json file is allowed only when it is one of
+   the checker's known configuration files (KNOWN_CONFIG_JSON) or
+   listed in the fixture manifest. A tracked .yaml/.yml file is allowed
+   only under .github/ (workflow configuration) or when listed in the
+   fixture manifest; every other .json or YAML file is a violation.
 3. For every fixture listed in the manifest -- whatever its extension --
    it re-runs the named generator script with the recorded seed and
    byte-compares the freshly produced output to the committed file. Any
@@ -36,9 +39,11 @@ a generator is invoked as
 
 and must write the complete fixture bytes to the output path. The same
 seed must always produce the same bytes, on every platform. Generators
-must never touch the network; the checker enforces this by running every
-generator through tools/provenance/guard_runner.py, which replaces the
-socket entry points with raising stubs before the generator code runs.
+must never touch the network, start external programs, or load native
+code; the checker enforces this by running every generator through
+tools/provenance/guard_runner.py, which installs a permanent Python
+audit hook (sys.addaudithook) that stops every socket, process, and
+native-code-loading audit event before the generator code runs.
 
 Exit codes: 0 = clean; 1 = policy violation (unlisted data file, byte
 mismatch, oversized fixture, broken generator); 2 = the checker could not
@@ -98,6 +103,27 @@ DATA_SUFFIXES = {
     ".mdb",
     ".accdb",
     ".ods",
+    # XML exports and SQL dumps are text serializations of tables.
+    ".xml",
+    ".sql",
+    # DuckDB and other single-file database stores.
+    ".duckdb",
+    ".ddb",
+    ".db3",
+    # dBase / shapefile attribute tables.
+    ".dbf",
+    # Statistical transport formats (SAS transport, SPSS portable).
+    ".xpt",
+    ".por",
+}
+
+# YAML is a structured, data-capable format, but this repository's CI
+# workflow configuration legitimately lives under .github/. A tracked
+# .yaml/.yml file is therefore allowed only under .github/ or with a
+# fixture-manifest entry; anywhere else it is treated as a data file.
+YAML_SUFFIXES = {
+    ".yaml",
+    ".yml",
 }
 
 # Tracked .json files that are known configuration files of this
@@ -137,14 +163,19 @@ def file_suffix(relative_path: str) -> str:
 def is_data_format(relative_path: str) -> bool:
     """Return True if the path looks like a data-format or archive file.
 
-    ``.json`` counts as a data format here; ``check_tree`` exempts only
-    the known configuration files listed in KNOWN_CONFIG_JSON and paths
-    listed in the fixture manifest.
+    ``.json`` and YAML count as data formats here; ``check_tree``
+    exempts only the known configuration files listed in
+    KNOWN_CONFIG_JSON, YAML files under .github/, and paths listed in
+    the fixture manifest.
     """
     suffix = file_suffix(relative_path)
     if not suffix:
         return False
-    if suffix in DATA_SUFFIXES or suffix in ARCHIVE_SUFFIXES:
+    if (
+        suffix in DATA_SUFFIXES
+        or suffix in ARCHIVE_SUFFIXES
+        or suffix in YAML_SUFFIXES
+    ):
         return True
     # .sqlite, .sqlite3, .sqlitedb and friends all match here.
     return suffix.startswith(".sqlite")
@@ -365,9 +396,11 @@ def rebuild_fixture(root: Path, entry: dict) -> tuple[bytes | None, str | None]:
 
     The generator is never run directly: it is started through the
     no-network guard runner (tools/provenance/guard_runner.py), which
-    replaces the socket entry points with raising stubs before the
-    generator code runs, so a fixture rebuild can never touch the
-    network.
+    installs a permanent Python audit hook before the generator code
+    runs. The hook stops every socket operation, every external-program
+    and process-creation attempt, and every native code load, so a
+    fixture rebuild cannot reach the network even through low-level
+    modules that sit below the high-level socket API.
     """
     generator = root / entry["generator"]
     if not generator.is_file():
@@ -450,13 +483,31 @@ def check_tree(root: Path, manifest_path: Path) -> tuple[list[str], list[str]]:
 
     # Check 1: no data-format file outside the allowlist. A .json file
     # is additionally exempt when it is one of the checker's known
-    # configuration files.
+    # configuration files, and a YAML file is additionally exempt when
+    # it lives under .github/ (workflow configuration).
     for relative in list_repository_files(root):
         if not is_data_format(relative):
             continue
         if relative in allowlisted_paths:
             continue
-        if file_suffix(relative) == ".json":
+        suffix = file_suffix(relative)
+        if suffix in YAML_SUFFIXES:
+            if relative.startswith(".github/"):
+                continue
+            violations.append(
+                "Found a tracked YAML file outside the .github/ directory "
+                "that is not on the fixture allowlist: " + relative + ". "
+                "YAML can carry real-derived tables, schemas, or profiles, "
+                "so outside the workflow-configuration directory it is "
+                "treated as a data file. Move workflow configuration under "
+                ".github/. If this file is a legitimate, tiny test fixture "
+                "built by a seeded script, add an entry for it to "
+                + manifest_path.name
+                + " (path, generator, seed, sha256, justification). "
+                "Otherwise delete the file before committing."
+            )
+            continue
+        if suffix == ".json":
             if relative in KNOWN_CONFIG_JSON:
                 continue
             violations.append(

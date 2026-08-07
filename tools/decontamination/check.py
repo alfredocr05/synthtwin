@@ -18,13 +18,15 @@ candidate sets by construction).
 Output is value-silent: locations and digest prefixes only, never matched
 text. When a match occurs in a path component, the component itself is
 redacted from the printed location. Exit codes: 0 clean, 1 matches,
-2 violations, 3 both.
+2 violations, 3 both. A malformed manifest is itself reported as a
+violation (exit 2) by the strict shared parser below.
 
 Usage: python tools/decontamination/check.py [ROOT]   (default: repo root)
 """
 
 import argparse
 import hashlib
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -35,16 +37,80 @@ sys.path.insert(0, str(HERE))
 from surfaces import file_surfaces, load_magic
 from tokenizer import tokenize
 
+MANDATORY_HEADERS = (
+    "entry_count",
+    "n_max",
+    "snapshot_tree_sha256",
+    "wordlist_sha256",
+    "seed_sha256",
+    "grammar_sha256",
+    "magic_sha256",
+    "tokenizer_sha256",
+)
+_COUNT_HEADERS = ("entry_count", "n_max")
+_HEX64 = re.compile(r"[0-9a-f]{64}\Z")
+_DECIMAL = re.compile(r"[0-9]+\Z")
+
+
+class ManifestFormatError(ValueError):
+    """The manifest file itself is malformed (never a content match)."""
+
 
 def load_manifest(path):
-    hashes = set()
-    n_max = 1
-    for line in path.read_text().splitlines():
-        if line.startswith("# n_max:"):
-            n_max = int(line.split(":")[1])
-        elif line and not line.startswith("#"):
-            hashes.add(line)
-    return hashes, n_max
+    """Strict shared manifest parser (code-review round-2 item R2-B4).
+
+    This is the SINGLE manifest parser: this scanner and
+    verify_attestation.py both call it, so the two tools can never read
+    different values from the same file. Returns ``(headers, body_lines)``
+    where ``headers`` maps every mandatory header name to its string
+    value and ``body_lines`` preserves the manifest's digest lines in
+    order. Raises ManifestFormatError when a mandatory header is absent
+    or appears more than once, when a count header is not a plain
+    decimal number, when a digest header is not 64 lowercase hex
+    characters, or when a body line is not exactly 64 lowercase hex
+    characters.
+    """
+    headers = {}
+    body = []
+    for lineno, line in enumerate(path.read_text().splitlines(), 1):
+        if line.startswith("#"):
+            name, sep, value = line[1:].strip().partition(":")
+            name = name.strip()
+            if sep and name in MANDATORY_HEADERS:
+                if name in headers:
+                    raise ManifestFormatError(
+                        f"line {lineno}: header '{name}' appears more than "
+                        "once; each control header must appear exactly once. "
+                        "Restore the manifest from version control."
+                    )
+                headers[name] = value.strip()
+        elif line:
+            if not _HEX64.fullmatch(line):
+                raise ManifestFormatError(
+                    f"line {lineno}: every body line must be exactly 64 "
+                    "lowercase hex characters. Restore the manifest from "
+                    "version control."
+                )
+            body.append(line)
+    missing = [name for name in MANDATORY_HEADERS if name not in headers]
+    if missing:
+        raise ManifestFormatError(
+            "missing mandatory header(s): " + ", ".join(missing)
+            + ". Restore the manifest from version control."
+        )
+    for name in _COUNT_HEADERS:
+        if not _DECIMAL.fullmatch(headers[name]):
+            raise ManifestFormatError(
+                f"header '{name}' must be a plain decimal number. Restore "
+                "the manifest from version control."
+            )
+    for name in MANDATORY_HEADERS:
+        if name.endswith("_sha256") and not _HEX64.fullmatch(headers[name]):
+            raise ManifestFormatError(
+                f"header '{name}' must be exactly 64 lowercase hex "
+                "characters. Restore the manifest from version control."
+            )
+    return headers, body
 
 
 def tracked_files(root):
@@ -100,7 +166,13 @@ def main(argv=None):
     )
     args = parser.parse_args(argv)
     root = Path(args.root).resolve()
-    hashes, n_max = load_manifest(Path(args.manifest))
+    try:
+        headers, body_lines = load_manifest(Path(args.manifest))
+    except ManifestFormatError as err:
+        print(f"manifest format error: {err}")
+        return 2
+    hashes = set(body_lines)
+    n_max = int(headers["n_max"])
     magic = load_magic(HERE / "magic.txt")
 
     matches = violations = 0

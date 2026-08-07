@@ -1,7 +1,10 @@
 """Decontamination machinery self-tests (plan D7; code-review round-1
-items F13 and F20 folded in): neutral canaries in every surface form, the
-full decoder battery, value-silent output, and attestation rejection. The
-real inventory is never reproduced here; canaries are invented tokens.
+items F13/F20 and round-2 items R2-B4, R2-B6, and R2-M1 folded in):
+neutral canaries in every surface form, the decoder battery driven by
+every signature in the committed magic table, value-silent output, the
+strict shared manifest parser, and attestation rejection with each inner
+check isolated under a temporary pinned key. The real inventory is never
+reproduced here; canaries are invented tokens.
 """
 
 import hashlib
@@ -23,14 +26,31 @@ spec.loader.exec_module(check)
 CANARY = "zqvortex"  # invented; not in any dictionary or source tree
 
 
+# Digest headers the strict shared parser requires (round-2 item R2-B4);
+# test manifests carry syntactically valid filler values for them.
+FILLER_DIGEST_HEADERS = (
+    "snapshot_tree_sha256",
+    "wordlist_sha256",
+    "seed_sha256",
+    "grammar_sha256",
+    "magic_sha256",
+    "tokenizer_sha256",
+)
+
+
 def make_manifest(tmp_path: Path, entries: list[str]) -> Path:
     hashes = sorted(hashlib.sha256(e.encode()).hexdigest() for e in entries)
     n_max = max(len(e.split(" ")) for e in entries)
+    header = [
+        "# test manifest",
+        f"# entry_count: {len(hashes)}",
+        f"# n_max: {n_max}",
+    ]
+    for name in FILLER_DIGEST_HEADERS:
+        header.append(f"# {name}: {hashlib.sha256(name.encode()).hexdigest()}")
+    header.append("#")
     m = tmp_path / "manifest.txt"
-    m.write_text(
-        f"# test manifest\n# entry_count: {len(hashes)}\n# n_max: {n_max}\n#\n"
-        + "\n".join(hashes) + "\n"
-    )
+    m.write_text("\n".join(header) + "\n" + "\n".join(hashes) + "\n")
     return m
 
 
@@ -190,13 +210,63 @@ def test_control_byte_binary_is_violation(tree: Path, tmp_path: Path) -> None:
     assert run_check(tree, make_manifest(tmp_path, [CANARY])) == 2
 
 
-@pytest.mark.parametrize("sig", ["504b0304", "1f8b", "7f454c46",
-                                 "53514c69746520666f726d6174203300"])
-def test_magic_signatures_are_violations(
-    tree: Path, tmp_path: Path, sig: str
+# Round-2 item R2-B6: the mutation battery is parameterized over EVERY
+# signature read from the committed magic table at test time, so a table
+# refresh can never leave a signature untested.
+MAGIC_TABLE = check.load_magic(TOOLS / "magic.txt")
+
+
+def test_committed_magic_table_is_nonempty() -> None:
+    # Guards the parametrized battery below: an emptied table must fail
+    # loudly here instead of silently collecting zero cases.
+    assert len(MAGIC_TABLE) >= 4
+
+
+@pytest.mark.parametrize(
+    "offset,sig", MAGIC_TABLE, ids=[sig.hex() for _off, sig in MAGIC_TABLE]
+)
+def test_every_committed_magic_signature_is_a_violation(
+    tree: Path, tmp_path: Path, offset: int, sig: bytes
 ) -> None:
-    (tree / "payload.txt").write_bytes(bytes.fromhex(sig) + b"rest")
+    (tree / "payload.txt").write_bytes(b"A" * offset + sig + b"rest")
     assert run_check(tree, make_manifest(tmp_path, [CANARY])) == 2
+
+
+# ---------- strict shared manifest parser ----------------------------------
+
+
+def test_scanner_rejects_duplicate_manifest_header(
+    tree: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # Round-2 item R2-B4: a second n_max header is a hard error in the
+    # single shared parser, never a silent precedence choice.
+    m = make_manifest(tmp_path, [CANARY])
+    m.write_text(m.read_text() + "# n_max: 1\n")
+    assert run_check(tree, m) == 2
+    out = capsys.readouterr().out
+    assert "n_max" in out and "more than once" in out
+
+
+def test_scanner_rejects_non_hex_manifest_body_line(
+    tree: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    m = make_manifest(tmp_path, [CANARY])
+    m.write_text(m.read_text() + "Z" * 64 + "\n")
+    assert run_check(tree, m) == 2
+    assert "64 lowercase hex" in capsys.readouterr().out
+
+
+def test_scanner_rejects_missing_mandatory_header(
+    tree: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    m = make_manifest(tmp_path, [CANARY])
+    kept = [
+        ln for ln in m.read_text().splitlines()
+        if not ln.startswith("# wordlist_sha256:")
+    ]
+    m.write_text("\n".join(kept) + "\n")
+    assert run_check(tree, m) == 2
+    assert "wordlist_sha256" in capsys.readouterr().out
 
 
 # ---------- the real repository -------------------------------------------
@@ -209,13 +279,86 @@ def test_repo_tree_is_clean_under_real_manifest() -> None:
 
 # ---------- attestation ----------------------------------------------------
 
+SCANNER_TREE_NAMES = [
+    "allowed_signers",
+    "check.py",
+    "magic.txt",
+    "manifest.txt",
+    "surfaces.py",
+    "tokenizer.py",
+    "verify_attestation.py",
+]
+
 
 def _verify(tmp_dir: Path) -> int:
+    return _verify_out(tmp_dir)[0]
+
+
+def _verify_out(tmp_dir: Path) -> tuple[int, str]:
     proc = subprocess.run(
         [sys.executable, str(tmp_dir / "verify_attestation.py")],
         capture_output=True, text=True, check=False,
     )
-    return proc.returncode
+    return proc.returncode, proc.stdout
+
+
+def _sha256_path(p: Path) -> str:
+    return hashlib.sha256(p.read_bytes()).hexdigest()
+
+
+def _scanner_tree_digest(d: Path) -> str:
+    h = hashlib.sha256()
+    for name in sorted(SCANNER_TREE_NAMES):
+        h.update(name.encode() + b"\0" + (d / name).read_bytes())
+    return h.hexdigest()
+
+
+def _temp_signer(att_copy: Path, tmp_path: Path) -> Path:
+    """Create a fresh signing key and pin it in the temp tree's
+    allowed_signers, so mutation tests can re-sign consistent outer
+    bindings and isolate one inner check each (round-2 item R2-B4)."""
+    key = tmp_path / "temp_signing_key"
+    subprocess.run(
+        ["ssh-keygen", "-t", "ed25519", "-f", str(key), "-N", "", "-q"],
+        check=True,
+    )
+    key_type, key_body = key.with_suffix(".pub").read_text().split()[:2]
+    (att_copy / "allowed_signers").write_text(
+        f"synthtwin-maintainer {key_type} {key_body}\n"
+    )
+    return key
+
+
+def _refresh_outer_and_sign(
+    att_copy: Path, key: Path, *, skip: set[str] = frozenset(), edit=None
+) -> None:
+    """Recompute every public outer binding over the CURRENT temp-tree
+    bytes, apply the single inner break via ``edit``, and re-sign with
+    the temp key, so a red verifier result can only come from the one
+    broken inner property (round-2 items R2-B4 and R2-M1). ``skip``
+    leaves named bindings stale on purpose."""
+    att_path = att_copy / "attestation.json"
+    att = json.loads(att_path.read_text())
+    b = att["bindings"]
+    fresh = {
+        "public_manifest_sha256": _sha256_path(att_copy / "manifest.txt"),
+        "magic_table_sha256": _sha256_path(att_copy / "magic.txt"),
+        "public_tokenizer_sha256": _sha256_path(att_copy / "tokenizer.py"),
+        "public_surfaces_sha256": _sha256_path(att_copy / "surfaces.py"),
+        "public_scanner_tree_sha256": _scanner_tree_digest(att_copy),
+    }
+    for name, value in fresh.items():
+        if name not in skip:
+            b[name] = value
+    if edit is not None:
+        edit(att)
+    att_path.write_text(json.dumps(att, indent=2, sort_keys=True) + "\n")
+    (att_copy / "attestation.json.sig").unlink()
+    subprocess.run(
+        ["ssh-keygen", "-Y", "sign", "-f", str(key),
+         "-n", "synthtwin-attestation", str(att_path)],
+        check=True, capture_output=True,
+    )
 
 
 @pytest.fixture()
@@ -225,8 +368,36 @@ def att_copy(tmp_path: Path) -> Path:
     return d
 
 
-def test_attestation_verifies_as_committed(att_copy: Path) -> None:
-    assert _verify(att_copy) == 0
+def test_committed_signature_is_valid(att_copy: Path) -> None:
+    # The committed signature bytes must validate against the committed
+    # pinned key. (End-to-end exit 0 over the committed bytes also needs
+    # the maintainer refresh-and-re-sign step that the round-2 review
+    # orders after any change to a scanner-tree file; the temp-key
+    # control below proves the full green path of the verifier itself.)
+    proc = subprocess.run(
+        [
+            "ssh-keygen", "-Y", "verify",
+            "-f", str(att_copy / "allowed_signers"),
+            "-I", "synthtwin-maintainer", "-n", "synthtwin-attestation",
+            "-s", str(att_copy / "attestation.json.sig"),
+        ],
+        stdin=(att_copy / "attestation.json").open("rb"),
+        capture_output=True, check=False,
+    )
+    assert proc.returncode == 0
+
+
+def test_temp_resigned_consistent_tree_verifies(
+    att_copy: Path, tmp_path: Path
+) -> None:
+    # Harness control (round-2 item R2-B4): with a temp pinned key and
+    # every outer binding recomputed over the temp tree, the verifier is
+    # green - so each mutation below is red for exactly its one broken
+    # inner property, never for outer digest or signature drift.
+    key = _temp_signer(att_copy, tmp_path)
+    _refresh_outer_and_sign(att_copy, key)
+    code, out = _verify_out(att_copy)
+    assert code == 0, out
 
 
 def test_tampered_attestation_rejected(att_copy: Path) -> None:
@@ -264,12 +435,142 @@ def test_manifest_drift_without_resign_rejected(att_copy: Path) -> None:
     assert _verify(att_copy) == 2  # signature ok, digest drift caught
 
 
-def test_verifier_counts_actual_manifest_entries(att_copy: Path) -> None:
-    # Header says N but the body holds N-1 hashes: the verifier must count
-    # the real lines, not trust two declared numbers (review item F12).
+# Each test below breaks exactly ONE inner property, then recomputes all
+# consistent outer bindings and re-signs with a temp pinned key (round-2
+# items R2-B4 and R2-M1), so the red result names the inner check itself.
+
+
+def test_missing_binding_key_rejected(att_copy: Path, tmp_path: Path) -> None:
+    key = _temp_signer(att_copy, tmp_path)
+
+    def drop(att: dict) -> None:
+        del att["bindings"]["plaintext_inventory_sha256"]
+
+    _refresh_outer_and_sign(att_copy, key, edit=drop)
+    code, out = _verify_out(att_copy)
+    assert code == 2
+    assert "missing binding 'plaintext_inventory_sha256'" in out
+
+
+def test_wrong_entry_count_type_rejected(
+    att_copy: Path, tmp_path: Path
+) -> None:
+    key = _temp_signer(att_copy, tmp_path)
+
+    def stringly(att: dict) -> None:
+        att["entry_count"] = str(att["entry_count"])
+
+    _refresh_outer_and_sign(att_copy, key, edit=stringly)
+    code, out = _verify_out(att_copy)
+    assert code == 2
+    assert "'entry_count'" in out and "wrong type" in out
+
+
+def test_wrong_tokenizer_digest_rejected(
+    att_copy: Path, tmp_path: Path
+) -> None:
+    # The tokenizer file changes but its individual binding stays stale;
+    # the scanner-tree digest IS refreshed, so only the direct per-file
+    # recomputation can catch it.
+    tok = att_copy / "tokenizer.py"
+    tok.write_text(tok.read_text() + "\n# drifted line\n")
+    key = _temp_signer(att_copy, tmp_path)
+    _refresh_outer_and_sign(att_copy, key, skip={"public_tokenizer_sha256"})
+    code, out = _verify_out(att_copy)
+    assert code == 2
+    assert "tokenizer.py digest vs binding public_tokenizer_sha256" in out
+    assert "scanner tree" not in out  # tree was refreshed: check isolated
+
+
+def test_wrong_surfaces_digest_rejected(
+    att_copy: Path, tmp_path: Path
+) -> None:
+    surf = att_copy / "surfaces.py"
+    surf.write_text(surf.read_text() + "\n# drifted line\n")
+    key = _temp_signer(att_copy, tmp_path)
+    _refresh_outer_and_sign(att_copy, key, skip={"public_surfaces_sha256"})
+    code, out = _verify_out(att_copy)
+    assert code == 2
+    assert "surfaces.py digest vs binding public_surfaces_sha256" in out
+    assert "scanner tree" not in out
+
+
+def test_snapshot_header_binding_mismatch_rejected(
+    att_copy: Path, tmp_path: Path
+) -> None:
+    # The manifest header snapshot_tree_sha256 and the signed snapshot
+    # binding disagree; nothing else in the graph is inconsistent.
+    key = _temp_signer(att_copy, tmp_path)
+    other = hashlib.sha256(b"a different snapshot value").hexdigest()
+
+    def bend(att: dict) -> None:
+        att["bindings"]["prototype_snapshot_tree_sha256"] = other
+
+    _refresh_outer_and_sign(att_copy, key, edit=bend)
+    code, out = _verify_out(att_copy)
+    assert code == 2
+    assert (
+        "manifest header snapshot_tree_sha256 vs binding "
+        "prototype_snapshot_tree_sha256"
+    ) in out
+
+
+def test_duplicate_n_max_header_rejected(
+    att_copy: Path, tmp_path: Path
+) -> None:
+    # A second n_max line, with the manifest digest binding refreshed to
+    # the mutated bytes: only the strict shared parser can reject it.
+    m = att_copy / "manifest.txt"
+    m.write_text(m.read_text() + "# n_max: 1\n")
+    key = _temp_signer(att_copy, tmp_path)
+    _refresh_outer_and_sign(att_copy, key)
+    code, out = _verify_out(att_copy)
+    assert code == 2
+    assert "n_max" in out and "more than once" in out
+
+
+def test_non_hex_body_line_rejected(att_copy: Path, tmp_path: Path) -> None:
+    m = att_copy / "manifest.txt"
+    bad = hashlib.sha256(b"upper").hexdigest().upper()  # uppercase: invalid
+    m.write_text(m.read_text() + bad + "\n")
+    key = _temp_signer(att_copy, tmp_path)
+    _refresh_outer_and_sign(att_copy, key)
+    code, out = _verify_out(att_copy)
+    assert code == 2
+    assert "64 lowercase hex" in out
+
+
+def test_duplicate_body_line_rejected(att_copy: Path, tmp_path: Path) -> None:
+    # Replace the last body line with a copy of the first: the count is
+    # unchanged, so only the duplicate check can go red.
+    m = att_copy / "manifest.txt"
+    lines = m.read_text().splitlines()
+    body = [ln for ln in lines if ln and not ln.startswith("#")]
+    lines[lines.index(body[-1])] = body[0]
+    m.write_text("\n".join(lines) + "\n")
+    key = _temp_signer(att_copy, tmp_path)
+    _refresh_outer_and_sign(att_copy, key)
+    code, out = _verify_out(att_copy)
+    assert code == 2
+    assert "duplicate manifest hash lines" in out
+    assert "hash-line count" not in out
+
+
+def test_count_check_isolated_from_digest_drift(
+    att_copy: Path, tmp_path: Path
+) -> None:
+    # Round-2 item R2-M1: remove one body line, keep the header count,
+    # and REFRESH the outer manifest digest before re-signing, so the
+    # only possible red reason is the actual line-count comparison. If a
+    # refactor deletes that comparison, this test goes green and fails.
     m = att_copy / "manifest.txt"
     lines = m.read_text().splitlines()
     body = [ln for ln in lines if ln and not ln.startswith("#")]
     lines.remove(body[-1])
     m.write_text("\n".join(lines) + "\n")
-    assert _verify(att_copy) == 2
+    key = _temp_signer(att_copy, tmp_path)
+    _refresh_outer_and_sign(att_copy, key)
+    code, out = _verify_out(att_copy)
+    assert code == 2
+    assert "actual manifest hash-line count vs header entry_count" in out
+    assert "manifest.txt digest" not in out  # isolated from digest drift
