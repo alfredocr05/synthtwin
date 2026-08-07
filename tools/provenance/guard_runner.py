@@ -29,7 +29,9 @@ with the project's documented offline posture -- a guard, not a
 sandbox. A Python audit hook only sees what emits audit events, and
 native code need not emit any. The controls that actually hold are
 that every fixture generator is repository-reviewed code and that CI
-is the enforced boundary; this runner exists to catch mistakes early
+are the authoritative automated verification (a standing rule, not a
+mechanically enforced merge barrier while the repository is private);
+this runner exists to catch mistakes early
 and loudly, not to confine a hostile program.
 
 This script uses only the Python standard library. Its use of ``runpy``
