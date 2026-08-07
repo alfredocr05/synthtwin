@@ -362,7 +362,14 @@ R4-F1.
 
 Contents: plain-language threat model (theft and tampering, not statistical
 disclosure); the D6 boundary statement with the path rules and the named
-residuals (network mounts, TOCTOU, printable-binary); the supply-chain
+residuals (network mounts, TOCTOU, printable-binary, and the D6
+Amendment A3 caller-supplied-code residual - a booby-trapped object or
+callable handed to synthtwin's public functions runs in the caller's own
+process under the caller's own authority, and the boundary governs what
+synthtwin's own code initiates), stated together with A3's scope
+sentence that the static scanner is a best-effort, mutation-tested layer
+inside that boundary rather than a proof of universal call-target
+closure; the supply-chain
 inventory and trust roots (D5); the network-unavailable build design; the
 hash-pinned institutional install path; the decontamination model — hashed
 manifest, signed attestation, pinned key, verification procedure, Class-B
@@ -497,11 +504,21 @@ PyPI**; every capability tagged built/planned. No overclaiming.
   no bypass actors; self-merge after green gate permitted (one human).
 - Tags `v*`: creation, update, deletion restricted; release tags signed;
   signing key recorded in `SECURITY.md`.
-- Workflows: default token `contents: read`; no `pull_request_target`;
-  fork workflows require approval; any PR touching `.github/workflows/**`
+- Status of the two ruleset bullets above: they specify what is applied,
+  not what is in force today. Both are deferred behind the visibility
+  flip as items 1-8 of the owner-decision records at the end of this
+  plan, and neither is active while the repository is private.
+- Workflows: default token `contents: read` (verified active at the
+  repository level on 2026-08-07, see the owner-decision records at the
+  end of this plan); no `pull_request_target`; fork workflows require
+  approval (unavailable while the repository is private; deferred as
+  item 9 of those records); any PR touching `.github/workflows/**`
   or `tools/**` is CI-labeled and listed in the next release's notes.
-- Account: 2FA enforced (verified); recovery codes offline; no shared
-  credentials.
+- Account: 2FA enforced (owner-confirmed 2026-08-07, dated attestation,
+  not API-verified); offline recovery codes and no shared credentials
+  remain the intended practice but carry no owner attestation yet, so
+  they are not claimed as confirmed controls (see the owner-decision
+  records at the end of this plan).
 - **Narrowed claim (accepted):** these controls resist third-party
   tampering. A compromised maintainer account or dishonest maintainer is
   a residual risk a one-person project cannot eliminate; compensating,
@@ -518,8 +535,17 @@ PyPI**; every capability tagged built/planned. No overclaiming.
    precondition (D2, 2026-08-07) is present in this plan; the repo's
    README license section records that the work is released on the
    owner's authority as non-commercial research tooling.
-2. Governance verified via the rulesets/settings API: app-bound `gate`,
-   tag protections, workflow permissions, 2FA.
+2. Governance in the private-mode form recorded in the owner-decision
+   records at the end of this plan: the repository workflow-permission
+   settings are verified through the settings API and read back as
+   `read` with pull-request-review approval disabled; two-factor
+   authentication rests on the owner's dated confirmation, since the
+   setting is not exposed to the automation token; and the nine
+   deferred items - the eight branch and tag ruleset controls
+   (app-bound `gate` and tag protections among them) plus fork
+   pull-request run approval - are applied and verified through the
+   rulesets and settings API at the visibility flip, each with its
+   recorded API reason for deferral.
 3. Editable install, import, `synthtwin --version` run under the guard;
    the containerized network-unavailable build produces wheel + sdist
    whose contents match the allowlist; the wheel installs and smokes in a
@@ -547,8 +573,11 @@ PyPI**; every capability tagged built/planned. No overclaiming.
    recorded and bound into the first attestation.
 8. Docs present and consistent with this revision, including every named
    residual (Class B, network mounts, TOCTOU, printable-binary,
-   source-exposed maintainer, compromised maintainer) stated where D8
-   places it; sanitized canonical briefs in place; parent copies retired.
+   source-exposed maintainer, compromised maintainer, and
+   caller-supplied code per D6 Amendment A3) stated where D8
+   places it, with A3's best-effort, non-universal scope sentence
+   accompanying the caller-supplied-code residual; sanitized canonical
+   briefs in place; parent copies retired.
 
 ## Review record
 
@@ -645,16 +674,42 @@ and D14 values the read-only token higher than the label. Status:
 ratified by code-review round 3 on 2026-08-07; the replacement
 mechanism is in effect and described in SECURITY.md.
 
-## D6 Amendment A3 — the static scanner's honest contract (pending ratification)
+## D6 Amendment A3 — the static scanner's honest contract (ratified with conditions by the Phase 0 closure review)
 
-Code-review round 5 demonstrated, with runnable probes, that a fully
-closed static call-target model is unattainable in Python: a subclass of
-a built-in type passes an isinstance guard and overrides its methods; a
-call chained onto a constructor in one expression evades name tracking;
-an allowed library API invokes methods on caller-supplied objects;
-decorators and class construction dispatch code no reading-only analysis
-can resolve. The reviewer's final ruling required a new reviewable
+Code-review round 5 demonstrated, with runnable probes, four construct
+classes that this scanner does not resolve to an exact enumerated API:
+a subclass of a built-in type passes an isinstance gate and overrides
+its methods; a call chained onto a constructor in one expression evades
+name tracking; an allowed library API invokes methods on
+caller-supplied objects; and decorators and class construction dispatch
+code the scanner does not follow. The accurate premise of this
+amendment is therefore about this scanner, not about static analysis in
+general: this scanner does not establish universal call-target closure
+for those four classes. A reading-only analysis could in principle
+reject every construct it cannot resolve; ours accepts some of them on
+purpose, because rejecting them would require a source dialect so
+restrictive that the tool would stop being usable. The project accepts
+that bounded gap, with the residual named below, instead of adopting
+that dialect. The reviewer's round-5 ruling required a new reviewable
 design or a materially narrower contract.
+
+**What this supersedes in D6.2.** D6.2 says, in its positive runtime
+import policy: "Every import binding, module-rooted attribute read or
+write, subscript into module/function state, and call target must
+resolve statically to an exact enumerated API; indirect or dynamically
+manufactured call/attribute targets are rejected." A3 supersedes the
+universal reach of that sentence - the claim that *every* call target
+resolves statically to an exact enumerated API - for the four construct
+classes named above, and it supersedes the same universal reading
+wherever D6.2's exactness language is quoted as a closure proof.
+Nothing D6.2 enforces is withdrawn: the exact API-granular allowlist,
+the `importlib.metadata.version()`-only rule and the banned
+`EntryPoint`/`entry_points`/`.load(` tokens, the bans on reads and
+writes of `sys.modules` and `sys.path`, the ban on dunder-state
+traversal and on the listed reflection primitives, alias tracing to
+origin, and every listed mutation including the two reflective ones all
+remain in force and unweakened. A3 changes the claim, not the
+enforcement.
 
 **This amendment adopts the narrower contract.** The offline static
 scanner is a best-effort static analysis layer: a strong,
@@ -666,30 +721,82 @@ not a proof of universal call-target closure. Nothing in the scanner is
 weakened by this amendment; every mutation and rule stays. What changes
 is the claim.
 
-**Named residual, stated exactly:** code supplied BY THE CALLER — a
-booby-trapped object or callable handed to synthtwin's public functions
-— executes in the caller's own process under the caller's own
-authority. The boundary controls what synthtwin's own code initiates;
-it does not and cannot police the caller against themselves. This is
-the same residual class the ratified D6 limits (local-actor races,
-transparent network mounts) already accept, and it is disclosed in
-SECURITY.md alongside them.
+**Named residual, stated exactly:** code supplied BY THE CALLER (a
+booby-trapped object or callable handed to synthtwin's public
+functions) runs in the caller's own process under the caller's own
+authority. The boundary governs what synthtwin's own code initiates; it
+does not govern the caller against themselves. This is the same
+residual family as the two limits the ratified D6 already accepts:
+local-actor races between check and use, and transparent network
+mounts. This amendment requires that residual, and the best-effort
+non-universal scope of the scanner, to be recorded in D8's contents
+list, in acceptance criterion 8, and in `SECURITY.md` beside those two
+residuals, in these terms.
 
-Status: authorized by the project owner on 2026-08-07; put to the
-Phase 0 closure review for ratification.
+Status: authorized by the project owner on 2026-08-07; **ratified with
+conditions** by the Phase 0 closure review on 2026-08-07. The
+conditions are that review's C1 text-alignment items: the explicit
+D6.2 supersession above, the corrected premise above, the residual
+recorded in D8, in acceptance criterion 8, and in `SECURITY.md`, and
+the matching wording in the scanner, product, diagnostic, and test
+prose. With those conditions applied, this amendment is in effect and
+governs the public claim; the scanner's rules and mutations are
+unchanged by it.
 
 ## Owner decisions recorded at Phase 0 closure
 
 - **Repository visibility (2026-08-07):** the repository remains
   private until the owner judges the application readier for public
   release; the public-from-first-build principle is deferred by owner
-  authority, by the same mechanism as the D2 waiver. The D14 items that
-  require a public repository on this account tier — branch and tag
-  rulesets and their API verification — are applied at the moment of
-  the visibility flip, and Phase 0 acceptance closes in private-mode
-  form with those items enumerated as deferred behind the flip. CI
-  runs on metered private-tier minutes meanwhile.
+  authority, by the same mechanism as the D2 waiver. Phase 0 acceptance
+  closes in private-mode form, with the items enumerated below as
+  deferred behind the visibility flip and applied at the moment of that
+  flip. CI runs on metered private-tier minutes meanwhile.
+- **Deferred behind the visibility flip - nine items, exactly.** Items
+  1-8 are the D14 branch and tag ruleset controls. On this account tier
+  a branch or tag ruleset cannot be created on a private repository:
+  the rulesets API answers HTTP 403, "Upgrade to GitHub Pro or make
+  this repository public". That API reason is the recorded evidence for
+  their deferral.
+  1. repository visibility and API confirmation;
+  2. default-branch PR-only enforcement;
+  3. required context exactly `gate`, bound to the GitHub Actions app;
+  4. force-push and deletion blocks;
+  5. no bypass actors;
+  6. self-merge only after a green gate;
+  7. `v*` creation, update, and deletion restrictions; and
+  8. signed release tags and the signing-key record when releases
+     begin.
+
+  The ninth item is added by this closure review:
+
+  9. fork pull-request run approval (D14's "fork workflows require
+     approval"). Setting it through the Actions permissions API answers
+     HTTP 422, "Fork PR approval is not allowed for private
+     repositories", so the control is structurally unavailable while
+     the repository is private. That API reason is the recorded
+     evidence for its deferral.
+
+  Every one of the nine is re-verified through the settings and
+  rulesets API at the visibility flip, and none of them may be
+  described as active in any public document before then.
+- **Settings verified active now (2026-08-07, GitHub settings API):**
+  the repository Actions default workflow permissions read back as
+  `default_workflow_permissions = "read"`, and workflow runs may not
+  approve pull request reviews
+  (`can_approve_pull_request_reviews = false`). The API response of
+  that date is the evidence for both. They hold at the repository
+  level, independently of the `contents: read` declaration the
+  checked-in workflow makes for itself, so a later workflow that omits
+  its own declaration inherits the read-only default. These two are not
+  deferred; they are re-read at the visibility flip with the nine items
+  above.
 - **Account controls (2026-08-07):** the owner confirmed two-factor
-  authentication is enabled on the hosting account. The setting is not
-  exposed to the automation token; the owner's dated confirmation is
-  recorded here, and the reviewer may re-verify at the visibility flip.
+  authentication is enabled on the hosting account. That setting is not
+  exposed to the automation token, so this is a dated owner
+  attestation, not API verification. The owner's dated confirmation
+  covers two-factor authentication only. D14's offline recovery codes
+  and its no-shared-credentials statement are not attested by the
+  owner, so neither is claimed as confirmed in this plan or in any
+  public document until a dated owner statement covers it.
+  Re-verification of all three is due at the visibility flip.

@@ -1,10 +1,19 @@
 # synthtwin
 
 > **Status: pre-alpha skeleton (Phase 0).** synthtwin is **not on PyPI**
-> and has **no data functionality yet**. What exists today is the public
+> and has **no data functionality yet**. What exists today is the
 > project skeleton and its security baseline. Every capability on this
 > page is tagged **[built]** or **[planned]** so there is no ambiguity
 > about which is which.
+
+> **This repository is private for now.** It is private by owner
+> decision and becomes public when the owner judges the application
+> readier for release. The open-source commitment is unchanged: there is
+> no private core, every line of the product lives here, and nothing
+> here depends on anything a contributor cannot see. The governance
+> controls that require a public repository - branch and tag rulesets
+> among them - are listed in `SECURITY.md` as deferred until that
+> moment, never as active.
 
 synthtwin will create a **synthetic twin** of a tabular dataset: a table
 with the same shape and the same statistical behavior as yours, but
@@ -35,18 +44,20 @@ next.
 ## What exists today
 
 - **[built]** The `synthtwin` command - prints version and status only.
-- **[built]** The offline guarantee's layered checks: a strict import
-  allowlist scanner for the source tree, a socket guard in the test
-  suite, and a packaged build that runs with no network available at all.
+- **[built]** The offline guarantee's layered checks: a best-effort
+  import-allowlist scanner for the source tree, a socket guard in the
+  test suite, and a packaged build that runs with no network available
+  at all. `SECURITY.md` states exactly what the scanner does and does
+  not prove.
 - **[built]** The decontamination system: a scanner, a hashed manifest,
   and a signed attestation that together keep private-environment
-  vocabulary out of this public repository (see `SECURITY.md`).
+  vocabulary out of this repository (see `SECURITY.md`).
 - **[built]** The data-provenance guard: no data-format file is tracked
   anywhere in the repository except a test fixture listed in the fixture
   manifest, and every such fixture must be rebuilt from its committed
   generating script and byte-compared in CI.
-- **[built]** Continuous integration with a single aggregate required
-  gate, and the public plans and review record in `docs/plans/`.
+- **[built]** Continuous integration with a single aggregate gate, and
+  the written plans and their review record in `docs/plans/`.
 - **[planned]** Profiling, generation, validation, and the quality
   report - these arrive in later phases, each behind its own written
   plan and adversarial review.
@@ -56,13 +67,20 @@ next.
 ## The security architecture, in plain language
 
 **Offline by construction [built].** synthtwin's own code contains
-nothing that can open a network connection, launch another program, call
-native code, or load code dynamically. It accepts only local file paths,
-and it is fully functional air-gapped. This is verified by source audit
-plus layered automated checks - it is explicitly *not* an operating-system
-sandbox. If your institution requires enforcement rather than assurance,
-run synthtwin inside your own network-isolated environment; it will work
-there unchanged.
+nothing that opens a network connection, launches another program, calls
+native code, or loads code dynamically. It accepts only local file paths,
+and it is fully functional air-gapped. The claim is about the code this
+project ships and the work that code starts: it is verified by source
+audit plus layered automatic checks, and it is explicitly *not* an
+operating-system sandbox. Those automatic checks - the import-allowlist
+scan in particular - are best-effort layers rather than a proof that
+every call in the program lands on an exactly known target. `SECURITY.md`
+states their scope plainly and names the residual risks that stay open,
+among them code that a caller hands to synthtwin: that code runs in the
+caller's own process under the caller's own authority, and no check here
+governs it. If your institution requires enforcement rather than
+assurance, run synthtwin inside your own network-isolated environment; it
+will work there unchanged.
 
 **Profile and generator are separate [planned].** The future architecture
 keeps the profiler and the generator apart: the profiler runs where the
@@ -113,6 +131,11 @@ pip install -e .
 synthtwin --version
 ```
 
+While the repository is private, that clone works only from an account
+the owner has granted access, and Git asks you to authenticate first; an
+unauthenticated clone fails. Once the repository becomes public, the same
+commands work for anyone, with no account and no authentication.
+
 The command prints version and status only.
 
 ## License
@@ -126,8 +149,10 @@ outbound MIT, no CLA. See `LICENSE` for the full text.
 
 ## Learn more
 
-- `SECURITY.md` - the threat model, the offline guarantee, every named
-  residual risk, and how an auditor verifies each layer.
+- `SECURITY.md` - the threat model, the offline guarantee and the exact
+  scope of its automatic checks, every named residual risk, how an
+  auditor verifies each layer, and which governance controls are active
+  now versus deferred until the repository becomes public.
 - `CONTRIBUTING.md` - the plan-first process and the standing rules every
   change must follow.
 - `docs/plans/` - the written plans and their adversarial review record.

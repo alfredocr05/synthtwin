@@ -1,6 +1,6 @@
 """Tests for the offline static scanner (plan D6.2 and D6.5).
 
-The first tests prove the scanner accepts the real source tree and a
+The first tests show the scanner accepts the real source tree and a
 clean sample tree (no false alarms). Every other test is a mutation
 check from plan D6.5: it writes a small source tree into tmp_path that
 tries one known bypass class and asserts the scanner goes red on it,
@@ -611,10 +611,14 @@ def test_argparse_instance_method_calls_stay_clean(tmp_path):
 
 
 def test_gated_string_method_on_parameter_stays_clean(tmp_path):
-    """After the exact type gate proves a parameter is a plain string,
-    an enumerated string data method with a literal argument is an
-    exact call target (str.find) and produces zero violations. Both
-    the negative gate shape and the positive-branch shape count."""
+    """After the exact type gate checks that a parameter is a string,
+    an enumerated string data method with a literal argument is
+    accepted under the enumerated policy and produces zero violations.
+    The gate does not settle that the receiver is a built-in str -- a
+    str subclass passes isinstance and may supply its own find -- so
+    this is the best-effort acceptance ratified as D6 Amendment A3,
+    not a showing of exact dispatch. Both the negative gate shape and
+    the positive-branch shape count."""
     violations = _scan_code(
         tmp_path,
         '''
@@ -748,9 +752,9 @@ def test_data_arguments_in_non_callback_slots_stay_clean(tmp_path):
 
 
 def test_unknown_argument_to_data_method_goes_red(tmp_path):
-    """The type gate proves the receiver, never the arguments: an
-    unknown value handed to str.find on a gated parameter must still
-    be rejected (an argument's own protocol hooks could run)."""
+    """The type gate covers the receiver, never the arguments: an
+    unknown value handed to find on a gated parameter must still be
+    rejected (an argument's own protocol hooks could run)."""
     violations = _scan_code(
         tmp_path,
         '''
@@ -781,9 +785,9 @@ def test_unknown_callback_argument_to_data_method_goes_red(tmp_path):
 
 def test_literal_and_scanned_result_data_method_arguments_stay_clean(tmp_path):
     """Str-method arguments that this audit fully resolves stay
-    accepted on a proven-string receiver: a name bound only to a
-    literal, and the result of a call to a function defined in the
-    scanned tree (the shape the shipped cli module uses)."""
+    accepted on a receiver this audit reads as a string: a name bound
+    only to a literal, and the result of a call to a function defined
+    in the scanned tree (the shape the shipped cli module uses)."""
     violations = _scan_code(
         tmp_path,
         '''
@@ -801,15 +805,15 @@ def test_literal_and_scanned_result_data_method_arguments_stay_clean(tmp_path):
     assert violations == [], "\n".join(violations)
 
 
-# -- exact call targets and enumerated module surfaces (round 4) -----
+# -- resolved call targets and enumerated module surfaces (round 4) --
 
 
 def test_ungated_parameter_string_method_goes_red(tmp_path):
     """A string data method on a parameter WITHOUT the type gate must
     be rejected. Round 4 demonstrated the route at run time: with a
     caller-supplied object in place of the string, value.find("marker")
-    dispatched the object's own find method, so without the isinstance
-    proof there is no exact call target."""
+    ran the object's own find method, so without the isinstance check
+    the scanner has no reading at all of what would run."""
     violations = _scan_code(
         tmp_path,
         '''
@@ -845,8 +849,8 @@ def test_custom_object_method_dispatch_goes_red(tmp_path):
 def test_shadowed_builtin_name_goes_red(tmp_path):
     """Rebinding a name this audit accepts as a built-in call target
     must be rejected: with str rebound, the isinstance type gate would
-    prove nothing. The binding itself is the violation, and the gate
-    below it must not upgrade the parameter either."""
+    check nothing at all. The binding itself is the violation, and the
+    gate below it must not upgrade the parameter either."""
     violations = _scan_code(
         tmp_path,
         '''

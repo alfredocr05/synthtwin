@@ -24,7 +24,11 @@ operations is fixed by the plan and is security-relevant:
 Links are legitimately rare in this tool's audience workflows; the
 Windows restriction and its rationale are documented in SECURITY.md,
 together with the named residuals (OS-transparent network mounts,
-local-actor TOCTOU).
+local-actor TOCTOU, and code supplied by the caller -- an object or a
+callable handed to a synthtwin public function runs in the caller's
+own process under the caller's own authority, so this boundary governs
+what synthtwin's own code initiates, not what a caller chooses to run
+against themselves).
 
 Imports here are restricted to the exact Phase 0 allowlist (plan D6.2):
 ``pathlib``, ``os`` (``os.getcwd`` and ``os.lstat`` are used), ``sys``,
@@ -74,10 +78,14 @@ def _is_sep(character: str) -> bool:
 def _url_scheme(text: str) -> str | None:
     """Return the scheme if ``text`` is shaped like ``scheme://...``.
 
-    ``text`` must be a plain string; anything else is rejected with
-    PathValidationError before any other work (the leading type check
-    also lets the offline scanner verify that ``text.find`` below can
-    only ever dispatch ``str.find``).
+    ``text`` must be a string.  The leading type check rejects any
+    value that is not a string instance with a plain-language
+    PathValidationError, before any other work.  It does not attempt
+    to settle that the value is exactly a built-in ``str``: a ``str``
+    subclass passes ``isinstance`` and may supply its own ``find``.
+    The check is also the shape the offline scanner recognizes before
+    it accepts the ``text.find`` call below, under the best-effort
+    scope that scanner states for itself.
 
     Scheme syntax follows the URL standard (RFC 3986 section 3.1): one
     ASCII letter, then zero or more ASCII letters, digits, ``+``, ``-``,
@@ -221,10 +229,13 @@ def validate_local_path(raw: str, *, purpose: str) -> pathlib.Path:
     ``purpose`` names what the path is for (for example "input",
     "output", or "temp") and appears in every error message.
 
-    Guarantees (plan D6.1): ``raw`` must be a plain string, and any
-    other value is rejected with PathValidationError before anything
-    else happens; lexical rejection of URL, UNC, and Windows
-    device forms happens on the raw string before any filesystem call;
+    Guarantees (plan D6.1): ``raw`` must be a string, and any value
+    that is not a string instance is rejected with a plain-language
+    PathValidationError before anything else happens (the check
+    rejects non-strings; it does not attempt to settle that the value
+    is exactly a built-in ``str``); lexical rejection of URL, UNC, and
+    Windows device forms happens on the raw string before any
+    filesystem call;
     on Windows, a path with a reparse-point component (symbolic link,
     junction, mount point) is rejected without the target ever being
     read or followed, a path with an existing component that could not
@@ -235,6 +246,10 @@ def validate_local_path(raw: str, *, purpose: str) -> pathlib.Path:
     Raises PathValidationError (a ValueError) with a plain-language
     explanation of what was rejected and what to do instead.
     """
+    # The type gate: reject anything that is not a string instance,
+    # with a plain-language message the caller can act on.  It does not
+    # attempt to settle that the value is exactly a built-in `str` --
+    # a `str` subclass passes `isinstance` -- and is not meant to.
     if not isinstance(raw, str):
         raise PathValidationError(
             f"The {purpose} path must be written as plain text, but a "

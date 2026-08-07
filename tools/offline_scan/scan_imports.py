@@ -4,9 +4,27 @@ What this tool does, in plain terms: synthtwin promises to run fully
 offline -- no network, no launching of other programs, no native code,
 and no code loaded dynamically while the program runs. This scanner
 reads every Python file under a given source tree WITHOUT running it and
-checks that the code uses only the exact, enumerated APIs the Phase 0
+checks that the source text names only the enumerated APIs the Phase 0
 plan allows. Anything else is reported, one line per problem, and the
 scan fails.
+
+SCOPE OF WHAT THIS SCANNER ESTABLISHES (plan D6 Amendment A3, ratified
+with conditions by the Phase 0 closure review). This is a best-effort,
+mutation-tested layer. It is NOT a proof that every call target in the
+scanned source resolves to exactly one built-in implementation. A
+reading-only analysis could in principle reject every construct it
+cannot resolve; this one accepts a few of them on purpose, so the tool
+stays usable on real code. The isinstance type gate under method calls
+below is the clearest such case and says exactly what it does and does
+not settle.
+
+One residual is named here and repeated wherever this boundary is
+described: code supplied BY THE CALLER -- an object or a callable
+handed to synthtwin's public functions -- runs in the caller's own
+process under the caller's own authority. This boundary governs what
+synthtwin's own code initiates, not what a caller chooses to run
+against themselves. It is the same residual family as the local-actor
+and network-mount residuals already accepted in SECURITY.md.
 
 Policy enforced (plan D6.2, a positive AST/name-binding policy):
 
@@ -74,8 +92,10 @@ Policy enforced (plan D6.2, a positive AST/name-binding policy):
   narrowing is the isinstance type gate described under method calls
   below: a leading "if not isinstance(name, str): raise ..." runs
   before anything else in its function and stops it cold unless the
-  parameter really is a plain str, so that parameter alone starts as
-  a known str instance instead of unknown.
+  parameter is a str instance, so that parameter alone starts as a
+  checked-string origin instead of unknown. That narrowing raises
+  confidence in what the value is; it does not settle that the value
+  is a built-in str (see the gate note under method calls).
 * A call through a bare name is accepted only when EVERY possible
   origin of the name is a function or class defined in the scanned
   tree, an import traced to the allowlist, or one of a small fixed
@@ -88,32 +108,40 @@ Policy enforced (plan D6.2, a positive AST/name-binding policy):
 * Method calls (value.method(...)) are accepted in exactly two
   enumerated cases; every other method call target is rejected.
   There are NO method calls on untraced values.
-  (a) On a value PROVEN to be a plain built-in constant. Two proofs
-      are accepted: the value is a literal constant (or a name bound
-      only to literal constants), or the value is a parameter whose
-      function opens with the exact type gate
+  (a) On a value this audit reads as a plain built-in constant. Two
+      readings are accepted: the value is a literal constant (or a
+      name bound only to literal constants), or the value is a
+      parameter whose function opens with the exact type gate
       "if not isinstance(name, str): raise ..." (or the equivalent
       positive branch "if isinstance(name, str): ... else:
-      raise ...") before any other statement. The gate makes the
-      parameter a known str instance, so an enumerated str data
-      method called on it (find, format -- exactly the string
-      methods the current src tree calls) is an EXACT call target:
-      str.find or str.format dispatches, nothing else can. Any
-      method name outside that enumeration, and any method call on a
-      value with no proof -- a bare parameter, a computed value, the
-      result of a scanned call -- is a violation. parameter.find()
-      WITHOUT the gate is rejected, because at run time it would
-      dispatch whatever find method the caller's object defines.
+      raise ...") before any other statement.
+      WHAT THE GATE DOES, AND WHAT IT DOES NOT DO. The gate raises
+      confidence that the value is a string, and that is what lets
+      this scanner accept the enumerated string-method calls on it
+      (find, format -- exactly the string methods the current src
+      tree calls). The gate does NOT settle that the receiver is a
+      built-in str: a str subclass passes isinstance and may
+      override find or format, so the method body that runs can be
+      the subclass's own. Such a call target is RESOLVED UNDER THE
+      ENUMERATED POLICY, not shown to be exact. This is the
+      best-effort scope ratified as D6 Amendment A3, and its
+      residual is caller-supplied code, named at the top of this
+      docstring. Any method name outside that enumeration, and any
+      method call on a value with neither reading -- a bare
+      parameter, a computed value, the result of a scanned call --
+      is a violation. parameter.find() WITHOUT the gate is rejected,
+      because at run time it would run whatever find method the
+      caller's object defines, with no reading of it at all.
       EVERY argument of an accepted str-method call must still be a
       plain literal or a value this audit fully resolved as safe (an
       allowlisted API's result, a scanned function's result, a name
-      bound only to literals, a proven string): str.format invokes
-      the formatting protocol of what it is handed, so unknowns and
-      callables are rejected. Because the gate depends on the built-in
-      names isinstance and str, BINDING any accepted built-in call
-      name to anything, anywhere in scanned source, is itself a
-      violation -- a rebound built-in could make a checked call or a
-      type gate mean something else.
+      bound only to literals, a gate-checked string): str.format
+      invokes the formatting protocol of what it is handed, so
+      unknowns and callables are rejected. The gate depends on the
+      built-in names isinstance and str, so BINDING any accepted
+      built-in call name to anything, anywhere in scanned source, is
+      itself a violation -- a rebound built-in could make a checked
+      call or a type gate mean something else.
   (b) A value returned by a call to an allowlisted API
       (parser = argparse.ArgumentParser(...)) is tracked as an
       api-instance, and method calls on it
@@ -356,19 +384,23 @@ _ENV_READ_METHODS = {"get", "keys", "items", "values", "copy"}
 # same set never discard it.
 _UNKNOWN = ("unknown", "")
 
-# The only method names that may be called on a value PROVEN to be a
-# plain string (policy case (a) in the module docstring): a literal
-# constant, or a parameter behind the exact isinstance type gate. With
-# the receiver proven, str.find and str.format are the exact call
-# targets. This is exactly the set of str data methods the current src
-# tree calls; adding a name here is a policy decision reviewed against
-# the threat model, not a routine code change.
+# The only method names that may be called on a value this audit reads
+# as a string (policy case (a) in the module docstring): a literal
+# constant, or a parameter behind the exact isinstance type gate. On
+# such a receiver str.find and str.format are the call targets this
+# policy resolves to; the gate does not settle that the receiver is a
+# built-in str, so a str subclass could still supply its own find or
+# format. That is the best-effort scope ratified as D6 Amendment A3
+# (module docstring), whose residual is caller-supplied code. This is
+# exactly the set of str data methods the current src tree calls;
+# adding a name here is a policy decision reviewed against the threat
+# model, not a routine code change.
 _STR_METHODS = {"find", "format"}
 
 # Origin kinds accepted as ARGUMENTS of an enumerated str-method call
 # (policy case (a)): a value built by an allowlisted API, a value
 # returned by a scanned def or class, a name bound only to literals,
-# or a gate-proven string. Everything else -- the unknown member above
+# or a gate-checked string. Everything else -- the unknown member above
 # all -- is rejected, because str.format invokes the formatting
 # protocol of what it is handed.
 _SAFE_DATA_ARGUMENT_KINDS = {"instance", "literal", "result", "str"}
@@ -773,35 +805,36 @@ def _unknown_call_message(name: str) -> str:
 def _unknown_method_message(method: str) -> str:
     return (
         "calls the method '" + method + "' on a value this audit "
-        "cannot trace to any allowlisted API and cannot prove to be a "
-        "plain string. A caller-supplied object may define a method "
-        "of any name to do anything, so no method call on an untraced "
-        "value is accepted. Build the value from an allowlisted API, "
-        "or prove the value is a plain string first with the exact "
-        "type gate 'if not isinstance(name, str): raise ...' at the "
-        "top of the function."
+        "cannot trace to any allowlisted API and cannot read as a "
+        "string. A caller-supplied object may define a method of any "
+        "name to do anything, so no method call on an untraced value "
+        "is accepted. Build the value from an allowlisted API, or "
+        "check that the value is a string first with the exact type "
+        "gate 'if not isinstance(name, str): raise ...' at the top of "
+        "the function."
     )
 
 
 def _str_method_message(method: str) -> str:
     return (
-        "calls the method '" + method + "' on a value proven to be a "
-        "plain built-in constant. Only the enumerated string data "
-        "methods (" + ", ".join(sorted(_STR_METHODS)) + ") are "
-        "accepted there; any other name is not a call target this "
-        "audit has cleared."
+        "calls the method '" + method + "' on a value this audit "
+        "reads as a plain built-in constant. Only the enumerated "
+        "string data methods (" + ", ".join(sorted(_STR_METHODS))
+        + ") are accepted there; any other name is not a call target "
+        "this audit has cleared."
     )
 
 
 def _unknown_method_argument_message(method: str) -> str:
     return (
         "passes a value this audit cannot fully resolve to the '"
-        + method + "' method of a proven string. str.format invokes "
-        "the formatting protocol of what it is handed, so even on a "
-        "proven string the enumerated data methods accept only plain "
-        "literals or values built under this audit's eyes (an "
-        "allowlisted API's result, a scanned function's result). Pass "
-        "a literal, or build the value from an allowlisted API first."
+        + method + "' method of a string receiver this audit "
+        "accepted. str.format invokes the formatting protocol of "
+        "what it is handed, so even on an accepted receiver the "
+        "enumerated data methods accept only plain literals or "
+        "values built under this audit's eyes (an allowlisted API's "
+        "result, a scanned function's result). Pass a literal, or "
+        "build the value from an allowlisted API first."
     )
 
 
@@ -810,7 +843,7 @@ def _builtin_shadow_message(name: str) -> str:
         "binds the name '" + name + "', which this audit accepts as a "
         "built-in call target. After a rebinding, code that looks "
         "like a checked built-in call -- or like the isinstance type "
-        "gate that proves a parameter is a plain string -- could run "
+        "gate that checks a parameter is a string -- could run "
         "something else entirely. Leave built-in names bound to "
         "Python's own built-ins and pick a different name."
     )
@@ -1468,9 +1501,9 @@ class _Checker(ast.NodeVisitor):
                         "unknown",
                     ):
                         # Reading a scanned definition, an api-instance,
-                        # a literal, a scanned call's result, a proven
-                        # string, or an untraced value is fine; only
-                        # CALLS through them are restricted.
+                        # a literal, a scanned call's result, a
+                        # gate-checked string, or an untraced value is
+                        # fine; only CALLS through them are restricted.
                         continue
                     if kind == "module" and not origin.startswith(
                         _FIRST_PARTY_ROOT
@@ -1572,12 +1605,18 @@ class _Checker(ast.NodeVisitor):
     def _check_method_call(self, node: ast.Call) -> None:
         """Apply the two-case method-call policy from the module
         docstring: api-instances accept any method (with the
-        callable-accepting ones enumerated as slots); values proven to
-        be plain built-in constants -- a literal, or a parameter
-        behind the exact isinstance type gate -- accept only the
-        enumerated str data methods, and then only with literal or
-        fully resolved known-safe arguments. EVERY other receiver is
-        rejected: there are no method calls on untraced values.
+        callable-accepting ones enumerated as slots); values this
+        audit reads as plain built-in constants -- a literal, or a
+        parameter behind the exact isinstance type gate -- accept
+        only the enumerated str data methods, and then only with
+        literal or fully resolved known-safe arguments. EVERY other
+        receiver is rejected: there are no method calls on untraced
+        values. The type gate raises confidence that a receiver is a
+        string; it does not settle that the receiver is a built-in
+        str, so an accepted call target is resolved under this
+        enumerated policy rather than shown to be exact (the
+        best-effort scope ratified as D6 Amendment A3, whose residual
+        is caller-supplied code -- see the module docstring).
         Module and api-rooted chains are checked by the dotted-path
         policy in visit_Attribute."""
         func = node.func
@@ -1594,10 +1633,11 @@ class _Checker(ast.NodeVisitor):
         if method not in _STR_METHODS:
             self._flag(node, _str_method_message(method))
             return
-        # An enumerated str data method on a proven string: every
-        # argument must be a plain literal or a value this audit fully
-        # resolved as safe -- no unknowns, no callables. str.format
-        # invokes the formatting protocol of what it is handed.
+        # An enumerated str data method on an accepted string receiver:
+        # every argument must be a plain literal or a value this audit
+        # fully resolved as safe -- no unknowns, no callables.
+        # str.format invokes the formatting protocol of what it is
+        # handed.
         values = list(node.args) + [keyword.value for keyword in node.keywords]
         for value in values:
             inner = value.value if isinstance(value, ast.Starred) else value
@@ -1857,17 +1897,21 @@ class _Checker(ast.NodeVisitor):
         self.scopes.pop()
 
     def _upgrade_gated_parameters(self, body: "list[ast.stmt]") -> None:
-        """Upgrade parameters proven str by leading type-gate checks.
+        """Upgrade parameters checked as str by a leading type gate.
 
         Recognizes the exact shape 'if not isinstance(name, str):
         raise ...' (no else branch), or the equivalent positive branch
         'if isinstance(name, str): ... else: raise ...', appearing
         before any other statement (the docstring and further gate
         statements may precede it). The raise makes everything after
-        the gate unreachable unless the parameter really is a plain
-        str, so replacing the parameter's pristine unknown origin with
-        the known-str origin is sound -- and it is the ONE sanctioned
-        narrowing in this otherwise accumulate-only origin lattice.
+        the gate unreachable unless the parameter is a str instance,
+        so replacing the parameter's pristine unknown origin with the
+        checked-str origin is warranted -- and it is the ONE
+        sanctioned narrowing in this otherwise accumulate-only origin
+        lattice. isinstance also passes for a str subclass, so the
+        upgrade raises confidence in the value rather than settling
+        that it is a built-in str; the module docstring records that
+        as the best-effort scope ratified as D6 Amendment A3.
         The upgrade never applies when the gate could mean something
         else: a binding of 'isinstance' or 'str' in any scope blocks
         it (and such a binding is a violation in its own right), and a
@@ -1888,7 +1932,7 @@ class _Checker(ast.NodeVisitor):
             index += 1
 
     def _gated_parameter(self, stmt: ast.stmt) -> "str | None":
-        """The parameter name a statement proves to be str, or None.
+        """The parameter name a statement checks as str, or None.
 
         Matches exactly 'if not isinstance(name, str): raise ...'
         (with no else branch), or 'if isinstance(name, str): ...
