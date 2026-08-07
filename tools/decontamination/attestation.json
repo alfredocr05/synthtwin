@@ -1,8 +1,8 @@
 {
   "artifact": "synthtwin decontamination attestation v2",
   "bindings": {
-    "all_objects_tool_sha256": "f12b6aec95a6d93f2ab2c4e63ae91328856dfdcebc4e1fb1ff51e8cbb80554bb",
-    "coverage_tool_sha256": "06394e71adafdbc0befe53aa9ae69e2a632bb37b68690d90adb65959b410831e",
+    "all_objects_tool_sha256": "7acdadb7744dacd01d8a88d98460957f56f0b48494cbc6d26b162c3567999f57",
+    "coverage_tool_sha256": "8848fcaf2f1cbdc703fd785c9b22b7629ce257e3a9fd8ef2cf694c7448f5a642",
     "denial_seed_sha256": "2efc081aa542ac4834e1d4d2ba52a316acd720f75472bd88715dd448085a7711",
     "extraction_script_sha256": "a9ef6df7868f53f68da13cb713e8962b516947106d81e6e7e61ee90b2062c9e8",
     "freeze_record_sha256": "e26fb1f453829b78fa69afecd111ec789f3155bbedfa096bea942edf9722b687",
@@ -11,10 +11,10 @@
     "magic_table_sha256": "bbc88bda256b54acdb7eebe3ffcc4f0c0e61bf8a562f55fb6e2e705d7fcb9d6f",
     "pattern_grammar_sha256": "42e9431c8f85bf6507573f7bb6ec562daf334ec0bb88303e91c40e575786644a",
     "plaintext_inventory_sha256": "9115b9990d87e2df763a8bb69c76f7749a9b2e87a363908d970d88ad2616028b",
-    "pre_first_push_note_sha256": "8b5cf84cb0e39cb76b58a891570391008ff96485dd392cc18d5040d4b7f30e7c",
+    "pre_first_push_note_sha256": "ea9cd2a1dae700ae468c659d17775e0beccec7bcb83c6be96ca0fa4fb60dac84",
     "prototype_snapshot_tree_sha256": "cb57c45fcf44ce552feec9fd9072e3437c229152a73889f65313fa028df9699d",
     "public_manifest_sha256": "7fef27695eece19ba2d289738b2af7dfea8ae898a9b31e72e04bea184ad97c59",
-    "public_scanner_tree_sha256": "6c89e9df16e5b6b84697741f4401699035bd2b490aed958b607d1fa55dcf70e5",
+    "public_scanner_tree_sha256": "8d972859ffe402912ab3a863897cda379e7b04cce59e2ab20e5bf450c16a6317",
     "public_surfaces_sha256": "96099cc16cc73ffd95f98a303e79b1d18290445a91a63938289aaa69b96c7205",
     "public_tokenizer_sha256": "ecb34b9bbb7aaab52ee98e17ad27c74bfab34ca955c47d414a64122614711be7",
     "snapshot_digest_algorithm": "sorted root-relative POSIX paths, 8-byte big-endian path length, path bytes, raw per-file sha256",
@@ -24,7 +24,7 @@
   "date": "2026-08-07",
   "entry_count": 2065,
   "n_max": 578,
-  "note": "v2: complete trust graph per code-review round-1 items F12/F15; the shared tokenizer/surfaces modules are the canonical implementation for both public scanning and private extraction",
+  "note": "v2 refresh after code-review round-2 fixes: strict shared manifest parser, schema-enforcing verifier, end-to-end coverage battery, fail-closed all-objects tool, and the signed pre-first-push note for the round-2 head",
   "refresh_triggers": "any change to a file in the public scanner tree, or to any bound private input, requires a fresh private coverage run and a fresh signature",
   "result": "pass"
 }
