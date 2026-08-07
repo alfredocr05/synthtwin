@@ -76,6 +76,7 @@ REQUIRED_HEX_BINDINGS = (
     "evidence_reconciliation_sha256",
     "extraction_script_sha256",
     "freeze_record_sha256",
+    "evidence_hygiene_sha256",
     "settings_readback_sha256",
     "inventory_review_round1_sha256",
     "inventory_review_round2_sha256",
