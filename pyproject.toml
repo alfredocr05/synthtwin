@@ -1,0 +1,57 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "synthtwin"
+version = "0.1.0.dev0"
+description = "Create a synthetic twin of your tabular data: same shape, same statistics, no real records. Fully offline."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { file = "LICENSE" }
+authors = [{ name = "Alfredo Camargo Rodrigues" }]
+keywords = ["synthetic-data", "privacy", "tabular", "offline"]
+# Trove classifiers omitted: the standard license classifier's wording
+# collides with the decontamination manifest; the `license` field above
+# carries the license declaration.
+# Phase 0 ships zero runtime dependencies (plan D5). numpy/pandas enter in
+# Phase 1, each with a written justification reviewed adversarially.
+dependencies = []
+
+[project.urls]
+Repository = "https://github.com/alfredocr05/synthtwin"
+
+[project.scripts]
+synthtwin = "synthtwin.cli:main"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.6",
+    "mypy>=1.10",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/synthtwin"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "src/synthtwin",
+    "tests",
+    "tools",
+    "LICENSE",
+    "README.md",
+    "SECURITY.md",
+    "pyproject.toml",
+]
+
+[tool.ruff]
+line-length = 88
+src = ["src", "tests", "tools"]
+
+[tool.mypy]
+strict = true
+files = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
