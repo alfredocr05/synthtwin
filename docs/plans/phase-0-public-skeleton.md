@@ -630,7 +630,7 @@ review history. Status: ratified by inventory-review round 2 on
 2026-08-07 with conditions R2-C1..R2-C7, which are applied; the private
 review record binds this ratification.
 
-## D14 Amendment A2 — sensitive-path surfacing (pending code-review ratification)
+## D14 Amendment A2 — sensitive-path surfacing (ratified by code-review round 3)
 
 D14 as ratified requires that any pull request touching
 `.github/workflows/**` or `tools/**` is CI-labeled and listed in the
@@ -641,6 +641,6 @@ summary; an error while computing the path comparison fails the job;
 and at release time, sensitive-path changes are collected from the git
 history for the release notes. The reason is deliberate: applying a
 label requires widening the workflow token beyond `contents: read`,
-and D14 values the read-only token higher than the label. Status: put
-to the current code-review cycle for ratification; the replacement
-takes effect only on that ratification.
+and D14 values the read-only token higher than the label. Status:
+ratified by code-review round 3 on 2026-08-07; the replacement
+mechanism is in effect and described in SECURITY.md.

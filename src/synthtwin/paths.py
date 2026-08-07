@@ -74,12 +74,22 @@ def _is_sep(character: str) -> bool:
 def _url_scheme(text: str) -> str | None:
     """Return the scheme if ``text`` is shaped like ``scheme://...``.
 
+    ``text`` must be a plain string; anything else is rejected with
+    PathValidationError before any other work (the leading type check
+    also lets the offline scanner verify that ``text.find`` below can
+    only ever dispatch ``str.find``).
+
     Scheme syntax follows the URL standard (RFC 3986 section 3.1): one
     ASCII letter, then zero or more ASCII letters, digits, ``+``, ``-``,
     or ``.``, immediately followed by ``://`` at the very start of the
     string (so forms like ``git+ssh://`` are caught).  Returns None when
     ``text`` is not shaped that way.
     """
+    if not isinstance(text, str):
+        raise PathValidationError(
+            "A path was given in a form that is not plain text. "
+            "Please write the path as ordinary text. " + _ADVICE
+        )
     marker = text.find("://")
     if marker <= 0:
         return None
@@ -211,7 +221,9 @@ def validate_local_path(raw: str, *, purpose: str) -> pathlib.Path:
     ``purpose`` names what the path is for (for example "input",
     "output", or "temp") and appears in every error message.
 
-    Guarantees (plan D6.1): lexical rejection of URL, UNC, and Windows
+    Guarantees (plan D6.1): ``raw`` must be a plain string, and any
+    other value is rejected with PathValidationError before anything
+    else happens; lexical rejection of URL, UNC, and Windows
     device forms happens on the raw string before any filesystem call;
     on Windows, a path with a reparse-point component (symbolic link,
     junction, mount point) is rejected without the target ever being
@@ -223,6 +235,11 @@ def validate_local_path(raw: str, *, purpose: str) -> pathlib.Path:
     Raises PathValidationError (a ValueError) with a plain-language
     explanation of what was rejected and what to do instead.
     """
+    if not isinstance(raw, str):
+        raise PathValidationError(
+            f"The {purpose} path must be written as plain text, but a "
+            f"different kind of value was given. {_ADVICE}"
+        )
     if raw == "":
         raise PathValidationError(
             f"The {purpose} path is empty. Please give the path to a "
