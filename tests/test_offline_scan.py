@@ -63,7 +63,12 @@ def test_real_src_tree_is_clean():
 
 
 def test_clean_tree_passes(tmp_path):
-    """A tree that uses every allowlisted API produces zero violations."""
+    """A tree that uses every allowlisted API produces zero violations.
+
+    Every module-rooted access here is a single attribute step past an
+    allowlisted module (or a read-only os.environ method), which is the
+    exact surface the scanner can verify from the source text alone.
+    """
     violations = _scan_code(
         tmp_path,
         '''
@@ -99,8 +104,29 @@ def test_clean_tree_passes(tmp_path):
             home = os.environ.get("HOME", "")
             details = os.lstat(os.fspath(base))
             label = typing.cast(str, home)
-            sys.stdout.write(str(payload) + joined + str(details.st_mode))
+            if sys.platform != "made-up":
+                print(str(payload) + joined + str(details.st_mode))
             return label
+        ''',
+    )
+    assert violations == [], "\n".join(violations)
+
+
+def test_intra_package_single_step_stays_clean(tmp_path):
+    """Intra-package imports stay allowed: one attribute step past a
+    synthtwin module (a direct reference to something that module
+    defines) produces zero violations, in both import styles."""
+    violations = _scan_code(
+        tmp_path,
+        '''
+        import synthtwin.paths
+        from synthtwin import paths
+
+
+        def check(raw: str):
+            first = synthtwin.paths.validate_local_path(raw, purpose="input")
+            second = paths.validate_local_path(raw, purpose="output")
+            return first, second
         ''',
     )
     assert violations == [], "\n".join(violations)
@@ -302,3 +328,107 @@ def test_split_string_lookup_via_function_globals_goes_red(tmp_path):
         ''',
     )
     _assert_red(violations, "__globals__")
+
+
+def test_os_path_module_reexport_route_goes_red(tmp_path):
+    """Bypass class: a process call reached through a module that an
+    allowed module re-exports (os.path.os is the os module itself, so
+    os.path.os.system reaches os.system through the allowed os.path).
+    A module re-exported by an allowed module must never be trusted."""
+    violations = _scan_code(
+        tmp_path,
+        '''
+        import os
+
+
+        def sneak():
+            return os.path.os.system("echo hi")
+        ''',
+    )
+    _assert_red(violations, "os.path.os.system")
+
+
+def test_intra_package_chain_to_capability_goes_red(tmp_path):
+    """Bypass class: reaching a capability through an intra-package
+    module's own imports (synthtwin.paths imports os, so
+    synthtwin.paths.os.system would reach a process call through a
+    first-party module that scans clean on its own)."""
+    violations = _scan_code(
+        tmp_path,
+        '''
+        import synthtwin.paths
+
+
+        def sneak():
+            return synthtwin.paths.os.system("echo hi")
+        ''',
+    )
+    _assert_red(violations, "synthtwin.paths.os.system")
+
+
+def test_intra_package_second_attribute_step_goes_red(tmp_path):
+    """Only one attribute step past an intra-package module can be
+    checked from the source text; a second step must be rejected."""
+    violations = _scan_code(
+        tmp_path,
+        '''
+        import synthtwin.paths
+
+
+        def sneak():
+            return synthtwin.paths.PathValidationError.args
+        ''',
+    )
+    _assert_red(violations, "more than one attribute")
+
+
+def test_conditional_rebinding_never_clears_module_origin(tmp_path):
+    """Bypass class: name binding must be flow-insensitive. A store on
+    a branch that can never run must not make the scanner forget that
+    the name still holds an imported module at run time."""
+    violations = _scan_code(
+        tmp_path,
+        '''
+        import os as capability
+
+        if False:
+            capability = 0
+
+        capability.system("noop")
+        ''',
+    )
+    _assert_red(violations, "os.system")
+
+
+def test_unknown_callback_call_goes_red(tmp_path):
+    """Bypass class: a call through a name the scanner cannot trace to
+    any known function or class (a callback parameter) must be
+    rejected, because the source text alone cannot say what would run."""
+    violations = _scan_code(
+        tmp_path,
+        '''
+        def invoke(cb):
+            cb("x")
+        ''',
+    )
+    _assert_red(violations, "cb")
+
+
+def test_module_passed_as_bare_value_goes_red(tmp_path):
+    """Bypass class: handing a module object to a helper as a plain
+    value would let the helper reach any of that module's attributes
+    without a traceable chain; the hand-off itself must be rejected."""
+    violations = _scan_code(
+        tmp_path,
+        '''
+        import os
+
+
+        def helper(thing):
+            return thing
+
+
+        helper(os.path)
+        ''',
+    )
+    _assert_red(violations, "bare value")

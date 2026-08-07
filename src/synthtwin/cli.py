@@ -36,6 +36,27 @@ def _version() -> str:
 
 
 def main(argv: "list[str] | None" = None) -> int:
+    """Run the `synthtwin` command.
+
+    Guarantees:
+
+    - Inputs: `argv` is the list of command-line arguments to parse, or
+      `None` to parse `sys.argv[1:]`. The only recognized flags are
+      `--version` and `--help`.
+    - Return codes: returns 0 on every handled invocation. With
+      `--version` it prints exactly the installed package version (from
+      `importlib.metadata.version("synthtwin")`, the single version
+      source, plan D4) followed by a newline; with no arguments it
+      prints the version-and-status block. If the package metadata is
+      absent (uninstalled source tree), a plain-language placeholder
+      version is printed instead of raising.
+    - Errors raised: the only exception that escapes is `SystemExit`,
+      raised by argparse itself - exit code 2 for an unrecognized
+      argument (message on stderr), exit code 0 for `--help`.
+    - Boundary: performs no filesystem, network, subprocess, native, or
+      dynamic-code operation; imports stay within the plan D6.2
+      allowlist.
+    """
     parser = argparse.ArgumentParser(
         prog="synthtwin",
         description=(

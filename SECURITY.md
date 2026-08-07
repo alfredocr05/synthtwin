@@ -116,17 +116,28 @@ the question an auditor actually cares about answered per row:
 | --- | --- | --- | --- |
 | Runtime, direct | none | nothing to execute | - |
 | Runtime, transitive | none | nothing to execute | - |
-| Build frontend | `pip` / `python -m build` in CI | no | exact versions recorded in CI logs every run |
-| Build backend | `hatchling` | only if you build from source yourself; never when installing a prebuilt wheel | the committed hash lockfile covering the build closure, consumed frozen (CI fails on drift) |
+| Build frontend | `pip` / `python -m build` in CI | no | `build` is hash-locked in `requirements-dev.lock`, consumed frozen (CI fails on drift); `pip` ships with the runner interpreter, its exact version recorded in CI logs every run |
+| Build backend | `hatchling` | only if you build from source yourself; never when installing a prebuilt wheel | hash-locked in `requirements-dev.lock`, which covers the complete build closure, consumed frozen (CI fails on drift) |
 | Installer toolchain | the user's own `pip` | yes - it is your tool and a trust root you already hold | your environment |
-| Artifact checker | `twine` (CI only) | no | exact version recorded in CI logs |
-| Dev tools | `pytest`, `ruff`, `mypy` | no - contributor and CI machines only | dev-group bounds in `pyproject.toml`; exact versions recorded in CI logs |
-| CI platform | GitHub-hosted runner image; CPython installed by the SHA-pinned setup action | no | **trust roots, not pins**: the actual runner image version and the exact interpreter version are echoed into the logs from the runner context every run; a `-latest` label is never called a pin |
+| Artifact checker | `twine` (CI only) | no | hash-locked in `requirements-dev.lock`, consumed frozen (CI fails on drift) |
+| Dev tools | `pytest`, `ruff`, `mypy` | no - contributor and CI machines only | hash-locked in `requirements-dev.lock` (floors declared in `requirements-dev.in`), consumed frozen (CI fails on drift) |
+| CI platform | GitHub-hosted runner image; CPython installed by the SHA-pinned setup action; the runner's container runtime and git/OS tooling | no | **trust roots, not pins**: named concretely below the table; versions are echoed into the logs where the platform exposes them; a `-latest` label is never called a pin |
 | Release tooling | none until the first release | - | - |
 
 Everything pinnable is pinned (GitHub Actions by full commit SHA;
-closures by hash); everything that cannot be pinned is named above as a
-trust root rather than papered over.
+closures by hash); everything that cannot be pinned is named here as a
+trust root rather than papered over. The unpinned trust roots, named
+concretely:
+
+- the GitHub-hosted runner image (its actual version is echoed into the
+  logs from the runner context every run);
+- the CPython interpreter installed by the SHA-pinned setup action (the
+  exact interpreter and `pip` versions are recorded in the logs);
+- the container runtime - the Docker engine the runner image provides -
+  which starts the build container and enforces its `--network none`
+  namespace;
+- the git and OS tooling on the runner (checkout, shell, coreutils),
+  which handle the repository before any hash-locked tool runs.
 
 **The network-unavailable build [built].** The build job first verifies
 and populates a local wheelhouse (wheels only, hash-required; source
@@ -134,10 +145,14 @@ distributions, VCS, editable, and local-path requirements are rejected,
 so no build hook can execute before the boundary), then runs the entire
 build inside a container started with `--network none` - an empty network
 namespace, so no proxy, DNS, or egress of any kind exists for build code
-at any level. The container image is an official CPython slim image
-referenced only by its `sha256` digest, never by a mutable tag alone; the
+at any level. The container image is the official CPython slim image,
+pinned in `.github/workflows/ci.yml` as
+`python:3.14-slim@sha256:a7fb1e634c4a578f9e0bd6327f11a3cde11b7a9395f48e24360c0988bcc5c2bc`
+(the tag before `@` is human context only; the digest is the pin,
+resolved from Docker Hub on 2026-08-07) - never a mutable tag alone; the
 observed digest, in-container OS identity, and exact Python and pip
-versions are verified and recorded. A deliberate HTTP fetch attempted
+versions are verified and recorded. If the workflow's pinned digest ever
+changes, this recorded value must change in the same commit. A deliberate HTTP fetch attempted
 inside the same container must fail, demonstrated in a CI self-test.
 
 **The supported institutional install path [planned].** The first
@@ -200,9 +215,14 @@ vocabulary, no identifiers. The mechanism:
   result, and the digest of the independent inventory review. The
   attestation is signed with the maintainer's SSH key.
 - **Pinned key.** The verifying public key is pinned in this repository
-  (added at the first commit) and recorded here. Public CI verifies the
-  signature against the pinned key and recomputes every publicly
-  computable digest; any drift, missing signature, or wrong key is red.
+  at `tools/decontamination/allowed_signers` (recorded in the
+  repository's initial history) and recorded here:
+  `ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAO6FlktnDKn0LNiJ+e6bnRTtWAj8nlTKoY7oFo2SWXD`,
+  SHA256 fingerprint
+  `SHA256:rR6ITL4F2JAdAnBaIocCCf1N8cY5NmPrIx7ZjyXCsPM`. Public CI
+  verifies the signature against the pinned key and recomputes every
+  publicly computable digest; any drift, missing signature, or wrong
+  key is red.
 - **What the signature means.** Within the narrowed claim below, the
   signature authenticates origin against third parties.
   Maintainer-key compromise is the stated residual.

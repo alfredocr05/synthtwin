@@ -626,4 +626,6 @@ artifacts themselves were not touched.
 
 This amendment takes effect only on ratification by inventory-review
 round 2, which also rules on the wording-normalization step for the
-review history.
+review history. Status: ratified by inventory-review round 2 on
+2026-08-07 with conditions R2-C1..R2-C7, which are applied; the private
+review record binds this ratification.

@@ -4,6 +4,9 @@ Installed at MODULE IMPORT TIME - not as a fixture - so it is active during
 pytest collection and during every import of package modules by the suite.
 It is a guard/tripwire supplementing the static import policy (D6.2), not
 OS-level network disablement, and it is described that way everywhere.
+The timing is regression-tested: ``tests/test_guard_timing_sentinel.py``
+records at collection time what a connection attempt raises, and turns
+red if this installation ever moves into a fixture.
 """
 
 import socket
