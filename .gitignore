@@ -33,3 +33,6 @@ venv/
 
 # OS noise
 .DS_Store
+
+# uv project lock (requirements-dev.lock is the governed lock)
+uv.lock
