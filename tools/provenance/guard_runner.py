@@ -42,7 +42,7 @@ import runpy
 import sys
 
 GUARD_MESSAGE = (
-    "blocked by the no-network fixture guard: this fixture generator "
+    "blocked by the best-effort fixture guard: this fixture generator "
     "attempted a forbidden operation"
 )
 
