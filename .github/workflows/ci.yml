@@ -799,7 +799,8 @@ jobs:
         # text, so pip never gets a chance to fetch or build it.
         run: python tools/supply_chain/validate_lock.py
       - name: Install locked dev tools for the battery (frozen)
-        run: python -m pip install --require-hashes --only-binary=:all: -r "$LOCK_FILE"
+        run: |
+          python -m pip install --require-hashes --only-binary=:all: -r "$LOCK_FILE"
       - name: Run the decontamination self-test battery
         run: python -m pytest tests/test_decontamination.py -q
 
