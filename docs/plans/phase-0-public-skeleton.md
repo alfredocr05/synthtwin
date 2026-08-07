@@ -644,3 +644,52 @@ label requires widening the workflow token beyond `contents: read`,
 and D14 values the read-only token higher than the label. Status:
 ratified by code-review round 3 on 2026-08-07; the replacement
 mechanism is in effect and described in SECURITY.md.
+
+## D6 Amendment A3 — the static scanner's honest contract (pending ratification)
+
+Code-review round 5 demonstrated, with runnable probes, that a fully
+closed static call-target model is unattainable in Python: a subclass of
+a built-in type passes an isinstance guard and overrides its methods; a
+call chained onto a constructor in one expression evades name tracking;
+an allowed library API invokes methods on caller-supplied objects;
+decorators and class construction dispatch code no reading-only analysis
+can resolve. The reviewer's final ruling required a new reviewable
+design or a materially narrower contract.
+
+**This amendment adopts the narrower contract.** The offline static
+scanner is a best-effort static analysis layer: a strong,
+mutation-tested automatic check over a fully attribute-enumerated
+allowlist, with the audited callback-slot table, union-set origin
+tracking, and the type-gate rule — one defensive layer inside the D6
+boundary (source audit + layered checks + network-isolated deployment),
+not a proof of universal call-target closure. Nothing in the scanner is
+weakened by this amendment; every mutation and rule stays. What changes
+is the claim.
+
+**Named residual, stated exactly:** code supplied BY THE CALLER — a
+booby-trapped object or callable handed to synthtwin's public functions
+— executes in the caller's own process under the caller's own
+authority. The boundary controls what synthtwin's own code initiates;
+it does not and cannot police the caller against themselves. This is
+the same residual class the ratified D6 limits (local-actor races,
+transparent network mounts) already accept, and it is disclosed in
+SECURITY.md alongside them.
+
+Status: authorized by the project owner on 2026-08-07; put to the
+Phase 0 closure review for ratification.
+
+## Owner decisions recorded at Phase 0 closure
+
+- **Repository visibility (2026-08-07):** the repository remains
+  private until the owner judges the application readier for public
+  release; the public-from-first-build principle is deferred by owner
+  authority, by the same mechanism as the D2 waiver. The D14 items that
+  require a public repository on this account tier — branch and tag
+  rulesets and their API verification — are applied at the moment of
+  the visibility flip, and Phase 0 acceptance closes in private-mode
+  form with those items enumerated as deferred behind the flip. CI
+  runs on metered private-tier minutes meanwhile.
+- **Account controls (2026-08-07):** the owner confirmed two-factor
+  authentication is enabled on the hosting account. The setting is not
+  exposed to the automation token; the owner's dated confirmation is
+  recorded here, and the reviewer may re-verify at the visibility flip.
