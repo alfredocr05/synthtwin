@@ -796,8 +796,12 @@ unchanged by it.
   `Date` and `x-github-request-id` response headers, the repository's
   `node_id` and `full_name`, and the verbatim bodies for the Actions
   permissions, fork-approval (HTTP 422), and rulesets (HTTP 403)
-  endpoints -- is retained as a signed maintainer-private artifact,
-  `decontamination/out/settings-readback.json`, bound by digest in the
+  endpoints -- is retained MINIMIZED as a signed maintainer-private artifact
+  (six repository-identity fields, the per-call provenance headers, and the
+  verbatim governance bodies; the full repository body is deliberately NOT
+  retained because for a private repository it carries a short-lived clone
+  credential -- see the evidence-hygiene record),
+  `decontamination/out/settings-readback-v2.json`, bound by digest in the
   public attestation. Any account with read access reproduces it with
   the `gh api ... --include` commands recorded inside it.
 - **Account controls (2026-08-07):** the owner confirmed two-factor
@@ -809,3 +813,41 @@ unchanged by it.
   owner, so neither is claimed as confirmed in this plan or in any
   public document until a dated owner statement covers it.
   Re-verification of all three is due at the visibility flip.
+
+## Phase 0 closure — owner decision, 2026-08-07
+
+The adversarial review cycles for Phase 0 are **ended by owner decision**.
+Their record is complete and public: five plan-review rounds, two
+decontamination-inventory rounds, five code-review rounds, and four closure
+rounds, with every response document retained.
+
+**What the cycles delivered, substantively:** the ratified plan and
+classifier; a scanner, provenance guard, path validator and network tripwire
+each with red mutation tests; a CI gate set that runs green on three
+operating systems and five Python versions including a network-disabled
+container build; a signed evidence chain; and a series of genuine defects
+found and fixed - a workflow that could not parse at all, checkout settings
+that silently broke signed digests on one platform, several scanner bypasses
+demonstrated with runnable probes, and a short-lived repository credential
+that an evidence artifact had over-retained.
+
+**What remained when the cycle was stopped:** documentation-wording
+consistency of one kind - places where a control that is deferred until the
+repository becomes public could still be read as active. The last rounds
+repaired these in the plan, the security policy, the contributor guide, the
+changelog, the workflow, the hook installer and the provenance tooling; any
+survivor is a labeling defect in prose, not a gap in a control, and is
+corrected on sight.
+
+**Standing rules that outlive the cycle.** The deferred controls listed in
+the owner-decision records and SECURITY.md are applied and verified through
+the settings API at the visibility flip. The binding resolver
+(`decontamination/resolve_bindings.py`) runs with every evidence refresh and
+fails if any signed binding does not resolve to exactly one retained,
+correctly signed file - the control that makes a dangling record impossible
+to miss. Post-commit records use immutable per-head filenames and are never
+overwritten. Evidence artifacts retain only the fields their claim needs.
+
+**Phase 0 is closed on this basis.** Phase 1 planning proceeds under the
+same plan-first discipline: its draft plan is reviewed before any Phase 1
+code is written.
