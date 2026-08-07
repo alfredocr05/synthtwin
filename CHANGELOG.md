@@ -10,5 +10,6 @@ exists).
 - Phase 0 public skeleton: package scaffold, `synthtwin` CLI stub, the
   offline guarantee's layered checks, the decontamination scanner and
   manifest, the data-provenance guard, and CI with a single aggregate
-  required gate. No data functionality yet - profiling and generation
+  gate job (not yet a mechanically required context: the branch ruleset
+  is deferred while the repository is private). No data functionality yet - profiling and generation
   arrive in later phases per the project plan.
