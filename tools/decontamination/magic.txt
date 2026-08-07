@@ -1,0 +1,39 @@
+# magic-v1 -- frozen offset/hex-signature table for the decoder/classifier
+# byte pipeline (conditioned plan C3). MAINTAINER-PRIVATE COPY; the public
+# scanner ships an identical copy whose digest is attestation-bound.
+#
+# Scope: archive, image, executable, compound-document, database, and
+# columnar-storage signatures. NO COMPLETENESS CLAIM is made (C3).
+#
+# Selection rule, recorded per C1-F3's provenance requirement: only
+# signatures containing at least one byte outside printable ASCII are
+# listed. Printable-prefix formats (e.g. columnar 'PAR1', '%PDF-') are
+# deliberately omitted: a genuine such binary contains control bytes that
+# the C0/DEL/C1 raw-byte rule rejects after strict-UTF-8 failure, and a
+# printable-only impostor is scanned as text, which is the named residual
+# and still token-scans its contents. This keeps the table unable to
+# misroute genuine text that merely begins with a printable tag.
+#
+# Format: <offset> <hex-signature> <label>
+0 504b0304 zip-family (also docx/xlsx/jar/wheel)
+0 504b0506 zip-empty
+0 504b0708 zip-spanned
+0 1f8b gzip
+0 fd377a585a00 xz
+0 28b52ffd zstd
+0 377abcaf271c 7z
+0 526172211a0700 rar
+0 7f454c46 elf
+0 feedface macho-32
+0 feedfacf macho-64
+0 cefaedfe macho-32-rev
+0 cffaedfe macho-64-rev
+0 cafebabe macho-fat-or-java-class
+0 89504e47 png
+0 ffd8ff jpeg
+0 49492a00 tiff-le
+0 4d4d002a tiff-be
+0 d0cf11e0a1b11ae1 ole-compound-document
+0 53514c69746520666f726d6174203300 sqlite3
+0 4f626a01 avro
+0 0000000142756431 ds-store
