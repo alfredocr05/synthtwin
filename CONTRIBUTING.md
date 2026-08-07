@@ -82,7 +82,10 @@ These bind every phase that touches randomness or writes output files:
 - **Checks.** CI runs lint (`ruff`), types (`mypy --strict` on `src/`),
   tests across the platform matrix, the packaged build, and the three
   guard suites (decontamination, offline-static, provenance) behind one
-  aggregate required check named `gate`. Run `ruff check .`, `mypy`, and
+  aggregate check named `gate`. While the repository is private no branch
+  ruleset is applied, so `gate` is the standing rule rather than a
+  mechanically enforced one; it becomes the required context when the
+  ruleset is applied at the visibility flip (see SECURITY.md). Run `ruff check .`, `mypy`, and
   `pytest` locally before pushing; the guard scanners in `tools/` can be
   run locally too.
 - **Error messages.** Every error message must be actionable by a

@@ -957,7 +957,9 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
   gate:
-    # Plan D9 / D14: the one required status context. Runs always, and
+    # Plan D9 / D14: the single aggregate status context, and the one
+    # that WILL be the required context once a branch ruleset is applied
+    # (deferred while the repository is private; see SECURITY.md). Runs always, and
     # goes green only when every job above succeeded (a skipped or
     # cancelled job is a failure here, not a pass).
     needs:
