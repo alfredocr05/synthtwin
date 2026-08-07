@@ -1,0 +1,625 @@
+# CI for synthtwin Phase 0 -- plan D9, with the D5 build-job requirements.
+#
+# Every job below feeds the single "gate" job; the branch ruleset requires
+# exactly the gate context (plan D14). Pinning policy (plan D5): every
+# action is pinned to a full commit SHA (the human-readable tag sits in a
+# comment next to each SHA), and the build container image is pinned to
+# its OCI index digest. Action SHAs and the image digest were resolved on
+# 2026-08-07; changing any of them follows the dependency-update review
+# path.
+#
+# Phase 0 note: the runtime dependency set is empty (plan D5), so the
+# hash-checked wheelhouse below covers only the dev/CI and build tooling
+# closure pinned in the committed lock file. The same steps take on
+# runtime dependencies when Phase 1 introduces them.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Default token scope for every job (plans D9 and D14). No job widens it,
+# and no privileged fork-triggered event is used: the only triggers are
+# the two listed above.
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  # Committed --require-hashes lock covering the dev/CI environment and the
+  # complete build closure (plan D5; acceptance criterion 4). CI consumes
+  # it frozen: no tool installs except from this file.
+  LOCK_FILE: requirements-dev.lock
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.14"
+      - name: Install locked dev tools (frozen)
+        run: |
+          if [ ! -f "$LOCK_FILE" ]; then
+            echo "The lock file $LOCK_FILE is missing from the repository root."
+            echo "It pins every development and build tool by version and hash"
+            echo "(plan D5). Restore it from version control, or ask a"
+            echo "maintainer to rebuild and commit it, then run CI again."
+            exit 1
+          fi
+          python -m pip install --require-hashes --only-binary=:all: -r "$LOCK_FILE"
+      - name: ruff check
+        run: python -m ruff check .
+
+  types:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.14"
+      - name: Install locked dev tools (frozen)
+        run: |
+          if [ ! -f "$LOCK_FILE" ]; then
+            echo "The lock file $LOCK_FILE is missing from the repository root."
+            echo "It pins every development and build tool by version and hash"
+            echo "(plan D5). Restore it from version control, or ask a"
+            echo "maintainer to rebuild and commit it, then run CI again."
+            exit 1
+          fi
+          python -m pip install --require-hashes --only-binary=:all: -r "$LOCK_FILE"
+      - name: mypy (strict) on src/
+        run: python -m mypy src
+
+  tests:
+    # Full matrix per plan D9. The complete Windows path-locality/reparse
+    # suite lives in the plain pytest run, so every Windows cell runs it.
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
+        include:
+          - os: macos-latest
+            python-version: "3.14"
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install locked dev tools (frozen)
+        run: |
+          if [ ! -f "$LOCK_FILE" ]; then
+            echo "The lock file $LOCK_FILE is missing from the repository root."
+            echo "It pins every development and build tool by version and hash"
+            echo "(plan D5). Restore it from version control, or ask a"
+            echo "maintainer to rebuild and commit it, then run CI again."
+            exit 1
+          fi
+          python -m pip install --require-hashes --only-binary=:all: -r "$LOCK_FILE"
+      - name: Install the package (no network, backend from the lock)
+        run: python -m pip install --no-build-isolation --no-index --no-deps .
+      - name: Run the test suite
+        run: python -m pytest
+
+  build:
+    # Plan D5: hash-checked wheelhouse prefetch (wheels only), then the
+    # entire build inside a container started with --network none, from an
+    # image pinned by OCI digest, followed by artifact checks, an offline
+    # fresh-venv install-and-smoke, and the required egress mutation.
+    runs-on: ubuntu-latest
+    env:
+      # Official CPython slim image, pinned by multi-arch index digest
+      # (plan D5, C5 condition). The tag before "@" is human context only;
+      # the digest is the pin. Resolved from Docker Hub on 2026-08-07.
+      BUILD_IMAGE: "python:3.14-slim@sha256:a7fb1e634c4a578f9e0bd6327f11a3cde11b7a9395f48e24360c0988bcc5c2bc"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.14"
+      - name: Record trust roots (runner image, host toolchain)
+        # Plan D5: the hosted runner is a named trust root; its actual
+        # image version is echoed into the logs from the runner context.
+        run: |
+          echo "Runner image: ${ImageOS:-unknown} version ${ImageVersion:-unknown}"
+          python --version
+          python -m pip --version
+          docker --version
+      - name: Prefetch the wheelhouse (wheels only, hash-checked)
+        # The only step in this job that touches the network. Source
+        # distributions are refused outright; nothing here executes any
+        # package code (plan D5 acquisition gate).
+        run: |
+          if [ ! -f "$LOCK_FILE" ]; then
+            echo "The lock file $LOCK_FILE is missing from the repository root."
+            echo "It pins every development and build tool by version and hash"
+            echo "(plan D5). Restore it from version control, or ask a"
+            echo "maintainer to rebuild and commit it, then run CI again."
+            exit 1
+          fi
+          python -m pip download --require-hashes --only-binary=:all: \
+            --dest "$RUNNER_TEMP/wheelhouse" --requirement "$LOCK_FILE"
+      - name: Verify every wheelhouse file hash against the lock
+        # Independent re-check immediately before the wheelhouse is
+        # mounted read-only into the build container (plan D5).
+        run: |
+          export WHEELHOUSE="$RUNNER_TEMP/wheelhouse"
+          python3 - <<'SCRIPT'
+          import hashlib
+          import os
+          import pathlib
+          import re
+          import sys
+
+          lock_text = pathlib.Path(os.environ["LOCK_FILE"]).read_text(encoding="utf-8")
+          pinned = set(re.findall(r"sha256[:=]([0-9a-f]{64})", lock_text))
+          house = pathlib.Path(os.environ["WHEELHOUSE"])
+          files = sorted(p for p in house.iterdir() if p.is_file())
+          problems = []
+          if not files:
+              problems.append("the wheelhouse is empty; the download step produced nothing")
+          for item in files:
+              if item.suffix != ".whl":
+                  problems.append(
+                      f"non-wheel file in the wheelhouse: {item.name} "
+                      "(only built wheels may enter the build; plan D5)"
+                  )
+                  continue
+              digest = hashlib.sha256(item.read_bytes()).hexdigest()
+              if digest not in pinned:
+                  problems.append(
+                      f"wheel {item.name} has SHA-256 {digest}, which is not "
+                      "pinned in the lock file"
+                  )
+          if problems:
+              print("Wheelhouse verification failed:")
+              for entry in problems:
+                  print(" -", entry)
+              print("Every file entering the build must be a wheel whose SHA-256")
+              print("appears in the lock. Rebuild the lock with a maintainer, or")
+              print("delete the stray file, then run CI again.")
+              sys.exit(1)
+          print(f"verified {len(files)} wheels against the lock")
+          SCRIPT
+      - name: Pull the pinned build image and verify the observed digest
+        # C5 condition: refuse a tag-only reference; verify the observed
+        # digest before any build execution.
+        run: |
+          case "$BUILD_IMAGE" in
+            *@sha256:*) ;;
+            *)
+              echo "The build image reference has no @sha256 digest pin."
+              echo "A mutable tag alone is refused (plan D5). Restore the"
+              echo "digest-pinned reference in .github/workflows/ci.yml."
+              exit 1
+              ;;
+          esac
+          docker pull "$BUILD_IMAGE"
+          PINNED="${BUILD_IMAGE##*@}"
+          OBSERVED="$(docker inspect --format '{{join .RepoDigests " "}}' "$BUILD_IMAGE")"
+          echo "pinned:   python@$PINNED"
+          echo "observed: $OBSERVED"
+          case " $OBSERVED " in
+            *" python@$PINNED "*)
+              echo "observed image digest matches the pin"
+              ;;
+            *)
+              echo "The pulled image digest does not match the pinned digest."
+              echo "Someone or something changed the image. Do not merge; ask"
+              echo "a maintainer to re-resolve and re-pin the image (plan D5)."
+              exit 1
+              ;;
+          esac
+      - name: Build wheel and sdist inside the no-network container
+        # The container has an empty network namespace: no proxy, no DNS,
+        # no egress of any kind (plan D5). The script first proves that
+        # with an in-container egress attempt that must fail, records the
+        # in-container OS identity and exact Python and pip versions (C5),
+        # then builds from the read-only wheelhouse only.
+        run: |
+          cat > "$RUNNER_TEMP/container-build.sh" <<'SCRIPT'
+          set -eu
+          echo "== in-container identity (recorded per plan D5 / C5) =="
+          cat /etc/os-release
+          python --version
+          python -m pip --version
+          echo "== egress attempt inside the build container (must fail) =="
+          if python -c "import urllib.request; urllib.request.urlopen('http://example.com/', timeout=5)"; then
+            echo "The egress attempt inside the build container succeeded."
+            echo "The build must run with no network at all (plan D5)."
+            echo "Do not merge until container isolation is restored."
+            exit 97
+          fi
+          echo "egress attempt failed as required: the container has no network"
+          echo "== create the build environment from the read-only wheelhouse =="
+          python -m venv /tmp/buildenv
+          /tmp/buildenv/bin/python -m pip install --no-index \
+            --find-links /wheelhouse --require-hashes -r "/work/$LOCK_FILE"
+          /tmp/buildenv/bin/python --version
+          /tmp/buildenv/bin/python -m pip --version
+          /tmp/buildenv/bin/python -m pip freeze --all > /work/build-freeze.txt
+          echo "== build (no isolation, backend from the wheelhouse) =="
+          /tmp/buildenv/bin/python -m build --no-isolation --outdir /work/dist /work
+          SCRIPT
+          docker run --rm --network none \
+            -e LOCK_FILE \
+            -v "$PWD:/work" \
+            -v "$RUNNER_TEMP/wheelhouse:/wheelhouse:ro" \
+            -v "$RUNNER_TEMP/container-build.sh:/container-build.sh:ro" \
+            -w /work \
+            "$BUILD_IMAGE" \
+            sh /container-build.sh
+      - name: Compare the executing build closure to the lock
+        # Plan D5 acceptance: the packages present in the executing build
+        # environment must match the lock, pin for pin.
+        run: |
+          python3 - <<'SCRIPT'
+          import os
+          import pathlib
+          import re
+          import sys
+
+          def norm(name: str) -> str:
+              return re.sub(r"[-_.]+", "-", name).lower()
+
+          lock_text = pathlib.Path(os.environ["LOCK_FILE"]).read_text(encoding="utf-8")
+          locked = {}
+          pattern = r"(?m)^\s*([A-Za-z0-9][A-Za-z0-9._-]*)\s*==\s*([A-Za-z0-9.!+]+)"
+          for match in re.finditer(pattern, lock_text):
+              locked[norm(match.group(1))] = match.group(2)
+          freeze_text = pathlib.Path("build-freeze.txt").read_text(encoding="utf-8")
+          problems = []
+          checked = 0
+          for line in freeze_text.splitlines():
+              line = line.strip()
+              if not line or line.startswith("#"):
+                  continue
+              if "==" not in line:
+                  problems.append(f"unexpected line in the build environment listing: {line}")
+                  continue
+              name, version = line.split("==", 1)
+              key = norm(name)
+              if key == "pip":
+                  # venv bootstrap installer: a named trust root whose exact
+                  # version is recorded in the build log above (plan D5).
+                  continue
+              checked += 1
+              if locked.get(key) != version:
+                  expected = locked.get(key, "nothing")
+                  problems.append(
+                      f"{name}=={version} ran in the build environment but the "
+                      f"lock pins {expected}"
+                  )
+          if checked == 0:
+              problems.append("the build environment listing had no packages to check")
+          if problems:
+              print("Build closure does not match the lock:")
+              for entry in problems:
+                  print(" -", entry)
+              print("The build may only use exactly what the lock pins (plan D5).")
+              print("Ask a maintainer to rebuild the lock or remove the drift.")
+              sys.exit(1)
+          print(f"build closure matches the lock ({checked} packages checked)")
+          SCRIPT
+      - name: Record wheel and sdist digests
+        # Plan D5 acceptance: the artifact digests are part of the build
+        # record in the CI log.
+        run: sha256sum dist/*
+      - name: twine check
+        run: |
+          python -m venv "$RUNNER_TEMP/twine-env"
+          "$RUNNER_TEMP/twine-env/bin/python" -m pip install --no-index \
+            --find-links "$RUNNER_TEMP/wheelhouse" twine
+          "$RUNNER_TEMP/twine-env/bin/python" -m twine check --strict dist/*
+      - name: Check wheel and sdist contents against the allowlist
+        # Plan D6.4 / D9: sdist and wheel contents must match an explicit
+        # file allowlist, kept inline here. DIST-INFO/ stands for the
+        # versioned .dist-info directory; ROOT/ for the sdist top folder.
+        run: |
+          cat > "$RUNNER_TEMP/artifact-allowlist.txt" <<'ALLOWLIST'
+          # <archive> required <path>   : exact path must be present
+          # <archive> optional <path>   : exact path may be present
+          # <archive> tree <prefix> <ext,ext> : files under prefix with a
+          #   listed suffix may be present (source and doc text only; data
+          #   formats are never allowed anywhere, plan D13)
+          wheel required synthtwin/__init__.py
+          wheel required synthtwin/cli.py
+          wheel required DIST-INFO/METADATA
+          wheel required DIST-INFO/WHEEL
+          wheel required DIST-INFO/RECORD
+          wheel required DIST-INFO/entry_points.txt
+          wheel optional DIST-INFO/licenses/LICENSE
+          wheel optional DIST-INFO/LICENSE
+          wheel optional synthtwin/py.typed
+          sdist required ROOT/PKG-INFO
+          sdist required ROOT/pyproject.toml
+          sdist required ROOT/LICENSE
+          sdist required ROOT/README.md
+          sdist required ROOT/SECURITY.md
+          sdist required ROOT/src/synthtwin/__init__.py
+          sdist required ROOT/src/synthtwin/cli.py
+          sdist optional ROOT/src/synthtwin/py.typed
+          sdist optional ROOT/.gitignore
+          sdist tree ROOT/tests/ .py,.json,.txt,.md,.toml
+          sdist tree ROOT/tools/ .py,.json,.txt,.md,.toml
+          ALLOWLIST
+          export ALLOWLIST_PATH="$RUNNER_TEMP/artifact-allowlist.txt"
+          python3 - <<'SCRIPT'
+          import os
+          import pathlib
+          import sys
+          import tarfile
+          import zipfile
+
+          rules = {
+              "wheel": {"required": set(), "optional": set(), "tree": []},
+              "sdist": {"required": set(), "optional": set(), "tree": []},
+          }
+          allow_path = pathlib.Path(os.environ["ALLOWLIST_PATH"])
+          for raw in allow_path.read_text(encoding="utf-8").splitlines():
+              line = raw.strip()
+              if not line or line.startswith("#"):
+                  continue
+              parts = line.split()
+              archive, rule, path = parts[0], parts[1], parts[2]
+              if rule == "tree":
+                  rules[archive]["tree"].append((path, tuple(parts[3].split(","))))
+              else:
+                  rules[archive][rule].add(path)
+
+          dist = pathlib.Path("dist")
+          wheels = sorted(dist.glob("*.whl"))
+          sdists = sorted(dist.glob("*.tar.gz"))
+          if len(wheels) != 1 or len(sdists) != 1:
+              print("Expected exactly one wheel and one sdist in dist/.")
+              print(f"Found wheels: {[p.name for p in wheels]}")
+              print(f"Found sdists: {[p.name for p in sdists]}")
+              print("Clear dist/ and rerun the build job.")
+              sys.exit(1)
+
+          version = wheels[0].name.split("-")[1]
+
+          wheel_names = []
+          with zipfile.ZipFile(wheels[0]) as zf:
+              for name in zf.namelist():
+                  if name.endswith("/"):
+                      continue
+                  wheel_names.append(
+                      name.replace(f"synthtwin-{version}.dist-info/", "DIST-INFO/", 1)
+                  )
+          sdist_names = []
+          root_prefix = f"synthtwin-{version}/"
+          with tarfile.open(sdists[0]) as tf:
+              for member in tf.getmembers():
+                  if not member.isfile():
+                      continue
+                  name = member.name
+                  if name.startswith(root_prefix):
+                      name = "ROOT/" + name[len(root_prefix):]
+                  sdist_names.append(name)
+
+          def check(archive: str, names: list) -> list:
+              ruleset = rules[archive]
+              problems = []
+              present = set()
+              for name in names:
+                  allowed = (
+                      name in ruleset["required"]
+                      or name in ruleset["optional"]
+                      or any(
+                          name.startswith(prefix) and name.endswith(exts)
+                          for prefix, exts in ruleset["tree"]
+                      )
+                  )
+                  if allowed:
+                      present.add(name)
+                  else:
+                      problems.append(f"unexpected file in the {archive}: {name}")
+              for req in sorted(ruleset["required"] - present):
+                  problems.append(f"missing required file in the {archive}: {req}")
+              return problems
+
+          problems = check("wheel", wheel_names) + check("sdist", sdist_names)
+          if problems:
+              print("Packaging content check failed:")
+              for entry in problems:
+                  print(" -", entry)
+              print("If a listed file is intentional, add it to the allowlist in")
+              print(".github/workflows/ci.yml (build job, content-check step).")
+              print("Otherwise adjust pyproject.toml so it is not shipped, or")
+              print("restore the missing file, then run CI again.")
+              sys.exit(1)
+          print(f"wheel ok ({len(wheel_names)} files); sdist ok ({len(sdist_names)} files)")
+          SCRIPT
+      - name: Install the wheel into a fresh venv and smoke-run the CLI
+        # Plan D6.4: fresh venv, socket guard applied via sitecustomize,
+        # then "synthtwin --version" and "synthtwin" must run offline.
+        run: |
+          python -m venv "$RUNNER_TEMP/fresh-env"
+          "$RUNNER_TEMP/fresh-env/bin/python" -m pip install --no-index dist/*.whl
+          SITE="$("$RUNNER_TEMP/fresh-env/bin/python" -c "import sysconfig; print(sysconfig.get_paths()['purelib'])")"
+          cat > "$SITE/sitecustomize.py" <<'GUARD'
+          """Socket guard for the built-artifact smoke test (plan D6.4).
+
+          Refuses every socket use so the installed CLI demonstrably runs
+          with no network at all.
+          """
+          import socket
+
+
+          def _refuse(*_args, **_kwargs):
+              raise RuntimeError(
+                  "Network use is refused in this offline smoke test. synthtwin "
+                  "must work with no network at all; if you see this message, a "
+                  "network attempt happened and that is a bug worth reporting."
+              )
+
+
+          socket.socket = _refuse
+          socket.create_connection = _refuse
+          GUARD
+          OUT="$("$RUNNER_TEMP/fresh-env/bin/synthtwin" --version)"
+          echo "synthtwin --version -> $OUT"
+          if [ -z "$OUT" ]; then
+            echo "synthtwin --version printed nothing; the installed CLI is broken."
+            echo "Check src/synthtwin/cli.py and the packaging configuration."
+            exit 1
+          fi
+          "$RUNNER_TEMP/fresh-env/bin/synthtwin"
+      - name: Egress mutation - a fetch under --network none must fail
+        # Plan D5 / D6.5: the deliberate HTTP fetch attempted under the
+        # same image and the same --network none isolation must fail.
+        run: |
+          set +e
+          docker run --rm --network none "$BUILD_IMAGE" \
+            python -c "import urllib.request; urllib.request.urlopen('http://example.com/', timeout=5)"
+          status=$?
+          set -e
+          if [ "$status" -eq 0 ]; then
+            echo "The egress attempt under --network none SUCCEEDED."
+            echo "The build container must have no network path at all"
+            echo "(plan D5). Do not merge until isolation is restored."
+            exit 1
+          fi
+          echo "egress attempt failed as required (exit $status): no network available"
+
+  decontam:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.14"
+      - name: Run the decontamination scanner
+        # Plan D7 / D9: scans all tracked files and paths, verifies the
+        # attestation signature and every recomputable digest, and runs
+        # the neutral mutation battery. All of that lives inside the
+        # checker itself.
+        run: |
+          if [ ! -f tools/decontamination/check.py ]; then
+            echo "The decontamination checker is missing:"
+            echo "  tools/decontamination/check.py"
+            echo "Every push must run it (plans D7 and D9). Restore the file"
+            echo "from version control before merging."
+            exit 1
+          fi
+          python tools/decontamination/check.py
+
+  offline-static:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.14"
+      - name: Install locked dev tools (frozen)
+        run: |
+          if [ ! -f "$LOCK_FILE" ]; then
+            echo "The lock file $LOCK_FILE is missing from the repository root."
+            echo "It pins every development and build tool by version and hash"
+            echo "(plan D5). Restore it from version control, or ask a"
+            echo "maintainer to rebuild and commit it, then run CI again."
+            exit 1
+          fi
+          python -m pip install --require-hashes --only-binary=:all: -r "$LOCK_FILE"
+      - name: Install the package (no network, backend from the lock)
+        run: python -m pip install --no-build-isolation --no-index --no-deps .
+      - name: Run the import-allowlist scanner over src/
+        # Plan D6.2: the positive, API-granular allowlist scan.
+        run: |
+          if [ ! -f tools/offline_scan/scan_imports.py ]; then
+            echo "The offline import scanner is missing:"
+            echo "  tools/offline_scan/scan_imports.py"
+            echo "Every push must run it (plans D6 and D9). Restore the file"
+            echo "from version control before merging."
+            exit 1
+          fi
+          python tools/offline_scan/scan_imports.py src/
+      - name: Run the offline-scan test suite (mutation classes)
+        run: python -m pytest tests/test_offline_scan.py
+
+  provenance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.14"
+      - name: Install locked dev tools (frozen)
+        run: |
+          if [ ! -f "$LOCK_FILE" ]; then
+            echo "The lock file $LOCK_FILE is missing from the repository root."
+            echo "It pins every development and build tool by version and hash"
+            echo "(plan D5). Restore it from version control, or ask a"
+            echo "maintainer to rebuild and commit it, then run CI again."
+            exit 1
+          fi
+          python -m pip install --require-hashes --only-binary=:all: -r "$LOCK_FILE"
+      - name: Install the package (no network, backend from the lock)
+        run: python -m pip install --no-build-isolation --no-index --no-deps .
+      - name: Run the data-provenance guard
+        # Plan D13: re-runs the generator for every committed fixture and
+        # byte-compares it; refuses tracked data-format files that are not
+        # on the fixture manifest.
+        run: |
+          if [ ! -f tools/provenance/check_provenance.py ]; then
+            echo "The provenance checker is missing:"
+            echo "  tools/provenance/check_provenance.py"
+            echo "Every push must run it (plans D13 and D9). Restore the file"
+            echo "from version control before merging."
+            exit 1
+          fi
+          python tools/provenance/check_provenance.py
+      - name: Run the provenance test suite (mutation classes)
+        run: python -m pytest tests/test_provenance.py
+
+  gate:
+    # Plan D9 / D14: the one required status context. Runs always, and
+    # goes green only when every job above succeeded (a skipped or
+    # cancelled job is a failure here, not a pass).
+    needs: [lint, types, tests, build, decontam, offline-static, provenance]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require success from every job
+        env:
+          NEEDS_JSON: ${{ toJSON(needs) }}
+        run: |
+          python3 - <<'SCRIPT'
+          import json
+          import os
+          import sys
+
+          required = [
+              "lint",
+              "types",
+              "tests",
+              "build",
+              "decontam",
+              "offline-static",
+              "provenance",
+          ]
+          needs = json.loads(os.environ["NEEDS_JSON"])
+          bad = []
+          for job in required:
+              result = needs.get(job, {}).get("result", "missing")
+              print(f"{job}: {result}")
+              if result != "success":
+                  bad.append(f"{job} finished with result '{result}'")
+          if bad:
+              print()
+              print("The gate stays red because not every required job succeeded:")
+              for entry in bad:
+                  print(" -", entry)
+              print("Open the failed job's log for its specific fix-it message.")
+              sys.exit(1)
+          print("All required jobs succeeded. The gate is green.")
+          SCRIPT
