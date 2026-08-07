@@ -12,8 +12,8 @@ synthtwin exists for people whose records must never leak. Two threats
 are in scope:
 
 - **Theft** - real data, or values computed from real data, leaving the
-  user's machine, or entering this public repository through the
-  development process.
+  user's machine, or entering this repository through the development
+  process.
 - **Tampering** - a third party altering the code or artifacts that a
   user downloads and runs.
 
@@ -36,6 +36,14 @@ layered checks below - explicitly **not** an OS-level sandbox.
 Institutions requiring enforcement rather than assurance run synthtwin
 inside their own network-isolated environment.
 
+What the boundary covers, said once and then relied on below: it governs
+what synthtwin's **own** code initiates. It does not govern code that a
+caller hands to synthtwin - that code runs in the caller's process under
+the caller's own authority, and it is named as a residual risk below.
+The automatic checks in layers 2 and 3 are best-effort layers inside this
+boundary; the source audit, not any one scanner, is what carries the
+boundary claim.
+
 The layers:
 
 1. **Path locality rule.** Every input, output, and temp path is checked
@@ -54,6 +62,20 @@ The layers:
    loading, reflection primitives, and writes to interpreter state.
    Adding an API to the list is a plan-level decision with a capability
    audit.
+
+   **The scope of this scanner, stated exactly.** It is a best-effort
+   automatic layer inside the boundary above. It is *not* a proof that
+   every call target in the program resolves to an exact allowed API. A
+   reading-only analysis could in principle refuse every construct whose
+   target it cannot resolve; this one deliberately accepts a few such
+   shapes - among them an object supplied by the caller that satisfies a
+   type check, and a call chained onto a constructor in one expression -
+   so that ordinary code stays writable. What it therefore does not
+   prove is universal call-target closure. Its strength is measured
+   rather than asserted: every rule it holds is exercised by a
+   deliberate red mutation in CI, and no rule was relaxed to make this
+   scope statement true. (Plan D6 Amendment A3, ratified with conditions
+   by the Phase 0 closure review.)
 3. **Socket guard.** The test suite installs a Python-level guard at
    collection time that makes any attempted network connection fail
    loudly. It is described everywhere as a guard - never as "network
@@ -80,6 +102,18 @@ Stated here so that no reader has to discover them independently:
 - **Check-to-use races.** A hostile local process swapping a path between
   validation and use is outside the threat model, per the scope statement
   above.
+- **Code supplied by the caller.** A booby-trapped object or callable
+  handed to one of synthtwin's public functions runs in the caller's own
+  process under the caller's own authority. The boundary controls what
+  synthtwin's own code initiates; it does not and cannot police the
+  caller against themselves. Concretely: a subclass of a built-in type
+  passes a type check and can override the very methods that check
+  accepts, and the import-allowlist scanner reports no violation for
+  that shape, because the overriding code is the caller's, not this
+  project's. This is the same residual family as the two above - a
+  property of the machine and the process the caller already controls,
+  not a hole in synthtwin's code - and it is accepted on the same terms
+  (plan D6 Amendment A3).
 - **Printable-only streams scanned as text.** The decontamination
   scanner's decoder treats any byte stream that survives its strict
   decoding rules as text, even if a human would call the file binary. No
@@ -168,7 +202,10 @@ is governed by version bounds only and is documented as such.
    files. Run the scanner in `tools/offline_scan` against `src/` and
    confirm it passes; make it fail by adding a disallowed import to a
    scratch copy. Run the test suite and confirm the socket-guard
-   self-test fires on a deliberate connection.
+   self-test fires on a deliberate connection. Read the clean scan for
+   what it is: the best-effort layer scoped above, so the source read is
+   what carries the boundary claim, and the caller-supplied-code
+   residual stays open either way.
 2. **Zero runtime dependencies.** Open `pyproject.toml`; confirm
    `dependencies = []`.
 3. **Path rules.** Run the test suite on your platform; the Windows cells
@@ -186,17 +223,21 @@ is governed by version bounds only and is documented as such.
    image digest, interpreter versions, and the executing-environment
    package listing against the committed lock; confirm the egress
    self-test failed as required.
-7. **Governance.** Query the repository ruleset via the GitHub API:
-   required status check exactly `gate`, bound to the GitHub Actions app;
-   force-push and deletion blocked; no bypass actors. Read
-   `.github/workflows/` and confirm every action is pinned by full commit
-   SHA and the default token permission is `contents: read`.
+7. **Governance.** Read `.github/workflows/` and confirm every action is
+   pinned by full commit SHA and that the workflow declares
+   `contents: read` at the top level. Query the repository's Actions
+   permissions through the GitHub API and confirm
+   `default_workflow_permissions` is `read` and
+   `can_approve_pull_request_reviews` is false. Do not expect a branch or
+   tag ruleset to come back: those are not applied while the repository
+   is private, and the Governance section below lists them as deferred
+   with the exact API reason.
 
 ## The decontamination model
 
 synthtwin's development is informed by a maintainer-private prototype
 built around a restricted study environment. Nothing from that
-environment may appear in this public repository: no values, no column
+environment may appear in this repository: no values, no column
 vocabulary, no identifiers. The mechanism:
 
 - **Hashed manifest.** The private inventory of protected terms never
@@ -219,10 +260,9 @@ vocabulary, no identifiers. The mechanism:
   repository's initial history) and recorded here:
   `ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAO6FlktnDKn0LNiJ+e6bnRTtWAj8nlTKoY7oFo2SWXD`,
   SHA256 fingerprint
-  `SHA256:rR6ITL4F2JAdAnBaIocCCf1N8cY5NmPrIx7ZjyXCsPM`. Public CI
-  verifies the signature against the pinned key and recomputes every
-  publicly computable digest; any drift, missing signature, or wrong
-  key is red.
+  `SHA256:rR6ITL4F2JAdAnBaIocCCf1N8cY5NmPrIx7ZjyXCsPM`. CI verifies the
+  signature against the pinned key and recomputes every publicly
+  computable digest; any drift, missing signature, or wrong key is red.
 - **What the signature means.** Within the narrowed claim below, the
   signature authenticates origin against third parties.
   Maintainer-key compromise is the stated residual.
@@ -231,23 +271,49 @@ vocabulary, no identifiers. The mechanism:
   is *not* denylisted - denying it would match every ordinary public
   file. That class is governed by the contributor-review controls in
   `CONTRIBUTING.md` and by the incident procedure below, and it is the
-  reason a zero-match public tree is achievable without exemptions.
+  reason a zero-match tracked tree is achievable without exemptions.
 
 ## Governance and the narrowed tamper claim
 
-Controls in force:
+The repository is **private today** by owner decision, and becomes public
+when the owner judges the application readier for release (owner decision
+recorded 2026-08-07 in the Phase 0 plan; the open-source commitment
+itself is unchanged). Private mode decides which governance controls can
+exist at all, so this section separates what is running now from what
+waits for that moment. Nothing in the deferred list is in force. Do not
+rely on any of it.
 
-- Default branch: pull requests only; required status check exactly
-  `gate` (an aggregate job that fails unless every CI job succeeded),
-  bound to the GitHub Actions app; force-push and deletion blocked; no
-  bypass actors; self-merge after a green gate is permitted - this is a
-  one-human project.
-- Tags matching `v*`: creation, update, and deletion restricted; release
-  tags signed; the signing key will be recorded here when the first
-  release exists.
-- Workflows: default token permission `contents: read`; no
-  `pull_request_target`; workflow runs from forks start only after the
-  maintainer allows them. For any pull request touching
+### Controls active now
+
+- **How changes reach the default branch.** This is a one-maintainer
+  private repository with no branch ruleset applied, so the honest
+  description of today's reality is direct pushes to the default branch
+  by the maintainer, with no pull request required. Every push runs the
+  full CI gate and no change is treated as done until that gate is
+  green, but nothing mechanically blocks a push whose gate later turns
+  red. The pull-request-only enforcement is in the deferred list below.
+- **Read-only Actions token (verified active).** The repository's
+  Actions permissions were read back from the GitHub API on 2026-08-07:
+  `default_workflow_permissions` is `read`, and
+  `can_approve_pull_request_reviews` is false. That is the
+  repository-wide default, so a workflow added later that omits its own
+  permission block still receives a read-only token. The checked-in
+  workflow additionally declares `permissions: contents: read` at its top
+  level and uses no `pull_request_target` trigger.
+- **SHA-pinned actions.** Every action reference under
+  `.github/workflows/` is pinned by full commit SHA, and the build
+  container image is pinned by digest, as recorded in the supply-chain
+  section above.
+- **Signed attestation chain.** The decontamination attestation is
+  signed with the maintainer's SSH key and verified in CI against the
+  key pinned in this repository; any drift, missing signature, or wrong
+  key is red. See the decontamination section above.
+- **The four guard jobs behind the aggregate gate.** `decontam`,
+  `offline-static`, `provenance`, and `sensitive-paths` each run on
+  every push and pull request, and the aggregate `gate` job goes green
+  only when all eight jobs it depends on succeeded - a skipped or
+  cancelled job counts there as a failure, not as a pass.
+- **Sensitive-path surfacing.** For any pull request touching
   `.github/workflows/**` or `tools/**`, CI emits a non-failing warning
   annotation and writes the changed sensitive paths to the job's step
   summary; an error while computing that path comparison fails the job.
@@ -255,18 +321,59 @@ Controls in force:
   history for the release notes. No label is applied, deliberately:
   applying a label would require widening the workflow token beyond
   `contents: read`, so no label-writing permission exists, and the
-  read-only token is the control valued higher. (This mechanism is put
-  and ratified as plan amendment A2 by code-review round 3.)
-- Account: two-factor authentication enforced; recovery codes stored
-  offline; no shared credentials.
+  read-only token is the control valued higher. This mechanism was
+  ratified by code-review round 3 as plan amendment A2 and is in effect.
+- **Account.** The owner confirmed on 2026-08-07 that two-factor
+  authentication is enabled on the hosting account. That dated owner
+  statement is the whole of the account claim: the automation token does
+  not expose account settings, so this is not an independent API
+  verification, and it is re-checked at the visibility flip. Two further
+  account practices that an earlier version of this document listed -
+  offline storage of recovery codes, and the absence of shared
+  credentials - are **not yet attested by the owner** and are therefore
+  not claimed here as active controls.
 
-**The narrowed claim, stated honestly:** these controls resist
-*third-party* tampering. A compromised maintainer account, or a
+### Controls deferred until the repository becomes public
+
+None of the following is in force. This account tier cannot create
+branch or tag rulesets on a private repository at all: the rulesets API
+refuses with HTTP 403, "Upgrade to GitHub Pro or make this repository
+public." Each item below is applied and then confirmed through the API
+at the moment of the visibility flip, and every setting in the active
+list above is re-verified at that same moment.
+
+The deferred branch and tag controls are exactly these eight:
+
+1. repository visibility itself, and its confirmation through the API;
+2. default-branch pull-requests-only enforcement;
+3. a required status check that is exactly `gate` (the aggregate job
+   that fails unless every other CI job succeeded), bound to the GitHub
+   Actions app;
+4. force-push and deletion blocks on the default branch;
+5. no bypass actors on that ruleset;
+6. self-merge permitted only after a green gate - this is a one-human
+   project, so self-merge stays allowed, but only behind that condition;
+7. `v*` tag creation, update, and deletion restrictions; and
+8. signed release tags, with the signing key recorded in this document,
+   once releases begin.
+
+One further setting is deferred for its own recorded reason:
+
+- **Fork pull-request run approval.** It cannot be set while the
+  repository is private: the API refuses the change with HTTP 422,
+  "Fork PR approval is not allowed for private repositories." It is
+  structurally unavailable rather than merely unset, and it is applied
+  and verified at the visibility flip along with the eight items above.
+
+**The narrowed claim, stated honestly:** the controls listed as active
+resist *third-party* tampering. A compromised maintainer account, or a
 dishonest maintainer, is a residual risk a one-person project cannot
-eliminate. The compensating controls are the ones a user can verify
-independently: signed tags, SHA-pinned actions, the signed attestation
-chain, and - once releases exist - Trusted Publishing provenance binding
-artifacts to source commits. No insider-resistance is claimed.
+eliminate. The compensating controls a user can verify independently
+today are the SHA-pinned actions, the read-only workflow token, and the
+signed attestation chain; signed release tags and - once releases exist -
+Trusted Publishing provenance binding artifacts to source commits join
+that list when the deferred items above are applied. No
+insider-resistance is claimed.
 
 ## Release integrity [planned]
 
@@ -280,7 +387,7 @@ unsigned tag, a tag update, and a tag deletion are rejected.
 
 ## Incident procedure
 
-If real-derived content ever reaches public history:
+If real-derived content ever reaches the repository's pushed history:
 
 1. Rewrite history to remove it, force-push the cleaned history, and
    request cache and pull-request-reference purges from the hosting
@@ -297,3 +404,7 @@ Use GitHub's private vulnerability reporting: the **Security** tab of
 vulnerability**. Please do not open a public issue for a suspected
 vulnerability. This is a one-person project; reports are acknowledged as
 fast as one person can, normally within a few days.
+
+While the repository is private, that page is reachable only by the
+maintainer and by accounts the owner has granted access; the route opens
+to everyone at the moment the repository becomes public.

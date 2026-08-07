@@ -19,9 +19,15 @@ compliant environment.
 
 ## The six principles
 
-1. **Open source from day one.** Every line is public from the first
-   commit. There is no private core, and nothing in the public tree
-   depends on anything a contributor cannot see.
+1. **Open source by commitment; open by default in the code.** There is
+   no private core: every line of the product lives in this repository,
+   and nothing here depends on anything a contributor cannot see. The
+   repository itself is **temporarily private** by owner decision
+   (recorded in the Phase 0 plan) and becomes public when the owner
+   judges the application readier; write every line as though a stranger
+   reads it tomorrow, because one will. The controls that require a
+   public repository are listed as deferred in SECURITY.md and applied
+   at that moment.
 2. **Zero-code UX.** A researcher who has never programmed can run the
    whole workflow. No configuration files to hand-write, no flags that
    require reading source, and every message written for a human.
