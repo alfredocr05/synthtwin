@@ -33,31 +33,66 @@ Policy enforced (plan D6.2, a positive AST/name-binding policy):
   module (os.path.os, pathlib.os, json.decoder) or starts with an
   underscore: an allowed module that re-exports another module never
   makes that other module's power allowed.
-* The same one-step rule applies to the package's own modules: one
-  attribute step past an intra-package module
-  (synthtwin.paths.validate_local_path) is accepted as a direct
-  reference to something that module defines; a second step
+* The same one-step rule applies to the package's own modules, and
+  first-party `from` imports are verified against what the named
+  sibling module really defines. Every scanned synthtwin module is
+  parsed and its top-level names are recorded: names bound by def,
+  class, or a plain assignment are genuine and may be imported or
+  referenced in one attribute step
+  (synthtwin.paths.validate_local_path); names the module itself
+  imported are NOT importable from it ("from synthtwin.paths import
+  os" is rejected), because that would launder the sibling's own
+  imports past this audit -- the object handed over is the real
+  imported module, with all its power. A second attribute step
   (synthtwin.paths.name.attr), or a step whose attribute names a
-  module (synthtwin.paths.os), is rejected, because what a sibling
-  module's attribute holds cannot be verified from this file alone.
-* Name binding is flow-insensitive on purpose: a name bound to a
-  module (or any traced origin) ANYWHERE in a scope keeps that origin
-  for the whole scope, no matter what else is assigned to it, even on
-  branches that can never run. Rebinding adds possibilities; it never
-  clears suspicion.
-* A call through a bare name must resolve to a function or class
-  defined in the scanned tree, an import traced to the allowlist, or
-  one of a small fixed list of built-in constructors and helpers
-  (str, len, print, ...). Any other bare-name call target -- above all
-  a function parameter used as a call target -- is rejected, because
-  this audit cannot see what would run. Higher-order callback
-  parameters are therefore banned in synthtwin source for Phase 0.
-* Method calls on ordinary values (parser.add_argument(...),
-  text.find(...)) are accepted when the value's origin cannot be
-  traced, because a module object can never reach such a value without
-  an earlier violation: every bare module reference, every module
-  re-export step, and every module-valued chain is rejected at the
-  place it is written. Targets put together while the program runs
+  module (synthtwin.paths.os), is rejected as before. When the
+  sibling's source is not part of the scanned tree, importing a name
+  that matches a known module name is rejected for the same reason.
+* Name binding is flow-insensitive on purpose and keeps an EXPLICIT
+  unknown member. A name bound to a module (or any traced origin)
+  ANYWHERE in a scope keeps that origin for the whole scope, no
+  matter what else is assigned to it, even on branches that can never
+  run. A name bound to anything this audit cannot trace (a function
+  parameter, a computed value) carries the unknown member, and other
+  origins joining the set NEVER discard it: rebinding adds
+  possibilities, it never clears suspicion.
+* A call through a bare name is accepted only when EVERY possible
+  origin of the name is a function or class defined in the scanned
+  tree, an import traced to the allowlist, or one of a small fixed
+  list of built-in constructors and helpers (str, len, print, ...).
+  If any possible origin is unknown -- above all a function parameter
+  used as a call target, even one that is rebound to an allowed API
+  on some branch -- the call is rejected, because this audit cannot
+  see what would run. Higher-order callback parameters are therefore
+  banned in synthtwin source for Phase 0.
+* Method calls (value.method(...)) are accepted in exactly two
+  enumerated cases; every other method call target is rejected.
+  (a) On a value this audit cannot trace (a function parameter, the
+      result of a first-party call, a literal), only the fixed
+      data-method list is accepted: find, format. That list is
+      exactly the set of plain string data methods the current src
+      tree calls on such values; none of them can start a program,
+      open a connection, load code, or reach an attribute through a
+      computed name. Threat-model rationale for accepting them at
+      all: caller-supplied objects execute in the caller's own
+      process, and this boundary controls what synthtwin's own code
+      initiates, not what the caller's own code does; these data
+      methods initiate nothing beyond reading or building text. Any
+      other method name on an untraced value is a violation
+      (parameter.resolve() is rejected).
+  (b) A value returned by a call to an allowlisted API
+      (parser = argparse.ArgumentParser(...)) is tracked as an
+      api-instance, and method calls on it
+      (parser.add_argument(...)) are accepted: the API that produced
+      the value was itself checked against the allowlist. A value
+      built by an operator expression with an api-instance operand
+      (pathlib.Path(...) / name) is tracked the same way.
+* A function or lambda passed as a call argument to any callee not
+  defined in the scanned tree is rejected: outside code could keep
+  the callable and run it at any time, in ways this audit cannot
+  see. Handing a callable to a function defined in the scanned tree
+  is fine, because every call site inside that function is scanned
+  under the same rules. Targets put together while the program runs
   (double-underscore internals, lookups through the module table,
   subscripted call targets, star imports) are rejected as before.
 
@@ -118,6 +153,18 @@ _ENTRY_POINT_TOKENS = {"EntryPoint", "entry_points"}
 _ALLOWED_DUNDER_NAMES = {"__name__", "__doc__", "__file__", "__version__", "__all__"}
 
 _ENV_READ_METHODS = {"get", "keys", "items", "values", "copy"}
+
+# The explicit unknown member of the origin lattice. A name carrying
+# this member may hold ANYTHING at run time; other origins joining the
+# same set never discard it.
+_UNKNOWN = ("unknown", "")
+
+# The only method names that may be called on a value this audit cannot
+# trace (policy case (a) in the module docstring). This is exactly the
+# set of plain string data methods the current src tree calls on such
+# values; adding a name here is a policy decision reviewed against the
+# threat model, not a routine code change.
+_UNKNOWN_VALUE_METHODS = {"find", "format"}
 
 # sys.modules and sys.path per the plan; the other three are the rest of
 # the interpreter's import machinery reachable through sys.
@@ -286,6 +333,68 @@ def _chain_parts(node: ast.AST) -> "list[str] | None":
     return None
 
 
+def _first_party_module_name(path: pathlib.Path) -> "str | None":
+    """Dotted first-party module name for ``path``, or None.
+
+    A file is first-party when a folder named exactly like the
+    first-party root sits on its path. The LAST such folder is taken as
+    the package root, because an outer folder (for example the
+    repository folder itself) may carry the same name.
+    """
+    parts = path.parts
+    root_index = None
+    for index in range(len(parts) - 1):
+        if parts[index] == _FIRST_PARTY_ROOT:
+            root_index = index
+    if root_index is None:
+        return None
+    stem = parts[-1].removesuffix(".py")
+    pieces = list(parts[root_index:-1])
+    if stem != "__init__":
+        pieces.append(stem)
+    return ".".join(pieces)
+
+
+def _module_bindings(tree: ast.Module) -> "tuple[set[str], set[str]]":
+    """Split one module's top-level names into (defined, imported).
+
+    ``defined`` holds the names the module genuinely defines: def,
+    class, and plain assignments to a bare name, anywhere at module
+    level (including inside if/try blocks, which still bind module
+    names). ``imported`` holds every name the module itself imported.
+    A name in both sets counts as imported, because the source text
+    alone cannot prove the assignment replaced the imported object.
+    Nested function, class, and lambda bodies bind nothing at module
+    level and are not entered.
+    """
+    defined: set[str] = set()
+    imported: set[str] = set()
+    stack: list[ast.AST] = list(tree.body)
+    while stack:
+        node = stack.pop()
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            defined.add(node.name)
+        elif isinstance(node, ast.Lambda):
+            continue
+        elif isinstance(node, ast.Import):
+            for alias in node.names:
+                imported.add(alias.asname or alias.name.partition(".")[0])
+        elif isinstance(node, ast.ImportFrom):
+            for alias in node.names:
+                if alias.name != "*":
+                    imported.add(alias.asname or alias.name)
+        elif isinstance(node, ast.Assign):
+            for target in node.targets:
+                if isinstance(target, ast.Name):
+                    defined.add(target.id)
+        elif isinstance(node, ast.AnnAssign):
+            if isinstance(node.target, ast.Name) and node.value is not None:
+                defined.add(node.target.id)
+        else:
+            stack.extend(ast.iter_child_nodes(node))
+    return defined - imported, imported
+
+
 def _primitive_message(name: str) -> str:
     if name in _REFLECTION_PRIMITIVES:
         return (
@@ -349,12 +458,69 @@ def _deep_chain_message(dotted: str, prefix: str) -> str:
 
 def _unknown_call_message(name: str) -> str:
     return (
-        "calls '" + name + "', which this audit cannot trace to any "
-        "function or class defined in the scanned code, to an "
-        "allowlisted import, or to the fixed list of accepted "
-        "built-ins. A function passed around as a value (a callback) "
-        "cannot be checked by reading the source, so Phase 0 synthtwin "
-        "source must call every function by its written-out name."
+        "calls '" + name + "', but on at least one path '" + name + "' "
+        "may hold a value this audit cannot trace to any function or "
+        "class defined in the scanned code, to an allowlisted import, "
+        "or to the fixed list of accepted built-ins. A function passed "
+        "around as a value (a callback) cannot be checked by reading "
+        "the source, and a possibility once recorded is never "
+        "discarded, so Phase 0 synthtwin source must call every "
+        "function by its written-out name."
+    )
+
+
+def _unknown_method_message(method: str) -> str:
+    return (
+        "calls the method '" + method + "' on a value this audit "
+        "cannot trace to any allowlisted API. On an untraced value "
+        "only the fixed data-method list ("
+        + ", ".join(sorted(_UNKNOWN_VALUE_METHODS))
+        + ") is accepted, because any other method could be a "
+        "capability this audit never cleared. Build the value from an "
+        "allowlisted API, or call the operation you need by its "
+        "written-out allowlisted name."
+    )
+
+
+def _callable_argument_message(described: str) -> str:
+    return (
+        "passes " + described + " as an argument to a callee that is "
+        "not defined in the scanned code. Outside code could keep the "
+        "callable and run it at any time, in ways this audit cannot "
+        "see; Phase 0 synthtwin source may hand functions only to its "
+        "own scanned functions."
+    )
+
+
+def _reexport_message(module: str, name: str) -> str:
+    return (
+        "reaches '" + name + "' through '" + module + "', but '"
+        + module + "' does not define '" + name + "': it merely "
+        "imports it. Importing or reaching a name a sibling module "
+        "itself imported would launder the sibling's own imports past "
+        "this audit -- the object handed over is the real imported "
+        "module or API, with all its power. Import what you need "
+        "directly so the allowlist can check it."
+    )
+
+
+def _undefined_export_message(module: str, name: str) -> str:
+    return (
+        "reaches '" + name + "' through '" + module + "', but '"
+        + module + "' does not define a top-level function, class, or "
+        "plain assignment named '" + name + "'. Only names a sibling "
+        "module genuinely defines can be verified from the source "
+        "text; anything else is rejected."
+    )
+
+
+def _unverified_reexport_message(module: str, name: str) -> str:
+    return (
+        "imports '" + name + "' from '" + module + "'. '" + name + "' "
+        "is the name of a module, and the source of '" + module + "' "
+        "is not part of this scan, so the import would hand over a "
+        "whole module this audit never cleared. Import what you need "
+        "directly so the allowlist can check it."
     )
 
 
@@ -395,22 +561,37 @@ def _attr_component_message(name: str, dotted: "str | None") -> "str | None":
 class _Checker(ast.NodeVisitor):
     """Walks one module and records policy violations."""
 
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        module_exports: "dict[str, tuple[set[str], set[str]]] | None" = None,
+        first_party_modules: "set[str] | None" = None,
+    ) -> None:
         self.violations: list[tuple[int, str]] = []
         # A stack of scopes. Each scope maps a local name to the SET of
-        # traced origins it may hold: ("module", dotted),
-        # ("api", dotted), or ("def", name) for functions and classes
-        # defined in the scanned code. A name present with an empty set
-        # is bound to something this audit cannot trace. Origins only
-        # accumulate -- a later store NEVER erases an earlier origin
-        # (union semantics), so a rebinding hidden behind a branch can
-        # never launder away a module.
+        # possible origins it may hold: ("module", dotted),
+        # ("api", dotted), ("def", name) for functions and classes
+        # defined in the scanned code, ("instance", dotted) for a value
+        # returned by a call to an allowlisted API, and the explicit
+        # ("unknown", "") member for anything this audit cannot trace.
+        # Origins only accumulate -- a later store NEVER erases an
+        # earlier origin (union semantics), and the unknown member is
+        # never discarded when other origins join the set, so a
+        # rebinding hidden behind a branch can neither launder away a
+        # module nor make an untraceable callback look safe.
         self.scopes: list[dict[str, set[tuple[str, str]]]] = [{}]
         # Dotted paths known to name modules: the fixed allowlist plus
         # every intra-package path seen in this file's import
         # statements. The one-attribute-step rule counts from the
         # longest prefix found here.
         self.module_paths: set[str] = set(_KNOWN_MODULE_PATHS)
+        # Per-module export records for every first-party module in the
+        # scanned tree: module name -> (defined names, imported names).
+        # First-party `from` imports and one-step attribute references
+        # are verified against these records.
+        self.module_exports = module_exports if module_exports is not None else {}
+        self.first_party_modules = (
+            set(first_party_modules) if first_party_modules is not None else set()
+        )
 
     # -- bookkeeping -------------------------------------------------
 
@@ -419,8 +600,7 @@ class _Checker(ast.NodeVisitor):
 
     def _bind(self, name: str, value: "tuple[str, str] | None") -> None:
         slot = self.scopes[-1].setdefault(name, set())
-        if value is not None:
-            slot.add(value)
+        slot.add(value if value is not None else _UNKNOWN)
 
     def _lookup(self, name: str) -> "set[tuple[str, str]] | None":
         for scope in reversed(self.scopes):
@@ -445,7 +625,9 @@ class _Checker(ast.NodeVisitor):
     def _resolve(self, parts: "list[str]") -> "list[str]":
         """Turn a Name/Attribute chain into its possible dotted origins,
         tracing aliases back to the imports or builtins they came from.
-        A name rebound on any path keeps every origin it ever had."""
+        Yields only module/api-rooted dotted candidates; def, instance,
+        and unknown possibilities carry no dotted path and are handled
+        by the origin-set logic in _value_origins."""
         root = parts[0]
         bound = self._lookup(root)
         rest = parts[1:]
@@ -459,17 +641,96 @@ class _Checker(ast.NodeVisitor):
                 out.append(".".join([origin] + rest))
         return out
 
-    def _bind_from_value(self, name: str, value: ast.AST) -> None:
-        parts = _chain_parts(value)
-        candidates = self._resolve(parts) if parts else []
-        if not candidates:
-            self._bind(name, None)
-            return
-        for dotted in candidates:
-            if dotted in self.module_paths:
-                self._bind(name, ("module", dotted))
+    def _value_origins(self, value: ast.AST) -> "set[tuple[str, str]]":
+        """The possible origins of an expression's VALUE.
+
+        Every possibility this audit cannot pin down contributes the
+        explicit unknown member; other origins never displace it.
+        """
+        if isinstance(value, (ast.Name, ast.Attribute)):
+            parts = _chain_parts(value)
+            if parts is None:
+                return {_UNKNOWN}
+            root, rest = parts[0], parts[1:]
+            bound = self._lookup(root)
+            if bound is None:
+                if root in _BANNED_BUILTINS:
+                    return {("api", ".".join(["builtins." + root] + rest))}
+                return {_UNKNOWN}
+            out: set[tuple[str, str]] = set()
+            for kind, origin in bound:
+                if kind in ("module", "api"):
+                    if rest:
+                        out.add(("api", ".".join([origin] + rest)))
+                    else:
+                        out.add((kind, origin))
+                elif rest:
+                    # An attribute read on a def, instance, or unknown
+                    # value produces a value this audit cannot trace.
+                    out.add(_UNKNOWN)
+                else:
+                    out.add((kind, origin))
+            return out or {_UNKNOWN}
+        if isinstance(value, ast.Call):
+            return self._call_result_origins(value)
+        if isinstance(value, ast.BinOp):
+            merged = self._value_origins(value.left) | self._value_origins(
+                value.right
+            )
+            instances = {origin for origin in merged if origin[0] == "instance"}
+            # An operator on an api-instance runs the API class's own
+            # operator method; the result is a value that allowlisted
+            # code produced (policy case (b) in the module docstring).
+            return instances or {_UNKNOWN}
+        if isinstance(value, ast.IfExp):
+            return self._value_origins(value.body) | self._value_origins(
+                value.orelse
+            )
+        if isinstance(value, ast.BoolOp):
+            out = set()
+            for operand in value.values:
+                out |= self._value_origins(operand)
+            return out or {_UNKNOWN}
+        return {_UNKNOWN}
+
+    def _call_result_origins(self, call: ast.Call) -> "set[tuple[str, str]]":
+        """Origins of a call expression's result.
+
+        A call to an API that the allowlist accepts yields an
+        api-instance (policy case (b)); every other call yields the
+        unknown member.
+        """
+        func = call.func
+        if not isinstance(func, (ast.Name, ast.Attribute)):
+            return {_UNKNOWN}
+        parts = _chain_parts(func)
+        if parts is None:
+            return {_UNKNOWN}
+        out: set[tuple[str, str]] = set()
+        for dotted in self._resolve(parts):
+            if (
+                dotted.partition(".")[0] != "builtins"
+                and self._policy_for(dotted, False) is None
+            ):
+                out.add(("instance", dotted))
             else:
-                self._bind(name, ("api", dotted))
+                out.add(_UNKNOWN)
+        bound = self._lookup(parts[0])
+        if bound is None:
+            if parts[0] not in _BANNED_BUILTINS:
+                out.add(_UNKNOWN)
+        else:
+            for kind, _origin in bound:
+                if kind not in ("module", "api"):
+                    out.add(_UNKNOWN)
+        return out or {_UNKNOWN}
+
+    def _bind_from_value(self, name: str, value: ast.AST) -> None:
+        for kind, origin in self._value_origins(value):
+            if kind == "api" and origin in self.module_paths:
+                self._bind(name, ("module", origin))
+            else:
+                self._bind(name, (kind, origin))
 
     def _collect_scope_bindings(self, body: "list[ast.stmt]") -> None:
         """Pre-bind everything this scope binds anywhere in its body.
@@ -569,6 +830,13 @@ class _Checker(ast.NodeVisitor):
 
         if len(rest) > 1:
             return _deep_chain_message(dotted, prefix)
+
+        if prefix in self.module_exports:
+            defined, imported_names = self.module_exports[prefix]
+            if rest[0] in imported_names:
+                return _reexport_message(prefix, rest[0])
+            if rest[0] not in defined:
+                return _undefined_export_message(prefix, rest[0])
 
         if prefix == "os":
             if dotted in _OS_ALLOWED_EXACT:
@@ -693,11 +961,7 @@ class _Checker(ast.NodeVisitor):
                     if report:
                         self._flag_star(node, base)
                     continue
-                dotted = base + "." + alias.name
-                # The alias may itself be a module; register it so the
-                # one-step rule counts from it, not through it.
-                self._register_module_path(dotted)
-                self._bind(alias.asname or alias.name, ("module", dotted))
+                self._first_party_from_alias(node, base, alias, report)
             return
 
         module = node.module or ""
@@ -710,9 +974,7 @@ class _Checker(ast.NodeVisitor):
                     if report:
                         self._flag_star(node, module)
                     continue
-                dotted = module + "." + alias.name
-                self._register_module_path(dotted)
-                self._bind(alias.asname or alias.name, ("module", dotted))
+                self._first_party_from_alias(node, module, alias, report)
             return
 
         for alias in node.names:
@@ -734,6 +996,52 @@ class _Checker(ast.NodeVisitor):
             kind = "module" if dotted in self.module_paths else "api"
             self._bind(alias.asname or alias.name, (kind, dotted))
 
+    def _first_party_from_alias(
+        self, node: ast.ImportFrom, module: str, alias: ast.alias, report: bool
+    ) -> None:
+        """Handle one name in a first-party `from` import.
+
+        The name must be a submodule of the scanned tree or a name the
+        sibling module genuinely defines. A name the sibling itself
+        imported is rejected: importing it would launder the sibling's
+        own imports past this audit (plan D6.2).
+        """
+        bound_name = alias.asname or alias.name
+        dotted = module + "." + alias.name
+
+        if dotted in self.first_party_modules:
+            self._register_module_path(dotted)
+            self._bind(bound_name, ("module", dotted))
+            return
+
+        exports = self.module_exports.get(module)
+        if exports is not None:
+            defined, imported_names = exports
+            if alias.name in defined:
+                self._bind(bound_name, ("api", dotted))
+                return
+            if report:
+                if alias.name in imported_names:
+                    self._flag(node, _reexport_message(module, alias.name))
+                else:
+                    self._flag(node, _undefined_export_message(module, alias.name))
+            self._bind(bound_name, ("api", dotted))
+            return
+
+        # The sibling module's source is not part of this scan, so its
+        # exports cannot be verified. A name that matches a known
+        # module name would hand over a whole module; reject it.
+        if alias.name in _MODULE_ATTR_BLOCK:
+            if report:
+                self._flag(node, _unverified_reexport_message(module, alias.name))
+            self._bind(bound_name, ("api", dotted))
+            return
+
+        # The alias may itself be a module; register it so the
+        # one-step rule counts from it, not through it.
+        self._register_module_path(dotted)
+        self._bind(bound_name, ("module", dotted))
+
     def _flag_star(self, node: ast.AST, module: str) -> None:
         self._flag(
             node,
@@ -750,7 +1058,10 @@ class _Checker(ast.NodeVisitor):
             if bound:
                 seen: set[str] = set()
                 for kind, origin in sorted(bound):
-                    if kind == "def":
+                    if kind in ("def", "instance", "unknown"):
+                        # Reading a scanned definition, an api-instance,
+                        # or an untraced value is fine; only CALLS
+                        # through them are restricted.
                         continue
                     if kind == "module" and not origin.startswith(
                         _FIRST_PARTY_ROOT
@@ -762,16 +1073,18 @@ class _Checker(ast.NodeVisitor):
                         seen.add(message)
                         self._flag(node, message)
         elif isinstance(node.ctx, (ast.Store, ast.Del)):
-            # Record that the name is bound here. Every origin the name
-            # already had is kept: a store on one path never proves the
-            # old value is gone on another path.
+            # Record that the name is bound to something untraced here.
+            # Every origin the name already had is kept: a store on one
+            # path never proves the old value is gone on another path,
+            # and the unknown member this store adds is never discarded.
             self._bind(node.id, None)
 
     def visit_Attribute(self, node: ast.Attribute) -> None:
         parts = _chain_parts(node)
         if parts is None:
             # Attribute on a computed value (call result, subscript,
-            # literal): only the attribute-name bans apply here.
+            # literal): only the attribute-name bans apply to the READ;
+            # calling the attribute is checked in visit_Call.
             self._check_attr_component(node, node.attr, None)
             self.generic_visit(node)
             return
@@ -812,12 +1125,19 @@ class _Checker(ast.NodeVisitor):
             )
         elif isinstance(node.func, ast.Name):
             self._check_call_target(node, node.func.id)
+        elif isinstance(node.func, ast.Attribute):
+            self._check_method_call(node)
+        self._check_callable_arguments(node)
         self.generic_visit(node)
 
     def _check_call_target(self, node: ast.Call, name: str) -> None:
-        """Reject a bare-name call that resolves to nothing this audit
-        can check (plan D6.2: callback parameters are banned in Phase 0
-        source). Traced origins are checked where the name is read."""
+        """Reject a bare-name call unless EVERY possible origin of the
+        name is something this audit can check (plan D6.2: callback
+        parameters are banned in Phase 0 source). The unknown member is
+        never discarded, so a name that might still hold an untraced
+        value is rejected even when another branch rebound it to an
+        allowed API. Traced origins are checked where the name is read.
+        """
         bound = self._lookup(name)
         if bound is None:
             if (
@@ -833,9 +1153,83 @@ class _Checker(ast.NodeVisitor):
             self._flag(node, _unknown_call_message(name))
             return
         for kind, _origin in bound:
-            if kind in ("def", "module", "api"):
+            if kind not in ("def", "module", "api"):
+                self._flag(node, _unknown_call_message(name))
                 return
-        self._flag(node, _unknown_call_message(name))
+
+    def _check_method_call(self, node: ast.Call) -> None:
+        """Apply the two-case method-call policy from the module
+        docstring: api-instances accept any method; untraced values
+        accept only the fixed data-method list; module/api-rooted
+        chains are checked by the dotted-path policy in
+        visit_Attribute."""
+        func = node.func
+        if not isinstance(func, ast.Attribute):
+            return
+        method = func.attr
+        for kind, _origin in sorted(self._value_origins(func.value)):
+            if kind in ("module", "api", "instance"):
+                continue
+            if method in _UNKNOWN_VALUE_METHODS:
+                continue
+            self._flag(node, _unknown_method_message(method))
+            return
+
+    def _callee_is_first_party(self, func: ast.AST) -> bool:
+        """True when every possible call target is defined in the
+        scanned tree (a scanned def/class or a first-party module
+        member)."""
+        if isinstance(func, ast.Name):
+            bound = self._lookup(func.id)
+            if not bound:
+                return False
+            for kind, origin in bound:
+                if kind == "def":
+                    continue
+                if kind in ("module", "api") and (
+                    origin == _FIRST_PARTY_ROOT
+                    or origin.startswith(_FIRST_PARTY_ROOT + ".")
+                ):
+                    continue
+                return False
+            return True
+        if isinstance(func, ast.Attribute):
+            parts = _chain_parts(func)
+            if parts is None:
+                return False
+            candidates = self._resolve(parts)
+            if not candidates:
+                return False
+            for dotted in candidates:
+                if dotted != _FIRST_PARTY_ROOT and not dotted.startswith(
+                    _FIRST_PARTY_ROOT + "."
+                ):
+                    return False
+            return True
+        return False
+
+    def _check_callable_arguments(self, node: ast.Call) -> None:
+        """Reject a function or lambda passed as an argument to a
+        callee that is not defined in the scanned tree. Outside code
+        could keep the callable and run it at any time; a scanned
+        callee is fine because every call site inside it is scanned
+        under the same rules."""
+        if self._callee_is_first_party(node.func):
+            return
+        values = list(node.args) + [keyword.value for keyword in node.keywords]
+        for value in values:
+            inner = value.value if isinstance(value, ast.Starred) else value
+            if isinstance(inner, ast.Lambda):
+                self._flag(node, _callable_argument_message("a lambda function"))
+            elif isinstance(inner, ast.Name):
+                bound = self._lookup(inner.id)
+                if bound and any(kind == "def" for kind, _origin in bound):
+                    self._flag(
+                        node,
+                        _callable_argument_message(
+                            "the function '" + inner.id + "'"
+                        ),
+                    )
 
     def visit_Subscript(self, node: ast.Subscript) -> None:
         parts = _chain_parts(node.value)
@@ -855,17 +1249,24 @@ class _Checker(ast.NodeVisitor):
     def visit_Assign(self, node: ast.Assign) -> None:
         self.visit(node.value)
         for target in node.targets:
-            self.visit(target)
-        if len(node.targets) == 1 and isinstance(node.targets[0], ast.Name):
-            self._bind_from_value(node.targets[0].id, node.value)
+            if isinstance(target, ast.Name):
+                self._check_name(target, target.id)
+                self._bind_from_value(target.id, node.value)
+            else:
+                self.visit(target)
 
     def visit_AnnAssign(self, node: ast.AnnAssign) -> None:
         self.visit(node.annotation)
         if node.value is not None:
             self.visit(node.value)
-        self.visit(node.target)
-        if isinstance(node.target, ast.Name) and node.value is not None:
-            self._bind_from_value(node.target.id, node.value)
+        if isinstance(node.target, ast.Name):
+            self._check_name(node.target, node.target.id)
+            if node.value is not None:
+                self._bind_from_value(node.target.id, node.value)
+            else:
+                self._bind(node.target.id, None)
+        else:
+            self.visit(node.target)
 
     def visit_AugAssign(self, node: ast.AugAssign) -> None:
         self.visit(node.value)
@@ -903,7 +1304,9 @@ class _Checker(ast.NodeVisitor):
         if node.returns is not None:
             self.visit(node.returns)
         self._bind(node.name, ("def", node.name))
-        self.scopes.append({arg.arg: set() for arg in all_args})
+        # Parameters hold caller-supplied values: the explicit unknown
+        # member, never discarded when other origins join.
+        self.scopes.append({arg.arg: {_UNKNOWN} for arg in all_args})
         self._collect_scope_bindings(node.body)
         for statement in node.body:
             self.visit(statement)
@@ -920,7 +1323,7 @@ class _Checker(ast.NodeVisitor):
             all_args.append(args.vararg)
         if args.kwarg is not None:
             all_args.append(args.kwarg)
-        self.scopes.append({arg.arg: set() for arg in all_args})
+        self.scopes.append({arg.arg: {_UNKNOWN} for arg in all_args})
         self.visit(node.body)
         self.scopes.pop()
 
@@ -940,8 +1343,18 @@ class _Checker(ast.NodeVisitor):
         self.scopes.pop()
 
 
-def scan_source(source_text: str) -> "list[tuple[int, str]]":
-    """Scan one module's source text. Returns (line, message) pairs."""
+def scan_source(
+    source_text: str,
+    module_exports: "dict[str, tuple[set[str], set[str]]] | None" = None,
+    first_party_modules: "set[str] | None" = None,
+) -> "list[tuple[int, str]]":
+    """Scan one module's source text. Returns (line, message) pairs.
+
+    ``module_exports`` and ``first_party_modules`` carry the per-module
+    export records for the surrounding scanned tree (see scan_files);
+    without them, first-party `from` imports fall back to rejecting
+    known module names only.
+    """
     try:
         tree = ast.parse(source_text)
     except SyntaxError as error:
@@ -954,7 +1367,7 @@ def scan_source(source_text: str) -> "list[tuple[int, str]]":
                 "the syntax so the file can be audited.",
             )
         ]
-    checker = _Checker()
+    checker = _Checker(module_exports, first_party_modules)
     checker.visit(tree)
     return sorted(checker.violations)
 
@@ -967,11 +1380,20 @@ def _python_files(root: pathlib.Path) -> "list[pathlib.Path]":
 
 def scan_files(files: "list[pathlib.Path]") -> "list[str]":
     """Scan the given files. Returns formatted 'file:line: message'
-    violation lines (empty list = clean)."""
+    violation lines (empty list = clean).
+
+    Before any file is judged, every first-party module in the batch is
+    parsed and its top-level names are recorded, so that first-party
+    `from` imports and one-step attribute references can be verified
+    against what the named sibling module really defines.
+    """
     lines: list[str] = []
+    texts: dict[pathlib.Path, str] = {}
+    module_exports: dict[str, tuple[set[str], set[str]]] = {}
+    first_party_modules: set[str] = set()
     for path in files:
         try:
-            text = path.read_text(encoding="utf-8")
+            texts[path] = path.read_text(encoding="utf-8")
         except UnicodeDecodeError:
             lines.append(
                 str(path) + ":1: could not be decoded as UTF-8 text. "
@@ -979,7 +1401,24 @@ def scan_files(files: "list[pathlib.Path]") -> "list[str]":
                 "with UTF-8 encoding."
             )
             continue
-        for lineno, message in scan_source(text):
+        module_name = _first_party_module_name(path)
+        if module_name is None:
+            continue
+        try:
+            tree = ast.parse(texts[path])
+        except SyntaxError:
+            # scan_source reports the parse failure for this file below.
+            continue
+        module_exports[module_name] = _module_bindings(tree)
+        pieces = module_name.split(".")
+        for length in range(1, len(pieces) + 1):
+            first_party_modules.add(".".join(pieces[:length]))
+    for path in files:
+        if path not in texts:
+            continue
+        for lineno, message in scan_source(
+            texts[path], module_exports, first_party_modules
+        ):
             lines.append(str(path) + ":" + str(lineno) + ": " + message)
     return lines
 

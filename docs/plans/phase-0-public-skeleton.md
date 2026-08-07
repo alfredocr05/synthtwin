@@ -561,7 +561,7 @@ Gate sequence before any code: (1) the D2 institutional authorization;
 and the round-4 response under the frozen artifacts; then implementation,
 with the reviewer's remaining role being code review against this plan.
 
-## D7 Amendment A1 — classifier v2 (pending inventory-review round-2 ratification)
+## D7 Amendment A1 — classifier v2 (ratified by inventory-review round 2, conditions applied)
 
 The independent inventory review required by D7 (round 1, recorded in the
 maintainer-private notes) **rejected classifier v1**: a neutral-source
@@ -629,3 +629,18 @@ round 2, which also rules on the wording-normalization step for the
 review history. Status: ratified by inventory-review round 2 on
 2026-08-07 with conditions R2-C1..R2-C7, which are applied; the private
 review record binds this ratification.
+
+## D14 Amendment A2 — sensitive-path surfacing (pending code-review ratification)
+
+D14 as ratified requires that any pull request touching
+`.github/workflows/**` or `tools/**` is CI-labeled and listed in the
+next release's notes. This amendment replaces the label with a
+different surfacing mechanism: on pull requests, CI emits a non-failing
+warning annotation and writes the changed sensitive paths to the step
+summary; an error while computing the path comparison fails the job;
+and at release time, sensitive-path changes are collected from the git
+history for the release notes. The reason is deliberate: applying a
+label requires widening the workflow token beyond `contents: read`,
+and D14 values the read-only token higher than the label. Status: put
+to the current code-review cycle for ratification; the replacement
+takes effect only on that ratification.

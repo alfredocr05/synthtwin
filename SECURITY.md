@@ -247,9 +247,16 @@ Controls in force:
   release exists.
 - Workflows: default token permission `contents: read`; no
   `pull_request_target`; workflow runs from forks start only after the
-  maintainer allows them; any pull request touching
-  `.github/workflows/**` or `tools/**` is labeled in CI and listed in the
-  next release's notes.
+  maintainer allows them. For any pull request touching
+  `.github/workflows/**` or `tools/**`, CI emits a non-failing warning
+  annotation and writes the changed sensitive paths to the job's step
+  summary; an error while computing that path comparison fails the job.
+  At release time, sensitive-path changes are collected from the git
+  history for the release notes. No label is applied, deliberately:
+  applying a label would require widening the workflow token beyond
+  `contents: read`, so no label-writing permission exists, and the
+  read-only token is the control valued higher. (This mechanism is put
+  to the current code-review cycle as plan amendment A2.)
 - Account: two-factor authentication enforced; recovery codes stored
   offline; no shared credentials.
 

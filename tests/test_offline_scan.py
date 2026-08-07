@@ -38,6 +38,16 @@ def _scan_code(tmp_path, code):
     return _SCANNER.scan_tree(tree)
 
 
+def _scan_package(tmp_path, modules):
+    """Write several modules (relative path -> source) and scan the tree."""
+    tree = tmp_path / "tree"
+    for relative, code in modules.items():
+        path = tree / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(textwrap.dedent(code), encoding="utf-8")
+    return _SCANNER.scan_tree(tree)
+
+
 def _assert_red(violations, needle):
     assert violations, (
         "expected the scanner to go red on this mutation, but it "
@@ -432,3 +442,182 @@ def test_module_passed_as_bare_value_goes_red(tmp_path):
         ''',
     )
     _assert_red(violations, "bare value")
+
+
+# -- first-party re-export laundering (round-2 blocker 1) ------------
+
+
+def test_first_party_from_import_of_sibling_import_goes_red(tmp_path):
+    """Bypass class: 'from synthtwin.paths import os' hands over the
+    real standard-library os module through a sibling that merely
+    imported it. The scanner parses the sibling's source, sees that
+    'os' is an import and not a definition, and must reject the
+    laundering by name."""
+    violations = _scan_package(
+        tmp_path,
+        {
+            "synthtwin/__init__.py": "",
+            "synthtwin/paths.py": '''
+                import os
+
+
+                def validate_local_path(raw, *, purpose):
+                    return raw
+            ''',
+            "consumer.py": '''
+                from synthtwin.paths import os
+
+
+                def sneak():
+                    return os.system("echo hi")
+            ''',
+        },
+    )
+    _assert_red(violations, "launder")
+    named = [v for v in violations if "'os'" in v and "synthtwin.paths" in v]
+    assert named, "\n".join(violations)
+
+
+def test_first_party_reexport_without_sibling_source_goes_red(tmp_path):
+    """Same laundering route when the sibling's source is NOT part of
+    the scanned tree: an imported name that matches a known module
+    name cannot be verified and must be rejected."""
+    violations = _scan_code(
+        tmp_path,
+        '''
+        from synthtwin.paths import os
+
+
+        def sneak():
+            return os.system("echo hi")
+        ''',
+    )
+    _assert_red(violations, "'os'")
+
+
+def test_first_party_from_import_of_defined_name_stays_clean(tmp_path):
+    """A first-party `from` import of a name the sibling genuinely
+    defines (a def at its top level) produces zero violations."""
+    violations = _scan_package(
+        tmp_path,
+        {
+            "synthtwin/__init__.py": "",
+            "synthtwin/paths.py": '''
+                import os
+
+
+                def validate_local_path(raw, *, purpose):
+                    return raw
+            ''',
+            "consumer.py": '''
+                from synthtwin.paths import validate_local_path
+
+
+                def check(raw):
+                    return validate_local_path(raw, purpose="input")
+            ''',
+        },
+    )
+    assert violations == [], "\n".join(violations)
+
+
+# -- unresolved call targets (round-2 blocker 2) ---------------------
+
+
+def test_parameter_method_outside_data_list_goes_red(tmp_path):
+    """A method call on a caller-supplied value must be rejected when
+    the method name is outside the enumerated data-method list;
+    'resolve' is deliberately not on that list."""
+    violations = _scan_code(
+        tmp_path,
+        '''
+        def sneak(p):
+            return p.resolve()
+        ''',
+    )
+    _assert_red(violations, "resolve")
+
+
+def test_callback_union_keeps_unknown_and_goes_red(tmp_path):
+    """A callback whose origin set still holds the unknown member must
+    be rejected even when a branch rebinds it to an allowed API: the
+    unknown possibility is never discarded when other origins join."""
+    violations = _scan_code(
+        tmp_path,
+        '''
+        import json
+
+
+        def invoke(cb, flag):
+            if flag:
+                cb = json.loads
+            return cb("{}")
+        ''',
+    )
+    _assert_red(violations, "cb")
+
+
+def test_def_name_passed_to_external_helper_goes_red(tmp_path):
+    """A scanned function passed as a value to an allowed external
+    helper must be rejected: the helper decides when and how the
+    callable runs, outside anything this audit can see."""
+    violations = _scan_code(
+        tmp_path,
+        '''
+        def shout(text):
+            return text
+
+
+        def run():
+            return sorted(["b", "a"], key=shout)
+        ''',
+    )
+    _assert_red(violations, "shout")
+
+
+def test_lambda_passed_to_external_helper_goes_red(tmp_path):
+    """A lambda handed to an external helper is the same hand-off of a
+    callable and must be rejected."""
+    violations = _scan_code(
+        tmp_path,
+        '''
+        def run(rows):
+            return sorted(rows, key=lambda row: row)
+        ''',
+    )
+    _assert_red(violations, "lambda")
+
+
+def test_argparse_instance_method_calls_stay_clean(tmp_path):
+    """Values returned by allowlisted APIs are tracked as
+    api-instances whose method calls are accepted: the full argparse
+    build/parse sequence produces zero violations."""
+    violations = _scan_code(
+        tmp_path,
+        '''
+        import argparse
+
+
+        def run(argv):
+            parser = argparse.ArgumentParser(prog="demo")
+            parser.add_argument("--version", action="store_true")
+            args = parser.parse_args(argv)
+            if args.version:
+                print("ok")
+            return 0
+        ''',
+    )
+    assert violations == [], "\n".join(violations)
+
+
+def test_string_data_method_on_parameter_stays_clean(tmp_path):
+    """A data method from the enumerated list, called on a
+    caller-supplied string, produces zero violations."""
+    violations = _scan_code(
+        tmp_path,
+        '''
+        def marker_position(text):
+            return text.find("://")
+        ''',
+    )
+    assert violations == [], "\n".join(violations)
