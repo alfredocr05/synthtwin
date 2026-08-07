@@ -170,7 +170,7 @@ def test_fullwidth_compatibility_spelling_fails(
     tree: Path, tmp_path: Path
 ) -> None:
     fw = "".join(chr(ord(c) + 0xFEE0) for c in CANARY)
-    (tree / "wide.md").write_text(f"token {fw} end\n")
+    (tree / "wide.md").write_text(f"token {fw} end\n", encoding="utf-8")
     assert run_check(tree, make_manifest(tmp_path, [CANARY])) == 1
 
 
@@ -179,7 +179,7 @@ def test_enclosed_compatibility_spelling_fails(
 ) -> None:
     # Circled letters NFKC-normalize to plain letters (ratified R2-C1).
     enclosed = "".join(chr(0x24D0 + (ord(c) - ord("a"))) for c in CANARY)
-    (tree / "circled.md").write_text(f"token {enclosed} end\n")
+    (tree / "circled.md").write_text(f"token {enclosed} end\n", encoding="utf-8")
     assert run_check(tree, make_manifest(tmp_path, [CANARY])) == 1
 
 
@@ -329,6 +329,33 @@ def _temp_signer(att_copy: Path, tmp_path: Path) -> Path:
     return key
 
 
+def _sign_attestation(att_copy: Path, key: Path) -> None:
+    """Sign the temp tree's attestation.json bytes exactly as they sit
+    on disk, so a test can hand-shape the raw JSON text (for example a
+    duplicate member name) and still carry a VALID signature."""
+    sig = att_copy / "attestation.json.sig"
+    if sig.exists():
+        sig.unlink()
+    subprocess.run(
+        ["ssh-keygen", "-Y", "sign", "-f", str(key),
+         "-n", "synthtwin-attestation", str(att_copy / "attestation.json")],
+        check=True, capture_output=True,
+    )
+
+
+def _rewrite_manifest_headers(att_copy: Path, values: dict[str, str]) -> None:
+    """Set named manifest digest header lines to the given values while
+    leaving every other manifest byte alone, so intentional manifest
+    mutations made by a test survive the header refresh."""
+    m = att_copy / "manifest.txt"
+    lines = m.read_text().splitlines()
+    for i, ln in enumerate(lines):
+        for name, value in values.items():
+            if ln.startswith(f"# {name}:"):
+                lines[i] = f"# {name}: {value}"
+    m.write_text("\n".join(lines) + "\n")
+
+
 def _refresh_outer_and_sign(
     att_copy: Path, key: Path, *, skip: set[str] = frozenset(), edit=None
 ) -> None:
@@ -336,29 +363,34 @@ def _refresh_outer_and_sign(
     bytes, apply the single inner break via ``edit``, and re-sign with
     the temp key, so a red verifier result can only come from the one
     broken inner property (round-2 items R2-B4 and R2-M1). ``skip``
-    leaves named bindings stale on purpose."""
+    leaves named bindings stale on purpose. The manifest digest headers
+    that mirror per-file bindings are rewritten to the post-``skip``
+    binding values, exactly as a maintainer refresh keeps them, so the
+    temp tree stays self-consistent even while the live tree awaits its
+    maintainer re-sign."""
     att_path = att_copy / "attestation.json"
     att = json.loads(att_path.read_text())
     b = att["bindings"]
     fresh = {
-        "public_manifest_sha256": _sha256_path(att_copy / "manifest.txt"),
         "magic_table_sha256": _sha256_path(att_copy / "magic.txt"),
         "public_tokenizer_sha256": _sha256_path(att_copy / "tokenizer.py"),
         "public_surfaces_sha256": _sha256_path(att_copy / "surfaces.py"),
-        "public_scanner_tree_sha256": _scanner_tree_digest(att_copy),
     }
     for name, value in fresh.items():
         if name not in skip:
             b[name] = value
+    _rewrite_manifest_headers(att_copy, {
+        "magic_sha256": b["magic_table_sha256"],
+        "tokenizer_sha256": b["public_tokenizer_sha256"],
+    })
+    if "public_manifest_sha256" not in skip:
+        b["public_manifest_sha256"] = _sha256_path(att_copy / "manifest.txt")
+    if "public_scanner_tree_sha256" not in skip:
+        b["public_scanner_tree_sha256"] = _scanner_tree_digest(att_copy)
     if edit is not None:
         edit(att)
     att_path.write_text(json.dumps(att, indent=2, sort_keys=True) + "\n")
-    (att_copy / "attestation.json.sig").unlink()
-    subprocess.run(
-        ["ssh-keygen", "-Y", "sign", "-f", str(key),
-         "-n", "synthtwin-attestation", str(att_path)],
-        check=True, capture_output=True,
-    )
+    _sign_attestation(att_copy, key)
 
 
 @pytest.fixture()
@@ -554,6 +586,59 @@ def test_duplicate_body_line_rejected(att_copy: Path, tmp_path: Path) -> None:
     assert code == 2
     assert "duplicate manifest hash lines" in out
     assert "hash-line count" not in out
+
+
+def test_duplicate_top_level_member_rejected(
+    att_copy: Path, tmp_path: Path
+) -> None:
+    # Round-3 item R2-B4: a freshly signed attestation carrying the same
+    # top-level member twice with contradictory values must be refused
+    # as schema-invalid, never parsed with the last value winning
+    # silently. The temp key makes the signature VALID, so only the
+    # duplicate-member check can fire.
+    key = _temp_signer(att_copy, tmp_path)
+    _refresh_outer_and_sign(att_copy, key)
+    att_path = att_copy / "attestation.json"
+    text = att_path.read_text()
+    assert '  "result": "pass"' in text
+    att_path.write_text(
+        text.replace(
+            '  "result": "pass"',
+            '  "result": "fail",\n  "result": "pass"',
+            1,
+        )
+    )
+    _sign_attestation(att_copy, key)
+    code, out = _verify_out(att_copy)
+    assert code == 2
+    assert "SCHEMA INVALID" in out
+    assert "'result'" in out and "more than once" in out
+
+
+def test_duplicate_binding_member_rejected(
+    att_copy: Path, tmp_path: Path
+) -> None:
+    # Round-3 item R2-B4, nested depth: a stale binding value followed
+    # by the current one under the SAME member name inside "bindings".
+    # A last-value-wins parse would see only the fresh digest and pass;
+    # the verifier must instead refuse the ambiguous signed graph and
+    # name the duplicated member.
+    key = _temp_signer(att_copy, tmp_path)
+    _refresh_outer_and_sign(att_copy, key)
+    att_path = att_copy / "attestation.json"
+    lines = att_path.read_text().splitlines()
+    idx = next(
+        i for i, ln in enumerate(lines)
+        if '"public_manifest_sha256":' in ln
+    )
+    stale = '    "public_manifest_sha256": "' + "0" * 64 + '",'
+    lines.insert(idx, stale)
+    att_path.write_text("\n".join(lines) + "\n")
+    _sign_attestation(att_copy, key)
+    code, out = _verify_out(att_copy)
+    assert code == 2
+    assert "SCHEMA INVALID" in out
+    assert "'public_manifest_sha256'" in out and "more than once" in out
 
 
 def test_count_check_isolated_from_digest_drift(

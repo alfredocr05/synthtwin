@@ -1,0 +1,4 @@
+# No end-of-line conversion, ever (plan D12: canonical bytes are LF).
+# Signed digests and the decontamination manifest depend on byte-exact
+# checkouts on every platform.
+* -text

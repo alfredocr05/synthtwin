@@ -8,8 +8,18 @@
 # to do instead, so an existing organizational or security hook is
 # never destroyed.
 set -e
-REPO_ROOT="$(git rev-parse --show-toplevel)"
-HOOK="$REPO_ROOT/.git/hooks/pre-push"
+# Ask git for the ACTIVE pre-push hook path (review item R3-m1). This
+# honors core.hooksPath and linked worktrees, where the hard-coded
+# .git/hooks/pre-push shape is wrong or inactive. git prints the path
+# relative to the current directory when it can; make it absolute so
+# the messages below name one unambiguous file.
+HOOK="$(git rev-parse --git-path hooks/pre-push)"
+case "$HOOK" in
+    /*) ;;
+    [A-Za-z]:*) ;;
+    *) HOOK="$(pwd)/$HOOK" ;;
+esac
+mkdir -p "$(dirname "$HOOK")"
 NEW_HOOK="$HOOK.synthtwin.tmp"
 cat > "$NEW_HOOK" <<'HOOKBODY'
 #!/bin/sh

@@ -16,8 +16,14 @@ def test_create_connection_is_blocked() -> None:
 
 
 def test_guard_replaced_the_real_functions() -> None:
-    from conftest import _ORIGINALS, _blocked
+    from conftest import _ORIGINALS, _blocked, _GuardedSocket
 
-    assert socket.socket is _blocked
+    assert socket.socket is _GuardedSocket
     assert socket.create_connection is _blocked
-    assert _ORIGINALS["socket"] is not _blocked
+    assert _ORIGINALS["socket"] is not _GuardedSocket
+    # Subclassing must remain possible (stdlib ssl requires it) while
+    # instantiation stays blocked.
+    class _Sub(socket.socket):  # type: ignore[misc]
+        pass
+    with pytest.raises(RuntimeError, match="network operation"):
+        _Sub()
