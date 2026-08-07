@@ -748,7 +748,7 @@ def test_generator_socket_attempt_fails_with_guard_message(
         + result.stderr
     )
     assert "exited with an error" in result.stderr
-    assert "no-network fixture guard" in result.stderr
+    assert "best-effort fixture guard" in result.stderr
 
 
 def test_untracked_generator_in_git_tree_fails(tmp_path: Path) -> None:
@@ -942,7 +942,7 @@ def test_generator_low_level_socket_attempt_fails(tmp_path: Path) -> None:
         + result.stdout
         + result.stderr
     )
-    assert "no-network fixture guard" in result.stderr
+    assert "best-effort fixture guard" in result.stderr
     assert "forbidden import: _socket" in result.stderr
 
 
@@ -970,7 +970,7 @@ def test_generator_subprocess_attempt_fails(tmp_path: Path) -> None:
         + result.stdout
         + result.stderr
     )
-    assert "no-network fixture guard" in result.stderr
+    assert "best-effort fixture guard" in result.stderr
     assert "forbidden import: subprocess" in result.stderr
 
 
@@ -1001,7 +1001,7 @@ def test_generator_spawn_primitive_attempt_fails(tmp_path: Path) -> None:
         + result.stdout
         + result.stderr
     )
-    assert "no-network fixture guard" in result.stderr
+    assert "best-effort fixture guard" in result.stderr
     assert not (tmp_path / "spawned.sentinel").exists(), (
         "the guard let a low-level os spawn start an external program"
     )
@@ -1033,7 +1033,7 @@ def test_generator_native_socket_attempt_fails(tmp_path: Path) -> None:
         + result.stdout
         + result.stderr
     )
-    assert "no-network fixture guard" in result.stderr
+    assert "best-effort fixture guard" in result.stderr
     assert "forbidden import: ctypes" in result.stderr
 
 
@@ -1067,7 +1067,7 @@ def test_generator_fork_exec_helper_import_fails(tmp_path: Path) -> None:
         + result.stdout
         + result.stderr
     )
-    assert "no-network fixture guard" in result.stderr
+    assert "best-effort fixture guard" in result.stderr
     assert "forbidden import: _posixsubprocess" in result.stderr
 
 

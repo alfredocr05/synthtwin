@@ -256,7 +256,7 @@ Controls in force:
   applying a label would require widening the workflow token beyond
   `contents: read`, so no label-writing permission exists, and the
   read-only token is the control valued higher. (This mechanism is put
-  to the current code-review cycle as plan amendment A2.)
+  and ratified as plan amendment A2 by code-review round 3.)
 - Account: two-factor authentication enforced; recovery codes stored
   offline; no shared credentials.
 
