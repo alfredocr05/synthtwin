@@ -19,8 +19,10 @@ What this checker does:
    allowlist. A tracked .json file is allowed only when it is one of
    the checker's known configuration files (KNOWN_CONFIG_JSON) or
    listed in the fixture manifest. A tracked .yaml/.yml file is allowed
-   only under .github/ (workflow configuration) or when listed in the
-   fixture manifest; every other .json or YAML file is a violation.
+   only when it is a GitHub Actions workflow file directly inside
+   .github/workflows/ (a single directory level; see
+   is_workflow_configuration) or when listed in the fixture manifest;
+   every other .json or YAML file is a violation.
 3. For every fixture listed in the manifest -- whatever its extension --
    it re-runs the named generator script with the recorded seed and
    byte-compares the freshly produced output to the committed file. Any
@@ -39,11 +41,15 @@ a generator is invoked as
 
 and must write the complete fixture bytes to the output path. The same
 seed must always produce the same bytes, on every platform. Generators
-must never touch the network, start external programs, or load native
-code; the checker enforces this by running every generator through
-tools/provenance/guard_runner.py, which installs a permanent Python
-audit hook (sys.addaudithook) that stops every socket, process, and
-native-code-loading audit event before the generator code runs.
+must not touch the network, start external programs, or load native
+code. The checker runs every generator through
+tools/provenance/guard_runner.py, which installs a Python audit hook
+(sys.addaudithook) before the generator code runs; the hook blocks
+imports of network/process/native-capability modules and the known
+socket, process, and native-call audit events. That runner is a
+best-effort in-process guard aligned with the project's documented
+offline posture -- a guard, not a sandbox: a generator is
+repository-reviewed code, and CI is the enforced boundary.
 
 Exit codes: 0 = clean; 1 = policy violation (unlisted data file, byte
 mismatch, oversized fixture, broken generator); 2 = the checker could not
@@ -118,9 +124,11 @@ DATA_SUFFIXES = {
 }
 
 # YAML is a structured, data-capable format, but this repository's CI
-# workflow configuration legitimately lives under .github/. A tracked
-# .yaml/.yml file is therefore allowed only under .github/ or with a
-# fixture-manifest entry; anywhere else it is treated as a data file.
+# workflow configuration legitimately lives directly inside
+# .github/workflows/. A tracked .yaml/.yml file is therefore allowed
+# only at that exact directory level (is_workflow_configuration) or
+# with a fixture-manifest entry; anywhere else -- including elsewhere
+# under .github/ -- it is treated as a data file.
 YAML_SUFFIXES = {
     ".yaml",
     ".yml",
@@ -165,8 +173,9 @@ def is_data_format(relative_path: str) -> bool:
 
     ``.json`` and YAML count as data formats here; ``check_tree``
     exempts only the known configuration files listed in
-    KNOWN_CONFIG_JSON, YAML files under .github/, and paths listed in
-    the fixture manifest.
+    KNOWN_CONFIG_JSON, workflow files directly inside
+    .github/workflows/ (is_workflow_configuration), and paths listed
+    in the fixture manifest.
     """
     suffix = file_suffix(relative_path)
     if not suffix:
@@ -179,6 +188,24 @@ def is_data_format(relative_path: str) -> bool:
         return True
     # .sqlite, .sqlite3, .sqlitedb and friends all match here.
     return suffix.startswith(".sqlite")
+
+
+def is_workflow_configuration(relative_path: str) -> bool:
+    """Return True only for ``.github/workflows/<name>.yml`` or ``.yaml``.
+
+    GitHub Actions reads workflow files from exactly one place: YAML
+    files directly inside .github/workflows/, one directory level
+    deep. A YAML file anywhere else -- elsewhere under .github/, in a
+    subdirectory of workflows/, or outside .github/ entirely -- is not
+    workflow configuration and gets no exemption (review item R2-B7).
+    """
+    parts = relative_path.split("/")
+    return (
+        len(parts) == 3
+        and parts[0] == ".github"
+        and parts[1] == "workflows"
+        and file_suffix(relative_path) in YAML_SUFFIXES
+    )
 
 
 def git_tracked_files(root: Path) -> set[str] | None:
@@ -396,11 +423,14 @@ def rebuild_fixture(root: Path, entry: dict) -> tuple[bytes | None, str | None]:
 
     The generator is never run directly: it is started through the
     no-network guard runner (tools/provenance/guard_runner.py), which
-    installs a permanent Python audit hook before the generator code
-    runs. The hook stops every socket operation, every external-program
-    and process-creation attempt, and every native code load, so a
-    fixture rebuild cannot reach the network even through low-level
-    modules that sit below the high-level socket API.
+    installs a Python audit hook before the generator code runs. The
+    hook blocks imports of network/process/native-capability modules
+    (socket, ctypes, subprocess, and their low-level relatives) and
+    stops the known socket, process-creation, and native-call audit
+    events. This is a best-effort in-process guard aligned with the
+    project's documented offline posture -- a guard, not a sandbox: a
+    generator is repository-reviewed code, and CI is the enforced
+    boundary. The runner exists to catch mistakes early and loudly.
     """
     generator = root / entry["generator"]
     if not generator.is_file():
@@ -483,8 +513,8 @@ def check_tree(root: Path, manifest_path: Path) -> tuple[list[str], list[str]]:
 
     # Check 1: no data-format file outside the allowlist. A .json file
     # is additionally exempt when it is one of the checker's known
-    # configuration files, and a YAML file is additionally exempt when
-    # it lives under .github/ (workflow configuration).
+    # configuration files, and a YAML file is additionally exempt only
+    # when it is a workflow file directly inside .github/workflows/.
     for relative in list_repository_files(root):
         if not is_data_format(relative):
             continue
@@ -492,17 +522,19 @@ def check_tree(root: Path, manifest_path: Path) -> tuple[list[str], list[str]]:
             continue
         suffix = file_suffix(relative)
         if suffix in YAML_SUFFIXES:
-            if relative.startswith(".github/"):
+            if is_workflow_configuration(relative):
                 continue
             violations.append(
-                "Found a tracked YAML file outside the .github/ directory "
-                "that is not on the fixture allowlist: " + relative + ". "
-                "YAML can carry real-derived tables, schemas, or profiles, "
-                "so outside the workflow-configuration directory it is "
-                "treated as a data file. Move workflow configuration under "
-                ".github/. If this file is a legitimate, tiny test fixture "
-                "built by a seeded script, add an entry for it to "
-                + manifest_path.name
+                "Found a tracked YAML file that is not a GitHub Actions "
+                "workflow file and is not on the fixture allowlist: "
+                + relative + ". Only YAML files directly inside "
+                ".github/workflows/ (for example .github/workflows/ci.yml) "
+                "are workflow configuration; every other YAML file can "
+                "carry real-derived tables, schemas, or profiles, so it is "
+                "treated as a data file. Move workflow configuration into "
+                ".github/workflows/. If this file is a legitimate, tiny "
+                "test fixture built by a seeded script, add an entry for "
+                "it to " + manifest_path.name
                 + " (path, generator, seed, sha256, justification). "
                 "Otherwise delete the file before committing."
             )

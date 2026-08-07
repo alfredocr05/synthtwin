@@ -1,6 +1,7 @@
 # magic-v1 -- frozen offset/hex-signature table for the decoder/classifier
-# byte pipeline (conditioned plan C3). MAINTAINER-PRIVATE COPY; the public
-# scanner ships an identical copy whose digest is attestation-bound.
+# byte pipeline (conditioned plan C3). PUBLIC COPY, loaded by the committed
+# scanner; its digest is attestation-bound. The maintainer-private original
+# is byte-identical in its table body.
 #
 # Scope: archive, image, executable, compound-document, database, and
 # columnar-storage signatures. NO COMPLETENESS CLAIM is made (C3).

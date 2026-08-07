@@ -190,7 +190,7 @@ def main(argv=None):
         for kind, locator, surf in collected:
             if kind == "VIOLATION":
                 print(
-                    f"VIOLATION {display}: {locator} — this file is not "
+                    f"VIOLATION {display}: {locator} - this file is not "
                     "scannable text; if it is a legitimate fixture it must "
                     "go through the provenance allowlist, otherwise remove "
                     "it."
@@ -202,7 +202,7 @@ def main(argv=None):
             ) else locator
             for n, h in _match_hash(list(tokenize(surf)), hashes, n_max):
                 print(
-                    f"MATCH {display} {kind} {loc} n={n} {h[:12]} — this "
+                    f"MATCH {display} {kind} {loc} n={n} {h[:12]} - this "
                     "content matches the denied-vocabulary manifest; rewrite "
                     "the text (never edit the manifest)."
                 )

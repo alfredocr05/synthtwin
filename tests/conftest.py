@@ -32,5 +32,15 @@ _ORIGINALS = {
     "create_connection": socket.create_connection,
 }
 
-socket.socket = _blocked  # type: ignore[misc,assignment]
+
+class _GuardedSocket(_ORIGINALS["socket"]):  # type: ignore[misc]
+    """Subclassable stand-in: stdlib modules (ssl) subclass socket.socket at
+    import time, so the guard must remain a class; creating an instance is
+    what gets blocked."""
+
+    def __init__(self, *_args: object, **_kwargs: object) -> None:
+        raise _GuardError(_MESSAGE)
+
+
+socket.socket = _GuardedSocket  # type: ignore[misc,assignment]
 socket.create_connection = _blocked  # type: ignore[assignment]

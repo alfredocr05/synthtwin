@@ -621,3 +621,165 @@ def test_string_data_method_on_parameter_stays_clean(tmp_path):
         ''',
     )
     assert violations == [], "\n".join(violations)
+
+
+# -- callback slots of allowed APIs (round-3 follow-up on R2-B2) -----
+
+
+def test_unknown_callback_in_sorted_key_slot_goes_red(tmp_path):
+    """Bypass class: an unknown parameter placed in the 'key' slot of
+    sorted. The helper itself is allowed, but it calls whatever sits
+    in that slot, so an untraceable value there is a hidden call
+    target and must be rejected."""
+    violations = _scan_code(
+        tmp_path,
+        '''
+        def run(rows, cb):
+            return sorted(rows, key=cb)
+        ''',
+    )
+    _assert_red(violations, "callback slot 'key'")
+
+
+def test_unknown_callback_in_json_object_hook_slot_goes_red(tmp_path):
+    """Bypass class: an unknown parameter as the object_hook of
+    json.loads. json would call it once per parsed object."""
+    violations = _scan_code(
+        tmp_path,
+        '''
+        import json
+
+
+        def parse(s, cb):
+            return json.loads(s, object_hook=cb)
+        ''',
+    )
+    _assert_red(violations, "callback slot 'object_hook'")
+
+
+def test_unknown_callback_in_add_argument_type_slot_goes_red(tmp_path):
+    """Bypass class: an unknown parameter as the 'type' conversion of
+    ArgumentParser.add_argument. argparse would call it on every
+    matching command-line value."""
+    violations = _scan_code(
+        tmp_path,
+        '''
+        import argparse
+
+
+        def build(cb):
+            parser = argparse.ArgumentParser(prog="demo")
+            parser.add_argument("--n", type=cb)
+            return parser
+        ''',
+    )
+    _assert_red(violations, "callback slot 'type'")
+
+
+def test_unknown_callback_in_map_function_slot_goes_red(tmp_path):
+    """The same rule for a POSITIONAL callback slot: map's first
+    argument is the function it applies, so an unknown parameter
+    there must be rejected."""
+    violations = _scan_code(
+        tmp_path,
+        '''
+        def run(rows, cb):
+            return list(map(cb, rows))
+        ''',
+    )
+    _assert_red(violations, "'map'")
+
+
+def test_first_party_import_in_callback_slot_goes_red(tmp_path):
+    """A first-party function imported from a sibling and placed in a
+    callback slot must be rejected: the external API would invoke it
+    outside scanned control."""
+    violations = _scan_package(
+        tmp_path,
+        {
+            "synthtwin/__init__.py": "",
+            "synthtwin/paths.py": '''
+                def validate_local_path(raw, *, purpose):
+                    return raw
+            ''',
+            "consumer.py": '''
+                from synthtwin.paths import validate_local_path
+
+
+                def run(rows):
+                    return sorted(rows, key=validate_local_path)
+            ''',
+        },
+    )
+    _assert_red(violations, "callback slot 'key'")
+
+
+def test_data_arguments_in_non_callback_slots_stay_clean(tmp_path):
+    """Data arguments outside the enumerated callback slots stay
+    accepted: json.loads(raw) and parser.parse_args(argv) with
+    caller-supplied values produce zero violations."""
+    violations = _scan_code(
+        tmp_path,
+        '''
+        import argparse
+        import json
+
+
+        def run(raw, argv):
+            parser = argparse.ArgumentParser(prog="demo")
+            parser.add_argument("--version", action="store_true")
+            args = parser.parse_args(argv)
+            payload = json.loads(raw)
+            return args, payload
+        ''',
+    )
+    assert violations == [], "\n".join(violations)
+
+
+def test_unknown_argument_to_data_method_goes_red(tmp_path):
+    """An accepted data method on an untraced value must reject an
+    unknown argument: the receiver's method could do anything with
+    what it receives, including calling it."""
+    violations = _scan_code(
+        tmp_path,
+        '''
+        def sneak(text, needle):
+            return text.find(needle)
+        ''',
+    )
+    _assert_red(violations, "'find'")
+
+
+def test_unknown_callback_argument_to_data_method_goes_red(tmp_path):
+    """The same rule for format: an unknown parameter handed to the
+    format method of an untraced value must be rejected."""
+    violations = _scan_code(
+        tmp_path,
+        '''
+        def sneak(text, cb):
+            return text.format(cb)
+        ''',
+    )
+    _assert_red(violations, "'format'")
+
+
+def test_literal_and_scanned_result_data_method_arguments_stay_clean(tmp_path):
+    """Data-method arguments that this audit fully resolves stay
+    accepted: a name bound only to a literal, and the result of a
+    call to a function defined in the scanned tree (the shape the
+    shipped cli module uses)."""
+    violations = _scan_code(
+        tmp_path,
+        '''
+        _LABEL = "demo {version} at {home}"
+
+
+        def _version():
+            return "1"
+
+
+        def render():
+            return _LABEL.format(version=_version(), home="here")
+        ''',
+    )
+    assert violations == [], "\n".join(violations)

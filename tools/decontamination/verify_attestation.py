@@ -6,10 +6,12 @@ Checks, in order:
   1. the SSH signature over attestation.json validates against the pinned
      key in allowed_signers (origin authentication against third parties;
      a compromised maintainer key is the recorded D14 residual);
-  2. attestation.json has the exact v2 shape: every mandatory top-level
-     key with the right type, every mandatory binding present (digest
-     bindings as 64 lowercase hex characters), no unexpected key, and
-     result equal to "pass";
+  2. attestation.json has the exact v2 shape: no JSON object at any
+     nesting depth repeats a member name (a duplicate is rejected during
+     parsing, never resolved silently to the last value), every
+     mandatory top-level key with the right type, every mandatory
+     binding present (digest bindings as 64 lowercase hex characters),
+     no unexpected key, and result equal to "pass";
   3. manifest.txt parses under the strict shared parser imported from
      check.py (exactly one occurrence of each mandatory header, every
      body line exactly 64 lowercase hex characters) - the scanner and
@@ -78,6 +80,7 @@ REQUIRED_HEX_BINDINGS = (
     "magic_table_sha256",
     "pattern_grammar_sha256",
     "plaintext_inventory_sha256",
+    "post_commit_verification_sha256",
     "pre_first_push_note_sha256",
     "prototype_snapshot_tree_sha256",
     "public_manifest_sha256",
@@ -107,6 +110,24 @@ _RECOMPUTED_FILES = {
     "tokenizer.py": "public_tokenizer_sha256",
     "surfaces.py": "public_surfaces_sha256",
 }
+
+
+class DuplicateMemberError(ValueError):
+    """A JSON object in attestation.json repeats a member name."""
+
+
+def _no_duplicate_members(pairs: list) -> dict:
+    """Build a dict while refusing any repeated member name (round-3
+    item R2-B4). json.loads calls this hook for EVERY object it parses,
+    at every nesting depth, so a duplicate top-level member and a
+    duplicate member inside bindings are both caught here instead of
+    being resolved silently to the last value."""
+    obj = {}
+    for name, value in pairs:
+        if name in obj:
+            raise DuplicateMemberError(name)
+        obj[name] = value
+    return obj
 
 
 def _file_digest(name: str) -> str:
@@ -184,7 +205,26 @@ def main() -> int:
         )
         return 1
 
-    att = json.loads(att_path.read_text())
+    try:
+        att = json.loads(
+            att_path.read_text(), object_pairs_hook=_no_duplicate_members
+        )
+    except DuplicateMemberError as err:
+        print(
+            f"attestation: SCHEMA INVALID in: JSON member '{err.args[0]}' "
+            "appears more than once in attestation.json - a duplicate "
+            "member makes the signed graph ambiguous, so it is rejected "
+            "outright; the maintainer must rebuild the attestation from "
+            "the private pipeline and re-sign."
+        )
+        return 2
+    except ValueError:
+        print(
+            "attestation: SCHEMA INVALID in: attestation.json is not "
+            "valid JSON - the maintainer must rebuild it from the "
+            "private pipeline and re-sign."
+        )
+        return 2
     problems = schema_problems(att)
     if problems:
         print(

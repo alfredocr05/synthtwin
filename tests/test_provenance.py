@@ -15,6 +15,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 REPO_ROOT = Path(__file__).resolve().parents[1]
 CHECKER = REPO_ROOT / "tools" / "provenance" / "check_provenance.py"
 
@@ -72,10 +74,10 @@ with open(args.out, "w", encoding="utf-8", newline="") as handle:
     handle.write("row-" + str(args.seed) + "\\n")
 """
 
-# A generator that builds a raw socket through the low-level C module,
-# below the high-level socket wrapper. Used to prove the audit-hook
-# guard holds even when a generator sidesteps the importable socket
-# names entirely (review item R2-B11).
+# A generator that reaches for the low-level C socket module, below
+# the high-level socket wrapper. The guard now refuses the import
+# itself, so the whole low-level socket family is unreachable by name
+# (review item R2-B11).
 LOW_LEVEL_SOCKET_GENERATOR_SOURCE = """\
 import argparse
 import _socket
@@ -91,7 +93,7 @@ with open(args.out, "w", encoding="utf-8", newline="") as handle:
 """
 
 # A generator that tries to start an external program before writing
-# its output. Used to prove the guard also stops process creation.
+# its output. The guard refuses the subprocess import itself.
 SUBPROCESS_GENERATOR_SOURCE = """\
 import argparse
 import subprocess
@@ -102,6 +104,63 @@ parser.add_argument("--seed", type=int, required=True)
 parser.add_argument("--out", required=True)
 args = parser.parse_args()
 subprocess.run([sys.executable, "-c", "print('external')"], check=True)
+with open(args.out, "w", encoding="utf-8", newline="") as handle:
+    handle.write("row-" + str(args.seed) + "\\n")
+"""
+
+# A generator that starts a benign external program through a low-level
+# os process primitive instead of the subprocess module -- the round-3
+# review route that slipped below the earlier event-name list (review
+# item R2-B11). The spawned command would write a sentinel file next to
+# the generator; the guard must stop the spawn before any child runs.
+SPAWN_PRIMITIVE_GENERATOR_SOURCE = """\
+import argparse
+import os
+import sys
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--seed", type=int, required=True)
+parser.add_argument("--out", required=True)
+args = parser.parse_args()
+sentinel = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "spawned.sentinel"
+)
+command = "open(" + repr(sentinel) + ", 'w').close()"
+os.spawnl(os.P_WAIT, sys.executable, sys.executable, "-c", command)
+with open(args.out, "w", encoding="utf-8", newline="") as handle:
+    handle.write("row-" + str(args.seed) + "\\n")
+"""
+
+# A generator that goes for a native-call route: load the C library
+# through ctypes and create a socket descriptor without touching any
+# Python socket name. Native calls need not emit audit events, so the
+# guard must refuse the ctypes import itself (review item R2-B11).
+NATIVE_SOCKET_GENERATOR_SOURCE = """\
+import argparse
+import ctypes
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--seed", type=int, required=True)
+parser.add_argument("--out", required=True)
+args = parser.parse_args()
+libc = ctypes.CDLL(None)
+descriptor = libc.socket(2, 1, 0)
+with open(args.out, "w", encoding="utf-8", newline="") as handle:
+    handle.write("row-" + str(args.seed) + "\\n")
+"""
+
+# A generator that reaches for the C helper the subprocess module is
+# built on -- a process-creation route that emits no subprocess.* audit
+# event of its own. The guard must refuse the import (review item
+# R2-B11; POSIX-only module).
+POSIX_FORK_EXEC_GENERATOR_SOURCE = """\
+import argparse
+import _posixsubprocess
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--seed", type=int, required=True)
+parser.add_argument("--out", required=True)
+args = parser.parse_args()
 with open(args.out, "w", encoding="utf-8", newline="") as handle:
     handle.write("row-" + str(args.seed) + "\\n")
 """
@@ -410,8 +469,33 @@ def test_every_extended_data_suffix_fails(tmp_path: Path) -> None:
 
 # ---------------------------------------------------------------------------
 # R2-B7: YAML, XML, SQL-dump, DuckDB, DBF, and transport routes are
-# closed. YAML is allowed only under .github/ or via the manifest.
+# closed. YAML is exempt only as a workflow file directly inside
+# .github/workflows/ (single directory level) or via the manifest.
 # ---------------------------------------------------------------------------
+
+
+def test_is_workflow_configuration_single_level_only() -> None:
+    """The exemption covers exactly .github/workflows/*.yml and *.yaml."""
+    accepted = [
+        ".github/workflows/ci.yml",
+        ".github/workflows/release.yaml",
+    ]
+    for value in accepted:
+        assert _CHECKER_MODULE.is_workflow_configuration(value), value
+
+    rejected = [
+        ".github/nonworkflow.yaml",
+        ".github/workflows.yaml",
+        ".github/workflows/nested/deep.yml",
+        ".github/dependabot-lookalike.yml",
+        "workflows/ci.yml",
+        "other/.github/workflows/ci.yml",
+        "schema.yaml",
+        # Right place, wrong format: not a YAML file at all.
+        ".github/workflows/notes.txt",
+    ]
+    for value in rejected:
+        assert not _CHECKER_MODULE.is_workflow_configuration(value), value
 
 
 def test_stray_yaml_outside_github_fails(tmp_path: Path) -> None:
@@ -432,11 +516,42 @@ def test_stray_yaml_outside_github_fails(tmp_path: Path) -> None:
     )
     assert "schema.yaml" in result.stderr
     assert "profile.yml" in result.stderr
-    assert "outside the .github/ directory" in result.stderr
+    assert "not a GitHub Actions workflow file" in result.stderr
+
+
+def test_yaml_elsewhere_under_github_fails(tmp_path: Path) -> None:
+    """Mutation: tabular YAML below .github/ but not a workflow file.
+
+    Round-3 review item R2-B7: the old exemption covered the whole
+    .github/ directory, so a table saved as .github/nonworkflow.yaml
+    passed with no manifest entry. Both a non-workflow file directly
+    under .github/ and a file nested below workflows/ must be red.
+    """
+    write_manifest(tmp_path, [])
+    github_dir = tmp_path / ".github"
+    github_dir.mkdir()
+    (github_dir / "nonworkflow.yaml").write_text(
+        "rows:\n  - [3, 9, 27]\n  - [4, 16, 64]\n", encoding="utf-8"
+    )
+    nested = github_dir / "workflows" / "nested"
+    nested.mkdir(parents=True)
+    (nested / "deep.yml").write_text(
+        "count: 12\nmean: 3.5\n", encoding="utf-8"
+    )
+
+    result = run_checker(tmp_path)
+    assert result.returncode == 1, (
+        "expected exit code 1, got " + str(result.returncode) + ":\n"
+        + result.stdout
+        + result.stderr
+    )
+    assert ".github/nonworkflow.yaml" in result.stderr
+    assert ".github/workflows/nested/deep.yml" in result.stderr
+    assert "not a GitHub Actions workflow file" in result.stderr
 
 
 def test_yaml_under_github_passes(tmp_path: Path) -> None:
-    """A workflow file under .github/ is accepted without a manifest entry."""
+    """A workflow file directly inside .github/workflows/ is accepted."""
     write_manifest(tmp_path, [])
     workflows = tmp_path / ".github" / "workflows"
     workflows.mkdir(parents=True)
@@ -669,9 +784,10 @@ def test_fully_tracked_git_tree_passes(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# R2-B11: the guard runner is built on sys.addaudithook, so socket,
-# process, and native-code routes below the high-level modules are
-# stopped and the generator cannot uninstall the guard.
+# R2-B11: the guard runner refuses imports of capability modules and
+# blocks the named dangerous audit events. It is a best-effort
+# in-process guard -- reviewed generator code and CI remain the real
+# controls -- but every route named by the reviews must go red here.
 # ---------------------------------------------------------------------------
 
 GUARD_RUNNER = REPO_ROOT / "tools" / "provenance" / "guard_runner.py"
@@ -700,28 +816,72 @@ def test_guard_event_policy_covers_every_named_route() -> None:
         "subprocess.Popen",
         "os.system",
         "os.exec",
+        "os.execve",
         "os.posix_spawn",
         "os.spawn",
         "os.fork",
         "os.forkpty",
         "os.startfile",
+        "pty.spawn",
         "ctypes.dlopen",
+        "ctypes.dlsym",
+        "ctypes.call_function",
+        "ctypes.addressof",
     ]
     for event in blocked:
         assert module.event_is_blocked(event), event
-    # Ordinary interpreter activity a generator legitimately needs.
+    # Ordinary interpreter activity a generator legitimately needs. The
+    # "import" event is not unconditionally blocked: the hook decides it
+    # per module through import_is_blocked.
     allowed = ["open", "import", "compile", "exec", "os.mkdir", "os.putenv"]
     for event in allowed:
         assert not module.event_is_blocked(event), event
 
 
+def test_guard_import_policy_blocks_capability_modules() -> None:
+    """Every capability module is refused at import, submodules included."""
+    module = _load_guard_runner_module()
+    blocked = [
+        "socket",
+        "_socket",
+        "ssl",
+        "ctypes",
+        "_ctypes",
+        "cffi",
+        "subprocess",
+        "_posixsubprocess",
+        "multiprocessing",
+        "pty",
+        "fcntl",
+        # Dotted forms are refused with their top-level package.
+        "multiprocessing.pool",
+        "ctypes.util",
+        "socket.anything",
+    ]
+    for name in blocked:
+        assert module.import_is_blocked(name), name
+    # Modules an ordinary seeded generator legitimately needs.
+    allowed = [
+        "argparse",
+        "os",
+        "sys",
+        "json",
+        "random",
+        "hashlib",
+        "math",
+        "pathlib",
+        "collections.abc",
+    ]
+    for name in allowed:
+        assert not module.import_is_blocked(name), name
+
+
 def test_generator_low_level_socket_attempt_fails(tmp_path: Path) -> None:
-    """Mutation: a socket built below the high-level module is stopped.
+    """Mutation: reaching below the high-level socket module is stopped.
 
     The generator imports the underlying C socket module directly --
     the route that bypassed the earlier name-replacement guard. The
-    audit hook sees the constructor event no matter which module name
-    the generator used.
+    guard now refuses the import itself, before any constructor runs.
     """
     seed = 7
     payload = b"placeholder\n"
@@ -743,11 +903,14 @@ def test_generator_low_level_socket_attempt_fails(tmp_path: Path) -> None:
         + result.stderr
     )
     assert "no-network fixture guard" in result.stderr
-    assert "socket.__new__" in result.stderr
+    assert "forbidden import: _socket" in result.stderr
 
 
 def test_generator_subprocess_attempt_fails(tmp_path: Path) -> None:
-    """Mutation: a generator that starts an external program is stopped."""
+    """Mutation: a generator that starts an external program is stopped.
+
+    The subprocess import is refused before subprocess.run can exist.
+    """
     seed = 7
     payload = b"placeholder\n"
     (tmp_path / "gen_fixture.py").write_text(
@@ -768,7 +931,104 @@ def test_generator_subprocess_attempt_fails(tmp_path: Path) -> None:
         + result.stderr
     )
     assert "no-network fixture guard" in result.stderr
-    assert "subprocess.Popen" in result.stderr
+    assert "forbidden import: subprocess" in result.stderr
+
+
+def test_generator_spawn_primitive_attempt_fails(tmp_path: Path) -> None:
+    """Mutation: a low-level os spawn of a benign binary is stopped.
+
+    Round-3 review item R2-B11: a process primitive below the
+    subprocess module started an external program while the earlier
+    guard stayed green. The spawn must now fail before any child runs,
+    so the sentinel its child would write must not exist.
+    """
+    seed = 7
+    payload = b"placeholder\n"
+    (tmp_path / "gen_fixture.py").write_text(
+        SPAWN_PRIMITIVE_GENERATOR_SOURCE, encoding="utf-8"
+    )
+    fixture_dir = tmp_path / "fixtures"
+    fixture_dir.mkdir()
+    (fixture_dir / "sample.txt").write_bytes(payload)
+    write_manifest(
+        tmp_path,
+        [make_entry("fixtures/sample.txt", "gen_fixture.py", seed, payload)],
+    )
+
+    result = run_checker(tmp_path)
+    assert result.returncode == 1, (
+        "expected exit code 1, got " + str(result.returncode) + ":\n"
+        + result.stdout
+        + result.stderr
+    )
+    assert "no-network fixture guard" in result.stderr
+    assert not (tmp_path / "spawned.sentinel").exists(), (
+        "the guard let a low-level os spawn start an external program"
+    )
+
+
+def test_generator_native_socket_attempt_fails(tmp_path: Path) -> None:
+    """Mutation: a native-call socket route is stopped at the import.
+
+    Round-3 review item R2-B11: native code called through ctypes need
+    not emit any Python audit event, so the guard must refuse the
+    ctypes import before the C library can be loaded at all.
+    """
+    seed = 7
+    payload = b"placeholder\n"
+    (tmp_path / "gen_fixture.py").write_text(
+        NATIVE_SOCKET_GENERATOR_SOURCE, encoding="utf-8"
+    )
+    fixture_dir = tmp_path / "fixtures"
+    fixture_dir.mkdir()
+    (fixture_dir / "sample.txt").write_bytes(payload)
+    write_manifest(
+        tmp_path,
+        [make_entry("fixtures/sample.txt", "gen_fixture.py", seed, payload)],
+    )
+
+    result = run_checker(tmp_path)
+    assert result.returncode == 1, (
+        "expected exit code 1, got " + str(result.returncode) + ":\n"
+        + result.stdout
+        + result.stderr
+    )
+    assert "no-network fixture guard" in result.stderr
+    assert "forbidden import: ctypes" in result.stderr
+
+
+@pytest.mark.skipif(
+    os.name != "posix",
+    reason="the C fork-exec helper module exists only on POSIX hosts",
+)
+def test_generator_fork_exec_helper_import_fails(tmp_path: Path) -> None:
+    """Mutation: the C helper below the subprocess module is refused.
+
+    Round-3 review item R2-B11: this helper performs process creation
+    without emitting a subprocess.* audit event of its own, so the
+    guard must make it unreachable by refusing the import.
+    """
+    seed = 7
+    payload = b"placeholder\n"
+    (tmp_path / "gen_fixture.py").write_text(
+        POSIX_FORK_EXEC_GENERATOR_SOURCE, encoding="utf-8"
+    )
+    fixture_dir = tmp_path / "fixtures"
+    fixture_dir.mkdir()
+    (fixture_dir / "sample.txt").write_bytes(payload)
+    write_manifest(
+        tmp_path,
+        [make_entry("fixtures/sample.txt", "gen_fixture.py", seed, payload)],
+    )
+
+    result = run_checker(tmp_path)
+    assert result.returncode == 1, (
+        "expected exit code 1, got " + str(result.returncode) + ":\n"
+        + result.stdout
+        + result.stderr
+    )
+    assert "no-network fixture guard" in result.stderr
+    assert "forbidden import: _posixsubprocess" in result.stderr
 
 
 def test_guard_runner_allows_innocent_generator(tmp_path: Path) -> None:
@@ -863,3 +1123,80 @@ def test_installer_refuses_to_overwrite_foreign_hook(tmp_path: Path) -> None:
     assert "Refusing to overwrite" in result.stderr
     assert "Chain manually" in result.stderr
     assert not (hooks_dir / "pre-push.synthtwin.tmp").exists()
+
+
+# ---------------------------------------------------------------------------
+# R3-m1: the installer writes to the ACTIVE hook path git reports, not
+# a hard-coded .git/hooks/pre-push, so core.hooksPath repositories and
+# linked worktrees get a hook that actually runs.
+# ---------------------------------------------------------------------------
+
+
+def test_installer_honors_custom_hooks_path(tmp_path: Path) -> None:
+    """Mutation: with core.hooksPath set, the active location gets the hook.
+
+    Under the old hard-coded path, this repository would have gained an
+    unused file at .git/hooks/pre-push while the active hook location
+    stayed empty (review item R3-m1).
+    """
+    git_in_tree(tmp_path, "init")
+    git_in_tree(tmp_path, "config", "core.hooksPath", "custom-hooks")
+
+    first = run_installer(tmp_path)
+    assert first.returncode == 0, first.stdout + first.stderr
+    active_hook = tmp_path / "custom-hooks" / "pre-push"
+    assert active_hook.is_file(), (
+        "the installer did not write to the active hook path:\n"
+        + first.stdout
+        + first.stderr
+    )
+    assert os.access(active_hook, os.X_OK)
+    assert b"check_provenance.py" in active_hook.read_bytes()
+    assert "custom-hooks" in first.stdout
+    # The inactive default location must gain nothing.
+    assert not (tmp_path / ".git" / "hooks" / "pre-push").exists()
+
+    # An identical re-run against the active path stays quiet.
+    second = run_installer(tmp_path)
+    assert second.returncode == 0, second.stdout + second.stderr
+    assert second.stdout == ""
+    assert second.stderr == ""
+    assert os.access(active_hook, os.X_OK)
+
+
+def test_installer_resolves_linked_worktree_hook_path(tmp_path: Path) -> None:
+    """From a linked worktree, the hook lands at the shared active path.
+
+    A linked worktree's .git is a file, not a directory, so the old
+    hard-coded <root>/.git/hooks/pre-push shape could not even be
+    created there (review item R3-m1).
+    """
+    main = tmp_path / "main"
+    main.mkdir()
+    git_in_tree(main, "init")
+    (main / "README.txt").write_text("neutral placeholder\n", encoding="utf-8")
+    git_in_tree(main, "add", "README.txt")
+    git_in_tree(
+        main,
+        "-c",
+        "user.name=synthtwin-test",
+        "-c",
+        "user.email=synthtwin-test@example.invalid",
+        "commit",
+        "-m",
+        "first commit for the worktree",
+    )
+    worktree = tmp_path / "linked"
+    git_in_tree(main, "worktree", "add", str(worktree))
+    assert (worktree / ".git").is_file()
+
+    result = run_installer(worktree)
+    assert result.returncode == 0, result.stdout + result.stderr
+    shared_hook = main / ".git" / "hooks" / "pre-push"
+    assert shared_hook.is_file(), (
+        "the installer did not write to the shared active hook path:\n"
+        + result.stdout
+        + result.stderr
+    )
+    assert os.access(shared_hook, os.X_OK)
+    assert b"check_provenance.py" in shared_hook.read_bytes()

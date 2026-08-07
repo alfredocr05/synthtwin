@@ -79,7 +79,14 @@ Policy enforced (plan D6.2, a positive AST/name-binding policy):
       initiates, not what the caller's own code does; these data
       methods initiate nothing beyond reading or building text. Any
       other method name on an untraced value is a violation
-      (parameter.resolve() is rejected).
+      (parameter.resolve() is rejected). In addition, EVERY argument
+      of an accepted data-method call on an untraced value must be a
+      plain literal or a value this audit fully resolved as safe: an
+      allowlisted API's result, a scanned function's or class's
+      result, or a name bound only to literals. An untraced object's
+      method can do anything with what it receives, including
+      calling it, so an unknown or callable argument in such a call
+      is rejected (no unknowns, no callables).
   (b) A value returned by a call to an allowlisted API
       (parser = argparse.ArgumentParser(...)) is tracked as an
       api-instance, and method calls on it
@@ -95,6 +102,32 @@ Policy enforced (plan D6.2, a positive AST/name-binding policy):
   under the same rules. Targets put together while the program runs
   (double-underscore internals, lookups through the module table,
   subscripted call targets, star imports) are rejected as before.
+* Callback SLOTS are checked by argument position. The allowlisted
+  world is closed, so every allowed external API that can INVOKE one
+  of its arguments is enumerated in this file with its exact
+  callable-accepting slots: sorted, min, max (key); map, filter, and
+  the two-argument form of iter (the function argument);
+  json.load and json.loads (cls, object_hook, object_pairs_hook,
+  parse_constant, parse_float, parse_int); json.dump and json.dumps
+  (cls, default); json.JSONDecoder (the five hooks);
+  json.JSONEncoder (default); argparse.ArgumentParser
+  (formatter_class); ArgumentParser.add_argument (action, type);
+  ArgumentParser.add_subparsers (action, parser_class);
+  ArgumentParser.register (object); dataclasses.field
+  (default_factory); dataclasses.asdict (dict_factory);
+  dataclasses.astuple (tuple_factory); dataclasses.make_dataclass
+  (bases, namespace); sys.settrace, sys.setprofile, and
+  sys.addaudithook (the hook argument); sys.set_asyncgen_hooks
+  (firstiter, finalizer). A value placed in one of those slots must
+  be a plain literal, a directly named accepted built-in (str,
+  int, ...), or a directly named allowlisted API. Anything else --
+  above all a caller-supplied parameter, a computed value, or a
+  first-party function or lambda -- is rejected, because the API
+  would invoke it outside anything this audit can see. Data
+  arguments outside these slots (json.loads(raw),
+  parser.parse_args(argv)) stay accepted. Star and double-star
+  expansion into an API that has callback slots is rejected too,
+  because expansion hides which value lands in which slot.
 
 Exit status: 0 clean; 1 one or more violations, each printed as
 "file:line: explanation"; 2 the command line itself was wrong.
@@ -165,6 +198,96 @@ _UNKNOWN = ("unknown", "")
 # values; adding a name here is a policy decision reviewed against the
 # threat model, not a routine code change.
 _UNKNOWN_VALUE_METHODS = {"find", "format"}
+
+# Origin kinds accepted as ARGUMENTS of a data-method call on an
+# untraced value (policy case (a)): a value built by an allowlisted
+# API, a value returned by a scanned def or class, or a name bound
+# only to literals. Everything else -- the unknown member above all --
+# is rejected, because the untraced receiver's method could call
+# whatever it is handed.
+_SAFE_DATA_ARGUMENT_KINDS = {"instance", "literal", "result"}
+
+# Every allowed external API that can INVOKE one of its arguments,
+# mapped to its exact callable-accepting slots: a frozenset of keyword
+# names plus a dict of positional index -> slot name. The allowlisted
+# world is closed, so this enumeration is complete for the Phase 0
+# surface; adding an entry is a policy decision reviewed against the
+# threat model, not a routine code change. The "iter" entry applies
+# only to the two-argument form (handled at the call site); one-arg
+# iter takes plain data.
+_CALLBACK_SLOTS: "dict[str, tuple[frozenset[str], dict[int, str]]]" = {
+    "argparse.ArgumentParser": (
+        frozenset({"formatter_class"}),
+        {5: "formatter_class"},
+    ),
+    "argparse.ArgumentParser.add_argument": (
+        frozenset({"action", "type"}),
+        {},
+    ),
+    "argparse.ArgumentParser.add_subparsers": (
+        frozenset({"action", "parser_class"}),
+        {},
+    ),
+    "argparse.ArgumentParser.register": (frozenset({"object"}), {2: "object"}),
+    "dataclasses.asdict": (frozenset({"dict_factory"}), {}),
+    "dataclasses.astuple": (frozenset({"tuple_factory"}), {}),
+    "dataclasses.field": (frozenset({"default_factory"}), {}),
+    "dataclasses.make_dataclass": (frozenset({"bases", "namespace"}), {}),
+    "filter": (frozenset(), {0: "function"}),
+    "iter": (frozenset(), {0: "function"}),
+    "json.JSONDecoder": (
+        frozenset(
+            {
+                "object_hook",
+                "object_pairs_hook",
+                "parse_constant",
+                "parse_float",
+                "parse_int",
+            }
+        ),
+        {},
+    ),
+    "json.JSONEncoder": (frozenset({"default"}), {}),
+    "json.dump": (frozenset({"cls", "default"}), {}),
+    "json.dumps": (frozenset({"cls", "default"}), {}),
+    "json.load": (
+        frozenset(
+            {
+                "cls",
+                "object_hook",
+                "object_pairs_hook",
+                "parse_constant",
+                "parse_float",
+                "parse_int",
+            }
+        ),
+        {},
+    ),
+    "json.loads": (
+        frozenset(
+            {
+                "cls",
+                "object_hook",
+                "object_pairs_hook",
+                "parse_constant",
+                "parse_float",
+                "parse_int",
+            }
+        ),
+        {},
+    ),
+    "map": (frozenset(), {0: "function"}),
+    "max": (frozenset({"key"}), {}),
+    "min": (frozenset({"key"}), {}),
+    "sorted": (frozenset({"key"}), {}),
+    "sys.addaudithook": (frozenset(), {0: "hook"}),
+    "sys.set_asyncgen_hooks": (
+        frozenset({"finalizer", "firstiter"}),
+        {0: "firstiter", 1: "finalizer"},
+    ),
+    "sys.setprofile": (frozenset(), {0: "function"}),
+    "sys.settrace": (frozenset(), {0: "function"}),
+}
 
 # sys.modules and sys.path per the plan; the other three are the rest of
 # the interpreter's import machinery reachable through sys.
@@ -482,6 +605,41 @@ def _unknown_method_message(method: str) -> str:
     )
 
 
+def _unknown_method_argument_message(method: str) -> str:
+    return (
+        "passes a value this audit cannot fully resolve to the '"
+        + method + "' method of a value it cannot trace. An untraced "
+        "object's method can do anything with what it receives, "
+        "including calling it, so on such a value the enumerated data "
+        "methods accept only plain literals or values built under this "
+        "audit's eyes (an allowlisted API's result, a scanned "
+        "function's result). Pass a literal, or build the value from "
+        "an allowlisted API first."
+    )
+
+
+def _callback_slot_message(callee: str, slot: str) -> str:
+    return (
+        "fills the callback slot '" + slot + "' of " + callee + " with "
+        "a value this audit cannot clear. The library calls whatever "
+        "sits in that slot, so only a plain literal, a directly named "
+        "accepted built-in (for example str or int), or a directly "
+        "named allowlisted API may appear there; a caller-supplied or "
+        "computed callable, or a function of this package, would run "
+        "outside anything this audit can see."
+    )
+
+
+def _unpacked_slot_message(callee: str, star: str) -> str:
+    return (
+        "expands '" + star + "' arguments into " + callee + ", an API "
+        "with callback slots (argument positions whose value the "
+        "library will call). Expansion hides which value lands in "
+        "which slot, so this audit cannot confirm the callback slots "
+        "stay empty; write each argument out explicitly."
+    )
+
+
 def _callable_argument_message(described: str) -> str:
     return (
         "passes " + described + " as an argument to a callee that is "
@@ -571,8 +729,11 @@ class _Checker(ast.NodeVisitor):
         # possible origins it may hold: ("module", dotted),
         # ("api", dotted), ("def", name) for functions and classes
         # defined in the scanned code, ("instance", dotted) for a value
-        # returned by a call to an allowlisted API, and the explicit
-        # ("unknown", "") member for anything this audit cannot trace.
+        # returned by a call to an allowlisted API, ("literal", "") for
+        # a plain literal constant, ("result", name) for the result of
+        # a call to a def or class defined in the scanned code, and the
+        # explicit ("unknown", "") member for anything this audit
+        # cannot trace.
         # Origins only accumulate -- a later store NEVER erases an
         # earlier origin (union semantics), and the unknown member is
         # never discarded when other origins join the set, so a
@@ -647,6 +808,8 @@ class _Checker(ast.NodeVisitor):
         Every possibility this audit cannot pin down contributes the
         explicit unknown member; other origins never displace it.
         """
+        if isinstance(value, ast.Constant):
+            return {("literal", "")}
         if isinstance(value, (ast.Name, ast.Attribute)):
             parts = _chain_parts(value)
             if parts is None:
@@ -697,8 +860,11 @@ class _Checker(ast.NodeVisitor):
         """Origins of a call expression's result.
 
         A call to an API that the allowlist accepts yields an
-        api-instance (policy case (b)); every other call yields the
-        unknown member.
+        api-instance (policy case (b)); a call to a name bound ONLY to
+        defs or classes defined in the scanned code yields the
+        ("result", name) member (every expression inside a scanned def
+        was itself checked under these rules); every other call yields
+        the unknown member.
         """
         func = call.func
         if not isinstance(func, (ast.Name, ast.Attribute)):
@@ -719,6 +885,8 @@ class _Checker(ast.NodeVisitor):
         if bound is None:
             if parts[0] not in _BANNED_BUILTINS:
                 out.add(_UNKNOWN)
+        elif len(parts) == 1 and all(kind == "def" for kind, _origin in bound):
+            out.add(("result", parts[0]))
         else:
             for kind, _origin in bound:
                 if kind not in ("module", "api"):
@@ -1058,10 +1226,11 @@ class _Checker(ast.NodeVisitor):
             if bound:
                 seen: set[str] = set()
                 for kind, origin in sorted(bound):
-                    if kind in ("def", "instance", "unknown"):
+                    if kind in ("def", "instance", "literal", "result", "unknown"):
                         # Reading a scanned definition, an api-instance,
-                        # or an untraced value is fine; only CALLS
-                        # through them are restricted.
+                        # a literal, a scanned call's result, or an
+                        # untraced value is fine; only CALLS through
+                        # them are restricted.
                         continue
                     if kind == "module" and not origin.startswith(
                         _FIRST_PARTY_ROOT
@@ -1128,6 +1297,7 @@ class _Checker(ast.NodeVisitor):
         elif isinstance(node.func, ast.Attribute):
             self._check_method_call(node)
         self._check_callable_arguments(node)
+        self._check_callback_slots(node)
         self.generic_visit(node)
 
     def _check_call_target(self, node: ast.Call, name: str) -> None:
@@ -1160,20 +1330,33 @@ class _Checker(ast.NodeVisitor):
     def _check_method_call(self, node: ast.Call) -> None:
         """Apply the two-case method-call policy from the module
         docstring: api-instances accept any method; untraced values
-        accept only the fixed data-method list; module/api-rooted
-        chains are checked by the dotted-path policy in
+        accept only the fixed data-method list, and then only with
+        literal or fully resolved known-safe arguments; module/
+        api-rooted chains are checked by the dotted-path policy in
         visit_Attribute."""
         func = node.func
         if not isinstance(func, ast.Attribute):
             return
         method = func.attr
-        for kind, _origin in sorted(self._value_origins(func.value)):
-            if kind in ("module", "api", "instance"):
-                continue
-            if method in _UNKNOWN_VALUE_METHODS:
-                continue
+        receiver = self._value_origins(func.value)
+        if all(kind in ("module", "api", "instance") for kind, _origin in receiver):
+            return
+        if method not in _UNKNOWN_VALUE_METHODS:
             self._flag(node, _unknown_method_message(method))
             return
+        # An enumerated data method on an untraced value: every
+        # argument must be a plain literal or a value this audit fully
+        # resolved as safe -- no unknowns, no callables. The untraced
+        # receiver's method could call whatever it is handed.
+        values = list(node.args) + [keyword.value for keyword in node.keywords]
+        for value in values:
+            inner = value.value if isinstance(value, ast.Starred) else value
+            if isinstance(inner, ast.Constant):
+                continue
+            origins = self._value_origins(inner)
+            if all(kind in _SAFE_DATA_ARGUMENT_KINDS for kind, _origin in origins):
+                continue
+            self._flag(node, _unknown_method_argument_message(method))
 
     def _callee_is_first_party(self, func: ast.AST) -> bool:
         """True when every possible call target is defined in the
@@ -1230,6 +1413,108 @@ class _Checker(ast.NodeVisitor):
                             "the function '" + inner.id + "'"
                         ),
                     )
+
+    def _callee_slot_identities(self, node: ast.Call) -> "set[str]":
+        """The call target's possible identities for the callback-slot
+        table: a bare accepted built-in name, an allowlist-traced
+        dotted API, or an api-instance method (the producing API's
+        dotted path plus the method name)."""
+        func = node.func
+        identities: set[str] = set()
+        if isinstance(func, ast.Name):
+            bound = self._lookup(func.id)
+            if bound is None:
+                if func.id in _ALLOWED_CALL_BUILTINS:
+                    identities.add(func.id)
+            else:
+                for kind, origin in bound:
+                    if kind == "api":
+                        identities.add(origin)
+        elif isinstance(func, ast.Attribute):
+            parts = _chain_parts(func)
+            if parts is not None:
+                identities.update(self._resolve(parts))
+                for kind, origin in self._value_origins(func.value):
+                    if kind == "instance":
+                        identities.add(origin + "." + func.attr)
+        return identities
+
+    def _callback_slot_ok(self, value: ast.AST) -> bool:
+        """True when a value placed in a callback slot is cleared: a
+        plain literal, an unshadowed accepted built-in named directly
+        (str, int, ...), or a directly named non-first-party
+        allowlisted API. Everything else -- a caller-supplied
+        parameter above all -- would run outside scanned control."""
+        if isinstance(value, ast.Constant):
+            return True
+        if isinstance(value, ast.Name) and self._lookup(value.id) is None:
+            return value.id in _ALLOWED_CALL_BUILTINS
+        for kind, origin in self._value_origins(value):
+            if kind != "api":
+                return False
+            top = origin.partition(".")[0]
+            if top == "builtins" or top == _FIRST_PARTY_ROOT:
+                return False
+            if self._policy_for(origin, False) is not None:
+                return False
+        return True
+
+    def _slot_flagged_elsewhere(self, value: ast.AST) -> bool:
+        """True when the any-position callable-argument rule already
+        rejects this slot value (a lambda, or a name bound to a
+        scanned def), so a second message would only repeat it."""
+        if isinstance(value, ast.Lambda):
+            return True
+        if isinstance(value, ast.Name):
+            bound = self._lookup(value.id)
+            if bound and any(kind == "def" for kind, _origin in bound):
+                return True
+        return False
+
+    def _check_callback_slots(self, node: ast.Call) -> None:
+        """Reject an untraceable value in a callable-accepting slot of
+        an allowed external API (the enumerated _CALLBACK_SLOTS table).
+        The API would invoke whatever sits there, so an unknown or
+        parameter-derived value in such a slot is a call target this
+        audit cannot see."""
+        keyword_slots: set[str] = set()
+        positional_slots: dict[int, str] = {}
+        names: list[str] = []
+        for identity in sorted(self._callee_slot_identities(node)):
+            slots = _CALLBACK_SLOTS.get(identity)
+            if slots is None:
+                continue
+            if identity == "iter" and len(node.args) < 2:
+                # One-argument iter takes plain data; only the
+                # two-argument form calls its first argument.
+                continue
+            names.append("'" + identity + "'")
+            keyword_slots |= slots[0]
+            positional_slots.update(slots[1])
+        if not names:
+            return
+        callee = " or ".join(names)
+        for keyword in node.keywords:
+            if keyword.arg is None:
+                if keyword_slots:
+                    self._flag(node, _unpacked_slot_message(callee, "**"))
+                continue
+            if (
+                keyword.arg in keyword_slots
+                and not self._slot_flagged_elsewhere(keyword.value)
+                and not self._callback_slot_ok(keyword.value)
+            ):
+                self._flag(node, _callback_slot_message(callee, keyword.arg))
+        for index, argument in enumerate(node.args):
+            if isinstance(argument, ast.Starred):
+                if positional_slots:
+                    self._flag(node, _unpacked_slot_message(callee, "*"))
+                continue
+            slot = positional_slots.get(index)
+            if slot is None or self._slot_flagged_elsewhere(argument):
+                continue
+            if not self._callback_slot_ok(argument):
+                self._flag(node, _callback_slot_message(callee, slot))
 
     def visit_Subscript(self, node: ast.Subscript) -> None:
         parts = _chain_parts(node.value)
