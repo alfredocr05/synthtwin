@@ -12,7 +12,7 @@
     "pattern_grammar_sha256": "42e9431c8f85bf6507573f7bb6ec562daf334ec0bb88303e91c40e575786644a",
     "plaintext_inventory_sha256": "9115b9990d87e2df763a8bb69c76f7749a9b2e87a363908d970d88ad2616028b",
     "post_commit_verification_sha256": "3cb53471f05be6c80008f3bdf3c02c4caf5dad634ed0037b4605d85d5491d357",
-    "pre_first_push_note_sha256": "1ed6d95445ede8cc3cb48bcbafa68172f1f7083e3465c252e9c3122fb4a6663c",
+    "pre_first_push_note_sha256": "ad742d0c1248d0f4fb4817a328f42a5fad15cb3667f71cb85dc586f18a2ff032",
     "prototype_snapshot_tree_sha256": "cb57c45fcf44ce552feec9fd9072e3437c229152a73889f65313fa028df9699d",
     "public_manifest_sha256": "03552ae592806f79be73ce5072e74d477991b5bfc659273d97d814cde4fd8576",
     "public_scanner_tree_sha256": "92bed35080eb40c40ebdd36e55d4726b042e11c99d322ab3d6d481352dcd5e4a",
@@ -25,7 +25,7 @@
   "date": "2026-08-07",
   "entry_count": 2065,
   "n_max": 578,
-  "note": "v2 refresh after round-4 fixes: fully attribute-enumerated scanner surface with the audited callback-slot table and type-gate upgrade, explicit reviewed-YAML file list, encoding-safe value-silent output, tree-exact evidence attribution; binds the round-3 post-commit record as scheduled",
+  "note": "v2 refresh after round-4 fixes (corrected note): fully attribute-enumerated scanner surface with the audited callback-slot table and type-gate upgrade, explicit reviewed-YAML file list, encoding-safe value-silent output; the pre-push note was corrected and re-signed after a mis-attributed count was caught against the actual run output, superseding digest recorded in the note; binds the round-3 post-commit record as scheduled",
   "refresh_triggers": "any change to a file in the public scanner tree, or to any bound private input, requires a fresh private coverage run and a fresh signature",
   "result": "pass"
 }
