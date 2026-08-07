@@ -41,8 +41,9 @@ next.
 - **[built]** The decontamination system: a scanner, a hashed manifest,
   and a signed attestation that together keep private-environment
   vocabulary out of this public repository (see `SECURITY.md`).
-- **[built]** The data-provenance guard: no data files in the repository,
-  ever; any committed test fixture must be rebuilt from its committed
+- **[built]** The data-provenance guard: no data-format file is tracked
+  anywhere in the repository except a test fixture listed in the fixture
+  manifest, and every such fixture must be rebuilt from its committed
   generating script and byte-compared in CI.
 - **[built]** Continuous integration with a single aggregate required
   gate, and the public plans and review record in `docs/plans/`.
@@ -88,11 +89,12 @@ These are design limits, stated up front so nobody discovers them late:
 | No free text | Narrative or note columns are not synthesized. synthtwin will not invent sentences. |
 | Small tables degrade | With few rows, the statistics the profiler measures are noisy, and the twin's fidelity drops accordingly. The quality report will say so plainly. |
 
-## Determinism
+## Determinism [planned]
 
-The guarantee, exactly as scoped: the same profile, the same seed, the
-same synthtwin version, and the same locked dependency set produce
-byte-identical output **on the same platform**. Cross-platform equality
+The guarantee that will hold once generation exists, exactly as scoped:
+the same profile, the same seed, the same synthtwin version, and the
+same locked dependency set produce byte-identical output **on the same
+platform**. Cross-platform equality
 is verified empirically by golden-hash tests on every cell of the CI
 matrix and is reported as a tested result - it is never promised beyond
 the tested matrix. One documented consequence of the single-stream design:

@@ -23,12 +23,43 @@ Policy enforced (plan D6.2, a positive AST/name-binding policy):
   multiprocessing, and the reflection primitives getattr, setattr,
   delattr, hasattr, vars, globals, locals, and dir. Aliases are traced
   to their origin, so "g = getattr" followed by "g(...)" is caught.
-* Every attribute access or call that starts from an imported module
-  must resolve, in the source text alone, to an API named above.
-  Targets put together while the program runs (double-underscore
-  internals, lookups through the module table, subscripted call
-  targets, star imports, bare module objects passed around as values)
-  are rejected, because this audit cannot see what they would reach.
+* Every attribute chain that starts from an imported module must
+  resolve, in the source text alone, to an exact enumerated API. A
+  chain may take exactly ONE attribute step past a module (os.getcwd,
+  os.path.join, json.loads, sys.platform,
+  importlib.metadata.version); the only deeper forms accepted are the
+  read-only os.environ methods (os.environ.get and friends). Anything
+  deeper is rejected, and so is any step whose attribute names another
+  module (os.path.os, pathlib.os, json.decoder) or starts with an
+  underscore: an allowed module that re-exports another module never
+  makes that other module's power allowed.
+* The same one-step rule applies to the package's own modules: one
+  attribute step past an intra-package module
+  (synthtwin.paths.validate_local_path) is accepted as a direct
+  reference to something that module defines; a second step
+  (synthtwin.paths.name.attr), or a step whose attribute names a
+  module (synthtwin.paths.os), is rejected, because what a sibling
+  module's attribute holds cannot be verified from this file alone.
+* Name binding is flow-insensitive on purpose: a name bound to a
+  module (or any traced origin) ANYWHERE in a scope keeps that origin
+  for the whole scope, no matter what else is assigned to it, even on
+  branches that can never run. Rebinding adds possibilities; it never
+  clears suspicion.
+* A call through a bare name must resolve to a function or class
+  defined in the scanned tree, an import traced to the allowlist, or
+  one of a small fixed list of built-in constructors and helpers
+  (str, len, print, ...). Any other bare-name call target -- above all
+  a function parameter used as a call target -- is rejected, because
+  this audit cannot see what would run. Higher-order callback
+  parameters are therefore banned in synthtwin source for Phase 0.
+* Method calls on ordinary values (parser.add_argument(...),
+  text.find(...)) are accepted when the value's origin cannot be
+  traced, because a module object can never reach such a value without
+  an earlier violation: every bare module reference, every module
+  re-export step, and every module-valued chain is rejected at the
+  place it is written. Targets put together while the program runs
+  (double-underscore internals, lookups through the module table,
+  subscripted call targets, star imports) are rejected as before.
 
 Exit status: 0 clean; 1 one or more violations, each printed as
 "file:line: explanation"; 2 the command line itself was wrong.
@@ -48,7 +79,8 @@ _UNRESTRICTED_MODULES = {"argparse", "dataclasses", "json", "pathlib", "typing"}
 
 # Dotted paths that name a module object (as opposed to a function or
 # class). Bare references to these outside an import statement or a
-# direct dotted access are rejected.
+# direct dotted access are rejected. Per-file scanning extends this set
+# with intra-package module paths seen in import statements.
 _KNOWN_MODULE_PATHS = _UNRESTRICTED_MODULES | {
     "sys",
     "os",
@@ -98,6 +130,131 @@ _SYS_BANNED = (
 )
 
 _OS_ALLOWED_EXACT = {"os.fspath", "os.getcwd", "os.lstat"}
+
+# Attribute names that are known to name modules when reached through
+# another module's namespace (allowed modules re-export several of
+# these: os.path holds os and sys, pathlib holds os, json holds its
+# decoder/encoder/scanner submodules, and so on). Reaching one module
+# through another module's attribute is never allowed, from any root,
+# including the package's own modules (synthtwin.paths.os is how
+# synthtwin.paths sees its own import of os).
+_MODULE_ATTR_BLOCK = {
+    "abc",
+    "argparse",
+    "cffi",
+    "codecs",
+    "collections",
+    "contextlib",
+    "copy",
+    "copyreg",
+    "csv",
+    "ctypes",
+    "dataclasses",
+    "decoder",
+    "email",
+    "encoder",
+    "enum",
+    "errno",
+    "fnmatch",
+    "functools",
+    "genericpath",
+    "glob",
+    "importlib",
+    "inspect",
+    "io",
+    "itertools",
+    "json",
+    "keyword",
+    "math",
+    "multiprocessing",
+    "nt",
+    "ntpath",
+    "operator",
+    "os",
+    "path",
+    "pathlib",
+    "pickle",
+    "posix",
+    "posixpath",
+    "random",
+    "re",
+    "reprlib",
+    "scanner",
+    "shutil",
+    "socket",
+    "stat",
+    "string",
+    "struct",
+    "subprocess",
+    "sys",
+    "tempfile",
+    "textwrap",
+    "threading",
+    "time",
+    "types",
+    "typing",
+    "unicodedata",
+    "warnings",
+    "zipfile",
+}
+
+# Bare-name call targets that are accepted without a traced origin:
+# built-in constructors, plain data helpers, and the exception types
+# product code may raise. Nothing on this list can start a program,
+# open a connection, load code, or reach an attribute by computed name.
+_ALLOWED_CALL_BUILTINS = {
+    "abs",
+    "all",
+    "any",
+    "bool",
+    "bytearray",
+    "bytes",
+    "chr",
+    "dict",
+    "divmod",
+    "enumerate",
+    "filter",
+    "float",
+    "format",
+    "frozenset",
+    "hash",
+    "hex",
+    "int",
+    "isinstance",
+    "issubclass",
+    "iter",
+    "len",
+    "list",
+    "map",
+    "max",
+    "min",
+    "next",
+    "oct",
+    "ord",
+    "print",
+    "range",
+    "repr",
+    "reversed",
+    "round",
+    "set",
+    "slice",
+    "sorted",
+    "str",
+    "sum",
+    "tuple",
+    "zip",
+    "Exception",
+    "FileNotFoundError",
+    "IndexError",
+    "KeyError",
+    "NotImplementedError",
+    "OSError",
+    "PermissionError",
+    "RuntimeError",
+    "StopIteration",
+    "TypeError",
+    "ValueError",
+}
 
 _ALLOWLIST_NOTE = (
     "The Phase 0 allowlist (plan D6.2) permits only: argparse, "
@@ -152,95 +309,87 @@ def _forbidden_module_message(name: str, how_used: str) -> str:
     )
 
 
-def _policy_for(dotted: str, is_store: bool) -> "str | None":
-    """Check a fully resolved dotted path against the D6.2 allowlist.
-
-    Returns an explanation string when the path violates the policy,
-    None when it is allowed.
-    """
-    top = dotted.partition(".")[0]
-
-    if top == _FIRST_PARTY_ROOT:
-        return None
-
-    if top in _FORBIDDEN_MODULES:
-        return _forbidden_module_message(top, "uses " + repr(dotted) + " from")
-
-    if top == "builtins":
-        name = dotted.split(".")[1]
-        return _primitive_message(name) + " (reached through an alias)"
-
-    if is_store and "." in dotted:
-        return (
-            "writes to '" + dotted + "', an attribute of an imported "
-            "module. Module state must stay exactly as Python ships it; "
-            "changing it can change what code runs later. Remove the "
-            "write."
-        )
-
-    if top in _UNRESTRICTED_MODULES:
-        return None
-
-    if top == "sys":
-        if dotted == "sys":
-            return None
-        for banned in _SYS_BANNED:
-            if dotted == banned or dotted.startswith(banned + "."):
-                return (
-                    "touches '" + dotted + "', part of Python's import "
-                    "machinery. Reading or changing it can smuggle in "
-                    "code this offline audit never sees; it is banned "
-                    "in synthtwin source."
-                )
-        return None
-
-    if top == "os":
-        if dotted == "os":
-            return None
-        if dotted == "os.path" or dotted.startswith("os.path."):
-            return None
-        if dotted in _OS_ALLOWED_EXACT:
-            return None
-        if dotted == "os.environ":
-            return None
-        if dotted.startswith("os.environ."):
-            method = dotted[len("os.environ."):]
-            if method in _ENV_READ_METHODS:
-                return None
-            return (
-                "changes or misuses os.environ ('" + dotted + "'). The "
-                "allowlist permits reading environment variables only; "
-                "remove the write."
-            )
-        attr = dotted.split(".")[1]
-        if attr in {"system", "popen", "fork", "posix_spawn"} or attr.startswith(
-            ("exec", "spawn")
-        ):
-            return (
-                "uses '" + dotted + "', which can start or replace "
-                "programs on this computer. synthtwin promises never to "
-                "do that; remove it."
-            )
-        return (
-            "uses '" + dotted + "'. From the os module only the os.path "
-            "functions, os.fspath, os.getcwd, os.lstat, and reading "
-            "os.environ are allowed."
-        )
-
-    if top == "importlib":
-        if dotted in {"importlib", "importlib.metadata", "importlib.metadata.version"}:
-            return None
-        return (
-            "uses '" + dotted + "'. From importlib only "
-            "importlib.metadata.version() is allowed (it reads the "
-            "installed version string); everything else can load code "
-            "chosen while the program runs."
-        )
-
+def _bare_module_message(dotted: str) -> str:
     return (
-        "uses '" + dotted + "', which does not resolve to any "
-        "allowlisted API. " + _ALLOWLIST_NOTE
+        "refers to the module '" + dotted + "' as a bare value. Module "
+        "objects passed through variables or containers can hide what "
+        "gets called later; write the full dotted access (for example "
+        "os.path.join) instead."
     )
+
+
+def _module_hop_message(dotted: str, part: str) -> str:
+    return (
+        "uses '" + dotted + "': the attribute '" + part + "' names a "
+        "module reached through another module's namespace. This audit "
+        "accepts only APIs named directly on an allowlisted module, "
+        "never a module re-exported by another module; import what you "
+        "need directly from the allowlist instead."
+    )
+
+
+def _private_hop_message(dotted: str, part: str) -> str:
+    return (
+        "uses '" + dotted + "': the attribute '" + part + "' starts "
+        "with an underscore. Underscore names are a module's internal "
+        "machinery and often alias other modules; they are not part of "
+        "any allowlisted API."
+    )
+
+
+def _deep_chain_message(dotted: str, prefix: str) -> str:
+    return (
+        "uses '" + dotted + "', which steps more than one attribute "
+        "past the module '" + prefix + "'. Reading the source can "
+        "verify only a single, directly named attribute of a module; "
+        "anything deeper can reach objects this audit never cleared. "
+        "Name the API you need in one step."
+    )
+
+
+def _unknown_call_message(name: str) -> str:
+    return (
+        "calls '" + name + "', which this audit cannot trace to any "
+        "function or class defined in the scanned code, to an "
+        "allowlisted import, or to the fixed list of accepted "
+        "built-ins. A function passed around as a value (a callback) "
+        "cannot be checked by reading the source, so Phase 0 synthtwin "
+        "source must call every function by its written-out name."
+    )
+
+
+def _attr_component_message(name: str, dotted: "str | None") -> "str | None":
+    """Message for one attribute name in a chain, or None if it is fine."""
+    if name in _ENTRY_POINT_TOKENS:
+        return (
+            "refers to '" + name + "'. Package entry points can "
+            "load arbitrary code from any installed package "
+            "(EntryPoint.load is a dynamic loader), so any "
+            "reference is banned."
+        )
+    if name == "import_module":
+        return (
+            "calls or references importlib.import_module, which "
+            "loads a module chosen while the program runs; this "
+            "audit cannot see what it would load. Use a plain "
+            "import statement from the allowlist instead."
+        )
+    if _is_dunder(name):
+        return (
+            "reads the double-underscore attribute '" + name + "'. "
+            "These attributes expose Python's internal machinery "
+            "(module tables, code objects, global state) and can "
+            "reach code this audit cannot see; they are banned in "
+            "synthtwin source."
+        )
+    if name == "load" and dotted != "json.load":
+        return (
+            "reads an attribute named 'load'. Only json.load is "
+            "recognized; on anything else, 'load' can be a dynamic "
+            "code loader (EntryPoint.load), so the audit rejects "
+            "it."
+        )
+    return None
 
 
 class _Checker(ast.NodeVisitor):
@@ -248,10 +397,20 @@ class _Checker(ast.NodeVisitor):
 
     def __init__(self) -> None:
         self.violations: list[tuple[int, str]] = []
-        # A stack of scopes. Each scope maps a local name either to
-        # ("module" | "api", dotted-origin) or to None (bound, origin
-        # unknown -- shadows any outer binding).
-        self.scopes: list[dict] = [{}]
+        # A stack of scopes. Each scope maps a local name to the SET of
+        # traced origins it may hold: ("module", dotted),
+        # ("api", dotted), or ("def", name) for functions and classes
+        # defined in the scanned code. A name present with an empty set
+        # is bound to something this audit cannot trace. Origins only
+        # accumulate -- a later store NEVER erases an earlier origin
+        # (union semantics), so a rebinding hidden behind a branch can
+        # never launder away a module.
+        self.scopes: list[dict[str, set[tuple[str, str]]]] = [{}]
+        # Dotted paths known to name modules: the fixed allowlist plus
+        # every intra-package path seen in this file's import
+        # statements. The one-attribute-step rule counts from the
+        # longest prefix found here.
+        self.module_paths: set[str] = set(_KNOWN_MODULE_PATHS)
 
     # -- bookkeeping -------------------------------------------------
 
@@ -259,36 +418,178 @@ class _Checker(ast.NodeVisitor):
         self.violations.append((getattr(node, "lineno", 1), message))
 
     def _bind(self, name: str, value: "tuple[str, str] | None") -> None:
-        self.scopes[-1][name] = value
+        slot = self.scopes[-1].setdefault(name, set())
+        if value is not None:
+            slot.add(value)
 
-    def _lookup(self, name: str) -> "tuple[str, str] | None":
+    def _lookup(self, name: str) -> "set[tuple[str, str]] | None":
         for scope in reversed(self.scopes):
             if name in scope:
                 return scope[name]
         return None
 
-    def _resolve(self, parts: "list[str]") -> "str | None":
-        """Turn a Name/Attribute chain into its dotted origin, tracing
-        aliases back to the import or builtin they came from."""
+    def _register_module_path(self, dotted: str) -> None:
+        parts = dotted.split(".")
+        for length in range(1, len(parts) + 1):
+            self.module_paths.add(".".join(parts[:length]))
+
+    def _module_prefix(self, dotted: str) -> "tuple[str | None, list[str]]":
+        """Split dotted into (longest known module path, remaining parts)."""
+        parts = dotted.split(".")
+        for length in range(len(parts), 0, -1):
+            prefix = ".".join(parts[:length])
+            if prefix in self.module_paths:
+                return prefix, parts[length:]
+        return None, parts
+
+    def _resolve(self, parts: "list[str]") -> "list[str]":
+        """Turn a Name/Attribute chain into its possible dotted origins,
+        tracing aliases back to the imports or builtins they came from.
+        A name rebound on any path keeps every origin it ever had."""
         root = parts[0]
         bound = self._lookup(root)
-        if bound is not None:
-            return ".".join([bound[1]] + parts[1:])
-        if root in _BANNED_BUILTINS:
-            return ".".join(["builtins." + root] + parts[1:])
-        return None
+        rest = parts[1:]
+        if bound is None:
+            if root in _BANNED_BUILTINS:
+                return [".".join(["builtins." + root] + rest)]
+            return []
+        out = []
+        for kind, origin in sorted(bound):
+            if kind in ("module", "api"):
+                out.append(".".join([origin] + rest))
+        return out
 
     def _bind_from_value(self, name: str, value: ast.AST) -> None:
         parts = _chain_parts(value)
-        dotted = self._resolve(parts) if parts else None
-        if dotted is None:
+        candidates = self._resolve(parts) if parts else []
+        if not candidates:
             self._bind(name, None)
             return
+        for dotted in candidates:
+            if dotted in self.module_paths:
+                self._bind(name, ("module", dotted))
+            else:
+                self._bind(name, ("api", dotted))
+
+    def _collect_scope_bindings(self, body: "list[ast.stmt]") -> None:
+        """Pre-bind everything this scope binds anywhere in its body.
+
+        Flow-insensitive on purpose: an import or a def/class statement
+        anywhere in a scope -- inside any branch, loop, or try block --
+        is visible to the whole scope before the statements are walked,
+        and later stores never erase it. Nested function, class, and
+        lambda bodies are separate scopes and are not entered here.
+        """
+        stack = list(body)
+        while stack:
+            node = stack.pop()
+            if isinstance(
+                node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)
+            ):
+                self._bind(node.name, ("def", node.name))
+                continue
+            if isinstance(node, ast.Lambda):
+                continue
+            if isinstance(node, ast.Import):
+                self._handle_import(node, report=False)
+            elif isinstance(node, ast.ImportFrom):
+                self._handle_import_from(node, report=False)
+            else:
+                stack.extend(ast.iter_child_nodes(node))
+
+    # -- the positive policy -----------------------------------------
+
+    def _policy_for(self, dotted: str, is_store: bool) -> "str | None":
+        """Check a fully resolved dotted path against the D6.2 allowlist.
+
+        Returns an explanation string when the path violates the policy,
+        None when it is allowed.
+        """
         top = dotted.partition(".")[0]
-        if dotted in _KNOWN_MODULE_PATHS or top == _FIRST_PARTY_ROOT:
-            self._bind(name, ("module", dotted))
-        else:
-            self._bind(name, ("api", dotted))
+
+        if top in _FORBIDDEN_MODULES:
+            return _forbidden_module_message(top, "uses " + repr(dotted) + " from")
+
+        if top == "builtins":
+            name = dotted.split(".")[1]
+            return _primitive_message(name) + " (reached through an alias)"
+
+        if is_store and "." in dotted:
+            return (
+                "writes to '" + dotted + "', an attribute of an imported "
+                "module. Module state must stay exactly as Python ships it; "
+                "changing it can change what code runs later. Remove the "
+                "write."
+            )
+
+        prefix, rest = self._module_prefix(dotted)
+        if prefix is None:
+            return (
+                "uses '" + dotted + "', which does not resolve to any "
+                "allowlisted API. " + _ALLOWLIST_NOTE
+            )
+        if not rest:
+            return None
+
+        if top == "sys":
+            for banned in _SYS_BANNED:
+                if dotted == banned or dotted.startswith(banned + "."):
+                    return (
+                        "touches '" + dotted + "', part of Python's import "
+                        "machinery. Reading or changing it can smuggle in "
+                        "code this offline audit never sees; it is banned "
+                        "in synthtwin source."
+                    )
+
+        if prefix == "os":
+            if rest[0] == "environ":
+                if len(rest) == 1:
+                    return None
+                if len(rest) == 2 and rest[1] in _ENV_READ_METHODS:
+                    return None
+                return (
+                    "changes or misuses os.environ ('" + dotted + "'). The "
+                    "allowlist permits reading environment variables only; "
+                    "remove the write."
+                )
+            if rest[0] in {"system", "popen", "fork", "posix_spawn"} or rest[
+                0
+            ].startswith(("exec", "spawn")):
+                return (
+                    "uses '" + dotted + "', which can start or replace "
+                    "programs on this computer. synthtwin promises never to "
+                    "do that; remove it."
+                )
+
+        for part in rest:
+            if part in _MODULE_ATTR_BLOCK:
+                return _module_hop_message(dotted, part)
+            if part.startswith("_"):
+                return _private_hop_message(dotted, part)
+
+        if len(rest) > 1:
+            return _deep_chain_message(dotted, prefix)
+
+        if prefix == "os":
+            if dotted in _OS_ALLOWED_EXACT:
+                return None
+            return (
+                "uses '" + dotted + "'. From the os module only the os.path "
+                "functions, os.fspath, os.getcwd, os.lstat, and reading "
+                "os.environ are allowed."
+            )
+
+        if prefix in ("importlib", "importlib.metadata"):
+            if dotted == "importlib.metadata.version":
+                return None
+            return (
+                "uses '" + dotted + "'. From importlib only "
+                "importlib.metadata.version() is allowed (it reads the "
+                "installed version string); everything else can load code "
+                "chosen while the program runs."
+            )
+
+        return None
 
     # -- shared identifier checks ------------------------------------
 
@@ -319,48 +620,18 @@ class _Checker(ast.NodeVisitor):
     ) -> bool:
         """Check one attribute name in a chain. Returns True if it was
         flagged."""
-        if name in _ENTRY_POINT_TOKENS:
-            self._flag(
-                node,
-                "refers to '" + name + "'. Package entry points can "
-                "load arbitrary code from any installed package "
-                "(EntryPoint.load is a dynamic loader), so any "
-                "reference is banned.",
-            )
-            return True
-        if name == "import_module":
-            self._flag(
-                node,
-                "calls or references importlib.import_module, which "
-                "loads a module chosen while the program runs; this "
-                "audit cannot see what it would load. Use a plain "
-                "import statement from the allowlist instead.",
-            )
-            return True
-        if _is_dunder(name):
-            self._flag(
-                node,
-                "reads the double-underscore attribute '" + name + "'. "
-                "These attributes expose Python's internal machinery "
-                "(module tables, code objects, global state) and can "
-                "reach code this audit cannot see; they are banned in "
-                "synthtwin source.",
-            )
-            return True
-        if name == "load" and dotted != "json.load":
-            self._flag(
-                node,
-                "reads an attribute named 'load'. Only json.load is "
-                "recognized; on anything else, 'load' can be a dynamic "
-                "code loader (EntryPoint.load), so the audit rejects "
-                "it.",
-            )
+        message = _attr_component_message(name, dotted)
+        if message is not None:
+            self._flag(node, message)
             return True
         return False
 
     # -- imports -----------------------------------------------------
 
     def visit_Import(self, node: ast.Import) -> None:
+        self._handle_import(node, report=True)
+
+    def _handle_import(self, node: ast.Import, report: bool) -> None:
         for alias in node.names:
             name = alias.name
             top = name.partition(".")[0]
@@ -368,6 +639,7 @@ class _Checker(ast.NodeVisitor):
             origin = name if alias.asname else top
 
             if top == _FIRST_PARTY_ROOT:
+                self._register_module_path(name)
                 self._bind(bound_name, ("module", origin))
                 continue
             if name in {"argparse", "dataclasses", "json", "pathlib",
@@ -383,6 +655,8 @@ class _Checker(ast.NodeVisitor):
 
             # Not allowed. Bind anyway so later uses are reported too.
             self._bind(bound_name, ("module", origin))
+            if not report:
+                continue
             if top in _FORBIDDEN_MODULES:
                 self._flag(node, _forbidden_module_message(top, "imports"))
             elif top == "importlib":
@@ -406,46 +680,58 @@ class _Checker(ast.NodeVisitor):
                 )
 
     def visit_ImportFrom(self, node: ast.ImportFrom) -> None:
+        self._handle_import_from(node, report=True)
+
+    def _handle_import_from(self, node: ast.ImportFrom, report: bool) -> None:
         if node.level and node.level > 0:
             base = _FIRST_PARTY_ROOT
             if node.module:
                 base = base + "." + node.module
+            self._register_module_path(base)
             for alias in node.names:
                 if alias.name == "*":
-                    self._flag_star(node, base)
+                    if report:
+                        self._flag_star(node, base)
                     continue
-                self._bind(
-                    alias.asname or alias.name,
-                    ("module", base + "." + alias.name),
-                )
+                dotted = base + "." + alias.name
+                # The alias may itself be a module; register it so the
+                # one-step rule counts from it, not through it.
+                self._register_module_path(dotted)
+                self._bind(alias.asname or alias.name, ("module", dotted))
             return
 
         module = node.module or ""
         top = module.partition(".")[0]
 
         if top == _FIRST_PARTY_ROOT:
+            self._register_module_path(module)
             for alias in node.names:
                 if alias.name == "*":
-                    self._flag_star(node, module)
+                    if report:
+                        self._flag_star(node, module)
                     continue
-                self._bind(
-                    alias.asname or alias.name,
-                    ("module", module + "." + alias.name),
-                )
+                dotted = module + "." + alias.name
+                self._register_module_path(dotted)
+                self._bind(alias.asname or alias.name, ("module", dotted))
             return
 
         for alias in node.names:
             if alias.name == "*":
-                self._flag_star(node, module)
+                if report:
+                    self._flag_star(node, module)
                 continue
             dotted = module + "." + alias.name
-            if self._check_attr_component(node, alias.name, dotted):
+            problem = _attr_component_message(alias.name, dotted)
+            if problem is not None:
+                if report:
+                    self._flag(node, problem)
                 continue
-            message = _policy_for(dotted, False)
+            message = self._policy_for(dotted, False)
             if message is not None:
-                self._flag(node, message)
+                if report:
+                    self._flag(node, message)
                 continue
-            kind = "module" if dotted in _KNOWN_MODULE_PATHS else "api"
+            kind = "module" if dotted in self.module_paths else "api"
             self._bind(alias.asname or alias.name, (kind, dotted))
 
     def _flag_star(self, node: ast.AST, module: str) -> None:
@@ -461,24 +747,25 @@ class _Checker(ast.NodeVisitor):
         self._check_name(node, node.id)
         if isinstance(node.ctx, ast.Load):
             bound = self._lookup(node.id)
-            if bound is not None:
-                kind, origin = bound
-                if kind == "module" and not origin.startswith(_FIRST_PARTY_ROOT):
-                    self._flag(
-                        node,
-                        "refers to the module '" + origin + "' as a "
-                        "bare value. Module objects passed through "
-                        "variables or containers can hide what gets "
-                        "called later; write the full dotted access "
-                        "(for example os.path.join) instead.",
-                    )
-                else:
-                    message = _policy_for(origin, False)
-                    if message is not None:
+            if bound:
+                seen: set[str] = set()
+                for kind, origin in sorted(bound):
+                    if kind == "def":
+                        continue
+                    if kind == "module" and not origin.startswith(
+                        _FIRST_PARTY_ROOT
+                    ):
+                        message: str | None = _bare_module_message(origin)
+                    else:
+                        message = self._policy_for(origin, False)
+                    if message is not None and message not in seen:
+                        seen.add(message)
                         self._flag(node, message)
         elif isinstance(node.ctx, (ast.Store, ast.Del)):
-            # The name is being rebound; forget any module alias it held.
-            self.scopes[-1][node.id] = None
+            # Record that the name is bound here. Every origin the name
+            # already had is kept: a store on one path never proves the
+            # old value is gone on another path.
+            self._bind(node.id, None)
 
     def visit_Attribute(self, node: ast.Attribute) -> None:
         parts = _chain_parts(node)
@@ -489,20 +776,28 @@ class _Checker(ast.NodeVisitor):
             self.generic_visit(node)
             return
 
-        dotted = self._resolve(parts)
+        candidates = self._resolve(parts)
+        primary = candidates[0] if len(candidates) == 1 else None
         flagged = False
         for part in parts[1:]:
-            if self._check_attr_component(node, part, dotted):
+            if self._check_attr_component(node, part, primary):
                 flagged = True
         if flagged:
             return
-        if dotted is None:
+        if not candidates:
             self._check_name(node, parts[0])
             return
         is_store = isinstance(node.ctx, (ast.Store, ast.Del))
-        message = _policy_for(dotted, is_store)
-        if message is not None:
-            self._flag(node, message)
+        seen: set[str] = set()
+        for dotted in candidates:
+            message = self._policy_for(dotted, is_store)
+            if message is None and not is_store and dotted in self.module_paths:
+                # The chain resolves to a module object used as a plain
+                # value (for example passing os.path into a function).
+                message = _bare_module_message(dotted)
+            if message is not None and message not in seen:
+                seen.add(message)
+                self._flag(node, message)
         # A pure chain has no other children worth visiting; skipping
         # them avoids reporting the same chain twice.
 
@@ -515,12 +810,39 @@ class _Checker(ast.NodeVisitor):
                 "this audit cannot tell what would run. Call the "
                 "function by its direct dotted name.",
             )
+        elif isinstance(node.func, ast.Name):
+            self._check_call_target(node, node.func.id)
         self.generic_visit(node)
+
+    def _check_call_target(self, node: ast.Call, name: str) -> None:
+        """Reject a bare-name call that resolves to nothing this audit
+        can check (plan D6.2: callback parameters are banned in Phase 0
+        source). Traced origins are checked where the name is read."""
+        bound = self._lookup(name)
+        if bound is None:
+            if (
+                name in _ALLOWED_CALL_BUILTINS
+                or name in _BANNED_BUILTINS
+                or name in _FORBIDDEN_MODULES
+                or name in _ENTRY_POINT_TOKENS
+                or _is_dunder(name)
+            ):
+                # Either an accepted builtin, or already flagged by the
+                # name checks that run on the same node.
+                return
+            self._flag(node, _unknown_call_message(name))
+            return
+        for kind, _origin in bound:
+            if kind in ("def", "module", "api"):
+                return
+        self._flag(node, _unknown_call_message(name))
 
     def visit_Subscript(self, node: ast.Subscript) -> None:
         parts = _chain_parts(node.value)
-        dotted = self._resolve(parts) if parts else None
-        if dotted == "os.environ" and isinstance(node.ctx, (ast.Store, ast.Del)):
+        candidates = self._resolve(parts) if parts else []
+        if "os.environ" in candidates and isinstance(
+            node.ctx, (ast.Store, ast.Del)
+        ):
             self._flag(
                 node,
                 "changes os.environ. The allowlist permits reading "
@@ -551,6 +873,10 @@ class _Checker(ast.NodeVisitor):
 
     # -- scopes ------------------------------------------------------
 
+    def visit_Module(self, node: ast.Module) -> None:
+        self._collect_scope_bindings(node.body)
+        self.generic_visit(node)
+
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
         self._handle_function(node)
 
@@ -576,8 +902,9 @@ class _Checker(ast.NodeVisitor):
                 self.visit(arg.annotation)
         if node.returns is not None:
             self.visit(node.returns)
-        self._bind(node.name, None)
-        self.scopes.append({arg.arg: None for arg in all_args})
+        self._bind(node.name, ("def", node.name))
+        self.scopes.append({arg.arg: set() for arg in all_args})
+        self._collect_scope_bindings(node.body)
         for statement in node.body:
             self.visit(statement)
         self.scopes.pop()
@@ -593,7 +920,7 @@ class _Checker(ast.NodeVisitor):
             all_args.append(args.vararg)
         if args.kwarg is not None:
             all_args.append(args.kwarg)
-        self.scopes.append({arg.arg: None for arg in all_args})
+        self.scopes.append({arg.arg: set() for arg in all_args})
         self.visit(node.body)
         self.scopes.pop()
 
@@ -605,8 +932,9 @@ class _Checker(ast.NodeVisitor):
             self.visit(base)
         for keyword in node.keywords:
             self.visit(keyword.value)
-        self._bind(node.name, None)
+        self._bind(node.name, ("def", node.name))
         self.scopes.append({})
+        self._collect_scope_bindings(node.body)
         for statement in node.body:
             self.visit(statement)
         self.scopes.pop()

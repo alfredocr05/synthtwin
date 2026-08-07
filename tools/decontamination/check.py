@@ -6,142 +6,34 @@ decontamination manifest (`manifest.txt`). The manifest holds only SHA-256
 digests of normalized denied entries; the vocabulary itself never appears
 in this repository. The plaintext inventory is maintainer-private and
 reviewer-audited; the signed attestation (`attestation.json` + `.sig`)
-binds this scanner, the manifest, and every private input together.
+binds this scanner, the shared tokenizer/surface modules, the manifest,
+and every private input together.
 
-Matching contract (Phase 0 plan, D7, as ratified):
-  tokenization -- NFKC-normalize the whole string; chunk on maximal
-  Unicode alphanumerics (underscore excluded); split chunks at case
-  transitions and letter/digit boundaries; casefold each subtoken.
-  Candidates are all token n-grams up to the n_max recorded in the
-  manifest header, over these surfaces: every path component, every
-  decoded line, every cell of a .csv file, every string constant of a
-  .py file's syntax tree.
-
-  decoding -- text byte-order marks longest-first (UTF-32 BE/LE, UTF-8,
-  UTF-16 BE/LE; strict, malformed input fails closed, decoded forbidden
-  controls fail closed); otherwise the `magic.txt` signature table;
-  otherwise strict UTF-8 (decoded forbidden controls fail closed);
-  otherwise raw C0/DEL/C1 rejection, then Latin-1. A binary or malformed
-  file is a fail-closed violation here -- data files are governed by the
-  provenance guard, not exempted.
+The tokenizer and surface/decoder implementations live in the sibling
+modules `tokenizer.py` and `surfaces.py`, which are the SINGLE shared
+implementation used by both this scanner and the maintainer-private
+extraction pipeline (plan D7 Amendment A1: identical text-surface
+candidate sets by construction).
 
 Output is value-silent: locations and digest prefixes only, never matched
-text. Exit codes: 0 clean, 1 matches, 2 violations, 3 both.
+text. When a match occurs in a path component, the component itself is
+redacted from the printed location. Exit codes: 0 clean, 1 matches,
+2 violations, 3 both.
 
 Usage: python tools/decontamination/check.py [ROOT]   (default: repo root)
 """
 
 import argparse
-import ast
-import csv
 import hashlib
-import io
-import re
 import subprocess
 import sys
-import unicodedata
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
+sys.path.insert(0, str(HERE))
 
-_CHUNK = re.compile(r"[^\W_]+", re.UNICODE)
-_FORBIDDEN = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f]")
-_BOMS = [
-    (b"\x00\x00\xfe\xff", "utf-32-be"),
-    (b"\xff\xfe\x00\x00", "utf-32-le"),
-    (b"\xef\xbb\xbf", "utf-8"),
-    (b"\xfe\xff", "utf-16-be"),
-    (b"\xff\xfe", "utf-16-le"),
-]
-
-
-def _split_chunk(chunk):
-    start = 0
-    n = len(chunk)
-    for i in range(1, n):
-        p, c = chunk[i - 1], chunk[i]
-        nxt = chunk[i + 1] if i + 1 < n else ""
-        if (
-            p.isdigit() != c.isdigit()
-            or (p.islower() and c.isupper())
-            or (p.isupper() and c.isupper() and nxt.islower())
-        ):
-            yield chunk[start:i]
-            start = i
-    yield chunk[start:]
-
-
-def tokenize(text):
-    normalized = unicodedata.normalize("NFKC", text)
-    for chunk in _CHUNK.findall(normalized):
-        for sub in _split_chunk(chunk):
-            tok = sub.casefold()
-            if tok:
-                yield tok
-
-
-def load_magic(path):
-    table = []
-    for line in path.read_text().splitlines():
-        if line and not line.startswith("#"):
-            off, sig, _label = line.split(" ", 2)
-            table.append((int(off), bytes.fromhex(sig)))
-    return table
-
-
-def decode_bytes(raw, magic_table):
-    for bom, codec in _BOMS:
-        if raw.startswith(bom):
-            try:
-                text = raw[len(bom):].decode(codec)
-            except UnicodeDecodeError:
-                return "malformed", None
-            if _FORBIDDEN.search(text):
-                return "binary-control", None
-            return "text", text
-    for off, sig in magic_table:
-        if raw[off : off + len(sig)] == sig:
-            return "binary-magic", None
-    try:
-        text = raw.decode("utf-8")
-    except UnicodeDecodeError:
-        if _FORBIDDEN.search(raw.decode("latin-1")):
-            return "binary-control", None
-        return "text", raw.decode("latin-1")
-    if _FORBIDDEN.search(text):
-        return "binary-control", None
-    return "text", text
-
-
-def file_surfaces(path, root, magic_table):
-    rel = path.relative_to(root)
-    for i, part in enumerate(rel.parts):
-        yield "P", f"component:{i}", part
-    raw = path.read_bytes()
-    kind, text = decode_bytes(raw, magic_table)
-    if kind != "text":
-        yield "VIOLATION", kind, ""
-        return
-    for lineno, line in enumerate(text.splitlines(), 1):
-        if line.strip():
-            yield "L", f"line:{lineno}", line
-    if path.suffix.lower() == ".csv":
-        for rowno, row in enumerate(csv.reader(io.StringIO(text)), 1):
-            for colno, cell in enumerate(row, 1):
-                if cell.strip():
-                    yield "C", f"cell:{rowno}:{colno}", cell
-    if path.suffix.lower() == ".py":
-        try:
-            tree = ast.parse(text)
-        except SyntaxError:
-            return
-        for node in ast.walk(tree):
-            if (
-                isinstance(node, ast.Constant)
-                and isinstance(node.value, str)
-                and node.value.strip()
-            ):
-                yield "A", f"ast:{getattr(node, 'lineno', 0)}", node.value
+from surfaces import file_surfaces, load_magic
+from tokenizer import tokenize
 
 
 def load_manifest(path):
@@ -175,6 +67,30 @@ def tracked_files(root):
     ]
 
 
+def _match_hash(toks, hashes, n_max):
+    found = []
+    length = len(toks)
+    for n in range(1, min(length, n_max) + 1):
+        for i in range(length - n + 1):
+            h = hashlib.sha256(" ".join(toks[i : i + n]).encode()).hexdigest()
+            if h in hashes:
+                found.append((n, h))
+    return found
+
+
+def _redacted_display(rel, matched_components):
+    """Path for output with any matched component replaced by a digest tag,
+    so a protected filename never reaches logs (value-silent output)."""
+    parts = []
+    for i, part in enumerate(rel.parts):
+        if i in matched_components:
+            tag = hashlib.sha256(part.encode()).hexdigest()[:12]
+            parts.append(f"<redacted:{tag}>")
+        else:
+            parts.append(part)
+    return "/".join(parts)
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("root", nargs="?", default=str(HERE.parent.parent))
@@ -189,34 +105,40 @@ def main(argv=None):
 
     matches = violations = 0
     for f in tracked_files(root):
-        for kind, locator, surf in file_surfaces(f, root, magic):
+        rel = f.relative_to(root)
+        # First pass: identify matched path components so every printed
+        # location can be redacted (value-silent output, review item F20).
+        collected = list(file_surfaces(f, root, magic, binary_as_runs=False))
+        matched_components = set()
+        for kind, locator, surf in collected:
+            if kind == "P" and _match_hash(list(tokenize(surf)), hashes, n_max):
+                matched_components.add(int(locator.split(":")[1]))
+        display = _redacted_display(rel, matched_components)
+
+        for kind, locator, surf in collected:
             if kind == "VIOLATION":
                 print(
-                    f"VIOLATION {f.relative_to(root)}: {locator} — this file "
-                    "is not scannable text; if it is a legitimate fixture it "
-                    "must go through the provenance allowlist, otherwise "
-                    "remove it."
+                    f"VIOLATION {display}: {locator} — this file is not "
+                    "scannable text; if it is a legitimate fixture it must "
+                    "go through the provenance allowlist, otherwise remove "
+                    "it."
                 )
                 violations += 1
                 continue
-            toks = list(tokenize(surf))
-            L = len(toks)
-            for n in range(1, min(L, n_max) + 1):
-                for i in range(L - n + 1):
-                    h = hashlib.sha256(" ".join(toks[i : i + n]).encode()).hexdigest()
-                    if h in hashes:
-                        print(
-                            f"MATCH {f.relative_to(root)} {kind} {locator} "
-                            f"n={n} {h[:12]} — this content matches the "
-                            "denied-vocabulary manifest; rewrite the text "
-                            "(never edit the manifest)."
-                        )
-                        matches += 1
+            loc = "component:<redacted>" if (
+                kind == "P" and int(locator.split(":")[1]) in matched_components
+            ) else locator
+            for n, h in _match_hash(list(tokenize(surf)), hashes, n_max):
+                print(
+                    f"MATCH {display} {kind} {loc} n={n} {h[:12]} — this "
+                    "content matches the denied-vocabulary manifest; rewrite "
+                    "the text (never edit the manifest)."
+                )
+                matches += 1
 
     if matches == 0 and violations == 0:
         print("decontamination: clean")
-    code = (1 if matches else 0) | (2 if violations else 0)
-    return code
+    return (1 if matches else 0) | (2 if violations else 0)
 
 
 if __name__ == "__main__":

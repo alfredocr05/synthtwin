@@ -1,3 +1,7 @@
+# Built wheels only, embedded in the compiled lock itself (plan D5): any
+# consumer of the lock refuses source archives, VCS, editable, and
+# local/path requirements even if a command line omits the option.
+--only-binary :all:
 pytest>=8.0
 ruff>=0.6
 mypy>=1.10

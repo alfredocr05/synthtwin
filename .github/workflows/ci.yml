@@ -80,6 +80,10 @@ jobs:
   tests:
     # Full matrix per plan D9. The complete Windows path-locality/reparse
     # suite lives in the plain pytest run, so every Windows cell runs it.
+    # The project wheel comes from the build job's network-none container:
+    # no project PEP 517 hook ever executes on a networked runner, so this
+    # job waits for the build and installs its checked wheel.
+    needs: build
     strategy:
       fail-fast: false
       matrix:
@@ -104,8 +108,16 @@ jobs:
             exit 1
           fi
           python -m pip install --require-hashes --only-binary=:all: -r "$LOCK_FILE"
-      - name: Install the package (no network, backend from the lock)
-        run: python -m pip install --no-build-isolation --no-index --no-deps .
+      - name: Download the wheel built inside the no-network container
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: synthtwin-wheel
+          path: dist
+      - name: Install the wheel (no index, no deps, no build hooks)
+        # Installing a built wheel runs no project code; the only place a
+        # project build hook ever executes is the build job's
+        # --network none container.
+        run: python -m pip install --no-index --no-deps dist/*.whl
       - name: Run the test suite
         run: python -m pytest
 
@@ -189,11 +201,68 @@ jobs:
               sys.exit(1)
           print(f"verified {len(files)} wheels against the lock")
           SCRIPT
+      - name: Prefetch mutation - a local source tree must be refused unrun
+        # Plan D5: the lock itself, not just a command-line option, must
+        # reject source inputs. This step builds a local source tree whose
+        # setup.py writes a sentinel file the moment any metadata hook
+        # executes, then asks pip to fetch it alongside the lock WITHOUT
+        # any --only-binary or hash option on the command line. The lock's
+        # embedded "--only-binary :all:" line and its per-entry hashes must
+        # make the command fail, and the sentinel must not exist.
+        run: |
+          if ! grep -q -- "--only-binary :all:" "$LOCK_FILE"; then
+            echo "The lock file no longer embeds the '--only-binary :all:'"
+            echo "line. The lock itself must refuse source inputs (plan D5)."
+            echo "Rebuild the lock from requirements-dev.in, which carries"
+            echo "the line, and commit the result."
+            exit 1
+          fi
+          MUT_SRC="$RUNNER_TEMP/malicious-src"
+          SENTINEL="$MUT_SRC/SENTINEL-HOOK-RAN.txt"
+          mkdir -p "$MUT_SRC" "$RUNNER_TEMP/mutation-dest"
+          cat > "$MUT_SRC/setup.py" <<'HOOK'
+          import pathlib
+          pathlib.Path(__file__).resolve().parent.joinpath(
+              "SENTINEL-HOOK-RAN.txt"
+          ).write_text("the metadata hook executed\n", encoding="utf-8")
+          from setuptools import setup
+          setup(name="malicious-demo", version="0.0.1")
+          HOOK
+          set +e
+          python -m pip download --dest "$RUNNER_TEMP/mutation-dest" \
+            --no-index --find-links "$RUNNER_TEMP/wheelhouse" \
+            --requirement "$LOCK_FILE" "$MUT_SRC"
+          status=$?
+          set -e
+          if [ "$status" -eq 0 ]; then
+            echo "pip accepted a local source tree under the lock's rules."
+            echo "The lock must refuse every source input on its own"
+            echo "(plan D5). Do not merge until the rejection is restored."
+            exit 1
+          fi
+          if [ -f "$SENTINEL" ]; then
+            echo "The rejected source tree's metadata hook STILL EXECUTED:"
+            echo "the sentinel file exists. Rejection must happen before"
+            echo "any hook runs (plan D5). Do not merge."
+            exit 1
+          fi
+          echo "source tree refused (exit $status) and no hook ran: the"
+          echo "sentinel file does not exist"
       - name: Pull the pinned build image and verify the observed digest
         # C5 condition: refuse a tag-only reference; verify the observed
-        # digest before any build execution.
+        # digest before any build execution. The check lives in a small
+        # script so the two mutation steps below exercise the exact same
+        # logic against bad inputs.
         run: |
-          case "$BUILD_IMAGE" in
+          cat > "$RUNNER_TEMP/verify-image-ref.sh" <<'SCRIPT'
+          # $1: the image reference that must carry a digest pin.
+          # $2 (optional): the image whose observed digest is inspected;
+          #    defaults to $1. The wrong-digest mutation passes the real
+          #    pulled image here while handing a bad reference as $1.
+          set -eu
+          REF="$1"
+          INSPECT="${2:-$1}"
+          case "$REF" in
             *@sha256:*) ;;
             *)
               echo "The build image reference has no @sha256 digest pin."
@@ -202,13 +271,14 @@ jobs:
               exit 1
               ;;
           esac
-          docker pull "$BUILD_IMAGE"
-          PINNED="${BUILD_IMAGE##*@}"
-          OBSERVED="$(docker inspect --format '{{join .RepoDigests " "}}' "$BUILD_IMAGE")"
-          echo "pinned:   python@$PINNED"
+          PINNED="${REF##*@}"
+          REPO="${REF%%@*}"
+          REPO="${REPO%%:*}"
+          OBSERVED="$(docker inspect --format '{{join .RepoDigests " "}}' "$INSPECT")"
+          echo "pinned:   $REPO@$PINNED"
           echo "observed: $OBSERVED"
           case " $OBSERVED " in
-            *" python@$PINNED "*)
+            *" $REPO@$PINNED "*)
               echo "observed image digest matches the pin"
               ;;
             *)
@@ -218,13 +288,171 @@ jobs:
               exit 1
               ;;
           esac
+          SCRIPT
+          docker pull "$BUILD_IMAGE"
+          sh "$RUNNER_TEMP/verify-image-ref.sh" "$BUILD_IMAGE"
+      - name: Image mutation - a tag-only reference must be refused
+        # Plan D5 required red check: hand the verification logic a
+        # reference with no digest pin and prove it goes red.
+        run: |
+          set +e
+          sh "$RUNNER_TEMP/verify-image-ref.sh" "python:3.14-slim" "$BUILD_IMAGE"
+          status=$?
+          set -e
+          if [ "$status" -eq 0 ]; then
+            echo "The tag-only image reference PASSED verification."
+            echo "A mutable tag alone must always be refused (plan D5)."
+            echo "Do not merge until the reference check is restored."
+            exit 1
+          fi
+          echo "tag-only reference refused as required (exit $status)"
+      - name: Image mutation - a wrong observed digest must be refused
+        # Plan D5 required red check: compare the really pulled image
+        # against a deliberately wrong pinned digest and prove the
+        # comparison goes red.
+        run: |
+          WRONG="python:3.14-slim@sha256:0000000000000000000000000000000000000000000000000000000000000000"
+          set +e
+          sh "$RUNNER_TEMP/verify-image-ref.sh" "$WRONG" "$BUILD_IMAGE"
+          status=$?
+          set -e
+          if [ "$status" -eq 0 ]; then
+            echo "A wrong pinned digest PASSED the observed-digest check."
+            echo "The comparison must refuse any digest that does not match"
+            echo "the pulled image (plan D5). Do not merge until restored."
+            exit 1
+          fi
+          echo "wrong observed digest refused as required (exit $status)"
       - name: Build wheel and sdist inside the no-network container
         # The container has an empty network namespace: no proxy, no DNS,
         # no egress of any kind (plan D5). The script first proves that
         # with an in-container egress attempt that must fail, records the
         # in-container OS identity and exact Python and pip versions (C5),
-        # then builds from the read-only wheelhouse only.
+        # compares the executing closure to the lock in BOTH directions
+        # (markers evaluated by the executing interpreter itself), then
+        # builds from the read-only wheelhouse only.
         run: |
+          cat > "$RUNNER_TEMP/compare-closure.py" <<'CMP'
+          """Two-way closure-vs-lock comparison (plan D5 acceptance).
+
+          Runs INSIDE the network-none container with the build
+          environment's own interpreter, so every environment marker in
+          the lock is evaluated by the exact environment that runs the
+          build. Both directions are checked: every applicable lock entry
+          must be installed at its pinned version, and every installed
+          package must be pinned by an applicable lock entry.
+          """
+          import pathlib
+          import sys
+
+          from packaging.requirements import InvalidRequirement, Requirement
+          from packaging.utils import canonicalize_name
+          from packaging.version import InvalidVersion, Version
+
+          lock_path, freeze_path = sys.argv[1], sys.argv[2]
+
+          def logical_lines(text):
+              buf = ""
+              for raw in text.splitlines():
+                  line = raw.strip()
+                  if line.endswith("\\"):
+                      buf += line[:-1].strip() + " "
+                      continue
+                  yield (buf + line).strip()
+                  buf = ""
+              if buf.strip():
+                  yield buf.strip()
+
+          problems = []
+          applicable = {}
+          inapplicable = {}
+          lock_text = pathlib.Path(lock_path).read_text(encoding="utf-8")
+          for line in logical_lines(lock_text):
+              if not line or line.startswith("#") or line.startswith("-"):
+                  continue
+              head = line.split(" --hash", 1)[0].strip()
+              try:
+                  req = Requirement(head)
+              except InvalidRequirement:
+                  problems.append(f"unreadable lock line: {head}")
+                  continue
+              pins = list(req.specifier)
+              if len(pins) != 1 or pins[0].operator != "==":
+                  problems.append(f"lock entry is not pinned with ==: {head}")
+                  continue
+              name = canonicalize_name(req.name)
+              if req.marker is None or req.marker.evaluate():
+                  applicable[name] = pins[0].version
+              else:
+                  inapplicable[name] = pins[0].version
+
+          installed = {}
+          freeze_text = pathlib.Path(freeze_path).read_text(encoding="utf-8")
+          for line in freeze_text.splitlines():
+              line = line.strip()
+              if not line or line.startswith("#"):
+                  continue
+              if "==" not in line:
+                  problems.append(
+                      f"unexpected line in the build environment listing: {line}"
+                  )
+                  continue
+              name, version = line.split("==", 1)
+              installed[canonicalize_name(name.strip())] = version.strip()
+
+          # venv bootstrap installer: a named trust root whose exact
+          # version is recorded in the build log above (plan D5).
+          installed.pop("pip", None)
+
+          def same_version(a, b):
+              try:
+                  return Version(a) == Version(b)
+              except InvalidVersion:
+                  return a == b
+
+          for name in sorted(applicable):
+              if name not in installed:
+                  problems.append(
+                      f"the lock pins {name}=={applicable[name]} for this "
+                      "environment but it is not installed in the build "
+                      "environment"
+                  )
+              elif not same_version(installed[name], applicable[name]):
+                  problems.append(
+                      f"{name}=={installed[name]} ran in the build environment "
+                      f"but the lock pins {applicable[name]}"
+                  )
+          for name in sorted(installed):
+              if name in applicable:
+                  continue
+              if name in inapplicable:
+                  problems.append(
+                      f"{name}=={installed[name]} is installed but the lock's "
+                      "entry for it does not apply to this environment"
+                  )
+              else:
+                  problems.append(
+                      f"{name}=={installed[name]} is installed in the build "
+                      "environment but the lock does not pin it"
+                  )
+          if not installed:
+              problems.append(
+                  "the build environment listing had no packages to check"
+              )
+
+          if problems:
+              print("Build closure does not match the lock:")
+              for entry in problems:
+                  print(" -", entry)
+              print("The build may only use exactly what the lock pins (plan D5).")
+              print("Ask a maintainer to rebuild the lock or remove the drift.")
+              sys.exit(1)
+          print(
+              f"build closure matches the lock in both directions "
+              f"({len(installed)} packages checked, "
+              f"{len(inapplicable)} lock entries not applicable here)"
+          )
+          CMP
           cat > "$RUNNER_TEMP/container-build.sh" <<'SCRIPT'
           set -eu
           echo "== in-container identity (recorded per plan D5 / C5) =="
@@ -246,6 +474,9 @@ jobs:
           /tmp/buildenv/bin/python --version
           /tmp/buildenv/bin/python -m pip --version
           /tmp/buildenv/bin/python -m pip freeze --all > /work/build-freeze.txt
+          echo "== compare the executing closure to the lock (both directions) =="
+          /tmp/buildenv/bin/python /compare-closure.py \
+            "/work/$LOCK_FILE" /work/build-freeze.txt
           echo "== build (no isolation, backend from the wheelhouse) =="
           /tmp/buildenv/bin/python -m build --no-isolation --outdir /work/dist /work
           SCRIPT
@@ -254,61 +485,10 @@ jobs:
             -v "$PWD:/work" \
             -v "$RUNNER_TEMP/wheelhouse:/wheelhouse:ro" \
             -v "$RUNNER_TEMP/container-build.sh:/container-build.sh:ro" \
+            -v "$RUNNER_TEMP/compare-closure.py:/compare-closure.py:ro" \
             -w /work \
             "$BUILD_IMAGE" \
             sh /container-build.sh
-      - name: Compare the executing build closure to the lock
-        # Plan D5 acceptance: the packages present in the executing build
-        # environment must match the lock, pin for pin.
-        run: |
-          python3 - <<'SCRIPT'
-          import os
-          import pathlib
-          import re
-          import sys
-
-          def norm(name: str) -> str:
-              return re.sub(r"[-_.]+", "-", name).lower()
-
-          lock_text = pathlib.Path(os.environ["LOCK_FILE"]).read_text(encoding="utf-8")
-          locked = {}
-          pattern = r"(?m)^\s*([A-Za-z0-9][A-Za-z0-9._-]*)\s*==\s*([A-Za-z0-9.!+]+)"
-          for match in re.finditer(pattern, lock_text):
-              locked[norm(match.group(1))] = match.group(2)
-          freeze_text = pathlib.Path("build-freeze.txt").read_text(encoding="utf-8")
-          problems = []
-          checked = 0
-          for line in freeze_text.splitlines():
-              line = line.strip()
-              if not line or line.startswith("#"):
-                  continue
-              if "==" not in line:
-                  problems.append(f"unexpected line in the build environment listing: {line}")
-                  continue
-              name, version = line.split("==", 1)
-              key = norm(name)
-              if key == "pip":
-                  # venv bootstrap installer: a named trust root whose exact
-                  # version is recorded in the build log above (plan D5).
-                  continue
-              checked += 1
-              if locked.get(key) != version:
-                  expected = locked.get(key, "nothing")
-                  problems.append(
-                      f"{name}=={version} ran in the build environment but the "
-                      f"lock pins {expected}"
-                  )
-          if checked == 0:
-              problems.append("the build environment listing had no packages to check")
-          if problems:
-              print("Build closure does not match the lock:")
-              for entry in problems:
-                  print(" -", entry)
-              print("The build may only use exactly what the lock pins (plan D5).")
-              print("Ask a maintainer to rebuild the lock or remove the drift.")
-              sys.exit(1)
-          print(f"build closure matches the lock ({checked} packages checked)")
-          SCRIPT
       - name: Record wheel and sdist digests
         # Plan D5 acceptance: the artifact digests are part of the build
         # record in the CI log.
@@ -332,6 +512,7 @@ jobs:
           #   formats are never allowed anywhere, plan D13)
           wheel required synthtwin/__init__.py
           wheel required synthtwin/cli.py
+          wheel required synthtwin/paths.py
           wheel required DIST-INFO/METADATA
           wheel required DIST-INFO/WHEEL
           wheel required DIST-INFO/RECORD
@@ -346,10 +527,13 @@ jobs:
           sdist required ROOT/SECURITY.md
           sdist required ROOT/src/synthtwin/__init__.py
           sdist required ROOT/src/synthtwin/cli.py
+          sdist required ROOT/src/synthtwin/paths.py
           sdist optional ROOT/src/synthtwin/py.typed
           sdist optional ROOT/.gitignore
+          sdist required ROOT/tools/decontamination/allowed_signers
+          sdist required ROOT/tools/decontamination/attestation.json.sig
           sdist tree ROOT/tests/ .py,.json,.txt,.md,.toml
-          sdist tree ROOT/tools/ .py,.json,.txt,.md,.toml
+          sdist tree ROOT/tools/ .py,.json,.txt,.md,.toml,.sh
           ALLOWLIST
           export ALLOWLIST_PATH="$RUNNER_TEMP/artifact-allowlist.txt"
           python3 - <<'SCRIPT'
@@ -439,6 +623,15 @@ jobs:
               sys.exit(1)
           print(f"wheel ok ({len(wheel_names)} files); sdist ok ({len(sdist_names)} files)")
           SCRIPT
+      - name: Publish the checked wheel for the test matrix
+        # The test matrix installs this exact wheel with --no-index
+        # --no-deps, so no project build hook ever runs outside the
+        # network-none container above.
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: synthtwin-wheel
+          path: dist/*.whl
+          if-no-files-found: error
       - name: Install the wheel into a fresh venv and smoke-run the CLI
         # Plan D6.4: fresh venv, socket guard applied via sitecustomize,
         # then "synthtwin --version" and "synthtwin" must run offline.
@@ -512,6 +705,15 @@ jobs:
             exit 1
           fi
           python tools/decontamination/check.py
+      - name: Verify the signed attestation
+        # Review item F13: the decontam job itself must verify the
+        # attestation chain and run the full self-test battery, not just
+        # the tree scan.
+        run: python tools/decontamination/verify_attestation.py
+      - name: Install locked dev tools for the battery (frozen)
+        run: python -m pip install --require-hashes --only-binary=:all: -r "$LOCK_FILE"
+      - name: Run the decontamination self-test battery
+        run: python -m pytest tests/test_decontamination.py -q
 
   offline-static:
     runs-on: ubuntu-latest
@@ -530,10 +732,12 @@ jobs:
             exit 1
           fi
           python -m pip install --require-hashes --only-binary=:all: -r "$LOCK_FILE"
-      - name: Install the package (no network, backend from the lock)
-        run: python -m pip install --no-build-isolation --no-index --no-deps .
       - name: Run the import-allowlist scanner over src/
-        # Plan D6.2: the positive, API-granular allowlist scan.
+        # Plan D6.2: the positive, API-granular allowlist scan. This job
+        # never installs the project: the scanner reads source files, and
+        # tests/test_offline_scan.py loads the scanner from its file path
+        # without importing the synthtwin package, so no project build
+        # hook runs on this networked runner.
         run: |
           if [ ! -f tools/offline_scan/scan_imports.py ]; then
             echo "The offline import scanner is missing:"
@@ -563,12 +767,13 @@ jobs:
             exit 1
           fi
           python -m pip install --require-hashes --only-binary=:all: -r "$LOCK_FILE"
-      - name: Install the package (no network, backend from the lock)
-        run: python -m pip install --no-build-isolation --no-index --no-deps .
       - name: Run the data-provenance guard
         # Plan D13: re-runs the generator for every committed fixture and
         # byte-compares it; refuses tracked data-format files that are not
-        # on the fixture manifest.
+        # on the fixture manifest. This job never installs the project:
+        # the checker and tests/test_provenance.py work on files and
+        # subprocesses without importing the synthtwin package, so no
+        # project build hook runs on this networked runner.
         run: |
           if [ ! -f tools/provenance/check_provenance.py ]; then
             echo "The provenance checker is missing:"
@@ -581,11 +786,81 @@ jobs:
       - name: Run the provenance test suite (mutation classes)
         run: python -m pytest tests/test_provenance.py
 
+  sensitive-paths:
+    # Plan D14: surface every pull-request change to the CI workflows or
+    # the checker tooling. The read-only token cannot apply a label, so
+    # the surfacing is a prominent warning annotation plus a step-summary
+    # section; the prompted human review is the control. This job never
+    # fails: on a push there is no base to compare, and on a pull request
+    # it only reports.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Full history so the pull request's base commit is present to
+          # diff against.
+          fetch-depth: 0
+      - name: Surface changes under .github/workflows/ or tools/
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          if [ "$EVENT_NAME" != "pull_request" ]; then
+            echo "This run is not a pull request, so there is no base to"
+            echo "compare against. The sensitive-path report is produced"
+            echo "on pull requests only."
+            exit 0
+          fi
+          set +e
+          CHANGED="$(git diff --name-only "$BASE_SHA" HEAD -- .github/workflows tools)"
+          status=$?
+          set -e
+          if [ "$status" -ne 0 ]; then
+            echo "::warning title=Sensitive-path check could not compare::The diff against the base commit failed, so changes under .github/workflows/ or tools/ could not be listed. Review the changed files by hand."
+            {
+              echo "## Sensitive paths"
+              echo ""
+              echo "The comparison against the base commit failed; review the"
+              echo "changed files by hand."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          if [ -z "$CHANGED" ]; then
+            echo "No changes under .github/workflows/ or tools/ in this pull request."
+            {
+              echo "## Sensitive paths"
+              echo ""
+              echo "No changes under \`.github/workflows/\` or \`tools/\`."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          LISTED="$(echo "$CHANGED" | tr '\n' ' ')"
+          echo "::warning title=Security-sensitive paths changed::This pull request changes files that define the checks themselves: $LISTED- review them with extra care and list them in the next release notes (plan D14)."
+          {
+            echo "## Sensitive paths changed"
+            echo ""
+            echo "This pull request touches files that define the checks"
+            echo "themselves. Review them with extra care and list them in the"
+            echo "next release notes (plan D14):"
+            echo ""
+            echo "$CHANGED" | sed 's/^/- `/; s/$/`/'
+          } >> "$GITHUB_STEP_SUMMARY"
+
   gate:
     # Plan D9 / D14: the one required status context. Runs always, and
     # goes green only when every job above succeeded (a skipped or
     # cancelled job is a failure here, not a pass).
-    needs: [lint, types, tests, build, decontam, offline-static, provenance]
+    needs:
+      [
+        lint,
+        types,
+        tests,
+        build,
+        decontam,
+        offline-static,
+        provenance,
+        sensitive-paths,
+      ]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -606,6 +881,7 @@ jobs:
               "decontam",
               "offline-static",
               "provenance",
+              "sensitive-paths",
           ]
           needs = json.loads(os.environ["NEEDS_JSON"])
           bad = []
