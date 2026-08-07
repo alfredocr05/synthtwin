@@ -144,6 +144,23 @@ def _match_hash(toks, hashes, n_max):
     return found
 
 
+def _emit(line):
+    """Write one scanner output line so no console encoding can break it.
+
+    File names are untrusted input and may contain characters the
+    active stdout encoding cannot represent; a plain print would then
+    raise UnicodeEncodeError and replace the scanner's exit code with a
+    traceback (review item R4-m1). Encoding the whole line to ASCII
+    with backslashreplace turns every such character into a readable
+    escape, so the write cannot raise on any console encoding.
+    Redaction happens before this call, so value-silent output is
+    unchanged: a protected component is already a digest tag by the
+    time it reaches this function.
+    """
+    safe = line.encode("ascii", "backslashreplace").decode("ascii")
+    sys.stdout.write(safe + "\n")
+
+
 def _redacted_display(rel, matched_components):
     """Path for output with any matched component replaced by a digest tag,
     so a protected filename never reaches logs (value-silent output)."""
@@ -169,7 +186,7 @@ def main(argv=None):
     try:
         headers, body_lines = load_manifest(Path(args.manifest))
     except ManifestFormatError as err:
-        print(f"manifest format error: {err}")
+        _emit(f"manifest format error: {err}")
         return 2
     hashes = set(body_lines)
     n_max = int(headers["n_max"])
@@ -189,7 +206,7 @@ def main(argv=None):
 
         for kind, locator, surf in collected:
             if kind == "VIOLATION":
-                print(
+                _emit(
                     f"VIOLATION {display}: {locator} - this file is not "
                     "scannable text; if it is a legitimate fixture it must "
                     "go through the provenance allowlist, otherwise remove "
@@ -201,7 +218,7 @@ def main(argv=None):
                 kind == "P" and int(locator.split(":")[1]) in matched_components
             ) else locator
             for n, h in _match_hash(list(tokenize(surf)), hashes, n_max):
-                print(
+                _emit(
                     f"MATCH {display} {kind} {loc} n={n} {h[:12]} - this "
                     "content matches the denied-vocabulary manifest; rewrite "
                     "the text (never edit the manifest)."
@@ -209,7 +226,7 @@ def main(argv=None):
                 matches += 1
 
     if matches == 0 and violations == 0:
-        print("decontamination: clean")
+        _emit("decontamination: clean")
     return (1 if matches else 0) | (2 if violations else 0)
 
 

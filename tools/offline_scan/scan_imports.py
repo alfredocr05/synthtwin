@@ -12,11 +12,26 @@ Policy enforced (plan D6.2, a positive AST/name-binding policy):
 
 * Allowed modules for src/: argparse, dataclasses, json, pathlib,
   typing, sys (but sys.modules and sys.path may never be read or
-  written); from os only the os.path functions, os.fspath, os.getcwd,
-  os.lstat, and read-only os.environ; from importlib.metadata only the
-  version() function. Imports of the synthtwin package's own modules are
-  allowed because those files are scanned too. Every other import is a
-  violation.
+  written); from os only the enumerated os.path helpers, os.fspath,
+  os.getcwd, os.lstat, and read-only os.environ; from
+  importlib.metadata only the version() function. Imports of the
+  synthtwin package's own modules are allowed because those files are
+  scanned too. Every other import is a violation.
+* NO MODULE-LEVEL TRUST. Membership in an allowed module proves
+  nothing about what an attribute can do, so every allowed module's
+  usable attribute names are enumerated one by one in
+  _ALLOWED_MODULE_ATTRS and any name outside its module's enumeration
+  is a violation. In particular: sys is reduced to seven data
+  attributes (platform, argv, exit, stdout, stderr, executable,
+  version_info) -- sys.call_tracing invokes the function it is
+  handed, and the trace, profile, audit-hook, and
+  async-generator-hook installers register callables the interpreter
+  later runs, so none of them are reachable. typing is reduced to the
+  two names the src tree uses (Protocol and cast) --
+  typing.get_type_hints compiles and evaluates string annotations,
+  turning annotation text into running code, and ForwardRef and
+  evaluate_forward_ref expose the same evaluation machinery, so every
+  other typing attribute is a violation.
 * Always forbidden, allowlist aside: __import__,
   importlib.import_module, exec, eval, compile, subprocess, os.system,
   os.exec*, os.spawn*, os.popen, os.fork, os.posix_spawn, ctypes, cffi,
@@ -55,7 +70,12 @@ Policy enforced (plan D6.2, a positive AST/name-binding policy):
   run. A name bound to anything this audit cannot trace (a function
   parameter, a computed value) carries the unknown member, and other
   origins joining the set NEVER discard it: rebinding adds
-  possibilities, it never clears suspicion.
+  possibilities, it never clears suspicion. The ONE sanctioned
+  narrowing is the isinstance type gate described under method calls
+  below: a leading "if not isinstance(name, str): raise ..." runs
+  before anything else in its function and stops it cold unless the
+  parameter really is a plain str, so that parameter alone starts as
+  a known str instance instead of unknown.
 * A call through a bare name is accepted only when EVERY possible
   origin of the name is a function or class defined in the scanned
   tree, an import traced to the allowlist, or one of a small fixed
@@ -67,33 +87,42 @@ Policy enforced (plan D6.2, a positive AST/name-binding policy):
   banned in synthtwin source for Phase 0.
 * Method calls (value.method(...)) are accepted in exactly two
   enumerated cases; every other method call target is rejected.
-  (a) On a value this audit cannot trace (a function parameter, the
-      result of a first-party call, a literal), only the fixed
-      data-method list is accepted: find, format. That list is
-      exactly the set of plain string data methods the current src
-      tree calls on such values; none of them can start a program,
-      open a connection, load code, or reach an attribute through a
-      computed name. Threat-model rationale for accepting them at
-      all: caller-supplied objects execute in the caller's own
-      process, and this boundary controls what synthtwin's own code
-      initiates, not what the caller's own code does; these data
-      methods initiate nothing beyond reading or building text. Any
-      other method name on an untraced value is a violation
-      (parameter.resolve() is rejected). In addition, EVERY argument
-      of an accepted data-method call on an untraced value must be a
-      plain literal or a value this audit fully resolved as safe: an
-      allowlisted API's result, a scanned function's or class's
-      result, or a name bound only to literals. An untraced object's
-      method can do anything with what it receives, including
-      calling it, so an unknown or callable argument in such a call
-      is rejected (no unknowns, no callables).
+  There are NO method calls on untraced values.
+  (a) On a value PROVEN to be a plain built-in constant. Two proofs
+      are accepted: the value is a literal constant (or a name bound
+      only to literal constants), or the value is a parameter whose
+      function opens with the exact type gate
+      "if not isinstance(name, str): raise ..." (or the equivalent
+      positive branch "if isinstance(name, str): ... else:
+      raise ...") before any other statement. The gate makes the
+      parameter a known str instance, so an enumerated str data
+      method called on it (find, format -- exactly the string
+      methods the current src tree calls) is an EXACT call target:
+      str.find or str.format dispatches, nothing else can. Any
+      method name outside that enumeration, and any method call on a
+      value with no proof -- a bare parameter, a computed value, the
+      result of a scanned call -- is a violation. parameter.find()
+      WITHOUT the gate is rejected, because at run time it would
+      dispatch whatever find method the caller's object defines.
+      EVERY argument of an accepted str-method call must still be a
+      plain literal or a value this audit fully resolved as safe (an
+      allowlisted API's result, a scanned function's result, a name
+      bound only to literals, a proven string): str.format invokes
+      the formatting protocol of what it is handed, so unknowns and
+      callables are rejected. Because the gate depends on the built-in
+      names isinstance and str, BINDING any accepted built-in call
+      name to anything, anywhere in scanned source, is itself a
+      violation -- a rebound built-in could make a checked call or a
+      type gate mean something else.
   (b) A value returned by a call to an allowlisted API
       (parser = argparse.ArgumentParser(...)) is tracked as an
       api-instance, and method calls on it
       (parser.add_argument(...)) are accepted: the API that produced
       the value was itself checked against the allowlist. A value
       built by an operator expression with an api-instance operand
-      (pathlib.Path(...) / name) is tracked the same way.
+      (pathlib.Path(...) / name) is tracked the same way. The
+      callable-accepting api-instance methods are enumerated in the
+      slot table below (pathlib.Path.walk's on_error above all).
 * A function or lambda passed as a call argument to any callee not
   defined in the scanned tree is rejected: outside code could keep
   the callable and run it at any time, in ways this audit cannot
@@ -105,29 +134,71 @@ Policy enforced (plan D6.2, a positive AST/name-binding policy):
 * Callback SLOTS are checked by argument position. The allowlisted
   world is closed, so every allowed external API that can INVOKE one
   of its arguments is enumerated in this file with its exact
-  callable-accepting slots: sorted, min, max (key); map, filter, and
-  the two-argument form of iter (the function argument);
-  json.load and json.loads (cls, object_hook, object_pairs_hook,
-  parse_constant, parse_float, parse_int); json.dump and json.dumps
-  (cls, default); json.JSONDecoder (the five hooks);
-  json.JSONEncoder (default); argparse.ArgumentParser
-  (formatter_class); ArgumentParser.add_argument (action, type);
-  ArgumentParser.add_subparsers (action, parser_class);
-  ArgumentParser.register (object); dataclasses.field
-  (default_factory); dataclasses.asdict (dict_factory);
-  dataclasses.astuple (tuple_factory); dataclasses.make_dataclass
-  (bases, namespace); sys.settrace, sys.setprofile, and
-  sys.addaudithook (the hook argument); sys.set_asyncgen_hooks
-  (firstiter, finalizer). A value placed in one of those slots must
-  be a plain literal, a directly named accepted built-in (str,
-  int, ...), or a directly named allowlisted API. Anything else --
-  above all a caller-supplied parameter, a computed value, or a
-  first-party function or lambda -- is rejected, because the API
-  would invoke it outside anything this audit can see. Data
-  arguments outside these slots (json.loads(raw),
-  parser.parse_args(argv)) stay accepted. Star and double-star
-  expansion into an API that has callback slots is rejected too,
-  because expansion hides which value lands in which slot.
+  callable-accepting slots (the full audit is below). A value placed
+  in one of those slots must be a plain literal, a directly named
+  accepted built-in (str, int, ...), or a directly named allowlisted
+  API. Anything else -- above all a caller-supplied parameter, a
+  computed value, or a first-party function or lambda -- is
+  rejected, because the API would invoke it outside anything this
+  audit can see. Data arguments outside these slots
+  (json.loads(raw), parser.parse_args(argv)) stay accepted. Star and
+  double-star expansion into an API that has callback slots is
+  rejected too, because expansion hides which value lands in which
+  slot.
+
+Complete audit of the closed allowed surface. Every enumerated name
+below was checked against its documented signature on every supported
+interpreter (CPython 3.10 through 3.14); "data" means the API never
+invokes that name's arguments. This list IS the audit record -- an
+attribute absent from it is not allowed at all:
+
+* argparse: ArgumentParser (formatter_class SLOT). Its api-instance
+  methods: add_argument (action SLOT, type SLOT); add_subparsers
+  (action SLOT, parser_class SLOT); register (object SLOT);
+  parse_args, parse_known_args, set_defaults, add_argument_group,
+  add_mutually_exclusive_group, print_help, format_help, error, and
+  exit take data only (set_defaults stores values, it never calls
+  them).
+* dataclasses: dataclass decorates the scanned class under it -- no
+  foreign callable slot; field (default_factory SLOT); asdict
+  (dict_factory SLOT); astuple (tuple_factory SLOT); make_dataclass
+  (bases SLOT, namespace SLOT, and decorator SLOT -- the decorator
+  parameter is new in Python 3.14 and is called to build the class);
+  fields, is_dataclass, replace, MISSING: data.
+* json: load and loads (cls, object_hook, object_pairs_hook,
+  parse_constant, parse_float, parse_int SLOTS); dump and dumps
+  (cls, default SLOTS); JSONDecoder (the five hook SLOTS);
+  JSONEncoder (default SLOT); JSONDecodeError: data (an exception
+  type).
+* pathlib: Path (constructor: data). The Path instance methods the
+  src tree uses -- resolve, is_absolute, the / operator, and the
+  parts attribute -- are data. Across 3.10-3.14 the ONLY Path
+  instance method with a callable parameter is walk (on_error SLOT,
+  added in 3.12); every other instance method (open, read_text,
+  write_text, glob, rglob, iterdir, stat, lstat, mkdir, match,
+  relative_to, ...) takes data only, so pathlib.Path.walk carries
+  the one instance-method slot entry.
+* typing: Protocol (a base class: data) and cast (returns its second
+  argument unchanged: data). Nothing else -- see the typing note
+  above.
+* sys: platform, argv, exit, stdout, stderr, executable, and
+  version_info: data. Nothing else is allowed; the slot table keeps
+  entries for settrace, setprofile, addaudithook, set_asyncgen_hooks,
+  and call_tracing as a second layer even though the attribute
+  enumeration already rejects them.
+* os: fspath, getcwd, lstat, and read-only os.environ: data. Every
+  enumerated os.path helper (join, exists, isfile, dirname, ...) is
+  a pure path-text or single-metadata function: data.
+* importlib.metadata: version: data.
+* Accepted built-ins: sorted, min, and max (key SLOT); map and
+  filter (the function argument SLOT); the two-argument form of iter
+  (the callable argument SLOT); print (file SLOT -- print invokes
+  the write method of whatever object sits there); every other
+  accepted built-in takes data (numbers, text, iterables) and never
+  invokes an argument it is handed.
+
+Adding a name to any enumeration above is a policy decision reviewed
+against the threat model, not a routine code change.
 
 Exit status: 0 clean; 1 one or more violations, each printed as
 "file:line: explanation"; 2 the command line itself was wrong.
@@ -143,13 +214,106 @@ import sys
 
 _FIRST_PARTY_ROOT = "synthtwin"
 
-_UNRESTRICTED_MODULES = {"argparse", "dataclasses", "json", "pathlib", "typing"}
+# Every allowed module's usable attribute names, enumerated one by
+# one: membership in an allowed module proves nothing about what an
+# attribute can do, so there is no module-level trust anywhere. An
+# attribute outside its module's enumeration is a violation. The
+# module docstring carries the per-name audit (which of these accept
+# callables, and where their slots are). Adding a name is a policy
+# decision reviewed against the threat model, not a routine code
+# change. (os and importlib.metadata are enumerated separately in
+# _policy_for because their messages are more specific.)
+_ALLOWED_MODULE_ATTRS: "dict[str, frozenset[str]]" = {
+    "argparse": frozenset({"ArgumentParser"}),
+    "dataclasses": frozenset(
+        {
+            "MISSING",
+            "asdict",
+            "astuple",
+            "dataclass",
+            "field",
+            "fields",
+            "is_dataclass",
+            "make_dataclass",
+            "replace",
+        }
+    ),
+    "json": frozenset(
+        {
+            "JSONDecodeError",
+            "JSONDecoder",
+            "JSONEncoder",
+            "dump",
+            "dumps",
+            "load",
+            "loads",
+        }
+    ),
+    "os.path": frozenset(
+        {
+            "abspath",
+            "altsep",
+            "basename",
+            "commonpath",
+            "commonprefix",
+            "curdir",
+            "dirname",
+            "exists",
+            "expanduser",
+            "expandvars",
+            "getatime",
+            "getctime",
+            "getmtime",
+            "getsize",
+            "isabs",
+            "isdir",
+            "isfile",
+            "isjunction",
+            "islink",
+            "ismount",
+            "join",
+            "lexists",
+            "normcase",
+            "normpath",
+            "pardir",
+            "realpath",
+            "relpath",
+            "samefile",
+            "sep",
+            "split",
+            "splitdrive",
+            "splitext",
+            "splitroot",
+        }
+    ),
+    "pathlib": frozenset({"Path"}),
+    "sys": frozenset(
+        {
+            "argv",
+            "executable",
+            "exit",
+            "platform",
+            "stderr",
+            "stdout",
+            "version_info",
+        }
+    ),
+    "typing": frozenset({"Protocol", "cast"}),
+}
+
+# typing names that evaluate annotation text as code (a string
+# annotation is compiled and run to produce the object it names).
+# They are outside the enumeration above anyway; naming them here lets
+# the violation message say exactly why they are dangerous.
+_TYPING_EVALUATORS = frozenset(
+    {"ForwardRef", "evaluate_forward_ref", "get_type_hints"}
+)
 
 # Dotted paths that name a module object (as opposed to a function or
 # class). Bare references to these outside an import statement or a
 # direct dotted access are rejected. Per-file scanning extends this set
 # with intra-package module paths seen in import statements.
-_KNOWN_MODULE_PATHS = _UNRESTRICTED_MODULES | {
+_KNOWN_MODULE_PATHS = frozenset(_ALLOWED_MODULE_ATTRS) | {
     "sys",
     "os",
     "os.path",
@@ -192,29 +356,35 @@ _ENV_READ_METHODS = {"get", "keys", "items", "values", "copy"}
 # same set never discard it.
 _UNKNOWN = ("unknown", "")
 
-# The only method names that may be called on a value this audit cannot
-# trace (policy case (a) in the module docstring). This is exactly the
-# set of plain string data methods the current src tree calls on such
-# values; adding a name here is a policy decision reviewed against the
-# threat model, not a routine code change.
-_UNKNOWN_VALUE_METHODS = {"find", "format"}
+# The only method names that may be called on a value PROVEN to be a
+# plain string (policy case (a) in the module docstring): a literal
+# constant, or a parameter behind the exact isinstance type gate. With
+# the receiver proven, str.find and str.format are the exact call
+# targets. This is exactly the set of str data methods the current src
+# tree calls; adding a name here is a policy decision reviewed against
+# the threat model, not a routine code change.
+_STR_METHODS = {"find", "format"}
 
-# Origin kinds accepted as ARGUMENTS of a data-method call on an
-# untraced value (policy case (a)): a value built by an allowlisted
-# API, a value returned by a scanned def or class, or a name bound
-# only to literals. Everything else -- the unknown member above all --
-# is rejected, because the untraced receiver's method could call
-# whatever it is handed.
-_SAFE_DATA_ARGUMENT_KINDS = {"instance", "literal", "result"}
+# Origin kinds accepted as ARGUMENTS of an enumerated str-method call
+# (policy case (a)): a value built by an allowlisted API, a value
+# returned by a scanned def or class, a name bound only to literals,
+# or a gate-proven string. Everything else -- the unknown member above
+# all -- is rejected, because str.format invokes the formatting
+# protocol of what it is handed.
+_SAFE_DATA_ARGUMENT_KINDS = {"instance", "literal", "result", "str"}
 
 # Every allowed external API that can INVOKE one of its arguments,
 # mapped to its exact callable-accepting slots: a frozenset of keyword
-# names plus a dict of positional index -> slot name. The allowlisted
-# world is closed, so this enumeration is complete for the Phase 0
-# surface; adding an entry is a policy decision reviewed against the
-# threat model, not a routine code change. The "iter" entry applies
-# only to the two-argument form (handled at the call site); one-arg
-# iter takes plain data.
+# names plus a dict of positional index -> slot name (positions are
+# counted at the call site, so an instance method's self never
+# counts). The allowlisted world is closed and the module docstring
+# carries the complete per-name audit behind this table; adding an
+# entry is a policy decision reviewed against the threat model, not a
+# routine code change. The "iter" entry applies only to the
+# two-argument form (handled at the call site); one-arg iter takes
+# plain data. The sys entries (settrace, setprofile, addaudithook,
+# set_asyncgen_hooks, call_tracing) are a second layer: the sys
+# attribute enumeration already rejects every one of them.
 _CALLBACK_SLOTS: "dict[str, tuple[frozenset[str], dict[int, str]]]" = {
     "argparse.ArgumentParser": (
         frozenset({"formatter_class"}),
@@ -232,7 +402,10 @@ _CALLBACK_SLOTS: "dict[str, tuple[frozenset[str], dict[int, str]]]" = {
     "dataclasses.asdict": (frozenset({"dict_factory"}), {}),
     "dataclasses.astuple": (frozenset({"tuple_factory"}), {}),
     "dataclasses.field": (frozenset({"default_factory"}), {}),
-    "dataclasses.make_dataclass": (frozenset({"bases", "namespace"}), {}),
+    "dataclasses.make_dataclass": (
+        frozenset({"bases", "decorator", "namespace"}),
+        {},
+    ),
     "filter": (frozenset(), {0: "function"}),
     "iter": (frozenset(), {0: "function"}),
     "json.JSONDecoder": (
@@ -279,8 +452,11 @@ _CALLBACK_SLOTS: "dict[str, tuple[frozenset[str], dict[int, str]]]" = {
     "map": (frozenset(), {0: "function"}),
     "max": (frozenset({"key"}), {}),
     "min": (frozenset({"key"}), {}),
+    "pathlib.Path.walk": (frozenset({"on_error"}), {1: "on_error"}),
+    "print": (frozenset({"file"}), {}),
     "sorted": (frozenset({"key"}), {}),
     "sys.addaudithook": (frozenset(), {0: "hook"}),
+    "sys.call_tracing": (frozenset(), {0: "function"}),
     "sys.set_asyncgen_hooks": (
         frozenset({"finalizer", "firstiter"}),
         {0: "firstiter", 1: "finalizer"},
@@ -430,8 +606,10 @@ _ALLOWLIST_NOTE = (
     "The Phase 0 allowlist (plan D6.2) permits only: argparse, "
     "dataclasses, json, pathlib, typing, sys (never sys.modules or "
     "sys.path), os.path plus os.fspath, os.getcwd, os.lstat and "
-    "read-only os.environ, and importlib.metadata.version(). Adding "
-    "anything is a plan-level decision, not a code change."
+    "read-only os.environ, and importlib.metadata.version() -- and "
+    "within each module only the attribute names enumerated in this "
+    "scanner. Adding anything is a plan-level decision, not a code "
+    "change."
 )
 
 
@@ -595,26 +773,69 @@ def _unknown_call_message(name: str) -> str:
 def _unknown_method_message(method: str) -> str:
     return (
         "calls the method '" + method + "' on a value this audit "
-        "cannot trace to any allowlisted API. On an untraced value "
-        "only the fixed data-method list ("
-        + ", ".join(sorted(_UNKNOWN_VALUE_METHODS))
-        + ") is accepted, because any other method could be a "
-        "capability this audit never cleared. Build the value from an "
-        "allowlisted API, or call the operation you need by its "
-        "written-out allowlisted name."
+        "cannot trace to any allowlisted API and cannot prove to be a "
+        "plain string. A caller-supplied object may define a method "
+        "of any name to do anything, so no method call on an untraced "
+        "value is accepted. Build the value from an allowlisted API, "
+        "or prove the value is a plain string first with the exact "
+        "type gate 'if not isinstance(name, str): raise ...' at the "
+        "top of the function."
+    )
+
+
+def _str_method_message(method: str) -> str:
+    return (
+        "calls the method '" + method + "' on a value proven to be a "
+        "plain built-in constant. Only the enumerated string data "
+        "methods (" + ", ".join(sorted(_STR_METHODS)) + ") are "
+        "accepted there; any other name is not a call target this "
+        "audit has cleared."
     )
 
 
 def _unknown_method_argument_message(method: str) -> str:
     return (
         "passes a value this audit cannot fully resolve to the '"
-        + method + "' method of a value it cannot trace. An untraced "
-        "object's method can do anything with what it receives, "
-        "including calling it, so on such a value the enumerated data "
-        "methods accept only plain literals or values built under this "
-        "audit's eyes (an allowlisted API's result, a scanned "
-        "function's result). Pass a literal, or build the value from "
-        "an allowlisted API first."
+        + method + "' method of a proven string. str.format invokes "
+        "the formatting protocol of what it is handed, so even on a "
+        "proven string the enumerated data methods accept only plain "
+        "literals or values built under this audit's eyes (an "
+        "allowlisted API's result, a scanned function's result). Pass "
+        "a literal, or build the value from an allowlisted API first."
+    )
+
+
+def _builtin_shadow_message(name: str) -> str:
+    return (
+        "binds the name '" + name + "', which this audit accepts as a "
+        "built-in call target. After a rebinding, code that looks "
+        "like a checked built-in call -- or like the isinstance type "
+        "gate that proves a parameter is a plain string -- could run "
+        "something else entirely. Leave built-in names bound to "
+        "Python's own built-ins and pick a different name."
+    )
+
+
+def _module_surface_message(dotted: str, prefix: str) -> str:
+    return (
+        "uses '" + dotted + "'. From " + prefix + " only the "
+        "enumerated names ("
+        + ", ".join(sorted(_ALLOWED_MODULE_ATTRS[prefix]))
+        + ") are allowed: membership in an allowed module proves "
+        "nothing about what an attribute can do, so every usable "
+        "attribute is enumerated one by one. Adding a name is a "
+        "policy decision reviewed against the threat model, not a "
+        "routine code change."
+    )
+
+
+def _typing_evaluator_message(dotted: str) -> str:
+    return (
+        "uses '" + dotted + "', which turns annotation text into "
+        "running code: a string annotation is compiled and evaluated "
+        "to produce the object it names, so any expression written "
+        "there runs. That is dynamic code execution and defeats this "
+        "offline audit; it is never allowed in synthtwin source."
     )
 
 
@@ -1025,6 +1246,13 @@ class _Checker(ast.NodeVisitor):
                 "chosen while the program runs."
             )
 
+        if prefix in _ALLOWED_MODULE_ATTRS:
+            if prefix == "typing" and rest[0] in _TYPING_EVALUATORS:
+                return _typing_evaluator_message(dotted)
+            if rest[0] in _ALLOWED_MODULE_ATTRS[prefix]:
+                return None
+            return _module_surface_message(dotted, prefix)
+
         return None
 
     # -- shared identifier checks ------------------------------------
@@ -1074,6 +1302,8 @@ class _Checker(ast.NodeVisitor):
             bound_name = alias.asname or top
             origin = name if alias.asname else top
 
+            if report and bound_name in _ALLOWED_CALL_BUILTINS:
+                self._flag(node, _builtin_shadow_message(bound_name))
             if top == _FIRST_PARTY_ROOT:
                 self._register_module_path(name)
                 self._bind(bound_name, ("module", origin))
@@ -1083,9 +1313,6 @@ class _Checker(ast.NodeVisitor):
                 self._bind(bound_name, ("module", name))
                 continue
             if name in {"os.path", "importlib.metadata"}:
-                self._bind(bound_name, ("module", origin))
-                continue
-            if top in _UNRESTRICTED_MODULES:
                 self._bind(bound_name, ("module", origin))
                 continue
 
@@ -1150,6 +1377,10 @@ class _Checker(ast.NodeVisitor):
                 if report:
                     self._flag_star(node, module)
                 continue
+            if report and (alias.asname or alias.name) in _ALLOWED_CALL_BUILTINS:
+                self._flag(
+                    node, _builtin_shadow_message(alias.asname or alias.name)
+                )
             dotted = module + "." + alias.name
             problem = _attr_component_message(alias.name, dotted)
             if problem is not None:
@@ -1177,6 +1408,8 @@ class _Checker(ast.NodeVisitor):
         bound_name = alias.asname or alias.name
         dotted = module + "." + alias.name
 
+        if report and bound_name in _ALLOWED_CALL_BUILTINS:
+            self._flag(node, _builtin_shadow_message(bound_name))
         if dotted in self.first_party_modules:
             self._register_module_path(dotted)
             self._bind(bound_name, ("module", dotted))
@@ -1226,11 +1459,18 @@ class _Checker(ast.NodeVisitor):
             if bound:
                 seen: set[str] = set()
                 for kind, origin in sorted(bound):
-                    if kind in ("def", "instance", "literal", "result", "unknown"):
+                    if kind in (
+                        "def",
+                        "instance",
+                        "literal",
+                        "result",
+                        "str",
+                        "unknown",
+                    ):
                         # Reading a scanned definition, an api-instance,
-                        # a literal, a scanned call's result, or an
-                        # untraced value is fine; only CALLS through
-                        # them are restricted.
+                        # a literal, a scanned call's result, a proven
+                        # string, or an untraced value is fine; only
+                        # CALLS through them are restricted.
                         continue
                     if kind == "module" and not origin.startswith(
                         _FIRST_PARTY_ROOT
@@ -1242,6 +1482,8 @@ class _Checker(ast.NodeVisitor):
                         seen.add(message)
                         self._flag(node, message)
         elif isinstance(node.ctx, (ast.Store, ast.Del)):
+            if node.id in _ALLOWED_CALL_BUILTINS:
+                self._flag(node, _builtin_shadow_message(node.id))
             # Record that the name is bound to something untraced here.
             # Every origin the name already had is kept: a store on one
             # path never proves the old value is gone on another path,
@@ -1329,25 +1571,33 @@ class _Checker(ast.NodeVisitor):
 
     def _check_method_call(self, node: ast.Call) -> None:
         """Apply the two-case method-call policy from the module
-        docstring: api-instances accept any method; untraced values
-        accept only the fixed data-method list, and then only with
-        literal or fully resolved known-safe arguments; module/
-        api-rooted chains are checked by the dotted-path policy in
-        visit_Attribute."""
+        docstring: api-instances accept any method (with the
+        callable-accepting ones enumerated as slots); values proven to
+        be plain built-in constants -- a literal, or a parameter
+        behind the exact isinstance type gate -- accept only the
+        enumerated str data methods, and then only with literal or
+        fully resolved known-safe arguments. EVERY other receiver is
+        rejected: there are no method calls on untraced values.
+        Module and api-rooted chains are checked by the dotted-path
+        policy in visit_Attribute."""
         func = node.func
         if not isinstance(func, ast.Attribute):
             return
         method = func.attr
         receiver = self._value_origins(func.value)
-        if all(kind in ("module", "api", "instance") for kind, _origin in receiver):
+        kinds = {kind for kind, _origin in receiver}
+        if kinds <= {"module", "api", "instance"}:
             return
-        if method not in _UNKNOWN_VALUE_METHODS:
+        if not kinds <= {"module", "api", "instance", "literal", "str"}:
             self._flag(node, _unknown_method_message(method))
             return
-        # An enumerated data method on an untraced value: every
+        if method not in _STR_METHODS:
+            self._flag(node, _str_method_message(method))
+            return
+        # An enumerated str data method on a proven string: every
         # argument must be a plain literal or a value this audit fully
-        # resolved as safe -- no unknowns, no callables. The untraced
-        # receiver's method could call whatever it is handed.
+        # resolved as safe -- no unknowns, no callables. str.format
+        # invokes the formatting protocol of what it is handed.
         values = list(node.args) + [keyword.value for keyword in node.keywords]
         for value in values:
             inner = value.value if isinstance(value, ast.Starred) else value
@@ -1536,6 +1786,8 @@ class _Checker(ast.NodeVisitor):
         for target in node.targets:
             if isinstance(target, ast.Name):
                 self._check_name(target, target.id)
+                if target.id in _ALLOWED_CALL_BUILTINS:
+                    self._flag(target, _builtin_shadow_message(target.id))
                 self._bind_from_value(target.id, node.value)
             else:
                 self.visit(target)
@@ -1546,6 +1798,8 @@ class _Checker(ast.NodeVisitor):
             self.visit(node.value)
         if isinstance(node.target, ast.Name):
             self._check_name(node.target, node.target.id)
+            if node.target.id in _ALLOWED_CALL_BUILTINS:
+                self._flag(node.target, _builtin_shadow_message(node.target.id))
             if node.value is not None:
                 self._bind_from_value(node.target.id, node.value)
             else:
@@ -1571,6 +1825,8 @@ class _Checker(ast.NodeVisitor):
 
     def _handle_function(self, node: "ast.FunctionDef | ast.AsyncFunctionDef") -> None:
         self._check_name(node, node.name)
+        if node.name in _ALLOWED_CALL_BUILTINS:
+            self._flag(node, _builtin_shadow_message(node.name))
         for decorator in node.decorator_list:
             self.visit(decorator)
         args = node.args
@@ -1584,6 +1840,8 @@ class _Checker(ast.NodeVisitor):
         if args.kwarg is not None:
             all_args.append(args.kwarg)
         for arg in all_args:
+            if arg.arg in _ALLOWED_CALL_BUILTINS:
+                self._flag(arg, _builtin_shadow_message(arg.arg))
             if arg.annotation is not None:
                 self.visit(arg.annotation)
         if node.returns is not None:
@@ -1593,9 +1851,80 @@ class _Checker(ast.NodeVisitor):
         # member, never discarded when other origins join.
         self.scopes.append({arg.arg: {_UNKNOWN} for arg in all_args})
         self._collect_scope_bindings(node.body)
+        self._upgrade_gated_parameters(node.body)
         for statement in node.body:
             self.visit(statement)
         self.scopes.pop()
+
+    def _upgrade_gated_parameters(self, body: "list[ast.stmt]") -> None:
+        """Upgrade parameters proven str by leading type-gate checks.
+
+        Recognizes the exact shape 'if not isinstance(name, str):
+        raise ...' (no else branch), or the equivalent positive branch
+        'if isinstance(name, str): ... else: raise ...', appearing
+        before any other statement (the docstring and further gate
+        statements may precede it). The raise makes everything after
+        the gate unreachable unless the parameter really is a plain
+        str, so replacing the parameter's pristine unknown origin with
+        the known-str origin is sound -- and it is the ONE sanctioned
+        narrowing in this otherwise accumulate-only origin lattice.
+        The upgrade never applies when the gate could mean something
+        else: a binding of 'isinstance' or 'str' in any scope blocks
+        it (and such a binding is a violation in its own right), and a
+        parameter already carrying other origins is left alone.
+        """
+        index = 0
+        if body:
+            head = body[0]
+            if isinstance(head, ast.Expr) and isinstance(head.value, ast.Constant):
+                index = 1
+        while index < len(body):
+            name = self._gated_parameter(body[index])
+            if name is None:
+                return
+            slot = self.scopes[-1].get(name)
+            if slot == {_UNKNOWN}:
+                self.scopes[-1][name] = {("str", "")}
+            index += 1
+
+    def _gated_parameter(self, stmt: ast.stmt) -> "str | None":
+        """The parameter name a statement proves to be str, or None.
+
+        Matches exactly 'if not isinstance(name, str): raise ...'
+        (with no else branch), or 'if isinstance(name, str): ...
+        else: raise ...'.
+        """
+        if not isinstance(stmt, ast.If):
+            return None
+        test = stmt.test
+        if isinstance(test, ast.UnaryOp) and isinstance(test.op, ast.Not):
+            if stmt.orelse:
+                return None
+            if len(stmt.body) != 1 or not isinstance(stmt.body[0], ast.Raise):
+                return None
+            return self._isinstance_str_target(test.operand)
+        if len(stmt.orelse) == 1 and isinstance(stmt.orelse[0], ast.Raise):
+            return self._isinstance_str_target(test)
+        return None
+
+    def _isinstance_str_target(self, test: ast.AST) -> "str | None":
+        """The name checked by a genuine 'isinstance(name, str)' call,
+        or None. The call must reach the real built-ins: a binding of
+        'isinstance' or 'str' in any scope blocks recognition (Python
+        would not run the built-in there either)."""
+        if not isinstance(test, ast.Call) or test.keywords or len(test.args) != 2:
+            return None
+        func = test.func
+        if not isinstance(func, ast.Name) or func.id != "isinstance":
+            return None
+        if self._lookup("isinstance") is not None or self._lookup("str") is not None:
+            return None
+        target, type_name = test.args
+        if not isinstance(target, ast.Name):
+            return None
+        if not isinstance(type_name, ast.Name) or type_name.id != "str":
+            return None
+        return target.id
 
     def visit_Lambda(self, node: ast.Lambda) -> None:
         args = node.args
@@ -1608,12 +1937,22 @@ class _Checker(ast.NodeVisitor):
             all_args.append(args.vararg)
         if args.kwarg is not None:
             all_args.append(args.kwarg)
+        for arg in all_args:
+            if arg.arg in _ALLOWED_CALL_BUILTINS:
+                self._flag(arg, _builtin_shadow_message(arg.arg))
         self.scopes.append({arg.arg: {_UNKNOWN} for arg in all_args})
         self.visit(node.body)
         self.scopes.pop()
 
+    def visit_ExceptHandler(self, node: ast.ExceptHandler) -> None:
+        if node.name is not None and node.name in _ALLOWED_CALL_BUILTINS:
+            self._flag(node, _builtin_shadow_message(node.name))
+        self.generic_visit(node)
+
     def visit_ClassDef(self, node: ast.ClassDef) -> None:
         self._check_name(node, node.name)
+        if node.name in _ALLOWED_CALL_BUILTINS:
+            self._flag(node, _builtin_shadow_message(node.name))
         for decorator in node.decorator_list:
             self.visit(decorator)
         for base in node.bases:

@@ -58,7 +58,7 @@ if __name__ == "__main__":
 
 
 # A generator that tries to open a real network connection before
-# writing its output. Used to prove the no-network guard runner stops
+# writing its output. Used to prove the best-effort guard runner stops
 # fixture rebuild runs that touch the socket API.
 SOCKET_GENERATOR_SOURCE = """\
 import argparse
@@ -189,7 +189,7 @@ with open(args.out, "w", encoding="utf-8", newline="") as handle:
 # real-derived artifact forms (JSON Lines, Arrow family, columnar and
 # array stores, statistical packages and transport files, databases,
 # spreadsheets, XML exports, and SQL dumps). YAML is tested separately
-# because it carries a .github/ exemption.
+# because it carries an explicit reviewed-path exemption.
 EXTENDED_DATA_SUFFIXES = [
     ".jsonl",
     ".ndjson",
@@ -469,21 +469,30 @@ def test_every_extended_data_suffix_fails(tmp_path: Path) -> None:
 
 # ---------------------------------------------------------------------------
 # R2-B7: YAML, XML, SQL-dump, DuckDB, DBF, and transport routes are
-# closed. YAML is exempt only as a workflow file directly inside
-# .github/workflows/ (single directory level) or via the manifest.
+# closed. YAML is exempt only when its exact path is on the checker's
+# reviewed configuration list (KNOWN_CONFIG_YAML) or via the manifest.
 # ---------------------------------------------------------------------------
 
 
-def test_is_workflow_configuration_single_level_only() -> None:
-    """The exemption covers exactly .github/workflows/*.yml and *.yaml."""
-    accepted = [
-        ".github/workflows/ci.yml",
-        ".github/workflows/release.yaml",
-    ]
-    for value in accepted:
-        assert _CHECKER_MODULE.is_workflow_configuration(value), value
+def test_reviewed_yaml_exemption_is_an_explicit_file_list() -> None:
+    """The exemption names exact reviewed paths, never a directory shape.
+
+    Round-4 review item R2-B7: the earlier predicate exempted every
+    single-level YAML filename under .github/workflows/, so an
+    unreviewed new file in that directory was silently accepted. The
+    list must contain exactly the reviewed configuration paths that
+    exist at head, and the predicate must accept nothing else.
+    """
+    assert _CHECKER_MODULE.KNOWN_CONFIG_YAML == {".github/workflows/ci.yml"}
+    assert _CHECKER_MODULE.is_reviewed_yaml_configuration(
+        ".github/workflows/ci.yml"
+    )
 
     rejected = [
+        # A NEW file in the workflow directory gains no exemption until
+        # a maintainer adds its exact path in a reviewed change.
+        ".github/workflows/added-later.yaml",
+        ".github/workflows/release.yaml",
         ".github/nonworkflow.yaml",
         ".github/workflows.yaml",
         ".github/workflows/nested/deep.yml",
@@ -491,11 +500,11 @@ def test_is_workflow_configuration_single_level_only() -> None:
         "workflows/ci.yml",
         "other/.github/workflows/ci.yml",
         "schema.yaml",
-        # Right place, wrong format: not a YAML file at all.
+        # Not YAML at all, and not on the list either.
         ".github/workflows/notes.txt",
     ]
     for value in rejected:
-        assert not _CHECKER_MODULE.is_workflow_configuration(value), value
+        assert not _CHECKER_MODULE.is_reviewed_yaml_configuration(value), value
 
 
 def test_stray_yaml_outside_github_fails(tmp_path: Path) -> None:
@@ -516,7 +525,7 @@ def test_stray_yaml_outside_github_fails(tmp_path: Path) -> None:
     )
     assert "schema.yaml" in result.stderr
     assert "profile.yml" in result.stderr
-    assert "not a GitHub Actions workflow file" in result.stderr
+    assert "reviewed configuration files" in result.stderr
 
 
 def test_yaml_elsewhere_under_github_fails(tmp_path: Path) -> None:
@@ -547,11 +556,42 @@ def test_yaml_elsewhere_under_github_fails(tmp_path: Path) -> None:
     )
     assert ".github/nonworkflow.yaml" in result.stderr
     assert ".github/workflows/nested/deep.yml" in result.stderr
-    assert "not a GitHub Actions workflow file" in result.stderr
+    assert "reviewed configuration files" in result.stderr
 
 
-def test_yaml_under_github_passes(tmp_path: Path) -> None:
-    """A workflow file directly inside .github/workflows/ is accepted."""
+def test_new_yaml_in_workflow_directory_fails(tmp_path: Path) -> None:
+    """Mutation: an unreviewed new YAML file inside .github/workflows/.
+
+    Round-4 review item R2-B7: the directory-shaped exemption accepted
+    ANY single-level YAML filename under .github/workflows/, so an
+    unmanifested table stored there passed unreviewed. Only the exact
+    listed path stays exempt; the new file beside it must be red until
+    a maintainer adds its path to KNOWN_CONFIG_YAML.
+    """
+    write_manifest(tmp_path, [])
+    workflows = tmp_path / ".github" / "workflows"
+    workflows.mkdir(parents=True)
+    (workflows / "ci.yml").write_text(
+        "name: neutral workflow stand-in\n", encoding="utf-8"
+    )
+    (workflows / "added-later.yaml").write_text(
+        "rows:\n  - [3, 9, 27]\n  - [4, 16, 64]\n", encoding="utf-8"
+    )
+
+    result = run_checker(tmp_path)
+    assert result.returncode == 1, (
+        "expected exit code 1, got " + str(result.returncode) + ":\n"
+        + result.stdout
+        + result.stderr
+    )
+    assert "allowlist: .github/workflows/added-later.yaml." in result.stderr
+    assert "reviewed configuration files" in result.stderr
+    # The listed reviewed path itself is never reported as a violation.
+    assert "allowlist: .github/workflows/ci.yml." not in result.stderr
+
+
+def test_reviewed_yaml_configuration_path_passes(tmp_path: Path) -> None:
+    """The exact listed reviewed path .github/workflows/ci.yml is accepted."""
     write_manifest(tmp_path, [])
     workflows = tmp_path / ".github" / "workflows"
     workflows.mkdir(parents=True)
@@ -600,7 +640,7 @@ def test_stray_duckdb_fails(tmp_path: Path) -> None:
 
 # ---------------------------------------------------------------------------
 # F18: manifest entries are confined to reviewed repository code and
-# generators run behind the no-network guard runner.
+# generators run behind the best-effort guard runner.
 # ---------------------------------------------------------------------------
 
 

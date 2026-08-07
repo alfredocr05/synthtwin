@@ -19,10 +19,11 @@ What this checker does:
    allowlist. A tracked .json file is allowed only when it is one of
    the checker's known configuration files (KNOWN_CONFIG_JSON) or
    listed in the fixture manifest. A tracked .yaml/.yml file is allowed
-   only when it is a GitHub Actions workflow file directly inside
-   .github/workflows/ (a single directory level; see
-   is_workflow_configuration) or when listed in the fixture manifest;
-   every other .json or YAML file is a violation.
+   only when its exact path is on the checker's reviewed configuration
+   list (KNOWN_CONFIG_YAML; see is_reviewed_yaml_configuration) or
+   when listed in the fixture manifest; every other .json or YAML
+   file -- including a new file placed inside .github/workflows/ -- is
+   a violation until a maintainer lists it in a reviewed change.
 3. For every fixture listed in the manifest -- whatever its extension --
    it re-runs the named generator script with the recorded seed and
    byte-compares the freshly produced output to the committed file. Any
@@ -123,12 +124,13 @@ DATA_SUFFIXES = {
     ".por",
 }
 
-# YAML is a structured, data-capable format, but this repository's CI
-# workflow configuration legitimately lives directly inside
-# .github/workflows/. A tracked .yaml/.yml file is therefore allowed
-# only at that exact directory level (is_workflow_configuration) or
-# with a fixture-manifest entry; anywhere else -- including elsewhere
-# under .github/ -- it is treated as a data file.
+# YAML is a structured, data-capable format. The only YAML files this
+# repository may carry without a fixture-manifest entry are the exact
+# reviewed configuration paths listed in KNOWN_CONFIG_YAML below.
+# There is no directory-shaped exemption: a new YAML file anywhere --
+# including one placed directly inside .github/workflows/ -- is
+# treated as a data file until a maintainer adds its exact path to
+# KNOWN_CONFIG_YAML in a reviewed change (review item R2-B7).
 YAML_SUFFIXES = {
     ".yaml",
     ".yml",
@@ -140,6 +142,15 @@ YAML_SUFFIXES = {
 KNOWN_CONFIG_JSON = {
     "tools/provenance/fixture-manifest.json",
     "tools/decontamination/attestation.json",
+}
+
+# Tracked YAML paths that are reviewed configuration files of this
+# repository, named file by file. Every entry is one reviewed file
+# that exists at the current head; growing this list is itself a
+# reviewed change. A tracked YAML file at any other path needs a
+# fixture-manifest entry or must not be committed.
+KNOWN_CONFIG_YAML = {
+    ".github/workflows/ci.yml",
 }
 
 ARCHIVE_SUFFIXES = {
@@ -173,9 +184,9 @@ def is_data_format(relative_path: str) -> bool:
 
     ``.json`` and YAML count as data formats here; ``check_tree``
     exempts only the known configuration files listed in
-    KNOWN_CONFIG_JSON, workflow files directly inside
-    .github/workflows/ (is_workflow_configuration), and paths listed
-    in the fixture manifest.
+    KNOWN_CONFIG_JSON, the reviewed YAML configuration paths listed
+    in KNOWN_CONFIG_YAML (is_reviewed_yaml_configuration), and paths
+    listed in the fixture manifest.
     """
     suffix = file_suffix(relative_path)
     if not suffix:
@@ -190,22 +201,18 @@ def is_data_format(relative_path: str) -> bool:
     return suffix.startswith(".sqlite")
 
 
-def is_workflow_configuration(relative_path: str) -> bool:
-    """Return True only for ``.github/workflows/<name>.yml`` or ``.yaml``.
+def is_reviewed_yaml_configuration(relative_path: str) -> bool:
+    """Return True only for a path listed in KNOWN_CONFIG_YAML.
 
-    GitHub Actions reads workflow files from exactly one place: YAML
-    files directly inside .github/workflows/, one directory level
-    deep. A YAML file anywhere else -- elsewhere under .github/, in a
-    subdirectory of workflows/, or outside .github/ entirely -- is not
-    workflow configuration and gets no exemption (review item R2-B7).
+    The YAML exemption is an explicit file list of reviewed
+    configuration paths, never a directory rule (review item R2-B7).
+    A YAML file at any other path -- elsewhere in the repository,
+    elsewhere under .github/, nested below the workflow directory, or
+    a NEW file placed directly inside .github/workflows/ -- gets no
+    exemption until a maintainer adds its exact path to
+    KNOWN_CONFIG_YAML in a reviewed change.
     """
-    parts = relative_path.split("/")
-    return (
-        len(parts) == 3
-        and parts[0] == ".github"
-        and parts[1] == "workflows"
-        and file_suffix(relative_path) in YAML_SUFFIXES
-    )
+    return relative_path in KNOWN_CONFIG_YAML
 
 
 def git_tracked_files(root: Path) -> set[str] | None:
@@ -422,7 +429,7 @@ def rebuild_fixture(root: Path, entry: dict) -> tuple[bytes | None, str | None]:
     """Run the entry's generator with its seed; return (bytes, error).
 
     The generator is never run directly: it is started through the
-    no-network guard runner (tools/provenance/guard_runner.py), which
+    best-effort guard runner (tools/provenance/guard_runner.py), which
     installs a Python audit hook before the generator code runs. The
     hook blocks imports of network/process/native-capability modules
     (socket, ctypes, subprocess, and their low-level relatives) and
@@ -443,7 +450,7 @@ def rebuild_fixture(root: Path, entry: dict) -> tuple[bytes | None, str | None]:
     guard_runner = Path(__file__).resolve().parent / "guard_runner.py"
     if not guard_runner.is_file():
         return None, (
-            "The no-network guard runner that must wrap every generator "
+            "The best-effort guard runner that must wrap every generator "
             "run is missing: " + str(guard_runner) + ". Restore it from "
             "version control."
         )
@@ -514,7 +521,7 @@ def check_tree(root: Path, manifest_path: Path) -> tuple[list[str], list[str]]:
     # Check 1: no data-format file outside the allowlist. A .json file
     # is additionally exempt when it is one of the checker's known
     # configuration files, and a YAML file is additionally exempt only
-    # when it is a workflow file directly inside .github/workflows/.
+    # when its exact path is on the reviewed configuration list.
     for relative in list_repository_files(root):
         if not is_data_format(relative):
             continue
@@ -522,19 +529,22 @@ def check_tree(root: Path, manifest_path: Path) -> tuple[list[str], list[str]]:
             continue
         suffix = file_suffix(relative)
         if suffix in YAML_SUFFIXES:
-            if is_workflow_configuration(relative):
+            if is_reviewed_yaml_configuration(relative):
                 continue
             violations.append(
-                "Found a tracked YAML file that is not a GitHub Actions "
-                "workflow file and is not on the fixture allowlist: "
-                + relative + ". Only YAML files directly inside "
-                ".github/workflows/ (for example .github/workflows/ci.yml) "
-                "are workflow configuration; every other YAML file can "
-                "carry real-derived tables, schemas, or profiles, so it is "
-                "treated as a data file. Move workflow configuration into "
-                ".github/workflows/. If this file is a legitimate, tiny "
-                "test fixture built by a seeded script, add an entry for "
-                "it to " + manifest_path.name
+                "Found a tracked YAML file that is not one of this "
+                "repository's reviewed configuration files and is not on "
+                "the fixture allowlist: " + relative + ". The only exempt "
+                "YAML paths are named file by file in KNOWN_CONFIG_YAML "
+                "inside the checker (currently: "
+                + ", ".join(sorted(KNOWN_CONFIG_YAML)) + "); every other "
+                "YAML file -- including a new file placed inside "
+                ".github/workflows/ -- can carry real-derived tables, "
+                "schemas, or profiles, so it is treated as a data file. A "
+                "new configuration file must be added to that list in a "
+                "reviewed change. If this file is a legitimate, tiny test "
+                "fixture built by a seeded script, add an entry for it to "
+                + manifest_path.name
                 + " (path, generator, seed, sha256, justification). "
                 "Otherwise delete the file before committing."
             )

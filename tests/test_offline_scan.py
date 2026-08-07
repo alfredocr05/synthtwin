@@ -524,10 +524,10 @@ def test_first_party_from_import_of_defined_name_stays_clean(tmp_path):
 # -- unresolved call targets (round-2 blocker 2) ---------------------
 
 
-def test_parameter_method_outside_data_list_goes_red(tmp_path):
-    """A method call on a caller-supplied value must be rejected when
-    the method name is outside the enumerated data-method list;
-    'resolve' is deliberately not on that list."""
+def test_untraced_receiver_method_call_goes_red(tmp_path):
+    """A method call on a caller-supplied value must be rejected: the
+    receiver is untraced, so the source text cannot say whose 'resolve'
+    would run. There are no method calls on untraced values."""
     violations = _scan_code(
         tmp_path,
         '''
@@ -610,14 +610,25 @@ def test_argparse_instance_method_calls_stay_clean(tmp_path):
     assert violations == [], "\n".join(violations)
 
 
-def test_string_data_method_on_parameter_stays_clean(tmp_path):
-    """A data method from the enumerated list, called on a
-    caller-supplied string, produces zero violations."""
+def test_gated_string_method_on_parameter_stays_clean(tmp_path):
+    """After the exact type gate proves a parameter is a plain string,
+    an enumerated string data method with a literal argument is an
+    exact call target (str.find) and produces zero violations. Both
+    the negative gate shape and the positive-branch shape count."""
     violations = _scan_code(
         tmp_path,
         '''
         def marker_position(text):
+            if not isinstance(text, str):
+                raise ValueError("the text must be a plain string")
             return text.find("://")
+
+
+        def marker_position_positive(text):
+            if isinstance(text, str):
+                return text.find("://")
+            else:
+                raise ValueError("the text must be a plain string")
         ''',
     )
     assert violations == [], "\n".join(violations)
@@ -737,13 +748,15 @@ def test_data_arguments_in_non_callback_slots_stay_clean(tmp_path):
 
 
 def test_unknown_argument_to_data_method_goes_red(tmp_path):
-    """An accepted data method on an untraced value must reject an
-    unknown argument: the receiver's method could do anything with
-    what it receives, including calling it."""
+    """The type gate proves the receiver, never the arguments: an
+    unknown value handed to str.find on a gated parameter must still
+    be rejected (an argument's own protocol hooks could run)."""
     violations = _scan_code(
         tmp_path,
         '''
         def sneak(text, needle):
+            if not isinstance(text, str):
+                raise ValueError("the text must be a plain string")
             return text.find(needle)
         ''',
     )
@@ -751,12 +764,15 @@ def test_unknown_argument_to_data_method_goes_red(tmp_path):
 
 
 def test_unknown_callback_argument_to_data_method_goes_red(tmp_path):
-    """The same rule for format: an unknown parameter handed to the
-    format method of an untraced value must be rejected."""
+    """The same rule for format: str.format invokes the formatting
+    protocol of what it is handed, so an unknown parameter passed to
+    a gated string's format method must be rejected."""
     violations = _scan_code(
         tmp_path,
         '''
         def sneak(text, cb):
+            if not isinstance(text, str):
+                raise ValueError("the text must be a plain string")
             return text.format(cb)
         ''',
     )
@@ -764,10 +780,10 @@ def test_unknown_callback_argument_to_data_method_goes_red(tmp_path):
 
 
 def test_literal_and_scanned_result_data_method_arguments_stay_clean(tmp_path):
-    """Data-method arguments that this audit fully resolves stay
-    accepted: a name bound only to a literal, and the result of a
-    call to a function defined in the scanned tree (the shape the
-    shipped cli module uses)."""
+    """Str-method arguments that this audit fully resolves stay
+    accepted on a proven-string receiver: a name bound only to a
+    literal, and the result of a call to a function defined in the
+    scanned tree (the shape the shipped cli module uses)."""
     violations = _scan_code(
         tmp_path,
         '''
@@ -783,3 +799,152 @@ def test_literal_and_scanned_result_data_method_arguments_stay_clean(tmp_path):
         ''',
     )
     assert violations == [], "\n".join(violations)
+
+
+# -- exact call targets and enumerated module surfaces (round 4) -----
+
+
+def test_ungated_parameter_string_method_goes_red(tmp_path):
+    """A string data method on a parameter WITHOUT the type gate must
+    be rejected. Round 4 demonstrated the route at run time: with a
+    caller-supplied object in place of the string, value.find("marker")
+    dispatched the object's own find method, so without the isinstance
+    proof there is no exact call target."""
+    violations = _scan_code(
+        tmp_path,
+        '''
+        def sneak(p):
+            return p.find("marker")
+        ''',
+    )
+    _assert_red(violations, "'find'")
+
+
+def test_custom_object_method_dispatch_goes_red(tmp_path):
+    """The dispatch route made concrete: an object of a scanned class
+    that defines its own find method. The receiver is the result of a
+    scanned constructor -- an untraced value -- so the method call
+    must be rejected; at run time it would execute Probe.find, not
+    str.find."""
+    violations = _scan_code(
+        tmp_path,
+        '''
+        class Probe:
+            def find(self, needle):
+                return len(needle)
+
+
+        def run():
+            probe = Probe()
+            return probe.find("marker")
+        ''',
+    )
+    _assert_red(violations, "'find'")
+
+
+def test_shadowed_builtin_name_goes_red(tmp_path):
+    """Rebinding a name this audit accepts as a built-in call target
+    must be rejected: with str rebound, the isinstance type gate would
+    prove nothing. The binding itself is the violation, and the gate
+    below it must not upgrade the parameter either."""
+    violations = _scan_code(
+        tmp_path,
+        '''
+        class Fake:
+            pass
+
+
+        str = Fake
+
+
+        def sneak(text):
+            if not isinstance(text, str):
+                raise ValueError("nope")
+            return text.find("marker")
+        ''',
+    )
+    _assert_red(violations, "'str'")
+    # The gate depended on the rebound name, so the method call must
+    # stay red too, not just the rebinding line.
+    find_hits = [v for v in violations if "'find'" in v]
+    assert find_hits, "\n".join(violations)
+
+
+def test_sys_call_tracing_goes_red(tmp_path):
+    """sys.call_tracing invokes the function it is handed. sys is
+    attribute-enumerated (platform, argv, exit, stdout, stderr,
+    executable, version_info and nothing else), so this callback route
+    missed in round 4 must be red."""
+    violations = _scan_code(
+        tmp_path,
+        '''
+        import sys
+
+
+        def sneak(cb):
+            return sys.call_tracing(cb, ())
+        ''',
+    )
+    _assert_red(violations, "call_tracing")
+
+
+def test_path_walk_on_error_callback_goes_red(tmp_path):
+    """Path.walk hands its on_error argument to the library, which
+    calls it on every failed directory read. walk is the one
+    pathlib.Path instance method with a callable parameter, and its
+    slot must reject an untraced value."""
+    violations = _scan_code(
+        tmp_path,
+        '''
+        import pathlib
+
+
+        def sneak(raw, cb):
+            base = pathlib.Path(raw)
+            return list(base.walk(on_error=cb))
+        ''',
+    )
+    _assert_red(violations, "callback slot 'on_error'")
+
+
+def test_make_dataclass_decorator_callback_goes_red(tmp_path):
+    """Python 3.14 adds a decorator parameter to make_dataclass and
+    calls it to build the class. The slot must reject an untraced
+    value no matter which interpreter runs the scan."""
+    violations = _scan_code(
+        tmp_path,
+        '''
+        import dataclasses
+
+
+        def sneak(cb):
+            return dataclasses.make_dataclass("C", [("n", int)], decorator=cb)
+        ''',
+    )
+    _assert_red(violations, "callback slot 'decorator'")
+
+
+def test_typing_get_type_hints_goes_red(tmp_path):
+    """R4-B2: typing.get_type_hints evaluates string annotations as
+    code. The round-4 runtime demonstration: with a string annotation
+    whose text calls a marker function, get_type_hints compiled and
+    evaluated that text and the marker function ran -- annotation text
+    became running code while the offline scan stayed green. typing is
+    now attribute-enumerated (Protocol and cast only), so every
+    evaluator reference must be red."""
+    violations = _scan_code(
+        tmp_path,
+        '''
+        import typing
+
+
+        def sneak(obj):
+            return typing.get_type_hints(obj)
+
+
+        def sneak_forward(text):
+            return typing.ForwardRef(text)
+        ''',
+    )
+    _assert_red(violations, "get_type_hints")
+    _assert_red(violations, "ForwardRef")

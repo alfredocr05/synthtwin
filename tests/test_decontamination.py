@@ -210,6 +210,44 @@ def test_control_byte_binary_is_violation(tree: Path, tmp_path: Path) -> None:
     assert run_check(tree, make_manifest(tmp_path, [CANARY])) == 2
 
 
+class _StrictAsciiStdout:
+    """Stand-in for a console whose encoding cannot represent non-ASCII
+    text (a cp1252 or POSIX-C stream): any non-ASCII character written
+    to it raises UnicodeEncodeError, exactly like the real stream."""
+
+    def __init__(self) -> None:
+        self.chunks: list[str] = []
+
+    def write(self, text: str) -> int:
+        text.encode("ascii", "strict")
+        self.chunks.append(text)
+        return len(text)
+
+    def flush(self) -> None:
+        pass
+
+
+def test_non_ascii_violation_path_reports_on_ascii_stdout(
+    tree: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Round-4 item R4-m1: a control-byte file whose NAME contains a
+    # non-ASCII character (the name matches nothing in the manifest, so
+    # it is printed unredacted) must still produce the value-silent
+    # violation report and the violation exit code when stdout cannot
+    # encode the name. The pre-repair scanner raised UnicodeEncodeError
+    # from print, replacing exit code 2 with a traceback.
+    name = "caf\u00e9-blob.txt"  # e-acute as an escape: ASCII source
+    (tree / name).write_bytes(b"looks text \x01\x02 but is not")
+    writer = _StrictAsciiStdout()
+    monkeypatch.setattr(sys, "stdout", writer)
+    code = run_check(tree, make_manifest(tmp_path, [CANARY]))
+    out = "".join(writer.chunks)
+    assert code == 2, out
+    assert "VIOLATION" in out
+    # The untrusted name is escaped, never dropped and never raised on.
+    assert "\\xe9" in out
+
+
 # Round-2 item R2-B6: the mutation battery is parameterized over EVERY
 # signature read from the committed magic table at test time, so a table
 # refresh can never leave a signature untested.
