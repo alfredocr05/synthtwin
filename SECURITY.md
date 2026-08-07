@@ -299,7 +299,11 @@ rely on any of it.
   repository-wide default, so a workflow added later that omits its own
   permission block still receives a read-only token. The checked-in
   workflow additionally declares `permissions: contents: read` at its top
-  level and uses no `pull_request_target` trigger.
+  level and uses no `pull_request_target` trigger. The readback is
+  retained as a signed, digest-bound evidence artifact (endpoint URLs,
+  GitHub's own response headers, and the repository's node identifier),
+  and the exact commands to reproduce it are recorded inside that
+  artifact; an auditor with read access can re-run them at any time.
 - **SHA-pinned actions.** Every action reference under
   `.github/workflows/` is pinned by full commit SHA, and the build
   container image is pinned by digest, as recorded in the supply-chain

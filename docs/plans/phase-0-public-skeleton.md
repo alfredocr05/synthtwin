@@ -392,8 +392,10 @@ digest verification; full neutral mutation battery); **offline-static**
 (D6.2 allowlist scan; all D6.5 mutation classes); **provenance** (D13
 checks + mutations). **Gate:** one additional job named `gate` with
 `if: always()`, listing every job above in `needs`, failing unless every
-one succeeded. The branch ruleset requires exactly the `gate` context,
-bound to the GitHub Actions app. All actions pinned by commit SHA; default
+one succeeded. The branch ruleset WILL require exactly the `gate`
+context, bound to the GitHub Actions app, once it is applied: while the
+repository is private that ruleset is deferred and NOT in force (see the
+owner-decision records and SECURITY.md). All actions pinned by commit SHA; default
 token permissions `contents: read`; no secrets exist in Phase 0. CI green
 before any Phase 1 work.
 
@@ -790,7 +792,14 @@ unchanged by it.
   checked-in workflow makes for itself, so a later workflow that omits
   its own declaration inherits the read-only default. These two are not
   deferred; they are re-read at the visibility flip with the nine items
-  above.
+  above. Durable evidence: the full API readback -- endpoint URL, GitHub's own
+  `Date` and `x-github-request-id` response headers, the repository's
+  `node_id` and `full_name`, and the verbatim bodies for the Actions
+  permissions, fork-approval (HTTP 422), and rulesets (HTTP 403)
+  endpoints -- is retained as a signed maintainer-private artifact,
+  `decontamination/out/settings-readback.json`, bound by digest in the
+  public attestation. Any account with read access reproduces it with
+  the `gh api ... --include` commands recorded inside it.
 - **Account controls (2026-08-07):** the owner confirmed two-factor
   authentication is enabled on the hosting account. That setting is not
   exposed to the automation token, so this is a dated owner
