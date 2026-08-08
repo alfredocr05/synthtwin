@@ -102,6 +102,24 @@ Stated here so that no reader has to discover them independently:
 - **Check-to-use races.** A hostile local process swapping a path between
   validation and use is outside the threat model, per the scope statement
   above.
+- **A network-capable reader, fenced rather than unable.** The CSV
+  reader synthtwin calls (`pandas.read_csv`) would open a URL or a
+  remote storage location if it were handed one: the library is capable
+  of network access even though synthtwin never asks it for any. Three
+  controls hold that line, and they are what the offline claim rests on
+  for this call. Every path reaching the reader has passed the
+  path-locality check, which refuses URL forms lexically before any file
+  is opened; the reader is handed the resulting path object rather than
+  text the user typed; and the import scanner enumerates `read_csv` and
+  no other name from the library, so a second call site cannot appear
+  without a plan-level change. This is a fencing arrangement, not an
+  inability. An institution that wants the inability rather than the
+  fence runs synthtwin inside its own network-isolated environment,
+  where the question does not arise. The same enumeration bans calling
+  any method on the objects the library returns -- a data frame carries
+  writers that reach a database or a URL on their own -- so those
+  objects are read from and passed back to enumerated functions, never
+  called through.
 - **Code supplied by the caller.** A booby-trapped object or callable
   handed to one of synthtwin's public functions runs in the caller's own
   process under the caller's own authority. The boundary controls what
@@ -143,13 +161,16 @@ Stated here so that no reader has to discover them independently:
 
 ## Supply chain
 
-Phase 0 ships **zero runtime dependencies**. The inventory by role, with
-the question an auditor actually cares about answered per row:
+synthtwin has **one runtime dependency**, pandas, justified in writing
+in `docs/plans/phase-1-profiler.md` (P1-D2) and reduced by the import
+scanner to exactly one function, `read_csv`, which may be called only
+with a path the validator produced. The inventory by role, with the
+question an auditor actually cares about answered per row:
 
-| Role | Phase 0 contents | Executes on a user machine? | Pinned by |
+| Role | Contents | Executes on a user machine? | Pinned by |
 | --- | --- | --- | --- |
-| Runtime, direct | none | nothing to execute | - |
-| Runtime, transitive | none | nothing to execute | - |
+| Runtime, direct | `pandas` | yes | bounds in `pyproject.toml` for an ordinary `pip install` (floors installed and tested by the `minimums` CI job); by hash in `requirements-install.lock` for the supported institutional install |
+| Runtime, transitive | `numpy`, `python-dateutil`, `six`, `tzdata`, and (below Python 3.11) `pytz` - the closure pandas brings. numpy was a declared direct dependency until review round 1 showed its reductions made published statistics depend on row order; the profiler now computes them itself with `math` and imports numpy nowhere | yes | by hash in `requirements-install.lock`; the complete closure is also in `requirements-dev.lock`, consumed frozen in CI |
 | Build frontend | `pip` / `python -m build` in CI | no | `build` is hash-locked in `requirements-dev.lock`, consumed frozen (CI fails on drift); `pip` ships with the runner interpreter, its exact version recorded in CI logs every run |
 | Build backend | `hatchling` | only if you build from source yourself; never when installing a prebuilt wheel | hash-locked in `requirements-dev.lock`, which covers the complete build closure, consumed frozen (CI fails on drift) |
 | Installer toolchain | the user's own `pip` | yes - it is your tool and a trust root you already hold | your environment |
@@ -189,12 +210,20 @@ versions are verified and recorded. If the workflow's pinned digest ever
 changes, this recorded value must change in the same commit. A deliberate HTTP fetch attempted
 inside the same container must fail, demonstrated in a CI self-test.
 
-**The supported institutional install path [planned].** The first
-dependency-bearing release ships a generated `--require-hashes`
-requirements file as a release artifact; CI installs from it into a fresh
-offline-guarded environment and runs the smoke suite. That file is the
-supported institutional install path. An ordinary `pip install synthtwin`
-is governed by version bounds only and is documented as such.
+**The supported institutional install path [built].**
+`requirements-install.lock` pins the complete runtime closure by hash.
+CI installs from it -- with `--require-hashes`, from a local wheelhouse,
+with no index -- into a fresh virtual environment that has the socket
+guard active, then installs the built WHEEL with `--no-index --no-deps`,
+runs the command, and profiles a table built on the spot by a seeded
+script. The wheel matters: installing from a source folder would make
+pip fetch and execute a build backend that this lock does not pin, so
+the documented procedure names the wheel and CI exercises exactly it. That
+path is exercised on every run rather than described and never tried. An
+ordinary `pip install synthtwin` is governed by version bounds only and
+is documented as such. The bounds are not guesses: the `minimums` job
+installs exactly the declared floors on the oldest supported interpreter
+and runs the whole test suite against them.
 
 ## How an IT auditor verifies each layer
 

@@ -26,15 +26,18 @@ synthtwin's own code initiates, not what a caller chooses to run
 against themselves. It is the same residual family as the local-actor
 and network-mount residuals already accepted in SECURITY.md.
 
-Policy enforced (plan D6.2, a positive AST/name-binding policy):
+Policy enforced (plan D6.2, a positive AST/name-binding policy;
+Phase 1 additions E1-E4 in plan phase-1-profiler.md, P1-D10):
 
-* Allowed modules for src/: argparse, dataclasses, json, pathlib,
+* Allowed modules for src/: argparse, csv, dataclasses, json, pathlib,
   typing, sys (but sys.modules and sys.path may never be read or
   written); from os only the enumerated os.path helpers, os.fspath,
   os.getcwd, os.lstat, and read-only os.environ; from
-  importlib.metadata only the version() function. Imports of the
-  synthtwin package's own modules are allowed because those files are
-  scanned too. Every other import is a violation.
+  importlib.metadata only the version() function; and the two Phase 1
+  runtime dependencies numpy and pandas, each reduced to the exact
+  attribute names enumerated below. Imports of the synthtwin package's
+  own modules are allowed because those files are scanned too. Every
+  other import is a violation.
 * NO MODULE-LEVEL TRUST. Membership in an allowed module proves
   nothing about what an attribute can do, so every allowed module's
   usable attribute names are enumerated one by one in
@@ -108,25 +111,41 @@ Policy enforced (plan D6.2, a positive AST/name-binding policy):
 * Method calls (value.method(...)) are accepted in exactly two
   enumerated cases; every other method call target is rejected.
   There are NO method calls on untraced values.
-  (a) On a value this audit reads as a plain built-in constant. Two
-      readings are accepted: the value is a literal constant (or a
-      name bound only to literal constants), or the value is a
-      parameter whose function opens with the exact type gate
+  (a) On a value this audit reads as text. Three readings are
+      accepted: the value is a literal constant (or a name bound only
+      to literal constants); the value is a parameter whose function
+      opens with the exact type gate
       "if not isinstance(name, str): raise ..." (or the equivalent
       positive branch "if isinstance(name, str): ... else:
-      raise ...") before any other statement.
+      raise ...") before any other statement; or the value was
+      PRODUCED under this audit's eyes from one of those (Phase 1
+      extension E4): the result of an enumerated text-returning
+      method called on an accepted text receiver, a slice or index
+      of an accepted text value, the result of str(), repr(), or
+      format(), or an f-string every one of whose interpolated
+      values this audit already resolved. Text
+      propagates only from those origins; an untraced value never
+      becomes text, so nothing is laundered into the accepted set.
+      Methods whose result is NOT text (split returns a list, find
+      returns a number, startswith returns a truth value) leave the
+      result untraced, so no method call is accepted on it.
       WHAT THE GATE DOES, AND WHAT IT DOES NOT DO. The gate raises
       confidence that the value is a string, and that is what lets
       this scanner accept the enumerated string-method calls on it
-      (find, format -- exactly the string methods the current src
-      tree calls). The gate does NOT settle that the receiver is a
+      (the exact set the src tree calls, listed in _STR_METHODS
+      below). The gate does NOT settle that the receiver is a
       built-in str: a str subclass passes isinstance and may
-      override find or format, so the method body that runs can be
-      the subclass's own. Such a call target is RESOLVED UNDER THE
-      ENUMERATED POLICY, not shown to be exact. This is the
+      override any of them, so the method body that runs can be
+      the subclass's own -- and under E4 its return value is then
+      treated as text as well. Such a call target is RESOLVED UNDER
+      THE ENUMERATED POLICY, not shown to be exact. This is the
       best-effort scope ratified as D6 Amendment A3, and its
       residual is caller-supplied code, named at the top of this
-      docstring. Any method name outside that enumeration, and any
+      docstring; E4 propagates that accepted reading one step
+      further without widening the class of thing that can happen,
+      because the only operations this policy permits on a text
+      value are another enumerated data method or use as data.
+      Any method name outside that enumeration, and any
       method call on a value with neither reading -- a bare
       parameter, a computed value, the result of a scanned call --
       is a violation. parameter.find() WITHOUT the gate is rejected,
@@ -180,7 +199,12 @@ interpreter (CPython 3.10 through 3.14); "data" means the API never
 invokes that name's arguments. This list IS the audit record -- an
 attribute absent from it is not allowed at all:
 
-* argparse: ArgumentParser (formatter_class SLOT). Its api-instance
+* argparse: ArgumentParser (formatter_class SLOT) and
+  RawDescriptionHelpFormatter, which is the class named in that
+  slot: argparse instantiates it and calls its formatting methods
+  to lay out help text. Audited: it formats strings and performs
+  no I/O, starts no process, and invokes nothing it is handed.
+  ArgumentParser's api-instance
   methods: add_argument (action SLOT, type SLOT); add_subparsers
   (action SLOT, parser_class SLOT); register (object SLOT);
   parse_args, parse_known_args, set_defaults, add_argument_group,
@@ -218,6 +242,39 @@ attribute absent from it is not allowed at all:
   enumerated os.path helper (join, exists, isfile, dirname, ...) is
   a pure path-text or single-metadata function: data.
 * importlib.metadata: version: data.
+* csv (Phase 1 extension E3): reader (dialect SLOT -- a dialect class
+  is instantiated by the library; every other parameter is a plain
+  text or truth-value dialect setting); field_size_limit (reads and
+  writes one integer of module state, used to raise and then restore
+  the per-field cap); Error (an exception type). None of the three
+  performs I/O of its own: reader consumes an iterable of text lines
+  that the caller has already opened, and yields lists of text.
+* math (Phase 1 extension E2, revised at round 1): fsum, frexp,
+  isfinite, ldexp, sqrt. Every one is a pure numeric function of
+  numbers; none takes a callable, none performs I/O, and each is a
+  correctly rounded IEEE-754 operation or an exact power-of-two
+  manipulation. This enumeration replaced the numpy one: round 1 of the
+  Phase 1 review showed that numpy's reductions made the published
+  statistics depend on row order and on magnitude, so the profiler now
+  computes them itself under the rules in taxonomy.py's docstring, and
+  imports numpy nowhere. Nothing else from math is allowed -- prod and
+  sumprod are reductions with their own ordering behaviour, and the
+  trigonometric and special functions are not correctly rounded.
+* pandas (Phase 1 extension E1): read_csv, and nothing else. Capability
+  audit: read_csv opens its first argument, which may be a path, an
+  open file, or a URL, so it IS network-capable. synthtwin never hands
+  it a URL: every path reaching it has passed validate_local_path,
+  which rejects URL schemes lexically before any filesystem call, and
+  it is handed the resulting Path object rather than user text (plan
+  phase-1-profiler.md, P1-D2.1 -- a fencing arrangement, not an
+  inability, stated in exactly those terms in SECURITY.md). Its
+  callable-accepting parameters are enumerated as SLOTS (converters,
+  dtype, date_format, date_parser, on_bad_lines, skiprows, usecols,
+  dialect, engine, storage_options), so no caller-supplied or computed
+  callable can reach the library. Every parameter after the first is
+  keyword-only in the supported pandas versions, so no positional slot
+  can exist. Values returned by read_csv are api-instances under
+  policy case (b).
 * Accepted built-ins: sorted, min, and max (key SLOT); map and
   filter (the function argument SLOT); the two-argument form of iter
   (the callable argument SLOT); print (file SLOT -- print invokes
@@ -252,7 +309,8 @@ _FIRST_PARTY_ROOT = "synthtwin"
 # change. (os and importlib.metadata are enumerated separately in
 # _policy_for because their messages are more specific.)
 _ALLOWED_MODULE_ATTRS: "dict[str, frozenset[str]]" = {
-    "argparse": frozenset({"ArgumentParser"}),
+    "argparse": frozenset({"ArgumentParser", "RawDescriptionHelpFormatter"}),
+    "csv": frozenset({"Error", "field_size_limit", "reader"}),
     "dataclasses": frozenset(
         {
             "MISSING",
@@ -314,6 +372,10 @@ _ALLOWED_MODULE_ATTRS: "dict[str, frozenset[str]]" = {
             "splitroot",
         }
     ),
+    "math": frozenset(
+        {"fsum", "frexp", "isfinite", "ldexp", "sqrt"}
+    ),
+    "pandas": frozenset({"read_csv"}),
     "pathlib": frozenset({"Path"}),
     "sys": frozenset(
         {
@@ -385,17 +447,107 @@ _ENV_READ_METHODS = {"get", "keys", "items", "values", "copy"}
 _UNKNOWN = ("unknown", "")
 
 # The only method names that may be called on a value this audit reads
-# as a string (policy case (a) in the module docstring): a literal
-# constant, or a parameter behind the exact isinstance type gate. On
-# such a receiver str.find and str.format are the call targets this
-# policy resolves to; the gate does not settle that the receiver is a
-# built-in str, so a str subclass could still supply its own find or
-# format. That is the best-effort scope ratified as D6 Amendment A3
-# (module docstring), whose residual is caller-supplied code. This is
-# exactly the set of str data methods the current src tree calls;
-# adding a name here is a policy decision reviewed against the threat
-# model, not a routine code change.
-_STR_METHODS = {"find", "format"}
+# as text (policy case (a) in the module docstring): a literal
+# constant, a parameter behind the exact isinstance type gate, or a
+# value produced from one of those under extension E4. The gate does
+# not settle that the receiver is a built-in str, so a str subclass
+# could still supply its own version of any of these. That is the
+# best-effort scope ratified as D6 Amendment A3 (module docstring),
+# whose residual is caller-supplied code.
+#
+# Every name below was audited as a pure text transform: it performs no
+# I/O, starts no process, loads no code, and invokes nothing it is
+# handed except the formatting protocol of an argument (format, and
+# the iteration protocol for join), which the safe-argument rule in
+# _check_method_call already governs. This is exactly the set of str
+# data methods the current src tree calls; adding a name here is a
+# policy decision reviewed against the threat model, not a routine
+# code change.
+#
+# The split matters: only a method whose result is itself text keeps
+# the text origin (extension E4). split returns a list, find returns a
+# number, startswith returns a truth value -- their results are
+# untraced, so no further method call is accepted on them.
+_TEXT_RESULT_STR_METHODS = {
+    "casefold",
+    "format",
+    "join",
+    "lower",
+    "lstrip",
+    "removeprefix",
+    "removesuffix",
+    "replace",
+    "rstrip",
+    "strip",
+    "upper",
+    "zfill",
+}
+
+_OTHER_RESULT_STR_METHODS = {
+    "count",
+    "endswith",
+    "find",
+    "isascii",
+    "isdigit",
+    "split",
+    "startswith",
+}
+
+_STR_METHODS = _TEXT_RESULT_STR_METHODS | _OTHER_RESULT_STR_METHODS
+
+# Built-in calls whose result is text by construction (extension E4).
+# Each is already an accepted call target; this set records that the
+# VALUE they return may be read as text. A shadowed name is excluded at
+# the call site (and shadowing an accepted built-in is a violation in
+# its own right).
+_TEXT_PRODUCING_BUILTINS = {"format", "repr", "str"}
+
+# Libraries whose api-instances may NOT be called through at all
+# (Phase 1 extension E5), with the exact method names that are
+# nonetheless permitted on them -- currently none for either.
+#
+# Policy case (b) accepts any method name on a value an allowlisted API
+# produced, because the API that produced it was itself checked. For
+# the standard-library surfaces of Phase 0 that reasoning holds and the
+# module docstring carries their per-name audit. It does NOT hold for
+# these two: a pandas frame carries writers that reach the network of
+# their own accord (to_sql, to_gbq, and the URL-accepting to_* family),
+# and a numpy array carries tofile and dump. Accepting arbitrary method
+# names on their results would silently reopen everything the E1 and E2
+# enumerations close.
+#
+# synthtwin's source calls no method on a pandas or numpy object: it
+# reads attributes, subscripts, and operators, and hands the values
+# back to the enumerated module-level functions. The empty sets below
+# say exactly that, and adding a name to one of them is a policy
+# decision reviewed against the threat model, not a routine code
+# change.
+_RESTRICTED_INSTANCE_METHODS: "dict[str, frozenset[str]]" = {
+    "pandas": frozenset(),
+}
+
+# Attributes that may be READ on a value one of those libraries
+# produced. Round 1 of the Phase 1 review showed that banning method
+# calls is not enough: `frame.style` reaches a whole unenumerated
+# capability without a call in sight, and any attribute could. Only the
+# names the profiler actually reads are listed.
+_RESTRICTED_INSTANCE_ATTRIBUTES: "dict[str, frozenset[str]]" = {
+    "pandas": frozenset({"columns"}),
+}
+
+# APIs that open whatever they are handed, including a URL. Each may
+# appear ONLY as the direct target of a call -- never stored, passed, or
+# placed in a callback slot -- and the value it is handed must be
+# traceable, inside the same function, to validate_local_path. This is
+# the enforcement behind the fence P1-D2.1 describes; round 1 found the
+# claim resting on nothing but the order the current source happens to
+# be written in.
+_FENCED_APIS = frozenset({"pandas.read_csv"})
+
+_LOCAL_PATH_VALIDATOR = "synthtwin.paths.validate_local_path"
+
+# The origin recording "this value came from validate_local_path".
+_LOCALPATH = ("localpath", "")
 
 # Origin kinds accepted as ARGUMENTS of an enumerated str-method call
 # (policy case (a)): a value built by an allowlisted API, a value
@@ -403,7 +555,7 @@ _STR_METHODS = {"find", "format"}
 # or a gate-checked string. Everything else -- the unknown member above
 # all -- is rejected, because str.format invokes the formatting
 # protocol of what it is handed.
-_SAFE_DATA_ARGUMENT_KINDS = {"instance", "literal", "result", "str"}
+_SAFE_DATA_ARGUMENT_KINDS = {"instance", "literal", "localpath", "result", "str"}
 
 # Every allowed external API that can INVOKE one of its arguments,
 # mapped to its exact callable-accepting slots: a frozenset of keyword
@@ -431,6 +583,7 @@ _CALLBACK_SLOTS: "dict[str, tuple[frozenset[str], dict[int, str]]]" = {
         {},
     ),
     "argparse.ArgumentParser.register": (frozenset({"object"}), {2: "object"}),
+    "csv.reader": (frozenset({"dialect"}), {1: "dialect"}),
     "dataclasses.asdict": (frozenset({"dict_factory"}), {}),
     "dataclasses.astuple": (frozenset({"tuple_factory"}), {}),
     "dataclasses.field": (frozenset({"default_factory"}), {}),
@@ -484,6 +637,23 @@ _CALLBACK_SLOTS: "dict[str, tuple[frozenset[str], dict[int, str]]]" = {
     "map": (frozenset(), {0: "function"}),
     "max": (frozenset({"key"}), {}),
     "min": (frozenset({"key"}), {}),
+    "pandas.read_csv": (
+        frozenset(
+            {
+                "converters",
+                "date_format",
+                "date_parser",
+                "dialect",
+                "dtype",
+                "engine",
+                "on_bad_lines",
+                "skiprows",
+                "storage_options",
+                "usecols",
+            }
+        ),
+        {},
+    ),
     "pathlib.Path.walk": (frozenset({"on_error"}), {1: "on_error"}),
     "print": (frozenset({"file"}), {}),
     "sorted": (frozenset({"key"}), {}),
@@ -547,8 +717,10 @@ _MODULE_ATTR_BLOCK = {
     "multiprocessing",
     "nt",
     "ntpath",
+    "numpy",
     "operator",
     "os",
+    "pandas",
     "path",
     "pathlib",
     "pickle",
@@ -815,11 +987,71 @@ def _unknown_method_message(method: str) -> str:
     )
 
 
+def _fenced_reference_message(dotted: str) -> str:
+    return (
+        "names '" + dotted + "' somewhere other than directly as the "
+        "function of a call. This API opens whatever it is handed, a "
+        "local file or a URL alike, so it may never be stored in a "
+        "variable, handed to another function, or placed in a callback "
+        "slot: written that way, this audit cannot see what it would "
+        "open. Call it by its full name at the point of use."
+    )
+
+
+def _fenced_argument_message(dotted: str) -> str:
+    return (
+        "hands '" + dotted + "' a first argument this audit cannot "
+        "trace to validate_local_path. This API opens whatever it is "
+        "handed, and a path-shaped object is not enough -- "
+        "pathlib.Path('https://host/f.csv') still enters the library's "
+        "URL branch, because the library turns it back into text before "
+        "it decides. The argument must be a plain name bound in this "
+        "same function to pathlib.Path(v), where v is the result of "
+        "validate_local_path."
+    )
+
+
+def _restricted_attribute_message(name: str, library: str) -> str:
+    allowed = sorted(_RESTRICTED_INSTANCE_ATTRIBUTES[library])
+    listed = ", ".join(allowed) if allowed else "none at all"
+    return (
+        "reads the attribute '" + name + "' of a value produced by "
+        + library + ". Attributes of these objects reach capability "
+        "without a call in sight, so only the enumerated ones may be "
+        "read: " + listed + "."
+    )
+
+
+def _scope_escape_message(keyword: str) -> str:
+    return (
+        "uses '" + keyword + "'. It rebinds a name that belongs to "
+        "another scope, which lets a value change identity between the "
+        "place this audit reads it and the place it is used. synthtwin "
+        "source passes values as arguments and returns them instead."
+    )
+
+
+def _restricted_instance_message(method: str, library: str) -> str:
+    allowed = sorted(_RESTRICTED_INSTANCE_METHODS[library])
+    listed = ", ".join(allowed) if allowed else "none at all"
+    return (
+        "calls the method '" + method + "' on a value produced by "
+        + library + ". Objects from this library carry methods that "
+        "reach the network and the filesystem on their own (a data "
+        "frame can write to a database or a URL; an array can write "
+        "itself to a file), so the enumerated module-level functions "
+        "are the only way this audit accepts it being used. Methods "
+        "permitted on such a value: " + listed + ". Read what you need "
+        "with an attribute, a subscript, or an operator, and pass the "
+        "value to an enumerated function."
+    )
+
+
 def _str_method_message(method: str) -> str:
     return (
         "calls the method '" + method + "' on a value this audit "
-        "reads as a plain built-in constant. Only the enumerated "
-        "string data methods (" + ", ".join(sorted(_STR_METHODS))
+        "reads as text. Only the enumerated string data methods ("
+        + ", ".join(sorted(_STR_METHODS))
         + ") are accepted there; any other name is not a call target "
         "this audit has cleared."
     )
@@ -994,6 +1226,14 @@ class _Checker(ast.NodeVisitor):
         # rebinding hidden behind a branch can neither launder away a
         # module nor make an untraceable callback look safe.
         self.scopes: list[dict[str, set[tuple[str, str]]]] = [{}]
+        # Which entries of `scopes` are class bodies. Python does not
+        # let a method body see the names a class body binds -- an
+        # unqualified name in a method skips straight to the module --
+        # so a lookup from inside a function must skip them. Keeping
+        # them visible let a class-level `pathlib.Path` stand in for a
+        # module-level function of the same name (review item
+        # P1-R5-F1).
+        self.class_scopes: list[bool] = [False]
         # Dotted paths known to name modules: the fixed allowlist plus
         # every intra-package path seen in this file's import
         # statements. The one-attribute-step rule counts from the
@@ -1007,6 +1247,9 @@ class _Checker(ast.NodeVisitor):
         self.first_party_modules = (
             set(first_party_modules) if first_party_modules is not None else set()
         )
+        # Every node that sits in the function position of a call. A
+        # fenced API is legal there and nowhere else.
+        self.call_targets: set[int] = set()
 
     # -- bookkeeping -------------------------------------------------
 
@@ -1018,9 +1261,18 @@ class _Checker(ast.NodeVisitor):
         slot.add(value if value is not None else _UNKNOWN)
 
     def _lookup(self, name: str) -> "set[tuple[str, str]] | None":
-        for scope in reversed(self.scopes):
+        depth = len(self.scopes) - 1
+        while depth >= 0:
+            # Skip class bodies unless the lookup is happening directly
+            # in one: Python resolves an unqualified name in a method to
+            # the module, never to the enclosing class.
+            if self.class_scopes[depth] and depth != len(self.scopes) - 1:
+                depth = depth - 1
+                continue
+            scope = self.scopes[depth]
             if name in scope:
                 return scope[name]
+            depth = depth - 1
         return None
 
     def _register_module_path(self, dotted: str) -> None:
@@ -1042,7 +1294,19 @@ class _Checker(ast.NodeVisitor):
         tracing aliases back to the imports or builtins they came from.
         Yields only module/api-rooted dotted candidates; def, instance,
         and unknown possibilities carry no dotted path and are handled
-        by the origin-set logic in _value_origins."""
+        by the origin-set logic in _value_origins.
+
+        A name resolves to an allowlisted API only when EVERY origin it
+        carries is that API. A module that imports a name and also
+        defines something with the same name binds the definition --
+        Python's later binding wins -- while this audit used to keep the
+        import in the union and go on trusting it. Two runnable examples
+        in review round 4 turned that into real damage: a local `Path`
+        that returned a web address was read through the fenced reader,
+        and a local `cast` handed a data frame to a writer that
+        overwrote the user's own table. When the origins are mixed, the
+        name is reported as untraceable rather than as the API.
+        """
         root = parts[0]
         bound = self._lookup(root)
         rest = parts[1:]
@@ -1055,6 +1319,29 @@ class _Checker(ast.NodeVisitor):
             if kind in ("module", "api"):
                 out.append(".".join([origin] + rest))
         return out
+
+    def _resolve_exclusively(self, parts: "list[str]") -> "list[str]":
+        """Like _resolve, but only when EVERY origin is that API.
+
+        The difference decides whether a name may be TRUSTED, as opposed
+        to whether it must be CHECKED. `_resolve` keeps an imported
+        origin even after a rebinding, because a name that might still
+        hold a dangerous module must still be flagged. Trust is the
+        other way round: a module that imports a name and also defines
+        something with that name binds the definition, and Python calls
+        the definition. Review round 4 turned that into real damage
+        twice -- a local `Path` returning a web address was read through
+        the fenced reader, and a local `cast` handed a data frame to a
+        writer that overwrote the user's own table -- so provenance,
+        value-preserving calls, and fenced call targets all ask this
+        question rather than the other one.
+        """
+        bound = self._lookup(parts[0])
+        if bound is not None and any(
+            kind not in ("module", "api") for kind, _origin in bound
+        ):
+            return []
+        return self._resolve(parts)
 
     def _value_origins(self, value: ast.AST) -> "set[tuple[str, str]]":
         """The possible origins of an expression's VALUE.
@@ -1081,6 +1368,15 @@ class _Checker(ast.NodeVisitor):
                         out.add(("api", ".".join([origin] + rest)))
                     else:
                         out.add((kind, origin))
+                elif (
+                    kind == "instance"
+                    and rest
+                    and origin.partition(".")[0] in _RESTRICTED_INSTANCE_METHODS
+                ):
+                    # An attribute of a restricted object is still that
+                    # library's object; only the enumerated names get
+                    # this far, and they must not launder the origin.
+                    out.add((kind, origin))
                 elif rest:
                     # An attribute read on a def, instance, or unknown
                     # value produces a value this audit cannot trace.
@@ -1099,6 +1395,38 @@ class _Checker(ast.NodeVisitor):
             # operator method; the result is a value that allowlisted
             # code produced (policy case (b) in the module docstring).
             return instances or {_UNKNOWN}
+        if isinstance(value, ast.Subscript):
+            # A slice or an index of a value this audit reads as text
+            # is itself text (E4). A subscript of a RESTRICTED library
+            # object keeps that library: frame["x"] is a pandas object
+            # too, and selecting one was a route to its writers
+            # (review item P1-R2-F2).
+            inner = self._value_origins(value.value)
+            carried = {
+                (kind, origin)
+                for kind, origin in inner
+                if kind == "instance"
+                and origin.partition(".")[0] in _RESTRICTED_INSTANCE_METHODS
+            }
+            if carried:
+                return carried
+            if inner and all(kind in ("literal", "str") for kind, _origin in inner):
+                return {("str", "")}
+            return {_UNKNOWN}
+        if isinstance(value, ast.JoinedStr):
+            # An f-string. Its result is text, but only when every
+            # interpolated value is one this audit already resolved:
+            # formatting invokes the __format__ of what it is handed,
+            # and an untraced value must never become text (E4).
+            for piece in value.values:
+                if not isinstance(piece, ast.FormattedValue):
+                    continue
+                origins = self._value_origins(piece.value)
+                if not all(
+                    kind in _SAFE_DATA_ARGUMENT_KINDS for kind, _origin in origins
+                ):
+                    return {_UNKNOWN}
+            return {("str", "")}
         if isinstance(value, ast.IfExp):
             return self._value_origins(value.body) | self._value_origins(
                 value.orelse
@@ -1117,10 +1445,35 @@ class _Checker(ast.NodeVisitor):
         api-instance (policy case (b)); a call to a name bound ONLY to
         defs or classes defined in the scanned code yields the
         ("result", name) member (every expression inside a scanned def
-        was itself checked under these rules); every other call yields
-        the unknown member.
+        was itself checked under these rules); a text-returning method
+        on an accepted text receiver, and a call to str, repr, or
+        format, yield the text member (extension E4); every other call
+        yields the unknown member.
         """
         func = call.func
+        localpath = self._localpath_call_result(call)
+        if localpath is not None:
+            return localpath
+        # typing.cast returns its second argument unchanged. Treating it
+        # as a value of its own let a pandas frame shed its origin and
+        # walk past the no-method rule (review item P1-R1-F2).
+        parts = _chain_parts(func) if isinstance(func, (ast.Name, ast.Attribute)) else None
+        if parts is not None and self._resolve_exclusively(parts) == ["typing.cast"]:
+            # Every supported call form, not just the positional one:
+            # the keyword form slipped a pandas frame past the method
+            # rule (review item P1-R2-F2).
+            carried = None
+            if len(call.args) == 2 and not isinstance(call.args[1], ast.Starred):
+                carried = call.args[1]
+            for keyword in call.keywords:
+                if keyword.arg == "val":
+                    carried = keyword.value
+            if carried is not None:
+                return self._value_origins(carried)
+            return {_UNKNOWN}
+        text = self._text_call_result(func)
+        if text is not None:
+            return text
         if not isinstance(func, (ast.Name, ast.Attribute)):
             return {_UNKNOWN}
         parts = _chain_parts(func)
@@ -1146,6 +1499,58 @@ class _Checker(ast.NodeVisitor):
                 if kind not in ("module", "api"):
                     out.add(_UNKNOWN)
         return out or {_UNKNOWN}
+
+    def _localpath_call_result(
+        self, call: ast.Call
+    ) -> "set[tuple[str, str]] | None":
+        """The validated-local-path origin, or None (fence for F1).
+
+        It starts at a call to validate_local_path and survives exactly
+        one wrapping in pathlib.Path, which is how a validated result
+        becomes the object the reader hands to the library. Nothing else
+        produces it, so it cannot be manufactured.
+        """
+        parts = _chain_parts(call.func)
+        if parts is None:
+            return None
+        resolved = self._resolve_exclusively(parts)
+        if resolved and all(
+            dotted == _LOCAL_PATH_VALIDATOR for dotted in resolved
+        ):
+            return {_LOCALPATH}
+        if resolved == ["pathlib.Path"] and len(call.args) == 1:
+            inner = call.args[0]
+            if not isinstance(inner, ast.Starred) and self._value_origins(
+                inner
+            ) == {_LOCALPATH}:
+                return {_LOCALPATH}
+        return None
+
+    def _text_call_result(self, func: ast.AST) -> "set[tuple[str, str]] | None":
+        """Text origin for a call whose result is text, else None (E4).
+
+        Two shapes qualify, and only these two: an enumerated
+        text-RETURNING string method called on a receiver this audit
+        already reads as text, and an unshadowed call to str, repr, or
+        format. A method whose result is not text (split, find,
+        startswith) returns None here, so its result stays untraced and
+        no method call is accepted on it. Text never originates at an
+        untraced value: the receiver must already be text.
+        """
+        if isinstance(func, ast.Name):
+            if func.id in _TEXT_PRODUCING_BUILTINS and self._lookup(func.id) is None:
+                return {("str", "")}
+            return None
+        if not isinstance(func, ast.Attribute):
+            return None
+        if func.attr not in _TEXT_RESULT_STR_METHODS:
+            return None
+        receiver = self._value_origins(func.value)
+        if not receiver:
+            return None
+        if all(kind in ("literal", "str") for kind, _origin in receiver):
+            return {("str", "")}
+        return None
 
     def _bind_from_value(self, name: str, value: ast.AST) -> None:
         for kind, origin in self._value_origins(value):
@@ -1341,8 +1746,8 @@ class _Checker(ast.NodeVisitor):
                 self._register_module_path(name)
                 self._bind(bound_name, ("module", origin))
                 continue
-            if name in {"argparse", "dataclasses", "json", "pathlib",
-                        "typing", "sys", "os"}:
+            if name in {"argparse", "csv", "dataclasses", "json", "math",
+                        "pandas", "pathlib", "typing", "sys", "os"}:
                 self._bind(bound_name, ("module", name))
                 continue
             if name in {"os.path", "importlib.metadata"}:
@@ -1487,6 +1892,11 @@ class _Checker(ast.NodeVisitor):
 
     def visit_Name(self, node: ast.Name) -> None:
         self._check_name(node, node.id)
+        if isinstance(node.ctx, ast.Load) and id(node) not in self.call_targets:
+            for dotted in self._resolve([node.id]):
+                if dotted in _FENCED_APIS:
+                    self._flag(node, _fenced_reference_message(dotted))
+                    return
         if isinstance(node.ctx, ast.Load):
             bound = self._lookup(node.id)
             if bound:
@@ -1496,6 +1906,7 @@ class _Checker(ast.NodeVisitor):
                         "def",
                         "instance",
                         "literal",
+                        "localpath",
                         "result",
                         "str",
                         "unknown",
@@ -1523,8 +1934,32 @@ class _Checker(ast.NodeVisitor):
             # and the unknown member this store adds is never discarded.
             self._bind(node.id, None)
 
+    def _check_restricted_attribute(self, node: ast.Attribute) -> bool:
+        """Reject an unenumerated attribute of a pandas/numpy value."""
+        if id(node) in self.call_targets:
+            # A method call; the method rule governs it.
+            return False
+        for kind, origin in sorted(self._value_origins(node.value)):
+            if kind != "instance":
+                continue
+            library = origin.partition(".")[0]
+            if library not in _RESTRICTED_INSTANCE_ATTRIBUTES:
+                continue
+            if node.attr in _RESTRICTED_INSTANCE_ATTRIBUTES[library]:
+                continue
+            self._flag(node, _restricted_attribute_message(node.attr, library))
+            return True
+        return False
+
     def visit_Attribute(self, node: ast.Attribute) -> None:
+        if self._check_restricted_attribute(node):
+            return
         parts = _chain_parts(node)
+        if parts is not None and id(node) not in self.call_targets:
+            for dotted in self._resolve(parts):
+                if dotted in _FENCED_APIS:
+                    self._flag(node, _fenced_reference_message(dotted))
+                    return
         if parts is None:
             # Attribute on a computed value (call result, subscript,
             # literal): only the attribute-name bans apply to the READ;
@@ -1558,7 +1993,74 @@ class _Checker(ast.NodeVisitor):
         # A pure chain has no other children worth visiting; skipping
         # them avoids reporting the same chain twice.
 
+    def _check_fenced_call(self, node: ast.Call) -> None:
+        """A fenced API may only be called with a validated local path."""
+        parts = _chain_parts(node.func)
+        if parts is None:
+            return
+        for dotted in self._resolve_exclusively(parts):
+            if dotted not in _FENCED_APIS:
+                continue
+            if not node.args or isinstance(node.args[0], ast.Starred):
+                self._flag(node, _fenced_argument_message(dotted))
+                return
+            if self._value_origins(node.args[0]) != {_LOCALPATH}:
+                self._flag(node, _fenced_argument_message(dotted))
+            return
+
+    def visit_Global(self, node: ast.Global) -> None:
+        self._flag(node, _scope_escape_message("global"))
+
+    def visit_Nonlocal(self, node: ast.Nonlocal) -> None:
+        self._flag(node, _scope_escape_message("nonlocal"))
+
     def visit_Call(self, node: ast.Call) -> None:
+        self._check_fenced_call(node)
+        # A CLOSED GRAMMAR for call targets (review item P1-R3-F7). A
+        # call target is either a bare name or a pure dotted chain, and
+        # nothing else. Every other shape -- a conditional expression, a
+        # boolean expression, a walrus, a starred or awaited value, a
+        # comparison -- is a target this audit cannot resolve, and each
+        # of those forms was found invoking a caller-supplied callback
+        # through a receiver whose identity the slot rules then could not
+        # see. Rejecting the shape outright is the only version of this
+        # rule that does not need a new case for every syntax Python
+        # gains.
+        if not isinstance(node.func, (ast.Name, ast.Attribute)):
+            self._flag(
+                node,
+                "calls a target written in a form this audit does not "
+                "resolve. A call must name its function directly -- a "
+                "plain name, or a dotted path -- so that reading the "
+                "source shows what runs. Conditional, boolean, "
+                "assignment and unpacking expressions in the function "
+                "position hide the receiver, and with it the rules "
+                "about what may be handed to it.",
+            )
+            self.generic_visit(node)
+            return
+        if isinstance(node.func, ast.Attribute) and not isinstance(
+            node.func.value,
+            (
+                ast.Name,
+                ast.Attribute,
+                ast.Call,
+                ast.Constant,
+                ast.Subscript,
+                ast.JoinedStr,
+            ),
+        ):
+            self._flag(
+                node,
+                "calls a method on a value written in a form this audit "
+                "does not resolve (a conditional, boolean, assignment "
+                "or unpacking expression). The receiver decides which "
+                "rules apply to the call, so it must be written as a "
+                "name, a dotted path, or a call whose target this audit "
+                "can read.",
+            )
+            self.generic_visit(node)
+            return
         if isinstance(node.func, (ast.Subscript, ast.Call)):
             self._flag(
                 node,
@@ -1625,9 +2127,26 @@ class _Checker(ast.NodeVisitor):
         method = func.attr
         receiver = self._value_origins(func.value)
         kinds = {kind for kind, _origin in receiver}
-        if kinds <= {"module", "api", "instance"}:
+        if kinds <= {"module", "api", "instance", "localpath"}:
+            for kind, origin in sorted(receiver):
+                if kind != "instance":
+                    continue
+                library = origin.partition(".")[0]
+                if library not in _RESTRICTED_INSTANCE_METHODS:
+                    continue
+                if method in _RESTRICTED_INSTANCE_METHODS[library]:
+                    continue
+                self._flag(node, _restricted_instance_message(method, library))
+                return
             return
-        if not kinds <= {"module", "api", "instance", "literal", "str"}:
+        if not kinds <= {
+            "module",
+            "api",
+            "instance",
+            "localpath",
+            "literal",
+            "str",
+        }:
             self._flag(node, _unknown_method_message(method))
             return
         if method not in _STR_METHODS:
@@ -1727,6 +2246,11 @@ class _Checker(ast.NodeVisitor):
                 for kind, origin in self._value_origins(func.value):
                     if kind == "instance":
                         identities.add(origin + "." + func.attr)
+                    elif kind == "localpath":
+                        # A validated path is a pathlib.Path. The
+                        # fence repair must not cost Path its slot
+                        # rules (review item P1-R2-F10).
+                        identities.add("pathlib.Path." + func.attr)
         return identities
 
     def _callback_slot_ok(self, value: ast.AST) -> bool:
@@ -1805,6 +2329,26 @@ class _Checker(ast.NodeVisitor):
                 continue
             if not self._callback_slot_ok(argument):
                 self._flag(node, _callback_slot_message(callee, slot))
+
+    def visit_MatchAs(self, node: ast.MatchAs) -> None:
+        # `case path:` and `case X() as path:` bind `path`. The name is a
+        # plain string field here, not a Name node, so no ordinary store
+        # was ever recorded and the captured value inherited the old
+        # origin -- which let a data frame be captured under a name that
+        # still looked like a validated path (review item P1-R5-F1).
+        if node.name is not None:
+            self._bind(node.name, None)
+        self.generic_visit(node)
+
+    def visit_MatchStar(self, node: ast.MatchStar) -> None:
+        if node.name is not None:
+            self._bind(node.name, None)
+        self.generic_visit(node)
+
+    def visit_MatchMapping(self, node: ast.MatchMapping) -> None:
+        if node.rest is not None:
+            self._bind(node.rest, None)
+        self.generic_visit(node)
 
     def visit_Subscript(self, node: ast.Subscript) -> None:
         parts = _chain_parts(node.value)
@@ -1890,11 +2434,13 @@ class _Checker(ast.NodeVisitor):
         # Parameters hold caller-supplied values: the explicit unknown
         # member, never discarded when other origins join.
         self.scopes.append({arg.arg: {_UNKNOWN} for arg in all_args})
+        self.class_scopes.append(False)
         self._collect_scope_bindings(node.body)
         self._upgrade_gated_parameters(node.body)
         for statement in node.body:
             self.visit(statement)
         self.scopes.pop()
+        self.class_scopes.pop()
 
     def _upgrade_gated_parameters(self, body: "list[ast.stmt]") -> None:
         """Upgrade parameters checked as str by a leading type gate.
@@ -1985,8 +2531,10 @@ class _Checker(ast.NodeVisitor):
             if arg.arg in _ALLOWED_CALL_BUILTINS:
                 self._flag(arg, _builtin_shadow_message(arg.arg))
         self.scopes.append({arg.arg: {_UNKNOWN} for arg in all_args})
+        self.class_scopes.append(False)
         self.visit(node.body)
         self.scopes.pop()
+        self.class_scopes.pop()
 
     def visit_ExceptHandler(self, node: ast.ExceptHandler) -> None:
         if node.name is not None and node.name in _ALLOWED_CALL_BUILTINS:
@@ -2005,10 +2553,12 @@ class _Checker(ast.NodeVisitor):
             self.visit(keyword.value)
         self._bind(node.name, ("def", node.name))
         self.scopes.append({})
+        self.class_scopes.append(True)
         self._collect_scope_bindings(node.body)
         for statement in node.body:
             self.visit(statement)
         self.scopes.pop()
+        self.class_scopes.pop()
 
 
 def scan_source(
@@ -2036,6 +2586,9 @@ def scan_source(
             )
         ]
     checker = _Checker(module_exports, first_party_modules)
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Call):
+            checker.call_targets.add(id(node.func))
     checker.visit(tree)
     return sorted(checker.violations)
 

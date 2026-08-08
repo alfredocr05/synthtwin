@@ -36,11 +36,22 @@ These apply to every change, in every phase:
   commit or pull-request description. Reviewers check it. This is the
   human control behind the source-exposed-maintainer residual named in
   `SECURITY.md`.
-- **Imports in `src/` are allowlisted.** Only the exact standard-library
-  APIs enumerated in the current phase plan may be used;
-  `tools/offline_scan` enforces the list in CI. Needing a new API is a
+- **Imports in `src/` are allowlisted.** Only the exact APIs enumerated
+  in the current phase plan may be used - standard library and runtime
+  dependency alike, name by name; `tools/offline_scan` enforces the list
+  in CI. Membership in an allowed library grants nothing on its own, and
+  objects returned by `pandas` or `numpy` may not be called through at
+  all: read them with an attribute, a subscript or an operator and pass
+  them back to an enumerated function. Needing a new API is a
   plan-level decision with a capability audit - do not work around the
   scanner.
+- **Text handling has a shape the scanner accepts.** A function that
+  calls string methods on a value it was handed opens with the exact
+  type check `if not isinstance(text, str): raise ...`; after that the
+  value's own data methods, slices and f-strings may be used freely. A
+  value from anywhere else - a list element, a library object, a
+  computed result - is not text as far as the audit is concerned, and no
+  method may be called on it.
 - **No data-format files, ever.** No `.csv`, `.xlsx`, `.parquet`,
   archives, or similar files are committed. Test fixtures are created at
   runtime by seeded, neutral code inside the test (in `tmp_path`). A

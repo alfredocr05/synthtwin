@@ -14,9 +14,18 @@ keywords = ["synthetic-data", "privacy", "tabular", "offline"]
 # Trove classifiers omitted: the standard license classifier's wording
 # collides with the decontamination manifest; the `license` field above
 # carries the license declaration.
-# Phase 0 ships zero runtime dependencies (plan D5). numpy/pandas enter in
-# Phase 1, each with a written justification reviewed adversarially.
-dependencies = []
+# Phase 1 introduces exactly ONE runtime dependency, justified in
+# docs/plans/phase-1-profiler.md (P1-D2) and reduced by the offline
+# scanner to a single function that may only be called with a validated
+# local path (P1-D10). numpy was declared here until review round 1
+# showed its reductions made published statistics depend on row order;
+# it stays in the closure as a dependency of pandas. The floor is the
+# version the `minimums` CI job installs, proves, and tests; it is
+# repeated in requirements-dev.in and requirements-min.in, and
+# tests/test_dependencies.py fails if any of them disagree.
+dependencies = [
+    "pandas>=2.1.0",
+]
 
 [project.urls]
 Repository = "https://github.com/alfredocr05/synthtwin"
@@ -52,6 +61,17 @@ src = ["src", "tests", "tools"]
 [tool.mypy]
 strict = true
 files = ["src"]
+
+# pandas ships no type information of its own (no py.typed marker), and
+# the separately published stub package is not a dependency of this
+# project: adding it would put a third-party package into the type
+# check that the offline audit would then have to reason about. The
+# reader module confines every pandas call to one function and converts
+# what comes back to plain text immediately, so the untyped surface
+# stops there. numpy ships its own types and is checked normally.
+[[tool.mypy.overrides]]
+module = ["pandas"]
+ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

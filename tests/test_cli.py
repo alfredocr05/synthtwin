@@ -1,4 +1,4 @@
-"""CLI stub behavior (plan D4)."""
+"""CLI behavior that is not about profiling (plans D4 and P1-D7)."""
 
 import importlib.metadata
 
@@ -11,7 +11,9 @@ def test_default_prints_status(capsys: pytest.CaptureFixture[str]) -> None:
     assert main([]) == 0
     out = capsys.readouterr().out
     assert "synthtwin" in out
-    assert "pre-alpha" in out
+    assert "synthtwin profile" in out, (
+        "the bare command must say what the tool can do today"
+    )
     assert "github.com/alfredocr05/synthtwin" in out
 
 

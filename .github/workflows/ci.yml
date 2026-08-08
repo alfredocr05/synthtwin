@@ -10,10 +10,13 @@
 # 2026-08-07; changing any of them follows the dependency-update review
 # path.
 #
-# Phase 0 note: the runtime dependency set is empty (plan D5), so the
-# hash-checked wheelhouse below covers only the dev/CI and build tooling
-# closure pinned in the committed lock file. The same steps take on
-# runtime dependencies when Phase 1 introduces them.
+# Phase 1 note: the runtime dependency set is pandas and numpy (plan
+# P1-D2). The hash-checked wheelhouse below covers them together with
+# the dev/CI and build tooling closure, all pinned in the committed
+# lock file. Two further requirement files exist and are validated by
+# the same structural checker: requirements-install.lock, the
+# hash-pinned runtime closure a user installs, and requirements-min.in,
+# which the `minimums` job uses to test the declared floors.
 
 name: CI
 
@@ -52,7 +55,11 @@ jobs:
         # pip command reads the lock. Any direct file, archive, path,
         # VCS, editable, or URL reference is refused while it is still
         # text, so pip never gets a chance to fetch or build it.
-        run: python tools/supply_chain/validate_lock.py
+        run: |
+          python tools/supply_chain/validate_lock.py
+          python tools/supply_chain/validate_lock.py \
+            --lock requirements-install.lock \
+            --input requirements-install.in
       - name: Install locked dev tools (frozen)
         run: |
           if [ ! -f "$LOCK_FILE" ]; then
@@ -79,7 +86,11 @@ jobs:
         # pip command reads the lock. Any direct file, archive, path,
         # VCS, editable, or URL reference is refused while it is still
         # text, so pip never gets a chance to fetch or build it.
-        run: python tools/supply_chain/validate_lock.py
+        run: |
+          python tools/supply_chain/validate_lock.py
+          python tools/supply_chain/validate_lock.py \
+            --lock requirements-install.lock \
+            --input requirements-install.in
       - name: Install locked dev tools (frozen)
         run: |
           if [ ! -f "$LOCK_FILE" ]; then
@@ -120,7 +131,11 @@ jobs:
         # pip command reads the lock. Any direct file, archive, path,
         # VCS, editable, or URL reference is refused while it is still
         # text, so pip never gets a chance to fetch or build it.
-        run: python tools/supply_chain/validate_lock.py
+        run: |
+          python tools/supply_chain/validate_lock.py
+          python tools/supply_chain/validate_lock.py \
+            --lock requirements-install.lock \
+            --input requirements-install.in
       - name: Install locked dev tools (frozen)
         run: |
           if [ ! -f "$LOCK_FILE" ]; then
@@ -176,7 +191,11 @@ jobs:
         # refused while it is still text; pip's own option handling is
         # not trusted to do this (a hash-bound local source archive
         # passes pip's binary-only download and executes build hooks).
-        run: python tools/supply_chain/validate_lock.py
+        run: |
+          python tools/supply_chain/validate_lock.py
+          python tools/supply_chain/validate_lock.py \
+            --lock requirements-install.lock \
+            --input requirements-install.in
       - name: Prefetch the wheelhouse (wheels only, hash-checked)
         # The only step in this job that touches the network. The
         # structural validator above has already refused every
@@ -594,7 +613,13 @@ jobs:
           #   formats are never allowed anywhere, plan D13)
           wheel required synthtwin/__init__.py
           wheel required synthtwin/cli.py
+          wheel required synthtwin/errors.py
+          wheel required synthtwin/parsing.py
           wheel required synthtwin/paths.py
+          wheel required synthtwin/profile.py
+          wheel required synthtwin/reading.py
+          wheel required synthtwin/summary.py
+          wheel required synthtwin/taxonomy.py
           wheel required DIST-INFO/METADATA
           wheel required DIST-INFO/WHEEL
           wheel required DIST-INFO/RECORD
@@ -609,7 +634,13 @@ jobs:
           sdist required ROOT/SECURITY.md
           sdist required ROOT/src/synthtwin/__init__.py
           sdist required ROOT/src/synthtwin/cli.py
+          sdist required ROOT/src/synthtwin/errors.py
+          sdist required ROOT/src/synthtwin/parsing.py
           sdist required ROOT/src/synthtwin/paths.py
+          sdist required ROOT/src/synthtwin/profile.py
+          sdist required ROOT/src/synthtwin/reading.py
+          sdist required ROOT/src/synthtwin/summary.py
+          sdist required ROOT/src/synthtwin/taxonomy.py
           sdist optional ROOT/src/synthtwin/py.typed
           sdist optional ROOT/.gitignore
           sdist required ROOT/tools/decontamination/allowed_signers
@@ -716,10 +747,19 @@ jobs:
           if-no-files-found: error
       - name: Install the wheel into a fresh venv and smoke-run the CLI
         # Plan D6.4: fresh venv, socket guard applied via sitecustomize,
-        # then "synthtwin --version" and "synthtwin" must run offline.
+        # then "synthtwin --version", "synthtwin" and a real profiling
+        # run must all work offline. The runtime closure is installed
+        # from requirements-install.lock with hash checking -- the exact
+        # path SECURITY.md names as the supported institutional install
+        # (plan D5, P1-D2) -- so that path is exercised on every run
+        # rather than described and never tried.
         run: |
           python -m venv "$RUNNER_TEMP/fresh-env"
-          "$RUNNER_TEMP/fresh-env/bin/python" -m pip install --no-index dist/*.whl
+          "$RUNNER_TEMP/fresh-env/bin/python" -m pip install \
+            --no-index --find-links "$RUNNER_TEMP/wheelhouse" \
+            --require-hashes -r requirements-install.lock
+          "$RUNNER_TEMP/fresh-env/bin/python" -m pip install \
+            --no-index --no-deps dist/*.whl
           SITE="$("$RUNNER_TEMP/fresh-env/bin/python" -c "import sysconfig; print(sysconfig.get_paths()['purelib'])")"
           cat > "$SITE/sitecustomize.py" <<'GUARD'
           """Socket guard for the built-artifact smoke test (plan D6.4).
@@ -749,6 +789,74 @@ jobs:
             exit 1
           fi
           "$RUNNER_TEMP/fresh-env/bin/synthtwin"
+      - name: Profile a demonstration table end to end, offline
+        # Plan P1 acceptance criterion 4: a neutral table is built here
+        # by a seeded script (no data file is ever committed, plan D13),
+        # profiled by the installed command with the socket guard in
+        # place, and its publication notes are checked against the
+        # suppression rules -- the rare label must be absent from both
+        # output files and the notes must say so.
+        run: |
+          DEMO="$RUNNER_TEMP/demo"
+          mkdir -p "$DEMO"
+          "$RUNNER_TEMP/fresh-env/bin/python" - <<'MAKE'
+          import os
+          import pathlib
+          import sys
+
+          sys.path.insert(0, "tests")
+          import fixtures
+
+          target = pathlib.Path(os.environ["RUNNER_TEMP"]) / "demo" / "table.csv"
+          target.write_text(fixtures.every_role_table(), encoding="utf-8", newline="\n")
+          print(f"built {target} with a seeded neutral generator")
+          MAKE
+          "$RUNNER_TEMP/fresh-env/bin/synthtwin" profile "$DEMO/table.csv"
+          "$RUNNER_TEMP/fresh-env/bin/python" - <<'CHECK'
+          import json
+          import os
+          import pathlib
+          import sys
+
+          demo = pathlib.Path(os.environ["RUNNER_TEMP"]) / "demo"
+          document = json.loads(
+              (demo / "table-profile.json").read_text(encoding="utf-8")
+          )
+          summary = (demo / "table-profile.txt").read_text(encoding="utf-8")
+          problems = []
+          if document["n_rows"] != 240 or document["n_columns"] != 10:
+              problems.append(f"unexpected shape: {document['n_rows']}x{document['n_columns']}")
+          roles = {column["name"]: column["role"] for column in document["columns"]}
+          expected = {
+              "record_code": "identifier",
+              "region": "categorical",
+              "recorded_on": "datetime",
+              "answer": "binary",
+              "comment": "free_text",
+              "unused": "empty",
+              "batch": "constant",
+          }
+          for name, role in expected.items():
+              if roles.get(name) != role:
+                  problems.append(f"{name} was read as {roles.get(name)}, expected {role}")
+          region = [c for c in document["columns"] if c["name"] == "region"][0]
+          if region["suppressed_levels"] != 1:
+              problems.append("the rare label was not withheld")
+          notes = " ".join(note["note"] for note in document["publication_notes"])
+          if "shared by fewer than" not in notes:
+              problems.append("the publication notes do not record the suppression")
+          for text in (json.dumps(document), summary):
+              if "outlying" in text:
+                  problems.append("a below-floor label reached an output file")
+              if "R00007" in text:
+                  problems.append("an identifier value reached an output file")
+          if problems:
+              print("The end-to-end profiling check failed:")
+              for entry in problems:
+                  print(" -", entry)
+              sys.exit(1)
+          print("profiled the demonstration table; roles and suppression are as expected")
+          CHECK
       - name: Egress mutation - a fetch under --network none must fail
         # Plan D5 / D6.5: the deliberate HTTP fetch attempted under the
         # same image and the same --network none isolation must fail.
@@ -799,7 +907,11 @@ jobs:
         # pip command reads the lock. Any direct file, archive, path,
         # VCS, editable, or URL reference is refused while it is still
         # text, so pip never gets a chance to fetch or build it.
-        run: python tools/supply_chain/validate_lock.py
+        run: |
+          python tools/supply_chain/validate_lock.py
+          python tools/supply_chain/validate_lock.py \
+            --lock requirements-install.lock \
+            --input requirements-install.in
       - name: Install locked dev tools for the battery (frozen)
         run: |
           python -m pip install --require-hashes --only-binary=:all: -r "$LOCK_FILE"
@@ -819,7 +931,11 @@ jobs:
         # pip command reads the lock. Any direct file, archive, path,
         # VCS, editable, or URL reference is refused while it is still
         # text, so pip never gets a chance to fetch or build it.
-        run: python tools/supply_chain/validate_lock.py
+        run: |
+          python tools/supply_chain/validate_lock.py
+          python tools/supply_chain/validate_lock.py \
+            --lock requirements-install.lock \
+            --input requirements-install.in
       - name: Install locked dev tools (frozen)
         run: |
           if [ ! -f "$LOCK_FILE" ]; then
@@ -861,7 +977,11 @@ jobs:
         # pip command reads the lock. Any direct file, archive, path,
         # VCS, editable, or URL reference is refused while it is still
         # text, so pip never gets a chance to fetch or build it.
-        run: python tools/supply_chain/validate_lock.py
+        run: |
+          python tools/supply_chain/validate_lock.py
+          python tools/supply_chain/validate_lock.py \
+            --lock requirements-install.lock \
+            --input requirements-install.in
       - name: Install locked dev tools (frozen)
         run: |
           if [ ! -f "$LOCK_FILE" ]; then
@@ -956,6 +1076,79 @@ jobs:
             echo "$CHANGED" | sed 's/^/- `/; s/$/`/'
           } >> "$GITHUB_STEP_SUMMARY"
 
+  minimums:
+    needs: build
+    # Plan D5: an untested floor is a guess. This job installs EXACTLY
+    # the versions pyproject.toml declares as lower bounds, on the
+    # oldest supported interpreter, and runs the whole suite against
+    # them. requirements-min.in holds those pins and
+    # tests/test_dependencies.py fails if they ever disagree with the
+    # declared floors.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.10"
+      - name: Validate the requirement files before pip runs (text only)
+        run: |
+          python tools/supply_chain/validate_lock.py
+          python tools/supply_chain/validate_lock.py \
+            --lock requirements-min.lock \
+            --input requirements-min.in
+      - name: Install the declared floors (frozen, hash-checked)
+        run: |
+          python -m pip install --require-hashes --only-binary=:all: \
+            -r requirements-min.lock
+      - name: Download the wheel built inside the no-network container
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: synthtwin-wheel
+          path: dist
+      - name: Install that wheel without touching the pinned floors
+        # The wheel comes from the build job's --network none container,
+        # so no project build hook ever runs on a networked runner
+        # (review item P1-R1-F11: this job used to build from source
+        # here, outside the ratified build boundary, with a backend the
+        # floor lock does not even contain). --no-deps keeps the floors
+        # installed above exactly as they are.
+        run: python -m pip install --no-index --no-deps dist/*.whl
+      - name: Prove the floors are the versions actually installed
+        # Review item P1-R2-F8: showing a freeze listing is not a check.
+        # This compares what is installed against what pyproject.toml
+        # declares, and fails BEFORE the suite runs, so a lock
+        # regenerated at newer versions cannot pass as a floor test.
+        run: |
+          python -m pip freeze
+          python - <<'SCRIPT'
+          import importlib.metadata
+          import pathlib
+          import sys
+
+          text = pathlib.Path("pyproject.toml").read_text(encoding="utf-8")
+          start = text.index("dependencies = [")
+          block = text[start : text.index("]", start)]
+          problems = []
+          for piece in block.split('"')[1::2]:
+              name, _, floor = piece.partition(">=")
+              name, floor = name.strip(), floor.strip()
+              installed = importlib.metadata.version(name)
+              print(f"{name}: declared floor {floor}, installed {installed}")
+              if installed != floor:
+                  problems.append(
+                      f"{name} declares a floor of {floor} but {installed} "
+                      "is installed, so this job is not testing the floor"
+                  )
+          if problems:
+              for entry in problems:
+                  print(" -", entry)
+              print("Rebuild requirements-min.in/.lock at the declared floors.")
+              sys.exit(1)
+          print("every declared floor is the version installed")
+          SCRIPT
+      - name: Run the test suite against the declared floors
+        run: python -m pytest
+
   gate:
     # Plan D9 / D14: the single aggregate status context, and the one
     # that WILL be the required context once a branch ruleset is applied
@@ -972,6 +1165,7 @@ jobs:
         offline-static,
         provenance,
         sensitive-paths,
+        minimums,
       ]
     if: always()
     runs-on: ubuntu-latest
@@ -994,6 +1188,7 @@ jobs:
               "offline-static",
               "provenance",
               "sensitive-paths",
+              "minimums",
           ]
           needs = json.loads(os.environ["NEEDS_JSON"])
           bad = []

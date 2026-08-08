@@ -1,0 +1,11 @@
+# The runtime closure a user installs (plan D5, hash-pinned install
+# path). This file holds ONLY what synthtwin needs to run: the
+# development and build tooling lives in requirements-dev.in.
+#
+# The floors here must match the ones declared in pyproject.toml, and the
+# ROOTS here must match them too: numpy was a root until review round 3
+# pointed out that a pandas release which stopped requiring it would
+# leave this file installing a native package no plan authorizes.
+# tests/test_dependencies.py fails if either drifts.
+--only-binary :all:
+pandas>=2.1.0

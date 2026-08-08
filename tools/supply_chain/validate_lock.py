@@ -51,7 +51,13 @@ _RANGE_RE = re.compile(
     rf"(?:\s*,\s*{_RANGE_OP}\s*{_RANGE_VERSION})*$"
 )
 _HASH_RE = re.compile(r"^--hash=sha256:[0-9a-f]{64}$")
-_MARKER_RE = re.compile(r"^[A-Za-z0-9_.'\" ()=<>!,-]+$")
+# Environment markers are plain comparisons joined by and/or. The '*'
+# belongs to the version-wildcard form a resolver emits when a release
+# applies to exactly one interpreter series
+# (python_full_version == '3.11.*'); it appears inside a quoted version
+# literal and cannot name a file, a path, an archive, or a URL -- those
+# shapes are refused by _screen before this pattern is ever applied.
+_MARKER_RE = re.compile(r"^[A-Za-z0-9_.'\" ()=<>!,*-]+$")
 _ARCHIVE_MARKS = (".tar.gz", ".tgz", ".tar.bz2", ".tar.xz", ".tar", ".zip", ".whl")
 _VCS_MARKS = ("git+", "hg+", "svn+", "bzr+")
 
