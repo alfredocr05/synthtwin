@@ -952,3 +952,691 @@ def test_typing_get_type_hints_goes_red(tmp_path):
     )
     _assert_red(violations, "get_type_hints")
     _assert_red(violations, "ForwardRef")
+
+
+# -- Phase 1 additions E1-E5 (plan phase-1-profiler.md, P1-D10) -------
+#
+# The two runtime libraries are enumerated down to individual attribute
+# names, their instances may not be called through at all, and text
+# tracking propagates only from origins this audit established. Each
+# mutation below is one way that could be undone.
+
+
+def test_unlisted_pandas_attribute_goes_red(tmp_path):
+    violations = _scan_code(
+        tmp_path,
+        """
+        import pandas
+
+
+        def load(path):
+            return pandas.read_sql("select 1", path)
+        """,
+    )
+    _assert_red(violations, "pandas.read_sql")
+
+
+def test_unlisted_numpy_attribute_goes_red(tmp_path):
+    violations = _scan_code(
+        tmp_path,
+        """
+        import numpy
+
+
+        def load(path):
+            return numpy.fromfile(path)
+        """,
+    )
+    _assert_red(violations, "numpy.fromfile")
+
+
+def test_numpy_load_goes_red(tmp_path):
+    # numpy.load unpickles by default: it is a dynamic code loader
+    # reached through an otherwise allowed module.
+    violations = _scan_code(
+        tmp_path,
+        """
+        import numpy
+
+
+        def load(path):
+            return numpy.load(path)
+        """,
+    )
+    _assert_red(violations, "load")
+
+
+def test_method_call_on_a_pandas_value_goes_red(tmp_path):
+    # A data frame carries writers that reach the network on their own
+    # (to_sql, to_gbq, the URL-accepting to_* family). Policy case (b)
+    # would otherwise accept every one of them.
+    violations = _scan_code(
+        tmp_path,
+        """
+        import pandas
+        import pathlib
+
+
+        def export(path):
+            frame = pandas.read_csv(pathlib.Path(path))
+            return frame.to_sql("table", "postgresql://host/db")
+        """,
+    )
+    _assert_red(violations, "produced by pandas")
+
+
+def test_numpy_is_no_longer_importable_at_all(tmp_path):
+    # Round 1 of the Phase 1 review showed numpy's reductions made the
+    # published statistics depend on row order and on magnitude, so the
+    # profiler computes them itself and imports numpy nowhere. The
+    # library left the allowlist with the code that used it: the import
+    # is now the violation, which is stricter than the method rule it
+    # replaces.
+    violations = _scan_code(
+        tmp_path,
+        """
+        import numpy
+
+
+        def dump(values, path):
+            array = numpy.asarray(values, dtype=float)
+            return array.tofile(path)
+        """,
+    )
+    _assert_red(violations, "numpy")
+
+
+def test_a_reduction_outside_the_math_enumeration_goes_red(tmp_path):
+    # math.prod and math.sumprod are reductions with their own ordering
+    # behaviour; only the five enumerated names are allowed.
+    violations = _scan_code(
+        tmp_path,
+        """
+        import math
+
+
+        def total(values):
+            return math.prod(values)
+        """,
+    )
+    _assert_red(violations, "math.prod")
+
+
+def test_reading_a_pandas_value_without_calling_it_stays_clean(tmp_path):
+    violations = _scan_code(
+        tmp_path,
+        """
+        import pandas
+        import pathlib
+
+        from synthtwin.paths import validate_local_path
+
+
+        def read(raw_path, names):
+            validated = validate_local_path(raw_path, purpose="input")
+            frame = pandas.read_csv(
+                pathlib.Path(validated), names=names, dtype=str
+            )
+            return [list(frame[name]) for name in names], len(frame.columns)
+        """,
+    )
+    assert violations == [], violations
+
+
+def test_callable_in_a_read_csv_slot_goes_red(tmp_path):
+    violations = _scan_code(
+        tmp_path,
+        """
+        import pandas
+
+
+        def clean(value):
+            return value
+
+
+        def read(path):
+            return pandas.read_csv(path, converters={"a": clean})
+        """,
+    )
+    _assert_red(violations, "converters")
+
+
+def test_computed_callable_in_a_read_csv_slot_goes_red(tmp_path):
+    violations = _scan_code(
+        tmp_path,
+        """
+        import pandas
+
+
+        def read(path, handler):
+            return pandas.read_csv(path, on_bad_lines=handler)
+        """,
+    )
+    _assert_red(violations, "on_bad_lines")
+
+
+def test_unlisted_csv_attribute_goes_red(tmp_path):
+    violations = _scan_code(
+        tmp_path,
+        """
+        import csv
+
+
+        def save(handle):
+            return csv.writer(handle)
+        """,
+    )
+    _assert_red(violations, "csv.writer")
+
+
+def test_csv_dialect_callback_slot_goes_red(tmp_path):
+    violations = _scan_code(
+        tmp_path,
+        """
+        import csv
+
+
+        def read(handle, dialect):
+            return csv.reader(handle, dialect)
+        """,
+    )
+    _assert_red(violations, "dialect")
+
+
+def test_text_methods_chain_on_a_gated_parameter(tmp_path):
+    # Extension E4: the result of a text method on accepted text is
+    # text, so ordinary text handling no longer needs one helper
+    # function per method call.
+    violations = _scan_code(
+        tmp_path,
+        """
+        def clean(text: str) -> str:
+            if not isinstance(text, str):
+                raise ValueError("not text")
+            return text.strip().casefold().replace(",", "")
+        """,
+    )
+    assert violations == [], violations
+
+
+def test_a_method_outside_the_text_enumeration_goes_red(tmp_path):
+    violations = _scan_code(
+        tmp_path,
+        """
+        def clean(text: str) -> str:
+            if not isinstance(text, str):
+                raise ValueError("not text")
+            return text.strip().encode("utf-8")
+        """,
+    )
+    _assert_red(violations, "encode")
+
+
+def test_a_non_text_result_does_not_become_text(tmp_path):
+    # split returns a list. Treating its result as text would let a
+    # method call through on a value this audit has not read.
+    violations = _scan_code(
+        tmp_path,
+        """
+        def first(text: str) -> str:
+            if not isinstance(text, str):
+                raise ValueError("not text")
+            return text.split(",").pop()
+        """,
+    )
+    _assert_red(violations, "pop")
+
+
+def test_an_f_string_over_an_untraced_value_is_not_text(tmp_path):
+    violations = _scan_code(
+        tmp_path,
+        """
+        def describe(value):
+            return f"{value}".strip()
+        """,
+    )
+    _assert_red(violations, "strip")
+
+
+def test_a_slice_of_an_untraced_value_is_not_text(tmp_path):
+    violations = _scan_code(
+        tmp_path,
+        """
+        def head(value):
+            return value[:4].casefold()
+        """,
+    )
+    _assert_red(violations, "casefold")
+
+
+def test_a_slice_of_gated_text_stays_text(tmp_path):
+    violations = _scan_code(
+        tmp_path,
+        """
+        def head(text: str) -> str:
+            if not isinstance(text, str):
+                raise ValueError("not text")
+            return text[:4].casefold()
+        """,
+    )
+    assert violations == [], violations
+
+
+# -- round-1 repairs: the fence, origin preservation, scope escapes ----
+
+
+def test_read_csv_with_a_url_goes_red(tmp_path):
+    # Round 1 (P1-R1-F1): this scanned clean, and the runtime probe
+    # resolved a real hostname. Enumerating the NAME constrained nothing
+    # about what it was handed.
+    violations = _scan_code(
+        tmp_path,
+        """
+        import pandas
+
+
+        def fetch():
+            return pandas.read_csv("https://example.invalid/table.csv")
+        """,
+    )
+    _assert_red(violations, "trace to validate_local_path")
+
+
+def test_read_csv_as_a_callback_goes_red(tmp_path):
+    violations = _scan_code(
+        tmp_path,
+        """
+        import pandas
+
+
+        def fetch(paths):
+            return list(map(pandas.read_csv, paths))
+        """,
+    )
+    _assert_red(violations, "directly as the function of a call")
+
+
+def test_read_csv_stored_in_a_variable_goes_red(tmp_path):
+    violations = _scan_code(
+        tmp_path,
+        """
+        import pandas
+
+
+        def fetch(path):
+            reader = pandas.read_csv
+            return reader(path)
+        """,
+    )
+    _assert_red(violations, "directly as the function of a call")
+
+
+def test_read_csv_with_a_bare_path_object_goes_red(tmp_path):
+    # A Path is not enough: the library turns it back into text before
+    # deciding whether it is a URL.
+    violations = _scan_code(
+        tmp_path,
+        """
+        import pandas
+        import pathlib
+
+
+        def fetch(path):
+            return pandas.read_csv(pathlib.Path(path))
+        """,
+    )
+    _assert_red(violations, "trace to validate_local_path")
+
+
+def test_read_csv_with_a_validated_path_stays_clean(tmp_path):
+    violations = _scan_package(
+        tmp_path,
+        {
+            "synthtwin/__init__.py": "",
+            "synthtwin/paths.py": '''
+                def validate_local_path(raw, purpose):
+                    """Validate."""
+                    if not isinstance(raw, str):
+                        raise ValueError("not text")
+                    return raw
+                ''',
+            "synthtwin/reading.py": """
+                import pandas
+                import pathlib
+
+                from synthtwin.paths import validate_local_path
+
+
+                def read(raw_path):
+                    validated = validate_local_path(raw_path, purpose="input")
+                    file_path = pathlib.Path(validated)
+                    return pandas.read_csv(file_path, dtype=str)
+                """,
+        },
+    )
+    assert violations == [], violations
+
+
+def test_a_cast_cannot_launder_a_pandas_frame(tmp_path):
+    # Round 1 (P1-R1-F2): typing.cast retagged the value, E5 stopped
+    # seeing pandas, and the reviewer's probe wrote a file with to_csv.
+    violations = _scan_code(
+        tmp_path,
+        """
+        import pandas
+        import pathlib
+        import typing
+
+        from synthtwin.paths import validate_local_path
+
+
+        def export(raw_path):
+            validated = validate_local_path(raw_path, purpose="input")
+            frame = pandas.read_csv(pathlib.Path(validated))
+            disguised = typing.cast("object", frame)
+            return disguised.to_sql("t", "postgresql://host/db")
+        """,
+    )
+    _assert_red(violations, "produced by pandas")
+
+
+def test_an_unenumerated_pandas_attribute_read_goes_red(tmp_path):
+    # frame.style reaches a whole capability with no call in sight.
+    violations = _scan_code(
+        tmp_path,
+        """
+        import pandas
+        import pathlib
+
+        from synthtwin.paths import validate_local_path
+
+
+        def style(raw_path):
+            validated = validate_local_path(raw_path, purpose="input")
+            frame = pandas.read_csv(pathlib.Path(validated))
+            return frame.style
+        """,
+    )
+    _assert_red(violations, "attribute")
+
+
+def test_global_and_nonlocal_go_red(tmp_path):
+    # Round 1 showed a module-level frame reached through `global`
+    # shedding its origin on the way.
+    violations = _scan_code(
+        tmp_path,
+        """
+        frame = None
+
+
+        def load():
+            global frame
+            frame = 1
+        """,
+    )
+    _assert_red(violations, "global")
+
+
+# -- round-2 repairs: every bypass the second review found -------------
+
+
+def test_a_bare_imported_fenced_name_goes_red(tmp_path):
+    # Round 2 (P1-R2-F1): `from pandas import read_csv` then map() over
+    # it scanned clean, and pandas opened the URL it was handed.
+    violations = _scan_code(
+        tmp_path,
+        """
+        from pandas import read_csv
+
+
+        def fetch(paths):
+            return list(map(read_csv, paths))
+        """,
+    )
+    _assert_red(violations, "read_csv")
+
+
+def test_a_shadowed_validator_cannot_manufacture_provenance(tmp_path):
+    # Round 2 (P1-R2-F1): redefining validate_local_path in the scanned
+    # module as a pass-through minted the provenance the fence requires.
+    violations = _scan_code(
+        tmp_path,
+        """
+        import pandas
+        import pathlib
+
+        from synthtwin.paths import validate_local_path
+
+
+        def validate_local_path(raw, purpose):
+            return raw
+
+
+        def fetch(raw_path):
+            validated = validate_local_path(raw_path, purpose="input")
+            return pandas.read_csv(pathlib.Path(validated))
+        """,
+    )
+    _assert_red(violations, "trace to validate_local_path")
+
+
+def test_a_keyword_cast_cannot_launder_a_frame(tmp_path):
+    # Round 2 (P1-R2-F2): only the positional form was covered, and the
+    # keyword form wrote a CSV.
+    violations = _scan_code(
+        tmp_path,
+        """
+        import pandas
+        import pathlib
+        import typing
+
+        from synthtwin.paths import validate_local_path
+
+
+        def export(raw_path):
+            validated = validate_local_path(raw_path, purpose="input")
+            frame = pandas.read_csv(pathlib.Path(validated))
+            disguised = typing.cast(typ="object", val=frame)
+            return disguised.to_csv("/tmp/out.csv")
+        """,
+    )
+    _assert_red(violations, "produced by pandas")
+
+
+def test_a_selected_column_is_still_a_pandas_object(tmp_path):
+    # Round 2 (P1-R2-F2): frame["x"].to_csv wrote a file, and
+    # frame["x"].values.tofile reached numpy even though numpy cannot be
+    # imported at all.
+    violations = _scan_code(
+        tmp_path,
+        """
+        import pandas
+        import pathlib
+
+        from synthtwin.paths import validate_local_path
+
+
+        def export(raw_path):
+            validated = validate_local_path(raw_path, purpose="input")
+            frame = pandas.read_csv(pathlib.Path(validated))
+            return frame["secret"].to_csv("/tmp/out.csv")
+        """,
+    )
+    _assert_red(violations, "produced by pandas")
+
+
+def test_a_validated_path_still_obeys_the_callback_slot_rule(tmp_path):
+    # Round 2 (P1-R2-F10): the new provenance origin made a validated
+    # path stop being a Path for the slot table, so Path.walk's
+    # on_error accepted a caller-supplied callback.
+    violations = _scan_code(
+        tmp_path,
+        """
+        from synthtwin.paths import validate_local_path
+
+
+        def walk(raw_path, callback):
+            validated = validate_local_path(raw_path, purpose="input")
+            return validated.walk(on_error=callback)
+        """,
+    )
+    _assert_red(violations, "on_error")
+
+
+# -- round-3 repairs: a closed grammar for call targets ----------------
+
+
+def test_a_conditional_receiver_goes_red(tmp_path):
+    # Round 3 (P1-R3-F7): each computed receiver form scanned clean and
+    # invoked the caller's callback at runtime.
+    violations = _scan_code(
+        tmp_path,
+        """
+        import pathlib
+
+
+        def walk(raw, choose, callback):
+            place = pathlib.Path(raw)
+            return (place if choose else place).walk(on_error=callback)
+        """,
+    )
+    _assert_red(violations, "does not resolve")
+
+
+def test_a_boolean_receiver_goes_red(tmp_path):
+    violations = _scan_code(
+        tmp_path,
+        """
+        import pathlib
+
+
+        def walk(raw, callback):
+            place = pathlib.Path(raw)
+            return (place or place).walk(False, callback)
+        """,
+    )
+    _assert_red(violations, "does not resolve")
+
+
+def test_a_computed_call_target_goes_red(tmp_path):
+    violations = _scan_code(
+        tmp_path,
+        """
+        def run(choose, callback):
+            return (callback if choose else callback)("payload")
+        """,
+    )
+    _assert_red(violations, "does not resolve")
+
+
+# -- round-4: a name that is both imported and defined is not the API --
+
+
+def test_a_locally_defined_path_is_not_pathlib_path(tmp_path):
+    # Round 4 (P1-R4-F1). This RAN: the validator checked one file and
+    # the reader opened another through a web address, because the
+    # module both imported Path and defined one, and this audit kept
+    # trusting the import.
+    violations = _scan_code(
+        tmp_path,
+        """
+        import pandas
+        from pathlib import Path
+
+        from synthtwin.paths import validate_local_path
+
+
+        def Path(raw):
+            return "file:///tmp/other.csv"
+
+
+        def fetch(raw_path):
+            validated = validate_local_path(raw_path, purpose="input")
+            return pandas.read_csv(Path(validated))
+        """,
+    )
+    _assert_red(violations, "trace to validate_local_path")
+
+
+def test_a_locally_defined_cast_is_not_typing_cast(tmp_path):
+    # Round 4 (P1-R4-F1), second example. This RAN too, and overwrote
+    # the user's own table with the frame's contents.
+    violations = _scan_code(
+        tmp_path,
+        """
+        import pandas
+        import pathlib
+        from typing import cast
+
+        from synthtwin.paths import validate_local_path
+
+
+        def cast(typ, val):
+            return typ
+
+
+        def damage(raw_path):
+            validated = validate_local_path(raw_path, purpose="input")
+            frame = pandas.read_csv(pathlib.Path(validated))
+            disguised = cast(frame, pathlib.Path(validated))
+            disguised.to_csv(raw_path)
+        """,
+    )
+    _assert_red(violations, "to_csv")
+
+
+# -- round-5: class bodies are not closures; a match capture binds ------
+
+
+def test_a_class_level_import_does_not_shadow_a_module_function(tmp_path):
+    # Round 5 (P1-R5-F1). Python resolves an unqualified name in a method
+    # to the MODULE, never to the enclosing class, so the class-level
+    # pathlib.Path here is not what runs -- the module-level function is.
+    violations = _scan_code(
+        tmp_path,
+        """
+        import pandas
+
+        from synthtwin.paths import validate_local_path
+
+
+        def Path(raw):
+            return "file:///tmp/other.csv"
+
+
+        class Reader:
+            from pathlib import Path
+
+            def fetch(self, raw_path):
+                validated = validate_local_path(raw_path, purpose="input")
+                return pandas.read_csv(Path(validated))
+        """,
+    )
+    _assert_red(violations, "trace to validate_local_path")
+
+
+def test_a_match_capture_rebinds_the_name(tmp_path):
+    # Round 5 (P1-R5-F1). `case path:` binds `path`, but the name lives
+    # in a plain string field rather than a Name node, so nothing
+    # recorded the store and the captured frame inherited the origin of
+    # the validated path it replaced.
+    violations = _scan_code(
+        tmp_path,
+        """
+        import pandas
+        import pathlib
+
+        from synthtwin.paths import validate_local_path
+
+
+        def damage(raw_path):
+            validated = validate_local_path(raw_path, purpose="input")
+            path = pathlib.Path(validated)
+            frame = pandas.read_csv(path)
+            match frame:
+                case path:
+                    return path.to_csv(raw_path)
+            return None
+        """,
+    )
+    _assert_red(violations, "to_csv")

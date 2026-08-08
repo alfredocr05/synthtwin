@@ -1,10 +1,11 @@
 # synthtwin
 
-> **Status: pre-alpha skeleton (Phase 0).** synthtwin is **not on PyPI**
-> and has **no data functionality yet**. What exists today is the
-> project skeleton and its security baseline. Every capability on this
-> page is tagged **[built]** or **[planned]** so there is no ambiguity
-> about which is which.
+> **Status: early (Phase 1).** synthtwin is **not on PyPI**. What
+> exists today is the profiler -- it reads a CSV table on your computer
+> and describes it -- plus the security baseline the whole project rests
+> on. Generating the twin itself is the next phase. Every capability on
+> this page is tagged **[built]** or **[planned]** so there is no
+> ambiguity about which is which.
 
 > **This repository is private for now.** It is private by owner
 > decision and becomes public when the owner judges the application
@@ -41,9 +42,50 @@ The tool is being designed to run from a single command, and every error
 message is required to tell a non-programmer what happened and what to do
 next.
 
+## What works today
+
+```
+synthtwin profile my-table.csv
+```
+
+That reads `my-table.csv` on your computer and writes two files beside
+it:
+
+- `my-table-profile.json` - the description the twin will be built from;
+- `my-table-profile.txt` - the same description in plain language, which
+  is also printed on the screen.
+
+The profiler decides what each column holds -- record numbers, whole
+numbers, measured numbers, dates, a set of categories, two-value
+columns, free text -- says in words why it decided that, reports what is
+missing and how the missing values were written, and tells you exactly
+which of your real values ended up in the profile and which did not.
+
+**Read that last part before you move the profile anywhere.** The
+profile is computed from your real data. It contains no rows of your
+table, and it never contains a record number, a line of free text, or a
+label shared by fewer than eleven rows -- but it does contain the
+smallest and largest values of your numeric and date columns, and the
+points in between that describe their shape. It is real-derived
+material, and your institution's rules for such material apply to it.
+
+Two options exist for the situations the rules cannot decide alone:
+
+```
+synthtwin profile my-table.csv --out-dir reports
+synthtwin profile my-table.csv --identifier participant_number
+synthtwin profile my-table.csv --smallest-group 20
+```
+
+`--identifier` tells synthtwin that a column of numbers is a record
+number rather than a measurement, so that none of its values are
+published. `--smallest-group` changes the eleven-row rule above.
+
 ## What exists today
 
-- **[built]** The `synthtwin` command - prints version and status only.
+- **[built]** `synthtwin profile` - the reading and column analysis
+  described above.
+- **[built]** The `synthtwin` command's version and status output.
 - **[built]** The offline guarantee's layered checks: a best-effort
   import-allowlist scanner for the source tree, a socket guard in the
   test suite, and a packaged build that runs with no network available
@@ -58,9 +100,12 @@ next.
   generating script and byte-compared in CI.
 - **[built]** Continuous integration with a single aggregate gate, and
   the written plans and their review record in `docs/plans/`.
-- **[planned]** Profiling, generation, validation, and the quality
-  report - these arrive in later phases, each behind its own written
-  plan and adversarial review.
+- **[planned]** Generation, validation, and the quality report - these
+  arrive in later phases, each behind its own written plan and
+  adversarial review.
+- **[planned]** Relationships between columns. The profile describes
+  each column on its own; how columns move together is decided in the
+  next phase.
 - **[planned]** PyPI publication - earliest at the end of Phase 3, with
   signed, reproducible, attested releases.
 
@@ -87,14 +132,19 @@ keeps the profiler and the generator apart: the profiler runs where the
 real data lives and writes a profile file; the generator needs only that
 profile. The real data never has to move.
 
-**Dependencies are governed [built for Phase 0].** Phase 0 ships zero
-runtime dependencies - there is nothing to audit but this repository.
-When numeric libraries arrive in Phase 1, the policy distinguishes the
-*direct* dependencies (declared with honest, tested lower bounds for an
-ordinary `pip install`) from the *complete closure* (every package,
+**Dependencies are governed [built].** synthtwin has exactly two
+runtime dependencies, pandas and numpy, each justified in writing in
+`docs/plans/phase-1-profiler.md` and each reduced by the import scanner
+to the handful of functions this code actually calls -- membership in an
+allowed library grants nothing on its own. The policy distinguishes the
+*direct* dependencies (declared with honest lower bounds that a CI job
+installs and tests) from the *complete closure* (every package,
 including build tooling and transitives, locked by hash and consumed
-frozen in CI and in the supported institutional install path). Details in
-`SECURITY.md`.
+frozen in CI and in the supported institutional install path). One
+consequence is stated plainly in `SECURITY.md`: the CSV reader
+synthtwin calls is itself capable of fetching a URL, and what keeps it
+from doing so is synthtwin's path check, which refuses anything that is
+not a plain local path before any file is opened.
 
 ## Honest limits
 
@@ -104,7 +154,10 @@ These are design limits, stated up front so nobody discovers them late:
 | --- | --- |
 | One flat table at a time | synthtwin models a single table. Multi-table databases and cross-file joins are out of scope. |
 | Only detected or declared structure is reproduced | The twin preserves what the profiler can see or what you explicitly declare. A pattern the profiler cannot detect, and that you did not declare, will not be in the twin. |
-| No free text | Narrative or note columns are not synthesized. synthtwin will not invent sentences. |
+| No free text | Narrative or note columns are described by their length and word counts only; their values are never published, and the twin will not invent sentences. |
+| CSV only, for now | The profiler reads comma-separated files saved as UTF-8 (or, as a fallback, Western European text). Spreadsheets, databases and columnar formats come later. |
+| The table has to fit in memory | A table is read into memory whole; reading very large files in pieces is planned but not built. A file of a few hundred megabytes is comfortable on an ordinary machine; several gigabytes is not, and you are told so in words rather than by a crash. |
+| The file is read twice | Once to check its shape and once to read its values, by two different readers whose results must agree. That costs a second pass over the file and buys the guarantee that a malformed row is refused rather than quietly turned into missing values. |
 | Small tables degrade | With few rows, the statistics the profiler measures are noisy, and the twin's fidelity drops accordingly. The quality report will say so plainly. |
 
 ## Determinism [planned]
@@ -121,22 +174,57 @@ seed, so byte-stability is promised only across identical inputs.
 
 ## Installing
 
-synthtwin is **not on PyPI**. There is nothing useful to install yet. If
-you want to inspect the skeleton:
+synthtwin is **not on PyPI** yet. To use the profiler from a clone:
 
 ```
 git clone https://github.com/alfredocr05/synthtwin
 cd synthtwin
 pip install -e .
-synthtwin --version
+synthtwin profile my-table.csv
 ```
+
+On a machine that must install everything by hash, and that may have no
+network at all, the procedure has two parts. The first needs a machine
+that does have network access; the second does not.
+
+**On a connected machine**, collect the exact files, verifying every
+hash as they arrive, and copy the folder across:
+
+```
+pip download --require-hashes --only-binary=:all: \
+    --dest wheelhouse -r requirements-install.lock
+```
+
+Put the synthtwin wheel (`synthtwin-<version>-py3-none-any.whl`, from a
+release) into that same folder.
+
+**On the locked-down machine**, install from the folder and nothing
+else:
+
+```
+pip install --no-index --find-links wheelhouse \
+    --require-hashes -r requirements-install.lock
+pip install --no-index --no-deps wheelhouse/synthtwin-<version>-py3-none-any.whl
+```
+
+Both commands are barred from the network by `--no-index`, and the
+first checks every hash. `--no-deps` on the second is what keeps the
+verified versions in place.
+
+Do **not** substitute `pip install .` from a source folder for the
+second command. It runs a build backend that pip fetches from the
+network, `requirements-install.lock` does not pin that backend, and on a
+machine with no network it simply fails. CI runs exactly the two
+commands above on every build, against the wheel produced inside a
+container with no network.
 
 While the repository is private, that clone works only from an account
 the owner has granted access, and Git asks you to authenticate first; an
 unauthenticated clone fails. Once the repository becomes public, the same
 commands work for anyone, with no account and no authentication.
 
-The command prints version and status only.
+Running `synthtwin` with no arguments prints the version and what the
+tool can do today.
 
 ## License
 

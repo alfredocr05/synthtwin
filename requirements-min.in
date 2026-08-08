@@ -1,0 +1,7 @@
+# The DECLARED FLOORS, pinned exactly (plan D5: a minimum-versions job
+# tests the lower bounds a package declares, because an untested floor
+# is a guess). The two runtime pins here must equal the floors in
+# pyproject.toml; tests/test_dependencies.py fails if they drift.
+--only-binary :all:
+pandas==2.1.0
+pytest==8.0.0
