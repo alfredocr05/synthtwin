@@ -96,7 +96,15 @@ def test_keep_value_makes_a_genuine_na_data_again(
     assert column["n_present"] == 120
     labels = [level["label"] for level in column["levels"]]
     assert sorted(labels) == ["na", "north", "south"]
-    assert document["settings"]["kept_values"] == ["NA"]
+    # The profile records HOW MANY values were declared and under which
+    # rules -- never the spelling the operator typed. A declaration is
+    # typed BECAUSE the value is in the table, so republishing it in the
+    # settings block carried a real source value around every per-column
+    # suppression rule (review item P1-R7-F2).
+    assert document["settings"]["kept_values"] == {
+        "n_declared": 1,
+        "values_recorded": False,
+    }
 
 
 @pytest.mark.parametrize("declared", ["NA", "na", " na "])
@@ -122,7 +130,10 @@ def test_missing_value_makes_ordinary_text_a_hole(
     assert column["n_missing"] == 40
     assert column["missing_by_class"]["(declared-missing)"] == 40
     assert column["role"] == taxonomy.ROLE_BINARY
-    assert document["settings"]["declared_missing_values"] == ["unknown"]
+    assert document["settings"]["declared_missing_values"] == {
+        "n_declared": 1,
+        "values_recorded": False,
+    }
 
 
 # -- the same number, spelled four ways -------------------------------
@@ -255,7 +266,10 @@ def test_both_candidates_can_be_kept_at_once(
     assert column["n_missing"] == 0
     assert column["percentiles"]["min"] == -999.0
     assert column["percentiles"]["max"] == 9999.0
-    assert document["settings"]["kept_values"] == ["-999", "9999"]
+    assert document["settings"]["kept_values"] == {
+        "n_declared": 2,
+        "values_recorded": False,
+    }
 
 
 def test_both_candidates_can_be_declared_missing_at_once(
@@ -391,8 +405,9 @@ def test_the_profile_records_the_declarations_and_the_rule(
         capsys,
     )
     recorded = document["settings"]
-    assert recorded["kept_values"] == ["-999"]
-    assert recorded["declared_missing_values"] == ["0"]
+    assert recorded["kept_values"]["n_declared"] == 1
+    assert recorded["declared_missing_values"]["n_declared"] == 1
+    assert recorded["declaration_publication"] == profile.DECLARATION_PUBLICATION
     assert recorded["declaration_matching"] == taxonomy.DECLARATION_MATCHING
     assert "number" in recorded["declaration_matching"]
 

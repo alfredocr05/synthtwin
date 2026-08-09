@@ -13,7 +13,12 @@ every number is in place, each one is looked up together with the exact
 rational it stands for and re-derived from its two float64 neighbours.
 A number that reaches the document with no exact value recorded beside
 it stops the run, so the claim "every published float is proved" cannot
-quietly stop being true when a field is added.
+quietly stop being true when a field is added.  That walk looks at
+every value the file writes as a number, whole ones included, and at
+whatever sits under a `float64` key whatever its type, so a field
+cannot slip through by arriving in a shape the proof was not written
+for; the run reports how many numbers it proved, and the whole file is
+walked once more after the cases are assembled.
 
 The three shapes of proof:
 
@@ -487,38 +492,112 @@ NEAREST = "nearest"
 ROOT = "root"
 SIGNED_ROOT = "signed_root"
 
+# The key that wraps every proved number.  It is a promise about the
+# type as well as a place to hang the exact value on: what sits under it
+# must be a Python float, which is a binary64 value and the only thing
+# the neighbour comparison can be applied to.
+FLOAT64 = "float64"
 
-def _published_floats(node, path=()):
-    """Every float in ``node``, with the path of keys that reaches it.
+# The whole numbers one case is allowed to publish outside a `float64`
+# field, named one at a time.  Both are counts of things rather than
+# measurements -- how many values the sample holds, and how many decimal
+# digits the complete expansion of the spread needs -- so there is no
+# exact rational for them to be the rounding of and nothing for the
+# proof to re-derive.  Anything else arriving as a whole number stops
+# the run: JSON writes a Python int and a Python float as the same kind
+# of thing, so an integer under a `float64` wrapper used to walk past a
+# proof that asked only whether a value was a float (review item
+# P1-R7-F4).
+CASE_WHOLE_NUMBER_FIELDS = frozenset({("n",), ("std", "decimal_digits_needed")})
 
-    Walks the finished document rather than the code that built it, so
-    a number added by a new field is found whether or not anyone
-    remembered to prove it.
+# The one place in the file where `float64` names the wrapper instead of
+# sitting above a value: the document's own glossary says in words what
+# a `float64` field means.  It is text about the wrapper, not a number
+# under one, so it is exempt from the proof -- and held to being text,
+# so the exemption cannot become a place to put an unproved number.
+DOCUMENT_TEXT_FIELDS = frozenset({("definitions", FLOAT64)})
+
+
+def _published_numbers(node, path=()):
+    """Every value ``node`` publishes as a number, with the path to it.
+
+    Walks the finished document rather than the code that built it, so a
+    number added by a new field is found whether or not anyone
+    remembered to prove it.  Two kinds of value come back, and between
+    them they leave no number in the document unvisited:
+
+    * whatever sits under a ``"float64"`` key, of whatever type at all.
+      The wrapper is a promise about the type, so a value there is
+      handed over even when it is not a number -- a whole number, a
+      piece of text or a nested object under that key is a broken
+      promise to be refused, not something to walk past;
+    * every other value written as a JSON number, whole or fractional
+      alike.
+
+    ``True`` and ``False`` are Python ints by inheritance, but JSON
+    writes them as ``true`` and ``false`` rather than as numbers, so
+    they are not numbers here -- except under a ``float64`` key, where
+    nothing at all is skipped.
     """
     if isinstance(node, dict):
         for key in sorted(node):
-            yield from _published_floats(node[key], path + (key,))
+            child = node[key]
+            if key == FLOAT64:
+                yield path + (key,), child
+            else:
+                yield from _published_numbers(child, path + (key,))
     elif isinstance(node, list):
         for index, item in enumerate(node):
-            yield from _published_floats(item, path + (index,))
-    elif isinstance(node, float):
+            yield from _published_numbers(item, path + (index,))
+    elif isinstance(node, bool):
+        return
+    elif isinstance(node, (int, float)):
         yield path, node
 
 
 def _where(path):
     """A readable name for one place in the document."""
+    if not path:
+        return "the top level of the document"
     return ".".join(str(step) for step in path)
 
 
-def prove_every_published_float(published, exact_values):
-    """Prove each float in ``published`` against the exact value it stands for.
+def _named(fields):
+    """The listed field paths as one readable phrase."""
+    if not fields:
+        return "none at all"
+    return ", ".join(sorted(_where(field) for field in fields))
+
+
+def prove_every_published_float(
+    published,
+    exact_values,
+    whole_number_fields=CASE_WHOLE_NUMBER_FIELDS,
+    text_fields=frozenset(),
+):
+    """Prove every number in ``published`` against the exact value it stands for.
 
     This is what makes the file's claim true.  The construction is not
     trusted at all here: each number is looked up with the exact
     rational it was built from and re-derived from its two float64
-    neighbours.  A number with no exact value recorded for it -- a field
-    somebody added without saying what it means -- stops the run rather
-    than being published unproved.
+    neighbours.  Three things stop the run rather than being published
+    unproved:
+
+    * a number with no exact value recorded for it -- a field somebody
+      added without saying what it means;
+    * a value under a ``"float64"`` key that is not a binary64 value.
+      JSON has one kind of number, so a Python int is published as a
+      number exactly as a float is; a proof that asked only whether a
+      value was a float walked straight past ``{"float64": 7}`` and
+      reported that it had proved nothing, while the exact value
+      recorded beside it went unused (review item P1-R7-F4);
+    * a whole number anywhere the document has not said in advance that
+      it publishes one, named in ``whole_number_fields``.
+
+    ``text_fields`` names the paths where ``"float64"`` is the subject
+    being written about rather than a wrapper above a value -- the
+    document's own glossary entry for the wrapper.  Each one must hold
+    text, so an unproved number cannot be parked there either.
 
     ``exact_values`` maps the path of a published number, without its
     trailing ``"float64"`` key, to one of
@@ -529,37 +608,85 @@ def prove_every_published_float(published, exact_values):
       ``(SIGNED_ROOT, radicand, negative)``  the same, with a sign
                                       applied after the rounding.
 
+    The match is one-to-one in both directions: every ``float64`` field
+    needs a claim, and every claim must have been spent on a field.  A
+    claim left over is how a skipped field hides, because the count of
+    proved numbers alone cannot tell the two apart.
+
     Returns how many numbers were proved.
     """
     proved = 0
-    for path, value in _published_floats(published):
-        if not path or path[-1] != "float64":
+    proved_fields = set()
+    for path, value in _published_numbers(published):
+        if path and path[-1] == FLOAT64:
+            if path in text_fields:
+                if not isinstance(value, str):
+                    raise AssertionError(
+                        f"{_where(path)} is the document's own account of "
+                        "what a 'float64' field means, so it has to be text. "
+                        f"It carries {value!r} instead. Publish that number "
+                        "as a 'float64' field of its own with the exact "
+                        "value it stands for recorded beside it, or put the "
+                        "wording back."
+                    )
+                continue
+            if not isinstance(value, float):
+                raise AssertionError(
+                    f"{_where(path)} publishes {value!r}, which is not a "
+                    "binary64 value. A 'float64' field is a promise about "
+                    "the type: the proof re-derives a float from its two "
+                    "neighbouring float64 values and has nothing to work "
+                    "with otherwise. Publish a Python float there, or move "
+                    "the value out of the 'float64' field."
+                )
+            field = path[:-1]
+            claim = exact_values.get(field)
+            if claim is None:
+                raise AssertionError(
+                    f"{_where(path)} publishes {value!r} with no exact value "
+                    "recorded to check it against. Record the exact value "
+                    "for this field so it can be proved, or do not publish "
+                    "it."
+                )
+            if claim[0] == NEAREST:
+                prove_nearest_float(claim[1], value)
+            elif claim[0] == ROOT:
+                prove_correctly_rounded_sqrt(claim[1], value)
+            elif claim[0] == SIGNED_ROOT:
+                prove_correctly_rounded_signed_sqrt(claim[1], claim[2], value)
+            else:
+                raise AssertionError(
+                    f"{_where(path)} records {claim[0]!r} as the way to prove "
+                    f"{value!r}, which is not one of {NEAREST!r}, {ROOT!r} or "
+                    f"{SIGNED_ROOT!r}."
+                )
+            proved_fields.add(field)
+            proved += 1
+        elif isinstance(value, float):
             raise AssertionError(
                 f"{_where(path)} carries the number {value!r} outside a "
                 "'float64' field, so nothing proved it. Publish every number "
                 "as a 'float64' field and record the exact value it stands "
                 "for beside it."
             )
-        claim = exact_values.get(path[:-1])
-        if claim is None:
+        elif path not in whole_number_fields:
             raise AssertionError(
-                f"{_where(path)} publishes {value!r} with no exact value "
-                "recorded to check it against. Record the exact value for "
-                "this field so it can be proved, or do not publish it."
+                f"{_where(path)} publishes the whole number {value!r}, and "
+                "the only whole numbers this document may carry outside a "
+                f"'float64' field are {_named(whole_number_fields)}. A "
+                "number nobody proved must not be published: publish it as a "
+                "'float64' field with the exact value it stands for recorded "
+                "beside it, or, if it is a count rather than a measurement, "
+                "name it among the whole-number fields in this generator."
             )
-        if claim[0] == NEAREST:
-            prove_nearest_float(claim[1], value)
-        elif claim[0] == ROOT:
-            prove_correctly_rounded_sqrt(claim[1], value)
-        elif claim[0] == SIGNED_ROOT:
-            prove_correctly_rounded_signed_sqrt(claim[1], claim[2], value)
-        else:
-            raise AssertionError(
-                f"{_where(path)} records {claim[0]!r} as the way to prove "
-                f"{value!r}, which is not one of {NEAREST!r}, {ROOT!r} or "
-                f"{SIGNED_ROOT!r}."
-            )
-        proved += 1
+    unspent = [field for field in exact_values if field not in proved_fields]
+    if unspent:
+        raise AssertionError(
+            f"an exact value is recorded for {_named(unspent)}, but the "
+            "document publishes no 'float64' field there, so that claim "
+            "proved nothing. A claim left over is how a skipped field "
+            "hides: publish the field, or remove the claim."
+        )
     return proved
 
 
@@ -699,10 +826,23 @@ def stats(sample):
     """Exact statistics of a list of float64 values.
 
     Every number in the returned document is proved before it is
-    returned: ``exact_values`` records, for each published number, the
-    exact rational it stands for and the shape of proof it needs, and
-    ``prove_every_published_float`` walks the finished document and
-    re-derives each one from its two float64 neighbours.
+    returned: see ``stats_and_claims``, which this is the one-value
+    spelling of.
+    """
+    return stats_and_claims(sample)[0]
+
+
+def stats_and_claims(sample):
+    """Exact statistics of a list of float64 values, and their exact values.
+
+    Returns ``(document, exact_values)``.  Every number in the document
+    is proved before it is returned: ``exact_values`` records, for each
+    published number, the exact rational it stands for and the shape of
+    proof it needs, and ``prove_every_published_float`` walks the
+    finished document and re-derives each one from its two float64
+    neighbours.  The caller is handed the same record so that the whole
+    file can be walked once more at the end, with nothing left out of
+    the walk that a case put in.
     """
     n = len(sample)
     xs = [fractions.Fraction(x) for x in sample]
@@ -822,7 +962,7 @@ def stats(sample):
         del exact_values[("ladder_binary_p", name)]
 
     prove_every_published_float(out, exact_values)
-    return out
+    return out, exact_values
 
 
 # --------------------------------------------------------------- samples
@@ -1062,6 +1202,7 @@ def main(argv=None):
         },
         "cases": {},
     }
+    claims = {}
     for name in sorted(cases):
         case = cases[name]
         values = case["values"]
@@ -1070,8 +1211,29 @@ def main(argv=None):
             "n": len(values),
             "values_float64_repr": [repr(v) for v in values],
         }
-        entry.update(stats(values))
+        case_document, case_claims = stats_and_claims(values)
+        entry.update(case_document)
         document["cases"][name] = entry
+        for field in case_claims:
+            claims[("cases", name) + field] = case_claims[field]
+
+    # Each case proved its own numbers as it was built; this walks the
+    # whole assembled file once more, so a number put in beside the
+    # cases -- a new top-level field, or an assignment made after a case
+    # proved itself -- is proved too or stops the run.
+    whole_number_fields = frozenset(
+        ("cases", name) + field
+        for name in cases
+        for field in CASE_WHOLE_NUMBER_FIELDS
+    )
+    proved = prove_every_published_float(
+        document, claims, whole_number_fields, DOCUMENT_TEXT_FIELDS
+    )
+    print(
+        f"proved {proved} published numbers across {len(cases)} cases; "
+        "every number this file publishes is one of them",
+        file=sys.stderr,
+    )
 
     text = json.dumps(document, indent=2, sort_keys=True, allow_nan=False)
     with open(args.out, "w", encoding="utf-8", newline="\n") as handle:

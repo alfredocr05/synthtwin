@@ -60,6 +60,33 @@ _ROLES_WITH_RANGES = (
     taxonomy.ROLE_DATETIME,
 )
 
+# What was decided about a number synthtwin uses as a stand-in for "no
+# value", in words. The profile records codes so a program can act on
+# them; these are the same decisions for a person to read, and neither
+# of these tables holds a value of anybody's table.
+_VERDICT_WORDS = {
+    taxonomy.VERDICT_MISSING: "counted as 'no value'",
+    taxonomy.VERDICT_KEPT: "kept as a number",
+}
+_REASON_WORDS = {
+    taxonomy.REASON_OUTLIER_AND_FREQUENT: (
+        "far outside the rest of the column, and in enough rows to be a "
+        "convention rather than a reading"
+    ),
+    taxonomy.REASON_NOT_AN_OUTLIER: (
+        "inside the range the rest of the column covers, so it reads as "
+        "an ordinary value"
+    ),
+    taxonomy.REASON_TOO_RARE: (
+        "in too few rows to be a convention, and removing it would throw "
+        "away a real reading"
+    ),
+    taxonomy.REASON_TOO_FEW_OTHERS: (
+        "there are too few other values in this column to judge it against"
+    ),
+    taxonomy.REASON_KEPT_BY_USER: "you named it with --keep-value",
+}
+
 _RULE = "=" * 66
 
 
@@ -104,6 +131,57 @@ def _role_words(role: str) -> str:
     return _ROLE_WORDS[role]
 
 
+def _decision_words(code: str) -> str:
+    """What was decided about a stand-in number, in words."""
+    if code not in _VERDICT_WORDS:
+        return code
+    return _VERDICT_WORDS[code]
+
+
+def _because_words(code: str) -> str:
+    """Why that was decided, in words."""
+    if code not in _REASON_WORDS:
+        return code
+    return _REASON_WORDS[code]
+
+
+def _sentinel_lines(column: dict[str, object]) -> list[str]:
+    """What the column decided about numbers that can mean "no value".
+
+    Written from the column block and nothing else, so the words and
+    the machine-readable record cannot disagree -- including about the
+    value itself. A column whose role publishes values carries the
+    candidate's spelling and it is printed; a column whose role
+    publishes none carries `(withheld)` in its place and that is
+    printed instead, exactly as the withheld missing spellings above
+    are printed (review item P1-R7-F2). This function never decides
+    what may be shown; it shows what the profile holds.
+
+    The candidates that appeared in too few rows to be named at all are
+    NOT listed here. The column's own remark already says how many
+    there were, and a line about them here would have had to say which
+    way each one went while the profile deliberately does not record
+    that against a candidate it will not name.
+    """
+    verdicts = _list_of(column["sentinel_verdicts"])
+    if not verdicts:
+        return []
+    lines = [
+        "    numbers synthtwin checks as stand-ins for 'no value':",
+    ]
+    for item in verdicts:
+        entry = _map_of(item)
+        lines = lines + [
+            (
+                f"      {_text_of(entry['candidate'])}, in "
+                f"{_count_of(entry['n_occurrences'])} row(s): "
+                f"{_decision_words(_text_of(entry['verdict']))} "
+                f"-- {_because_words(_text_of(entry['reason']))}"
+            )
+        ]
+    return lines
+
+
 def _column_lines(column: dict[str, object]) -> list[str]:
     """The block of lines describing one column."""
     role = _text_of(column["role"])
@@ -123,6 +201,7 @@ def _column_lines(column: dict[str, object]) -> list[str]:
             for spelling in sorted(sources)
         ]
         lines = lines + [f"    counted as missing: {_listed(spellings)}"]
+    lines = lines + _sentinel_lines(column)
     if role in _ROLES_WITH_LABELS:
         levels = _list_of(column["levels"])
         shown = [
@@ -200,13 +279,137 @@ def _column_lines(column: dict[str, object]) -> list[str]:
             # the option to declare it when its values never repeat, so
             # this line does not repeat that (review item P1-R6-F8).
             (
-                "    Nothing of this column reaches the profile, and "
+                "    No value of this column reaches the profile, and "
                 "synthtwin makes no claim about what these values mean."
             ),
         ]
     for remark in _list_of(column["remarks"]):
         lines = lines + [f"    worth knowing: {_text_of(remark)}"]
     return lines
+
+
+def _declared_count(settings: dict[str, object], key: str) -> int:
+    """How many values were declared under ``key``, or zero.
+
+    Zero is also the answer for a profile written under the older shape,
+    where the key held the spellings themselves rather than a count.
+    Reading that shape is not this function's job; not falling over on
+    it is.
+    """
+    if key not in settings:
+        return 0
+    block = _map_of(settings[key])
+    if "n_declared" not in block:
+        return 0
+    return _count_of(block["n_declared"])
+
+
+def _declaration_lines(document: dict[str, object]) -> list[str]:
+    """What the profile records about the values the person named.
+
+    Guarantees:
+
+    - Inputs: a profile document as built by `profile.build_document`.
+    - Determinism: the text depends only on the document.
+    - Errors raised: none for a document this package built.
+    - Boundary: counts only. No spelling reaches these lines, because
+      none reaches the settings block they are rendered from (review
+      item P1-R7-F2).
+
+    WHAT THESE LINES MAY NOT CLAIM. The first version of them told the
+    person "the values themselves are NOT written into the profile or
+    into this summary ... a value you typed is a value of your table --
+    that is why you typed it -- so it is held back like every other
+    value." That was false, and provably so: a column of 200 readings
+    with three cells of `-999`, profiled with `--keep-value -999`,
+    prints `smallest: -999.0` four lines above. The publication is
+    right -- declaring a value KEPT says it is real data, so it is an
+    ordinary number of that column, and every column of numbers
+    publishes a real smallest and a real largest; that is what a range
+    is. What was wrong was the paragraph, and a person deciding whether
+    to move this file has to be able to trust the paragraph exactly.
+    Overclaiming safety is worse than claiming less.
+
+    So these lines separate the settings from the columns, and the two
+    directions from each other. Each statement below was checked against
+    what the code does:
+
+    * the settings record counts and the matching rule, never a
+      spelling, in both directions and on every role;
+    * a value named as 'no value' is counted absent, and its spelling is
+      listed by its column as one of the spellings it counted as missing
+      -- but only where that column publishes values at all and at least
+      `small_cell_floor` rows share it, otherwise it is pooled unnamed;
+    * a value named as real data is data from that point on, so it can
+      be the smallest or largest number of a column of numbers HOWEVER
+      FEW rows hold it (a range is not governed by the floor), and it
+      can be one of the labels of a column of categories only when at
+      least `small_cell_floor` rows share it;
+    * a column that publishes nothing at all -- record numbers, free
+      text, numbers no format can hold -- still publishes nothing, in
+      either direction, and now in every field of its block rather than
+      in the fields somebody remembered. A value named with
+      `--keep-value` used to travel out of a declared identifier column
+      as the `candidate` of a sentinel verdict, which is the one
+      remaining way a spelling could leave a column declared precisely
+      to keep its spellings in (review item P1-R7-F2). The decision and
+      the rows it accounted for are still published; the spelling reads
+      `(withheld)`.
+
+    Nothing is said on a run where nothing was declared. A sentence
+    printed on every ordinary run is a sentence people stop reading, and
+    the person who has to see this is the person who typed a value.
+    """
+    settings = _map_of(document["settings"])
+    kept = _declared_count(settings, "kept_values")
+    declared_missing = _declared_count(settings, "declared_missing_values")
+    if not kept and not declared_missing:
+        return []
+    floor = _count_of(settings["small_cell_floor"])
+    lines = [
+        "  Values you named yourself, with --keep-value or",
+        "  --missing-value:",
+        (
+            f"    named as real data: {kept};   named as 'no value': "
+            f"{declared_missing}"
+        ),
+        "    The profile records how many values you named each way and",
+        "    the rule it used to match them. The spellings you typed are",
+        "    not written into its settings, and they are not written",
+        "    here. Naming a value does not hide it from the description",
+    ]
+    if kept and declared_missing:
+        # Both options were used, so the reader is about to be given two
+        # rules and has to be told they are not one rule said twice.
+        lines = lines + [
+            "    of the column it is in, though, and the two directions",
+            "    do not work the same way:",
+        ]
+    else:
+        lines = lines + ["    of the column it is in, though:"]
+    if declared_missing:
+        lines = lines + [
+            "      a value you named as 'no value' is counted as absent.",
+            "      Its column lists it among the spellings it counted as",
+            f"      missing, if at least {floor} rows share that spelling",
+            "      and that column publishes any values at all;",
+        ]
+    if kept:
+        lines = lines + [
+            "      a value you named as real data IS data from then on,",
+            "      so it appears wherever that column publishes values:",
+            "      as the smallest or largest number of a column of",
+            "      numbers, however few rows hold it, or as one of the",
+            "      labels of a column of categories if at least",
+            f"      {floor} rows share it.",
+        ]
+    return lines + [
+        "    A column that publishes nothing -- record numbers, free",
+        "    text -- still publishes nothing either way. If you need a",
+        "    record of which values you named, keep a note of the",
+        "    command you ran; synthtwin will not keep one for you.",
+        "",
+    ]
 
 
 def _disclosure_lines(document: dict[str, object]) -> list[str]:
@@ -254,12 +457,25 @@ def _disclosure_lines(document: dict[str, object]) -> list[str]:
             "",
         ]
     if without_values:
+        # The claim is exact, and it is worth saying why it is worded
+        # this way. These columns still carry counts -- how many values
+        # there are, how long they are, how many of them are all digits
+        # -- and they carry what synthtwin decided about a number that
+        # can mean "no value": how many rows it accounted for and which
+        # way the decision went, with the number itself replaced by
+        # `(withheld)`. The earlier wording said "only how many there
+        # are and how long they are" while one of those decisions
+        # carried the number's spelling out of a column whose whole
+        # purpose was to keep its values in (review item P1-R7-F2). The
+        # spelling is gone now; so is the wording that did not cover
+        # the rest.
         lines = lines + [
-            "  Nothing at all of the values, only how many there are and how",
-            "  long they are:",
+            "  No value at all, in any form -- only counts, lengths, and what",
+            "  synthtwin decided about the column:",
             f"    {_listed(without_values)}",
             "",
         ]
+    lines = lines + _declaration_lines(document)
     notes = _list_of(document["publication_notes"])
     if notes:
         lines = lines + ["  What was left out, column by column:"]
