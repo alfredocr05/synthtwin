@@ -5,7 +5,7 @@
       "path": "tests/reference/numeric-reference-vectors.json",
       "generator": "tools/reference/make_numeric_reference_vectors.py",
       "seed": 0,
-      "sha256": "477ff6a0932cf03d57ffa4cc507dd303daf3a71b358133f74ee2d11b8ee64ad0",
+      "sha256": "49807e54670e4988f485df7ef197aafd902b599814d4d928e7ff19bcf78e9e7a",
       "justification": "Reference values for the profiler's mean, standard deviation, skewness and percentile ladder, computed by exact rational arithmetic. They are committed rather than built at test time because their whole purpose is to be an oracle the implementation cannot influence: a value recomputed beside the code it checks could drift with it, and round 1 of the Phase 1 review found exactly that defect in the golden hash. The generator imports only fractions, decimal, json, math and struct - never synthtwin, never numpy, never pandas - and every float64 it reports is proved correctly rounded by exact integer comparison against the midpoints to its neighbours. No value in this file comes from any real or synthetic table."
     }
   ]

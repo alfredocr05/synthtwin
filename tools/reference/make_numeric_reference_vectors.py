@@ -7,17 +7,29 @@ rational values of the float64 inputs, using `fractions.Fraction` and
 exact integer arithmetic for everything, including the square roots.
 
 Every float64 answer it reports is *proved* correctly rounded, not
-merely computed at high precision:
+merely computed at high precision.  The proof is a separate pass over
+the finished document rather than a step inside the construction: once
+every number is in place, each one is looked up together with the exact
+rational it stands for and re-derived from its two float64 neighbours.
+A number that reaches the document with no exact value recorded beside
+it stops the run, so the claim "every published float is proved" cannot
+quietly stop being true when a field is added.
 
-* rational statistics (mean, the quantile ladder) are rounded with
-  `Fraction.__float__`, which is CPython's correctly-rounded
-  `int.__truediv__`;
+The three shapes of proof:
+
+* rational statistics (the mean, every quantile ladder rung) must lie
+  between the two exact midpoints that bracket the published float,
+  with an exact tie going to the even significand;
 * the two irrational statistics are square roots of exact rationals
   (sd = sqrt(S) with S = m2n/(n-1) exact, and
-  skew = sign(m3) * sqrt(m3**2 / m2**3) exact), so the candidate float
-  is verified by comparing the exact rational against the exact
-  midpoints between the candidate and its two float64 neighbours -- an
-  all-integer comparison with no rounding anywhere.
+  skew = sign(m3) * sqrt(m3**2 / m2**3) exact), so the same midpoint
+  comparison is made on the squares -- an all-integer comparison with
+  no rounding anywhere;
+* two boundaries that a numeric comparison alone cannot see are checked
+  by hand: the point where binary64 rounds to an infinity (past the
+  largest finite float there is no upper neighbour to compare with),
+  and the sign of a zero (+0.0 == -0.0, so `< 0` and `> 0` say nothing
+  about which of the two a routine produced).
 
 Definitions, stated so the vectors are checkable by hand:
 
@@ -36,8 +48,10 @@ vectors carry the exact value and the correctly rounded float64; a test
 asserts the implementation is within a stated number of units in the
 last place of the correctly rounded value.
 
-Usage:  python3 make-reference-vectors.py > /dev/null
-Writes: /tmp/reference-vectors.json
+Usage:  python3 make_numeric_reference_vectors.py --seed 0 --out <path>
+        (the command line the data-provenance guard uses; the seed is
+        accepted and ignored, because these vectors are fixed
+        mathematics rather than a random sample).
 """
 
 import argparse
@@ -58,6 +72,21 @@ F = fractions.Fraction
 SIGNIFICAND_BITS = 53
 MIN_EXPONENT = -1074   # exponent of the last place of a subnormal
 MAX_EXPONENT = 971     # exponent of the last place of the largest finite
+
+# Where the finite range stops, as exact rationals.
+#
+# The largest finite float64 is (2**53 - 1) * 2**971.  The next value the
+# format would carry if its exponent range went one binade further is
+# 2**1024, which it cannot hold.  Round-to-nearest therefore sends
+# everything from the midpoint between those two upwards to an infinity
+# -- the midpoint itself included, because the tie goes to the even
+# significand and 2**1024 is the even one.  So the largest finite float
+# is the nearest float64 only for values STRICTLY BELOW that midpoint,
+# and an oracle asked about a value at or above it must refuse rather
+# than publish the largest finite float as though it were the answer.
+LARGEST_FINITE = F(((1 << SIGNIFICAND_BITS) - 1) << MAX_EXPONENT)
+FIRST_VALUE_PAST_THE_RANGE = F(1 << 1024)
+OVERFLOW_MIDPOINT = (LARGEST_FINITE + FIRST_VALUE_PAST_THE_RANGE) / 2
 
 LADDER = (
     ("min", fractions.Fraction(0)),
@@ -130,6 +159,17 @@ def next_down(x):
     return -next_up(-x)
 
 
+def sign_bit_is_set(x):
+    """True when the binary64 sign bit of ``x`` is set, ``-0.0`` included.
+
+    This is the only test that tells -0.0 from +0.0.  The two compare
+    equal as numbers, so ``x < 0`` and ``x > 0`` are both false for each
+    of them and neither test says anything about the sign a routine
+    actually produced.
+    """
+    return float_bits(x) >> 63 == 1
+
+
 def significand_is_even(x):
     """True when the stored significand of ``x`` ends in a zero bit.
 
@@ -175,20 +215,58 @@ def prove_nearest_float(value, result):
     bracket it, and a value landing exactly on a midpoint must have gone
     to the even significand.  Every comparison is between exact
     rationals, so nothing here can round.
+
+    Two boundaries are checked by hand because the bracketing comparison
+    on its own is blind to them.
+
+    * At the largest finite float there is no upper neighbour to take a
+      midpoint with -- ``next_up`` returns an infinity.  An earlier
+      revision let the upper comparison pass unconditionally there, so
+      it accepted the largest finite float as the answer for a value far
+      past the point where binary64 rounds to an infinity.  The upper
+      boundary is instead taken against ``OVERFLOW_MIDPOINT``, and a
+      value at or above it is refused.  The lower end is the mirror.
+    * The sign of a zero is read from the sign bit.  ``+0.0 == -0.0``, so
+      a numeric sign test accepted +0.0 as the rounding of a small
+      negative value, which is wrong: rounding never changes a sign.
     """
     if math.isnan(result) or math.isinf(result):
-        raise AssertionError("a published value is not a finite number")
-    if (value > 0 and result < 0) or (value < 0 and result > 0):
-        raise AssertionError(f"the sign of {result!r} is not the sign of {value}")
+        raise AssertionError(
+            f"a published value is not a finite number: {result!r}. Only "
+            "finite numbers may be published; the statistic that produced "
+            "this one has to be recomputed or refused."
+        )
+    if sign_bit_is_set(result) != (value < 0):
+        raise AssertionError(
+            f"the sign of {result!r} is not the sign of {value}. Rounding "
+            "never changes a sign, and that includes the sign of a zero: a "
+            "value below zero must round to -0.0, and zero or anything "
+            "above it to 0.0."
+        )
     above = next_up(result)
     below = next_down(result)
     exact = F(result)
     if math.isinf(above):
-        high = -1
+        high = _compare(value, OVERFLOW_MIDPOINT)
+        if high >= 0:
+            raise AssertionError(
+                f"{value} is at or above the point where binary64 rounds up "
+                f"to an infinity, so no finite float is nearest it and "
+                f"{result!r} must not be published for it. Refuse the value "
+                "instead of reporting the largest finite float."
+            )
     else:
         high = _compare(value, (exact + F(above)) / 2)
     if math.isinf(below):
-        low = 1
+        low = _compare(value, -OVERFLOW_MIDPOINT)
+        if low <= 0:
+            raise AssertionError(
+                f"{value} is at or below the point where binary64 rounds "
+                f"down to a negative infinity, so no finite float is nearest "
+                f"it and "
+                f"{result!r} must not be published for it. Refuse the value "
+                "instead of reporting the most negative finite float."
+            )
     else:
         low = _compare(value, (exact + F(below)) / 2)
     if high > 0 or low < 0:
@@ -325,13 +403,28 @@ def prove_correctly_rounded_sqrt(value, result):
 
     Independent of the construction: it works from the neighbours of
     ``result`` and compares their exact midpoints, squared, against
-    ``value``.  It also refuses a negative answer outright, which is the
-    check the previous revision had no way to fail.
+    ``value``.
+
+    The same two boundaries ``prove_nearest_float`` checks by hand are
+    checked here.  A root at or above ``OVERFLOW_MIDPOINT`` rounds to an
+    infinity and is refused instead of being reported as the largest
+    finite float, and the refusal of a negative answer reads the sign
+    bit, so a root published as -0.0 is refused too: ``-0.0 < 0.0`` is
+    false, which is how an earlier revision let one through.
     """
     if math.isnan(result) or math.isinf(result):
-        raise AssertionError("a published square root is not a finite number")
-    if result < 0.0:
-        raise AssertionError(f"a square root came out negative: {result!r}")
+        raise AssertionError(
+            f"a published square root is not a finite number: {result!r}. "
+            "Only finite numbers may be published; recompute or refuse the "
+            "spread that produced this one."
+        )
+    if sign_bit_is_set(result):
+        raise AssertionError(
+            f"a square root came out negative: {result!r}. The square root "
+            "of a value that is not negative is never negative, and that "
+            "includes the sign of a zero: it must be published as 0.0, not "
+            "as -0.0."
+        )
     above = next_up(result)
     below = next_down(result)
     # Nothing below zero can be nearer to a non-negative root, so the
@@ -339,7 +432,15 @@ def prove_correctly_rounded_sqrt(value, result):
     below = max(below, 0.0)
     exact = F(result)
     if math.isinf(above):
-        high = -1
+        high = compare_root(value, OVERFLOW_MIDPOINT)
+        if high >= 0:
+            raise AssertionError(
+                f"the square root of {value} is at or above the point where "
+                f"binary64 rounds up to an infinity, so no finite float is "
+                f"nearest it and {result!r} must not be published for it. "
+                "Refuse the value instead of reporting the largest finite "
+                "float."
+            )
     else:
         high = compare_root(value, (exact + F(above)) / 2)
     low = compare_root(value, (exact + F(below)) / 2)
@@ -352,6 +453,114 @@ def prove_correctly_rounded_sqrt(value, result):
             f"{result!r} is an exact midpoint of the square root of {value} "
             "and its significand is odd; ties must go to the even significand"
         )
+
+
+def prove_correctly_rounded_signed_sqrt(value, negative, result):
+    """Raise unless ``result`` is the float64 nearest the signed root.
+
+    The skewness is the sign of the third central moment times the
+    square root of an exact non-negative rational, and the sign is
+    applied after the rounding.  That is exact -- ties to the even
+    significand is symmetric about zero -- so the magnitude is proved on
+    its own here and the sign is checked by its bit, which is the only
+    way to tell a published -0.0 from a published 0.0.
+    """
+    if math.isnan(result) or math.isinf(result):
+        raise AssertionError(
+            f"a published value is not a finite number: {result!r}. Only "
+            "finite numbers may be published; recompute or refuse the shape "
+            "that produced this one."
+        )
+    if sign_bit_is_set(result) != negative:
+        raise AssertionError(
+            f"{result!r} does not carry the sign of the exact value it "
+            f"stands for, which is {'below' if negative else 'at or above'} "
+            "zero. The sign is applied after rounding and must survive it, "
+            "the sign of a zero included."
+        )
+    prove_correctly_rounded_sqrt(value, math.fabs(result))
+
+
+# Every published number is proved by one of these three routines, named
+# in the record of exact values that travels beside the document.
+NEAREST = "nearest"
+ROOT = "root"
+SIGNED_ROOT = "signed_root"
+
+
+def _published_floats(node, path=()):
+    """Every float in ``node``, with the path of keys that reaches it.
+
+    Walks the finished document rather than the code that built it, so
+    a number added by a new field is found whether or not anyone
+    remembered to prove it.
+    """
+    if isinstance(node, dict):
+        for key in sorted(node):
+            yield from _published_floats(node[key], path + (key,))
+    elif isinstance(node, list):
+        for index, item in enumerate(node):
+            yield from _published_floats(item, path + (index,))
+    elif isinstance(node, float):
+        yield path, node
+
+
+def _where(path):
+    """A readable name for one place in the document."""
+    return ".".join(str(step) for step in path)
+
+
+def prove_every_published_float(published, exact_values):
+    """Prove each float in ``published`` against the exact value it stands for.
+
+    This is what makes the file's claim true.  The construction is not
+    trusted at all here: each number is looked up with the exact
+    rational it was built from and re-derived from its two float64
+    neighbours.  A number with no exact value recorded for it -- a field
+    somebody added without saying what it means -- stops the run rather
+    than being published unproved.
+
+    ``exact_values`` maps the path of a published number, without its
+    trailing ``"float64"`` key, to one of
+
+      ``(NEAREST, exact)``            an exact rational,
+      ``(ROOT, radicand)``            the square root of an exact
+                                      non-negative rational,
+      ``(SIGNED_ROOT, radicand, negative)``  the same, with a sign
+                                      applied after the rounding.
+
+    Returns how many numbers were proved.
+    """
+    proved = 0
+    for path, value in _published_floats(published):
+        if not path or path[-1] != "float64":
+            raise AssertionError(
+                f"{_where(path)} carries the number {value!r} outside a "
+                "'float64' field, so nothing proved it. Publish every number "
+                "as a 'float64' field and record the exact value it stands "
+                "for beside it."
+            )
+        claim = exact_values.get(path[:-1])
+        if claim is None:
+            raise AssertionError(
+                f"{_where(path)} publishes {value!r} with no exact value "
+                "recorded to check it against. Record the exact value for "
+                "this field so it can be proved, or do not publish it."
+            )
+        if claim[0] == NEAREST:
+            prove_nearest_float(claim[1], value)
+        elif claim[0] == ROOT:
+            prove_correctly_rounded_sqrt(claim[1], value)
+        elif claim[0] == SIGNED_ROOT:
+            prove_correctly_rounded_signed_sqrt(claim[1], claim[2], value)
+        else:
+            raise AssertionError(
+                f"{_where(path)} records {claim[0]!r} as the way to prove "
+                f"{value!r}, which is not one of {NEAREST!r}, {ROOT!r} or "
+                f"{SIGNED_ROOT!r}."
+            )
+        proved += 1
+    return proved
 
 
 def exact_square_root(value):
@@ -375,7 +584,13 @@ DECIMAL_DIGITS = 40
 
 
 def _proved_nearest(value):
-    """The nearest float64, constructed and then proved from neighbours."""
+    """The nearest float64, constructed and then proved from neighbours.
+
+    The proof is repeated for every published number by
+    ``prove_every_published_float`` once the document is complete; this
+    one stops a wrong number at the place it was built, where the error
+    message can name the statistic.
+    """
     result = round_rational_to_float(value)
     prove_nearest_float(value, result)
     return result
@@ -481,7 +696,14 @@ def exact_decimal(value, digits=DECIMAL_DIGITS):
 
 
 def stats(sample):
-    """Exact statistics of a list of float64 values."""
+    """Exact statistics of a list of float64 values.
+
+    Every number in the returned document is proved before it is
+    returned: ``exact_values`` records, for each published number, the
+    exact rational it stands for and the shape of proof it needs, and
+    ``prove_every_published_float`` walks the finished document and
+    re-derives each one from its two float64 neighbours.
+    """
     n = len(sample)
     xs = [fractions.Fraction(x) for x in sample]
     ordered = sorted(xs)
@@ -494,6 +716,7 @@ def stats(sample):
         ((x - mean) * (x - mean) * (x - mean) for x in xs), fractions.Fraction(0)
     )
 
+    exact_values = {("mean",): (NEAREST, mean)}
     out = {
         "n": n,
         "mean": {
@@ -516,6 +739,7 @@ def stats(sample):
         else:
             sd_text, sd_is_exact, sd_needed = exact_decimal(sd_exact)
         variance_text, variance_is_exact, _variance_needed = exact_decimal(var)
+        exact_values[("std",)] = (ROOT, var)
         out["std"] = {
             "decimal": sd_text,
             "decimal_is_exact": sd_is_exact,
@@ -532,6 +756,7 @@ def stats(sample):
         m3 = m3n / n
         if m3 == 0:
             skew_float, skew_text, skew_is_exact = 0.0, "0", True
+            exact_values[("skew",)] = (NEAREST, F(0))
         else:
             square = (m3 * m3) / (m2 * m2 * m2)
             magnitude = correctly_rounded_sqrt(square)
@@ -551,6 +776,7 @@ def stats(sample):
             else:
                 skew_float, skew_text = magnitude, text
             skew_is_exact = is_exact
+            exact_values[("skew",)] = (SIGNED_ROOT, square, m3 < 0)
         out["skew"] = {
             "decimal": skew_text,
             "decimal_is_exact": skew_is_exact,
@@ -573,10 +799,16 @@ def stats(sample):
                 g = h - k
                 q = ordered[k] if g == 0 else ordered[k] + g * (ordered[k + 1] - ordered[k])
             text, is_exact, _needed = exact_decimal(q)
+            # Proved here as well as in the sweep below.  An earlier
+            # revision sent every rung straight through the construction
+            # and never compared it against its neighbours at all, so
+            # the file's claim that every published float was proved
+            # covered the mean, the spread and the shape only.
+            exact_values[(key, name)] = (NEAREST, q)
             rung[name] = {
                 "decimal": text,
                 "decimal_is_exact": is_exact,
-                "float64": round_rational_to_float(q),
+                "float64": _proved_nearest(q),
             }
         out[key] = rung
 
@@ -587,7 +819,9 @@ def stats(sample):
     ]
     for name in same:
         del out["ladder_binary_p"][name]
+        del exact_values[("ladder_binary_p", name)]
 
+    prove_every_published_float(out, exact_values)
     return out
 
 
@@ -747,13 +981,22 @@ def main(argv=None):
         "generated_by": "tools/reference/make_numeric_reference_vectors.py",
         "never_imports": ["synthtwin", "numpy", "pandas"],
         "precision": "exact rational and integer arithmetic throughout. "
-        "Every published float64 is constructed by integer division or "
-        "integer square root and then PROVED correct by comparing the "
-        "exact value against the exact midpoints to its two neighbouring "
-        "float64 values, ties to the even significand. No decimal "
-        "approximation is used anywhere: a high-precision decimal seed "
-        "is how an earlier revision published a negative standard "
-        "deviation (review item P1-R2-F5).",
+        "Every published float64 -- every mean, spread, shape and ladder "
+        "rung, with no exception -- is constructed by integer division "
+        "or integer square root and then PROVED correct in a separate "
+        "pass over the finished document: each number is re-derived from "
+        "the exact rational it stands for by comparing that rational "
+        "against the exact midpoints to its two neighbouring float64 "
+        "values, ties to the even significand. Two boundaries the "
+        "midpoint comparison cannot see on its own are checked by hand: "
+        "a value at or above the point where binary64 rounds up to an "
+        "infinity is refused rather than reported as the largest finite "
+        "float, and the sign of a zero is read from the sign bit, "
+        "because +0.0 and -0.0 compare equal. A number that reaches the "
+        "document with no exact value recorded for it stops the run. No "
+        "decimal approximation is used anywhere: a high-precision "
+        "decimal seed is how an earlier revision published a negative "
+        "standard deviation (review item P1-R2-F5).",
         "definitions": {
             "mean": "(1/n) * sum x_i, over the exact values of the float64 inputs",
             "std": "sqrt( sum (x_i - mean)^2 / (n-1) ), null for n < 2",
@@ -774,31 +1017,48 @@ def main(argv=None):
             "implementation must NOT use this route.",
             "float64": "the correctly rounded (round-half-even) binary64 value "
             "of the exact result; a conforming implementation must publish "
-            "exactly this, or be within the tolerance the test states",
+            "exactly this number or one of its two immediate neighbours in "
+            "binary64, as the accuracy contract below states",
         },
         "accuracy_contract": {
-            "note": "measured for the reduction described in the P1-R1-F6 "
-            "verification (sorted values, power-of-two rescaling with "
-            "frexp/ldexp, math.fsum, math.sqrt, deviations recentred once, "
-            "skew as a ratio of scaled moments) over these cases plus 2500 "
-            "fuzzed samples spanning 1e-300 to 1e300.  eps = 2**-52.",
-            "mean": "within 1 unit in the last place of the correctly "
-            "rounded exact mean",
-            "std": "within 2 units in the last place of the correctly "
-            "rounded exact sample standard deviation",
-            "ladder": "absolute error at most 4 * eps * max(|x_(k)|, "
-            "|x_(k+1)|) -- i.e. a few ulps of the BRACKETING order "
-            "statistics, not of the answer, because a rung whose value sits "
-            "near zero between two large neighbours is intrinsically "
-            "ill-conditioned",
-            "skew": "absolute error at most 8 * eps * (1 + |skew|); measured "
-            "worst was 4.3e-16 * (1 + |skew|)",
-            "known_conditioning_limit": "cancelling_extremes: the third "
-            "central moment of {1e16, 1, -1e16} cancels by a factor of 1e32, "
-            "which is beyond binary64.  The exact skew is -1.2247e-16 and any "
-            "float64 two-pass reduction returns a different number of the "
-            "same (negligible) magnitude.  The absolute contract above still "
-            "holds; a relative one cannot.",
+            "note": "correctly rounded or an immediate neighbour, for every "
+            "statistic these vectors cover.  The numeric summary under test "
+            "writes each value as one shared power of two and one "
+            "whole-number significand, accumulates the power sums as "
+            "arbitrary-precision whole numbers -- which cancel without error "
+            "because whole numbers do not round -- and rounds once, at the "
+            "end.  Nothing is approximated on the way in, so the contract is "
+            "stated in representable numbers rather than as a measured error "
+            "budget.  This replaces the error budget of revision 1, which "
+            "was measured for a two-pass floating-point reduction (sorted "
+            "values, power-of-two rescaling, math.fsum, math.sqrt) that the "
+            "implementation no longer uses, and which accepted answers two "
+            "or more representable numbers away.  eps = 2**-52.",
+            "how_two_numbers_are_compared": "by their place in the ordered "
+            "list of every binary64 value: consecutive representable numbers "
+            "are one apart at every magnitude, across the boundary between "
+            "the subnormal and the normal range included, so 'an immediate "
+            "neighbour' means exactly one representable number away and "
+            "nothing looser.  The two spellings of zero name the same number "
+            "and sit in the same place.  A relative comparison against "
+            "|expected| * eps is NOT this: it collapses at zero, where it "
+            "would accept 1e-100 as a neighbour of 0.0 although about 2e252 "
+            "representable numbers lie between them.",
+            "mean": "the correctly rounded exact mean, or one of its two "
+            "immediate neighbours",
+            "std": "the correctly rounded exact sample standard deviation, "
+            "or one of its two immediate neighbours",
+            "skew": "the correctly rounded exact moment skewness, or one of "
+            "its two immediate neighbours.  Revision 1 allowed an absolute "
+            "8 * eps * (1 + |skew|) here, which accepted 0.0 for the exact "
+            "-1.224744871391589e-16 of {1e16, 1, -1e16}; whole-number "
+            "accumulation removes the cancellation that bound excused.",
+            "ladder": "the correctly rounded exact rung, or one of its two "
+            "immediate neighbours.  A separately stated outer bound of "
+            "4 * eps * max(|x_(k)|, |x_(k+1)|) remains recorded because an "
+            "interpolated rung is defined by its two BRACKETING order "
+            "statistics rather than by its own size, so a rung landing near "
+            "zero between two large neighbours is bounded by them.",
         },
         "cases": {},
     }

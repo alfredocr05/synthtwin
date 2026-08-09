@@ -7,6 +7,7 @@ tries one known bypass class and asserts the scanner goes red on it,
 with one 'file:line: explanation' line per violation.
 """
 
+import ast
 import importlib.util
 import pathlib
 import re
@@ -1640,3 +1641,1005 @@ def test_a_match_capture_rebinds_the_name(tmp_path):
         """,
     )
     _assert_red(violations, "to_csv")
+
+
+# -- round-6: bodies that run later; f-string format specifications ----
+
+
+def test_a_rebinding_below_the_def_is_seen_by_the_body(tmp_path):
+    # Round 6 (P1-R6-F4), the reviewer's first example, verbatim. This
+    # RAN: the last statement executes during import, long before an
+    # outside caller reaches fetch, and a recorder standing in for
+    # pandas.read_csv received the web address. A def statement binds a
+    # name; the body runs afterwards, so the body must be read with the
+    # FINISHED surrounding scope, not with the half-built one that
+    # existed where the def happens to be written.
+    violations = _scan_code(
+        tmp_path,
+        """
+        import pandas
+        from pathlib import Path
+        from synthtwin.paths import validate_local_path
+
+        def substitute_path(raw):
+            return "https://example.invalid/table.csv"
+
+        def fetch(raw_path):
+            validated = validate_local_path(raw_path, purpose="input")
+            return pandas.read_csv(Path(validated))
+
+        Path = substitute_path
+        """,
+    )
+    _assert_red(violations, "trace to validate_local_path")
+
+
+def test_a_method_body_sees_a_rebinding_below_its_class(tmp_path):
+    # Round 6 (P1-R6-F4). The same temporal error one scope out: a
+    # method runs after the module finishes, so a module-level store
+    # written below the class is already in effect when it runs.
+    violations = _scan_code(
+        tmp_path,
+        """
+        import pandas
+        from pathlib import Path
+        from synthtwin.paths import validate_local_path
+
+        class Reader:
+            def fetch(self, raw_path):
+                validated = validate_local_path(raw_path, purpose="input")
+                return pandas.read_csv(Path(validated))
+
+        def substitute_path(raw):
+            return "https://example.invalid/table.csv"
+
+        Path = substitute_path
+        """,
+    )
+    _assert_red(violations, "trace to validate_local_path")
+
+
+def test_a_nested_function_sees_a_rebinding_below_it(tmp_path):
+    # Round 6 (P1-R6-F4). The postponement has to hold at every depth,
+    # not only at module level.
+    violations = _scan_code(
+        tmp_path,
+        """
+        import pandas
+        from pathlib import Path
+        from synthtwin.paths import validate_local_path
+
+        def outer(raw_path):
+            def inner(validated):
+                return pandas.read_csv(Path(validated))
+            Path = str
+            return inner(validate_local_path(raw_path, purpose="input"))
+        """,
+    )
+    _assert_red(violations, "trace to validate_local_path")
+
+
+def test_a_lambda_body_sees_a_rebinding_below_it(tmp_path):
+    # Round 6 (P1-R6-F4). A lambda body runs later for exactly the same
+    # reason a def body does, so it is read under the same rule.
+    violations = _scan_code(
+        tmp_path,
+        """
+        import pandas
+        from pathlib import Path
+        from synthtwin.paths import validate_local_path
+
+        def substitute_path(raw):
+            return "https://example.invalid/table.csv"
+
+        read = lambda validated: pandas.read_csv(Path(validated))
+
+        Path = substitute_path
+        """,
+    )
+    _assert_red(violations, "trace to validate_local_path")
+
+
+def test_a_class_statement_runs_before_a_later_class_import(tmp_path):
+    # Round 6 (P1-R6-F4), the reviewer's second example: the inverse
+    # temporal error. A class body executes top to bottom while the
+    # class is being built, so the statement below falls back to the
+    # module-level fake Path; the class-level import two lines lower
+    # has not run yet and settles nothing about it.
+    violations = _scan_code(
+        tmp_path,
+        """
+        import pandas
+        from synthtwin.paths import validate_local_path
+
+        def Path(raw):
+            return "https://example.invalid/table.csv"
+
+        class Reader:
+            table = pandas.read_csv(
+                Path(validate_local_path("data.csv", purpose="input"))
+            )
+            from pathlib import Path
+        """,
+    )
+    _assert_red(violations, "trace to validate_local_path")
+
+
+def test_a_class_level_import_used_below_itself_stays_clean(tmp_path):
+    # The other half of the class-body rule: a class-level import used
+    # by later class-level statements is honest code and must stay
+    # green, so the repair above cannot have been a blanket refusal of
+    # class bodies.
+    violations = _scan_code(
+        tmp_path,
+        """
+        import pandas
+        from synthtwin.paths import validate_local_path
+
+        class Reader:
+            from pathlib import Path
+
+            table = pandas.read_csv(
+                Path(validate_local_path("data.csv", purpose="input"))
+            )
+        """,
+    )
+    assert violations == [], violations
+
+
+def test_an_except_capture_rebinds_the_name(tmp_path):
+    # Round 6 (P1-R6-F4), the same omission as the round-5 match
+    # capture: `except OSError as Path:` binds Path, but the name lives
+    # in a plain string field rather than a Name node, so no store was
+    # recorded and the import above went on being trusted.
+    violations = _scan_code(
+        tmp_path,
+        """
+        import pandas
+        from pathlib import Path
+        from synthtwin.paths import validate_local_path
+
+        def fetch(raw_path):
+            validated = validate_local_path(raw_path, purpose="input")
+            try:
+                pass
+            except OSError as Path:
+                pass
+            return pandas.read_csv(Path(validated))
+        """,
+    )
+    _assert_red(violations, "trace to validate_local_path")
+
+
+def test_a_decorated_definition_is_not_the_definition(tmp_path):
+    # Round 6 (P1-R6-F4). A decorator is handed the function and the
+    # NAME then holds whatever it hands back, so a decorated def is a
+    # store like any other and the name cannot be read as the scanned
+    # function.
+    violations = _scan_code(
+        tmp_path,
+        """
+        import pandas
+        from synthtwin.paths import validate_local_path
+
+        def swap(function):
+            return function
+
+        @swap
+        def make_path(raw):
+            return raw
+
+        def fetch(raw_path):
+            validated = validate_local_path(raw_path, purpose="input")
+            return pandas.read_csv(make_path(validated))
+        """,
+    )
+    _assert_red(violations, "trace to validate_local_path")
+
+
+def test_a_dataclass_decorator_keeps_the_class(tmp_path):
+    # The enumerated decorators hand the definition back, so ordinary
+    # dataclass code stays green in all three spellings.
+    violations = _scan_code(
+        tmp_path,
+        """
+        import dataclasses
+        from dataclasses import dataclass
+
+        @dataclasses.dataclass(frozen=True)
+        class Record:
+            label: str
+
+        @dataclasses.dataclass
+        class Plain:
+            label: str
+
+        @dataclass
+        class Third:
+            label: str
+
+        def build():
+            return Record(label="a"), Plain(label="b"), Third(label="c")
+        """,
+    )
+    assert violations == [], violations
+
+
+def test_a_dynamic_format_specification_is_not_text(tmp_path):
+    # Round 6 (P1-R6-F12), the reviewer's example verbatim. The part
+    # after the colon is itself an expression: the text that comes out
+    # is built from `spec`, so the f-string is not a value this audit
+    # has read, and no method call is accepted on it.
+    violations = _scan_code(
+        tmp_path,
+        """
+        def reveal(spec):
+            return f"{'x':{spec}}".strip()
+        """,
+    )
+    _assert_red(violations, "strip")
+
+
+def test_a_dynamic_format_specification_on_gated_text_is_not_text(tmp_path):
+    # The same hole with an accepted receiver in front of the colon:
+    # the specification alone is enough to build the result out of an
+    # unknown value.
+    violations = _scan_code(
+        tmp_path,
+        """
+        def reveal(text: str, spec):
+            if not isinstance(text, str):
+                raise ValueError("not text")
+            return f"{text:{spec}}".strip()
+        """,
+    )
+    _assert_red(violations, "strip")
+
+
+def test_a_resolved_format_specification_stays_text(tmp_path):
+    # A literal specification, and one built from a value this audit
+    # has read, keep the f-string readable as text: the repair rejects
+    # the unknown specification, not the construct.
+    violations = _scan_code(
+        tmp_path,
+        """
+        def show(text: str, width: str) -> str:
+            if not isinstance(text, str):
+                raise ValueError("not text")
+            if not isinstance(width, str):
+                raise ValueError("not text")
+            padded = f"{text:>10}".strip()
+            return f"{padded:{width}}".strip()
+        """,
+    )
+    assert violations == [], violations
+
+
+# -- round-6 (P1-R6-F4), third pass: the binding set is complete -------
+#
+# The first two passes each named the store shapes the round before had
+# missed, and the round after found another one. The tests below stop
+# asking which shapes were remembered and ask two questions that do not
+# depend on anybody's memory: does the scanner classify every place
+# PYTHON's own grammar puts a name (test_every_grammar_identifier_field_
+# is_classified), and does each of those places have a mutation here
+# that goes red (test_every_binding_form_has_a_red_mutation)? A shape a
+# future Python adds fails the first; a shape added to the scanner
+# without evidence fails the second.
+
+
+def test_a_walrus_in_a_generator_expression_is_seen_by_a_body_beside_it(
+    tmp_path,
+):
+    # The shape that survived the second pass. `Path := substitute_path`
+    # binds Path in the MODULE, not in the generator expression, but
+    # nothing inside a generator expression runs until something draws
+    # from it -- so the store was recorded only while that postponed
+    # body was being read, which is after the postponed body of `fetch`
+    # beside it had already been read and trusted. An outside caller
+    # that draws one row from `rows` and then calls `fetch` hands the
+    # fenced reader a web address.
+    violations = _scan_code(
+        tmp_path,
+        """
+        import pandas
+        from pathlib import Path
+        from synthtwin.paths import validate_local_path
+
+        def substitute_path(raw):
+            return "https://example.invalid/table.csv"
+
+        def fetch(raw_path):
+            validated = validate_local_path(raw_path, purpose="input")
+            return pandas.read_csv(Path(validated))
+
+        rows = ((Path := substitute_path) for row in [1])
+        """,
+    )
+    _assert_red(violations, "trace to validate_local_path")
+
+
+def test_a_walrus_in_a_generator_expression_reaches_a_nested_body(tmp_path):
+    # The same shape one scope in: the walrus binds in the function
+    # around the generator expression, and the nested function reads
+    # that binding when it is called -- which the caller can arrange to
+    # be after a row has been drawn.
+    violations = _scan_code(
+        tmp_path,
+        """
+        import pandas
+        from pathlib import Path
+        from synthtwin.paths import validate_local_path
+
+        def substitute_path(raw):
+            return "https://example.invalid/table.csv"
+
+        def outer(raw_path):
+            def fetch():
+                validated = validate_local_path(raw_path, purpose="input")
+                return pandas.read_csv(Path(validated))
+
+            rows = ((Path := substitute_path) for row in [1])
+            return fetch, rows
+        """,
+    )
+    _assert_red(violations, "trace to validate_local_path")
+
+
+def test_a_store_below_a_statement_that_runs_now_withdraws_trust(tmp_path):
+    """A rebinding anywhere in the scope withdraws trust everywhere in
+    it, INCLUDING above itself.
+
+    THIS TEST ASSERTED THE OPPOSITE UNTIL THE FOURTH REPAIR OF
+    P1-R6-F4, and the assertion it made was the defect. It read: module
+    statements run in the order they are written, so the store on the
+    last line has not happened when the reader above it runs, and the
+    module is therefore honest. Both halves of that are true of THIS
+    module -- and neither survives one edit. Wrap the reader in a loop
+    and the last line is in force on every iteration after the first;
+    wrap it in a function and the last line is in force before the
+    function is ever called. Three repairs in a row tried to say which
+    of those shapes was which, and the review broke each one with the
+    shape next door.
+
+    So the owner's fourth design removes the reasoning rather than
+    refining it: a TRUST decision reads the union of every binding of
+    the name in the scope, wherever it stands. That refuses this module.
+    The refusal is deliberate and is the direction the design chose --
+    a contributor who rebinds `Path` under a fenced read gets a message
+    naming the fence, while a trust granted from half a scope is a hole
+    nobody sees. The green counterweight moved to the test below, which
+    is the same module without the rebinding.
+    """
+    violations = _scan_code(
+        tmp_path,
+        """
+        import pandas
+        from pathlib import Path
+        from synthtwin.paths import validate_local_path
+
+        def substitute_path(raw):
+            return "https://example.invalid/table.csv"
+
+        table = pandas.read_csv(
+            Path(validate_local_path("data.csv", purpose="input"))
+        )
+
+        Path = substitute_path
+        """,
+    )
+    _assert_red(violations, "trace to validate_local_path")
+
+
+def test_ordinary_source_without_a_rebinding_stays_clean(tmp_path):
+    """The counterweight to the whole position-blind rule.
+
+    Nothing here rebinds any name it also trusts, which is what
+    ordinary correct source looks like: the imports stand, the fenced
+    reader is handed a validated path, and the work happens in a loop
+    and in a function beside it. A repair that reports this module is
+    worse than the hole it closed, so this file keeps the shape under
+    the strictest rules the scanner has -- the fence, the loop, the
+    deferred body, and the type gate -- in one green module.
+    """
+    violations = _scan_code(
+        tmp_path,
+        """
+        import pandas
+        import pathlib
+        from synthtwin.paths import validate_local_path
+
+        def load(raw_path):
+            validated = validate_local_path(raw_path, purpose="input")
+            file_path = pathlib.Path(validated)
+            return pandas.read_csv(file_path)
+
+        def load_each(raw_paths):
+            frames = []
+            for raw_path in raw_paths:
+                validated = validate_local_path(raw_path, purpose="input")
+                frames = frames + [pandas.read_csv(pathlib.Path(validated))]
+            return frames
+
+        def label(name):
+            if not isinstance(name, str):
+                raise TypeError("name must be text")
+            cleaned = name.strip()
+            return cleaned.lower()
+        """,
+    )
+    assert violations == [], violations
+
+
+def _grammar_identifier_fields():
+    """Every place Python's grammar puts an identifier in a syntax node.
+
+    Read from the ast module of the running interpreter: each node
+    type's first documentation line is its grammar signature, for
+    example 'ExceptHandler(expr? type, identifier? name, stmt* body)'.
+    Returns {node type name: (identifier field, ...)}.
+    """
+    found = {}
+    for name in dir(ast):
+        node_type = getattr(ast, name)
+        if not isinstance(node_type, type) or not issubclass(node_type, ast.AST):
+            continue
+        head = (node_type.__doc__ or "").split("\n")[0].strip()
+        if not head.startswith(name + "(") or not head.endswith(")"):
+            # An abstract base class documents the whole sum type
+            # ('stmt = FunctionDef(...) | ...'); every arm of it is a
+            # class of its own and is reached on its own turn.
+            continue
+        fields = []
+        for declaration in head[len(name) + 1 : -1].split(","):
+            parts = declaration.split()
+            if len(parts) == 2 and parts[0].rstrip("?*") == "identifier":
+                fields.append(parts[1])
+        if fields:
+            found[name] = tuple(fields)
+    return found
+
+
+def test_every_grammar_identifier_field_is_classified():
+    """Walk Python's own grammar: every identifier field of every node
+    type is classified as binding a name or as naming something else.
+
+    This is the check that is meant to fail FIRST the next time a store
+    shape is missing -- here, in a test, rather than in review. It reads
+    the interpreter's ast module rather than a list written from memory,
+    so a node type a future Python adds arrives unclassified and fails.
+    """
+    grammar = _grammar_identifier_fields()
+    # The walk itself must be working: if the documentation format ever
+    # changes, this sentinel fails instead of the test quietly passing
+    # over an empty grammar.
+    for sentinel in (
+        "Attribute",
+        "ClassDef",
+        "ExceptHandler",
+        "FunctionDef",
+        "Global",
+        "MatchAs",
+        "Name",
+        "alias",
+        "arg",
+        "keyword",
+    ):
+        assert sentinel in grammar, (
+            "the ast grammar walk found no identifier field on "
+            + sentinel
+            + "; the node documentation format changed and this test "
+            "is no longer reading Python's grammar"
+        )
+    binding = _SCANNER._BINDING_IDENTIFIER_FIELDS
+    other = _SCANNER._NON_BINDING_IDENTIFIER_FIELDS
+    for node_name, fields in sorted(grammar.items()):
+        classified = tuple(binding.get(node_name, ())) + tuple(
+            other.get(node_name, ())
+        )
+        assert set(fields) == set(classified), (
+            "ast."
+            + node_name
+            + " declares identifier field(s) "
+            + repr(fields)
+            + ", but the scanner classifies "
+            + repr(classified)
+            + ". Every identifier in Python's grammar must be recorded "
+            "as binding a name or as naming something else."
+        )
+        assert not (set(binding.get(node_name, ())) & set(other.get(node_name, ()))), (
+            "ast." + node_name + " has a field in both scanner tables"
+        )
+        for field in fields:
+            assert field in getattr(ast, node_name)._fields, (
+                "ast." + node_name + " has no field named " + field
+            )
+    # No stale entry either: everything the scanner classifies exists in
+    # this interpreter's grammar, apart from node types this version of
+    # Python does not have yet.
+    for table in (binding, other):
+        for node_name in table:
+            if hasattr(ast, node_name):
+                assert node_name in grammar, (
+                    "the scanner classifies ast."
+                    + node_name
+                    + ", which declares no identifier field"
+                )
+    assert set(_SCANNER._BINDING_FORM_TREATMENT) == set(binding), (
+        "every binding form must say how it is modelled"
+    )
+
+
+# One mutation per binding form in the scanner's grammar table. Each
+# rebinds `Path` through that form and must be reported: either the
+# form is refused outright, or the store joins the origin set and the
+# fenced reader can no longer be trusted with what `Path` returns.
+_HEAD = """
+import pandas
+from pathlib import Path
+from synthtwin.paths import validate_local_path
+
+def substitute_path(raw):
+    return "https://example.invalid/table.csv"
+
+def fetch(raw_path):
+    validated = validate_local_path(raw_path, purpose="input")
+    return pandas.read_csv(Path(validated))
+
+"""
+
+_BINDING_FORM_MUTATIONS = {
+    "FunctionDef": _HEAD + "def Path(raw):\n    return substitute_path(raw)\n",
+    "AsyncFunctionDef": _HEAD
+    + "async def Path(raw):\n    return substitute_path(raw)\n",
+    "ClassDef": _HEAD + "class Path:\n    pass\n",
+    "Name": _HEAD + "Path = substitute_path\n",
+    "alias": _HEAD + "import json as Path\n",
+    "ExceptHandler": _HEAD + "try:\n    pass\nexcept OSError as Path:\n    pass\n",
+    "MatchAs": _HEAD + "match [substitute_path]:\n    case [Path]:\n        pass\n",
+    "MatchStar": _HEAD + "match [substitute_path]:\n    case [*Path]:\n        pass\n",
+    "MatchMapping": _HEAD + "match {}:\n    case {**Path}:\n        pass\n",
+    # A parameter is caller-supplied: the body may not read it as the
+    # import of the same name that the module makes.
+    "arg": """
+import pandas
+from pathlib import Path
+from synthtwin.paths import validate_local_path
+
+def fetch(Path, raw_path):
+    validated = validate_local_path(raw_path, purpose="input")
+    return pandas.read_csv(Path(validated))
+""",
+    "Global": """
+import pandas
+from pathlib import Path
+from synthtwin.paths import validate_local_path
+
+def fetch(raw_path):
+    global Path
+    validated = validate_local_path(raw_path, purpose="input")
+    return pandas.read_csv(Path(validated))
+""",
+    "Nonlocal": """
+import pandas
+from pathlib import Path
+from synthtwin.paths import validate_local_path
+
+def outer(raw_path):
+    Path = str
+
+    def fetch():
+        nonlocal Path
+        validated = validate_local_path(raw_path, purpose="input")
+        return pandas.read_csv(Path(validated))
+
+    return fetch
+""",
+    # PEP 695 type parameters bind a name in a lazy scope this audit
+    # does not follow, so the form is refused where it stands.
+    "TypeVar": """
+import pandas
+from synthtwin.paths import validate_local_path
+
+def fetch[Path](raw_path):
+    validated = validate_local_path(raw_path, purpose="input")
+    return pandas.read_csv(Path(validated))
+""",
+    "ParamSpec": """
+import pandas
+from synthtwin.paths import validate_local_path
+
+def fetch[**Path](raw_path):
+    validated = validate_local_path(raw_path, purpose="input")
+    return pandas.read_csv(Path(validated))
+""",
+    "TypeVarTuple": """
+import pandas
+from synthtwin.paths import validate_local_path
+
+def fetch[*Path](raw_path):
+    validated = validate_local_path(raw_path, purpose="input")
+    return pandas.read_csv(Path(validated))
+""",
+}
+
+
+def test_every_binding_form_has_a_red_mutation(tmp_path):
+    """Each way Python's grammar binds a name has a mutation here, and
+    every one of them is reported.
+
+    The pair to the grammar test above: that one says the scanner has
+    classified every binding form, this one says the classification is
+    backed by evidence rather than by a table entry. Adding a form to
+    the scanner without a mutation fails here.
+    """
+    assert set(_BINDING_FORM_MUTATIONS) == set(
+        _SCANNER._BINDING_IDENTIFIER_FIELDS
+    ), "every binding form in the scanner's grammar table needs a mutation"
+    for index, node_name in enumerate(sorted(_BINDING_FORM_MUTATIONS)):
+        if not hasattr(ast, node_name):
+            # A form this interpreter's Python does not have.
+            continue
+        code = _BINDING_FORM_MUTATIONS[node_name]
+        try:
+            ast.parse(code)
+        except SyntaxError:
+            # Syntax this interpreter does not accept (PEP 695 before
+            # 3.12); the scanner reads source it can parse.
+            continue
+        holder = tmp_path / str(index)
+        holder.mkdir()
+        violations = _scan_code(holder, code)
+        assert violations, (
+            "the "
+            + node_name
+            + " mutation rebinds Path and the scanner reported nothing"
+        )
+        for line in violations:
+            assert re.search(r":\d+: ", line), (
+                "violation line is not in 'file:line: explanation' form: " + line
+            )
+
+
+# -- the position-blind collector, held to Python's own grammar -------
+#
+# Each entry binds the name `marker` through ONE binding form, at the
+# BOTTOM of a loop body -- the position the round-6 verifier used to
+# break the third repair, because the last line of a loop body is in
+# force on every iteration after the first. The collector must record
+# the binding anyway, before a single statement of the scope has been
+# checked, so `marker` has to be present in the scope's position-blind
+# origin set with nothing having been walked at all.
+#
+# A form the collector refuses instead of recording carries "refuses"
+# and is held to a violation rather than to an origin.
+_COLLECTOR_MODELS = {
+    "FunctionDef": (
+        "for _row in [1]:\n    def marker():\n        return 1\n",
+        "records",
+    ),
+    "AsyncFunctionDef": (
+        "for _row in [1]:\n    async def marker():\n        return 1\n",
+        "records",
+    ),
+    "ClassDef": ("for _row in [1]:\n    class marker:\n        pass\n", "records"),
+    "Name": ("for _row in [1]:\n    marker = 1\n", "records"),
+    "alias": ("for _row in [1]:\n    import json as marker\n", "records"),
+    "ExceptHandler": (
+        ("for _row in [1]:\n"
+        "    try:\n"
+        "        pass\n"
+        "    except OSError as marker:\n"
+        "        pass\n"),
+        "records",
+    ),
+    "MatchAs": (
+        ("for _row in [1]:\n"
+        "    match [1]:\n"
+        "        case [marker]:\n"
+        "            pass\n"),
+        "records",
+    ),
+    "MatchStar": (
+        ("for _row in [1]:\n"
+        "    match [1]:\n"
+        "        case [*marker]:\n"
+        "            pass\n"),
+        "records",
+    ),
+    "MatchMapping": (
+        ("for _row in [1]:\n"
+        "    match {}:\n"
+        "        case {**marker}:\n"
+        "            pass\n"),
+        "records",
+    ),
+    # Both scope-escape statements are refused where they stand; the
+    # collector records the name as well, so neither reading is stale.
+    "Global": ("def outer():\n    global marker\n    marker = 1\n", "refuses"),
+    "Nonlocal": (
+        ("def outer():\n"
+        "    marker = 1\n"
+        "\n"
+        "    def inner():\n"
+        "        nonlocal marker\n"
+        "        marker = 2\n"
+        "\n"
+        "    return inner\n"),
+        "refuses",
+    ),
+    # PEP 695 binds in a lazy scope this audit does not follow.
+    "TypeVar": ("def outer[marker](value):\n    return value\n", "refuses"),
+    "ParamSpec": ("def outer[**marker](value):\n    return value\n", "refuses"),
+    "TypeVarTuple": ("def outer[*marker](value):\n    return value\n", "refuses"),
+    # A parameter belongs to the body's own scope, so it is seeded there
+    # rather than recorded in the scope around the def.
+    "arg": ("def outer(marker):\n    return marker\n", "scope-local"),
+}
+
+
+def _module_trust_scope(code):
+    """The position-blind origin set of a module scope, built the way
+    the scanner builds it -- and read BEFORE any statement is walked."""
+    tree = ast.parse(textwrap.dedent(code))
+    checker = _SCANNER._Checker()
+    checker._collect_scope_bindings(tree.body)
+    checker._build_trust_scope(list(tree.body), None)
+    return checker.trust_scopes[-1]
+
+
+def _function_trust_scope(code):
+    """The position-blind origin set of the module's first function."""
+    tree = ast.parse(textwrap.dedent(code))
+    function = tree.body[0]
+    checker = _SCANNER._Checker()
+    checker._collect_scope_bindings(tree.body)
+    checker._build_trust_scope(list(tree.body), None)
+    seeded = {
+        parameter.arg: {_SCANNER._UNKNOWN}
+        for parameter in _SCANNER._parameters_of(function.args)
+    }
+    checker._enter_scope(seeded, False, False)
+    checker._collect_scope_bindings(function.body)
+    checker._build_trust_scope(list(function.body), function.body)
+    return checker.trust_scopes[-1]
+
+
+def test_the_collector_models_every_binding_form_in_the_grammar(tmp_path):
+    """Walk Python's own grammar and hold the COLLECTOR to it.
+
+    The grammar test above says every identifier field is classified;
+    this one says the classification is carried out -- that for every
+    node type able to bind a name, the position-blind origin set really
+    contains that name (or the form is refused outright) with nothing
+    yet walked. That is the property every trust decision now rests on,
+    so a form the collector silently skips has to fail HERE, in a test,
+    rather than in the next review.
+
+    Each snippet puts its binding at the bottom of a loop body, which is
+    the position that defeated the previous repair: textually below the
+    uses above it, and in force on every iteration after the first.
+    """
+    grammar = _grammar_identifier_fields()
+    binding = _SCANNER._BINDING_IDENTIFIER_FIELDS
+    treatment = _SCANNER._BINDING_FORM_TREATMENT
+    assert set(_COLLECTOR_MODELS) == set(binding), (
+        "every binding form in the scanner's grammar table needs a "
+        "collector self-check"
+    )
+    for node_name in sorted(binding):
+        if not hasattr(ast, node_name):
+            # A form this interpreter's Python does not have.
+            continue
+        assert node_name in grammar, (
+            "ast." + node_name + " is no longer a binding form of this "
+            "interpreter's grammar"
+        )
+        code, expected = _COLLECTOR_MODELS[node_name]
+        assert expected == {
+            "collected": "records",
+            "refused": "refuses",
+            "scope-local": "scope-local",
+        }[treatment[node_name]], (
+            "the self-check for ast."
+            + node_name
+            + " does not match how the scanner says it is modelled"
+        )
+        try:
+            ast.parse(textwrap.dedent(code))
+        except SyntaxError:
+            # Syntax this interpreter does not accept (PEP 695 before
+            # 3.12); the scanner reads source it can parse.
+            continue
+        if expected == "records":
+            scope = _module_trust_scope(code)
+            assert "marker" in scope, (
+                "the collector did not record the name ast."
+                + node_name
+                + " binds, so every trust decision in that scope is "
+                "taken against an origin set the binding is missing from"
+            )
+            assert scope["marker"], (
+                "ast." + node_name + " recorded an empty origin set"
+            )
+        elif expected == "scope-local":
+            scope = _function_trust_scope(code)
+            assert scope.get("marker") == {_SCANNER._UNKNOWN}, (
+                "a parameter must be seeded in its own scope as the "
+                "unknown member, not inherited from around the def"
+            )
+        else:
+            holder = tmp_path / node_name
+            holder.mkdir()
+            violations = _scan_code(holder, code)
+            assert violations, (
+                "ast."
+                + node_name
+                + " is recorded as refused, and the scanner accepted it"
+            )
+
+
+# One mutation per binding form again, this time with the rebinding
+# written at the BOTTOM OF A LOOP BODY in the very function that reads
+# through the fence. That is the shape the round-6 verifier used: the
+# statement above runs more than once, so the last line of the body is
+# in force on every iteration after the first, while the audit had
+# already read the statement and moved on. Every one must be reported.
+_LOOP_HEAD = """
+import pandas
+import pathlib
+from synthtwin.paths import validate_local_path
+
+def substitute_path(raw):
+    return "https://example.invalid/table.csv"
+
+def fetch(raw_paths):
+    Path = pathlib.Path
+    for raw in raw_paths:
+        validated = validate_local_path(raw, purpose="input")
+        pandas.read_csv(Path(validated))
+"""
+
+_IN_LOOP_BINDING_MUTATIONS = {
+    "FunctionDef": _LOOP_HEAD
+    + "        def Path(raw):\n            return substitute_path(raw)\n",
+    "AsyncFunctionDef": _LOOP_HEAD
+    + "        async def Path(raw):\n            return substitute_path(raw)\n",
+    "ClassDef": _LOOP_HEAD + "        class Path:\n            pass\n",
+    "Name": _LOOP_HEAD + "        Path = substitute_path\n",
+    "alias": _LOOP_HEAD + "        import json as Path\n",
+    "ExceptHandler": _LOOP_HEAD
+    + "        try:\n"
+    "            pass\n"
+    "        except OSError as Path:\n"
+    "            pass\n",
+    "MatchAs": _LOOP_HEAD
+    + "        match [substitute_path]:\n"
+    "            case [Path]:\n"
+    "                pass\n",
+    "MatchStar": _LOOP_HEAD
+    + "        match [substitute_path]:\n"
+    "            case [*Path]:\n"
+    "                pass\n",
+    "MatchMapping": _LOOP_HEAD
+    + "        match {}:\n"
+    "            case {**Path}:\n"
+    "                pass\n",
+    "Global": _LOOP_HEAD + "        global Path\n",
+    "Nonlocal": """
+import pandas
+import pathlib
+from synthtwin.paths import validate_local_path
+
+def substitute_path(raw):
+    return "https://example.invalid/table.csv"
+
+def outer(raw_paths):
+    Path = pathlib.Path
+
+    def fetch():
+        for raw in raw_paths:
+            validated = validate_local_path(raw, purpose="input")
+            pandas.read_csv(Path(validated))
+            nonlocal Path
+
+    return fetch
+""",
+    # A parameter is caller-supplied wherever the loop puts it.
+    "arg": """
+import pandas
+import pathlib
+from synthtwin.paths import validate_local_path
+
+def fetch(Path, raw_paths):
+    for raw in raw_paths:
+        validated = validate_local_path(raw, purpose="input")
+        pandas.read_csv(Path(validated))
+""",
+    "TypeVar": """
+import pandas
+from synthtwin.paths import validate_local_path
+
+def fetch[Path](raw_paths):
+    for raw in raw_paths:
+        validated = validate_local_path(raw, purpose="input")
+        pandas.read_csv(Path(validated))
+""",
+    "ParamSpec": """
+import pandas
+from synthtwin.paths import validate_local_path
+
+def fetch[**Path](raw_paths):
+    for raw in raw_paths:
+        validated = validate_local_path(raw, purpose="input")
+        pandas.read_csv(Path(validated))
+""",
+    "TypeVarTuple": """
+import pandas
+from synthtwin.paths import validate_local_path
+
+def fetch[*Path](raw_paths):
+    for raw in raw_paths:
+        validated = validate_local_path(raw, purpose="input")
+        pandas.read_csv(Path(validated))
+""",
+}
+
+
+def test_every_binding_form_is_red_from_inside_a_loop_body(tmp_path):
+    """The boundary the fourth repair had to close, one form at a time.
+
+    The previous repair closed the demonstrated statement and left the
+    class open one step over: a statement that RUNS MORE THAN ONCE was
+    still read against the origin set as it stood above it in the text,
+    so a rebinding written lower in the same loop body governed every
+    iteration after the first and was never revisited. Position is no
+    longer part of a trust decision, so every one of these is reported.
+    """
+    assert set(_IN_LOOP_BINDING_MUTATIONS) == set(
+        _SCANNER._BINDING_IDENTIFIER_FIELDS
+    ), "every binding form needs a mutation from inside a loop body"
+    for index, node_name in enumerate(sorted(_IN_LOOP_BINDING_MUTATIONS)):
+        if not hasattr(ast, node_name):
+            continue
+        code = _IN_LOOP_BINDING_MUTATIONS[node_name]
+        try:
+            ast.parse(textwrap.dedent(code))
+        except SyntaxError:
+            continue
+        holder = tmp_path / (str(index) + node_name)
+        holder.mkdir()
+        violations = _scan_code(holder, code)
+        assert violations, (
+            "the "
+            + node_name
+            + " mutation rebinds Path at the bottom of the loop that "
+            "reads through the fence, and the scanner reported nothing"
+        )
+        for line in violations:
+            assert re.search(r":\d+: ", line), (
+                "violation line is not in 'file:line: explanation' form: " + line
+            )
+
+
+def test_a_trust_scope_that_never_settles_is_refused(tmp_path):
+    """A scope whose position-blind set keeps growing is refused.
+
+    `value = value.deeper` builds a longer chain on every pass, so the
+    set never settles. The rule the design states for that case is to
+    refuse rather than to read, and the refusal has to arrive without
+    the build running forever.
+    """
+    violations = _scan_code(
+        tmp_path,
+        """
+        import pathlib
+
+        def grow(raw):
+            value = pathlib.Path
+            for _step in [1, 2, 3]:
+                value = value.deeper
+            return value(raw)
+        """,
+    )
+    assert violations, "a scope that never settles must be refused"

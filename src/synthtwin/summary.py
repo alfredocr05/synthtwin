@@ -25,7 +25,12 @@ from synthtwin import parsing, taxonomy
 _ROLE_WORDS = {
     taxonomy.ROLE_EMPTY: "no values at all",
     taxonomy.ROLE_CONSTANT: "one repeated value",
-    taxonomy.ROLE_IDENTIFIER: "record numbers or codes",
+    # This role is never inferred: it appears only when the person
+    # running the tool named the column with --identifier, so the words
+    # say who decided (review item P1-R6-F8).
+    taxonomy.ROLE_IDENTIFIER: (
+        "record numbers or codes (you named this column)"
+    ),
     taxonomy.ROLE_BINARY: "two possible values",
     taxonomy.ROLE_DATETIME: "dates or times",
     taxonomy.ROLE_COUNT: "whole numbers that count things",
@@ -166,13 +171,21 @@ def _column_lines(column: dict[str, object]) -> list[str]:
             )
         ]
     if role == taxonomy.ROLE_IDENTIFIER:
+        # A column is here because the reader of this summary put it
+        # here. Saying so keeps the words honest: synthtwin never works
+        # this role out for itself (review item P1-R6-F8).
         lines = lines + [
             (
                 f"    {_count_of(column['n_distinct'])} different values, "
                 f"between {_count_of(column['min_length'])} and "
                 f"{_count_of(column['max_length'])} characters long. The "
                 f"values themselves are not in the profile."
-            )
+            ),
+            (
+                "    synthtwin never decides this for itself: a column "
+                "holds record numbers only when you say so with "
+                "--identifier."
+            ),
         ]
     if role == taxonomy.ROLE_TEXT:
         length = _map_of(column["length"])
@@ -181,7 +194,15 @@ def _column_lines(column: dict[str, object]) -> list[str]:
                 f"    text between {_count_of(length['min'])} and "
                 f"{_count_of(length['max'])} characters long. The text "
                 f"itself is not in the profile."
-            )
+            ),
+            # What the role MEANS, in one line: synthtwin ruled readings
+            # out and settled on none. The column's own remark carries
+            # the option to declare it when its values never repeat, so
+            # this line does not repeat that (review item P1-R6-F8).
+            (
+                "    Nothing of this column reaches the profile, and "
+                "synthtwin makes no claim about what these values mean."
+            ),
         ]
     for remark in _list_of(column["remarks"]):
         lines = lines + [f"    worth knowing: {_text_of(remark)}"]
@@ -251,6 +272,39 @@ def _disclosure_lines(document: dict[str, object]) -> list[str]:
     return lines
 
 
+def _first_row_lines(document: dict[str, object]) -> "list[str]":
+    """What the summary says about where the column names came from.
+
+    Guarantees:
+
+    - Inputs: a profile document as built by `profile.build_document`.
+    - Determinism: the text depends only on the document.
+    - Errors raised: none for a document this package built.
+    - Boundary: says nothing when the reading was settled by evidence or
+      by the person, and speaks only when the names were ASSUMED. An
+      assumption the reader is not told about is the defect this exists
+      to prevent; saying it on every ordinary run instead would train
+      people to skip it.
+    """
+    source = _map_of(document["source"])
+    if "header_by_convention" not in source:
+        return []
+    if not source["header_by_convention"]:
+        return []
+    return [
+        "",
+        "About the first row of your file:",
+        "  synthtwin read the first row as the column names because that is",
+        "  how a table is normally written, and nothing in your file said",
+        "  otherwise. It did not confirm that those values are names.",
+        "  If your file has no column names, then what synthtwin is calling",
+        "  column names is really your first record -- it is described here",
+        "  as names and it is NOT counted among the rows above.",
+        "  Run the command again with --first-row data if that is the case,",
+        "  and synthtwin will name the columns itself and keep every record.",
+    ]
+
+
 def render(document: dict[str, object], encoding_note: str) -> str:
     """The whole summary, as the text printed and written to disk.
 
@@ -275,6 +329,16 @@ def render(document: dict[str, object], encoding_note: str) -> str:
         "",
         f"Your table has {n_rows} rows and {n_columns} columns.",
         encoding_note,
+        "",
+    ]
+    # When the column names were assumed rather than shown, the person
+    # reading this must be told before they read anything below it: if
+    # the assumption is wrong, the first row of their table is being
+    # described as column names and is missing from every count on this
+    # page. It goes here, near the top, and not in the disclosure block
+    # at the end, because it changes what every later line means.
+    lines = lines + _first_row_lines(document)
+    lines = lines + [
         "",
         "This is a description of your table, not a copy of it. Next, the",
         "same description will be used to build a synthetic twin: a table",

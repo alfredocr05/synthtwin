@@ -579,13 +579,27 @@ platform. The percentile rungs are located by whole-number arithmetic
 spelling and the nearest one can move a rung onto the wrong pair of
 neighbours.
 
-**The accuracy contract**, frozen here and tested against the reference
-vectors: the mean is within 1 unit in the last place of the correctly
-rounded exact mean; the sample standard deviation within 2; each ladder
-rung within `4 * eps * max(|x_k|, |x_k+1|)` -- bounded by its bracketing
-order statistics rather than by its own value, because a rung falling
-near zero between two large neighbours is intrinsically ill-conditioned;
-and the moment skewness within `8 * eps * (1 + |skew|)`.
+**The accuracy contract (revision 2; the revision-1 tolerances below it
+are retired).** Frozen here and tested against the reference vectors:
+the mean, the sample standard deviation and the moment skewness are each
+**correctly rounded, or the float immediately adjacent to it** -- stated
+as a count of representable numbers between the published value and the
+exact one, not as a relative error, because a relative error degenerates
+at zero. Every ladder rung is likewise correctly rounded or adjacent.
+
+Revision 1 instead allowed the mean 1 unit in the last place, the
+standard deviation 2, and the skewness an absolute `8 * eps * (1 +
+|skew|)`. Those were the tolerances the retired conditioning limit
+required, and review round 6 recorded that leaving them in place would
+have accepted answers many representable numbers from the truth while
+the plan claimed exactness. They bind nothing now.
+
+Each ladder rung is **additionally** held within `4 * eps *
+max(|x_k|, |x_k+1|)` of its bracketing order statistics. That bound
+survives not as a conditioning allowance but because an interpolated
+quantile is defined in terms of its two neighbours, so the bracket is
+part of what the rung means. Both readings are checked, and every rung
+in the committed vectors is in fact exactly the reference value.
 
 **The conditioning limit recorded in revision 1 is retired (review round
 5).** That paragraph said that for a sample like {1e16, 1, -1e16} the

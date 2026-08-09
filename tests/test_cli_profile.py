@@ -12,6 +12,7 @@ import pathlib
 import pytest
 
 import fixtures
+from synthtwin import profile
 from synthtwin.cli import main
 
 
@@ -19,6 +20,31 @@ def _table(tmp_path: pathlib.Path, text: str = "") -> pathlib.Path:
     return fixtures.write(
         tmp_path, "clinic.csv", text or fixtures.every_role_table()
     )
+
+
+def _working_files(folder: pathlib.Path) -> list[str]:
+    """Every file synthtwin left in ``folder`` under a working name."""
+    found = [
+        place.name
+        for place in sorted(folder.iterdir())
+        if profile.PART_SUFFIX in place.name
+        or profile.KEPT_SUFFIX in place.name
+    ]
+    return found
+
+
+def _refuse_to_delete(
+    monkeypatch: pytest.MonkeyPatch, doomed: pathlib.Path
+) -> None:
+    """Make deleting one exact path fail, as a locked folder would."""
+    real = pathlib.Path.unlink
+
+    def stubborn(self: pathlib.Path, **rest: object) -> None:
+        if f"{self}" == f"{doomed}":
+            raise OSError(13, "Permission denied")
+        real(self, **rest)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(pathlib.Path, "unlink", stubborn)
 
 
 def test_a_path_and_nothing_else_is_enough(
@@ -167,6 +193,96 @@ def test_the_disclosure_is_printed_before_the_files_exist(
     will_write = out.index("These two files will be written")
     written = out.index("Written:")
     assert disclosure < will_write < written
+
+
+def test_a_working_file_left_behind_is_named_and_the_run_still_succeeds(
+    tmp_path: pathlib.Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Review item P1-R6-F5. write_both_files hands back every working
+    # file still on disk after an otherwise complete run, and the
+    # command threw that list away: the earlier profile stayed in the
+    # folder under a name nobody had been given, holding a description
+    # of the real table, while the screen said only "Written:".
+    #
+    # Here last week's profile is set aside as usual and the delete that
+    # should clear it away is refused, exactly as a folder locked by
+    # another program would refuse it.
+    table = _table(tmp_path)
+    earlier = tmp_path / "clinic-profile.json"
+    earlier.write_text("last week's profile\n", encoding="utf-8")
+    kept = tmp_path / f"clinic-profile.json{profile.KEPT_SUFFIX}-1"
+    _refuse_to_delete(monkeypatch, kept)
+
+    assert main(["profile", str(table)]) == 0, (
+        "the profile is written and correct, so this is a caution and "
+        "not a failure: the exit code may not change"
+    )
+    captured = capsys.readouterr()
+
+    # Both outputs really are the finished ones.
+    assert json.loads(earlier.read_text(encoding="utf-8"))["n_rows"] == 240
+    assert (tmp_path / "clinic-profile.txt").is_file()
+    # And the stray file is still there, holding real-derived text.
+    assert kept.read_text(encoding="utf-8") == "last week's profile\n"
+
+    told = captured.err
+    assert kept.name in told, (
+        "the user cannot delete a file synthtwin never named"
+    )
+    assert "tidy up by hand" in told
+    assert "this one could not be removed" in told
+    assert "delete it once you have looked" in told
+    assert "nothing is wrong with your profile" in told, (
+        "a leftover working file is not a failure of the profile and "
+        "must not be reported as one"
+    )
+    assert "Written:" in captured.out
+
+
+def test_an_ordinary_run_says_nothing_about_working_files(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # The other half of the repair: a run that cleans up after itself
+    # must stay silent about it. A caution printed every time is a
+    # caution nobody reads.
+    table = _table(tmp_path)
+    (tmp_path / "clinic-profile.json").write_text(
+        "last week's profile\n", encoding="utf-8"
+    )
+    assert main(["profile", str(table)]) == 0
+    captured = capsys.readouterr()
+    assert _working_files(tmp_path) == [], (
+        "an ordinary run leaves no working file in the output folder"
+    )
+    assert "tidy up by hand" not in captured.err
+    assert "tidy up by hand" not in captured.out
+    assert captured.err == "", "an ordinary run has nothing to caution about"
+
+
+def test_a_left_behind_path_cannot_instruct_the_terminal(
+    tmp_path: pathlib.Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # The new sentence prints a path, so it is a display sink like every
+    # other, and the path is the user's own folder name (P1-R6-F11).
+    folder = tmp_path / "reports\x1b[2J"
+    folder.mkdir()
+    table = _table(tmp_path)
+    earlier = folder / "clinic-profile.json"
+    earlier.write_text("last week's profile\n", encoding="utf-8")
+    kept = folder / f"clinic-profile.json{profile.KEPT_SUFFIX}-1"
+    _refuse_to_delete(monkeypatch, kept)
+
+    assert main(["profile", str(table), "--out-dir", str(folder)]) == 0
+    told = capsys.readouterr().err
+    assert "\x1b" not in told, "an escape sequence reached the terminal"
+    assert "reports\\x1b[2J" in told, (
+        "the folder must still be recognizable to the person who has to "
+        "go and delete the file"
+    )
 
 
 def test_a_link_pointing_at_the_table_is_refused(

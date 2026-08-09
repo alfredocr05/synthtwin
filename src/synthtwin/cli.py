@@ -10,6 +10,30 @@ works with a path and nothing else. Everything else is an option with a
 sensible default, and every message, including every refusal, is
 written for a person who has never programmed.
 
+THE DISPLAY BOUNDARY. A path or a value can carry an escape sequence,
+and a terminal obeys one instead of printing it: a path containing the
+bytes for ESC [ 2 J cleared the screen from a refusal message (review
+item P1-R6-F11, carried from P1-R4-F4). Escaping at each sink as it was
+noticed did not hold, twice, because the next sink was written without
+it. So the escaping happens where the text is EMITTED, not where it is
+composed:
+
+* `_say` and `_warn` are the only two places in this module that print
+  anything at all, and both put what they are given through
+  `parsing.visible_lines` first. A sink added later that prints through
+  either of them is covered without its author doing anything;
+  `tests/test_p1r6f11_display_boundary.py` reads this file and turns
+  red if a `print` appears anywhere else.
+* `_shown` covers one VALUE -- a path, a name, or a whole message some
+  other module built -- and shows the line feed as well, so a value
+  cannot forge a line that reads as though synthtwin wrote it. Every
+  path this module puts into a message goes through it.
+* The command line itself is parsed with `parse_known_args`, so that
+  words synthtwin does not understand are refused through `_warn` in
+  its own words. argparse's remaining messages quote the value with
+  Python's `repr`, which shows control characters as text of its own
+  accord.
+
 Imports here are restricted to the exact allowlist in the plan (D6.2,
 with the Phase 1 additions in P1-D10); the offline-static scanner
 enforces the list in CI.
@@ -21,7 +45,7 @@ import importlib.metadata
 import pathlib
 import sys
 
-from synthtwin import errors, profile, reading, summary, taxonomy
+from synthtwin import errors, parsing, profile, reading, summary, taxonomy
 from synthtwin.paths import PathValidationError, validate_local_path
 from synthtwin.reading import read_table
 
@@ -50,6 +74,51 @@ _HELP_EPILOG = """examples:
 """
 
 
+def _shown(value: object) -> str:
+    """One value, safe to put into a message.
+
+    Anything synthtwin did not write itself: a path the user typed, a
+    name, or a whole message another module built. Every display
+    control is shown as text, the line feed included -- a value is not
+    layout, and a line feed inside one forges a line that reads as
+    though synthtwin wrote it. Messages in the refusal catalog are one
+    paragraph each, so nothing of synthtwin's own is lost.
+    """
+    return parsing.visible(f"{value}")
+
+
+def _say(message: str) -> None:
+    """Print one message to the screen, through the display boundary.
+
+    One of the two places in this module that print. Whatever it is
+    given goes through `parsing.visible_lines` first, so a value that
+    reached here without being shown safely still cannot instruct the
+    terminal. Line breaks are kept: they are synthtwin's own layout.
+    """
+    print(parsing.visible_lines(f"{message}"))
+
+
+def _warn(message: str) -> None:
+    """Print one refusal or caution to the error stream, likewise.
+
+    The second and last place in this module that print. Same boundary,
+    same reason; only the stream differs.
+    """
+    print(parsing.visible_lines(f"{message}"), file=sys.stderr)
+
+
+def _refuse_the_command_line(reason: str) -> None:
+    """Say why the command line could not be used, then stop with code 2.
+
+    Used instead of argparse's own refusal so that the words reach the
+    screen through `_warn` like every other message, and so that the
+    reader is told what to do next rather than shown a usage line.
+    """
+    _warn(reason)
+    _warn("Run  synthtwin --help  to see how the command is used.")
+    sys.exit(2)
+
+
 def _version() -> str:
     try:
         return importlib.metadata.version("synthtwin")
@@ -70,6 +139,42 @@ def _encoding_note(encoding: str, used_fallback: bool) -> str:
             "command again."
         )
     return f"It was read as UTF-8 text (encoding: {encoding})."
+
+
+def _left_behind_note(left: "list[str]") -> str:
+    """The caution for working files a finished run could not clear away.
+
+    `profile.write_both_files` hands back every working file still on
+    disk when everything else succeeded, so that the caller can say so.
+    Throwing that list away -- as this module did until review item
+    P1-R6-F5 -- told the reader the run had gone perfectly while a file
+    synthtwin had made, holding text computed from the real table, sat
+    in the output folder under a name nobody had been given.
+
+    This is not a failure of the profile and is not reported as one: the
+    two output files are written and correct, the exit code stays 0, and
+    the one thing asked of the reader is to look at a named file and
+    delete it.
+
+    Every path is put through `_shown` before it reaches the sentence,
+    like every other path this module prints.
+    """
+    listed = ""
+    for path in left:
+        listed = f"{listed}\n  {_shown(path)}"
+    one_only = len(left) == 1
+    which = "this one" if one_only else "these"
+    them = "it" if one_only else "them"
+    return (
+        f"\nSomething to tidy up by hand. Both files above were written "
+        f"and are complete -- nothing is wrong with your profile. "
+        f"synthtwin makes itself a working file beside each output "
+        f"while it writes, and removes it at the end; {which} could not "
+        f"be removed:{listed}\n"
+        f"A working file can hold a description computed from your real "
+        f"table, so keep {them} under the same rules as the table "
+        f"itself, and delete {them} once you have looked."
+    )
 
 
 @dataclasses.dataclass(frozen=True)
@@ -94,6 +199,12 @@ def _parse_arguments(argv: "list[str] | None") -> _Options:
     parser object inside this one function, which is what the offline
     policy accepts (plan D6.2: a value an allowlisted API produced may
     be used where it was made).
+
+    Anything the parser does not recognize is taken back here and
+    refused through this module's display boundary, with exit code 2 as
+    before. argparse's own report of unrecognized words copies them to
+    the error stream exactly as typed, and a word can carry an escape
+    sequence a terminal obeys (review item P1-R6-F11).
     """
     parser = argparse.ArgumentParser(
         prog="synthtwin",
@@ -146,9 +257,12 @@ def _parse_arguments(argv: "list[str] | None") -> _Options:
         default=None,
         metavar="COLUMN",
         help=(
-            "advanced: name a column that holds record numbers rather "
-            "than measurements, so that none of its values are "
-            "published; may be given more than once"
+            "name a column that holds record numbers or codes rather than "
+            "measurements, so that none of its values are published. "
+            "synthtwin never decides this for itself, because a column of "
+            "codes and a column of measurements can look identical; if "
+            "your table has an ID column, name it here. May be given more "
+            "than once"
         ),
     )
     parser.add_argument(
@@ -167,10 +281,29 @@ def _parse_arguments(argv: "list[str] | None") -> _Options:
             "which it is, and stops to ask when it cannot tell"
         ),
     )
-    args = parser.parse_args(argv)
+    # parse_known_args rather than parse_args: argparse's own report of
+    # words it did not recognize copies them to the error stream exactly
+    # as typed, so a word carrying an escape sequence would instruct the
+    # terminal from inside argparse, where this module's display
+    # boundary cannot reach it (review item P1-R6-F11). Taking the
+    # leftovers back lets the refusal go through `_warn` like every
+    # other message -- and say something a non-programmer can act on.
+    args, not_understood = parser.parse_known_args(argv)
+    if not_understood:
+        listed = ""
+        for word in not_understood:
+            shown = _shown(word)
+            listed = shown if not listed else f"{listed}, {shown}"
+        _refuse_the_command_line(
+            f"This part of what you typed was not understood: {listed}. "
+            f"synthtwin describes one CSV file at a time, so the command "
+            f"is  synthtwin profile my-table.csv  and nothing else. If "
+            f"the path has a space in it, put quotation marks around the "
+            f"whole path."
+        )
     if args.command == "profile" and args.table is None:
-        parser.error(
-            "please say which file to describe, for example: "
+        _refuse_the_command_line(
+            "Please say which file to describe, for example: "
             "synthtwin profile my-table.csv"
         )
     named = args.identifier if args.identifier is not None else []
@@ -202,7 +335,7 @@ def _run_profile(
     real-derived material needs.
     """
     if smallest_group < 1:
-        print(errors.floor_not_positive(f"{smallest_group}"), file=sys.stderr)
+        _warn(errors.floor_not_positive(f"{smallest_group}"))
         return 2
     settings = taxonomy.Settings(small_cell_floor=smallest_group)
     read = read_table(table, first_row)
@@ -215,17 +348,23 @@ def _run_profile(
         name for name in forced_identifiers if name not in read.column_names
     ]
     if unknown:
-        print(
+        _warn(
             errors.unknown_column_named(
                 "holding record numbers", unknown[0], read.column_names
-            ),
-            file=sys.stderr,
+            )
         )
         return 2
 
     document = profile.build_document(read, settings, forced_identifiers)
-    text = summary.render(
-        document, _encoding_note(read.encoding, read.used_fallback_encoding)
+    # The summary crosses the boundary ONCE, here, and the same text is
+    # what reaches the screen and what is written to disk. The two
+    # cannot differ, and the file on disk carries the same guarantee the
+    # screen does -- it is opened in an editor or a terminal by the same
+    # person, so it is a human-facing sink like any other.
+    text = parsing.visible_lines(
+        summary.render(
+            document, _encoding_note(read.encoding, read.used_fallback_encoding)
+        )
     )
     profile_path, summary_path = profile.default_output_paths(
         pathlib.Path(table), out_dir
@@ -242,33 +381,43 @@ def _run_profile(
         or profile.is_the_same_file(profile_path, source)
         or profile.is_the_same_file(summary_path, source)
     ):
-        print(
-            errors.output_would_replace_the_table(f"{source}"),
-            file=sys.stderr,
-        )
+        _warn(errors.output_would_replace_the_table(_shown(source)))
         return 1
 
-    print(text)
-    print(f"These two files will be written:\n  {profile_path}\n  {summary_path}")
-    print(
+    shown_profile_path = _shown(profile_path)
+    shown_summary_path = _shown(summary_path)
+    _say(text)
+    _say(
+        f"These two files will be written:\n"
+        f"  {shown_profile_path}\n  {shown_summary_path}"
+    )
+    _say(
         "\nBoth are computed from your real data. Keep them under the "
         "same rules your institution applies to the table itself, and "
         "read the section above before moving them anywhere."
     )
     if smallest_group < taxonomy.Settings().small_cell_floor:
-        print(
+        _warn(
             f"\nWarning: you lowered the smallest group size to "
             f"{smallest_group}. Values shared by very few rows can point "
             f"back at the people they came from; the default of "
             f"{taxonomy.Settings().small_cell_floor} exists for that "
-            f"reason.",
-            file=sys.stderr,
+            f"reason."
         )
 
-    profile.write_both_files(
+    # The return value is the point of the call, not an afterthought:
+    # it is every working file still sitting in the output folder after
+    # an otherwise complete run. Discarding it left a real-derived file
+    # in the user's folder while the screen said the run had finished
+    # cleanly (review item P1-R6-F5).
+    left_behind = profile.write_both_files(
         profile_path, summary_path, profile.serialize(document), text
     )
-    print(f"\nWritten:\n  {profile_path}\n  {summary_path}")
+    _say(f"\nWritten:\n  {shown_profile_path}\n  {shown_summary_path}")
+    if left_behind:
+        # A caution, not a refusal. The profile is good, so the exit
+        # code stays 0; the reader is simply told what to delete.
+        _warn(_left_behind_note(left_behind))
     return 0
 
 
@@ -283,8 +432,12 @@ def main(argv: "list[str] | None" = None) -> int:
     - Return codes: 0 when the work finished; 1 when the table could not
       be read or the profile could not be written, with a
       plain-language explanation on the error stream; 2 when an option's
-      value was not usable. argparse still raises `SystemExit` with code
-      2 for an unrecognized argument and 0 for `--help`.
+      value was not usable. `SystemExit` with code 2 still ends the run
+      for a word on the command line that synthtwin does not recognize,
+      and with code 0 for `--help`. 0 always means both files were
+      written: a working file that could not be cleared away afterwards
+      is named on the error stream as a caution and does not change the
+      code, because nothing about the profile is wrong.
     - Determinism: the same table and the same options produce the same
       two files, byte for byte, on the same platform (plan D12 and
       P1-D11).
@@ -293,17 +446,24 @@ def main(argv: "list[str] | None" = None) -> int:
       printed as a message that says what happened and what to do next.
     - Boundary: the only file this command reads is the table the user
       named, through the path validator; the only files it writes are
-      the two it reports at the end. No network, subprocess, native, or
-      dynamic-code operation is performed anywhere in the package.
+      the two it reports at the end, plus working files of synthtwin's
+      own making beside them, which are removed before the command
+      returns -- and named on the error stream in the rare case that one
+      could not be. No network, subprocess, native, or dynamic-code
+      operation is performed anywhere in the package.
+    - Display: nothing reaches the screen, the error stream, or the
+      summary file without passing the display boundary described at the
+      top of this module. A path or a value carrying an escape sequence
+      is shown as text, never obeyed by the terminal.
     """
     options = _parse_arguments(argv)
 
     if options.version:
-        print(_version())
+        _say(_version())
         return 0
 
     if options.command != "profile" or options.table is None:
-        print(_STATUS.format(version=_version(), repo=_REPO_URL))
+        _say(_STATUS.format(version=_version(), repo=_REPO_URL))
         return 0
 
     table_named = options.table
@@ -316,16 +476,22 @@ def main(argv: "list[str] | None" = None) -> int:
             options.first_row,
         )
     except PathValidationError as error:
-        print(f"{error}", file=sys.stderr)
+        # The message is treated as a VALUE, not as something synthtwin
+        # composed: it carries the path the user typed, and the builders
+        # that place it there do not show it safely (review item
+        # P1-R6-F11). Every message in the catalog is one paragraph, so
+        # showing the line feed too costs nothing and closes the last
+        # way a path can forge a line of its own.
+        _warn(_shown(error))
         return 1
     except errors.ProfileError as error:
-        print(f"{error}", file=sys.stderr)
+        _warn(_shown(error))
         return 1
     except MemoryError:
         # Reading is not the only step that can exhaust memory: building
         # the description and rendering it allocate again. One refusal
         # covers them all rather than a traceback reaching the user.
-        print(errors.out_of_memory_while_describing(table_named), file=sys.stderr)
+        _warn(errors.out_of_memory_while_describing(_shown(table_named)))
         return 1
 
 

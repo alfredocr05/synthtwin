@@ -26,6 +26,45 @@ synthtwin's own code initiates, not what a caller chooses to run
 against themselves. It is the same residual family as the local-actor
 and network-mount residuals already accepted in SECURITY.md.
 
+WHAT THIS SCANNER DOES NOT DECIDE. Stating this precisely is part of
+the layer, because four repairs in a row closed a demonstrated example
+and left the class open one construct over. The list is short on
+purpose: everything else this audit cannot reason about is REFUSED
+rather than admitted (the refused forms are enumerated further down --
+`global`, `nonlocal`, PEP 695 type parameters, `type X = ...`, a
+comprehension target that is not a plain name, a scope whose origin set
+does not settle, and a sibling module's name bound more than once).
+
+  1. A caller's object, as above. Nothing in the source text settles
+     what a value handed in from outside will do.
+  2. READING an attribute of a value this audit cannot trace --
+     `thing.field`, and any chain built on one -- is accepted. Python
+     runs the object's own property or __getattr__ on such a read, so
+     for a caller-supplied object this is case 1 arriving without a
+     call in sight. What IS governed is the narrower set the policy
+     below enumerates: method CALLS on untraced values are refused
+     outright, and attributes of the restricted libraries are reduced
+     to an enumerated list. A general rule for attribute reads would
+     refuse ordinary first-party code, so this one is left open and
+     named here rather than claimed closed.
+  3. The isinstance type gate raises confidence that a value is a
+     string; it does not settle that it is a built-in str (see the
+     note under method calls).
+  4. What another actor in the same process does to synthtwin's own
+     modules while it runs. The scanned tree may not perform such
+     surgery -- writes to an imported module's attributes, sys.modules
+     and sys.path are all refused -- but this is a source audit, not a
+     run-time guard.
+
+None of this is what holds the reader shut on its own. SECURITY.md
+names three controls on that line, and the one that acts while the
+program runs is the path-locality check every path passes immediately
+before the reader is handed it -- validate_local_path, which refuses
+URL forms lexically before any file is opened (plan
+phase-1-profiler.md P1-D2.1). This scanner is ONE BEST-EFFORT LAYER
+beside it, in the terms SECURITY.md already uses, and a clean scan
+should be read as exactly that and no more.
+
 Policy enforced (plan D6.2, a positive AST/name-binding policy;
 Phase 1 additions E1-E4 in plan phase-1-profiler.md, P1-D10):
 
@@ -99,6 +138,162 @@ Phase 1 additions E1-E4 in plan phase-1-profiler.md, P1-D10):
   checked-string origin instead of unknown. That narrowing raises
   confidence in what the value is; it does not settle that the value
   is a built-in str (see the gate note under method calls).
+* TWO QUESTIONS, TWO VIEWS OF THE SAME BINDINGS. "Must this be
+  checked?" and "may this be trusted?" are not the same question and
+  are no longer answered from the same set.
+  - MUST THIS BE CHECKED reads the walk's own view, which fills up as
+    the statements of a scope are read in the order they are written.
+    Origins accumulate there and are never discarded, so a name that
+    might still hold a dangerous module is still reported. This view
+    never reaches ahead of the walk, because reporting a statement
+    against a store written below it would call honest code a
+    violation.
+  - MAY THIS BE TRUSTED reads a second view that does not model
+    position at all. For every name it holds the union of EVERY
+    binding that name receives anywhere in the scope -- above the use,
+    below it, inside a branch, inside a loop, inside a comprehension,
+    inside a body that runs later -- and that union is complete before
+    the first statement of the scope is checked. Trust is granted only
+    when every one of those origins is independently the allowed API;
+    one binding anywhere in the scope that is not the allowed API
+    withdraws trust everywhere in it, and a construct that still
+    cannot be reasoned about is refused.
+    WHY POSITION IS NOT MODELLED HERE. Textual position does not
+    decide run-time order. A loop repeats, so the last line of its
+    body governs every iteration after the first. A function, a
+    lambda, and a generator expression defer, so a line below them is
+    in force before they run. A module can be re-entered. Three
+    repairs in a row tried to say where each binding takes effect, and
+    each was defeated by the construct next door -- the third by a
+    rebinding written lower in the same loop body. So the trust side
+    stops reasoning about position and takes the whole scope instead.
+    It is deliberately stricter than Python: source that would in fact
+    be safe at run time is refused. That is the chosen direction. A
+    refusal is a message to a contributor; a trust granted from half a
+    scope is a hole nobody sees.
+    HOW THE TWO ARE KEPT APART, which is the part the fourth repair
+    got wrong. It kept both stacks reachable at once and returned the
+    union of their two answers, reasoning that a union can only add
+    possibilities and so can only withdraw trust. It cannot: a name
+    the position-blind stack does not bind AT ALL is a name the walk's
+    stack then answers for by itself, and that answer is drawn from
+    what the walk had reached. So the two are no longer reachable at
+    once. `_open_trust_view` puts the position-blind stack in force
+    and hands the walk's stack to its caller as a local value; for the
+    duration of a trust question there is no attribute on the checker
+    that leads back to it. Every grant -- provenance, the fenced
+    reader's argument, a method-call receiver, a callback slot, which
+    callback slots a callee even has, a decorator that hands the
+    definition back, whether a bare call name is a built-in at all,
+    whether a callee is first-party, an attribute of a restricted
+    library object -- is asked through `_trust_origins`,
+    `_trust_lookup`, `_trust_resolve` or `_resolve_exclusively`, and
+    each of those opens that view first.
+    THE SAME RULE ONE MODULE OVER. A name imported from a sibling in
+    the scanned tree is trusted on the strength of that sibling's
+    source, so the sibling's own bindings of it are unioned in the
+    same way: a top-level name the sibling binds more than once, or
+    binds through a form whose value cannot be read, or hands to a
+    decorator that does not give it back, is refused on the importing
+    side rather than read from its first binding
+    (see _module_bindings).
+* WHEN a piece of code runs still decides which bindings the CHECKING
+  view shows it, so the audit follows Python's own order in the four
+  places where that order matters. THE RULE IS THE CLASS, NOT THE
+  LIST: every form whose body runs later than the text that carries it
+  is postponed, and every form with a scope of its own is read in that
+  scope. None of this is load-bearing for trust any more -- it decides
+  which messages are raised and where, not what may be believed.
+  - A def, an async def, a lambda, and a GENERATOR EXPRESSION BIND or
+    build something where they stand; their bodies run later, after
+    the surrounding scope has finished -- a generator expression's
+    body not until something draws from it, which can be much later
+    still. Each body is therefore read only once its whole
+    surrounding scope has been walked AND that scope's bindings have
+    been completed (the step below), so a store written BELOW it is
+    already in the origin set when the body is read. Reading a body
+    where it stands read the scope half-built, and a `Path` rebound
+    three lines lower kept the trusted import origin it had above.
+    A list, set, or dict comprehension carrying an `async for` runs
+    later too and is postponed on the same rule; without one it is
+    evaluated on the spot and read on the spot.
+  - A COMPREHENSION of any of the four forms has a SCOPE OF ITS OWN,
+    and its iteration variables live only inside it. So `[Path(v) for
+    Path in items]` calls whatever `items` yields, not the imported
+    `Path`: every target name starts as the unknown member inside the
+    comprehension and shadows the surrounding name there. The binding
+    does not leak out either, so the surrounding scope keeps the name
+    it had. The FIRST iterable is the one part evaluated where the
+    comprehension stands, so it is read in the surrounding scope. The
+    one binding that deliberately escapes is a walrus: Python stores
+    `:=` in the function or module around the comprehension, and so
+    does this audit. A target that is not a plain name (`for
+    obj.field in items`) writes into an object that outlives the
+    comprehension at a moment this audit cannot place, and is
+    refused.
+  - A class body RUNS while the class is being built, one statement
+    after another, and an unqualified name in it falls straight back
+    to the module when the class-level store has not run yet (or ran
+    on a branch that was not taken). A name looked up directly in a
+    class body therefore carries the class-level origins UNIONED with
+    the outer ones, never the class-level ones alone. (Inside a method
+    the class scope is skipped entirely: Python resolves an
+    unqualified name there to the module, never to the enclosing
+    class.)
+  - A DECORATOR is handed the definition under it and the decorated
+    NAME then holds whatever the decorator hands back. Only the few
+    enumerated in _DEFINITION_PRESERVING_DECORATORS give the
+    definition itself back; after any other decorator the name also
+    carries the unknown member, so calls through it are rejected.
+  - The remaining lazily evaluated forms Python has are REFUSED
+    rather than read, because their scopes are not modelled here: a
+    `type X = ...` alias statement, whose right-hand side is
+    evaluated on first use, and a PEP 695 type-parameter list (`def
+    name[T](...)`, `class Name[T]:`), whose names are bound in a
+    lazy scope wrapped around the definition and would otherwise
+    stand in for an import through the whole body without any store
+    being recorded. Neither appears in synthtwin source.
+* Every form that BINDS a name contributes an origin, and WHICH forms
+  those are is taken from Python's grammar rather than from a list of
+  the ones that came up before. A binding form this audit did not
+  record is a binding the trust rules never see, which is how an
+  incomplete origin set turns into misplaced trust -- and three
+  successive rounds of review each found one more form left out of a
+  hand-written list. So the tables _BINDING_IDENTIFIER_FIELDS and
+  _NON_BINDING_IDENTIFIER_FIELDS below cover every place the ast
+  module's own node signatures put an identifier, split into the ones
+  that bind a name and the ones that name an attribute, a module, or a
+  parameter at a call site; each binding form says whether it is
+  recorded or refused, and a test walks the running interpreter's ast
+  module and fails on any identifier field missing from both tables.
+  That covers the forms whose name is a plain string field rather than
+  a Name node -- `except E as name`, `case name:`, `case [*name]`,
+  `case {**name}` -- along with every Name in a store or delete
+  context.
+* WHEN those bindings enter each view is a rule of its own, and it is
+  one step of the scope walker rather than something each form has to
+  remember.
+  - The TRUST view of a scope is built ON ENTRY, from the grammar
+    above, before a single statement of that scope has been checked.
+    It is built repeatedly until it stops growing, because a store
+    reads the names around it and some of those are stored further
+    down; origins accumulate, so repeating a pass can only add
+    possibilities. A scope whose set has not settled by the last pass
+    is refused outright rather than read.
+  - The CHECKING view fills as the walk goes. The statements of a
+    scope are checked first, in the order they are written, because
+    that is the order they run in: a store two lines lower has not
+    happened yet, and reporting an honest statement against it would
+    be a defect of its own. That view's bindings are then COMPLETED
+    from the grammar above, and only after that is any postponed body
+    read -- a postponed body runs after the whole scope has finished,
+    so it must see every name that scope binds. Leaving each form to
+    record its store as the walk reached it was not enough: `:=`
+    inside a generator expression binds in the scope AROUND it, but
+    nothing in a generator expression runs until something draws from
+    it, so that store was recorded only while the postponed body
+    carrying it was itself being read -- after the function beside it
+    had already been read against the name it rebinds.
 * A call through a bare name is accepted only when EVERY possible
   origin of the name is a function or class defined in the scanned
   tree, an import traced to the allowlist, or one of a small fixed
@@ -123,8 +318,12 @@ Phase 1 additions E1-E4 in plan phase-1-profiler.md, P1-D10):
       method called on an accepted text receiver, a slice or index
       of an accepted text value, the result of str(), repr(), or
       format(), or an f-string every one of whose interpolated
-      values this audit already resolved. Text
-      propagates only from those origins; an untraced value never
+      values this audit already resolved -- INCLUDING the format
+      specification after each colon, which is an expression in its
+      own right: in f"{'x':{spec}}" the text that comes out is built
+      from spec just as surely as from the value before the colon.
+      Text
+      spreads only from those origins; an untraced value never
       becomes text, so nothing is laundered into the accepted set.
       Methods whose result is NOT text (split returns a list, find
       returns a number, startswith returns a truth value) leave the
@@ -141,7 +340,7 @@ Phase 1 additions E1-E4 in plan phase-1-profiler.md, P1-D10):
       THE ENUMERATED POLICY, not shown to be exact. This is the
       best-effort scope ratified as D6 Amendment A3, and its
       residual is caller-supplied code, named at the top of this
-      docstring; E4 propagates that accepted reading one step
+      docstring; E4 carries that accepted reading one step
       further without widening the class of thing that can happen,
       because the only operations this policy permits on a text
       value are another enumerated data method or use as data.
@@ -446,6 +645,15 @@ _ENV_READ_METHODS = {"get", "keys", "items", "values", "copy"}
 # same set never discard it.
 _UNKNOWN = ("unknown", "")
 
+# How many times the position-blind view of one scope is recomputed
+# before it is required to have settled. Each pass records every
+# binding the scope makes and origins only accumulate, so the passes
+# are monotone: one pass fills the set, the next confirms it, and a
+# chain of local names handing a value along (a = f(x); b = a; c = b)
+# needs one pass per link. A scope that has not settled by the last
+# pass is REFUSED rather than read -- see _complete_trust_bindings.
+_TRUST_PASSES = 8
+
 # The only method names that may be called on a value this audit reads
 # as text (policy case (a) in the module docstring): a literal
 # constant, a parameter behind the exact isinstance type gate, or a
@@ -556,6 +764,25 @@ _LOCALPATH = ("localpath", "")
 # all -- is rejected, because str.format invokes the formatting
 # protocol of what it is handed.
 _SAFE_DATA_ARGUMENT_KINDS = {"instance", "literal", "localpath", "result", "str"}
+
+# The only decorators after which the decorated name still holds the
+# definition written under it. A decorator REBINDS that name to
+# whatever it returns, so "@something" above a def or a class is a
+# store like any other, and a name this audit read as a scanned
+# definition could hold anything at all (review item P1-R6-F4).
+# dataclasses.dataclass hands back the very class it was given;
+# staticmethod, classmethod and property return the built-in wrapper
+# around the scanned function, which adds no call target this audit
+# cannot already see. Every other decorator leaves the decorated name
+# carrying the unknown member, so calls through it are rejected.
+# Adding a name here is a policy decision reviewed against the threat
+# model, not a routine code change.
+_DEFINITION_PRESERVING_DECORATORS = {
+    "classmethod",
+    "dataclasses.dataclass",
+    "property",
+    "staticmethod",
+}
 
 # Every allowed external API that can INVOKE one of its arguments,
 # mapped to its exact callable-accepting slots: a frozenset of keyword
@@ -821,6 +1048,16 @@ def _is_dunder(name: str) -> bool:
     return len(name) > 4 and name.startswith("__") and name.endswith("__")
 
 
+def _parameters_of(args: ast.arguments) -> "list[ast.arg]":
+    """Every parameter a def or lambda declares, in one list."""
+    named = list(args.posonlyargs) + list(args.args) + list(args.kwonlyargs)
+    if args.vararg is not None:
+        named.append(args.vararg)
+    if args.kwarg is not None:
+        named.append(args.kwarg)
+    return named
+
+
 def _chain_parts(node: ast.AST) -> "list[str] | None":
     """Return ["root", "attr", ...] for a pure Name/Attribute chain.
 
@@ -860,8 +1097,19 @@ def _first_party_module_name(path: pathlib.Path) -> "str | None":
     return ".".join(pieces)
 
 
-def _module_bindings(tree: ast.Module) -> "tuple[set[str], set[str]]":
-    """Split one module's top-level names into (defined, imported).
+def _decorator_dotted(decorator: ast.AST) -> "str | None":
+    """The dotted text of a decorator, or None when it is not written
+    as a plain name or a pure dotted chain."""
+    target = decorator.func if isinstance(decorator, ast.Call) else decorator
+    parts = _chain_parts(target)
+    return ".".join(parts) if parts else None
+
+
+def _module_bindings(
+    tree: ast.Module,
+) -> "tuple[set[str], set[str], set[str]]":
+    """Split one module's top-level names into (defined, imported,
+    unsettled).
 
     ``defined`` holds the names the module genuinely defines: def,
     class, and plain assignments to a bare name, anywhere at module
@@ -871,33 +1119,111 @@ def _module_bindings(tree: ast.Module) -> "tuple[set[str], set[str]]":
     alone cannot prove the assignment replaced the imported object.
     Nested function, class, and lambda bodies bind nothing at module
     level and are not entered.
+
+    ``unsettled`` is the SAME position-blind rule applied one module
+    over (review item P1-R6-F4). A sibling's exported name is trusted
+    by the module that imports it, and that trust rests on the sibling
+    binding the name ONCE, by a definition or a plain assignment. A
+    sibling that binds it a second time anywhere at module level, or
+    binds it through a form whose value this audit cannot read (a loop
+    variable, a `with ... as`, an `except ... as`, a match capture, a
+    walrus, an unpacking, an augmented assignment, a `del`), or hands
+    the definition to a decorator that does not give it back, exports
+    something the importing module cannot be told. Every such name is
+    listed here, and the importing side withdraws trust from it rather
+    than reading the first binding and stopping. Without this, a
+    sibling could define `validate_local_path` and rebind it on its
+    last line, and the module that imported it went on treating what
+    the rebinding returns as a validated local path.
     """
     defined: set[str] = set()
     imported: set[str] = set()
+    counts: dict[str, int] = {}
+    shaky: set[str] = set()
+    decorated: list[tuple[str, list[ast.expr]]] = []
+
+    def note(name: str) -> None:
+        counts[name] = counts.get(name, 0) + 1
+
     stack: list[ast.AST] = list(tree.body)
     while stack:
         node = stack.pop()
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
             defined.add(node.name)
+            note(node.name)
+            if node.decorator_list:
+                decorated.append((node.name, list(node.decorator_list)))
         elif isinstance(node, ast.Lambda):
             continue
         elif isinstance(node, ast.Import):
             for alias in node.names:
-                imported.add(alias.asname or alias.name.partition(".")[0])
+                name = alias.asname or alias.name.partition(".")[0]
+                imported.add(name)
+                note(name)
         elif isinstance(node, ast.ImportFrom):
             for alias in node.names:
                 if alias.name != "*":
-                    imported.add(alias.asname or alias.name)
+                    name = alias.asname or alias.name
+                    imported.add(name)
+                    note(name)
         elif isinstance(node, ast.Assign):
             for target in node.targets:
                 if isinstance(target, ast.Name):
                     defined.add(target.id)
+                    note(target.id)
+                else:
+                    stack.append(target)
+            stack.append(node.value)
         elif isinstance(node, ast.AnnAssign):
             if isinstance(node.target, ast.Name) and node.value is not None:
                 defined.add(node.target.id)
+                note(node.target.id)
+            elif not isinstance(node.target, ast.Name):
+                stack.append(node.target)
+            if node.value is not None:
+                stack.append(node.value)
+        elif isinstance(node, ast.Name):
+            if isinstance(node.ctx, (ast.Store, ast.Del)):
+                # A store this walk reached through some other
+                # statement: a loop variable, an unpacking, an
+                # augmented assignment, a `del`.
+                shaky.add(node.id)
+                note(node.id)
+        elif isinstance(node, (ast.ExceptHandler, ast.MatchAs, ast.MatchStar)):
+            if node.name is not None:
+                shaky.add(node.name)
+                note(node.name)
+            stack.extend(ast.iter_child_nodes(node))
+        elif isinstance(node, ast.MatchMapping):
+            if node.rest is not None:
+                shaky.add(node.rest)
+                note(node.rest)
+            stack.extend(ast.iter_child_nodes(node))
+        elif isinstance(node, ast.NamedExpr):
+            if isinstance(node.target, ast.Name):
+                shaky.add(node.target.id)
+                note(node.target.id)
+            stack.append(node.value)
         else:
             stack.extend(ast.iter_child_nodes(node))
-    return defined - imported, imported
+
+    unsettled = shaky | {name for name, count in counts.items() if count > 1}
+    for name, decorators in decorated:
+        for decorator in decorators:
+            dotted = _decorator_dotted(decorator)
+            if dotted not in _DEFINITION_PRESERVING_DECORATORS:
+                unsettled.add(name)
+                continue
+            # The decorator is one of the enumerated few, PROVIDED the
+            # name it is written under still means what it reads as in
+            # this module.
+            root = dotted.partition(".")[0]
+            if "." in dotted:
+                if root in unsettled or root not in imported:
+                    unsettled.add(name)
+            elif root in defined or root in imported or root in shaky:
+                unsettled.add(name)
+    return defined - imported, imported, unsettled
 
 
 def _primitive_message(name: str) -> str:
@@ -1031,6 +1357,38 @@ def _scope_escape_message(keyword: str) -> str:
     )
 
 
+def _type_parameter_message() -> str:
+    return (
+        "declares type parameters in square brackets ('def name[T](...)' "
+        "or 'class Name[T]:'). Those names live in a scope of their own "
+        "that Python evaluates lazily, and this audit does not read that "
+        "scope, so a name written there could quietly stand in for an "
+        "import for the whole body. Phase 0 synthtwin source writes "
+        "plain definitions without them."
+    )
+
+
+def _type_alias_message() -> str:
+    return (
+        "uses a 'type' alias statement. What is written after the '=' is "
+        "not evaluated there: Python keeps it and evaluates it later, on "
+        "first use, in a scope of its own. What its names refer to at "
+        "that moment cannot be read from this line, so this audit "
+        "refuses the form rather than guess. Write the alias with a "
+        "plain '=' instead."
+    )
+
+
+def _comprehension_target_message() -> str:
+    return (
+        "writes a comprehension's loop variable into an attribute or a "
+        "subscript ('for obj.field in items'). That store lands on some "
+        "object outside the comprehension, at a moment this audit "
+        "cannot place, so what the name holds afterwards cannot be read "
+        "from the source. Loop over plain names and assign afterwards."
+    )
+
+
 def _restricted_instance_message(method: str, library: str) -> str:
     allowed = sorted(_RESTRICTED_INSTANCE_METHODS[library])
     listed = ", ".join(allowed) if allowed else "none at all"
@@ -1158,6 +1516,21 @@ def _undefined_export_message(module: str, name: str) -> str:
     )
 
 
+def _unsettled_export_message(module: str, name: str) -> str:
+    return (
+        "reaches '" + name + "' through '" + module + "', but '"
+        + module + "' binds '" + name + "' more than once, or binds it "
+        "through a form whose value cannot be read from the source "
+        "text (a loop variable, a `with ... as`, an `except ... as`, a "
+        "match capture, a walrus, an unpacking, a `del`, or a "
+        "decorator that does not hand the definition back). Which of "
+        "those bindings is in force when this name is used is not "
+        "something the text settles, so it is refused rather than "
+        "trusted. Give the exported name exactly one plain definition "
+        "in '" + module + "'."
+    )
+
+
 def _unverified_reexport_message(module: str, name: str) -> str:
     return (
         "imports '" + name + "' from '" + module + "'. '" + name + "' "
@@ -1202,12 +1575,105 @@ def _attr_component_message(name: str, dotted: "str | None") -> "str | None":
     return None
 
 
+# THE BINDING GRAMMAR, TAKEN FROM PYTHON RATHER THAN FROM MEMORY.
+#
+# Every previous version of this audit carried a hand-written list of
+# the store shapes it knew about, and every review round found the one
+# shape left out of it. The list below is instead the complete set of
+# places where Python's own grammar puts an IDENTIFIER inside a syntax
+# node -- the ast module publishes that grammar in each node type's
+# signature -- split into the fields that bind a name in some scope and
+# the fields that name something else entirely. A companion test walks
+# the ast module of the running interpreter and fails on any
+# identifier field missing from both tables, so a shape a future Python
+# adds is caught by a test here instead of by the next review.
+#
+# Fields that BIND a name. Everything reachable this way is either
+# recorded before the scope is checked or refused outright; the
+# treatment table below says which, and the same test holds each entry
+# to a mutation that must go red.
+_BINDING_IDENTIFIER_FIELDS: "dict[str, tuple[str, ...]]" = {
+    "AsyncFunctionDef": ("name",),
+    "ClassDef": ("name",),
+    "ExceptHandler": ("name",),
+    "FunctionDef": ("name",),
+    "Global": ("names",),
+    "MatchAs": ("name",),
+    "MatchMapping": ("rest",),
+    "MatchStar": ("name",),
+    "Name": ("id",),
+    "Nonlocal": ("names",),
+    "ParamSpec": ("name",),
+    "TypeVar": ("name",),
+    "TypeVarTuple": ("name",),
+    "alias": ("name", "asname"),
+    "arg": ("arg",),
+}
+
+# Fields that hold an identifier WITHOUT binding a name in any scope,
+# each with the reason it cannot be one.
+_NON_BINDING_IDENTIFIER_FIELDS: "dict[str, tuple[str, ...]]" = {
+    # 'value.attr' names an attribute of an object, not a scope name;
+    # attribute stores are checked by the dotted-path policy instead.
+    "Attribute": ("attr",),
+    # 'from module import ...' names the module read FROM; the names it
+    # binds live in the alias nodes under it.
+    "ImportFrom": ("module",),
+    # 'case Point(x=0)' names attributes of the matched object; the
+    # names such a pattern binds live in the sub-patterns under it.
+    "MatchClass": ("kwd_attrs",),
+    # 'f(name=value)' names a parameter of the callee at a call site.
+    "keyword": ("arg",),
+}
+
+# How each binding form above is modelled. "collected" means the
+# pre-pass records it before any statement of its scope is checked,
+# which is what keeps a body that runs later from being read against a
+# half-built scope; "scope-local" means the name belongs to a scope
+# this audit builds itself (a parameter list); "refused" means the form
+# is reported as a violation instead of being modelled, because the
+# scope it writes into is one this audit does not follow.
+_BINDING_FORM_TREATMENT: "dict[str, str]" = {
+    "AsyncFunctionDef": "collected",
+    "ClassDef": "collected",
+    "ExceptHandler": "collected",
+    "FunctionDef": "collected",
+    "Global": "refused",
+    "MatchAs": "collected",
+    "MatchMapping": "collected",
+    "MatchStar": "collected",
+    "Name": "collected",
+    "Nonlocal": "refused",
+    "ParamSpec": "refused",
+    "TypeVar": "refused",
+    "TypeVarTuple": "refused",
+    "alias": "collected",
+    "arg": "scope-local",
+}
+
+# The four comprehension forms. Each has a scope of its own in
+# Python 3, and a generator expression's body runs only when something
+# draws from it.
+_Comprehension = ast.GeneratorExp | ast.ListComp | ast.SetComp | ast.DictComp
+# One body whose reading was postponed: the def, async def, lambda, or
+# comprehension node, plus the scope stack (scope dicts, then the flags
+# saying which of them are class bodies and which are comprehension
+# scopes) that was in force where it was written.
+_Scopes = list[dict[str, set[tuple[str, str]]]]
+_DeferredNode = (
+    ast.FunctionDef | ast.AsyncFunctionDef | ast.Lambda | _Comprehension
+)
+_DeferredBody = tuple[_DeferredNode, _Scopes, _Scopes, list[bool], list[bool]]
+# A statement that binds a name to something written under it.
+_Definition = ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef
+
+
 class _Checker(ast.NodeVisitor):
     """Walks one module and records policy violations."""
 
     def __init__(
         self,
-        module_exports: "dict[str, tuple[set[str], set[str]]] | None" = None,
+        module_exports: "dict[str, tuple[set[str], set[str], set[str]]] | None" = None,
         first_party_modules: "set[str] | None" = None,
     ) -> None:
         self.violations: list[tuple[int, str]] = []
@@ -1226,6 +1692,24 @@ class _Checker(ast.NodeVisitor):
         # rebinding hidden behind a branch can neither launder away a
         # module nor make an untraceable callback look safe.
         self.scopes: list[dict[str, set[tuple[str, str]]]] = [{}]
+        # THE POSITION-BLIND VIEW, which answers every TRUST question.
+        # One entry per entry of `scopes`, pushed and popped with it,
+        # holding the origins of every binding that scope makes ANYWHERE
+        # in its text -- above the use, below it, inside a branch, a
+        # loop, a comprehension, or a body that runs later. It is
+        # completed BEFORE the first statement of the scope is checked,
+        # so no question ever reaches it half-built.
+        #
+        # Why there are two views at all. Textual position does not
+        # decide run-time order: a loop repeats, a function and a
+        # comprehension defer, a module can be re-entered. Three
+        # successive repairs modelled position and each was defeated one
+        # boundary over -- most recently by a rebinding written LOWER IN
+        # THE SAME LOOP BODY, which is in force on every iteration after
+        # the first while the audit had already read the statement above
+        # it and moved on. So position is not modelled on the trust side
+        # at all (review item P1-R6-F4).
+        self.trust_scopes: list[dict[str, set[tuple[str, str]]]] = [{}]
         # Which entries of `scopes` are class bodies. Python does not
         # let a method body see the names a class body binds -- an
         # unqualified name in a method skips straight to the module --
@@ -1234,6 +1718,13 @@ class _Checker(ast.NodeVisitor):
         # module-level function of the same name (review item
         # P1-R5-F1).
         self.class_scopes: list[bool] = [False]
+        # Which entries of `scopes` are comprehension scopes. A
+        # comprehension's iteration variables live only inside it and
+        # do not leak out; the one binding that DOES escape is a walrus,
+        # which Python stores in the enclosing function or module, so
+        # this flag says which scopes a walrus has to step back past
+        # (review item P1-R6-F4).
+        self.comprehension_scopes: list[bool] = [False]
         # Dotted paths known to name modules: the fixed allowlist plus
         # every intra-package path seen in this file's import
         # statements. The one-attribute-step rule counts from the
@@ -1250,30 +1741,176 @@ class _Checker(ast.NodeVisitor):
         # Every node that sits in the function position of a call. A
         # fenced API is legal there and nowhere else.
         self.call_targets: set[int] = set()
+        # Function and lambda bodies waiting to be read, each with the
+        # scope stack it was written in (the same dict objects, so
+        # every store recorded later is visible through them). A def
+        # statement BINDS a name; the body runs afterwards, once the
+        # surrounding scope has finished, so reading the body where it
+        # stands read the surrounding scope half-built and a name
+        # rebound below the def kept the origin it had above it
+        # (review item P1-R6-F4).
+        self.deferred: list[_DeferredBody] = []
 
     # -- bookkeeping -------------------------------------------------
 
     def _flag(self, node: ast.AST, message: str) -> None:
         self.violations.append((getattr(node, "lineno", 1), message))
 
-    def _bind(self, name: str, value: "tuple[str, str] | None") -> None:
-        slot = self.scopes[-1].setdefault(name, set())
+    def _bind(
+        self,
+        name: str,
+        value: "tuple[str, str] | None",
+        scope: "dict[str, set[tuple[str, str]]] | None" = None,
+    ) -> None:
+        target = self.scopes[-1] if scope is None else scope
+        slot = target.setdefault(name, set())
         slot.add(value if value is not None else _UNKNOWN)
 
+    # -- answering a question against the position-blind view ---------
+
+    def _open_trust_view(self) -> "_Scopes":
+        """Put the position-blind stack in force and hand back the one
+        it replaced.
+
+        While a trust question is being answered, `self.scopes` IS the
+        position-blind stack, and the walk's own position-sensitive
+        stack is not reachable through `self` at all: it lives only in
+        the caller's local variable until `_close_trust_view` hands it
+        back. That unreachability is the whole mechanism. Round 6
+        reviewed a version that kept the blind stack beside the walk's
+        and unioned the two answers, on the reasoning that a union can
+        only add possibilities; it cannot, because a name the blind
+        stack does not bind at all is a name the walk's stack can then
+        answer for alone, and that answer is drawn from what the walk
+        had reached so far. There is no code path from a trust question
+        to the walk's stack any more, so no future edit can reintroduce
+        that answer by accident.
+
+        Nesting is safe: opening the view twice puts the same stack in
+        force, and each close hands back what its own open replaced.
+        """
+        walk_scopes = self.scopes
+        self.scopes = self.trust_scopes
+        return walk_scopes
+
+    def _close_trust_view(self, walk_scopes: "_Scopes") -> None:
+        """Put the walk's own stack back in force."""
+        self.scopes = walk_scopes
+
+    def _trust_origins(self, value: ast.AST) -> "set[tuple[str, str]]":
+        """The origin set every TRUST question reads, and the only one.
+
+        Every question whose answer GRANTS something -- this value may
+        be handed to the fenced reader, this receiver may be called,
+        this slot is cleared, this decorator hands the definition back
+        -- asks through here or through `_trust_lookup` /
+        `_resolve_exclusively`, because a grant made against half a
+        scope is a grant made against a program that does not exist
+        (review item P1-R6-F4).
+
+        POSITION PLAYS NO PART. The origins come from the scope-wide
+        union: every binding each name receives anywhere in the
+        enclosing scope and its enclosing scopes, whether written above
+        the use or below it, on a branch, at the bottom of a loop, or
+        inside a body that runs later. Nothing here consults what the
+        walk had seen when it arrived.
+        """
+        walk_scopes = self._open_trust_view()
+        try:
+            return self._value_origins(value)
+        finally:
+            self._close_trust_view(walk_scopes)
+
+    def _trust_lookup(self, name: str) -> "set[tuple[str, str]] | None":
+        """Every origin a name may hold anywhere in its scope, from the
+        position-blind view alone (see _trust_origins). None only when
+        no enclosing scope binds the name at all."""
+        walk_scopes = self._open_trust_view()
+        try:
+            return self._lookup(name)
+        finally:
+            self._close_trust_view(walk_scopes)
+
+    def _trust_resolve(self, parts: "list[str]") -> "list[str]":
+        """`_resolve` against the position-blind view.
+
+        The ACCUMULATING form of the trust question: which dotted APIs
+        might this chain name, taking every binding the scope makes.
+        Used where missing a possibility would silently skip a check
+        (which callback slots a callee has, above all), as opposed to
+        `_resolve_exclusively`, which answers whether the chain is that
+        API and nothing else.
+        """
+        walk_scopes = self._open_trust_view()
+        try:
+            return self._resolve(parts)
+        finally:
+            self._close_trust_view(walk_scopes)
+
+    def _walrus_scope(self) -> "dict[str, set[tuple[str, str]]]":
+        """WHICH scope a walrus assignment writes into -- and nothing
+        about when it is written.
+
+        Every other store lands in the innermost scope, but `:=` inside
+        a comprehension deliberately binds in the function or module
+        AROUND the comprehension, so this steps back past comprehension
+        scopes to find it. That is a question of place only: choosing
+        the right scope does not by itself put the binding there in
+        time for a body that is read later, and reading this method as
+        if it did was the mistake that left a `:=` written inside a
+        generator expression missing from the origin set until after
+        the postponed bodies beside it had been read. The TIMING is
+        settled elsewhere, by _collect_scope_stores, which records every
+        walrus in a scope -- including the ones written inside
+        comprehensions -- before any statement of that scope is checked.
+        """
+        active = self.scopes
+        depth = len(active) - 1
+        while depth > 0 and self.comprehension_scopes[depth]:
+            depth = depth - 1
+        return active[depth]
+
     def _lookup(self, name: str) -> "set[tuple[str, str]] | None":
-        depth = len(self.scopes) - 1
+        """Every origin the name may hold at this point in the walk.
+
+        A class body is the one scope whose own bindings do NOT stand
+        alone. Its statements run one after another while the class is
+        being built, so a name used above the class-level store, or on
+        a branch where that store never ran, is still the module-level
+        name -- Python falls straight back to it. A class-level `from
+        pathlib import Path` written below a statement that calls
+        `Path` therefore proves nothing about what that statement
+        calls, and reading the class-local binding alone granted trust
+        the running program would not (review item P1-R6-F4). The
+        class-local origins are UNIONED with the outer ones instead, so
+        both possibilities are carried and neither is trusted on its
+        own.
+
+        Which stack is read is whichever is in force: the walk's own,
+        position-sensitive one for "must this be checked?", and the
+        position-blind one for "may this be trusted?", put in force for
+        the duration of the question by `_open_trust_view`.
+        """
+        active = self.scopes
+        top = len(active) - 1
+        carried: set[tuple[str, str]] = set()
+        depth = top
         while depth >= 0:
             # Skip class bodies unless the lookup is happening directly
             # in one: Python resolves an unqualified name in a method to
             # the module, never to the enclosing class.
-            if self.class_scopes[depth] and depth != len(self.scopes) - 1:
+            if self.class_scopes[depth] and depth != top:
                 depth = depth - 1
                 continue
-            scope = self.scopes[depth]
+            scope = active[depth]
             if name in scope:
-                return scope[name]
+                if depth == top and self.class_scopes[depth]:
+                    carried = carried | scope[name]
+                    depth = depth - 1
+                    continue
+                return carried | scope[name]
             depth = depth - 1
-        return None
+        return carried or None
 
     def _register_module_path(self, dotted: str) -> None:
         parts = dotted.split(".")
@@ -1321,7 +1958,8 @@ class _Checker(ast.NodeVisitor):
         return out
 
     def _resolve_exclusively(self, parts: "list[str]") -> "list[str]":
-        """Like _resolve, but only when EVERY origin is that API.
+        """Like _resolve, but only when EVERY origin is that API -- and
+        taken against EVERY binding the scope makes, wherever it stands.
 
         The difference decides whether a name may be TRUSTED, as opposed
         to whether it must be CHECKED. `_resolve` keeps an imported
@@ -1335,13 +1973,55 @@ class _Checker(ast.NodeVisitor):
         writer that overwrote the user's own table -- so provenance,
         value-preserving calls, and fenced call targets all ask this
         question rather than the other one.
+
+        POSITION IS NOT PART OF THE ANSWER. The set consulted here is
+        the position-blind one: the union of every binding the name
+        receives anywhere in the enclosing scope and its enclosing
+        scopes, whether that binding stands above the use or below it,
+        inside a branch, inside a loop, or inside a body that runs
+        later. Trust is granted only when every one of those origins is
+        independently the allowed API; one binding anywhere in the scope
+        that is not the allowed API withdraws trust everywhere in it.
+
+        That is deliberately stricter than Python: a name rebound on the
+        last line of a module was in fact the import while the lines
+        above it ran, and this refuses them anyway. The refusal is the
+        correct direction. Three repairs in a row tried to say WHERE a
+        binding takes effect, and each was defeated by the next
+        construct -- a loop body, whose last line is in force on every
+        iteration but the first, was the third. A refusal is a message
+        to a contributor; a trust granted from half a scope is a silent
+        hole (review item P1-R6-F4).
+
+        The fourth repair kept the walk's own answer beside this one and
+        returned the union, so a name the position-blind view did not
+        bind at all was still resolved from what the walk had reached.
+        That is the branch this closes: the walk's stack is not
+        reachable from here.
         """
-        bound = self._lookup(parts[0])
+        bound = self._trust_lookup(parts[0])
         if bound is not None and any(
             kind not in ("module", "api") for kind, _origin in bound
         ):
             return []
-        return self._resolve(parts)
+        candidates = self._trust_resolve(parts)
+        if any(self._export_is_unsettled(dotted) for dotted in candidates):
+            # The same rule one module over: a sibling that binds its
+            # exported name more than once exports something this text
+            # does not settle, so `paths.validate_local_path` is no more
+            # trustworthy than `from paths import validate_local_path`.
+            return []
+        return candidates
+
+    def _export_is_unsettled(self, dotted: str) -> bool:
+        """True when `dotted` names a first-party export the sibling
+        module binds more than once, or through a form whose value
+        cannot be read (see _module_bindings)."""
+        module, _dot, name = dotted.rpartition(".")
+        exports = self.module_exports.get(module)
+        if exports is None:
+            return False
+        return name in exports[2]
 
     def _value_origins(self, value: ast.AST) -> "set[tuple[str, str]]":
         """The possible origins of an expression's VALUE.
@@ -1418,10 +2098,26 @@ class _Checker(ast.NodeVisitor):
             # interpolated value is one this audit already resolved:
             # formatting invokes the __format__ of what it is handed,
             # and an untraced value must never become text (E4).
+            #
+            # A FORMAT SPECIFICATION IS ITSELF AN EXPRESSION. In
+            # f"{'x':{spec}}" the part after the colon is a nested
+            # f-string, so the text that comes out is built from `spec`
+            # just as surely as from the value in front of it, and
+            # reading only the value let an unknown one arrive as
+            # trusted text (review item P1-R6-F12). The same rule is
+            # applied to it by walking it through this method, which
+            # recurses into any specification nested inside it.
+            # The conversion field (!r, !s, !a) needs no separate rule:
+            # it applies repr, str, or ascii to the value that was just
+            # checked, and produces text from text.
             for piece in value.values:
                 if not isinstance(piece, ast.FormattedValue):
                     continue
-                origins = self._value_origins(piece.value)
+                # Whether the result may be READ AS TEXT is a trust
+                # question, so it is asked position-blind.
+                origins = self._trust_origins(piece.value)
+                if piece.format_spec is not None:
+                    origins = origins | self._trust_origins(piece.format_spec)
                 if not all(
                     kind in _SAFE_DATA_ARGUMENT_KINDS for kind, _origin in origins
                 ):
@@ -1520,7 +2216,7 @@ class _Checker(ast.NodeVisitor):
             return {_LOCALPATH}
         if resolved == ["pathlib.Path"] and len(call.args) == 1:
             inner = call.args[0]
-            if not isinstance(inner, ast.Starred) and self._value_origins(
+            if not isinstance(inner, ast.Starred) and self._trust_origins(
                 inner
             ) == {_LOCALPATH}:
                 return {_LOCALPATH}
@@ -1538,14 +2234,17 @@ class _Checker(ast.NodeVisitor):
         untraced value: the receiver must already be text.
         """
         if isinstance(func, ast.Name):
-            if func.id in _TEXT_PRODUCING_BUILTINS and self._lookup(func.id) is None:
+            if (
+                func.id in _TEXT_PRODUCING_BUILTINS
+                and self._trust_lookup(func.id) is None
+            ):
                 return {("str", "")}
             return None
         if not isinstance(func, ast.Attribute):
             return None
         if func.attr not in _TEXT_RESULT_STR_METHODS:
             return None
-        receiver = self._value_origins(func.value)
+        receiver = self._trust_origins(func.value)
         if not receiver:
             return None
         if all(kind in ("literal", "str") for kind, _origin in receiver):
@@ -1560,21 +2259,28 @@ class _Checker(ast.NodeVisitor):
                 self._bind(name, (kind, origin))
 
     def _collect_scope_bindings(self, body: "list[ast.stmt]") -> None:
-        """Pre-bind everything this scope binds anywhere in its body.
+        """Pre-bind the imports and definitions this scope makes.
 
         Flow-insensitive on purpose: an import or a def/class statement
         anywhere in a scope -- inside any branch, loop, or try block --
         is visible to the whole scope before the statements are walked,
         and later stores never erase it. Nested function, class, and
         lambda bodies are separate scopes and are not entered here.
+
+        Imports are recorded first and definitions second, so that a
+        decorator written as an imported name is already traceable when
+        the name it decorates is bound. Every OTHER binding form is
+        recorded by _collect_scope_stores, which runs after these two
+        and needs them: it reads the values being stored.
         """
-        stack = list(body)
+        definitions: list[_Definition] = []
+        stack: list[ast.AST] = list(body)
         while stack:
             node = stack.pop()
             if isinstance(
                 node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)
             ):
-                self._bind(node.name, ("def", node.name))
+                definitions.append(node)
                 continue
             if isinstance(node, ast.Lambda):
                 continue
@@ -1584,6 +2290,376 @@ class _Checker(ast.NodeVisitor):
                 self._handle_import_from(node, report=False)
             else:
                 stack.extend(ast.iter_child_nodes(node))
+        for definition in definitions:
+            self._bind_definition(definition)
+
+    # -- the position-blind view -------------------------------------
+
+    def _build_trust_scope(
+        self, nodes: "list[ast.AST]", gate_body: "list[ast.stmt] | None"
+    ) -> None:
+        """Fill the top TRUST scope with every binding this scope makes.
+
+        Called once, at scope entry, before a single statement of the
+        scope is checked. It replays the same three steps the walk
+        itself performs -- imports and definitions, then the type-gate
+        narrowing, then every other store -- into `trust_scopes` rather
+        than `scopes`, and it does not stop where the walk has got to:
+        the whole body is read, so a binding written below a use, at the
+        bottom of a loop, or inside a body that runs later is already in
+        the set when the use above it asks whether it may be trusted.
+
+        Nothing is reported from here. The collectors it drives record
+        origins and raise no message, so a scope is never counted twice.
+        """
+        walk_scopes = self._open_trust_view()
+        try:
+            statements = [node for node in nodes if isinstance(node, ast.stmt)]
+            self._collect_scope_bindings(statements)
+            if gate_body is not None:
+                self._upgrade_gated_parameters(gate_body)
+            self._complete_trust_bindings(nodes, statements)
+        finally:
+            self._close_trust_view(walk_scopes)
+
+    def _trust_snapshot(self) -> "dict[str, frozenset[tuple[str, str]]]":
+        """A comparable copy of the trust scope now on top."""
+        return {
+            name: frozenset(origins)
+            for name, origins in self.trust_scopes[-1].items()
+        }
+
+    def _complete_trust_bindings(
+        self, nodes: "list[ast.AST]", statements: "list[ast.stmt]"
+    ) -> None:
+        """Record every binding of this scope, repeatedly, until the set
+        stops growing.
+
+        One pass is not enough on its own. A store reads the names
+        around it (`file_path = pathlib.Path(validated)` is a validated
+        path only because `validated` is one), and those names may
+        themselves be stored further down the scope, so a single pass
+        would read some of them before their own origins were in. The
+        passes are monotone -- origins accumulate and are never
+        discarded -- so repeating one can only add possibilities, and
+        the set settles once nothing new arrives.
+
+        BOTH steps repeat, imports and definitions included. A def or a
+        class statement is a store whose recorded origin depends on
+        reading its decorators, and a decorator read on the first pass
+        alone was read against a set the rest of the scope had not
+        joined yet: a name decorated by what LOOKED like one of the
+        enumerated definition-preserving decorators kept the readable
+        definition origin even when the decorator itself was rebound
+        further down. Repeating the step lets that later binding
+        withdraw the reading, which is the same monotone direction as
+        every other pass.
+
+        A scope whose set has not settled by the last pass is one this
+        audit cannot reason about, so it is REFUSED: the unknown member
+        is added to every name the scope carries, which withdraws trust
+        from all of them. Nothing in the src tree comes close to the
+        limit; the shapes that do not settle are ones that build a
+        longer attribute chain on every pass (`value = value.deeper`),
+        and those are rejected on their own terms as well.
+        """
+        settled = None
+        for _pass in range(_TRUST_PASSES):
+            self._collect_scope_bindings(statements)
+            self._collect_scope_stores(nodes)
+            current = self._trust_snapshot()
+            if current == settled:
+                return
+            settled = current
+        for name in list(self.trust_scopes[-1]):
+            self.trust_scopes[-1][name].add(_UNKNOWN)
+
+    def _enter_scope(
+        self,
+        locals_: "dict[str, set[tuple[str, str]]]",
+        is_class: bool,
+        is_comprehension: bool,
+    ) -> None:
+        """Push one scope onto both stacks, seeded with the same names.
+
+        The two views are always the same depth, so `class_scopes` and
+        `comprehension_scopes` describe them both.
+        """
+        self.scopes.append({name: set(origins) for name, origins in locals_.items()})
+        self.trust_scopes.append(
+            {name: set(origins) for name, origins in locals_.items()}
+        )
+        self.class_scopes.append(is_class)
+        self.comprehension_scopes.append(is_comprehension)
+
+    def _leave_scope(self) -> None:
+        self.scopes.pop()
+        self.trust_scopes.pop()
+        self.class_scopes.pop()
+        self.comprehension_scopes.pop()
+
+    # -- completing a scope's bindings -------------------------------
+
+    def _collect_scope_stores(self, nodes: "list[ast.AST]") -> None:
+        """Record every binding this scope makes, other than its
+        imports and definitions (review item P1-R6-F4).
+
+        Driven from two places, into two different views of the scope.
+        The POSITION-BLIND view calls it on scope entry, repeatedly,
+        before a single statement has been checked, which is what lets
+        a trust decision see a binding written below it. The CHECKING
+        view calls it at one moment: after the scope's own statements
+        have been checked where they stand, and before the first body
+        postponed inside it is read. Both halves of that second
+        placement are load-bearing.
+
+        Not earlier, because the statements of a scope run in the order
+        they are written: a store two lines below a statement has not
+        happened when that statement runs, and reporting the statement
+        against it would call honest code a violation.
+
+        Not later, because a postponed body -- a function, a lambda, a
+        generator expression -- runs after the scope around it has
+        finished, so it must be read against a scope whose bindings are
+        all in. Leaving each form to record its own store as the walk
+        reached it left the stores the walk had not reached yet missing
+        from the set: a `:=` written inside a generator expression
+        binds in the scope around it, but nothing in that expression is
+        executed until something draws from it, so it was recorded only
+        while that postponed body was itself being read -- after the
+        function beside it had already been read, and trusted, against
+        the name it rebinds.
+
+        What is walked is Python's grammar, not a list of the shapes
+        that came up in review: any Name in a store or delete context
+        binds, and so does every identifier field the grammar tables
+        above mark as binding. Two kinds of subtree are skipped because
+        their names belong to a DIFFERENT scope -- the body of a nested
+        def, lambda, or class, and a comprehension's iteration targets
+        -- while the expressions such a form evaluates where it stands
+        (decorators, default values, annotations, base classes, the
+        iterables and conditions of a comprehension) are walked, since a
+        walrus written in one of them binds right here.
+
+        Origins only accumulate, so recording a store a second time can
+        add possibilities and can never remove one: this pass can turn
+        trust into suspicion, never the other way round. Nothing is
+        reported from here -- every violation is raised by the checking
+        walk -- so no message is doubled.
+        """
+        for node in nodes:
+            self._collect_store(node)
+
+    def _collect_store(self, node: ast.AST) -> None:
+        """Record what one node binds in the scope now on top."""
+        if isinstance(node, (ast.Import, ast.ImportFrom)):
+            # Recorded already, with the origins they carry.
+            return
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            # The name is bound by _collect_scope_bindings; the body is
+            # a scope of its own. What is left runs where it stands.
+            self._collect_scope_stores(list(node.decorator_list))
+            self._collect_argument_stores(node.args)
+            if node.returns is not None:
+                self._collect_store(node.returns)
+            return
+        if isinstance(node, ast.Lambda):
+            self._collect_argument_stores(node.args)
+            return
+        if isinstance(node, ast.ClassDef):
+            self._collect_scope_stores(list(node.decorator_list))
+            self._collect_scope_stores(list(node.bases))
+            self._collect_scope_stores([kw.value for kw in node.keywords])
+            return
+        if isinstance(
+            node, (ast.ListComp, ast.SetComp, ast.DictComp, ast.GeneratorExp)
+        ):
+            self._collect_comprehension_stores(node)
+            return
+        if isinstance(node, ast.Assign):
+            self._collect_store(node.value)
+            for target in node.targets:
+                if isinstance(target, ast.Name):
+                    self._bind_from_value(target.id, node.value)
+                else:
+                    self._collect_store(target)
+            return
+        if isinstance(node, ast.AnnAssign):
+            self._collect_store(node.annotation)
+            if node.value is not None:
+                self._collect_store(node.value)
+            if isinstance(node.target, ast.Name):
+                if node.value is not None:
+                    self._bind_from_value(node.target.id, node.value)
+                else:
+                    self._bind(node.target.id, None)
+            else:
+                self._collect_store(node.target)
+            return
+        if isinstance(node, ast.NamedExpr):
+            self._collect_store(node.value)
+            if isinstance(node.target, ast.Name):
+                # `:=` binds in the scope AROUND a comprehension; see
+                # _walrus_scope.
+                self._bind(node.target.id, None, scope=self._walrus_scope())
+            else:
+                self._collect_store(node.target)
+            return
+        if isinstance(node, ast.Name):
+            if isinstance(node.ctx, (ast.Store, ast.Del)):
+                self._bind(node.id, None)
+            return
+        if isinstance(node, ast.arg):
+            # A parameter belongs to the body's own scope; only the
+            # annotation is evaluated here.
+            if node.annotation is not None:
+                self._collect_store(node.annotation)
+            return
+        # `except E as name`, `case name:` and `case [*name]` all keep
+        # the bound name in a plain string field called `name`.
+        if isinstance(node, (ast.ExceptHandler, ast.MatchAs, ast.MatchStar)):
+            if node.name is not None:
+                self._bind(node.name, None)
+        elif isinstance(node, ast.MatchMapping):
+            if node.rest is not None:
+                self._bind(node.rest, None)
+        elif isinstance(node, (ast.Global, ast.Nonlocal)):
+            # Both are refused by their visitors; the names are recorded
+            # anyway so that nothing downstream reads a stale origin.
+            for name in node.names:
+                self._bind(name, None)
+        self._collect_scope_stores(list(ast.iter_child_nodes(node)))
+
+    def _collect_argument_stores(self, args: ast.arguments) -> None:
+        """Walk the parts of a parameter list that are evaluated where
+        the def or lambda stands: default values and annotations. The
+        parameter NAMES belong to the body's own scope."""
+        for default in list(args.defaults) + [
+            d for d in args.kw_defaults if d is not None
+        ]:
+            self._collect_store(default)
+        for parameter in _parameters_of(args):
+            if parameter.annotation is not None:
+                self._collect_store(parameter.annotation)
+
+    def _collect_comprehension_stores(self, node: _Comprehension) -> None:
+        """Walk a comprehension for bindings that land in THIS scope.
+
+        The iteration targets are not among them: they live in the
+        comprehension's own scope and are bound there. A walrus is,
+        which is the whole point of walking in here -- a generator
+        expression is read long after the scope around it has finished,
+        so a `:=` inside one has to be in the origin set before that
+        happens.
+        """
+        for generator in node.generators:
+            self._collect_store(generator.iter)
+            self._collect_scope_stores(list(generator.ifs))
+        if isinstance(node, ast.DictComp):
+            self._collect_store(node.key)
+            self._collect_store(node.value)
+        else:
+            self._collect_store(node.elt)
+
+    def _bind_definition(self, node: "_Definition") -> None:
+        """Record what a def, async def, or class statement stores.
+
+        The statement binds its name to the definition -- unless a
+        decorator sits above it, because a decorator is handed the
+        definition and the NAME then holds whatever it hands back. Only
+        the enumerated decorators that give the definition itself back
+        leave the name readable as that definition; after any other
+        decorator the name carries the unknown member as well, so
+        calling through it is rejected (review item P1-R6-F4).
+        """
+        self._bind(node.name, ("def", node.name))
+        for decorator in node.decorator_list:
+            if not self._decorator_keeps_definition(decorator):
+                self._bind(node.name, None)
+                return
+
+    def _decorator_keeps_definition(self, decorator: ast.AST) -> bool:
+        """True when a decorator is one of the enumerated few that hand
+        the decorated definition back (_DEFINITION_PRESERVING_DECORATORS).
+        Every other decorator -- above all one this audit cannot trace
+        at all -- is treated as replacing the decorated name's value."""
+        target = decorator.func if isinstance(decorator, ast.Call) else decorator
+        if isinstance(target, ast.Name) and self._trust_lookup(target.id) is None:
+            # An unshadowed built-in decorator name.
+            return target.id in _DEFINITION_PRESERVING_DECORATORS
+        parts = _chain_parts(target)
+        if parts is None:
+            return False
+        resolved = self._resolve_exclusively(parts)
+        return bool(resolved) and all(
+            dotted in _DEFINITION_PRESERVING_DECORATORS for dotted in resolved
+        )
+
+    # -- bodies that run later ---------------------------------------
+
+    def _defer_body(self, node: _DeferredNode) -> None:
+        """Postpone one function, lambda, or generator-expression body
+        until its surrounding scope has been walked to the end (review
+        item P1-R6-F4)."""
+        self.deferred.append(
+            (
+                node,
+                list(self.scopes),
+                list(self.trust_scopes),
+                list(self.class_scopes),
+                list(self.comprehension_scopes),
+            )
+        )
+
+    def _walk_scope_body(self, body: "list[ast.stmt]") -> None:
+        """Walk the statements of a scope, complete the scope's set of
+        bindings, and only then read every body that was postponed
+        inside it.
+
+        The middle step is the ordering rule of review item P1-R6-F4,
+        and it is one step of this method rather than a rule each
+        binding form has to remember: whatever the walk did or did not
+        record, EVERY name this scope binds is in the origin set before
+        the first postponed body is read.
+        """
+        mark = len(self.deferred)
+        for statement in body:
+            self.visit(statement)
+        self._collect_scope_stores(list(body))
+        self._read_deferred_bodies(mark)
+
+    def _read_deferred_bodies(self, mark: int) -> None:
+        """Read the bodies postponed since `mark`, oldest first, each
+        with the scope stack it was written in restored."""
+        while len(self.deferred) > mark:
+            (
+                node,
+                scopes,
+                trust_scopes,
+                class_scopes,
+                comp_scopes,
+            ) = self.deferred.pop(mark)
+            outer_scopes = self.scopes
+            outer_trust_scopes = self.trust_scopes
+            outer_class_scopes = self.class_scopes
+            outer_comp_scopes = self.comprehension_scopes
+            self.scopes = scopes
+            self.trust_scopes = trust_scopes
+            self.class_scopes = class_scopes
+            self.comprehension_scopes = comp_scopes
+            if isinstance(node, ast.Lambda):
+                self._read_lambda_body(node)
+            elif isinstance(
+                node,
+                (ast.GeneratorExp, ast.ListComp, ast.SetComp, ast.DictComp),
+            ):
+                self._read_comprehension_body(node)
+            else:
+                self._read_function_body(node)
+            self.scopes = outer_scopes
+            self.trust_scopes = outer_trust_scopes
+            self.class_scopes = outer_class_scopes
+            self.comprehension_scopes = outer_comp_scopes
 
     # -- the positive policy -----------------------------------------
 
@@ -1659,11 +2735,13 @@ class _Checker(ast.NodeVisitor):
             return _deep_chain_message(dotted, prefix)
 
         if prefix in self.module_exports:
-            defined, imported_names = self.module_exports[prefix]
+            defined, imported_names, unsettled = self.module_exports[prefix]
             if rest[0] in imported_names:
                 return _reexport_message(prefix, rest[0])
             if rest[0] not in defined:
                 return _undefined_export_message(prefix, rest[0])
+            if rest[0] in unsettled:
+                return _unsettled_export_message(prefix, rest[0])
 
         if prefix == "os":
             if dotted in _OS_ALLOWED_EXACT:
@@ -1855,9 +2933,21 @@ class _Checker(ast.NodeVisitor):
 
         exports = self.module_exports.get(module)
         if exports is not None:
-            defined, imported_names = exports
+            defined, imported_names, unsettled = exports
             if alias.name in defined:
                 self._bind(bound_name, ("api", dotted))
+                if alias.name in unsettled:
+                    # The sibling binds this name more than once, or
+                    # through a form whose value cannot be read. Which
+                    # binding is in force is not settled by the text, so
+                    # the unknown member joins and trust is withdrawn
+                    # here rather than at the sibling's last line
+                    # (review item P1-R6-F4).
+                    self._bind(bound_name, None)
+                    if report:
+                        self._flag(
+                            node, _unsettled_export_message(module, alias.name)
+                        )
                 return
             if report:
                 if alias.name in imported_names:
@@ -1893,7 +2983,10 @@ class _Checker(ast.NodeVisitor):
     def visit_Name(self, node: ast.Name) -> None:
         self._check_name(node, node.id)
         if isinstance(node.ctx, ast.Load) and id(node) not in self.call_targets:
-            for dotted in self._resolve([node.id]):
+            # Missing a fenced reference would let the reader be stored
+            # or passed unremarked, so the identities are the
+            # position-blind ones (review item P1-R6-F4).
+            for dotted in self._trust_resolve([node.id]):
                 if dotted in _FENCED_APIS:
                     self._flag(node, _fenced_reference_message(dotted))
                     return
@@ -1935,11 +3028,19 @@ class _Checker(ast.NodeVisitor):
             self._bind(node.id, None)
 
     def _check_restricted_attribute(self, node: ast.Attribute) -> bool:
-        """Reject an unenumerated attribute of a pandas/numpy value."""
+        """Reject an unenumerated attribute of a pandas/numpy value.
+
+        Letting the read through GRANTS -- `frame.style` reaches a whole
+        unenumerated capability with no call in sight -- so the receiver
+        is read position-blind. From the walk's own view, a name that
+        holds the library's object on a binding written BELOW the read
+        carried no library origin there at all and every attribute of it
+        was allowed (review item P1-R6-F4).
+        """
         if id(node) in self.call_targets:
             # A method call; the method rule governs it.
             return False
-        for kind, origin in sorted(self._value_origins(node.value)):
+        for kind, origin in sorted(self._trust_origins(node.value)):
             if kind != "instance":
                 continue
             library = origin.partition(".")[0]
@@ -1956,7 +3057,8 @@ class _Checker(ast.NodeVisitor):
             return
         parts = _chain_parts(node)
         if parts is not None and id(node) not in self.call_targets:
-            for dotted in self._resolve(parts):
+            # Position-blind, for the reason given in visit_Name.
+            for dotted in self._trust_resolve(parts):
                 if dotted in _FENCED_APIS:
                     self._flag(node, _fenced_reference_message(dotted))
                     return
@@ -1994,19 +3096,51 @@ class _Checker(ast.NodeVisitor):
         # them avoids reporting the same chain twice.
 
     def _check_fenced_call(self, node: ast.Call) -> None:
-        """A fenced API may only be called with a validated local path."""
+        """A fenced API may only be called with a validated local path.
+
+        The identities are the ACCUMULATING position-blind ones: if the
+        callee might be the fenced reader on any binding the scope
+        makes, the argument rule applies. Asked exclusively, a callee
+        with a second possible origin named the fenced API on neither
+        answer and the call went unchecked; asked from the walk's own
+        view, a callee named above its binding did the same (review
+        item P1-R6-F4).
+        """
         parts = _chain_parts(node.func)
         if parts is None:
             return
-        for dotted in self._resolve_exclusively(parts):
+        for dotted in self._trust_resolve(parts):
             if dotted not in _FENCED_APIS:
                 continue
             if not node.args or isinstance(node.args[0], ast.Starred):
                 self._flag(node, _fenced_argument_message(dotted))
                 return
-            if self._value_origins(node.args[0]) != {_LOCALPATH}:
+            if self._trust_origins(node.args[0]) != {_LOCALPATH}:
                 self._flag(node, _fenced_argument_message(dotted))
             return
+
+    def _check_type_parameters(self, node: ast.AST) -> None:
+        """Refuse a PEP 695 type-parameter list.
+
+        `def name[T](...)`, `class Name[T]:` and `type X[T] = ...` bind
+        T in a lazily evaluated scope of its own, wrapped around the
+        definition. The name lives in a plain string field there, so no
+        store is recorded, and inside the body T wins over anything of
+        the same name from the module -- `def fetch[Path](...)` makes
+        every `Path` in the body the type parameter, not the import.
+        This audit does not model that scope, so it refuses the form
+        instead of reading the body under a binding it cannot see
+        (review item P1-R6-F4).
+        """
+        if getattr(node, "type_params", ()):
+            self._flag(node, _type_parameter_message())
+
+    def visit_TypeAlias(self, node: ast.AST) -> None:
+        """Refuse `type X = ...`: its right-hand side is evaluated
+        lazily, on first use, in a scope of its own (review item
+        P1-R6-F4)."""
+        self._flag(node, _type_alias_message())
+        self._check_type_parameters(node)
 
     def visit_Global(self, node: ast.Global) -> None:
         self._flag(node, _scope_escape_message("global"))
@@ -2085,7 +3219,16 @@ class _Checker(ast.NodeVisitor):
         value is rejected even when another branch rebound it to an
         allowed API. Traced origins are checked where the name is read.
         """
-        bound = self._lookup(name)
+        # Accepting this call GRANTS something, so both halves of the
+        # decision read the position-blind view: whether the name is
+        # bound in this scope at all, and which origins it may hold.
+        # Asking the walk's own view whether the name was bound YET let
+        # a call above every binding of a shadowing name fall through to
+        # the built-in branch below -- the built-in is what Python runs
+        # only if no binding of that name exists anywhere in the scope,
+        # which is a scope-wide question and never a positional one
+        # (review item P1-R6-F4).
+        bound = self._trust_lookup(name)
         if bound is None:
             if (
                 name in _ALLOWED_CALL_BUILTINS
@@ -2125,7 +3268,7 @@ class _Checker(ast.NodeVisitor):
         if not isinstance(func, ast.Attribute):
             return
         method = func.attr
-        receiver = self._value_origins(func.value)
+        receiver = self._trust_origins(func.value)
         kinds = {kind for kind, _origin in receiver}
         if kinds <= {"module", "api", "instance", "localpath"}:
             for kind, origin in sorted(receiver):
@@ -2162,7 +3305,7 @@ class _Checker(ast.NodeVisitor):
             inner = value.value if isinstance(value, ast.Starred) else value
             if isinstance(inner, ast.Constant):
                 continue
-            origins = self._value_origins(inner)
+            origins = self._trust_origins(inner)
             if all(kind in _SAFE_DATA_ARGUMENT_KINDS for kind, _origin in origins):
                 continue
             self._flag(node, _unknown_method_argument_message(method))
@@ -2172,7 +3315,12 @@ class _Checker(ast.NodeVisitor):
         scanned tree (a scanned def/class or a first-party module
         member)."""
         if isinstance(func, ast.Name):
-            bound = self._lookup(func.id)
+            # True here GRANTS -- it lets a callable be handed over
+            # unquestioned -- so the whole decision reads the
+            # position-blind view and nothing else. A second, positional
+            # test for "is the name bound yet" used to stand in front of
+            # this one; it is gone (review item P1-R6-F4).
+            bound = self._trust_lookup(func.id)
             if not bound:
                 return False
             for kind, origin in bound:
@@ -2189,7 +3337,7 @@ class _Checker(ast.NodeVisitor):
             parts = _chain_parts(func)
             if parts is None:
                 return False
-            candidates = self._resolve(parts)
+            candidates = self._resolve_exclusively(parts)
             if not candidates:
                 return False
             for dotted in candidates:
@@ -2227,11 +3375,20 @@ class _Checker(ast.NodeVisitor):
         """The call target's possible identities for the callback-slot
         table: a bare accepted built-in name, an allowlist-traced
         dotted API, or an api-instance method (the producing API's
-        dotted path plus the method name)."""
+        dotted path plus the method name).
+
+        An identity MISSING from this set silently skips the slot rules
+        for that callee, which is a grant of silence, so the whole set
+        is drawn from the position-blind view: every binding the scope
+        makes, wherever it stands. Read from the walk's own view, a
+        callee named above the binding that gives it its identity
+        carried no identity at all and its callable-accepting slots
+        went unchecked (review item P1-R6-F4).
+        """
         func = node.func
         identities: set[str] = set()
         if isinstance(func, ast.Name):
-            bound = self._lookup(func.id)
+            bound = self._trust_lookup(func.id)
             if bound is None:
                 if func.id in _ALLOWED_CALL_BUILTINS:
                     identities.add(func.id)
@@ -2242,8 +3399,8 @@ class _Checker(ast.NodeVisitor):
         elif isinstance(func, ast.Attribute):
             parts = _chain_parts(func)
             if parts is not None:
-                identities.update(self._resolve(parts))
-                for kind, origin in self._value_origins(func.value):
+                identities.update(self._trust_resolve(parts))
+                for kind, origin in self._trust_origins(func.value):
                     if kind == "instance":
                         identities.add(origin + "." + func.attr)
                     elif kind == "localpath":
@@ -2261,9 +3418,9 @@ class _Checker(ast.NodeVisitor):
         parameter above all -- would run outside scanned control."""
         if isinstance(value, ast.Constant):
             return True
-        if isinstance(value, ast.Name) and self._lookup(value.id) is None:
+        if isinstance(value, ast.Name) and self._trust_lookup(value.id) is None:
             return value.id in _ALLOWED_CALL_BUILTINS
-        for kind, origin in self._value_origins(value):
+        for kind, origin in self._trust_origins(value):
             if kind != "api":
                 return False
             top = origin.partition(".")[0]
@@ -2395,11 +3552,30 @@ class _Checker(ast.NodeVisitor):
         self.visit(node.value)
         self.visit(node.target)
 
+    def visit_NamedExpr(self, node: ast.NamedExpr) -> None:
+        """`name := value` binds like any other store -- the value is
+        left untraced, exactly as an ordinary Name store leaves it --
+        but inside a comprehension it binds in the scope AROUND the
+        comprehension, not in the comprehension's own scope. Recording
+        it in the comprehension scope would have hidden the rebinding
+        from the surrounding code, which would go on trusting the origin
+        the name held before (review item P1-R6-F4)."""
+        self.visit(node.value)
+        target = node.target
+        if isinstance(target, ast.Name):
+            self._check_name(target, target.id)
+            if target.id in _ALLOWED_CALL_BUILTINS:
+                self._flag(target, _builtin_shadow_message(target.id))
+            self._bind(target.id, None, scope=self._walrus_scope())
+        else:
+            self.visit(target)
+
     # -- scopes ------------------------------------------------------
 
     def visit_Module(self, node: ast.Module) -> None:
         self._collect_scope_bindings(node.body)
-        self.generic_visit(node)
+        self._build_trust_scope(list(node.body), None)
+        self._walk_scope_body(node.body)
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
         self._handle_function(node)
@@ -2408,9 +3584,12 @@ class _Checker(ast.NodeVisitor):
         self._handle_function(node)
 
     def _handle_function(self, node: "ast.FunctionDef | ast.AsyncFunctionDef") -> None:
+        """Check everything a def statement does WHERE IT STANDS, and
+        postpone the body, which runs later (review item P1-R6-F4)."""
         self._check_name(node, node.name)
         if node.name in _ALLOWED_CALL_BUILTINS:
             self._flag(node, _builtin_shadow_message(node.name))
+        self._check_type_parameters(node)
         for decorator in node.decorator_list:
             self.visit(decorator)
         args = node.args
@@ -2418,29 +3597,28 @@ class _Checker(ast.NodeVisitor):
             d for d in args.kw_defaults if d is not None
         ]:
             self.visit(default)
-        all_args = list(args.posonlyargs) + list(args.args) + list(args.kwonlyargs)
-        if args.vararg is not None:
-            all_args.append(args.vararg)
-        if args.kwarg is not None:
-            all_args.append(args.kwarg)
-        for arg in all_args:
+        for arg in _parameters_of(args):
             if arg.arg in _ALLOWED_CALL_BUILTINS:
                 self._flag(arg, _builtin_shadow_message(arg.arg))
             if arg.annotation is not None:
                 self.visit(arg.annotation)
         if node.returns is not None:
             self.visit(node.returns)
-        self._bind(node.name, ("def", node.name))
+        self._bind_definition(node)
+        self._defer_body(node)
+
+    def _read_function_body(
+        self, node: "ast.FunctionDef | ast.AsyncFunctionDef"
+    ) -> None:
+        all_args = _parameters_of(node.args)
         # Parameters hold caller-supplied values: the explicit unknown
         # member, never discarded when other origins join.
-        self.scopes.append({arg.arg: {_UNKNOWN} for arg in all_args})
-        self.class_scopes.append(False)
+        self._enter_scope({arg.arg: {_UNKNOWN} for arg in all_args}, False, False)
         self._collect_scope_bindings(node.body)
         self._upgrade_gated_parameters(node.body)
-        for statement in node.body:
-            self.visit(statement)
-        self.scopes.pop()
-        self.class_scopes.pop()
+        self._build_trust_scope(list(node.body), node.body)
+        self._walk_scope_body(node.body)
+        self._leave_scope()
 
     def _upgrade_gated_parameters(self, body: "list[ast.stmt]") -> None:
         """Upgrade parameters checked as str by a leading type gate.
@@ -2468,13 +3646,14 @@ class _Checker(ast.NodeVisitor):
             head = body[0]
             if isinstance(head, ast.Expr) and isinstance(head.value, ast.Constant):
                 index = 1
+        scope = self.scopes[-1]
         while index < len(body):
             name = self._gated_parameter(body[index])
             if name is None:
                 return
-            slot = self.scopes[-1].get(name)
+            slot = scope.get(name)
             if slot == {_UNKNOWN}:
-                self.scopes[-1][name] = {("str", "")}
+                scope[name] = {("str", "")}
             index += 1
 
     def _gated_parameter(self, stmt: ast.stmt) -> "str | None":
@@ -2507,7 +3686,10 @@ class _Checker(ast.NodeVisitor):
         func = test.func
         if not isinstance(func, ast.Name) or func.id != "isinstance":
             return None
-        if self._lookup("isinstance") is not None or self._lookup("str") is not None:
+        if (
+            self._trust_lookup("isinstance") is not None
+            or self._trust_lookup("str") is not None
+        ):
             return None
         target, type_name = test.args
         if not isinstance(target, ast.Name):
@@ -2522,48 +3704,194 @@ class _Checker(ast.NodeVisitor):
             d for d in args.kw_defaults if d is not None
         ]:
             self.visit(default)
-        all_args = list(args.posonlyargs) + list(args.args) + list(args.kwonlyargs)
-        if args.vararg is not None:
-            all_args.append(args.vararg)
-        if args.kwarg is not None:
-            all_args.append(args.kwarg)
-        for arg in all_args:
+        for arg in _parameters_of(args):
             if arg.arg in _ALLOWED_CALL_BUILTINS:
                 self._flag(arg, _builtin_shadow_message(arg.arg))
-        self.scopes.append({arg.arg: {_UNKNOWN} for arg in all_args})
-        self.class_scopes.append(False)
+        # A lambda body runs later too, for the same reason a def body
+        # does (review item P1-R6-F4).
+        self._defer_body(node)
+
+    def _read_lambda_body(self, node: ast.Lambda) -> None:
+        all_args = _parameters_of(node.args)
+        self._enter_scope({arg.arg: {_UNKNOWN} for arg in all_args}, False, False)
+        self._build_trust_scope([node.body], None)
+        mark = len(self.deferred)
         self.visit(node.body)
-        self.scopes.pop()
-        self.class_scopes.pop()
+        # The same ordering step _walk_scope_body performs for a
+        # statement body: complete this scope before anything postponed
+        # inside it is read.
+        self._collect_scope_stores([node.body])
+        self._read_deferred_bodies(mark)
+        self._leave_scope()
+
+    # -- comprehensions ----------------------------------------------
+
+    def visit_GeneratorExp(self, node: ast.GeneratorExp) -> None:
+        self._handle_comprehension(node)
+
+    def visit_ListComp(self, node: ast.ListComp) -> None:
+        self._handle_comprehension(node)
+
+    def visit_SetComp(self, node: ast.SetComp) -> None:
+        self._handle_comprehension(node)
+
+    def visit_DictComp(self, node: ast.DictComp) -> None:
+        self._handle_comprehension(node)
+
+    def _handle_comprehension(self, node: _Comprehension) -> None:
+        """Read one comprehension where Python would evaluate it.
+
+        The FIRST iterable is the one part evaluated where the
+        comprehension stands, in the surrounding scope, so it is read
+        here. Everything else belongs to the comprehension's own scope.
+
+        A GENERATOR EXPRESSION is the third form whose body runs later,
+        beside a def and a lambda: nothing in it runs until something
+        draws from it, which can be long after the surrounding scope has
+        finished. Reading it where it stands read the surrounding scope
+        half-built, so a name rebound below the expression kept the
+        origin it had above it -- the same temporal error the def repair
+        closed (review item P1-R6-F4). Its body is therefore postponed.
+        A comprehension carrying an `async for` is postponed for the
+        same reason. A list, set, or dict comprehension without one is
+        evaluated on the spot, so its body is read on the spot.
+        """
+        if node.generators:
+            self.visit(node.generators[0].iter)
+        deferred = isinstance(node, ast.GeneratorExp) or any(
+            generator.is_async for generator in node.generators
+        )
+        if deferred:
+            self._defer_body(node)
+        else:
+            self._read_comprehension_body(node)
+
+    def _read_comprehension_body(self, node: _Comprehension) -> None:
+        """Read a comprehension's body in a scope of its own.
+
+        A comprehension is its own scope in Python 3 and its iteration
+        variables live only inside it. Two things follow, and neither
+        held before: a target name SHADOWS the surrounding name for
+        everything inside the comprehension, so `[Path(v) for Path in
+        items]` calls whatever `items` yields rather than the imported
+        `Path` and every target starts as the unknown member; and the
+        binding does not leak out, so the surrounding scope keeps the
+        name it had. The first iterable was already read in the
+        surrounding scope by the caller.
+        """
+        locals_: dict[str, set[tuple[str, str]]] = {}
+        for generator in node.generators:
+            for name in self._comprehension_target_names(generator.target):
+                locals_[name] = {_UNKNOWN}
+        self._enter_scope(locals_, False, True)
+        self._build_trust_scope(self._comprehension_parts(node), None)
+        mark = len(self.deferred)
+        for index, generator in enumerate(node.generators):
+            self.visit(generator.target)
+            if index:
+                self.visit(generator.iter)
+            for condition in generator.ifs:
+                self.visit(condition)
+        if isinstance(node, ast.DictComp):
+            self.visit(node.key)
+            self.visit(node.value)
+        else:
+            self.visit(node.elt)
+        # The same ordering step _walk_scope_body performs: complete the
+        # bindings before anything postponed inside is read. A
+        # comprehension binds only its targets, which were bound above;
+        # a walrus written inside it lands in the scope around it, where
+        # this records it a second time and harmlessly.
+        self._collect_comprehension_stores(node)
+        self._read_deferred_bodies(mark)
+        self._leave_scope()
+
+    def _comprehension_parts(self, node: _Comprehension) -> "list[ast.AST]":
+        """The expressions a comprehension evaluates inside its own
+        scope: every iterable but the first, every condition, and the
+        element (or the key and value of a dict comprehension). The
+        first iterable belongs to the surrounding scope."""
+        parts: list[ast.AST] = []
+        for index, generator in enumerate(node.generators):
+            if index:
+                parts.append(generator.iter)
+            parts.extend(generator.ifs)
+        if isinstance(node, ast.DictComp):
+            parts.append(node.key)
+            parts.append(node.value)
+        else:
+            parts.append(node.elt)
+        return parts
+
+    def _comprehension_target_names(self, target: ast.AST) -> "list[str]":
+        """Every plain name a comprehension target binds.
+
+        A target that is not a plain name or a nesting of tuples, lists,
+        and starred names -- `for obj.field in items`, `for row[0] in
+        items` -- stores into an object that outlives the comprehension,
+        at a moment this audit cannot place. It is refused rather than
+        read (review item P1-R6-F4).
+        """
+        names: list[str] = []
+        stack: list[ast.AST] = [target]
+        while stack:
+            current = stack.pop()
+            if isinstance(current, ast.Name):
+                names.append(current.id)
+            elif isinstance(current, ast.Starred):
+                stack.append(current.value)
+            elif isinstance(current, (ast.Tuple, ast.List)):
+                stack.extend(current.elts)
+            else:
+                self._flag(current, _comprehension_target_message())
+        return names
 
     def visit_ExceptHandler(self, node: ast.ExceptHandler) -> None:
-        if node.name is not None and node.name in _ALLOWED_CALL_BUILTINS:
-            self._flag(node, _builtin_shadow_message(node.name))
+        if node.name is not None:
+            if node.name in _ALLOWED_CALL_BUILTINS:
+                self._flag(node, _builtin_shadow_message(node.name))
+            # `except OSError as error:` BINDS `error` (and unbinds it
+            # again at the end of the handler). The name lives in a
+            # plain string field here, not in a Name node, so no
+            # ordinary store was ever recorded and a name that had held
+            # an allowlisted API went on looking like one -- the same
+            # omission the match-capture repair closed in round 5.
+            self._bind(node.name, None)
         self.generic_visit(node)
 
     def visit_ClassDef(self, node: ast.ClassDef) -> None:
         self._check_name(node, node.name)
         if node.name in _ALLOWED_CALL_BUILTINS:
             self._flag(node, _builtin_shadow_message(node.name))
+        self._check_type_parameters(node)
         for decorator in node.decorator_list:
             self.visit(decorator)
         for base in node.bases:
             self.visit(base)
         for keyword in node.keywords:
             self.visit(keyword.value)
-        self._bind(node.name, ("def", node.name))
-        self.scopes.append({})
-        self.class_scopes.append(True)
+        self._bind_definition(node)
+        self._enter_scope({}, True, False)
         self._collect_scope_bindings(node.body)
+        self._build_trust_scope(list(node.body), None)
+        # A class body RUNS while the class is being built, so its
+        # statements are read here and now. The method bodies written
+        # inside it run later still and stay on the postponed list, to
+        # be read once the surrounding module or function has finished
+        # (review item P1-R6-F4).
         for statement in node.body:
             self.visit(statement)
-        self.scopes.pop()
-        self.class_scopes.pop()
+        # The class scope is then completed, before the surrounding
+        # scope reads those postponed bodies -- the same ordering step
+        # _walk_scope_body performs, done here because a class body's
+        # statements are walked here rather than there.
+        self._collect_scope_stores(list(node.body))
+        self._leave_scope()
 
 
 def scan_source(
     source_text: str,
-    module_exports: "dict[str, tuple[set[str], set[str]]] | None" = None,
+    module_exports: "dict[str, tuple[set[str], set[str], set[str]]] | None" = None,
     first_party_modules: "set[str] | None" = None,
 ) -> "list[tuple[int, str]]":
     """Scan one module's source text. Returns (line, message) pairs.
@@ -2610,7 +3938,7 @@ def scan_files(files: "list[pathlib.Path]") -> "list[str]":
     """
     lines: list[str] = []
     texts: dict[pathlib.Path, str] = {}
-    module_exports: dict[str, tuple[set[str], set[str]]] = {}
+    module_exports: dict[str, tuple[set[str], set[str], set[str]]] = {}
     first_party_modules: set[str] = set()
     for path in files:
         try:

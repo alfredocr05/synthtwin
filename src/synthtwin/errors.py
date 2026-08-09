@@ -145,25 +145,47 @@ def header_looks_like_data(path: str, reason: str) -> str:
     )
 
 
-def first_row_could_be_a_record(path: str, columns: int) -> str:
-    """Message for a first row that could be names or could be data.
+def first_row_could_be_a_record(
+    path: str, columns: int, found: str = ""
+) -> str:
+    """Message for a first row the file shows could be a record.
 
-    The message deliberately quotes nothing from the row. If the row is
-    a record, printing it would print somebody's data to the screen in
-    order to ask a question about it.
+    ``found`` is what the reader actually found, in words, naming the
+    column by its POSITION -- one of the clauses `reading` builds. Left
+    out, the message states only the general shape of the trouble, which
+    is what a caller with no detail to hand can honestly say.
+
+    The wording says exactly what was found and nothing more. The
+    version this replaces claimed that "none of them stands out as a
+    name, and at least one has exactly the shape every other value in
+    its column has". Neither half was what the reader had checked: the
+    first is a claim no test can support, because nothing about a value
+    makes it a name, and the second could be false of every column in
+    the file while the refusal was raised for a different reason
+    entirely (review item P1-R6-F6).
+
+    The message deliberately quotes nothing from the row, and nothing
+    from below it. If the row is a record, printing it would print
+    somebody's data to the screen in order to ask a question about it,
+    and in an unsettled file the "column name" IS that row.
     """
+    stated = (
+        _shown(found)
+        if found
+        else (
+            "at least one value in that row belongs among the values of "
+            "the column below it"
+        )
+    )
     return (
         f"synthtwin cannot tell whether the first row of {path} holds "
         f"the names of the {columns} columns or the first record of the "
-        f"table. Each value in that row could be a value of its own "
-        f"column: none of them stands out as a name, and at least one "
-        f"has exactly the shape every other value in its column has. "
-        f"Guessing would either drop a whole record from the "
-        f"description or publish a record as if it were a set of column "
-        f"names, so synthtwin stops instead. Please run the command "
-        f"again with --first-row names if that row holds the column "
-        f"names, or with --first-row data if it is the first record. "
-        f"With --first-row data the columns are named column_1, "
+        f"table, because {stated}. Guessing would either drop a whole "
+        f"record from the description or publish a record as if it were "
+        f"a set of column names, so synthtwin stops instead. Please run "
+        f"the command again with --first-row names if that row holds the "
+        f"column names, or with --first-row data if it is the first "
+        f"record. With --first-row data the columns are named column_1, "
         f"column_2, and so on, and every record is kept."
     )
 
@@ -329,25 +351,176 @@ def out_of_memory_while_describing(path: str) -> str:
     )
 
 
-def nothing_was_written(stubborn: list[str]) -> str:
-    """Sentence confirming the folder is as it was before the run."""
-    if not stubborn:
-        return "Nothing was written: both files are as they were before."
-    listed = _listed(stubborn)
+COULD_NOT_CHECK = (
+    "synthtwin could not read what is at that name to see whether it is "
+    "safe to write there"
+)
+
+# What one name on disk can be holding when a run stops part way. The
+# caller LOOKS at the disk and passes one of these codes for each name;
+# the words a person reads live here, with every other message.
+#
+# The codes distinguish states that an earlier version ran together,
+# because the difference is exactly what a researcher needs: an old
+# profile still in place, a new one, and a name that is empty because
+# its file was moved aside and could not be put back are three
+# different situations, and only one of them is safe to ignore (review
+# item P1-R6-F5).
+ON_DISK_BEFORE = "before"
+ON_DISK_RESTORED = "restored"
+ON_DISK_ABSENT = "absent"
+ON_DISK_TAKEN_AWAY = "taken-away"
+ON_DISK_NEW = "new"
+ON_DISK_SET_ASIDE = "set-aside"
+ON_DISK_WORKING = "working"
+ON_DISK_EMPTY_WORKING = "empty-working"
+ON_DISK_UNCHECKED = "unchecked"
+
+_ON_DISK_WORDS = {
+    ON_DISK_BEFORE: "the file that was there before this run, unchanged",
+    ON_DISK_RESTORED: "the file that was there before this run, put back",
+    ON_DISK_ABSENT: (
+        "nothing -- there is no file of that name, just as before "
+        "this run"
+    ),
+    ON_DISK_TAKEN_AWAY: (
+        "nothing -- the file that was there before this run was moved "
+        "aside and could not be put back"
+    ),
+    ON_DISK_NEW: "the new description this run produced",
+    ON_DISK_SET_ASIDE: (
+        "the description from before this run, which synthtwin moved "
+        "here and could not move back"
+    ),
+    ON_DISK_WORKING: (
+        "a working file synthtwin could not clear away; it holds text "
+        "taken from your table"
+    ),
+    ON_DISK_EMPTY_WORKING: (
+        "an empty working file synthtwin could not clear away; it holds "
+        "nothing"
+    ),
+    ON_DISK_UNCHECKED: "not known: synthtwin could not check this name",
+}
+
+_UNKNOWN_STATE = "not known: synthtwin could not say what is there"
+
+
+def _stated(on_disk: "list[tuple[str, str]]") -> str:
+    """One clause per name: the path, then what is at it now.
+
+    Each pair is a path and one of the ON_DISK_ codes above. A code
+    this module does not recognize is reported as unknown rather than
+    dropped: a message about what is on disk must never quietly leave a
+    file out.
+    """
+    text = ""
+    for path, code in on_disk:
+        words = _UNKNOWN_STATE
+        if code in _ON_DISK_WORDS:
+            words = _ON_DISK_WORDS[code]
+        piece = f"{_shown(path)} holds {words}"
+        if not text:
+            text = piece
+        else:
+            text = f"{text}; {piece}"
+    return text
+
+
+def _anything_is_there(on_disk: "list[tuple[str, str]]") -> bool:
+    """True when at least one of these names holds a file right now."""
+    for _path, code in on_disk:
+        if code == ON_DISK_ABSENT or code == ON_DISK_TAKEN_AWAY:
+            continue
+        return True
+    return False
+
+
+def nothing_was_written(
+    stubborn: list[str],
+    on_disk: "list[tuple[str, str]] | None" = None,
+) -> str:
+    """Say what is on disk after a run that published no new description.
+
+    ``on_disk`` carries one (path, code) pair for every name the run
+    could have changed -- the two output names first, then any working
+    file left behind -- where each code is one of the ON_DISK_ constants
+    above and the caller has LOOKED at the disk to arrive at it.
+
+    ``stubborn`` names working files that would not go away, for a
+    caller that has not looked; a caller that passes ``on_disk``
+    describes those same files there, with what each one holds.
+
+    The sentence never claims a clean failure it did not check. The
+    earlier version said "both files are as they were before" whatever
+    had happened, and said working files "hold no description of your
+    table" even when one held a full profile (review item P1-R6-F5).
+    """
+    if on_disk:
+        tail = "Check each one before you use it."
+        if not _anything_is_there(on_disk):
+            tail = "There is nothing left to clear up."
+        return (
+            f"No new description was published. This is what is at each "
+            f"name now: {_stated(on_disk)}. {tail}"
+        )
+    if stubborn:
+        listed = _listed(stubborn)
+        return (
+            f"No new description was published, and synthtwin could not "
+            f"clear away its own working file(s): {listed}. Check each "
+            f"one -- a working file can hold text taken from your table "
+            f"-- and delete it when you have."
+        )
     return (
-        f"Nothing was written, but synthtwin could not clear up its own "
-        f"working file(s) afterwards: {listed}. They hold no description "
-        f"of your table and can be deleted."
+        "No new description was published. synthtwin did not check the "
+        "two output names afterwards, so please look at each one before "
+        "you use it."
     )
 
 
-def rollback_failed(left: list[str]) -> str:
-    """Sentence naming every file left behind when a rollback failed."""
+def rollback_failed(
+    left: list[str],
+    on_disk: "list[tuple[str, str]] | None" = None,
+) -> str:
+    """Say what is on disk after a run that could not undo its own work.
+
+    The two parameters mean exactly what they mean in
+    ``nothing_was_written``. This wording is for the case where the
+    files on disk no longer match what was there before the run and
+    synthtwin could not put them back -- so it names each one and says
+    which run its contents came from.
+    """
+    if on_disk:
+        return (
+            f"synthtwin could not put things back as they were. This is "
+            f"what is at each name now: {_stated(on_disk)}. Check each "
+            f"one before you use it, and finish by hand what synthtwin "
+            f"could not: a profile and a summary from two different runs "
+            f"do not describe the same table."
+        )
     listed = _listed(left)
     return (
         f"synthtwin could not put things back as they were, so these "
-        f"files are left: {listed}. Check each one before using it: the "
-        f"description may be from this run or from an earlier one."
+        f"files are left: {listed}. Check each one before using it: it "
+        f"may hold the description from this run or from an earlier one."
+    )
+
+
+def working_name_unavailable(
+    target: str, tried: list[str], attempts: int
+) -> str:
+    """Message for working names beside an output that are all taken."""
+    listed = _listed(tried)
+    return (
+        f"synthtwin could not make itself a working file beside {target}. "
+        f"It writes each file under a working name first and moves it "
+        f"into place only once the whole file is on disk, and all "
+        f"{attempts} working names it tried are already taken (the first "
+        f"of them: {listed}). synthtwin never writes over a file it did "
+        f"not create, so it stopped instead. Those files are usually "
+        f"left over from a run that was interrupted: check what they "
+        f"are, move or delete them, and run the command again."
     )
 
 

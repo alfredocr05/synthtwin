@@ -83,14 +83,26 @@ def test_a_two_row_column_of_two_values_is_binary_not_an_identifier() -> None:
     assert described.role == taxonomy.ROLE_BINARY
 
 
-def test_all_different_code_words_are_still_identifiers() -> None:
-    # The rule that must keep working: single words in the code
-    # alphabet, all different, in a table big enough for that to mean
-    # something.
-    described = describe([f"code{index}" for index in range(50)])
-    assert described.role == taxonomy.ROLE_IDENTIFIER
+def test_all_different_code_words_are_declined_and_declarable() -> None:
+    """Corrected from `test_all_different_code_words_are_still_identifiers`.
+
+    The old test pinned the inference that single words in the code
+    alphabet, all different, ARE record numbers. `1mg` through `30mg` is
+    that same shape, so the inference read a dose column as record
+    numbers and destroyed its distribution; it is withdrawn rather than
+    narrowed again (review item P1-R6-F8). What the old test really
+    protected -- that such a column publishes nothing -- is unchanged,
+    and the identifier role is exercised through the declared path.
+    """
+    values = [f"code{index}" for index in range(50)]
+    described = describe(values)
+    assert described.role == taxonomy.ROLE_TEXT
     assert described.n_distinct == 50
     assert "code7" not in whole_block(described)
+
+    declared = describe(values, forced=True)
+    assert declared.role == taxonomy.ROLE_IDENTIFIER
+    assert "code7" not in whole_block(declared)
 
 
 # -- FIXED-WIDTH CODES (P1-R1-F8) ------------------------------------
@@ -393,10 +405,21 @@ EVERY_ROLE = {
     taxonomy.ROLE_TEXT: [f"a sentence number {i} here" for i in range(50)],
 }
 
+# The one role no column reaches by itself. Its fixture is profiled with
+# the column DECLARED, because that is the only way the role happens at
+# all since review item P1-R6-F8 -- and it must still carry every
+# universal count, which is what this battery is for.
+DECLARED_ROLES = (taxonomy.ROLE_IDENTIFIER,)
+
+
+def described_as(role: str) -> taxonomy.ColumnProfile:
+    """The fixture for ``role``, profiled the way that role is reached."""
+    return describe(EVERY_ROLE[role], forced=role in DECLARED_ROLES)
+
 
 @pytest.mark.parametrize("role", sorted(EVERY_ROLE))
 def test_every_universal_count_is_present_on_every_role(role: str) -> None:
-    described = describe(EVERY_ROLE[role])
+    described = described_as(role)
     assert described.role == role, "the fixture must exercise the named role"
     block = profile._column_block(described)
     for key in (
@@ -416,7 +439,7 @@ def test_every_universal_count_is_present_on_every_role(role: str) -> None:
 
 @pytest.mark.parametrize("role", sorted(EVERY_ROLE))
 def test_the_counts_reconcile_on_every_role(role: str) -> None:
-    described = describe(EVERY_ROLE[role])
+    described = described_as(role)
     assert (
         described.n_numeric
         + described.n_out_of_range

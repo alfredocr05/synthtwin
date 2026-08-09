@@ -96,56 +96,177 @@ def format_example(name: str) -> str:
     return _FORMAT_EXAMPLES[name]
 
 
-# Characters that instruct a display rather than showing something: the
-# C0 and C1 control ranges, DEL, the Unicode line and paragraph
-# separators, and the format/bidirectional controls that can reorder or
-# hide the text around them. Ordinary printable text of any language is
-# untouched.
-_DISPLAY_CONTROLS = (
-    "\u200e",  # left-to-right mark
-    "\u200f",  # right-to-left mark
-    "\u2028",  # line separator
-    "\u2029",  # paragraph separator
-    "\u202a",  # left-to-right embedding
-    "\u202b",  # right-to-left embedding
-    "\u202c",  # pop directional formatting
-    "\u202d",  # left-to-right override
-    "\u202e",  # right-to-left override
-    "\u2066",  # left-to-right isolate
-    "\u2067",  # right-to-left isolate
-    "\u2068",  # first strong isolate
-    "\u2069",  # pop directional isolate
-    "\ufeff",  # zero-width no-break space, used as a byte-order mark
+# Every character that instructs a display instead of showing something
+# of its own, defined by the Unicode general category it belongs to
+# rather than by a list of the characters somebody happened to notice.
+# The earlier list named thirteen characters by hand and was extended
+# twice by review; each extension left the next hole open (review items
+# P1-R3-F9, P1-R4-F4 and P1-R6-F11). The categories below are the whole
+# of what "instructs a display" means:
+#
+#   Cc  the C0 and C1 control ranges and DEL -- escape, carriage
+#       return, backspace, and the rest of the sequences a terminal
+#       obeys rather than prints;
+#   Cf  the format and bidirectional controls, which reorder, join or
+#       hide the text around them while occupying no space of their
+#       own. U+061C, U+200B, U+2060 and U+206A-U+206F live here and
+#       were all absent from the hand-written list;
+#   Zl  the line separator U+2028, and
+#   Zp  the paragraph separator U+2029, either of which can break a
+#       message into what look like two messages;
+#   Cs  the surrogate range. This is not text at all: it is what a byte
+#       the computer could not read as text becomes. It can never be
+#       shown and cannot be written back out, so leaving one in place
+#       turns a refusal into a crash with no message.
+#
+# Positions still reserved inside the blocks Unicode set aside for
+# format controls are covered too -- U+2065, the rest of the shorthand
+# and Egyptian-hieroglyph format blocks, and the reserved part of the
+# tag block -- so a character assigned there by a later Unicode version
+# is already handled here.
+#
+# Nothing else is touched. Letters, marks, digits, punctuation and
+# symbols of every script -- accented Latin, Greek, Cyrillic, CJK,
+# Arabic, Hebrew -- fall outside all five categories, and so does every
+# space separator, the no-break space included. Over-escaping would be
+# its own defect: a researcher whose column names are not English must
+# read them as they wrote them.
+#
+# The table is checked character by character against Python's own
+# Unicode database by tests/test_p1r6f11_display_boundary.py, over the
+# whole code space, in both directions. A category that grows in a
+# later Unicode version turns a test red instead of quietly leaving a
+# character unescaped.
+_DISPLAY_CONTROL_RANGES = (
+    (0x0000, 0x001F),  # Cc: the C0 controls
+    (0x007F, 0x009F),  # Cc: DEL and the C1 controls
+    (0x00AD, 0x00AD),  # Cf: soft hyphen
+    (0x0600, 0x0605),  # Cf: Arabic number signs
+    (0x061C, 0x061C),  # Cf: Arabic letter mark
+    (0x06DD, 0x06DD),  # Cf: Arabic end of ayah
+    (0x070F, 0x070F),  # Cf: Syriac abbreviation mark
+    (0x0890, 0x0891),  # Cf: Arabic pound and piastre marks
+    (0x08E2, 0x08E2),  # Cf: Arabic disputed end of ayah
+    (0x180E, 0x180E),  # Cf: Mongolian vowel separator
+    (0x200B, 0x200F),  # Cf: zero-width marks, left/right-to-left marks
+    (0x2028, 0x202E),  # Zl, Zp, Cf: separators and the bidi overrides
+    (0x2060, 0x206F),  # Cf: word joiner, the isolates, deprecated marks
+    (0xD800, 0xDFFF),  # Cs: surrogates -- bytes that are not text
+    (0xFEFF, 0xFEFF),  # Cf: zero-width no-break space (byte-order mark)
+    (0xFFF9, 0xFFFB),  # Cf: interlinear annotation marks
+    (0x110BD, 0x110BD),  # Cf: Kaithi number sign
+    (0x110CD, 0x110CD),  # Cf: Kaithi number sign above
+    (0x13430, 0x1343F),  # Cf: Egyptian hieroglyph format controls
+    (0x1BCA0, 0x1BCAF),  # Cf: shorthand format controls
+    (0x1D173, 0x1D17A),  # Cf: musical beam and slur controls
+    (0xE0000, 0xE00FF),  # Cf: language tag and the tag characters
 )
 
+# The one display control a composed document is allowed to keep. A
+# line feed is how synthtwin writes its own layout; escaping it would
+# reduce every message and the whole summary to a single line. It is
+# escaped in a VALUE, where it is not layout but a way of forging a
+# line that looks like one synthtwin wrote.
+_LINE_FEED = 10
 
-def visible(text: str) -> str:
-    """Return ``text`` with anything that commands a display made visible.
 
-    A value in the user's table can contain an escape sequence. Printed
-    as it stands it instructs the terminal -- one header cleared the
-    screen immediately after the disclosure that must be read before
-    any file is written, and another reordered the text around it
-    (review items P1-R2-F14 and P1-R3-F9). Every value that came out of
-    the table passes through here before it reaches a screen, a written
-    summary, or a refusal message. Ordinary printable text, in any
-    language, is returned unchanged.
+def _commands_a_display(code: int) -> bool:
+    """True when the character numbered ``code`` instructs a display.
 
-    Guarantees: accepts text; returns text; raises TypeError if handed
-    anything that is not a string instance. No I/O of any kind.
+    The two leading tests are the ASCII shortcut, not a separate rule:
+    they answer for the characters nearly every message is made of
+    without walking the table, and they agree with it exactly.
     """
+    if code < 32:
+        return True
+    if code < 127:
+        return False
+    for start, end in _DISPLAY_CONTROL_RANGES:
+        if code < start:
+            return False
+        if code <= end:
+            return True
+    return False
+
+
+def _written_out(code: int) -> str:
+    """One display control written as text that shows itself.
+
+    The spelling is Python's own: two hex digits for a byte, four for a
+    character inside the first plane, eight beyond it. A reader who
+    pastes it into a search engine finds out what it was.
+    """
+    if code < 256:
+        return "\\x" + format(code, "02x")
+    if code < 65536:
+        return "\\u" + format(code, "04x")
+    return "\\U" + format(code, "08x")
+
+
+def _made_visible(text: str, keep_line_feed: bool) -> str:
+    """Show every display control in ``text``; the shared implementation."""
     if not isinstance(text, str):
         raise TypeError(_NOT_TEXT)
     out = ""
     for character in text:
         code = ord(character)
-        if code < 32 or code == 127 or (128 <= code <= 159):
-            out = out + "\\x" + format(code, "02x")
-        elif character in _DISPLAY_CONTROLS:
-            out = out + "\\u" + format(code, "04x")
+        if code == _LINE_FEED and keep_line_feed:
+            out = out + character
+        elif _commands_a_display(code):
+            out = out + _written_out(code)
         else:
             out = out + character
     return out
+
+
+def visible(text: str) -> str:
+    """Return one VALUE with everything that commands a display shown.
+
+    A value in the user's table, or a path they typed, can contain an
+    escape sequence. Printed as it stands it instructs the terminal --
+    one header cleared the screen immediately after the disclosure that
+    must be read before any file is written, another reordered the text
+    around it, and a path cleared the screen from a refusal message
+    (review items P1-R2-F14, P1-R3-F9, P1-R4-F4 and P1-R6-F11).
+
+    Use this for anything synthtwin did not write itself: a cell, a
+    column name, a path, a detail quoted from a library, a message
+    built by another module. NOTHING survives -- the line feed included,
+    because a value is not layout, and a line feed inside one forges a
+    line that reads as though synthtwin wrote it.
+
+    Applying this twice changes nothing: what it puts in place of a
+    display control is ordinary printable ASCII, which a second pass
+    leaves alone. That is what lets the emitter apply the boundary again
+    without spoiling text that already crossed it.
+
+    Guarantees: accepts text; returns text; raises TypeError if handed
+    anything that is not a string instance. Ordinary printable text of
+    every script is returned unchanged. No I/O of any kind.
+    """
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT)
+    return _made_visible(text, False)
+
+
+def visible_lines(text: str) -> str:
+    """Return one composed DOCUMENT with display controls shown.
+
+    The same boundary as `visible`, with one exception: the line feed
+    is kept, because it is the layout synthtwin itself wrote. Use this
+    for a whole message or the whole summary, where the line breaks
+    belong to synthtwin and the values inside have already been through
+    `visible`. It is the net under every human-facing sink: a value
+    that reached a screen without being shown safely still cannot
+    instruct the display.
+
+    Guarantees: accepts text; returns text; raises TypeError if handed
+    anything that is not a string instance. Every character except the
+    line feed is treated exactly as `visible` treats it. No I/O.
+    """
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT)
+    return _made_visible(text, True)
 
 
 def trimmed(text: str) -> str:

@@ -7,6 +7,17 @@ reader can always see how a column was routed. There is no
 "unsupported column" outcome: a column that matches no rule is
 described as free text, which publishes no values at all.
 
+ONE ROLE IS NOT DECIDED HERE AT ALL. `identifier` is reached only when
+the person who owns the table names the column with `--identifier`. It
+was inferred from the values until review item P1-R6-F8, and three
+successive inferences were each defeated by an ordinary column that
+happened to look the same: `1mg` and `code1` are the same shape of
+string, and what tells a dose from a label is what the column MEANS,
+which the values do not carry. The guess also had nothing to win --
+when right it published no more than free text does, and when wrong it
+destroyed a real distribution -- so it is withdrawn rather than
+sharpened for a fourth time.
+
 Sending a column down the wrong path is the failure this module exists
 to prevent -- numeric-looking codes treated as quantities, categories
 treated as free text -- because it corrupts the twin quietly, while
@@ -18,11 +29,17 @@ readings are named in the evidence rather than hidden.
 THREE STRUCTURAL RULES hold this module together, and each one closes a
 whole family of defects rather than one instance of it.
 
-* ONE CELL RECORD. Every present cell is classified exactly once --
-  what it is numerically, what its sign is, whether it is a whole
-  number -- and that record is what every later gate reads. No gate
-  recomputes, and no gate uses a different population than its
-  neighbour (review items P1-R3-F3, P1-R4-F2, P1-R5-F2).
+* ONE CELL RECORD. Every present cell is classified exactly once, by
+  `_classify`, into an immutable `_Cell` carrying what the cell is
+  numerically, the value it parsed to, its sign and whether it is a
+  whole number. Every rule below reads that record and nothing else:
+  no rule asks the parser about a cell a second time, and dropping a
+  numeric sentinel FILTERS the records rather than reading the column
+  again. Round 5's claim to this was not true of the code -- the sign
+  and whole-number helpers each classified the cell again, and
+  sentinel removal reparsed the whole column -- so two rules could in
+  principle have disagreed about the same cell (review items
+  P1-R3-F3, P1-R4-F2, P1-R5-F2, P1-R6-F10).
 * ONE CONSTRUCTION SITE. `profile_column` builds exactly one
   ColumnProfile, at the end, whatever role was decided. A count cannot
   therefore be present on the roles someone remembered and absent on
@@ -53,6 +70,14 @@ depend on the machine, the row order, or the magnitude of the data
   unit in the last place of error, every deviation inherits that as a
   common shift, and the second and third moments are quadratic and
   cubic in it.
+
+Every list built one item at a time is grown with `+= [item]`, which
+extends the list in place. `values = values + [item]` copies everything
+accumulated so far, so the work of describing a column grew as the
+SQUARE of its length: a column of twenty thousand numbers spent most of
+its run copying its own prefix (review item P1-R6-F10). The `+=` form
+is used rather than a method call because the offline policy accepts no
+method call on a computed value (plan D6.2).
 
 `**` is never used for squaring or square roots anywhere in this
 module: it calls the platform's `pow`, which no standard requires to be
@@ -104,7 +129,23 @@ ROLE_CATEGORICAL = "categorical"
 ROLE_IDENTIFIER = "identifier"
 ROLE_TEXT = "free_text"
 
-# The order the rules are tested in, which IS the order below.
+# Every role a column can be given. The order is the order the rules
+# are tested in, with one exception worth naming: `identifier` is not in
+# that order at all, because NO rule decides it. It is reached only when
+# the person who owns the table names the column with `--identifier`.
+#
+# It was inferred from the values until review item P1-R6-F8, and three
+# repairs to the inference were each defeated by the column next door.
+# The reason is not that the rules were badly drawn: `1mg` and `code1`
+# are the same shape of string, and what separates a dose from a label
+# is what the column MEANS, which no property of the values carries.
+# Guessing has no upside either -- a right guess publishes nothing a
+# free-text column would not have published, and a wrong guess destroys
+# a real distribution -- so the guess is withdrawn rather than sharpened.
+#
+# A column that no rule below claims is described as free text, which
+# publishes no value at all. Free text is what a column becomes when no
+# positive reading fits it.
 ROLES = (
     ROLE_EMPTY,
     ROLE_UNREPRESENTABLE,
@@ -164,6 +205,12 @@ class Settings:
     """
 
     small_cell_floor: int = 11
+    # How different a column's values have to be before synthtwin SAYS
+    # SO. This decides no role. Nothing decides the identifier role but
+    # the person who owns the table, so this threshold governs one thing
+    # only: whether that person is told their column never repeats, and
+    # pointed at --identifier in case it holds record numbers (review
+    # item P1-R6-F8).
     identifier_uniqueness: float = 0.95
     minimum_parse_rate: float = 0.99
     # A column that is only MOSTLY numbers is still a column of
@@ -192,8 +239,10 @@ class Settings:
     # more than the cap keeps its distribution instead of collapsing to
     # text lengths.
     categorical_ceiling: int = 1000
-    # Below this many rows, "every value is different" means nothing, so
-    # no column is called an identifier automatically.
+    # Below this many rows, "every value is different" means nothing --
+    # in a short column almost every measurement is all-different -- so
+    # nothing is said about it. Like the threshold above, this decides
+    # no role: it decides when a sentence is worth printing.
     identifier_minimum_rows: int = 20
     # The smallest fixed-width all-digit code. One digit is a digit.
     code_minimum_width: int = 2
@@ -266,6 +315,15 @@ SIGNIFICAND_BITS = 53
 SMALLEST_EXPONENT = -1074
 
 _SIGNIFICAND_CEILING = 1 << SIGNIFICAND_BITS
+
+# The largest finite binary64 number, written as the exact whole numbers
+# it is made of: a significand of 53 ones times two to the 971st. Having
+# it as whole numbers is what lets "too large for this format" be
+# decided by an exact comparison instead of by waiting for a rounding
+# step to complain (review item P1-R6-F3).
+LARGEST_FINITE_SIGNIFICAND = _SIGNIFICAND_CEILING - 1
+
+LARGEST_FINITE_EXPONENT = 971
 
 # A guess wide enough that the first integer square root always
 # has at least as many digits as a significand needs.
@@ -419,6 +477,32 @@ def _rounded_root(numerator: int, denominator: int) -> float:
         digits = digits >> 1
         exponent = exponent + 1
     return math.ldexp(float(digits), exponent)
+
+def _root_beyond_binary64(numerator: int, denominator: int) -> bool:
+    """True when the square root of a fraction is too large to hold.
+
+    The question is asked about the SQUARE, on whole numbers, BEFORE
+    anything is rounded: the square root of ``numerator / denominator``
+    is larger than the largest finite binary64 number exactly when
+    ``numerator`` is larger than that number squared times
+    ``denominator``. Nothing but whole numbers is compared, so the
+    answer is the same on every platform, and it is the exact answer
+    rather than an answer about a rounded stand-in.
+
+    Asking afterwards -- by letting the rounding step complain -- is not
+    the same question. An exact value sitting between the largest finite
+    number and the point where rounding overflows rounds DOWN onto that
+    largest finite number, correctly and without complaint, so a spread
+    that had saturated was published as an ordinary finite maximum with
+    nothing to say so (review item P1-R6-F3).
+
+    Guarantees: accepts whole numbers with ``numerator`` at or above
+    zero and ``denominator`` above zero; returns a truth value. Raises
+    nothing. No I/O of any kind.
+    """
+    largest = LARGEST_FINITE_SIGNIFICAND << LARGEST_FINITE_EXPONENT
+    return numerator > largest * largest * denominator
+
 
 def _parts(value: float) -> "tuple[int, int]":
     """A finite number split into a whole significand and a power of two.
@@ -669,7 +753,12 @@ def _moments(numbers: list[float]) -> dict[str, "float | None"]:
     A null standard deviation therefore means "undefined". A spread too
     large for this format to hold is a different fact and is reported as
     its own field, `std_unrepresentable`, so that a reader never has to
-    guess which of the two happened.
+    guess which of the two happened. Which of the two it is, is settled
+    on the EXACT variance against the exact square of the largest finite
+    number, before anything is rounded: an exact spread just above that
+    number rounds quietly down onto it, so a saturated spread was
+    published as an ordinary finite maximum for as long as the flag
+    waited for a rounding step to overflow (review item P1-R6-F3).
 
     HOW THE THREE ARE COMPUTED (plan P1-D11). Write every value as a
     whole number of one shared power of two, ``x_i = a_i * 2 ** base``.
@@ -703,16 +792,21 @@ def _moments(numbers: list[float]) -> dict[str, "float | None"]:
     Guarantees: accepts a non-empty list of finite numbers, in any
     order; returns a dict whose "mean", "std" and "skew" are each the
     correctly rounded binary64 value of the exact statistic, or None
-    where the statistic is undefined, plus "std_unrepresentable" when
-    and only when the exact spread is larger than binary64 can hold.
-    The result depends on the multiset of values and nothing else, so
-    the row order cannot change it. Raises nothing. No I/O of any kind.
+    where the statistic is undefined, plus "std_unrepresentable", which
+    is present on EVERY result and is true when and only when the exact
+    spread is larger than binary64 can hold. It is present either way
+    because a fact a reader has to have is not a fact that appears only
+    on the branch someone remembered: a null "std" beside no flag at all
+    is a reader guessing which of the two things happened. The result
+    depends on the multiset of values and nothing else, so the row order
+    cannot change it. Raises nothing. No I/O of any kind.
     """
     count = len(numbers)
     moments: dict[str, float | None] = {
         "mean": None,
         "std": None,
         "skew": None,
+        "std_unrepresentable": False,
     }
     total, squares, cubes, base = _totals(numbers)
     numerator, denominator = _over_two(total, count, base)
@@ -729,14 +823,23 @@ def _moments(numbers: list[float]) -> dict[str, "float | None"]:
     numerator, denominator = _over_two(
         spread, count * (count - 1), base + base
     )
-    try:
-        moments["std"] = published(_rounded_root(numerator, denominator))
-    except OverflowError:
+    if _root_beyond_binary64(numerator, denominator):
         # The spread is larger than this format can hold. Reported as a
         # fact of its own rather than as a bare null, which would be
         # indistinguishable from "undefined".
+        #
+        # The test is on the EXACT variance against the exact square of
+        # the largest finite number, so it catches every spread the
+        # format cannot hold -- including the ones that round quietly
+        # DOWN onto that largest finite number instead of overflowing.
+        # Three values at about 1.5568479229996504e+308 have exactly
+        # such a spread, and they used to publish
+        # 1.7976931348623157e+308 as an ordinary standard deviation
+        # (review item P1-R6-F3).
         moments["std"] = None
         moments["std_unrepresentable"] = True
+    else:
+        moments["std"] = published(_rounded_root(numerator, denominator))
     if count < 3:
         return moments
 
@@ -758,6 +861,132 @@ def _moments(numbers: list[float]) -> dict[str, "float | None"]:
 
 
 @dataclasses.dataclass(frozen=True)
+class _Cell:
+    """One present cell, decided once and never read from the text again.
+
+    This is the record STRUCTURAL RULE A is about. It is built by
+    `_classify`, once per cell, and it is frozen: what a cell is
+    numerically, the number it parsed to, its sign, whether it is a
+    whole number, and the lexical facts the role rules ask about.
+
+    It carried two more lexical facts until review item P1-R6-F8 --
+    whether the cell was one word, and whether it held a letter -- and
+    they existed for one purpose: guessing which all-different columns
+    were record numbers. That guess is withdrawn, so the facts that fed
+    it are gone rather than left lying about for a later rule to pick
+    up again.
+
+    Everything below consults this record. Round 5's code asked the
+    parser three separate questions per cell -- classify, sign,
+    whole-number -- and the last two classified the cell again from its
+    text, so "classified exactly once" was a comment rather than a
+    property of the code (review item P1-R6-F10).
+    """
+
+    text: str
+    # One of parsing.NUMBER, NUMBER_OUT_OF_RANGE, NUMBER_CONTRADICTORY,
+    # NOT_A_NUMBER.
+    kind: str
+    # The number the cell holds, and None whenever no number was held.
+    value: "float | None"
+    sign: str
+    whole: str
+    # The cell after trimming and case folding: the key the levels, the
+    # binary rule and the categorical rule all count with.
+    folded: str
+    # Both of these are published as COUNTS on a free-text column, which
+    # is what a generator needs to build text of the same shape. Neither
+    # decides a role.
+    all_digits: bool
+    code_alphabet: bool
+
+
+def _written_negative(text: str) -> bool:
+    """True when the NOTATION of a well-formed number says "negative".
+
+    Asked only about a cell already classified as a number too large or
+    too small for this format to hold, where there is no value left to
+    read the sign from. Two marks say negative, and they are the two the
+    reader accepts: accounting parentheses around the value, and a
+    leading minus. Such a cell can carry only one of them -- a sign
+    INSIDE parentheses is contradictory notation, which is a different
+    kind of cell entirely -- so reading both is safe.
+
+    Guarantees: accepts text; returns a truth value. Raises nothing.
+    No I/O of any kind.
+    """
+    body = parsing.trimmed(text)
+    negative = False
+    if body[:1] == "(" and body[len(body) - 1 : len(body)] == ")":
+        negative = True
+        body = parsing.trimmed(body[1 : len(body) - 1])
+    if body[:1] == "-":
+        negative = True
+    return negative
+
+
+def _classify(text: str) -> _Cell:
+    """Classify one present cell, once, into the record every rule reads.
+
+    The parser is asked what the cell is exactly once. Everything else
+    is derived from that answer:
+
+    * a cell this format can hold has its sign and its whole-number
+      status settled by the NUMBER it parsed to -- a parsed zero is
+      exactly a cell whose digits are all zeros, because a value that
+      collapses to zero from something larger is refused by the reader
+      and comes back as out-of-range instead;
+    * a cell too large or too small to hold has no value to read, so its
+      whole-number status comes from which end of the range it fell off
+      (too large is whole, too small lies strictly between zero and one)
+      and its sign from the notation;
+    * contradictory notation and ordinary text settle neither, and
+      "unknown" is a real answer here, never guessed at.
+
+    Guarantees: accepts text; returns a frozen `_Cell`; raises TypeError
+    if handed anything that is not a string instance. The record depends
+    on the text and nothing else. No I/O of any kind.
+    """
+    kind = parsing.classify_number(text)
+    value: float | None = None
+    sign = parsing.SIGN_UNKNOWN
+    whole = parsing.WHOLE_UNKNOWN
+    if kind == parsing.NUMBER:
+        value = parsing.parse_number(text)
+        if value is not None:
+            if value < 0.0:
+                sign = parsing.SIGN_NEGATIVE
+            elif value == 0.0:
+                sign = parsing.SIGN_ZERO
+            else:
+                sign = parsing.SIGN_POSITIVE
+            if parsing.is_whole_number(value):
+                whole = parsing.WHOLE_YES
+            else:
+                whole = parsing.WHOLE_NO
+    elif kind == parsing.NUMBER_OUT_OF_RANGE:
+        if parsing.overflowed(text):
+            whole = parsing.WHOLE_YES
+        else:
+            whole = parsing.WHOLE_NO
+        if _written_negative(text):
+            sign = parsing.SIGN_NEGATIVE
+        else:
+            sign = parsing.SIGN_POSITIVE
+    trimmed = parsing.trimmed(text)
+    return _Cell(
+        text=text,
+        kind=kind,
+        value=value,
+        sign=sign,
+        whole=whole,
+        folded=parsing.folded(text),
+        all_digits=parsing.is_digit_text(trimmed),
+        code_alphabet=parsing.is_code_text(trimmed),
+    )
+
+
+@dataclasses.dataclass(frozen=True)
 class _Cells:
     """Everything the role rules are allowed to consult, decided once.
 
@@ -766,6 +995,11 @@ class _Cells:
     counting different sets of cells under the same name.
     """
 
+    # The one classification of each present cell, in row order. Every
+    # count below is a tally of these records, and dropping a numeric
+    # sentinel drops records from this list -- the column is never read
+    # a second time.
+    classified: list[_Cell]
     present: list[str]
     n_rows: int
     settings: Settings
@@ -784,11 +1018,25 @@ class _Cells:
     folded_counts: dict[str, int]
     all_digits: int
     code_alphabet: int
-    single_words: int
 
 
-def _analyse(present: list[str], n_rows: int, settings: Settings) -> _Cells:
-    """Classify every present cell exactly once."""
+def _classify_all(present: list[str]) -> list[_Cell]:
+    """Classify every present cell exactly once, in row order."""
+    return [_classify(value) for value in present]
+
+
+def _tally(
+    classified: list[_Cell], n_rows: int, settings: Settings
+) -> _Cells:
+    """Count the one classification of each cell, in one pass.
+
+    This function reads the records and never the text: it is arithmetic
+    over `_classify`'s answers. That is what lets a numeric sentinel be
+    dropped by filtering the records and counting again, instead of
+    reading the whole column a second time and hoping the second reading
+    agrees with the first (review item P1-R6-F10).
+    """
+    present: list[str] = []
     numbers: list[float] = []
     out_of_range = 0
     contradictory = 0
@@ -802,50 +1050,46 @@ def _analyse(present: list[str], n_rows: int, settings: Settings) -> _Cells:
     negative_unrepresentable = 0
     all_digits = 0
     code_alphabet = 0
-    single_words = 0
     folded_counts: dict[str, int] = {}
-    for value in present:
-        kind = parsing.classify_number(value)
-        if kind == parsing.NUMBER:
-            parsed = parsing.parse_number(value)
-            if parsed is not None:
-                numbers = numbers + [parsed]
-        elif kind == parsing.NUMBER_OUT_OF_RANGE:
+    for cell in classified:
+        present += [cell.text]
+        if cell.kind == parsing.NUMBER:
+            if cell.value is not None:
+                numbers += [cell.value]
+        elif cell.kind == parsing.NUMBER_OUT_OF_RANGE:
             out_of_range = out_of_range + 1
-        elif kind == parsing.NUMBER_CONTRADICTORY:
+        elif cell.kind == parsing.NUMBER_CONTRADICTORY:
             contradictory = contradictory + 1
         else:
             not_a_number = not_a_number + 1
-        if kind != parsing.NOT_A_NUMBER:
-            sign = parsing.numeric_sign(value)
-            if sign == parsing.SIGN_NEGATIVE:
+        if cell.kind != parsing.NOT_A_NUMBER:
+            if cell.sign == parsing.SIGN_NEGATIVE:
                 negative = negative + 1
-                if kind != parsing.NUMBER:
+                if cell.kind != parsing.NUMBER:
                     negative_unrepresentable = negative_unrepresentable + 1
-            elif sign == parsing.SIGN_POSITIVE or sign == parsing.SIGN_ZERO:
+            elif (
+                cell.sign == parsing.SIGN_POSITIVE
+                or cell.sign == parsing.SIGN_ZERO
+            ):
                 positive = positive + 1
             else:
                 sign_unknown = sign_unknown + 1
-            shape = parsing.numeric_whole(value)
-            if shape == parsing.WHOLE_YES:
+            if cell.whole == parsing.WHOLE_YES:
                 whole = whole + 1
-            elif shape == parsing.WHOLE_NO:
+            elif cell.whole == parsing.WHOLE_NO:
                 fraction = fraction + 1
             else:
                 whole_unknown = whole_unknown + 1
-        trimmed = parsing.trimmed(value)
-        if parsing.is_digit_text(trimmed):
+        if cell.all_digits:
             all_digits = all_digits + 1
-        if parsing.is_code_text(trimmed):
+        if cell.code_alphabet:
             code_alphabet = code_alphabet + 1
-        if parsing.token_count(value) <= 1:
-            single_words = single_words + 1
-        key = parsing.folded(value)
-        if key in folded_counts:
-            folded_counts[key] = folded_counts[key] + 1
+        if cell.folded in folded_counts:
+            folded_counts[cell.folded] = folded_counts[cell.folded] + 1
         else:
-            folded_counts[key] = 1
+            folded_counts[cell.folded] = 1
     return _Cells(
+        classified=classified,
         present=present,
         n_rows=n_rows,
         settings=settings,
@@ -864,7 +1108,6 @@ def _analyse(present: list[str], n_rows: int, settings: Settings) -> _Cells:
         folded_counts=folded_counts,
         all_digits=all_digits,
         code_alphabet=code_alphabet,
-        single_words=single_words,
     )
 
 
@@ -902,15 +1145,15 @@ def _split_missing(
     missing: list[tuple[str, str]] = []
     for value in values:
         if _declared(value, settings.kept_values):
-            present = present + [value]
+            present += [value]
         elif _declared(value, settings.declared_missing_values):
-            missing = missing + [(value, parsing.MISSING_DECLARED)]
+            missing += [(value, parsing.MISSING_DECLARED)]
         elif not parsing.trimmed(value):
-            missing = missing + [(value, parsing.MISSING_BLANK)]
+            missing += [(value, parsing.MISSING_BLANK)]
         elif parsing.is_missing_text(value):
-            missing = missing + [(value, parsing.MISSING_TEXT_CODE)]
+            missing += [(value, parsing.MISSING_TEXT_CODE)]
         else:
-            present = present + [value]
+            present += [value]
     return present, missing
 
 
@@ -996,7 +1239,7 @@ def _sentinel_verdicts(
     candidates: list[float] = []
     for candidate in parsing.NUMERIC_SENTINELS:
         if len([value for value in cells.numbers if value == candidate]):
-            candidates = candidates + [candidate]
+            candidates += [candidate]
     # Judge every candidate against the SAME reference population: the
     # numbers that are not a candidate of any kind.
     others = [
@@ -1063,7 +1306,7 @@ def _published_verdicts(
         if occurrences < settings.small_cell_floor:
             unpublished = unpublished + 1
             continue
-        entries = entries + [
+        entries += [
             {
                 "candidate": f"{candidate:g}",
                 "verdict": VERDICT_MISSING if missing else VERDICT_KEPT,
@@ -1123,11 +1366,11 @@ def _levels(counts: dict[str, int], settings: Settings) -> _Levels:
             beyond_levels = beyond_levels + 1
             beyond_rows = beyond_rows + count
         elif count >= settings.small_cell_floor:
-            entries = entries + [{"label": label, "count": count}]
+            entries += [{"label": label, "count": count}]
         else:
             suppressed_levels = suppressed_levels + 1
             suppressed_rows = suppressed_rows + count
-            suppressed_counts = suppressed_counts + [count]
+            suppressed_counts += [count]
     return _Levels(
         published=entries,
         suppressed_levels=suppressed_levels,
@@ -1247,8 +1490,8 @@ def _matching_date_format(
         for value in present:
             pair = parsing.parse_datetime(value, format_name)
             if pair is not None:
-                good = good + [pair]
-                sources = sources + [value]
+                good += [pair]
+                sources += [value]
         if len(good) >= needed and good:
             return format_name, good, sources, len(present) - len(good)
     return None
@@ -1286,9 +1529,9 @@ def _datetime_details(
             if at_utc is not None:
                 shown = at_utc
         if instant is None:
-            unkeyed = unkeyed + [shown]
+            unkeyed += [shown]
         else:
-            keyed = keyed + [(instant, shown, offset)]
+            keyed += [(instant, shown, offset)]
     if keyed:
         ordered = sorted(keyed)
         canonical_order = [entry[1] for entry in ordered]
@@ -1438,6 +1681,32 @@ def _code_widths(cells: _Cells) -> list[int]:
     return _lengths([parsing.trimmed(value) for value in cells.present])
 
 
+def _all_different(cells: _Cells) -> bool:
+    """True when the column's values hardly ever repeat, in a table big
+    enough for that to mean anything.
+
+    This answer decides NO role. It was the first clause of the
+    identifier rule through three revisions, and every revision was
+    defeated by a column of measurements that also never repeated, so
+    the rule it served no longer exists (review item P1-R6-F8). What is
+    left is the one thing uniqueness is honestly good for: deciding
+    whether to SAY that the values never repeat, and to point at
+    `--identifier` for the person who knows what they are. In a short
+    column almost every measurement is all-different, so below
+    `identifier_minimum_rows` nothing is said about it at all.
+
+    Guarantees: accepts a tally of a column; returns a truth value that
+    depends on the tally alone. Raises nothing. No I/O of any kind.
+    """
+    settings = cells.settings
+    n_present = len(cells.present)
+    if n_present < settings.identifier_minimum_rows:
+        return False
+    return cells.raw_distinct >= _needed(
+        settings.identifier_uniqueness, n_present
+    )
+
+
 def _numeric_overrules_categories(cells: _Cells) -> bool:
     """True when a repeating column is better described as a quantity.
 
@@ -1474,7 +1743,14 @@ def _repeats_enough(cells: _Cells) -> bool:
 
 
 def _decide(cells: _Cells, forced_identifier: bool) -> _Verdict:
-    """Pick the one role, testing the rules in the documented order."""
+    """Pick the one role, testing the rules in the documented order.
+
+    Every rule here routes a column to a role decided by its VALUES.
+    Exactly one role is not on that list: `identifier` comes from
+    ``forced_identifier`` and from nowhere else, so a column no rule
+    claims becomes free text rather than a guessed record number
+    (review item P1-R6-F8).
+    """
     settings = cells.settings
     present = cells.present
     n_present = len(present)
@@ -1485,14 +1761,15 @@ def _decide(cells: _Cells, forced_identifier: bool) -> _Verdict:
     majority_needed = _needed(settings.numeric_majority, n_present)
     folded_distinct = len(cells.folded_counts)
 
-    # RULE 0 -- the person who knows the table has the last word. A
-    # forced identifier beats EVERY automatic role. Eleven identical
-    # values used to take the constant branch and publish the value
-    # while the user had asked for exactly the opposite (review item
-    # P1-R1-F10).
+    # RULE 0 -- the person who knows the table has the last word, and
+    # since review item P1-R6-F8 it is also the ONLY word: this is the
+    # one route to the identifier role, and every rule below can only
+    # send a column somewhere else. A declared identifier beats every
+    # rule, including the ones that publish. Eleven identical values
+    # used to take the constant branch and publish the value while the
+    # user had asked for exactly the opposite (review item P1-R1-F10).
     if forced_identifier:
-        return _identifier_verdict(cells, forced=True, notes=notes,
-                                   remarks=remarks)
+        return _identifier_verdict(cells, notes=notes, remarks=remarks)
 
     # RULE 2 -- numeric intent that nothing can hold. Tested before any
     # rule that publishes a value, because the alternative is a column
@@ -1625,16 +1902,31 @@ def _decide(cells: _Cells, forced_identifier: bool) -> _Verdict:
 
     # RULE 5 -- fixed-width digit codes, before anything numeric can
     # claim them. 00501 is a place, not the number five hundred and one.
+    #
+    # The padding is evidence that the width is meaningful, so the
+    # column is not a quantity. It is NOT evidence about what the values
+    # mean. When such a column repeats, the labels themselves describe
+    # it exactly and it is a set of categories. When it does not repeat,
+    # every reading is still open -- a zero-padded clock time
+    # (`0930`...`2350`) and a padded account number are the same digits
+    # in the same width with the same leading zero.
+    #
+    # No branch of this rule reaches the identifier role, because no
+    # branch of any rule does: a padded column that does not repeat is
+    # described as free text, which withholds every value exactly as the
+    # identifier role does and claims nothing, and the free-text remark
+    # points at `--identifier` for the person who knows it really is a
+    # record number (review item P1-R6-F8).
     if _is_fixed_width_code(cells):
-        remarks = remarks + [
-            (
-                "every value in this column is the same number of digits "
-                "long and at least one begins with a zero, so these are "
-                "codes rather than quantities: the padding is kept and no "
-                "average is computed"
-            )
-        ]
         if _repeats_enough(cells):
+            remarks = remarks + [
+                (
+                    "every value in this column is the same number of digits "
+                    "long and at least one begins with a zero, so these are "
+                    "codes rather than quantities: the padding is kept and no "
+                    "average is computed"
+                )
+            ]
             levels = _levels(cells.folded_counts, settings)
             details = _level_details(levels)
             details["level_cap"] = settings.categorical_ceiling
@@ -1651,14 +1943,22 @@ def _decide(cells: _Cells, forced_identifier: bool) -> _Verdict:
                 notes=notes,
                 remarks=remarks,
             )
-        return _identifier_verdict(
+        remarks = remarks + [
+            (
+                "every value in this column is the same number of digits "
+                "long and at least one begins with a zero, so these are not "
+                "quantities and no average is computed for them. They hardly "
+                "ever repeat either, so there is no set of values to record"
+            )
+        ]
+        return _free_text_verdict(
             cells,
-            forced=False,
             notes=notes,
             remarks=remarks,
             evidence=(
-                f"all {n_present} values are {min(_code_widths(cells))}-digit "
-                f"codes with leading zeros, and they hardly ever repeat"
+                f"all {n_present} values are {min(_code_widths(cells))} digits "
+                f"long with leading zeros, so they are not quantities, and "
+                f"they hardly ever repeat"
             ),
         )
 
@@ -1757,21 +2057,26 @@ def _decide(cells: _Cells, forced_identifier: bool) -> _Verdict:
     if numeric_looking >= majority_needed:
         return _numeric_verdict(cells, notes, remarks, strict=False)
 
-    # RULE 10 -- identifiers, as a LAST RESORT and only on positive
-    # evidence. Uniqueness alone is not evidence: in a small table
-    # almost every measurement is all-different.
-    if _identifier_by_rule(cells):
-        return _identifier_verdict(cells, forced=False, notes=notes,
-                                   remarks=remarks)
-
-    # RULE 11 -- everything else is free text, which publishes nothing.
-    notes = notes + [
-        (
-            "this column is described as free text, so none of its values "
-            "are published: only how long they are and how many words they "
-            "hold"
-        )
-    ]
+    # RULE 10 -- everything else is free text, which publishes nothing.
+    #
+    # There is no rule between RULE 9 and this one. A rule used to stand
+    # here that read all-different single tokens as record numbers, and
+    # three revisions of it were each defeated by the column next door:
+    # `0930` (a clock), `000042` (a padded count), `1mg` (a dose). The
+    # last of those is why the rule is gone rather than mended -- `1mg`
+    # and `code1` are the same shape of string, so no property of the
+    # values can separate the measurement from the label. What separates
+    # them is what the column MEANS, which only the person who owns the
+    # table knows, and `--identifier` is how they say it (review item
+    # P1-R6-F8).
+    #
+    # Free text is the honest answer to "no positive reading fits". It
+    # withholds every value exactly as the identifier role does, so
+    # nothing is disclosed that was not disclosed before, but it claims
+    # nothing about what the values mean, and it keeps the shape facts
+    # (lengths, word counts, how many different values there are) that
+    # a generator needs. Guessing had no upside to trade against that:
+    # a correct guess would have published nothing more than this.
     if numeric_looking:
         competing = (
             f"only {numeric_looking} of the {n_present} values are written "
@@ -1779,35 +2084,82 @@ def _decide(cells: _Cells, forced_identifier: bool) -> _Verdict:
         )
     else:
         competing = "none of the values read as numbers or as dates"
-    if cells.raw_distinct >= _needed(
-        settings.identifier_uniqueness, n_present
-    ) and n_present >= settings.identifier_minimum_rows:
-        # Naming only `--identifier` here told the owner of a column of
-        # prices, percentages or clock times -- every one of which lands
-        # in free text because synthtwin cannot read that syntax yet --
-        # to mark a MEASUREMENT as a record number, which withholds its
-        # values permanently and silently. The remark must name both
-        # readings, because this rule cannot tell them apart.
-        remarks = remarks + [
-            (
-                "every value in this column is different, and synthtwin does "
-                "not recognise the form they are written in, so their "
-                "distribution is not described. If these are record numbers, "
-                "run the command again with --identifier for this column and "
-                "the profile will say so. If they are measurements written "
-                "with a currency sign, a per-cent sign or a clock time, "
-                "synthtwin cannot read them yet: write them as plain numbers "
-                "and their distribution will be described. Do not use "
-                "--identifier on a measurement -- it withholds the column "
-                "entirely"
-            )
-        ]
-    return _Verdict(
-        role=ROLE_TEXT,
+    return _free_text_verdict(
+        cells,
+        notes=notes,
+        remarks=remarks,
         evidence=(
             f"there are {cells.raw_distinct} different values, they do not "
             f"repeat often enough to be a set of categories, and {competing}"
         ),
+    )
+
+
+def _free_text_verdict(
+    cells: _Cells,
+    notes: list[str],
+    remarks: list[str],
+    evidence: str,
+) -> _Verdict:
+    """The free-text block: shape statistics only, and no value at all.
+
+    Two rules end here, and they end here for the same reason. RULE 5
+    reaches it with a column of same-width digits carrying a leading
+    zero that hardly ever repeat -- a padded account number and a
+    zero-padded clock time are the identical text. RULE 10 reaches it
+    with everything no positive reading fitted, which since review item
+    P1-R6-F8 includes every all-different column of code-shaped tokens:
+    `1mg` and `code1` are the same shape of string, so the reading that
+    used to be taken here was a guess about MEANING dressed as a rule.
+    In every case synthtwin has ruled readings OUT and has established
+    none, and free text is what saying so looks like: the values are
+    withheld exactly as the identifier role withholds them, and nothing
+    is claimed about what they mean.
+
+    When the values are also all different, the person running the tool
+    is told so in one remark -- that synthtwin did not assume they are
+    record numbers, that nothing from the column is published either
+    way, and that `--identifier` is how they declare it if that is what
+    it holds. The remark points BOTH ways on purpose: naming only
+    `--identifier` told the owner of a column of prices, percentages or
+    clock times to mark a MEASUREMENT as a record number, which withholds
+    its values permanently and silently.
+
+    Guarantees: accepts a tally of a non-empty column; returns a
+    `_Verdict` whose role is free text and whose details carry no value
+    of the column, only lengths and word counts. Raises nothing. No I/O.
+    """
+    notes = notes + [
+        (
+            "this column is described as free text, so none of its values "
+            "are published: only how long they are and how many words they "
+            "hold"
+        )
+    ]
+    if _all_different(cells):
+        remarks = remarks + [
+            (
+                "every value in this column is different, and none of the "
+                "forms synthtwin can read fits them. synthtwin did NOT "
+                "assume they are record numbers: it cannot tell from the "
+                "values alone whether these are record numbers or "
+                "measurements written in a form it does not read yet, and a "
+                "wrong guess would throw away the whole distribution. "
+                "Nothing from this column is published either way -- no "
+                "value of it, and no distribution. If these ARE record "
+                "numbers, run the command again with --identifier NAME, "
+                "where NAME is this column's name, and the profile will say "
+                "so. If they are measurements written with a currency sign, "
+                "a per-cent sign, a unit such as mg, or a clock time, write "
+                "them as plain numbers -- one column for the number, and the "
+                "unit in the column name -- and their distribution will be "
+                "described. Do not use --identifier on a measurement: it "
+                "withholds the column entirely"
+            )
+        ]
+    return _Verdict(
+        role=ROLE_TEXT,
+        evidence=evidence,
         details=_text_details(cells),
         notes=notes,
         remarks=remarks,
@@ -1824,90 +2176,44 @@ def _pooled_note(levels: _Levels, settings: Settings) -> str:
     )
 
 
-def _identifier_by_rule(cells: _Cells) -> bool:
-    """The automatic identifier rule: uniqueness AND positive evidence.
-
-    Every clause closes a reproduced misrouting (review item P1-R1-F8):
-
-    * enough rows for "all different" to mean anything -- a two-row
-      T/F column was called an identifier before the binary rule
-      could run;
-    * a single word per value -- a column of sentences is free text;
-    * every value in the CODE ALPHABET -- letters, digits, hyphen,
-      underscore. A currency amount, a percentage and a time of day
-      each carry a character that is not in it, and each was swallowed
-      as an identifier before this clause existed;
-    * uniqueness at the documented share.
-
-    The numeric and date rules have already run when this is reached,
-    so a column that is mostly numbers or mostly dates can never arrive
-    here at all -- which is what stops `0`..`97` plus the word `trace`
-    losing its distribution.
-    """
-    settings = cells.settings
-    n_present = len(cells.present)
-    if n_present < settings.identifier_minimum_rows:
-        return False
-    if cells.single_words != n_present:
-        return False
-    if cells.code_alphabet != n_present:
-        return False
-    return cells.raw_distinct >= _needed(
-        settings.identifier_uniqueness, n_present
-    )
-
-
 def _identifier_verdict(
     cells: _Cells,
-    forced: bool,
     notes: list[str],
     remarks: list[str],
-    evidence: str = "",
 ) -> _Verdict:
-    """The identifier block. No value of the column reaches it."""
-    settings = cells.settings
+    """The identifier block. No value of the column reaches it.
+
+    ONE way in: the person who owns the table named the column with
+    `--identifier` (RULE 0). There is no second way, and there is no
+    rule anywhere in this module that can produce this role by reading
+    values (review item P1-R6-F8). That is why this function takes no
+    ``evidence`` argument -- the evidence is always the same sentence,
+    and the sentence is true by construction: somebody said so.
+
+    Three inferences used to arrive here as well, each defeated by a
+    column of measurements shaped exactly like a column of labels. The
+    trade was never worth taking: when the guess was right it published
+    no more than free text publishes, and when it was wrong it destroyed
+    a distribution the twin exists to reproduce.
+
+    What is published is what it always was: the role, the counts, the
+    shortest and longest value, and whether every value is a whole
+    number. Those are counts and lengths, never values.
+    """
     n_present = len(cells.present)
     lengths = _lengths(cells.present)
     notes = notes + [
         (
-            "this column looks like an identifier, so its values are "
+            "this column holds record numbers or codes, so its values are "
             "never published: only how many there are and how long they are"
         )
     ]
-    distinct_needed = _needed(settings.identifier_uniqueness, n_present)
-    if (
-        not forced
-        and not evidence
-        and _barely_above(
-            cells.raw_distinct, distinct_needed, settings.near_threshold_slack
-        )
-    ):
-        remarks = remarks + [
-            (
-                f"this column was close to the line between an identifier "
-                f"and a category ({cells.raw_distinct} different values in "
-                f"{n_present})"
-            )
-        ]
-    if forced:
-        said = (
-            "you told synthtwin that this column holds record numbers "
-            "rather than measurements"
-        )
-    elif evidence:
-        said = evidence
-    else:
-        said = (
-            f"{cells.raw_distinct} of the {n_present} values are different "
-            f"from each other, at or above the "
-            f"{settings.identifier_uniqueness:.0%} rule for identifiers, "
-            f"each value is a single word made only of letters, digits, "
-            f"hyphens and underscores, and the column reads neither as "
-            f"numbers nor as dates"
-        )
     return _Verdict(
         role=ROLE_IDENTIFIER,
-        evidence=said,
+        evidence=(
+            "you told synthtwin that this column holds record numbers "
+            "rather than measurements"
+        ),
         details={
             "min_length": min(lengths),
             "max_length": max(lengths),
@@ -1962,11 +2268,12 @@ def _numeric_verdict(
     ):
         remarks = remarks + [
             (
-                "every value in this column is different. It is "
-                "described as numbers, which keeps its distribution; if "
-                "it is really a record number, run the command again "
-                "with --identifier for this column and its values will be "
-                "left out of the profile altogether"
+                "every value in this column is different. That is not "
+                "treated as evidence of anything: the column is described "
+                "as numbers, which keeps its distribution. If it is really "
+                "a record number, run the command again with --identifier "
+                "NAME, where NAME is this column's name, and its values "
+                "will be left out of the profile altogether"
             )
         ]
     # A column of counts must be whole and non-negative in EVERY cell
@@ -1999,10 +2306,30 @@ def _numeric_verdict(
             f"numbers -- a majority but not nearly all, so the column keeps "
             f"its distribution and the rest are counted, not published"
         )
+    details = _numeric_details(cells, whole_everywhere)
+    # A spread larger than this file format can hold is a fact the
+    # profile records in a field of its own, and it is also a fact the
+    # person running the tool has to be told in words: without this
+    # remark the only sign of it is a null where a number belongs
+    # (review item P1-R6-F3).
+    if details["std_unrepresentable"]:
+        remarks = remarks + [
+            (
+                "the values in this column are so far apart that their "
+                "spread is a number too large for this file format to hold, "
+                "so no standard deviation is published for it: the profile "
+                "records that the spread is out of range rather than a "
+                "number that would be wrong. Every other statistic of this "
+                "column is published as usual. If you need the spread, "
+                "record the column in larger units -- thousands or millions "
+                "instead of units, with the unit in the column name -- and "
+                "run the command again"
+            )
+        ]
     return _Verdict(
         role=role,
         evidence=evidence,
-        details=_numeric_details(cells, whole_everywhere),
+        details=details,
         notes=notes,
         remarks=remarks,
     )
@@ -2026,7 +2353,9 @@ def profile_column(
       ``len(values)``; ``forced_identifier`` records that the person
       running the tool named this column as holding record numbers, in
       which case no value of it is published whatever the rules would
-      otherwise have decided.
+      otherwise have decided. It is also the ONLY way the returned role
+      can be `identifier`: with it false, no column of any shape is
+      given that role (review item P1-R6-F8).
     - Determinism: the result depends only on the arguments. Nothing
       here consults a clock, an environment variable, or a random
       source, and every ordering that reaches the output is sorted.
@@ -2041,7 +2370,10 @@ def profile_column(
       once, not of the branch that built the block.
     """
     present, missing = _split_missing(values, settings)
-    cells = _analyse(present, n_rows, settings)
+    # THE one classification of this column's cells. Everything below
+    # reads these records; not one line of it reads the column again.
+    classified = _classify_all(present)
+    cells = _tally(classified, n_rows, settings)
 
     # The numeric sentinels are judged whenever the column can end up
     # in a numeric role -- gated on the COMBINED numeric-looking
@@ -2058,19 +2390,22 @@ def profile_column(
             candidate for candidate in verdicts if verdicts[candidate][0]
         )
         if withheld:
-            kept: list[str] = []
-            for value in present:
-                number = parsing.parse_number(value)
-                if number is not None and number in withheld:
-                    missing = missing + [
-                        (value, parsing.MISSING_NUMERIC_SENTINEL)
+            kept: list[_Cell] = []
+            for cell in classified:
+                if cell.value is not None and cell.value in withheld:
+                    missing += [
+                        (cell.text, parsing.MISSING_NUMERIC_SENTINEL)
                     ]
                 else:
-                    kept = kept + [value]
-            present = kept
-            # Every population is recomputed from the surviving cells;
-            # none is patched.
-            cells = _analyse(present, n_rows, settings)
+                    kept += [cell]
+            classified = kept
+            # Every population is counted again from the surviving
+            # RECORDS; none is patched, and no cell is classified twice.
+            # Reading the column a second time here was the last place
+            # where two readings of one cell could have differed
+            # (review item P1-R6-F10).
+            cells = _tally(classified, n_rows, settings)
+            present = cells.present
     entries, unpublished = _published_verdicts(verdicts, settings)
 
     n_present = len(present)

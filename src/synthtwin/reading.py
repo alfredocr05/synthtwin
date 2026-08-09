@@ -74,49 +74,122 @@ statistic and publishes that person's values as schema text, outside
 every suppression rule. Review round 1 read this headerless file with
 column names ``P001`` and ``34`` and five rows instead of six.
 
-The decision is now explicit, and it is made from the SHAPE of each
-column's values rather than from the first row alone. For every column
-the reader computes the signature of a value -- each ASCII digit becomes
-``9``, each ASCII letter becomes ``A``, everything else stands for
-itself, so ``P001`` becomes ``A999`` and ``2024-03-17`` becomes
-``9999-99-99`` -- and asks two questions of the column's data values:
+Two attempts at this rule failed in opposite directions, and both were
+trying to do the same impossible thing: prove that a first row IS a set
+of column names. That proof does not exist. Nothing about the letters
+in ``site`` makes it the name of a column rather than the name of a
+place, so a rule built on such a proof either questions ordinary files
+or swallows records, depending on how hard it strains. The question is
+therefore turned around. The file is asked one thing only: does it show
+that the first row is a RECORD?
 
-* **Does the first row's value CONTRADICT this column?** It does when
-  every data value of the column shares one signature that contains a
-  digit and the first row's value has a different signature, or when
-  every data value reads as a number and the first row's value does
-  not. A record cannot contradict its own column, so one contradiction
-  anywhere settles it: the first row is the column names.
-* **Does it FIT this column exactly?** It does when the column's data
-  values all share one signature and the first row's value has that
-  same signature. The fit is STRONG when the signature carries both a
-  digit and something else (``A999``, ``AAAA-9``, ``9999-99-99``): that
-  is what a code, an identifier or a date looks like, and a column name
-  almost never has the shape of one. It is WEAK when the signature is
-  all digits (``9999``), because plain numbers are everywhere and a
-  column headed ``2019`` over four-digit values is an ordinary table.
+Three outcomes, in this order.
 
-The verdict:
+1. **The caller said which it is.** ``--first-row names`` and
+   ``--first-row data`` win over everything, in both directions, with
+   no question asked. The rules below are not an oracle, and a person
+   who knows their own file is never guessed at.
 
-* any contradiction -> the first row is the column names, accepted
-  without a word;
-* otherwise a strong fit anywhere, or a fit in every column ->
-  synthtwin cannot tell, and REFUSES, naming the two ways to say which
-  it is: ``--first-row names`` or ``--first-row data``. With
-  ``--first-row data`` the columns are named ``column_1``, ``column_2``,
-  ... and every record is kept, so nothing is lost either way;
-* otherwise the first row is the column names.
+2. **The file shows the first row is a record -> stop and ask.** This
+   is the one side of the question that can be shown positively, so it
+   is the one side that is tested for. The first row is evidence of a
+   record when, in ANY column, its value belongs to the population of
+   values written below it. Three ways it can belong, any one of them
+   enough on its own:
 
-The rule sketched at round 1 was tested against the same nine shapes and
-is not this one: it refused ordinary pivoted year tables
-(``region,2019,2020,2021``) and missed headerless files whose values are
-all text. This one accepts the pivoted table (the year headers
-contradict their one-digit and two-digit columns, and where they do not,
-no column fits) and refuses ``P001,34`` and ``pa-001,site-1`` alike.
+   * **A number among numbers.** Every value below reads as a number,
+     the first row's value reads as a number too, and that number lies
+     inside the range those values cover or within half that range's
+     width of either end of it. This is the strongest signal there is:
+     ``34`` above ``29``, ``41`` and ``38`` is one of them, and reading
+     it as a column name publishes somebody's age as schema. Where the
+     values below cover no range at all -- one data row, or one number
+     repeated -- there is no spread to judge a distance by, and a whole
+     number belongs only if it is that number or the one on either side
+     of it.
+   * **A date among dates.** Every value below is a date written in one
+     format and the first row's value is a date written in that same
+     format.
+   * **A label the column repeats.** The first row's value appears
+     again below it, more than once. A value a column repeats is one of
+     that column's own labels, and the first row is holding one.
 
-What it still cannot see is stated where the promise is, in
-`read_table`: a headerless file whose columns have neither a shared
-signature nor an all-numeric first row is accepted as headed.
+   The refusal names the column by its POSITION and says in words what
+   was found, then offers ``--first-row names`` and ``--first-row
+   data``. It quotes nothing from the row: in a file whose first row
+   may be a record, that row's text is somebody's data, and printing it
+   to ask a question about it is a disclosure.
+
+3. **The file shows the first row is NOT a record -> names, shown.**
+   One thing a file can genuinely show: a column whose every value
+   below is a number while the first row's value is not. That is a
+   difference in kind, not in appearance, and it is the only such
+   difference this module trusts. The row is read as names, and
+   ``header_by_convention`` is False because nothing was assumed.
+
+   This decides nothing the next outcome would not also decide -- the
+   row is read as names either way. It exists so the summary can stay
+   quiet on a file that shows its header and speak on a file that does
+   not. Getting it wrong costs one sentence, never a record, which is
+   why a rule too weak to decide the reading is strong enough here.
+
+4. **No evidence either way -> the first row is taken as the column
+   names, BY CONVENTION.** A CSV file normally begins with its column
+   names, and
+   following that convention is what makes this tool usable on ordinary
+   files. Nothing is claimed about the file: taking is not proving.
+   Nor is it silent. ``header_by_convention`` is set on the Table, and
+   ``header_evidence`` says in plain words that the first row was read
+   as the column names because nothing in the file contradicted it, and
+   that ``--first-row data`` re-reads it as a record if that is wrong.
+   Both belong beside ``header_source`` wherever the reading is
+   published, so a person can see the assumption and take it back.
+
+One first row is settled before any of that: one whose EVERY value
+reads as a number. It is stopped with its own message, which says the
+row does not read as names and gives both ways on -- a row of names
+added to the file, or ``--first-row data``. Nothing is read from such a
+file and nothing is written, so no record is lost there either.
+
+The question is put to the person AFTER the checking pass below, never
+before it. A file whose two readers disagree about a name or a value
+has no single right reading to choose between, so that disagreement is
+reported first; the two checks on the names themselves -- a blank name,
+a name used twice -- stay ahead of the checking pass, because pandas
+rewrites exactly those two and the rewrite would be reported as a
+disagreement rather than as the repeated name it is.
+
+WHERE THIS RULE IS WRONG, AND WHY IT IS DRAWN HERE
+==================================================
+
+Outcome 3 is the one that costs a record, and the cost is written down
+here rather than left to be found. A headerless table whose every
+column is worded text -- ``alpha note,red apple`` above two more rows
+of the same kind, the file review round 6 named -- holds no value that
+belongs to the column below it, so it is read as headed: two records
+instead of three, and the third record's words standing as the column
+names. That is what every CSV reader in the world does with such a
+file, and it is what the previous two attempts to avoid could not do
+without questioning ordinary tables instead. What changed is the
+honesty of the record. The reading is published as a convention that
+was followed, not as a verdict the file supported, and one word on the
+command line takes it back with every record kept.
+
+Outcome 2 costs the other way, and it is the cheaper cost because
+nothing is published: a table that really is headed can be questioned.
+A column named ``2024`` above a column of years, or a column named
+``one`` above values ``one``, ``two``, ``one``, is a first row whose
+value genuinely belongs to the column under it, and synthtwin asks
+rather than choosing. Answering ``--first-row names`` costs one run.
+
+Three shapes are the ones to keep in mind when this rule is next
+touched. ``region,2019,2020,2021`` above ``r1,1,2,3`` is an ordinary
+pivoted year table and must go through: 2019 is nowhere near the range
+those columns cover. ``P001,34`` above ``P002,35`` must stop: 34 sits
+one step from the only number under it. ``age,B10`` above ``31,B01``
+... ``49,B19`` must go through: ``B10`` does appear below, but exactly
+once, in a column of one-off codes, which is a coincidence and not
+membership of anything.
 
 ENCODINGS AND BYTE-ORDER MARKS
 ==============================
@@ -175,6 +248,24 @@ FIELD_SIZE_LIMIT = 10_000_000
 _PRIMARY_ENCODING = "utf-8-sig"
 _FALLBACK_ENCODING = "latin-1"
 
+# How far outside the range of a column's own numbers the first row's
+# number still counts as one of them, as a share of that range's width
+# (`_numeric_fit`). Slack is needed at all because the smallest or
+# largest number of a sorted table sits at the edge of its own column:
+# 34 above 35, 36, 37, 38, 39 is a record and is one step outside the
+# range those five cover.
+#
+# Half a width is where this is drawn, and both ends of the choice were
+# measured against files rather than argued. Below about 0.4 the reader
+# stops seeing 140 above 3, 7, 20, 99 and 101 -- a headerless table
+# whose first record is its largest -- and publishes that record as
+# schema. At a full width it starts asking about ``region,2019,2020``
+# above sales counts in the 1,000-1,600 range, which is an ordinary
+# pivoted year table nobody should be questioned about. Neither
+# neighbouring value is safe, so this one is not a knob to turn without
+# running both shapes again.
+_NEARBY_SHARE_OF_THE_RANGE = 0.5
+
 # How many wrong-length rows are named in a refusal message.
 _MAX_REPORTED_OFFENDERS = 3
 
@@ -201,12 +292,34 @@ _BYTE_ORDER_MARKS = (
     "\xff\xfe",
 )
 
-# What one column's data values say about the first row's value in that
-# column.
-_CONTRADICTS = "contradicts"
-_FITS_STRONGLY = "fits-strongly"
-_FITS_WEAKLY = "fits-weakly"
-_SAYS_NOTHING = "says-nothing"
+# The evidence sentence for a first row the caller settled rather than
+# the file. Both are published on the Table so a later reader of the
+# profile can see how the column names were arrived at.
+_SAID_NAMES = (
+    "The first row was read as the column names because the command was "
+    "run with --first-row names."
+)
+_SAID_DATA = (
+    "The first row was read as the first record because the command was "
+    "run with --first-row data, so the columns were named column_1, "
+    "column_2, and so on and every record was kept."
+)
+
+# The sentence for outcome 3 of the module docstring: the first row was
+# taken as the names because a CSV file is normally written that way and
+# nothing in this one said otherwise. It claims no evidence, says so in
+# as many words, and carries the way to take it back. A person who reads
+# only this sentence has been told everything synthtwin assumed.
+_TAKEN_BY_CONVENTION = (
+    "The first row was read as the column names by convention, not by "
+    "evidence: a CSV file is normally written with its column names "
+    "first, and nothing in this file contradicted that -- no value in "
+    "the first row belongs among the values of the column below it. "
+    "synthtwin did not check that those values ARE names, because no "
+    "such check exists. If that row is really the first record, run the "
+    "command again with --first-row data: the columns are then named "
+    "column_1, column_2, and so on and every record is kept."
+)
 
 
 @dataclasses.dataclass(frozen=True)
@@ -223,6 +336,22 @@ class Table:
     the names were made up (``column_1``, ``column_2``, ...). Downstream
     code that shows column names to a person must say which of the two
     it is looking at.
+
+    ``header_evidence`` is that same verdict in words: one sentence
+    naming what in the file, or what on the command line, settled which
+    row the names are in. It is written for a person to read and belongs
+    beside ``header_source`` wherever that is published.
+
+    ``header_by_convention`` is True exactly when the names came from
+    the file's first row because nothing in the file contradicted the
+    usual way of writing a CSV -- outcome 3 of this module's docstring
+    -- and not because the caller said so and not because anything was
+    proved. It is the machine-readable half of that one sentence, and
+    it is False for both ``--first-row`` answers. A publisher that shows
+    ``header_source`` must show this beside it: "the names came from the
+    file" and "the names came from the file because we assumed they
+    would" are not the same claim, and review item P1-R6-F6 is about
+    exactly that difference.
     """
 
     column_names: list[str]
@@ -231,6 +360,8 @@ class Table:
     encoding: str
     used_fallback_encoding: bool
     header_source: str
+    header_evidence: str = ""
+    header_by_convention: bool = False
 
 
 @dataclasses.dataclass(frozen=True)
@@ -243,6 +374,8 @@ class _Reading:
     encoding: str
     used_fallback_encoding: bool
     header_source: str
+    header_evidence: str = ""
+    header_by_convention: bool = False
 
 
 def _has_zero_byte(text: str) -> bool:
@@ -268,247 +401,174 @@ def _starts_with_a_byte_order_mark(text: str) -> bool:
     return False
 
 
-def _signature(text: str) -> str:
-    """The shape of one value: digits become 9, ASCII letters become A.
-
-    Everything else stands for itself, so ``P001`` becomes ``A999``,
-    ``site-1`` becomes ``AAAA-9`` and ``2024-03-17`` becomes
-    ``9999-99-99``. Two values share a signature exactly when they have
-    the same length and, at every position, a digit faces a digit, an
-    ASCII letter faces an ASCII letter, and anything else faces the same
-    character. Nothing here depends on a locale.
-    """
-    if not isinstance(text, str):
-        raise TypeError("internal check: a cell value was not text")
-    out = ""
-    for character in text:
-        if "0" <= character <= "9":
-            out = out + "9"
-        elif ("a" <= character <= "z") or ("A" <= character <= "Z"):
-            out = out + "A"
-        else:
-            out = out + character
-    return out
-
-
-def _matches_signature(text: str, signature: str) -> bool:
-    """True when ``text`` has exactly the shape ``signature`` describes.
-
-    The same relation `_signature` defines, decided without building a
-    string: the length settles most values at once, and the first
-    position that disagrees ends the comparison. On a table of 200,000
-    rows that is the difference between a quarter of a second and a
-    tenth of one.
-    """
-    if not isinstance(text, str):
-        raise TypeError("internal check: a cell value was not text")
-    if not isinstance(signature, str):
-        raise TypeError("internal check: a signature was not text")
-    if len(text) != len(signature):
-        return False
-    for index in range(len(text)):
-        character = text[index]
-        marker = signature[index]
-        if marker == "9":
-            if not ("0" <= character <= "9"):
-                return False
-        elif marker == "A":
-            if not (("a" <= character <= "z") or ("A" <= character <= "Z")):
-                return False
-        elif character != marker:
-            return False
-    return True
-
-
-def _shared_signature(values: list[str]) -> "str | None":
-    """The one signature every value in ``values`` has, or None.
-
-    Returns None for an empty list and for any column whose values do
-    not all have the same shape.
-    """
-    if not values:
-        return None
-    first = _signature(f"{values[0]}")
-    for value in values:
-        if not _matches_signature(f"{value}", first):
-            return None
-    return first
-
-
-def _every_value_is_a_number(values: list[str]) -> bool:
-    """True when every value reads as a number (or as one out of range)."""
-    if not values:
-        return False
-    for value in values:
-        if parsing.classify_number(f"{value}") == parsing.NOT_A_NUMBER:
-            return False
-    return True
-
-
-def _class_signature(text: str) -> str:
-    """The shape of one value with runs of one kind collapsed to one mark.
-
-    ``P001`` and ``P12345`` both become ``A9``; ``7`` and ``12`` both
-    become ``9``; ``region`` becomes ``A`` and ``r1`` becomes ``A9``.
-    Only digits and ASCII letters collapse; every other character
-    stands for itself and repeats of it are kept, so ``a--b`` becomes
-    ``A--A``.
-    """
-    if not isinstance(text, str):
-        raise TypeError("internal check: a cell value was not text")
-    out = ""
-    previous = ""
-    for character in text:
-        if "0" <= character <= "9":
-            marker = "9"
-        elif ("a" <= character <= "z") or ("A" <= character <= "Z"):
-            marker = "A"
-        else:
-            marker = character
-            previous = ""
-            out = out + marker
-            continue
-        if marker != previous:
-            out = out + marker
-        previous = marker
-    return out
-
-
-def _shared_class_signature(values: list[str]) -> "str | None":
-    """The one class signature every value in ``values`` has, or None."""
-    if not values:
-        return None
-    first = _class_signature(f"{values[0]}")
-    for value in values:
-        if _class_signature(f"{value}") != first:
-            return None
-    return first
-
-
-def _shape_verdict(name: str, values: list[str]) -> str:
-    """What one column's SHAPE says about the first row's value in it.
-
-    A CONTRADICTION is decided on the class signature, which ignores how
-    LONG a run of digits or letters is. Deciding it on the exact
-    signature was wrong: an ordinary record can differ from its own
-    column in length alone -- ``7`` above ``12``, ``13``, ``14`` -- and
-    reading that as proof of a header dropped the record.
-    """
-    shared_class = _shared_class_signature(values)
-    if (
-        shared_class is not None
-        and "9" in shared_class
-        and _class_signature(f"{name}") != shared_class
-    ):
-        return _CONTRADICTS
-    shared = _shared_signature(values)
-    if shared is None:
-        return _SAYS_NOTHING
-    digits = "9" in shared
-    if not _matches_signature(f"{name}", shared):
-        return _SAYS_NOTHING
-    if not digits:
-        return _SAYS_NOTHING
-    if shared == "9" * len(shared):
-        return _FITS_WEAKLY
-    return _FITS_STRONGLY
-
-
 def _numeric_fit(name: str, values: list[str]) -> bool:
     """True when the first row's value is one of this column's own numbers.
 
-    Every data value reads as a number, the first row's value reads as a
-    number too, and that number is not something only a label could be:
-    it either lies inside the range the column's own values cover or is
-    written in the same shape as one of them. A column of years headed
-    ``2019`` over the values 1, 2 and 3 is a label above its column; the
-    value 140 above 99, 20, 7, 101 and 3 is a record among its own kind.
+    The first of the three record rules in the module docstring, and the
+    strongest of them. Every value below reads as a number, the first
+    row's value reads as a number too, and that number lies inside the
+    range those values cover or within _NEARBY_SHARE_OF_THE_RANGE of
+    that range's width of either end of it. ``34`` above ``29``, ``41``
+    and ``38`` is a person's age; read as a column name it becomes
+    schema text, outside every suppression rule, and the person it came
+    from disappears from every count.
 
-    The column is read once. That matters: this is the only question
-    here that touches every value, and it is asked only of a column
-    whose first-row value is itself a number, which is rare.
+    The slack on each side is what makes the rule work on the top and
+    bottom of a sorted table: ``34`` above ``35`` ... ``39`` is the
+    smallest number of its own column, not a label. It stays narrow
+    enough to keep the rule off an ordinary pivoted year table --
+    ``2019`` above values between 101 and 112 is nowhere near them.
+
+    A column whose values cover NO range -- one data row, or one number
+    written over and over -- offers no spread to judge a distance by. A
+    whole number then belongs only if it is that number or the one on
+    either side of it, which is what makes ``P001,34`` above ``P002,35``
+    a question and leaves ``region,2019,...`` above fourteen rows of
+    ``1234`` alone.
+
+    Deleting this rule is what let review round 6's second repair
+    publish ``alice``, ``canada`` and ``34`` as column names.
+
+    The column is read once. That matters: this is the most expensive
+    question this module asks, and it is asked only of a column whose
+    first-row value is itself a number, which is rare.
     """
     if parsing.classify_number(f"{name}") == parsing.NOT_A_NUMBER:
         return False
     if not values:
         return False
-    wanted = _signature(f"{name}")
     mine = parsing.parse_number(f"{name}")
-    matched = False
     lowest = None
     highest = None
+    every_value_is_whole = True
     for value in values:
         text = f"{value}"
         if parsing.classify_number(text) == parsing.NOT_A_NUMBER:
             return False
-        if not matched and _matches_signature(text, wanted):
-            matched = True
         parsed = parsing.parse_number(text)
         if parsed is None:
+            # A well-formed number too large or too small to hold. It
+            # is still a number, so the column is still numeric, but it
+            # cannot take part in a comparison of magnitudes.
             continue
+        if not parsing.is_whole_number(parsed):
+            every_value_is_whole = False
         if lowest is None or parsed < lowest:
             lowest = parsed
         if highest is None or parsed > highest:
             highest = parsed
-    if matched:
-        return True
     if mine is None or lowest is None or highest is None:
         return False
-    return lowest <= mine <= highest
+    spread = highest - lowest
+    if spread == 0.0:
+        if not every_value_is_whole or not parsing.is_whole_number(mine):
+            return mine == lowest
+        return -1.0 <= mine - lowest <= 1.0
+    margin = spread * _NEARBY_SHARE_OF_THE_RANGE
+    return lowest - margin <= mine <= highest + margin
 
 
-def _numbers_contradict(name: str, values: list[str]) -> bool:
-    """True when a column of numbers is headed by something that is not one.
+def _date_fit(name: str, values: list[str]) -> bool:
+    """True when the first row's value is a date among this column's dates.
 
-    The cheap half of the test comes first on purpose: reading every
-    value of a numeric column is the most expensive question this
-    module asks, and it is worth asking only when the first row's value
-    is not a number to begin with.
+    The second record rule. Every value below reads as a date under one
+    of the formats the profiler knows, and the first row's value reads
+    as a date under that same format. A column name is not usually a
+    date, and when it is -- a table pivoted by month -- the values under
+    it are counts rather than dates, so the two halves do not both hold.
+
+    The formats are tried in the profiler's own order, and the first one
+    every value below fits is the one the first row's value is asked
+    about. A single value below that does not fit that format ends the
+    attempt, which keeps a column of dates with one word in it from
+    counting.
     """
-    if parsing.classify_number(f"{name}") != parsing.NOT_A_NUMBER:
+    if not values:
         return False
-    return _every_value_is_a_number(values)
-
-
-def _first_row_is_ambiguous(header: list[str], columns: list[list[str]]) -> bool:
-    """True when the first row could equally be names or a record.
-
-    The rule and the reasoning behind each clause are in the module
-    docstring. One contradiction settles the question; otherwise a
-    strong fit anywhere, or a fit in every column, means synthtwin must
-    ask rather than choose.
-
-    Both kinds of contradiction are tested before any fit is looked at,
-    and the cheaper kind first: a shape is usually decided by the
-    lengths of a column's values alone, while reading every value of a
-    column as a number is the most expensive thing this module does. A
-    table whose shapes already decide the question never runs the
-    second test at all.
-    """
-    fits: list[str] = []
-    for index in range(len(header)):
-        verdict = _shape_verdict(header[index], columns[index])
-        if verdict == _CONTRADICTS:
-            return False
-        fits = fits + [verdict]
-    for index in range(len(header)):
-        if _numbers_contradict(header[index], columns[index]):
-            return False
-    strengthened: list[str] = []
-    for index in range(len(header)):
-        verdict = fits[index]
-        if verdict != _FITS_STRONGLY and _numeric_fit(
-            header[index], columns[index]
-        ):
-            verdict = _FITS_STRONGLY
-        strengthened = strengthened + [verdict]
-    for verdict in strengthened:
-        if verdict == _FITS_STRONGLY:
+    for format_name in parsing.DATE_FORMATS:
+        if parsing.parse_datetime(f"{name}", format_name) is None:
+            continue
+        every_value_fits = True
+        for value in values:
+            if parsing.parse_datetime(f"{value}", format_name) is None:
+                every_value_fits = False
+                break
+        if every_value_fits:
             return True
-    for verdict in strengthened:
-        if verdict == _SAYS_NOTHING:
-            return False
-    return True
+    return False
+
+
+def _repeats_a_value_below(name: str, values: list[str]) -> bool:
+    """True when the first row's value is one this column repeats.
+
+    The third record rule. A value that appears MORE THAN ONCE below the
+    first row is one of the column's own labels -- a place, a category,
+    a yes or a no -- and a first row holding one of them is holding a
+    value of that column.
+
+    "More than once" is what separates membership from coincidence, and
+    it is not a detail. A column of one-off codes ``B01`` ... ``B19``
+    under a column genuinely named ``B10`` matches once and means
+    nothing: every value in such a column is unique, so any text at all
+    might collide with one of them. A column that writes ``site-1``
+    nine times is a column of places, and ``site-1`` above it is a
+    tenth.
+    """
+    if not values:
+        return False
+    wanted = f"{name}"
+    seen = 0
+    for value in values:
+        if f"{value}" == wanted:
+            seen = seen + 1
+            if seen > 1:
+                return True
+    return False
+
+
+def _record_evidence(
+    header: list[str], columns: list[list[str]]
+) -> "str | None":
+    """What shows the first row is a record, in words, or None.
+
+    None means no column of the file shows it. That is NOT evidence for
+    the names reading and is never described as any; the caller takes
+    the first row as the names by convention and says so in those terms
+    (outcome 3 of the module docstring, review item P1-R6-F6).
+
+    The returned words are a clause, ready to be dropped into
+    `errors.first_row_could_be_a_record`. The column is named by its
+    POSITION and nothing is quoted from the file: in a file whose first
+    row may be a record, the first row's text is somebody's data, and
+    the values below it always are.
+
+    The three rules are tried in the order a person would want to hear
+    them, which is also cheapest first for the common case: only a
+    numeric first-row value reaches the walk of a numeric column at all.
+    Each rule stops at the first column that speaks.
+    """
+    for index in range(len(header)):
+        if _numeric_fit(header[index], columns[index]):
+            return (
+                f"in column {index + 1} the value in that row is a number "
+                f"lying among the numbers written below it, which is what "
+                f"a record in that column looks like"
+            )
+    for index in range(len(header)):
+        if _date_fit(header[index], columns[index]):
+            return (
+                f"in column {index + 1} the value in that row is a date, "
+                f"written the same way as every date below it, which is "
+                f"what a record in that column looks like"
+            )
+    for index in range(len(header)):
+        if _repeats_a_value_below(header[index], columns[index]):
+            return (
+                f"in column {index + 1} the value in that row appears "
+                f"again further down the same column, more than once, so "
+                f"it is one of the values that column is made of"
+            )
+    return None
 
 
 def _generated_column_names(width: int) -> list[str]:
@@ -633,9 +693,15 @@ def _read_streamed(
     if first_row == FIRST_ROW_DATA:
         names = _generated_column_names(width)
         source = HEADER_GENERATED
+        evidence = _SAID_DATA
     else:
         names = header
         source = HEADER_FROM_FILE
+        # The caller who said FIRST_ROW_NAMES has settled it already;
+        # FIRST_ROW_AUTOMATIC is settled in `_settle_the_first_row`,
+        # which replaces this sentence with what the file's own values
+        # say, or stops and asks because they say nothing.
+        evidence = _SAID_NAMES
     return _Reading(
         column_names=names,
         columns=columns,
@@ -643,6 +709,7 @@ def _read_streamed(
         encoding=encoding,
         used_fallback_encoding=encoding == _FALLBACK_ENCODING,
         header_source=source,
+        header_evidence=evidence,
     )
 
 
@@ -691,33 +758,21 @@ def _read_authoritatively(
     if not found.n_rows:
         raise errors.ProfileError(errors.no_data_rows(shown))
     if found.header_source == HEADER_FROM_FILE:
-        _check_header(found, shown, first_row)
+        _check_the_names_are_usable(found.column_names)
     return found
 
 
-def _check_header(found: _Reading, shown: str, first_row: str) -> None:
-    """Refuse a first row that cannot be the column names (plan P1-D3).
+def _check_the_names_are_usable(header: list[str]) -> None:
+    """Refuse names no table can carry: a blank one, or one used twice.
 
-    The order is deliberate: a first row that is entirely numbers, and a
-    first row the shape rule cannot tell apart from a record, are
-    questions about WHICH row the names are in, and they are asked
-    before the questions about whether the names themselves are usable.
+    These two run BEFORE the checking pass, and the WHICH-row question
+    runs after it, because pandas rewrites exactly these two: a repeated
+    name comes back as ``a`` and ``a.1``, and a blank one as
+    ``Unnamed: 1``. Compared against the file's own first row, that
+    rewrite reads as the two passes disagreeing about a name, and the
+    person would be sent to look for a file that changed under them
+    rather than at the duplicated name that is really there.
     """
-    header = found.column_names
-    if first_row == FIRST_ROW_AUTOMATIC:
-        numbers = [
-            name for name in header if not parsing.looks_like_a_column_name(name)
-        ]
-        if len(numbers) == len(header):
-            raise errors.ProfileError(
-                errors.header_looks_like_data(
-                    shown, "every value in it reads as a number"
-                )
-            )
-        if _first_row_is_ambiguous(header, found.columns):
-            raise errors.ProfileError(
-                errors.first_row_could_be_a_record(shown, len(header))
-            )
     for position, name in enumerate(header, start=1):
         if not parsing.trimmed(name):
             raise errors.ProfileError(errors.empty_column_name(position))
@@ -730,6 +785,110 @@ def _check_header(found: _Reading, shown: str, first_row: str) -> None:
     repeated = sorted(name for name in seen if seen[name] > 1)
     if repeated:
         raise errors.ProfileError(errors.duplicate_column_names(repeated))
+
+
+def _settle_the_first_row(
+    found: _Reading, shown: str, first_row: str
+) -> "tuple[str, bool]":
+    """Settle WHICH row holds the column names, and say why (plan P1-D3).
+
+    Returns the verdict in words and whether it was reached by
+    convention, both to be published beside the names. Raises
+    ProfileError when the file shows the first row is a record: that
+    refusal is the ASK, and it names both ways for the person to say
+    which reading is right.
+
+    The three outcomes are the module docstring's, in its order: a
+    caller who said which it is settles it; otherwise evidence that the
+    first row is a record stops the run; otherwise the first row is
+    taken as the names by convention, which is the sentence returned
+    and the True this returns beside it.
+
+    What this must never do is describe the third outcome as evidence.
+    Absence of evidence for the record reading is not evidence for the
+    names reading -- there is no such evidence to be had, which is why
+    two attempts to find some failed in opposite directions (review
+    item P1-R6-F6). It is an assumption, it is named as one, and the
+    caller who disagrees has ``--first-row data``.
+
+    It runs after the checking pass, not before it. The question it puts
+    to a person is which reading of the first row is the right one, and
+    a file whose two readers do not agree about a name or a value has no
+    single right reading to choose between -- so that disagreement is
+    reported first, and this question is asked only about a file both
+    readers read the same way.
+    """
+    header = found.column_names
+    if first_row != FIRST_ROW_AUTOMATIC:
+        return found.header_evidence, False
+    numbers = [
+        name for name in header if not parsing.looks_like_a_column_name(name)
+    ]
+    if len(numbers) == len(header):
+        raise errors.ProfileError(
+            errors.header_looks_like_data(
+                shown, "every value in it reads as a number"
+            )
+        )
+    spoken = _record_evidence(header, found.columns)
+    if spoken is not None:
+        raise errors.ProfileError(
+            errors.first_row_could_be_a_record(shown, len(header), spoken)
+        )
+    shown_by = _names_evidence(header, found.columns)
+    if shown_by is not None:
+        return shown_by, False
+    return _TAKEN_BY_CONVENTION, True
+
+
+def _names_evidence(
+    header: list[str], columns: list[list[str]]
+) -> "str | None":
+    """Why the first row is DEMONSTRABLY names, or None if it is not.
+
+    Guarantees:
+
+    - Inputs: the first row, and the values below it by column.
+    - Determinism: depends only on those values.
+    - Errors raised: none.
+    - Boundary: this decides NOTHING about how the file is read. The
+      first row is taken as names either way; this only settles whether
+      that was shown or assumed, so that the summary can stay quiet on
+      a file that shows it and speak on a file that does not. A wrong
+      answer here costs a sentence, never a record.
+
+    The one thing a file can actually show: a column whose values are
+    all of one kind -- all numbers, or all dates -- with a first-row
+    value that is not of that kind. Nothing else counts. A value that
+    merely looks different from its neighbours proves nothing, which is
+    what defeated the two attempts that tried to use it (P1-R6-F6).
+    """
+    for position, name in enumerate(header):
+        if position >= len(columns):
+            break
+        # No method call on an untraced value: every element is forced to
+        # text by an f-string first, and a blank cell is compared, not
+        # trimmed. A whitespace-only cell therefore reads as "not a
+        # number", so a column holding one yields no evidence and the
+        # header is taken by convention -- the conservative side, and it
+        # costs a sentence rather than a record.
+        present = [
+            f"{value}" for value in columns[position] if f"{value}" != ""
+        ]
+        if len(present) < 2:
+            continue
+        if parsing.classify_number(f"{name}") != parsing.NOT_A_NUMBER:
+            continue
+        every_value_is_a_number = True
+        for value in present:
+            if parsing.classify_number(f"{value}") == parsing.NOT_A_NUMBER:
+                every_value_is_a_number = False
+        if every_value_is_a_number:
+            return (
+                f"column {position + 1} holds a number in every row below "
+                "it, and its first-row value is not a number"
+            )
+    return None
 
 
 def _file_size(table_path: pathlib.Path) -> int:
@@ -761,14 +920,27 @@ def read_table(raw_path: str, first_row: str = FIRST_ROW_AUTOMATIC) -> Table:
       the shape. A single difference anywhere is a refusal. Equal row
       and column counts are NOT accepted as agreement (review item
       P1-R1-F4).
-    - Header: the first row becomes the column names only when the rule
-      in this module's docstring says so or the caller said so. A first
-      row that could be a record is refused, never silently turned into
-      schema (review item P1-R1-F5). WHAT THIS DOES NOT CATCH: a
-      headerless file whose every column has values of differing shapes
-      and whose first row is not entirely numeric -- free text over free
-      text -- is still read as headed. The rule sees shape, and such a
-      file has none to see.
+    - Header: three outcomes, in this order (the module docstring gives
+      the reasoning and the rules). A caller who passed
+      FIRST_ROW_NAMES or FIRST_ROW_DATA settles it, in both directions,
+      with no question asked. Otherwise, if the file shows the first row
+      is a RECORD -- in any column its value is a number lying among
+      that column's numbers, a date among that column's dates, or a
+      value the column repeats below it -- the read stops and asks,
+      offering ``--first-row names`` and ``--first-row data``, and
+      nothing is read or written (review items P1-R1-F5, P1-R6-F6).
+      Otherwise the first row is taken as the column names BY
+      CONVENTION, which is how a CSV file is normally written; that is
+      an assumption and is published as one, as
+      ``header_by_convention`` True and as one plain sentence in
+      ``header_evidence`` that says the names were taken by convention
+      and that ``--first-row data`` re-reads the row as a record. No
+      claim of evidence for the names reading is ever made, because
+      none can be: there is nothing about a value that makes it a name.
+      Whichever way it is settled, the returned Table carries
+      ``header_source``, ``header_evidence`` and
+      ``header_by_convention``, and a publisher must show the second
+      and third beside the first.
     - Memory: NOT bounded, and this is the honest statement of it
       rather than the streaming claim P1-D3 used to make. The
       authoritative pass genuinely holds one row at a time, but what it
@@ -848,6 +1020,13 @@ def read_table(raw_path: str, first_row: str = FIRST_ROW_AUTOMATIC) -> Table:
         raise errors.ProfileError(
             errors.out_of_memory(shown, _file_size(table_path))
         ) from error
+    if found.header_source == HEADER_FROM_FILE:
+        spoken, by_convention = _settle_the_first_row(found, shown, first_row)
+        found = dataclasses.replace(
+            found,
+            header_evidence=spoken,
+            header_by_convention=by_convention,
+        )
     return Table(
         column_names=found.column_names,
         columns=found.columns,
@@ -855,6 +1034,8 @@ def read_table(raw_path: str, first_row: str = FIRST_ROW_AUTOMATIC) -> Table:
         encoding=found.encoding,
         used_fallback_encoding=found.used_fallback_encoding,
         header_source=found.header_source,
+        header_evidence=found.header_evidence,
+        header_by_convention=found.header_by_convention,
     )
 
 
