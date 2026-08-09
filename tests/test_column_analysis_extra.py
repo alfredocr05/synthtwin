@@ -37,17 +37,27 @@ def whole_block(described: taxonomy.ColumnProfile) -> str:
 # -- F1: the category rule must not steal a column of measurements ----
 
 
-@pytest.mark.parametrize("stragglers", [1, 2, 3, 5, 20])
+@pytest.mark.parametrize("stragglers", [0, 1])
 def test_a_repeating_numeric_column_keeps_its_distribution(
     stragglers: int,
 ) -> None:
-    """RULE 8 sits between the two numeric rules.
+    """Corrected for the one numeric line (review item P1-R6-F7).
 
-    One hundred ages that REPEAT, plus a few cells that do not read as
-    numbers. RULE 7 wants 99 per cent, so more than one straggler drops
-    the column past it; without a guard RULE 8 then claims it, every one
-    of its 23 levels falls below the small-cell floor, and the profile
-    carries no percentile, no mean, no minimum and no label at all.
+    The original case is unchanged where it still holds: one hundred
+    ages that REPEAT, plus a cell or two that do not read as numbers,
+    must be described as numbers rather than swallowed by the category
+    rule -- which under the deleted rule made all 23 levels fall below
+    the small-cell floor and left the profile with no percentile, no
+    mean, no minimum and no label at all.
+
+    What changed is where "a few" stops. The old parametrization ran to
+    twenty stragglers and required a published distribution for all of
+    them, which only the deleted majority rule gave: at twenty of a
+    hundred and twenty, a published mean would be computed from five
+    sixths of the column with the rest in no distribution at all. One
+    straggler in a hundred and one is inside the plan's line and two in
+    a hundred and two are not, so the cases inside it are kept here and
+    the ones outside it are the test below.
     """
     ages = [str(20 + (index % 21)) for index in range(100)]
     described = describe(ages + [f"refused{n}" for n in range(stragglers)])
@@ -58,8 +68,24 @@ def test_a_repeating_numeric_column_keeps_its_distribution(
     assert described.details["n_left_out_of_statistics"] == stragglers
 
 
+@pytest.mark.parametrize("stragglers", [2, 3, 5, 20])
+def test_too_many_stragglers_publish_nothing_and_say_why(
+    stragglers: int,
+) -> None:
+    # Past the line the column is not described as numbers, and the
+    # remark carries both readings and the count each one reached, so
+    # the person can see the arithmetic that declined it.
+    ages = [str(20 + (index % 21)) for index in range(100)]
+    described = describe(ages + [f"refused{n}" for n in range(stragglers)])
+    assert described.role == taxonomy.ROLE_TEXT
+    assert "percentiles" not in described.details
+    said = " ".join(described.remarks)
+    assert f"100 of the {100 + stragglers} values are written as numbers" in said
+    assert "read that way" in said
+
+
 def test_a_small_set_of_numeric_codes_is_still_a_set_of_categories() -> None:
-    """The neighbour on the other side of the new guard."""
+    """A column of labels that happen to be digits, below the line."""
     described = describe(["1", "2", "3"] * 30 + ["unknown"] * 5)
     assert described.role == taxonomy.ROLE_CATEGORICAL
     assert [level["label"] for level in described.details["levels"]] == [
@@ -67,52 +93,89 @@ def test_a_small_set_of_numeric_codes_is_still_a_set_of_categories() -> None:
     ]
 
 
-def test_the_numeric_category_guard_reads_the_column_not_the_table() -> None:
-    """The guard must not reintroduce the subsample flip."""
+def test_the_category_ceiling_is_a_share_of_the_values_present() -> None:
+    """Corrected from `test_the_numeric_category_guard_reads_the_...`.
+
+    The guard this pinned -- a cap of twelve on mostly numeric columns,
+    between two numeric rules -- is deleted with the second numeric rule
+    (review item P1-R6-F7). The ceiling that decides the role now is the
+    plan's: a tenth of the values present, never more than 1000 and
+    never fewer than 2. Seven different values are a set of categories
+    in a hundred and four rows and are not in fifty-two, and the shorter
+    column publishes nothing rather than a part of itself.
+    """
     codes = [str(index) for index in range(6)]
     short = describe((codes * 10)[:50] + ["unknown"] * 2)
     long = describe((codes * 20)[:100] + ["unknown"] * 4)
-    assert short.role == long.role == taxonomy.ROLE_CATEGORICAL
+    assert long.role == taxonomy.ROLE_CATEGORICAL
+    assert short.role == taxonomy.ROLE_TEXT
+    assert "levels" not in short.details
 
 
 # -- F2: a percentile ladder must rest on the cells it is computed from
 
 
 def test_a_ladder_is_never_built_from_a_handful_of_cells() -> None:
-    """`numeric_looking` counts cells that contribute nothing to a rung.
+    """A ladder must rest on the cells it is computed from.
 
-    Fifty cells no format can hold, ONE real number and forty-nine
-    notes clears the majority gate, so the column was described as a
-    count whose eleven rungs were all one row's exact value.
+    Fifty cells no format can hold, ONE real number and forty-nine notes
+    cleared the deleted majority rule, so the column was described as a
+    count whose eleven rungs were all one row's exact value. With one
+    line at 0.99 (review item P1-R6-F7) the column is not written as
+    numbers often enough to be named for them either, so it lands on
+    free text -- which publishes no value and no ladder. The property
+    the test exists for is unchanged: no rung of any ladder is ever that
+    one row's value.
     """
     values = (
         ["1e999"] * 50 + ["7"] + [f"note {index} here" for index in range(49)]
     )
     described = describe(values)
-    assert described.role == taxonomy.ROLE_UNREPRESENTABLE
+    assert described.role == taxonomy.ROLE_TEXT
     assert "percentiles" not in described.details
     assert "7" not in whole_block(described).replace('"7"', "")
 
 
 def test_the_unrepresentable_evidence_states_what_the_column_shows() -> None:
-    values = ["1e999"] * 50 + [f"a note number {i} written out" for i in range(50)]
+    """Fixture corrected for the one line (review item P1-R6-F7).
+
+    The sentence under test is unchanged and so is the defect it closes:
+    "all 50 of the 100 values are written as numbers" was false whenever
+    fewer than all of them were. The fixture is now a column that
+    reaches the numeric-unrepresentable role under the ratified rule --
+    written as numbers at the parse rate, holdable at nothing like it.
+    """
+    values = ["1e999"] * 99 + ["a note written out in words"]
     described = describe(values)
     assert described.role == taxonomy.ROLE_UNREPRESENTABLE
-    # "all 50 of the 100 values are written as numbers" was false.
-    assert "all 50 of the 100" not in described.detection_evidence
-    assert "50 of the 100 values are written as numbers" in (
+    assert "all 99 of the 100" not in described.detection_evidence
+    assert "99 of the 100 values are written as numbers" in (
         described.detection_evidence
     )
 
 
-def test_a_majority_numeric_column_still_keeps_its_distribution() -> None:
-    """The neighbour: enough representable numbers to describe."""
+def test_a_majority_numeric_column_publishes_nothing_and_says_why() -> None:
+    """Corrected from `test_a_majority_numeric_column_still_keeps_...`.
+
+    This is the reviewer's own worst example in review item P1-R6-F7:
+    sixty numbers beside forty two-word notes were published with role
+    `count`, `min: 0`, `max: 59` and `mean: 29.5`, with forty cells left
+    out of the distribution and named nowhere in the profile. The old
+    test required exactly that. The column now publishes nothing, and
+    the remark names both readings and how far each one got.
+    """
     described = describe(
         [str(index) for index in range(60)]
         + [f"note {index} here" for index in range(40)]
     )
-    assert described.role == taxonomy.ROLE_COUNT
-    assert described.details["n_used_in_statistics"] == 60
+    assert described.role == taxonomy.ROLE_TEXT
+    assert "percentiles" not in described.details
+    assert "mean" not in described.details
+    assert described.n_numeric == 60
+    said = " ".join(described.remarks)
+    assert "60 of the 100 values are written as numbers" in said
+    assert "none of them reads as a date" in said
+    assert "at least 99 of them read that way" in said
 
 
 # -- F3: one UTC offset, one floor ------------------------------------
@@ -138,18 +201,26 @@ def test_an_offset_above_the_floor_is_still_named() -> None:
     assert described.details["latest_utc_offset"] == "+05:45"
 
 
-# -- F4: the fixed-width rule must read one text ----------------------
+# -- F4: nothing is routed by the width of its text -------------------
 
 
-def test_one_stray_space_does_not_undo_the_fixed_width_rule() -> None:
-    """Two predicates read the trimmed cell, one read the raw one."""
-    described = describe([" 00501", "02139", "52242"] * 20)
-    assert described.role == taxonomy.ROLE_CATEGORICAL
-    assert described.details["fixed_width_code"] is True
-    assert [level["label"] for level in described.details["levels"]] == [
-        "00501", "02139", "52242",
-    ]
-    assert "percentiles" not in described.details
+def test_a_stray_space_changes_nothing_now_the_width_rule_is_gone() -> None:
+    """Corrected from `test_one_stray_space_does_not_undo_the_fixed_...`.
+
+    The old test pinned a repair to the fixed-width-code rule: two of
+    its predicates read the trimmed cell and one read the raw one, so a
+    single stray space handed the column to the numeric rule with its
+    padding gone. Review item P1-R6-F7 deletes the rule outright --
+    nothing may be routed by the WIDTH of its text -- so the defect it
+    repaired cannot happen. What is worth keeping is the other half:
+    surrounding whitespace changes nothing about how a column is read,
+    which is what the plan (P1-D4) requires of every numeric shape.
+    """
+    padded = describe([" 00501", "02139", "52242"] * 20)
+    plain = describe(["00501", "02139", "52242"] * 20)
+    assert padded.role == plain.role == taxonomy.ROLE_COUNT
+    assert padded.details["percentiles"] == plain.details["percentiles"]
+    assert "fixed_width_code" not in padded.details
 
 
 # -- F5: the free-text remark must not misdirect a measurement --------

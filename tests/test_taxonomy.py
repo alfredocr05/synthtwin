@@ -186,16 +186,29 @@ def test_a_few_stragglers_do_not_stop_a_column_being_numbers() -> None:
     assert any("are not numbers" in remark for remark in described.remarks)
 
 
-def test_a_column_that_is_mostly_numbers_keeps_its_distribution() -> None:
-    # Before the redesign, ten stray words turned ninety measurements
-    # into free text and the distribution was lost. The column now keeps
-    # a numeric role and reports the remainder as a structured count
-    # rather than in prose (review items P1-R1-F8, P1-R4-F2).
+def test_a_column_that_is_only_mostly_numbers_publishes_nothing() -> None:
+    """Corrected from `test_a_column_that_is_mostly_numbers_keeps_...`.
+
+    The old test required ninety numbers beside ten stray words to be
+    described as numbers -- the undocumented majority rule. Review item
+    P1-R6-F7 settles the policy at one line, the plan's 0.99: a column
+    described as numbers on the strength of ninety of its hundred values
+    publishes a mean, a smallest and a largest value computed from the
+    ninety while the other ten are in no distribution at all, which is a
+    column dropped, miscast and approximated at once. The column now
+    publishes nothing and says why, and the counts the old test cared
+    about are still there, on the free-text role, because they are
+    fields of ColumnProfile rather than of a branch.
+    """
     values = [str(index) for index in range(90)] + ["word"] * 10
     described = describe(values)
-    assert described.role in (taxonomy.ROLE_COUNT, taxonomy.ROLE_CONTINUOUS)
+    assert described.role == taxonomy.ROLE_TEXT
     assert described.n_not_numeric == 10
     assert described.n_numeric == 90
+    assert "percentiles" not in described.details
+    said = " ".join(described.remarks)
+    assert "90 of the 100 values are written as numbers" in said
+    assert "only when at least 99 of them read that way" in said
 
 
 def test_a_small_set_of_labels_is_categorical() -> None:

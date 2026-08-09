@@ -127,8 +127,18 @@ def test_nothing_that_varies_between_runs_is_written(
 # transcribed from the implementation cannot check it. The oracle is
 # tests/test_numeric_reference.py, whose values are computed by exact
 # rational arithmetic in a script that imports none of this code.
+#
+# Re-recorded once for review item P1-R6-F7 and P1-R6-F9. What moved is
+# the `settings` block and nothing else: four thresholds that named
+# deleted rules are gone (`numeric_majority`, `categorical_repetition`,
+# `categorical_numeric_ceiling`, `code_minimum_width`), three that name
+# the ratified ones are new (`categorical_share`, `categorical_floor`,
+# `declaration_matching`), and the two pooled-beyond-the-cap counts left
+# the level block with the cap that could no longer fill them. Every
+# column of this fixture keeps the role, the counts and the statistics
+# it had before, which is what the table above is checked for.
 GOLDEN_SHA256 = (
-    "7529439828812def8938f60caac03757d675c55e9b4cddb0cef50db7361d97cf"
+    "a1ed4488a571c1fc104f3a0080ad5730ee274be510902e9ce51958fe15125544"
 )
 
 

@@ -1,5 +1,13 @@
 # Phase 1 — The profiler: reading and automatic type analysis
 
+**Status:** revision 3 — the implemented plan, after review rounds 1-6.
+Revision 3 records the round-6 outcome: identifier inference WITHDRAWN
+(P1-D4 item 8), one taxonomy policy replacing two contradictory ones
+(P1-D4), the first-row convention confirmed by the owner on 2026-08-09,
+the sentinel options exposed on the command line (P1-D6), and three
+residuals stated as accepted limits (P1-D8.1). Revision 2 recorded the
+round-5 redesign, described below.
+
 **Status:** revision 2 — the implemented plan, after review rounds 1-5.
 Revision 2 records the round-5 redesign: the retired conditioning limit
 (P1-D11), the reordered taxonomy with `numeric_unrepresentable` and
@@ -264,25 +272,67 @@ description fits, which is what "identifier" actually means.
    deviation, skewness, and `n_zero` / `n_negative` as COUNTS against the
    real row count (the counts-not-shares lesson), plus the real row count
    as a first-class field.
-7. **categorical** — distinct count `<= min(1000, 10% of rows)`, with a
-   floor of 2 so that tiny tables still have a categorical path. The
-   profile records value counts with the small-cell floor applied
-   (P1-D6); case-variant labels are recorded as distinct and flagged in
-   the summary.
-8. **identifier** — reached only when every rule above declined the
-   column: it does not read as numbers or dates, it is not constant,
-   binary or categorical, and `distinct >= ceil(0.95 * present)` with
-   every value a single word. Testing it here rather than third means
-   the all-different measurement column, the column of event dates and
-   the column of sentences have each already been described properly
-   before uniqueness is ever consulted. The irreducible case (a record
-   number written as digits) is still settled by the person who knows
-   the table, through `--identifier`, and a numeric column whose values
-   are all different still carries that option in its remarks.
-   Identifier VALUES are never published: the profile records the role,
-   the counts, the min/max length, and whether the values are whole
-   numbers; the twin will generate neutral placeholder identifiers
-   (Phase 2's job).
+7. **categorical** — distinct present values (after trimming and
+   Unicode case folding) `<= max(2, min(1000, a tenth of the table's
+   ROWS))`. The profile records value counts with the small-cell floor
+   applied (P1-D6); case-variant labels are recorded as distinct and
+   flagged in the summary. Above the ceiling the column is free text,
+   which publishes nothing, and its remark names the distinct count and
+   the ceiling that declined it.
+
+   **The share is over rows, not over the values the column holds**
+   (settled at review round 6). Measuring it over present values would
+   punish a column for being sparse: a 100-row table whose coded field
+   is filled in 30 times with 6 labels would get a ceiling of 3 and
+   publish nothing, though 6 labels in 100 rows is an ordinary shape and
+   the small-cell floor already governs which of them may be shown.
+
+   **The floor of 2 almost never binds, and the earlier claim that it
+   "gives tiny tables a categorical path" was wrong.** Where the floor
+   is the ceiling, at most two distinct values are allowed — and one
+   distinct value is already `constant` and two are already `binary`,
+   both tested earlier. So the floor changes no outcome except to keep
+   the ceiling a positive number. It is kept for that reason and for no
+   other. Small tables are protected by the small-cell floor instead: in
+   a 20-row table every label is shared by too few rows to be published
+   whichever role the column lands on.
+8. **identifier** — **never inferred. Reached only through
+   `--identifier` (revision 3, review round 6).** No rule reads the
+   values and concludes that a column holds record numbers.
+
+   Three designs tried and failed: uniqueness plus three guards
+   (revision 1), demotion to second-to-last so uniqueness is only a last
+   resort (revision 2), and requiring every value to carry a letter
+   (round 6). The third was defeated in one line — `1mg` contains
+   letters, so a column of measured amounts written with their unit was
+   still read as record numbers and lost its distribution. The reason none of them can work is not that
+   the rule was not clever enough: `1mg` and `code1` are the same string
+   structurally, and what separates a measurement from a label is what
+   the column MEANS, which only the person who owns the table knows.
+
+   The guess also had no upside. Guessed right, the identifier role
+   publishes nothing useful; guessed wrong, it destroys a distribution.
+   So it is withdrawn, and the cost is one option on the command line.
+
+   A column that would once have been inferred now falls to whatever
+   positive rule accepts it, and to free text if none does. Free text
+   publishes NO values, so the conservative outcome is also the safe
+   one, and the column carries a remark saying its values are all
+   different, that synthtwin did not assume they are record numbers,
+   that nothing from it is published either way, and that
+   `--identifier NAME` declares it.
+
+   When declared, identifier VALUES are never published: the profile
+   records the role, the counts, the min/max length, and whether the
+   values are whole numbers; the twin will generate neutral placeholder
+   identifiers (Phase 2's job).
+
+   **Obligation this moves to Phase 2, recorded here so it is not
+   discovered later:** an undeclared key column now arrives as free text
+   rather than as identifier, so Phase 2 must generate all-different
+   values from `n_distinct == n_present` — published on every role —
+   rather than from the role name. Without that, twins of key columns
+   silently contain duplicates.
 9. **free text** — everything else. Values are NEVER published: the
    profile records length statistics and token-count statistics only,
    and the summary says so in plain language.
@@ -429,6 +479,52 @@ code path that raises it.
   whose text origin was not established must each fail the scan.
 - The decontamination scanner runs unchanged; profiler fixtures use
   neutral vocabulary by construction.
+
+## P1-D8.1 Residuals: limits accepted, not work outstanding
+
+Three things below are settled decisions with a stated cost, recorded so
+that a reader is never told more than the code delivers. They are not a
+backlog.
+
+**R1. The first row is taken by convention when nothing settles it, and
+this is disclosed.** Owner decision, 2026-08-09. A file where nothing
+distinguishes a header row from a first record has no reading that is
+provably right — every rule strict enough to catch such a file also
+interrogates ordinary files, and every rule quiet enough for ordinary
+files also consumes that record. Two repairs proved this by failing in
+opposite directions. synthtwin therefore follows the CSV convention and
+says so: `header_by_convention` in the profile, a plain-language
+paragraph near the top of the summary, and `--first-row data` to take it
+back. **The cost, stated plainly:** a headerless file's first record is
+described as column names and is missing from every count, unless the
+person says otherwise. The alternative — asking on every ordinary file —
+was judged the worse product.
+
+**R2. The offline import scanner is one best-effort layer, and one
+construct class is undecided.** This is Phase 0 Amendment A3 applied to
+Phase 1, not a new concession. Five repairs at the same class each
+closed the demonstrated statement and were defeated one construct over,
+which matches what the Phase 0 review already proved: a fully closed
+static call-target model is not possible in Python. Trust decisions are
+now **position-blind** — the origin set of a name is every binding it
+takes anywhere in the enclosing scopes, and trust requires all of them
+to be the allowed API — which over-refuses some safe programs on
+purpose, because a refusal costs a contributor one edit and a wrongly
+granted trust costs a user their data silently. **What remains
+undecided, precisely:** READING an attribute of a value the audit cannot
+trace is accepted (`thing.anything.at.all` scans clean), because Python
+runs the object's own property on such a read. Method CALLS on untraced
+values are refused, and the restricted library's attributes are an
+enumerated list checked position-blind. This reaches the
+caller-supplied-code residual already accepted in SECURITY.md, but it
+reaches it WITHOUT A CALL, which that text did not say and now must.
+The control that actually holds is not this scanner: it is the run-time
+`validate_local_path` applied immediately before the reader is handed a
+path.
+
+**R3. The project wheel's own digest is not verified in the documented
+institutional install.** It cannot be, before a release exists to have a
+digest. This closes when Phase 3 publishes one.
 
 ## P1-D9. What Phase 1 honestly does not do
 

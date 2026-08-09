@@ -26,6 +26,49 @@ it: thresholds are named constants recorded in every profile, a column
 that lands close to a threshold is reported as close, and competing
 readings are named in the evidence rather than hidden.
 
+THERE IS ONE LINE FOR THE NUMERIC ROLES AND ONE CEILING FOR THE
+CATEGORY ROLE, and both are the plan's (review item P1-R6-F7).
+
+* A column is described as numbers -- count or continuous -- only when
+  at least `minimum_parse_rate` (0.99) of its present values read as
+  numbers this format can hold. A second, lower line stood beside it
+  through round 6: a column that was merely a MAJORITY numbers kept a
+  published distribution. Sixty numbers beside forty two-word notes
+  were then published with role `count`, a mean computed over the
+  sixty, and the other forty left out of the distribution and named
+  nowhere in it -- a column dropped, miscast and approximated at once,
+  which is the one outcome charter principle 5 forbids. That line is
+  deleted. A column below 0.99 is described as free text, which
+  publishes no value at all, and carries a remark naming every reading
+  that was tried and how much of the column each one read.
+* A column is described as a set of categories only when the number of
+  different values it holds, after trimming and case folding, is at
+  most `min(categorical_ceiling, categorical_share of the present
+  values)`, never below `categorical_floor`. The rule that stood here
+  through round 6 -- an average repetition of two, with a separate cap
+  of twelve on mostly numeric columns -- called forty different labels
+  in a hundred rows a set of categories and published the one that
+  cleared the floor. Real labels crossing the privacy boundary is the
+  direction to be conservative in, so the plan's ceiling is what is
+  implemented.
+* NOTHING IS ROUTED BY THE WIDTH OF ITS TEXT. A rule that read
+  same-width digit strings carrying a leading zero as codes ran ahead
+  of the dates and the numbers until the same review item; it is
+  deleted, and such a column now lands where the ordinary rules put it.
+
+WHAT THE PERSON RUNNING THE TOOL DECLARES HAS THE LAST WORD, and one
+rule says what a declaration matches (review item P1-R6-F9):
+
+* a declared value that READS AS A NUMBER this format can hold matches
+  every cell holding that EXACT NUMBER, whatever either of them is
+  spelled like: `--keep-value -999` covers a file that writes
+  `-999.00`, which is the whole reason the comparison is on the number;
+* a declared value that does not read as such a number matches by
+  SPELLING, after trimming and case folding: `--keep-value NA` covers
+  `na` and ` NA `, and covers nothing else;
+* the same value named both ways is refused, never resolved. `Settings`
+  raises on it and the command refuses before it reads the table.
+
 THREE STRUCTURAL RULES hold this module together, and each one closes a
 whole family of defects rather than one instance of it.
 
@@ -192,8 +235,18 @@ REASON_OUTLIER_AND_FREQUENT = "outlier_and_frequent"
 REASON_NOT_AN_OUTLIER = "not_an_outlier"
 REASON_TOO_RARE = "too_rare"
 REASON_TOO_FEW_OTHERS = "too_few_other_values"
-REASON_DECLARED_MISSING = "declared_missing_by_you"
 REASON_KEPT_BY_USER = "kept_by_you"
+
+# What a declared value is compared with, recorded inside every profile
+# so that a reader never has to guess which rule removed a value.
+DECLARATION_MATCHING = "exact_number_when_it_reads_as_one_else_spelling"
+
+# What `profile_column` says when one value is named both ways. The
+# command says it in its own words, because it can name the two options
+# the person typed.
+CONTRADICTORY_DECLARATION = (
+    "the same value cannot be both kept as data and read as 'no value'"
+)
 
 
 @dataclasses.dataclass(frozen=True)
@@ -202,6 +255,17 @@ class Settings:
 
     Every one of these travels inside the profile, so a reader of a
     profile never has to guess which version of the rules produced it.
+
+    ONE VALUE NAMED BOTH WAYS IS REFUSED, never resolved. There is no
+    reading of `--keep-value -999 --missing-value -999.0` that is not a
+    guess, and a guess between two contradictory instructions is exactly
+    what a person cannot check afterwards (review item P1-R6-F9). The
+    refusal happens twice, on the two paths that exist: the command
+    refuses it before it opens the table, and `profile_column` raises
+    ValueError before it describes anything. It is not done in a
+    `dataclass` hook because the offline policy accepts no
+    double-underscore name in this source (plan D6.2), so the check is
+    `contradictory_declarations`, called by both.
     """
 
     small_cell_floor: int = 11
@@ -212,49 +276,55 @@ class Settings:
     # pointed at --identifier in case it holds record numbers (review
     # item P1-R6-F8).
     identifier_uniqueness: float = 0.95
-    minimum_parse_rate: float = 0.99
-    # A column that is only MOSTLY numbers is still a column of
-    # numbers. Below this share it is not, and the values that do read
-    # as numbers are not published at all. Between this share and
-    # `minimum_parse_rate` the column keeps its distribution and the
-    # count of values left out is published as a number, not as prose
-    # (review items P1-R1-F8 and P1-R1-F9).
-    numeric_majority: float = 0.50
-    # A set of categories is a set of values that REPEAT. On average
-    # each distinct value must appear at least this many times. This
-    # replaces the old share-of-rows ceiling, which made the same
-    # column categorical in a table and free text in a subsample of it.
-    categorical_repetition: int = 2
-    # A column that is MOSTLY NUMBERS may be described as a set of
-    # categories only when it holds at most this many different values.
-    # RULE 8 sits between the two numeric rules, so without this bound
-    # any column of measurements carrying more than a per-cent of stray
-    # words is claimed by the category rule and, when its levels fall
-    # below the small-cell floor, loses its distribution entirely. The
-    # bound is on the COLUMN's own distinct count, never on the table's
-    # length, so a subsample cannot change the role.
-    categorical_numeric_ceiling: int = 12
-    # The most levels that are ever WRITTEN OUT. This caps the published
-    # list; it no longer decides the role, so a column with one label
-    # more than the cap keeps its distribution instead of collapsing to
-    # text lengths.
-    categorical_ceiling: int = 1000
     # Below this many rows, "every value is different" means nothing --
     # in a short column almost every measurement is all-different -- so
     # nothing is said about it. Like the threshold above, this decides
     # no role: it decides when a sentence is worth printing.
     identifier_minimum_rows: int = 20
-    # The smallest fixed-width all-digit code. One digit is a digit.
-    code_minimum_width: int = 2
+    # THE line for the numeric roles AND for the datetime role, and the
+    # only one. At least this share of the present values must read as
+    # numbers this format can hold before the column is described as
+    # numbers, and at least this share must parse under one date format
+    # before it is described as dates. Applied as a COUNT, never as a
+    # compared share, so no rounding of a division decides a role.
+    #
+    # A second line at half the values stood beside this one until
+    # review item P1-R6-F7 and is deleted: it published a mean over
+    # sixty numbers while dropping forty notes out of the distribution.
+    minimum_parse_rate: float = 0.99
+    # A set of categories is a set of values each shared by many rows.
+    # The most different values one may hold is
+    # `min(categorical_ceiling, categorical_share of the present
+    # values)`, and never fewer than `categorical_floor`, so that a tiny
+    # table still has a categorical path. A column above that ceiling is
+    # described as free text, which publishes nothing, and is told its
+    # own distinct count and the ceiling it passed.
+    categorical_share: float = 0.10
+    categorical_ceiling: int = 1000
+    categorical_floor: int = 2
     sentinel_outlier_iqr_multiple: float = 4.0
     sentinel_minimum_share: float = 0.005
-    # Spellings the person running the tool declared, compared after
-    # trimming and case folding. `kept_values` are real data whatever
-    # the rules would have said (a region genuinely coded `NA`);
+    # What the person running the tool declared with --keep-value and
+    # --missing-value. `kept_values` are real data whatever the rules
+    # would have said (a region genuinely coded `NA`);
     # `declared_missing_values` are "no value" whatever the rules would
-    # have said. `kept_values` wins if a spelling is in both.
+    # have said.
+    #
+    # ONE RULE SAYS WHAT EITHER OF THEM MATCHES, and it is recorded in
+    # `declaration_matching`: a declared value that reads as a number
+    # this format can hold matches every cell holding that EXACT NUMBER,
+    # whatever either is spelled like, so `-999` covers a file that
+    # writes `-999.00`; any other declared value matches by spelling,
+    # after trimming and case folding. Naming one value both ways is
+    # refused when this class is built, never resolved by an order of
+    # precedence nobody can see.
     kept_values: tuple[str, ...] = ()
     declared_missing_values: tuple[str, ...] = ()
+    # The rule above, written into the profile beside the declarations
+    # themselves. A reader of a profile that records fifteen values
+    # removed by a declaration must be able to see WHICH comparison
+    # removed them.
+    declaration_matching: str = DECLARATION_MATCHING
     # A column is reported as borderline when this many values, or
     # fewer, separate it from a different reading. Counting values
     # rather than comparing shares keeps the report meaningful at the
@@ -636,6 +706,20 @@ def _needed(share: float, total: int) -> int:
     whole = int(exact)
     if whole < exact:
         return whole + 1
+    return whole
+
+
+def _at_most(share: float, total: int) -> int:
+    """The largest whole number of values that stays within ``share``.
+
+    The ceiling counterpart of `_needed`, and a count for the same
+    reason: `distinct <= 10% of the values` is decided by comparing two
+    whole numbers, so no rounding of a division decides a role.
+    """
+    exact = share * total
+    whole = int(exact)
+    if whole > exact:
+        return whole - 1
     return whole
 
 
@@ -1121,11 +1205,113 @@ def _numeric_looking(cells: _Cells) -> int:
 # -- missing values ---------------------------------------------------
 
 
-def _declared(value: str, spellings: tuple[str, ...]) -> bool:
-    """True when ``value`` matches one of the user's declared spellings."""
-    folded = parsing.folded(value)
+@dataclasses.dataclass(frozen=True)
+class _Declaration:
+    """One value the person running the tool named, and what it names.
+
+    `value` is the number the declaration holds, and None whenever it
+    holds no number this format can carry. Which of the two it is, is
+    the whole of the matching rule: a declaration that names a number
+    matches cells by that NUMBER and by nothing else; a declaration that
+    names no number matches cells by SPELLING and by nothing else.
+    """
+
+    text: str
+    folded: str
+    value: "float | None"
+
+
+def _declarations(spellings: tuple[str, ...]) -> "list[_Declaration]":
+    """Read each declared value once, into the record the rules compare.
+
+    Guarantees: accepts the spellings a person typed; returns one record
+    per spelling, in the order given. Raises TypeError if handed
+    anything that is not text. No I/O of any kind.
+    """
+    made: list[_Declaration] = []
     for spelling in spellings:
-        if folded == parsing.folded(spelling):
+        held: float | None = None
+        if parsing.classify_number(spelling) == parsing.NUMBER:
+            held = parsing.parse_number(spelling)
+        made += [
+            _Declaration(
+                text=spelling,
+                folded=parsing.folded(spelling),
+                value=held,
+            )
+        ]
+    return made
+
+
+def _same_declaration(one: _Declaration, other: _Declaration) -> bool:
+    """True when two declarations name the same thing, under the one rule."""
+    if one.value is not None and other.value is not None:
+        return one.value == other.value
+    if one.value is None and other.value is None:
+        return one.folded == other.folded
+    return False
+
+
+def contradictory_declarations(
+    kept_values: "tuple[str, ...]", declared_missing_values: "tuple[str, ...]"
+) -> "list[str]":
+    """Every value named BOTH as data and as "no value", said in words.
+
+    A person who writes `--keep-value -999 --missing-value -999.0` has
+    asked for two opposite things about one number, and no order of
+    precedence can turn that into what they meant. The pair is named
+    here so that the caller can refuse it and say which two words
+    clashed (review item P1-R6-F9).
+
+    The comparison is the SAME one that decides what a declaration
+    matches, so a pair this reports is exactly a pair that would have
+    fought over the same cells: `-999` and `-999.00` are one number,
+    `NA` and ` na ` are one spelling, and `-999` and `NA` are neither.
+
+    Guarantees: accepts the two lists of declared values; returns one
+    plain sentence per clashing pair, in the order the kept values were
+    given, and an empty list when nothing clashes. Raises TypeError if
+    handed anything that is not text. No I/O of any kind.
+    """
+    kept = _declarations(kept_values)
+    missing = _declarations(declared_missing_values)
+    named: list[str] = []
+    for one in kept:
+        for other in missing:
+            if not _same_declaration(one, other):
+                continue
+            if one.value is None:
+                how = "the same spelling"
+            else:
+                how = "the same number"
+            named += [
+                (
+                    f"you asked to keep '{one.text}' and to read "
+                    f"'{other.text}' as 'no value', and they are {how}"
+                )
+            ]
+    return named
+
+
+def _declared_spelling(
+    text: str, declarations: "list[_Declaration]"
+) -> bool:
+    """True when a declaration that names no number matches this spelling."""
+    folded = parsing.folded(text)
+    for declaration in declarations:
+        if declaration.value is None and folded == declaration.folded:
+            return True
+    return False
+
+
+def _declared_number(
+    value: "float | None", declarations: "list[_Declaration]"
+) -> bool:
+    """True when a declaration names exactly the number this cell holds."""
+    if value is None:
+        return False
+    for declaration in declarations:
+        if declaration.value is not None and value == declaration.value:
             return True
     return False
 
@@ -1135,18 +1321,34 @@ def _split_missing(
 ) -> "tuple[list[str], list[tuple[str, str]]]":
     """Split values into (present, [(exact spelling, named class), ...]).
 
-    The user has the last word in both directions. A spelling they named
-    with `--keep-value` is data even if it is in the documented table --
+    This is the first of the two steps that apply what the person
+    declared, and it is the step that reads SPELLINGS: it overrules the
+    documented table of missing spellings in both directions. A value
+    named with `--keep-value` is data even though the table lists it --
     a region genuinely coded `NA` is a region, not a hole (review item
-    P1-R1-F7). A spelling they named with `--missing-value` is a hole
-    even if the table does not list it.
+    P1-R1-F7) -- and a value named with `--missing-value` is a hole even
+    though the table does not list it.
+
+    The second step is `_declared_numbers_removed`, which runs on the
+    classified cells, because a declaration that names a NUMBER has to
+    be compared with the number a cell holds rather than with the way it
+    is written. Nothing in the documented table of missing spellings
+    reads as a number -- `tests/test_p1r6f9_declared_values.py` states
+    that as a check of its own -- so no declared number is ever needed
+    here to rescue a value from that table.
+
+    Guarantees: accepts the column's cells as text; returns the values
+    that are present and the pairs that are not, in row order. Raises
+    TypeError if a value is not text. No I/O of any kind.
     """
+    kept = _declarations(settings.kept_values)
+    declared_missing = _declarations(settings.declared_missing_values)
     present: list[str] = []
     missing: list[tuple[str, str]] = []
     for value in values:
-        if _declared(value, settings.kept_values):
+        if _declared_spelling(value, kept):
             present += [value]
-        elif _declared(value, settings.declared_missing_values):
+        elif _declared_spelling(value, declared_missing):
             missing += [(value, parsing.MISSING_DECLARED)]
         elif not parsing.trimmed(value):
             missing += [(value, parsing.MISSING_BLANK)]
@@ -1155,6 +1357,46 @@ def _split_missing(
         else:
             present += [value]
     return present, missing
+
+
+def _declared_numbers_removed(
+    classified: "list[_Cell]", settings: Settings
+) -> "tuple[list[_Cell], list[tuple[str, str]]]":
+    """Take out the cells whose NUMBER the person declared to be missing.
+
+    The second of the two steps, and the one that closes review item
+    P1-R6-F9's second half. It runs on the cells the column was
+    classified into, BEFORE any role is decided and before the numeric
+    sentinels are judged, so a declaration has its say ahead of every
+    rule -- and it compares the number a cell holds, so `-999`,
+    `-999.0`, `-999.00` and `(999)` are one declaration's business
+    whichever of them the file writes.
+
+    A declared number that is KEPT needs nothing here: keeping is the
+    default for any cell that reads as a number, and the one rule that
+    would have removed it -- the numeric-sentinel rule -- asks the same
+    question of the same declarations before it removes anything.
+
+    Guarantees: accepts the classified present cells and the settings;
+    returns the cells that survive, in row order, and the pairs that
+    left. Raises nothing. No I/O of any kind.
+    """
+    declared_missing = _declarations(settings.declared_missing_values)
+    numeric = [
+        declaration
+        for declaration in declared_missing
+        if declaration.value is not None
+    ]
+    if not numeric:
+        return classified, []
+    kept: list[_Cell] = []
+    missing: list[tuple[str, str]] = []
+    for cell in classified:
+        if _declared_number(cell.value, numeric):
+            missing += [(cell.text, parsing.MISSING_DECLARED)]
+        else:
+            kept += [cell]
+    return kept, missing
 
 
 def _missing_maps(
@@ -1230,11 +1472,24 @@ def _sentinel_verdicts(
       published as a level of a binary column (review item P1-R1-F7);
     * the DENOMINATOR is every present value, including the ones that
       do not read as numbers (review item P1-R4-F2);
-    * the user has the last word in both directions.
+    * the person running the tool has the last word, and the last word
+      is compared as a NUMBER. Round 6 turned the candidate into the
+      spelling `-999` and looked for that spelling in the declarations,
+      so `--keep-value -999.0` was not found, the candidate was removed
+      as missing anyway, and the profile published a minimum computed
+      without it -- the exact opposite of what was asked (review item
+      P1-R6-F9). Nothing here spells a candidate to decide anything.
+
+    A candidate declared MISSING never reaches this function: a declared
+    number is taken out of the column by `_declared_numbers_removed`
+    before the cells are counted, so by the time a candidate exists it
+    has already survived every declaration. That is why only the kept
+    side is asked about here.
 
     Returns candidate -> (is missing, reason code, occurrences).
     """
     settings = cells.settings
+    kept = _declarations(settings.kept_values)
     verdicts: dict[float, tuple[bool, str, int]] = {}
     candidates: list[float] = []
     for candidate in parsing.NUMERIC_SENTINELS:
@@ -1249,16 +1504,8 @@ def _sentinel_verdicts(
         occurrences = len(
             [value for value in cells.numbers if value == candidate]
         )
-        spelling = f"{candidate:g}"
-        if _declared(spelling, settings.kept_values):
+        if _declared_number(candidate, kept):
             verdicts[candidate] = (False, REASON_KEPT_BY_USER, occurrences)
-            continue
-        if _declared(spelling, settings.declared_missing_values):
-            verdicts[candidate] = (
-                True,
-                REASON_DECLARED_MISSING,
-                occurrences,
-            )
             continue
         if len(others) < 4:
             verdicts[candidate] = (
@@ -1328,8 +1575,6 @@ class _Levels:
     suppressed_levels: int
     suppressed_rows: int
     suppressed_counts: list[int]
-    levels_beyond_cap: int
-    rows_beyond_cap: int
 
 
 def _levels(counts: dict[str, int], settings: Settings) -> _Levels:
@@ -1346,6 +1591,13 @@ def _levels(counts: dict[str, int], settings: Settings) -> _Levels:
     levels' sizes. Without it a binary column split 1/9 and one split
     5/5 serialise to the same profile, so a generator built from the
     profile alone cannot reproduce either (review item P1-R1-F9).
+
+    There is no "beyond the cap" outcome here any more. `categorical_
+    ceiling` decides the ROLE again, as the plan says (review item
+    P1-R6-F7), so a column that reaches this function holds at most
+    that many different values by construction, and a pair of counts
+    that can only ever be zero is a field a reader has to learn to
+    ignore.
     """
     ordered = [
         label for _rank, label in sorted(
@@ -1356,16 +1608,9 @@ def _levels(counts: dict[str, int], settings: Settings) -> _Levels:
     suppressed_levels = 0
     suppressed_rows = 0
     suppressed_counts: list[int] = []
-    beyond_levels = 0
-    beyond_rows = 0
-    rank = 0
     for label in ordered:
         count = counts[label]
-        rank = rank + 1
-        if rank > settings.categorical_ceiling:
-            beyond_levels = beyond_levels + 1
-            beyond_rows = beyond_rows + count
-        elif count >= settings.small_cell_floor:
+        if count >= settings.small_cell_floor:
             entries += [{"label": label, "count": count}]
         else:
             suppressed_levels = suppressed_levels + 1
@@ -1376,8 +1621,6 @@ def _levels(counts: dict[str, int], settings: Settings) -> _Levels:
         suppressed_levels=suppressed_levels,
         suppressed_rows=suppressed_rows,
         suppressed_counts=sorted(suppressed_counts),
-        levels_beyond_cap=beyond_levels,
-        rows_beyond_cap=beyond_rows,
     )
 
 
@@ -1388,8 +1631,6 @@ def _level_details(levels: _Levels) -> dict[str, object]:
         "suppressed_levels": levels.suppressed_levels,
         "suppressed_rows": levels.suppressed_rows,
         "suppressed_level_counts": levels.suppressed_counts,
-        "levels_beyond_cap": levels.levels_beyond_cap,
-        "rows_beyond_cap": levels.rows_beyond_cap,
     }
 
 
@@ -1495,6 +1736,35 @@ def _matching_date_format(
         if len(good) >= needed and good:
             return format_name, good, sources, len(present) - len(good)
     return None
+
+
+def _best_date_reading(present: list[str]) -> "tuple[str, int]":
+    """The date format that reads the MOST of these values, and how many.
+
+    Asked only of a column no rule claimed, where the profile owes the
+    reader the competing readings and how far each one got (review item
+    P1-R6-F7). It is a separate pass from `_matching_date_format` on
+    purpose: that function stops at the first format that clears the
+    line, and stopping early is what keeps an ordinary date column
+    cheap. A column that no format claimed has already been through
+    every format either way, so this costs one more pass over a column
+    that is about to be described as free text.
+
+    Guarantees: accepts the present values; returns the first format in
+    the documented order that parses the most of them, with that count,
+    and a count of zero when nothing parses. Raises nothing. No I/O.
+    """
+    best_name = parsing.DATE_FORMATS[0]
+    best_count = 0
+    for format_name in parsing.DATE_FORMATS:
+        parsed = 0
+        for value in present:
+            if parsing.parse_datetime(value, format_name) is not None:
+                parsed = parsed + 1
+        if parsed > best_count:
+            best_name = format_name
+            best_count = parsed
+    return best_name, best_count
 
 
 def _datetime_details(
@@ -1641,46 +1911,6 @@ class _Verdict:
     remarks: list[str]
 
 
-def _is_fixed_width_code(cells: _Cells) -> bool:
-    """True when every value is a same-width all-digit code with padding.
-
-    Positive evidence, not a guess. Three facts have to hold together:
-    every value is nothing but ASCII digits, every value is the same
-    length, and at least one value carries a LEADING ZERO. The leading
-    zero is the only mark in the text that says the width is meaningful;
-    without it `52242` is indistinguishable from a quantity, and calling
-    it a code would be as wrong in the other direction.
-
-    A column of eight-digit dates is not caught, because no year of the
-    last millennium starts with a zero (review item P1-R1-F8).
-    """
-    settings = cells.settings
-    if cells.all_digits != len(cells.present):
-        return False
-    # Every predicate of this rule reads the TRIMMED cell. Measuring the
-    # untrimmed one while testing the trimmed one for its leading zero
-    # let a single stray space in a single cell defeat the rule and hand
-    # the column back to the numeric rule with its padding gone --
-    # `[" 00501", "02139", "52242"]` was published as a count whose
-    # minimum was 501.0, which is the exact defect this rule exists to
-    # prevent. Numbers written with surrounding whitespace are a shape
-    # the plan (P1-D4) requires the profiler to expect.
-    lengths = _code_widths(cells)
-    width = min(lengths)
-    if width != max(lengths) or width < settings.code_minimum_width:
-        return False
-    for value in cells.present:
-        trimmed = parsing.trimmed(value)
-        if trimmed[:1] == "0":
-            return True
-    return False
-
-
-def _code_widths(cells: _Cells) -> list[int]:
-    """The width of every cell, measured on the same text the rule reads."""
-    return _lengths([parsing.trimmed(value) for value in cells.present])
-
-
 def _all_different(cells: _Cells) -> bool:
     """True when the column's values hardly ever repeat, in a table big
     enough for that to mean anything.
@@ -1707,39 +1937,40 @@ def _all_different(cells: _Cells) -> bool:
     )
 
 
-def _numeric_overrules_categories(cells: _Cells) -> bool:
-    """True when a repeating column is better described as a quantity.
+def _categorical_ceiling(cells: _Cells) -> int:
+    """The most different values a set of categories may hold here.
 
-    RULE 8 is tested between the two numeric rules. RULE 7 only catches
-    a column that is numbers in essentially every cell, so without this
-    guard any column that is mostly numbers but carries more than a
-    per-cent of stray words is claimed by the category rule before RULE
-    9 is ever reached. One hundred ages with two `refused` cells became
-    `categorical`, all twenty-three of its levels fell below the
-    small-cell floor, and the profile then carried no percentile, no
-    mean, no minimum and no label at all -- the whole distribution lost,
-    which is precisely what RULE 9 exists to prevent.
+    The plan's rule, restored by review item P1-R6-F7:
+    ``min(categorical_ceiling, categorical_share of the values present)``
+    and never below ``categorical_floor``. The share is taken over the
+    values the column actually HOLDS rather than over the table's row
+    count, because a column that is nine-tenths blank has only its
+    present values to be a set of categories over -- and because that is
+    the more conservative of the two readings, which is the right
+    direction for real labels crossing the privacy boundary.
 
-    Both terms read the COLUMN only, so a subsample cannot change the
-    role.
+    What this replaces was an average repetition of two, plus a separate
+    cap of twelve on mostly numeric columns. That rule called forty
+    different labels in a hundred rows a set of categories and published
+    the one label that cleared the small-cell floor; this ceiling sends
+    the same column to free text, which publishes nothing at all.
+
+    Guarantees: accepts a tally of a column; returns a whole number of
+    at least ``categorical_floor``, decided by comparing whole numbers.
+    Raises nothing. No I/O of any kind.
     """
     settings = cells.settings
-    n_present = len(cells.present)
-    if _numeric_looking(cells) < _needed(settings.numeric_majority, n_present):
-        return False
-    return len(cells.folded_counts) > settings.categorical_numeric_ceiling
-
-
-def _repeats_enough(cells: _Cells) -> bool:
-    """True when the values repeat often enough to be a set of categories.
-
-    The old rule compared the distinct count with a tenth of the TABLE's
-    length, so the same nine-label column was free text at 50 rows and
-    categorical at 100 -- profiling a subsample changed the role and
-    destroyed the levels. This rule reads the column only.
-    """
-    distinct = len(cells.folded_counts)
-    return distinct * cells.settings.categorical_repetition <= len(cells.present)
+    # The share is taken over the table's ROWS, not over the values this
+    # column happens to hold. Measuring it over present values punishes a
+    # column for being sparse: a 100-row table whose coded field is filled
+    # in 30 times with 6 labels would get a ceiling of 3 and publish
+    # nothing, though 6 labels in 100 rows is an ordinary shape and the
+    # small-cell floor already governs which of them may be shown. Rows
+    # are also what the plan states, and the two must not disagree
+    # (review item P1-R6-F7).
+    share = _at_most(settings.categorical_share, cells.n_rows)
+    ceiling = min(settings.categorical_ceiling, share)
+    return max(ceiling, settings.categorical_floor)
 
 
 def _decide(cells: _Cells, forced_identifier: bool) -> _Verdict:
@@ -1750,6 +1981,26 @@ def _decide(cells: _Cells, forced_identifier: bool) -> _Verdict:
     ``forced_identifier`` and from nowhere else, so a column no rule
     claims becomes free text rather than a guessed record number
     (review item P1-R6-F8).
+
+    THE ORDER, and there is only one:
+
+    0. the person's own declaration -- `identifier`;
+    1. no present value at all -- `empty`, settled by the caller;
+    2. written as numbers, too few of them holdable -- the
+       `numeric_unrepresentable` role;
+    3. one distinct value -- `constant`;
+    4. two distinct values -- `binary`;
+    5. dates, under one documented format, at the parse rate;
+    6. numbers, at the parse rate -- `count` or `continuous`;
+    7. at most the ceiling of different values -- `categorical`;
+    8. everything else -- `free_text`, which publishes nothing.
+
+    Two rules that stood in this list through round 6 are gone (review
+    item P1-R6-F7): a fixed-width digit-code rule that ran ahead of the
+    dates, because nothing may be routed by the WIDTH of its text, and a
+    second numeric rule at half the values, because it published a mean
+    over the part of a column that read as numbers while dropping the
+    rest out of the distribution.
     """
     settings = cells.settings
     present = cells.present
@@ -1758,8 +2009,8 @@ def _decide(cells: _Cells, forced_identifier: bool) -> _Verdict:
     remarks: list[str] = []
     numeric_looking = _numeric_looking(cells)
     strict_needed = _needed(settings.minimum_parse_rate, n_present)
-    majority_needed = _needed(settings.numeric_majority, n_present)
     folded_distinct = len(cells.folded_counts)
+    ceiling = _categorical_ceiling(cells)
 
     # RULE 0 -- the person who knows the table has the last word, and
     # since review item P1-R6-F8 it is also the ONLY word: this is the
@@ -1778,17 +2029,18 @@ def _decide(cells: _Cells, forced_identifier: bool) -> _Verdict:
     # P1-R3-F3, P1-R4-F2, P1-R5-F2). RULE 1, the empty column, is
     # settled before this function is called.
     #
-    # The gate is on how much of the column can be HELD, not merely on
-    # how much of it was written as a number. `numeric_looking` counts
-    # cells that contribute nothing to a percentile, so gating the
-    # numeric roles on it alone let a ladder be built from a single
-    # representable cell out of a hundred -- one row's exact value
-    # published as eleven statistics. Making this rule's gate the
-    # complement of the numeric rules' gate is what STRUCTURAL RULE A
-    # already promises: the population that decides the role and the
-    # population the statistics are computed from are one population.
-    if numeric_looking >= majority_needed and (
-        len(cells.numbers) < majority_needed
+    # This rule and the numeric rule share ONE line, and it is the
+    # plan's 0.99. The test is on how much of the column can be HELD,
+    # not merely on how much of it was written as a number:
+    # `numeric_looking` counts cells that contribute nothing to a
+    # percentile, so deciding the numeric roles on it alone let a ladder
+    # be built from a single representable cell out of a hundred -- one
+    # row's exact value published as eleven statistics. The population
+    # that decides the role and the population the statistics are
+    # computed from are one population, which is what STRUCTURAL RULE A
+    # already promises.
+    if numeric_looking >= strict_needed and (
+        len(cells.numbers) < strict_needed
     ):
         remarks = remarks + [
             (
@@ -1900,69 +2152,18 @@ def _decide(cells: _Cells, forced_identifier: bool) -> _Verdict:
             remarks=remarks,
         )
 
-    # RULE 5 -- fixed-width digit codes, before anything numeric can
-    # claim them. 00501 is a place, not the number five hundred and one.
+    # RULE 5 -- dates, under one documented format, at the parse rate.
     #
-    # The padding is evidence that the width is meaningful, so the
-    # column is not a quantity. It is NOT evidence about what the values
-    # mean. When such a column repeats, the labels themselves describe
-    # it exactly and it is a set of categories. When it does not repeat,
-    # every reading is still open -- a zero-padded clock time
-    # (`0930`...`2350`) and a padded account number are the same digits
-    # in the same width with the same leading zero.
-    #
-    # No branch of this rule reaches the identifier role, because no
-    # branch of any rule does: a padded column that does not repeat is
-    # described as free text, which withholds every value exactly as the
-    # identifier role does and claims nothing, and the free-text remark
-    # points at `--identifier` for the person who knows it really is a
-    # record number (review item P1-R6-F8).
-    if _is_fixed_width_code(cells):
-        if _repeats_enough(cells):
-            remarks = remarks + [
-                (
-                    "every value in this column is the same number of digits "
-                    "long and at least one begins with a zero, so these are "
-                    "codes rather than quantities: the padding is kept and no "
-                    "average is computed"
-                )
-            ]
-            levels = _levels(cells.folded_counts, settings)
-            details = _level_details(levels)
-            details["level_cap"] = settings.categorical_ceiling
-            details["fixed_width_code"] = True
-            if levels.suppressed_levels:
-                notes = notes + [_pooled_note(levels, settings)]
-            return _Verdict(
-                role=ROLE_CATEGORICAL,
-                evidence=(
-                    f"all {n_present} values are {min(_code_widths(cells))}-digit "
-                    f"codes with leading zeros, and they repeat"
-                ),
-                details=details,
-                notes=notes,
-                remarks=remarks,
-            )
-        remarks = remarks + [
-            (
-                "every value in this column is the same number of digits "
-                "long and at least one begins with a zero, so these are not "
-                "quantities and no average is computed for them. They hardly "
-                "ever repeat either, so there is no set of values to record"
-            )
-        ]
-        return _free_text_verdict(
-            cells,
-            notes=notes,
-            remarks=remarks,
-            evidence=(
-                f"all {n_present} values are {min(_code_widths(cells))} digits "
-                f"long with leading zeros, so they are not quantities, and "
-                f"they hardly ever repeat"
-            ),
-        )
-
-    # RULE 6 -- dates.
+    # A rule stood ahead of this one until review item P1-R6-F7: a
+    # column of same-width all-digit values, at least one carrying a
+    # leading zero, was read as codes rather than as quantities. It is
+    # deleted. Nothing may be routed by the WIDTH of its text: the
+    # padding says how the value was WRITTEN, and a rule that reads a
+    # writing convention as a meaning claims something the values do not
+    # carry -- the identical text is a clock time, a padded account
+    # number and a postal code, and only the person who owns the table
+    # knows which. Such a column now lands where the ordinary rules put
+    # it, and `--identifier` is how a column of codes is declared.
     matched = _matching_date_format(present, settings)
     if matched is not None:
         format_name, pairs, sources, unparsed = matched
@@ -1996,31 +2197,23 @@ def _decide(cells: _Cells, forced_identifier: bool) -> _Verdict:
             details=details,
         )
 
-    # RULE 7 -- numbers, at full strength. A column that is essentially
-    # all numbers is a quantity however many different values it holds.
+    # RULE 6 -- numbers, at the one parse rate there is. A column that
+    # reads as numbers in essentially every cell is a quantity however
+    # many different values it holds.
     if numeric_looking >= strict_needed:
-        return _numeric_verdict(cells, notes, remarks, strict=True)
+        return _numeric_verdict(cells, notes, remarks)
 
-    # RULE 8 -- a set of categories: values that REPEAT. Tested after
-    # the full-strength numeric rule and before the majority one, so a
-    # small set of labels that happen to be digits stays a set of
-    # labels while a column of measurements with a few stray words
-    # stays a column of measurements.
-    if _repeats_enough(cells) and not _numeric_overrules_categories(cells):
+    # RULE 7 -- a set of categories: at most the ceiling of different
+    # values, counted after trimming and case folding. Tested after the
+    # numeric rule, so a column of measurements is described as
+    # measurements and a small set of labels that happen to be digits is
+    # described as labels.
+    if folded_distinct <= ceiling:
         levels = _levels(cells.folded_counts, settings)
         details = _level_details(levels)
-        details["level_cap"] = settings.categorical_ceiling
+        details["level_ceiling"] = ceiling
         if levels.suppressed_levels:
             notes = notes + [_pooled_note(levels, settings)]
-        if levels.levels_beyond_cap:
-            notes = notes + [
-                (
-                    f"this column has more different values than the profile "
-                    f"writes out ({settings.categorical_ceiling}); the "
-                    f"{levels.levels_beyond_cap} least common are counted "
-                    f"together ({levels.rows_beyond_cap} rows in total)"
-                )
-            ]
         if cells.raw_distinct != folded_distinct:
             remarks = remarks + [
                 (
@@ -2028,47 +2221,40 @@ def _decide(cells: _Cells, forced_identifier: bool) -> _Verdict:
                     "lower case; they are counted, and published, as one"
                 )
             ]
-        room = n_present - folded_distinct * settings.categorical_repetition
-        if room <= settings.near_threshold_slack:
+        if ceiling - folded_distinct <= settings.near_threshold_slack:
             remarks = remarks + [
                 (
-                    f"this column was close to the line between a category "
-                    f"and free text ({folded_distinct} different values in "
-                    f"{n_present})"
+                    f"this column was close to the line between a set of "
+                    f"categories and free text: it has {folded_distinct} "
+                    f"different values and the line is at {ceiling}"
                 )
             ]
         return _Verdict(
             role=ROLE_CATEGORICAL,
             evidence=(
-                f"there are {folded_distinct} different values and each "
-                f"appears {settings.categorical_repetition} times or more on "
-                f"average, so this column is a set of categories"
+                f"there are {folded_distinct} different values, which is "
+                f"within the {ceiling} a set of categories may have in a "
+                f"table of {cells.n_rows} rows, so this column is a set "
+                f"of categories"
             ),
             details=details,
             notes=notes,
             remarks=remarks,
         )
 
-    # RULE 9 -- numbers, at majority strength. A column that is mostly
-    # numbers keeps its distribution; the values that are not numbers
-    # are counted, never published. Before this rule such a column lost
-    # its distribution entirely, most often by being called an
-    # identifier (review item P1-R1-F8).
-    if numeric_looking >= majority_needed:
-        return _numeric_verdict(cells, notes, remarks, strict=False)
-
-    # RULE 10 -- everything else is free text, which publishes nothing.
+    # RULE 8 -- everything else is free text, which publishes nothing.
     #
-    # There is no rule between RULE 9 and this one. A rule used to stand
-    # here that read all-different single tokens as record numbers, and
-    # three revisions of it were each defeated by the column next door:
-    # `0930` (a clock), `000042` (a padded count), `1mg` (a dose). The
-    # last of those is why the rule is gone rather than mended -- `1mg`
-    # and `code1` are the same shape of string, so no property of the
-    # values can separate the measurement from the label. What separates
-    # them is what the column MEANS, which only the person who owns the
-    # table knows, and `--identifier` is how they say it (review item
-    # P1-R6-F8).
+    # There is no rule between RULE 7 and this one. Two rules used to
+    # stand here. One read all-different single tokens as record
+    # numbers, and three revisions of it were each defeated by the
+    # column next door: `0930` (a clock), `000042` (a padded count),
+    # `1mg` (a dose). The last of those is why it is gone rather than
+    # mended -- `1mg` and `code1` are the same shape of string, so no
+    # property of the values can separate the measurement from the
+    # label (review item P1-R6-F8). The other described a column that
+    # was merely a MAJORITY numbers as a quantity, which published a
+    # mean over the part that read as numbers and left the rest out of
+    # the distribution entirely (review item P1-R6-F7).
     #
     # Free text is the honest answer to "no positive reading fits". It
     # withholds every value exactly as the identifier role does, so
@@ -2077,21 +2263,89 @@ def _decide(cells: _Cells, forced_identifier: bool) -> _Verdict:
     # (lengths, word counts, how many different values there are) that
     # a generator needs. Guessing had no upside to trade against that:
     # a correct guess would have published nothing more than this.
-    if numeric_looking:
-        competing = (
-            f"only {numeric_looking} of the {n_present} values are written "
-            f"as numbers"
-        )
-    else:
-        competing = "none of the values read as numbers or as dates"
+    #
+    # Both readings are counted ONCE, here, and the same two counts go
+    # into the evidence and into the remark. A sentence a person reads
+    # and a field a program reads that were computed twice are two
+    # sentences that can disagree.
+    numbers_said = _read_as_numbers(numeric_looking, n_present)
+    dates_said = _read_as_dates(present)
+    remarks = remarks + [
+        _competing_readings(cells, ceiling, numbers_said, dates_said)
+    ]
     return _free_text_verdict(
         cells,
         notes=notes,
         remarks=remarks,
         evidence=(
-            f"there are {cells.raw_distinct} different values, they do not "
-            f"repeat often enough to be a set of categories, and {competing}"
+            f"{numbers_said}, {dates_said}, and there are "
+            f"{folded_distinct} different values where a set of categories "
+            f"may have at most {ceiling} in a table of {cells.n_rows} rows"
         ),
+    )
+
+
+def _read_as_numbers(numeric_looking: int, n_present: int) -> str:
+    """How much of a column is written as numbers, in words.
+
+    "Written as" rather than "read as", and deliberately: this is the
+    count the numeric line is compared against, and it includes the
+    cells whose writer meant a number that no format can hold. Saying
+    they "read as numbers" would claim more than the column shows.
+    """
+    if not numeric_looking:
+        return f"none of the {n_present} values is written as a number"
+    return (
+        f"{numeric_looking} of the {n_present} values are written as numbers"
+    )
+
+
+def _read_as_dates(present: list[str]) -> str:
+    """How much of a column read as dates, and under which format."""
+    best_name, best_count = _best_date_reading(present)
+    if not best_count:
+        return "none of them reads as a date in any form synthtwin knows"
+    return (
+        f"{best_count} read as dates written as "
+        f"{parsing.format_example(best_name)}"
+    )
+
+
+def _competing_readings(
+    cells: _Cells, ceiling: int, numbers_said: str, dates_said: str
+) -> str:
+    """Why no reading fitted this column, with the rate each one reached.
+
+    A column that publishes nothing owes its owner the reason, and the
+    reason is a set of counts rather than a verdict: how much of the
+    column each reading accounted for, and how much each reading
+    needed (review item P1-R6-F7). Without it the person is told only
+    that synthtwin declined, which is the report the plan calls useless.
+
+    Guarantees: accepts a tally of a non-empty column, the ceiling that
+    was applied to it, and the two readings already counted by the
+    caller; returns one paragraph naming the readings that were tried,
+    the count each one reached, and the count each one needed. No value
+    of the column appears in it. Raises nothing. No I/O of any kind.
+    """
+    settings = cells.settings
+    n_present = len(cells.present)
+    strict_needed = _needed(settings.minimum_parse_rate, n_present)
+    folded_distinct = len(cells.folded_counts)
+    return (
+        f"synthtwin could not settle what this column holds, so none of "
+        f"its values is published. Here is why: "
+        f"{numbers_said} and {dates_said}; a column is described as "
+        f"numbers, or as dates, only when at least {strict_needed} of them "
+        f"read that way. It holds {folded_distinct} different values, where "
+        f"a set of categories may hold at most {ceiling}. Describing it "
+        f"from the part that does read would publish an average, a smallest "
+        f"and a largest value that the rest of the column contradicts, so "
+        f"synthtwin describes it as free text and publishes no value of it "
+        f"at all. If these are measurements written with a currency sign, a "
+        f"per-cent sign, a unit such as mg, or a clock time, write them as "
+        f"plain numbers -- one column for the number, and the unit in the "
+        f"column name -- and run the command again"
     )
 
 
@@ -2103,18 +2357,21 @@ def _free_text_verdict(
 ) -> _Verdict:
     """The free-text block: shape statistics only, and no value at all.
 
-    Two rules end here, and they end here for the same reason. RULE 5
-    reaches it with a column of same-width digits carrying a leading
-    zero that hardly ever repeat -- a padded account number and a
-    zero-padded clock time are the identical text. RULE 10 reaches it
-    with everything no positive reading fitted, which since review item
-    P1-R6-F8 includes every all-different column of code-shaped tokens:
-    `1mg` and `code1` are the same shape of string, so the reading that
-    used to be taken here was a guess about MEANING dressed as a rule.
-    In every case synthtwin has ruled readings OUT and has established
-    none, and free text is what saying so looks like: the values are
-    withheld exactly as the identifier role withholds them, and nothing
-    is claimed about what they mean.
+    ONE rule ends here, the last one, and it ends here with everything
+    no positive reading fitted. That includes every all-different column
+    of code-shaped tokens, because `1mg` and `code1` are the same shape
+    of string and the reading that used to be taken here was a guess
+    about MEANING dressed as a rule (review item P1-R6-F8); it includes
+    the column that is only PART numbers, because publishing a mean over
+    the part that reads leaves the rest out of the distribution while
+    the profile looks complete (review item P1-R6-F7); and it includes
+    the column with more different values than a set of categories may
+    have. In every case synthtwin has ruled readings OUT and has
+    established none, and free text is what saying so looks like: the
+    values are withheld exactly as the identifier role withholds them,
+    and nothing is claimed about what they mean. The caller's remark
+    names each reading that was tried and how far it got, so the person
+    can see the arithmetic rather than only the verdict.
 
     When the values are also all different, the person running the tool
     is told so in one remark -- that synthtwin did not assume they are
@@ -2229,9 +2486,15 @@ def _identifier_verdict(
 
 
 def _numeric_verdict(
-    cells: _Cells, notes: list[str], remarks: list[str], strict: bool
+    cells: _Cells, notes: list[str], remarks: list[str]
 ) -> _Verdict:
-    """The count/continuous block, at either strength."""
+    """The count/continuous block, at the one strength there is.
+
+    This function took a ``strict`` flag until review item P1-R6-F7,
+    because two rules reached it: one at the plan's parse rate and one
+    at a majority. The second is deleted, so there is one caller, one
+    line, and one sentence of evidence.
+    """
     settings = cells.settings
     n_present = len(cells.present)
     numeric_looking = _numeric_looking(cells)
@@ -2295,16 +2558,10 @@ def _numeric_verdict(
             f"all {numeric_looking} numeric values are whole and none is "
             f"negative, so this column counts things"
         )
-    elif strict:
-        evidence = (
-            f"{numeric_looking} of the {n_present} values are written as "
-            f"numbers"
-        )
     else:
         evidence = (
             f"{numeric_looking} of the {n_present} values are written as "
-            f"numbers -- a majority but not nearly all, so the column keeps "
-            f"its distribution and the rest are counted, not published"
+            f"numbers"
         )
     details = _numeric_details(cells, whole_everywhere)
     # A spread larger than this file format can hold is a fact the
@@ -2359,9 +2616,19 @@ def profile_column(
     - Determinism: the result depends only on the arguments. Nothing
       here consults a clock, an environment variable, or a random
       source, and every ordering that reaches the output is sorted.
+    - Declarations: what the person named with `--keep-value` and
+      `--missing-value` is applied HERE, before any role is decided and
+      before any value is removed for any other reason. A declaration
+      that reads as a number this format can hold is compared with the
+      NUMBER each cell holds, so `-999` covers a file that writes
+      `-999.00`; any other declaration is compared with the spelling,
+      after trimming and case folding (review item P1-R6-F9).
     - Errors raised: TypeError if a value is not text (an internal
-      invariant: both readers produce text). No user-facing refusal
-      comes from this function -- a column that matches no rule is
+      invariant: both readers produce text), and ValueError when the
+      settings name one value BOTH as data and as "no value" -- there
+      is no reading of that pair that is not a guess, so it is refused
+      before anything is described (review item P1-R6-F9). No refusal
+      comes from the VALUES of a column: one that matches no rule is
       described as free text rather than rejected.
     - Boundary: no file is opened, and no value of a suppressed kind
       (identifier, free text, a number no format can hold, or a label
@@ -2369,21 +2636,38 @@ def profile_column(
       This is a property of the role's publication CLASS, applied here
       once, not of the branch that built the block.
     """
+    clashes = contradictory_declarations(
+        settings.kept_values, settings.declared_missing_values
+    )
+    if clashes:
+        raise ValueError(f"{CONTRADICTORY_DECLARATION}: {clashes[0]}")
     present, missing = _split_missing(values, settings)
     # THE one classification of this column's cells. Everything below
     # reads these records; not one line of it reads the column again.
     classified = _classify_all(present)
+    # The second half of what the person declared, and the half that has
+    # to wait for the classification: a declared NUMBER is compared with
+    # the number a cell holds, not with the way the file spells it
+    # (review item P1-R6-F9). It runs before the cells are counted, so
+    # no rule and no statistic ever sees a value the person called "no
+    # value".
+    classified, declared = _declared_numbers_removed(classified, settings)
+    missing = missing + declared
     cells = _tally(classified, n_rows, settings)
+    # One list of what is present, rebuilt from the surviving records.
+    # Keeping the pre-declaration list here would have counted values
+    # the person removed towards every share below it.
+    present = cells.present
 
-    # The numeric sentinels are judged whenever the column can end up
-    # in a numeric role -- gated on the COMBINED numeric-looking
-    # population, not on the representable numbers alone. Gating on the
-    # representable ones let three unrepresentable cells stop the
-    # question being asked at all, and `-999` was then published as the
-    # column's minimum (review item P1-R5-F1).
+    # The numeric sentinels are judged only for a column that can end up
+    # in a numeric role, and that is the one line there is: the COMBINED
+    # numeric-looking population against the plan's parse rate. Asking
+    # about the representable numbers alone let three unrepresentable
+    # cells stop the question being asked at all, and `-999` was then
+    # published as the column's minimum (review item P1-R5-F1).
     verdicts: dict[float, tuple[bool, str, int]] = {}
     if _numeric_looking(cells) >= _needed(
-        settings.numeric_majority, len(present)
+        settings.minimum_parse_rate, len(present)
     ):
         verdicts = _sentinel_verdicts(cells, len(present))
         withheld = sorted(
