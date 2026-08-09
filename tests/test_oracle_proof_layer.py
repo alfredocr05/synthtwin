@@ -19,6 +19,17 @@ c. every quantile ladder rung went straight through the construction and
    was never compared against its neighbours at all, so the file's claim
    that every published number is proved was not true of the ladder.
 
+Review round 7 (item P1-R7-F4) reported a fourth, of the same shape as
+the first three -- a value that takes a different path through the code
+is never handed to the proof:
+
+d. the walk over the finished document asked ``isinstance(node, float)``,
+   so a whole number under an explicit ``float64`` wrapper was neither
+   proved nor reported as missing. ``{"new_statistic": {"float64": 7}}``
+   with the exact value 1/3 recorded beside it passed while reporting
+   that it had proved nothing at all, and the exact value it contradicts
+   went unspent.
+
 Each test below is the exact counterexample the review named. The
 arithmetic these proofs certify was audited independently and found
 correct in every published value, so nothing here is expected to change
@@ -27,6 +38,7 @@ a number: these tests hold the certification honest, not the answers.
 
 import fractions
 import importlib.util
+import json
 import math
 import pathlib
 import struct
@@ -198,14 +210,24 @@ SAMPLE = [1.0, 2.0, 6.0]
 
 def test_every_number_a_case_publishes_sits_in_a_float64_field() -> None:
     out = gen.stats(SAMPLE)
-    places = [path for path, _value in gen._published_floats(out)]
+    places = [path for path, _value in gen._published_numbers(out)]
     assert places, "a case published no numbers at all"
-    assert all(path[-1] == "float64" for path in places)
-    assert ("mean", "float64") in places
-    assert ("std", "float64") in places
-    assert ("skew", "float64") in places
+    measurements = [path for path in places if path[-1] == "float64"]
+    counts = [path for path in places if path[-1] != "float64"]
+    assert ("mean", "float64") in measurements
+    assert ("std", "float64") in measurements
+    assert ("skew", "float64") in measurements
     for label in ("min", "p01", "p25", "p50", "p75", "p99", "max"):
-        assert ("ladder_exact_p", label, "float64") in places
+        assert ("ladder_exact_p", label, "float64") in measurements
+    # Everything a case publishes that is not a measurement is one of
+    # the whole-number fields named in the generator, and each of those
+    # really is a whole number rather than a float wearing the name.
+    assert set(counts) <= set(gen.CASE_WHOLE_NUMBER_FIELDS), counts
+    for path, value in gen._published_numbers(out):
+        if path[-1] == "float64":
+            assert isinstance(value, float), path
+        else:
+            assert isinstance(value, int) and not isinstance(value, bool), path
 
 
 def test_a_ladder_rung_that_comes_out_wrong_stops_the_run(monkeypatch) -> None:
@@ -287,6 +309,126 @@ def test_the_sweep_refuses_a_proof_shape_it_does_not_know() -> None:
     assert "guesswork" in str(refusal.value)
 
 
+# -- (d) a number that is not a Python float is still a number ---------
+
+
+ONE_THIRD = {("new_statistic",): (gen.NEAREST, F(1, 3))}
+
+
+def test_a_whole_number_under_a_float64_wrapper_stops_the_run() -> None:
+    """P1-R7-F4: the exact document the review said passed, proving nothing."""
+    with pytest.raises(AssertionError) as refusal:
+        gen.prove_every_published_float({"new_statistic": {"float64": 7}}, ONE_THIRD)
+    assert "binary64" in str(refusal.value)
+    # The float spelling of the same false field was always refused, for
+    # the arithmetic reason. The whole-number spelling is refused now
+    # too, and the honest answer is still certified.
+    with pytest.raises(AssertionError) as arithmetic:
+        gen.prove_every_published_float(
+            {"new_statistic": {"float64": 7.0}}, ONE_THIRD
+        )
+    assert "not the float64 nearest" in str(arithmetic.value)
+    nearest = gen.round_rational_to_float(F(1, 3))
+    assert (
+        gen.prove_every_published_float(
+            {"new_statistic": {"float64": nearest}}, ONE_THIRD
+        )
+        == 1
+    )
+
+
+@pytest.mark.parametrize(
+    "value",
+    [7, 0, -3, True, False, "0.3333", None, {"float64": 0.5}, [0.5]],
+)
+def test_a_float64_field_holding_anything_but_a_float_stops_the_run(
+    value: object,
+) -> None:
+    """The wrapper is a promise about the type, so it is held to it.
+
+    ``True`` is a Python int by inheritance and JSON writes ``null`` and
+    text as values like any other, so each of these reaches the file as
+    something the neighbour comparison cannot be applied to.
+    """
+    with pytest.raises(AssertionError) as refusal:
+        gen.prove_every_published_float(
+            {"new_statistic": {"float64": value}}, ONE_THIRD
+        )
+    assert "binary64" in str(refusal.value)
+
+
+def test_a_whole_number_outside_the_named_fields_stops_the_run() -> None:
+    claims = {("mean",): (gen.NEAREST, F(1, 2))}
+    with pytest.raises(AssertionError) as refusal:
+        gen.prove_every_published_float(
+            {"mean": {"float64": 0.5}, "how_many_rows": 3}, claims
+        )
+    assert "how_many_rows" in str(refusal.value)
+    # Inside a list as well, where the path runs through an index.
+    with pytest.raises(AssertionError) as inside:
+        gen.prove_every_published_float(
+            {"mean": {"float64": 0.5}, "row": [1, 2]}, claims
+        )
+    assert "row.0" in str(inside.value)
+
+
+def test_the_named_whole_number_fields_are_still_published() -> None:
+    """The repair must refuse unproved measurements, not the counts."""
+    published = {
+        "n": 3,
+        "mean": {"float64": 0.5},
+        "std": {"decimal_digits_needed": 17, "float64": 1.5},
+    }
+    claims = {("mean",): (gen.NEAREST, F(1, 2)), ("std",): (gen.ROOT, F(9, 4))}
+    assert gen.prove_every_published_float(published, claims) == 2
+
+
+def test_true_and_false_are_not_read_as_numbers() -> None:
+    """JSON writes them as ``true`` and ``false``, so they are not numbers."""
+    published = {"mean": {"float64": 0.5, "decimal_is_exact": True}}
+    claims = {("mean",): (gen.NEAREST, F(1, 2))}
+    assert gen.prove_every_published_float(published, claims) == 1
+
+
+def test_an_exact_value_that_nothing_spends_stops_the_run() -> None:
+    """The match is one-to-one, so a skipped field cannot hide behind a claim.
+
+    The count of proved numbers on its own cannot tell "the field was
+    never published" from "the field was skipped": both leave the claim
+    unspent, which is what the whole-number field above did.
+    """
+    published = {"mean": {"float64": 0.5}}
+    claims = {("mean",): (gen.NEAREST, F(1, 2)), ("skew",): (gen.NEAREST, F(0))}
+    with pytest.raises(AssertionError) as refusal:
+        gen.prove_every_published_float(published, claims)
+    assert "skew" in str(refusal.value)
+
+
+def test_the_glossary_entry_named_float64_is_held_to_being_text() -> None:
+    """The one exempt path, and the mutant that would use it as a hiding place.
+
+    The document's own definitions say in words what a ``float64`` field
+    means, under that name. The exemption is one enumerated path rather
+    than a rule about the word, and what sits there must be text.
+    """
+    glossary = {"definitions": {"float64": "what a float64 field means"}}
+    assert (
+        gen.prove_every_published_float(
+            glossary, {}, text_fields=gen.DOCUMENT_TEXT_FIELDS
+        )
+        == 0
+    )
+    with pytest.raises(AssertionError) as refusal:
+        gen.prove_every_published_float(
+            {"definitions": {"float64": 1.0}},
+            {},
+            text_fields=gen.DOCUMENT_TEXT_FIELDS,
+        )
+    assert "text" in str(refusal.value)
+    with pytest.raises(AssertionError):
+        gen.prove_every_published_float(glossary, {})
+
+
 # -- the committed fixture, checked without the generator's help -------
 
 
@@ -315,9 +457,113 @@ def _exact_rung(ordered: list, count: int, probability) -> fractions.Fraction:
 
 
 def _document() -> dict:
-    import json
-
     return json.loads(VECTORS.read_text(encoding="utf-8"))
+
+
+# How many numbers the committed file publishes today: 312 float64
+# fields, and two counts per case. The floor is asserted rather than the
+# exact number so that adding a case is not a failure, while a field
+# quietly leaving the file shows up as a smaller count.
+PUBLISHED_NUMBERS = 312
+
+
+def _whole_number_fields(document: dict) -> frozenset:
+    """The paths in the whole file that are allowed to be whole numbers."""
+    return frozenset(
+        ("cases", name) + field
+        for name in document["cases"]
+        for field in gen.CASE_WHOLE_NUMBER_FIELDS
+    )
+
+
+def test_the_committed_file_publishes_no_number_that_escapes_the_proof() -> None:
+    """P1-R7-F4 at the file level: every number in the file, one by one.
+
+    The proof is only as wide as the walk that feeds it, so this reads
+    the committed bytes back and checks that nothing written as a number
+    sits anywhere but in a ``float64`` field holding a binary64 value or
+    in one of the counts the generator names.
+    """
+    document = _document()
+    allowed = _whole_number_fields(document)
+    measurements = 0
+    counts = 0
+    for path, value in gen._published_numbers(document):
+        if path in gen.DOCUMENT_TEXT_FIELDS:
+            assert isinstance(value, str), gen._where(path)
+            continue
+        if path[-1] == "float64":
+            assert isinstance(value, float), (
+                f"{gen._where(path)} carries {value!r}, which is not a "
+                "binary64 value, so the proof could not be applied to it"
+            )
+            assert math.isfinite(value), gen._where(path)
+            measurements += 1
+        else:
+            assert path in allowed, (
+                f"{gen._where(path)} publishes {value!r} outside a 'float64' "
+                "field and is not one of the named counts"
+            )
+            assert isinstance(value, int) and not isinstance(value, bool)
+            counts += 1
+    for name in document["cases"]:
+        assert ("cases", name, "n") in allowed
+    assert measurements >= PUBLISHED_NUMBERS, (
+        f"the file now publishes {measurements} proved numbers, fewer than "
+        f"the {PUBLISHED_NUMBERS} it carried when this floor was written; a "
+        "field has left the file"
+    )
+    assert counts >= len(document["cases"])
+
+
+def test_a_number_added_after_a_case_proved_itself_stops_the_run(
+    tmp_path, monkeypatch
+) -> None:
+    """The second walk is over the assembled file, not over each case.
+
+    The review's scenario is a field arriving after the local proof has
+    already run. Here a case hands back one number more than it proved,
+    exactly as an assignment made afterwards would; the walk over the
+    finished file must refuse it and nothing may be written.
+    """
+    real = gen.stats_and_claims
+
+    def with_one_more(sample):
+        document, claims = real(sample)
+        document["added_later"] = {"float64": 7}
+        return document, claims
+
+    monkeypatch.setattr(gen, "stats_and_claims", with_one_more)
+    out = tmp_path / "vectors.json"
+    with pytest.raises(AssertionError) as refusal:
+        gen.main(["--seed", "0", "--out", str(out)])
+    assert "binary64" in str(refusal.value)
+    assert not out.exists(), "the file was written although a number was unproved"
+
+
+def test_the_generator_says_how_many_numbers_it_proved(tmp_path, capsys) -> None:
+    """The count is reported, and it is the count of what the file holds.
+
+    Tying the reported number to the rebuilt file is what stops the
+    report from being a constant: if a field stopped being visited, the
+    number printed and the number in the file would part company.
+    """
+    rebuilt = tmp_path / "numeric-reference-vectors.json"
+    assert gen.main(["--seed", "0", "--out", str(rebuilt)]) == 0
+    reported = capsys.readouterr().err
+    document = json.loads(rebuilt.read_text(encoding="utf-8"))
+    measurements = sum(
+        1
+        for path, _value in gen._published_numbers(document)
+        if path[-1] == "float64" and path not in gen.DOCUMENT_TEXT_FIELDS
+    )
+    assert measurements >= PUBLISHED_NUMBERS
+    assert f"proved {measurements} published numbers" in reported
+    # And the committed file is what this generator produces, byte for
+    # byte -- the provenance guard's check, restated here so that a
+    # change to the proof layer that moved a number would be visible in
+    # this suite as well.
+    assert rebuilt.read_bytes() == VECTORS.read_bytes()
 
 
 def test_every_ladder_rung_in_the_committed_file_is_the_nearest_float() -> None:

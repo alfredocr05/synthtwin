@@ -138,7 +138,7 @@ def test_nothing_that_varies_between_runs_is_written(
 # column of this fixture keeps the role, the counts and the statistics
 # it had before, which is what the table above is checked for.
 GOLDEN_SHA256 = (
-    "a1ed4488a571c1fc104f3a0080ad5730ee274be510902e9ce51958fe15125544"
+    "99fb70a32f94f17ebb3cf3520a2443147895881b8641b14556611e351e2d99db"
 )
 
 

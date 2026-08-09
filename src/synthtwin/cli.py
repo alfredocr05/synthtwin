@@ -285,8 +285,12 @@ def _parse_arguments(argv: "list[str] | None") -> _Options:
             "called NA, or -999 as a real reading. A value that reads as "
             "a number is matched as a NUMBER, so -999 also covers "
             "-999.00; anything else is matched as text, ignoring "
-            "surrounding spaces and upper or lower case. May be given "
-            "more than once"
+            "surrounding spaces and upper or lower case. The profile "
+            "records how many values you named and the rule that "
+            "matched them, never the values themselves -- but a value "
+            "you name this way IS data from then on, so it can appear "
+            "wherever its column publishes values, for instance as that "
+            "column's smallest number. May be given more than once"
         ),
     )
     parser.add_argument(
@@ -300,7 +304,11 @@ def _parse_arguments(argv: "list[str] | None") -> _Options:
             "column where 'unknown' or -1 was typed for a reading nobody "
             "took. It is matched the same way as --keep-value, and the "
             "rows holding it are counted as missing rather than "
-            "described. May be given more than once"
+            "described. The profile records how many values you named "
+            "and the rule that matched them, never the values "
+            "themselves -- but the column still lists the spellings it "
+            "counted as missing, on the same rules as any other missing "
+            "spelling. May be given more than once"
         ),
     )
     parser.add_argument(
@@ -478,9 +486,29 @@ def _run_profile(
     # an otherwise complete run. Discarding it left a real-derived file
     # in the user's folder while the screen said the run had finished
     # cleanly (review item P1-R6-F5).
-    left_behind = profile.write_both_files(
-        profile_path, summary_path, profile.serialize(document), text
-    )
+    #
+    # The DiskState is the other half of the same promise, for the
+    # failures the transaction cannot describe in its own words. It
+    # composes a message for every refusal it foresees; for anything
+    # else -- memory exhausted mid-write, a person pressing Ctrl-C -- it
+    # cleans up, writes what is at each name into this record, and lets
+    # the failure continue as itself so that the handler in `main` still
+    # recognizes it and still gives its own advice. Both halves are
+    # needed: one says what they are holding, the other says why it
+    # stopped (review item P1-R7-F1).
+    state = profile.DiskState()
+    try:
+        left_behind = profile.write_both_files(
+            profile_path,
+            summary_path,
+            profile.serialize(document),
+            text,
+            state=state,
+        )
+    except BaseException:
+        if state.sentence:
+            _warn(_shown(state.sentence))
+        raise
     _say(f"\nWritten:\n  {shown_profile_path}\n  {shown_summary_path}")
     if left_behind:
         # A caution, not a refusal. The profile is good, so the exit
@@ -513,6 +541,13 @@ def main(argv: "list[str] | None" = None) -> int:
     - Errors raised: none that reach the user as a traceback. Every
       refusal in the catalog and every path rejection is caught here and
       printed as a message that says what happened and what to do next.
+      Pressing Ctrl-C is the exception, and deliberately: it is the
+      person stopping their own command, so it ends the command the way
+      every other command on their computer ends, rather than being
+      dressed up as a refusal synthtwin decided on. What it does not do
+      any more is leave a working file behind in silence -- the write
+      transaction clears up and names what is on disk first, whatever
+      stopped it.
     - Boundary: the only file this command reads is the table the user
       named, through the path validator; the only files it writes are
       the two it reports at the end, plus working files of synthtwin's

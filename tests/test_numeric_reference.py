@@ -142,6 +142,47 @@ def test_the_oracle_states_the_contract_this_file_tests() -> None:
     assert "immediate neighbour" in contract["how_two_numbers_are_compared"]
 
 
+# How many published numbers this suite grades the implementation
+# against today. Every test below is parametrized over the cases in the
+# file, so a case or a field leaving the fixture would take checks away
+# rather than fail one; the floor is what turns that into a failure.
+GRADED_NUMBERS = 222
+
+
+def test_the_fixture_offers_every_number_this_suite_grades() -> None:
+    """The graded count, and the type of each number that is graded.
+
+    Two ways the grading could quietly narrow are held shut here. A case
+    or a statistic leaving the file takes parametrized checks with it and
+    nothing goes red, so the count carries a floor. And a value arriving
+    as a whole number rather than a binary64 one would still compare --
+    the comparison packs whatever it is given into eight bytes -- so each
+    graded number is held to being a float, which is the same type slip
+    review item P1-R7-F4 found on the oracle's side of the file.
+    """
+    cases = _cases()
+    graded = 0
+    for name in sorted(cases):
+        case = cases[name]
+        assert isinstance(case["mean"]["float64"], float), f"{name}: mean"
+        graded += 1
+        for statistic in ("std", "skew"):
+            entry = case[statistic]
+            if entry is None:
+                continue
+            assert isinstance(entry["float64"], float), f"{name}: {statistic}"
+            graded += 1
+        for label, _num, _den in taxonomy.LADDER:
+            rung = case["ladder_exact_p"][label]["float64"]
+            assert isinstance(rung, float), f"{name}: rung {label}"
+            graded += 1
+    assert graded >= GRADED_NUMBERS, (
+        f"the suite now grades {graded} published numbers, fewer than the "
+        f"{GRADED_NUMBERS} it graded when this floor was written; a case or "
+        "a statistic has left the fixture"
+    )
+
+
 @pytest.mark.parametrize("name", sorted(_cases()))
 def test_mean_is_correctly_rounded_or_adjacent(name: str) -> None:
     case = _cases()[name]

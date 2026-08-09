@@ -63,6 +63,12 @@ rule says what a declaration matches (review item P1-R6-F9):
   every cell holding that EXACT NUMBER, whatever either of them is
   spelled like: `--keep-value -999` covers a file that writes
   `-999.00`, which is the whole reason the comparison is on the number;
+* EXACT means exact, and not "equal once both are rounded". Two decimal
+  spellings that are different numbers can round to one binary64 value,
+  and comparing the rounded values removed cells nobody had named and
+  called two different declarations a contradiction (review item
+  P1-R7-F3). Both sides are therefore compared as the numbers their
+  digits denote, by `_exact_value` and `_exact_number`;
 * a declared value that does not read as such a number matches by
   SPELLING, after trimming and case folding: `--keep-value NA` covers
   `na` and ` NA `, and covers nothing else;
@@ -212,7 +218,7 @@ ROLES = (
 #   values do.
 # * nothing: no value, no spelling, no fragment of one, anywhere --
 #   not in levels, not in missing_by_source, not in the evidence, not
-#   in a remark, not in a publication note.
+#   in a remark, not in a publication note, not in a sentinel verdict.
 ROLES_PUBLISHING_LABELS = (ROLE_CONSTANT, ROLE_BINARY, ROLE_CATEGORICAL)
 ROLES_PUBLISHING_RANGES = (ROLE_COUNT, ROLE_CONTINUOUS, ROLE_DATETIME)
 ROLES_PUBLISHING_NOTHING = (
@@ -225,6 +231,41 @@ ROLES_PUBLISHING_NOTHING = (
 # blank cells are counted.
 SUPPRESSED_LABEL = "(withheld)"
 BLANK_SPELLING = parsing.MISSING_BLANK
+
+# EVERY key a column block of a nothing-publishing role may carry with
+# its own contents intact. The list is a WHITELIST on purpose. A
+# blacklist of the keys that hold a spelling was the shape that failed:
+# `missing_by_source` and the levels were each closed by name, and
+# `sentinel_verdicts` -- added later, holding the spelling of a
+# candidate under `candidate` -- was not on anybody's list, so an
+# identifier column published `-999` while its own summary promised
+# nothing of its values would appear (review item P1-R7-F2). Under a
+# whitelist the next field added anywhere in this module is withheld
+# from those roles until somebody names it here and says why it carries
+# no value.
+#
+# Every name below is a count, a length, a word count, or a yes/no
+# about the column as a whole. `length` and `words` are named as whole
+# containers because everything inside them is a length or a word
+# count; no other container is named, so no other container passes.
+KEYS_THAT_CARRY_NO_VALUE = (
+    "all_whole_numbers",
+    "length",
+    "max_length",
+    "min_length",
+    "n_all_digits",
+    "n_code_alphabet",
+    "n_fraction",
+    "n_negative",
+    "n_occurrences",
+    "n_positive",
+    "n_sign_unknown",
+    "n_whole",
+    "n_whole_unknown",
+    "reason",
+    "verdict",
+    "words",
+)
 
 # What was decided about one numeric sentinel candidate, and why. The
 # reasons are codes rather than sentences so a program can act on them
@@ -318,6 +359,11 @@ class Settings:
     # after trimming and case folding. Naming one value both ways is
     # refused when this class is built, never resolved by an order of
     # precedence nobody can see.
+    #
+    # The number comparison is on the number itself and not on the
+    # binary64 value it rounds to. Rounding first makes one number out
+    # of two, and then a declaration reaches cells nobody named (review
+    # item P1-R7-F3).
     kept_values: tuple[str, ...] = ()
     declared_missing_values: tuple[str, ...] = ()
     # The rule above, written into the profile beside the declarations
@@ -373,7 +419,11 @@ class ColumnProfile:
     n_distinct: int = 0
     n_distinct_folded: int = 0
     # What was decided about each numeric sentinel that occurred, and
-    # how many candidates were too rare to name at all.
+    # how many candidates were too rare to name at all. On a role that
+    # publishes no values the decision, the reason and the row count
+    # survive and the candidate reads `(withheld)`: the reader still
+    # sees that a decision happened and which way it went, and no
+    # spelling of a value leaves with it (review item P1-R7-F2).
     sentinel_verdicts: list[dict[str, object]] = dataclasses.field(
         default_factory=list
     )
@@ -941,6 +991,162 @@ def _moments(numbers: list[float]) -> dict[str, "float | None"]:
     return moments
 
 
+# -- the exact number a spelling denotes ------------------------------
+#
+# WHY THIS EXISTS AT ALL. A declared value is compared with a cell by
+# the NUMBER both of them denote, not by the way either is written, so
+# that `--keep-value -999` covers a file that writes `-999.00`. Round 6
+# did that comparison on the binary64 value each side rounded to, and a
+# rounded value is not the number: two decimal spellings that are
+# different numbers can round to one binary64 value, and then a cell
+# nobody named was removed as though it had been named, and two
+# declarations naming two different numbers were refused as though they
+# were one (review item P1-R7-F3). So the comparison is on the exact
+# number instead -- whole numbers only, no rounding anywhere in it, the
+# same rule the statistics above already work under.
+#
+# THE FORM. A decimal spelling denotes `sign * digits * 10 ** power`.
+# Written as `(sign, digits, power)` with the digits stripped of both
+# leading and trailing zeros, that triple is CANONICAL: two spellings
+# denote the same number exactly when their triples are equal, so the
+# comparison is `==` on the triple and nothing more. Zero has one
+# triple, `(0, (), 0)`, which is what makes `0` and `-0` one number.
+# The digits are kept as a tuple of characters rather than as one whole
+# number on purpose: a cell may hold a spelling with tens of thousands
+# of digits, and building the whole number it denotes would cost time
+# quadratic in that length, while comparing two tuples costs its length.
+
+_EXACTLY_ZERO: "tuple[int, tuple[str, ...], int]" = (0, (), 0)
+
+_ASCII_ZERO = ord("0")
+
+
+def _exact_digits(text: str) -> "tuple[int, tuple[str, ...], int]":
+    """The canonical triple of a spelling ALREADY READ AS A NUMBER.
+
+    Asked only about text the reader of record has classified as a
+    number this format can hold, which is what lets the scan below be
+    arithmetic over the characters rather than a second opinion about
+    what the cell is: nothing here decides whether a spelling is a
+    number, so nothing here can disagree with the answer already given.
+
+    Guarantees: accepts text the reader has accepted; returns the
+    canonical triple denoting exactly that number; raises TypeError if
+    handed anything that is not a string instance. No I/O of any kind.
+    """
+    body = parsing.trimmed(text)
+    negative = False
+    if body[:1] == "(" and body[len(body) - 1 : len(body)] == ")":
+        # Accounting parentheses mean negative, and the reader has
+        # already refused a sign inside them, so nothing can say
+        # "negative" twice here.
+        negative = True
+        body = parsing.trimmed(body[1 : len(body) - 1])
+    if body[:1] == "-":
+        negative = True
+        body = body[1:]
+    elif body[:1] == "+":
+        body = body[1:]
+    # One pass over the characters. The digits are collected in order
+    # with the leading zeros left out, the decimal places are counted,
+    # and the exponent is added up after the `e`. A thousands separator
+    # is none of those things and contributes nothing to the value, so
+    # it falls through every branch, which is exactly right.
+    digits: list[str] = []
+    places = 0
+    after_point = False
+    in_exponent = False
+    exponent_negative = False
+    magnitude = 0
+    for character in body:
+        if in_exponent:
+            if character == "-":
+                exponent_negative = True
+            elif "0" <= character <= "9" and len(digits):
+                # The exponent is added up only while a digit that is
+                # not a leading zero has been seen. That keeps `0e`
+                # followed by a thousand nines cheap -- such a spelling
+                # is zero whatever its exponent says -- and it is why
+                # the magnitude below stays small: a spelling this
+                # format can hold, whose digits are not all zeros, has
+                # an exponent within a few hundred of the number of
+                # digits written.
+                magnitude = magnitude * 10 + (ord(character) - _ASCII_ZERO)
+        elif "0" <= character <= "9":
+            if after_point:
+                places = places + 1
+            if character != "0" or len(digits):
+                digits += [character]
+        elif character == ".":
+            after_point = True
+        elif character == "e" or character == "E":
+            in_exponent = True
+    if not len(digits):
+        return _EXACTLY_ZERO
+    if exponent_negative:
+        power = -places - magnitude
+    else:
+        power = -places + magnitude
+    kept = len(digits)
+    while kept > 0 and digits[kept - 1] == "0":
+        kept = kept - 1
+        power = power + 1
+    return (-1 if negative else 1, tuple(digits[:kept]), power)
+
+
+def _exact_value(text: str) -> "tuple[int, tuple[str, ...], int] | None":
+    """The exact number a spelling denotes, or None when it denotes none.
+
+    The reader of record decides FIRST whether the text is a number this
+    format can hold: nothing is exact about a spelling the rest of the
+    tool refuses, and asking the question here a second way is how two
+    parts of one program come to disagree about what a value is.
+
+    Guarantees: accepts text; returns the canonical triple described
+    above, or None when the text does not read as a number this format
+    can hold; raises TypeError if handed anything that is not a string
+    instance. Two texts give equal triples exactly when they denote the
+    same number. No I/O of any kind.
+    """
+    if parsing.classify_number(text) != parsing.NUMBER:
+        return None
+    return _exact_digits(text)
+
+
+def _exact_number(value: float) -> "tuple[int, tuple[str, ...], int]":
+    """The same canonical triple, for a number already held as binary64.
+
+    A finite binary64 value is a whole significand times a power of two,
+    which `_parts` gives exactly, and a power of two is a whole number
+    of tenths, hundredths and so on: multiplying by five as often as the
+    power of two is negative turns it into a whole number of decimal
+    places with nothing rounded. The digit count stays under about eight
+    hundred for every finite value this format holds, which is what
+    makes writing the whole number out affordable here.
+
+    Guarantees: accepts a finite number; returns the canonical triple
+    denoting exactly that number. Raises nothing. No I/O of any kind.
+    """
+    significand, exponent = _parts(value)
+    if significand == 0:
+        return _EXACTLY_ZERO
+    negative = significand < 0
+    top = -significand if negative else significand
+    twos = exponent - SIGNIFICAND_BITS
+    if twos >= 0:
+        whole = top << twos
+        power = 0
+    else:
+        whole = top * (5 ** -twos)
+        power = twos
+    written = f"{whole}"
+    kept = len(written)
+    while kept > 0 and written[kept - 1 : kept] == "0":
+        kept = kept - 1
+        power = power + 1
+    return (-1 if negative else 1, tuple(written[:kept]), power)
+
+
 # -- the one cell record --------------------------------------------
 
 
@@ -950,8 +1156,9 @@ class _Cell:
 
     This is the record STRUCTURAL RULE A is about. It is built by
     `_classify`, once per cell, and it is frozen: what a cell is
-    numerically, the number it parsed to, its sign, whether it is a
-    whole number, and the lexical facts the role rules ask about.
+    numerically, the number it parsed to, that same number exactly, its
+    sign, whether it is a whole number, and the lexical facts the role
+    rules ask about.
 
     It carried two more lexical facts until review item P1-R6-F8 --
     whether the cell was one word, and whether it held a letter -- and
@@ -973,6 +1180,12 @@ class _Cell:
     kind: str
     # The number the cell holds, and None whenever no number was held.
     value: "float | None"
+    # The same number EXACTLY, as the canonical triple above, and None
+    # whenever no number was held. `value` is what the profile publishes
+    # and what the statistics are computed from; this is what a declared
+    # value is compared with, because a comparison of rounded values
+    # makes one number out of two (review item P1-R7-F3).
+    exact: "tuple[int, tuple[str, ...], int] | None"
     sign: str
     whole: str
     # The cell after trimming and case folding: the key the levels, the
@@ -1019,7 +1232,10 @@ def _classify(text: str) -> _Cell:
       status settled by the NUMBER it parsed to -- a parsed zero is
       exactly a cell whose digits are all zeros, because a value that
       collapses to zero from something larger is refused by the reader
-      and comes back as out-of-range instead;
+      and comes back as out-of-range instead -- and it carries the exact
+      number its spelling denotes beside the rounded one, so that a
+      declared value is compared with the number and not with a rounding
+      of it;
     * a cell too large or too small to hold has no value to read, so its
       whole-number status comes from which end of the range it fell off
       (too large is whole, too small lies strictly between zero and one)
@@ -1033,10 +1249,12 @@ def _classify(text: str) -> _Cell:
     """
     kind = parsing.classify_number(text)
     value: float | None = None
+    exact: tuple[int, tuple[str, ...], int] | None = None
     sign = parsing.SIGN_UNKNOWN
     whole = parsing.WHOLE_UNKNOWN
     if kind == parsing.NUMBER:
         value = parsing.parse_number(text)
+        exact = _exact_digits(text)
         if value is not None:
             if value < 0.0:
                 sign = parsing.SIGN_NEGATIVE
@@ -1062,6 +1280,7 @@ def _classify(text: str) -> _Cell:
         text=text,
         kind=kind,
         value=value,
+        exact=exact,
         sign=sign,
         whole=whole,
         folded=parsing.folded(text),
@@ -1209,16 +1428,24 @@ def _numeric_looking(cells: _Cells) -> int:
 class _Declaration:
     """One value the person running the tool named, and what it names.
 
-    `value` is the number the declaration holds, and None whenever it
-    holds no number this format can carry. Which of the two it is, is
-    the whole of the matching rule: a declaration that names a number
-    matches cells by that NUMBER and by nothing else; a declaration that
-    names no number matches cells by SPELLING and by nothing else.
+    `exact` is the EXACT number the declaration denotes, and None
+    whenever it denotes no number this format can carry. Which of the
+    two it is, is the whole of the matching rule: a declaration that
+    names a number matches cells by that NUMBER and by nothing else; a
+    declaration that names no number matches cells by SPELLING and by
+    nothing else.
+
+    The number is held exactly rather than as the binary64 value it
+    rounds to. Rounding first makes one number out of two: two decimal
+    spellings a person can tell apart at a glance can round to the same
+    binary64 value, and then a declaration reached cells the person
+    never named, and a pair of declarations naming two different numbers
+    was refused as a contradiction (review item P1-R7-F3).
     """
 
     text: str
     folded: str
-    value: "float | None"
+    exact: "tuple[int, tuple[str, ...], int] | None"
 
 
 def _declarations(spellings: tuple[str, ...]) -> "list[_Declaration]":
@@ -1230,14 +1457,11 @@ def _declarations(spellings: tuple[str, ...]) -> "list[_Declaration]":
     """
     made: list[_Declaration] = []
     for spelling in spellings:
-        held: float | None = None
-        if parsing.classify_number(spelling) == parsing.NUMBER:
-            held = parsing.parse_number(spelling)
         made += [
             _Declaration(
                 text=spelling,
                 folded=parsing.folded(spelling),
-                value=held,
+                exact=_exact_value(spelling),
             )
         ]
     return made
@@ -1245,9 +1469,9 @@ def _declarations(spellings: tuple[str, ...]) -> "list[_Declaration]":
 
 def _same_declaration(one: _Declaration, other: _Declaration) -> bool:
     """True when two declarations name the same thing, under the one rule."""
-    if one.value is not None and other.value is not None:
-        return one.value == other.value
-    if one.value is None and other.value is None:
+    if one.exact is not None and other.exact is not None:
+        return one.exact == other.exact
+    if one.exact is None and other.exact is None:
         return one.folded == other.folded
     return False
 
@@ -1267,6 +1491,9 @@ def contradictory_declarations(
     matches, so a pair this reports is exactly a pair that would have
     fought over the same cells: `-999` and `-999.00` are one number,
     `NA` and ` na ` are one spelling, and `-999` and `NA` are neither.
+    It is also EXACT, so two numbers a person can tell apart are never
+    reported as one: the pair reported here is a pair that is equal, not
+    a pair that rounds to one binary64 value (review item P1-R7-F3).
 
     Guarantees: accepts the two lists of declared values; returns one
     plain sentence per clashing pair, in the order the kept values were
@@ -1280,7 +1507,7 @@ def contradictory_declarations(
         for other in missing:
             if not _same_declaration(one, other):
                 continue
-            if one.value is None:
+            if one.exact is None:
                 how = "the same spelling"
             else:
                 how = "the same number"
@@ -1299,19 +1526,31 @@ def _declared_spelling(
     """True when a declaration that names no number matches this spelling."""
     folded = parsing.folded(text)
     for declaration in declarations:
-        if declaration.value is None and folded == declaration.folded:
+        if declaration.exact is None and folded == declaration.folded:
             return True
     return False
 
 
 def _declared_number(
-    value: "float | None", declarations: "list[_Declaration]"
+    exact: "tuple[int, tuple[str, ...], int] | None",
+    declarations: "list[_Declaration]",
 ) -> bool:
-    """True when a declaration names exactly the number this cell holds."""
-    if value is None:
+    """True when a declaration names EXACTLY the number handed in.
+
+    The comparison is on the exact number both sides denote. Two
+    spellings that denote different numbers never match here, however
+    close together the binary64 values they round to are, and two
+    spellings that denote one number always match, however differently
+    they are written.
+
+    Guarantees: accepts the canonical triple of the number in hand, or
+    None when there is no number; returns a truth value. Raises nothing.
+    No I/O of any kind.
+    """
+    if exact is None:
         return False
     for declaration in declarations:
-        if declaration.value is not None and value == declaration.value:
+        if declaration.exact is not None and exact == declaration.exact:
             return True
     return False
 
@@ -1372,6 +1611,11 @@ def _declared_numbers_removed(
     `-999.0`, `-999.00` and `(999)` are one declaration's business
     whichever of them the file writes.
 
+    The number compared is the EXACT one, read from the cell's own
+    record. Round 6 compared the binary64 values instead, and a column
+    of two whole numbers one apart, with only one of them declared
+    missing, lost every row of both (review item P1-R7-F3).
+
     A declared number that is KEPT needs nothing here: keeping is the
     default for any cell that reads as a number, and the one rule that
     would have removed it -- the numeric-sentinel rule -- asks the same
@@ -1385,14 +1629,14 @@ def _declared_numbers_removed(
     numeric = [
         declaration
         for declaration in declared_missing
-        if declaration.value is not None
+        if declaration.exact is not None
     ]
     if not numeric:
         return classified, []
     kept: list[_Cell] = []
     missing: list[tuple[str, str]] = []
     for cell in classified:
-        if _declared_number(cell.value, numeric):
+        if _declared_number(cell.exact, numeric):
             missing += [(cell.text, parsing.MISSING_DECLARED)]
         else:
             kept += [cell]
@@ -1400,18 +1644,26 @@ def _declared_numbers_removed(
 
 
 def _missing_maps(
-    missing: list[tuple[str, str]], role: str, settings: Settings
+    missing: list[tuple[str, str]], settings: Settings
 ) -> "tuple[dict[str, int], dict[str, int]]":
-    """Both missing mappings, under the publication rule.
+    """Both missing mappings, under the small-cell floor.
 
     `missing_by_class` uses only synthtwin's own five words, so it is
     safe on every role and is always written in full. An exact source
-    spelling reaches `missing_by_source` only when the role's class
-    permits any value at all AND at least `small_cell_floor` rows share
-    that spelling; everything else is pooled, unnamed, into
-    `(withheld)`. Before this rule a free-text column published
-    `{"-9.99e2": 1}` while its own note promised no value would appear
-    (review item P1-R1-F10).
+    spelling reaches `missing_by_source` only when at least
+    `small_cell_floor` rows share that spelling; everything else is
+    pooled, unnamed, into `(withheld)`.
+
+    THE ROLE IS NOT CONSULTED HERE. This function used to hold half of
+    the publication rule as well -- an early return that emptied
+    `missing_by_source` for a role that publishes nothing, which is why
+    a free-text column stopped publishing `{"-9.99e2": 1}` beside a note
+    promising no value would appear (review item P1-R1-F10). Holding
+    that half here left the other half nowhere, and the field added
+    afterwards was published by a role that publishes nothing (review
+    item P1-R7-F2). The whole rule now lives in
+    `_publication_class_applied`, which sees the whole block; this
+    function applies the floor and nothing else.
     """
     by_class: dict[str, int] = {}
     for name in parsing.MISSING_CLASSES:
@@ -1432,8 +1684,6 @@ def _missing_maps(
                 pooled[parsing.MISSING_WITHHELD] + count
             )
     by_source: dict[str, int] = {}
-    if role in ROLES_PUBLISHING_NOTHING:
-        return by_source, pooled
     exact: dict[str, int] = {}
     for spelling, _name in missing:
         if parsing.trimmed(spelling):
@@ -1479,6 +1729,9 @@ def _sentinel_verdicts(
       as missing anyway, and the profile published a minimum computed
       without it -- the exact opposite of what was asked (review item
       P1-R6-F9). Nothing here spells a candidate to decide anything.
+      The candidate arrives as a number rather than as text, so it is
+      turned into the same exact form the declarations carry before the
+      two are compared (review item P1-R7-F3).
 
     A candidate declared MISSING never reaches this function: a declared
     number is taken out of the column by `_declared_numbers_removed`
@@ -1504,7 +1757,7 @@ def _sentinel_verdicts(
         occurrences = len(
             [value for value in cells.numbers if value == candidate]
         )
-        if _declared_number(candidate, kept):
+        if _declared_number(_exact_number(candidate), kept):
             verdicts[candidate] = (False, REASON_KEPT_BY_USER, occurrences)
             continue
         if len(others) < 4:
@@ -2459,10 +2712,18 @@ def _identifier_verdict(
     """
     n_present = len(cells.present)
     lengths = _lengths(cells.present)
+    # The note has to cover the WHOLE block, not the part of it this
+    # function builds. It said "only how many there are and how long
+    # they are" while a sentinel verdict elsewhere in the same block
+    # carried the spelling of a value out of the column (review item
+    # P1-R7-F2). The spelling is withheld now; the note also stops
+    # promising less than the block contains, because a claim that is
+    # too narrow is how the next field slips past unnoticed.
     notes = notes + [
         (
-            "this column holds record numbers or codes, so its values are "
-            "never published: only how many there are and how long they are"
+            "this column holds record numbers or codes, so no value of it "
+            "is published anywhere in its description: only how many there "
+            "are, how long they are, and what synthtwin decided about them"
         )
     ]
     return _Verdict(
@@ -2592,6 +2853,144 @@ def _numeric_verdict(
     )
 
 
+# -- the publication class, applied to the whole block ----------------
+
+
+def _count_at(entry: dict[str, object], key: str) -> int:
+    """The whole number stored under ``key``, or zero."""
+    value = entry[key]
+    if isinstance(value, int):
+        return value
+    return 0
+
+
+def _text_at(entry: dict[str, object], key: str) -> str:
+    """The text stored under ``key``, or the empty text."""
+    value = entry[key]
+    if isinstance(value, str):
+        return value
+    return ""
+
+
+def _counts_only(block: dict[str, object]) -> dict[str, object]:
+    """One mapping with everything but the named counts withheld.
+
+    A key on `KEYS_THAT_CARRY_NO_VALUE` keeps its contents; every other
+    key keeps its PLACE and loses its contents to `(withheld)`. Losing
+    the place instead would have hidden the withholding: a reader
+    comparing two columns cannot see a key that is not there, and a
+    program reading the profile would find the shape of a block
+    changing with its role.
+    """
+    kept: dict[str, object] = {}
+    # Sorted rather than in the order the block was built: the profile
+    # writes every mapping with sorted keys anyway, and iterating a
+    # mapping's keys without reaching for a method on it is how the rest
+    # of this module reads one (plan D6.2).
+    for key in sorted(block):
+        if key in KEYS_THAT_CARRY_NO_VALUE:
+            kept[key] = block[key]
+        else:
+            kept[key] = SUPPRESSED_LABEL
+    return kept
+
+
+def publishes_no_values(role: str, forced_identifier: bool) -> bool:
+    """Whether a column's block may carry a value of the table at all.
+
+    The role's publication class decides it, with ONE addition: a column
+    the person named with `--identifier` publishes nothing whatever role
+    it ends up with.
+
+    That addition is not decoration. A declared column whose cells are
+    ALL spellings that mean "no value" never reaches the identifier role
+    -- the empty-column rule settles it before any rule runs -- so it
+    was described as an empty column and published the person's own
+    spelling in `missing_by_source`, 200 rows of it, while the same
+    run's summary told them that a column of record numbers publishes
+    nothing either way. RULE 0 says a declaration beats every rule; this
+    is that sentence applied to what the column PUBLISHES rather than
+    only to which role it is given.
+
+    Guarantees: accepts a role from `ROLES` and whether the person
+    declared the column; returns True when no value of the column may
+    appear anywhere in its block. Determinism: the answer depends only
+    on those two arguments -- no value of the column is consulted, so
+    the rule cannot vary with the data it governs. Raises nothing. No
+    I/O of any kind.
+    """
+    return forced_identifier or role in ROLES_PUBLISHING_NOTHING
+
+
+def _publication_class_applied(
+    publishes_nothing: bool,
+    details: dict[str, object],
+    by_source: dict[str, int],
+    entries: list[dict[str, object]],
+) -> "tuple[dict[str, object], dict[str, int], list[dict[str, object]]]":
+    """Everything a column block publishes, filtered by its class.
+
+    THE RULE IS A PROPERTY OF THE BLOCK, and this is the one place it
+    is applied. A column that publishes no values publishes no values
+    anywhere in its block: not in its details, not in the spellings it
+    counted as missing, and not in what it decided about a numeric
+    stand-in for "no value". `publishes_no_values` above says which
+    columns those are.
+
+    That last one is why this function exists. `sentinel_verdicts`
+    carried the exact spelling of a candidate under `candidate`, and
+    nothing looked at the role before writing it, so a column the
+    person had declared with `--identifier` -- declared precisely to
+    keep its values out -- published `-999` in a field beside a summary
+    saying nothing of its values would appear (review item P1-R7-F2).
+    Closing that one field would have left the same hole open for the
+    next field somebody adds, which is exactly how this field came to
+    be open in the first place.
+
+    WHAT SURVIVES for such a column is every fact that carries no value:
+    how many candidates were named, how many rows each one accounted
+    for, what was decided about each and why. A reader can still see
+    that a decision about a stand-in happened and which way it went;
+    only the spelling goes. The candidates too rare to name at all are
+    counted separately, in `n_sentinel_candidates_unpublished`, which
+    is a count and needs no filtering.
+
+    THE ORDER carries nothing either. Candidates reach here sorted by
+    the number they are, so on a block that keeps the spelling the
+    order is readable and means what it shows; on a block that withholds
+    it, position would have said which of two withheld candidates is the
+    smaller. The withheld list is therefore ordered by the facts it
+    publishes -- occurrences, then verdict, then reason -- so that
+    nothing about a value of the table decides where a line appears.
+
+    Guarantees: accepts whether the column may publish a value, the
+    details block built for it, the missing-spelling map under the
+    small-cell floor, and the sentinel verdicts that cleared the floor;
+    returns the three of them unchanged for a column whose class permits
+    values, and filtered for a column whose class does not. Raises
+    nothing. No I/O of any kind.
+    """
+    if not publishes_nothing:
+        return details, by_source, entries
+    ranked: list[tuple[int, str, str, int]] = []
+    index = 0
+    for entry in entries:
+        ranked += [
+            (
+                _count_at(entry, "n_occurrences"),
+                _text_at(entry, "verdict"),
+                _text_at(entry, "reason"),
+                index,
+            )
+        ]
+        index = index + 1
+    withheld: list[dict[str, object]] = []
+    for _occurrences, _verdict, _reason, place in sorted(ranked):
+        withheld += [_counts_only(entries[place])]
+    no_spellings: dict[str, int] = {}
+    return _counts_only(details), no_spellings, withheld
+
+
 def profile_column(
     name: str,
     position: int,
@@ -2633,8 +3032,14 @@ def profile_column(
     - Boundary: no file is opened, and no value of a suppressed kind
       (identifier, free text, a number no format can hold, or a label
       below the small-cell floor) appears in the returned description.
-      This is a property of the role's publication CLASS, applied here
-      once, not of the branch that built the block.
+      This is a property of the column's publication CLASS -- its role,
+      plus the declaration that beats every role -- applied to the WHOLE
+      block by `_publication_class_applied` once both are known, not of
+      the branch that built the block and not of any one field. A column
+      that publishes no values keeps its counts, its lengths and the
+      decisions it made -- including what it decided about each numeric
+      stand-in for "no value" and how many rows that accounted for --
+      and keeps not one spelling of a value.
     """
     clashes = contradictory_declarations(
         settings.kept_values, settings.declared_missing_values
@@ -2740,7 +3145,17 @@ def profile_column(
     else:
         verdict = _decide(cells, forced_identifier)
 
-    by_source, by_class = _missing_maps(missing, verdict.role, settings)
+    by_source, by_class = _missing_maps(missing, settings)
+    # ONE application of the publication class, over everything the
+    # block can publish, after the role is known and before anything is
+    # built. Doing it per field is what let one field be forgotten
+    # (review item P1-R7-F2).
+    details, by_source, entries = _publication_class_applied(
+        publishes_no_values(verdict.role, forced_identifier),
+        verdict.details,
+        by_source,
+        entries,
+    )
     # ONE construction site. Every count below is a field of the class,
     # so it exists on every role by construction rather than by
     # somebody remembering to add it in ten places.
@@ -2753,7 +3168,7 @@ def profile_column(
         n_missing=n_missing,
         missing_by_source=by_source,
         missing_by_class=by_class,
-        details=verdict.details,
+        details=details,
         publication_notes=verdict.notes,
         remarks=remarks + verdict.remarks,
         n_numeric=len(cells.numbers),

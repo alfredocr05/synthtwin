@@ -374,7 +374,34 @@ ON_DISK_NEW = "new"
 ON_DISK_SET_ASIDE = "set-aside"
 ON_DISK_WORKING = "working"
 ON_DISK_EMPTY_WORKING = "empty-working"
+# A working name synthtwin created and then could not examine. It is
+# separate from `empty-working` because synthtwin cannot say the name
+# still holds the empty file it made, and separate from `unchecked`
+# because synthtwin DID make it -- which is what the reader needs in
+# order to know whose file it is (review item P1-R7-F1).
+ON_DISK_UNCERTAIN_WORKING = "uncertain-working"
+# A working name synthtwin had CLAIMED and was in the middle of creating
+# when the run stopped. Creating a file is one step for the operating
+# system and two moments for this program -- the file appears, and only
+# then does the creating call hand back -- so a run stopped in between
+# holds a name it may or may not have made anything at.
+#
+# It is separate from `empty-working` because synthtwin cannot say it
+# made this one, and separate from `uncertain-working` because that one
+# IS synthtwin's for certain and only its condition is in doubt. The
+# difference decides what happens next: a name in this state is NAMED to
+# the person and never removed, because removing it would risk deleting
+# a file that was already there under that name (review item P1-R8-F1).
+ON_DISK_CLAIMED_WORKING = "claimed-working"
 ON_DISK_UNCHECKED = "unchecked"
+# A name that HAS a file, at a moment when synthtwin was moving the two
+# names into place and stopped for a reason it did not foresee -- memory
+# exhausted, or a person pressing Ctrl-C. Which of the run's files
+# ended up here is exactly what the code that did not finish would have
+# known. It is separate from `unchecked` because the name WAS examined,
+# and separate from `new`, `before` and `set-aside` because any of those
+# would be a guess presented as a fact (review item P1-R7-F1).
+ON_DISK_UNSETTLED = "unsettled"
 
 _ON_DISK_WORDS = {
     ON_DISK_BEFORE: "the file that was there before this run, unchanged",
@@ -400,7 +427,24 @@ _ON_DISK_WORDS = {
         "an empty working file synthtwin could not clear away; it holds "
         "nothing"
     ),
+    ON_DISK_UNCERTAIN_WORKING: (
+        "something synthtwin made for its own use, wrote nothing into, "
+        "and could not clear away or examine afterwards"
+    ),
+    ON_DISK_CLAIMED_WORKING: (
+        "something at a working name synthtwin had claimed and was still "
+        "creating when the run stopped. synthtwin wrote nothing into it "
+        "and did not remove it, because it cannot tell whether it made "
+        "this file or whether the name was already taken by something "
+        "else; please look at it before you delete it"
+    ),
     ON_DISK_UNCHECKED: "not known: synthtwin could not check this name",
+    ON_DISK_UNSETTLED: (
+        "a file -- but synthtwin stopped while it was moving these "
+        "names into place, so it cannot say which of this run's files "
+        "ended up here; look at every name in this message before you "
+        "use or delete any of them"
+    ),
 }
 
 _UNKNOWN_STATE = "not known: synthtwin could not say what is there"
