@@ -33,13 +33,31 @@ def test_the_summary_names_every_column_once(tmp_path: pathlib.Path) -> None:
 def test_each_role_is_named_in_plain_language(
     tmp_path: pathlib.Path,
 ) -> None:
-    _table, document, text = _profile_of(tmp_path, fixtures.every_role_table())
+    """Corrected for the withdrawal of identifier inference (P1-R6-F8).
+
+    The record-code column of this fixture used to reach the summary as
+    `identifier` because the rules inferred it. Nothing is inferred into
+    that role any more -- the same shape of value can be a dose -- so the
+    column now reads as free text, and the words for the identifier role
+    are checked on the path that still produces it: the person who owns
+    the table naming the column. Both halves of the old assertion are
+    kept, on the run where each one applies.
+    """
+    table, document, text = _profile_of(tmp_path, fixtures.every_role_table())
     for column in document["columns"]:
         assert "read as:" in text
     # No role name leaks through as jargon: the reader sees words.
     assert "free_text" not in text
-    assert "record numbers or codes" in text
     assert "free text" in text
+    assert "record numbers or codes" not in text, (
+        "nothing may be called a record number that nobody declared"
+    )
+    declared = summary.render(
+        profile.build_document(table, SETTINGS, ["record_code"]),
+        "read as UTF-8.",
+    )
+    assert "record numbers or codes" in declared
+    assert "identifier" not in declared.replace("--identifier", "")
 
 
 def test_the_disclosure_section_is_always_present(

@@ -1,11 +1,11 @@
 {
   "accuracy_contract": {
-    "known_conditioning_limit": "cancelling_extremes: the third central moment of {1e16, 1, -1e16} cancels by a factor of 1e32, which is beyond binary64.  The exact skew is -1.2247e-16 and any float64 two-pass reduction returns a different number of the same (negligible) magnitude.  The absolute contract above still holds; a relative one cannot.",
-    "ladder": "absolute error at most 4 * eps * max(|x_(k)|, |x_(k+1)|) -- i.e. a few ulps of the BRACKETING order statistics, not of the answer, because a rung whose value sits near zero between two large neighbours is intrinsically ill-conditioned",
-    "mean": "within 1 unit in the last place of the correctly rounded exact mean",
-    "note": "measured for the reduction described in the P1-R1-F6 verification (sorted values, power-of-two rescaling with frexp/ldexp, math.fsum, math.sqrt, deviations recentred once, skew as a ratio of scaled moments) over these cases plus 2500 fuzzed samples spanning 1e-300 to 1e300.  eps = 2**-52.",
-    "skew": "absolute error at most 8 * eps * (1 + |skew|); measured worst was 4.3e-16 * (1 + |skew|)",
-    "std": "within 2 units in the last place of the correctly rounded exact sample standard deviation"
+    "how_two_numbers_are_compared": "by their place in the ordered list of every binary64 value: consecutive representable numbers are one apart at every magnitude, across the boundary between the subnormal and the normal range included, so 'an immediate neighbour' means exactly one representable number away and nothing looser.  The two spellings of zero name the same number and sit in the same place.  A relative comparison against |expected| * eps is NOT this: it collapses at zero, where it would accept 1e-100 as a neighbour of 0.0 although about 2e252 representable numbers lie between them.",
+    "ladder": "the correctly rounded exact rung, or one of its two immediate neighbours.  A separately stated outer bound of 4 * eps * max(|x_(k)|, |x_(k+1)|) remains recorded because an interpolated rung is defined by its two BRACKETING order statistics rather than by its own size, so a rung landing near zero between two large neighbours is bounded by them.",
+    "mean": "the correctly rounded exact mean, or one of its two immediate neighbours",
+    "note": "correctly rounded or an immediate neighbour, for every statistic these vectors cover.  The numeric summary under test writes each value as one shared power of two and one whole-number significand, accumulates the power sums as arbitrary-precision whole numbers -- which cancel without error because whole numbers do not round -- and rounds once, at the end.  Nothing is approximated on the way in, so the contract is stated in representable numbers rather than as a measured error budget.  This replaces the error budget of revision 1, which was measured for a two-pass floating-point reduction (sorted values, power-of-two rescaling, math.fsum, math.sqrt) that the implementation no longer uses, and which accepted answers two or more representable numbers away.  eps = 2**-52.",
+    "skew": "the correctly rounded exact moment skewness, or one of its two immediate neighbours.  Revision 1 allowed an absolute 8 * eps * (1 + |skew|) here, which accepted 0.0 for the exact -1.224744871391589e-16 of {1e16, 1, -1e16}; whole-number accumulation removes the cancellation that bound excused.",
+    "std": "the correctly rounded exact sample standard deviation, or one of its two immediate neighbours"
   },
   "cases": {
     "base_15": {
@@ -2191,7 +2191,7 @@
     }
   },
   "definitions": {
-    "float64": "the correctly rounded (round-half-even) binary64 value of the exact result; a conforming implementation must publish exactly this, or be within the tolerance the test states",
+    "float64": "the correctly rounded (round-half-even) binary64 value of the exact result; a conforming implementation must publish exactly this number or one of its two immediate neighbours in binary64, as the accuracy contract below states",
     "ladder_binary_p": "quantiles with p as the float64 nearest to those decimals, i.e. what an implementation gets if it writes h = (n-1) * 0.99 in float.  Reported only to show that the two differ: for n = 101 the float route puts p99 between the 99th and 100th order statistics instead of exactly on the 100th.  An implementation must NOT use this route.",
     "ladder_exact_p": "quantiles with p as the exact decimal 0.01, 0.05, ...  This is what an implementation gets when it locates the rung with integer arithmetic -- steps = (n-1)*num, lo = steps // den, rest = steps - lo*den for the ladder written as num/den with den = 100.  THIS IS THE ORACLE.",
     "mean": "(1/n) * sum x_i, over the exact values of the float64 inputs",
@@ -2205,6 +2205,6 @@
     "numpy",
     "pandas"
   ],
-  "precision": "exact rational and integer arithmetic throughout. Every published float64 is constructed by integer division or integer square root and then PROVED correct by comparing the exact value against the exact midpoints to its two neighbouring float64 values, ties to the even significand. No decimal approximation is used anywhere: a high-precision decimal seed is how an earlier revision published a negative standard deviation (review item P1-R2-F5).",
+  "precision": "exact rational and integer arithmetic throughout. Every published float64 -- every mean, spread, shape and ladder rung, with no exception -- is constructed by integer division or integer square root and then PROVED correct in a separate pass over the finished document: each number is re-derived from the exact rational it stands for by comparing that rational against the exact midpoints to its two neighbouring float64 values, ties to the even significand. Two boundaries the midpoint comparison cannot see on its own are checked by hand: a value at or above the point where binary64 rounds up to an infinity is refused rather than reported as the largest finite float, and the sign of a zero is read from the sign bit, because +0.0 and -0.0 compare equal. A number that reaches the document with no exact value recorded for it stops the run. No decimal approximation is used anywhere: a high-precision decimal seed is how an earlier revision published a negative standard deviation (review item P1-R2-F5).",
   "what": "Independent high-precision reference vectors for the synthtwin numeric summary (finding P1-R1-F6)."
 }

@@ -1,0 +1,484 @@
+"""P1-R6-F8, round four: the identifier role is declared, never inferred.
+
+Three repairs were tried and three were defeated by the column next
+door. Round 1 read uniqueness plus guards as a record number, and a
+column of prices went with it. Round 5 moved the reading to last place,
+and zero-padded clock times went with it. Round 6 required a letter --
+first, then anywhere in the value -- and `1mg` went with it, because
+`1mg` holds the letters m and g and so a amount column became a column of
+record numbers and lost its distribution.
+
+The fourth repair is a deletion. `1mg` and `code1` are the same shape of
+string; what separates a amount from a label is what the column MEANS, and
+no property of the values carries it. So nothing infers the role any
+more: `identifier` happens when the person who owns the table writes
+`--identifier NAME`, and never otherwise. A column that would once have
+been inferred falls to free text, which publishes NO value either -- so
+the conservative answer is also the safe one -- and says in plain words
+that synthtwin did not assume, and how to declare it if it should be
+declared.
+
+The two properties this file exists to pin:
+
+* nothing that only READS values can produce the role. Asserted over a
+  battery of shapes rather than over the one column a reviewer sent,
+  because "closed on the branch that was demonstrated" is how the defect
+  survived three rounds;
+* the role is fully alive through the option, end to end, through the
+  real CLI, publishing nothing.
+
+Every case is paired: the measurement and the record code with the same
+lexical shape, side by side in one table, treated identically until
+somebody says which is which.
+"""
+
+import json
+import pathlib
+import random
+
+import pytest
+
+import fixtures
+from synthtwin import profile, reading, summary, taxonomy
+from synthtwin.cli import main
+
+SETTINGS = taxonomy.Settings()
+
+# The item's own reproduction: an amount with its unit written after the
+# number. Round 6 read this as record numbers.
+UNIT_AMOUNTS = [f"{index}mg" for index in range(1, 31)]
+
+# A real record-code column of the SAME shape: one token, code alphabet,
+# all different, letters and digits mixed. Nothing in the values tells
+# these two columns apart, which is the whole argument.
+CODE_WORDS = [f"code{index}" for index in range(1, 31)]
+
+# The shapes the earlier rounds argued over.
+CLOCK_TIMES = [
+    f"{hour:02d}{minute:02d}"
+    for hour in range(24)
+    for minute in range(0, 60, 10)
+]
+PADDED_NUMBERS = [f"{index:06d}" for index in range(50)]
+PREFIXED_CODES = [f"R{index:05d}" for index in range(240)]
+ACCESSION_CODES = [f"2024-ab-{index:04d}" for index in range(60)]
+
+
+def describe(
+    values: list[str],
+    settings: taxonomy.Settings = SETTINGS,
+    forced: bool = False,
+) -> taxonomy.ColumnProfile:
+    """One column, described by the rules under test."""
+    return taxonomy.profile_column(
+        "column", 1, values, len(values), settings, forced
+    )
+
+
+def whole_block(described: taxonomy.ColumnProfile) -> str:
+    """Everything about one column that reaches a file, as one string."""
+    return (
+        json.dumps(profile._column_block(described), sort_keys=True)
+        + " ".join(described.remarks)
+        + " ".join(described.publication_notes)
+    )
+
+
+# -- nothing infers the role ------------------------------------------
+
+
+ALL_SHAPES = {
+    "unit amounts": UNIT_AMOUNTS,
+    "code words": CODE_WORDS,
+    "prefixed codes": PREFIXED_CODES,
+    "accession codes": ACCESSION_CODES,
+    "clock times": CLOCK_TIMES,
+    "padded numbers": PADDED_NUMBERS,
+    "letters only": [f"zz{first}{second}" for first in "abcde"
+                     for second in "abcdef"],
+    "letter last": [f"{index}a" for index in range(50)],
+    "letter first": [f"a{index}" for index in range(50)],
+    "underscored": [f"lot_{index:04d}" for index in range(50)],
+    "currency": [f"${index}.50" for index in range(60)],
+    "per cent": [f"{index}.5%" for index in range(60)],
+    "clock with colon": [f"{hour:02d}:{minute:02d}" for hour in range(10)
+                         for minute in range(0, 60, 10)],
+    "plain numbers": [str(index) for index in range(50)],
+    "decimals": [f"{index}.5" for index in range(50)],
+    "dates": [f"2024-01-{day:02d}" for day in range(1, 29)],
+    "sentences": [f"a sentence number {index} in words" for index in range(50)],
+    "wide digits": [f"{index:08d}" for index in range(50)],
+}
+
+
+@pytest.mark.parametrize("shape", sorted(ALL_SHAPES))
+def test_the_rules_never_reach_the_identifier_role(shape: str) -> None:
+    described = describe(ALL_SHAPES[shape])
+    assert described.role != taxonomy.ROLE_IDENTIFIER, (
+        f"{shape} was called record numbers with nobody declaring it"
+    )
+
+
+def test_no_generated_column_of_any_shape_reaches_the_role() -> None:
+    # The battery above is a list somebody wrote; this is the same
+    # property over columns nobody chose. Every earlier round closed the
+    # shapes it had been shown and left the neighbouring shape open, so
+    # the claim worth making is about all of them at once: with nothing
+    # declared, no column of any shape comes back as record numbers.
+    rng = random.Random(20260808)
+    alphabets = ("0123456789", "abcdef", "abc123", "0123-_", "xy09-")
+    for _run in range(400):
+        alphabet = alphabets[rng.randrange(len(alphabets))]
+        width = rng.randint(1, 12)
+        n_rows = rng.randint(1, 120)
+        pool = rng.randint(1, n_rows)
+        values = [
+            "".join(
+                alphabet[rng.randrange(len(alphabet))] for _ in range(width)
+            )
+            for _index in range(pool)
+        ]
+        column = [values[rng.randrange(len(values))] for _row in range(n_rows)]
+        described = describe(column)
+        assert described.role != taxonomy.ROLE_IDENTIFIER, (
+            f"a column of {column[:3]}... was called record numbers with "
+            f"nobody declaring it"
+        )
+        assert described.role in taxonomy.ROLES
+
+
+def test_the_amount_and_the_code_column_are_described_identically() -> None:
+    # The pair the item asked for, at the level of the description
+    # itself: same role, same published fields. A repair that told them
+    # apart would be the fourth defeated guess.
+    amount = describe(UNIT_AMOUNTS)
+    codes = describe(CODE_WORDS)
+    assert amount.role == codes.role == taxonomy.ROLE_TEXT
+    assert sorted(amount.details) == sorted(codes.details)
+    assert amount.remarks == codes.remarks
+
+
+@pytest.mark.parametrize("shape", sorted(ALL_SHAPES))
+def test_a_declined_column_publishes_none_of_its_values(shape: str) -> None:
+    values = ALL_SHAPES[shape]
+    described = describe(values)
+    if described.role != taxonomy.ROLE_TEXT:
+        return
+    block = whole_block(described)
+    for value in values:
+        assert value not in block, (
+            f"{value!r} reached the profile from a column that publishes "
+            f"nothing"
+        )
+
+
+def test_the_withdrawal_costs_no_ordinary_column_its_distribution() -> None:
+    # The repair that matters more than the defect: ordinary correct
+    # input must be untouched. Quantities, dates, categories and padded
+    # codes that repeat are all described exactly as before.
+    numbers = describe([str(index) for index in range(50)])
+    assert numbers.role == taxonomy.ROLE_COUNT
+    assert numbers.details["percentiles"]["max"] == 49.0
+    measured = describe([f"{index}.5" for index in range(50)])
+    assert measured.role == taxonomy.ROLE_CONTINUOUS
+    assert measured.details["percentiles"]["min"] == 0.5
+    dates = describe([f"2024-01-{day:02d}" for day in range(1, 29)])
+    assert dates.role == taxonomy.ROLE_DATETIME
+    padded = describe(["00501", "02139", "52242"] * 20)
+    assert padded.role == taxonomy.ROLE_CATEGORICAL
+    assert [level["label"] for level in padded.details["levels"]] == [
+        "00501", "02139", "52242",
+    ]
+    unpadded = describe(["52242", "10001", "90210"] * 20)
+    assert unpadded.role == taxonomy.ROLE_COUNT
+    assert unpadded.details["percentiles"]["max"] == 90210.0
+    repeating = describe([f"code{index}" for index in range(10)] * 6)
+    assert repeating.role == taxonomy.ROLE_CATEGORICAL
+
+
+def test_the_padded_column_is_still_kept_away_from_the_numeric_rules() -> None:
+    # `0930` must not fall through to the numeric rules and be averaged
+    # as nine hundred and thirty.
+    described = describe(CLOCK_TIMES)
+    assert described.role == taxonomy.ROLE_TEXT
+    assert "percentiles" not in described.details
+    assert "mean" not in described.details
+    assert "no average is computed" in " ".join(described.remarks)
+
+
+# -- what the declined column SAYS ------------------------------------
+
+
+@pytest.mark.parametrize(
+    "shape",
+    ["unit amounts", "code words", "clock times", "padded numbers"],
+)
+def test_the_remark_states_the_withdrawal_in_plain_language(
+    shape: str,
+) -> None:
+    described = describe(ALL_SHAPES[shape])
+    spoken = [
+        remark for remark in described.remarks if "--identifier" in remark
+    ]
+    assert spoken, "the withdrawal has to be stated, not silent"
+    said = spoken[0]
+    # The four things the person running the tool has to be told.
+    assert "every value in this column is different" in said
+    assert "did NOT assume they are record numbers" in said
+    assert "Nothing from this column is published" in said
+    assert "--identifier NAME" in said
+    # And the direction the earlier rounds got wrong: a measurement must
+    # not be pushed into the role either.
+    assert "write them as plain numbers" in said
+    assert "Do not use --identifier on a measurement" in said
+
+
+def test_the_remark_is_one_paragraph_of_plain_words() -> None:
+    said = next(
+        remark
+        for remark in describe(UNIT_AMOUNTS).remarks
+        if "--identifier" in remark
+    )
+    assert "\n" not in said, "one paragraph, so any front end can wrap it"
+    for jargon in ("free_text", "ROLE_", "taxonomy", "_all_different"):
+        assert jargon not in said
+
+
+# -- the declared path, which is now the only path --------------------
+
+
+@pytest.mark.parametrize("shape", sorted(ALL_SHAPES))
+def test_declaring_the_column_settles_any_shape(shape: str) -> None:
+    described = describe(ALL_SHAPES[shape], forced=True)
+    assert described.role == taxonomy.ROLE_IDENTIFIER
+    assert "you told synthtwin" in described.detection_evidence
+    assert "percentiles" not in described.details
+    assert "levels" not in described.details
+
+
+def test_the_declared_column_records_what_it_always_recorded() -> None:
+    # The role must still be worth declaring: the profile keeps the
+    # counts, the lengths and the whole-number answer that Phase 2 needs
+    # in order to invent stand-in record numbers of the right shape.
+    described = describe(PREFIXED_CODES, forced=True)
+    assert described.details["min_length"] == 6
+    assert described.details["max_length"] == 6
+    assert described.details["all_whole_numbers"] is False
+    assert described.details["n_code_alphabet"] == len(PREFIXED_CODES)
+    assert described.n_distinct == len(PREFIXED_CODES)
+    assert described.n_present == len(PREFIXED_CODES)
+    digits = describe(PADDED_NUMBERS, forced=True)
+    assert digits.details["all_whole_numbers"] is True
+    assert digits.details["n_all_digits"] == len(PADDED_NUMBERS)
+
+
+def test_a_declared_column_publishes_none_of_its_values() -> None:
+    for values in (CODE_WORDS, UNIT_AMOUNTS, PADDED_NUMBERS, CLOCK_TIMES):
+        block = whole_block(describe(values, forced=True))
+        for value in values:
+            assert value not in block
+
+
+def test_declaring_beats_every_rule_that_would_have_published() -> None:
+    # RULE 0 still outranks the roles that publish values: eleven
+    # identical labels are a constant, and a declared column of them
+    # publishes nothing.
+    described = describe(["amber-id"] * 11, forced=True)
+    assert described.role == taxonomy.ROLE_IDENTIFIER
+    assert "amber-id" not in whole_block(described)
+    numbers = describe([str(index) for index in range(50)], forced=True)
+    assert numbers.role == taxonomy.ROLE_IDENTIFIER
+    assert "percentiles" not in numbers.details
+
+
+# -- end to end, through the profile document -------------------------
+
+
+def test_the_paired_columns_agree_end_to_end(tmp_path: pathlib.Path) -> None:
+    # The item's required closure: unit-bearing measurements and true
+    # record IDs of the same lexical shape, in one table. Undeclared,
+    # both are described the same way and neither publishes a value;
+    # declared, one of them -- and only one -- becomes record numbers.
+    text = fixtures.rows_to_csv(
+        ["amount", "record"],
+        [
+            [UNIT_AMOUNTS[index], CODE_WORDS[index]]
+            for index in range(len(CODE_WORDS))
+        ],
+    )
+    table = reading.read_table(str(fixtures.write(tmp_path, "pair.csv", text)))
+    document = profile.build_document(table, SETTINGS, [])
+    serialized = profile.serialize(document)
+    assert [column["role"] for column in document["columns"]] == [
+        taxonomy.ROLE_TEXT, taxonomy.ROLE_TEXT,
+    ]
+    for value in UNIT_AMOUNTS + CODE_WORDS:
+        assert value not in serialized
+
+    named = profile.build_document(table, SETTINGS, ["record"])
+    assert [column["role"] for column in named["columns"]] == [
+        taxonomy.ROLE_TEXT, taxonomy.ROLE_IDENTIFIER,
+    ]
+    assert named["settings"]["forced_identifiers"] == ["record"]
+    for value in UNIT_AMOUNTS + CODE_WORDS:
+        assert value not in profile.serialize(named)
+
+
+def test_the_amount_column_is_never_declared_by_accident(
+    tmp_path: pathlib.Path,
+) -> None:
+    # Declaring the record column must not drag its neighbour with it.
+    text = fixtures.rows_to_csv(
+        ["amount", "record"],
+        [
+            [UNIT_AMOUNTS[index], CODE_WORDS[index]]
+            for index in range(len(CODE_WORDS))
+        ],
+    )
+    table = reading.read_table(str(fixtures.write(tmp_path, "pair.csv", text)))
+    named = profile.build_document(table, SETTINGS, ["record"])
+    amount = named["columns"][0]
+    assert amount["role"] == taxonomy.ROLE_TEXT
+    assert "--identifier" in " ".join(amount["remarks"])
+
+
+def test_the_measurement_written_plainly_keeps_its_distribution(
+    tmp_path: pathlib.Path,
+) -> None:
+    # What the remark asks for, and what it buys: the same amounts written
+    # as plain numbers with the unit in the column name are described in
+    # full.
+    text = fixtures.single_column_table(
+        "amount_mg", [f"{index}" for index in range(1, 31)]
+    )
+    table = reading.read_table(str(fixtures.write(tmp_path, "amount.csv", text)))
+    column = profile.build_document(table, SETTINGS, [])["columns"][0]
+    assert column["role"] == taxonomy.ROLE_COUNT
+    assert column["percentiles"]["min"] == 1.0
+    assert column["percentiles"]["max"] == 30.0
+
+
+# -- end to end, through the summary a person reads -------------------
+
+
+def test_the_summary_names_the_declined_column_in_plain_language(
+    tmp_path: pathlib.Path,
+) -> None:
+    table = reading.read_table(
+        str(
+            fixtures.write(
+                tmp_path,
+                "amount.csv",
+                fixtures.single_column_table("amount", UNIT_AMOUNTS),
+            )
+        )
+    )
+    text = summary.render(
+        profile.build_document(table, SETTINGS, []), "read as UTF-8."
+    )
+    assert "free text" in text
+    assert "free_text" not in text, "the role name must not leak as jargon"
+    assert "record numbers or codes" not in text, (
+        "nothing may be called a record number that nobody declared"
+    )
+    assert "did NOT assume they are record numbers" in text
+    assert "--identifier NAME" in text
+    for value in UNIT_AMOUNTS:
+        assert value not in text
+
+
+def test_the_summary_names_the_declared_role_in_plain_language(
+    tmp_path: pathlib.Path,
+) -> None:
+    table = reading.read_table(
+        str(
+            fixtures.write(
+                tmp_path,
+                "codes.csv",
+                fixtures.single_column_table("record", CODE_WORDS),
+            )
+        )
+    )
+    text = summary.render(
+        profile.build_document(table, SETTINGS, ["record"]), "read as UTF-8."
+    )
+    assert "record numbers or codes" in text
+    assert "read as: identifier" not in text, (
+        "the role name must not leak as jargon"
+    )
+    # The words say WHO decided, because nothing else can decide it.
+    assert "you named this column" in text
+    assert "synthtwin never decides this for itself" in text
+    for value in CODE_WORDS:
+        assert value not in text
+
+
+# -- end to end, through the real command -----------------------------
+
+
+def test_the_real_command_declines_and_declares(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # An ordinary two-column CSV, profiled by the real CLI exactly as a
+    # person would type it -- first with no options at all, then with the
+    # record column declared.
+    text = fixtures.rows_to_csv(
+        ["amount", "record"],
+        [
+            [UNIT_AMOUNTS[index], CODE_WORDS[index]]
+            for index in range(len(CODE_WORDS))
+        ],
+    )
+    table = fixtures.write(tmp_path, "clinic.csv", text)
+    assert main(["profile", str(table)]) == 0
+    printed = capsys.readouterr().out
+    written = (tmp_path / "clinic-profile.txt").read_text(encoding="utf-8")
+    document = json.loads(
+        (tmp_path / "clinic-profile.json").read_text(encoding="utf-8")
+    )
+    assert [column["role"] for column in document["columns"]] == [
+        "free_text", "free_text",
+    ]
+    for shown in (printed, written):
+        assert "did NOT assume they are record numbers" in shown
+        for value in UNIT_AMOUNTS + CODE_WORDS:
+            assert value not in shown
+
+    assert main(["profile", str(table), "--identifier", "record"]) == 0
+    printed = capsys.readouterr().out
+    document = json.loads(
+        (tmp_path / "clinic-profile.json").read_text(encoding="utf-8")
+    )
+    roles = {column["name"]: column["role"] for column in document["columns"]}
+    assert roles == {"amount": "free_text", "record": "identifier"}
+    assert "record numbers or codes" in printed
+    for value in UNIT_AMOUNTS + CODE_WORDS:
+        assert value not in printed
+
+
+def test_the_real_command_still_profiles_a_plain_table(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # Ordinary correct input, through the real command: a table of
+    # numbers, labels and dates keeps every statistic it had before.
+    rows = [
+        [str(index), fixtures.LABELS[index % 5], f"2024-01-{index % 28 + 1:02d}"]
+        for index in range(60)
+    ]
+    table = fixtures.write(
+        tmp_path, "plain.csv", fixtures.rows_to_csv(["n", "group", "day"], rows)
+    )
+    assert main(["profile", str(table)]) == 0
+    out = capsys.readouterr().out
+    document = json.loads(
+        (tmp_path / "plain-profile.json").read_text(encoding="utf-8")
+    )
+    roles = {column["name"]: column["role"] for column in document["columns"]}
+    assert roles == {
+        "n": "count", "group": "categorical", "day": "datetime",
+    }
+    counts = document["columns"][0]
+    assert counts["percentiles"]["max"] == 59.0
+    assert counts["mean"] is not None
+    assert "COLUMNS, ONE BY ONE" in out
+    assert "identifier" not in out.replace("--identifier", "")

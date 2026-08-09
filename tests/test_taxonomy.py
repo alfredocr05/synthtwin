@@ -51,13 +51,41 @@ def test_a_constant_below_the_floor_is_not_published() -> None:
     assert described.publication_notes
 
 
-def test_unique_words_are_identifiers_and_their_values_are_withheld() -> None:
-    described = describe([f"code{index}" for index in range(50)])
-    assert described.role == taxonomy.ROLE_IDENTIFIER
+def test_unique_words_are_free_text_until_someone_declares_them() -> None:
+    """Corrected from `test_unique_words_are_identifiers_...`.
+
+    The old test required 50 unique code words to be INFERRED as record
+    numbers. That inference is withdrawn (review item P1-R6-F8): `1mg`
+    and `code1` are the same shape of string, so a rule that reads one
+    as a record number reads the other as one too, and a dose column
+    then loses its distribution for good. Both halves of the old test
+    are kept -- the values are still withheld, and the identifier role
+    is still exercised -- but the role now comes from the person who
+    owns the table rather than from the values.
+    """
+    values = [f"code{index}" for index in range(50)]
+    described = describe(values)
+    assert described.role == taxonomy.ROLE_TEXT
     assert described.n_distinct == 50
     assert "levels" not in described.details
     body = f"{described.details}"
-    assert "code7" not in body, "no identifier value may appear anywhere"
+    assert "code7" not in body, "no free-text value may appear anywhere"
+
+    declared = describe(values, forced=True)
+    assert declared.role == taxonomy.ROLE_IDENTIFIER
+    assert "levels" not in declared.details
+    assert "code7" not in f"{declared.details}", (
+        "no identifier value may appear anywhere"
+    )
+
+
+def test_the_declined_column_says_what_was_not_assumed() -> None:
+    # The withdrawal is not silent: the column that would once have been
+    # called a record number carries the reason and the way to declare it.
+    described = describe([f"code{index}" for index in range(50)])
+    said = " ".join(described.remarks)
+    assert "did NOT assume they are record numbers" in said
+    assert "--identifier NAME" in said
 
 
 def test_all_different_numbers_are_numbers_not_identifiers() -> None:

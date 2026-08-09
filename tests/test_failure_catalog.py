@@ -40,8 +40,46 @@ CASES: "dict[str, tuple[object, ...]]" = {
     "readers_disagree_about_a_name": ("/data/table.csv", 2, "age", "agee"),
     "readers_disagree_about_a_value": ("/data/table.csv", 7, "age"),
     "blank_line_in_one_column": ("/data/table.csv", 4),
-    "nothing_was_written": ([],),
-    "rollback_failed": (["/reports/a-profile.json"],),
+    # The two messages about the disk take the arguments profile.py
+    # actually passes: the caller has LOOKED at each name and hands over
+    # what it saw. The older one-list form is still accepted, but no
+    # code path produces it, so testing it would test nothing a person
+    # can read.
+    #
+    # This one is the clean stop: the run failed before it published
+    # anything, both names are as they were, and there is genuinely
+    # nothing for the reader to do about it -- which is why it keeps the
+    # exemption below.
+    "nothing_was_written": (
+        [],
+        [
+            ("/reports/table-profile.json", errors.ON_DISK_ABSENT),
+            ("/reports/table-profile.txt", errors.ON_DISK_ABSENT),
+        ],
+    ),
+    # And this one is the stop that could not undo itself: a new profile
+    # at the profile's name, last week's summary beside it, and the
+    # earlier profile stranded under a working name.
+    "rollback_failed": (
+        [],
+        [
+            ("/reports/table-profile.json", errors.ON_DISK_NEW),
+            ("/reports/table-profile.txt", errors.ON_DISK_BEFORE),
+            (
+                "/reports/table-profile.json.synthtwin-kept-1",
+                errors.ON_DISK_SET_ASIDE,
+            ),
+        ],
+    ),
+    "working_name_unavailable": (
+        "/reports/table-profile.json",
+        [
+            "/reports/table-profile.json.synthtwin-part-1",
+            "/reports/table-profile.json.synthtwin-part-2",
+            "/reports/table-profile.json.synthtwin-part-3",
+        ],
+        64,
+    ),
     "output_is_a_folder": ("/reports/table-profile.json",),
     "output_would_replace_the_table": ("/data/table.csv",),
     "unknown_column_named": ("holding record numbers", "agee", ["age", "site"]),
@@ -51,11 +89,21 @@ CASES: "dict[str, tuple[object, ...]]" = {
 }
 
 
-# Two entries are CLAUSES, appended to a refusal that already says what
-# happened and what to do. They still need coverage -- they name files
-# left on disk -- but the instruction belongs to the sentence they join,
-# so the actionable-wording rule is checked on that sentence, not here.
-FRAGMENTS = {"nothing_was_written", "rollback_failed"}
+# One entry is APPENDED to a refusal that already says what happened and
+# what to do: profile.py builds `f"{trouble} {nothing_was_written(...)}"`.
+# Its job is to describe the disk afterwards, and after a stop that
+# published nothing and left nothing behind, it has -- rightly -- nothing
+# to ask of the reader. The instruction is in the sentence it joins, so
+# the actionable-wording rule is checked there, not here. Every other
+# rule below still applies to it.
+#
+# `rollback_failed` used to sit here too, on the same reasoning, and its
+# exemption is now stale: the rewritten wording ends "Check each one
+# before you use it, and finish by hand what synthtwin could not", in
+# every form the code can produce. A stale exemption is a hole waiting
+# for the next message to fall through, so it was taken away rather than
+# left standing.
+APPENDED = {"nothing_was_written"}
 
 
 def _builders() -> "dict[str, object]":
@@ -88,10 +136,14 @@ def test_every_message_says_what_happened_and_what_to_do(name: str) -> None:
         or not message[0].isalpha()
     ), f"{name} should read as a sentence, not a fragment: {message!r}"
     assert message.rstrip().endswith((".", "!")), f"{name} is not a sentence"
-    if name in FRAGMENTS:
-        # A clause must still be safe to append: it may not open with a
-        # capital that would read as a new sentence mid-line.
-        assert not message.startswith("The "), f"{name} reads as a new sentence"
+    if name in APPENDED:
+        # An appended message follows a complete sentence, so it has to
+        # open one of its own. The general check above lets a message
+        # start with a non-letter; one that lands mid-paragraph may not.
+        assert message[0].isupper() or opening == "synthtwin", (
+            f"{name} is appended to a refusal, so it must open a new "
+            f"sentence rather than trail off the last one: {message!r}"
+        )
     # Something the reader can do next. Every message must contain at
     # least one instruction, not only a diagnosis.
     actionable = (
@@ -115,7 +167,7 @@ def test_every_message_says_what_happened_and_what_to_do(name: str) -> None:
         "try again",
         "use that path",
     )
-    if name not in FRAGMENTS:
+    if name not in APPENDED:
         assert any(hint in message for hint in actionable), (
             f"{name} tells the reader what went wrong but not what to do "
             f"next: {message!r}"

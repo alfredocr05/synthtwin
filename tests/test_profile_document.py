@@ -128,7 +128,7 @@ def test_nothing_that_varies_between_runs_is_written(
 # tests/test_numeric_reference.py, whose values are computed by exact
 # rational arithmetic in a script that imports none of this code.
 GOLDEN_SHA256 = (
-    "179333e652339b9bff7094966d8034f2be61b4a4a4c61c8f63a45653cbc3899f"
+    "7529439828812def8938f60caac03757d675c55e9b4cddb0cef50db7361d97cf"
 )
 
 
