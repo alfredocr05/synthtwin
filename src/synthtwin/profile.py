@@ -74,17 +74,16 @@ def _settings_block(
         "identifier_uniqueness": settings.identifier_uniqueness,
         "identifier_minimum_rows": settings.identifier_minimum_rows,
         "minimum_parse_rate": settings.minimum_parse_rate,
-        "numeric_majority": settings.numeric_majority,
-        "categorical_repetition": settings.categorical_repetition,
-        "categorical_numeric_ceiling": settings.categorical_numeric_ceiling,
+        "categorical_share": settings.categorical_share,
         "categorical_ceiling": settings.categorical_ceiling,
-        "code_minimum_width": settings.code_minimum_width,
+        "categorical_floor": settings.categorical_floor,
         "sentinel_outlier_iqr_multiple": (
             settings.sentinel_outlier_iqr_multiple
         ),
         "sentinel_minimum_share": settings.sentinel_minimum_share,
         "kept_values": sorted(settings.kept_values),
         "declared_missing_values": sorted(settings.declared_missing_values),
+        "declaration_matching": settings.declaration_matching,
         "near_threshold_slack": settings.near_threshold_slack,
         "forced_identifiers": sorted(forced_identifiers),
     }

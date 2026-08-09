@@ -173,9 +173,17 @@ def test_a_declined_column_publishes_none_of_its_values(shape: str) -> None:
 
 
 def test_the_withdrawal_costs_no_ordinary_column_its_distribution() -> None:
-    # The repair that matters more than the defect: ordinary correct
-    # input must be untouched. Quantities, dates, categories and padded
-    # codes that repeat are all described exactly as before.
+    """Corrected where the taxonomy changed (review item P1-R6-F7).
+
+    The property is unchanged: the withdrawal of identifier inference
+    must cost no ordinary column its distribution, and quantities, dates
+    and repeating labels are all described exactly as before. Two of the
+    old cases moved with the ratified taxonomy rather than with this
+    withdrawal, and they are the tests below: the padded column, because
+    nothing may be routed by the width of its text, and the ten-label
+    column, because a set of categories may hold at most a tenth of the
+    values present.
+    """
     numbers = describe([str(index) for index in range(50)])
     assert numbers.role == taxonomy.ROLE_COUNT
     assert numbers.details["percentiles"]["max"] == 49.0
@@ -184,26 +192,49 @@ def test_the_withdrawal_costs_no_ordinary_column_its_distribution() -> None:
     assert measured.details["percentiles"]["min"] == 0.5
     dates = describe([f"2024-01-{day:02d}" for day in range(1, 29)])
     assert dates.role == taxonomy.ROLE_DATETIME
-    padded = describe(["00501", "02139", "52242"] * 20)
-    assert padded.role == taxonomy.ROLE_CATEGORICAL
-    assert [level["label"] for level in padded.details["levels"]] == [
-        "00501", "02139", "52242",
-    ]
     unpadded = describe(["52242", "10001", "90210"] * 20)
     assert unpadded.role == taxonomy.ROLE_COUNT
     assert unpadded.details["percentiles"]["max"] == 90210.0
-    repeating = describe([f"code{index}" for index in range(10)] * 6)
+    repeating = describe([f"code{index}" for index in range(10)] * 20)
     assert repeating.role == taxonomy.ROLE_CATEGORICAL
 
 
-def test_the_padded_column_is_still_kept_away_from_the_numeric_rules() -> None:
-    # `0930` must not fall through to the numeric rules and be averaged
-    # as nine hundred and thirty.
+def test_the_padded_column_is_read_by_the_ordinary_rules_now() -> None:
+    """Corrected from `test_the_padded_column_is_still_kept_away_...`.
+
+    The old test pinned the fixed-width-code rule: `0930` must not fall
+    through to the numeric rules and be averaged as nine hundred and
+    thirty. Review item P1-R6-F7 deletes that rule -- nothing may be
+    routed by the WIDTH of its text -- so `0930` IS read as nine hundred
+    and thirty, and that is the ratified answer rather than an accident:
+    the identical text is a clock, a padded account number and a postal
+    code, and no property of the values says which. What the person is
+    owed instead is the option, and every value of the column being
+    different is what prompts it.
+    """
     described = describe(CLOCK_TIMES)
-    assert described.role == taxonomy.ROLE_TEXT
-    assert "percentiles" not in described.details
-    assert "mean" not in described.details
-    assert "no average is computed" in " ".join(described.remarks)
+    assert described.role == taxonomy.ROLE_COUNT
+    assert described.details["percentiles"]["max"] == 2350.0
+    said = " ".join(described.remarks)
+    assert "every value in this column is different" in said
+    assert "--identifier NAME" in said
+    declared = describe(CLOCK_TIMES, forced=True)
+    assert declared.role == taxonomy.ROLE_IDENTIFIER
+    assert "percentiles" not in declared.details
+    for value in CLOCK_TIMES:
+        assert value not in whole_block(declared)
+
+
+def test_a_ten_label_column_needs_a_hundred_rows_for_the_ceiling() -> None:
+    # The category ceiling is a tenth of the values present, so ten
+    # different labels are a set of categories in two hundred rows and
+    # are not in sixty. The shorter column publishes nothing at all
+    # rather than the labels that happen to clear the small-cell floor.
+    long = describe([f"code{index}" for index in range(10)] * 20)
+    short = describe([f"code{index}" for index in range(10)] * 6)
+    assert long.role == taxonomy.ROLE_CATEGORICAL
+    assert short.role == taxonomy.ROLE_TEXT
+    assert "levels" not in short.details
 
 
 # -- what the declined column SAYS ------------------------------------
@@ -211,12 +242,17 @@ def test_the_padded_column_is_still_kept_away_from_the_numeric_rules() -> None:
 
 @pytest.mark.parametrize(
     "shape",
-    ["unit amounts", "code words", "clock times", "padded numbers"],
+    # The shapes that still land on free text. Clock times and padded
+    # numbers left this list when the fixed-width-code rule was deleted
+    # (review item P1-R6-F7): they are described as numbers now, and the
+    # remark they carry is the numeric one, checked in the test below.
+    ["unit amounts", "code words", "accession codes", "prefixed codes"],
 )
 def test_the_remark_states_the_withdrawal_in_plain_language(
     shape: str,
 ) -> None:
     described = describe(ALL_SHAPES[shape])
+    assert described.role == taxonomy.ROLE_TEXT
     spoken = [
         remark for remark in described.remarks if "--identifier" in remark
     ]
@@ -231,6 +267,28 @@ def test_the_remark_states_the_withdrawal_in_plain_language(
     # not be pushed into the role either.
     assert "write them as plain numbers" in said
     assert "Do not use --identifier on a measurement" in said
+
+
+@pytest.mark.parametrize("shape", ["clock times", "padded numbers"])
+def test_a_numeric_column_of_codes_still_carries_the_option(
+    shape: str,
+) -> None:
+    # The other side of deleting the width rule: these columns are
+    # described as numbers, so the words they carry are the numeric
+    # ones -- the role was not assumed from anything, and --identifier
+    # is how a person says the column really holds record numbers.
+    described = describe(ALL_SHAPES[shape])
+    assert described.role in (
+        taxonomy.ROLE_COUNT, taxonomy.ROLE_CONTINUOUS,
+    )
+    spoken = [
+        remark for remark in described.remarks if "--identifier" in remark
+    ]
+    assert spoken, "the option has to be offered, not assumed away"
+    said = spoken[0]
+    assert "every value in this column is different" in said
+    assert "not treated as evidence of anything" in said
+    assert "--identifier NAME" in said
 
 
 def test_the_remark_is_one_paragraph_of_plain_words() -> None:

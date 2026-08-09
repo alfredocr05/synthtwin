@@ -38,15 +38,31 @@ def whole_block(described: taxonomy.ColumnProfile) -> str:
 # -- ROLE ORDER (P1-R1-F8) -------------------------------------------
 
 
-def test_a_mostly_numeric_column_keeps_its_distribution() -> None:
-    # 0..97 plus the word "trace": 98 of 99 values are numbers, one short
-    # of the "essentially all" line. It used to be called an identifier
-    # and lose its distribution entirely.
-    described = describe([str(index) for index in range(98)] + ["trace"])
+def test_a_column_at_the_line_keeps_its_distribution() -> None:
+    """Corrected from `test_a_mostly_numeric_column_keeps_its_...`.
+
+    The old case was 0..97 plus the word "trace" -- 98 of 99 values,
+    one SHORT of the line -- and it required a published distribution,
+    which only the undocumented majority rule gave it. Review item
+    P1-R6-F7 settles one line at 0.99, so the case that must keep its
+    distribution is the one that reaches the line: 99 numbers and one
+    word in a hundred, where 99 is exactly what 0.99 of 100 needs. The
+    column below the line is the neighbour test underneath.
+    """
+    described = describe([str(index) for index in range(99)] + ["trace"])
     assert described.role == taxonomy.ROLE_COUNT
-    assert described.details["percentiles"]["max"] == 97.0
-    assert described.details["n_used_in_statistics"] == 98
+    assert described.details["percentiles"]["max"] == 98.0
+    assert described.details["n_used_in_statistics"] == 99
     assert described.details["n_left_out_of_statistics"] == 1
+
+
+def test_a_column_one_value_below_the_line_publishes_nothing() -> None:
+    # The neighbour, one value away: 98 numbers in 100 is 0.98, and the
+    # line is 0.99. Publishing a mean here would leave two values out of
+    # the distribution with nothing in the profile to reproduce them.
+    described = describe([str(index) for index in range(98)] + ["trace"] * 2)
+    assert described.role == taxonomy.ROLE_TEXT
+    assert "percentiles" not in described.details
 
 
 def test_a_minority_numeric_column_is_not_described_as_numbers() -> None:
@@ -105,16 +121,29 @@ def test_all_different_code_words_are_declined_and_declarable() -> None:
     assert "code7" not in whole_block(declared)
 
 
-# -- FIXED-WIDTH CODES (P1-R1-F8) ------------------------------------
+# -- NOTHING IS ROUTED BY THE WIDTH OF ITS TEXT (P1-R6-F7) -----------
 
 
-def test_zero_padded_codes_keep_their_padding_and_stay_discrete() -> None:
+def test_zero_padded_codes_land_where_the_ordinary_rules_put_them() -> None:
+    """Corrected from `test_zero_padded_codes_keep_their_padding_...`.
+
+    The old test required a rule that read same-width all-digit values
+    carrying a leading zero as codes rather than quantities, ahead of
+    the dates and the numbers. Review item P1-R6-F7 deletes it: nothing
+    may be routed by the WIDTH of its text, because the padding says how
+    a value was WRITTEN and the identical text is a clock time, a padded
+    account number and a postal code. The column now lands where the
+    ordinary rules put it -- every value reads as a number, so it is
+    described as numbers -- and the person who knows it holds codes says
+    so with --identifier.
+    """
     described = describe(["00501", "02139", "52242"] * 20)
-    assert described.role == taxonomy.ROLE_CATEGORICAL
-    assert described.details["fixed_width_code"] is True
-    labels = [level["label"] for level in described.details["levels"]]
-    assert labels == ["00501", "02139", "52242"]
-    assert "percentiles" not in described.details
+    assert described.role == taxonomy.ROLE_COUNT
+    assert described.details["percentiles"]["min"] == 501.0
+    assert "fixed_width_code" not in described.details
+    declared = describe(["00501", "02139", "52242"] * 20, forced=True)
+    assert declared.role == taxonomy.ROLE_IDENTIFIER
+    assert "00501" not in whole_block(declared)
 
 
 def test_eight_digit_dates_are_not_mistaken_for_codes() -> None:
@@ -132,24 +161,66 @@ def test_unpadded_same_width_digits_stay_a_quantity() -> None:
 # -- THE CATEGORICAL CEILING (P1-R1-F8) ------------------------------
 
 
-def test_the_role_does_not_change_when_the_table_is_subsampled() -> None:
+def test_the_ceiling_is_a_share_of_the_column_and_says_so() -> None:
+    """Corrected from `test_the_role_does_not_change_when_the_table_...`.
+
+    The old test required the categorical role to survive subsampling,
+    which is a property of the average-repetition rule it was written
+    for. Review item P1-R6-F7 settles the plan's ceiling instead --
+    `distinct <= min(1000, a tenth of the values present)`, never below
+    2 -- and that ceiling moves with the column's length by
+    construction: nine labels are a set of categories in a hundred rows
+    and are nine different values in fifty, where a set of categories
+    may have five. The consequence is stated here rather than left for
+    somebody to discover, and the column that loses the role publishes
+    nothing rather than a part of itself.
+    """
     labels = [f"label{index}" for index in range(9)]
     short = describe((labels * 6)[:50])
     long = describe((labels * 12)[:100])
-    assert short.role == long.role == taxonomy.ROLE_CATEGORICAL
+    assert long.role == taxonomy.ROLE_CATEGORICAL
+    assert short.role == taxonomy.ROLE_TEXT
     assert short.n_distinct == long.n_distinct == 9
+    assert "levels" not in short.details
+    said = " ".join(short.remarks)
+    assert "9 different values" in said
+    assert "at most 5" in said
 
 
-def test_more_labels_than_the_cap_keep_their_distribution() -> None:
+def test_more_labels_than_the_cap_are_not_a_set_of_categories() -> None:
+    """Corrected from `test_more_labels_than_the_cap_keep_their_...`.
+
+    The old test required 1001 labels to keep a published distribution,
+    with the thousandth-and-first pooled into a counted remainder. The
+    plan's rule, restored by review item P1-R6-F7, makes 1000 a CEILING
+    on the role again, so the column is described as free text and
+    publishes no label at all. The pooled-remainder counts that existed
+    only for the old behaviour are gone with it: a field that can never
+    be anything but zero is a field a reader has to learn to ignore.
+    """
     values: list[str] = []
     for index in range(1001):
         values = values + [f"label{index:04d}"] * 20
     described = describe(values)
-    assert described.role == taxonomy.ROLE_CATEGORICAL
+    assert described.role == taxonomy.ROLE_TEXT
     assert described.n_distinct == 1001
+    assert "levels" not in described.details
+    said = " ".join(described.remarks)
+    assert "1001 different values" in said
+    assert "at most 1000" in said
+
+
+def test_one_label_below_the_thousand_cap_is_still_a_set_of_categories(
+) -> None:
+    # The neighbour on the other side of the 1000 cap, with the tenth
+    # kept well clear so that the cap is what decides it.
+    values: list[str] = []
+    for index in range(1000):
+        values = values + [f"label{index:04d}"] * 20
+    described = describe(values)
+    assert described.role == taxonomy.ROLE_CATEGORICAL
+    assert described.n_distinct == 1000
     assert len(described.details["levels"]) == 1000
-    assert described.details["levels_beyond_cap"] == 1
-    assert described.details["rows_beyond_cap"] == 20
 
 
 def test_values_that_hardly_repeat_are_not_a_set_of_categories() -> None:
@@ -193,26 +264,56 @@ def test_two_sentinel_conventions_do_not_mask_each_other() -> None:
 
 
 def test_a_candidate_is_judged_even_when_some_values_are_words() -> None:
-    # 90 numbers, 10 words and one candidate. The old gate needed 99% of
-    # the values to be representable numbers, so no verdict was reached
-    # at all.
-    values = [str(index) for index in range(1, 91)] + ["word"] * 10 + ["-999"]
+    """Fixture corrected for the one parse rate (review item P1-R6-F7).
+
+    The point is unchanged and still worth pinning: a stray word must
+    not stop a numeric sentinel being judged, because the question is
+    asked of the cells that were WRITTEN as numbers. The old fixture was
+    90 numbers, 10 words and one candidate -- a column the deleted
+    majority rule described as numbers and the ratified rule does not --
+    so the word count is brought inside the line and the candidate is
+    judged exactly as before.
+    """
+    values = (
+        [str(index) for index in range(1, 200)] + ["word"] + ["-999"] * 15
+    )
     described = describe(values)
-    assert described.n_missing == 1
+    assert described.n_missing == 15
+    assert described.n_not_numeric == 1
     assert described.details["percentiles"]["min"] == 1.0
 
 
 def test_unrepresentable_values_do_not_stop_a_sentinel_being_judged() -> None:
-    # P1-R5-F2 scenario 1: three values no format can hold used to push
-    # the representable count below the gate, so -999 survived and was
-    # published as the column's minimum.
+    """P1-R5-F2 scenario 1, with the fixture inside the one parse rate.
+
+    Values no format can hold used to push the representable count below
+    the line, so -999 survived and was published as the column's
+    minimum. That must still not happen, and the question is still asked
+    of the cells WRITTEN as numbers rather than of the ones that can be
+    held. The fixture carries one such value rather than three, because
+    with the second numeric rule deleted (review item P1-R6-F7) three of
+    them in two hundred is a column too far below the line to describe
+    at all -- which the neighbouring test states.
+    """
     values = (
-        [str(index) for index in range(1, 197)]
-        + ["-999", "1e999", "2e999", "3e999"]
+        [str(index) for index in range(1, 197)] + ["-999"] * 15 + ["1e999"]
     )
     described = describe(values)
     assert described.details["percentiles"]["min"] == 1.0
-    assert described.n_missing == 1
+    assert described.n_missing == 15
+    assert described.n_out_of_range == 1
+
+
+def test_too_many_values_no_format_can_hold_publish_nothing() -> None:
+    # The neighbour: written as numbers throughout, but only 196 of 199
+    # can be held. A ladder built from those 196 leaves three values in
+    # no distribution at all, so the column is named for what it is.
+    values = [str(index) for index in range(1, 197)] + [
+        "1e999", "2e999", "3e999",
+    ]
+    described = describe(values)
+    assert described.role == taxonomy.ROLE_UNREPRESENTABLE
+    assert "percentiles" not in described.details
 
 
 def test_a_legitimate_text_code_can_be_kept(  ) -> None:

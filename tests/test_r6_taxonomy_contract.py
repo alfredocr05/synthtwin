@@ -347,8 +347,20 @@ def test_the_two_columns_the_repair_could_not_tell_apart_agree() -> None:
 
 
 def test_a_declined_column_publishes_none_of_its_values() -> None:
-    for values in (CLOCK_TIMES, PADDED_COUNTS, MIXED_SHAPES, ALL_LETTERS):
-        block = whole_block(describe(values))
+    """The list is the columns that are still DECLINED.
+
+    Clock times and padded counts left it when the fixed-width-code rule
+    was deleted (review item P1-R6-F7): they are described as numbers
+    now, and a numeric column publishes real minima and maxima by
+    design (plan P1-D6), so asserting that none of their values appears
+    would be asserting the opposite of the ratified taxonomy. Both
+    shapes are covered on the declared path below, where nothing of them
+    is published at all.
+    """
+    for values in (MIXED_SHAPES, ALL_LETTERS):
+        described = describe(values)
+        assert described.role == taxonomy.ROLE_TEXT
+        block = whole_block(described)
         for value in values:
             assert value not in block, (
                 f"{value!r} reached the profile from a column that "
@@ -356,17 +368,25 @@ def test_a_declined_column_publishes_none_of_its_values() -> None:
             )
 
 
-def test_the_declined_column_is_still_kept_from_the_numeric_rules() -> None:
-    # The padded branch must keep doing its own job: `0930` must not
-    # fall through and be averaged as nine hundred and thirty.
+def test_the_padded_column_is_read_by_the_ordinary_rules() -> None:
+    """Corrected from `test_the_declined_column_is_still_kept_from_...`.
+
+    The old test pinned the deleted rule: the padding was why `0930` was
+    kept away from the numeric rules. Nothing may be routed by the WIDTH
+    of its text (review item P1-R6-F7), so `0930` is read as nine
+    hundred and thirty, and the person who knows the column holds codes
+    declares it -- which withholds every value of it.
+    """
     for values in (CLOCK_TIMES, PADDED_COUNTS):
         described = describe(values)
-        assert described.role == taxonomy.ROLE_TEXT
-        assert "percentiles" not in described.details
-    assert "leading zeros" in describe(PADDED_COUNTS).detection_evidence, (
-        "the padding is still why the column is kept away from the "
-        "numeric rules"
-    )
+        assert described.role == taxonomy.ROLE_COUNT
+        assert "percentiles" in described.details
+        assert "leading zeros" not in described.detection_evidence
+        declared = describe(values, forced=True)
+        assert declared.role == taxonomy.ROLE_IDENTIFIER
+        block = whole_block(declared)
+        for value in values:
+            assert value not in block
 
 
 def test_the_ordinary_columns_are_untouched_by_the_withdrawal() -> None:
@@ -386,10 +406,15 @@ def test_the_ordinary_columns_are_untouched_by_the_withdrawal() -> None:
     assert describe([f"2024-01-{day:02d}" for day in range(1, 29)]).role == (
         taxonomy.ROLE_DATETIME
     )
+    # Two cases moved with the ratified taxonomy rather than with this
+    # withdrawal (review item P1-R6-F7): a zero-padded column is read by
+    # the ordinary rules, because nothing may be routed by the width of
+    # its text, and ten different labels are a set of categories only in
+    # a column of a hundred values or more.
     padded = describe(["00501", "02139", "52242"] * 20)
-    assert padded.role == taxonomy.ROLE_CATEGORICAL
-    assert padded.details["fixed_width_code"] is True
-    assert describe([f"code{index}" for index in range(10)] * 6).role == (
+    assert padded.role == taxonomy.ROLE_COUNT
+    assert "fixed_width_code" not in padded.details
+    assert describe([f"code{index}" for index in range(10)] * 20).role == (
         taxonomy.ROLE_CATEGORICAL
     )
 
@@ -397,8 +422,13 @@ def test_the_ordinary_columns_are_untouched_by_the_withdrawal() -> None:
 def test_the_declined_column_says_what_was_not_assumed() -> None:
     # The withdrawal is stated, not silent. Every column that lands on
     # free text with all-different values carries one remark saying so.
-    for values in (CLOCK_TIMES, PADDED_COUNTS, UNIT_AMOUNTS, RECORD_CODES):
+    # Clock times and padded counts are not on this list any more: they
+    # are described as numbers since the width rule was deleted (review
+    # item P1-R6-F7), and the words a numeric column carries are checked
+    # in tests/test_p1r6f8_identifier_evidence.py.
+    for values in (UNIT_AMOUNTS, RECORD_CODES, ALL_LETTERS):
         described = describe(values)
+        assert described.role == taxonomy.ROLE_TEXT
         spoken = [
             remark for remark in described.remarks if "--identifier" in remark
         ]
@@ -501,8 +531,16 @@ def test_the_dose_and_the_record_column_agree_end_to_end(
 def test_the_two_padded_shapes_agree_end_to_end(
     tmp_path: pathlib.Path,
 ) -> None:
-    # The branch the verifier found in round 5, kept as a case: a clock
-    # column beside a padded record column of the identical text.
+    """A clock column beside a padded record column of identical text.
+
+    The property this file is about is unchanged and is the point of the
+    pair: nothing in the VALUES tells the two apart, so they must be
+    described identically until somebody says which is which. What
+    changed with the deletion of the fixed-width-code rule (review item
+    P1-R6-F7) is which description they share -- both are read by the
+    ordinary rules now, and both publish their values -- and that
+    declaring one of them still settles that one alone.
+    """
     text = fixtures.rows_to_csv(
         ["at_time", "record"],
         [
@@ -512,14 +550,16 @@ def test_the_two_padded_shapes_agree_end_to_end(
     )
     table = reading.read_table(str(fixtures.write(tmp_path, "pair.csv", text)))
     document = profile.build_document(table, SETTINGS, [])
-    serialized = profile.serialize(document)
     roles = [column["role"] for column in document["columns"]]
-    assert roles == [taxonomy.ROLE_TEXT, taxonomy.ROLE_TEXT]
-    for value in CLOCK_TIMES[: len(PADDED_COUNTS)] + PADDED_COUNTS:
-        assert value not in serialized
+    assert roles == [taxonomy.ROLE_COUNT, taxonomy.ROLE_COUNT]
     named = profile.build_document(table, SETTINGS, ["record"])
     named_roles = [column["role"] for column in named["columns"]]
-    assert named_roles == [taxonomy.ROLE_TEXT, taxonomy.ROLE_IDENTIFIER]
+    assert named_roles == [taxonomy.ROLE_COUNT, taxonomy.ROLE_IDENTIFIER]
+    serialized = profile.serialize(named)
+    for value in PADDED_COUNTS:
+        assert value not in serialized, (
+            "a declared column publishes none of its values"
+        )
 
 
 # -- P1-R6-F10: one classification per cell --------------------------

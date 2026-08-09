@@ -71,6 +71,12 @@ _HELP_EPILOG = """examples:
 
   synthtwin profile data.csv --out-dir reports
       write the two files into the folder 'reports' instead
+
+  synthtwin profile data.csv --keep-value NA
+      treat NA as real data in every column, not as a missing value
+
+  synthtwin profile data.csv --missing-value -1
+      treat -1 as a missing value in every column, not as a number
 """
 
 
@@ -187,6 +193,8 @@ class _Options:
     out_dir: "str | None"
     smallest_group: int
     identifiers: list[str]
+    kept_values: list[str]
+    missing_values: list[str]
     first_row: str
 
 
@@ -266,6 +274,36 @@ def _parse_arguments(argv: "list[str] | None") -> _Options:
         ),
     )
     parser.add_argument(
+        "--keep-value",
+        action="append",
+        default=None,
+        metavar="VALUE",
+        help=(
+            "a value that is real data in your table, even though "
+            "synthtwin would otherwise read it as 'no value'. Use it when "
+            "a code such as NA is a genuine answer -- a region really "
+            "called NA, or -999 as a real reading. A value that reads as "
+            "a number is matched as a NUMBER, so -999 also covers "
+            "-999.00; anything else is matched as text, ignoring "
+            "surrounding spaces and upper or lower case. May be given "
+            "more than once"
+        ),
+    )
+    parser.add_argument(
+        "--missing-value",
+        action="append",
+        default=None,
+        metavar="VALUE",
+        help=(
+            "a value that means 'no value' in your table, even though "
+            "synthtwin would otherwise treat it as data -- for example a "
+            "column where 'unknown' or -1 was typed for a reading nobody "
+            "took. It is matched the same way as --keep-value, and the "
+            "rows holding it are counted as missing rather than "
+            "described. May be given more than once"
+        ),
+    )
+    parser.add_argument(
         "--first-row",
         default=reading.FIRST_ROW_AUTOMATIC,
         choices=[
@@ -307,6 +345,10 @@ def _parse_arguments(argv: "list[str] | None") -> _Options:
             "synthtwin profile my-table.csv"
         )
     named = args.identifier if args.identifier is not None else []
+    kept = args.keep_value if args.keep_value is not None else []
+    declared_missing = (
+        args.missing_value if args.missing_value is not None else []
+    )
     return _Options(
         version=bool(args.version),
         command=args.command,
@@ -314,6 +356,8 @@ def _parse_arguments(argv: "list[str] | None") -> _Options:
         out_dir=args.out_dir,
         smallest_group=int(args.smallest_group),
         identifiers=list(named),
+        kept_values=list(kept),
+        missing_values=list(declared_missing),
         first_row=f"{args.first_row}",
     )
 
@@ -323,6 +367,8 @@ def _run_profile(
     out_dir: "str | None",
     smallest_group: int,
     forced_identifiers: list[str],
+    kept_values: list[str],
+    missing_values: list[str],
     first_row: str,
 ) -> int:
     """Do the work of `synthtwin profile`; return the exit code.
@@ -333,11 +379,33 @@ def _run_profile(
     disclosure of what the profile carries is printed BEFORE the files
     exist -- which is what plan P1-D6 says and what a person moving
     real-derived material needs.
+
+    A pair of declarations that contradict each other is refused here,
+    before the table is opened: `--keep-value -999 --missing-value -999`
+    asks for two opposite things about one value, and picking one of
+    them would be synthtwin deciding something the person did not
+    (review item P1-R6-F9).
     """
     if smallest_group < 1:
         _warn(errors.floor_not_positive(f"{smallest_group}"))
         return 2
-    settings = taxonomy.Settings(small_cell_floor=smallest_group)
+    clashes = taxonomy.contradictory_declarations(
+        tuple(kept_values), tuple(missing_values)
+    )
+    if clashes:
+        _warn(
+            f"These two options contradict each other: "
+            f"{_shown(clashes[0])}. A value is either data or it is 'no "
+            f"value'; it cannot be both, and synthtwin will not choose "
+            f"for you. Decide which one you meant, remove the other, and "
+            f"run the command again. Nothing was written."
+        )
+        return 2
+    settings = taxonomy.Settings(
+        small_cell_floor=smallest_group,
+        kept_values=tuple(kept_values),
+        declared_missing_values=tuple(missing_values),
+    )
     read = read_table(table, first_row)
 
     # An option naming a column that is not there is refused here, with
@@ -432,12 +500,13 @@ def main(argv: "list[str] | None" = None) -> int:
     - Return codes: 0 when the work finished; 1 when the table could not
       be read or the profile could not be written, with a
       plain-language explanation on the error stream; 2 when an option's
-      value was not usable. `SystemExit` with code 2 still ends the run
-      for a word on the command line that synthtwin does not recognize,
-      and with code 0 for `--help`. 0 always means both files were
-      written: a working file that could not be cleared away afterwards
-      is named on the error stream as a caution and does not change the
-      code, because nothing about the profile is wrong.
+      value was not usable, which includes naming one value both with
+      `--keep-value` and with `--missing-value`. `SystemExit` with code
+      2 still ends the run for a word on the command line that synthtwin
+      does not recognize, and with code 0 for `--help`. 0 always means
+      both files were written: a working file that could not be cleared
+      away afterwards is named on the error stream as a caution and does
+      not change the code, because nothing about the profile is wrong.
     - Determinism: the same table and the same options produce the same
       two files, byte for byte, on the same platform (plan D12 and
       P1-D11).
@@ -473,6 +542,8 @@ def main(argv: "list[str] | None" = None) -> int:
             options.out_dir,
             options.smallest_group,
             options.identifiers,
+            options.kept_values,
+            options.missing_values,
             options.first_row,
         )
     except PathValidationError as error:
