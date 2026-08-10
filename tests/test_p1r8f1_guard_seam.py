@@ -58,7 +58,25 @@ SUMMARY_TEXT = "A summary of the table, for a person to read.\n"
 OLD_PROFILE = "last week's profile\n"
 OLD_SUMMARY = "last week's summary\n"
 
-_SOURCE = f"{pathlib.Path(profile.__file__).resolve()}"
+# The filename every code object compiled from profile.py carries,
+# taken from one of that module's own functions.
+#
+# It used to be rebuilt as `str(Path(profile.__file__).resolve())`, and
+# the two are not the same string on every platform. On Windows the
+# hosted run imported the package through a path spelled one way while
+# `Path.resolve()` handed back the spelling the disk itself keeps, and
+# the `!=` in `_call` below then rejected every frame of profile.py: the
+# tracer never raised, nothing was ever injected, and both parts of the
+# sweep passed while asserting nothing whatever. The floor at the end of
+# each of them is what turned that into a red test rather than a silent
+# one -- `only 0 boundaries were injected into` -- and it is the reason
+# those floors are there.
+#
+# Reading the name off a code object removes the mismatch instead of
+# papering over it with a case-blind or resolved comparison: this IS,
+# by construction, what `frame.f_code.co_filename` holds for every
+# function in the module, on every platform and every interpreter.
+_SOURCE = profile.write_both_files.__code__.co_filename
 
 # The two frames that hold the guard and everything the guard's handler
 # depends on. The review's required closure names the prologue and every
@@ -261,6 +279,43 @@ def _check_one_stop(
         f"{where}: the run cannot both have published nothing and have "
         f"written both files"
     )
+
+
+# ---------------------------------------------------------------------
+# 0. the injector is aimed at the module it is supposed to trace
+# ---------------------------------------------------------------------
+
+
+def test_the_injector_recognizes_the_frames_it_has_to_stop(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The name `_call` compares against is a name real frames carry.
+
+    Everything below rests on this one string comparison, and when it
+    matched nothing on the hosted Windows runs the whole of section 1
+    passed without injecting a single failure. The floors at the end of
+    those two tests caught it, but they say only that the count was
+    zero; this says which comparison produced the zero, so the next
+    person reads a diagnosis instead of a symptom.
+    """
+    assert _SOURCE.endswith("profile.py"), (
+        f"the injector is aimed at {_SOURCE!r}, which is not the module "
+        f"holding the write transaction"
+    )
+    assert profile._move_into_place.__code__.co_filename == _SOURCE, (
+        "both frames the guard lives in must be recognized, not just one"
+    )
+    first, second = _outputs(tmp_path)
+    caught, _state, stop = _run_with_a_stop(
+        tmp_path, 1, MemoryError("injected"), False, _GUARD_FRAMES
+    )
+    assert stop.fired, (
+        "the very first statement of the transaction was not traced, so "
+        "no failure can be injected anywhere and every check below is "
+        "vacuous"
+    )
+    assert isinstance(caught, MemoryError)
+    assert not first.exists() and not second.exists()
 
 
 # ---------------------------------------------------------------------

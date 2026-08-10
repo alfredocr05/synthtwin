@@ -13,6 +13,7 @@ tolerance is relaxed: the product code runs exactly as shipped.
 """
 
 import pathlib
+import sys
 
 import pytest
 
@@ -21,6 +22,83 @@ from synthtwin import errors, profile
 PROFILE_TEXT = '{\n  "profile_version": 1\n}\n'
 SUMMARY_TEXT = "A summary of the table, for a person to read.\n"
 TABLE_TEXT = "record_code,age\nA1,41\nB2,52\n"
+EARLIER_PROFILE = "last week's profile\n"
+
+# What a link left at one of synthtwin's own working names does to a run
+# is decided by the platform, and the two answers are genuinely
+# different rules rather than one rule with two wordings:
+#
+# * on POSIX a working name that is already taken -- by anything, a link
+#   included -- is stepped past, the next number is tried, and the run
+#   finishes normally;
+# * on Windows the path check refuses ANY link, symbolic link, junction
+#   or mount point, because a link there can quietly lead to a network
+#   location. That refusal arrives BEFORE the step that would have
+#   stepped past it, so the run stops and publishes nothing.
+#
+# The property the two tests below exist for is the same on both, and it
+# is the one that matters: the table is byte-for-byte what it was, every
+# link is exactly as it was found, and nothing synthtwin wrote went
+# through one. That is asserted on every platform. The outcome of the
+# RUN is then asserted on each side, so the Windows rule -- the stricter
+# of the two, and the one no other test reaches -- is checked rather
+# than skipped.
+_WINDOWS = sys.platform == "win32"
+
+
+def _still_the_link_it_was(place: pathlib.Path, table: pathlib.Path) -> None:
+    """``place`` is still a link and still leads to ``table``.
+
+    Where the link POINTS is asked by following it rather than by
+    reading the target back out of it. `Path.readlink` hands back the
+    substitution path the filesystem stored, and on Windows that is the
+    `\\\\?\\`-prefixed spelling rather than the one that was handed to
+    `symlink_to` -- so comparing what comes back with the table's own
+    path answers "no" on Windows for a link that is perfectly intact.
+    Following it settles the same question on every platform.
+    """
+    assert place.is_symlink(), f"{place.name} is no longer a link"
+    assert place.resolve() == table.resolve(), (
+        f"{place.name} no longer leads to the table"
+    )
+
+
+def _what_escapes(
+    work: "object", *args: object, **named: object
+) -> "BaseException | None":
+    """Run ``work`` and hand back whatever came out of it, or None.
+
+    The two link tests want to assert about the disk whichever way the
+    run went, so neither `pytest.raises` nor a bare call will do: one
+    demands a failure and the other forbids one, and which of those is
+    right is the platform's answer, not the test's.
+    """
+    try:
+        work(*args, **named)  # type: ignore[operator]
+    except BaseException as failed:  # noqa: BLE001 -- the point of the test
+        return failed
+    return None
+
+
+def _refused_the_link(
+    raised: "BaseException | None", link: pathlib.Path
+) -> None:
+    """The Windows answer: a refusal naming the link and the reason.
+
+    The message has to be actionable by somebody who does not program,
+    so it is held to naming the file that stopped the run, saying that
+    the file is a link, saying why a link is refused, and saying that
+    nothing was published.
+    """
+    assert isinstance(raised, errors.ProfileError), (
+        f"the run had to stop, and it stopped with "
+        f"{type(raised).__name__}: {raised}"
+    )
+    message = f"{raised}"
+    assert f"{link}" in message, "the link that stopped the run must be named"
+    assert "is a link" in message
+    assert "network location" in message
+    assert "No new description was published" in message
 
 
 def _outputs(folder: pathlib.Path) -> "tuple[pathlib.Path, pathlib.Path]":
@@ -85,31 +163,48 @@ def test_a_link_at_the_working_name_cannot_reach_the_table(
     # The reviewer's worst route, exactly as reported: a link left at
     # the profile's working name pointing at the table itself. The
     # earlier code wrote through the link and destroyed the table this
-    # tool exists to protect.
+    # tool exists to protect. See the note above on why the run's
+    # outcome differs by platform while the protection does not.
     table = _table(tmp_path)
     first, second = _outputs(tmp_path)
-    (tmp_path / f"clinic-profile.json{profile.PART_SUFFIX}").symlink_to(table)
-    (tmp_path / f"clinic-profile.json{profile.PART_SUFFIX}-1").symlink_to(table)
-    (tmp_path / f"clinic-profile.txt{profile.PART_SUFFIX}-1").symlink_to(table)
+    links = [
+        tmp_path / f"clinic-profile.json{profile.PART_SUFFIX}",
+        tmp_path / f"clinic-profile.json{profile.PART_SUFFIX}-1",
+        tmp_path / f"clinic-profile.txt{profile.PART_SUFFIX}-1",
+    ]
+    for place in links:
+        place.symlink_to(table)
 
-    profile.write_both_files(
-        first, second, PROFILE_TEXT, SUMMARY_TEXT, table_path=table
+    raised = _what_escapes(
+        profile.write_both_files,
+        first,
+        second,
+        PROFILE_TEXT,
+        SUMMARY_TEXT,
+        table_path=table,
     )
 
+    # Every platform, and this is what the test is for.
     assert table.read_text(encoding="utf-8") == TABLE_TEXT, (
         "the table must be byte-for-byte what it was: nothing synthtwin "
         "writes may ever pass through a link into the user's own data"
     )
+    for place in links:
+        _still_the_link_it_was(place, table)
+    assert _working_files(tmp_path) == sorted(place.name for place in links), (
+        "the three links were already there; synthtwin may add no working "
+        "file of its own to them"
+    )
+
+    if _WINDOWS:
+        # The run is refused before the search could step past the link.
+        # Nothing is published, which is stricter than passing over it.
+        _refused_the_link(raised, links[1])
+        assert not first.exists() and not second.exists()
+        return
+    assert raised is None, f"the run had to finish; {raised!r} came out of it"
     assert first.read_text(encoding="utf-8") == PROFILE_TEXT
     assert second.read_text(encoding="utf-8") == SUMMARY_TEXT
-    # The links were left exactly as they were found, not replaced.
-    for name in [
-        f"clinic-profile.json{profile.PART_SUFFIX}",
-        f"clinic-profile.json{profile.PART_SUFFIX}-1",
-        f"clinic-profile.txt{profile.PART_SUFFIX}-1",
-    ]:
-        assert (tmp_path / name).is_symlink()
-        assert (tmp_path / name).readlink() == table
 
 
 def test_a_working_name_that_is_the_table_itself_is_passed_over(
@@ -202,19 +297,42 @@ def test_a_link_at_the_backup_name_cannot_reach_the_table(
     tmp_path: pathlib.Path,
 ) -> None:
     # The name an earlier profile is set aside under is a working name
-    # like any other, and a link left at it must be passed over too.
+    # like any other, and a link left at it must never be written
+    # through. It is reached later in the run than the one above -- both
+    # working files are already written by then -- so it is the second
+    # place the same rule has to hold.
     table = _table(tmp_path)
     first, second = _outputs(tmp_path)
-    first.write_text("last week's profile\n", encoding="utf-8")
+    first.write_text(EARLIER_PROFILE, encoding="utf-8")
     trap = tmp_path / f"clinic-profile.json{profile.KEPT_SUFFIX}-1"
     trap.symlink_to(table)
 
-    profile.write_both_files(
-        first, second, PROFILE_TEXT, SUMMARY_TEXT, table_path=table
+    raised = _what_escapes(
+        profile.write_both_files,
+        first,
+        second,
+        PROFILE_TEXT,
+        SUMMARY_TEXT,
+        table_path=table,
     )
 
+    # Every platform.
     assert table.read_text(encoding="utf-8") == TABLE_TEXT
-    assert trap.is_symlink() and trap.readlink() == table
+    _still_the_link_it_was(trap, table)
+    assert _working_files(tmp_path) == [trap.name], (
+        "the link was already there; synthtwin may add no working file "
+        "of its own to it"
+    )
+
+    if _WINDOWS:
+        _refused_the_link(raised, trap)
+        assert first.read_text(encoding="utf-8") == EARLIER_PROFILE, (
+            "the profile from before the run is the one file no refusal "
+            "may take away"
+        )
+        assert not second.exists()
+        return
+    assert raised is None, f"the run had to finish; {raised!r} came out of it"
     assert first.read_text(encoding="utf-8") == PROFILE_TEXT
     assert second.read_text(encoding="utf-8") == SUMMARY_TEXT
 
