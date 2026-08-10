@@ -145,6 +145,76 @@ def _because_words(code: str) -> str:
     return _REASON_WORDS[code]
 
 
+def _occurrence_shape(column: dict[str, object]) -> dict[str, object]:
+    """The repetition mapping a column block carries, or an empty one.
+
+    Absent on every role but the declared identifier, and absent from
+    every profile written before version 3, so its absence is an
+    ordinary answer here and not a fault.
+    """
+    if "n_distinct_by_occurrences" not in column:
+        return {}
+    return _map_of(column["n_distinct_by_occurrences"])
+
+
+def _number_in(text: str) -> int:
+    """A key written as a base-ten number, read back, or zero.
+
+    The repetition mapping's keys are row counts left-padded with zeros
+    so that sorted keys are in numeric order; reading one back is what
+    turns a key into the number of rows it names. Anything that is not
+    a run of digits is not one of those keys and reads as zero.
+    """
+    if not isinstance(text, str):
+        return 0
+    if not parsing.is_digit_text(text):
+        return 0
+    return int(text)
+
+
+def _repetition_lines(column: dict[str, object]) -> list[str]:
+    """What the column's repetition mapping says, in words.
+
+    The profile carries how many different values cover one row, two
+    rows and so on. These lines read TWO facts out of that mapping --
+    how many values appear in one row only, and the most rows any one
+    value covers -- and then say what the mapping is for. They do not
+    claim to be the whole mapping: the machine-readable record holds
+    every entry, and a summary that printed one line per entry would
+    have no bound on its length.
+
+    Both facts are counts of rows and counts of values. Neither is a
+    value of the table, and the mapping they come from holds none
+    (review item P1-R8-F4).
+    """
+    shape = _occurrence_shape(column)
+    if not shape:
+        return []
+    alone = 0
+    most = 0
+    for key in shape:
+        occurrences = _number_in(key)
+        if occurrences == 1:
+            alone = _count_of(shape[key])
+        most = max(most, occurrences)
+    return [
+        (
+            f"    how often values repeat: {alone} of the different values "
+            f"appear in one row only, and the most repeated of them "
+            f"appears in {most} row(s)."
+        ),
+        (
+            "    synthtwin recorded how OFTEN values repeat here, never "
+            "which values"
+        ),
+        (
+            "    repeat, so the twin can invent its own codes and repeat "
+            "them the same"
+        ),
+        "    number of times as yours.",
+    ]
+
+
 def _sentinel_lines(column: dict[str, object]) -> list[str]:
     """What the column decided about numbers that can mean "no value".
 
@@ -260,6 +330,13 @@ def _column_lines(column: dict[str, object]) -> list[str]:
                 f"{_count_of(column['max_length'])} characters long. The "
                 f"values themselves are not in the profile."
             ),
+        ]
+        # What the profile records about REPETITION, which is a fact
+        # about the column and not a value of it (review item P1-R8-F4).
+        # It goes before the sentence about who decided the role so that
+        # the two claims about what is and is not recorded read together.
+        lines = lines + _repetition_lines(column)
+        lines = lines + [
             (
                 "    synthtwin never decides this for itself: a column "
                 "holds record numbers only when you say so with "
@@ -469,6 +546,13 @@ def _disclosure_lines(document: dict[str, object]) -> list[str]:
         # purpose was to keep its values in (review item P1-R7-F2). The
         # spelling is gone now; so is the wording that did not cover
         # the rest.
+        #
+        # A column DECLARED with --identifier carries one count more:
+        # how many different values cover one row, two rows, and so on
+        # (review item P1-R8-F4). It is a count of rows and a count of
+        # values, so "only counts" below still covers it, and the
+        # column's own block above says it in words for the person who
+        # wants to know what shape of repetition was recorded.
         lines = lines + [
             "  No value at all, in any form -- only counts, lengths, and what",
             "  synthtwin decided about the column:",

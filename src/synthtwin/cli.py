@@ -517,12 +517,34 @@ def _run_profile(
     except BaseException:
         if state.sentence:
             _warn(_shown(state.sentence))
+        elif state.both_files_written:
+            # The other end of the same promise. Both renames finished
+            # and then the run stopped -- a person pressing Ctrl-C in
+            # that last instant -- so there is no failure of the write to
+            # report and nothing to put back. Saying nothing would leave
+            # them believing nothing was written while two complete
+            # real-derived files sat in their folder, and would keep the
+            # earlier profile's working name to ourselves (review item
+            # P1-R8-F1). The transaction leaves no sentence in this case
+            # precisely so that these words, the ones a finished run
+            # uses, are what they read.
+            _say(
+                f"\nWritten:\n  {shown_profile_path}\n  {shown_summary_path}"
+            )
+            if state.left_behind:
+                _warn(_left_behind_note([state.left_behind]))
         raise
-    _say(f"\nWritten:\n  {shown_profile_path}\n  {shown_summary_path}")
     if left_behind:
         # A caution, not a refusal. The profile is good, so the exit
         # code stays 0; the reader is simply told what to delete.
+        #
+        # This goes out BEFORE the "Written:" confirmation on purpose.
+        # Both are ordinary prints and a stop can land between them; if
+        # only one of the two reaches the person, it must be the one
+        # naming a file that may hold text taken from their table, not
+        # the one confirming what already went well.
         _warn(_left_behind_note(left_behind))
+    _say(f"\nWritten:\n  {shown_profile_path}\n  {shown_summary_path}")
     return 0
 
 
@@ -553,10 +575,21 @@ def main(argv: "list[str] | None" = None) -> int:
       Pressing Ctrl-C is the exception, and deliberately: it is the
       person stopping their own command, so it ends the command the way
       every other command on their computer ends, rather than being
-      dressed up as a refusal synthtwin decided on. What it does not do
-      any more is leave a working file behind in silence -- the write
+      dressed up as a refusal synthtwin decided on. The write
       transaction clears up and names what is on disk first, whatever
-      stopped it.
+      stopped it, and if it stopped AFTER both files were written it
+      says so in the words a finished run uses.
+
+      Three bounds, stated rather than rounded off, because a claim
+      that a file is never left in silence would be false:
+      (1) a SECOND stop arriving while the first is being described
+      costs that message (stated in `profile.write_both_files`);
+      (2) once the transaction has returned normally, the two lines
+      that report the run are ordinary prints outside any handler, so
+      a stop between them can cost one of them -- the leftover caution
+      is printed first for that reason;
+      (3) a stopped MACHINE is not covered at all, because nothing runs
+      afterwards to write anything.
     - Boundary: the only file this command reads is the table the user
       named, through the path validator; the only files it writes are
       the two it reports at the end, plus working files of synthtwin's

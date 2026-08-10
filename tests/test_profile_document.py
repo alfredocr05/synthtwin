@@ -137,8 +137,19 @@ def test_nothing_that_varies_between_runs_is_written(
 # the level block with the cap that could no longer fill them. Every
 # column of this fixture keeps the role, the counts and the statistics
 # it had before, which is what the table above is checked for.
+#
+# Re-recorded a second time for review item P1-R8-F4. What moved here is
+# ONE number and nothing else: `profile_version`, from 2 to 3, because a
+# declared-identifier column now carries `n_distinct_by_occurrences`.
+# That was checked rather than assumed -- writing 2 back into this
+# document and serializing it again reproduces the previous digest
+# character for character. It moves for a change no column of THIS
+# fixture shows, because the fixture declares no identifier: every role
+# it does exercise keeps the same bytes. The field itself is pinned in
+# tests/test_p1r8f4_repetition_multiset.py, on a document that declares
+# one.
 GOLDEN_SHA256 = (
-    "99fb70a32f94f17ebb3cf3520a2443147895881b8641b14556611e351e2d99db"
+    "513769d6e9edad37ef9c40ae9b9e3f8a35c4b1ae6cae3208e9f2497244045375"
 )
 
 
