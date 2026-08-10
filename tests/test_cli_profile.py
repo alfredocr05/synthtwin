@@ -8,12 +8,32 @@ told what left their table before they move the files anywhere.
 
 import json
 import pathlib
+import sys
 
 import pytest
 
 import fixtures
-from synthtwin import profile
+from synthtwin import cli, profile
 from synthtwin.cli import main
+
+# The bytes for "clear the display", which a terminal obeys rather than
+# prints.
+_CLEAR_THE_SCREEN = "\x1b[2J"
+
+# POSIX filenames may hold any byte but the separator and the null, so
+# a folder whose NAME carries the sequence above can really be made
+# there. The Windows filename grammar refuses that byte outright
+# (WinError 123), so the folder cannot exist at all and a test that
+# tries to make one errors before it asserts anything.
+#
+# The property is the same on both: text carrying a display control
+# must be SHOWN, never obeyed, and Windows terminals obey these
+# sequences too. The escaping boundary takes any text, so the control
+# does not have to arrive in a filename to prove it holds -- it arrives
+# in the folder name where a filesystem allows one, and in the caution
+# sentence's own text where it does not. Both routes end at the same
+# two pieces of code, and the second route runs everywhere.
+_A_FILENAME_MAY_CARRY_A_CONTROL = sys.platform != "win32"
 
 
 def _table(tmp_path: pathlib.Path, text: str = "") -> pathlib.Path:
@@ -261,6 +281,23 @@ def test_an_ordinary_run_says_nothing_about_working_files(
     assert captured.err == "", "an ordinary run has nothing to caution about"
 
 
+def _assert_the_caution_shows_the_control(told: str) -> None:
+    """What both halves of the P1-R6-F11 check below require."""
+    assert "\x1b" not in told, "an escape sequence reached the terminal"
+    assert "reports\\x1b[2J" in told, (
+        "the folder must still be recognizable to the person who has to "
+        "go and delete the file"
+    )
+
+
+@pytest.mark.skipif(
+    not _A_FILENAME_MAY_CARRY_A_CONTROL,
+    reason=(
+        "this filesystem refuses a filename holding \\x1b, so the folder "
+        "cannot be made; the same property is checked on every platform "
+        "by test_a_left_behind_name_that_instructs_the_terminal_is_shown"
+    ),
+)
 def test_a_left_behind_path_cannot_instruct_the_terminal(
     tmp_path: pathlib.Path,
     capsys: pytest.CaptureFixture[str],
@@ -268,7 +305,9 @@ def test_a_left_behind_path_cannot_instruct_the_terminal(
 ) -> None:
     # The new sentence prints a path, so it is a display sink like every
     # other, and the path is the user's own folder name (P1-R6-F11).
-    folder = tmp_path / "reports\x1b[2J"
+    # This is the whole route, from a real folder on disk through the
+    # command to the error stream.
+    folder = tmp_path / f"reports{_CLEAR_THE_SCREEN}"
     folder.mkdir()
     table = _table(tmp_path)
     earlier = folder / "clinic-profile.json"
@@ -278,10 +317,38 @@ def test_a_left_behind_path_cannot_instruct_the_terminal(
 
     assert main(["profile", str(table), "--out-dir", str(folder)]) == 0
     told = capsys.readouterr().err
-    assert "\x1b" not in told, "an escape sequence reached the terminal"
-    assert "reports\\x1b[2J" in told, (
-        "the folder must still be recognizable to the person who has to "
-        "go and delete the file"
+    _assert_the_caution_shows_the_control(told)
+
+
+def test_a_left_behind_name_that_instructs_the_terminal_is_shown(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """The same property where a filename cannot carry the control.
+
+    The test above needs a folder on disk whose name holds the escape
+    sequence, which Windows has no way to create. So the control
+    arrives here as what it really is -- text -- and goes through the
+    two pieces of code the whole route ends at: the sentence that lists
+    a working file left behind, and the emitter that puts every message
+    on the error stream. Neither cares where the text came from, which
+    is why this route proves the same thing.
+
+    Deleting the Windows case instead would leave the one platform
+    whose terminals also obey these sequences with nothing asserted at
+    all, so this runs on every platform, beside the route above.
+    """
+    left = (
+        f"reports{_CLEAR_THE_SCREEN}/"
+        f"clinic-profile.json{profile.KEPT_SUFFIX}-1"
+    )
+    cli._warn(cli._left_behind_note([left]))
+    told = capsys.readouterr().err
+    _assert_the_caution_shows_the_control(told)
+    assert f"clinic-profile.json{profile.KEPT_SUFFIX}-1" in told, (
+        "the file the reader has to go and delete must still be named"
+    )
+    assert "tidy up by hand" in told, (
+        "the escaping must not have eaten the sentence around the path"
     )
 
 
