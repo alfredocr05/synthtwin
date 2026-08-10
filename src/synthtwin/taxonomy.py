@@ -38,19 +38,27 @@ CATEGORY ROLE, and both are the plan's (review item P1-R6-F7).
   sixty, and the other forty left out of the distribution and named
   nowhere in it -- a column dropped, miscast and approximated at once,
   which is the one outcome charter principle 5 forbids. That line is
-  deleted. A column below 0.99 is described as free text, which
-  publishes no value at all, and carries a remark naming every reading
-  that was tried and how much of the column each one read.
+  deleted.
+* FALLING BELOW THAT LINE SETTLES NOTHING BY ITSELF. It rules the
+  numeric roles out, and role selection CONTINUES down the remaining
+  rules in their order: the category rule is tested next, and free text
+  is the last rule rather than the consequence of the numeric one.
+  Ninety-eight repeated numeric spellings beside two words are a set of
+  categories in a hundred-row table, not free text. A column that does
+  reach free text carries a remark naming every reading that was tried
+  and how much of the column each one read.
 * A column is described as a set of categories only when the number of
   different values it holds, after trimming and case folding, is at
-  most `min(categorical_ceiling, categorical_share of the present
-  values)`, never below `categorical_floor`. The rule that stood here
-  through round 6 -- an average repetition of two, with a separate cap
-  of twelve on mostly numeric columns -- called forty different labels
-  in a hundred rows a set of categories and published the one that
-  cleared the floor. Real labels crossing the privacy boundary is the
-  direction to be conservative in, so the plan's ceiling is what is
-  implemented.
+  most `min(categorical_ceiling, categorical_share of the TABLE'S
+  ROWS)`, never below `categorical_floor`. Rows rather than present
+  values, and the two differ on a sparse column: `_categorical_ceiling`
+  states the rule where it is applied and gives the case. The rule that
+  stood here through round 6 -- an average repetition of two, with a
+  separate cap of twelve on mostly numeric columns -- called forty
+  different labels in a hundred rows a set of categories and published
+  the one that cleared the floor. Real labels crossing the privacy
+  boundary is the direction to be conservative in, so the plan's
+  ceiling is what is implemented.
 * NOTHING IS ROUTED BY THE WIDTH OF ITS TEXT. A rule that read
   same-width digit strings carrying a leading zero as codes ran ahead
   of the dates and the numbers until the same review item; it is
@@ -72,8 +80,11 @@ rule says what a declaration matches (review item P1-R6-F9):
 * a declared value that does not read as such a number matches by
   SPELLING, after trimming and case folding: `--keep-value NA` covers
   `na` and ` NA `, and covers nothing else;
-* the same value named both ways is refused, never resolved. `Settings`
-  raises on it and the command refuses before it reads the table.
+* the same value named both ways is refused, never resolved, on both
+  paths that exist: the command refuses it before it opens the table,
+  and `profile_column` raises ValueError before it describes anything.
+  Building `Settings` is not one of those paths -- the class docstring
+  says why -- so both callers ask `contradictory_declarations`.
 
 THREE STRUCTURAL RULES hold this module together, and each one closes a
 whole family of defects rather than one instance of it.
@@ -102,23 +113,36 @@ whole family of defects rather than one instance of it.
 
 Every published number is computed so that the answer does not
 depend on the machine, the row order, or the magnitude of the data
-(plan P1-D11). Four rules do that, and each one is load-bearing:
+(plan P1-D11). Nothing is accumulated in floating point at all, which
+is what makes that exact rather than nearly true:
 
-* every reduction starts from the sorted values, and every sum is
-  `math.fsum`, which computes the exact sum and rounds once, so the
-  result cannot depend on the order the rows arrived in;
-* before any sum, the values are divided by a POWER OF TWO taken from
-  the largest magnitude present. That division is exact, so it costs no
-  accuracy, and it puts every operand in [-1, 1], which is what makes
-  `math.fsum`'s own overflow path unreachable -- on the raw values it
-  raises, and whether it raises depends on the order;
-* the scale is reapplied ONCE, after the square root, with
-  `math.ldexp`. Squaring the scale would reintroduce exactly the
-  overflow and underflow the scaling exists to prevent;
-* the deviations are recentred once. The mean carries up to half a
-  unit in the last place of error, every deviation inherits that as a
-  common shift, and the second and third moments are quadratic and
-  cubic in it.
+* every finite binary64 value IS a whole number times a power of two,
+  and `_parts` splits it into exactly that. A column becomes one shared
+  power of two and one whole significand per value;
+* `_totals` adds those significands, their squares and their cubes as
+  WHOLE NUMBERS, in groups sharing one exponent. Whole-number addition
+  neither rounds nor depends on the order it is done in, so the three
+  power sums are exact and the row order cannot reach them;
+* the mean, the standard deviation and the skewness are then exact
+  fractions of those whole numbers, written out in `_moments`, and each
+  is rounded to binary64 exactly ONCE -- by `_rounded_ratio` for a
+  quotient and `_rounded_root` for a square root. Both settle the last
+  digit by comparing whole numbers, so the rounding is the correct one
+  on every platform, with a tie going to the even significand;
+* a ladder rung is the same shape of computation: its position is
+  located in whole numbers, and the interpolation between its two
+  neighbours is one exact fraction rounded once (`_quantile`).
+
+HISTORY, recorded because the accuracy contract rests on the change.
+Revision 1 of the plan computed all of this as a two-pass FLOATING-
+POINT reduction -- sorted values, `math.fsum`, a power-of-two rescale
+before every sum, the deviations recentred once -- and recorded with it
+a "conditioning limit" saying that a sample such as {1e16, 1, -1e16}
+could not have a correctly rounded skewness. Both were retired at
+review round 5: the limit was a property of that reduction rather than
+of binary64, and a cancellation that defeats floating point costs whole
+numbers nothing. Neither `math.fsum` nor `math.sqrt` is called anywhere
+in this module now.
 
 Every list built one item at a time is grown with `+= [item]`, which
 extends the list in place. `values = values + [item]` copies everything
@@ -128,11 +152,14 @@ its run copying its own prefix (review item P1-R6-F10). The `+=` form
 is used rather than a method call because the offline policy accepts no
 method call on a computed value (plan D6.2).
 
-`**` is never used for squaring or square roots anywhere in this
-module: it calls the platform's `pow`, which no standard requires to be
-correctly rounded, and it disagrees with `x*x` and `math.sqrt` on real
-inputs. `x*x` and `math.sqrt` are IEEE-754 operations and are exact to
-the last bit on every conforming platform.
+`**` is used for one thing only, and it is not arithmetic on a
+measured value: `5 ** -twos` in `_exact_number`, a whole number raised
+to a whole power, which Python computes exactly. It is never used for
+a square or a square root, because on floats it calls the platform's
+`pow`, which no standard requires to be correctly rounded. Every
+square here is `x * x` on whole numbers and every square root is
+`_root_of`, Newton's method on whole numbers, so both are exact by
+construction rather than by trusting a library to round well.
 
 The accuracy this buys is stated as a contract in plan P1-D11 and is
 tested against reference vectors computed by exact rational arithmetic
@@ -335,11 +362,13 @@ class Settings:
     minimum_parse_rate: float = 0.99
     # A set of categories is a set of values each shared by many rows.
     # The most different values one may hold is
-    # `min(categorical_ceiling, categorical_share of the present
-    # values)`, and never fewer than `categorical_floor`, so that a tiny
-    # table still has a categorical path. A column above that ceiling is
-    # described as free text, which publishes nothing, and is told its
-    # own distinct count and the ceiling it passed.
+    # `min(categorical_ceiling, categorical_share of the table's ROWS)`,
+    # and never fewer than `categorical_floor`, so that a tiny table
+    # still has a categorical path. Rows rather than present values:
+    # `_categorical_ceiling` applies the rule and says why. A column
+    # above that ceiling is described as free text, which publishes
+    # nothing, and is told its own distinct count and the ceiling it
+    # passed.
     categorical_share: float = 0.10
     categorical_ceiling: int = 1000
     categorical_floor: int = 2
@@ -357,8 +386,9 @@ class Settings:
     # whatever either is spelled like, so `-999` covers a file that
     # writes `-999.00`; any other declared value matches by spelling,
     # after trimming and case folding. Naming one value both ways is
-    # refused when this class is built, never resolved by an order of
-    # precedence nobody can see.
+    # refused, never resolved by an order of precedence nobody can see.
+    # Building this class does not itself refuse it -- the class
+    # docstring says why, and names the two callers that do.
     #
     # The number comparison is on the number itself and not on the
     # binary64 value it rounds to. Rounding first makes one number out
@@ -366,10 +396,22 @@ class Settings:
     # item P1-R7-F3).
     kept_values: tuple[str, ...] = ()
     declared_missing_values: tuple[str, ...] = ()
-    # The rule above, written into the profile beside the declarations
-    # themselves. A reader of a profile that records fifteen values
-    # removed by a declaration must be able to see WHICH comparison
-    # removed them.
+    # The rule above, written into the profile beside HOW MANY values
+    # were named each way. A reader of a profile that records fifteen
+    # values removed by a declaration must be able to see WHICH
+    # comparison removed them. The declared spellings do not travel in
+    # the SETTINGS BLOCK: they are values of the real table, so that
+    # block carries their count and never their text (review item
+    # P1-R7-F2, applied in `profile._declaration_record`).
+    #
+    # That is a statement about the settings block and nothing else. The
+    # wider reading -- that a declared spelling reaches no part of the
+    # document -- is false and was retired with the token that carried
+    # it: a value declared KEPT is data from that point on and appears
+    # wherever its column publishes values, and a value declared MISSING
+    # reaches `missing_by_source` when its count clears the small-cell
+    # floor and its column publishes at all. See the note beside
+    # `profile.DECLARATION_PUBLICATION`.
     declaration_matching: str = DECLARATION_MATCHING
     # A column is reported as borderline when this many values, or
     # fewer, separate it from a different reading. Counting values
@@ -2194,13 +2236,18 @@ def _categorical_ceiling(cells: _Cells) -> int:
     """The most different values a set of categories may hold here.
 
     The plan's rule, restored by review item P1-R6-F7:
-    ``min(categorical_ceiling, categorical_share of the values present)``
-    and never below ``categorical_floor``. The share is taken over the
-    values the column actually HOLDS rather than over the table's row
-    count, because a column that is nine-tenths blank has only its
-    present values to be a set of categories over -- and because that is
-    the more conservative of the two readings, which is the right
-    direction for real labels crossing the privacy boundary.
+    ``min(categorical_ceiling, categorical_share of the table's ROWS)``
+    and never below ``categorical_floor``.
+
+    ROWS, not the values the column happens to hold, and the two differ
+    on a sparse column. A 100-row table whose coded field is filled in
+    30 times with 6 labels has a ceiling of 10 here and is a set of
+    categories; a share of the present values would have put its ceiling
+    at 3 and sent an ordinary shape to free text with nothing published.
+    Which labels may then be SHOWN is a separate question, already
+    settled by the small-cell floor. Rows are also what the plan states,
+    and the code and the plan must not disagree about a threshold every
+    profile records.
 
     What this replaces was an average repetition of two, plus a separate
     cap of twelve on mostly numeric columns. That rule called forty
@@ -2213,14 +2260,8 @@ def _categorical_ceiling(cells: _Cells) -> int:
     Raises nothing. No I/O of any kind.
     """
     settings = cells.settings
-    # The share is taken over the table's ROWS, not over the values this
-    # column happens to hold. Measuring it over present values punishes a
-    # column for being sparse: a 100-row table whose coded field is filled
-    # in 30 times with 6 labels would get a ceiling of 3 and publish
-    # nothing, though 6 labels in 100 rows is an ordinary shape and the
-    # small-cell floor already governs which of them may be shown. Rows
-    # are also what the plan states, and the two must not disagree
-    # (review item P1-R6-F7).
+    # The table's ROWS, for the reasons in the docstring above (review
+    # item P1-R6-F7).
     share = _at_most(settings.categorical_share, cells.n_rows)
     ceiling = min(settings.categorical_ceiling, share)
     return max(ceiling, settings.categorical_floor)
@@ -2453,6 +2494,10 @@ def _decide(cells: _Cells, forced_identifier: bool) -> _Verdict:
     # RULE 6 -- numbers, at the one parse rate there is. A column that
     # reads as numbers in essentially every cell is a quantity however
     # many different values it holds.
+    #
+    # Falling short here decides nothing but this rule: the column goes
+    # on to RULE 7 and may still be a set of categories. Below the line
+    # is not a synonym for free text.
     if numeric_looking >= strict_needed:
         return _numeric_verdict(cells, notes, remarks)
 

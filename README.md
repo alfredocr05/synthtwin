@@ -55,31 +55,80 @@ it:
 - `my-table-profile.txt` - the same description in plain language, which
   is also printed on the screen.
 
-The profiler decides what each column holds -- record numbers, whole
-numbers, measured numbers, dates, a set of categories, two-value
-columns, free text -- says in words why it decided that, reports what is
-missing and how the missing values were written, and tells you exactly
-which of your real values ended up in the profile and which did not.
+The profiler reads what each column holds -- whole numbers, measured
+numbers, dates, a set of categories, two-value columns, free text --
+says in words why it read it that way, reports what is missing and how
+the missing values were written, and tells you exactly which of your
+real values ended up in the profile and which did not.
+
+There is one reading it never makes for you: record numbers. A column of
+ID codes and a column of measurements can look identical, and getting
+that wrong either publishes identifiers or destroys a distribution the
+twin exists to reproduce. So no rule anywhere in synthtwin can reach
+that reading from the values in a column -- it comes only from you,
+through `--identifier`, and it is described below with the rest of the
+options.
 
 **Read that last part before you move the profile anywhere.** The
 profile is computed from your real data. It contains no rows of your
-table, and it never contains a record number, a line of free text, or a
-label shared by fewer than eleven rows -- but it does contain the
-smallest and largest values of your numeric and date columns, and the
-points in between that describe their shape. It is real-derived
-material, and your institution's rules for such material apply to it.
+table, and it never contains a value from a column you named with
+`--identifier`, a line of free text, or a label shared by fewer than
+eleven rows -- but it does contain the smallest and largest values of
+your numeric and date columns, and the points in between that describe
+their shape. It is real-derived material, and your institution's rules
+for such material apply to it.
 
-Two options exist for the situations the rules cannot decide alone:
+### The options
+
+Six of them, for the things the rules cannot settle on their own:
 
 ```
 synthtwin profile my-table.csv --out-dir reports
 synthtwin profile my-table.csv --identifier participant_number
 synthtwin profile my-table.csv --smallest-group 20
+synthtwin profile my-table.csv --keep-value -999
+synthtwin profile my-table.csv --missing-value NA
+synthtwin profile my-table.csv --first-row data
 ```
 
-`--identifier` tells synthtwin that a column of numbers is a record
-number rather than a measurement, so that none of its values are
-published. `--smallest-group` changes the eleven-row rule above.
+`--out-dir` writes the two files into a folder you name instead of into
+the folder your table is in. The folder has to exist already.
+
+`--identifier` names a column whose values are record numbers or codes
+rather than measurements, so that none of them are published anywhere in
+that column's description. It takes a column name -- any column, whatever
+that column holds -- and it is the only way a column is ever read that
+way. Repeat it to name more than one column. A name that is not in your
+table stops the run before anything is written.
+
+`--smallest-group` changes the eleven-row rule above.
+
+`--keep-value` names a value your table means as real data even though
+synthtwin would otherwise read it as "no value" -- a region genuinely
+coded `NA`, or `-999` as a real reading. `--missing-value` is the
+opposite: a value synthtwin would keep that your table means as "no
+value". A value that reads as a number is matched as a number, so `-999`
+also covers `-999.00`; anything else is matched as text, ignoring
+surrounding spaces and capitals. The profile records how many values you
+named each way and the rule that matched them, never the values
+themselves -- but a value you keep is ordinary data from then on, so it
+can appear wherever its column publishes values, for instance as that
+column's smallest number.
+
+**`--first-row`, and the assumption it takes back.** When a file settles
+the question, synthtwin follows the file. When nothing in the file
+settles it, synthtwin reads the first row as the column names, because
+that is how a table is normally written -- and taking that reading is not
+the same as proving it, so it is written down rather than assumed
+silently. The profile records that the names were taken by convention,
+and the summary says so in plain words near the top, ahead of everything
+the assumption would change. The cost, stated instead of hidden: if your
+file has no column names, its first record is described as column names
+and is left out of every count. `--first-row data` takes that back --
+synthtwin then names the columns `column_1`, `column_2`, and so on, and
+keeps every record. `--first-row names` settles it the other way. When
+the file itself shows that the first row is a record, synthtwin stops and
+asks rather than choosing for you.
 
 ## What exists today
 
@@ -132,19 +181,25 @@ keeps the profiler and the generator apart: the profiler runs where the
 real data lives and writes a profile file; the generator needs only that
 profile. The real data never has to move.
 
-**Dependencies are governed [built].** synthtwin has exactly two
-runtime dependencies, pandas and numpy, each justified in writing in
-`docs/plans/phase-1-profiler.md` and each reduced by the import scanner
-to the handful of functions this code actually calls -- membership in an
-allowed library grants nothing on its own. The policy distinguishes the
-*direct* dependencies (declared with honest lower bounds that a CI job
-installs and tests) from the *complete closure* (every package,
-including build tooling and transitives, locked by hash and consumed
-frozen in CI and in the supported institutional install path). One
-consequence is stated plainly in `SECURITY.md`: the CSV reader
-synthtwin calls is itself capable of fetching a URL, and what keeps it
-from doing so is synthtwin's path check, which refuses anything that is
-not a plain local path before any file is opened.
+**Dependencies are governed [built].** synthtwin has exactly one direct
+runtime dependency, pandas, justified in writing in
+`docs/plans/phase-1-profiler.md` and reduced by the import scanner to
+exactly one function of it, `read_csv` -- membership in an allowed
+library grants nothing on its own. numpy is not a dependency of
+synthtwin: it arrives inside pandas's own requirements, and no file under
+`src/` imports it. (It was declared directly until review round 1 showed
+that its reductions made published statistics depend on the order of the
+rows; the profiler computes those statistics itself now.) The policy
+distinguishes the *direct* dependency (declared with an honest lower
+bound that a CI job installs and tests) from the *complete closure*
+(every package, including build tooling and everything a dependency
+brings in with it, locked by hash and consumed frozen in CI and in the
+supported institutional install path). One consequence is stated plainly
+in `SECURITY.md`: the CSV reader synthtwin calls is itself capable of
+fetching a URL, and what keeps it from doing so is synthtwin's own path
+check, which refuses anything that is not a plain local path before any
+file is opened and is re-run immediately before the reader is handed
+that path.
 
 ## Honest limits
 

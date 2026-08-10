@@ -56,26 +56,40 @@ The layers:
    traversal can occur. On POSIX, symlinks are permitted and the resolved
    real path is re-checked against the lexical rules.
 2. **Positive import allowlist.** Source under `src/` may use only an
-   exact, enumerated list of standard-library APIs - no third-party
-   imports exist in Phase 0. An AST-level scanner (`tools/offline_scan`)
-   enforces the list and additionally bans dynamic import, entry-point
-   loading, reflection primitives, and writes to interpreter state.
-   Adding an API to the list is a plan-level decision with a capability
-   audit.
+   exact, enumerated list of standard-library APIs, plus exactly one
+   function of one third-party library - `pandas.read_csv`, which is
+   additionally fenced by the rule described under the reader residual
+   below. An AST-level scanner (`tools/offline_scan`) enforces the list
+   and additionally bans dynamic import, entry-point loading, reflection
+   primitives, and writes to interpreter state. Adding an API to the
+   list is a plan-level decision with a capability audit.
 
    **The scope of this scanner, stated exactly.** It is a best-effort
    automatic layer inside the boundary above. It is *not* a proof that
    every call target in the program resolves to an exact allowed API. A
    reading-only analysis could in principle refuse every construct whose
-   target it cannot resolve; this one deliberately accepts a few such
-   shapes - among them an object supplied by the caller that satisfies a
-   type check, and a call chained onto a constructor in one expression -
-   so that ordinary code stays writable. What it therefore does not
-   prove is universal call-target closure. Its strength is measured
-   rather than asserted: every rule it holds is exercised by a
-   deliberate red mutation in CI, and no rule was relaxed to make this
-   scope statement true. (Plan D6 Amendment A3, ratified with conditions
-   by the Phase 0 closure review.)
+   target it cannot resolve; this one deliberately does not, so that
+   ordinary code stays writable. What it accepts, named rather than
+   summarized: an object supplied by the caller that satisfies a type
+   check; a call chained onto a constructor in one expression; and, on a
+   value whose origin the audit cannot trace to an allowed API, the whole
+   of **implicit protocol dispatch** - attribute and property reads,
+   subscription, operators and comparisons, truth and length checks,
+   iteration and conversion through accepted built-ins, formatting, and
+   class or metaclass construction. Every one of those can run code
+   belonging to the object, with no method-call expression anywhere in
+   the source. What it refuses on such a value is the written method
+   call; and the attributes of a value one of the enumerated libraries
+   returned are themselves an enumerated list. So what this scanner does
+   not prove is universal call-target closure, and it is not what holds
+   the CSV reader to local files either - that is the run-time
+   `validate_local_path` re-applied immediately before the reader is
+   handed a path. Its strength is measured rather than asserted: every
+   rule it holds is exercised by a deliberate red mutation in CI, and no
+   rule was relaxed to make this scope statement true. (Plan D6
+   Amendment A3, ratified with conditions by the Phase 0 closure review;
+   the surface named above is the correction that Phase 1 review round 7
+   required of the earlier, narrower statement.)
 3. **Socket guard.** The test suite installs a Python-level guard at
    collection time that makes any attempted network connection fail
    loudly. It is described everywhere as a guard - never as "network
@@ -107,19 +121,34 @@ Stated here so that no reader has to discover them independently:
   remote storage location if it were handed one: the library is capable
   of network access even though synthtwin never asks it for any. Three
   controls hold that line, and they are what the offline claim rests on
-  for this call. Every path reaching the reader has passed the
-  path-locality check, which refuses URL forms lexically before any file
-  is opened; the reader is handed the resulting path object rather than
-  text the user typed; and the import scanner enumerates `read_csv` and
-  no other name from the library, so a second call site cannot appear
-  without a plan-level change. This is a fencing arrangement, not an
-  inability. An institution that wants the inability rather than the
-  fence runs synthtwin inside its own network-isolated environment,
-  where the question does not arise. The same enumeration bans calling
-  any method on the objects the library returns -- a data frame carries
-  writers that reach a database or a URL on their own -- so those
-  objects are read from and passed back to enumerated functions, never
-  called through.
+  for this call. Two of them run at run time and they are the operative
+  ones: every path reaching the reader has just passed
+  `validate_local_path`, which refuses URL forms lexically before any
+  file is opened, and the reader is handed the resulting path object
+  rather than text the user typed. The third is the import scanner, a
+  best-effort layer over those two: it enumerates `read_csv` and no
+  other name from the library, so **no other pandas name can be written**
+  in `src/`. That is narrower than "no other pandas API runs", and the
+  difference is deliberate: reading an attribute of a value the library
+  returned, subscripting it, or handing it to a built-in dispatches the
+  library's own code without naming it, and `reading.py` does exactly
+  that on every run (the frame's length, its `columns`, and a column by
+  key). Attribute reads on returned values are held to an enumerated
+  list and written method calls on them are refused; implicit dispatch
+  is accepted on purpose and is the residual named above. The scanner
+  also requires **every `read_csv` call site to carry,
+  on its own, provenance the scanner recognizes** - the argument must
+  trace, inside that same function, to `validate_local_path`. Be exact
+  about what that does and does not mean: a second, correctly fenced
+  call site scans clean and needs no plan-level change, while an
+  unfenced one is refused wherever it is written. This is a fencing
+  arrangement, not an inability. An
+  institution that wants the inability rather than the fence runs
+  synthtwin inside its own network-isolated environment, where the
+  question does not arise. The same enumeration bans calling any method
+  on the objects the library returns -- a data frame carries writers that
+  reach a database or a URL on their own -- so those objects are read
+  from and passed back to enumerated functions, never called through.
 - **Code supplied by the caller.** A booby-trapped object or callable
   handed to one of synthtwin's public functions runs in the caller's own
   process under the caller's own authority. The boundary controls what
@@ -170,7 +199,7 @@ question an auditor actually cares about answered per row:
 | Role | Contents | Executes on a user machine? | Pinned by |
 | --- | --- | --- | --- |
 | Runtime, direct | `pandas` | yes | bounds in `pyproject.toml` for an ordinary `pip install` (floors installed and tested by the `minimums` CI job); by hash in `requirements-install.lock` for the supported institutional install |
-| Runtime, transitive | `numpy`, `python-dateutil`, `six`, `tzdata`, and (below Python 3.11) `pytz` - the closure pandas brings. numpy was a declared direct dependency until review round 1 showed its reductions made published statistics depend on row order; the profiler now computes them itself with `math` and imports numpy nowhere | yes | by hash in `requirements-install.lock`; the complete closure is also in `requirements-dev.lock`, consumed frozen in CI |
+| Runtime, transitive | `numpy`, `python-dateutil`, `six`, `tzdata`, and (below Python 3.11) `pytz` - the closure pandas brings. numpy was a declared direct dependency until review round 1 showed its reductions made published statistics depend on row order; the profiler now computes those statistics itself in exact whole-number arithmetic, rounding once at the end, and imports numpy nowhere | yes | by hash in `requirements-install.lock`; the complete closure is also in `requirements-dev.lock`, consumed frozen in CI |
 | Build frontend | `pip` / `python -m build` in CI | no | `build` is hash-locked in `requirements-dev.lock`, consumed frozen (CI fails on drift); `pip` ships with the runner interpreter, its exact version recorded in CI logs every run |
 | Build backend | `hatchling` | only if you build from source yourself; never when installing a prebuilt wheel | hash-locked in `requirements-dev.lock`, which covers the complete build closure, consumed frozen (CI fails on drift) |
 | Installer toolchain | the user's own `pip` | yes - it is your tool and a trust root you already hold | your environment |
@@ -227,16 +256,24 @@ and runs the whole test suite against them.
 
 ## How an IT auditor verifies each layer
 
-1. **Offline claim.** Read `src/` - in Phase 0 it is a handful of small
-   files. Run the scanner in `tools/offline_scan` against `src/` and
-   confirm it passes; make it fail by adding a disallowed import to a
-   scratch copy. Run the test suite and confirm the socket-guard
+1. **Offline claim.** Read `src/` - it is still a small number of plain
+   Python files. Run the scanner in `tools/offline_scan` against `src/`
+   and confirm it passes; make it fail by adding a disallowed import to
+   a scratch copy. Run the test suite and confirm the socket-guard
    self-test fires on a deliberate connection. Read the clean scan for
    what it is: the best-effort layer scoped above, so the source read is
    what carries the boundary claim, and the caller-supplied-code
-   residual stays open either way.
-2. **Zero runtime dependencies.** Open `pyproject.toml`; confirm
-   `dependencies = []`.
+   residual stays open either way. For the one network-capable API in
+   the allowlist, read each `pandas.read_csv` call site in `src/` and
+   confirm that the argument comes from `validate_local_path` in that
+   same function; that run-time check, not the scan, is what holds the
+   reader to local files.
+2. **One direct runtime dependency.** Open `pyproject.toml`; confirm
+   `dependencies` names pandas and nothing else. numpy,
+   `python-dateutil` and the rest of the transitive row in the table
+   above arrive inside pandas's own requirements: `grep -r numpy src/`
+   returns nothing, and `requirements-install.lock` pins the whole
+   closure by hash.
 3. **Path rules.** Run the test suite on your platform; the Windows cells
    run the complete path and link-rejection suite, including the
    assertion that resolution is never invoked on link-containing input.
