@@ -1,5 +1,25 @@
 # Phase 1 — The profiler: reading and automatic type analysis
 
+**Status:** revision 5 — the implemented plan, after review rounds 1-8.
+Revision 5 records what the round-8 repairs changed and the owner
+decision taken with them; it describes no behaviour those repairs did
+not make true. What changed in the text: the transaction section
+(P1-D5) described machinery the rebuild removed — a renaming step that
+opened a handler of its own, and a remaining window called one
+bytecode boundary wide that had never been measured — so it is
+rewritten around one function with one handler, the measurement that
+replaces that claim, the two residuals that actually remain, and the
+third bound that has always been in the command rather than in the
+transaction (P1-R8-F1); P1-D8 gains the transaction battery those
+residuals are stated against. P1-D5 also states the number
+`profile_version` carries and records the owner decision of 2026-08-10
+that a declared-identifier column publishes an anonymous count
+multiset, advancing that number to 3 (P1-R8-F4), with P1-D4 item 8,
+P1-D6 and the list of decisions taken during implementation carrying
+the same decision where they describe the role, what the profile
+publishes, and the record of what was settled when. No other section
+changed. Earlier revisions are recorded below, newest first.
+
 **Status:** revision 4 — the implemented plan, after review rounds 1-7.
 Revision 4 changes no behaviour. It corrects sentences that described
 retired designs as though they were operative, and one claim that
@@ -411,9 +431,13 @@ and points at the option; that sentence changes no role.
    `--identifier NAME` declares it.
 
    When declared, identifier VALUES are never published: the profile
-   records the role, the counts, the min/max length, and whether the
-   values are whole numbers; the twin will generate neutral placeholder
-   identifiers (Phase 2's job).
+   records the role, the counts, the min/max length, whether the
+   values are whole numbers, and — by the owner decision of 2026-08-10
+   recorded in P1-D5 — an anonymous count multiset saying how many
+   distinct values repeat how often, never which ones. The twin will
+   generate neutral placeholder identifiers (Phase 2's job), and that
+   multiset is what lets it reproduce the repetition pattern rather
+   than making one up.
 
    **Obligation this moves to Phase 2, recorded here so it is not
    discovered later:** an undeclared key column now arrives as free text
@@ -481,6 +505,66 @@ Each column entry carries: `name`, `position`, `role`,
 `detection_evidence`, `n_present`, `n_missing`, `missing_by_source`, and
 exactly one role-specific block. No RNG is involved anywhere in profiling.
 
+**The number on the wire, and what moves it.** `profile_version`
+started at 1. It became 2 at review round 7, when the settings block
+stopped carrying declared spellings and began carrying a record of how
+many values were declared each way. It becomes 3 with the owner
+decision below. The number exists so that a change of shape is
+explicit rather than something a consumer of the file has to detect,
+which is why it moves with the change and not after it.
+
+**Owner decision, 2026-08-10: a declared-identifier column publishes an
+anonymous count multiset, and the contract version advances to 3
+(review item P1-R8-F4).** Two six-row tables, each with a declared
+identifier column holding the same three neutral codes — one where the
+codes appear four times, once and once, one where each appears twice —
+produced identical profile bytes and identical summaries. Both recorded
+six present, three distinct, and the same length facts, and neither
+recorded anything about how the repeats were distributed. A generator
+that reads the profile and nothing else must pick one repetition
+pattern for both, so a grouped analysis developed against the twin
+behaves differently from the same analysis on the real table, with
+nothing crashing and nothing said. That is the silent statistical
+wrongness this project ranks above ordinary bugs, and it is why the
+owner directed the field rather than a recorded approximation.
+
+The shape is a frequency of frequencies: how many distinct values occur
+once, how many occur twice, and so on — a map from a repetition count
+to the number of distinct values that repeat that often. It never
+records WHICH values, never a spelling, never a length paired with a
+count, and nothing that can be joined back to a row. That makes it the
+same CLASS of fact as the withheld categorical levels published after
+review item P1-R1-F9, which is the precedent the decision rests on,
+though the two are written differently: the withheld levels are
+published as the list of their sizes, this one as a map from a size to
+how many groups have it. The publication rule for this role is therefore
+unchanged: a declared identifier column publishes counts and lengths
+and no value of itself anywhere, and this field is counts about
+counts. It is still real-derived material — the repetition pattern is
+a fact about the real table, in the same class as the published minima
+and the sizes of the withheld levels — so it is covered by the same
+institutional handling rule as the rest of the profile. No small-cell
+floor is applied to it, and that is deliberate rather than overlooked:
+the floor governs whether a LABEL may be shown, and there is no label
+here to withhold, only the size of a group nothing names. It is
+serialized under the canonical rules below, so its bytes do not depend
+on the order anything was iterated in.
+
+**The field.** The implementation landed in `taxonomy.py` in this same
+round as `n_distinct_by_occurrences` on the declared-identifier block,
+and this document takes that name from the code rather than proposing
+one of its own: what the decision fixes is the shape and the rule, and
+a plan that invents a second name for the same thing only gives a
+reader two answers to reconcile. Its keys are row counts and its
+entries are how many different values cover that many rows. Because
+JSON object keys are text and the document is serialized with sorted
+keys, each key is written in base ten and left-padded with zeros to the
+width of the largest key in the same map, so that the sorted-key order
+is a numeric order; a consumer reads a key as a number, and the leading
+zeros do not change it. The entries sum to `n_distinct`, and the keys
+weighted by their entries sum to `n_present`, which is what makes the
+field checkable against counts the profile already carried.
+
 **Canonical serialization** (D12): UTF-8 without a byte-order mark; `\n`
 line endings; JSON with sorted keys, two-space indent, fixed separators;
 datetimes as ISO 8601 with explicit offset and fixed precision; nulls
@@ -522,19 +606,102 @@ transaction did not compose keeps its own type and message for the
 caller — which has its own advice for it — and the sentence is handed
 back separately for the caller to print beside it.
 
-**Two residuals, stated rather than closed.** First, one instant is
-not covered: the call that begins the renaming sits between the
-handler that has just closed and the handler the renaming step opens
-on its own first line, so a stop arriving exactly there leaves both
-working files on disk unnamed. The window is one bytecode boundary
-wide, and closing it from the outside would replace the more exact
-sentence the renaming step composes with a vaguer one. Second, the two
-renames are two steps: a machine that loses power between them can
-leave a new profile beside an old summary, and a stopped MACHINE
-leaves no sentence anywhere because nothing runs afterwards to write
-one. An interrupted PROGRAM is covered; durability against a power cut
-is not claimed, and the call that would force a write to the disk is
-outside the import allowlist in any case.
+**The transaction was rebuilt, and the window it used to claim was
+measured (review round 8, item P1-R8-F1).** Through revision 4 this
+section said that the renaming step opened a handler "on its own first
+line" and that what remained uncovered was one bytecode boundary. Both
+sentences described machinery that no longer exists, and neither was
+true of the machinery it described. The renaming lived in a
+function of its own with a handler of its own, so the call that
+reached it sat between two handlers; that handler was not on the first
+line; and several of the names it read were bound inside the block it
+was meant to guard, so a stop at one of those lines raised
+UnboundLocalError out of the cleanup and the person lost their own
+failure as well as the account of the files. An opcode-level probe of
+that code found 24 boundaries out of policy across two scenarios,
+seven of them of that UnboundLocalError kind. "One bytecode boundary"
+was not a slight overstatement of a nearly closed window; it was a
+figure for a window nobody had measured.
+
+The transaction is now one function with one handler. Everything the
+handler reads is bound BEFORE the handler opens, which is possible
+only there: at that moment nothing of synthtwin's making is on disk —
+no file created, no name reached for — so a stop in those lines leaves
+the folder exactly as the run found it and there is nothing to clear
+away or to name. Everything after them, the claim of each working
+name, both writes and the renaming alike, happens inside that one
+handler. A working name is recorded before it is reached for rather
+than when the call that creates it hands the name back, because the
+file appears on disk a moment earlier than that. And the type of an
+exception is no longer read as proof that a cleanup has run: only the
+narrower refusal the transaction composes for itself — built in
+exactly two places, each after its own cleanup and with the state of
+every name already in its message — is passed straight out. Everything
+else goes through the full cleanup and then leaves with its own type
+and its own message, an unexpected `ProfileError` included, because
+the type says which words a refusal uses and never that anything was
+tidied up.
+
+What that is worth is a measurement rather than a reading of the
+source. 36,832 injections — MemoryError, KeyboardInterrupt,
+SystemExit, an unexpected `ProfileError`, and OSError, one at a time,
+at every bytecode boundary of every frame the transaction executes,
+across four scenarios including one where files the user owns are
+already sitting at the working names — report not one violation of the
+three questions asked after each stop: did the person's own failure
+reach them unchanged, is every working file that survived named to
+them, and does each output name hold either what it held before or
+what this run wrote? The same probe against the pre-repair code
+reports 9,962 violations, which is what says the probe is not vacuous.
+The transaction battery in the suite (P1-D8) asks the same three
+questions at every STATEMENT boundary; the bytecode-level probe is
+independent verification and is not part of the suite. The claim those
+numbers support has the scope the code claims and no more: ONE
+failure, of any kind, at any statement of the writes, the renames, or
+the creation of a working name.
+
+**Two residuals, stated rather than closed.**
+
+1. **A second failure arriving while the first is being described.**
+   The cleanup can itself be stopped — a person pressing Ctrl-C again
+   while the first stop is being written up. The second failure is
+   dropped so the first survives to the caller, which has advice for
+   the first and none for the second. What the person loses is the
+   report: it is composed and stored in one step, so it goes whole
+   rather than in half, but the naming of the working files goes with
+   it, and a working file can therefore survive on disk unnamed in
+   this case. This is outside the probe above, which injects one
+   failure per run.
+2. **One statement boundary between the second rename returning and
+   the recording of that return.** Both files are in place the moment
+   the rename returns, and the record that says so is set on the next
+   line. A stop in between is reported as a run caught mid-move. Every
+   name is still looked at and named and no file is lost — which is
+   why the probe counts it as no violation — but the message opens
+   "synthtwin could not put things back as they were" when nothing
+   needed putting back, and it calls both outputs unattributable when
+   the move had landed. It sends a reader to inspect files that are in
+   fact correct; it claims no safety that is not there. There is
+   nowhere to put a record that would close it, because a rename
+   returning and the recording of that return cannot be one operation.
+
+**A third bound, in the command rather than in the transaction.** Once
+the transaction has returned normally, the two lines that report the
+run — the caution naming a working file that could not be cleared away
+afterwards, and the confirmation naming the two files written — are
+ordinary prints outside any handler, so a stop between them can cost
+one of them. The caution is printed first for that reason: if only one
+of the two reaches the person, it must be the one naming a file that
+may hold text taken from their table, not the one confirming what
+already went well.
+
+**What is not promised.** The two renames are two steps: a machine
+that loses power between them can leave a new profile beside an old
+summary, and a stopped MACHINE leaves no sentence anywhere because
+nothing runs afterwards to write one. An interrupted PROGRAM is
+covered; durability against a power cut is not claimed, and the call
+that would force a write to the disk is outside the import allowlist
+in any case.
 
 ## P1-D6. Privacy defaults — automatic, not advisory
 
@@ -559,6 +726,19 @@ That is inherent to the product — a twin cannot match a distribution
 nobody described — and it is why the profile is real-derived material
 governed by the user's institutional rules. The summary says this in one
 sentence, every run, and README and SECURITY.md say it too.
+
+A column that publishes no value of itself can still publish counts
+ABOUT its values, and that is a distinction worth writing down rather
+than leaving a reader to infer. The sizes of the withheld levels in a
+categorical column and the identifier multiplicity map added by the
+owner decision of 2026-08-10 (P1-D5) are both counts about unnamed
+groups: they say how often things repeat without saying what repeated,
+they carry no spelling and no length, and neither weakens the rule
+that identifier and free-text values never appear in any output. What
+they do disclose is the sizes themselves — a group of one says that
+some single row holds a value no other row holds, without saying which
+row or which value — and that is one of the reasons the profile is
+described as real-derived material rather than as anonymous.
 
 **Declared values: `--keep-value` and `--missing-value` (exposed on the
 command line at revision 3; the settings rule corrected at review round
@@ -636,6 +816,19 @@ code path that raises it.
   number. Searching a role block, or searching for a rounded spelling,
   is what let a rare value cross through settings while its column
   published nothing (review round 7).
+- A transaction battery, and it is a battery rather than a reading of
+  the source because the property is about instants (review round 8).
+  A failure is injected at every statement boundary the write
+  transaction executes — in the two frames that hold the guard, and
+  again across every function of the module the transaction calls —
+  with and without an earlier profile in place, and the same three
+  questions are asked after each stop: the person's own failure reached
+  them unchanged, every working file that survived is named to them,
+  and each output name holds either what it held before or what this
+  run wrote. The battery carries a floor on itself, because a tracer
+  that quietly stopped tracing would make every assertion in it
+  vacuous. P1-D5 records the bytecode-level probe run alongside it and
+  the two residuals neither of them closes.
 - The offline scanner's new pandas and csv enumerations get red
   mutations: an unlisted pandas attribute, a callable in a `read_csv`
   callback slot, and a method call on a value whose text origin was not
@@ -1067,12 +1260,18 @@ detector, not an oracle.
   the CSV reader is mapped to the same message, so the advice a reader
   gets does not depend on their interpreter version.
 - **`source` was added to the profile's top-level fields** (P1-D5).
+- **A declared-identifier column publishes an anonymous count multiset,
+  and `profile_version` advances to 3** — owner decision, 2026-08-10,
+  recorded in full in P1-D5 and in P1-D6. Two tables that differ only
+  in how a declared identifier's values repeat used to serialize to the
+  same bytes, which left a generator to invent the repetition pattern.
 
 ## Review record
 
 Revision 0 (draft) was written before Phase 0 closed and was never
 reviewed. Revision 1 is the document the implementation was first
 written against, submitted for the combined plan-and-code review
-described in the sequencing note at the top; revisions 2, 3 and 4
-record what the reviews of rounds 5, 6 and 7 changed. No part of Phase 1
-is claimed as ratified.
+described in the sequencing note at the top; revisions 2, 3, 4 and 5
+record what the reviews of rounds 5, 6, 7 and 8 changed. Round 8
+returned a verdict of reject, and its repairs are the work this
+revision records. No part of Phase 1 is claimed as ratified.

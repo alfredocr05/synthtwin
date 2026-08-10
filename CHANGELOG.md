@@ -128,6 +128,67 @@ what a person is told about it.
   straight past; and a whole number in a place the document did not say
   in advance that it publishes one.
 
+### Repaired in adversarial review round 8
+
+Still the same unreleased entry, and for the same reason: nothing above
+has been released. Three of the four change what a run produces or what
+a person is told about it; the fourth changes what the numeric
+reference document's proof is allowed to certify.
+
+- **A value you asked to keep is kept, on the numeric stand-in path
+  too.** The ordinary declaration path already compared the exact
+  number a spelling denotes. The stand-in path did not: it identified,
+  counted, and removed cells through the binary64 value each number
+  rounds to, so a neighbouring value that rounds onto `-999` was
+  treated as `-999` however it was declared. A table of ordinary counts
+  with fifteen copies of such a neighbour, that neighbour named with
+  `--keep-value`, had those fifteen values deleted from the described
+  population and its published minimum moved, with the summary
+  reporting them as absent. The exact value is now carried through
+  candidate identity, the occurrence count, the population the outlier
+  test is measured against, and the removal, so no later rule may merge
+  two numbers the declaration path had told apart.
+- **The write transaction is one function with one handler.** The
+  renaming step used to be a function of its own with a handler of its
+  own, so the call between them ran unguarded, and several of the
+  names the inner handler read were bound inside the block it guarded
+  -- a stop at one of those lines raised UnboundLocalError out of the
+  cleanup and cost the person both the account of the files and the
+  reason the run stopped. Everything the handler needs is now bound
+  before it opens, which is the one place it can be done, because
+  nothing of synthtwin's making is on disk yet; each working name is
+  recorded before it is reached for, since the file appears a moment
+  before the call that makes it returns; and the type of an exception
+  is no longer read as proof that a cleanup has run, so an unexpected
+  refusal from a rename no longer leaves with two data-bearing working
+  files behind it. Failures injected one at a time, at every bytecode
+  boundary of every frame the transaction executes, across four
+  scenarios, report no case where a surviving working file goes unnamed
+  or a person's failure is replaced. Two residuals are stated in the
+  plan rather than claimed closed: a second stop arriving during the
+  cleanup costs the report, and one statement boundary after the last
+  rename is described in worse words than the facts deserve.
+- **Every number the reference document publishes is proved, at any
+  depth and in every container its writer can use.** The proof walked
+  dictionaries and lists, and Python writes tuples as JSON arrays as
+  well, so a tuple-valued field could reach the file with nothing proved
+  about it while the tool reported that every published number had been
+  proved.
+  The walk now covers the containers the writer accepts, and a mutation
+  that hides numbers in tuples has to fail the proof before anything is
+  written.
+- **A declared identifier column records how often its values repeat,
+  and `profile_version` is 3.** Two tables alike in every published
+  count but different in their repetition pattern -- three codes over
+  six rows, four/one/one against two/two/two -- produced identical
+  profiles and identical summaries, so a twin built from the profile
+  alone had to invent one of the two patterns and any grouped analysis
+  told them apart at once. The block now carries an anonymous count
+  multiset -- `n_distinct_by_occurrences`, keyed on a number of rows
+  and holding how many different values cover that many: how often
+  things repeat, never which things, no spelling and no length. The
+  version moves with the shape, as it did at round 7.
+
 ### Earlier
 - Phase 0 public skeleton: package scaffold, `synthtwin` CLI stub, the
   offline guarantee's layered checks, the decontamination scanner and

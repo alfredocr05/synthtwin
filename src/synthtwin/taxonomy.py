@@ -76,7 +76,11 @@ rule says what a declaration matches (review item P1-R6-F9):
   and comparing the rounded values removed cells nobody had named and
   called two different declarations a contradiction (review item
   P1-R7-F3). Both sides are therefore compared as the numbers their
-  digits denote, by `_exact_value` and `_exact_number`;
+  digits denote, by `_exact_value` and `_exact_number`. The
+  numeric-sentinel rule asks that same exact question of those same
+  records -- which cells ARE a candidate, how many rows hold it, and
+  which cells are taken out -- because a later rule that rounds undoes
+  a comparison that did not (review item P1-R8-F2);
 * a declared value that does not read as such a number matches by
   SPELLING, after trimming and case folding: `--keep-value NA` covers
   `na` and ` NA `, and covers nothing else;
@@ -275,6 +279,14 @@ BLANK_SPELLING = parsing.MISSING_BLANK
 # about the column as a whole. `length` and `words` are named as whole
 # containers because everything inside them is a length or a word
 # count; no other container is named, so no other container passes.
+#
+# `n_distinct_by_occurrences` is named as a whole container too, and it
+# is the first one here whose KEYS are built rather than written out, so
+# it is worth saying why they pass. Its keys are row counts written in
+# base ten -- how many rows one value covers -- and its values are
+# counts of different values. No spelling of the column reaches either
+# side, and `_n_distinct_by_occurrences` below is the one function that
+# builds it.
 KEYS_THAT_CARRY_NO_VALUE = (
     "all_whole_numbers",
     "length",
@@ -282,6 +294,7 @@ KEYS_THAT_CARRY_NO_VALUE = (
     "min_length",
     "n_all_digits",
     "n_code_alphabet",
+    "n_distinct_by_occurrences",
     "n_fraction",
     "n_negative",
     "n_occurrences",
@@ -1225,8 +1238,9 @@ class _Cell:
     # The same number EXACTLY, as the canonical triple above, and None
     # whenever no number was held. `value` is what the profile publishes
     # and what the statistics are computed from; this is what a declared
-    # value is compared with, because a comparison of rounded values
-    # makes one number out of two (review item P1-R7-F3).
+    # value is compared with, and what the numeric-sentinel rule decides
+    # a candidate's own cells by, because a comparison of rounded values
+    # makes one number out of two (review items P1-R7-F3 and P1-R8-F2).
     exact: "tuple[int, tuple[str, ...], int] | None"
     sign: str
     whole: str
@@ -1773,7 +1787,19 @@ def _sentinel_verdicts(
       P1-R6-F9). Nothing here spells a candidate to decide anything.
       The candidate arrives as a number rather than as text, so it is
       turned into the same exact form the declarations carry before the
-      two are compared (review item P1-R7-F3).
+      two are compared (review item P1-R7-F3);
+    * WHICH CELLS ARE THE CANDIDATE is decided by the exact number each
+      one denotes, and so is the reference population everything is
+      judged against. Round 7 made the declaration comparison exact and
+      left this question on the rounded value, so a column holding
+      fifteen copies of `-999.00000000000001` -- a different number
+      that rounds to the same binary64 value as `-999` -- reported a
+      candidate of `-999` in fifteen rows and removed all fifteen,
+      including when the person had typed that exact spelling after
+      `--keep-value` (review item P1-R8-F2). A number that merely
+      rounds to a candidate is not that candidate: it is not counted
+      towards it, it is not removed with it, and it stays in the
+      reference population as the ordinary number it is.
 
     A candidate declared MISSING never reaches this function: a declared
     number is taken out of the column by `_declared_numbers_removed`
@@ -1787,18 +1813,32 @@ def _sentinel_verdicts(
     kept = _declarations(settings.kept_values)
     verdicts: dict[float, tuple[bool, str, int]] = {}
     candidates: list[float] = []
+    # The exact number of each candidate this column actually holds,
+    # and how many rows hold it. Both are read from the cell records'
+    # own exact numbers, which is what keeps a near neighbour of a
+    # sentinel out of its count (review item P1-R8-F2).
+    named: list[tuple[int, tuple[str, ...], int]] = []
+    occurrences_of: dict[float, int] = {}
     for candidate in parsing.NUMERIC_SENTINELS:
-        if len([value for value in cells.numbers if value == candidate]):
-            candidates += [candidate]
-    # Judge every candidate against the SAME reference population: the
-    # numbers that are not a candidate of any kind.
-    others = [
-        value for value in cells.numbers if value not in candidates
-    ]
-    for candidate in candidates:
-        occurrences = len(
-            [value for value in cells.numbers if value == candidate]
+        exact = _exact_number(candidate)
+        held = len(
+            [cell for cell in cells.classified if cell.exact == exact]
         )
+        if held:
+            candidates += [candidate]
+            named += [exact]
+            occurrences_of[candidate] = held
+    # Judge every candidate against the SAME reference population: the
+    # numbers that are not a candidate of any kind. A cell holding no
+    # number this format can carry has no value to contribute.
+    others: list[float] = []
+    for cell in cells.classified:
+        value = cell.value
+        if value is None or cell.exact in named:
+            continue
+        others += [value]
+    for candidate in candidates:
+        occurrences = occurrences_of[candidate]
         if _declared_number(_exact_number(candidate), kept):
             verdicts[candidate] = (False, REASON_KEPT_BY_USER, occurrences)
             continue
@@ -2731,6 +2771,115 @@ def _pooled_note(levels: _Levels, settings: Settings) -> str:
     )
 
 
+def _left_padded(number: int, width: int) -> str:
+    """``number`` in base ten, padded with zeros to at least ``width``.
+
+    Guarantees: accepts a whole number of zero or more and a width of
+    zero or more; returns its base-ten spelling, never shorter than
+    ``width``. Raises nothing. No I/O of any kind.
+    """
+    text = f"{number}"
+    while len(text) < width:
+        text = "0" + text
+    return text
+
+
+def _occurrences_of_each(present: list[str]) -> dict[str, int]:
+    """How many rows each different value covers, keyed by the value.
+
+    This mapping holds spellings and is never published; it is the
+    intermediate `_n_distinct_by_occurrences` counts its own answer
+    from. Values are counted EXACTLY as the file spells them, which is
+    the same question `n_distinct` answers, so the two always agree.
+
+    Guarantees: accepts the present cells of one column, as text, in row
+    order; returns one entry per different spelling whose counts sum to
+    the length of the input. Determinism: the answer depends only on the
+    input. Raises nothing. No I/O of any kind.
+    """
+    counts: dict[str, int] = {}
+    for value in present:
+        if value in counts:
+            counts[value] = counts[value] + 1
+        else:
+            counts[value] = 1
+    return counts
+
+
+def _n_distinct_by_occurrences(present: list[str]) -> dict[str, int]:
+    """How many different values cover one row, two rows, and so on.
+
+    THE SHAPE OF REPETITION WITHOUT THE VALUES. Each key is a number of
+    rows, and the entry under it is how many different values of this
+    column cover exactly that many rows. A column of six rows holding
+    one value four times and two values once each becomes
+    ``{"1": 2, "4": 1}``; one holding three values twice each becomes
+    ``{"2": 3}``.
+
+    WHY IT EXISTS (review item P1-R8-F4). Those two columns used to
+    serialize to identical bytes: both record `n_present` 6 and
+    `n_distinct` 3 and nothing about multiplicity, so a generator
+    reading the profile alone had to pick one repetition pattern for
+    both, and any grouped analysis on the twin diverged from the real
+    table. The two mappings above tell them apart.
+
+    WHY IT IS PUBLISHABLE FROM A COLUMN THAT PUBLISHES NO VALUES. The
+    mapping is a function of the group SIZES alone: rename every value,
+    or shuffle every row, and it does not move. No spelling, no order,
+    no row position and no link to any other column reaches it. It is
+    the same class of fact as `suppressed_level_counts`, which publishes
+    the sizes of the withheld levels for the same reason -- and the
+    reason was checked here rather than assumed:
+
+    * at the extremes it adds nothing that was not already published.
+      One present value gives ``{"1": 1}``; every value different gives
+      ``{"1": n_distinct}``; every value the same gives one entry keyed
+      on `n_present`. Each of those is forced by `n_present` and
+      `n_distinct`, which this profile has always carried.
+    * between the extremes it adds exactly one thing: the size of each
+      repetition group, with nothing saying which group. Knowing that
+      some value covers four of six rows does not say which value, and
+      no value of this column appears anywhere in its block.
+    * what it does disclose, and this is stated rather than waved away:
+      the sizes themselves. A mapping containing ``"1": 1`` says that
+      some one row holds a value no other row holds. That is a count
+      about an unnamed group, which is precisely what
+      `suppressed_level_counts` already publishes, and it is why the
+      profile is described as real-derived material rather than as
+      anonymous.
+
+    THE KEY FORM, because JSON object keys are text and the document is
+    serialized with sorted keys: each key is the row count in base ten,
+    left-padded with zeros to the width of the largest key in the SAME
+    mapping. Padding is what makes the sorted-key order a numeric order:
+    written bare, `"10"` sorts before `"2"`. A consumer reads a key as a
+    number in base ten; leading zeros do not change it.
+
+    Guarantees: accepts the present cells of one column, as text, in row
+    order; returns a mapping whose entries sum to the number of
+    DIFFERENT values in the input and whose keys, read as numbers and
+    weighted by their entries, sum to the length of the input. An empty
+    input gives an empty mapping. Determinism: the answer depends only
+    on the input, and the keys are built in increasing numeric order.
+    Raises nothing. No I/O of any kind.
+    """
+    counts = _occurrences_of_each(present)
+    tally: dict[int, int] = {}
+    for value in counts:
+        occurrences = counts[value]
+        if occurrences in tally:
+            tally[occurrences] = tally[occurrences] + 1
+        else:
+            tally[occurrences] = 1
+    if not tally:
+        return {}
+    width = len(f"{max(tally)}")
+    shape: dict[str, int] = {}
+    for occurrences in sorted(tally):
+        shape[_left_padded(occurrences, width)] = tally[occurrences]
+    return shape
+
+
 def _identifier_verdict(
     cells: _Cells,
     notes: list[str],
@@ -2751,9 +2900,12 @@ def _identifier_verdict(
     no more than free text publishes, and when it was wrong it destroyed
     a distribution the twin exists to reproduce.
 
-    What is published is what it always was: the role, the counts, the
-    shortest and longest value, and whether every value is a whole
-    number. Those are counts and lengths, never values.
+    What is published is the role, the counts, the shortest and longest
+    value, whether every value is a whole number, and -- since review
+    item P1-R8-F4 -- how many different values cover one row, two rows
+    and so on. Those are counts and lengths, never values;
+    `_n_distinct_by_occurrences` above states what the last of them
+    does and does not disclose.
     """
     n_present = len(cells.present)
     lengths = _lengths(cells.present)
@@ -2763,12 +2915,15 @@ def _identifier_verdict(
     # carried the spelling of a value out of the column (review item
     # P1-R7-F2). The spelling is withheld now; the note also stops
     # promising less than the block contains, because a claim that is
-    # too narrow is how the next field slips past unnoticed.
+    # too narrow is how the next field slips past unnoticed -- which is
+    # why "how often they repeat" joined it with the field that made it
+    # true (review item P1-R8-F4).
     notes = notes + [
         (
             "this column holds record numbers or codes, so no value of it "
             "is published anywhere in its description: only how many there "
-            "are, how long they are, and what synthtwin decided about them"
+            "are, how long they are, how often they repeat, and what "
+            "synthtwin decided about them"
         )
     ]
     return _Verdict(
@@ -2785,6 +2940,14 @@ def _identifier_verdict(
             ),
             "n_all_digits": cells.all_digits,
             "n_code_alphabet": cells.code_alphabet,
+            # The shape of repetition, with no value attached to it: the
+            # one fact a generator needs to rebuild a column of codes
+            # that repeat, and the one this block did not carry (review
+            # item P1-R8-F4). Its key form and what it discloses are in
+            # `_n_distinct_by_occurrences`.
+            "n_distinct_by_occurrences": _n_distinct_by_occurrences(
+                cells.present
+            ),
         },
         notes=notes,
         remarks=remarks,
@@ -3083,8 +3246,9 @@ def profile_column(
       the branch that built the block and not of any one field. A column
       that publishes no values keeps its counts, its lengths and the
       decisions it made -- including what it decided about each numeric
-      stand-in for "no value" and how many rows that accounted for --
-      and keeps not one spelling of a value.
+      stand-in for "no value" and how many rows that accounted for, and,
+      on a declared identifier, how many different values cover one row,
+      two rows and so on -- and keeps not one spelling of a value.
     """
     clashes = contradictory_declarations(
         settings.kept_values, settings.declared_missing_values
@@ -3124,9 +3288,16 @@ def profile_column(
             candidate for candidate in verdicts if verdicts[candidate][0]
         )
         if withheld:
+            # Removed by the EXACT number a cell holds, the same
+            # question `_sentinel_verdicts` counted the candidate's
+            # rows with. Removing by the rounded value instead took
+            # out cells holding a different number that rounds to the
+            # candidate -- including cells the person had named with
+            # `--keep-value` (review item P1-R8-F2).
+            removed = [_exact_number(candidate) for candidate in withheld]
             kept: list[_Cell] = []
             for cell in classified:
-                if cell.value is not None and cell.value in withheld:
+                if cell.exact in removed:
                     missing += [
                         (cell.text, parsing.MISSING_NUMERIC_SENTINEL)
                     ]

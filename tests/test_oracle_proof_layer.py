@@ -30,12 +30,27 @@ d. the walk over the finished document asked ``isinstance(node, float)``,
    that it had proved nothing at all, and the exact value it contradicts
    went unspent.
 
+Review round 8 (item P1-R8-F3) reported a fifth, and it is the same
+shape again -- a value the walk never reaches:
+
+e. the walk descended through dictionaries and lists, and Python's JSON
+   encoder also writes a tuple as an array. ``{"new_statistic": (7.0,)}``
+   reported nothing proved and then serialized as ``{"new_statistic":
+   [7.0]}``, so the number was published with no proof behind it.
+
+Four repairs each named the shapes they knew about and the fifth shape
+walked through the gap, so the walk is now closed instead: a node of any
+shape it has no rule for stops the run. The tests below hold that shut
+from both directions -- the tuple family the review named, and the
+refusal of an unrecognised shape.
+
 Each test below is the exact counterexample the review named. The
 arithmetic these proofs certify was audited independently and found
 correct in every published value, so nothing here is expected to change
 a number: these tests hold the certification honest, not the answers.
 """
 
+import collections
 import fractions
 import importlib.util
 import json
@@ -429,6 +444,180 @@ def test_the_glossary_entry_named_float64_is_held_to_being_text() -> None:
         gen.prove_every_published_float(glossary, {})
 
 
+# -- (e) a number inside a container the walk did not descend into -----
+
+
+Pair = collections.namedtuple("Pair", "low high")
+
+# Each row is a document, and how many numbers the walk must find in it.
+# Every container here is one Python's JSON encoder writes as an array
+# or an object, so every number in it reaches the file. The tuple rows
+# are the family review round 8 named; the plain dictionary and list
+# rows are there so a repair that broke them would be visible too.
+CONTAINER_SHAPES = (
+    ({"a": {"float64": 0.5}}, 1),
+    ({"a": [{"float64": 0.5}]}, 1),
+    ({"a": ({"float64": 0.5},)}, 1),
+    ({"a": [({"float64": 0.5},)]}, 1),
+    ({"a": ([{"float64": 0.5}],)}, 1),
+    ({"a": {"b": ({"float64": 0.5},)}}, 1),
+    ({"a": Pair({"float64": 0.5}, {"float64": 1.5})}, 2),
+    ({"a": (0.5,)}, 1),
+    ({"a": (7,)}, 1),
+    ({"a": ((0.5,),)}, 1),
+    ({"a": [(0.5,)]}, 1),
+    ({"a": (True, None, "text")}, 0),
+)
+
+
+@pytest.mark.parametrize("document,expected", CONTAINER_SHAPES)
+def test_the_walk_finds_every_number_the_encoder_writes(
+    document: dict, expected: int
+) -> None:
+    """The walk's account of the encoder, held up against the encoder.
+
+    Reading the bytes back turns every array the encoder wrote into a
+    list, whatever it was built from, so a container the walk stepped
+    over shows up here as a number that is in the file and not in the
+    walk. The expected count is stated as well, so a walk that found
+    nothing on both sides could not pass.
+    """
+    text = json.dumps(document, sort_keys=True, allow_nan=False)
+    from_the_document = list(gen._published_numbers(document))
+    from_the_bytes = list(gen._published_numbers(json.loads(text)))
+    assert from_the_document == from_the_bytes, (
+        f"the walk over {document!r} found {from_the_document!r}, and the "
+        f"walk over the bytes it becomes ({text}) found {from_the_bytes!r}"
+    )
+    assert len(from_the_document) == expected
+
+
+def test_a_number_inside_a_tuple_is_not_skipped() -> None:
+    """P1-R8-F3: the exact mutant the review said reported zero and wrote it."""
+    published = {"new_statistic": (7.0,)}
+    with pytest.raises(AssertionError) as refusal:
+        gen.prove_every_published_float(published, {})
+    assert "nothing proved it" in str(refusal.value)
+    # Named by where it sits, index and all.
+    assert "new_statistic.0" in str(refusal.value)
+    # And the number really would have been written: this is the second
+    # half of the review's reproduction.
+    assert json.dumps(published, allow_nan=False) == '{"new_statistic": [7.0]}'
+
+
+def test_a_number_inside_a_tuple_is_proved_when_it_is_wrapped() -> None:
+    """The repair must prove the tuple's contents, not refuse tuples.
+
+    A tuple is an array to the encoder, so a properly wrapped number
+    inside one is an ordinary published number and must be counted.
+    """
+    published = {"rungs": ({"float64": 0.5}, {"float64": -1.5})}
+    claims = {
+        ("rungs", 0): (gen.NEAREST, F(1, 2)),
+        ("rungs", 1): (gen.SIGNED_ROOT, F(9, 4), True),
+    }
+    assert gen.prove_every_published_float(published, claims) == 2
+    # A wrong number in the same place is still refused.
+    wrong = {"rungs": ({"float64": 0.5}, {"float64": 1.5})}
+    with pytest.raises(AssertionError):
+        gen.prove_every_published_float(wrong, claims)
+
+
+def test_a_tuple_deep_inside_the_document_is_reached() -> None:
+    published = {"outer": [{"inner": ((0.5,),)}]}
+    with pytest.raises(AssertionError) as refusal:
+        gen.prove_every_published_float(published, {})
+    assert "outer.0.inner.0.0" in str(refusal.value)
+
+
+class _NotJson:
+    """A value Python's JSON encoder refuses; the walk must refuse it first."""
+
+
+@pytest.mark.parametrize(
+    "value",
+    [{7.0}, frozenset({7.0}), b"\x07", bytearray(b"\x07"), 3 + 4j, _NotJson()],
+)
+def test_a_shape_the_walk_has_no_rule_for_stops_the_run(value: object) -> None:
+    """Fail closed: the point of the repair, stated as a test.
+
+    The four repairs before this one each enumerated the shapes they
+    knew about, and the next shape went through the gap. What the walk
+    does not recognise now stops the run, so the sixth shape is a
+    failure here rather than a silently unproved number in the file.
+    """
+    with pytest.raises(AssertionError) as refusal:
+        gen.prove_every_published_float({"odd": value}, {})
+    assert "no rule for" in str(refusal.value)
+    assert "odd" in str(refusal.value)
+
+
+def test_a_key_that_is_not_text_stops_the_run() -> None:
+    """A number in a key position would be written as the name of a field."""
+    with pytest.raises(AssertionError) as refusal:
+        gen.prove_every_published_float({"a": {1.5: 0.5}}, {})
+    assert "not text" in str(refusal.value)
+    assert json.dumps({"a": {1.5: 0.5}}) == '{"a": {"1.5": 0.5}}'
+
+
+# Each row is a field added to every case, and what the refusal must
+# say. The encoder writes each of these tuples as a JSON array, so every
+# one of them really would have reached the file.
+TUPLE_MUTANTS = (
+    ((7.0,), "nothing proved it"),
+    ((7,), "publishes the whole number"),
+    (({"float64": 7.0},), "no exact value"),
+    (({"float64": 7},), "binary64"),
+    (({"nested": [(7.0,)]},), "nothing proved it"),
+)
+
+
+@pytest.mark.parametrize("added,refusal_says", TUPLE_MUTANTS)
+def test_a_tuple_valued_field_added_to_every_case_stops_the_run(
+    tmp_path, monkeypatch, added: tuple, refusal_says: str
+) -> None:
+    """P1-R8-F3 at the generator level, which is where the review ran it.
+
+    The review's mutant added one tuple-valued field per case and the
+    tool wrote all sixteen unproved numbers while still reporting that
+    every published number had been proved. Checking the committed
+    fixture after a regeneration would not have caught that: the fixture
+    holds no tuple. So the mutant is driven through the whole generator
+    here, and nothing may be written.
+    """
+    assert "[" in json.dumps({"added_later": added}, allow_nan=False)
+    real = gen.stats_and_claims
+
+    def with_a_tuple(sample):
+        document, claims = real(sample)
+        document["added_later"] = added
+        return document, claims
+
+    monkeypatch.setattr(gen, "stats_and_claims", with_a_tuple)
+    out = tmp_path / "vectors.json"
+    with pytest.raises(AssertionError) as refusal:
+        gen.main(["--seed", "0", "--out", str(out)])
+    assert refusal_says in str(refusal.value)
+    assert not out.exists(), "the file was written although a number was unproved"
+
+
+def test_a_shape_with_no_rule_stops_the_generator_too(tmp_path, monkeypatch) -> None:
+    """The fail-closed refusal reaches the whole run, not only the unit."""
+    real = gen.stats_and_claims
+
+    def with_a_set(sample):
+        document, claims = real(sample)
+        document["added_later"] = {7.0}
+        return document, claims
+
+    monkeypatch.setattr(gen, "stats_and_claims", with_a_set)
+    out = tmp_path / "vectors.json"
+    with pytest.raises(AssertionError) as refusal:
+        gen.main(["--seed", "0", "--out", str(out)])
+    assert "no rule for" in str(refusal.value)
+    assert not out.exists()
+
+
 # -- the committed fixture, checked without the generator's help -------
 
 
@@ -465,6 +654,7 @@ def _document() -> dict:
 # exact number so that adding a case is not a failure, while a field
 # quietly leaving the file shows up as a smaller count.
 PUBLISHED_NUMBERS = 312
+NAMED_COUNTS = 32
 
 
 def _whole_number_fields(document: dict) -> frozenset:
@@ -516,6 +706,25 @@ def test_the_committed_file_publishes_no_number_that_escapes_the_proof() -> None
     assert counts >= len(document["cases"])
 
 
+def test_the_committed_bytes_are_proved_against_the_recorded_exact_values() -> None:
+    """The file as it sits on disk, put through the proof it claims to carry.
+
+    The generator proves the document it holds in memory. This reads the
+    committed bytes back and proves those against the same record of
+    exact values, so the claim is made about the file a reader gets
+    rather than about a structure that existed for a moment inside the
+    writer.
+    """
+    _, claims, whole_number_fields = gen.build_document()
+    proved = gen.prove_every_published_float(
+        _document(), claims, whole_number_fields, gen.DOCUMENT_TEXT_FIELDS
+    )
+    assert proved >= PUBLISHED_NUMBERS, (
+        f"the committed file now carries {proved} proved numbers, fewer than "
+        f"the {PUBLISHED_NUMBERS} it carried when this floor was written"
+    )
+
+
 def test_a_number_added_after_a_case_proved_itself_stops_the_run(
     tmp_path, monkeypatch
 ) -> None:
@@ -546,7 +755,10 @@ def test_the_generator_says_how_many_numbers_it_proved(tmp_path, capsys) -> None
 
     Tying the reported number to the rebuilt file is what stops the
     report from being a constant: if a field stopped being visited, the
-    number printed and the number in the file would part company.
+    number printed and the number in the file would part company. Both
+    halves of what the walk accounted for are reported, the proved
+    measurements and the named counts, so a regression in either shows
+    up as a smaller number rather than as silence.
     """
     rebuilt = tmp_path / "numeric-reference-vectors.json"
     assert gen.main(["--seed", "0", "--out", str(rebuilt)]) == 0
@@ -557,8 +769,15 @@ def test_the_generator_says_how_many_numbers_it_proved(tmp_path, capsys) -> None
         for path, _value in gen._published_numbers(document)
         if path[-1] == "float64" and path not in gen.DOCUMENT_TEXT_FIELDS
     )
+    counts = sum(
+        1
+        for path, _value in gen._published_numbers(document)
+        if path[-1] != "float64"
+    )
     assert measurements >= PUBLISHED_NUMBERS
+    assert counts >= NAMED_COUNTS
     assert f"proved {measurements} published numbers" in reported
+    assert f"beside {counts} named whole-number counts" in reported
     # And the committed file is what this generator produces, byte for
     # byte -- the provenance guard's check, restated here so that a
     # change to the proof layer that moved a number would be visible in

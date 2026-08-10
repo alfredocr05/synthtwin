@@ -218,7 +218,14 @@ def test_the_recorded_shape_can_be_told_from_the_older_one() -> None:
     assert isinstance(recorded["kept_values"], dict)
     assert isinstance(recorded["declared_missing_values"], dict)
     assert recorded["kept_values"]["values_recorded"] is False
-    assert profile.PROFILE_VERSION == 2
+    # The version pin is what this test really needs: a consumer must be
+    # able to tell the two shapes apart without inspecting them. It was
+    # 2 when the declaration record arrived and is 3 since declared
+    # identifier columns began carrying their repetition shape (review
+    # item P1-R8-F4). What matters is that it ADVANCED past the profile
+    # written under the older rule, so assert that rather than a number
+    # that has to be edited every time the contract grows.
+    assert profile.PROFILE_VERSION >= 3
 
 
 # -- what the person is told, before the files exist -------------------

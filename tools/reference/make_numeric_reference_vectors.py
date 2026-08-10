@@ -13,12 +13,16 @@ every number is in place, each one is looked up together with the exact
 rational it stands for and re-derived from its two float64 neighbours.
 A number that reaches the document with no exact value recorded beside
 it stops the run, so the claim "every published float is proved" cannot
-quietly stop being true when a field is added.  That walk looks at
-every value the file writes as a number, whole ones included, and at
-whatever sits under a `float64` key whatever its type, so a field
-cannot slip through by arriving in a shape the proof was not written
-for; the run reports how many numbers it proved, and the whole file is
-walked once more after the cases are assembled.
+quietly stop being true when a field is added.  That walk visits every
+value the file writes as a number, whole ones included, at any depth
+and inside every container the JSON encoder turns into an object or an
+array -- a Python tuple is an array there exactly as a list is -- and
+it hands over whatever sits under a `float64` key whatever its type.
+A node whose shape the walk has no rule for stops the run instead of
+being passed over, so the next shape nobody thought of is a loud
+failure here rather than a quiet hole.  The run reports how many
+numbers it proved; the assembled file is walked once, and then once
+more over the bytes that are about to be written.
 
 The three shapes of proof:
 
@@ -518,6 +522,78 @@ CASE_WHOLE_NUMBER_FIELDS = frozenset({("n",), ("std", "decimal_digits_needed")})
 DOCUMENT_TEXT_FIELDS = frozenset({("definitions", FLOAT64)})
 
 
+# What the walk over the finished document may meet, sorted by what the
+# JSON encoder does with it.  These are not the shapes the walk knows
+# about beside a default of passing everything else over: they are the
+# whole of what it accepts, and a node matching none of them stops the
+# run.  Naming the containers it knew about is how the walk let a number
+# through.  It named `dict` and `list`; the encoder writes a tuple as an
+# array exactly as it writes a list, so a number inside a tuple reached
+# the file while the walk reported nothing there at all (review item
+# P1-R8-F3).  Refusing an unrecognised shape instead makes the next
+# shape nobody thought of a failure here rather than a hole found later.
+JSON_OBJECT_TYPES = (dict,)
+JSON_ARRAY_TYPES = (list, tuple)
+# Written by the encoder as something other than a number: text, the
+# `true`/`false` literals, and `null`.  `bool` has to be tested before
+# `int`, because `True` and `False` are Python ints by inheritance.
+JSON_NON_NUMBER_TYPES = (str, bool, type(None))
+JSON_NUMBER_TYPES = (int, float)
+
+# The four names a node can be given, and the whole of what the walk
+# below knows how to act on.
+OBJECT = "object"
+ARRAY = "array"
+NUMBER = "number"
+NOT_A_NUMBER = "not a number"
+
+
+def _json_shape(node, path):
+    """Name which of the four shapes above ``node`` is.
+
+    The refusal at the end is the point of the function: a node matching
+    none of the four is a shape nobody accounted for, and a shape nobody
+    accounted for is exactly where a published number goes unproved. It
+    stops the run instead of being passed over.
+    """
+    if isinstance(node, JSON_OBJECT_TYPES):
+        return OBJECT
+    if isinstance(node, JSON_ARRAY_TYPES):
+        return ARRAY
+    if isinstance(node, JSON_NON_NUMBER_TYPES):
+        return NOT_A_NUMBER
+    if isinstance(node, JSON_NUMBER_TYPES):
+        return NUMBER
+    raise AssertionError(
+        f"{_where(path)} carries a {type(node).__name__}, which this walk "
+        f"has no rule for, so it cannot say whether a number is inside it: "
+        f"{node!r}. Every value this document publishes has to be an object, "
+        "an array, text, a true/false, a null, or a number. Give the walk a "
+        "rule for this shape -- and a proof for whatever numbers it holds -- "
+        "or do not publish it."
+    )
+
+
+def _keys_in_order(node, path):
+    """``node``'s keys, sorted, refusing one that is not text.
+
+    JSON names every field with text, so the encoder would rewrite a key
+    that is not a string as the text of its own spelling.  A number put
+    in a key position would reach the file that way with nothing able to
+    prove it, so it stops the run here.
+    """
+    not_text = [key for key in node if not isinstance(key, str)]
+    if not_text:
+        raise AssertionError(
+            f"{_where(path)} is written with {not_text[0]!r} as one of its "
+            "keys, which is not text. JSON names every field with text, so "
+            "the encoder would rewrite that key as the text of its own "
+            "spelling and this walk would have no number there to prove. "
+            "Use a text key."
+        )
+    return sorted(node)
+
+
 def _published_numbers(node, path=()):
     """Every value ``node`` publishes as a number, with the path to it.
 
@@ -532,27 +608,38 @@ def _published_numbers(node, path=()):
       piece of text or a nested object under that key is a broken
       promise to be refused, not something to walk past;
     * every other value written as a JSON number, whole or fractional
-      alike.
+      alike, at any depth and inside any container the encoder turns
+      into an object or an array.
 
     ``True`` and ``False`` are Python ints by inheritance, but JSON
     writes them as ``true`` and ``false`` rather than as numbers, so
     they are not numbers here -- except under a ``float64`` key, where
     nothing at all is skipped.
+
+    The walk is closed rather than open: every node it reaches has to be
+    one of the shapes named above this function, and one that is not
+    stops the run.  A shape the walk has no rule for is exactly where an
+    unproved number hides, so it cannot be treated as "nothing to see".
+    Keys are held to being text for the same reason: the encoder rewrites
+    a key that is not a string as the text of its own spelling, which
+    would put a number in the file as a name with no way to prove it.
     """
-    if isinstance(node, dict):
-        for key in sorted(node):
+    shape = _json_shape(node, path)
+    if shape == OBJECT:
+        for key in _keys_in_order(node, path):
             child = node[key]
             if key == FLOAT64:
                 yield path + (key,), child
             else:
                 yield from _published_numbers(child, path + (key,))
-    elif isinstance(node, list):
+    elif shape == ARRAY:
         for index, item in enumerate(node):
             yield from _published_numbers(item, path + (index,))
-    elif isinstance(node, bool):
-        return
-    elif isinstance(node, (int, float)):
+    elif shape == NUMBER:
         yield path, node
+    # NOT_A_NUMBER is text, a true/false or a null: the encoder writes
+    # it as something other than a number, so there is nothing here for
+    # a proof to reach.
 
 
 def _where(path):
@@ -580,9 +667,12 @@ def prove_every_published_float(
     This is what makes the file's claim true.  The construction is not
     trusted at all here: each number is looked up with the exact
     rational it was built from and re-derived from its two float64
-    neighbours.  Three things stop the run rather than being published
+    neighbours.  Four things stop the run rather than being published
     unproved:
 
+    * a node of a shape the walk has no rule for, which is refused by
+      the walk itself rather than passed over, so a number inside a
+      container nobody accounted for cannot reach the file quietly;
     * a number with no exact value recorded for it -- a field somebody
       added without saying what it means;
     * a value under a ``"float64"`` key that is not a binary64 value.
@@ -1088,32 +1178,18 @@ def build_samples():
     return cases
 
 
-def main(argv=None):
-    """Write the vectors to the path given by --out.
+def build_document():
+    """The whole file, and the exact value recorded for every number in it.
 
-    The data-provenance guard (plan D13) runs every committed fixture's
-    generator with `--seed <seed> --out <path>` and byte-compares the
-    result, so this script takes that exact command line. The seed is
-    accepted and ignored: these vectors are fixed mathematics, not a
-    random sample, and a seed that changed them would defeat their
-    purpose.
+    Returns ``(document, claims, whole_number_fields)``: the document
+    about to be written, the exact value and shape of proof recorded for
+    each of its published numbers, and the paths that are allowed to
+    carry a whole number outside a ``float64`` field.  Nothing is
+    written and nothing is proved here -- the three go together to
+    ``prove_every_published_float``, which is what makes the file's
+    claim true, and separating them is what lets a test hold the
+    committed bytes up to the same records the writer uses.
     """
-    parser = argparse.ArgumentParser(
-        prog="make_numeric_reference_vectors",
-        description=(
-            "Compute reference values for synthtwin's numeric summary "
-            "by exact rational arithmetic, importing none of the code "
-            "they are used to check."
-        ),
-    )
-    parser.add_argument("--out", required=True, help="file to write")
-    parser.add_argument(
-        "--seed",
-        type=int,
-        default=0,
-        help="accepted for the fixture-manifest convention; ignored",
-    )
-    args = parser.parse_args(argv)
     cases = build_samples()
     document = {
         "what": "Independent high-precision reference vectors for the "
@@ -1217,25 +1293,100 @@ def main(argv=None):
         for field in case_claims:
             claims[("cases", name) + field] = case_claims[field]
 
-    # Each case proved its own numbers as it was built; this walks the
-    # whole assembled file once more, so a number put in beside the
-    # cases -- a new top-level field, or an assignment made after a case
-    # proved itself -- is proved too or stops the run.
     whole_number_fields = frozenset(
         ("cases", name) + field
         for name in cases
         for field in CASE_WHOLE_NUMBER_FIELDS
     )
+    return document, claims, whole_number_fields
+
+
+def _counts_published(document):
+    """How many whole numbers the document publishes outside a wrapper.
+
+    Reported beside the count of proved numbers so that both halves of
+    what the walk accounted for are stated, rather than only the half
+    that carries a proof.
+    """
+    return sum(
+        1
+        for path, _value in _published_numbers(document)
+        if not path or path[-1] != FLOAT64
+    )
+
+
+def main(argv=None):
+    """Write the vectors to the path given by --out.
+
+    The data-provenance guard (plan D13) runs every committed fixture's
+    generator with `--seed <seed> --out <path>` and byte-compares the
+    result, so this script takes that exact command line. The seed is
+    accepted and ignored: these vectors are fixed mathematics, not a
+    random sample, and a seed that changed them would defeat their
+    purpose.
+
+    Nothing is written until every number the file would carry has been
+    proved, and the proof is applied twice: once to the assembled
+    document, and once to the tree parsed back out of the exact bytes
+    about to be written.  The second walk is over what the JSON encoder
+    really produced rather than over what this file believes it
+    produces, so the walk's account of the encoder is checked against
+    the encoder instead of trusted.
+    """
+    parser = argparse.ArgumentParser(
+        prog="make_numeric_reference_vectors",
+        description=(
+            "Compute reference values for synthtwin's numeric summary "
+            "by exact rational arithmetic, importing none of the code "
+            "they are used to check."
+        ),
+    )
+    parser.add_argument("--out", required=True, help="file to write")
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=0,
+        help="accepted for the fixture-manifest convention; ignored",
+    )
+    args = parser.parse_args(argv)
+    document, claims, whole_number_fields = build_document()
+
+    # Each case proved its own numbers as it was built; this walks the
+    # whole assembled file, so a number put in beside the cases -- a new
+    # top-level field, or an assignment made after a case proved itself
+    # -- is proved too or stops the run.
     proved = prove_every_published_float(
         document, claims, whole_number_fields, DOCUMENT_TEXT_FIELDS
     )
-    print(
-        f"proved {proved} published numbers across {len(cases)} cases; "
-        "every number this file publishes is one of them",
-        file=sys.stderr,
-    )
+    counts = _counts_published(document)
 
     text = json.dumps(document, indent=2, sort_keys=True, allow_nan=False)
+    # The same walk over the bytes themselves.  A number that reached
+    # the file through a container the walk above modelled wrongly is
+    # refused here, where the container has become whatever the encoder
+    # made of it; anything else the two walks disagree about is refused
+    # just below.
+    written = json.loads(text)
+    proved_in_the_bytes = prove_every_published_float(
+        written, claims, whole_number_fields, DOCUMENT_TEXT_FIELDS
+    )
+    counts_in_the_bytes = _counts_published(written)
+    if (proved_in_the_bytes, counts_in_the_bytes) != (proved, counts):
+        raise AssertionError(
+            f"the walk over the document accounted for {proved} proved "
+            f"numbers and {counts} named counts, and the walk over the bytes "
+            f"about to be written accounted for {proved_in_the_bytes} and "
+            f"{counts_in_the_bytes}. The two must agree: a difference means "
+            "the file carries a number the walk over the document did not "
+            "visit."
+        )
+
+    print(
+        f"proved {proved} published numbers across "
+        f"{len(document['cases'])} cases, beside {counts} named whole-number "
+        "counts; every number this file publishes is one of them",
+        file=sys.stderr,
+    )
     with open(args.out, "w", encoding="utf-8", newline="\n") as handle:
         handle.write(text + "\n")
     print(f"wrote {args.out}", file=sys.stderr)

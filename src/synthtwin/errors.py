@@ -40,6 +40,33 @@ class ProfileError(Exception):
     """
 
 
+class TransactionRefusal(ProfileError):
+    """A refusal the write transaction composed, cleanup already done.
+
+    The transaction's own handler has exactly one question to ask about
+    a failure on its way out: is this one MINE? A refusal built by the
+    transaction has already cleared the working files away and already
+    names every file on disk in its own message, so running the cleanup
+    again and adding a second sentence would give the reader two
+    different accounts of one folder. Anything else has had neither.
+
+    Asking that question by testing for `ProfileError` was wrong, and
+    the way it was wrong is the point: it treated a TYPE as proof of
+    something a type cannot carry. `ProfileError` is the package's
+    ordinary refusal and any code in the transaction's reach can raise
+    one -- an unexpected one from inside a rename was passed straight
+    out, with no cleanup and no sentence, leaving both working files on
+    disk (review item P1-R8-F1). This class exists so the question has a
+    truthful answer: it is constructed in exactly two places, both of
+    which have run the cleanup and put the state of every name into the
+    message before handing the object back.
+
+    It is a subclass, so every caller that catches `ProfileError` --
+    including the command -- catches it unchanged, and nothing about
+    what the person reads depends on which of the two it is.
+    """
+
+
 _CHECK_AND_RETRY = "Fix that in the file and run the command again."
 
 

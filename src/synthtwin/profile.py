@@ -45,7 +45,20 @@ from synthtwin.reading import Table
 # which is the one thing it exists to do. Version 2 has never been
 # published, so the only profiles carrying the earlier token were
 # written by a development tree.
-PROFILE_VERSION = 2
+#
+# Version 3: a column the person declared with --identifier carries one
+# new key, `n_distinct_by_occurrences` -- how many different values of
+# it cover one row, two rows, and so on (review item P1-R8-F4, closed by
+# owner decision). A key APPEARED, and a consumer that reads a v2
+# profile will not find it, which is exactly the kind of change this
+# number exists to make explicit rather than leave to be detected. Under
+# v2 two declared columns with different repetition patterns serialized
+# to identical bytes, so the profile could not be the generator's only
+# input for them; `taxonomy._n_distinct_by_occurrences` states the key
+# form and what the mapping does and does not disclose. Nothing else
+# about the document moved: no other role gained or lost a key, and no
+# value of any column is published that was not published before.
+PROFILE_VERSION = 3
 
 # The two files a run writes, as suffixes added to the table's name.
 PROFILE_SUFFIX = "-profile.json"
@@ -125,9 +138,26 @@ class DiskState:
     `sentence` is empty on every ordinary run and after every refusal
     the transaction composed itself -- those already carry the state in
     their own words, and saying it twice is worse than saying it once.
+
+    `both_files_written` covers the other end of the run. Once both
+    renames have finished there is nothing left to undo: the two output
+    names hold this run's files, and a failure arriving after that
+    moment is not a rollback and must not be described as one. The flag
+    says so, and `left_behind` names the one working file that can
+    still be occupied -- the working name an earlier profile was moved
+    to, which is the reader's own file and is never removed. It is a
+    single name rather than a list because at that moment it is the
+    only working name in play: the two parts have become the two
+    outputs, and every other name this run reached for was either
+    withdrawn by the filesystem or never reached at all.
+
+    All three fields are for the caller to print; nothing here decides
+    what to say about them.
     """
 
     sentence: str = ""
+    both_files_written: bool = False
+    left_behind: str = ""
 
 
 def _version() -> str:
@@ -1042,9 +1072,16 @@ def _stopped_clean(
     summary_target: pathlib.Path,
     leftovers: "list[tuple[pathlib.Path, str]]",
     target_code: str = errors.ON_DISK_BEFORE,
-) -> errors.ProfileError:
-    """The refusal for a failure that published nothing, with the disk in it."""
-    return errors.ProfileError(
+) -> errors.TransactionRefusal:
+    """The refusal for a failure that published nothing, with the disk in it.
+
+    One of the two places a `TransactionRefusal` is built, and the type
+    is true here: `_state_nothing_published` clears the working files
+    away and looks at every name before this returns, so the object
+    handed back carries a cleanup that has run and a message that names
+    every file. The transaction's handler relies on exactly that.
+    """
+    return errors.TransactionRefusal(
         f"{trouble} "
         f"{_state_nothing_published(target, summary_target, leftovers, target_code)}"
     )
@@ -1056,12 +1093,16 @@ def _stopped_broken(
     summary_target: pathlib.Path,
     kept: "pathlib.Path | None",
     leftovers: "list[tuple[pathlib.Path, str]]",
-) -> errors.ProfileError:
+) -> errors.TransactionRefusal:
     """The refusal for a failure whose own undoing did not finish.
 
     The profile name holds the new description if anything at all, the
     summary name holds whatever it held before, and a set-aside earlier
     profile is named where one is still sitting.
+
+    The other of the two places a `TransactionRefusal` is built, on the
+    same terms: the cleanup below runs and every name is looked at
+    before the object exists.
     """
     left = _clear_away(leftovers)
     on_disk = [
@@ -1076,7 +1117,7 @@ def _stopped_broken(
                 kept, errors.ON_DISK_SET_ASIDE, errors.ON_DISK_ABSENT
             )
         ]
-    return errors.ProfileError(
+    return errors.TransactionRefusal(
         f"{trouble} {errors.rollback_failed([], on_disk + left)}"
     )
 
@@ -1090,115 +1131,53 @@ class _Progress:
     every name. This record is for the failures it cannot foresee: it
     lets the handler around it say what is at each name WITHOUT
     guessing, because the answers it needs -- had the renaming started,
-    was an earlier profile set aside, and did that move finish -- are
-    known only inside.
+    was an earlier profile set aside, did that move finish, and did both
+    renames complete -- are known only inside.
+
+    `installed` is the last of those and it is a different KIND of
+    answer from the others. While it is false the handler describes a
+    run between two states; once it is true the run's work is done and
+    there is nothing to put back, so a failure arriving afterwards must
+    not be reported as a rollback that failed. It is set after the
+    second rename has returned, which leaves one statement boundary --
+    named in `write_both_files` -- where the rename may have landed and
+    this record does not yet say so.
     """
 
     kept: "pathlib.Path | None" = None
     moving: bool = False
     aside: bool = False
+    installed: bool = False
 
 
-def _commit(
-    first: pathlib.Path,
-    second: pathlib.Path,
-    first_part: pathlib.Path,
-    second_part: pathlib.Path,
-    forbidden: "list[pathlib.Path]",
-    state: "DiskState | None" = None,
-    claimed: "_Claimed | None" = None,
-) -> "list[str]":
-    """Move both written files into place, or put everything back.
+def _finished(
+    state: "DiskState | None", kept: "pathlib.Path | None"
+) -> None:
+    """Record that both files reached their names, for a stop after that.
 
-    Returns the working files still on disk when everything else
-    succeeded -- normally none.
+    Both renames have returned, so the two output names hold this run's
+    files and there is nothing to put back. A failure arriving from here
+    on is not a rollback and may not be described as one: the wording
+    for a run caught between two states would send the reader looking
+    for damage that is not there.
 
-    Whatever else is raised in here -- memory exhausted, a person
-    pressing Ctrl-C, a defect -- the working files are cleared away and
-    ``state`` is given a sentence saying what is at every name, and then
-    the original failure continues to the caller untouched (review item
-    P1-R7-F1).
+    The only working name that can still be occupied at this point is
+    the one an earlier profile was moved to. It is the reader's own
+    file, so it is looked at and NAMED, never removed. The two parts
+    have become the two outputs, and every other name this run reached
+    for was either withdrawn by the filesystem or never reached, so
+    there is nothing else to name.
 
-    The one working name claimed in here is the one an earlier profile
-    is moved to. It is described from ``progress``, which knows whether
-    that move finished, and it is passed to `_unclaimed` as already
-    known so that the claim record can never propose removing it: the
-    file under that name is the reader's own earlier profile, and it is
-    the one file in this transaction that no failure path may delete
-    (review item P1-R8-F1).
+    Nothing is raised here and nothing is printed; the caller decides
+    what to say. `left_behind` is set before the flag, so a second stop
+    inside this function can cost the whole report but can never
+    announce two written files while keeping a leftover to itself.
     """
-    # The guard opens on the FIRST line of this function, before any of
-    # the setup below. Both working files exist and hold the complete
-    # real-derived text at this moment, so a stop in the few lines that
-    # merely build paths would leave them on disk with nothing printed.
-    # A line-level sweep of 6448 injected stops found violations at
-    # exactly two places, and both were seams like this one between a
-    # handler that had closed and one that had not yet opened; a seam is
-    # closed by moving the boundary, never by widening a list of caught
-    # types (review item P1-R7-F1 and its neighbours).
-    progress = _Progress()
-    try:
-        target = pathlib.Path(first)
-        summary_target = pathlib.Path(second)
-        new_profile = pathlib.Path(first_part)
-        new_summary = pathlib.Path(second_part)
-        both = [
-            (new_profile, errors.ON_DISK_WORKING),
-            (new_summary, errors.ON_DISK_WORKING),
-        ]
-        return _move_into_place(
-            target,
-            summary_target,
-            new_profile,
-            new_summary,
-            forbidden,
-            progress,
-            claimed,
-        )
-    except errors.ProfileError:
-        # Composed in there, which means the cleanup has already run and
-        # the message already names every file. Saying it a second time
-        # in a second sentence would read as two different accounts of
-        # one folder.
-        raise
-    except BaseException:
-        # Every name this handler describes for itself, so that the
-        # claim record is asked only about the ones it does not -- and
-        # so that the set-aside earlier profile, which `progress` alone
-        # knows the state of, is never proposed for removal.
-        known = [
-            f"{target}",
-            f"{summary_target}",
-            f"{new_profile}",
-            f"{new_summary}",
-        ]
-        if progress.kept is not None:
-            known = known + [f"{progress.kept}"]
-        extra = _unclaimed(claimed, known)
-        if progress.moving:
-            _remember(
-                state,
-                _state_part_way_through(
-                    target,
-                    summary_target,
-                    both + extra,
-                    progress.kept,
-                    progress.aside,
-                ),
-            )
-        else:
-            waiting = both
-            if progress.kept is not None:
-                waiting = both + [
-                    (progress.kept, errors.ON_DISK_EMPTY_WORKING)
-                ]
-            _remember(
-                state,
-                _state_nothing_published(
-                    target, summary_target, waiting + extra
-                ),
-            )
-        raise
+    if state is None:
+        return
+    if kept is not None and _what_is_there(kept) != "nothing":
+        state.left_behind = f"{pathlib.Path(kept)}"
+    state.both_files_written = True
 
 
 def _move_into_place(
@@ -1210,7 +1189,14 @@ def _move_into_place(
     progress: _Progress,
     claimed: "_Claimed | None" = None,
 ) -> "list[str]":
-    """The renaming itself; `_commit` holds the handler around it."""
+    """The renaming itself; `write_both_files` holds the handler around it.
+
+    Nothing is set up in here that the handler needs. Every name the
+    handler describes it already had before it opened, and the two
+    answers only this function can give -- how far the renaming got, and
+    whether both files reached their names -- are written into
+    ``progress`` as they become true, never inferred afterwards.
+    """
     target = pathlib.Path(first)
     summary_target = pathlib.Path(second)
     new_profile = pathlib.Path(first_part)
@@ -1336,6 +1322,15 @@ def _move_into_place(
             [(new_summary, errors.ON_DISK_WORKING)],
         ) from error
 
+    # Both names now hold this run's files. From here there is nothing
+    # to put back, and a failure that arrives after this line must not
+    # be described as a rollback that could not finish (review item
+    # P1-R8-F1). The rename above and this line are two statements: a
+    # stop between them is the one place where the move may have landed
+    # and this record does not yet say so, and `write_both_files` states
+    # that bound rather than papering over it.
+    progress.installed = True
+
     if kept is None:
         return []
     if _remove_and_check(kept):
@@ -1395,6 +1390,83 @@ def _write_part(part: pathlib.Path, text: str) -> "tuple[str, str]":
     return ("", errors.ON_DISK_WORKING)
 
 
+def _describe_the_stop(
+    state: "DiskState | None",
+    first: pathlib.Path,
+    second: pathlib.Path,
+    first_part: "pathlib.Path | None",
+    first_holds: str,
+    second_part: "pathlib.Path | None",
+    second_holds: str,
+    progress: _Progress,
+    claimed: "_Claimed | None",
+) -> None:
+    """Clear up after a failure nobody composed, and say what is on disk.
+
+    Everything this needs arrives as an argument. That is the point:
+    the handler that calls it holds no value it had to compute after
+    the guard opened, so no stop inside the guarded work can leave a
+    name unbound and turn the person's failure into an
+    UnboundLocalError raised from the cleanup (review item P1-R8-F1).
+    A working file that was never claimed arrives as None and is simply
+    not described.
+
+    Which of the three accounts is given depends on how far ``progress``
+    says the run got, never on what was raised:
+
+    * both renames finished -- there is nothing to put back, so the run
+      is recorded as having written both files, and the working name an
+      earlier profile was moved to is named if it is still occupied;
+    * the renaming had begun -- the two names are between one state and
+      another, so each is looked at and described as the unsettled thing
+      it is;
+    * neither -- nothing was published, the outputs hold what they held,
+      and only synthtwin's own working files can have changed.
+
+    In the two accounts that consult the claim record, the set-aside
+    earlier profile is passed to `_unclaimed` as already known, so that
+    record can never propose removing the one file under these names
+    that this run did not produce. The first account does not consult it
+    at all: a run that got both files into place claimed exactly the two
+    parts and that one name, and all three are described here.
+    """
+    if progress.installed:
+        _finished(state, progress.kept)
+        return
+    waiting: list[tuple[pathlib.Path, str]] = []
+    if first_part is not None:
+        waiting = waiting + [(first_part, first_holds)]
+    if second_part is not None:
+        waiting = waiting + [(second_part, second_holds)]
+    # And then whatever a stop inside a creation left uncovered: a
+    # working name whose file reached the disk before the call that made
+    # it could hand the name back to the two variables above.
+    known = [f"{first}", f"{second}"]
+    for place, _code in waiting:
+        known = known + [f"{place}"]
+    if progress.kept is not None:
+        known = known + [f"{progress.kept}"]
+    extra = _unclaimed(claimed, known)
+    if progress.moving:
+        _remember(
+            state,
+            _state_part_way_through(
+                first,
+                second,
+                waiting + extra,
+                progress.kept,
+                progress.aside,
+            ),
+        )
+        return
+    if progress.kept is not None:
+        # Claimed for the earlier profile, and the move of that profile
+        # into it had not begun: the name holds the empty file synthtwin
+        # created there, which is synthtwin's own to clear away.
+        waiting = waiting + [(progress.kept, errors.ON_DISK_EMPTY_WORKING)]
+    _remember(state, _state_nothing_published(first, second, waiting + extra))
+
+
 def write_both_files(
     profile_path: pathlib.Path,
     summary_path: pathlib.Path,
@@ -1419,7 +1491,9 @@ def write_both_files(
     holds exactly what it held before, the earlier file or nothing,
     unless the person is told otherwise; and they are told by name,
     every file that is on disk and what each one holds, checked by
-    looking rather than assumed from what was attempted.
+    looking rather than assumed from what was attempted. The rule is
+    about ONE failure. A second one arriving while the first is being
+    described can cost the telling, and RESIDUAL ONE below says so.
 
     That telling takes one of two forms, and the difference is only in
     where the sentence travels. A refusal this module composed carries
@@ -1429,6 +1503,17 @@ def write_both_files(
     recognizes it by type and has its own advice for it; so the sentence
     is left in ``state`` instead and the failure continues untouched
     (review item P1-R7-F1).
+
+    Which of the two it is, is not decided by asking what was raised.
+    `ProfileError` is the package's ordinary refusal and any code in
+    reach can raise one, so treating that type as proof that a cleanup
+    had run let an unexpected one out of the first rename with both
+    working files still on disk and nothing said (review item P1-R8-F1).
+    The two places that compose a refusal in here build the narrower
+    `errors.TransactionRefusal`, which is constructed only after its own
+    cleanup has run and its own message names every file. That type, and
+    only that type, is passed straight out; everything else -- including
+    an unexpected `ProfileError` -- goes through the full cleanup.
 
     How: each file is written in full under a working name of
     synthtwin's own making in the same folder, and only then are the two
@@ -1451,17 +1536,24 @@ def write_both_files(
       is written if any of them would lead to it.
     - Returns: the working files still on disk after an otherwise
       complete run, so the caller can report them. Normally empty.
-    - Errors raised: ProfileError with a plain-language message for
-      every refusal this module can describe. A path refusal raised
-      inside the transaction is turned into one of these, carrying the
-      state of every name, rather than escaping as a PathValidationError
-      that no cleanup had seen (review item P1-R7-F1). Only
+    - Errors raised: ProfileError -- as `errors.TransactionRefusal`, one
+      of its subclasses -- with a plain-language message for every
+      refusal this module can describe. A path refusal raised inside the
+      transaction is turned into one of these, carrying the state of
+      every name, rather than escaping as a PathValidationError that no
+      cleanup had seen (review item P1-R7-F1). Only
       `default_output_paths`, which runs before this, still hands a path
       refusal back in its own type. Anything else that can be raised in
       here leaves as itself, with the same type and the same message it
       had, after the cleanup has run and ``state`` has been given the
       sentence: the transaction may not rewrite a failure whose meaning
       belongs to somebody else.
+    - The guard's own bounds: the handler is entered before the first
+      working name is reached for, and every value it uses is bound
+      before that -- so there is NO statement between "a file synthtwin
+      made is on disk" and "a handler that will clear it away and name
+      it is in force". The two residuals that remain are stated below;
+      neither is that seam, because that seam no longer exists.
 
     The interrupt is covered from the first moment a working name is
     reached for, not from the moment one is successfully created. A file
@@ -1471,6 +1563,37 @@ def write_both_files(
     consider it and the sentence did not mention it (review item
     P1-R8-F1). The name is now recorded before the creation is
     attempted, so it is covered whether or not the creation finished.
+
+    RESIDUAL ONE: a second failure during the cleanup. The handler
+    itself can be stopped -- a person pressing Ctrl-C again while the
+    first stop is being described. That second failure is dropped and
+    the first continues to the caller, because the caller's advice
+    belongs to the first. What the person loses is the report: the
+    sentence is composed and stored in one step, so it is lost whole
+    rather than in part, and the record of a finished write is filled in
+    leftover-first, so it can be lost whole but can never announce two
+    written files while keeping a leftover to itself. A failure inside
+    the two-line handler that drops the second one is not covered.
+    Before this, the second failure replaced the first and the working
+    files went unnamed.
+
+    RESIDUAL TWO: one statement boundary after the last rename. Both
+    files are in place the moment `Path.replace` returns, and the record
+    that says so is set on the next line. A stop in between is reported
+    as a run caught mid-move: every name is looked at and named, the
+    set-aside earlier profile is named and not removed, and the two
+    outputs are described as holding a file synthtwin cannot attribute
+    to one side of the move or the other. Two things about that report
+    are worse than the facts -- it opens by saying synthtwin could not
+    put things back, when nothing needed putting back, and it says the
+    outputs cannot be attributed, when the move had landed. Nothing it
+    says is a claim of safety that is not there: it sends the reader to
+    look at files that are in fact correct. It is one statement wide,
+    and there is nowhere to put the record that would close it, because
+    a rename returning and the recording of that return cannot be one
+    operation. A stop anywhere AFTER that line, including on the way
+    back out of this function, is reported exactly: both files written,
+    and the set-aside earlier profile named if it is still there.
 
     What this does NOT promise: the two renames are two steps, not one,
     so a machine that loses power between them can leave a new profile
@@ -1496,12 +1619,15 @@ def write_both_files(
     moment can leave one empty file of synthtwin's making behind, and
     the sentence says where it is and why it was left.
 
-    What IS claimed is that no failure this code can observe -- a full
-    disk, a refused permission, a vanished folder, a name already taken,
-    memory exhausted, a person pressing Ctrl-C, in the writes, in the
-    renames, or inside the creation of a working name -- leaves a
-    partial file, an unrecoverable one, or a file this run did not name
-    to the person.
+    What IS claimed, and the scope is ONE failure: no single failure
+    this code can observe -- a full disk, a refused permission, a
+    vanished folder, a name already taken, memory exhausted, a person
+    pressing Ctrl-C, at any statement of the writes, of the renames, or
+    of the creation of a working name -- leaves a partial file, an
+    unrecoverable one, or a file this run did not name to the person.
+    A SECOND failure arriving while the first is being described can
+    leave a working file unnamed; that is RESIDUAL ONE above, and it is
+    the reason the claim says "single" rather than "any".
     """
     first = pathlib.Path(profile_path)
     second = pathlib.Path(summary_path)
@@ -1520,8 +1646,25 @@ def write_both_files(
             )
         forbidden = forbidden + [source]
 
-    # What each working file can be holding if this stops right now.
-    # Both start empty, and each is marked as possibly holding text
+    # EVERYTHING THE HANDLER WILL NEED IS BOUND HERE, before the guard
+    # opens -- and this is the only place it can be done, because right
+    # now nothing of synthtwin's making is on disk. Not one file has
+    # been created and not one name has been reached for, so a stop
+    # anywhere in these six lines leaves the folder exactly as the run
+    # found it and there is nothing to clear away or name.
+    #
+    # From the `try` below to the end of this function there is no other
+    # setup: the guard is entered first and the work happens inside it,
+    # so no statement can run at a moment when a file synthtwin made is
+    # on disk and no handler is watching. The earlier shape kept a
+    # second guard further in and built part of its inventory after
+    # opening it, which left both windows the review found: a stop
+    # before that guard, and stops inside it that raised
+    # UnboundLocalError from the handler and lost the original failure
+    # (review item P1-R8-F1).
+    #
+    # What each working file can be holding if this stops right now:
+    # both start empty, and each is marked as possibly holding text
     # BEFORE its write begins rather than after, because a write that
     # stops half way has already put some of the description there.
     first_part: pathlib.Path | None = None
@@ -1533,6 +1676,10 @@ def write_both_files(
     # that produced it has handed back, and the file is on disk a moment
     # earlier than that (review item P1-R8-F1).
     claimed = _Claimed([])
+    # And how far the renaming got, which only `_move_into_place` can
+    # say. It is made HERE rather than in there so that the renaming
+    # step needs no prologue of its own to be guarded.
+    progress = _Progress()
     try:
         first_part, trouble, owned = _claim_working_name(
             first, PART_SUFFIX, forbidden, claimed
@@ -1574,49 +1721,66 @@ def write_both_files(
                     (second_part, holds),
                 ],
             )
-    except errors.ProfileError:
-        # Composed just above: the cleanup has already run inside it and
-        # its message already names every file.
+
+        # The renaming runs INSIDE this same guard rather than under one
+        # of its own. There is no instant between the two, because there
+        # are no longer two: the call, the arguments it evaluates, and
+        # everything the renaming does are all under the handler that was
+        # opened before the first working name existed.
+        return _move_into_place(
+            first,
+            second,
+            first_part,
+            second_part,
+            forbidden,
+            progress,
+            claimed,
+        )
+    except errors.TransactionRefusal:
+        # Composed by this transaction, which is a fact about the object
+        # and not a guess from its type: `_stopped_clean` and
+        # `_stopped_broken` are the only two places that build one, and
+        # each has run the cleanup and put the state of every name into
+        # the message before handing it back. Doing either again would
+        # give the reader two different accounts of one folder.
         raise
     except BaseException:
         # ANYTHING else, and the handler does not ask what. This is the
         # repair for review item P1-R7-F1: two earlier versions each
         # caught the exception types their author had thought of, and
         # the next type escaped with a data-bearing working file behind
-        # it. A failure that reaches here keeps its type and its message
-        # -- the caller has advice for it that this module does not --
-        # and what this module owes the person is the other half: the
-        # working files gone, and a sentence saying what is at each name.
-        waiting: list[tuple[pathlib.Path, str]] = []
-        if first_part is not None:
-            waiting = waiting + [(first_part, first_holds)]
-        if second_part is not None:
-            waiting = waiting + [(second_part, second_holds)]
-        # And then whatever a stop inside a creation left uncovered: a
-        # working name whose file reached the disk before the call that
-        # made it could hand the name back to the two variables above.
-        known = [f"{first}", f"{second}"]
-        for place, _code in waiting:
-            known = known + [f"{place}"]
-        _remember(
-            state,
-            _state_nothing_published(
-                first, second, waiting + _unclaimed(claimed, known)
-            ),
-        )
+        # it. An unexpected `ProfileError` reaches here too, and must:
+        # the type says which words a refusal uses, never that a cleanup
+        # has run (review item P1-R8-F1). A failure that reaches here
+        # keeps its type and its message -- the caller has advice for it
+        # that this module does not -- and what this module owes the
+        # person is the other half: the working files gone, and a
+        # sentence saying what is at each name.
+        try:
+            _describe_the_stop(
+                state,
+                first,
+                second,
+                first_part,
+                first_holds,
+                second_part,
+                second_holds,
+                progress,
+                claimed,
+            )
+        except BaseException:  # noqa: BLE001,S110 -- the drop IS the repair.
+            # A SECOND failure while the first was being described. It
+            # is dropped, and the first continues below with its own
+            # type and message: the caller's advice belongs to the
+            # first, and replacing it would leave the person reading
+            # about an interrupt they pressed instead of the reason the
+            # run stopped. The sentence is composed and stored in one
+            # step, so what is lost here is the whole sentence, never
+            # half of one; the record of a finished write is filled in
+            # leftover-first, so it too is lost whole rather than left
+            # announcing two files while keeping a leftover back.
+            pass
         raise
-    # This call sits in no handler of this function; _commit opens its
-    # own on its first line. What is left unguarded is the instant of
-    # the call itself -- an interrupt or a memory error arriving exactly
-    # between this line and _commit's first statement would leave both
-    # working files on disk unnamed. That window is one bytecode
-    # boundary wide and cannot be closed from here without the outer
-    # handler overwriting the more exact sentence _commit composes once
-    # renaming has begun. It is recorded as a residual rather than
-    # described as closed.
-    return _commit(
-        first, second, first_part, second_part, forbidden, state, claimed
-    )
 
 
 def write_text_file(target: pathlib.Path, text: str) -> None:
