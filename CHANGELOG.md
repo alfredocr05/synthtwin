@@ -191,10 +191,14 @@ reference document's proof is allowed to certify.
 
 ### Repaired after the first hosted run of the Phase 1 suite
 
-Two checks passed on the machine they were written on and could not
-pass anywhere else. Both are defects in the checking, not in the
+Four checks passed on the machine they were written on and could not
+pass anywhere else -- and one of them, on Windows, passed by asserting
+nothing whatever. Every one is a defect in the checking, not in the
 product: the hosted matrix is the first place the declared floor
 (Python 3.10) and Windows were ever run, and it caught them at once.
+No product code changed for any of them, and on Windows the two rules
+in question turned out to be STRICTER than the ones the tests had been
+written against.
 
 - **Two scanner mutations were written in Python 3.12 syntax and the
   declared floor is 3.10.** `def name[T](...)` and `type X = ...` do
@@ -218,6 +222,42 @@ product: the hosted matrix is the first place the declared floor
   control arrives as what it really is, text, through the same caution
   sentence and the same emitter; that half runs on every platform,
   Windows included, whose terminals obey these sequences too.
+- **Three tests about a link at an output name asserted the POSIX rule
+  as though it were the only one.** A link left where synthtwin is
+  about to write is stopped by two different rules. On POSIX a link
+  resolves to an ordinary local path, so the locality check passes it
+  and the run is stopped later, by the comparison that finds the
+  output name and the user's table are one file. On Windows the
+  locality check refuses the link first -- any link, symbolic link,
+  junction or mount point, because one there can quietly lead to a
+  network location -- so that comparison is never reached and the run
+  publishes nothing at all. The protection held on both; only the
+  sentence differed, and two of the three tests stopped at an
+  unexpected refusal before reaching any check of their own. Each test
+  now asserts on EVERY platform what it was written for -- the table
+  byte-for-byte unchanged, every link left exactly as it was found, no
+  file published through one, no working file of synthtwin's own left
+  behind, and the reason arriving as a sentence rather than a
+  traceback -- and then pins the platform's own wording on the side
+  that produced it. The Windows half is asserted rather than skipped:
+  it is where the rule is strictest and where nothing had ever
+  exercised it.
+- **The write transaction's boundary injector traced nothing on
+  Windows, so that whole check was vacuous there.** The injector
+  recognizes the frames to interrupt by comparing each frame's
+  filename against the transaction module's own, and the comparison
+  string was rebuilt by resolving the module's path. On Windows the
+  interpreter had imported the package through one spelling of that
+  path while resolving it hands back the spelling the disk keeps, so
+  the comparison matched no frame, no failure was ever injected, and
+  every question the check asks went unasked. The floor each half
+  carries -- a minimum number of boundaries that must have been
+  injected into -- is what turned a silent pass into a red test, which
+  is the reason those floors exist. The comparison string is now read
+  off one of the module's own code objects, which is by construction
+  what the frames carry, on every platform and every interpreter; and
+  a new test states that fact directly, so the next reader of a
+  failure here gets a diagnosis instead of a count of zero.
 
 ### Earlier
 - Phase 0 public skeleton: package scaffold, `synthtwin` CLI stub, the

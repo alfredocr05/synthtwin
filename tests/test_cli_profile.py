@@ -357,11 +357,66 @@ def test_a_link_pointing_at_the_table_is_refused(
 ) -> None:
     # The worst outcome this tool has: writing the description over the
     # data it was asked to describe. Found by verification of round 1.
+    #
+    # TWO rules can stop it, and which one does is the platform's
+    # business, not this test's. On POSIX a link resolves to an ordinary
+    # local path, so the locality check passes it and the run is stopped
+    # by the later comparison: the profile's name and the table are one
+    # file. On Windows the locality check refuses the link itself --
+    # ANY link, symbolic link, junction or mount point, because one
+    # there can quietly lead to a network location -- and the run stops
+    # before that comparison is reached.
+    #
+    # The promise is the same under both and it is asserted under both:
+    # the command refuses, the table is byte-for-byte what it was, the
+    # link is left as it was found, nothing is written, and the reason
+    # arrives as a sentence. Only the sentence itself differs, so each
+    # is pinned on the platform whose rule produced it. Skipping the
+    # Windows half would leave the STRICTER of the two rules with
+    # nothing asserted about it at all.
     table = _table(tmp_path)
-    (tmp_path / "clinic-profile.json").symlink_to(table)
+    was = table.read_bytes()
+    link = tmp_path / "clinic-profile.json"
+    link.symlink_to(table)
+
     assert main(["profile", str(table)]) == 1
-    assert "would have replaced your own table" in capsys.readouterr().err
-    assert table.read_text(encoding="utf-8").startswith("record_code,")
+    told = capsys.readouterr().err
+
+    assert table.read_bytes() == was, (
+        "the table the command was asked to describe must come out of a "
+        "refusal byte-for-byte what it went in as"
+    )
+    assert link.is_symlink(), (
+        "the link was the user's; a refusal may not replace it with a file"
+    )
+    # Where it points is asked by FOLLOWING it: `readlink` hands back
+    # the substitution path the filesystem stored, and on Windows that
+    # is the `\\?\`-prefixed spelling rather than the one `symlink_to`
+    # was given, so reading the target back would answer "no" for a link
+    # that is perfectly intact.
+    assert link.resolve() == table.resolve(), (
+        "a refusal may not repoint the user's own link"
+    )
+    assert not (tmp_path / "clinic-profile.txt").exists(), (
+        "a refused run publishes neither of the two files"
+    )
+    assert _working_files(tmp_path) == [], (
+        "and leaves no working file of its own behind"
+    )
+    assert "Traceback" not in told, "the reason must arrive as a sentence"
+
+    if sys.platform == "win32":
+        # The stricter rule, and the only place it is exercised.
+        assert "is a link" in told
+        assert "network location" in told
+        assert link.name in told, (
+            "the person has to be told which name is the link"
+        )
+    else:
+        assert "would have replaced your own table" in told
+        assert f"{table}" in told, (
+            "the person has to be told which file was nearly lost"
+        )
 
 
 def test_a_folder_in_the_way_is_refused_before_anything_is_written(
