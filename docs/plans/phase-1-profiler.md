@@ -1,5 +1,24 @@
 # Phase 1 — The profiler: reading and automatic type analysis
 
+**Status:** revision 4 — the implemented plan, after review rounds 1-7.
+Revision 4 changes no behaviour. It corrects sentences that described
+retired designs as though they were operative, and one claim that
+overstated a safety property. What changed in the text: the R2 residual
+now names unresolved implicit protocol dispatch as a CLASS rather than
+naming attribute reads as the one construct left, and it corrects the
+premise this document had attributed to Phase 0 (P1-D8.1); P1-D2.1 now
+says that the run-time `validate_local_path` is the operative reader
+control and the scanner a best-effort second layer; the first-row
+paragraph states the four outcomes the reader actually has, ending in
+the convention of residual R1 (P1-D3); the P1-D4 introduction no longer
+carries an inference ordering for `identifier`; P1-D11 states the exact
+integer method as the current one and marks the floating-point
+reduction as history; the dependency text says pandas is the one direct
+runtime dependency; and P1-D5, P1-D6 and P1-D8 record the declared-value
+publication rule, the settings-block rule, the transaction's coverage,
+and the scope of the disclosure battery. Earlier revisions are recorded
+below, newest first.
+
 **Status:** revision 3 — the implemented plan, after review rounds 1-6.
 Revision 3 records the round-6 outcome: identifier inference WITHDRAWN
 (P1-D4 item 8), one taxonomy policy replacing two contradictory ones
@@ -65,9 +84,19 @@ generator module added in Phase 2 that imported `reading` would be visible
 in one grep, and the offline scanner's first-party import verification
 records who imports whom.
 
-## P1-D2. Dependency introduction: pandas and numpy
+## P1-D2. Dependency introduction: pandas, and pandas alone
 
-**Owner decision, 2026-08-07.** The implementer proposed a zero-runtime-
+**What is true today, stated before the history so no paragraph below
+can be read as operative:** pandas is the ONE direct runtime dependency
+of this project. numpy is present only inside pandas' own transitive
+closure — pinned there in the frozen lock because pandas requires it —
+and `src/` imports it nowhere; the offline scanner refuses an import of
+numpy from `src/` outright (E2 in P1-D10). The owner decision and the
+withdrawal that produced that state are recorded next, as the record of
+how the phase arrived here.
+
+**Owner decision, 2026-08-07 (partly superseded at review round 1 by
+the numpy withdrawal below).** The implementer proposed a zero-runtime-
 dependency profiler (standard-library `csv` only) on three grounds: the
 code path that touches real data would carry no third-party surface at
 all; `pandas.read_csv` is network-capable (it accepts URLs and remote
@@ -115,8 +144,10 @@ regenerated at newer versions with every other check still green.
 Mechanics (all specified by Phase 0 D5): tested lower bounds in
 `pyproject.toml`; the frozen lock regenerated with the 3.10 floor; the
 minimum-versions CI job added; the offline static scanner's allowlist
-gains an API-granular enumeration of exactly the pandas/numpy APIs the
-profiler uses (P1-D10 — module-level trust stays banned); a hash-pinned
+gains an API-granular enumeration of exactly the pandas APIs the
+profiler uses — one name, `read_csv` — while numpy receives no
+enumeration at all and is simply not importable from `src/` (P1-D10 —
+module-level trust stays banned); a hash-pinned
 runtime install file (`requirements-install.lock`) is generated and used
 by the build job's fresh-venv smoke, so the D5 institutional install path
 is exercised from the first dependency-bearing commit rather than promised
@@ -134,23 +165,32 @@ back into text before it decides whether it has a URL, so
 `pathlib.Path("https://host/f.csv")` reaches the network just as the
 string would. Nothing rested on that sentence except the claim itself.
 
-What holds the line now is enforced by the scanner rather than asserted
-in prose:
+**What holds the line, and in which order.** The operative control is a
+run-time one: `validate_local_path` runs immediately before the reader
+is handed a path and rejects URL and remote-storage forms lexically,
+before any filesystem call (D6.1). Every path that reaches the reader
+has passed it on that same run. The static scanner is a best-effort
+SECOND LAYER over that control, in exactly the terms Phase 0 Amendment
+A3 sets and P1-D8.1 R2 restates — a clean scan is not a proof that the
+reader cannot be reached another way. What that second layer adds is:
 
-1. every path reaching the reader has passed `validate_local_path`,
-   which rejects URL schemes lexically, before any filesystem call
-   (D6.1);
-2. the scanner tracks a provenance origin produced ONLY by a call to
+1. the scanner tracks a provenance origin produced ONLY by a call to
    `validate_local_path` and by one wrapping of such a result in
    `pathlib.Path`. A fenced API's first argument must carry that origin,
    established inside the same function as the call, so the reader
    re-validates immediately before it reads;
-3. a fenced API may appear only as the direct target of a call. It may
+2. a fenced API may appear only as the direct target of a call. It may
    not be stored in a variable, imported as a bare name and called,
    passed to another function, or placed in a callback slot -- each of
    which was a live bypass at round 1 or round 2 and each of which is
    now a red mutation;
-4. a name that shadows the validator does not mint the provenance.
+3. a name that shadows the validator does not mint the provenance.
+
+What the second layer does NOT establish is that only one such call
+site can ever exist: a second, independently fenced `read_csv` call
+would scan clean. What the enumeration does establish is that no OTHER
+pandas API can appear at all, and that every `read_csv` call site must
+carry that scanner-recognized provenance for itself.
 
 This is a fencing arrangement, not an inability. `SECURITY.md` states it
 in exactly those terms next to the existing named residuals: the D6
@@ -169,16 +209,24 @@ read **twice, by two different readers, and the two results must agree**:
    the true header (unmangled), the number of fields in every data row,
    the count of data rows, and the first three rows whose field count
    differs from the header's.
-2. **Data pass** — `pandas.read_csv`, all columns as text
-   (`dtype=str`, `keep_default_na=False`, `na_filter=False`), with the
-   header names supplied from the structural pass and every dialect
-   parameter written out explicitly so both readers provably use the same
-   dialect.
-3. **Agreement check** — the row count and the column count from the two
-   passes must match, or the read is refused with a plain-language
-   message. This check can fail (a file edited between the passes fails
-   it), and it is the control that makes the pass division meaningful
-   rather than decorative.
+2. **Checking pass** — `pandas.read_csv`, all columns as text
+   (`dtype=str`, `keep_default_na=False`, `na_filter=False`), every
+   dialect parameter written out explicitly so both readers provably use
+   the same dialect, and **the names read BACK from the file rather than
+   handed to the library**. The draft handed them over; review round 1
+   showed that this is what made the check blind, because a reader told
+   what the columns are called cannot disagree about them, and a file
+   rewritten between the passes was accepted with the old header and the
+   new values (P1-R1-F4). The library is asked for the names, not told.
+3. **Agreement check — every VALUE, not the counts** (rewritten at review
+   round 1). The two passes must agree about the column names, the shape,
+   AND every single cell; the first difference is a refusal naming the
+   row and the column. The draft compared only the row and column counts,
+   which round 1 showed was worth nothing: for the bytes
+   `c0,c1\n\r,B\nz,w\n` the two readers put different values in
+   different columns with both counts equal, so two columns were profiled
+   wrongly and nothing looked unusual. Equal counts are NOT accepted as
+   agreement.
 
 **Why two passes.** pandas silently pads a short row to the header width:
 `a,b,c` followed by the row `4,5` yields `4`, `5`, and an empty third
@@ -203,22 +251,46 @@ test also refuses binary files handed over by mistake. Both the encoding
 that was chosen and any fallback are reported in the summary; the encoding
 is never guessed beyond these two documented attempts.
 
-**The first row is decided explicitly, not assumed (revised at review
-round 5).** Revision 1 refused a file whose first row looked like data.
-That was the wrong verb: refusing a headerless table tells a researcher
-their perfectly ordinary file is broken. The reader now reaches a
-verdict — names, or data — states which it took and on what evidence,
-and where the evidence is not conclusive it stops and asks, offering
-`--first-row names` and `--first-row data`. The verdict is published as
-`source.header_source` so a later reader of the profile can see whether
-the column names came from the file or were supplied. Two readers parse
-the table and their disagreement about any NAME or any VALUE is itself a
-refusal, because a file that two parsers read differently has no single
-correct reading for us to publish.
+**The first row is settled in four outcomes, and where nothing settles
+it the CSV convention is taken and disclosed (residual R1).** Revision 1
+refused a file whose first row looked like data. That was the wrong
+verb: refusing a headerless table tells a researcher their perfectly
+ordinary file is broken. Revision 2's replacement — stop and ask
+wherever the evidence is not conclusive — was wrong the other way, and
+is also retired: it questions ordinary files. What the reader does now,
+in this order:
+
+1. **`--first-row names` or `--first-row data` was given** — it wins in
+   both directions, and nothing below is consulted.
+2. **The file shows positively that the first row is a RECORD** — its
+   value in some column belongs among the values written below it (a
+   number inside their range, a date in their format, or a label the
+   column repeats). The run stops and asks, naming the column by
+   POSITION, quoting nothing from the row, and offering both options.
+   A first row whose EVERY value reads as a number is stopped by its
+   own message on the same reasoning.
+3. **The file shows positively that the first row is NOT a record** —
+   some column holds numbers below a first-row value that is not one.
+   The row is read as names and nothing is assumed.
+4. **Nothing in the file settles it** — the first row is taken as the
+   column names BY CONVENTION, because that is what a CSV file
+   normally holds. Nothing is proved, and nothing is silent: the
+   decision is recorded as `source.header_by_convention`, its wording
+   as `source.header_evidence`, and one plain-language paragraph near
+   the top of the summary says the row was taken as names because
+   nothing contradicted it and that `--first-row data` re-reads it as a
+   record. The cost of the convention is stated in R1 (P1-D8.1).
+
+Where the names came from either way is published as
+`source.header_source`, so a later reader of the profile can see
+whether they came from the file or were generated. Two readers parse
+the table and their disagreement about any NAME or any VALUE is itself
+a refusal, because a file that two parsers read differently has no
+single correct reading for us to publish.
 
 **Refusals** (message shapes in P1-D7): empty file; header-only file with
-no data rows; a first row whose reading cannot be settled and was not
-supplied with `--first-row`; duplicate column names
+no data rows; a first row the file shows could be a record, where
+`--first-row` did not say which it is; duplicate column names
 (exact duplicates are an input error by the D12 uniqueness rule;
 case-variant names are accepted and flagged in the summary); ragged rows;
 a field longer than the reader's limit; memory exhaustion. Size is bounded
@@ -229,13 +301,21 @@ is future work, stated honestly in the README.
 
 Detected roles, in the order they are tested (first match wins; the
 profile records which rule fired as `detection_evidence`, in words).
-**Revised at review round 5**: `numeric_unrepresentable` is new, and
-`identifier` moved from third place to second-to-last. Round 1 showed
-why the old position was wrong — a rule that fires on uniqueness alone,
-however many guards hang off it, is tested *before* the rules that would
-have described the column properly, so every guard added was a patch on
-an ordering mistake. Uniqueness is now what is left when no positive
-description fits, which is what "identifier" actually means.
+`numeric_unrepresentable` was added at review round 5.
+
+**One role is not in that order at all.** `identifier` is settled
+before any rule reads a value and comes from `--identifier` alone
+(review round 6, revision 3): a named column takes the role whatever
+its values look like, and no ordering of the value rules can reach it.
+It is listed below as item 8 only because it is a role, and the item
+numbers are left as they are so that references to them elsewhere
+still point at the same text. Two earlier attempts to place it IN the
+order — third, then second-to-last — are described under that item as
+the history they now are; neither survives in the code, and no
+sentence anywhere should be read as saying that uniqueness, or
+anything else a column contains, selects the role. What uniqueness
+still does is decide whether the summary SAYS a column never repeats
+and points at the option; that sentence changes no role.
 
 1. **empty** — no present values after sentinel normalization.
 2. **numeric_unrepresentable** — the values read as numbers, but enough
@@ -298,9 +378,17 @@ description fits, which is what "identifier" actually means.
    whichever role the column lands on.
 8. **identifier** — **never inferred. Reached only through
    `--identifier` (revision 3, review round 6).** No rule reads the
-   values and concludes that a column holds record numbers.
+   values and concludes that a column holds record numbers. The
+   declaration is settled before any rule that reads a value and beats
+   every one of them, including the ones that publish; the position in
+   this list is the numbering's, not the code's. One rule still runs
+   ahead of it: a column with no present value at all is `empty`
+   (item 1) whether or not it was named, which costs nothing, because
+   an empty column has no value to publish either way. A named column
+   publishes no value whatever role it ends with.
 
-   Three designs tried and failed: uniqueness plus three guards
+   Three designs tried and failed, and all three are HISTORY —
+   uniqueness plus three guards
    (revision 1), demotion to second-to-last so uniqueness is only a last
    resort (revision 2), and requiring every value to carry a letter
    (round 6). The third was defeated in one line — `1mg` contains
@@ -378,10 +466,12 @@ boundary (question 2 to the review: the answer is one document, not a
 stats/metadata split, because a split invites the two halves to disagree
 and doubles the number of files a user must carry).
 
-Top-level fields: `profile_version`, `created_with`, `settings`,
-`source` (the encoding that was used and whether it was the fallback —
-the twin has to be written in a form the same tools can open, and it is
-fixed by the input bytes, so it does not make two runs differ), `n_rows`,
+Top-level fields: `profile_version`, `created_with`, `settings` (the
+thresholds that produced the roles, plus the two records described
+under P1-D6), `source` (the encoding that was used and whether it was
+the fallback — the twin has to be written in a form the same tools can
+open, and it is fixed by the input bytes, so it does not make two runs
+differ, together with where the column names came from), `n_rows`,
 `n_columns`, `columns` (ordered list, order = source order), and
 `publication_notes` (what was suppressed and why, so the summary and the
 machine record can never disagree). `n_rows` is explicit — the prototype
@@ -410,10 +500,41 @@ copy — and only when BOTH working files are complete on disk are they
 renamed into place. If either write fails, the working files are
 removed and the previous files are untouched. If the first rename
 succeeds and the second fails, the first is rolled back from the copy
-taken before it was replaced. Two message shapes cover what the user
-must then be told: `nothing_was_written`, and `rollback_failed` for the
-case where even the rollback could not complete, which names every file
-left on disk rather than reporting a clean failure it cannot vouch for.
+taken before it was replaced.
+
+**The cleanup and the state report cover EVERY failure the code can
+observe, not only write errors (review round 7).** A refused
+permission, a full disk, a vanished folder, a working name already
+taken, a path refusal raised inside the transaction, memory exhausted
+in the middle of a write, a person pressing Ctrl-C, and a defect in
+this package are all one case here: the working files are cleared away
+and the person is told, by name, what is at each of the two output
+names and at every working name this run reached for — checked by
+looking rather than assumed from what was attempted. Catching the
+exception types someone had thought of is what let the next type
+escape with a data-bearing working file behind it, so nothing is
+caught by type on that path. The telling takes one of two forms and
+the difference is only where the sentence travels: a refusal the
+transaction composed itself carries it in its own message
+(`nothing_was_written`, `rollback_failed` where even the rollback could
+not complete, `working_name_unavailable`), while a failure the
+transaction did not compose keeps its own type and message for the
+caller — which has its own advice for it — and the sentence is handed
+back separately for the caller to print beside it.
+
+**Two residuals, stated rather than closed.** First, one instant is
+not covered: the call that begins the renaming sits between the
+handler that has just closed and the handler the renaming step opens
+on its own first line, so a stop arriving exactly there leaves both
+working files on disk unnamed. The window is one bytecode boundary
+wide, and closing it from the outside would replace the more exact
+sentence the renaming step composes with a vaguer one. Second, the two
+renames are two steps: a machine that loses power between them can
+leave a new profile beside an old summary, and a stopped MACHINE
+leaves no sentence anywhere because nothing runs afterwards to write
+one. An interrupted PROGRAM is covered; durability against a power cut
+is not claimed, and the call that would force a write to the disk is
+outside the import allowlist in any case.
 
 ## P1-D6. Privacy defaults — automatic, not advisory
 
@@ -438,6 +559,42 @@ That is inherent to the product — a twin cannot match a distribution
 nobody described — and it is why the profile is real-derived material
 governed by the user's institutional rules. The summary says this in one
 sentence, every run, and README and SECURITY.md say it too.
+
+**Declared values: `--keep-value` and `--missing-value` (exposed on the
+command line at revision 3; the settings rule corrected at review round
+7).** A person can name a value that means "no value" in their table
+and a value that is real data despite looking like one. A declaration
+that reads as a number this format can hold is compared with the NUMBER
+each cell holds, so naming `-999` also covers a file that writes
+`-999.00`; anything else is compared with the spelling, after trimming
+and case folding. Naming one value BOTH ways is refused rather than
+resolved, on both paths that can reach it.
+
+Two consequences, and they pull in opposite directions, so both are
+stated:
+
+- **In its own column, a declared value obeys the publication rules
+  like any other value.** Declaring a value withdraws nothing. One
+  named with `--keep-value` is data from that point on and is
+  described wherever its column publishes values — as one of that
+  column's labels above the small-cell floor, or as its smallest
+  number. One named with `--missing-value` is counted absent, and its
+  spelling reaches `missing_by_source` under the same floor and the
+  same role rule as any other missing spelling: withheld in a column
+  that publishes no values, withheld below the floor, shown otherwise.
+- **In the settings block, no spelling ever appears.** A declaration is
+  compared against every cell of every column, so writing the spelling
+  there would publish a source value out of all of them at once —
+  including the columns that publish nothing and the labels held back
+  for being shared by too few rows, which is exactly how a rare value
+  supplied as `--missing-value` was serialized while its own column
+  published nothing. The block records the COUNT named each way, the
+  rule that matched them, and the rule that governs their publication,
+  and never the values. No per-column exemption is made: an exemption
+  would have to be re-derived for every role and every publication
+  rule added later, and that is a rule that will one day be missed.
+  The two keys carry a record rather than a list, so a consumer can
+  tell a profile written under this rule from one written before it.
 
 ## P1-D7. Errors speak human — the failure catalog
 
@@ -471,12 +628,20 @@ code path that raises it.
   equals `n_rows` for every column, and no suppressed value appears
   anywhere in either output file.
 - A disclosure battery: for tables built to contain rare labels,
-  identifiers, and free text, the emitted bytes are searched for those
-  values and must not contain them.
-- The offline scanner's new pandas/numpy/csv enumerations get red
-  mutations: an unlisted pandas attribute, an unlisted numpy attribute, a
-  callable in a `read_csv` callback slot, and a method call on a value
-  whose text origin was not established must each fail the scan.
+  identifiers, free text, and values named with `--keep-value` or
+  `--missing-value`, the search runs over the COMPLETE serialized
+  document — the settings block included, not the role block alone —
+  and over the complete summary text, and it uses the EXACT spelling
+  the person typed rather than the file's own spelling of the same
+  number. Searching a role block, or searching for a rounded spelling,
+  is what let a rare value cross through settings while its column
+  published nothing (review round 7).
+- The offline scanner's new pandas and csv enumerations get red
+  mutations: an unlisted pandas attribute, a callable in a `read_csv`
+  callback slot, and a method call on a value whose text origin was not
+  established must each fail the scan. numpy has no enumeration to
+  mutate — an import of it from `src/` is itself a violation — and that
+  refusal is held by its own red test.
 - The decontamination scanner runs unchanged; profiler fixtures use
   neutral vocabulary by construction.
 
@@ -500,27 +665,64 @@ described as column names and is missing from every count, unless the
 person says otherwise. The alternative — asking on every ordinary file —
 was judged the worse product.
 
-**R2. The offline import scanner is one best-effort layer, and one
-construct class is undecided.** This is Phase 0 Amendment A3 applied to
-Phase 1, not a new concession. Five repairs at the same class each
-closed the demonstrated statement and were defeated one construct over,
-which matches what the Phase 0 review already proved: a fully closed
-static call-target model is not possible in Python. Trust decisions are
-now **position-blind** — the origin set of a name is every binding it
-takes anywhere in the enclosing scopes, and trust requires all of them
-to be the allowed API — which over-refuses some safe programs on
-purpose, because a refusal costs a contributor one edit and a wrongly
-granted trust costs a user their data silently. **What remains
-undecided, precisely:** READING an attribute of a value the audit cannot
-trace is accepted (`thing.anything.at.all` scans clean), because Python
-runs the object's own property on such a read. Method CALLS on untraced
-values are refused, and the restricted library's attributes are an
-enumerated list checked position-blind. This reaches the
-caller-supplied-code residual already accepted in SECURITY.md, but it
-reaches it WITHOUT A CALL, which that text did not say and now must.
-The control that actually holds is not this scanner: it is the run-time
+**R2. The offline import scanner is one best-effort layer, and
+unresolved IMPLICIT PROTOCOL DISPATCH is accepted on purpose.** This is
+Phase 0 Amendment A3 applied to Phase 1, not a new concession. Five
+repairs at the same class each closed the demonstrated statement and
+were defeated one construct over.
+
+**The premise, corrected at review round 7.** This plan said, through
+revision 3, that the Phase 0 review had proved a fully closed static
+call-target model is not possible in Python. Phase 0 says the opposite,
+in the amendment's own words: the accurate premise "is therefore about
+this scanner, not about static analysis in general: this scanner does
+not establish universal call-target closure", and "a reading-only
+analysis could in principle reject every construct it cannot resolve;
+ours accepts some of them on purpose, because rejecting them would
+require a source dialect so restrictive that the tool would stop being
+usable." So the true statement is a choice, not an impossibility: a
+reading-only scanner COULD refuse every construct it cannot resolve,
+and this project deliberately accepts a bounded caller/process residual
+instead, because refusing everything unresolved would refuse ordinary
+first-party code. Nothing the scanner enforces changed with that
+correction; the claim did.
+
+Trust decisions are **position-blind** — the origin set of a name is
+every binding it takes anywhere in the enclosing scopes, and trust
+requires all of them to be the allowed API — which over-refuses some
+safe programs on purpose, because a refusal costs a contributor one
+edit and a wrongly granted trust costs a user their data silently.
+
+**What is accepted, stated as a class rather than as one construct.**
+Naming attribute reads as "precisely" the one thing left was too
+narrow, and the narrowness invites an audit error: a reviewer who adds
+`list(value)` or an f-string of an untraced value gets a clean scan and
+concludes that no caller code is dispatched. What the scanner accepts
+is unresolved implicit protocol dispatch generally — on a value the
+audit cannot trace, every one of these scans clean:
+
+- attribute and property access, and any chain built on one;
+- subscription;
+- arithmetic and other operators, including the reflected forms;
+- comparisons;
+- truth and length checks;
+- iteration, and conversion by the accepted built-ins;
+- formatting, including f-strings;
+- class and metaclass construction from such a value.
+
+Each of those runs code belonging to a caller-supplied object without a
+call expression appearing anywhere in the source, exactly as a property
+read does. Written method CALLS on unresolved receivers do remain
+refused, and the restricted library's attributes remain an enumerated
+list checked position-blind.
+
+This reaches the caller-supplied-code residual already accepted in
+SECURITY.md, and it reaches it WITHOUT A CALL. **The control that
+actually holds the reader is not this scanner:** it is the run-time
 `validate_local_path` applied immediately before the reader is handed a
-path.
+path (P1-D2.1). A clean scan is evidence about the source, not a proof
+that the reader cannot be reached another way, and no document may
+present it as one.
 
 **R3. The project wheel's own digest is not verified in the documented
 institutional install.** It cannot be, before a release exists to have a
@@ -603,7 +805,8 @@ enumerated by name in the scanner, with module-level trust still banned:
   untraced source; an unresolved value passed to `format`; a method
   called on the result of `split`, which returns a list and therefore
   does not carry the text origin forward.
-- **E5 — no method calls at all on pandas or numpy objects.** Policy
+- **E5 — no method calls at all on pandas objects (and none on numpy
+  objects, which `src/` cannot hold).** Policy
   case (b) accepts any method name on a value an allowlisted API
   produced, on the reasoning that the producing API was itself checked.
   That reasoning does not survive contact with these two libraries: a
@@ -613,12 +816,16 @@ enumerated by name in the scanner, with module-level trust still banned:
   reopened, through the returned object, everything E1's single-name
   enumeration closes. The scanner therefore holds a table of libraries
   whose instances may not be called through, with the exact method
-  names nonetheless permitted on them — currently none for either.
-  synthtwin's source reads those objects with an attribute, a subscript
-  or an operator and passes them back to the enumerated module-level
-  functions. Required red mutations: `frame.to_sql(...)` and
-  `array.tofile(...)` must each fail the scan, and a clean read
-  (`list(frame[name])`, `len(frame.columns)`) must stay green.
+  names nonetheless permitted on them — currently none. Since the numpy
+  withdrawal that table holds pandas alone, because no numpy object can
+  exist in `src/` for the rule to govern: the import that would produce
+  one is itself refused. synthtwin's source reads pandas objects with
+  an attribute, a subscript or an operator and passes them back to the
+  enumerated module-level functions. Required red mutations:
+  `frame.to_sql(...)` must fail the scan, `array.tofile(...)` must fail
+  it too (at the numpy import, which is where it is now stopped), and a
+  clean read (`list(frame[name])`, `len(frame.columns)`) must stay
+  green.
 - **E6 — `argparse.RawDescriptionHelpFormatter`.** Capability audit: a
   help-text formatter that argparse instantiates and calls to lay out
   the help screen; it formats strings, performs no I/O, and invokes
@@ -645,35 +852,50 @@ that makes the output self-contradictory is worse than the divergence it
 was hiding.
 
 **The rule now is that the computation itself is machine-independent**,
-so nothing has to be hidden. Four properties, each load-bearing, and
-each stated so a reviewer can check the code against it:
+so nothing has to be hidden. **Nothing is accumulated in floating point
+at all** (revision 2, review round 5), which is what makes that exact
+rather than nearly true. Four properties, each load-bearing, and each
+stated so a reviewer can check the code against it:
 
-1. every reduction starts from the sorted values, and every sum is
-   `math.fsum`, which computes the exact sum and rounds once. The result
-   therefore cannot depend on the order the rows arrived in;
-2. before any sum, the values are divided by a power of two taken from
-   the largest magnitude present. That division is exact, so it costs
-   nothing, and it puts every operand in [-1, 1] -- which is what makes
-   `math.fsum`'s own intermediate-overflow path unreachable. On raw
-   values `math.fsum` can raise, and *whether* it raises depends on the
-   order, so sorting alone would have made that worse rather than
-   better;
-3. the scale is reapplied once, after the square root, with
-   `math.ldexp`. Squaring the scale would reintroduce exactly the
-   overflow and underflow that the scaling exists to prevent;
-4. the deviations are recentred once before the second and third
-   moments. The mean carries up to half a unit in the last place of
-   error; every deviation inherits it as a common shift, and the
-   moments are quadratic and cubic in that shift.
+1. every finite binary64 value IS a whole number times a power of two,
+   and the module splits each value into exactly that. A column becomes
+   one shared power of two and one whole significand per value;
+2. the significands, their squares and their cubes are added as
+   ARBITRARY-PRECISION WHOLE NUMBERS. Whole-number addition neither
+   rounds nor depends on the order it is done in, so the three power
+   sums are exact and the row order cannot reach them;
+3. the mean, the sample variance and the moment skewness are then exact
+   fractions of those whole numbers, and each is rounded to binary64
+   exactly ONCE, at the end. The last digit is settled by comparing
+   whole numbers — a quotient against the midpoint between its two
+   candidates, a square root against the SQUARE of that midpoint — so
+   the rounding is the correct one on every platform, ties to even;
+4. a ladder rung is the same shape of computation: its position is
+   located in whole numbers (`(n-1) * num` split by `den`, because 0.99
+   has no exact binary spelling and the nearest one can move a rung
+   onto the wrong pair of neighbours), and the interpolation between
+   its two neighbours is one exact fraction rounded once.
 
-`**` is used nowhere in the numeric path. It calls the platform's
-`pow`, which no standard requires to be correctly rounded and which
-disagrees with `x*x` and `math.sqrt` on real inputs; those two are
-IEEE-754 operations and are exact to the last bit on every conforming
-platform. The percentile rungs are located by whole-number arithmetic
-(`(n-1) * num` split by `den`), because 0.99 has no exact binary
-spelling and the nearest one can move a rung onto the wrong pair of
-neighbours.
+`**` is used nowhere in the numeric path: it calls the platform's
+`pow`, which no standard requires to be correctly rounded. Every square
+is `x * x` on whole numbers and every square root is Newton's method on
+whole numbers, so both are exact by construction rather than by
+trusting a library to round well.
+
+**The floating-point reduction described here in revision 1 is retired
+(review round 5) and is recorded only as history.** It sorted the
+values, summed them with `math.fsum`, divided by a power of two taken
+from the largest magnitude before every sum to keep `math.fsum`'s own
+overflow path unreachable, reapplied the scale once after the square
+root with `math.ldexp`, and recentred the deviations once before the
+second and third moments. None of that is the algorithm now, and
+neither `math.fsum` nor `math.sqrt` is called anywhere in the
+statistics module — `math` is still on the scanner's enumerated list
+with those names on it (E2), which is a statement about the allowlist
+and not about what the code calls. Two `math` functions are still
+called, for a different job than the retired one: `frexp` splits a
+value into its whole significand and its power of two on the way in,
+and `ldexp` builds the single rounded result on the way out.
 
 **The accuracy contract (revision 2; the revision-1 tolerances below it
 are retired).** Frozen here and tested against the reference vectors:
@@ -703,18 +925,14 @@ third central moment cancels past what a 64-bit float can carry, so only
 an absolute accuracy contract was achievable. That was true of the
 *two-pass floating-point reduction* revision 1 used, and the revision
 mistook a property of that algorithm for a property of binary64. It is
-not one. Every value a `float` holds is an integer times a power of two.
-The statistics module now converts the column to exactly that form -- a
-shared power of two and one integer significand per value -- accumulates
-the power sums as **arbitrary-precision integers**, which cancel without
-error because Python integers do not round, and rounds **once**, at the
-end, to the nearest float. Cancellation of 1e32 costs nothing when
-nothing was approximated on the way in. The sample above now yields
--1.224744871391589e-16, the correctly rounded exact skewness. The
-contract is therefore tightened from absolute to correctly-rounded-or-
-adjacent for every statistic the reference vectors cover, and the ladder
-bracket above stays only because interpolated quantiles are defined in
-terms of two neighbours, not because of conditioning.
+not one: cancellation of 1e32 costs nothing to the whole numbers the
+four properties above accumulate, because nothing was approximated on
+the way in. The sample now yields -1.224744871391589e-16, the correctly
+rounded exact skewness. The contract is therefore tightened from
+absolute to correctly-rounded-or-adjacent for every statistic the
+reference vectors cover, and the ladder bracket above stays only
+because interpolated quantiles are defined in terms of two neighbours,
+not because of conditioning.
 
 **Values outside the representable range are refused, not approximated.**
 A number too large becomes an infinity and one too small collapses to
@@ -729,9 +947,13 @@ are different facts a generator must be able to tell apart.
 **The oracle.** The charter requires that numeric machinery not be its
 own oracle. `tools/reference/make_numeric_reference_vectors.py` computes
 the reference values from the exact rational values of the inputs, using
-`fractions` and `decimal` and importing none of the code it checks;
-every float64 it reports is *proved* correctly rounded by exact integer
-comparison against the midpoints to its neighbours. Its output is
+`fractions` and importing none of the code it checks — not synthtwin,
+not pandas, not numpy. **It no longer imports `decimal` at all**
+(review item P1-R2-F5): a high-precision decimal seed was how a square
+root came out negative, so every published value is built from whole
+numbers and the one rounding step is all-integer too. Every float64 it reports
+is *proved* correctly rounded by exact integer comparison against the
+midpoints to its neighbours. Its output is
 committed as a fixture, bound in the provenance manifest by generator,
 seed and digest, so CI rebuilds it and byte-compares it on every run.
 The golden profile hash remains, demoted to what it always was: a change
@@ -742,8 +964,8 @@ detector, not an oracle.
 1. `synthtwin profile` exists behind the path validator; the four Phase 0
    guards (offline static scan, decontamination + signed attestation,
    provenance, lock validation) all pass with the new code and
-   dependencies, and the socket guard stays green with pandas and numpy
-   imported.
+   dependencies, and the socket guard stays green with pandas imported,
+   and with the numpy that pandas loads for itself.
 2. Every taxonomy rule and every sentinel decision branch has a red/green
    fixture test; the failure catalog is fully tested, message by message.
 3. Golden profile hashes verified on every CI platform; the dependency
@@ -753,8 +975,12 @@ detector, not an oracle.
    enumeration in place with its red mutations.
 4. A profile of a neutral demonstration table is generated end-to-end in
    CI and its `publication_notes` match the suppression rules.
-5. The disclosure battery passes: no identifier value, no free-text
-   value, and no below-floor label appears in either output file.
+5. The disclosure battery passes: searching the COMPLETE serialized
+   document, settings block included, and the complete summary text,
+   using the exact spelling that was declared, finds no identifier
+   value, no free-text value, no below-floor label, and no spelling
+   named with `--keep-value` or `--missing-value` where its column's
+   own publication rules withhold it.
 6. Docs updated and consistent: README states what the profiler does, the
    two-pass read, the memory bound, and what the profile publishes;
    SECURITY.md carries the pandas fencing statement (P1-D2.1) and the
@@ -776,9 +1002,11 @@ detector, not an oracle.
    the statistics inside one file.
 3. **Is the API-enumeration approach for the scanner proportionate under
    A3?** Yes, and P1-D10 states the capability audit for each addition.
-   The alternative — trusting pandas or numpy at module level — is
-   exactly what D6.2 bans, and the enumeration is what keeps a future
-   `pandas.read_sql` or `numpy.load` from entering without a plan change.
+   The alternative — trusting pandas at module level — is exactly what
+   D6.2 bans, and the enumeration is what keeps a future
+   `pandas.read_sql` from entering without a plan change. numpy needs
+   no enumeration for this: it is not importable from `src/` at all, so
+   `numpy.load` is refused with the import that would reach it.
 
 ## Changes from the draft (revision 0)
 
@@ -811,13 +1039,16 @@ detector, not an oracle.
 
 ## Decisions taken during implementation (all recorded here, none silent)
 
-- **The identifier rule gained three guards** (P1-D4). Written as the
-  draft had it — uniqueness alone — it swallowed every all-different
-  numeric column, every date column, and every column of sentences. Each
-  of those would have cost the twin a whole distribution. The
-  `--identifier` option and the remark that names it are the answer to
-  the one case no rule can settle.
-- **E5 (no method calls on pandas or numpy objects) is new** (P1-D10).
+- **The identifier rule gained three guards, and was then withdrawn
+  altogether** (P1-D4). Written as the draft had it — uniqueness alone —
+  it swallowed every all-different numeric column, every date column,
+  and every column of sentences, each of which would have cost the twin
+  a whole distribution. The guards did not save it: review round 6
+  removed value-based inference entirely, so THE GUARDS ARE HISTORY
+  TOO. `--identifier` is now the only route to the role, and the remark
+  that names it is what a column of all-different values gets instead
+  of a guess.
+- **E5 (no method calls on pandas objects) is new** (P1-D10).
   It closes a hole the dependency introduction would otherwise have
   opened in the Phase 0 policy, and it was found by writing the code
   rather than by reading the plan.
@@ -840,6 +1071,8 @@ detector, not an oracle.
 ## Review record
 
 Revision 0 (draft) was written before Phase 0 closed and was never
-reviewed. This revision 1 is the document the implementation was written
-against, submitted for the combined plan-and-code review described in the
-sequencing note at the top. No part of Phase 1 is claimed as ratified.
+reviewed. Revision 1 is the document the implementation was first
+written against, submitted for the combined plan-and-code review
+described in the sequencing note at the top; revisions 2, 3 and 4
+record what the reviews of rounds 5, 6 and 7 changed. No part of Phase 1
+is claimed as ratified.

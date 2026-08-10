@@ -267,10 +267,13 @@ def _parse_arguments(argv: "list[str] | None") -> _Options:
         help=(
             "name a column that holds record numbers or codes rather than "
             "measurements, so that none of its values are published. "
-            "synthtwin never decides this for itself, because a column of "
-            "codes and a column of measurements can look identical; if "
-            "your table has an ID column, name it here. May be given more "
-            "than once"
+            "Naming it here is the ONLY way a column is given that "
+            "treatment: synthtwin never decides it from the values, "
+            "because a column of codes and a column of measurements can "
+            "look identical. Any column you name is covered, whatever its "
+            "values look like and whatever synthtwin would otherwise have "
+            "made of it -- so name an ID column, never a measurement. May "
+            "be given more than once"
         ),
     )
     parser.add_argument(
@@ -323,8 +326,14 @@ def _parse_arguments(argv: "list[str] | None") -> _Options:
             "what the first row of the file is: 'names' for the column "
             "names, 'data' if the table has no column names and the "
             "first row is already a record (the columns are then named "
-            "column_1, column_2, and so on). The default works out "
-            "which it is, and stops to ask when it cannot tell"
+            "column_1, column_2, and so on). Either of those settles the "
+            "question, whatever the file's own values look like. The "
+            "default reads the first row as the column names, which is "
+            "what a CSV file normally holds; when nothing in the file "
+            "settles it, the summary says the names were taken by that "
+            "convention and how to take it back, and when the file does "
+            "show the first row to be a record rather than names, "
+            "synthtwin stops and asks instead of choosing"
         ),
     )
     # parse_known_args rather than parse_args: argparse's own report of
