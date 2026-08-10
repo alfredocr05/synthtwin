@@ -811,7 +811,14 @@ jobs:
           target.write_text(fixtures.every_role_table(), encoding="utf-8", newline="\n")
           print(f"built {target} with a seeded neutral generator")
           MAKE
-          "$RUNNER_TEMP/fresh-env/bin/synthtwin" profile "$DEMO/table.csv"
+          # --identifier is the ONLY route to the identifier role since
+          # review round 6 withdrew inference, so the end-to-end check
+          # declares the column. Before that this step asserted the role
+          # was worked out from the values, and it went on asserting it
+          # for three rounds because ci.yml never runs on a developer
+          # machine -- the check outlived the rule it was checking.
+          "$RUNNER_TEMP/fresh-env/bin/synthtwin" profile "$DEMO/table.csv" \
+            --identifier record_code
           "$RUNNER_TEMP/fresh-env/bin/python" - <<'CHECK'
           import json
           import os
@@ -845,6 +852,23 @@ jobs:
           notes = " ".join(note["note"] for note in document["publication_notes"])
           if "shared by fewer than" not in notes:
               problems.append("the publication notes do not record the suppression")
+          # The declared identifier column publishes the SHAPE of its
+          # repetition and never a value (review item P1-R8-F4, owner
+          # decision 2026-08-10). Check both halves on a clean machine:
+          # the field is there, and it is a mapping of counts to counts.
+          codes = [c for c in document["columns"] if c["name"] == "record_code"][0]
+          shape = codes.get("n_distinct_by_occurrences")
+          if not isinstance(shape, dict) or not shape:
+              problems.append("the identifier column published no repetition shape")
+          else:
+              if sum(shape.values()) != codes["n_distinct"]:
+                  problems.append("the repetition shape does not sum to n_distinct")
+              if sum(int(k) * v for k, v in shape.items()) != codes["n_present"]:
+                  problems.append("the repetition shape does not sum to n_present")
+          if document.get("profile_version") != 3:
+              problems.append(
+                  f"unexpected contract version: {document.get('profile_version')}"
+              )
           for text in (json.dumps(document), summary):
               if "outlying" in text:
                   problems.append("a below-floor label reached an output file")
