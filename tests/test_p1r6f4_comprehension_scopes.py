@@ -25,12 +25,19 @@ all be resolved from what the walk had reached. The tests below hold
 the finished rule: no trust decision can reach the walk's stack, and
 the collector that fills the blind view is held to Python's own
 grammar, one binding form at a time, in each kind of scope.
+
+TWO of the mutations below are written in syntax that arrived in
+Python 3.12, and this project supports 3.10 upward. Those two split on
+`sys.version_info`; see `_PEP695_PARSES` below for why the split keeps
+the whole of the property on every supported version rather than
+trading the floor away for a green run.
 """
 
 import ast
 import importlib.util
 import pathlib
 import re
+import sys
 import textwrap
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -49,6 +56,28 @@ def _load_scanner():
 _SCANNER = _load_scanner()
 
 _PROVENANCE = "trace to validate_local_path"
+
+# PEP 695 -- `def name[T](...)` and the `type X = ...` statement -- is
+# syntax that Python 3.12 introduced. On 3.10 and 3.11 the two probe
+# modules that use it are not Python at all, so the scanner never
+# reaches the rule those two tests pin: `ast.parse` raises before any
+# rule runs.
+#
+# That is not a hole, because the scanner FAILS CLOSED. A file it
+# cannot parse comes back as one violation of its own (`_UNPARSEABLE`
+# below), so the module is refused rather than passed, which is the
+# behaviour that protects the project on those versions -- a security
+# control that cannot read a file must never call it clean. So the two
+# tests assert the specific rule where the syntax parses and the
+# refusal where it does not, and neither version is left asserting
+# nothing.
+_PEP695_PARSES = sys.version_info >= (3, 12)
+
+# The text the scanner reports for a file it could not parse, taken
+# from `scan_source`. It carries the reason from Python's own
+# SyntaxError after it, which differs between versions, so only the
+# scanner's own constant wording is matched here.
+_UNPARSEABLE = "could not be parsed as Python"
 
 
 def _scan_code(tmp_path, code):
@@ -283,6 +312,41 @@ def test_a_comprehension_target_that_is_not_a_name_is_refused(tmp_path):
     _assert_red(violations, "comprehension's loop variable")
 
 
+# -- an unreadable file is refused, on every supported version --------
+
+
+def test_a_file_the_scanner_cannot_parse_is_refused(tmp_path):
+    """A file the audit cannot read must never be treated as clean.
+
+    This is the property the two version-split tests below lean on, so
+    it is pinned here on its own and on EVERY supported version: the
+    source is broken in a way no Python parses, past or future. The
+    scanner is a security control, and a control that shrugs at a file
+    it could not read is worse than no control, because the run still
+    ends 0 and the reader believes the tree was audited.
+    """
+    violations = _scan_code(tmp_path, "def fetch(:\n    pass\n")
+    _assert_red(violations, _UNPARSEABLE)
+    assert len(violations) == 1, (
+        "an unparseable file is reported once, as the parse failure "
+        "itself: " + "\n".join(violations)
+    )
+
+
+def test_a_file_the_scanner_cannot_decode_is_refused(tmp_path):
+    """The same rule one step earlier: bytes that are not UTF-8 text.
+
+    `scan_files` reads every file as UTF-8 before anything is parsed. A
+    file that fails there is never handed to the parser at all, so it
+    needs its own refusal or it would leave the scan silently.
+    """
+    tree = tmp_path / "tree"
+    tree.mkdir()
+    (tree / "sample.py").write_bytes(b"value = '\xff\xfe not utf-8'\n")
+    violations = _SCANNER.scan_tree(tree)
+    _assert_red(violations, "could not be decoded as UTF-8 text")
+
+
 # -- the other lazily evaluated forms, refused rather than admitted ---
 
 
@@ -292,6 +356,11 @@ def test_a_type_parameter_list_is_refused(tmp_path):
     # string field and no store is ever recorded. Every `Path` in the
     # body is that parameter, not the import. The scope is not modelled,
     # so the form is refused.
+    #
+    # The square-bracket form is 3.12 syntax. On 3.10 and 3.11 this
+    # module does not parse, and the refusal that protects the project
+    # there is the parse refusal -- checked rather than skipped, so the
+    # floor really asserts that the module is turned away.
     violations = _scan_code(
         tmp_path,
         """
@@ -304,13 +373,20 @@ def test_a_type_parameter_list_is_refused(tmp_path):
             return pandas.read_csv(Path(validated))
         """,
     )
-    _assert_red(violations, "type parameters in square brackets")
+    if _PEP695_PARSES:
+        _assert_red(violations, "type parameters in square brackets")
+    else:
+        _assert_red(violations, _UNPARSEABLE)
 
 
 def test_a_type_alias_statement_is_refused(tmp_path):
     # What follows the '=' in a `type` statement is held and evaluated
     # on first use, in a scope of its own -- so the module-level store
     # below it has already run by then.
+    #
+    # `type` became a soft keyword in 3.12; on 3.10 and 3.11 the line
+    # is two names side by side and the module does not parse, so the
+    # same split as above applies.
     violations = _scan_code(
         tmp_path,
         """
@@ -328,7 +404,36 @@ def test_a_type_alias_statement_is_refused(tmp_path):
         Path = substitute_path
         """,
     )
-    _assert_red(violations, "'type' alias statement")
+    if _PEP695_PARSES:
+        _assert_red(violations, "'type' alias statement")
+    else:
+        _assert_red(violations, _UNPARSEABLE)
+
+
+def test_the_version_split_matches_what_the_interpreter_can_parse():
+    """`_PEP695_PARSES` must agree with the running interpreter.
+
+    The two tests above choose which message to assert from a version
+    comparison written by hand. If that comparison ever disagreed with
+    the interpreter actually running them, both would assert the wrong
+    half and the disagreement would never show. So the claim is checked
+    against `ast` itself rather than trusted.
+    """
+    try:
+        ast.parse("type Table = int\n")
+        ast.parse("def fetch[T](value):\n    return value\n")
+    except SyntaxError:
+        parses = False
+    else:
+        parses = True
+    assert parses is _PEP695_PARSES, (
+        "_PEP695_PARSES says "
+        + str(_PEP695_PARSES)
+        + " but this interpreter ("
+        + ".".join(str(piece) for piece in sys.version_info[:3])
+        + ") says "
+        + str(parses)
+    )
 
 
 # -- the repair is not a blanket refusal ------------------------------

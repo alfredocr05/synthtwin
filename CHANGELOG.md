@@ -189,6 +189,36 @@ reference document's proof is allowed to certify.
   things repeat, never which things, no spelling and no length. The
   version moves with the shape, as it did at round 7.
 
+### Repaired after the first hosted run of the Phase 1 suite
+
+Two checks passed on the machine they were written on and could not
+pass anywhere else. Both are defects in the checking, not in the
+product: the hosted matrix is the first place the declared floor
+(Python 3.10) and Windows were ever run, and it caught them at once.
+
+- **Two scanner mutations were written in Python 3.12 syntax and the
+  declared floor is 3.10.** `def name[T](...)` and `type X = ...` do
+  not parse before 3.12, so on 3.10 and 3.11 the probe module was not
+  Python and the scanner never reached the rule the two tests pin. The
+  scanner FAILS CLOSED -- a file it cannot parse comes back as one
+  violation of its own, so the module is refused rather than passed --
+  and that is now what those versions assert, while 3.12 and above
+  still assert the specific message. The choice is made from
+  `sys.version_info` and the choice itself is checked against `ast`, so
+  the two can never drift apart. A separate test pins the fail-closed
+  behaviour on every supported version with source no Python parses,
+  and a companion pins the same rule for bytes that are not UTF-8, so
+  neither route can become a silent pass.
+- **A test built a folder whose name carried a terminal escape
+  sequence, which Windows filenames cannot hold.** The property is
+  real -- a path or value carrying display controls must be shown,
+  never obeyed -- and it is kept on both sides. Where a filesystem
+  allows such a name the whole route still runs, from the folder on
+  disk through the command to the error stream. Where it does not, the
+  control arrives as what it really is, text, through the same caution
+  sentence and the same emitter; that half runs on every platform,
+  Windows included, whose terminals obey these sequences too.
+
 ### Earlier
 - Phase 0 public skeleton: package scaffold, `synthtwin` CLI stub, the
   offline guarantee's layered checks, the decontamination scanner and
