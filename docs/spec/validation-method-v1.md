@@ -130,12 +130,17 @@ twin's re-description can show an absence where the twin holds a
 present cell. **V2.4 governs the verdict: present and missing are
 counted from blank and non-blank cells, and the re-description's own
 absence classification is not consulted for them.** Every count that
-depends on presence is taken the same way. V2.1's re-description
-governs everything it alone can measure — the roles, the levels, the
-ladder positions, the styles — and it governs the disclosure gate of V5, where a
+depends on presence is taken the same way. **And presence is not two counts alone** (review item P3-C2-F2): which
+cells are present decides which cells a style map, a ladder or a
+distinctness count is taken over, so EVERY measurement whose input is
+the set of present cells is taken over the blank/non-blank split too,
+and the re-description's own absence classification is consulted for
+none of them. V2.1's re-description governs what does not depend on that
+split — which role a column reads as, which label a value folds to, how
+a cell is spelled — and it governs the disclosure gate of V5, where a
 collision can only move a column toward MORE withholding, never toward
-printing more. So the two rules never contend for the same number, and
-the corner R-P2-13 names costs a measurement rather than a verdict.
+printing more. The two rules therefore never decide the same number: one
+owns which cells are counted, the other owns how they read.
 
 ---
 
@@ -334,8 +339,10 @@ never evaluated without reading prose.
 
 **V7.1 Order.** The verdict summary first, then the honest bounds, then
 the fact-by-fact detail, then the analyst-expectations section, then the
-handling rule. Bytes are golden-tested; every interpolated string passes
-the display boundary once, label variants included.
+handling rule. Every interpolated string passes the display boundary
+once, label variants included. The report's normative byte layout and
+its golden hashes are revision 1's, with the completed entry table; this
+revision fixes the order and the obligations, not the bytes.
 
 **V7.2 The summary is generated from the census alone.** It states how
 many subchecks HELD, how many landed WITHIN their stated windows, how
