@@ -101,6 +101,7 @@ GOVERNING = (
     "docs/plans/phase-3-product.md",
     "docs/spec/profile-contract-v4.md",
     "docs/spec/generation-method-v1.md",
+    "docs/spec/validation-method-v1.md",
 )
 
 
