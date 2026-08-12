@@ -866,8 +866,16 @@ bytes and the validator's golden fixtures should be built once:
   **The complete independent recount identity**, computable from the
   written cells and the published map with no generator bookkeeping —
   writing recount(s) for the cells counted in style s, p(s) for the
-  published count, R for the published pool, and NW for the count of
-  non-whole parsed values among the cells:
+  published count, R for the published pool, and NW for the written
+  cells whose VALUE HAS NO POINT-FREE SPELLING — corrected from
+  "non-whole parsed values" on 2026-08-12 (review item P3-C2-F1) and
+  flagged for the owner as a wording measurement disproves rather than
+  a decision an implementer took: a whole value outside the fixed-point
+  window, such as one of size ten to the twentieth, is whole and still
+  has no point-free spelling the method may write, so "non-whole" would
+  let the identity demand a plain cell that cannot exist. Spellability
+  is the property the arithmetic needs, and it is equally beyond the
+  writer's choice:
   - recount(leading_zero) == p(leading_zero) and
     recount(leading_plus) == p(leading_plus) — the pool never uses
     the invention family;

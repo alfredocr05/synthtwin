@@ -404,6 +404,50 @@ def test_a_pooled_cell_the_ends_cannot_hold_is_spelled_by_its_value(
     assert named == [], [note.published for note in named]
 
 
+def test_a_re_spelled_whole_cell_cannot_buy_its_own_spill(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The regression for the circular recount (review item P3-C1-F2).
+
+    THIS IS THE ATTACK THE FIRST REPAIR LET THROUGH, and the reason it
+    has a test of its own: the recount counted the cells WRITTEN with a
+    point rather than the cells whose VALUE has no point-free spelling,
+    so a column that spelled a whole value `7.0` instead of `7` raised
+    its own spill by one and the arithmetic balanced against itself.
+    Every published count still looked met and the twin was wrong.
+
+    Re-spelling three whole cells as decimals must therefore be named,
+    and it must be named on the two clauses it actually breaks: the
+    plain total falls short, and the two canonical point-carrying forms
+    carry more between them than the published counts and the spill
+    allow. Reinstating the old written-style count turns this red,
+    which is what the earlier tamper test could not do -- it moved a
+    cell to `leading_zero`, which the exact leading-zero count catches
+    whichever way the spill is computed.
+    """
+    _unused, loaded = _described(
+        tmp_path, ["0.5"] * 3 + ["7"] * 40 + ["9.25"] * 3
+    )
+    twin = generation.generate(loaded, 0)
+    written = list(twin.columns[0])
+    assert generation._style_notes(loaded.columns[0], written) == []
+
+    tampered: list[str] = []
+    moved = 0
+    for cell in written:
+        if cell and "." not in cell and "e" not in cell and moved < 3:
+            tampered = tampered + [f"{cell}.0"]
+            moved = moved + 1
+            continue
+        tampered = tampered + [cell]
+    assert moved == 3, "the fixture no longer holds three whole cells"
+    notes = generation._style_notes(loaded.columns[0], tampered)
+    assert notes, "a whole cell re-spelled with a point must be named"
+    spoken = " ".join(note.published for note in notes)
+    assert "plain form" in spoken, spoken
+    assert "decimal point or a lower-case exponent" in spoken, spoken
+
+
 def test_the_repaired_style_identity_still_names_a_broken_column(
     tmp_path: pathlib.Path,
 ) -> None:

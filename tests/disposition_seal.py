@@ -352,8 +352,8 @@ SEALED: "dict[str, tuple[str, ...]]" = {
         "f8ec98921615b784",
         "fa8036a42aa55ee1",
         "fa9e944fb971af4f",
-        "fcb5cd5ef4cf7fa4",
         "fe070c40e11fca72",
+        "ff6c243fed60e84c",
     ),
     "docs/spec/profile-contract-v4.md": (
         "005ba67ee952ac14",
