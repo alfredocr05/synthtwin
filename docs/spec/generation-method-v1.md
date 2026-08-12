@@ -1114,11 +1114,17 @@ implementation that fails to put them there is defective, not
 approximate. G5.2's carrier step and the two answers above are what
 make the cells exist: the split gives way before a published count
 does, and the anonymous pool gives way before a named count does.
-**No shape a producer writes is left** (Phase 3 plan P3-D8.1): every
-published count of every producer-written description is placed
-exactly, because what a producer could once cost was the anonymous
-remainder, and a remainder names no form, so it is spelled by its own
-cells' values and there is no miss in it to name. This method grants
+**The remainder leaves no shape a producer writes** (Phase 3 plan
+P3-D8.1): what a producer could once cost THROUGH THE POOL is placed
+exactly now, because a remainder names no form and is spelled by its own
+cells' values. **One producer-reachable shape survives, and it is not
+the pool's** (review item P3-C2-F1): a column whose values are whole but
+lie outside the fixed-point window of G6.2 is published `plain` by a
+source that wrote it in figures, while the twin writes the canonical
+exponent form, so the plain count is missed and named. That is the
+window's own cost, it predates this repair, and the Phase 3 plan carries
+it as a defect for the owner rather than as a disposition this method
+grants. This method grants
 `numeric_styles` no lesser outcome anywhere, and the shapes listed
 below are reached only by a hand-written description whose own facts
 contradict each other — the same class of document G12's refusals

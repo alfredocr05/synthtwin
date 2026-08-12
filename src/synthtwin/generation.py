@@ -7158,10 +7158,11 @@ def _whole_numbers_need_code_room(
         f"valid, but synthtwin cannot build a twin column from it. It says "
         f"every value reads as a whole number, that {said}. The shortest "
         f"whole number written in the code alphabet without being figures "
-        f"alone is three characters long, like '1e0' -- the two-character "
-        f"spellings are a sign in front of a figure, and synthtwin never "
-        f"begins an invented value with a sign, because a spreadsheet "
-        f"reads it as a formula, {carries}. Your own table can hold "
+        f"alone that synthtwin will invent is three characters long, "
+        f"like '1e0'. Your table's own two-character ones, like '-3', "
+        f"put a sign in front of a figure, and synthtwin never begins a "
+        f"value it made up with a sign, because a spreadsheet reads it "
+        f"as the start of a formula, {carries}. Your own table can hold "
         f"these two facts together -- it holds them with the sign -- "
         f"but synthtwin cannot write a twin that does, so there is "
         f"nothing to build. "
@@ -7187,8 +7188,15 @@ def _no_twin_can_hold_it(first: str, second: str) -> str:
 
     So this tail says the true thing instead -- the twin is what cannot
     be written, the description is fine, and the two edits are offered
-    as choices about what the twin should carry rather than as repairs
-    to something broken.
+    as choices rather than as repairs to something broken. It promises
+    nothing about what the twin will then carry or what the report will
+    then say (review item P3-C3-F3): editing the whole-number fact to
+    false leaves a twin whose values still read as whole numbers and a
+    report that names the edited fact as missed, so a sentence saying
+    the twin carries the chosen fact would have been false on one of
+    the two edits it offers. What it does say is the part that holds
+    for both: the fact is no longer the table's, and the description is
+    the only thing left to compare against.
     """
     return (
         f"Nothing has been written and every file in the folder is as it "
@@ -7198,11 +7206,13 @@ def _no_twin_can_hold_it(first: str, second: str) -> str:
         f"values that hold both facts at once. Either of two edits to "
         f"the description file lets it build, and the twin then carries "
         f"the fact you chose rather than the one it replaced: {first}, "
-        f"or {second}. Either way the twin's record numbers stop "
-        f"matching your table's on the fact you gave up, which the "
-        f"report says in as many words. The description file is all "
-        f"synthtwin needs for this, so neither edit asks you for the "
-        f"table."
+        f"or {second}. Whichever you choose, that fact is no longer the "
+        f"one your table had, so the twin's record numbers differ from "
+        f"your table's in that respect -- the description you edited is "
+        f"the only thing synthtwin can compare against afterwards, and "
+        f"it will match the edited fact rather than the original one. "
+        f"The description file is all synthtwin needs for this, so "
+        f"neither edit asks you for the table."
     )
 
 

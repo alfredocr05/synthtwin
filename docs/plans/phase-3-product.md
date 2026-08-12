@@ -958,6 +958,26 @@ path by name
 (`test_no_invented_whole_record_number_opens_with_a_formula_character`),
 and the breach is stated rather than implied.
 
+**A SECOND defect the reviews found, also for the owner** (2026-08-12,
+review item P3-C2-F1). A producer column whose values are whole but lie
+outside the fixed-point window -- twenty cells of ten to the twentieth
+beside twenty of twice that, with two fractional ends -- publishes
+`{"plain": 40, "(withheld)": 6}`, because the source wrote those values
+in figures. The generator writes them in the canonical exponent form
+instead, so the twin holds no plain cell at all and the recount names a
+forty-cell shortfall. This is not the pooled-remainder defect and not a
+regression: it is the fixed-point window of the method's own canonical
+spelling meeting a source that wrote wider numbers plainly, and it has
+been there since the generator shipped. It falsified method G6.4's
+sentence that no shape a producer writes is left, which is corrected
+there rather than left standing.
+
+**The outcomes open to the owner are the same two as for the first**:
+widen what the twin may write for a whole value outside the window --
+which changes twin bytes and is a changelogged regeneration event under
+D12 -- or authorize the miss here and let the report name it, which is
+what the twin already does. Neither is an implementer's to take.
+
 ### P3-D8.2 Release preconditions (each verified, none assumed)
 
 1. Phase 3 code review record permits release, **and the review
