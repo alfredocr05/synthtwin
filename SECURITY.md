@@ -515,21 +515,62 @@ any of it before that.
   authentication is enabled on the hosting account. That dated owner
   statement is the whole of the account claim: the automation token does
   not expose account settings, so this is not an independent API
-  verification, and it is re-checked at the visibility flip. Two further
-  account practices that an earlier version of this document listed -
-  offline storage of recovery codes, and the absence of shared
-  credentials - are **not yet attested by the owner** and are therefore
-  not claimed here as active controls.
+  verification, and it was re-checked at the visibility flip. Two
+  further account practices - offline storage of recovery codes, and
+  the absence of shared credentials - were **attested by the owner at
+  the flip (2026-08-12)** and are recorded here on that attestation,
+  which is the whole of the claim.
 
-### Controls applied at the visibility flip
+### Controls applied at the visibility flip - THE ACTIVATION RECORD
 
-None of the following is in force until the activation record carries
-its API confirmation. This account tier cannot create
-branch or tag rulesets on a private repository at all: the rulesets API
-refuses with HTTP 403, "Upgrade to GitHub Pro or make this repository
-public." Each item below is applied and then confirmed through the API
-at the moment of the visibility flip, and every setting in the active
-list above is re-verified at that same moment.
+**The flip was executed on 2026-08-12**, immediately after the Phase 3
+plan landed at commit 2bf39079f7af32e5f73d29968637360d1ee461a8 with the
+full CI gate green. This account tier cannot create branch or tag
+rulesets on a private repository at all (the rulesets API refuses with
+HTTP 403, "Upgrade to GitHub Pro or make this repository public"), so
+each item below was applied at the moment of the flip and then
+confirmed through the API; the confirmations returned:
+
+- **Visibility:** `{"private": false, "visibility": "public"}`;
+  unauthenticated API reachability 200.
+- **Branch ruleset** `default-branch-protection` (id 20767221),
+  enforcement `active` on `~DEFAULT_BRANCH`, bypass actors `[]`
+  (`current_user_can_bypass: never`): `pull_request` (zero required
+  approvals - pull requests only, self-merge permitted only after the
+  required check), `required_status_checks` requiring exactly the
+  context `gate` bound to the GitHub Actions app (integration 15368),
+  `non_fast_forward` (force-push block), `deletion` (branch-deletion
+  block).
+- **Tag ruleset** `release-tag-protection` (id 20767236), enforcement
+  `active` on `refs/tags/v*`, bypass actors `[]`:
+  `required_signatures`, `update`, `deletion`, `non_fast_forward` - a
+  signed tag can be created, an unsigned one cannot, and no `v*` tag
+  can be moved or deleted. The accept/reject demonstration itself is a
+  release precondition (Phase 3 plan P3-D8.2) and is recorded when
+  performed.
+- **Fork pull-request run approval:**
+  `{"approval_policy": "all_external_contributors"}`.
+- **Re-verified at the same moment:** the Actions token remains
+  read-only (`default_workflow_permissions: "read"`,
+  `can_approve_pull_request_reviews: false`).
+
+**The pre-flip battery** (Phase 3 plan P3-D8.0) ran clean at the flip
+commit and is recorded in a signed note (SHA-256
+`7d2081eb28966d7c03052ffc35236e18c7fc99ab2be2f726820e535fb9458b4b`,
+signature
+`ad9fe597b616f566f2b87e24134ee9ee9016534a12aa040cb5fd5f736df4309b`,
+signed with the repository's attestation key in the
+`synthtwin-attestation` namespace and verifiable against
+`tools/decontamination/allowed_signers`): the tracked-tree content and
+path scan; an all-objects history scan over every blob and tree entry,
+reachable and unreachable, in which 66 never-committed, never-pushed
+local index leftovers were found, pruned and re-scanned clean while
+the publicly fetchable object set was clean in both passes; the
+offline import scan; the provenance check; and the maintainer-private
+scanner coverage battery (2065/2065 entries detected end-to-end
+through the public scanner, zero misses).
+
+The list below is the ratified control set the record above applies.
 
 The deferred branch and tag controls are exactly these eight:
 
