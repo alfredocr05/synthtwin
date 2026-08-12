@@ -29,10 +29,10 @@ with the project's documented offline posture -- a guard, not a
 sandbox. A Python audit hook only sees what emits audit events, and
 native code need not emit any. The controls that actually hold are
 that every fixture generator is repository-reviewed code and that CI
-are the authoritative automated verification (a standing rule, not a
-mechanically enforced merge barrier while the repository is private);
-this runner exists to catch mistakes early
-and loudly, not to confine a hostile program.
+is the authoritative automated verification (from Phase 3's visibility
+flip, a mechanically enforced merge requirement under the branch
+ruleset; see SECURITY.md's activation record); this runner exists to
+catch mistakes early and loudly, not to confine a hostile program.
 
 This script uses only the Python standard library. Its use of ``runpy``
 is permitted in tools/ (the D6 restriction applies to src/ only).
