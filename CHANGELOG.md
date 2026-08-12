@@ -6,6 +6,27 @@ exists).
 
 ## [Unreleased]
 
+### Added in Phase 3: the ratified plan, and the repository goes public
+- The Phase 3 plan (`docs/plans/phase-3-product.md`): the validate
+  command and its plain-language quality report, the repair of the two
+  open registry defects, the visibility flip, and the first release --
+  ratified at plan review round 5 after four rejecting rounds whose
+  every item is trailed in the plan's own review record; the five
+  reviews are in `docs/plans/reviews/`. The plan joined the governing
+  set under the disposition seal in the same change, so `GOVERNING`
+  now holds four documents and the guard's exact lists moved with it.
+- Phase 2 closed by owner decision (2026-08-12), its review record
+  standing exactly as written; the charter's phase ledger now says so,
+  and Phase 3 is current.
+- Stage 1 of the plan's claim migration: every sentence describing the
+  repository as private, on every live surface including the CI
+  workflow and the tools, is retired in favor of the visibility-flip
+  story, enforced by a new whole-tree test
+  (`tests/test_p3_flip_migration.py`) because the claim inventory's
+  surface list deliberately excludes `.github/` and `tools/`. The
+  historical records -- the changelog and the plans -- keep their own
+  dates' truth.
+
 ### Added
 - Phase 1, the profiler: `synthtwin profile <table>` reads a local CSV
   table and writes two files -- the machine-readable profile the twin

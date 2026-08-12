@@ -25,9 +25,9 @@ cat > "$NEW_HOOK" <<'HOOKBODY'
 #!/bin/sh
 # synthtwin advisory pre-push hook: runs the three guards on the tree
 # about to be pushed. Advisory by design (plan D13): it can be bypassed
-# with --no-verify. CI remains the authoritative check; note that while
-# the repository is private no branch ruleset is applied, so the CI gate
-# is the standing rule rather than a mechanically enforced one.
+# with --no-verify. CI remains the authoritative check; from Phase 3's
+# visibility flip the branch ruleset makes the CI gate a mechanically
+# enforced merge requirement (see SECURITY.md's activation record).
 set -e
 cd "$(git rev-parse --show-toplevel)"
 PY=".venv/bin/python"; [ -x "$PY" ] || PY="python3"

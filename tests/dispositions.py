@@ -82,19 +82,23 @@ import hashlib
 import pathlib
 import typing
 
-# -- the three governing documents, and how a passage of one is named --
+# -- the governing documents, and how a passage of one is named --
 #
-# The plan is the source of truth and both specifications restate it, so
-# a lowering can be written into any of the three. They are named here,
-# relative to the repository root, because the seal file and the guard
-# have to split them into passages the same way -- a splitter that
-# disagreed with the one that wrote the seal would report every passage
-# as unsealed.
+# The Phase 2 plan is the source of truth for the generator's
+# obligations and both specifications restate it, so a lowering can be
+# written into any of the three. The Phase 3 plan joined the set at its
+# ratification (its own P3-D5): it fixes the validator's obligations,
+# and a quieter sentence written into it would be the same defect this
+# seal exists to catch. They are named here, relative to the repository
+# root, because the seal file and the guard have to split them into
+# passages the same way -- a splitter that disagreed with the one that
+# wrote the seal would report every passage as unsealed.
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
 
 GOVERNING = (
     "docs/plans/phase-2-generator.md",
+    "docs/plans/phase-3-product.md",
     "docs/spec/profile-contract-v4.md",
     "docs/spec/generation-method-v1.md",
 )

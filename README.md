@@ -1,6 +1,6 @@
 # synthtwin
 
-> **Status: early (Phase 2).** synthtwin is **not on PyPI**. What
+> **Status: early (Phase 3).** synthtwin is **not on PyPI**. What
 > exists today is both halves of the workflow -- the profiler, which
 > reads a CSV table on your computer and describes it, and the
 > generator, which builds the synthetic twin from that description and
@@ -13,14 +13,15 @@
 > "What the twin does not carry" below, which is the section to read
 > before any other.
 
-> **This repository is private for now.** It is private by owner
-> decision and becomes public when the owner judges the application
-> readier for release. The open-source commitment is unchanged: there is
-> no private core, every line of the product lives here, and nothing
-> here depends on anything a contributor cannot see. The governance
-> controls that require a public repository - branch and tag rulesets
-> among them - are listed in `SECURITY.md` as deferred until that
-> moment, never as active.
+> **This repository goes public at Phase 3's visibility flip** - the
+> owner decision recorded in the Phase 3 plan, executed the moment that
+> plan landed on the default branch. The open-source commitment is
+> unchanged: there is no private core, every line of the product lives
+> here, and nothing here depends on anything a contributor cannot see.
+> The governance controls that required a public repository - branch
+> and tag rulesets among them - are applied at the flip, and their
+> evidence lands in `SECURITY.md`'s activation record; no control is
+> claimed before its evidence exists.
 
 synthtwin creates a **synthetic twin** of a tabular dataset: a table
 with the same shape as yours, and with each column behaving like the
@@ -415,10 +416,9 @@ machine with no network it simply fails. CI runs exactly the two
 commands above on every build, against the wheel produced inside a
 container with no network.
 
-While the repository is private, that clone works only from an account
-the owner has granted access, and Git asks you to authenticate first; an
-unauthenticated clone fails. Once the repository becomes public, the same
-commands work for anyone, with no account and no authentication.
+From Phase 3's visibility flip onward the repository is public and
+these commands work for anyone, with no account and no authentication;
+the hash-verified procedure itself is the same either way.
 
 Running `synthtwin` with no arguments prints the version and what the
 tool can do today.
@@ -437,7 +437,8 @@ outbound MIT, no CLA. See `LICENSE` for the full text.
 - `SECURITY.md` - the threat model, the offline guarantee and the exact
   scope of its automatic checks, every named residual risk, how an
   auditor verifies each layer, and which governance controls are active
-  now versus deferred until the repository becomes public.
+  now, with the activation record of the controls applied at the
+  visibility flip.
 - `CONTRIBUTING.md` - the plan-first process and the standing rules every
   change must follow.
 - `docs/plans/` - the written plans and their adversarial review record.

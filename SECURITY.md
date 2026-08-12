@@ -407,8 +407,9 @@ and runs the whole test suite against them.
    permissions through the GitHub API and confirm
    `default_workflow_permissions` is `read` and
    `can_approve_pull_request_reviews` is false. Do not expect a branch or
-   tag ruleset to come back: those are not applied while the repository
-   is private, and the Governance section below lists them as deferred
+   tag ruleset to come back: those could not exist on the private
+   repository, and the Governance section below records them as applied
+   at the visibility flip
    with the exact API reason.
 
 ## The decontamination model
@@ -453,20 +454,25 @@ vocabulary, no identifiers. The mechanism:
 
 ## Governance and the narrowed tamper claim
 
-The repository is **private today** by owner decision, and becomes public
-when the owner judges the application readier for release (owner decision
-recorded 2026-08-07 in the Phase 0 plan; the open-source commitment
-itself is unchanged). Private mode decides which governance controls can
-exist at all, so this section separates what is running now from what
-waits for that moment. Nothing in the deferred list is in force. Do not
-rely on any of it.
+The repository **goes public at Phase 3's visibility flip** - the owner
+decision recorded in the Phase 3 plan, superseding the 2026-08-07
+private-mode decision and executed the moment that plan landed on the
+default branch (the open-source commitment itself is unchanged).
+Private mode decided which governance controls could exist at all, so
+this section separates what has been running all along from what the
+flip applies. Nothing in the flip-applied list is in force until the
+activation record below carries its API confirmation. Do not rely on
+any of it before that.
 
 ### Controls active now
 
-- **How changes reach the default branch.** This is a one-maintainer
-  private repository with no branch ruleset applied, so the honest
-  description of today's reality is direct pushes to the default branch
-  by the maintainer, with no pull request required. Every push runs the
+- **How changes reach the default branch.** Until the flip this was a
+  one-maintainer private repository with no branch ruleset applied -
+  direct pushes to the default branch by the maintainer, no pull
+  request required - and the plan-landing commit itself travelled that
+  way. From the flip, the ruleset in the activation record governs:
+  pull requests only, the aggregate gate required, self-merge only
+  after green. Every push runs the
   full CI gate and no change is treated as done until that gate is
   green, but nothing mechanically blocks a push whose gate later turns
   red. The pull-request-only enforcement is in the deferred list below.
@@ -515,9 +521,10 @@ rely on any of it.
   credentials - are **not yet attested by the owner** and are therefore
   not claimed here as active controls.
 
-### Controls deferred until the repository becomes public
+### Controls applied at the visibility flip
 
-None of the following is in force. This account tier cannot create
+None of the following is in force until the activation record carries
+its API confirmation. This account tier cannot create
 branch or tag rulesets on a private repository at all: the rulesets API
 refuses with HTTP 403, "Upgrade to GitHub Pro or make this repository
 public." Each item below is applied and then confirmed through the API
@@ -541,8 +548,8 @@ The deferred branch and tag controls are exactly these eight:
 
 One further setting is deferred for its own recorded reason:
 
-- **Fork pull-request run approval.** It cannot be set while the
-  repository is private: the API refuses the change with HTTP 422,
+- **Fork pull-request run approval.** It cannot be set on a
+  private repository: the API refuses the change with HTTP 422,
   "Fork PR approval is not allowed for private repositories." It is
   structurally unavailable rather than merely unset, and it is applied
   and verified at the visibility flip along with the eight items above.
@@ -587,6 +594,5 @@ vulnerability**. Please do not open a public issue for a suspected
 vulnerability. This is a one-person project; reports are acknowledged as
 fast as one person can, normally within a few days.
 
-While the repository is private, that page is reachable only by the
-maintainer and by accounts the owner has granted access; the route opens
-to everyone at the moment the repository becomes public.
+That page opens to everyone at the visibility flip; before the flip it
+was reachable only by accounts the owner had granted access.

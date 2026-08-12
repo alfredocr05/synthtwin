@@ -40,12 +40,11 @@ from, not a promise that no twin row can equal a real one.
 1. **Open source by commitment; open by default in the code.** There is
    no private core: every line of the product lives in this repository,
    and nothing here depends on anything a contributor cannot see. The
-   repository itself is **temporarily private** by owner decision
-   (recorded in the Phase 0 plan) and becomes public when the owner
-   judges the application readier; write every line as though a stranger
-   reads it tomorrow, because one will. The controls that require a
-   public repository are listed as deferred in SECURITY.md and applied
-   at that moment.
+   repository goes public at Phase 3's visibility flip - the owner
+   decision recorded in the Phase 3 plan, executed the moment that plan
+   landed - so every line IS read by strangers; write it that way. The
+   controls that required a public repository are applied at the flip
+   and recorded in SECURITY.md's activation record.
 2. **Zero-code UX.** A researcher who has never programmed can run the
    whole workflow. No configuration files to hand-write, no flags that
    require reading source, and every message written for a human.
@@ -181,7 +180,7 @@ private prototype only behind a ratified public method specification
 with frozen neutral reference vectors, checked by the reviewer before
 the implementation they anchor exists.
 
-**The current phase is Phase 2.** Each entry below carries its own
+**The current phase is Phase 3.** Each entry below carries its own
 state, so no reader has to work out from a date which of them is
 running.
 
@@ -192,12 +191,14 @@ running.
   first runtime dependencies enter under the reviewed dependency
   protocol. *Complete*; see `docs/plans/phase-1-profiler.md`.
 - **Phase 2 - the generator:** build the twin from the profile alone;
-  the public method specification and frozen reference vectors are a
-  blocking deliverable here. *Current: built, and in adversarial code
-  review*; see `docs/plans/phase-2-generator.md` and its review record.
+  the public method specification and frozen reference vectors were a
+  blocking deliverable here. *Complete - closed by owner decision
+  2026-08-12, with its review record standing exactly as written*; see
+  `docs/plans/phase-2-generator.md`. Closure is an owner act, not a
+  review verdict, and nothing describes Phase 2 as review-ratified.
 - **Phase 3 - the end-to-end product:** profile, generate, and validate
-  through one zero-code CLI; earliest possible first PyPI release. *Not
-  started.*
+  through one zero-code CLI; earliest possible first PyPI release.
+  *Current*; the ratified plan is `docs/plans/phase-3-product.md`.
 - **Phase 4 - comprehensive column handling:** the full range of column
   types, rare categories, and missing-data patterns. *Not started.*
 - **Phase 5 - relationships and fidelity depth:** cross-column

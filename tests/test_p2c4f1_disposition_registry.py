@@ -112,11 +112,16 @@ REVIEWS = REPO_ROOT / "docs" / "plans" / "reviews"
 
 DOCUMENTS = (("contract", CONTRACT), ("method", METHOD), ("plan", PLAN))
 
-# The same three documents under the names the seal files them by.
+# The governing documents under the names the seal files them by. The
+# Phase 3 plan joined the set at its ratification (its P3-D5); the
+# registry's obligation-parsing walks the three Phase 2 documents
+# above, and the seal covers all four.
+PLAN3 = REPO_ROOT / "docs" / "plans" / "phase-3-product.md"
 RELATIVE = {
     "docs/spec/profile-contract-v4.md": CONTRACT,
     "docs/spec/generation-method-v1.md": METHOD,
     "docs/plans/phase-2-generator.md": PLAN,
+    "docs/plans/phase-3-product.md": PLAN3,
 }
 
 
@@ -309,8 +314,12 @@ def test_the_seal_covers_the_three_documents_and_is_not_empty() -> None:
     assert set(RELATIVE) == set(dispositions.GOVERNING)
     for name, path in sorted(RELATIVE.items()):
         assert path.exists(), name
-        assert len(dispositions.passages(path)) > 150, name
-        assert len(disposition_seal.SEALED[name]) > 150, name
+        # The floor is a vacuity check -- a seal over a handful of
+        # passages would be a seal in name only. The three Phase 2
+        # documents each split into many hundreds; the Phase 3 plan
+        # splits into about 150.
+        assert len(dispositions.passages(path)) > 100, name
+        assert len(disposition_seal.SEALED[name]) > 100, name
 
 
 def test_no_fourth_governing_document_can_appear_unsealed() -> None:
@@ -339,6 +348,7 @@ def test_no_fourth_governing_document_can_appear_unsealed() -> None:
         "phase-0-public-skeleton.md",
         "phase-1-profiler.md",
         "phase-2-generator.md",
+        "phase-3-product.md",
     ], plans
     for relative in dispositions.GOVERNING:
         assert (REPO_ROOT / relative).exists(), relative

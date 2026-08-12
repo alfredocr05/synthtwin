@@ -4,12 +4,12 @@ This is the canonical brief for the adversarial reviewer. It lives in
 the repository and replaces the earlier private parent-folder brief.
 Historical note: the project's working name changed to `synthtwin`
 before the first commit; older private planning documents may use the
-previous name. Repository status: temporarily private by owner decision
-(Phase 0 plan, owner-decision records); the open-source commitment is
-unchanged, and the governance controls that require a public repository
-are enumerated as deferred in SECURITY.md. Hold claims to that
-distinction: a control listed as deferred must never be described
-anywhere as being in force.
+previous name. Repository status: public as of Phase 3's
+visibility flip (owner decision recorded in the Phase 3 plan); the
+governance controls that required a public repository are applied at
+the flip and recorded in SECURITY.md's activation record. Hold claims
+to the standing distinction: a control must never be described
+anywhere as being in force before its recorded evidence exists.
 
 ## Role
 

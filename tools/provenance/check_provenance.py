@@ -51,9 +51,9 @@ socket, process, and native-call audit events. That runner is a
 best-effort in-process guard aligned with the project's documented
 offline posture -- a guard, not a sandbox: a generator is
 repository-reviewed code, and the CI checks are the authoritative
-automated verification (note that while the repository is private no
-branch ruleset is applied, so CI is the standing rule rather than a
-mechanically enforced merge barrier; see SECURITY.md).
+automated verification (from Phase 3's visibility flip, a mechanically
+enforced merge requirement under the branch ruleset; see SECURITY.md's
+activation record).
 
 Exit codes: 0 = clean; 1 = policy violation (unlisted data file, byte
 mismatch, oversized fixture, broken generator); 2 = the checker could not
@@ -440,9 +440,9 @@ def rebuild_fixture(root: Path, entry: dict) -> tuple[bytes | None, str | None]:
     events. This is a best-effort in-process guard aligned with the
     project's documented offline posture -- a guard, not a sandbox: a
     generator is repository-reviewed code, and the CI checks are the
-    authoritative automated verification (a standing rule, not a
-    mechanically enforced merge barrier while the repository is
-    private). The runner exists to catch mistakes early and loudly.
+    authoritative automated verification (a standing rule
+    until Phase 3's visibility flip, and a mechanically enforced merge
+    requirement from it). The runner exists to catch mistakes early and loudly.
     """
     generator = root / entry["generator"]
     if not generator.is_file():

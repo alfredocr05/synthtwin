@@ -1,9 +1,9 @@
 # CI for synthtwin Phase 0 -- plan D9, with the D5 build-job requirements.
 #
-# Every job below feeds the single "gate" job. Once a branch ruleset is
-# applied it will require exactly the gate context (plan D14); while the
-# repository is private that ruleset is deferred and is NOT in force, so
-# nothing here mechanically blocks a push (see SECURITY.md). Pinning policy (plan D5): every
+# Every job below feeds the single "gate" job. From Phase 3's
+# visibility flip the branch ruleset requires exactly the gate context
+# (plan D14) and mechanically blocks a merge whose gate is not green
+# (see SECURITY.md's activation record). Pinning policy (plan D5): every
 # action is pinned to a full commit SHA (the human-readable tag sits in a
 # comment next to each SHA), and the build container image is pinned to
 # its OCI index digest. Action SHAs and the image digest were resolved on
@@ -1293,9 +1293,9 @@ jobs:
         run: python -m pytest
 
   gate:
-    # Plan D9 / D14: the single aggregate status context, and the one
-    # that WILL be the required context once a branch ruleset is applied
-    # (deferred while the repository is private; see SECURITY.md). Runs always, and
+    # Plan D9 / D14: the single aggregate status context, the required
+    # context under the branch ruleset applied at Phase 3's visibility
+    # flip (see SECURITY.md's activation record). Runs always, and
     # goes green only when every job above succeeded (a skipped or
     # cancelled job is a failure here, not a pass).
     needs:
