@@ -66,17 +66,20 @@ beside it, in the terms SECURITY.md already uses, and a clean scan
 should be read as exactly that and no more.
 
 Policy enforced (plan D6.2, a positive AST/name-binding policy;
-Phase 1 additions E1-E4 in plan phase-1-profiler.md, P1-D10):
+Phase 1 additions E1-E5 in plan phase-1-profiler.md, P1-D10; Phase 2
+additions E7-E9 in plan phase-2-generator.md, P2-D13):
 
-* Allowed modules for src/: argparse, csv, dataclasses, json, pathlib,
-  typing, sys (but sys.modules and sys.path may never be read or
-  written); from os only the enumerated os.path helpers, os.fspath,
+* Allowed modules for src/: argparse, csv, dataclasses, json, math,
+  pathlib, typing, sys (but sys.modules and sys.path may never be read
+  or written); from os only the enumerated os.path helpers, os.fspath,
   os.getcwd, os.lstat, and read-only os.environ; from
-  importlib.metadata only the version() function; and the two Phase 1
-  runtime dependencies numpy and pandas, each reduced to the exact
-  attribute names enumerated below. Imports of the synthtwin package's
-  own modules are allowed because those files are scanned too. Every
-  other import is a violation.
+  importlib.metadata only the version() function; the runtime
+  dependency pandas, reduced to read_csv alone; and, from numpy,
+  `import numpy.random` and the single name numpy.random.default_rng
+  (extension E7) -- no other numpy module and no other numpy attribute
+  is reachable, by import or by attribute step. Imports of the
+  synthtwin package's own modules are allowed because those files are
+  scanned too. Every other import is a violation.
 * NO MODULE-LEVEL TRUST. Membership in an allowed module proves
   nothing about what an attribute can do, so every allowed module's
   usable attribute names are enumerated one by one in
@@ -441,13 +444,31 @@ attribute absent from it is not allowed at all:
   enumerated os.path helper (join, exists, isfile, dirname, ...) is
   a pure path-text or single-metadata function: data.
 * importlib.metadata: version: data.
-* csv (Phase 1 extension E3): reader (dialect SLOT -- a dialect class
-  is instantiated by the library; every other parameter is a plain
-  text or truth-value dialect setting); field_size_limit (reads and
-  writes one integer of module state, used to raise and then restore
-  the per-field cap); Error (an exception type). None of the three
-  performs I/O of its own: reader consumes an iterable of text lines
-  that the caller has already opened, and yields lists of text.
+* csv (Phase 1 extension E3, extended by Phase 2 extension E9): reader
+  (dialect SLOT -- a dialect class is instantiated by the library;
+  every other parameter is a plain text or truth-value dialect
+  setting); field_size_limit (reads and writes one integer of module
+  state, used to raise and then restore the per-field cap); Error (an
+  exception type); and writer (dialect SLOT in BOTH its positional and
+  its keyword form -- the entry the shipped table carried for reader
+  alone). None of the four performs I/O of its own: reader consumes an
+  iterable of text lines the caller has already opened and yields
+  lists of text, and writer formats rows and hands the text to the
+  write method of the object it was constructed over.
+  That last clause is why E9 enumerates three things beyond the name.
+  THE OUTPUT HANDLE: csv.writer calls the write method of whatever it
+  is handed, so it may be constructed only over a handle this audit
+  watched being opened from a locally validated path
+  (validate_local_path, then pathlib.Path, then .open(...) -- the
+  transaction's own output target), never over a caller-supplied
+  object, which would send the twin somewhere else entirely. THE
+  METHODS on the value it returns are exactly writerow and writerows,
+  and no attribute of it may be read at all. THE ROWS handed to those
+  two methods must be sequences built under this audit's eyes -- a
+  display of first-party values, a comprehension whose element is one,
+  or a value this package's own code returned -- because the writer
+  runs the iteration and text protocols of every row and every cell it
+  is given.
 * math (Phase 1 extension E2, revised at round 1): fsum, frexp,
   isfinite, ldexp, sqrt. Every one is a pure numeric function of
   numbers; none takes a callable, none performs I/O, and each is a
@@ -456,9 +477,11 @@ attribute absent from it is not allowed at all:
   Phase 1 review showed that numpy's reductions made the published
   statistics depend on row order and on magnitude, so the profiler now
   computes them itself under the rules in taxonomy.py's docstring, and
-  imports numpy nowhere. Nothing else from math is allowed -- prod and
-  sumprod are reductions with their own ordering behaviour, and the
-  trigonometric and special functions are not correctly rounded.
+  reaches no numpy reduction at all. That is still true: what E7 admits
+  below is one random stream and nothing arithmetic. Nothing else from
+  math is allowed -- prod and sumprod are reductions with their own
+  ordering behaviour, and the trigonometric and special functions are
+  not correctly rounded.
 * pandas (Phase 1 extension E1): read_csv, and nothing else. Capability
   audit: read_csv opens its first argument, which may be a path, an
   open file, or a URL, so it IS network-capable. synthtwin never hands
@@ -474,12 +497,47 @@ attribute absent from it is not allowed at all:
   keyword-only in the supported pandas versions, so no positional slot
   can exist. Values returned by read_csv are api-instances under
   policy case (b).
+* numpy (Phase 2 extension E7, with the object policy E8): the module
+  numpy.random, and from it default_rng, and NOTHING else -- no
+  numpy.array, no numpy.load, no other numpy submodule, and no
+  numpy.random attribute but that one. Capability audit: default_rng
+  builds one bit generator from a seed and performs no I/O, starts no
+  process and loads no code; its arguments are a seed and (in newer
+  versions) a keyword the src tree never writes. What it RETURNS is
+  where the audit continues, because a library object is not covered
+  by the enumeration that produced it (E8, and the three surfaces are
+  described at _RESTRICTED_SURFACES below): the generator answers to
+  exactly one method, integers, whose five argument slots must each
+  hold a first-party value; the array integers returns answers to no
+  method and no attribute at all; and a word taken out of that array,
+  by index or by iteration, is still a library scalar carrying dump
+  and tofile, so it keeps a surface of its own until int() turns it
+  into a first-party Python whole number. spawn is not reachable: it
+  is a method of the generator and the generator's method list holds
+  one name.
 * Accepted built-ins: sorted, min, and max (key SLOT); map and
   filter (the function argument SLOT); the two-argument form of iter
   (the callable argument SLOT); print (file SLOT -- print invokes
   the write method of whatever object sits there); every other
-  accepted built-in takes data (numbers, text, iterables) and never
-  invokes an argument it is handed.
+  accepted built-in takes data (numbers, text, iterables).
+  WHAT "TAKES DATA" DOES AND DOES NOT MEAN, corrected here because the
+  older wording claimed these never invoke an argument they are handed
+  and that is not true of a single one of them. len runs the object's
+  __len__; bool and every truth test run __bool__; iter, next and every
+  for-loop and comprehension run __iter__ and __next__; int, float,
+  str, repr and hash run __index__ or __int__, __float__, __str__,
+  __repr__ and __hash__; format and every f-string run __format__;
+  sorted and the comparisons run __lt__. An object handed to any of
+  them therefore runs a method of its own. The narrower thing the
+  audit does establish is what this list is for: each of these runs
+  ONE named protocol method of its argument and returns a built-in
+  value; none of them accepts a callable and calls it, and none
+  reaches the network, starts a process, or loads code. Where the
+  object at that position came from the caller, the method that runs
+  is the caller's own, in the caller's own process -- residual 1 at
+  the top of this docstring, and the reason the enumerated slots
+  above, the restricted-object surfaces, and the first-party argument
+  rules of E8 and E9 exist at all.
 
 Adding a name to any enumeration above is a policy decision reviewed
 against the threat model, not a routine code change.
@@ -509,7 +567,7 @@ _FIRST_PARTY_ROOT = "synthtwin"
 # _policy_for because their messages are more specific.)
 _ALLOWED_MODULE_ATTRS: "dict[str, frozenset[str]]" = {
     "argparse": frozenset({"ArgumentParser", "RawDescriptionHelpFormatter"}),
-    "csv": frozenset({"Error", "field_size_limit", "reader"}),
+    "csv": frozenset({"Error", "field_size_limit", "reader", "writer"}),
     "dataclasses": frozenset(
         {
             "MISSING",
@@ -574,6 +632,14 @@ _ALLOWED_MODULE_ATTRS: "dict[str, frozenset[str]]" = {
     "math": frozenset(
         {"fsum", "frexp", "isfinite", "ldexp", "sqrt"}
     ),
+    # Extension E7. The key is the TWO-COMPONENT module path, which is
+    # the shape os.path already uses here: it makes numpy.random the
+    # module the one-attribute-step rule counts from, so
+    # numpy.random.default_rng is one step and nothing else from numpy
+    # is reachable at all. Bare `numpy` is a known module path too (see
+    # _KNOWN_MODULE_PATHS) so that any other attribute of it lands in
+    # the numpy branch of _policy_for with a message that says why.
+    "numpy.random": frozenset({"default_rng"}),
     "pandas": frozenset({"read_csv"}),
     "pathlib": frozenset({"Path"}),
     "sys": frozenset(
@@ -608,6 +674,10 @@ _KNOWN_MODULE_PATHS = frozenset(_ALLOWED_MODULE_ATTRS) | {
     "os.path",
     "importlib",
     "importlib.metadata",
+    # numpy itself names a module and nothing usable: naming it here
+    # keeps `numpy.anything` inside the module-path machinery, where
+    # the numpy branch of _policy_for refuses it by name (E7).
+    "numpy",
 }
 
 _REFLECTION_PRIMITIVES = {
@@ -712,7 +782,7 @@ _TEXT_PRODUCING_BUILTINS = {"format", "repr", "str"}
 
 # Libraries whose api-instances may NOT be called through at all
 # (Phase 1 extension E5), with the exact method names that are
-# nonetheless permitted on them -- currently none for either.
+# nonetheless permitted on them -- none for either library as a whole.
 #
 # Policy case (b) accepts any method name on a value an allowlisted API
 # produced, because the API that produced it was itself checked. For
@@ -721,16 +791,20 @@ _TEXT_PRODUCING_BUILTINS = {"format", "repr", "str"}
 # these two: a pandas frame carries writers that reach the network of
 # their own accord (to_sql, to_gbq, and the URL-accepting to_* family),
 # and a numpy array carries tofile and dump. Accepting arbitrary method
-# names on their results would silently reopen everything the E1 and E2
+# names on their results would silently reopen everything the E1 and E7
 # enumerations close.
 #
-# synthtwin's source calls no method on a pandas or numpy object: it
-# reads attributes, subscripts, and operators, and hands the values
-# back to the enumerated module-level functions. The empty sets below
-# say exactly that, and adding a name to one of them is a policy
-# decision reviewed against the threat model, not a routine code
-# change.
+# These two tables are keyed by the FIRST component of an origin -- the
+# library name -- and that is exactly their limit: one library cannot
+# say two different things through them. numpy needs three different
+# things said (E8), so the per-origin table below refines them, and
+# these keys stay as the catch-all underneath it: any numpy-rooted or
+# pandas-rooted value the per-origin table does not name falls to an
+# empty method list and an empty attribute list rather than to policy
+# case (b). Adding a name to any of them is a policy decision reviewed
+# against the threat model, not a routine code change.
 _RESTRICTED_INSTANCE_METHODS: "dict[str, frozenset[str]]" = {
+    "numpy": frozenset(),
     "pandas": frozenset(),
 }
 
@@ -740,8 +814,207 @@ _RESTRICTED_INSTANCE_METHODS: "dict[str, frozenset[str]]" = {
 # capability without a call in sight, and any attribute could. Only the
 # names the profiler actually reads are listed.
 _RESTRICTED_INSTANCE_ATTRIBUTES: "dict[str, frozenset[str]]" = {
+    "numpy": frozenset(),
     "pandas": frozenset({"columns"}),
 }
+
+# THE PER-ORIGIN SURFACES (Phase 2 extension E8/E9), and why the two
+# tables above could not carry them.
+#
+# Those tables are keyed by the first component of an origin, so one
+# library gets one answer. numpy needs THREE, because three different
+# kinds of object come out of the one admitted name and each carries a
+# different danger:
+#
+#   the generator  numpy.random.default_rng(seed) -- answers to
+#                  integers, and to spawn, bit_generator, bytes,
+#                  shuffle and the whole distribution family, of which
+#                  exactly one name is permitted here;
+#   the array      what integers returns -- answers to tofile and dump,
+#                  which write files, and to hundreds of other names;
+#   the word       one element of that array, reached by index or by
+#                  iteration -- STILL a library scalar, carrying its
+#                  own tofile, dump and data. Treating an element as
+#                  untraced would hand it to the documented
+#                  untraced-attribute residual at the top of this file,
+#                  where reading `word.data` is accepted, so an element
+#                  keeps a surface of its own until int() converts it.
+#
+# The lookup is therefore type-sensitive: the exact origin path first,
+# the library key underneath. Each entry is (methods, attributes) and
+# the empty sets mean exactly what they say -- nothing at all is
+# permitted there. Adding a name is a policy decision reviewed against
+# the threat model, not a routine code change.
+_GENERATOR_ORIGIN = "numpy.random.default_rng"
+_DRAW_ARRAY_ORIGIN = "numpy.random.default_rng.integers"
+_DRAW_SCALAR_ORIGIN = "numpy.random.default_rng.integers.element"
+_WRITER_ORIGIN = "csv.writer"
+
+_RESTRICTED_SURFACES: "dict[str, tuple[frozenset[str], frozenset[str]]]" = {
+    _GENERATOR_ORIGIN: (frozenset({"integers"}), frozenset()),
+    _DRAW_ARRAY_ORIGIN: (frozenset(), frozenset()),
+    _DRAW_SCALAR_ORIGIN: (frozenset(), frozenset()),
+    _WRITER_ORIGIN: (frozenset({"writerow", "writerows"}), frozenset()),
+}
+
+# How each surface is named in a violation message, in words that say
+# which object is meant rather than which table entry.
+_SURFACE_DESCRIPTIONS: "dict[str, str]" = {
+    _GENERATOR_ORIGIN: "the one random generator, made by numpy.random.default_rng",
+    _DRAW_ARRAY_ORIGIN: "the array of words the generator's integers method returned",
+    _DRAW_SCALAR_ORIGIN: "one word taken out of the array integers returned",
+    _WRITER_ORIGIN: "the CSV writer made by csv.writer",
+    "numpy": "a value produced by numpy",
+    "pandas": "a value produced by pandas",
+}
+
+# The origin an ELEMENT of a restricted value carries -- what a
+# subscript or a loop over it hands out. A pandas frame yields pandas
+# objects, which is why the shipped subscript rule kept the origin, and
+# nothing here undoes that: a surface with no entry keeps its own
+# origin. The array yields the word surface, and the word surface
+# yields itself, so no amount of indexing or iterating turns a library
+# scalar into an untraced value.
+_RESTRICTED_ELEMENT: "dict[str, str]" = {
+    _DRAW_ARRAY_ORIGIN: _DRAW_SCALAR_ORIGIN,
+    _DRAW_SCALAR_ORIGIN: _DRAW_SCALAR_ORIGIN,
+}
+
+# What a PERMITTED method call on a restricted surface hands back. Only
+# the enumerated methods get this far, so this table says what the one
+# draw returns: another restricted surface, not a value that has left
+# the library.
+_RESTRICTED_METHOD_RESULTS: "dict[tuple[str, str], str]" = {
+    (_GENERATOR_ORIGIN, "integers"): _DRAW_ARRAY_ORIGIN,
+}
+
+# The one restricted surface whose values may still be handed to
+# another API as data (interpolated into an f-string, passed to an
+# enumerated str method). The profiler does exactly that with the
+# frames and columns pandas returns, and E1 was written around it. The
+# E8 and E9 surfaces are NOT on this list: the only operation permitted
+# on a drawn word is int(), and a generator, an array or a writer
+# handed to a formatting protocol would run library code this audit
+# never enumerated.
+_SURFACES_OPEN_AS_DATA = frozenset({"pandas"})
+
+# The five argument names of the one permitted draw, in positional
+# order (Generator.integers(low, high, size, dtype, endpoint) on every
+# supported numpy version). Each must hold a first-party value: the
+# method name being permitted says nothing about what the library does
+# with an OBJECT placed in one of these positions, and every one of
+# them is read through a protocol -- low, high and size through
+# __index__, size also as a shape tuple through iteration, dtype
+# through the dtype constructor, endpoint through __bool__.
+_DRAW_METHOD = "integers"
+_DRAW_SLOTS = ("low", "high", "size", "dtype", "endpoint")
+
+# Built-in calls whose result is a plain built-in whole number whatever
+# they were handed: int() and len() each return an exact int, never the
+# argument and never an object of the caller's choosing. This is the
+# origin E8 names as the END of a library value's life -- `int(word)`
+# is the one operation permitted on a drawn word -- and it is also what
+# a first-party argument rule can accept without asking where the
+# number came from. Note what it does NOT claim: int(x) runs x's own
+# __index__ or __int__ first, so a caller's object still runs its own
+# method there, in the caller's process (residual 1).
+_VALUE_CERTAIN_BUILTINS = {"int", "len"}
+
+# The origin recording "a plain built-in whole number this audit
+# watched being made".
+_NUMBER = ("number", "")
+
+# The origin recording "an open handle on the locally validated output
+# target". It starts at .open() on a validated path and nowhere else,
+# so it cannot be manufactured from a caller-supplied object (E9).
+_LOCALHANDLE = ("localhandle", "")
+
+# Origin kinds a value may carry and still be read, stored, or returned
+# without a message of its own. Every kind this audit records belongs
+# here; what each kind may be USED for is decided by the rules that
+# grant, not by this list.
+_VALUE_ORIGIN_KINDS = {
+    "def",
+    "instance",
+    "literal",
+    "localhandle",
+    "localpath",
+    "number",
+    "result",
+    "str",
+    "unknown",
+}
+
+# Origin kinds that are first-party by construction: a literal written
+# in the scanned source, text this audit watched being built, a whole
+# number int() or len() produced, or the result of a scanned def or
+# class. An "instance" kind qualifies only when the API that produced
+# it is one of this package's own functions -- see _is_first_party.
+_FIRST_PARTY_ORIGIN_KINDS = {"literal", "number", "result", "str"}
+
+
+def _surface_key(origin: str) -> "str | None":
+    """Which restricted surface an api-instance origin belongs to.
+
+    Accepts the dotted origin path recorded for an api-instance.
+    Returns the exact-path key when the per-origin table names it, the
+    library key when the first component is a restricted library, and
+    None when the value is an ordinary api-instance under policy case
+    (b). Deterministic: a pure table lookup. Raises nothing.
+    """
+    if origin in _RESTRICTED_SURFACES:
+        return origin
+    library = origin.partition(".")[0]
+    if library in _RESTRICTED_INSTANCE_METHODS:
+        return library
+    return None
+
+
+def _surface_methods(key: str) -> "frozenset[str]":
+    """The method names permitted on one restricted surface."""
+    if key in _RESTRICTED_SURFACES:
+        return _RESTRICTED_SURFACES[key][0]
+    return _RESTRICTED_INSTANCE_METHODS[key]
+
+
+def _surface_attributes(key: str) -> "frozenset[str]":
+    """The attribute names readable on one restricted surface."""
+    if key in _RESTRICTED_SURFACES:
+        return _RESTRICTED_SURFACES[key][1]
+    return _RESTRICTED_INSTANCE_ATTRIBUTES[key]
+
+
+def _surface_description(key: str) -> str:
+    """The plain-language name a violation message uses for a surface."""
+    return _SURFACE_DESCRIPTIONS.get(key, "a value produced by " + key)
+
+
+def _element_origin(origin: str) -> str:
+    """The origin an element taken out of `origin` carries.
+
+    A surface with no entry in _RESTRICTED_ELEMENT keeps its own origin,
+    which is how a selected pandas column stays a pandas object.
+    """
+    return _RESTRICTED_ELEMENT.get(origin, origin)
+
+
+def _is_first_party(kind: str, origin: str) -> bool:
+    """True when one origin names a value this package built itself.
+
+    Accepts one (kind, origin) member of an origin set. A literal, text
+    this audit watched being built, an int()/len() result, and the
+    result of a scanned def or class qualify; so does an api-instance
+    whose producing API is one of this package's own functions, because
+    every statement inside those functions is scanned under these same
+    rules. Nothing else does -- above all not the unknown member, which
+    is what a caller's value carries. Deterministic; raises nothing.
+    """
+    if kind in _FIRST_PARTY_ORIGIN_KINDS:
+        return True
+    if kind != "instance":
+        return False
+    return origin == _FIRST_PARTY_ROOT or origin.startswith(_FIRST_PARTY_ROOT + ".")
+
 
 # APIs that open whatever they are handed, including a URL. Each may
 # appear ONLY as the direct target of a call -- never stored, passed, or
@@ -764,6 +1037,26 @@ _LOCALPATH = ("localpath", "")
 # all -- is rejected, because str.format invokes the formatting
 # protocol of what it is handed.
 _SAFE_DATA_ARGUMENT_KINDS = {"instance", "literal", "localpath", "result", "str"}
+
+
+def _is_safe_data(kind: str, origin: str) -> bool:
+    """True when one origin may be handed to another API as data.
+
+    Accepts one (kind, origin) member of an origin set. The kinds are
+    the enumerated ones above, with one exception set apart from them:
+    an api-instance belonging to a restricted surface is data only if
+    that surface is open as data (pandas, which the profiler formats
+    and reports on). A generator, a drawn array, a drawn word and a CSV
+    writer are not: formatting one runs the library's own __format__ or
+    __str__, and E8 permits exactly one operation on a drawn word,
+    which is int(). Deterministic; raises nothing.
+    """
+    if kind not in _SAFE_DATA_ARGUMENT_KINDS:
+        return False
+    if kind != "instance":
+        return True
+    key = _surface_key(origin)
+    return key is None or key in _SURFACES_OPEN_AS_DATA
 
 # The only decorators after which the decorated name still holds the
 # definition written under it. A decorator REBINDS that name to
@@ -811,6 +1104,13 @@ _CALLBACK_SLOTS: "dict[str, tuple[frozenset[str], dict[int, str]]]" = {
     ),
     "argparse.ArgumentParser.register": (frozenset({"object"}), {2: "object"}),
     "csv.reader": (frozenset({"dialect"}), {1: "dialect"}),
+    # Extension E9. The shipped table enumerated csv.reader alone, and
+    # the generic callable check does not stand in for this entry: it
+    # rejects functions and lambdas, while a dialect is a caller-derived
+    # DATA object the library instantiates and reads settings from. Both
+    # argument forms are covered, because csv.writer takes the dialect
+    # positionally as well as by keyword.
+    "csv.writer": (frozenset({"dialect"}), {1: "dialect"}),
     "dataclasses.asdict": (frozenset({"dict_factory"}), {}),
     "dataclasses.astuple": (frozenset({"tuple_factory"}), {}),
     "dataclasses.field": (frozenset({"default_factory"}), {}),
@@ -1075,6 +1375,32 @@ def _chain_parts(node: ast.AST) -> "list[str] | None":
     return None
 
 
+def _plain_target_names(target: ast.AST) -> "list[str] | None":
+    """Every name a loop target binds, or None if it binds elsewhere.
+
+    Accepts the target of a `for` statement. Returns the plain names a
+    target made of names, tuples, lists and starred names binds. Returns
+    None when any part of the target writes into an object instead --
+    `for row.field in rows`, `for row[0] in rows` -- because what that
+    store leaves behind is not something this text settles, and the
+    shipped treatment (bind the untraced member) is kept for it.
+    Deterministic; raises nothing.
+    """
+    names: list[str] = []
+    stack: list[ast.AST] = [target]
+    while stack:
+        current = stack.pop()
+        if isinstance(current, ast.Name):
+            names.append(current.id)
+        elif isinstance(current, ast.Starred):
+            stack.append(current.value)
+        elif isinstance(current, (ast.Tuple, ast.List)):
+            stack.extend(current.elts)
+        else:
+            return None
+    return names
+
+
 def _first_party_module_name(path: pathlib.Path) -> "str | None":
     """Dotted first-party module name for ``path``, or None.
 
@@ -1337,14 +1663,14 @@ def _fenced_argument_message(dotted: str) -> str:
     )
 
 
-def _restricted_attribute_message(name: str, library: str) -> str:
-    allowed = sorted(_RESTRICTED_INSTANCE_ATTRIBUTES[library])
+def _restricted_attribute_message(name: str, key: str) -> str:
+    allowed = sorted(_surface_attributes(key))
     listed = ", ".join(allowed) if allowed else "none at all"
     return (
-        "reads the attribute '" + name + "' of a value produced by "
-        + library + ". Attributes of these objects reach capability "
-        "without a call in sight, so only the enumerated ones may be "
-        "read: " + listed + "."
+        "reads the attribute '" + name + "' of " + _surface_description(key)
+        + ". Attributes of these objects reach capability without a "
+        "call in sight -- a data frame's style, an array's data -- so "
+        "only the enumerated ones may be read: " + listed + "."
     )
 
 
@@ -1389,19 +1715,84 @@ def _comprehension_target_message() -> str:
     )
 
 
-def _restricted_instance_message(method: str, library: str) -> str:
-    allowed = sorted(_RESTRICTED_INSTANCE_METHODS[library])
+def _restricted_instance_message(method: str, key: str) -> str:
+    allowed = sorted(_surface_methods(key))
     listed = ", ".join(allowed) if allowed else "none at all"
     return (
-        "calls the method '" + method + "' on a value produced by "
-        + library + ". Objects from this library carry methods that "
-        "reach the network and the filesystem on their own (a data "
-        "frame can write to a database or a URL; an array can write "
-        "itself to a file), so the enumerated module-level functions "
-        "are the only way this audit accepts it being used. Methods "
-        "permitted on such a value: " + listed + ". Read what you need "
-        "with an attribute, a subscript, or an operator, and pass the "
-        "value to an enumerated function."
+        "calls the method '" + method + "' on " + _surface_description(key)
+        + ". Objects like this one carry methods that reach the network "
+        "and the filesystem on their own (a data frame can write to a "
+        "database or a URL; an array, and every word taken out of one, "
+        "can write itself to a file), so only an enumerated method may "
+        "be called on it. Methods permitted on this value: " + listed
+        + ". Read what you need with a subscript or an operator, turn a "
+        "drawn word into a plain number with int(), and pass values to "
+        "the enumerated module-level functions."
+    )
+
+
+def _numpy_surface_message(dotted: str) -> str:
+    return (
+        "uses '" + dotted + "'. From numpy only the module numpy.random "
+        "and, inside it, the single name numpy.random.default_rng are "
+        "allowed (extension E7): one random stream, made once from the "
+        "seed. Every other numpy name -- every array constructor, every "
+        "reduction, every reader and writer, and every other submodule "
+        "-- is outside the allowlist, and adding one is a plan-level "
+        "decision rather than a code change."
+    )
+
+
+def _draw_form_message(detail: str) -> str:
+    return (
+        "calls the one permitted draw, integers, " + detail + ". The "
+        "draw has exactly five argument positions -- low, high, size, "
+        "dtype, endpoint -- and this audit checks what is placed in "
+        "each of them one by one, so every argument must be written out "
+        "in its own place, by name or in order. Write the draw in the "
+        "one form the generation method fixes."
+    )
+
+
+def _draw_argument_message(slot: str) -> str:
+    return (
+        "hands the '" + slot + "' argument of the one permitted draw a "
+        "value this audit cannot trace to something this package built "
+        "itself. The method name being permitted settles nothing about "
+        "its arguments: the library reads every one of them through a "
+        "protocol of the object it finds there (a whole number through "
+        "__index__, a shape through iteration, a type name through the "
+        "dtype constructor, a switch through __bool__), so a "
+        "caller-supplied object placed in one of these positions runs "
+        "its own code inside the library. Pass a literal, a name bound "
+        "only to literals, a plain number made by int() or len(), or a "
+        "value this package's own code returned."
+    )
+
+
+def _writer_handle_message() -> str:
+    return (
+        "builds a CSV writer over something other than the output file "
+        "this run opened itself. csv.writer calls the write method of "
+        "whatever object it is given, so a caller-supplied object in "
+        "that position receives the twin instead of the file -- and "
+        "nothing in this source text says where it would go. The handle "
+        "must be opened here, from a path that passed "
+        "validate_local_path and became a pathlib.Path: 'with "
+        "destination.open(...) as handle' and then csv.writer(handle)."
+    )
+
+
+def _writer_row_message(method: str) -> str:
+    return (
+        "hands '" + method + "' rows this audit did not watch being "
+        "built. The writer walks whatever it is given -- it iterates "
+        "the rows, iterates each row, and turns each cell into text "
+        "through that cell's own methods -- so a caller-supplied "
+        "object handed here runs its own code inside the library. Write "
+        "the rows out as a list or tuple of first-party values, build "
+        "them in a comprehension whose element is one, or have one of "
+        "this package's own functions return them."
     )
 
 
@@ -2051,7 +2442,7 @@ class _Checker(ast.NodeVisitor):
                 elif (
                     kind == "instance"
                     and rest
-                    and origin.partition(".")[0] in _RESTRICTED_INSTANCE_METHODS
+                    and _surface_key(origin) is not None
                 ):
                     # An attribute of a restricted object is still that
                     # library's object; only the enumerated names get
@@ -2080,13 +2471,18 @@ class _Checker(ast.NodeVisitor):
             # is itself text (E4). A subscript of a RESTRICTED library
             # object keeps that library: frame["x"] is a pandas object
             # too, and selecting one was a route to its writers
-            # (review item P1-R2-F2).
+            # (review item P1-R2-F2). Extension E8 keeps that rule and
+            # says WHICH surface comes out: indexing a drawn array
+            # hands over one drawn word, which is still a library
+            # scalar and carries its own closed surface, and indexing a
+            # word hands over a word again. A surface with no element
+            # entry keeps its own origin, so the pandas rule above is
+            # untouched.
             inner = self._value_origins(value.value)
             carried = {
-                (kind, origin)
+                (kind, _element_origin(origin))
                 for kind, origin in inner
-                if kind == "instance"
-                and origin.partition(".")[0] in _RESTRICTED_INSTANCE_METHODS
+                if kind == "instance" and _surface_key(origin) is not None
             }
             if carried:
                 return carried
@@ -2118,9 +2514,7 @@ class _Checker(ast.NodeVisitor):
                 origins = self._trust_origins(piece.value)
                 if piece.format_spec is not None:
                     origins = origins | self._trust_origins(piece.format_spec)
-                if not all(
-                    kind in _SAFE_DATA_ARGUMENT_KINDS for kind, _origin in origins
-                ):
+                if not all(_is_safe_data(kind, origin) for kind, origin in origins):
                     return {_UNKNOWN}
             return {("str", "")}
         if isinstance(value, ast.IfExp):
@@ -2143,13 +2537,27 @@ class _Checker(ast.NodeVisitor):
         ("result", name) member (every expression inside a scanned def
         was itself checked under these rules); a text-returning method
         on an accepted text receiver, and a call to str, repr, or
-        format, yield the text member (extension E4); every other call
-        yields the unknown member.
+        format, yield the text member (extension E4); int() and len()
+        yield the plain-number member and END whatever origin their
+        argument had, which is the one operation E8 permits on a drawn
+        word; a permitted method on a restricted surface yields the
+        surface E8 names for it; opening a validated path yields the
+        output-handle member (E9); every other call yields the unknown
+        member.
         """
         func = call.func
         localpath = self._localpath_call_result(call)
         if localpath is not None:
             return localpath
+        handle = self._localhandle_call_result(call)
+        if handle is not None:
+            return handle
+        number = self._number_call_result(func)
+        if number is not None:
+            return number
+        surface = self._restricted_call_result(func)
+        if surface is not None:
+            return surface
         # typing.cast returns its second argument unchanged. Treating it
         # as a value of its own let a pandas frame shed its origin and
         # walk past the no-method rule (review item P1-R1-F2).
@@ -2222,6 +2630,74 @@ class _Checker(ast.NodeVisitor):
                 return {_LOCALPATH}
         return None
 
+    def _localhandle_call_result(
+        self, call: ast.Call
+    ) -> "set[tuple[str, str]] | None":
+        """The output-handle origin, or None (extension E9).
+
+        It starts at `.open(...)` on a value this audit already reads as
+        a validated local path -- the transaction's own output target,
+        which reached that origin only through validate_local_path -- and
+        nowhere else. A caller-supplied object therefore cannot carry
+        this origin, which is what lets csv.writer's handle rule mean
+        something. pathlib.Path.open hands the same file object back
+        from its `with` block, so a handle taken out of one carries the
+        origin too (see _collect_store).
+        """
+        func = call.func
+        if not isinstance(func, ast.Attribute) or func.attr != "open":
+            return None
+        if self._trust_origins(func.value) == {_LOCALPATH}:
+            return {_LOCALHANDLE}
+        return None
+
+    def _number_call_result(self, func: ast.AST) -> "set[tuple[str, str]] | None":
+        """The plain-number origin for int() and len(), else None (E8).
+
+        Both return an exact built-in whole number whatever they were
+        handed, so the value that comes out is one this package holds
+        itself: this is the point where a drawn word stops being a
+        library scalar, and it is also the only way an argument the
+        first-party rules accept can be built out of a value this audit
+        cannot trace. The name must be unshadowed, as everywhere else a
+        built-in is read by name.
+        """
+        if not isinstance(func, ast.Name):
+            return None
+        if func.id not in _VALUE_CERTAIN_BUILTINS:
+            return None
+        if self._trust_lookup(func.id) is not None:
+            return None
+        return {_NUMBER}
+
+    def _restricted_call_result(
+        self, func: ast.AST
+    ) -> "set[tuple[str, str]] | None":
+        """What a permitted method on a restricted surface returns (E8).
+
+        Only the enumerated methods reach this point with an entry in
+        _RESTRICTED_METHOD_RESULTS -- an unenumerated one is refused by
+        _check_method_call, which runs on the same node -- so the one
+        answer this gives today is that the one permitted draw returns
+        the array surface rather than a value that has left the library.
+        Returns None for every other call, leaving the general rules to
+        answer.
+        """
+        if not isinstance(func, ast.Attribute):
+            return None
+        out: set[tuple[str, str]] = set()
+        for kind, origin in self._trust_origins(func.value):
+            if kind != "instance":
+                continue
+            key = _surface_key(origin)
+            if key is None:
+                continue
+            produced = _RESTRICTED_METHOD_RESULTS.get((key, func.attr))
+            if produced is None:
+                continue
+            out.add(("instance", produced))
+        return out or None
+
     def _text_call_result(self, func: ast.AST) -> "set[tuple[str, str]] | None":
         """Text origin for a call whose result is text, else None (E4).
 
@@ -2250,6 +2726,38 @@ class _Checker(ast.NodeVisitor):
         if all(kind in ("literal", "str") for kind, _origin in receiver):
             return {("str", "")}
         return None
+
+    def _element_origins(self, iterable: ast.AST) -> "set[tuple[str, str]]":
+        """The origins a loop variable over `iterable` carries (E8).
+
+        Accepts the expression a `for` statement or a comprehension
+        iterates. Returns the element origins of every restricted
+        surface that declares one, and an empty set otherwise -- in
+        which case the loop variable is bound the shipped way, to
+        something untraced.
+
+        DECLARING one is the point: only a surface whose elements are
+        themselves library objects appears in _RESTRICTED_ELEMENT.
+        Iterating a drawn array hands out drawn words, which is why
+        that surface declares an element; iterating a pandas frame
+        hands out column NAMES, which are text and not frames, so
+        pandas declares none and iteration over it is left exactly as
+        it was. Subscription is the other way round for pandas -- a
+        selected column IS a frame -- and that rule is unchanged.
+
+        Asked position-blind, because binding an element origin is a
+        RESTRICTION and must see every binding of the iterated name,
+        including one written below the loop. Raises nothing.
+        """
+        out: set[tuple[str, str]] = set()
+        for kind, origin in self._trust_origins(iterable):
+            if kind != "instance":
+                continue
+            element = _RESTRICTED_ELEMENT.get(origin)
+            if element is None:
+                continue
+            out.add(("instance", element))
+        return out
 
     def _bind_from_value(self, name: str, value: ast.AST) -> None:
         for kind, origin in self._value_origins(value):
@@ -2504,6 +3012,51 @@ class _Checker(ast.NodeVisitor):
                 self._bind(node.target.id, None, scope=self._walrus_scope())
             else:
                 self._collect_store(node.target)
+            return
+        if isinstance(node, (ast.For, ast.AsyncFor)):
+            # ITERATION CARRIES A RESTRICTED ORIGIN (extension E8).
+            # `for word in drawn` used to bind an untraced value, and an
+            # untraced value is where the documented attribute residual
+            # lives: `word.tofile` would have been read without a
+            # question asked, on a value that is still a library scalar.
+            # So the loop variable is bound to the ELEMENT origin of
+            # whatever is iterated, and the target is not walked as an
+            # ordinary store afterwards -- that store would add the
+            # unknown member back and dissolve the surface again.
+            elements = self._element_origins(node.iter)
+            self._collect_store(node.iter)
+            names = _plain_target_names(node.target)
+            if elements and names is not None:
+                # An unpacking target gets the same treatment: every
+                # element of a library array is itself a library value,
+                # at any depth, so no shape of loop variable leaves the
+                # surface behind.
+                for name in names:
+                    for origin in sorted(elements):
+                        self._bind(name, origin)
+            else:
+                self._collect_store(node.target)
+            self._collect_scope_stores(list(node.body) + list(node.orelse))
+            return
+        if isinstance(node, (ast.With, ast.AsyncWith)):
+            # `with destination.open(...) as handle` (extension E9).
+            # pathlib.Path.open hands the same file object back from
+            # __enter__, so the name bound here holds the handle this
+            # audit watched being opened on the validated output target.
+            # Every other context manager keeps the shipped treatment:
+            # the name is bound to something untraced.
+            for item in node.items:
+                self._collect_store(item.context_expr)
+                target = item.optional_vars
+                if target is None:
+                    continue
+                if isinstance(target, ast.Name) and self._trust_origins(
+                    item.context_expr
+                ) == {_LOCALHANDLE}:
+                    self._bind(target.id, _LOCALHANDLE)
+                else:
+                    self._collect_store(target)
+            self._collect_scope_stores(list(node.body))
             return
         if isinstance(node, ast.Name):
             if isinstance(node.ctx, (ast.Store, ast.Del)):
@@ -2769,6 +3322,14 @@ class _Checker(ast.NodeVisitor):
                 return None
             return _module_surface_message(dotted, prefix)
 
+        if top == "numpy":
+            # Anything numpy-rooted that did not resolve above resolved
+            # against the bare `numpy` module path, which carries no
+            # usable name at all: only numpy.random.default_rng is
+            # allowed, and it is reached through the numpy.random key
+            # above (extension E7).
+            return _numpy_surface_message(dotted)
+
         return None
 
     # -- shared identifier checks ------------------------------------
@@ -2828,7 +3389,12 @@ class _Checker(ast.NodeVisitor):
                         "pandas", "pathlib", "typing", "sys", "os"}:
                 self._bind(bound_name, ("module", name))
                 continue
-            if name in {"os.path", "importlib.metadata"}:
+            if name in {"os.path", "importlib.metadata", "numpy.random"}:
+                # The same two-component shape os.path has: the import
+                # statement names the submodule, and the one-step rule
+                # then counts from it. `import numpy` on its own is NOT
+                # here: it would bind a module whose only usable name
+                # sits one level down, and E7 admits the submodule.
                 self._bind(bound_name, ("module", origin))
                 continue
 
@@ -2850,6 +3416,17 @@ class _Checker(ast.NodeVisitor):
                     node,
                     "imports '" + name + "'. From os only 'import os' "
                     "or 'import os.path' is allowed. " + _ALLOWLIST_NOTE,
+                )
+            elif top == "numpy":
+                self._flag(
+                    node,
+                    "imports '" + name + "'. From numpy only 'import "
+                    "numpy.random' is allowed, and from that module only "
+                    "default_rng: one random stream, made once from the "
+                    "seed (extension E7). Importing numpy itself, or any "
+                    "other numpy module, brings in array constructors, "
+                    "reductions, readers and writers this audit has not "
+                    "cleared.",
                 )
             else:
                 self._flag(
@@ -2995,19 +3572,12 @@ class _Checker(ast.NodeVisitor):
             if bound:
                 seen: set[str] = set()
                 for kind, origin in sorted(bound):
-                    if kind in (
-                        "def",
-                        "instance",
-                        "literal",
-                        "localpath",
-                        "result",
-                        "str",
-                        "unknown",
-                    ):
+                    if kind in _VALUE_ORIGIN_KINDS:
                         # Reading a scanned definition, an api-instance,
-                        # a literal, a scanned call's result, a
-                        # gate-checked string, or an untraced value is
-                        # fine; only CALLS through them are restricted.
+                        # a literal, a plain number, an open output
+                        # handle, a scanned call's result, a gate-checked
+                        # string, or an untraced value is fine; only what
+                        # is DONE with them is restricted.
                         continue
                     if kind == "module" and not origin.startswith(
                         _FIRST_PARTY_ROOT
@@ -3043,12 +3613,12 @@ class _Checker(ast.NodeVisitor):
         for kind, origin in sorted(self._trust_origins(node.value)):
             if kind != "instance":
                 continue
-            library = origin.partition(".")[0]
-            if library not in _RESTRICTED_INSTANCE_ATTRIBUTES:
+            key = _surface_key(origin)
+            if key is None:
                 continue
-            if node.attr in _RESTRICTED_INSTANCE_ATTRIBUTES[library]:
+            if node.attr in _surface_attributes(key):
                 continue
-            self._flag(node, _restricted_attribute_message(node.attr, library))
+            self._flag(node, _restricted_attribute_message(node.attr, key))
             return True
         return False
 
@@ -3119,6 +3689,32 @@ class _Checker(ast.NodeVisitor):
                 self._flag(node, _fenced_argument_message(dotted))
             return
 
+    def _check_writer_handle(self, node: ast.Call) -> None:
+        """A CSV writer may be built only over this run's own output
+        file (extension E9).
+
+        csv.writer calls the write method of whatever object it is
+        handed, so the object in that position decides where the twin
+        goes. The only value accepted there is a handle this audit
+        watched being opened on a path that passed validate_local_path
+        -- the transaction's own target -- and a caller-supplied object,
+        a computed value, or a handle opened on an unvalidated path is
+        refused. The identities are the accumulating position-blind
+        ones, for the reason _check_fenced_call gives: a callee that
+        might be csv.writer on any binding the scope makes must be
+        checked as csv.writer.
+        """
+        parts = _chain_parts(node.func)
+        if parts is None:
+            return
+        if _WRITER_ORIGIN not in self._trust_resolve(parts):
+            return
+        if not node.args or isinstance(node.args[0], ast.Starred):
+            self._flag(node, _writer_handle_message())
+            return
+        if self._trust_origins(node.args[0]) != {_LOCALHANDLE}:
+            self._flag(node, _writer_handle_message())
+
     def _check_type_parameters(self, node: ast.AST) -> None:
         """Refuse a PEP 695 type-parameter list.
 
@@ -3150,6 +3746,7 @@ class _Checker(ast.NodeVisitor):
 
     def visit_Call(self, node: ast.Call) -> None:
         self._check_fenced_call(node)
+        self._check_writer_handle(node)
         # A CLOSED GRAMMAR for call targets (review item P1-R3-F7). A
         # call target is either a bare name or a pure dotted chain, and
         # nothing else. Every other shape -- a conditional expression, a
@@ -3274,13 +3871,18 @@ class _Checker(ast.NodeVisitor):
             for kind, origin in sorted(receiver):
                 if kind != "instance":
                     continue
-                library = origin.partition(".")[0]
-                if library not in _RESTRICTED_INSTANCE_METHODS:
+                key = _surface_key(origin)
+                if key is None:
                     continue
-                if method in _RESTRICTED_INSTANCE_METHODS[library]:
-                    continue
-                self._flag(node, _restricted_instance_message(method, library))
-                return
+                if method not in _surface_methods(key):
+                    self._flag(node, _restricted_instance_message(method, key))
+                    return
+                # A PERMITTED name is not a permitted call: what the
+                # library does with the ARGUMENTS is a second question,
+                # and the surfaces that have an answer give it here
+                # (E8's draw, E9's two row methods).
+                if self._check_surface_arguments(node, key, method):
+                    return
             return
         if not kinds <= {
             "module",
@@ -3306,9 +3908,175 @@ class _Checker(ast.NodeVisitor):
             if isinstance(inner, ast.Constant):
                 continue
             origins = self._trust_origins(inner)
-            if all(kind in _SAFE_DATA_ARGUMENT_KINDS for kind, _origin in origins):
+            if all(_is_safe_data(kind, origin) for kind, origin in origins):
                 continue
             self._flag(node, _unknown_method_argument_message(method))
+
+    def _check_surface_arguments(
+        self, node: ast.Call, key: str, method: str
+    ) -> bool:
+        """Check the arguments of a permitted call on a restricted
+        surface. Returns True when something was flagged.
+
+        Accepts the call node, the surface the receiver belongs to, and
+        the method name, which the caller has already found in that
+        surface's enumeration. Two surfaces have argument rules and the
+        rest have none:
+
+        - the one permitted draw (E8), whose five argument slots are
+          enumerated in both the positional and the keyword form and
+          must each hold a first-party value;
+        - the CSV writer's two row methods (E9), whose rows must be
+          sequences built under this audit's eyes.
+
+        Deterministic; raises nothing; reports through self._flag.
+        """
+        if key == _GENERATOR_ORIGIN and method == _DRAW_METHOD:
+            return self._check_draw_arguments(node)
+        if key == _WRITER_ORIGIN and method in _surface_methods(_WRITER_ORIGIN):
+            return self._check_writer_rows(node, method)
+        return False
+
+    def _check_draw_arguments(self, node: ast.Call) -> bool:
+        """Hold the one permitted draw to its enumerated argument form.
+
+        The five slots are low, high, size, dtype and endpoint, in that
+        positional order, and every one of them must hold a value this
+        package built itself: a literal, a name bound only to literals,
+        a plain number int() or len() made, or something this package's
+        own code returned. A caller-derived value in ANY of them is
+        refused in EITHER form, because the library reads each argument
+        through a protocol of the object it finds there, and the method
+        name being permitted settles nothing about that.
+
+        Expansion is refused for the same reason the callback-slot rule
+        refuses it: `*values` and `**options` hide which value lands in
+        which slot. A positional argument past the fifth, or a keyword
+        outside the five names, is refused as a form this audit does not
+        recognize rather than read as something it might mean.
+
+        Returns True when something was flagged.
+        """
+        flagged = False
+        if len(node.args) > len(_DRAW_SLOTS):
+            self._flag(node, _draw_form_message("with more arguments than it has"))
+            flagged = True
+        for index, argument in enumerate(node.args):
+            if isinstance(argument, ast.Starred):
+                self._flag(node, _draw_form_message("with '*' expansion"))
+                flagged = True
+                continue
+            if index >= len(_DRAW_SLOTS):
+                continue
+            if not self._is_first_party_value(argument):
+                self._flag(node, _draw_argument_message(_DRAW_SLOTS[index]))
+                flagged = True
+        for keyword in node.keywords:
+            if keyword.arg is None:
+                self._flag(node, _draw_form_message("with '**' expansion"))
+                flagged = True
+                continue
+            if keyword.arg not in _DRAW_SLOTS:
+                self._flag(
+                    node,
+                    _draw_form_message(
+                        "with an argument named '" + keyword.arg + "'"
+                    ),
+                )
+                flagged = True
+                continue
+            if not self._is_first_party_value(keyword.value):
+                self._flag(node, _draw_argument_message(keyword.arg))
+                flagged = True
+        return flagged
+
+    def _check_writer_rows(self, node: ast.Call, method: str) -> bool:
+        """Hold writerow and writerows to first-party rows (E9).
+
+        The writer iterates whatever it is handed and turns every cell
+        into text through that cell's own methods, so a row source this
+        audit did not watch being built is a caller's object running its
+        own code inside the library. Expansion is refused as well: it
+        hides what is being handed over. Returns True when something was
+        flagged.
+        """
+        flagged = False
+        values = list(node.args) + [keyword.value for keyword in node.keywords]
+        for keyword in node.keywords:
+            if keyword.arg is None:
+                self._flag(node, _writer_row_message(method))
+                return True
+        for value in values:
+            if isinstance(value, ast.Starred):
+                self._flag(node, _writer_row_message(method))
+                flagged = True
+                continue
+            if not self._is_first_party_value(value):
+                self._flag(node, _writer_row_message(method))
+                flagged = True
+        return flagged
+
+    def _is_first_party_value(self, value: ast.AST) -> bool:
+        """True when an expression is one this package built itself.
+
+        Accepts any expression node. A literal, a display (list, tuple
+        or set) whose every element is first-party, a comprehension
+        whose element is first-party, and a name or call whose every
+        origin is first-party all qualify; a caller-supplied parameter,
+        an attribute of an untraced value, and any library object do
+        not. A comprehension is read with its own target names bound to
+        the unknown member, exactly as the comprehension scope binds
+        them, so `[cell for cell in rows]` is not first-party while
+        `[str(cell) for cell in rows]` is: the second builds every cell
+        under this audit's eyes.
+
+        Asked position-blind throughout, because a True here GRANTS.
+        Raises nothing.
+        """
+        if isinstance(value, ast.Constant):
+            return True
+        if isinstance(value, (ast.List, ast.Tuple, ast.Set)):
+            return all(
+                self._is_first_party_value(
+                    element.value if isinstance(element, ast.Starred) else element
+                )
+                for element in value.elts
+            )
+        if isinstance(value, (ast.ListComp, ast.SetComp, ast.GeneratorExp)):
+            return self._comprehension_element_is_first_party(value)
+        origins = self._trust_origins(value)
+        return bool(origins) and all(
+            _is_first_party(kind, origin) for kind, origin in origins
+        )
+
+    def _comprehension_element_is_first_party(
+        self, node: "ast.ListComp | ast.SetComp | ast.GeneratorExp"
+    ) -> bool:
+        """True when a comprehension builds every element itself.
+
+        The element expression is read in a scope of its own where every
+        target name the comprehension binds carries the unknown member,
+        which is what the comprehension scope itself does: the value
+        yielded by an iterable is not something this audit can read, so
+        an element that is just a target name is not first-party, while
+        one built from it by str() or by a scanned function is.
+        """
+        shadow: dict[str, set[tuple[str, str]]] = {}
+        for generator in node.generators:
+            for inner in ast.walk(generator.target):
+                if isinstance(inner, ast.Name):
+                    shadow[inner.id] = {_UNKNOWN}
+        walk_scopes = self._open_trust_view()
+        self.scopes.append(shadow)
+        self.class_scopes.append(False)
+        self.comprehension_scopes.append(True)
+        try:
+            return self._is_first_party_value(node.elt)
+        finally:
+            self.scopes.pop()
+            self.class_scopes.pop()
+            self.comprehension_scopes.pop()
+            self._close_trust_view(walk_scopes)
 
     def _callee_is_first_party(self, func: ast.AST) -> bool:
         """True when every possible call target is defined in the
@@ -3778,12 +4546,40 @@ class _Checker(ast.NodeVisitor):
         binding does not leak out, so the surrounding scope keeps the
         name it had. The first iterable was already read in the
         surrounding scope by the caller.
+
+        ONE TARGET IS NOT UNTRACED: one taken out of a restricted
+        surface that declares an element (extension E8). `[int(word)
+        for word in drawn]` is the shape the generator draws in, and
+        leaving `word` untraced would put every attribute of a library
+        scalar back inside the documented attribute residual. The scope
+        is therefore entered empty and each generator's target is bound
+        as that generator is read, in Python's own order: the first
+        iterable is read with no target in force, which is where Python
+        evaluates it, and a later iterable is read with the targets
+        before it already bound.
         """
+        targets = [
+            self._comprehension_target_names(generator.target)
+            for generator in node.generators
+        ]
         locals_: dict[str, set[tuple[str, str]]] = {}
-        for generator in node.generators:
-            for name in self._comprehension_target_names(generator.target):
+        for names in targets:
+            for name in names:
                 locals_[name] = {_UNKNOWN}
         self._enter_scope(locals_, False, True)
+        # Then refine, generator by generator in the order Python runs
+        # them: a target taken out of a restricted surface carries that
+        # surface's element origin instead of the unknown member, and a
+        # later iterable is read with the targets before it already
+        # refined, so `[word for row in drawn for word in row]` keeps
+        # the surface at both levels.
+        for index, generator in enumerate(node.generators):
+            elements = self._element_origins(generator.iter)
+            if not elements:
+                continue
+            for name in targets[index]:
+                self.scopes[-1][name] = set(elements)
+                self.trust_scopes[-1][name] = set(elements)
         self._build_trust_scope(self._comprehension_parts(node), None)
         mark = len(self.deferred)
         for index, generator in enumerate(node.generators):

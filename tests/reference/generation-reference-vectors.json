@@ -1,0 +1,2474 @@
+{
+  "case_set": "The nine cases method section G14.3 names, committed as tests/reference/generation-reference-vectors.json. The five cases that reach the branches these nine leave unexercised (review items P2-C3-F3 and P2-C4-C3) are the same oracle's second file, tests/reference/generation-branch-vectors.json: one transform, one proof layer, two files, because a committed fixture must stay under the provenance manifest's byte cap and these nine already spend most of it.",
+  "cases": {
+    "date_only": {
+      "cells": [
+        "2020-08-18",
+        "2020-04-11",
+        "2020-07-19",
+        "2020-06-04",
+        "2020-02-24",
+        "2020-03-02",
+        "2020-12-31",
+        "2020-10-22",
+        "2020-01-01",
+        "2020-05-10",
+        "2020-08-08",
+        "2020-10-11"
+      ],
+      "column": {
+        "date_percentiles": {
+          "max": "2020-12-31",
+          "min": "2020-01-01",
+          "p01": "2020-01-05",
+          "p05": "2020-01-20",
+          "p10": "2020-02-10",
+          "p25": "2020-03-15",
+          "p50": "2020-06-30",
+          "p75": "2020-09-01",
+          "p90": "2020-11-15",
+          "p95": "2020-12-01",
+          "p99": "2020-12-20"
+        },
+        "datetimes_read_at": "local",
+        "detection_evidence": "written by hand in this method specification's own neutral vocabulary; no value here comes from any table.",
+        "earliest": "2020-01-01",
+        "earliest_utc_offset": "(none)",
+        "format": "iso-date",
+        "latest": "2020-12-31",
+        "latest_utc_offset": "(none)",
+        "missing_by_class": {
+          "(blank)": 0,
+          "(declared-missing)": 0,
+          "(numeric-sentinel)": 0,
+          "(text-code)": 0,
+          "(withheld)": 0
+        },
+        "missing_by_source": {},
+        "n_contradictory": 0,
+        "n_distinct": 12,
+        "n_distinct_folded": 12,
+        "n_missing": 0,
+        "n_not_numeric": 12,
+        "n_numeric": 0,
+        "n_out_of_range": 0,
+        "n_present": 12,
+        "n_sentinel_candidates_unpublished": 0,
+        "n_unparsed": 0,
+        "name": "column_1",
+        "position": 1,
+        "quality_state": "ok",
+        "remarks": [],
+        "resolution": "date",
+        "role": "datetime",
+        "sentinel_verdicts": [],
+        "statistical_type": "datetime",
+        "structural_role": "data",
+        "subsecond_digits": 0,
+        "time_precision": "date",
+        "utc_offsets": {
+          "(none)": 12
+        }
+      },
+      "content": [
+        "2020-01-01",
+        "2020-02-24",
+        "2020-03-02",
+        "2020-04-11",
+        "2020-05-10",
+        "2020-06-04",
+        "2020-07-19",
+        "2020-08-08",
+        "2020-08-18",
+        "2020-10-11",
+        "2020-10-22",
+        "2020-12-31"
+      ],
+      "csv_bytes": "2020-08-18\n2020-04-11\n2020-07-19\n2020-06-04\n2020-02-24\n2020-03-02\n2020-12-31\n2020-10-22\n2020-01-01\n2020-05-10\n2020-08-08\n2020-10-11\n",
+      "float64": [],
+      "why": "the date form of G7.5, both endpoints exact, and the floor rounding of the ordinal transform: ten interior ranks each take one word and land on a whole day, never between two.",
+      "word_budget": {
+        "content": 10,
+        "placement": 11
+      },
+      "words": [
+        "17405102656223811442",
+        "6630147816760228827",
+        "14477104582272359118",
+        "10907157359294391350",
+        "5429403641982895397",
+        "17021284587681472559",
+        "16036336519888171172",
+        "6717168357184625225",
+        "17951943638000877096",
+        "4141742867391886884",
+        "14858776128100620215",
+        "12560318519191079629",
+        "8689532878278713804",
+        "568260631324672868",
+        "16506113449883541490",
+        "10581652359165407223",
+        "7199916538783650088",
+        "6542673427813023417",
+        "12026779432949751174",
+        "6401544535132643203",
+        "9363196662584741243"
+      ]
+    },
+    "identifier_fold_collisions": {
+      "cells": [
+        "A2",
+        "a-",
+        "a---",
+        "A3",
+        "A5",
+        "A7",
+        "A4",
+        "A8",
+        "A-",
+        "A0",
+        "A1",
+        "A---",
+        "A6",
+        "A9"
+      ],
+      "column": {
+        "all_whole_numbers": false,
+        "detection_evidence": "written by hand in this method specification's own neutral vocabulary; no value here comes from any table.",
+        "max_length": 4,
+        "min_length": 2,
+        "missing_by_class": {
+          "(blank)": 0,
+          "(declared-missing)": 0,
+          "(numeric-sentinel)": 0,
+          "(text-code)": 0,
+          "(withheld)": 0
+        },
+        "missing_by_source": {},
+        "n_all_digits": 0,
+        "n_code_alphabet": 14,
+        "n_contradictory": 0,
+        "n_distinct": 14,
+        "n_distinct_by_occurrences": {
+          "1": 14
+        },
+        "n_distinct_folded": 12,
+        "n_missing": 0,
+        "n_not_numeric": 14,
+        "n_numeric": 0,
+        "n_out_of_range": 0,
+        "n_present": 14,
+        "n_sentinel_candidates_unpublished": 0,
+        "name": "column_1",
+        "position": 1,
+        "quality_state": "ok",
+        "remarks": [],
+        "role": "identifier",
+        "sentinel_verdicts": [],
+        "statistical_type": "code",
+        "structural_role": "identifier"
+      },
+      "content": [
+        "A-",
+        "A---",
+        "A0",
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5",
+        "A6",
+        "A7",
+        "A8",
+        "A9",
+        "a-",
+        "a---"
+      ],
+      "csv_bytes": "A2\na-\na---\nA3\nA5\nA7\nA4\nA8\nA-\nA0\nA1\nA---\nA6\nA9\n",
+      "float64": [],
+      "why": "two published folded identities fewer than raw spellings, so two of the invented values must fold onto a partner: the first identities are drawn from the letter-bearing part of the domain and each carries one case flip. The length pins of G9.2 are visible in the first two spellings, which take the shortest and the longest published length and cost no word.",
+      "word_budget": {
+        "content": 0,
+        "placement": 13
+      },
+      "words": [
+        "15790298876938276606",
+        "11663417973422657062",
+        "2174973634102678219",
+        "6468031425780904311",
+        "4429227251541079064",
+        "1398918272586881189",
+        "8789375813863383005",
+        "16487705707051843465",
+        "8139873547394760287",
+        "11404387512573117166",
+        "9826873545502997855",
+        "10233833751414870731",
+        "7563852239047881160"
+      ]
+    },
+    "identifier_whole_numbers": {
+      "cells": [
+        "0e0",
+        "01.",
+        "102",
+        "01.",
+        "00.",
+        "100",
+        "10000",
+        "0e0",
+        "101",
+        "1e0",
+        "00.",
+        "1e0"
+      ],
+      "column": {
+        "all_whole_numbers": true,
+        "detection_evidence": "written by hand in this method specification's own neutral vocabulary; no value here comes from any table.",
+        "max_length": 5,
+        "min_length": 3,
+        "missing_by_class": {
+          "(blank)": 0,
+          "(declared-missing)": 0,
+          "(numeric-sentinel)": 0,
+          "(text-code)": 0,
+          "(withheld)": 0
+        },
+        "missing_by_source": {},
+        "n_all_digits": 4,
+        "n_code_alphabet": 8,
+        "n_contradictory": 0,
+        "n_distinct": 8,
+        "n_distinct_by_occurrences": {
+          "1": 4,
+          "2": 4
+        },
+        "n_distinct_folded": 8,
+        "n_missing": 0,
+        "n_not_numeric": 0,
+        "n_numeric": 12,
+        "n_out_of_range": 0,
+        "n_present": 12,
+        "n_sentinel_candidates_unpublished": 0,
+        "name": "column_1",
+        "position": 1,
+        "quality_state": "ok",
+        "remarks": [],
+        "role": "identifier",
+        "sentinel_verdicts": [],
+        "statistical_type": "code",
+        "structural_role": "identifier"
+      },
+      "content": [
+        "100",
+        "10000",
+        "101",
+        "102",
+        "0e0",
+        "0e0",
+        "1e0",
+        "1e0",
+        "00.",
+        "00.",
+        "01.",
+        "01."
+      ],
+      "csv_bytes": "0e0\n01.\n102\n01.\n00.\n100\n10000\n0e0\n101\n1e0\n00.\n1e0\n",
+      "float64": [],
+      "why": "a declared identifier publishing all_whole_numbers true across all three alphabet bands, which is the branch review item P2-C2-F7 found this oracle carrying a withdrawn rule for. Revision 1 said that all_whole_numbers true meant every group was written from the figures alone; G9.6 withdrew that, and the bands here come from the two published alphabet counts and from nothing else: four cells in the figures, four more in the code alphabet, four outside it. What all_whole_numbers decides is what each band WRITES -- the figures write digits with a non-zero leading one, the code band writes <digits>e0, and outside the code alphabet the cell is written <digits>., whose one character outside that alphabet is the last rather than the leftmost, because a whole number cannot begin with it. Both alphabet counts are counts of CELLS answered for by whole GROUPS, so the four singletons answer for the figures and two doubled groups answer for each of the other two bands; and the length pins of G9.2 sit on the first two spellings, which cost no word.",
+      "word_budget": {
+        "content": 0,
+        "placement": 11
+      },
+      "words": [
+        "10030274107849547999",
+        "15521253635765011071",
+        "13836461403225338975",
+        "6117593865009646518",
+        "11054268929625209901",
+        "3587914545536121365",
+        "2793628182718251330",
+        "9295060879584016278",
+        "10009843322027634450",
+        "18435849063748089958",
+        "18148993397754231745"
+      ]
+    },
+    "label_variants": {
+      "cells": [
+        "group-1",
+        "North",
+        "soUth",
+        "soUth",
+        "7-11 ",
+        "group-2",
+        "7-11  ",
+        "nOrth",
+        "",
+        "",
+        "7-11   ",
+        "soUth",
+        "SOuth",
+        "South",
+        "7-11   ",
+        "North",
+        "North",
+        "soUth",
+        "7-11 ",
+        "group-2",
+        "NOrth",
+        "7-11  ",
+        "North",
+        "SoUth",
+        "group-2",
+        "group-2",
+        "North",
+        "sOuth",
+        "7-11 ",
+        "group-1",
+        "7-11 ",
+        "7-11   ",
+        "North",
+        "group-1",
+        "group-2",
+        "SoUth",
+        "group-2",
+        "North",
+        "North",
+        "North",
+        "7-11  ",
+        "North",
+        "group-2",
+        "soUth",
+        "North",
+        "SoUth",
+        "7-11   ",
+        "SoUth",
+        "SoUth",
+        "7-11  "
+      ],
+      "column": {
+        "detection_evidence": "written by hand in this method specification's own neutral vocabulary; no value here comes from any table.",
+        "level_ceiling": 20,
+        "levels": [
+          {
+            "count": 13,
+            "label": "north",
+            "variants": {
+              "North": 11
+            },
+            "variants_withheld": {
+              "1": 2
+            }
+          },
+          {
+            "count": 13,
+            "label": "south",
+            "variants": {},
+            "variants_withheld": {
+              "1": 3,
+              "5": 2
+            }
+          },
+          {
+            "count": 12,
+            "label": "7-11",
+            "variants": {},
+            "variants_withheld": {
+              "4": 3
+            }
+          }
+        ],
+        "missing_by_class": {
+          "(blank)": 0,
+          "(declared-missing)": 0,
+          "(numeric-sentinel)": 0,
+          "(text-code)": 0,
+          "(withheld)": 2
+        },
+        "missing_by_source": {
+          "(withheld)": 2
+        },
+        "n_contradictory": 0,
+        "n_distinct": 13,
+        "n_distinct_folded": 5,
+        "n_missing": 2,
+        "n_not_numeric": 48,
+        "n_numeric": 0,
+        "n_out_of_range": 0,
+        "n_present": 48,
+        "n_sentinel_candidates_unpublished": 0,
+        "name": "column_1",
+        "position": 1,
+        "quality_state": "ok",
+        "remarks": [],
+        "role": "categorical",
+        "sentinel_verdicts": [],
+        "statistical_type": "categorical",
+        "structural_role": "data",
+        "suppressed_level_counts": [
+          3,
+          7
+        ],
+        "suppressed_levels": 2,
+        "suppressed_rows": 10
+      },
+      "content": [
+        "North",
+        "North",
+        "North",
+        "North",
+        "North",
+        "North",
+        "North",
+        "North",
+        "North",
+        "North",
+        "North",
+        "nOrth",
+        "NOrth",
+        "South",
+        "sOuth",
+        "SOuth",
+        "soUth",
+        "soUth",
+        "soUth",
+        "soUth",
+        "soUth",
+        "SoUth",
+        "SoUth",
+        "SoUth",
+        "SoUth",
+        "SoUth",
+        "7-11 ",
+        "7-11 ",
+        "7-11 ",
+        "7-11 ",
+        "7-11  ",
+        "7-11  ",
+        "7-11  ",
+        "7-11  ",
+        "7-11   ",
+        "7-11   ",
+        "7-11   ",
+        "7-11   ",
+        "group-1",
+        "group-1",
+        "group-1",
+        "group-2",
+        "group-2",
+        "group-2",
+        "group-2",
+        "group-2",
+        "group-2",
+        "group-2"
+      ],
+      "csv_bytes": "group-1\nNorth\nsoUth\nsoUth\n7-11 \ngroup-2\n7-11  \nnOrth\n\"\"\n\"\"\n7-11   \nsoUth\nSOuth\nSouth\n7-11   \nNorth\nNorth\nsoUth\n7-11 \ngroup-2\nNOrth\n7-11  \nNorth\nSoUth\ngroup-2\ngroup-2\nNorth\nsOuth\n7-11 \ngroup-1\n7-11 \n7-11   \nNorth\ngroup-1\ngroup-2\nSoUth\ngroup-2\nNorth\nNorth\nNorth\n7-11  \nNorth\ngroup-2\nsoUth\nNorth\nSoUth\n7-11   \nSoUth\nSoUth\n7-11  \n",
+      "float64": [],
+      "why": "the variant allocation of G8.1, the case flips of G8.2 with a candidate skipped because a published variant already spells it, the trailing-space family a parent with no letters falls straight through to, and the neutral stand-in labels of G8.3 at their published sizes. A label column consumes no content word, so every byte here is fixed by published counts.",
+      "word_budget": {
+        "content": 0,
+        "placement": 49
+      },
+      "words": [
+        "11963376127784481471",
+        "8811798785216892889",
+        "9273867820551118783",
+        "13554370282884725440",
+        "9060547780293923212",
+        "1411783948479155249",
+        "7666529744640113064",
+        "18254477183346180252",
+        "3084421031199700831",
+        "15063200609615600966",
+        "4230815638602937026",
+        "4076406646768261274",
+        "765929995082621236",
+        "1978656067210153435",
+        "13158816643724607965",
+        "18028253954223023117",
+        "5164776794570387654",
+        "5807853018807556082",
+        "1855828987004747402",
+        "16976035838679037573",
+        "5337167761819413389",
+        "17094048286831685378",
+        "9674771367788047423",
+        "4457276250860306191",
+        "13320454777781917740",
+        "16357963768041601936",
+        "16285172591989972951",
+        "2013287018539706433",
+        "5377445686737864308",
+        "10629050919875048420",
+        "2365084283309719593",
+        "8321559233565288351",
+        "2689868915047693894",
+        "1022557403213150778",
+        "6239415321289908665",
+        "10962266920683331171",
+        "18387766627622840498",
+        "8008958887467463717",
+        "3352561267809570791",
+        "2527308457471687039",
+        "12159246088705695820",
+        "3355888160917775940",
+        "5286037579214665404",
+        "8551260477731462453",
+        "8122623374493414700",
+        "6433478580196713009",
+        "4534578588385673979",
+        "12350521707959121959",
+        "9283696747916472363"
+      ]
+    },
+    "mixed_parsed_unparsed": {
+      "cells": [
+        "2019-06-29",
+        "",
+        "text-1",
+        "2019-05-24",
+        "",
+        "2019-07-11",
+        "2019-06-20",
+        "2019-08-19",
+        "2019-06-05",
+        "2019-06-11",
+        "2019-06-01",
+        "text-2",
+        "2019-07-25",
+        "2019-07-06",
+        "2019-05-04",
+        "text-3"
+      ],
+      "column": {
+        "date_percentiles": {
+          "max": "2019-08-19",
+          "min": "2019-05-04",
+          "p01": "2019-05-06",
+          "p05": "2019-05-11",
+          "p10": "2019-05-18",
+          "p25": "2019-06-02",
+          "p50": "2019-06-21",
+          "p75": "2019-07-10",
+          "p90": "2019-07-28",
+          "p95": "2019-08-05",
+          "p99": "2019-08-14"
+        },
+        "datetimes_read_at": "local",
+        "detection_evidence": "written by hand in this method specification's own neutral vocabulary; no value here comes from any table.",
+        "earliest": "2019-05-04",
+        "earliest_utc_offset": "(none)",
+        "format": "iso-date",
+        "latest": "2019-08-19",
+        "latest_utc_offset": "(none)",
+        "missing_by_class": {
+          "(blank)": 0,
+          "(declared-missing)": 0,
+          "(numeric-sentinel)": 0,
+          "(text-code)": 0,
+          "(withheld)": 2
+        },
+        "missing_by_source": {
+          "(withheld)": 2
+        },
+        "n_contradictory": 0,
+        "n_distinct": 14,
+        "n_distinct_folded": 14,
+        "n_missing": 2,
+        "n_not_numeric": 14,
+        "n_numeric": 0,
+        "n_out_of_range": 0,
+        "n_present": 14,
+        "n_sentinel_candidates_unpublished": 0,
+        "n_unparsed": 3,
+        "name": "column_1",
+        "position": 1,
+        "quality_state": "ok",
+        "remarks": [],
+        "resolution": "date",
+        "role": "datetime",
+        "sentinel_verdicts": [],
+        "statistical_type": "datetime",
+        "structural_role": "data",
+        "subsecond_digits": 0,
+        "time_precision": "date",
+        "utc_offsets": {
+          "(none)": 11
+        }
+      },
+      "content": [
+        "2019-05-04",
+        "2019-05-24",
+        "2019-06-01",
+        "2019-06-05",
+        "2019-06-11",
+        "2019-06-20",
+        "2019-06-29",
+        "2019-07-06",
+        "2019-07-11",
+        "2019-07-25",
+        "2019-08-19",
+        "text-1",
+        "text-2",
+        "text-3"
+      ],
+      "csv_bytes": "2019-06-29\n\"\"\ntext-1\n2019-05-24\n\"\"\n2019-07-11\n2019-06-20\n2019-08-19\n2019-06-05\n2019-06-11\n2019-06-01\ntext-2\n2019-07-25\n2019-07-06\n2019-05-04\ntext-3\n",
+      "float64": [],
+      "why": "counted neutral stand-ins beside parsed cells, and the absent cells of a one-column table, which the canonical quoting exception writes as two quote characters rather than as nothing.",
+      "word_budget": {
+        "content": 9,
+        "placement": 15
+      },
+      "words": [
+        "15468790482999093277",
+        "12767879758820553273",
+        "3986135311488018723",
+        "2313441185114737656",
+        "6918807186959069744",
+        "13906788553970883755",
+        "13561824172940846821",
+        "7616466615151289132",
+        "11896883917442988457",
+        "15203904226939018011",
+        "1222699267172346040",
+        "9929831366226458468",
+        "13943388631391938479",
+        "15224560754684281973",
+        "4041919053268054581",
+        "8926944878616040259",
+        "6753681669668235960",
+        "4894827040233008342",
+        "14726592479066544356",
+        "10333078532235126804",
+        "10370370648584336126",
+        "4904921341357146097",
+        "12874998094852978492",
+        "1115272402486917155"
+      ]
+    },
+    "numeric_decimal_styles": {
+      "cells": [
+        "1e+16",
+        "7.282867274303186E+14",
+        "1000000000000000",
+        "04.85397100507206e+00",
+        "9.246127657752137E-01",
+        "1.74415686115367E-01",
+        "1E+15",
+        "1.6883873160327445E+00",
+        "1000000000000000",
+        "9.940898109509456e+14",
+        "2.965851728127198E+00",
+        "4.85397100507206E+00",
+        "5.285660822656508e-01",
+        "6.072305767710185e+14",
+        "3.960160628780134e+14",
+        "01E+16",
+        "1000000000000000",
+        "4.2420021233060756E+14",
+        "2.2426929566649676e+00",
+        "9.09729136988493E+13",
+        "1e-05",
+        "6.273336559336017E-03",
+        "6.690881100834331e-03",
+        "3.435358557661793e+00",
+        "9.706430188284652e-01"
+      ],
+      "column": {
+        "detection_evidence": "written by hand in this method specification's own neutral vocabulary; no value here comes from any table.",
+        "integer_valued": false,
+        "mean": {
+          "decimal": "1000000000000",
+          "exact": "1000000000000",
+          "float64": 1000000000000.0,
+          "proof": "nearest"
+        },
+        "missing_by_class": {
+          "(blank)": 0,
+          "(declared-missing)": 0,
+          "(numeric-sentinel)": 0,
+          "(text-code)": 0,
+          "(withheld)": 0
+        },
+        "missing_by_source": {},
+        "n_contradictory": 0,
+        "n_distinct": 24,
+        "n_distinct_folded": 23,
+        "n_left_out_of_statistics": 0,
+        "n_missing": 0,
+        "n_negative": 0,
+        "n_negative_unrepresentable": 0,
+        "n_not_numeric": 0,
+        "n_numeric": 25,
+        "n_out_of_range": 0,
+        "n_present": 25,
+        "n_rows": 25,
+        "n_sentinel_candidates_unpublished": 0,
+        "n_used_in_statistics": 25,
+        "n_zero": 0,
+        "name": "column_1",
+        "numeric_share": {
+          "decimal": "1",
+          "exact": "1",
+          "float64": 1.0,
+          "proof": "nearest"
+        },
+        "numeric_styles": {
+          "(withheld)": 3,
+          "exponent_lower": 11,
+          "exponent_upper": 11
+        },
+        "percentiles": {
+          "max": {
+            "decimal": "1e+16",
+            "exact": "10000000000000000",
+            "float64": 1e+16,
+            "proof": "nearest"
+          },
+          "min": {
+            "decimal": "1e-05",
+            "exact": "1/100000",
+            "float64": 1e-05,
+            "proof": "nearest"
+          },
+          "p01": {
+            "decimal": "0.0001",
+            "exact": "1/10000",
+            "float64": 0.0001,
+            "proof": "nearest"
+          },
+          "p05": {
+            "decimal": "0.001",
+            "exact": "1/1000",
+            "float64": 0.001,
+            "proof": "nearest"
+          },
+          "p10": {
+            "decimal": "0.01",
+            "exact": "1/100",
+            "float64": 0.01,
+            "proof": "nearest"
+          },
+          "p25": {
+            "decimal": "1",
+            "exact": "1",
+            "float64": 1.0,
+            "proof": "nearest"
+          },
+          "p50": {
+            "decimal": "5",
+            "exact": "5",
+            "float64": 5.0,
+            "proof": "nearest"
+          },
+          "p75": {
+            "decimal": "1000000000000000",
+            "exact": "1000000000000000",
+            "float64": 1000000000000000.0,
+            "proof": "nearest"
+          },
+          "p90": {
+            "decimal": "1000000000000000",
+            "exact": "1000000000000000",
+            "float64": 1000000000000000.0,
+            "proof": "nearest"
+          },
+          "p95": {
+            "decimal": "1000000000000000",
+            "exact": "1000000000000000",
+            "float64": 1000000000000000.0,
+            "proof": "nearest"
+          },
+          "p99": {
+            "decimal": "1000000000000000",
+            "exact": "1000000000000000",
+            "float64": 1000000000000000.0,
+            "proof": "nearest"
+          }
+        },
+        "position": 1,
+        "quality_state": "ok",
+        "remarks": [],
+        "role": "continuous",
+        "sentinel_verdicts": [],
+        "skew": {
+          "decimal": "4.5",
+          "exact": "9/2",
+          "float64": 4.5,
+          "proof": "nearest"
+        },
+        "statistical_type": "continuous",
+        "std": {
+          "decimal": "3000000000000",
+          "exact": "3000000000000",
+          "float64": 3000000000000.0,
+          "proof": "nearest"
+        },
+        "std_unrepresentable": false,
+        "structural_role": "data"
+      },
+      "content": [
+        "1e-05",
+        "6.273336559336017E-03",
+        "6.690881100834331e-03",
+        "1.74415686115367E-01",
+        "5.285660822656508e-01",
+        "9.246127657752137E-01",
+        "9.706430188284652e-01",
+        "1.6883873160327445E+00",
+        "2.2426929566649676e+00",
+        "2.965851728127198E+00",
+        "3.435358557661793e+00",
+        "4.85397100507206E+00",
+        "04.85397100507206e+00",
+        "9.09729136988493E+13",
+        "3.960160628780134e+14",
+        "4.2420021233060756E+14",
+        "6.072305767710185e+14",
+        "7.282867274303186E+14",
+        "9.940898109509456e+14",
+        "1000000000000000",
+        "1000000000000000",
+        "1E+15",
+        "1000000000000000",
+        "1e+16",
+        "01E+16"
+      ],
+      "csv_bytes": "1e+16\n7.282867274303186E+14\n1000000000000000\n04.85397100507206e+00\n9.246127657752137E-01\n1.74415686115367E-01\n1E+15\n1.6883873160327445E+00\n1000000000000000\n9.940898109509456e+14\n2.965851728127198E+00\n4.85397100507206E+00\n5.285660822656508e-01\n6.072305767710185e+14\n3.960160628780134e+14\n01E+16\n1000000000000000\n4.2420021233060756E+14\n2.2426929566649676e+00\n9.09729136988493E+13\n1e-05\n6.273336559336017E-03\n6.690881100834331e-03\n3.435358557661793e+00\n9.706430188284652e-01\n",
+      "float64": [
+        {
+          "interpolated": {
+            "exact": "115722633998317129/18446744073709551616",
+            "float64": 0.006273336559336017,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 2,
+          "stratum": 1,
+          "t": {
+            "exact": "1319388697979161/2251799813685248",
+            "float64": 0.5859262843706685,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "932411115706087/2251799813685248",
+            "float64": 0.4140737156293315,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "7232664624894821/1152921504606846976",
+            "float64": 0.006273336559336017,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "1074996826432010734327739777689/2596148429267413814265248164610048",
+            "float64": 0.0004140737156293315,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "7605758014177015669903519576835/1298074214633706907132624082305024",
+            "float64": 0.005859262843706685,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "123424971294710949/18446744073709551616",
+            "float64": 0.006690881100834331,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 2,
+          "stratum": 2,
+          "t": {
+            "exact": "1423858333618183/2251799813685248",
+            "float64": 0.6323201223149257,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "827941480067065/2251799813685248",
+            "float64": 0.36767987768507426,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "3857030352959717/576460752303423488",
+            "float64": 0.006690881100834331,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "954551536925340404020018194055/2596148429267413814265248164610048",
+            "float64": 0.0003676798776850743,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "8207984461710367321442127495005/1298074214633706907132624082305024",
+            "float64": 0.006323201223149257,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "100543797631582235/576460752303423488",
+            "float64": 0.174415686115367,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 3,
+          "stratum": 3,
+          "t": {
+            "exact": "747941841134375/4503599627370496",
+            "float64": 0.16607645062158283,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "3755657786236121/4503599627370496",
+            "float64": 0.8339235493784172,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "3141993675986945/18014398509481984",
+            "float64": 0.174415686115367,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "21649893128478843915250076602435/2596148429267413814265248164610048",
+            "float64": 0.008339235493784172,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "747941841134375/4503599627370496",
+            "float64": 0.16607645062158283,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "609395202849860623/1152921504606846976",
+            "float64": 0.5285660822656508,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 3,
+          "stratum": 4,
+          "t": {
+            "exact": "1179502027706345/2251799813685248",
+            "float64": 0.5238041235006574,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "1072297785978903/2251799813685248",
+            "float64": 0.4761958764993426,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "595112502783067/1125899906842624",
+            "float64": 0.5285660822656508,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "6181375883986938267790256744205/1298074214633706907132624082305024",
+            "float64": 0.0047619587649934255,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "1179502027706345/2251799813685248",
+            "float64": 0.5238041235006574,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "8528047528770060739/9223372036854775808",
+            "float64": 0.9246127657752137,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 3,
+          "stratum": 5,
+          "t": {
+            "exact": "2080328136936137/2251799813685248",
+            "float64": 0.9238512785608219,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "171471676749111/2251799813685248",
+            "float64": 0.07614872143917806,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "520510713425907/562949953421312",
+            "float64": 0.9246127657752137,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "988466917775219787015558815085/1298074214633706907132624082305024",
+            "float64": 0.0007614872143917806,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "2080328136936137/2251799813685248",
+            "float64": 0.9238512785608219,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "17905203355261538591/18446744073709551616",
+            "float64": 0.9706430188284652,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 3,
+          "stratum": 6,
+          "t": {
+            "exact": "4370052062254489/4503599627370496",
+            "float64": 0.9703464836651163,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "133547565116007/4503599627370496",
+            "float64": 0.029653516334883667,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "4371387537905649/4503599627370496",
+            "float64": 0.9706430188284652,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "769849298550638320812407499645/2596148429267413814265248164610048",
+            "float64": 0.0002965351633488367,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "4370052062254489/4503599627370496",
+            "float64": 0.9703464836651163,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "1900955121835535/1125899906842624",
+            "float64": 1.6883873160327445,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 4,
+          "stratum": 7,
+          "t": {
+            "exact": "775055214992911/4503599627370496",
+            "float64": 0.17209682900818613,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "3728544412377585/4503599627370496",
+            "float64": 0.8279031709918139,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "1900955121835535/1125899906842624",
+            "float64": 1.6883873160327445,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "3728544412377585/4503599627370496",
+            "float64": 0.8279031709918139,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "3875276074964555/4503599627370496",
+            "float64": 0.8604841450409306,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "78907743468303/35184372088832",
+            "float64": 2.2426929566649676,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 4,
+          "stratum": 8,
+          "t": {
+            "exact": "43723371379471/140737488355328",
+            "float64": 0.3106732391662419,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "97014116975857/140737488355328",
+            "float64": 0.6893267608337581,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "78907743468303/35184372088832",
+            "float64": 2.2426929566649676,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "97014116975857/140737488355328",
+            "float64": 0.6893267608337581,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "218616856897355/140737488355328",
+            "float64": 1.5533661958312095,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "26714017475259581/9007199254740992",
+            "float64": 2.965851728127198,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 4,
+          "stratum": 9,
+          "t": {
+            "exact": "4426704555129647/9007199254740992",
+            "float64": 0.49146293203179947,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "4580494699611345/9007199254740992",
+            "float64": 0.5085370679682005,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "6678504368814895/2251799813685248",
+            "float64": 2.965851728127198,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "4580494699611345/9007199254740992",
+            "float64": 0.5085370679682005,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "22133522775648235/9007199254740992",
+            "float64": 2.4573146601589975,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "483483735005303/140737488355328",
+            "float64": 3.435358557661793,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 4,
+          "stratum": 10,
+          "t": {
+            "exact": "342746246649975/562949953421312",
+            "float64": 0.6088396394154483,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "220203706771337/562949953421312",
+            "float64": 0.3911603605845517,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "483483735005303/140737488355328",
+            "float64": 3.435358557661793,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "220203706771337/562949953421312",
+            "float64": 0.3911603605845517,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "1713731233249875/562949953421312",
+            "float64": 3.0441981970772414,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "43720684019419437/9007199254740992",
+            "float64": 4.85397100507206,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 4,
+          "stratum": 11,
+          "t": {
+            "exact": "8678371191169611/9007199254740992",
+            "float64": 0.9634927512680148,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "328828063571381/9007199254740992",
+            "float64": 0.03650724873198519,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "2732542751213715/562949953421312",
+            "float64": 4.85397100507206,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "328828063571381/9007199254740992",
+            "float64": 0.03650724873198519,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "43391855955848055/9007199254740992",
+            "float64": 4.817463756340074,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "102426395058736494133727778087/1125899906842624",
+            "float64": 90972913698849.3,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 5,
+          "stratum": 12,
+          "t": {
+            "exact": "819411160469851/9007199254740992",
+            "float64": 0.09097291369884475,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "8187788094271141/9007199254740992",
+            "float64": 0.9090270863011553,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "5822266476726355/64",
+            "float64": 90972913698849.3,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "40938940471355705/9007199254740992",
+            "float64": 4.545135431505776,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "25006444106135589599609375/274877906944",
+            "float64": 90972913698844.75,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "445874448302538009773338064671/1125899906842624",
+            "float64": 396016062878013.4,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 5,
+          "stratum": 13,
+          "t": {
+            "exact": "3566995586420277/9007199254740992",
+            "float64": 0.3960160628780104,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "5440203668320715/9007199254740992",
+            "float64": 0.6039839371219896,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "3168128503024107/8",
+            "float64": 396016062878013.4,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "27201018341603575/9007199254740992",
+            "float64": 3.019919685609948,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "108856066480110992431640625/274877906944",
+            "float64": 396016062878010.4,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "955213959091304759517818608149/2251799813685248",
+            "float64": 424200212330607.56,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 5,
+          "stratum": 14,
+          "t": {
+            "exact": "3820855836365193/9007199254740992",
+            "float64": 0.4242002123306047,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "5186343418375799/9007199254740992",
+            "float64": 0.5757997876693953,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "6787203397289721/16",
+            "float64": 424200212330607.56,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "25931717091878995/9007199254740992",
+            "float64": 2.8789989383469767,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "116603266490636993408203125/274877906944",
+            "float64": 424200212330604.7,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "2734723399273930117963340512059/4503599627370496",
+            "float64": 607230576771018.5,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 5,
+          "stratum": 15,
+          "t": {
+            "exact": "2734723399273921/4503599627370496",
+            "float64": 0.6072305767710164,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "1768876228096575/4503599627370496",
+            "float64": 0.39276942322898356,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "1214461153542037/2",
+            "float64": 607230576771018.5,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "8844381140482875/4503599627370496",
+            "float64": 1.9638471161449178,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "83457134987607452392578125/137438953472",
+            "float64": 607230576771016.5,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "3279911834274060873396654052061/4503599627370496",
+            "float64": 728286727430318.6,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 5,
+          "stratum": 16,
+          "t": {
+            "exact": "3279911834274055/4503599627370496",
+            "float64": 0.7282867274303173,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "1223687793096441/4503599627370496",
+            "float64": 0.2717132725696827,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "5826293819442549/8",
+            "float64": 728286727430318.6,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "6118438965482205/4503599627370496",
+            "float64": 1.3585663628484135,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "100094965645570526123046875/137438953472",
+            "float64": 728286727430317.2,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "8953965004342971327461978840665/9007199254740992",
+            "float64": 994089810950945.6,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 5,
+          "stratum": 17,
+          "t": {
+            "exact": "8953965004342971/9007199254740992",
+            "float64": 0.9940898109509456,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "53234250398021/9007199254740992",
+            "float64": 0.005910189049054382,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "7952718487607565/8",
+            "float64": 994089810950945.6,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "266171251990105/9007199254740992",
+            "float64": 0.02955094524527191,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "273253326548552581787109375/274877906944",
+            "float64": 994089810950945.6,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "31999999999999999/32",
+            "float64": 1000000000000000.0,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 6,
+          "stratum": 18,
+          "t": {
+            "exact": "779763767526623/4503599627370496",
+            "float64": 0.17314233769530296,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "3723835859843873/4503599627370496",
+            "float64": 0.826857662304697,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "1000000000000000",
+            "float64": 1000000000000000.0,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "113642451777461944580078125/137438953472",
+            "float64": 826857662304697.0,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "23796501694538055419921875/137438953472",
+            "float64": 173142337695302.97,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "1000000000000000",
+            "float64": 1000000000000000.0,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 6,
+          "stratum": 19,
+          "t": {
+            "exact": "4248106189667567/9007199254740992",
+            "float64": 0.4716345302821575,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "4759093065073425/9007199254740992",
+            "float64": 0.5283654697178425,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "1000000000000000",
+            "float64": 1000000000000000.0,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "145235994417523956298828125/274877906944",
+            "float64": 528365469717842.5,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "129641912526476043701171875/274877906944",
+            "float64": 471634530282157.5,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "31999999999999999/32",
+            "float64": 1000000000000000.0,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 6,
+          "stratum": 20,
+          "t": {
+            "exact": "3531909777361617/4503599627370496",
+            "float64": 0.7842415111451155,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "971689850008879/4503599627370496",
+            "float64": 0.21575848885488447,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "1000000000000000",
+            "float64": 1000000000000000.0,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "29653620910915496826171875/137438953472",
+            "float64": 215758488854884.47,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "107785332561084503173828125/137438953472",
+            "float64": 784241511145115.5,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "31999999999999999/32",
+            "float64": 1000000000000000.0,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 6,
+          "stratum": 21,
+          "t": {
+            "exact": "7911309398411341/9007199254740992",
+            "float64": 0.8783317849049667,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "1095889856329651/9007199254740992",
+            "float64": 0.12166821509503334,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "1000000000000000",
+            "float64": 1000000000000000.0,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "33443904306935150146484375/274877906944",
+            "float64": 121668215095033.34,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "241434002637064849853515625/274877906944",
+            "float64": 878331784904966.6,
+            "proof": "nearest"
+          }
+        }
+      ],
+      "why": "the shortest round-trip digits at both boundaries of the fixed-point window, and an exact style map on a column whose values mostly cannot wear a point-free form. The pinned smallest value writes 1e-05, one place below the window, and the pinned largest writes 1e+16, one place above it; at those two decimal exponents the exponent style and the canonical spelling are the same text, which is itself worth freezing. The published map asks for three plain cells, and a plain cell carries neither a point nor an exponent, so only a value the window holds whole can wear one: the four cells on the flat top of the ladder are this column's only carriers and they all hold 1000000000000000, whose point-free spelling is the digits alone and not the canonical 1000000000000000.0. The look-ahead of G6.4 is what keeps the quota for them, since largest-remaining on its own would have spent every one of them on an exponent form and left the quota at the end of the column with nothing to carry it; the two exponent quotas alternate from the first cell until then. Distinctness is met inside that map: the base spellings hold twenty-one folded identities against a published twenty-three, so exactly two cells raise their leading-zero order, each inside the style G6.4 gave it, and neither is a plain cell, because plain is the one style with no such family. The cost is the one G6.5's precedence decides: three plain cells on a single value are a single raw spelling, so this column's own supply is twenty-three raw spellings against a published twenty-four, and G12.8's envelope prints that range.",
+      "word_budget": {
+        "content": 21,
+        "placement": 24
+      },
+      "words": [
+        "18122226285733997623",
+        "745251280968031284",
+        "2265014642969230085",
+        "8564186180574590976",
+        "17790820182404252692",
+        "2560395418245524351",
+        "6006355448536362631",
+        "3536383705070940149",
+        "5933272102958222522",
+        "1019141037504069393",
+        "11730558448425329608",
+        "1265090817159327158",
+        "17987427395615227841",
+        "2790094521200593362",
+        "5445314763428947640",
+        "955394625722831381",
+        "13153659650187502672",
+        "7365485450781542734",
+        "9567025444509976164",
+        "12744960014427948290",
+        "806937940243059194",
+        "4804218408820866901",
+        "7727943645550869855",
+        "1714489202306818105",
+        "1520229949718584579",
+        "83083277045611386",
+        "12865410532545056808",
+        "7854065325545113299",
+        "16337924459546691455",
+        "2599083258829215049",
+        "7212223952302396495",
+        "18081592058026531404",
+        "3610000432696877458",
+        "5971099600468076975",
+        "18329783686676331769",
+        "16396278361322735980",
+        "16318951378032944714",
+        "4589929018872600007",
+        "16664587370514787775",
+        "4977703725571114289",
+        "9946834984199833014",
+        "12604538961719754543",
+        "14043947692871599059",
+        "2864893112624124495",
+        "15982129525091029551"
+      ]
+    },
+    "numeric_integer": {
+      "cells": [
+        "-8",
+        "",
+        "14",
+        "7",
+        "3",
+        "-6",
+        "-6",
+        "34",
+        "3",
+        "3",
+        "7",
+        "0",
+        "0",
+        "34",
+        "",
+        "0",
+        "-4",
+        "-4",
+        "-4",
+        "3",
+        "3",
+        "0"
+      ],
+      "column": {
+        "detection_evidence": "written by hand in this method specification's own neutral vocabulary; no value here comes from any table.",
+        "integer_valued": true,
+        "mean": {
+          "decimal": "4.25",
+          "exact": "17/4",
+          "float64": 4.25,
+          "proof": "nearest"
+        },
+        "missing_by_class": {
+          "(blank)": 0,
+          "(declared-missing)": 0,
+          "(numeric-sentinel)": 0,
+          "(text-code)": 0,
+          "(withheld)": 2
+        },
+        "missing_by_source": {
+          "(withheld)": 2
+        },
+        "n_contradictory": 0,
+        "n_distinct": 12,
+        "n_distinct_folded": 12,
+        "n_left_out_of_statistics": 0,
+        "n_missing": 2,
+        "n_negative": 6,
+        "n_negative_unrepresentable": 0,
+        "n_not_numeric": 0,
+        "n_numeric": 20,
+        "n_out_of_range": 0,
+        "n_present": 20,
+        "n_rows": 22,
+        "n_sentinel_candidates_unpublished": 0,
+        "n_used_in_statistics": 20,
+        "n_zero": 4,
+        "name": "column_1",
+        "numeric_share": {
+          "decimal": "1",
+          "exact": "1",
+          "float64": 1.0,
+          "proof": "nearest"
+        },
+        "numeric_styles": {
+          "plain": 20
+        },
+        "percentiles": {
+          "max": {
+            "decimal": "34",
+            "exact": "34",
+            "float64": 34.0,
+            "proof": "nearest"
+          },
+          "min": {
+            "decimal": "-8",
+            "exact": "-8",
+            "float64": -8.0,
+            "proof": "nearest"
+          },
+          "p01": {
+            "decimal": "-7.75",
+            "exact": "-31/4",
+            "float64": -7.75,
+            "proof": "nearest"
+          },
+          "p05": {
+            "decimal": "-7",
+            "exact": "-7",
+            "float64": -7.0,
+            "proof": "nearest"
+          },
+          "p10": {
+            "decimal": "-6.5",
+            "exact": "-13/2",
+            "float64": -6.5,
+            "proof": "nearest"
+          },
+          "p25": {
+            "decimal": "-3.25",
+            "exact": "-13/4",
+            "float64": -3.25,
+            "proof": "nearest"
+          },
+          "p50": {
+            "decimal": "2.5",
+            "exact": "5/2",
+            "float64": 2.5,
+            "proof": "nearest"
+          },
+          "p75": {
+            "decimal": "2.5",
+            "exact": "5/2",
+            "float64": 2.5,
+            "proof": "nearest"
+          },
+          "p90": {
+            "decimal": "16.25",
+            "exact": "65/4",
+            "float64": 16.25,
+            "proof": "nearest"
+          },
+          "p95": {
+            "decimal": "21.5",
+            "exact": "43/2",
+            "float64": 21.5,
+            "proof": "nearest"
+          },
+          "p99": {
+            "decimal": "29.75",
+            "exact": "119/4",
+            "float64": 29.75,
+            "proof": "nearest"
+          }
+        },
+        "position": 1,
+        "quality_state": "ok",
+        "remarks": [],
+        "role": "continuous",
+        "sentinel_verdicts": [],
+        "skew": {
+          "decimal": "0.5",
+          "exact": "1/2",
+          "float64": 0.5,
+          "proof": "nearest"
+        },
+        "statistical_type": "continuous",
+        "std": {
+          "decimal": "14.5",
+          "exact": "29/2",
+          "float64": 14.5,
+          "proof": "nearest"
+        },
+        "std_unrepresentable": false,
+        "structural_role": "data"
+      },
+      "content": [
+        "-8",
+        "-6",
+        "-6",
+        "-4",
+        "-4",
+        "-4",
+        "0",
+        "0",
+        "0",
+        "0",
+        "3",
+        "3",
+        "3",
+        "3",
+        "3",
+        "7",
+        "7",
+        "14",
+        "34",
+        "34"
+      ],
+      "csv_bytes": "-8\n\"\"\n14\n7\n3\n-6\n-6\n34\n3\n3\n7\n0\n0\n34\n\"\"\n0\n-4\n-4\n-4\n3\n3\n0\n",
+      "float64": [
+        {
+          "interpolated": {
+            "exact": "-55849830526529999/9007199254740992",
+            "float64": -6.200576777196654,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 3,
+          "stratum": 1,
+          "t": {
+            "exact": "207458817637419/2251799813685248",
+            "float64": 0.09213022240102964,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "2044340996047829/2251799813685248",
+            "float64": 0.9078697775989704,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "-6",
+            "float64": -6.0,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "-26576432948621777/4503599627370496",
+            "float64": -5.901153554393307,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "-2696964629286447/9007199254740992",
+            "float64": -0.2994232228033463,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "-1222329080201819/281474976710656",
+            "float64": -4.342585243228637,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 3,
+          "stratum": 2,
+          "t": {
+            "exact": "2989579167593575/4503599627370496",
+            "float64": 0.6638199251604193,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "1514020459776921/4503599627370496",
+            "float64": 0.3361800748395807,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "-4",
+            "float64": -4.0,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "-19682265977099973/9007199254740992",
+            "float64": -2.1851704864572743,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "-38864529178716475/18014398509481984",
+            "float64": -2.1574147567713626,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "-18571731783010959/4503599627370496",
+            "float64": -4.123752846532316,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 3,
+          "stratum": 3,
+          "t": {
+            "exact": "1646410122291887/2251799813685248",
+            "float64": 0.7311529702977491,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "605389691393361/2251799813685248",
+            "float64": 0.26884702970225094,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "-4",
+            "float64": -4.0,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "-7870065988113693/4503599627370496",
+            "float64": -1.747505693064631,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "-21403331589794531/9007199254740992",
+            "float64": -2.3762471534676846,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "45035996273704963/18014398509481984",
+            "float64": 2.5,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 5,
+          "stratum": 5,
+          "t": {
+            "exact": "912797393912511/9007199254740992",
+            "float64": 0.10134086835395084,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "8094401860828481/9007199254740992",
+            "float64": 0.8986591316460492,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "3",
+            "float64": 3.0,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "40472009304142405/18014398509481984",
+            "float64": 2.246647829115123,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "4563986969562555/18014398509481984",
+            "float64": 0.2533521708848771,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "5/2",
+            "float64": 2.5,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 5,
+          "stratum": 6,
+          "t": {
+            "exact": "2515600776617713/9007199254740992",
+            "float64": 0.279287790296591,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "6491598478123279/9007199254740992",
+            "float64": 0.720712209703409,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "3",
+            "float64": 3.0,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "32457992390616395/18014398509481984",
+            "float64": 1.8017805242585225,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "12578003883088565/18014398509481984",
+            "float64": 0.6982194757414775,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "5/2",
+            "float64": 2.5,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 5,
+          "stratum": 7,
+          "t": {
+            "exact": "2172565708504975/4503599627370496",
+            "float64": 0.4824064944186579,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "2331033918865521/4503599627370496",
+            "float64": 0.5175935055813421,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "3",
+            "float64": 3.0,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "11655169594327605/9007199254740992",
+            "float64": 1.2939837639533551,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "10862828542524875/9007199254740992",
+            "float64": 1.2060162360466449,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "45035996273704959/18014398509481984",
+            "float64": 2.5,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 5,
+          "stratum": 8,
+          "t": {
+            "exact": "8797095205298141/9007199254740992",
+            "float64": 0.9766737646741565,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "210104049442851/9007199254740992",
+            "float64": 0.023326235325843547,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "3",
+            "float64": 3.0,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "1050520247214255/18014398509481984",
+            "float64": 0.05831558831460887,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "43985476026490705/18014398509481984",
+            "float64": 2.441684411685391,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "16785875976241337/2251799813685248",
+            "float64": 7.454426398930163,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 6,
+          "stratum": 9,
+          "t": {
+            "exact": "3245491328590027/9007199254740992",
+            "float64": 0.36032191992219376,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "5761707926150965/9007199254740992",
+            "float64": 0.6396780800778062,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "7",
+            "float64": 7.0,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "28808539630754825/18014398509481984",
+            "float64": 1.5991952001945156,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "210956936358351755/36028797018963968",
+            "float64": 5.855231198735648,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "260715251918786061/18014398509481984",
+            "float64": 14.472603777559215,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 6,
+          "stratum": 10,
+          "t": {
+            "exact": "7842882023457495/9007199254740992",
+            "float64": 0.8707348201861248,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "1164317231283497/9007199254740992",
+            "float64": 0.1292651798138752,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "14",
+            "float64": 14.0,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "5821586156417485/18014398509481984",
+            "float64": 0.323162949534688,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "509787331524737175/36028797018963968",
+            "float64": 14.149440828024527,
+            "proof": "nearest"
+          }
+        }
+      ],
+      "why": "the stratified inverse transform with integer_valued true. The p50 and p75 rungs are the same half-integer, so four interior strata land on exactly 2.5 and the rounding direction is what decides their bytes: to nearest, ties toward positive infinity, so each writes 3 and neither 2 nor a parity-dependent answer. Both endpoints are pinned and cost no word; the zero stratum costs none either.",
+      "word_budget": {
+        "content": 9,
+        "placement": 21
+      },
+      "words": [
+        "11772625987983383310",
+        "18289204737680302691",
+        "1784343509013158634",
+        "9347045313664117555",
+        "7313007878855836523",
+        "3800328781381396623",
+        "16295278607414762533",
+        "9970149361428565735",
+        "11293179004703751843",
+        "5263992174777769659",
+        "10257478491244533986",
+        "13533929204537971183",
+        "3668598122693968034",
+        "4884033769700471139",
+        "6003686507303868290",
+        "9487660973591609688",
+        "8409348134138937769",
+        "9120532227540731730",
+        "11095733292861077991",
+        "14510376374364777935",
+        "13560177484143940994",
+        "11173923279816319277",
+        "14794590252439445687",
+        "7011644228590637169",
+        "6486586343555636615",
+        "4048370230160771086",
+        "13353600119125463639",
+        "6954318356567724678",
+        "6952775705301372451",
+        "11786355788230889783"
+      ]
+    },
+    "offset_bearing": {
+      "cells": [
+        "2021-03-01T15:18:34Z",
+        "2021-03-01T11:28:53Z",
+        "2021-03-02T14:00:00+02:00",
+        "2021-03-01T16:06:42Z",
+        "2021-03-01T14:57:35Z",
+        "2021-03-01T13:26:20Z",
+        "2021-03-01T12:44:23Z",
+        "2021-03-01T12:26:19+02:00",
+        "2021-03-01T08:06:12+02:00",
+        "2021-03-01T18:07:26Z",
+        "2021-03-01T05:42:25+02:00",
+        "2021-03-01T09:17:20+02:00",
+        "2021-03-01T07:55:15+02:00",
+        "2021-03-01T22:16:16Z",
+        "2021-03-02T01:06:10Z",
+        "2021-03-01T11:42:04+02:00",
+        "2021-03-01T17:15:11Z",
+        "2021-03-01T00:00:00Z",
+        "2021-03-01T04:11:16+02:00",
+        "2021-03-01T06:26:04+02:00",
+        "2021-03-02T03:27:21Z",
+        "2021-03-01T07:22:00+02:00",
+        "2021-03-01T10:39:41+02:00",
+        "2021-03-01T23:53:10Z"
+      ],
+      "column": {
+        "date_percentiles": {
+          "max": "2021-03-02 12:00:00",
+          "min": "2021-03-01 00:00:00",
+          "p01": "2021-03-01 00:30:00",
+          "p05": "2021-03-01 02:00:00",
+          "p10": "2021-03-01 04:00:00",
+          "p25": "2021-03-01 06:00:00",
+          "p50": "2021-03-01 12:00:00",
+          "p75": "2021-03-01 18:00:00",
+          "p90": "2021-03-02 02:00:00",
+          "p95": "2021-03-02 06:00:00",
+          "p99": "2021-03-02 09:00:00"
+        },
+        "datetimes_read_at": "utc",
+        "detection_evidence": "written by hand in this method specification's own neutral vocabulary; no value here comes from any table.",
+        "earliest": "2021-03-01 00:00:00",
+        "earliest_utc_offset": "Z",
+        "format": "iso-datetime",
+        "latest": "2021-03-02 12:00:00",
+        "latest_utc_offset": "+02:00",
+        "missing_by_class": {
+          "(blank)": 0,
+          "(declared-missing)": 0,
+          "(numeric-sentinel)": 0,
+          "(text-code)": 0,
+          "(withheld)": 0
+        },
+        "missing_by_source": {},
+        "n_contradictory": 0,
+        "n_distinct": 24,
+        "n_distinct_folded": 24,
+        "n_missing": 0,
+        "n_not_numeric": 24,
+        "n_numeric": 0,
+        "n_out_of_range": 0,
+        "n_present": 24,
+        "n_sentinel_candidates_unpublished": 0,
+        "n_unparsed": 0,
+        "name": "column_1",
+        "position": 1,
+        "quality_state": "ok",
+        "remarks": [],
+        "resolution": "datetime",
+        "role": "datetime",
+        "sentinel_verdicts": [],
+        "statistical_type": "datetime",
+        "structural_role": "data",
+        "subsecond_digits": 0,
+        "time_precision": "second",
+        "utc_offsets": {
+          "+02:00": 11,
+          "Z": 13
+        }
+      },
+      "content": [
+        "2021-03-01T00:00:00Z",
+        "2021-03-01T04:11:16+02:00",
+        "2021-03-01T05:42:25+02:00",
+        "2021-03-01T06:26:04+02:00",
+        "2021-03-01T07:22:00+02:00",
+        "2021-03-01T07:55:15+02:00",
+        "2021-03-01T08:06:12+02:00",
+        "2021-03-01T09:17:20+02:00",
+        "2021-03-01T10:39:41+02:00",
+        "2021-03-01T11:42:04+02:00",
+        "2021-03-01T12:26:19+02:00",
+        "2021-03-01T11:28:53Z",
+        "2021-03-01T12:44:23Z",
+        "2021-03-01T13:26:20Z",
+        "2021-03-01T14:57:35Z",
+        "2021-03-01T15:18:34Z",
+        "2021-03-01T16:06:42Z",
+        "2021-03-01T17:15:11Z",
+        "2021-03-01T18:07:26Z",
+        "2021-03-01T22:16:16Z",
+        "2021-03-01T23:53:10Z",
+        "2021-03-02T01:06:10Z",
+        "2021-03-02T03:27:21Z",
+        "2021-03-02T14:00:00+02:00"
+      ],
+      "csv_bytes": "2021-03-01T15:18:34Z\n2021-03-01T11:28:53Z\n2021-03-02T14:00:00+02:00\n2021-03-01T16:06:42Z\n2021-03-01T14:57:35Z\n2021-03-01T13:26:20Z\n2021-03-01T12:44:23Z\n2021-03-01T12:26:19+02:00\n2021-03-01T08:06:12+02:00\n2021-03-01T18:07:26Z\n2021-03-01T05:42:25+02:00\n2021-03-01T09:17:20+02:00\n2021-03-01T07:55:15+02:00\n2021-03-01T22:16:16Z\n2021-03-02T01:06:10Z\n2021-03-01T11:42:04+02:00\n2021-03-01T17:15:11Z\n2021-03-01T00:00:00Z\n2021-03-01T04:11:16+02:00\n2021-03-01T06:26:04+02:00\n2021-03-02T03:27:21Z\n2021-03-01T07:22:00+02:00\n2021-03-01T10:39:41+02:00\n2021-03-01T23:53:10Z\n",
+      "float64": [],
+      "why": "the offset allocation of G7.4 with both endpoint offsets pinned, and the utc clock conversion: a published instant written on the wall clock of the offset its own cell carries.",
+      "word_budget": {
+        "content": 22,
+        "placement": 23
+      },
+      "words": [
+        "5767987570180376785",
+        "4137940843852105099",
+        "3357486873081111151",
+        "15867495332932156262",
+        "15818866815484724309",
+        "1910389707909542319",
+        "5332766239925695447",
+        "12203844558430543301",
+        "12936623471645322750",
+        "8092217747800504980",
+        "8880384414625044392",
+        "13650279682525226351",
+        "8097458334581197121",
+        "17706528596577841216",
+        "5708511762091391385",
+        "2062486542870504659",
+        "4671442185228173103",
+        "1030638457095904017",
+        "17010039991443910733",
+        "11968978306597155092",
+        "3621312926436956588",
+        "678001638936691630",
+        "15621394269280345601",
+        "6844949931885213773",
+        "3861112309963881180",
+        "7500036688811799097",
+        "3004537903871046789",
+        "1319293843099693824",
+        "402133304777179008",
+        "157650257388527877",
+        "11402520411093986989",
+        "6085542217269792998",
+        "4734660979387692243",
+        "8473303461638027804",
+        "11630077187634147208",
+        "4458374147249290524",
+        "2369030762614924813",
+        "12369823957925092664",
+        "5166522099601314915",
+        "15616721581626287654",
+        "9429884691979953109",
+        "18127486393963791964",
+        "3344364491090853863",
+        "2323706709912995473",
+        "2923796674797395481"
+      ]
+    },
+    "quarter": {
+      "cells": [
+        "2022-Q3",
+        "2024-Q4",
+        "2023-Q2",
+        "2019-Q4",
+        "2018-Q1",
+        "2021-Q2",
+        "2021-Q3",
+        "2023-Q1",
+        "2020-Q3",
+        "2022-Q2",
+        "2020-Q2",
+        "2019-Q1"
+      ],
+      "column": {
+        "date_percentiles": {
+          "max": "2024-Q4",
+          "min": "2018-Q1",
+          "p01": "2018-Q2",
+          "p05": "2018-Q4",
+          "p10": "2019-Q2",
+          "p25": "2020-Q1",
+          "p50": "2021-Q3",
+          "p75": "2022-Q4",
+          "p90": "2023-Q3",
+          "p95": "2024-Q1",
+          "p99": "2024-Q3"
+        },
+        "datetimes_read_at": "local",
+        "detection_evidence": "written by hand in this method specification's own neutral vocabulary; no value here comes from any table.",
+        "earliest": "2018-Q1",
+        "earliest_utc_offset": "(none)",
+        "format": "year-quarter",
+        "latest": "2024-Q4",
+        "latest_utc_offset": "(none)",
+        "missing_by_class": {
+          "(blank)": 0,
+          "(declared-missing)": 0,
+          "(numeric-sentinel)": 0,
+          "(text-code)": 0,
+          "(withheld)": 0
+        },
+        "missing_by_source": {},
+        "n_contradictory": 0,
+        "n_distinct": 12,
+        "n_distinct_folded": 12,
+        "n_missing": 0,
+        "n_not_numeric": 12,
+        "n_numeric": 0,
+        "n_out_of_range": 0,
+        "n_present": 12,
+        "n_sentinel_candidates_unpublished": 0,
+        "n_unparsed": 0,
+        "name": "column_1",
+        "position": 1,
+        "quality_state": "ok",
+        "remarks": [],
+        "resolution": "quarter",
+        "role": "datetime",
+        "sentinel_verdicts": [],
+        "statistical_type": "datetime",
+        "structural_role": "data",
+        "subsecond_digits": 0,
+        "time_precision": "quarter",
+        "utc_offsets": {
+          "(none)": 12
+        }
+      },
+      "content": [
+        "2018-Q1",
+        "2019-Q1",
+        "2019-Q4",
+        "2020-Q2",
+        "2020-Q3",
+        "2021-Q2",
+        "2021-Q3",
+        "2022-Q2",
+        "2022-Q3",
+        "2023-Q1",
+        "2023-Q2",
+        "2024-Q4"
+      ],
+      "csv_bytes": "2022-Q3\n2024-Q4\n2023-Q2\n2019-Q4\n2018-Q1\n2021-Q2\n2021-Q3\n2023-Q1\n2020-Q3\n2022-Q2\n2020-Q2\n2019-Q1\n",
+      "float64": [],
+      "why": "the quarter form of G7.5 and the quarter ordinal, where one unit is three months and no clock exists to shift.",
+      "word_budget": {
+        "content": 10,
+        "placement": 11
+      },
+      "words": [
+        "2951315705954145492",
+        "10808750059907510011",
+        "15197106187201647244",
+        "5483483510807493621",
+        "12634166190170755924",
+        "8557152385012124240",
+        "16442642387055436547",
+        "10420072498744423129",
+        "18321158485267126211",
+        "4473733150874107093",
+        "2016160144537938125",
+        "6374270959940166065",
+        "14373970446143769944",
+        "9954831754992850354",
+        "17049503755859162412",
+        "18342807586139153977",
+        "17012409700022442331",
+        "2994083137851607544",
+        "10884890814974754874",
+        "13385752094565004958",
+        "16951936404647227201"
+      ]
+    }
+  },
+  "column_shape": "Each case's 'column' is one column block in the profile's own wire shape, with one departure stated rather than left to be discovered: every published binary64 in it is written inside a 'float64' wrapper carrying the exact decimal it was read from, that decimal as an exact rational, and the proof shape. The wire value is the wrapper's 'float64' field. Writing those numbers bare would put a number in this file that nothing proved.",
+  "definitions": {
+    "bounded": "bounded(w, m) = (w * m) >> 64, the whole part of (w / 2**64) * m and a value in 0..m-1. One word every call, so a run's word count is a fixed function of the published facts (G3.4b).",
+    "canonical_spelling": "a whole-number column writes the base-ten digits of the value, 0 never -0. Otherwise the shortest digit string that reads back as exactly the value (shortest first, then nearest, ties to the even significand), in fixed-point notation when -4 < decpt <= 16 with .0 appended where no fractional digit would otherwise be written, and in d[.ddd]e+/-XX otherwise with the sign always written and the exponent at least two digits. Beside it, and not always the same text, the POINT-FREE spelling the three styles carrying neither a point nor an exponent are written from: where decpt >= len(D) and -4 < decpt <= 16 it is the sign, D and decpt - len(D) trailing zeros, and where those conditions do not hold the value has no point-free spelling at all (G6.2).",
+    "class_repair": "a stratum in the negative band whose value is at or above zero takes max(min, -1); a stratum in the positive band whose value is at or below zero takes min(max, 1); the zero stratum needs none. Where the ladder and the sign counts disagree, the counts win (G5.5).",
+    "convex_interpolation": "T = (A << 53) // B and t = ldexp(T, -53); then u = 1 - t, x1 = u * L[j], x2 = t * L[j+1], v = x1 + x2 -- four IEEE-754 binary64 operations in that order and no others -- then the clamp, v = L[j] when below and v = L[j+1] when above. The difference form L[j] + t*(L[j+1]-L[j]) is not used: it overflows to an infinity when the rungs sit at opposite ends of the range and loses the interpolation between neighbouring subnormals (G5.3).",
+    "endpoint_fields": "the two endpoint cells are built from the published endpoint's OWN four fields and never from an ordinal: take the date with HH:MM and a seconds field of 00, move THAT to the clock this cell is allocated -- unchanged on the local clock, shifted by offset_in_seconds on the shared one -- cut the result to the recorded time_precision, and write the published seconds field back unchanged. Every offset is a whole number of minutes, so the move never touches the seconds field and a seconds field of 60 survives it; for every other seconds field this produces the bytes the ordinal route produces (G7.5).",
+    "float64": "the binary64 value published for the exact rational recorded beside it. 'proof' says which claim is being made: 'nearest' means the value is the correctly rounded (round-half-even) binary64 of that rational, and 'exact' means it IS that rational with nothing rounded away. Both are re-derived from the value's two binary64 neighbours in a separate pass over the finished document.",
+    "grid_packing": "the published families of counts over one set of cells are MARGINS of one packing, never one walk after another: every group takes one cell of the grid out of the set its own facts permit, and every quota of every margin is met exactly whenever such an assignment exists. Each margin ranks its counts in ascending order of their published values, ties by the contract's own order; a cell carries one rank per margin and the cells are filled in ascending order of those ranks read margin by margin. Within a cell the group SIZES are offered in ascending order and each size offers as many copies as the cell can still hold, falling back to fewer; a fill that leaves a later cell unable to finish is undone and the next is tried; groups are handed to their cells in group order. A cell that is the last which can answer for one of its counts takes what that count still owes rather than choosing. Nothing counts the work and nothing stops the walk early (G9.5, G9.6, G10.5).",
+    "integer_rule": "b = int(v) truncated toward zero; r = v - float(b); to nearest with ties toward POSITIVE INFINITY -- r > 0.5 or r == 0.5 gives b+1, r < -0.5 gives b-1, r == -0.5 gives b. Not banker's rounding and not toward zero. Applied by the published integer_valued fact and never by the role name, and never to a pinned stratum (G5.4).",
+    "ladder_segment": "the unique j in 0..9 with PCT[j]*D <= 100*N < PCT[j+1]*D, scanned upward from zero and stopped at the first that holds. PCT is (0,1,5,10,25,50,75,90,95,99,100) held as whole numbers (G5.1, G5.3, G7.3).",
+    "notation_reading": "what one finished cell's notation settles, asked of every cell by the recounts: a sign inside accounting parentheses is the contradictory class and settles neither the sign nor the whole-number status, ordinary text settles neither either, and a well-formed number is out of range exactly when its magnitude reaches the point where binary64 rounds to an infinity or falls to or below half the smallest subnormal -- so a 400-digit whole number is out of range and whole, and a fraction below that point is out of range and a fraction (G10.2, G10.5).",
+    "offset_form": "rank 0 takes earliest_utc_offset and rank P-1 takes latest_utc_offset where each names a real offset; the rest are spent over the remaining ranks in ascending rank, taking the keys in the profile's own sorted order with (none) and (withheld) last. A cell allocated either of those is written with no offset. Under the utc clock a datetime cell is written on its own offset's wall clock, local_ordinal = ordinal + offset_in_seconds (G7.4).",
+    "ordinal_transform": "N_r = r * 2**64 + w over D = P * 2**64; the segment is located as above and ordinal = Lo[j] + (A * (Lo[j+1] - Lo[j])) // B. The floor division rounds toward the EARLIER instant always, before the epoch included, which is why it floors toward negative infinity rather than truncating toward zero (G7.3).",
+    "partner_family": "a fold-collision partner is a case flip, edge spacing, or both, because the shipped fold trims before it turns the case over. One parent's partners are enumerated by ascending TOTAL number of spaces, and within one total the LEADING share ascends, so the spaces go to the end first and are then moved leftward one at a time; within one placement the case flips are taken in ascending binary-counter order with bit 0 the leftmost alphabetic position and k = 0 the placement's own case; the parent itself is stepped over. The case flips of the unspaced parent are therefore the first 2**L - 1 partners. A partner may take only a length its own slot may take (G9.3).",
+    "permutation": "a = [0..n-1]; for i from n-1 down to 1, j = bounded(next word, i+1) and a[i] and a[j] are swapped, the swap happening even when j == i. Consumes max(n-1, 0) words (G3.4c).",
+    "precision_form": "quarter writes YYYY-Qn, date writes YYYY-MM-DD, and datetime writes YYYY-MM-DDTHH:MM, ...:SS or ...:SS.ddd by the published time_precision, with T as the separator and the fractional digits all zeros because the profile publishes how many digits the finest cell carried and nothing about their values (G7.5).",
+    "stratum_layout": "negatives ascending, then the zero stratum, then positives ascending. M = min(K, F_num) different values; M_neg is the nearest whole number to M_rest*G/(G+P) with ties upward, computed as (2*M_rest*G + (G+P)) // (2*(G+P)) and clamped into [1, M_rest-1]; each band is divided by the even split floor((i+1)*n/m) - floor(i*n/m) (G5.2).",
+    "style_allocation": "the VALUES step first: W is the point-free quota of the effective map, and while fewer cells than that hold a value with a point-free spelling the strata are walked in ascending order and the fewest the shortfall needs are taken to the nearest whole number, never the two pinned ends, never one that would cross zero and never one whose rounded value is already another stratum's. Then largest-remaining-quota over the numeric cells in stratum order and, inside a stratum, in ascending cell index, with ties going to the enumeration order plain, leading_zero, leading_plus, decimal, exponent_lower, exponent_upper and the withheld remainder added to plain. A style is offered to a cell only where the finished text would classify back as that style: leading_plus needs a value that is not negative, and plain, leading_zero and leading_plus need a value with a point-free spelling. The look-ahead is part of the rule: a choice is admissible only where it leaves the point-free quotas inside the count of cells after it that can carry them. Zeros are then spent over the WHOLE column at once -- the shortfall of the base spellings' identities against the folded budget is how many cells raise their order, each taking the lowest order whose folded identity is new, inside whatever style it was given, since every style but plain carries the family (G6.3, G6.4, G6.5)."
+  },
+  "generated_by": "tools/reference/make_generation_reference_vectors.py",
+  "method": "docs/spec/generation-method-v1.md",
+  "method_revision": 1,
+  "never_imports": [
+    "synthtwin",
+    "numpy",
+    "pandas"
+  ],
+  "readings_taken": "Seven places where the method fixes the parts but not their order are read here as follows, so a reader knows which reading these vectors freeze. (1) A datetime column's content list holds the parsed cells first, in ascending rank, and the counted stand-ins after. (2) An identifier column's spellings are laid into the groups as the identities in enumeration order followed by the partners in ascending identity order. (3) G9.5 fills the packing grid's margins in ascending order of their own published counts, ties by the contract's own order; for the three alphabet bands of a declared identifier that order is read as the figures first, then the code alphabet, then the rest, which is the order G9.5 step 4 itself names them in. (4) G9.6 fixes a non-zero leading digit for the figures band of a whole-number identifier, and gives the other two bands the templates <digits>e0 and <digits>. ; the digit block of those two templates is read as the ordinary figures enumeration of G9.2, with the non-zero rule applied where G9.6 states it and nowhere else. (5) A grid of more than two margins is read margin by margin in the order the section that publishes them names: the notation counts, then the whole-number counts, then the sign counts for an unrepresentable column (G10.5 step 3), and the class counts before the alphabet counts for free text (G9.5 steps 3 and 4). (6) Free text publishes no middle rung for its word counts, so the groups that are not pinned start at the whole number nearest words.mean, which is where length.p50 stands for the lengths. (7) The content list of a free-text or unrepresentable column is built group by group in group order, the order the multiplicity map itself states. What was reading (6) here is no longer a reading: which member of a fold-collision family a slot takes was worked out two ways by two implementations, and G9.3 now states the rule -- every slot walks its parent's family from that family's own start and takes the first member the column has not written whose length its own window admits, and the count of partners a parent has supplied decides which parent comes next and never which member is taken (review item P2-C4-F4).",
+  "what": "Independent reference vectors for synthtwin's generation transform: the twin cells a conforming generator must write, computed from the method specification alone.",
+  "word_source": "The words below are INPUTS. This oracle draws none of them: it holds no generator, no seed handling and no library random operation of any kind, because the data-provenance guard refuses an import of ctypes and numpy imports ctypes. What these vectors freeze is the transform from words to bytes; the word stream a seed produces is bound separately, by the golden twin hash computed in CI against the locked numpy."
+}

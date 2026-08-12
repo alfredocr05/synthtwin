@@ -2,8 +2,9 @@
 
 This document states what synthtwin defends against, how each defense is
 built, what it deliberately does not defend against, and how an outside
-auditor can check every claim. Phase 0 commits only to what Phase 0 can
-demonstrate; anything that arrives in a later phase is tagged
+auditor can check every claim. It commits only to what the built phases
+can demonstrate - Phase 0's security baseline, Phase 1's profiler and
+Phase 2's generator; anything that arrives in a later phase is tagged
 **[planned]**.
 
 ## Threat model, in plain language
@@ -22,9 +23,12 @@ claim differential privacy and makes no promise about inference attacks
 on a synthetic output you choose to share. The defense against exposure
 is architectural: the real data never has to move, and nothing from any
 real dataset is permitted to exist in this project's code, tests, or
-history. Also out of scope: a hostile local operating system - the tool
-defends data from itself, not from an attacker who already controls the
-machine it runs on.
+history. Read the first entry under "Named residual risks" below before
+relying on that sentence - the twin is built without reading the table,
+but that is a claim about provenance and not a claim that no twin row
+equals a real row. Also out of scope: a hostile local operating system -
+the tool defends data from itself, not from an attacker who already
+controls the machine it runs on.
 
 ## The offline guarantee
 
@@ -56,10 +60,13 @@ The layers:
    traversal can occur. On POSIX, symlinks are permitted and the resolved
    real path is re-checked against the lexical rules.
 2. **Positive import allowlist.** Source under `src/` may use only an
-   exact, enumerated list of standard-library APIs, plus exactly one
-   function of one third-party library - `pandas.read_csv`, which is
+   exact, enumerated list of standard-library APIs, plus a named surface
+   of exactly two third-party libraries: `pandas.read_csv`, which is
    additionally fenced by the rule described under the reader residual
-   below. An AST-level scanner (`tools/offline_scan`) enforces the list
+   below, and `numpy.random.default_rng` together with the single
+   drawing method `integers` on the stream it returns, which is the
+   whole of what the generator uses and reaches no file, path or
+   network. An AST-level scanner (`tools/offline_scan`) enforces the list
    and additionally bans dynamic import, entry-point loading, reflection
    primitives, and writes to interpreter state. Adding an API to the
    list is a plan-level decision with a capability audit.
@@ -109,6 +116,104 @@ The layers:
 
 Stated here so that no reader has to discover them independently:
 
+- **The record claim is a claim about provenance, and it is not a claim
+  that no twin row equals a real row** (plan P2-D11). The generator is
+  handed the profile and a seed and nothing else: it reads no source
+  table, is never given a path to one, and samples or copies no row of
+  one. That says where the twin's values come from. It is deliberately
+  weaker than the categorical wording this project used to carry - a
+  flat assertion that a twin holds nothing of yours - which was
+  withdrawn everywhere in Phase 2, because reproducing published counts
+  exactly can force a twin row to match a real one with nothing copied
+  anywhere. The shortest true example: an
+  11-row single-column table whose one label clears the small-cell floor
+  publishes that label with the count 11, so the twin writes it in all
+  11 rows, and each of those rows is a row the real table has. The same
+  applies to any column whose published facts pin it completely. Two
+  consequences follow and are stated rather than left to be worked out.
+  synthtwin offers **no formal privacy guarantee** and claims no
+  differential-privacy property; statistical disclosure is out of scope,
+  as the threat model above says. And all three artifacts a full run
+  produces - the profile, the twin and the report - carry facts computed
+  from real data, so the institution's rules for real-derived material
+  apply to all three, never to the profile alone.
+- **What the twin carries, stated so that neither its risk nor its
+  usefulness is overstated.** The twin reproduces the facts the profile
+  publishes about each column ON ITS OWN. It carries no cross-column
+  structure at all - no correlation between two columns, no formula
+  tying one to another, no shared pattern of which cells are empty, no
+  ordering between two event columns - and rows are treated as
+  independent while the grain is undescribed: the profile never says
+  what one row of the real table is. That is stated here for two
+  reasons. It bounds what an attacker can reconstruct from a twin to
+  the per-column facts the profile already published, which is the
+  security-relevant half; and it bounds what a researcher may conclude
+  from one, which is why the twin's own report repeats it on every run.
+  Cross-column structure arrives in a later phase (Phase 5), and no
+  surface of this project may describe it as present before it is.
+- **The profile is computed from real data.** It holds no row of the
+  table, but it is not anonymous: it publishes labels that at least
+  `small_cell_floor` rows share (11 by default), the smallest and
+  largest values of numeric columns and the points between them, and
+  counts about groups nobody is named in. Handle it under your
+  institution's rules for real-derived material - together with the twin
+  and the report, per the entry above. Profile version 4 widened what it
+  carries in exactly two ways, and each gets its own entry below rather
+  than a clause here.
+- **Version 4 publishes the exact spellings of the labels the profile
+  already names** (plan P2-D0 owner decisions 9 and 11). Through version
+  3 a label left the machine in one settled form only: the producer
+  trims the ends and applies a Unicode case fold before pooling, so
+  `A`, ` a ` and `a` were one published label and the file's own
+  spellings stayed behind. From version 4 each PUBLISHED label
+  additionally carries `variants` - a map from each exact spelling to
+  how many rows wrote it that way - and `variants_withheld`, an
+  anonymous map from an occurrence count to how many distinct spellings
+  occurred that often. The generator cannot do without it: with the
+  settled form alone, a column holding `A`, `a`, `B`, `b` comes back as
+  `a, a, b, b` - four rows where the real column held four different
+  values.
+
+  **The delta is wider than "capitalization", and calling it that would
+  understate it.** The fold is Python's `str.casefold()` applied after
+  trimming, not an upper-to-lower mapping. So what version 4 publishes
+  is every difference between two spellings BEFORE that fold: leading
+  and trailing spacing, capitals, and the case-folding equivalences
+  Unicode defines - which include pairs a reader would not predict, such
+  as German `ß` and `SS`, which fold to the same identity and were
+  therefore one published label in version 3 and are two named spellings
+  in version 4 whenever both clear the floor.
+
+  **What bounds it.** Every variant is governed by the same
+  `small_cell_floor` as a whole label: a spelling fewer rows than the
+  floor wrote is withheld and counted into `variants_withheld`, which
+  names no spelling at all. Variants are forbidden on a label the floor
+  itself withheld, and forbidden on every role that publishes no values
+  - record numbers, free text, and numbers no format can hold. So no
+  spelling crosses a line its own parent label had not already crossed,
+  and the addition is bounded to labels the profile already publishes.
+  It is still a real widening of the source text that leaves the
+  machine. Text elsewhere in this repository saying that case and edge
+  spacing are not preserved was true of version 3 and is wrong from
+  version 4 on. The profiler's own summary states this on every run.
+- **Version 4 publishes how a numeric column's values were written**
+  (plan P2-D0 owner decision 10). Every column of counts and of measured
+  numbers carries `numeric_styles`: a map from a spelling style to how
+  many cells were written that way, over exactly six enumerated styles -
+  `plain`, `leading_zero`, `leading_plus`, `decimal`, `exponent_lower`
+  and `exponent_upper`. **The fact is about form, and carries no value.**
+  It records that seventeen cells were written with a leading zero; it
+  records neither which cells nor what any of them held, and no
+  magnitude and no spelling appear in it. The small-cell floor governs
+  it exactly as it governs a label: a style fewer rows than the floor
+  used is withheld and pooled into a counted remainder, so a single
+  oddly written cell cannot be singled out. It is published because
+  without it three columns reading `0`, `0.0` and `0e0` produce
+  byte-identical descriptions, while an ordinary reader infers a
+  whole-number column from the first and a decimal column from the other
+  two - so a generator working from the description alone would silently
+  change the type of a column that code developed against the twin will
+  meet on the real table.
 - **OS-transparent network mounts.** If the operating system presents a
   network share as an ordinary local path, no portable program can
   detect that. Mount configuration is part of your environment, not
@@ -190,16 +295,20 @@ Stated here so that no reader has to discover them independently:
 
 ## Supply chain
 
-synthtwin has **one runtime dependency**, pandas, justified in writing
-in `docs/plans/phase-1-profiler.md` (P1-D2) and reduced by the import
-scanner to exactly one function, `read_csv`, which may be called only
-with a path the validator produced. The inventory by role, with the
-question an auditor actually cares about answered per row:
+synthtwin has **two runtime dependencies**. pandas is justified in
+writing in `docs/plans/phase-1-profiler.md` (P1-D2) and reduced by the
+import scanner to exactly one function, `read_csv`, which may be called
+only with a path the validator produced. numpy is justified in
+`docs/plans/phase-2-generator.md` (P2-D8) and reduced to
+`numpy.random.default_rng` and the one `integers` call on the stream it
+returns; it is reachable only from the generator, which opens no file at
+all. The inventory by role, with the question an auditor actually cares
+about answered per row:
 
 | Role | Contents | Executes on a user machine? | Pinned by |
 | --- | --- | --- | --- |
-| Runtime, direct | `pandas` | yes | bounds in `pyproject.toml` for an ordinary `pip install` (floors installed and tested by the `minimums` CI job); by hash in `requirements-install.lock` for the supported institutional install |
-| Runtime, transitive | `numpy`, `python-dateutil`, `six`, `tzdata`, and (below Python 3.11) `pytz` - the closure pandas brings. numpy was a declared direct dependency until review round 1 showed its reductions made published statistics depend on row order; the profiler now computes those statistics itself in exact whole-number arithmetic, rounding once at the end, and imports numpy nowhere | yes | by hash in `requirements-install.lock`; the complete closure is also in `requirements-dev.lock`, consumed frozen in CI |
+| Runtime, direct | `pandas`, `numpy` | yes | bounds in `pyproject.toml` for an ordinary `pip install` (floors installed and tested by the `minimums` CI job); by hash in `requirements-install.lock` for the supported institutional install |
+| Runtime, transitive | `python-dateutil`, `six`, `tzdata`, and (below Python 3.11) `pytz` - the closure pandas brings. numpy is in that closure too and is a declared direct dependency again as of Phase 2: it was withdrawn at Phase 1 review round 1 because its REDUCTIONS made published statistics depend on row order, and the profiler still computes those statistics itself in exact whole-number arithmetic, rounding once at the end. What returns is the generator's one random stream, reduced by the scanner to `default_rng` and one `integers` call | yes | by hash in `requirements-install.lock`; the complete closure is also in `requirements-dev.lock`, consumed frozen in CI |
 | Build frontend | `pip` / `python -m build` in CI | no | `build` is hash-locked in `requirements-dev.lock`, consumed frozen (CI fails on drift); `pip` ships with the runner interpreter, its exact version recorded in CI logs every run |
 | Build backend | `hatchling` | only if you build from source yourself; never when installing a prebuilt wheel | hash-locked in `requirements-dev.lock`, which covers the complete build closure, consumed frozen (CI fails on drift) |
 | Installer toolchain | the user's own `pip` | yes - it is your tool and a trust root you already hold | your environment |
@@ -268,12 +377,15 @@ and runs the whole test suite against them.
    confirm that the argument comes from `validate_local_path` in that
    same function; that run-time check, not the scan, is what holds the
    reader to local files.
-2. **One direct runtime dependency.** Open `pyproject.toml`; confirm
-   `dependencies` names pandas and nothing else. numpy,
+2. **Two direct runtime dependencies.** Open `pyproject.toml`; confirm
+   `dependencies` names pandas and numpy and nothing else.
    `python-dateutil` and the rest of the transitive row in the table
-   above arrive inside pandas's own requirements: `grep -r numpy src/`
-   returns nothing, and `requirements-install.lock` pins the whole
-   closure by hash.
+   above arrive inside pandas's own requirements, and
+   `requirements-install.lock` pins the whole closure by hash. Then
+   `grep -rn numpy src/`: every hit is in the generator, and every one
+   of them is `numpy.random.default_rng` or the single `integers` call
+   the method specification fixes -- the profiler, which is the half
+   that reads the real table, imports numpy nowhere.
 3. **Path rules.** Run the test suite on your platform; the Windows cells
    run the complete path and link-rejection suite, including the
    assertion that resolution is never invoked on link-containing input.

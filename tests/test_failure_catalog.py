@@ -86,6 +86,84 @@ CASES: "dict[str, tuple[object, ...]]" = {
     "out_of_memory_while_describing": ("/data/table.csv",),
     "output_is_not_a_plain_file": ("/reports/table-profile.json",),
     "outputs_are_the_same_file": ("/r/a-profile.json", "/r/a-profile.txt"),
+    # Reading a description back: the strict loader's nineteen refusals,
+    # catalogued as R1 to R19 in `docs/spec/profile-contract-v4.md`
+    # section 10.7. Each is raised by `contract.py`, and the battery in
+    # `test_contract_loader.py` reaches every one of them with a real
+    # file; what is checked here is the wording, beside every other
+    # message the product can print.
+    "profile_file_missing": ("/reports/table-profile.json",),
+    "profile_file_unreadable": (
+        "/reports/table-profile.json",
+        "permission denied",
+    ),
+    "profile_path_is_a_folder": ("/reports",),
+    "profile_not_text": ("/reports/table-profile.json",),
+    "profile_not_json": ("/reports/table-profile.json", 12, 5),
+    "profile_holds_unwritable_text": ("/reports/table-profile.json",),
+    "profile_holds_a_number_that_is_not_one": (
+        "/reports/table-profile.json",
+    ),
+    "profile_nested_too_deeply": ("/reports/table-profile.json", 32),
+    "profile_number_too_long": ("/reports/table-profile.json", 64),
+    "profile_not_canonical": ("/reports/table-profile.json",),
+    "profile_version_is_older": (3, 4),
+    "profile_version_is_newer": (5, 4),
+    "profile_unknown_key": ("weather", "in the block for the column 'age'"),
+    "profile_missing_key": (
+        "n_present",
+        "in the block for the column 'age'",
+        "every column",
+    ),
+    "profile_wrong_type": (
+        "n_rows",
+        "at the top of the description",
+        "a piece of text",
+        "a whole number",
+    ),
+    "profile_out_of_range": (
+        "small_cell_floor",
+        "in the block of rules that produced the description",
+        "3",
+        "a whole number of 11 or more",
+    ),
+    "profile_out_of_range_unquoted": (
+        "n_rows",
+        "at the top of the description",
+        "a whole number of 0 or more",
+    ),
+    "profile_invariant_broken": (
+        "X1",
+        (
+            "the values a column holds and the cells it leaves empty "
+            "together come to the number of rows in the table"
+        ),
+        "in the block for the column 'age'",
+        "the column holds 20 values and leaves 21 cells empty",
+        "the description gives the table a different number of rows",
+    ),
+    "profile_relationships_carried": ("grain",),
+    "profile_out_of_memory": ("/reports/table-profile.json",),
+    # Building the twin: the three refusals that belong to the command
+    # rather than to the loader or to the method (plan P2-D10), plus the
+    # one for a machine that ran out of memory building it. The seed
+    # arrives as the TEXT that was typed, because whether it is a number
+    # at all is the question these two messages answer.
+    "seed_not_in_figures": ("-1", "18446744073709551615"),
+    "seed_too_large": ("18446744073709551616", "18446744073709551615"),
+    "outputs_already_there": (
+        "/data/clinic-twin.csv",
+        "/data/clinic-twin-report.txt",
+        ["/data/clinic-twin.csv"],
+    ),
+    "twin_out_of_memory": ("/data/clinic-profile.json",),
+    # The publication guard's one refusal (plan P2-D2, review item
+    # P2-C1-F3). Its argument is the PLACE in the description, written
+    # from the guard's own path steps: no key of the document and no
+    # value of the table reaches it, because the run is stopping
+    # precisely because synthtwin cannot account for the text that
+    # stood there.
+    "publication_guard_stopped": ("publication_notes[].note",),
 }
 
 

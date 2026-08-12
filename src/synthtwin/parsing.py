@@ -490,6 +490,94 @@ NUMBER_OUT_OF_RANGE = "out_of_range"
 NUMBER_CONTRADICTORY = "contradictory"
 NOT_A_NUMBER = "text"
 
+# HOW a numeric cell was written, as opposed to what it is worth. The
+# six forms of owner decision 10, and the first-match ladder that reads
+# one off a finished cell.
+#
+# IT LIVES HERE, and not beside the describing code, because BOTH sides
+# of the profile/generator boundary have to answer this question with
+# one rule: the describer counts the forms of the real column, and the
+# generator recounts the forms of the twin it just wrote to check that
+# it met the published counts. The generator may not import the
+# describing module, so a ladder kept there would have had to be copied
+# to be used -- and two copies of a normative ladder drift, which is the
+# defect class review item P2-C1-F8 is about. One rule, in the module
+# both sides already depend on.
+STYLE_PLAIN = "plain"
+STYLE_LEADING_ZERO = "leading_zero"
+STYLE_LEADING_PLUS = "leading_plus"
+STYLE_DECIMAL = "decimal"
+STYLE_EXPONENT_LOWER = "exponent_lower"
+STYLE_EXPONENT_UPPER = "exponent_upper"
+
+
+def numeric_style(text: str) -> str:
+    """Which of the six forms one numeric cell was written in.
+
+    THE LADDER IS FIRST-MATCH-WINS AND ITS ORDER IS PART OF THE
+    CONTRACT (section 7.5.4), because a producer and a consumer that
+    test the marks in different orders disagree about a cell carrying
+    more than one:
+
+    0. surrounding spaces come off; a value wrapped in a matching pair
+       of accounting brackets is unwrapped and trimmed again; thousands
+       separators are dropped. What is left is the CORE;
+    1. `exponent_upper` -- the core holds an `E`;
+    2. `exponent_lower` -- the core holds an `e`;
+    3. `decimal` -- the core holds a `.`;
+    4. `leading_plus` -- the core begins with `+`;
+    5. `leading_zero` -- after any leading `-`, the core begins with `0`
+       and is longer than that single `0`;
+    6. `plain` -- everything else.
+
+    WHY THE TYPE-BEARING FORMS ARE TESTED FIRST. A reader infers a
+    decimal column from a decimal point or an exponent anywhere in it,
+    so the mark that decides the inferred type is the one that must be
+    counted when a cell carries two. `+0.5` is therefore counted as
+    `decimal` and its leading plus is lost for that cell; the totals
+    still close, and that is the trade this order makes deliberately.
+
+    TWO SOURCE FORMS ARE NOT FORMS HERE, and the consequence is
+    recorded rather than left to be discovered: accounting brackets and
+    thousands separators are classified by the digits inside them. A
+    comma would break a CSV row, and brackets are outside the spellings
+    a twin may write, so neither could be reproduced and neither is
+    counted as its own form.
+
+    Guarantees:
+
+    - Inputs: the text of one cell, exactly as the file spells it.
+      Sensible only for a cell that reads as a number this format can
+      hold; every other cell is counted elsewhere.
+    - Determinism: the answer depends only on the text.
+    - Errors raised: TypeError if handed anything that is not a string
+      instance, through `trimmed`.
+    - Boundary: the answer is one of six words of this module's own
+      vocabulary, so no spelling and no magnitude of the cell can
+      travel out through it. No I/O of any kind.
+    """
+    body = trimmed(text)
+    if body[:1] == "(" and body[len(body) - 1 : len(body)] == ")":
+        body = trimmed(body[1 : len(body) - 1])
+    core = ""
+    for character in body:
+        if character != ",":
+            core = core + character
+    if "E" in core:
+        return STYLE_EXPONENT_UPPER
+    if "e" in core:
+        return STYLE_EXPONENT_LOWER
+    if "." in core:
+        return STYLE_DECIMAL
+    if core[:1] == "+":
+        return STYLE_LEADING_PLUS
+    digits = core
+    if digits[:1] == "-":
+        digits = digits[1:]
+    if digits[:1] == "0" and len(digits) > 1:
+        return STYLE_LEADING_ZERO
+    return STYLE_PLAIN
+
 
 def classify_number(text: str) -> str:
     """Say, once, what a cell is numerically.
@@ -965,13 +1053,26 @@ def numeric_whole(text: str) -> str:
     return WHOLE_UNKNOWN
 
 
-def _days_from_civil(year: int, month: int, day: int) -> int:
+def days_from_civil(year: int, month: int, day: int) -> int:
     """Days from a fixed epoch to a proleptic-Gregorian calendar date.
 
     Whole-number arithmetic only, so the answer is exact and identical
     on every machine. This is what lets two datetimes written in
     different UTC offsets be compared as the instants they name rather
-    than as the wall-clock text they happen to carry.
+    than as the wall-clock text they happen to carry. The leap rule is
+    the Gregorian one: a year divisible by four is a leap year, except a
+    century that is not divisible by four hundred.
+
+    Guarantees: accepts three whole numbers naming a calendar date;
+    returns a whole number of days, which is negative before the epoch;
+    raises nothing for whole-number input, and does not check that the
+    date exists in the calendar -- `_valid_date` is where that is asked.
+    No I/O of any kind.
+
+    It is PUBLIC because the generation method requires exactly this
+    function and its inverse below, and names them: the twin's dates are
+    built in the same ordinal space the profile's were read in, so the
+    two halves of the product cannot drift apart on a calendar rule.
     """
     shifted = year
     if month <= 2:
@@ -988,10 +1089,15 @@ def _days_from_civil(year: int, month: int, day: int) -> int:
     return era * 146097 + day_of_era - 719468
 
 
-def _civil_from_days(days: int) -> "tuple[int, int, int]":
+def civil_from_days(days: int) -> "tuple[int, int, int]":
     """The calendar date a whole number of days from the epoch names.
 
-    The exact inverse of `_days_from_civil`, in whole-number arithmetic
+    Guarantees: accepts a whole number of days, before or after the
+    epoch; returns the year, month and day it names; raises nothing for
+    whole-number input. No I/O of any kind. It is public for the reason
+    `days_from_civil` above is.
+
+    The exact inverse of `days_from_civil`, in whole-number arithmetic
     only. It exists so that a column mixing UTC offsets can PUBLISH the
     same quantity it was ORDERED by: without it the profile sorted by
     the instant and then wrote out the local wall clock, so `earliest`
@@ -1042,7 +1148,7 @@ def utc_canonical(canonical: str, offset: str) -> "str | None":
         return None
     days = seconds // 86400
     rest = seconds - days * 86400
-    year, month, day = _civil_from_days(days)
+    year, month, day = civil_from_days(days)
     if year < 1 or year > 9999:
         return None
     if len(canonical) < 19:
@@ -1081,7 +1187,7 @@ def instant_key(canonical: str, offset: str) -> "int | None":
     day = _digits_at(canonical, 8, 2)
     if year is None or month is None or day is None:
         return None
-    seconds = _days_from_civil(int(year), int(month), int(day)) * 86400
+    seconds = days_from_civil(int(year), int(month), int(day)) * 86400
     if len(canonical) >= 19:
         hours = _digits_at(canonical, 11, 2)
         minutes = _digits_at(canonical, 14, 2)

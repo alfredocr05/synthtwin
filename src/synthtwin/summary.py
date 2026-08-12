@@ -513,11 +513,34 @@ def _disclosure_lines(document: dict[str, object]) -> list[str]:
         "  It contains no rows of your table, but it is not anonymous",
         "  either. Here is exactly what is in it.",
         "",
+        # THE HANDLING RULE COVERS THREE FILES, NOT ONE (plan P2-D11).
+        # Saying it of the profile alone reads as permission for the
+        # other two, and it is not: the twin reproduces published counts
+        # exactly and the report quotes published facts back, so both
+        # are real-derived as well. The person deciding what may leave
+        # their machine has to be told about all three in the one place
+        # they are reading about it.
+        "  The same is true of the other two files a full run makes.",
+        "  The profile, the twin and the report all carry facts",
+        "  computed from your real data, so those rules apply to all",
+        "  three of them, not to the profile alone.",
+        "",
     ]
     if with_labels:
+        # THE SPELLINGS ARE PART OF THIS CLAIM, and saying only "labels"
+        # would now be a promise the profile no longer keeps. A label is
+        # published in one settled form -- trimmed, upper and lower case
+        # folded together -- and beside it the profile records each
+        # exact spelling the file used for that label, held to the same
+        # floor (owner decisions 9 and 11). A person deciding whether
+        # the profile may leave their machine has to read that here, not
+        # discover it in the file.
         lines = lines + [
             "  Real labels you will see in the profile, with how often each",
-            f"  appears (only labels shared by at least {floor} rows):",
+            f"  appears (only labels shared by at least {floor} rows). Beside",
+            "  each label, the exact spellings your file uses for it --",
+            f"  capitals and spacing included -- again only where {floor} rows",
+            "  or more wrote it that way:",
             f"    {_listed(with_labels)}",
             "",
         ]
@@ -547,9 +570,13 @@ def _disclosure_lines(document: dict[str, object]) -> list[str]:
         # spelling is gone now; so is the wording that did not cover
         # the rest.
         #
-        # A column DECLARED with --identifier carries one count more:
-        # how many different values cover one row, two rows, and so on
-        # (review item P1-R8-F4). It is a count of rows and a count of
+        # EVERY column in this list carries one count more since profile
+        # version 4: how many different values cover one row, two rows,
+        # and so on. A column declared with --identifier has carried it
+        # since review item P1-R8-F4; free text and columns of numbers
+        # this format cannot hold carry it now too (plan P2-D4), because
+        # they publish no value either and their shape of repetition was
+        # otherwise unrecorded. It is a count of rows and a count of
         # values, so "only counts" below still covers it, and the
         # column's own block above says it in words for the person who
         # wants to know what shape of repetition was recorded.
@@ -640,12 +667,55 @@ def render(document: dict[str, object], encoding_note: str) -> str:
     lines = lines + _first_row_lines(document)
     lines = lines + [
         "",
-        "This is a description of your table, not a copy of it. Next, the",
-        "same description will be used to build a synthetic twin: a table",
-        "with the same columns, the same kinds of values and the same",
-        "patterns, and none of your real rows. Numbers computed on a twin",
-        "are not research results -- develop your analysis on the twin, then",
-        "run the finished analysis on your real table.",
+        "This is a description of your table, not a copy of it. Next,",
+        "'synthtwin generate' uses this description to build a synthetic",
+        "twin: a table with the same columns, the same number of rows, and",
+        "each column holding the kinds of values and the counts recorded",
+        "below, every cell of it worked out from this description and a",
+        "seed. The twin is built from this file alone: your table is not",
+        "opened again, and the generator samples or copies no row of it.",
+        "Numbers computed on a twin are not research results -- develop your",
+        "analysis on the twin, then run the finished analysis on your real",
+        "table.",
+        "",
+        # WHAT THE DESCRIPTION DOES NOT DESCRIBE (plan P2-D11, residual
+        # R-P2-3). This page is where a person first meets the idea of a
+        # twin of their table, and every column below is described on
+        # its own -- so a reader who is not told otherwise here will
+        # assume the twin keeps what holds BETWEEN their columns. It
+        # does not, and the honest place to say so is beside the promise
+        # rather than only in the twin's own report.
+        "What this description does NOT describe. Every column below is",
+        "described on its own, and the twin is built the same way, so it",
+        "carries no cross-column structure at all: nothing that links two",
+        "of your columns is in it -- not a taller person weighing more,",
+        "not a code that only ever appears beside one region, not two",
+        "columns left empty in the same rows.",
+        "",
+        "Every row is built on its own too, and this description",
+        "never says what one row of your table is, so if your table holds",
+        "several rows per person or per visit, anything that groups rows",
+        "behaves differently on the twin than it does on your table.",
+        "Cross-column structure arrives in a later version of synthtwin.",
+        "",
+        # THE QUALIFIED CLAIM, IN THE PLACE A PERSON ACTUALLY READS IT
+        # (plan P2-D11). "Built from the description" is a statement
+        # about where the twin's values come from. It is not a promise
+        # that no twin row can equal a real one, and this summary made
+        # exactly that promise until Phase 2, in a flat clause asserting
+        # the twin holds none of the reader's rows, which was false.
+        # Meeting published counts exactly can force the match, and the
+        # eleven-row case is the shortest true example rather than a
+        # corner nobody meets: it is what every small single-label
+        # column does.
+        "One thing that sentence does NOT say. Because the twin has to",
+        "match the counts in this description exactly, the arithmetic can",
+        "force a twin row to match a real one. If your table had eleven",
+        "rows and one column, and all eleven rows shared one label, this",
+        "description publishes that label with the count eleven -- so the",
+        "twin has to write it in all eleven of its rows, and each of those",
+        "rows is the row you have. Nothing was copied; there was no other",
+        "answer. synthtwin offers no formal privacy guarantee.",
         "",
         _RULE,
         "COLUMNS, ONE BY ONE",

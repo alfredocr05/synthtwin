@@ -45,7 +45,9 @@ numpy==1.24.0 \
     --hash=sha256:f3c4a9a9f92734a4728ddbd331e0124eabbc968a0359a506e8e74a9b0d2d419b \
     --hash=sha256:f9168790149f917ad8e3cf5047b353fefef753bd50b07c547da0bdf30bc15d91 \
     --hash=sha256:fe44e925c68fb5e8db1334bf30ac1a1b6b963b932a19cf41d2e899cf02f36aab
-    # via pandas
+    # via
+    #   -r requirements-min.in
+    #   pandas
 packaging==26.3 \
     --hash=sha256:94edc256424af38762eb31306eed28beb9f0efc50a8837492c9d6fd6004aed79 \
     --hash=sha256:d7193f7c8e4e93f444fde0262bf90af30e16fa0ad0ad44cb553c87339b23cd1c

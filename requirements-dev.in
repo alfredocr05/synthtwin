@@ -2,9 +2,11 @@
 # consumer of the lock refuses source archives, VCS, editable, and
 # local/path requirements even if a command line omits the option.
 --only-binary :all:
-# Runtime dependencies (Phase 1 plan P1-D2). The floors here must match
-# the floors declared in pyproject.toml; tests/test_dependency_floors.py
-# fails if the two ever drift apart.
+# Runtime dependencies: pandas from Phase 1 (plan P1-D2) and numpy from
+# Phase 2 (plan P2-D8). The floors here must match the floors declared
+# in pyproject.toml; tests/test_dependencies.py fails if the two ever
+# drift apart.
+numpy>=1.24.0
 pandas>=2.1.0
 # Development and build tooling.
 pytest>=8.0
