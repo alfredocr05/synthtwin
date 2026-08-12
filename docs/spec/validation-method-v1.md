@@ -5,13 +5,25 @@ the Phase 3 plan (`docs/plans/phase-3-product.md`), which governs on
 every conflict. **Not ratified.** This is the third of the phase's
 artifacts and the fifth governing document under the disposition seal.
 
-**What this document fixes.** The exact transform from (a profile
-document, a written CSV) to a verdict per obligation and to the bytes of
-the quality report. Where the Phase 2 contract says what a published
-fact MEANS and the Phase 2 method says how the twin WRITES it, this says
-how a reader checks that the writing met the meaning — and, just as
-important, what a check may say out loud about a file nobody promised
-was a twin.
+**What this document fixes, and what revision 1 owes.** Revision 0
+fixes the MEASUREMENT and the OBLIGATIONS: where a verdict comes from,
+which facts are checked and at what grain, which are not checkable and
+why, what a report may say out loud about a file nobody promised was a
+twin, and what makes a check non-vacuous. Where the Phase 2 contract
+says what a published fact MEANS and the Phase 2 method says how the
+twin WRITES it, this says how a reader checks that the writing met the
+meaning.
+
+**It does not yet carry the two artifacts that make it an oracle**
+(review item P3-C1-F5), and it says so rather than implying otherwise:
+the COMPLETED entry table — every (fact, predicate, subcheck) row with
+its kind and its named red case — and the report's normative byte
+layout. Without those, two conforming validators could differ, and each
+could then register its own fixtures as its own oracle, which is the
+failure this project names by name. Both land in revision 1, written
+beside the implementation and reviewed before the implementation is
+ratified; the shipped tables are checked against this document, never
+the other way round.
 
 **What it does not fix.** No envelope of its own: every bound an
 APPROXIMATED fact is checked against lives in
@@ -109,6 +121,21 @@ blank and non-blank cells alone, with no sentinel or declaration
 machinery anywhere in the verdict path. No gap in the reconstruction
 can move a verdict; the worst it can do is withhold a measurement that
 could have been printed, which is the safe direction.
+
+**Which of V2.1 and V2.4 governs where they disagree, stated because
+they can** (review item P3-C1-F4). The producer reads a cell equal to a
+built-in missing marker as an absence, and residual R-P2-13 records
+that a generated numeric value can BE such a text — so a conforming
+twin's re-description can show an absence where the twin holds a
+present cell. **V2.4 governs the verdict: present and missing are
+counted from blank and non-blank cells, and the re-description's own
+absence classification is not consulted for them.** Every count that
+depends on presence is taken the same way. V2.1's re-description
+governs everything it alone can measure — the roles, the levels, the
+ladder positions, the styles — and it governs the disclosure gate of V5, where a
+collision can only move a column toward MORE withholding, never toward
+printing more. So the two rules never contend for the same number, and
+the corner R-P2-13 names costs a measurement rather than a verdict.
 
 ---
 
@@ -252,11 +279,17 @@ signal stays inside the envelope.
   description does not publish, in N rows, with N floor-governed the
   same way, and never says what they are.
 
-**V5.5 On the ordinary case the gate never closes.** When the measured
+**V5.5 On the ordinary case the gate does not close.** When the measured
 file IS the twin built from this profile, Phase 2's owner decisions 5, 8
-and 10 guarantee it re-reads as the same types, the two descriptions
-agree on every role, and everything prints. The withholding bites only
-on a mismatched file, which is where it must.
+and 10 give it back the same types, the two descriptions agree on every
+role, and everything prints. The withholding bites on a mismatched
+file, which is where it must. **The one exception is named rather than
+claimed away**: residual R-P2-13's missing-marker collision can move a
+column's re-described role, and there the gate may withhold on a twin
+that is otherwise conforming. It costs detail in the report and never a
+verdict (V2.4), and the green battery of V8.4 asserts zero withheld
+verdicts over fixtures built clear of that corner, with the corner
+itself pinned by its own case.
 
 ---
 
