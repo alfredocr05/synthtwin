@@ -918,6 +918,35 @@ Each repair is code plus its amendment under a counted re-seal; any
 twin-byte change at a fixed seed is a changelogged regeneration event
 under D12 with goldens re-recorded in the same commit.
 
+**What the repairs found, recorded here because it is new and needs the
+owner** (2026-08-12, during the repair itself). Withdrawing the
+two-character code family from the whole-number path showed the SAME
+family one path over: `_number_at` writes `-0` through `-9` for a
+two-character code-alphabet value that reads as a number on a column
+whose values are NOT all whole numbers. That is the same breach of
+G9.1 — an invented value opening with the character a spreadsheet reads
+as the start of a formula — and it was introduced deliberately by review
+item P2-C4-F2 to reach a two-character code-alphabet count, which is a
+ratified rule traded for a published count.
+
+It is **not** the defect owner decision 1 settled, and its two possible
+outcomes are the owner's, not the implementer's, so it is flagged here
+rather than fixed quietly or left unsaid. **Measured** over the
+200-description producer battery of
+`tests/test_p2c5f2_identifier_classes.py`, withdrawing the family from
+that path too leaves 195 descriptions writing every count exactly, 3
+meeting the fifth refusal, and 2 missing `n_all_digits` — and takes
+every sign-leading invented cell to zero. The 2 are genuinely
+infeasible once the bar is kept, their own real tables being the proof
+that a table exists and G9.1 the only thing stopping the twin from
+writing one, which is exactly the shape owner decision 1 settled by
+refusal on the whole-number path. **The owner's choice is therefore the
+same pair as before: extend the refusal to this path, or authorize the
+miss in this plan.** Meanwhile the bar is asserted on the whole-number
+path by name
+(`test_no_invented_whole_record_number_opens_with_a_formula_character`),
+and the breach is stated rather than implied.
+
 ### P3-D8.2 Release preconditions (each verified, none assumed)
 
 1. Phase 3 code review record permits release, **and the review

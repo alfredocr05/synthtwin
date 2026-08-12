@@ -211,14 +211,19 @@ def test_a_style_with_nowhere_to_go_is_still_named(
     generator chose. It is now placed exactly, and this test's fixture
     is a column where the arithmetic really does run out.
 
-    A pooled remainder is written `plain` (contract 7.5.7), so this
-    column's forty named `plain` cells and its six pooled ones ask for
-    all forty-six of its cells to carry no point. Two of them cannot:
-    one cell must read back as the published `min` of `0.5` and one as
-    the published `max` of `9.25`, and neither number has a point-free
-    spelling. Forty-four is therefore the most any conforming generator
-    can write. The twin writes forty-four and the report names the
-    remainder.
+    AND THE FIXTURE MOVED AGAIN, because the Phase 3 plan repaired the
+    shape it had been moved to (P3-D8.1, closing the registry's open
+    P2-C5-F3). That shape was a producer column of forty named `plain`
+    cells and six pooled ones whose published ends carry points: under
+    the withdrawn rule every pooled cell was owed the plain form, which
+    the two end cells have no spelling for, so the twin was required to
+    miss a total no generator could reach. A pooled cell has no
+    published form, so it is now spelled by its own value and nothing
+    is missed there. What is left for this test is a NAMED count with
+    nowhere to go, which a producer cannot emit and a hand-written
+    description can: forty-six `leading_plus` cells on a column two of
+    whose cells must read back as numbers with no point-free spelling
+    at all. That miss is the twin's to name, and it names it.
     """
     values = ["0.5"] * 3 + ["7"] * 40 + ["9.25"] * 3
     document, loaded = _described(tmp_path, values)
@@ -230,9 +235,19 @@ def test_a_style_with_nowhere_to_go_is_still_named(
     written = _styles(twin)
     assert written == {"plain": 44, "decimal": 2}
     named = [note for note in twin.deviations if note.fact == "numeric_styles"]
-    assert {note.achieved for note in named} == {
-        str(written.get("plain", 0)), str(written.get("decimal", 0)),
-    }
+    assert named == [], [note.published for note in named]
+
+    document["columns"][0]["numeric_styles"] = {"leading_plus": 46}
+    target = fixtures.write_profile(tmp_path, "edited-profile.json", document)
+    edited = contract.load_profile(str(target))
+    twin = generation.generate(edited, 0)
+    written = _styles(twin)
+    assert written.get("leading_plus", 0) == 44
+    named = [note for note in twin.deviations if note.fact == "numeric_styles"]
+    assert named, "a named count with nowhere to go must be spoken"
+    assert any("leading_plus" in note.published for note in named), [
+        note.published for note in named
+    ]
 
 
 def test_the_placement_rule_refuses_a_style_the_cell_cannot_wear() -> None:

@@ -187,27 +187,136 @@ def test_a_one_character_shortest_value_with_no_figures_refuses(
     )
 
 
-def test_the_whole_number_refusal_is_narrow(tmp_path: pathlib.Path) -> None:
-    """A description one character wider is BUILT, not refused.
+# -- case 1b: the fifth refusal, one band in (Phase 3, P3-D8.1) -------
 
-    Two characters carry `1.` and three carry `1e0`, so the moment the
-    published range leaves a whole-number spelling outside the figures
-    the description is one a rule can meet -- and a refusal there would
-    be a stop nobody asked for. The unedited description is built too.
+
+def test_two_character_code_whole_numbers_refuse_generation(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The fifth refusal of method G12, from the longest-length end.
+
+    A value written in the code alphabet but not in figures alone, and
+    reading back as a whole number, is at least three characters long:
+    one character that reads as a whole number is a figure, and the
+    only two-character spellings put a sign in front of a figure, which
+    G9.1 bars from the first position. So a description whose longest
+    value is two characters and some of whose values stand in the code
+    alphabet without being figures alone is one no table synthtwin may
+    write can hold.
+
+    The implementation used to write `-0` through `-9` here, meeting
+    `n_code_alphabet` by breaking G9.1 and leaving the report's formula
+    paragraph telling the reader an invented cell was a value their
+    description published.
+    """
+    document = _document(
+        tmp_path,
+        fixtures.single_column_table("code", ["ab"] * 11 + ["70"] * 11),
+        ["code"],
+    )
+    block = _column(document, "code")
+    assert block["role"] == "identifier"
+    assert block["max_length"] == 2
+    assert block["n_code_alphabet"] - block["n_all_digits"] == 11
+    block["all_whole_numbers"] = True
+    described = _loaded(tmp_path, document)
+    with pytest.raises(errors.ProfileError) as raised:
+        generation.plan_generation(described)
+    _speaks_the_plan(
+        f"{raised.value}",
+        "code",
+        (
+            "every value reads as a whole number",
+            "no value is longer than 2 characters",
+            "11 of the 22 values are written in the code alphabet",
+            "three characters long",
+        ),
+    )
+
+
+def test_a_two_character_shortest_value_with_only_the_code_band_refuses(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The same proof from the other end of the length range.
+
+    Where the shortest published value is two characters, none of the
+    values is written in figures alone, and every one of them stands in
+    the code alphabet, the value carrying that shortest length has no
+    band left: the figures are ruled out by the published count, the
+    band outside the code alphabet is ruled out by the same count, and
+    the code alphabet itself needs a third character.
+    """
+    document = _document(
+        tmp_path,
+        fixtures.single_column_table("code", ["-3"] * 9 + ["-45"] * 9),
+        ["code"],
+    )
+    block = _column(document, "code")
+    assert block["min_length"] == 2
+    assert block["n_all_digits"] == 0
+    assert block["n_present"] - block["n_code_alphabet"] == 0
+    assert block["all_whole_numbers"] is True
+    described = _loaded(tmp_path, document)
+    with pytest.raises(errors.ProfileError) as raised:
+        generation.plan_generation(described)
+    _speaks_the_plan(
+        f"{raised.value}",
+        "code",
+        (
+            "every value reads as a whole number",
+            "the shortest value is 2 characters long",
+            "every one of them is written in the code alphabet",
+            "three characters long",
+        ),
+    )
+
+
+def test_the_whole_number_refusal_is_narrow(tmp_path: pathlib.Path) -> None:
+    """A description with a spelling left is BUILT, not refused.
+
+    Two characters carry `1.` outside the code alphabet and three carry
+    `1e0` inside it, so the moment the published range leaves a
+    whole-number spelling the description is one a rule can meet -- and
+    a refusal there would be a stop nobody asked for. The unedited
+    description is built too.
+
+    BOTH WHOLE-NUMBER REFUSALS ARE HELD TO THAT (Phase 3 plan P3-D8.1
+    added the second). The first case below is two characters wide with
+    no value in the code alphabet that is not figures alone, so the
+    wide band's `1.` answers it; the second is three characters wide
+    with code-alphabet values, so the code band's `1e0` answers that.
+    Neither may be refused. The fixture for the first case CHANGED with
+    the fifth refusal: it used to be `ab`/`70`, which is two characters
+    wide WITH a code-alphabet value that is not figures alone, and that
+    pair is exactly what the fifth refusal now stops -- so it moved to
+    a pair the wide band can still carry.
     """
     document = _document(tmp_path, _identifier_table(), ["code"])
     plain = _loaded(tmp_path, document, "plain")
     assert generation.generate(plain, 0).columns
 
-    widened = _document(
+    outside = _document(
         tmp_path,
-        fixtures.single_column_table("code", ["ab"] * 11 + ["70"] * 11),
+        fixtures.single_column_table("code", ["1."] * 11 + ["70"] * 11),
         ["code"],
     )
-    block = _column(widened, "code")
+    block = _column(outside, "code")
     assert block["max_length"] == 2
+    assert block["n_code_alphabet"] - block["n_all_digits"] == 0
     block["all_whole_numbers"] = True
-    built = generation.generate(_loaded(tmp_path, widened, "wide"), 0)
+    built = generation.generate(_loaded(tmp_path, outside, "wide"), 0)
+    assert built.columns
+
+    coded = _document(
+        tmp_path,
+        fixtures.single_column_table("code", ["1e0"] * 11 + ["70"] * 11),
+        ["code"],
+    )
+    block = _column(coded, "code")
+    assert block["max_length"] == 3
+    assert block["n_code_alphabet"] - block["n_all_digits"] > 0
+    block["all_whole_numbers"] = True
+    built = generation.generate(_loaded(tmp_path, coded, "coded"), 0)
     assert built.columns
 
 
