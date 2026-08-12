@@ -169,8 +169,9 @@ name.
 **V4.1 What a corner is.** A condition on the profile alone under which
 the ratified plan names a lesser outcome for some fact — so a twin that
 does not carry that fact is conforming, and a validator that called it
-MISSED would be wrong. There are exactly four, and each is a predicate
-over published numbers:
+MISSED would be wrong. There are exactly four corners, and each is a
+predicate over published numbers (this count is the CORNERS' own and is
+unrelated to the number of G12 refusals, which method G12 fixes):
 
 - **identifier-infeasible** (owner decision 6): a declared identifier
   whose published length range cannot supply `n_present` distinct
@@ -195,7 +196,7 @@ compared in the suite, over every producer-battery description and every
 frozen conflict case, and any disagreement is red. A shared design error
 now needs the same mistake written twice from two texts.
 
-**V4.3 The four G12 refusals are NOT corners.** They refuse GENERATION,
+**V4.3 The G12 refusals are NOT corners.** They refuse GENERATION,
 so no conforming twin exists for such a profile at all. A validate run
 on one is a catalogued REFUSAL (V9), never a verdict and never a pass —
 treating them as corners would launder an impossible obligation into a
@@ -371,8 +372,10 @@ perturbation.
 
 Validation refuses, rather than returning a verdict, when it cannot run:
 the measured file missing, unreadable, a folder, or not readable as CSV;
-the profile failing the strict loader; the profile meeting one of the
-four G12 refusals, whose message mirrors the generation refusal and adds
+the profile failing the strict loader; the profile meeting any G12 refusal
+(method G12 fixes their number and their names, and this document
+follows it rather than restating a count), whose message mirrors the
+generation refusal and adds
 that whatever the file is, it cannot be that profile's twin; the quality
 target already present without `--replace`; the target resolving onto
 either input; and memory exhaustion.

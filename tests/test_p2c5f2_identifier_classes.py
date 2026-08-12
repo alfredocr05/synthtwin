@@ -355,9 +355,12 @@ def test_no_invented_whole_record_number_opens_with_a_formula_character(
     not the defect the Phase 3 plan's owner decision 1 ratified an
     outcome for, and closing it means either refusing descriptions a
     producer writes or missing a count no authorization covers -- an
-    owner's decision, not an implementer's. It is registered in
-    `tests/dispositions.py` under `("identifier", "n_all_digits")` with
-    its measurement, so this test states the bound it actually holds.
+    owner's decision, not an implementer's. It is recorded with its
+    measurement in `docs/plans/phase-3-product.md` (P3-D8.1) -- not in
+    `dispositions.OPEN`, which carries only a fact some governing
+    document states a LESSER outcome for, and no document states one
+    here: the specifications say the bar holds, and the code is what
+    breaks it. So this test states the bound it actually holds.
     """
     checked = 0
     for name, document, loaded in _battery(tmp_path_factory):

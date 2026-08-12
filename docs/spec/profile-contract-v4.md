@@ -1714,7 +1714,22 @@ values have no point-free spelling:
 - `r(decimal) + r(exponent_lower) = p(decimal) + p(exponent_lower) + D`,
   the two canonical forms carrying the spill between them, which of the
   two being each value's own canonical text;
-- and `r(plain) = p(plain) + R - D`, the remainder's other cells.
+- `r(plain) = p(plain) + R - D`, the remainder's other cells;
+- **and no cell is spelled non-canonically without a published count
+  entitling it**: in each of `decimal` and `exponent_lower`, the cells
+  whose text is NOT the canonical text (3.2.1) of their own value are
+  at most that style's published count. The published counts are the
+  only licence for a non-canonical point-carrying spelling, so every
+  pooled cell carries exactly its value's canonical text and a pool
+  cannot be re-spelled into a form the description never named.
+
+`NW` is read off the VALUES, never off the spellings: it is the count of
+written numeric cells whose value has no point-free spelling at all.
+Counting the cells that were WRITTEN with a point would make the
+identity circular — a twin spelling a whole value `1000.0` instead of
+`1000` would inflate its own `D` and balance the arithmetic against
+itself — and `NW` is fixed by the numbers the cells read back as, which
+no choice of spelling can move.
 
 An ordinary column publishes no remainder, `D` is zero, and the identity
 is the plain reading: every style matches its published count exactly.
