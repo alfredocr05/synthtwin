@@ -87,6 +87,7 @@ import numpy
 import numpy.ctypeslib
 import pytest
 
+import fixtures
 from synthtwin import contract, generation, parsing, rendering
 
 REPOSITORY = pathlib.Path(__file__).resolve().parent.parent
@@ -268,10 +269,8 @@ def _profile_document(case: dict, name: str) -> dict:
 
 
 def _load(case: dict, name: str, folder: pathlib.Path) -> contract.Profile:
-    path = folder / f"{name}.json"
-    path.write_text(
-        json.dumps(_profile_document(case, name), indent=2, sort_keys=True) + "\n",
-        encoding="utf-8",
+    path = fixtures.write_profile(
+        folder, f"{name}.json", _profile_document(case, name)
     )
     return contract.load_profile(str(path))
 

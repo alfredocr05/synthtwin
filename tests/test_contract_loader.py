@@ -99,10 +99,7 @@ def base(tmp_path_factory: pytest.TempPathFactory) -> Document:
 
 def written(folder: pathlib.Path, document: Document) -> str:
     """Write a description in canonical bytes; return its path."""
-    target = folder / "table-profile.json"
-    target.write_text(canonical.serialize(document), encoding="utf-8",
-                      newline="\n")
-    return str(target)
+    return str(fixtures.write_profile(folder, "table-profile.json", document))
 
 
 def refusal(folder: pathlib.Path, document: Document) -> str:
@@ -113,7 +110,16 @@ def refusal(folder: pathlib.Path, document: Document) -> str:
 
 
 def refusal_of_text(folder: pathlib.Path, text: str) -> str:
-    """Load a file of exact text that must be refused; return the message."""
+    """Load a file of exact text that must be refused; return the message.
+
+    The bytes are the test's own and do NOT come through
+    `fixtures.write_profile`: every caller here is proving that the
+    loader refuses a file synthtwin would never have written, so the
+    text has to reach the disk exactly as it was composed. ``newline``
+    is passed for that reason -- with no newline argument the platform
+    would rewrite the line endings and the file would carry bytes no
+    caller asked for.
+    """
     target = folder / "table-profile.json"
     target.write_text(text, encoding="utf-8", newline="")
     with pytest.raises(errors.ProfileError) as raised:

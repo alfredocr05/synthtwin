@@ -106,10 +106,7 @@ def _described(
     document = profile.build_document(
         reading.read_table(str(path)), taxonomy.Settings(), []
     )
-    target = folder / "table-profile.json"
-    target.write_text(
-        canonical.serialize(document), encoding="utf-8", newline="\n"
-    )
+    target = fixtures.write_profile(folder, "table-profile.json", document)
     return document, contract.load_profile(str(target))
 
 
@@ -423,10 +420,7 @@ def test_a_rung_that_holds_nothing_loads_and_generates(
     """One rule, stated in the method, carried by the loader and the code."""
     document, _loaded = _described(tmp_path, [str(n) for n in range(1, 41)])
     document["columns"][0]["percentiles"]["p50"] = None
-    target = tmp_path / "table-profile.json"
-    target.write_text(
-        canonical.serialize(document), encoding="utf-8", newline="\n"
-    )
+    target = fixtures.write_profile(tmp_path, "table-profile.json", document)
 
     loaded = contract.load_profile(str(target))
     twin = generation.generate(loaded, 0)

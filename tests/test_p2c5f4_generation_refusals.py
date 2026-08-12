@@ -43,7 +43,6 @@ import pytest
 
 import fixtures
 from synthtwin import (
-    canonical,
     contract,
     errors,
     generation,
@@ -74,10 +73,7 @@ def _document(
 
 def _write(folder: pathlib.Path, document: Document, stem: str) -> pathlib.Path:
     """Write a description exactly as `synthtwin profile` writes one."""
-    target = folder / f"{stem}-profile.json"
-    target.write_text(
-        canonical.serialize(document), encoding="utf-8", newline="\n"
-    )
+    target = fixtures.write_profile(folder, f"{stem}-profile.json", document)
     return target
 
 

@@ -28,7 +28,6 @@ import pytest
 
 import fixtures
 from synthtwin import (
-    canonical,
     contract,
     errors,
     generation,
@@ -54,10 +53,7 @@ def _described(
     document = profile.build_document(
         table, taxonomy.Settings(), declared if declared else []
     )
-    target = folder / "table-profile.json"
-    target.write_text(
-        canonical.serialize(document), encoding="utf-8", newline="\n"
-    )
+    target = fixtures.write_profile(folder, "table-profile.json", document)
     return contract.load_profile(str(target))
 
 
@@ -71,10 +67,7 @@ def _document(folder: pathlib.Path, text: str, declared: list[str]) -> Document:
 
 def _loaded(folder: pathlib.Path, document: Document) -> contract.Profile:
     """Load a description that has been edited, from a file of its bytes."""
-    target = folder / "edited-profile.json"
-    target.write_text(
-        canonical.serialize(document), encoding="utf-8", newline="\n"
-    )
+    target = fixtures.write_profile(folder, "edited-profile.json", document)
     return contract.load_profile(str(target))
 
 

@@ -231,7 +231,7 @@ def test_a_working_file_left_behind_is_named_and_the_run_still_succeeds(
     # another program would refuse it.
     table = _table(tmp_path)
     earlier = tmp_path / "clinic-profile.json"
-    earlier.write_text("last week's profile\n", encoding="utf-8")
+    earlier.write_text("last week's profile\n", encoding="utf-8", newline="\n")
     kept = tmp_path / f"clinic-profile.json{profile.KEPT_SUFFIX}-1"
     _refuse_to_delete(monkeypatch, kept)
 
@@ -269,7 +269,7 @@ def test_an_ordinary_run_says_nothing_about_working_files(
     # caution nobody reads.
     table = _table(tmp_path)
     (tmp_path / "clinic-profile.json").write_text(
-        "last week's profile\n", encoding="utf-8"
+        "last week's profile\n", encoding="utf-8", newline="\n"
     )
     assert main(["profile", str(table)]) == 0
     captured = capsys.readouterr()
@@ -311,7 +311,7 @@ def test_a_left_behind_path_cannot_instruct_the_terminal(
     folder.mkdir()
     table = _table(tmp_path)
     earlier = folder / "clinic-profile.json"
-    earlier.write_text("last week's profile\n", encoding="utf-8")
+    earlier.write_text("last week's profile\n", encoding="utf-8", newline="\n")
     kept = folder / f"clinic-profile.json{profile.KEPT_SUFFIX}-1"
     _refuse_to_delete(monkeypatch, kept)
 

@@ -97,7 +97,6 @@ import disposition_seal
 import dispositions
 import fixtures
 from synthtwin import (
-    canonical,
     contract,
     generation,
     profile,
@@ -1158,10 +1157,7 @@ def _described(
     document = profile.build_document(
         table, taxonomy.Settings(), declared if declared else []
     )
-    target = folder / "table-profile.json"
-    target.write_text(
-        canonical.serialize(document), encoding="utf-8", newline="\n"
-    )
+    target = fixtures.write_profile(folder, "table-profile.json", document)
     return contract.load_profile(str(target))
 
 

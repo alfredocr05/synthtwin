@@ -37,7 +37,6 @@ import pytest
 
 import fixtures
 from synthtwin import (
-    canonical,
     contract,
     generation,
     profile,
@@ -78,10 +77,7 @@ def _described(folder: pathlib.Path, values: "list[str]") -> contract.Profile:
     )
     table = reading.read_table(str(path))
     document = profile.build_document(table, taxonomy.Settings(), [])
-    target = folder / "table-profile.json"
-    target.write_text(
-        canonical.serialize(document), encoding="utf-8", newline="\n"
-    )
+    target = fixtures.write_profile(folder, "table-profile.json", document)
     return contract.load_profile(str(target))
 
 
@@ -297,10 +293,7 @@ def test_a_count_no_packing_can_reach_is_named_and_rendered(
         if block["name"] == "huge":
             block["n_whole"] = 1
             block["n_fraction"] = 6
-    target = tmp_path / "table-profile.json"
-    target.write_text(
-        canonical.serialize(document), encoding="utf-8", newline="\n"
-    )
+    target = fixtures.write_profile(tmp_path, "table-profile.json", document)
     loaded = contract.load_profile(str(target))
 
     twin = generation.generate(loaded, 0)

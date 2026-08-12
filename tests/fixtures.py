@@ -8,10 +8,18 @@ file at all.
 The vocabulary is deliberately neutral and made up on the spot: labels
 like "north" and "batch", column names like "reading" and "recorded_on".
 Nothing here is derived from any real table.
+
+`write_profile` lives here for the same reason the tables do: it is the
+one place that decides the bytes of a description a test hands to the
+loader, so no test has to decide them and no test can decide them
+wrongly. Its docstring says what goes wrong when they are decided
+anywhere else.
 """
 
 import pathlib
 import random
+
+from synthtwin import canonical
 
 # Neutral label pools. Small, plain words with no meaning outside these
 # tests.
@@ -24,6 +32,45 @@ def write(folder: pathlib.Path, name: str, text: str) -> pathlib.Path:
     target = folder / name
     target.write_text(text, encoding="utf-8", newline="\n")
     return target
+
+
+def write_profile(
+    folder: pathlib.Path, name: str, document: dict
+) -> pathlib.Path:
+    """Write ``document`` as a description file; return its path.
+
+    THE GUARANTEE. The file left on disk is byte for byte the file
+    `synthtwin profile` writes for that same document, on every
+    platform. Two things carry it, and both are the product's own: the
+    text is `canonical.serialize`, the serializer the loader re-writes
+    with and compares against, and the write fixes the line ending
+    rather than leaving it to the platform, exactly as
+    `writing.write_text_file` does (plan D12).
+
+    WHY IT EXISTS. A text-mode write with no ``newline`` argument
+    translates every line ending to the platform's own, so the same two
+    lines of Python leave newline bytes on Linux and macOS and
+    carriage-return-newline bytes on Windows. The loader reads the file,
+    writes the parsed document out again under the canonical rules, and
+    refuses the file if the bytes differ -- so a description carrying
+    the platform's line ending is a description it must refuse, and is
+    right to refuse, because synthtwin did not write it. That is not a
+    hypothetical: every Windows job of the test suite failed on it while
+    every macOS and Linux job passed, with the loader and the writer
+    both behaving exactly as specified. So the bytes are decided here,
+    once, and a test that wants a description asks for one rather than
+    building the file itself.
+
+    Inputs: the folder to write into, the name of the file to write, and
+    the profile document. Determinism: the same document gives the same
+    bytes every time, on every platform.
+
+    A test that deliberately needs bytes synthtwin would NOT write --
+    proving the loader refuses them -- must not come through here. It
+    writes its own exact bytes, with an explicit ``newline`` argument so
+    that what it writes is what it meant on every platform too.
+    """
+    return write(folder, name, canonical.serialize(document))
 
 
 def rows_to_csv(header: list[str], rows: list[list[str]]) -> str:

@@ -1155,6 +1155,43 @@ written against.
   a new test states that fact directly, so the next reader of a
   failure here gets a diagnosis instead of a count of zero.
 
+### Repaired after the hosted run of the Phase 2 suite: the bytes a test writes
+
+Every Windows job failed while every macOS and Linux job passed, on one
+refusal: a description was not in the exact form synthtwin writes. No
+product code changed, and none should have. The writer fixes the line
+ending rather than leaving it to the platform (plan D12), so a
+description synthtwin produces is the same bytes everywhere, and the
+loader -- which writes the parsed document out again and compares the
+bytes -- was right to refuse a file synthtwin had not written. The
+defect was in the tests: they wrote the description themselves, in text
+mode with no line-ending argument, so Python translated every line
+ending to the platform's own and left a file that only Windows produces
+and that the loader must then turn away.
+
+- **The bytes of a description a test writes are now decided in one
+  place.** `write_profile` in `tests/fixtures.py` serializes through the
+  product's own canonical serializer and fixes the line ending, so the
+  file it leaves is byte for byte the file `synthtwin profile` writes;
+  a test asserts that equality against the product's writer for the same
+  document. Twenty-three test modules that each wrote that file
+  themselves now ask for it instead. One of the twenty-three, the
+  loader's refusal battery, still composes bytes of its own for the
+  cases whose whole subject is a file synthtwin would never write --
+  which it says in as many words, and writes with an explicit line
+  ending so that what it composed is what reaches the disk on every
+  platform.
+- **A guard reads the suite's own source so the next one cannot arrive
+  unnoticed.** `tests/test_description_line_endings.py` turns red when
+  any test writes a description -- or a file named like one -- with the
+  line ending left to the platform, and it is put through the original
+  defect in source form, so a rule that has stopped recognizing a
+  description cannot pass in silence. A companion test writes a
+  description with Windows line endings on any platform and asserts the
+  loader refuses it with the message the Windows jobs printed, which is
+  the property the whole arrangement exists to keep from reaching a
+  person.
+
 ### Earlier
 - Phase 0 public skeleton: package scaffold, `synthtwin` CLI stub, the
   offline guarantee's layered checks, the decontamination scanner and
