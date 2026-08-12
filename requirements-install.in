@@ -3,9 +3,12 @@
 # development and build tooling lives in requirements-dev.in.
 #
 # The floors here must match the ones declared in pyproject.toml, and the
-# ROOTS here must match them too: numpy was a root until review round 3
-# pointed out that a pandas release which stopped requiring it would
-# leave this file installing a native package no plan authorizes.
+# ROOTS here must match them too: a package this file names is a package
+# an institutional install puts on somebody's machine, whatever pandas
+# happens to depend on. numpy left this list at Phase 1 review round 3
+# for exactly that reason and returns at Phase 2 (plan P2-D8), now that
+# the generator requires it by name rather than through pandas.
 # tests/test_dependencies.py fails if either drifts.
 --only-binary :all:
+numpy>=1.24.0
 pandas>=2.1.0

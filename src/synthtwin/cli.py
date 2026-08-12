@@ -1,14 +1,40 @@
-"""The `synthtwin` command (plan P1-D3 and P1-D7).
+"""The `synthtwin` command (plan P1-D3, P1-D7 and P2-D10).
 
-Phase 1 gives the command one real job: `synthtwin profile <table>`
-reads a local CSV file and writes two files beside it -- the profile,
-which is what the twin will be built from, and a plain-language summary
-of what was found and what left the table.
+Two commands share one command line. `synthtwin profile <table>` reads a
+local CSV file and writes two files beside it -- the profile, which is
+what the twin is built from, and a plain-language summary of what was
+found and what left the table. `synthtwin generate <profile>` reads that
+profile and writes two more -- the twin table, and a report saying what
+the twin carries, what it only approximates, and what it does not carry
+at all.
 
-Zero-code use is the requirement (charter principle 2): the command
-works with a path and nothing else. Everything else is an option with a
-sensible default, and every message, including every refusal, is
+Zero-code use is the requirement (charter principle 2): each command
+works with one path and nothing else. Everything else is an option with
+a sensible default, and every message, including every refusal, is
 written for a person who has never programmed.
+
+WHY EACH COMMAND'S MODULES ARE IMPORTED INSIDE ITS OWN BRANCH (plan
+P2-D1). The generator never reads the real table, and that promise is
+kept by the import graph rather than by anybody's care: `reading` is the
+only module that opens a table, and a `generate` run has to be free of it
+at EVERY instant, not merely after the dispatch. Python runs a module's
+top-level imports before any branch of it exists, so importing this
+module used to start the table reader -- and pandas underneath it --
+whatever the person had typed, which put module initialization outside
+any boundary a check could draw. The profiler's modules are therefore
+imported inside `_run_profile`, the generator's inside `_run_generate`,
+and what is left at the top of this file reaches neither the reader nor
+pandas: `errors` and `parsing` import nothing outside this package, and
+`paths` imports os, pathlib, sys and typing.
+
+One consequence of that rule looks like an oversight and is not. The
+parser's own vocabulary -- the three choices for `--first-row`, the
+default smallest group -- is written out below as constants instead of
+being read off `reading` and `taxonomy`, because the parser is built
+BEFORE any command word has been read: it may not start the reader, and
+`taxonomy` belongs to the `profile` branch. The suite checks each
+constant against the module that owns the value, so the two cannot
+drift apart in silence.
 
 THE DISPLAY BOUNDARY. A path or a value can carry an escape sequence,
 and a terminal obeys one instead of printing it: a path containing the
@@ -45,18 +71,80 @@ import importlib.metadata
 import pathlib
 import sys
 
-from synthtwin import errors, parsing, profile, reading, summary, taxonomy
+from synthtwin import errors, parsing
 from synthtwin.paths import PathValidationError, validate_local_path
-from synthtwin.reading import read_table
 
 _REPO_URL = "https://github.com/alfredocr05/synthtwin"
+
+# THE PARSER'S OWN VOCABULARY, written out here for the reason the module
+# docstring gives: the command line is built before any command word has
+# been read, so it may not start the table reader (plan P2-D1) and may
+# not reach into the `profile` branch's taxonomy. Each of these is the
+# same value the module that owns it holds, and the suite compares them
+# so a change in one place cannot pass unnoticed in the other.
+_FIRST_ROW_AUTOMATIC = "auto"
+_FIRST_ROW_NAMES = "names"
+_FIRST_ROW_DATA = "data"
+_SMALLEST_GROUP = 11
+
+# The two commands, as the words a person types.
+_PROFILE = "profile"
+_GENERATE = "generate"
+
+# THE SEED'S ACCEPTED SPELLING AND RANGE (plan P2-D8). synthtwin states
+# its own range rather than passing whatever was typed to the library
+# underneath: that library accepts a wider set, and refuses a negative
+# number with a sentence about bit widths that no researcher should ever
+# be shown. The accepted spelling is one or more of these ten figures and
+# nothing else -- no sign, no separator, no space anywhere, no figure
+# from another writing system -- and leading zeros are accepted and
+# change nothing.
+_FIGURES = "0123456789"
+_SEED_CEILING = "18446744073709551615"
+
+# The two files `generate` writes, as endings added to the description's
+# own name once a trailing '-profile' has been taken off it (plan
+# P2-D10). Neither can collide with the profiler's own pair: those end
+# '-profile.json' and '-profile.txt'.
+_PROFILE_MARK = "-profile"
+_TWIN_SUFFIX = "-twin.csv"
+_REPORT_SUFFIX = "-twin-report.txt"
 
 _STATUS = """synthtwin {version}
 
 Status: early. `synthtwin profile <your-table.csv>` reads a CSV table on
 this computer and writes a description of it -- what each column holds,
-how its values are spread, and what is missing. Building the synthetic
-twin from that description is the next phase.
+how its values are spread, and what is missing. Then `synthtwin generate
+<your-table-profile.json>` builds the synthetic twin from that
+description and a seed, and from nothing else, and writes it beside a
+report saying what the twin carries and what it does not.
+
+What the twin does NOT carry, before anything else here claims more.
+This version builds every column on its own and carries no cross-column
+structure at all: nothing that links two columns of your table is in the
+twin -- not a taller person weighing more, not a later date costing
+more, not a code that only ever appears beside one region, not two
+columns left empty in the same rows. Every row is built on its own too,
+and the description never says what one row of your table is, so a table
+holding several rows per person yields a twin that behaves differently
+from your table under anything that groups rows. Your analysis code
+RUNS on the twin, which is what the twin is for; a number it computes
+from two columns of the twin means nothing about your table.
+Cross-column structure arrives in a later version of synthtwin.
+
+What that does and does not promise about your rows. The generator is
+never handed your table, does not open one, and samples or copies no row
+of it. That says where the twin's values come from. It does not say that
+no row of the twin can equal a row of yours: the description publishes
+exact counts, and meeting them exactly can force a twin row to match a
+real one. A table of eleven rows with one column, whose single label all
+eleven rows share, publishes that label with the count eleven -- so the
+twin writes it in all eleven of its rows. synthtwin offers no formal
+privacy guarantee.
+
+All three files -- the profile, the twin and the report -- are computed
+from your real data, so your institution's rules for real-derived
+material apply to all three, not to the profile alone.
 
 Everything runs on this computer. synthtwin never sends anything
 anywhere, and it accepts only plain paths to local files.
@@ -77,6 +165,16 @@ _HELP_EPILOG = """examples:
 
   synthtwin profile data.csv --missing-value -1
       treat -1 as a missing value in every column, not as a number
+
+  synthtwin generate data-profile.json
+      build the twin from that description and write data-twin.csv and
+      data-twin-report.txt beside it
+
+  synthtwin generate data-profile.json --seed 7
+      build a different twin from the same description
+
+  synthtwin generate data-profile.json --replace
+      build it again over the two files an earlier run left there
 """
 
 
@@ -147,20 +245,30 @@ def _encoding_note(encoding: str, used_fallback: bool) -> str:
     return f"It was read as UTF-8 text (encoding: {encoding})."
 
 
-def _left_behind_note(left: "list[str]") -> str:
+def _left_behind_note(
+    left: "list[str]", produced: str = "profile"
+) -> str:
     """The caution for working files a finished run could not clear away.
 
-    `profile.write_both_files` hands back every working file still on
+    `writing.write_both_files` hands back every working file still on
     disk when everything else succeeded, so that the caller can say so.
     Throwing that list away -- as this module did until review item
     P1-R6-F5 -- told the reader the run had gone perfectly while a file
     synthtwin had made, holding text computed from the real table, sat
     in the output folder under a name nobody had been given.
 
-    This is not a failure of the profile and is not reported as one: the
-    two output files are written and correct, the exit code stays 0, and
-    the one thing asked of the reader is to look at a named file and
-    delete it.
+    This is not a failure of the run and is not reported as one: the two
+    output files are written and correct, the exit code stays 0, and the
+    one thing asked of the reader is to look at a named file and delete
+    it.
+
+    ``produced`` is what the running command calls what it wrote -- the
+    profile, or the twin -- for the one sentence that names it. It
+    defaults to the profiler's word, which is what keeps that command's
+    caution the same text it has always been, and `generate` passes its
+    own: telling somebody that nothing is wrong with their profile after
+    a run that never wrote one sends them to look at the wrong file
+    (plan P2-D10).
 
     Every path is put through `_shown` before it reaches the sentence,
     like every other path this module prints.
@@ -173,29 +281,42 @@ def _left_behind_note(left: "list[str]") -> str:
     them = "it" if one_only else "them"
     return (
         f"\nSomething to tidy up by hand. Both files above were written "
-        f"and are complete -- nothing is wrong with your profile. "
+        f"and are complete -- nothing is wrong with your {produced}. "
         f"synthtwin makes itself a working file beside each output "
         f"while it writes, and removes it at the end; {which} could not "
         f"be removed:{listed}\n"
-        f"A working file can hold a description computed from your real "
-        f"table, so keep {them} under the same rules as the table "
-        f"itself, and delete {them} once you have looked."
+        f"A working file can hold text computed from your real data, so "
+        f"keep {them} under the same rules as the table itself, and "
+        f"delete {them} once you have looked."
     )
 
 
 @dataclasses.dataclass(frozen=True)
 class _Options:
-    """What the user asked for, read off the command line."""
+    """What the user asked for, read off the command line.
+
+    `given` is the one path the command word takes: the CSV table for
+    `profile`, the description for `generate`. It is one field because
+    it is one position on the command line, and calling it after either
+    command would make the other one read as a mistake.
+
+    `seed` is the text that was typed, not a number. Whether it is a
+    number synthtwin can use is decided by `_seed_or_refusal` in words a
+    person can act on, and letting the parser convert it would have let
+    the library's own refusal reach the screen instead (plan P2-D8).
+    """
 
     version: bool
     command: "str | None"
-    table: "str | None"
+    given: "str | None"
     out_dir: "str | None"
     smallest_group: int
     identifiers: list[str]
     kept_values: list[str]
     missing_values: list[str]
     first_row: str
+    seed: str
+    replace: bool
 
 
 def _parse_arguments(argv: "list[str] | None") -> _Options:
@@ -218,7 +339,13 @@ def _parse_arguments(argv: "list[str] | None") -> _Options:
         prog="synthtwin",
         description=(
             "Create a synthetic twin of your tabular data: same shape, "
-            "same statistics, no real records."
+            "and each column behaving like the same column of yours, "
+            "worked out from a description of your table rather than "
+            "from its rows. Every column is built on its own, so the "
+            "twin carries no cross-column structure at all. Run "
+            "synthtwin with no arguments for what that does and does "
+            "not promise about your rows and about two columns "
+            "together."
         ),
         epilog=_HELP_EPILOG,
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -230,14 +357,21 @@ def _parse_arguments(argv: "list[str] | None") -> _Options:
         "command",
         nargs="?",
         default=None,
-        choices=["profile"],
-        help="what to do: 'profile' describes a CSV table on this computer",
+        choices=[_PROFILE, _GENERATE],
+        help=(
+            "what to do: 'profile' describes a CSV table on this "
+            "computer, 'generate' builds the synthetic twin from a "
+            "description 'profile' wrote"
+        ),
     )
     parser.add_argument(
-        "table",
+        "path",
         nargs="?",
         default=None,
-        help="the path of the CSV file to describe",
+        help=(
+            "the file to work on: the CSV table for 'profile', the "
+            "description for 'generate'"
+        ),
     )
     parser.add_argument(
         "--out-dir",
@@ -245,13 +379,37 @@ def _parse_arguments(argv: "list[str] | None") -> _Options:
         metavar="FOLDER",
         help=(
             "folder to write the two files into (the default is the "
-            "folder the table is in)"
+            "folder the file you named is in)"
+        ),
+    )
+    parser.add_argument(
+        "--seed",
+        default="0",
+        metavar="NUMBER",
+        help=(
+            "which twin to build, as a whole number from 0 to "
+            "18446744073709551615 written in figures (default: "
+            "%(default)s). The same description, seed and version of "
+            "synthtwin always give the same twin, byte for byte; a "
+            "different seed gives a different twin that follows the "
+            "description just as closely. Used by 'generate' only"
+        ),
+    )
+    parser.add_argument(
+        "--replace",
+        action="store_true",
+        help=(
+            "let 'generate' write over the twin and the report an "
+            "earlier run left at those names. Without it, a run that "
+            "finds either name taken stops and changes nothing: "
+            "synthtwin has no way of telling an earlier twin of its own "
+            "from a file of yours that happens to be there"
         ),
     )
     parser.add_argument(
         "--smallest-group",
         type=int,
-        default=taxonomy.Settings().small_cell_floor,
+        default=_SMALLEST_GROUP,
         metavar="ROWS",
         help=(
             "advanced: a value shared by fewer rows than this is left out "
@@ -316,11 +474,11 @@ def _parse_arguments(argv: "list[str] | None") -> _Options:
     )
     parser.add_argument(
         "--first-row",
-        default=reading.FIRST_ROW_AUTOMATIC,
+        default=_FIRST_ROW_AUTOMATIC,
         choices=[
-            reading.FIRST_ROW_AUTOMATIC,
-            reading.FIRST_ROW_NAMES,
-            reading.FIRST_ROW_DATA,
+            _FIRST_ROW_AUTOMATIC,
+            _FIRST_ROW_NAMES,
+            _FIRST_ROW_DATA,
         ],
         help=(
             "what the first row of the file is: 'names' for the column "
@@ -351,15 +509,22 @@ def _parse_arguments(argv: "list[str] | None") -> _Options:
             listed = shown if not listed else f"{listed}, {shown}"
         _refuse_the_command_line(
             f"This part of what you typed was not understood: {listed}. "
-            f"synthtwin describes one CSV file at a time, so the command "
-            f"is  synthtwin profile my-table.csv  and nothing else. If "
-            f"the path has a space in it, put quotation marks around the "
+            f"synthtwin works on one file at a time, so the command is "
+            f"either  synthtwin profile my-table.csv  or  synthtwin "
+            f"generate my-table-profile.json  and nothing else. If the "
+            f"path has a space in it, put quotation marks around the "
             f"whole path."
         )
-    if args.command == "profile" and args.table is None:
+    if args.command == _PROFILE and args.path is None:
         _refuse_the_command_line(
             "Please say which file to describe, for example: "
             "synthtwin profile my-table.csv"
+        )
+    if args.command == _GENERATE and args.path is None:
+        _refuse_the_command_line(
+            "Please say which description to build the twin from, for "
+            "example: synthtwin generate my-table-profile.json -- that "
+            "is the file 'synthtwin profile' wrote."
         )
     named = args.identifier if args.identifier is not None else []
     kept = args.keep_value if args.keep_value is not None else []
@@ -369,13 +534,15 @@ def _parse_arguments(argv: "list[str] | None") -> _Options:
     return _Options(
         version=bool(args.version),
         command=args.command,
-        table=args.table,
+        given=args.path,
         out_dir=args.out_dir,
         smallest_group=int(args.smallest_group),
         identifiers=list(named),
         kept_values=list(kept),
         missing_values=list(declared_missing),
         first_row=f"{args.first_row}",
+        seed=f"{args.seed}",
+        replace=bool(args.replace),
     )
 
 
@@ -402,7 +569,16 @@ def _run_profile(
     asks for two opposite things about one value, and picking one of
     them would be synthtwin deciding something the person did not
     (review item P1-R6-F9).
+
+    THE FOUR MODULES THIS COMMAND NEEDS ARE IMPORTED HERE, inside the
+    branch, and the module docstring says why: `reading` is the module
+    that opens the user's table and `profile` reaches it, so importing
+    either at the top of this file would start the reader in a `generate`
+    run that must never touch it (plan P2-D1). This is the only place in
+    the package where the reader is reached from the command line.
     """
+    from synthtwin import profile, reading, summary, taxonomy
+
     if smallest_group < 1:
         _warn(errors.floor_not_positive(f"{smallest_group}"))
         return 2
@@ -423,7 +599,7 @@ def _run_profile(
         kept_values=tuple(kept_values),
         declared_missing_values=tuple(missing_values),
     )
-    read = read_table(table, first_row)
+    read = reading.read_table(table, first_row)
 
     # An option naming a column that is not there is refused here, with
     # nothing built and nothing written. Warning about it afterwards --
@@ -548,6 +724,280 @@ def _run_profile(
     return 0
 
 
+# -- building the twin (plan P2-D10) ----------------------------------
+
+
+def _without_leading_zeros(figures: str) -> str:
+    """``figures`` with its leading zeros dropped, keeping one figure.
+
+    '007' is the seed 7 and '000' is the seed 0, so the last figure is
+    never dropped. Nothing here converts anything to a number: the point
+    of doing it as text is that the length of what is left is what says
+    whether the number is too large to read at all.
+    """
+    start = 0
+    while start < len(figures) - 1 and figures[start] == "0":
+        start = start + 1
+    return figures[start:]
+
+
+def _seed_or_refusal(given: str) -> "tuple[int | None, str]":
+    """The seed the person typed, or the sentence saying why it cannot be.
+
+    Guarantees:
+
+    - Inputs: the text typed after `--seed`, exactly as it arrived. It
+      is text and not a number on purpose: converting it in the parser
+      would have let the library's own refusal reach the screen, and
+      that refusal names a bit width and a data type (plan P2-D8).
+    - Determinism: a fixed function of that text.
+    - Errors raised: none. A seed nobody can use comes back as a pair
+      whose first item is nothing and whose second is the message for
+      the person, so the caller decides what the exit code is.
+    - Boundary: nothing is read and nothing is written.
+
+    The accepted spelling is one or more ASCII figures and nothing else:
+    no sign, no separator, no space anywhere in it, and no figure from
+    another writing system -- a figure that is not one of these ten
+    reads as a number to the library underneath and would silently mean
+    something the person did not type. Leading zeros are accepted and
+    change nothing. The accepted range is 0 to 18446744073709551615.
+
+    The LENGTH is checked before the text is turned into a number, and
+    that order is the point: Python refuses to read a number written in
+    very many figures at all, and its refusal is a traceback rather than
+    a sentence. Comparing two texts of the same length figure by figure
+    is the same comparison as comparing the two numbers, so nothing is
+    lost by settling it as text.
+    """
+    if not given:
+        return (None, errors.seed_not_in_figures(given, _SEED_CEILING))
+    for character in given:
+        if character not in _FIGURES:
+            return (None, errors.seed_not_in_figures(given, _SEED_CEILING))
+    trimmed = _without_leading_zeros(given)
+    if len(trimmed) > len(_SEED_CEILING):
+        return (None, errors.seed_too_large(given, _SEED_CEILING))
+    if len(trimmed) == len(_SEED_CEILING) and trimmed > _SEED_CEILING:
+        return (None, errors.seed_too_large(given, _SEED_CEILING))
+    return (int(trimmed), "")
+
+
+def _twin_stem(name: str) -> str:
+    """The description's file name with a trailing '-profile' taken off.
+
+    'clinic-profile.json' names the twin 'clinic-twin.csv', which is the
+    name a person expects beside their 'clinic.csv'. A description
+    renamed to something that does not end that way keeps its whole name
+    and the twin is written beside it under it, which is still two names
+    nobody else owns.
+    """
+    if not isinstance(name, str):
+        raise TypeError("internal check: a file name was not text")
+    lowered = name.casefold()
+    if lowered.endswith("-profile"):
+        return name[: len(name) - len(_PROFILE_MARK)]
+    return name
+
+
+def _twin_paths(
+    description: pathlib.Path, out_dir: "str | None"
+) -> "tuple[pathlib.Path, pathlib.Path]":
+    """Where the twin and its report go (plan P2-D10).
+
+    Guarantees:
+
+    - Inputs: the path of the description this run was given, and the
+      folder the person asked for, or nothing for the folder the
+      description is in.
+    - Determinism: the same two paths for the same two inputs.
+    - Errors raised: ProfileError, with a plain-language message, when a
+      named folder does not exist; PathValidationError when the folder or
+      either output name is not a plain local path.
+    - Boundary: nothing is opened, created or written here.
+
+    Every exact target goes through the locality gate, not only the
+    folder: a link left at the twin's name would otherwise send the file
+    wherever it points (review item P1-R1-F2, carried into this command).
+    The two names cannot collide with the profiler's pair, which end
+    '-profile.json' and '-profile.txt'.
+    """
+    source = pathlib.Path(description)
+    stem = _twin_stem(f"{source.stem}")
+    if out_dir is None:
+        folder = pathlib.Path(source.parent)
+    else:
+        validated = validate_local_path(out_dir, purpose="output folder")
+        folder = pathlib.Path(validated)
+        if not folder.is_dir():
+            raise errors.ProfileError(
+                errors.output_folder_missing(f"{folder}", errors.TWIN_WORDS)
+            )
+    twin_target = validate_local_path(
+        f"{folder / (stem + _TWIN_SUFFIX)}", purpose="output file"
+    )
+    report_target = validate_local_path(
+        f"{folder / (stem + _REPORT_SUFFIX)}", purpose="output file"
+    )
+    return (pathlib.Path(twin_target), pathlib.Path(report_target))
+
+
+def _already_there(target: pathlib.Path) -> bool:
+    """True when something already occupies ``target``.
+
+    A link is something, whether or not it leads anywhere: a run that
+    called a dangling link "nothing" would write through it to wherever
+    it points. Both questions answer False rather than raising when the
+    filesystem will not say, and the write transaction refuses a name it
+    could not examine, so a name this cannot settle is not written to on
+    the strength of this answer alone.
+    """
+    place = pathlib.Path(target)
+    if place.is_symlink():
+        return True
+    return place.exists()
+
+
+def _run_generate(
+    description: str,
+    out_dir: "str | None",
+    seed_given: str,
+    replace: bool,
+) -> int:
+    """Do the work of `synthtwin generate`; return the exit code.
+
+    The order of operations is a control here as much as in the profile
+    command, and it is exactly this: the seed is settled before the
+    description is opened; the description is loaded, which is what makes
+    a missing or unreadable one say so rather than being reported as a
+    name clash; every refusal that can be decided from the NAMES alone --
+    a folder in the way, an output that leads back to the description, an
+    output name already taken -- is made next, before the twin exists;
+    and the twin is then built entirely in memory, so a description whose
+    published facts cannot all hold is refused with nothing on disk
+    either. A refused run leaves the folder exactly as it found it, at
+    every one of those points.
+
+    THE MODULES ARE IMPORTED HERE, inside the branch (plan P2-D1). None
+    of the four reaches the table reader or pandas, and importing them
+    here rather than at the top of the file is what makes that provable
+    of the whole run rather than of the part after the dispatch: this
+    function is the only place in the package where generation is
+    reached from the command line, and the reader is not in scope in it.
+
+    A PRE-EXISTING OUTPUT IS REFUSED, and there is no way to prove
+    otherwise (plan P2-D10, review item P2-R4-F1). synthtwin cannot tell
+    an earlier twin of its own from a file of the person's that happens
+    to sit at that name -- reading either one to find out would break the
+    rule that this command opens the description and nothing else -- so
+    it refuses, names both files, and teaches `--replace`.
+    """
+    from synthtwin import contract, generation, rendering, writing
+
+    seed, refusal = _seed_or_refusal(seed_given)
+    if seed is None:
+        _warn(refusal)
+        return 2
+    loaded = contract.load_profile(description)
+    twin_path, report_path = _twin_paths(pathlib.Path(description), out_dir)
+    writing.refuse_if_folder(twin_path, errors.TWIN_WORDS)
+    writing.refuse_if_folder(report_path, errors.TWIN_WORDS)
+
+    # The output must never be the description itself. On POSIX a link
+    # left at the twin's name resolves to a permitted local path, so the
+    # locality gate cannot catch this one -- and what would be destroyed
+    # is the file the twin is built from.
+    source = validate_local_path(description, purpose="input")
+    if (
+        twin_path == source
+        or report_path == source
+        or writing.is_the_same_file(twin_path, source)
+        or writing.is_the_same_file(report_path, source)
+    ):
+        _warn(
+            errors.output_would_replace_the_table(
+                _shown(source), errors.TWIN_WORDS
+            )
+        )
+        return 1
+
+    shown_twin_path = _shown(twin_path)
+    shown_report_path = _shown(report_path)
+    if not replace:
+        taken: list[str] = []
+        for target in (twin_path, report_path):
+            if _already_there(target):
+                taken = taken + [_shown(target)]
+        if taken:
+            _warn(
+                errors.outputs_already_there(
+                    shown_twin_path, shown_report_path, taken
+                )
+            )
+            return 1
+
+    twin = generation.generate(loaded, seed)
+    # The twin's bytes are NOT put through the display boundary. That
+    # boundary is for text a person reads, and a cell that reached it
+    # would arrive in the twin as the escape rather than as the value --
+    # so a column name beginning with the byte-order mark, or a label
+    # holding a control character, would come back from the twin as
+    # something the description never published. The report is a
+    # human-facing sink like the profiler's summary and crosses the
+    # boundary once, here, so the file on disk and the screen carry the
+    # same text and cannot differ.
+    twin_text = rendering.twin_csv(twin)
+    report_text = parsing.visible_lines(rendering.report(loaded, twin))
+
+    _say(report_text)
+    _say(
+        f"These two files will be written:\n"
+        f"  {shown_twin_path}\n  {shown_report_path}"
+    )
+    _say(
+        "\nBoth carry facts computed from your real data -- the counts, "
+        "ranges and labels the description publishes are in the twin's "
+        "own values. Keep them under the same rules your institution "
+        "applies to the table itself, and read the report above before "
+        "moving them anywhere."
+    )
+
+    # The same two halves as the profile command's write, for the same
+    # two reasons: the returned list names every working file a finished
+    # run could not clear away, and the DiskState carries the sentence
+    # for a failure the transaction could not describe in its own words
+    # (review items P1-R6-F5 and P1-R7-F1). The words are the
+    # generator's, so a stop names the twin and the description rather
+    # than a profile and a table this run never had (plan P2-D10).
+    state = writing.DiskState()
+    try:
+        left_behind = writing.write_both_files(
+            twin_path,
+            report_path,
+            twin_text,
+            report_text,
+            table_path=pathlib.Path(source),
+            state=state,
+            words=errors.TWIN_WORDS,
+        )
+    except BaseException:
+        if state.sentence:
+            _warn(_shown(state.sentence))
+        elif state.both_files_written:
+            _say(f"\nWritten:\n  {shown_twin_path}\n  {shown_report_path}")
+            if state.left_behind:
+                _warn(_left_behind_note([state.left_behind], "twin"))
+        raise
+    if left_behind:
+        # A caution, not a refusal, and printed BEFORE the confirmation
+        # for the same reason as in the profile command: if only one of
+        # the two lines reaches the person, it must be the one naming a
+        # file that may hold real-derived text.
+        _warn(_left_behind_note(left_behind, "twin"))
+    _say(f"\nWritten:\n  {shown_twin_path}\n  {shown_report_path}")
+    return 0
+
+
 def main(argv: "list[str] | None" = None) -> int:
     """Run the `synthtwin` command.
 
@@ -555,20 +1005,24 @@ def main(argv: "list[str] | None" = None) -> int:
 
     - Inputs: `argv` is the list of command-line arguments to parse, or
       `None` to parse `sys.argv[1:]`. Recognized: `--version`, `--help`,
-      and the `profile` subcommand with its options.
-    - Return codes: 0 when the work finished; 1 when the table could not
-      be read or the profile could not be written, with a
-      plain-language explanation on the error stream; 2 when an option's
-      value was not usable, which includes naming one value both with
-      `--keep-value` and with `--missing-value`. `SystemExit` with code
-      2 still ends the run for a word on the command line that synthtwin
-      does not recognize, and with code 0 for `--help`. 0 always means
-      both files were written: a working file that could not be cleared
-      away afterwards is named on the error stream as a caution and does
-      not change the code, because nothing about the profile is wrong.
+      the `profile` command word with its options, and the `generate`
+      command word with `--seed`, `--out-dir` and `--replace`.
+    - Return codes: 0 when the work finished; 1 when the file given
+      could not be read or the two output files could not be written,
+      with a plain-language explanation on the error stream; 2 when an
+      option's value was not usable, which includes naming one value both
+      with `--keep-value` and with `--missing-value`, and a seed that is
+      not a whole number in figures inside the stated range. `SystemExit`
+      with code 2 still ends the run for a word on the command line that
+      synthtwin does not recognize, and with code 0 for `--help`. 0
+      always means both files were written: a working file that could not
+      be cleared away afterwards is named on the error stream as a
+      caution and does not change the code, because nothing about the
+      output is wrong.
     - Determinism: the same table and the same options produce the same
       two files, byte for byte, on the same platform (plan D12 and
-      P1-D11).
+      P1-D11); so do the same description, the same seed and the same
+      version of synthtwin (plan P2-D8).
     - Errors raised: none that reach the user as a traceback. Every
       refusal in the catalog and every path rejection is caught here and
       printed as a message that says what happened and what to do next.
@@ -590,17 +1044,24 @@ def main(argv: "list[str] | None" = None) -> int:
       is printed first for that reason;
       (3) a stopped MACHINE is not covered at all, because nothing runs
       afterwards to write anything.
-    - Boundary: the only file this command reads is the table the user
-      named, through the path validator; the only files it writes are
-      the two it reports at the end, plus working files of synthtwin's
-      own making beside them, which are removed before the command
-      returns -- and named on the error stream in the rare case that one
-      could not be. No network, subprocess, native, or dynamic-code
-      operation is performed anywhere in the package.
-    - Display: nothing reaches the screen, the error stream, or the
-      summary file without passing the display boundary described at the
-      top of this module. A path or a value carrying an escape sequence
-      is shown as text, never obeyed by the terminal.
+    - Boundary: the only file `profile` reads is the table the user
+      named, and the only file `generate` reads is the description the
+      user named, both through the path validator; the only files either
+      writes are the two it reports at the end, plus working files of
+      synthtwin's own making beside them, which are removed before the
+      command returns -- and named on the error stream in the rare case
+      that one could not be. A `generate` run never opens a table and
+      never reaches the module that can: the reader is not imported at
+      all unless the person typed `profile` (plan P2-D1). No network,
+      subprocess, native, or dynamic-code operation is performed
+      anywhere in the package.
+    - Display: nothing reaches the screen, the error stream, the summary
+      file or the report file without passing the display boundary
+      described at the top of this module. A path or a value carrying an
+      escape sequence is shown as text, never obeyed by the terminal.
+      The twin's own cells are the one thing that does NOT pass it, and
+      must not: they are read by a program, and an escaped cell would be
+      a value the description never published.
     """
     options = _parse_arguments(argv)
 
@@ -608,14 +1069,19 @@ def main(argv: "list[str] | None" = None) -> int:
         _say(_version())
         return 0
 
-    if options.command != "profile" or options.table is None:
+    named = options.given
+    if named is None or options.command is None:
         _say(_STATUS.format(version=_version(), repo=_REPO_URL))
         return 0
 
-    table_named = options.table
+    generating = options.command == _GENERATE
     try:
+        if generating:
+            return _run_generate(
+                named, options.out_dir, options.seed, options.replace
+            )
         return _run_profile(
-            options.table,
+            named,
             options.out_dir,
             options.smallest_group,
             options.identifiers,
@@ -637,9 +1103,15 @@ def main(argv: "list[str] | None" = None) -> int:
         return 1
     except MemoryError:
         # Reading is not the only step that can exhaust memory: building
-        # the description and rendering it allocate again. One refusal
-        # covers them all rather than a traceback reaching the user.
-        _warn(errors.out_of_memory_while_describing(_shown(table_named)))
+        # the description and rendering it allocate again, and so does
+        # building a twin, which holds every cell of every column at once.
+        # One refusal per command covers them all rather than a traceback
+        # reaching the user, and the two say different things because the
+        # two runs are holding different files.
+        if generating:
+            _warn(errors.twin_out_of_memory(_shown(named)))
+        else:
+            _warn(errors.out_of_memory_while_describing(_shown(named)))
         return 1
 
 

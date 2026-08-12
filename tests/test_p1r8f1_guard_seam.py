@@ -50,7 +50,7 @@ import types
 import pytest
 
 import fixtures
-from synthtwin import errors, profile
+from synthtwin import errors, profile, writing
 from synthtwin.cli import main
 
 PROFILE_TEXT = '{\n  "profile_version": 2,\n  "note": "PROFILE-DERIVED"\n}\n'
@@ -58,8 +58,13 @@ SUMMARY_TEXT = "A summary of the table, for a person to read.\n"
 OLD_PROFILE = "last week's profile\n"
 OLD_SUMMARY = "last week's summary\n"
 
-# The filename every code object compiled from profile.py carries,
-# taken from one of that module's own functions.
+# The filename every code object compiled from the module holding the
+# write transaction carries, taken from one of that module's own
+# functions. That module is `writing.py` since plan P2-D1 moved the
+# transaction out of `profile.py`, which imports the reader's own table
+# type; the name is READ OFF the function rather than written here, so
+# the move did not have to be transcribed into this test and a later one
+# will not have to be either.
 #
 # It used to be rebuilt as `str(Path(profile.__file__).resolve())`, and
 # the two are not the same string on every platform. On Windows the
@@ -76,7 +81,7 @@ OLD_SUMMARY = "last week's summary\n"
 # papering over it with a case-blind or resolved comparison: this IS,
 # by construction, what `frame.f_code.co_filename` holds for every
 # function in the module, on every platform and every interpreter.
-_SOURCE = profile.write_both_files.__code__.co_filename
+_SOURCE = writing.write_both_files.__code__.co_filename
 
 # The two frames that hold the guard and everything the guard's handler
 # depends on. The review's required closure names the prologue and every
@@ -298,11 +303,11 @@ def test_the_injector_recognizes_the_frames_it_has_to_stop(
     zero; this says which comparison produced the zero, so the next
     person reads a diagnosis instead of a symptom.
     """
-    assert _SOURCE.endswith("profile.py"), (
+    assert _SOURCE.endswith("writing.py"), (
         f"the injector is aimed at {_SOURCE!r}, which is not the module "
         f"holding the write transaction"
     )
-    assert profile._move_into_place.__code__.co_filename == _SOURCE, (
+    assert writing._move_into_place.__code__.co_filename == _SOURCE, (
         "both frames the guard lives in must be recognized, not just one"
     )
     first, second = _outputs(tmp_path)
@@ -429,7 +434,7 @@ def test_a_stop_at_the_first_boundary_after_the_writes_names_both_parts(
     def refuse(*_args: object, **_kwargs: object) -> "list[str]":
         raise failure
 
-    monkeypatch.setattr(profile, "_move_into_place", refuse)
+    monkeypatch.setattr(writing, "_move_into_place", refuse)
     state = profile.DiskState()
     with pytest.raises(MemoryError) as caught:
         profile.write_both_files(
@@ -463,7 +468,7 @@ def test_a_working_file_left_at_that_boundary_is_named(
             raise PermissionError(13, "Operation not permitted")
         real_unlink(self, missing_ok=missing_ok)
 
-    monkeypatch.setattr(profile, "_move_into_place", refuse)
+    monkeypatch.setattr(writing, "_move_into_place", refuse)
     monkeypatch.setattr(pathlib.Path, "unlink", stubborn)
     state = profile.DiskState()
     with pytest.raises(MemoryError):

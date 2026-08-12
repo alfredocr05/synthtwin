@@ -40,7 +40,17 @@ def test_a_column_with_nothing_in_it_is_empty() -> None:
 def test_one_repeated_value_is_a_constant() -> None:
     described = describe(["same"] * 30)
     assert described.role == taxonomy.ROLE_CONSTANT
-    assert described.details["levels"] == [{"label": "same", "count": 30}]
+    # The published label is the folded identity; `variants` says how
+    # the 30 rows that share it wrote it, which here is one way (owner
+    # decisions 9 and 11).
+    assert described.details["levels"] == [
+        {
+            "label": "same",
+            "count": 30,
+            "variants": {"same": 30},
+            "variants_withheld": {},
+        }
+    ]
 
 
 def test_a_constant_below_the_floor_is_not_published() -> None:

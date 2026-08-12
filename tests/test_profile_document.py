@@ -40,6 +40,7 @@ def test_top_level_fields_are_exactly_the_contract(
         "n_rows",
         "profile_version",
         "publication_notes",
+        "relationships",
         "settings",
         "source",
     ]
@@ -148,8 +149,38 @@ def test_nothing_that_varies_between_runs_is_written(
 # it does exercise keeps the same bytes. The field itself is pinned in
 # tests/test_p1r8f4_repetition_multiset.py, on a document that declares
 # one.
+#
+# Re-recorded a third time for profile version 4 (plan P2-D3 to P2-D5
+# and owner decisions 9, 10 and 11). The difference was read line by
+# line against the previous document rather than accepted from the
+# digest, and it is exactly the five additions, the version number and
+# one sentence:
+#
+# * `profile_version` 3 -> 4;
+# * three axes on every one of the ten column blocks --
+#   `statistical_type`, `quality_state`, `structural_role`;
+# * `n_distinct_by_occurrences` on the two free-text columns, which
+#   holds `{"1": 240}` and `{"1": 80}`: every value of each is
+#   different, which `n_distinct` already said;
+# * `variants` and `variants_withheld` on each of the seven published
+#   labels -- four in `region`, two in `answer`, one in `batch`; the
+#   count is written out per column because "seven" alone is a number a
+#   later reader cannot check, and the first recording of this comment
+#   said eight. This fixture writes every label one way, so each variant
+#   mapping names that one spelling at the label's own count and each
+#   withheld mapping is empty -- the fold changes nothing here, which is
+#   why the labels themselves are unmoved. `region`'s fifth label is
+#   below the floor, so it is withheld and carries no variants at all;
+# * `numeric_styles` on the three numeric columns: `{"plain": 229}`,
+#   `{"plain": 227}` and `{"decimal": 240}`, the last being the measured
+#   column, every cell of which is written with a decimal point;
+# * the top-level `relationships` block, eight names and eight nulls;
+# * the free-text publication note now also says "and how often they
+#   repeat", because the block it describes now carries that.
+#
+# No count, no statistic, no label and no role of any column moved.
 GOLDEN_SHA256 = (
-    "513769d6e9edad37ef9c40ae9b9e3f8a35c4b1ae6cae3208e9f2497244045375"
+    "bc8be88e74b3b69a307e5b402d6a73d11198a7c486bca6da2f42e99722ef1939"
 )
 
 

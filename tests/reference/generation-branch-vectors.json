@@ -1,0 +1,646 @@
+{
+  "case_set": "The five cases method section G14.3 adds for the branches its first nine leave unexercised (review items P2-C3-F3 and P2-C4-C3): the joint class-and-sign packing of an unrepresentable column, the joint class-and-alphabet packing of free text, a fold collision no case change can build, the literal decimal, leading-zero and leading-plus style placements, and the published end whose seconds field is 60, which the ordinal space cannot hold and the endpoint-fields route writes exactly. They are computed by the same oracle and the same proof layer as tests/reference/generation-reference-vectors.json, and live in their own file only because a committed fixture must stay under the provenance manifest's byte cap.",
+  "cases": {
+    "free_text_joint": {
+      "cells": [
+        "00",
+        "!!",
+        "00",
+        "A"
+      ],
+      "column": {
+        "detection_evidence": "written by hand in this method specification's own neutral vocabulary; no value here comes from any table.",
+        "length": {
+          "max": 2,
+          "mean": {
+            "decimal": "1.75",
+            "exact": "7/4",
+            "float64": 1.75,
+            "proof": "nearest"
+          },
+          "min": 1,
+          "p50": {
+            "decimal": "2",
+            "exact": "2",
+            "float64": 2.0,
+            "proof": "nearest"
+          }
+        },
+        "missing_by_class": {
+          "(blank)": 0,
+          "(declared-missing)": 0,
+          "(numeric-sentinel)": 0,
+          "(text-code)": 0,
+          "(withheld)": 0
+        },
+        "missing_by_source": {},
+        "n_all_digits": 2,
+        "n_code_alphabet": 3,
+        "n_contradictory": 0,
+        "n_distinct": 3,
+        "n_distinct_by_occurrences": {
+          "1": 2,
+          "2": 1
+        },
+        "n_distinct_folded": 3,
+        "n_missing": 0,
+        "n_not_numeric": 2,
+        "n_numeric": 2,
+        "n_out_of_range": 0,
+        "n_present": 4,
+        "n_sentinel_candidates_unpublished": 0,
+        "name": "column_1",
+        "position": 1,
+        "quality_state": "ok",
+        "remarks": [],
+        "role": "free_text",
+        "sentinel_verdicts": [],
+        "statistical_type": "text",
+        "structural_role": "data",
+        "words": {
+          "max": 1,
+          "mean": {
+            "decimal": "1",
+            "exact": "1",
+            "float64": 1.0,
+            "proof": "nearest"
+          },
+          "min": 1
+        }
+      },
+      "content": [
+        "A",
+        "!!",
+        "00",
+        "00"
+      ],
+      "csv_bytes": "00\n!!\n00\nA\n",
+      "float64": [],
+      "why": "the joint class-and-alphabet packing of G9.5 steps 3 and 4 on a column where two separate walks cannot both land. The class counts alone permit the doubled group to answer for either class; the alphabet counts alone permit either split of the singletons. A walk that settled the classes first would take the two singletons for the two numeric cells -- the smallest sizes for the count that is reached first -- and leave the doubled group owing one code-alphabet cell and one wide cell, which one group covering two cells cannot do. The joint packing gives the doubled group the figures and the two singletons the other two bands, which meets every quota of both margins exactly. The permissions are the rule's own: a cell of ordinary text cannot be written in figures alone because figures alone read as a number, and a cell whose leftmost character is a non-digit of the code alphabet is not a number at all.",
+      "word_budget": {
+        "content": 0,
+        "placement": 3
+      },
+      "words": [
+        "2148289608029031280",
+        "15571884919775399509",
+        "14732924256990173560"
+      ]
+    },
+    "identifier_edge_spacing": {
+      "cells": [
+        "1  ",
+        "1 ",
+        " 1",
+        "1"
+      ],
+      "column": {
+        "all_whole_numbers": true,
+        "detection_evidence": "written by hand in this method specification's own neutral vocabulary; no value here comes from any table.",
+        "max_length": 3,
+        "min_length": 1,
+        "missing_by_class": {
+          "(blank)": 0,
+          "(declared-missing)": 0,
+          "(numeric-sentinel)": 0,
+          "(text-code)": 0,
+          "(withheld)": 0
+        },
+        "missing_by_source": {},
+        "n_all_digits": 4,
+        "n_code_alphabet": 4,
+        "n_contradictory": 0,
+        "n_distinct": 4,
+        "n_distinct_by_occurrences": {
+          "1": 4
+        },
+        "n_distinct_folded": 1,
+        "n_missing": 0,
+        "n_not_numeric": 0,
+        "n_numeric": 4,
+        "n_out_of_range": 0,
+        "n_present": 4,
+        "n_sentinel_candidates_unpublished": 0,
+        "name": "column_1",
+        "position": 1,
+        "quality_state": "ok",
+        "remarks": [],
+        "role": "identifier",
+        "sentinel_verdicts": [],
+        "statistical_type": "code",
+        "structural_role": "identifier"
+      },
+      "content": [
+        "1",
+        "1  ",
+        "1 ",
+        " 1"
+      ],
+      "csv_bytes": "1  \n1 \n 1\n1\n",
+      "float64": [],
+      "why": "a fold collision no case change can build. The column is written in figures alone, so its one identity holds no character with a case and the case-flip half of G9.3's partner family is empty from the start; the three partners the published counts ask for can come only from the edge spacing, which the fold trims away. The family's order is visible in all three: the total number of spaces ascends, and within one total the leading share ascends, so the spaces go to the end first and are then moved leftward one at a time. The second slot carries the longest published length, which a partner may hold only because spacing lengthens -- the whole point of the second slot being open to a partner when the column comes down to one identity. WHICH member each slot takes is G9.3 step 2's own rule since review item P2-C4-F4: every slot walks the family from that family's own start and takes the first member the column has not written whose length its own window admits, so the slot pinned to the longest length takes the first two-space placement and the two open slots after it take the two one-space placements in the family's order. A walk that began at an ordinal of the slot's own would step over a member nothing has written and no window has turned down, which is how two implementations came to write different bytes for this column. Every other published fact survives the spacing: the alphabet counts and the whole-number fact are read after trimming, the writer quotes a field for a comma, a quote character or a line ending and for nothing else, and the reader gives the spaces back unchanged.",
+      "word_budget": {
+        "content": 0,
+        "placement": 3
+      },
+      "words": [
+        "1301936263764534004",
+        "2783040907285617897",
+        "2670401546021029124"
+      ]
+    },
+    "leap_second_endpoint": {
+      "cells": [
+        "2016-12-31T23:34:46",
+        "2016-12-31T23:44:57",
+        "2016-12-31T23:38:22",
+        "2016-12-31T23:21:26",
+        "2016-12-31T23:46:09",
+        "2016-12-31T23:25:40",
+        "2016-12-31T23:32:09",
+        "2016-12-31T23:17:37",
+        "2016-12-31T23:59:60",
+        "2016-12-31T23:28:41",
+        "2016-12-31T23:00:00",
+        "2016-12-31T23:16:27"
+      ],
+      "column": {
+        "date_percentiles": {
+          "max": "2016-12-31 23:59:60",
+          "min": "2016-12-31 23:00:00",
+          "p01": "2016-12-31 23:05:00",
+          "p05": "2016-12-31 23:10:00",
+          "p10": "2016-12-31 23:15:00",
+          "p25": "2016-12-31 23:20:00",
+          "p50": "2016-12-31 23:30:00",
+          "p75": "2016-12-31 23:40:00",
+          "p90": "2016-12-31 23:50:00",
+          "p95": "2016-12-31 23:55:00",
+          "p99": "2016-12-31 23:58:00"
+        },
+        "datetimes_read_at": "local",
+        "detection_evidence": "written by hand in this method specification's own neutral vocabulary; no value here comes from any table.",
+        "earliest": "2016-12-31 23:00:00",
+        "earliest_utc_offset": "(none)",
+        "format": "iso-datetime",
+        "latest": "2016-12-31 23:59:60",
+        "latest_utc_offset": "(none)",
+        "missing_by_class": {
+          "(blank)": 0,
+          "(declared-missing)": 0,
+          "(numeric-sentinel)": 0,
+          "(text-code)": 0,
+          "(withheld)": 0
+        },
+        "missing_by_source": {},
+        "n_contradictory": 0,
+        "n_distinct": 12,
+        "n_distinct_folded": 12,
+        "n_missing": 0,
+        "n_not_numeric": 12,
+        "n_numeric": 0,
+        "n_out_of_range": 0,
+        "n_present": 12,
+        "n_sentinel_candidates_unpublished": 0,
+        "n_unparsed": 0,
+        "name": "column_1",
+        "position": 1,
+        "quality_state": "ok",
+        "remarks": [],
+        "resolution": "datetime",
+        "role": "datetime",
+        "sentinel_verdicts": [],
+        "statistical_type": "datetime",
+        "structural_role": "data",
+        "subsecond_digits": 0,
+        "time_precision": "second",
+        "utc_offsets": {
+          "(none)": 12
+        }
+      },
+      "content": [
+        "2016-12-31T23:00:00",
+        "2016-12-31T23:16:27",
+        "2016-12-31T23:17:37",
+        "2016-12-31T23:21:26",
+        "2016-12-31T23:25:40",
+        "2016-12-31T23:28:41",
+        "2016-12-31T23:32:09",
+        "2016-12-31T23:34:46",
+        "2016-12-31T23:38:22",
+        "2016-12-31T23:44:57",
+        "2016-12-31T23:46:09",
+        "2016-12-31T23:59:60"
+      ],
+      "csv_bytes": "2016-12-31T23:34:46\n2016-12-31T23:44:57\n2016-12-31T23:38:22\n2016-12-31T23:21:26\n2016-12-31T23:46:09\n2016-12-31T23:25:40\n2016-12-31T23:32:09\n2016-12-31T23:17:37\n2016-12-31T23:59:60\n2016-12-31T23:28:41\n2016-12-31T23:00:00\n2016-12-31T23:16:27\n",
+      "float64": [],
+      "why": "the endpoint route of G7.5, on the one published end the ordinal space of G7.1 cannot hold. The latest cell carries a seconds field of 60, which the profile contract's canonical form admits because the shipped reader accepts one; the whole-second space has one place for 23:59:59 and the next for the following midnight and none for it. So the two ends are built from the published endpoint's own four fields -- the date with HH:MM and a seconds field of 00, moved to this cell's clock, then the published seconds field written back unchanged -- and the space below is left to the ten interior ranks it is exact for. The clock here is the local one, which is the only clock the contract's D10 lets this end stand on: on the shared clock every cell is written on its own offset's wall clock, so D10 refuses that pair in the description instead. An implementation that sent these two cells through the ordinal route writes the following minute for the second of them and every other byte of this case unchanged, which is exactly the regression this case is frozen to stop.",
+      "word_budget": {
+        "content": 10,
+        "placement": 11
+      },
+      "words": [
+        "13427168714134208824",
+        "2622372851408911490",
+        "7994527897440520627",
+        "12988577211988740715",
+        "11221240180743911529",
+        "11903615472945588819",
+        "8022945971884194589",
+        "9470686378554496101",
+        "16464846541937923496",
+        "2015723726740522778",
+        "2953194388775208825",
+        "186460714444600446",
+        "10286796248990847147",
+        "3073121396252394582",
+        "5850044163583767416",
+        "18384416552906420653",
+        "15259945026574340491",
+        "1508198782665164068",
+        "17439788078174870154",
+        "7339215063107649377",
+        "9204310222248724882"
+      ]
+    },
+    "numeric_point_free_styles": {
+      "cells": [
+        "5.0",
+        "+5",
+        "05",
+        "05",
+        "+5",
+        "5.0",
+        "5.0",
+        "+5",
+        "5.0",
+        "05",
+        "+5",
+        "5.0",
+        "+5",
+        "05",
+        "5.0",
+        "05",
+        "5.0",
+        "5.0",
+        "5.0",
+        "05",
+        "+5",
+        "05",
+        "05",
+        "05",
+        "5.0",
+        "5.0",
+        "05",
+        "+5",
+        "+5",
+        "+5",
+        "05",
+        "+5",
+        "+5"
+      ],
+      "column": {
+        "detection_evidence": "written by hand in this method specification's own neutral vocabulary; no value here comes from any table.",
+        "integer_valued": true,
+        "mean": {
+          "decimal": "5",
+          "exact": "5",
+          "float64": 5.0,
+          "proof": "nearest"
+        },
+        "missing_by_class": {
+          "(blank)": 0,
+          "(declared-missing)": 0,
+          "(numeric-sentinel)": 0,
+          "(text-code)": 0,
+          "(withheld)": 0
+        },
+        "missing_by_source": {},
+        "n_contradictory": 0,
+        "n_distinct": 3,
+        "n_distinct_folded": 3,
+        "n_left_out_of_statistics": 0,
+        "n_missing": 0,
+        "n_negative": 0,
+        "n_negative_unrepresentable": 0,
+        "n_not_numeric": 0,
+        "n_numeric": 33,
+        "n_out_of_range": 0,
+        "n_present": 33,
+        "n_rows": 33,
+        "n_sentinel_candidates_unpublished": 0,
+        "n_used_in_statistics": 33,
+        "n_zero": 0,
+        "name": "column_1",
+        "numeric_share": {
+          "decimal": "1",
+          "exact": "1",
+          "float64": 1.0,
+          "proof": "nearest"
+        },
+        "numeric_styles": {
+          "decimal": 11,
+          "leading_plus": 11,
+          "leading_zero": 11
+        },
+        "percentiles": {
+          "max": {
+            "decimal": "5",
+            "exact": "5",
+            "float64": 5.0,
+            "proof": "nearest"
+          },
+          "min": {
+            "decimal": "5",
+            "exact": "5",
+            "float64": 5.0,
+            "proof": "nearest"
+          },
+          "p01": {
+            "decimal": "5",
+            "exact": "5",
+            "float64": 5.0,
+            "proof": "nearest"
+          },
+          "p05": {
+            "decimal": "5",
+            "exact": "5",
+            "float64": 5.0,
+            "proof": "nearest"
+          },
+          "p10": {
+            "decimal": "5",
+            "exact": "5",
+            "float64": 5.0,
+            "proof": "nearest"
+          },
+          "p25": {
+            "decimal": "5",
+            "exact": "5",
+            "float64": 5.0,
+            "proof": "nearest"
+          },
+          "p50": {
+            "decimal": "5",
+            "exact": "5",
+            "float64": 5.0,
+            "proof": "nearest"
+          },
+          "p75": {
+            "decimal": "5",
+            "exact": "5",
+            "float64": 5.0,
+            "proof": "nearest"
+          },
+          "p90": {
+            "decimal": "5",
+            "exact": "5",
+            "float64": 5.0,
+            "proof": "nearest"
+          },
+          "p95": {
+            "decimal": "5",
+            "exact": "5",
+            "float64": 5.0,
+            "proof": "nearest"
+          },
+          "p99": {
+            "decimal": "5",
+            "exact": "5",
+            "float64": 5.0,
+            "proof": "nearest"
+          }
+        },
+        "position": 1,
+        "quality_state": "ok",
+        "remarks": [],
+        "role": "count",
+        "sentinel_verdicts": [],
+        "skew": null,
+        "statistical_type": "count",
+        "std": {
+          "decimal": "0",
+          "exact": "0",
+          "float64": 0.0,
+          "proof": "nearest"
+        },
+        "std_unrepresentable": false,
+        "structural_role": "data"
+      },
+      "content": [
+        "05",
+        "+5",
+        "5.0",
+        "05",
+        "+5",
+        "5.0",
+        "05",
+        "+5",
+        "5.0",
+        "05",
+        "+5",
+        "5.0",
+        "05",
+        "+5",
+        "5.0",
+        "05",
+        "+5",
+        "5.0",
+        "05",
+        "+5",
+        "5.0",
+        "05",
+        "+5",
+        "5.0",
+        "05",
+        "+5",
+        "5.0",
+        "05",
+        "+5",
+        "5.0",
+        "05",
+        "+5",
+        "5.0"
+      ],
+      "csv_bytes": "5.0\n+5\n05\n05\n+5\n5.0\n5.0\n+5\n5.0\n05\n+5\n5.0\n+5\n05\n5.0\n05\n5.0\n5.0\n5.0\n05\n+5\n05\n05\n05\n5.0\n5.0\n05\n+5\n+5\n+5\n05\n+5\n+5\n",
+      "float64": [
+        {
+          "interpolated": {
+            "exact": "5",
+            "float64": 5.0,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 5,
+          "stratum": 1,
+          "t": {
+            "exact": "1292511510335643/2251799813685248",
+            "float64": 0.5739904153470667,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "959288303349605/2251799813685248",
+            "float64": 0.42600958465293326,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "5",
+            "float64": 5.0,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "4796441516748025/2251799813685248",
+            "float64": 2.1300479232646663,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "6462557551678215/2251799813685248",
+            "float64": 2.8699520767353337,
+            "proof": "nearest"
+          }
+        }
+      ],
+      "why": "the three styles no other case places a cell in: the literal decimal, leading-zero and leading-plus forms of G6.1, each written from the point-free spelling of G6.2 and each recounted by the contract's own first-match ladder as the style it was given. The floor governs a style like any published fact, so a map naming three of them needs eleven cells each and thirty-three in all. Every rung of the ladder is the same whole number, which is what keeps the case small enough to read by hand and makes two further things visible: the clamp of G5.3 is not decoration, because the four IEEE-754 operations of the convex form can leave the sum one unit in the last place away from a value both rungs agree on, and the clamp is what brings it back; and the tie rule of G6.4 decides every cell here, since all three quotas stand equal at each step, so the styles are taken in the enumeration order plain, leading_zero, leading_plus, decimal and the column cycles through the three it publishes. Three spellings of one value are three raw identities and three folded ones, which is what the column publishes, so no cell raises its leading-zero order.",
+      "word_budget": {
+        "content": 1,
+        "placement": 32
+      },
+      "words": [
+        "17164562756356967436",
+        "9452808604124318311",
+        "13143735524693854369",
+        "9264394462213188003",
+        "4424453555071538545",
+        "16165890503801172771",
+        "1269149005679939117",
+        "12961166868588685495",
+        "1805945305664177376",
+        "8221329215693956576",
+        "9678221350114918390",
+        "4883968381507460964",
+        "1186568609038911133",
+        "11742150723573194681",
+        "9039212224933945618",
+        "11807987216793257899",
+        "8078543970593484256",
+        "13148862654883819303",
+        "12952826994547832336",
+        "7089260808419439423",
+        "15347290669249134533",
+        "15555194800501135327",
+        "8642828883554635416",
+        "15125560542937574112",
+        "7032404254710712784",
+        "11529033739087927467",
+        "10460607393191814099",
+        "14397204600971004711",
+        "13236913917897978945",
+        "17589778316560365163",
+        "6002837667684665038",
+        "4039038238430453467",
+        "936435099686866448"
+      ]
+    },
+    "unrepresentable_joint": {
+      "cells": [
+        "(-2)",
+        "-1",
+        "(-1)",
+        "-1",
+        "(-2)",
+        "-0.0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001"
+      ],
+      "column": {
+        "detection_evidence": "written by hand in this method specification's own neutral vocabulary; no value here comes from any table.",
+        "missing_by_class": {
+          "(blank)": 0,
+          "(declared-missing)": 0,
+          "(numeric-sentinel)": 0,
+          "(text-code)": 0,
+          "(withheld)": 0
+        },
+        "missing_by_source": {},
+        "n_contradictory": 3,
+        "n_distinct": 4,
+        "n_distinct_by_occurrences": {
+          "1": 2,
+          "2": 2
+        },
+        "n_distinct_folded": 4,
+        "n_fraction": 1,
+        "n_missing": 0,
+        "n_negative": 3,
+        "n_not_numeric": 0,
+        "n_numeric": 2,
+        "n_out_of_range": 1,
+        "n_positive": 0,
+        "n_present": 6,
+        "n_sentinel_candidates_unpublished": 0,
+        "n_sign_unknown": 3,
+        "n_whole": 2,
+        "n_whole_unknown": 3,
+        "name": "column_1",
+        "position": 1,
+        "quality_state": "unrepresentable",
+        "remarks": [],
+        "role": "numeric_unrepresentable",
+        "sentinel_verdicts": [],
+        "statistical_type": "numeric",
+        "structural_role": "data"
+      },
+      "content": [
+        "-0.0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001",
+        "(-1)",
+        "-1",
+        "-1",
+        "(-2)",
+        "(-2)"
+      ],
+      "csv_bytes": "(-2)\n-1\n(-1)\n-1\n(-2)\n-0.0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001\n",
+      "float64": [],
+      "why": "the six-row column of G10.5 step 2, whose three published families have a joint answer that no two of them settle. The contradictory cells are the only ones that can answer for the three whole-unknown and the three sign-unknown counts, so they take the groups of two and one; the remaining three cells are all negative and divide two whole against one fraction. Sending the one out-of-range cell to the whole count asks for cell quotas no packing of groups 2, 2, 1 and 1 meets; sending it to the fraction count -- equally consistent with every published count, because how n_out_of_range divides between whole numbers and fractions is not a published fact -- is met exactly. The walk chooses among every cross-tabulation the three margins permit, and the recount of step 6 reads all twelve counts back off the finished cells.",
+      "word_budget": {
+        "content": 0,
+        "placement": 5
+      },
+      "words": [
+        "2834551707271871843",
+        "3123094663624302558",
+        "9333394219979397357",
+        "12140150428679393766",
+        "14159367994340888644"
+      ]
+    }
+  },
+  "column_shape": "Each case's 'column' is one column block in the profile's own wire shape, with one departure stated rather than left to be discovered: every published binary64 in it is written inside a 'float64' wrapper carrying the exact decimal it was read from, that decimal as an exact rational, and the proof shape. The wire value is the wrapper's 'float64' field. Writing those numbers bare would put a number in this file that nothing proved.",
+  "definitions": {
+    "bounded": "bounded(w, m) = (w * m) >> 64, the whole part of (w / 2**64) * m and a value in 0..m-1. One word every call, so a run's word count is a fixed function of the published facts (G3.4b).",
+    "canonical_spelling": "a whole-number column writes the base-ten digits of the value, 0 never -0. Otherwise the shortest digit string that reads back as exactly the value (shortest first, then nearest, ties to the even significand), in fixed-point notation when -4 < decpt <= 16 with .0 appended where no fractional digit would otherwise be written, and in d[.ddd]e+/-XX otherwise with the sign always written and the exponent at least two digits. Beside it, and not always the same text, the POINT-FREE spelling the three styles carrying neither a point nor an exponent are written from: where decpt >= len(D) and -4 < decpt <= 16 it is the sign, D and decpt - len(D) trailing zeros, and where those conditions do not hold the value has no point-free spelling at all (G6.2).",
+    "class_repair": "a stratum in the negative band whose value is at or above zero takes max(min, -1); a stratum in the positive band whose value is at or below zero takes min(max, 1); the zero stratum needs none. Where the ladder and the sign counts disagree, the counts win (G5.5).",
+    "convex_interpolation": "T = (A << 53) // B and t = ldexp(T, -53); then u = 1 - t, x1 = u * L[j], x2 = t * L[j+1], v = x1 + x2 -- four IEEE-754 binary64 operations in that order and no others -- then the clamp, v = L[j] when below and v = L[j+1] when above. The difference form L[j] + t*(L[j+1]-L[j]) is not used: it overflows to an infinity when the rungs sit at opposite ends of the range and loses the interpolation between neighbouring subnormals (G5.3).",
+    "endpoint_fields": "the two endpoint cells are built from the published endpoint's OWN four fields and never from an ordinal: take the date with HH:MM and a seconds field of 00, move THAT to the clock this cell is allocated -- unchanged on the local clock, shifted by offset_in_seconds on the shared one -- cut the result to the recorded time_precision, and write the published seconds field back unchanged. Every offset is a whole number of minutes, so the move never touches the seconds field and a seconds field of 60 survives it; for every other seconds field this produces the bytes the ordinal route produces (G7.5).",
+    "float64": "the binary64 value published for the exact rational recorded beside it. 'proof' says which claim is being made: 'nearest' means the value is the correctly rounded (round-half-even) binary64 of that rational, and 'exact' means it IS that rational with nothing rounded away. Both are re-derived from the value's two binary64 neighbours in a separate pass over the finished document.",
+    "grid_packing": "the published families of counts over one set of cells are MARGINS of one packing, never one walk after another: every group takes one cell of the grid out of the set its own facts permit, and every quota of every margin is met exactly whenever such an assignment exists. Each margin ranks its counts in ascending order of their published values, ties by the contract's own order; a cell carries one rank per margin and the cells are filled in ascending order of those ranks read margin by margin. Within a cell the group SIZES are offered in ascending order and each size offers as many copies as the cell can still hold, falling back to fewer; a fill that leaves a later cell unable to finish is undone and the next is tried; groups are handed to their cells in group order. A cell that is the last which can answer for one of its counts takes what that count still owes rather than choosing. Nothing counts the work and nothing stops the walk early (G9.5, G9.6, G10.5).",
+    "integer_rule": "b = int(v) truncated toward zero; r = v - float(b); to nearest with ties toward POSITIVE INFINITY -- r > 0.5 or r == 0.5 gives b+1, r < -0.5 gives b-1, r == -0.5 gives b. Not banker's rounding and not toward zero. Applied by the published integer_valued fact and never by the role name, and never to a pinned stratum (G5.4).",
+    "ladder_segment": "the unique j in 0..9 with PCT[j]*D <= 100*N < PCT[j+1]*D, scanned upward from zero and stopped at the first that holds. PCT is (0,1,5,10,25,50,75,90,95,99,100) held as whole numbers (G5.1, G5.3, G7.3).",
+    "notation_reading": "what one finished cell's notation settles, asked of every cell by the recounts: a sign inside accounting parentheses is the contradictory class and settles neither the sign nor the whole-number status, ordinary text settles neither either, and a well-formed number is out of range exactly when its magnitude reaches the point where binary64 rounds to an infinity or falls to or below half the smallest subnormal -- so a 400-digit whole number is out of range and whole, and a fraction below that point is out of range and a fraction (G10.2, G10.5).",
+    "offset_form": "rank 0 takes earliest_utc_offset and rank P-1 takes latest_utc_offset where each names a real offset; the rest are spent over the remaining ranks in ascending rank, taking the keys in the profile's own sorted order with (none) and (withheld) last. A cell allocated either of those is written with no offset. Under the utc clock a datetime cell is written on its own offset's wall clock, local_ordinal = ordinal + offset_in_seconds (G7.4).",
+    "ordinal_transform": "N_r = r * 2**64 + w over D = P * 2**64; the segment is located as above and ordinal = Lo[j] + (A * (Lo[j+1] - Lo[j])) // B. The floor division rounds toward the EARLIER instant always, before the epoch included, which is why it floors toward negative infinity rather than truncating toward zero (G7.3).",
+    "partner_family": "a fold-collision partner is a case flip, edge spacing, or both, because the shipped fold trims before it turns the case over. One parent's partners are enumerated by ascending TOTAL number of spaces, and within one total the LEADING share ascends, so the spaces go to the end first and are then moved leftward one at a time; within one placement the case flips are taken in ascending binary-counter order with bit 0 the leftmost alphabetic position and k = 0 the placement's own case; the parent itself is stepped over. The case flips of the unspaced parent are therefore the first 2**L - 1 partners. A partner may take only a length its own slot may take (G9.3).",
+    "permutation": "a = [0..n-1]; for i from n-1 down to 1, j = bounded(next word, i+1) and a[i] and a[j] are swapped, the swap happening even when j == i. Consumes max(n-1, 0) words (G3.4c).",
+    "precision_form": "quarter writes YYYY-Qn, date writes YYYY-MM-DD, and datetime writes YYYY-MM-DDTHH:MM, ...:SS or ...:SS.ddd by the published time_precision, with T as the separator and the fractional digits all zeros because the profile publishes how many digits the finest cell carried and nothing about their values (G7.5).",
+    "stratum_layout": "negatives ascending, then the zero stratum, then positives ascending. M = min(K, F_num) different values; M_neg is the nearest whole number to M_rest*G/(G+P) with ties upward, computed as (2*M_rest*G + (G+P)) // (2*(G+P)) and clamped into [1, M_rest-1]; each band is divided by the even split floor((i+1)*n/m) - floor(i*n/m) (G5.2).",
+    "style_allocation": "the VALUES step first: W is the point-free quota of the effective map, and while fewer cells than that hold a value with a point-free spelling the strata are walked in ascending order and the fewest the shortfall needs are taken to the nearest whole number, never the two pinned ends, never one that would cross zero and never one whose rounded value is already another stratum's. Then largest-remaining-quota over the numeric cells in stratum order and, inside a stratum, in ascending cell index, with ties going to the enumeration order plain, leading_zero, leading_plus, decimal, exponent_lower, exponent_upper and the withheld remainder added to plain. A style is offered to a cell only where the finished text would classify back as that style: leading_plus needs a value that is not negative, and plain, leading_zero and leading_plus need a value with a point-free spelling. The look-ahead is part of the rule: a choice is admissible only where it leaves the point-free quotas inside the count of cells after it that can carry them. Zeros are then spent over the WHOLE column at once -- the shortfall of the base spellings' identities against the folded budget is how many cells raise their order, each taking the lowest order whose folded identity is new, inside whatever style it was given, since every style but plain carries the family (G6.3, G6.4, G6.5)."
+  },
+  "generated_by": "tools/reference/make_generation_reference_vectors.py",
+  "method": "docs/spec/generation-method-v1.md",
+  "method_revision": 1,
+  "never_imports": [
+    "synthtwin",
+    "numpy",
+    "pandas"
+  ],
+  "readings_taken": "Seven places where the method fixes the parts but not their order are read here as follows, so a reader knows which reading these vectors freeze. (1) A datetime column's content list holds the parsed cells first, in ascending rank, and the counted stand-ins after. (2) An identifier column's spellings are laid into the groups as the identities in enumeration order followed by the partners in ascending identity order. (3) G9.5 fills the packing grid's margins in ascending order of their own published counts, ties by the contract's own order; for the three alphabet bands of a declared identifier that order is read as the figures first, then the code alphabet, then the rest, which is the order G9.5 step 4 itself names them in. (4) G9.6 fixes a non-zero leading digit for the figures band of a whole-number identifier, and gives the other two bands the templates <digits>e0 and <digits>. ; the digit block of those two templates is read as the ordinary figures enumeration of G9.2, with the non-zero rule applied where G9.6 states it and nowhere else. (5) A grid of more than two margins is read margin by margin in the order the section that publishes them names: the notation counts, then the whole-number counts, then the sign counts for an unrepresentable column (G10.5 step 3), and the class counts before the alphabet counts for free text (G9.5 steps 3 and 4). (6) Free text publishes no middle rung for its word counts, so the groups that are not pinned start at the whole number nearest words.mean, which is where length.p50 stands for the lengths. (7) The content list of a free-text or unrepresentable column is built group by group in group order, the order the multiplicity map itself states. What was reading (6) here is no longer a reading: which member of a fold-collision family a slot takes was worked out two ways by two implementations, and G9.3 now states the rule -- every slot walks its parent's family from that family's own start and takes the first member the column has not written whose length its own window admits, and the count of partners a parent has supplied decides which parent comes next and never which member is taken (review item P2-C4-F4).",
+  "what": "Independent reference vectors for synthtwin's generation transform: the twin cells a conforming generator must write, computed from the method specification alone.",
+  "word_source": "The words below are INPUTS. This oracle draws none of them: it holds no generator, no seed handling and no library random operation of any kind, because the data-provenance guard refuses an import of ctypes and numpy imports ctypes. What these vectors freeze is the transform from words to bytes; the word stream a seed produces is bound separately, by the golden twin hash computed in CI against the locked numpy."
+}

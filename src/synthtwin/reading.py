@@ -225,6 +225,15 @@ open a URL if it were handed one -- and it is fenced, not trusted: the
 only path that reaches it has passed `validate_local_path`, inside the
 same function as the call, which rejects URL forms lexically before any
 filesystem call (P1-D2.1, and SECURITY.md states it in the same terms).
+
+`taxonomy` is among this package's own modules imported here, for one
+reason: the header verdict this module settles is PUBLISHED in the
+profile, and every sentence a profile publishes is built from the one
+enumerated grammar `taxonomy.note` owns (plan P2-D2). A verdict written
+as free text here would be the single string in the finished document
+with no form behind it, and one exception is all a guard needs to stop
+meaning anything. Nothing else travels the other way: `taxonomy` does
+not import this module and cannot reach a file.
 """
 
 import csv
@@ -233,7 +242,7 @@ import pathlib
 
 import pandas
 
-from synthtwin import errors, parsing
+from synthtwin import errors, parsing, taxonomy
 from synthtwin.paths import validate_local_path
 
 # The per-value size the standard reader will accept while a table is
@@ -245,8 +254,14 @@ from synthtwin.paths import validate_local_path
 # whole program, not to us.
 FIELD_SIZE_LIMIT = 10_000_000
 
-_PRIMARY_ENCODING = "utf-8-sig"
-_FALLBACK_ENCODING = "latin-1"
+# The two encodings a table is read under, and the whole of what the
+# profile's `source.encoding` may say. They are named here rather than
+# left private because the publication guard checks that field against
+# this enumeration (plan P2-D2): a value the reader never produces may
+# not appear there.
+PRIMARY_ENCODING = "utf-8-sig"
+FALLBACK_ENCODING = "latin-1"
+ENCODINGS = (PRIMARY_ENCODING, FALLBACK_ENCODING)
 
 # How far outside the range of a column's own numbers the first row's
 # number still counts as one of them, as a share of that range's width
@@ -295,31 +310,22 @@ _BYTE_ORDER_MARKS = (
 # The evidence sentence for a first row the caller settled rather than
 # the file. Both are published on the Table so a later reader of the
 # profile can see how the column names were arrived at.
-_SAID_NAMES = (
-    "The first row was read as the column names because the command was "
-    "run with --first-row names."
-)
-_SAID_DATA = (
-    "The first row was read as the first record because the command was "
-    "run with --first-row data, so the columns were named column_1, "
-    "column_2, and so on and every record was kept."
-)
+#
+# All four verdicts below are `taxonomy.note` sentences rather than text
+# written here, because they are published in the profile and every
+# published sentence is built from one enumerated form (plan P2-D2). The
+# words themselves are in `taxonomy.rendered`, beside every other
+# sentence a profile can carry, so a reader meets the whole vocabulary
+# in one place and the publication guard can rebuild each one.
+_SAID_NAMES = taxonomy.note(taxonomy.HEADER_NAMES_BY_OPTION)
+_SAID_DATA = taxonomy.note(taxonomy.HEADER_DATA_BY_OPTION)
 
 # The sentence for outcome 3 of the module docstring: the first row was
 # taken as the names because a CSV file is normally written that way and
 # nothing in this one said otherwise. It claims no evidence, says so in
 # as many words, and carries the way to take it back. A person who reads
 # only this sentence has been told everything synthtwin assumed.
-_TAKEN_BY_CONVENTION = (
-    "The first row was read as the column names by convention, not by "
-    "evidence: a CSV file is normally written with its column names "
-    "first, and nothing in this file contradicted that -- no value in "
-    "the first row belongs among the values of the column below it. "
-    "synthtwin did not check that those values ARE names, because no "
-    "such check exists. If that row is really the first record, run the "
-    "command again with --first-row data: the columns are then named "
-    "column_1, column_2, and so on and every record is kept."
-)
+_TAKEN_BY_CONVENTION = taxonomy.note(taxonomy.HEADER_NAMES_BY_CONVENTION)
 
 
 @dataclasses.dataclass(frozen=True)
@@ -360,6 +366,12 @@ class Table:
     encoding: str
     used_fallback_encoding: bool
     header_source: str
+    # Every verdict this module produces is a `taxonomy.Note`, which IS
+    # a string and is annotated as one here so that the empty default
+    # below stays legal. What makes it a Note matters downstream: the
+    # profile publishes this sentence, and the publication guard accepts
+    # a published sentence only when it can rebuild it from an
+    # enumerated form (plan P2-D2). `read_table` never leaves it empty.
     header_evidence: str = ""
     header_by_convention: bool = False
 
@@ -631,7 +643,7 @@ def _read_streamed(
                     # tested, because that is the reading whose
                     # characters ARE the file's bytes (module
                     # docstring).
-                    marked = encoding == _FALLBACK_ENCODING and (
+                    marked = encoding == FALLBACK_ENCODING and (
                         _starts_with_a_byte_order_mark(header[0])
                     )
                     if marked:
@@ -707,7 +719,7 @@ def _read_streamed(
         columns=columns,
         n_rows=n_rows,
         encoding=encoding,
-        used_fallback_encoding=encoding == _FALLBACK_ENCODING,
+        used_fallback_encoding=encoding == FALLBACK_ENCODING,
         header_source=source,
         header_evidence=evidence,
     )
@@ -722,11 +734,11 @@ def _read_authoritatively(
         csv.field_size_limit(FIELD_SIZE_LIMIT)
         try:
             found = _read_streamed(
-                table_path, _PRIMARY_ENCODING, shown, first_row
+                table_path, PRIMARY_ENCODING, shown, first_row
             )
             if found is None:
                 found = _read_streamed(
-                    table_path, _FALLBACK_ENCODING, shown, first_row
+                    table_path, FALLBACK_ENCODING, shown, first_row
                 )
             if found is None:
                 raise errors.ProfileError(errors.not_utf8_or_latin1(shown))
@@ -884,9 +896,8 @@ def _names_evidence(
             if parsing.classify_number(f"{value}") == parsing.NOT_A_NUMBER:
                 every_value_is_a_number = False
         if every_value_is_a_number:
-            return (
-                f"column {position + 1} holds a number in every row below "
-                "it, and its first-row value is not a number"
+            return taxonomy.note(
+                taxonomy.HEADER_NAMES_SHOWN_BY_COLUMN, (position + 1,)
             )
     return None
 
