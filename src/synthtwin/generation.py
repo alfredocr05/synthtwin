@@ -423,7 +423,7 @@ class GenerationPlan:
 
     Building one is the generation-feasibility stage of plan P2-D6: it
     runs after the loader and before any generation, it never calls a
-    conforming description invalid, and it is where the two refusals of
+    conforming description invalid, and it is where the five refusals of
     method G12 are raised -- so a refused run leaves the folder exactly
     as it found it.
     """
@@ -7560,7 +7560,7 @@ def generate(profile: contract.Profile, seed: int) -> Twin:
       counts shifts every later column at the same seed, which is why
       regenerating after a version change is a recorded event.
     - Errors raised: `errors.ProfileError` for a seed outside the stated
-      range, and the two generation refusals of `plan_generation`, which
+      range, and the generation refusals of `plan_generation`, which
       run BEFORE anything is built. It raises nothing else: a
       description the loader accepted is never called invalid here.
     - Boundary: the real table is never read, never named and never

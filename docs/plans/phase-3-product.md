@@ -963,9 +963,11 @@ review item P3-C2-F1). A producer column whose values are whole but lie
 outside the fixed-point window -- twenty cells of ten to the twentieth
 beside twenty of twice that, with two fractional ends -- publishes
 `{"plain": 40, "(withheld)": 6}`, because the source wrote those values
-in figures. The generator writes them in the canonical exponent form
-instead, so the twin holds no plain cell at all and the recount names a
-forty-cell shortfall. This is not the pooled-remainder defect and not a
+in figures. The generator writes them with a decimal point instead --
+measured, not inferred: forty cells come out as `100000000000000000000.0`
+and its neighbours, five as lower-case exponents, and none plainly --
+so the recount names TWO misses, a forty-cell plain shortfall and forty
+decimal cells spelled in no way their own values' canonical text allows. This is not the pooled-remainder defect and not a
 regression: it is the fixed-point window of the method's own canonical
 spelling meeting a source that wrote wider numbers plainly, and it has
 been there since the generator shipped. It falsified method G6.4's
@@ -975,8 +977,20 @@ there rather than left standing.
 **The outcomes open to the owner are the same two as for the first**:
 widen what the twin may write for a whole value outside the window --
 which changes twin bytes and is a changelogged regeneration event under
-D12 -- or authorize the miss here and let the report name it, which is
-what the twin already does. Neither is an implementer's to take.
+D12 -- or authorize the misses here and let the report name them, which
+is what the twin already does. Neither is an implementer's to take.
+
+**And one control is known broken until it is settled** (review item
+P3-C4-F2): the frozen reference oracle under `tools/reference/` still
+implements the retired rule that adds the whole remainder to `plain`,
+so on this branch it disagrees with the shipped generator. No frozen
+case exercises the branch, which is why every vector stayed green
+through this repair -- the oracle's independence is real everywhere it
+is exercised and absent exactly here. Whichever outcome the owner
+takes, the oracle is brought back into agreement and given a case that
+covers the branch in the same change; until then the independent check
+on pooled spelling is not in force and this sentence is the record of
+that.
 
 ### P3-D8.2 Release preconditions (each verified, none assumed)
 

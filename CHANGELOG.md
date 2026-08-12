@@ -35,10 +35,16 @@ exists).
   landed there as an amendment rather than as an unannounced branch.
 - The disposition registry's `OPEN` mapping is empty for the first time
   since it was created.
-- A defect the repair found is recorded rather than fixed quietly: the
-  same two-character code family is reached by a column whose values are
-  not all whole numbers, and closing that needs an owner decision, which
-  the Phase 3 plan's P3-D8.1 now carries with its measurement.
+- Two defects the repairs and their reviews found are recorded rather
+  than fixed quietly, each with its measurement and its two possible
+  outcomes, in the Phase 3 plan's P3-D8.1: the same two-character code
+  family reached by a column whose values are not all whole numbers,
+  and a column of very wide whole numbers, which a source writes in
+  figures and the twin writes with a decimal point. Both need an owner
+  decision. A third record sits beside them: the frozen reference
+  oracle still implements the retired pooled-plain rule on a branch no
+  frozen case exercises, so its independent check on pooled spelling is
+  not in force until that decision lands and the oracle moves with it.
 
 ### Added in Phase 3: the ratified plan, and the repository goes public
 - The Phase 3 plan (`docs/plans/phase-3-product.md`): the validate
