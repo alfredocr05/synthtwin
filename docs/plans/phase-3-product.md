@@ -420,12 +420,15 @@ expected classification of every case independently of both. The validator never
 compares measured cells to any generator-planned cell content:
 expectations come from the profile's published facts only.
 
-The four G12 conditions are a DIFFERENT kind and are kept apart: they
-refuse GENERATION, so no conforming twin exists for such a profile,
-and a validate run on one is a catalogued REFUSAL whose message
-mirrors the generation refusal — the description is valid, the two
-facts that cannot both hold are named, and whatever the measured file
-is, it cannot be that profile's twin. Treating those four as
+The G12 refusal conditions are a DIFFERENT kind and are kept apart —
+method G12 fixes how many there are and this plan follows it rather
+than carrying a count of its own, which the fifth refusal of P3-D8.1
+would otherwise have made stale: they refuse GENERATION, so no
+conforming twin exists for such a profile, and a validate run on one is
+a catalogued REFUSAL whose message mirrors the generation refusal — the
+description is valid, the two facts that cannot both hold are named,
+and whatever the measured file is, it cannot be that profile's twin.
+Treating them as
 authorized-lesser corners would launder an impossible obligation into
 a passing report, which is exactly the class of quiet lowering this
 project refuses. Red case: each G12-refusal profile plus any CSV must

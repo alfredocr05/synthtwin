@@ -936,9 +936,16 @@ spelling: `leading_zero`, `leading_plus` and `exponent_upper` exact;
 `plain`, `decimal` and `exponent_lower` never below their published
 counts; the spill `D = max(0, NW - p(decimal) - p(exponent_lower) -
 p(exponent_upper))`; `r(decimal) + r(exponent_lower) = p(decimal) +
-p(exponent_lower) + D`; and `r(plain) = p(plain) + R - D`. No cell text
-falls outside the six styles, so there is no "outside the published
-styles" bucket for the remainder to be counted in.
+p(exponent_lower) + D`; `r(plain) = p(plain) + R - D`; and, in each of
+`decimal` and `exponent_lower`, at most `p` of its cells carry a text
+that is not the canonical text of their own value, so a pooled cell can
+never be re-spelled into a form the description never named. `NW` is
+read off the VALUES and never off the spellings — the count of written
+numeric cells whose value has no point-free spelling — because counting
+the cells WRITTEN with a point would let a twin inflate its own `D` and
+balance the arithmetic against itself. No cell text falls outside the
+six styles, so there is no "outside the published styles" bucket for the
+remainder to be counted in.
 
 Styles are assigned over the K numeric cells in the fixed **stratum
 order** of G5.2 (which is the sorted order of the values), by
@@ -987,15 +994,18 @@ cell index:
 
 **Why the second answer exists** (P2-C4-F3). The pool is the count of
 cells whose form the description WITHHELD: it says how many there were
-and never which of the six they were, and G6.4 writes them `plain`
-because plain changes nothing a reader infers. Where the point-free
-cells cannot carry every quota, something has to give, and it is the
-anonymous claim that gives — never a count the description names. A
-column publishing twenty-five `leading_zero` cells and a pooled
-remainder of ten, on a ladder whose two ends carry points, has
-thirty-three point-free cells for thirty-five claims: it writes all
-twenty-five named `leading_zero` cells and eight of the ten pooled
-ones. Answer 1 alone spent the shortfall on both claims at once and
+and never which of the six they were, so a pooled cell is written
+plainly wherever its value has a point-free spelling, because plain
+changes nothing a reader infers, and in the value's own canonical text
+where it has none (P3-D8.1). Where the point-free cells cannot carry
+every quota, something has to give, and it is the anonymous claim that
+gives — never a count the description names. A column publishing
+twenty-five `leading_zero` cells and a pooled remainder of ten, on a
+ladder whose two ends carry points, has thirty-three point-free cells
+for thirty-five claims: it writes all twenty-five named `leading_zero`
+cells, eight pooled cells plainly, and the remaining two in their own
+values' canonical text — every cell has a spelling and no named count
+moves. Answer 1 alone spent the shortfall on both claims at once and
 missed the named count by one.
 
 **Why the third answer exists.** Reaching it means the point-free

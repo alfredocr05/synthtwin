@@ -7116,7 +7116,13 @@ def _whole_numbers_need_code_room(
     spreadsheet software reads as the start of a formula. `<digits>e0`
     is the shortest that remains, and it is three.
 
-    So two published pairs contradict each other outright:
+    WHAT IS IMPOSSIBLE IS THE TWIN, NOT THE TABLE (review item
+    P3-C1-F6). A real table holds these facts easily -- it holds them by
+    writing `-3` -- and the message says so rather than telling a person
+    their own data cannot exist. What no conforming twin can do is hold
+    them while keeping G9.1's bar, because every spelling left to an
+    INVENTED value opens with the sign. So two published pairs are
+    jointly unwritable here:
 
     - every value is a whole number, no value is longer than two
       characters, and some of them are written in the code alphabet
@@ -7155,8 +7161,10 @@ def _whole_numbers_need_code_room(
         f"alone is three characters long, like '1e0' -- the two-character "
         f"spellings are a sign in front of a figure, and synthtwin never "
         f"begins an invented value with a sign, because a spreadsheet "
-        f"reads it as a formula, {carries}. The two facts cannot both "
-        f"hold in any table, so there is nothing to build. "
+        f"reads it as a formula, {carries}. Your own table can hold "
+        f"these two facts together -- it holds them with the sign -- "
+        f"but synthtwin cannot write a twin that does, so there is "
+        f"nothing to build. "
         + _edited_by_hand(
             "say that the values are not all whole numbers",
             "give the values room for a third character",
@@ -7186,17 +7194,19 @@ def plan_generation(profile: contract.Profile) -> GenerationPlan:
       published facts allow, so its answer is the same for every seed.
     - Determinism: a fixed function of the description. It reads no
       clock, no environment and no random source.
-    - Errors raised: `errors.ProfileError`, and only for the four
+    - Errors raised: `errors.ProfileError`, and only for the five
       refusals method G12 names -- a column of numbers whose counts of
       zero and negative values leave no room; a column of text or of
       unheld numbers needing more different values than its own length
       range can spell; a column of text whose published word extreme
-      needs more characters than its own published length carries; and a
+      needs more characters than its own published length carries; a
       declared column of record numbers published as whole numbers that
-      one character cannot write outside the figures. Each says the
-      description is VALID, names the two facts that cannot both hold,
-      and gives something to do next that does not assume the person
-      still has the table. All are raised HERE, before any generation,
+      one character cannot write outside the figures; and one whose
+      whole numbers must stand in the code alphabet with no room for a
+      third character, the shortest such spelling being three long once
+      a leading sign is barred. Each says the description is VALID,
+      names the two facts that cannot both hold, and gives something to
+      do next that does not assume the person still has the table. All are raised HERE, before any generation,
       so a refused run leaves every byte on disk exactly as it found it.
     - Boundary: reads only the typed description (method G1). It widens
       the domains first -- the alphabets hold both cases and the whole
@@ -8034,7 +8044,20 @@ def _style_notes(
         counted[parsing.numeric_style(cell)] = (
             counted[parsing.numeric_style(cell)] + 1
         )
-        if parsing.numeric_style(cell) not in _WHOLE_STYLES:
+        # THE SPILL IS READ OFF THE VALUES, NEVER OFF THE SPELLINGS
+        # (review item P3-C1-F2). Counting the cells that were WRITTEN
+        # with a point makes the identity circular: a twin that spells a
+        # whole value `1000000000000000.0` instead of plainly inflates
+        # its own spill by one and the arithmetic then balances against
+        # itself, so a re-spelled column passes a check meant to catch
+        # exactly that. What the plan fixes is the count of cells whose
+        # VALUE has no point-free spelling, which is a property of the
+        # number the cell reads back as and not of how it was written --
+        # and it is therefore a quantity the writer cannot move.
+        held = parsing.parse_number(parsing.trimmed(cell))
+        if held is None:
+            continue
+        if not _carries_plainly(held, facts.integer_valued):
             pointless = pointless + 1
     canonical_room = (
         published["decimal"]
@@ -8115,6 +8138,37 @@ def _style_notes(
                 column.name, "numeric_styles", owed, f"{counted[name]}", sense
             )
         ]
+    # NO CELL IS SPELLED NON-CANONICALLY WITHOUT A PUBLISHED COUNT
+    # ENTITLING IT (review item P3-C1-F1). The published counts are the
+    # only licence for a point-carrying spelling that is not the value's
+    # own canonical text, so a pooled cell must carry exactly that text
+    # and a pool cannot be re-spelled into a form the description never
+    # named. Without this clause the totals alone would let a column
+    # trade one canonical form for the other.
+    for name in ("decimal", "exponent_lower"):
+        odd = 0
+        for cell in written:
+            if cell == "" or parsing.numeric_style(cell) != name:
+                continue
+            if parsing.classify_number(cell) != parsing.NUMBER:
+                continue
+            held = parsing.parse_number(parsing.trimmed(cell))
+            if held is None:
+                continue
+            if cell != _canonical_number(held, facts.integer_valued):
+                odd = odd + 1
+        if odd > published[name]:
+            notes = notes + [
+                _deviation(
+                    column.name,
+                    "numeric_styles",
+                    f"at most {published[name]} cell(s) written in the "
+                    f"{name} form in any way but their own value's "
+                    "canonical spelling",
+                    f"{odd}",
+                    sense,
+                )
+            ]
     carried = counted["decimal"] + counted["exponent_lower"]
     owed_together = published["decimal"] + published["exponent_lower"] + spilled
     if carried != owed_together:
