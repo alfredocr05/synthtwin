@@ -7165,10 +7165,44 @@ def _whole_numbers_need_code_room(
         f"these two facts together -- it holds them with the sign -- "
         f"but synthtwin cannot write a twin that does, so there is "
         f"nothing to build. "
-        + _edited_by_hand(
+        + _no_twin_can_hold_it(
             "say that the values are not all whole numbers",
             "give the values room for a third character",
         )
+    )
+
+
+def _no_twin_can_hold_it(first: str, second: str) -> str:
+    """What to do about a pair a real table holds and no twin can.
+
+    THE OTHER TAIL WOULD BE FALSE HERE (review item P3-C2-F3).
+    `_edited_by_hand` tells the person that no described table produces
+    this pair, that their description must have been edited, and that
+    describing the table again would settle it. For the four refusals it
+    serves, all three are true. For the fifth they are all false: the
+    shipped producer writes this pair from a real table of values like
+    `-3`, so describing that table again produces exactly the same pair,
+    and sending the person around that loop would waste their time and
+    tell them their file is corrupt when it is not.
+
+    So this tail says the true thing instead -- the twin is what cannot
+    be written, the description is fine, and the two edits are offered
+    as choices about what the twin should carry rather than as repairs
+    to something broken.
+    """
+    return (
+        f"Nothing has been written and every file in the folder is as it "
+        f"was. What to do next: the description is not damaged and does "
+        f"not need making again -- describing the same table would "
+        f"produce the same pair. What synthtwin cannot do is invent "
+        f"values that hold both facts at once. Either of two edits to "
+        f"the description file lets it build, and the twin then carries "
+        f"the fact you chose rather than the one it replaced: {first}, "
+        f"or {second}. Either way the twin's record numbers stop "
+        f"matching your table's on the fact you gave up, which the "
+        f"report says in as many words. The description file is all "
+        f"synthtwin needs for this, so neither edit asks you for the "
+        f"table."
     )
 
 

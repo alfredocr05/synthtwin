@@ -106,8 +106,24 @@ def _column(document: Document, name: str) -> Document:
 # -- what the plan requires every one of these messages to say --------
 
 
-def _speaks_the_plan(message: str, column: str, facts: "tuple[str, ...]") -> None:
-    """P2-D6 rule 5, checked clause by clause on the message itself."""
+def _speaks_the_plan(
+    message: str,
+    column: str,
+    facts: "tuple[str, ...]",
+    from_a_real_table: bool = False,
+) -> None:
+    """P2-D6 rule 5, checked clause by clause on the message itself.
+
+    ``from_a_real_table`` is the fifth refusal's case (review item
+    P3-C2-F3). The other four are reached only by a description whose
+    facts no table produces, so describing the table again settles
+    them and the message says so. A producer writes the fifth from a
+    real table of values like `-3`, so that advice would send the
+    person round a loop that ends where it started and would tell them
+    their file is damaged when it is not. The clause is therefore
+    asserted in whichever direction is TRUE for the refusal at hand,
+    and never simply dropped.
+    """
     assert "is valid" in message, message
     assert f"'{parsing.visible(column)}'" in message, message
     assert "cannot build a twin column from it" in message, message
@@ -118,6 +134,11 @@ def _speaks_the_plan(message: str, column: str, facts: "tuple[str, ...]") -> Non
     # the clause four repairs kept losing. The description file is what
     # they are holding, so it is what the message reaches for first.
     assert "description file is all synthtwin needs" in message, message
+    if from_a_real_table:
+        assert "would produce the same pair" in message, message
+        assert "does not need making again" in message, message
+        assert "synthtwin profile" not in message, message
+        return
     assert "neither edit asks you for the table" in message, message
     # ...and the table is still offered to the people who do have it.
     assert "synthtwin profile" in message, message
@@ -231,6 +252,7 @@ def test_two_character_code_whole_numbers_refuse_generation(
             "11 of the 22 values are written in the code alphabet",
             "three characters long",
         ),
+        from_a_real_table=True,
     )
 
 
@@ -268,6 +290,7 @@ def test_a_two_character_shortest_value_with_only_the_code_band_refuses(
             "every one of them is written in the code alphabet",
             "three characters long",
         ),
+        from_a_real_table=True,
     )
 
 
