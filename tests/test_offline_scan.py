@@ -2643,3 +2643,443 @@ def test_a_trust_scope_that_never_settles_is_refused(tmp_path):
         """,
     )
     assert violations, "a scope that never settles must be refused"
+
+
+# -- Phase 2 additions E7-E9 (plan phase-2-generator.md, P2-D13) -------
+#
+# numpy returns for one purpose only: one random stream. The enumeration
+# is not just a name -- it is the name, the three objects that come out
+# of it, and the arguments handed to the one draw -- and csv gains a
+# writer whose handle, rows and dialect are enumerated the same way.
+# Every test below is one way that enumeration could be undone.
+
+_DRAW = (
+    'generator.integers(0, _CEILING, size=int(count), dtype="uint64", '
+    "endpoint=True)"
+)
+
+
+def _draw_module(body):
+    """A module that makes the one generator and then does `body`."""
+    return (
+        """
+        import numpy.random
+
+        _CEILING = 18446744073709551615
+
+
+        def draw(seed, count):
+            generator = numpy.random.default_rng(seed)
+        """
+        + "    "
+        + body.strip()
+        + "\n"
+    )
+
+
+def _writer_module(body):
+    """A module that opens this run's own output file and then does
+    `body`, with the writer already built over that handle."""
+    return (
+        """
+        import csv
+        import pathlib
+
+        from synthtwin.paths import validate_local_path
+
+
+        def save(raw_path, rows, dialect):
+            validated = validate_local_path(raw_path, purpose="output")
+            destination = pathlib.Path(validated)
+            with destination.open("w", encoding="utf-8", newline="") as handle:
+        """
+        + "        "
+        + body.strip()
+        + "\n"
+    )
+
+
+def test_the_one_draw_shape_stays_clean(tmp_path):
+    """The whole admitted surface, written the one way the generation
+    method fixes: import numpy.random, one default_rng, one integers
+    call with first-party arguments, and int() on every element."""
+    violations = _scan_code(
+        tmp_path,
+        """
+        import numpy.random
+
+        _CEILING = 18446744073709551615
+
+
+        def words(seed, count):
+            generator = numpy.random.default_rng(seed)
+            drawn = generator.integers(
+                0, _CEILING, size=int(count), dtype="uint64", endpoint=True
+            )
+            return [int(word) for word in drawn]
+        """,
+    )
+    assert violations == [], "\n".join(violations)
+
+
+def test_an_unenumerated_generator_method_goes_red(tmp_path):
+    # The generator answers to one method. spawn hands back further
+    # generators and would put a numpy floor above pandas' own; every
+    # distribution method is outside the enumeration as well.
+    violations = _scan_code(tmp_path, _draw_module("return generator.spawn(2)"))
+    _assert_red(violations, "spawn")
+
+
+def test_an_attribute_on_the_drawn_array_goes_red(tmp_path):
+    # An array's attributes reach capability with no call in sight, and
+    # the array's attribute list is empty.
+    violations = _scan_code(
+        tmp_path, _draw_module("return " + _DRAW + ".data")
+    )
+    _assert_red(violations, "attribute")
+
+
+def test_a_method_on_the_drawn_array_goes_red(tmp_path):
+    # tofile writes a file of the library's own accord.
+    violations = _scan_code(
+        tmp_path,
+        _draw_module("return " + _DRAW + ".tofile('/tmp/x')"),
+    )
+    _assert_red(violations, "tofile")
+
+
+def test_an_attribute_on_a_drawn_word_goes_red(tmp_path):
+    """A word taken out of the array by ITERATION is still a library
+    scalar, and reading any attribute of it is refused.
+
+    This is the route revision 3 of the plan would have opened: an
+    element declared originless lands in the documented
+    untraced-attribute residual, where `word.data` is read with no
+    question asked at all.
+    """
+    violations = _scan_code(
+        tmp_path,
+        _draw_module("return [word.data for word in " + _DRAW + "]"),
+    )
+    _assert_red(violations, "attribute")
+
+
+def test_an_attribute_on_a_drawn_word_in_a_loop_goes_red(tmp_path):
+    """The same, through a `for` statement rather than a comprehension:
+    iteration carries the origin in both forms."""
+    violations = _scan_code(
+        tmp_path,
+        _draw_module(
+            "for word in "
+            + _DRAW
+            + ":\n                    print(word.tofile)\n"
+        ),
+    )
+    _assert_red(violations, "attribute")
+
+
+def test_a_method_on_an_indexed_drawn_word_goes_red(tmp_path):
+    """Indexing hands out a word too, and a word taken out by index
+    carries the same closed surface as one taken out by iteration."""
+    violations = _scan_code(
+        tmp_path,
+        _draw_module("return " + _DRAW + "[0].dump('/tmp/x')"),
+    )
+    _assert_red(violations, "dump")
+
+
+def test_a_word_reached_through_two_steps_is_still_a_word(tmp_path):
+    """Index, then iterate, then index again: no amount of taking
+    elements out turns a library scalar into an untraced value."""
+    violations = _scan_code(
+        tmp_path,
+        _draw_module("return [word[0].data for word in " + _DRAW + "[0]]"),
+    )
+    _assert_red(violations, "attribute")
+
+
+def test_a_converted_word_is_a_plain_number(tmp_path):
+    """int() ends the origin, and that is the whole of what it does:
+    the number it hands back is a first-party value with no library
+    surface left on it."""
+    violations = _scan_code(
+        tmp_path,
+        _draw_module("return [int(word) + 1 for word in " + _DRAW + "]"),
+    )
+    assert violations == [], "\n".join(violations)
+
+
+def test_a_numpy_attribute_outside_the_enumeration_goes_red(tmp_path):
+    violations = _scan_code(
+        tmp_path,
+        """
+        import numpy.random
+
+
+        def load(values):
+            return numpy.asarray(values)
+        """,
+    )
+    _assert_red(violations, "numpy.asarray")
+
+
+def test_a_second_numpy_random_name_goes_red(tmp_path):
+    # default_rng is the only name admitted from numpy.random: the bit
+    # generators and the legacy RandomState are not.
+    violations = _scan_code(
+        tmp_path,
+        """
+        import numpy.random
+
+
+        def stream(seed):
+            return numpy.random.PCG64(seed)
+        """,
+    )
+    _assert_red(violations, "numpy.random.PCG64")
+
+
+def test_importing_numpy_itself_goes_red(tmp_path):
+    # E7 admits the submodule, not the package: `import numpy` brings in
+    # array constructors, reductions, readers and writers.
+    violations = _scan_code(
+        tmp_path,
+        """
+        import numpy
+
+
+        def stream(seed):
+            return numpy.random.default_rng(seed)
+        """,
+    )
+    _assert_red(violations, "numpy")
+
+
+def test_a_caller_derived_value_in_every_draw_slot_goes_red(tmp_path):
+    """Each of the five argument slots of the one draw, in each accepted
+    argument form.
+
+    The method name being permitted settles nothing about its
+    arguments: the library reads every one of them through a protocol
+    of the object it finds there, so a caller-supplied value in any
+    slot, positional or keyword, runs the caller's own code inside the
+    library while the call still looks like the enumerated draw.
+    """
+    positional = {
+        "low": 'generator.integers(supplied, _CEILING, 4, "uint64", True)',
+        "high": 'generator.integers(0, supplied, 4, "uint64", True)',
+        "size": 'generator.integers(0, _CEILING, supplied, "uint64", True)',
+        "dtype": "generator.integers(0, _CEILING, 4, supplied, True)",
+        "endpoint": 'generator.integers(0, _CEILING, 4, "uint64", supplied)',
+    }
+    keyword = {
+        "low": 'generator.integers(low=supplied, high=_CEILING, size=4, dtype="uint64", endpoint=True)',
+        "high": 'generator.integers(0, high=supplied, size=4, dtype="uint64", endpoint=True)',
+        "size": 'generator.integers(0, _CEILING, size=supplied, dtype="uint64", endpoint=True)',
+        "dtype": 'generator.integers(0, _CEILING, size=4, dtype=supplied, endpoint=True)',
+        "endpoint": 'generator.integers(0, _CEILING, size=4, dtype="uint64", endpoint=supplied)',
+    }
+    index = 0
+    for form in (positional, keyword):
+        for slot, call in form.items():
+            index = index + 1
+            holder = tmp_path / ("slot" + str(index))
+            holder.mkdir()
+            violations = _scan_code(
+                holder,
+                """
+                import numpy.random
+
+                _CEILING = 18446744073709551615
+
+
+                def draw(seed, supplied):
+                    generator = numpy.random.default_rng(seed)
+                    return """
+                + call
+                + "\n",
+            )
+            _assert_red(violations, slot)
+
+
+def test_expanded_draw_arguments_go_red(tmp_path):
+    """Expansion hides which value lands in which slot, so it is refused
+    for the draw exactly as it is for a callback slot."""
+    violations = _scan_code(
+        tmp_path,
+        """
+        import numpy.random
+
+
+        def draw(seed, options):
+            generator = numpy.random.default_rng(seed)
+            return generator.integers(0, 8, **options)
+        """,
+    )
+    _assert_red(violations, "expansion")
+
+
+def test_the_csv_writer_over_this_runs_own_file_stays_clean(tmp_path):
+    """The whole admitted writer surface: a handle opened on a validated
+    path, the two permitted methods, and rows built here."""
+    violations = _scan_code(
+        tmp_path,
+        """
+        import csv
+        import pathlib
+
+        from synthtwin.paths import validate_local_path
+
+
+        def cells(row):
+            return [str(cell) for cell in row]
+
+
+        def save(raw_path, rows):
+            validated = validate_local_path(raw_path, purpose="output")
+            destination = pathlib.Path(validated)
+            with destination.open("w", encoding="utf-8", newline="") as handle:
+                writer = csv.writer(handle)
+                writer.writerow(["name", "value"])
+                writer.writerows([cells(row) for row in rows])
+        """,
+    )
+    assert violations == [], "\n".join(violations)
+
+
+def test_an_unenumerated_writer_method_goes_red(tmp_path):
+    # writerow and writerows are the whole list.
+    violations = _scan_code(
+        tmp_path, _writer_module("csv.writer(handle).writeheader(rows)")
+    )
+    _assert_red(violations, "writeheader")
+
+
+def test_an_attribute_of_the_writer_goes_red(tmp_path):
+    violations = _scan_code(
+        tmp_path, _writer_module("return csv.writer(handle).dialect")
+    )
+    _assert_red(violations, "attribute")
+
+
+def test_a_caller_supplied_output_handle_goes_red(tmp_path):
+    """csv.writer calls the write method of whatever it is handed, so a
+    caller's object in that position receives the twin instead of the
+    file this run opened."""
+    violations = _scan_code(
+        tmp_path,
+        """
+        import csv
+
+
+        def save(handle, rows):
+            csv.writer(handle).writerows([["a"]])
+        """,
+    )
+    _assert_red(violations, "CSV writer")
+
+
+def test_a_handle_on_an_unvalidated_path_goes_red(tmp_path):
+    """A path-shaped object is not enough: the handle must be opened on
+    a path that passed validate_local_path."""
+    violations = _scan_code(
+        tmp_path,
+        """
+        import csv
+        import pathlib
+
+
+        def save(raw_path):
+            destination = pathlib.Path(raw_path)
+            with destination.open("w") as handle:
+                csv.writer(handle).writerows([["a"]])
+        """,
+    )
+    _assert_red(violations, "CSV writer")
+
+
+def test_a_caller_derived_row_source_goes_red(tmp_path):
+    """The writer iterates the rows, iterates each row, and turns every
+    cell into text through that cell's own methods."""
+    violations = _scan_code(
+        tmp_path, _writer_module("csv.writer(handle).writerows(rows)")
+    )
+    _assert_red(violations, "writerows")
+
+
+def test_a_caller_derived_row_goes_red(tmp_path):
+    """The same for one row at a time, and a comprehension that merely
+    passes the caller's cells along does not make them first-party."""
+    violations = _scan_code(
+        tmp_path,
+        _writer_module("csv.writer(handle).writerow([cell for cell in rows])"),
+    )
+    _assert_red(violations, "writerow")
+
+
+def test_a_caller_derived_dialect_goes_red_in_both_forms(tmp_path):
+    """The dialect slot of csv.writer, positionally and by keyword.
+
+    The shipped callback table enumerated csv.reader alone, and the
+    generic callable check does not stand in for this one: it rejects
+    functions and lambdas, while a dialect is a data object the library
+    instantiates and reads settings from.
+    """
+    for index, call in enumerate(
+        (
+            "csv.writer(handle, dialect).writerows([['a']])",
+            "csv.writer(handle, dialect=dialect).writerows([['a']])",
+        )
+    ):
+        holder = tmp_path / ("dialect" + str(index))
+        holder.mkdir()
+        violations = _scan_code(holder, _writer_module(call))
+        _assert_red(violations, "dialect")
+
+
+def test_a_cast_cannot_launder_a_drawn_word(tmp_path):
+    """typing.cast returns its argument unchanged, and rounds 1 and 2 of
+    the Phase 1 review each found it shedding a library origin. A drawn
+    word carried through it is still a drawn word."""
+    violations = _scan_code(
+        tmp_path,
+        """
+        import typing
+
+        import numpy.random
+
+        _CEILING = 18446744073709551615
+
+
+        def draw(seed, count):
+            generator = numpy.random.default_rng(seed)
+            drawn = generator.integers(
+                0, _CEILING, size=int(count), dtype="uint64", endpoint=True
+            )
+            return [typing.cast(int, word).tofile("/x") for word in drawn]
+        """,
+    )
+    _assert_red(violations, "tofile")
+
+
+def test_an_aliased_writer_still_obeys_the_handle_rule(tmp_path):
+    """The handle rule asks the accumulating position-blind identities,
+    so a writer reached through another name is still a writer."""
+    violations = _scan_code(
+        tmp_path,
+        """
+        import csv
+        import pathlib
+
+        from synthtwin.paths import validate_local_path
+
+
+        def save(raw_path, rows):
+            validated = validate_local_path(raw_path, purpose="output")
+            destination = pathlib.Path(validated)
+            maker = csv.writer
+            with destination.open("w") as handle:
+                maker(rows).writerow(["a"])
+        """,
+    )
+    _assert_red(violations, "CSV writer")

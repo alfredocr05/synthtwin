@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "synthtwin"
 version = "0.1.0.dev0"
-description = "Create a synthetic twin of your tabular data: same shape, same statistics, no real records. Fully offline."
+description = "Create a synthetic twin of your tabular data: same shape, each column behaving like the same column of yours, built from a description of your table rather than from its rows. No cross-column structure yet. Fully offline."
 readme = "README.md"
 requires-python = ">=3.10"
 license = { file = "LICENSE" }
@@ -14,16 +14,29 @@ keywords = ["synthetic-data", "privacy", "tabular", "offline"]
 # Trove classifiers omitted: the standard license classifier's wording
 # collides with the decontamination manifest; the `license` field above
 # carries the license declaration.
-# Phase 1 introduces exactly ONE runtime dependency, justified in
-# docs/plans/phase-1-profiler.md (P1-D2) and reduced by the offline
-# scanner to a single function that may only be called with a validated
-# local path (P1-D10). numpy was declared here until review round 1
-# showed its reductions made published statistics depend on row order;
-# it stays in the closure as a dependency of pandas. The floor is the
-# version the `minimums` CI job installs, proves, and tests; it is
-# repeated in requirements-dev.in and requirements-min.in, and
-# tests/test_dependencies.py fails if any of them disagree.
+# TWO runtime dependencies, each justified in a ratified plan and each
+# reduced by the offline scanner to the exact names it may use.
+#
+# pandas: Phase 1 (docs/plans/phase-1-profiler.md, P1-D2), reduced to a
+# single function that may only be called with a validated local path
+# (P1-D10). It reads the real table and is never reachable from the
+# generation path.
+#
+# numpy: Phase 2 (docs/plans/phase-2-generator.md, P2-D8), reduced to
+# `numpy.random.default_rng` and, on the generator it returns, the one
+# `integers` call in the one draw form the method specification fixes
+# (P2-D13, E7 and E8). It was declared here until Phase 1 review round 1
+# showed its REDUCTIONS made published statistics depend on row order --
+# so the profiler still computes its own statistics and imports numpy
+# nowhere. What returns is the random stream alone, whose one operation
+# is the draw. The floor is 1.24.0, the version pandas' own floor pulls
+# in and the one the `minimums` CI job installs, proves and tests.
+#
+# Each floor is repeated in requirements-dev.in, requirements-min.in and
+# requirements-install.in, and tests/test_dependencies.py fails if any of
+# them disagree.
 dependencies = [
+    "numpy>=1.24.0",
     "pandas>=2.1.0",
 ]
 

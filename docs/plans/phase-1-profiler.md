@@ -445,6 +445,43 @@ and points at the option; that sentence changes no role.
    values from `n_distinct == n_present` — published on every role —
    rather than from the role name. Without that, twins of key columns
    silently contain duplicates.
+
+   **Amendment A-2026-08-11, recorded on Phase 2 plan review item
+   P2-R4-F7.** The obligation above stands and its text is unchanged.
+   Phase 2 planning established that it cannot be met in two cases,
+   and the owner settled each; both are recorded here so the two plans
+   do not state conflicting rules. (a) **A declared identifier whose
+   published length range cannot supply as many distinct values as it
+   has rows:** the published length wins and the minimum necessary
+   number of values repeat, and the generation report names the loss.
+   In that corner the identifier column's raw distinct count, its
+   folded distinct count, and the anonymous repetition multiset added
+   by the owner decision of 2026-08-10 are all reported rather than
+   reproduced — so the sentence above, that the multiset lets the twin
+   reproduce the repetition pattern rather than making one up, holds
+   everywhere except there. (b) **A label column whose values differ
+   only by case or edge spacing:** rather than let the twin repeat
+   where the real column did not, the owner directed that the profile
+   RECORD the spelling variants of an already-published label, under
+   the same small-cell floor as any other published label, so the twin
+   can keep them distinct. That is a new published fact and is
+   described in the Phase 2 plan with its disclosure consequences; the
+   obligation therefore HOLDS for label columns wherever the variants
+   are visible, and falls back only beneath the floor. (c) **A datetime
+   column whose UTC offsets are withheld.** Two spellings can name the
+   same instant through different offsets, so a column can be
+   raw-distinct while holding fewer distinct instants. Where every
+   offset is shared by too few rows to publish, the offset map
+   collapses to a withheld pool and the profile no longer says which
+   offsets made the spellings distinct; the twin cannot then reproduce
+   the raw distinctness without making up unpublished facts, so it is
+   reported instead.
+
+   **The general form, which is what governs:** the obligation binds
+   only on facts the profile actually publishes. Wherever raw
+   distinctness was produced by something the disclosure rules withheld,
+   it is reported rather than reproduced. The three cases above are
+   instances of that one rule, not a closed list of exceptions.
 9. **free text** — everything else. Values are NEVER published: the
    profile records length statistics and token-count statistics only,
    and the summary says so in plain language.

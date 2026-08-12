@@ -427,7 +427,9 @@ def _refresh_outer_and_sign(
         b["public_scanner_tree_sha256"] = _scanner_tree_digest(att_copy)
     if edit is not None:
         edit(att)
-    att_path.write_text(json.dumps(att, indent=2, sort_keys=True) + "\n")
+    att_path.write_text(
+        json.dumps(att, indent=2, sort_keys=True) + "\n", newline="\n"
+    )
     _sign_attestation(att_copy, key)
 
 
@@ -474,7 +476,7 @@ def test_tampered_attestation_rejected(att_copy: Path) -> None:
     att = att_copy / "attestation.json"
     data = json.loads(att.read_text())
     data["entry_count"] = 1  # structurally consistent, content changed
-    att.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n")
+    att.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n", newline="\n")
     assert _verify(att_copy) == 1  # signature no longer covers the bytes
 
 
@@ -644,7 +646,8 @@ def test_duplicate_top_level_member_rejected(
             '  "result": "pass"',
             '  "result": "fail",\n  "result": "pass"',
             1,
-        )
+        ),
+        newline="\n",
     )
     _sign_attestation(att_copy, key)
     code, out = _verify_out(att_copy)
@@ -671,7 +674,7 @@ def test_duplicate_binding_member_rejected(
     )
     stale = '    "public_manifest_sha256": "' + "0" * 64 + '",'
     lines.insert(idx, stale)
-    att_path.write_text("\n".join(lines) + "\n")
+    att_path.write_text("\n".join(lines) + "\n", newline="\n")
     _sign_attestation(att_copy, key)
     code, out = _verify_out(att_copy)
     assert code == 2

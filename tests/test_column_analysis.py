@@ -386,9 +386,24 @@ def test_a_binary_column_publishes_exactly_two_labels() -> None:
     described = describe(["yes"] * 60 + ["no"] * 59 + ["YES"] * 11)
     assert described.role == taxonomy.ROLE_BINARY
     assert len(described.details["levels"]) == 2
+    # Two labels, and the spellings that made them: 60 rows wrote `yes`
+    # and 11 wrote `YES`, and 11 clears the floor, so both are named
+    # under the one folded label they share (owner decisions 9 and 11).
+    # That is what lets a twin hold 3 different values, as `n_distinct`
+    # below says the real column does.
     assert described.details["levels"] == [
-        {"label": "yes", "count": 71},
-        {"label": "no", "count": 59},
+        {
+            "label": "yes",
+            "count": 71,
+            "variants": {"YES": 11, "yes": 60},
+            "variants_withheld": {},
+        },
+        {
+            "label": "no",
+            "count": 59,
+            "variants": {"no": 59},
+            "variants_withheld": {},
+        },
     ]
     assert described.n_distinct == 3
     assert described.n_distinct_folded == 2

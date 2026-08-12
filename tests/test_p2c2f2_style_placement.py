@@ -1,0 +1,256 @@
+"""Review item P2-C2-F2: a placeable numeric form is PLACED, not reported.
+
+Owner decision 10 makes the form of every numeric cell a published
+fact, and the contract calls `numeric_styles` EXACT-OBSERVABLE. Round 2
+found the generator choosing a style from the remaining quota and the
+sign alone, without asking whether the finished text would read back as
+that style. On a column publishing `integer_valued: false` the
+canonical spelling of the whole value `100` is `100.0`, which the
+contract's own ladder counts as `decimal`, so a genuine input of eleven
+fractions and forty whole numbers published forty `plain` cells and the
+twin wrote none -- naming both misses, which the item refused: the
+source's own values prove the exact map is reachable.
+
+WHAT THIS FILE HOLDS THE REPAIR TO:
+
+1. the point-free spelling of a whole value exists and reads back as
+   exactly that value, and the styles that need one are offered only to
+   cells that have one;
+2. the values step puts whole values where the published map needs
+   them, and never at the cost of `n_zero`, `n_negative` or the count of
+   different values;
+3. the look-ahead keeps a quota placeable to the end of the column,
+   which is what makes the map come out exactly rather than nearly;
+4. the map that genuinely cannot be placed is still named -- the repair
+   removes the excuse, not the report.
+
+The descriptions are built by the REAL producer from seeded neutral
+tables, so what is exercised is the path from table to twin.
+"""
+
+import pathlib
+
+import fixtures
+from synthtwin import (
+    contract,
+    generation,
+    parsing,
+    profile,
+    reading,
+    taxonomy,
+)
+
+
+def _described(
+    folder: pathlib.Path, values: "list[str]"
+) -> "tuple[dict, contract.Profile]":
+    """Write a one-column table, describe it, load the description."""
+    path = fixtures.write(
+        folder, "table.csv", fixtures.single_column_table("amount", values)
+    )
+    table = reading.read_table(str(path))
+    document = profile.build_document(table, taxonomy.Settings(), [])
+    target = fixtures.write_profile(folder, "table-profile.json", document)
+    return document, contract.load_profile(str(target))
+
+
+def _styles(twin: generation.Twin) -> "dict[str, int]":
+    """The form of every numeric cell, read off the contract's own ladder."""
+    counted: dict[str, int] = {}
+    for cell in twin.columns[0]:
+        if cell == "" or parsing.classify_number(cell) != parsing.NUMBER:
+            continue
+        style = parsing.numeric_style(cell)
+        counted[style] = counted.get(style, 0) + 1
+    return counted
+
+
+# -- 1. the point-free spelling ---------------------------------------
+
+
+def test_a_whole_value_has_a_point_free_spelling_that_reads_back() -> None:
+    """Point 1: the spelling exists, and it is the same number.
+
+    A style that changes the value would be worse than a style that was
+    missed, so every point-free spelling is read back through the
+    shipped number reader and compared to the value it came from.
+    """
+    for value in (0.0, -0.0, 5.0, -12.0, 100.0, 1e15):
+        written = generation._point_free(
+            value, generation._canonical_number(value, False)
+        )
+        assert "." not in written
+        assert "e" not in written and "E" not in written
+        assert parsing.parse_number(written) == value
+        assert parsing.numeric_style(written) in ("plain", "leading_zero")
+    assert generation._point_free(
+        -0.0, generation._canonical_number(-0.0, False)
+    ) == "0"
+
+
+def test_a_value_with_no_point_free_spelling_is_not_offered_one() -> None:
+    """The other half of point 1: the rule refuses what it cannot write.
+
+    `12.5` is not whole and `1e+16` stands outside the window in which
+    the shortest round trip is written in fixed-point notation, so
+    neither has a point-free spelling and neither may wear one of the
+    three styles that need one.
+    """
+    for value in (12.5, 1e16, 1e-05, -2.5):
+        assert not generation._carries_plainly(value, False)
+    for value in (0.0, 5.0, 1e15):
+        assert generation._carries_plainly(value, False)
+
+
+# -- 2 and 3. the case round 2 named ----------------------------------
+
+
+def test_the_feasible_style_map_of_the_reviewed_column_comes_out_exactly(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Points 2 and 3, on the genuine input the item names.
+
+    Eleven values carrying a point and forty whole ones publish forty
+    `plain` cells and eleven `decimal` ones. The twin used to write
+    nought and fifty-one. It now writes forty and eleven, so nothing
+    about the map reaches the report -- and the forty cells a pattern
+    check would read as whole numbers are whole numbers.
+    """
+    values = [f"{n}.5" for n in range(1, 12)] + [
+        str(100 + n) for n in range(40)
+    ]
+    document, loaded = _described(tmp_path, values)
+    assert document["columns"][0]["numeric_styles"] == {
+        "plain": 40, "decimal": 11,
+    }
+    assert document["columns"][0]["integer_valued"] is False
+
+    twin = generation.generate(loaded, 0)
+    assert _styles(twin) == {"plain": 40, "decimal": 11}
+    assert [
+        note for note in twin.deviations if note.fact == "numeric_styles"
+    ] == []
+
+
+def test_the_values_step_never_moves_a_cell_across_zero(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Point 2's guard: the sign and zero counts are not traded for a form.
+
+    A column whose values straddle zero with a `plain` quota could have
+    a stratum rounded onto zero, which would move a cell out of the
+    negative count and into the zero count -- two EXACT-OBSERVABLE facts
+    traded for one. The rule leaves such a stratum alone, and this
+    recounts both facts on the finished cells.
+    """
+    values = (
+        [f"-0.{n}" for n in range(1, 10)]
+        + [f"0.{n}" for n in range(1, 10)]
+        + [str(n) for n in range(1, 21)]
+        + ["0"] * 5
+    )
+    _document, loaded = _described(tmp_path, values)
+    block = loaded.columns[0]
+    facts = block.facts
+    assert isinstance(facts, contract.NumericFacts)
+    assert facts.n_negative > 0 and facts.n_zero > 0
+
+    twin = generation.generate(loaded, 0)
+    numbers = [
+        parsing.parse_number(cell)
+        for cell in twin.columns[0]
+        if cell != "" and parsing.classify_number(cell) == parsing.NUMBER
+    ]
+    assert len([value for value in numbers if value is not None and value < 0]) == (
+        facts.n_negative
+    )
+    assert len([value for value in numbers if value == 0.0]) == facts.n_zero
+    assert [
+        note for note in twin.deviations
+        if note.fact in ("n_zero", "n_negative")
+    ] == []
+
+
+def test_a_column_with_no_point_free_style_keeps_its_values_untouched(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The vacuity floor under point 2: no demand, no rounding.
+
+    A column publishing only `decimal` cells asks for no point-free
+    form, so no stratum is taken to a whole number and the rung window
+    keeps the tighter half unit it had.
+    """
+    values = [f"{n}.25" for n in range(1, 41)]
+    document, loaded = _described(tmp_path, values)
+    assert set(document["columns"][0]["numeric_styles"]) == {"decimal"}
+    block = loaded.columns[0]
+    facts = block.facts
+    assert isinstance(facts, contract.NumericFacts)
+    assert generation._whole_demand(facts) == 0
+
+    twin = generation.generate(loaded, 0)
+    written = [cell for cell in twin.columns[0] if cell != ""]
+    assert _styles(twin) == {"decimal": len(written)}
+
+
+# -- 4. the miss that remains is still named --------------------------
+
+
+def test_a_style_with_nowhere_to_go_is_still_named(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Point 4: the repair removes the excuse, not the report.
+
+    THE FIXTURE THIS TEST USED TO CARRY WAS THE DEFECT (review item
+    P2-C4-F3). It was the 51-cell column of eleven `1.5`, twenty `100`
+    and twenty `200.5`, whose published map of twenty `plain` cells the
+    source's OWN values prove -- and this test required the twin to
+    miss it, on the reasoning that the stratum between the two ends
+    covered too few cells. How many cells a stratum covers is the
+    twin's own choice, not a published fact, so that was a miss the
+    generator chose. It is now placed exactly, and this test's fixture
+    is a column where the arithmetic really does run out.
+
+    A pooled remainder is written `plain` (contract 7.5.7), so this
+    column's forty named `plain` cells and its six pooled ones ask for
+    all forty-six of its cells to carry no point. Two of them cannot:
+    one cell must read back as the published `min` of `0.5` and one as
+    the published `max` of `9.25`, and neither number has a point-free
+    spelling. Forty-four is therefore the most any conforming generator
+    can write. The twin writes forty-four and the report names the
+    remainder.
+    """
+    values = ["0.5"] * 3 + ["7"] * 40 + ["9.25"] * 3
+    document, loaded = _described(tmp_path, values)
+    assert document["columns"][0]["numeric_styles"] == {
+        "plain": 40, "(withheld)": 6,
+    }
+
+    twin = generation.generate(loaded, 0)
+    written = _styles(twin)
+    assert written == {"plain": 44, "decimal": 2}
+    named = [note for note in twin.deviations if note.fact == "numeric_styles"]
+    assert {note.achieved for note in named} == {
+        str(written.get("plain", 0)), str(written.get("decimal", 0)),
+    }
+
+
+def test_the_placement_rule_refuses_a_style_the_cell_cannot_wear() -> None:
+    """The look-ahead and the feasibility filter, on the shipped function.
+
+    Two cells, one whole and one not, against a `plain` quota of one and
+    a `decimal` quota of one. Largest-remaining alone spends the whole
+    cell on `decimal` -- the tie goes to `plain` by enumeration order,
+    but a cell that cannot wear `plain` must not take it either -- and
+    the quota then arrives at a cell with no point-free spelling. The
+    look-ahead is what puts the plain cell where it can be written.
+    """
+    quotas = {name: 0 for name in contract.NUMERIC_STYLES}
+    quotas["plain"] = 1
+    quotas["decimal"] = 1
+    assert generation._style_places(quotas, [5.0, 2.5], False) == [
+        "plain", "decimal",
+    ]
+    assert generation._style_places(quotas, [2.5, 5.0], False) == [
+        "decimal", "plain",
+    ]

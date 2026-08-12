@@ -399,8 +399,12 @@ def test_a_column_that_publishes_no_values_says_so_and_means_it(
 
 def test_the_document_version_moved_with_the_new_key() -> None:
     # A key APPEARED, so a consumer reading a version 2 profile will not
-    # find it. That is what this number exists to make explicit.
-    assert profile.PROFILE_VERSION == 3
+    # find it. That is what this number exists to make explicit. The
+    # number has moved on again since, to 4, for five further additions
+    # -- one of which carries THIS key to free-text and unrepresentable
+    # columns as well (plan P2-D4) -- so what is asserted here is that
+    # the document is at least the version that introduced the key.
+    assert profile.PROFILE_VERSION >= 3
 
 
 def test_the_same_table_still_produces_the_same_bytes(

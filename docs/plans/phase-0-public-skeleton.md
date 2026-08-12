@@ -459,6 +459,54 @@ PyPI**; every capability tagged built/planned. No overclaiming.
   explicit offset and fixed precision. Golden-hash tests from the first
   phase that writes files.
 
+### D12 Amendment A-2026-08-11 — three scoped exceptions for twin CSV cells
+
+**Recorded 2026-08-11 by owner decision, on the Phase 2 plan review
+round-4 item P2-R4-F7.** The paragraphs above remain the canonical rule
+and their historical text is unchanged. This amendment records three
+exceptions the owner settled while planning Phase 2. **Every exception
+below is scoped to CELLS OF THE SYNTHETIC TWIN CSV. The profile
+document's own serialization is unchanged and remains canonical in every
+respect** — sorted keys, fixed separators, one shortest-round-trip
+spelling per number, and ISO 8601 with explicit offset and fixed
+precision.
+
+1. **Twin datetime cells are written at the precision the profile
+   records, not always with an explicit offset.** The profiler
+   legitimately publishes offsetless dates and quarter values, recording
+   their offset as `(none)`, so a twin obeying the unconditional rule
+   could not reproduce them: a date-only column would gain a time and a
+   zone it never had, and a quarter column could not be written at all.
+   A twin datetime cell is therefore written in the ISO form matching
+   the recorded precision — a date-only column writes `2024-03-15`, a
+   quarter column writes `2024-Q1` — and an offset is written only where
+   the profile records a real one. Rationale: the twin re-profiles to
+   the same precision and offset state, so date-handling code developed
+   against it behaves the same on the real table.
+2. **Twin numeric cells may carry more than one spelling of the same
+   value, from a bounded family.** A real table that wrote some cells
+   `0` and others `00` publishes a raw distinct count that one canonical
+   spelling cannot reproduce. The permitted family is the canonical
+   spelling plus leading-zero and leading-plus forms of the same value,
+   which measurement confirms ordinary readers parse to the same number
+   while keeping a whole-number column whole-number. Where a profile
+   also records fold-collapsing spellings, case-varied exponent forms
+   are permitted for that purpose alone. No other form is permitted, and
+   an alternate spelling is used ONLY where the published counts require
+   it.
+3. **Identifier values are drawn without replacement except in one
+   named infeasible corner.** The bullet above requires identifiers
+   drawn without replacement. Where a declared identifier's published
+   length range and its all-different fact cannot both be satisfied, the
+   owner directed that the published length wins and the necessary
+   minimum of values repeat, with the loss named in the generation
+   report. This exception applies to no other role and to no feasible
+   case.
+
+The Phase 2 plan carries each exception's consequences, disclosures and
+tests. A future phase that finds an exception unnecessary retires it by
+a further dated amendment here, never by silence.
+
 ## D13. Data-provenance guard — fully enumerated
 
 - **Policy:** no real data and no real-derived artifact (profiles, schema

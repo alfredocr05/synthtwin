@@ -17,9 +17,16 @@ spelling, a detail quoted from a library -- passes through
 escape sequence, and a refusal is a human-facing sink like any other
 (review item P1-R3-F9).
 
-Imports here stay within the allowlist (plan D6.2): this module imports
-only `parsing`, for that one function.
+A HANDFUL OF THESE MESSAGES SERVE TWO COMMANDS, and the words they use
+for the files differ between them. `ArtifactWords` below holds exactly
+those words, the two sets are written out beside it, and the builders
+that need one take it as an argument (plan P2-D10).
+
+Imports here stay within the allowlist (plan D6.2): `dataclasses`, for
+that one record, and `parsing`, for `visible`.
 """
+
+import dataclasses
 
 from synthtwin import parsing
 
@@ -378,6 +385,135 @@ def out_of_memory_while_describing(path: str) -> str:
     )
 
 
+def publication_guard_stopped(where: str) -> str:
+    """Message for a description carrying something it may not publish.
+
+    `where` names the PLACE in the description -- `publication_notes[]
+    .note`, `columns[].levels[].label` -- and never what stood there.
+    The whole reason this run is stopping is that synthtwin could not
+    account for that text, so showing it would publish to a screen what
+    the guard is refusing to publish to a file (plan P2-D2).
+
+    It says the fault is synthtwin's, because it is: no table can cause
+    it, nothing about the file needs changing, and the only useful next
+    step is to tell the people who can repair it.
+    """
+    return (
+        f"synthtwin stopped before writing anything. While checking the "
+        f"description it had just built, it found something at "
+        f"'{where}' that its own publication rules do not account for, "
+        f"and it will not write a description it cannot account for. "
+        f"Nothing was written and your table was not changed. This is a "
+        f"fault in synthtwin itself: no table causes it and there is "
+        f"nothing to fix in your file. Please report it to the "
+        f"synthtwin maintainers, with the quoted place above and the "
+        f"command you ran -- and please do not include your data."
+    )
+
+
+# WHAT ONE COMMAND CALLS ITS OWN FILES (plan P2-D10).
+#
+# The write transaction serves two commands. `profile` reads a table and
+# writes a profile beside a summary; `generate` reads that profile and
+# writes a twin beside a report. The machinery is one piece of code and
+# has to be -- two files or neither, every name looked at, every leftover
+# named -- but the WORDS are not one set of words, and an inherited
+# wording here is not a small blemish. A `generate` run that stopped
+# would have told the person that their PROFILE could not be written,
+# when the profile is the file they handed in and is the one file that
+# run never writes to; and it would have sent them to check a table that
+# is not part of that command at all. Somebody acting on either sentence
+# looks at the wrong file, which is the whole cost of getting a message
+# wrong.
+#
+# So the nouns are an argument. Each builder that needs them takes one
+# `ArtifactWords` and defaults to the profiler's set, which is why every
+# message the profiler produces is the same byte for byte as it was
+# before this argument existed.
+#
+# The words live HERE, with every other message, rather than arriving
+# from the module that composes the refusal: somebody who wants to know
+# what a person reads reads this file and no other.
+
+
+@dataclasses.dataclass(frozen=True)
+class ArtifactWords:
+    """What one command calls the files it writes and the file it was given.
+
+    Guarantees:
+
+    - Inputs: five pieces of text, each written out in one of the two
+      sets below. Nothing here comes from a table, a profile, or
+      anything else a run reads.
+    - Determinism: a frozen record of constants, so the same set always
+      composes the same message.
+    - Errors raised: none.
+    - Boundary: no value out of a user's file can reach one of these,
+      because the only instances are the two module constants below and
+      neither is built from anything a run read.
+
+    The five, and exactly where each one lands:
+
+    * ``produced`` -- what this command writes, as one noun: "The
+      {produced} could not be written to ...", and "a file of the
+      {produced}'s name is a link ...";
+    * ``given`` -- what the person handed the command, as one noun:
+      "... next to your {given}", and "... replaced your own {given} at
+      ...";
+    * ``new_file`` -- that same output named as a thing being written:
+      "synthtwin stopped because writing {new_file} would have ...". It
+      is a second field rather than a reuse of ``produced`` because the
+      profiler's two sentences genuinely say two different words, and
+      folding them together would have changed a message that no review
+      asked to change;
+    * ``loss`` -- one whole sentence saying what replacing ``given``
+      would have cost. A sentence rather than a noun because what is
+      lost differs in kind: a table is data nobody can rebuild, while a
+      profile is the description a twin is built from;
+    * ``mismatch`` -- one clause saying why this command's two files must
+      never be left standing side by side from two different runs.
+
+    Two fields hold whole clauses rather than nouns, and that is the
+    deliberate choice. Substituting nouns into one fixed sentence would
+    have forced both commands to say the same thing about facts that are
+    not the same, and a sentence that is grammatical and untrue is worse
+    than two sentences.
+    """
+
+    produced: str
+    given: str
+    new_file: str
+    loss: str
+    mismatch: str
+
+
+# The profiler's set: the words every one of these messages used before
+# they took an argument, unchanged to the byte.
+PROFILE_WORDS = ArtifactWords(
+    produced="profile",
+    given="table",
+    new_file="the description",
+    loss="That would have destroyed the data you asked it to describe.",
+    mismatch=(
+        "a profile and a summary from two different runs do not describe "
+        "the same table"
+    ),
+)
+
+# The generator's set. `mismatch` says what actually goes wrong there:
+# the report describes the twin beside it -- how well it matches, which
+# columns were approximated, which warnings apply -- so a report from one
+# run standing beside a twin from another describes a file that is not
+# there.
+TWIN_WORDS = ArtifactWords(
+    produced="twin",
+    given="profile",
+    new_file="the twin",
+    loss="That would have destroyed the description your twin is built from.",
+    mismatch="a report from one run does not describe the twin from another",
+)
+
+
 COULD_NOT_CHECK = (
     "synthtwin could not read what is at that name to see whether it is "
     "safe to write there"
@@ -553,22 +689,29 @@ def nothing_was_written(
 def rollback_failed(
     left: list[str],
     on_disk: "list[tuple[str, str]] | None" = None,
+    words: ArtifactWords = PROFILE_WORDS,
 ) -> str:
     """Say what is on disk after a run that could not undo its own work.
 
-    The two parameters mean exactly what they mean in
+    The first two parameters mean exactly what they mean in
     ``nothing_was_written``. This wording is for the case where the
     files on disk no longer match what was there before the run and
     synthtwin could not put them back -- so it names each one and says
     which run its contents came from.
+
+    ``words`` names the two files for the command that is running, and
+    only its ``mismatch`` clause is used here: the closing instruction
+    has to say why the two files must not be left as they are, and that
+    reason is not the same for a profile beside a summary as it is for a
+    twin beside a report. Left out, the profiler's clause is used, which
+    is the wording this message has always had.
     """
     if on_disk:
         return (
             f"synthtwin could not put things back as they were. This is "
             f"what is at each name now: {_stated(on_disk)}. Check each "
             f"one before you use it, and finish by hand what synthtwin "
-            f"could not: a profile and a summary from two different runs "
-            f"do not describe the same table."
+            f"could not: {words.mismatch}."
         )
     listed = _listed(left)
     return (
@@ -595,19 +738,41 @@ def working_name_unavailable(
     )
 
 
-def output_folder_missing(path: str) -> str:
-    """Message for an output folder that does not exist."""
+def output_folder_missing(
+    path: str, words: ArtifactWords = PROFILE_WORDS
+) -> str:
+    """Message for an output folder that does not exist.
+
+    ``words`` decides both nouns: what the command would have written
+    there, and what the person's own file is called, since the advice
+    for leaving the option out is "next to the file you gave me". Left
+    out, the profiler's words are used, which is the wording this
+    message has always had.
+    """
     return (
         f"The folder {path} does not exist, so synthtwin cannot write "
-        f"the profile there. Create the folder first, or leave the "
-        f"option out to write the profile next to your table."
+        f"the {words.produced} there. Create the folder first, or leave "
+        f"the option out to write the {words.produced} next to your "
+        f"{words.given}."
     )
 
 
-def output_not_writable(path: str, detail: str) -> str:
-    """Message for an output location that could not be written."""
+def output_not_writable(
+    path: str, detail: str, words: ArtifactWords = PROFILE_WORDS
+) -> str:
+    """Message for an output location that could not be written.
+
+    ``words`` decides which file this says could not be written. It
+    matters more here than anywhere else in the catalog, because this is
+    the message almost every stop inside the write transaction ends up
+    composing: a `generate` run that told somebody their PROFILE could
+    not be written would be naming the one file that run never writes
+    to, and sending them to look at it. Left out, the profiler's word is
+    used, which is the wording this message has always had.
+    """
     return (
-        f"The profile could not be written to {path} ({_shown(detail)}). "
+        f"The {words.produced} could not be written to {path} "
+        f"({_shown(detail)}). "
         f"Please check that you have permission to write there and "
         f"that the file is not open in another program, then run the "
         f"command again."
@@ -624,15 +789,32 @@ def output_is_a_folder(path: str) -> str:
     )
 
 
-def output_would_replace_the_table(path: str) -> str:
-    """Message for an output target that IS the user's own table."""
+def output_would_replace_the_table(
+    path: str, words: ArtifactWords = PROFILE_WORDS
+) -> str:
+    """Message for an output target that IS the file the person gave.
+
+    The name of this builder is the profiler's: there, the file being
+    protected is the user's own table, and that is what the name says.
+    Under ``words`` it protects whichever file the running command was
+    handed -- the table for `profile`, the profile document for
+    `generate` -- because the rule is the same one in both: nothing
+    synthtwin writes may land on the file it was asked to read. The name
+    was left alone so that every caller and every catalog entry written
+    against it keeps working; the words a person reads are the ones that
+    change.
+
+    All four of ``words``'s remaining pieces land here: what would have
+    been replaced, what writing it was, what that would have cost, and
+    whose name the stray link is wearing.
+    """
     return (
-        f"synthtwin stopped because writing the description would have "
-        f"replaced your own table at {path}. That would have destroyed "
-        f"the data you asked it to describe. This usually means a file "
-        f"of the profile's name is a link pointing back at the table. "
-        f"Remove that link, or use the option for a different output "
-        f"folder, then run the command again. Nothing was written."
+        f"synthtwin stopped because writing {words.new_file} would have "
+        f"replaced your own {words.given} at {path}. {words.loss} This "
+        f"usually means a file of the {words.produced}'s name is a link "
+        f"pointing back at the {words.given}. Remove that link, or use "
+        f"the option for a different output folder, then run the command "
+        f"again. Nothing was written."
     )
 
 
@@ -680,4 +862,383 @@ def floor_not_positive(given: str) -> str:
         f"option out altogether to use the default of 11: any value "
         f"shared by fewer than 11 rows is then left out of the profile, "
         f"so that a rare value cannot point back at anybody."
+    )
+
+
+# -- reading a description back: the strict loader's refusals ---------
+#
+# Nineteen ways reading a profile document can fail, one message each,
+# catalogued as R1 to R19 in `docs/spec/profile-contract-v4.md` section
+# 10.7 and carried out by `contract.py`. The word "description" is used
+# throughout rather than "profile document", because it is what the
+# person running the tool was told the file is.
+#
+# NO MESSAGE BELOW QUOTES A ROW COUNT, and the rule has no exceptions.
+# Reading a description can run out of memory before a single field has
+# been checked, so a message naming a row count could be naming a number
+# nobody read. Where a row count is the thing that is wrong, the message
+# says which row count and where it lives, and never what it says.
+
+_MAKE_IT_AGAIN = (
+    "Please make the description again by running 'synthtwin profile' "
+    "on your table, and use the file it writes exactly as it writes it."
+)
+
+_A_DESCRIPTION_IS_WRITTEN = (
+    "A description is always written by 'synthtwin profile'; it is not "
+    "a file to edit by hand."
+)
+
+
+def profile_file_missing(path: str) -> str:
+    """R1: the description path names nothing on disk."""
+    return (
+        f"There is no file at {path}. That is where synthtwin looked for "
+        f"the description of your table. Please check the spelling of "
+        f"the path, and that the file -- the one whose name ends in "
+        f"-profile.json -- is on this computer and not in a folder you "
+        f"have not opened yet."
+    )
+
+
+def profile_file_unreadable(path: str, detail: str) -> str:
+    """R2: the description exists but could not be read."""
+    return (
+        f"The description at {path} could not be opened "
+        f"({_shown(detail)}). Please check that you have permission to "
+        f"read it, that the drive or folder it is on is still connected, "
+        f"and that no other program is holding it open, then run the "
+        f"command again."
+    )
+
+
+def profile_path_is_a_folder(path: str) -> str:
+    """R3: a folder was given where the description was expected."""
+    return (
+        f"{path} is a folder, not a file. Please give the path of the "
+        f"description itself: the file inside that folder whose name "
+        f"ends in -profile.json."
+    )
+
+
+def profile_not_text(path: str) -> str:
+    """R4: the bytes are not valid UTF-8."""
+    return (
+        f"The file at {path} is not readable as text, so it is not a "
+        f"description synthtwin can use. {_A_DESCRIPTION_IS_WRITTEN} It "
+        f"is saved as UTF-8 text and stays that way unless something "
+        f"else has rewritten it. {_MAKE_IT_AGAIN}"
+    )
+
+
+def profile_not_json(path: str, line: int, character: int) -> str:
+    """R5: the text is not the machine-readable form at all."""
+    return (
+        f"The description at {path} stopped making sense at line {line}, "
+        f"character {character}, so synthtwin could not read it. A file "
+        f"that has been edited by hand, or that was only partly copied "
+        f"or downloaded, usually stops like this. {_MAKE_IT_AGAIN}"
+    )
+
+
+def profile_holds_unwritable_text(path: str) -> str:
+    """R6: an escaped lone surrogate, which cannot be written as text."""
+    return (
+        f"The description at {path} holds a character that cannot be "
+        f"written as text at all, so synthtwin cannot check that the "
+        f"file is exactly as it was written. A description synthtwin "
+        f"writes never contains one. {_MAKE_IT_AGAIN}"
+    )
+
+
+def profile_holds_a_number_that_is_not_one(path: str) -> str:
+    """R7: a non-finite number the parser would otherwise accept."""
+    return (
+        f"The description at {path} holds something written as a number "
+        f"that is not a number: an infinity, or the words for 'not a "
+        f"number'. A description synthtwin writes never contains one, "
+        f"and no program that reads this format may write one. "
+        f"{_MAKE_IT_AGAIN}"
+    )
+
+
+def profile_nested_too_deeply(path: str, limit: int) -> str:
+    """R8: blocks nested deeper than the loader's one depth bound."""
+    return (
+        f"The description at {path} has blocks nested inside one another "
+        f"more than {limit} deep. A description synthtwin writes is six "
+        f"deep whatever your table holds, so no table can make it "
+        f"deeper, and this is not a file synthtwin wrote. "
+        f"{_MAKE_IT_AGAIN}"
+    )
+
+
+def profile_number_too_long(path: str, limit: int) -> str:
+    """R9: a single numeric token longer than the loader's bound."""
+    return (
+        f"The description at {path} holds a number written with more "
+        f"than {limit} characters. A description synthtwin writes never "
+        f"contains one anywhere near that long, so this is not a file "
+        f"synthtwin wrote. {_MAKE_IT_AGAIN}"
+    )
+
+
+def profile_not_canonical(path: str) -> str:
+    """R10: the file is not byte for byte the form synthtwin writes."""
+    return (
+        f"The description at {path} is not in the exact form synthtwin "
+        f"writes: written out again, it does not come out the same. "
+        f"Opening a description in an editor and saving it, saving it "
+        f"from another program, merging two versions of it, or repeating "
+        f"or reordering an entry will each do this. synthtwin will not "
+        f"build a twin from a description it cannot prove is unchanged. "
+        f"{_MAKE_IT_AGAIN}"
+    )
+
+
+def profile_version_is_older(found: int, reads: int) -> str:
+    """R11: an older description, which is safely made again.
+
+    The advice is safe to give: somebody holding an old description of
+    their own table is normally somebody who still holds the table.
+    """
+    return (
+        f"This description was written by an older version of synthtwin: "
+        f"it says it is version {found}, and this synthtwin reads "
+        f"version {reads}. {_MAKE_IT_AGAIN}"
+    )
+
+
+def profile_version_is_newer(found: int, reads: int) -> str:
+    """R12: a newer description, which is never made again here.
+
+    A newer description means this synthtwin is behind. Telling somebody
+    to re-run a profiler on a machine that may not hold the table -- or
+    that may hold a different table -- is advice that cannot be followed
+    and may be acted on anyway, so it is not given.
+    """
+    return (
+        f"This description was written by a newer version of synthtwin: "
+        f"it says it is version {found}, and this synthtwin reads "
+        f"version {reads}. Please update synthtwin to a version that "
+        f"reads version {found}, then run the command again. Do not make "
+        f"the description again on this computer: the file you have is "
+        f"the newer one, and this computer may not hold the table it "
+        f"describes."
+    )
+
+
+def profile_unknown_key(key: str, where: str) -> str:
+    """R13: an entry this version of synthtwin does not know."""
+    return (
+        f"The description has an entry called '{_shown(key)}' "
+        f"{_shown(where)}, and this version of synthtwin does not know "
+        f"it. That usually means the file was written by a newer "
+        f"synthtwin, or that it was edited. Please update synthtwin if "
+        f"the file came from a newer one. Otherwise: {_MAKE_IT_AGAIN}"
+    )
+
+
+def profile_missing_key(key: str, where: str, required_by: str) -> str:
+    """R14: an entry that every block of this kind carries."""
+    return (
+        f"The description has no entry called '{_shown(key)}' "
+        f"{_shown(where)}, and {_shown(required_by)} has one. "
+        f"{_MAKE_IT_AGAIN}"
+    )
+
+
+def profile_wrong_type(
+    key: str, where: str, found: str, required: str
+) -> str:
+    """R15: an entry holding a kind of value it may not hold.
+
+    What was found is named as a KIND of value and never quoted: the
+    thing that is wrong is the kind, and quoting a value nobody asked
+    to see puts real-derived text on a screen for no reason.
+    """
+    return (
+        f"The entry called '{_shown(key)}' {_shown(where)} holds "
+        f"{_shown(found)}, and it has to hold {_shown(required)}. "
+        f"{_MAKE_IT_AGAIN}"
+    )
+
+
+def profile_out_of_range(
+    key: str, where: str, shown: str, permitted: str
+) -> str:
+    """R16: a value outside its range or its list of allowed values."""
+    return (
+        f"The entry called '{_shown(key)}' {_shown(where)} holds "
+        f"{_shown(shown)}, and the only thing allowed there is "
+        f"{_shown(permitted)}. {_MAKE_IT_AGAIN}"
+    )
+
+
+def profile_out_of_range_unquoted(
+    key: str, where: str, permitted: str
+) -> str:
+    """R16 for a row count, whose value is deliberately not shown.
+
+    The only difference from `profile_out_of_range` is that the value
+    itself does not appear. No message on the loader's path quotes a row
+    count, because reading a description can run out of memory before
+    any field has been checked (contract 10.7).
+    """
+    return (
+        f"The entry called '{_shown(key)}' {_shown(where)} holds "
+        f"something that is not allowed there: it has to be "
+        f"{_shown(permitted)}. {_MAKE_IT_AGAIN}"
+    )
+
+
+def profile_invariant_broken(
+    rule: str, words: str, where: str, first: str, second: str
+) -> str:
+    """R17: a rule of the description that this file breaks.
+
+    ``rule`` is the rule's short name in the description contract, which
+    is there for anybody who wants to look it up; ``words`` is the rule
+    itself in plain language, and the two clauses are the quantities
+    that disagree and where each of them lives.
+    """
+    return (
+        f"The description does not hold together {_shown(where)}: "
+        f"{_shown(words)}. But {_shown(first)}, and {_shown(second)}. A "
+        f"description synthtwin writes always keeps that rule (it is "
+        f"called {_shown(rule)} in synthtwin's description contract), so "
+        f"this file has been changed since it was written. "
+        f"{_MAKE_IT_AGAIN}"
+    )
+
+
+def profile_relationships_carried(key: str) -> str:
+    """R18: the reserved cross-column block carries something."""
+    return (
+        f"The description says something under '{_shown(key)}' about how "
+        f"the columns move together, and this version of synthtwin does "
+        f"not carry that: it reads a description in which all eight of "
+        f"those entries are empty. A file that fills one of them was "
+        f"written by a newer synthtwin. Please update synthtwin, then "
+        f"run the command again."
+    )
+
+
+def profile_out_of_memory(path: str) -> str:
+    """R19: the machine ran out of memory while reading the file.
+
+    The message names no count of anything out of the file: this can
+    happen before a single field has been read.
+    """
+    return (
+        f"There was not enough memory to read the description at {path}. "
+        f"This computer could not hold a file of that size, and reading "
+        f"one takes several times its size in memory. Close other "
+        f"programs and try again, use a computer with more memory, or "
+        f"describe a table with fewer columns: a description grows with "
+        f"the number of columns, not with the number of rows."
+    )
+
+
+# -- building the twin: what `generate` refuses -----------------------
+#
+# Three refusals belong to the command rather than to the loader or to
+# the method: a seed nobody can use, and a pair of output names that are
+# already taken. Each is written here with every other message a person
+# reads, and each says the same three things: what happened, what
+# synthtwin did NOT do, and what to type next.
+#
+# WHY THE SEED HAS TWO MESSAGES rather than one. "That is not a number
+# synthtwin can use" and "that number is larger than synthtwin's largest
+# seed" are two different mistakes with two different repairs, and a
+# single message covering both would have to be vague about both. The
+# library underneath accepts a wider set than synthtwin does and refuses
+# a negative one in its own words, which name a bit width and a data
+# type; neither message below lets that reach a person (plan P2-D8).
+
+
+def twin_out_of_memory(path: str) -> str:
+    """Message for a machine that ran out of memory building the twin.
+
+    It names no count out of the description, for the same reason the
+    loader's memory message names none: the run can stop before a single
+    field has been read, so a number in this sentence could be a number
+    nobody read.
+    """
+    return (
+        f"There was not enough memory to build the twin from the "
+        f"description at {path}. A twin holds every value of every column "
+        f"at once while it is being built, so it needs several times the "
+        f"space the finished file takes. Please close other programs and "
+        f"run the command again, or use a computer with more memory. "
+        f"Nothing was written."
+    )
+
+
+def seed_not_in_figures(given: str, ceiling: str) -> str:
+    """Message for a seed spelled in anything but plain ASCII figures.
+
+    Covers every spelling outside the grammar: a sign, a separator such
+    as an underscore, a space anywhere in it, a figure from another
+    writing system, and nothing at all. One message covers them all
+    because the repair is one repair -- write it in plain figures -- and
+    naming which of the five it was would tell the reader nothing they
+    cannot see.
+    """
+    return (
+        f"The seed has to be written in plain figures, and "
+        f"'{_shown(given)}' is not. Please give a whole number from 0 to "
+        f"{ceiling} with nothing else in it -- no plus or minus sign, no "
+        f"spaces, no commas, no underscores -- for example --seed 0 or "
+        f"--seed 12345. Leading zeros are fine and change nothing: 007 is "
+        f"the seed 7. Nothing was written."
+    )
+
+
+def seed_too_large(given: str, ceiling: str) -> str:
+    """Message for a seed above the largest one synthtwin accepts."""
+    return (
+        f"The seed {_shown(given)} is larger than the largest seed "
+        f"synthtwin uses. Please give a whole number from 0 to {ceiling} "
+        f"-- any of them builds a twin that follows the description just "
+        f"as closely, so 0, 1 or 12345 will do. Nothing was written."
+    )
+
+
+def outputs_already_there(
+    first: str, second: str, taken: "list[str]"
+) -> str:
+    """Message for a run whose output names are already in use.
+
+    Both names are printed whichever of them is taken, and the one that
+    is in the way is named again: a person who ran the command twice
+    needs to see the pair the run would write, and a person whose own
+    file is sitting at one of those names needs to see WHICH file is
+    about to be replaced.
+
+    There is no way to prove that a file at one of these names is an
+    earlier twin of this run rather than somebody's own work (plan
+    P2-D10, review item P2-R4-F1), so no such proof is attempted and no
+    file is replaced without the person saying so. The cost is one word
+    on a re-run, and this message teaches it.
+
+    It is one paragraph, like every other message in this catalog: the
+    command shows a refusal as a VALUE on its way to the screen, which
+    means a line feed inside one is shown as text rather than obeyed, so
+    a message that laid its paths out in a column would reach the reader
+    as one long line with the escapes in it.
+    """
+    listed = _listed(taken)
+    one_only = len(taken) == 1
+    is_are = "this one is" if one_only else "these are"
+    it_them = "that file" if one_only else "those files"
+    return (
+        f"synthtwin stopped because something is already at one of the "
+        f"names it would write. This run writes two files, {first} and "
+        f"{second}, and {is_are} already there: {listed}. Nothing was "
+        f"written and nothing was changed. If {it_them} can be replaced -- "
+        f"the usual reason is building the twin again with a different "
+        f"seed -- add --replace to the command. If not, move or rename "
+        f"what is there, or give --out-dir a different folder to write "
+        f"into, then run the command again."
     )
