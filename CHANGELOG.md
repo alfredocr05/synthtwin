@@ -6,6 +6,40 @@ exists).
 
 ## [Unreleased]
 
+### Fixed in Phase 3: the two open defects the registry carried
+- **The pooled numeric spelling (P2-C5-F3).** A description holds back
+  the forms used by fewer rows than the smallest group size, and the
+  contract wrote every one of those cells plainly -- which a column
+  whose published smallest or largest value carries a decimal point can
+  never do, because such a value has no point-free spelling at all. The
+  twin was therefore required to miss a total no generator could reach,
+  on 8 of the producer battery's 240 columns. A held-back cell names no
+  form, so it is now spelled by its own value: plainly where the value
+  has a point-free spelling, and in the value's own canonical text where
+  it has none. Contract 7.5.7 and method G6.4 carry the amended rule and
+  a recount identity whose every clause is checked separately, with each
+  published count a floor so no form can be substituted away. The
+  ordinary case moves no byte.
+- **The two-character record number (P2-C5-F4).** Its first shape was
+  already closed by the joint packing that settles length and band
+  together; only the contract's prose still said otherwise. Its second
+  shape was a genuine breach: for a two-character whole number in the
+  code alphabet the generator wrote `-0` through `-9`, meeting the
+  published count by breaking the rule that no invented value may open
+  with a character a spreadsheet reads as the start of a formula -- and
+  leaving the report's own formula paragraph telling the reader that an
+  invented cell was a value their description published. The family is
+  withdrawn, the code band starts at three characters, and a description
+  that leaves no spelling at all now meets a named refusal instead:
+  `generation-whole-numbers-need-code-room`, the fifth of method G12,
+  landed there as an amendment rather than as an unannounced branch.
+- The disposition registry's `OPEN` mapping is empty for the first time
+  since it was created.
+- A defect the repair found is recorded rather than fixed quietly: the
+  same two-character code family is reached by a column whose values are
+  not all whole numbers, and closing that needs an owner decision, which
+  the Phase 3 plan's P3-D8.1 now carries with its measurement.
+
 ### Added in Phase 3: the ratified plan, and the repository goes public
 - The Phase 3 plan (`docs/plans/phase-3-product.md`): the validate
   command and its plain-language quality report, the repair of the two

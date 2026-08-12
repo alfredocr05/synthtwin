@@ -913,15 +913,32 @@ carry it (G12.8).
 
 `numeric_styles` publishes a count per style, plus a withheld remainder
 (a style used by fewer rows than the small-cell floor is pooled, exactly
-as a rare label is). The withheld remainder is written in the `plain`
-style, because that is the style that changes nothing a reader infers,
-and the report names how many cells it covered. **The recount is
-therefore taken against the published map with the remainder added to
-`plain`** — every other style matches its own published count exactly —
-which is what the contract's EXACT-OBSERVABLE means for this field
-(contract 7.5.7 and 9.4). No cell text falls outside the six styles, so
-there is no "outside the published styles" bucket for the remainder to
-be counted in.
+as a rare label is). **A pooled cell is written by its own value**: in
+the `plain` style where the value has a point-free spelling, because
+that is the style that changes nothing a reader infers, and in the
+value's own canonical text (contract 3.2.1) where it has none. The
+report names how many cells the remainder covered and how many of them
+had no point-free spelling.
+
+**This amends the rule that wrote every pooled cell plainly** (Phase 3
+plan P3-D8.1, 2026-08-12, closing the registry's open P2-C5-F3). A
+published `min` or `max` carrying a decimal point has no point-free
+spelling, and both ends are EXACT-OBSERVABLE, so a column whose
+remainder covered such a cell owed a form no conforming generator could
+write. Nothing published moves: the amendment gives the anonymous
+remainder — which names no form at all, that being what pooling MEANS —
+a spelling its own cells can carry.
+
+**The recount is therefore the identity contract 7.5.7 states**, whose
+clauses are these, with `r(s)` the recount, `p(s)` the published count,
+`R` the remainder and `NW` the written numeric cells with no point-free
+spelling: `leading_zero`, `leading_plus` and `exponent_upper` exact;
+`plain`, `decimal` and `exponent_lower` never below their published
+counts; the spill `D = max(0, NW - p(decimal) - p(exponent_lower) -
+p(exponent_upper))`; `r(decimal) + r(exponent_lower) = p(decimal) +
+p(exponent_lower) + D`; and `r(plain) = p(plain) + R - D`. No cell text
+falls outside the six styles, so there is no "outside the published
+styles" bucket for the remainder to be counted in.
 
 Styles are assigned over the K numeric cells in the fixed **stratum
 order** of G5.2 (which is the sorted order of the values), by
@@ -938,7 +955,12 @@ carriers[i]  = how many cells from i onward can wear a point-free
 for each cell, in stratum order, and within a stratum in ascending
 cell index:
     consider only the styles this cell's value can wear (below) whose
-        remaining count is above zero, and among them only those whose
+        remaining count is above zero -- and, where the point-free
+        claims still standing outnumber carriers[i + 1], `plain` is
+        offered to a cell that can wear no point-free style too,
+        while the pool is still standing, spending one pooled cell
+        and writing it in the value's own canonical text.  Among
+        the styles offered, consider only those whose
         choice leaves
             remaining[leading_plus]        <=  plus_carriers[i + 1]
         after the choice is taken.  Write
@@ -1082,25 +1104,39 @@ implementation that fails to put them there is defective, not
 approximate. G5.2's carrier step and the two answers above are what
 make the cells exist: the split gives way before a published count
 does, and the anonymous pool gives way before a named count does.
-Exactly three shapes are left, every one of them recounted from the
-finished cells (G12) and named in the report with each published count
-beside the achieved one:
+**No shape a producer writes is left** (Phase 3 plan P3-D8.1): every
+published count of every producer-written description is placed
+exactly, because what a producer could once cost was the anonymous
+remainder, and a remainder names no form, so it is spelled by its own
+cells' values and there is no miss in it to name. This method grants
+`numeric_styles` no lesser outcome anywhere, and the shapes listed
+below are reached only by a hand-written description whose own facts
+contradict each other — the same class of document G12's refusals
+settle, listed here because the walk answers them rather than stopping:
 
 - a `leading_plus` quota larger than the column's own count of
   non-negative cells. No producer emits one — a cell it read as
   `leading_plus` was not negative — so this shape needs a hand-edited
   description whose own facts disagree.
-- a point-free demand larger than `K` minus the cells the published
-  ends force to carry a point. At least one cell must read back as
-  `min` and one as `max`, both EXACT-OBSERVABLE, so an end that has no
-  point-free spelling costs one cell of the demand. A producer reaches
-  this only through the anonymous pool — the named counts alone can
-  never exceed that ceiling, because the source's own end cells were
-  not written point-free either — and it is exactly the conflict
-  between `min`/`max` exactness and contract 7.5.7's rule that the
-  pooled cells are written `plain`. The twin writes the largest number
-  of point-free cells the published ends leave, which is the most any
-  conforming generator can write, and names the remainder.
+- a NAMED point-free demand larger than `K` minus the cells the
+  published ends force to carry a point. At least one cell must read
+  back as `min` and one as `max`, both EXACT-OBSERVABLE, so an end that
+  has no point-free spelling costs one cell of the demand. **No producer
+  reaches this shape**: the named counts alone can never exceed that
+  ceiling, because the source's own end cells were not written
+  point-free either, so it takes a hand-written description whose facts
+  disagree with each other. The twin writes the largest number of
+  point-free cells the published ends leave, which is the most any
+  conforming generator can write, and names the miss.
+
+  **The producer-reachable half of this shape is CLOSED** (Phase 3 plan
+  P3-D8.1, closing the registry's open P2-C5-F3). A producer reached it
+  only through the anonymous pool, where it was the conflict between
+  `min`/`max` exactness and the withdrawn rule that every pooled cell is
+  written `plain`. A pooled cell names no form, so it is now spelled by
+  its own value and there is nothing left to miss: measured over the
+  producer battery of 240 descriptions at eight seeds, the eight columns
+  that filed such a line file none.
 The third shape revision 2 listed here — a stratum whose own share
 holds no whole number free for it — **is no longer one of them**
 (P2-C5-F3). Where a band's strata all sit on fractions the strata
@@ -2397,24 +2433,30 @@ packing rule applying here IN FULL — both margins and the shape search
 - no word statistics exist, so G9.5 step 6 does not apply and no space
   is ever written into an identifier.
 
-**What the length ends and the bands still cost, left standing rather
-than written quieter** (review items P2-C5-F4 and P2-C5-F2). A whole
-number standing outside the figures needs two characters in the wide
-band and three in the code band, so once `all_whole_numbers` is true a
-band's permitted LENGTHS are part of the question. The first bullet
-above now settles length and band together, which closes the shape a
-length end pinned onto a group whose band has no whole-number spelling
-at that one length used to leave — a source of `1.`, `2e0` and `3` is
-its own proof that an answer exists, and the packing finds it. **One
-shape is left, and it is an open defect rather than a disposition this
-method grants**: a published longest length of two characters carrying
-a value that must stand in the code alphabet, whose only two-character
-whole numbers begin with a sign G9.1 keeps a made-up value from
-beginning with. There the ordinary walk takes the value and
-`all_whole_numbers` is recounted from the finished cells and named,
-with its achieved value beside the published one. The ratified plan
-holds the fact exact in every case, so closing it needs an owner
-decision about the leading character.
+**What the length ends and the bands cost, and how both were settled**
+(review items P2-C5-F4 and P2-C5-F2; closed by Phase 3 plan P3-D8.1,
+owner decision 1, 2026-08-12). A whole number standing outside the
+figures needs two characters in the wide band and three in the code
+band, so once `all_whole_numbers` is true a band's permitted LENGTHS
+are part of the question. The first bullet above settles length and
+band together, which closed the shape a length end pinned onto a group
+whose band has no whole-number spelling at that one length used to
+leave — a source of `1.`, `2e0` and `3` is its own proof that an answer
+exists, and the packing finds it.
+
+The other shape was a published longest length of two characters
+carrying a value that must stand in the code alphabet. Its only
+two-character whole numbers begin with a sign, which G9.1 keeps a
+made-up value from beginning with, and the implementation wrote one
+anyway — meeting the count by breaking the bar, and leaving the
+report's formula paragraph telling the reader that an invented cell was
+a value the description published. **The owner settled it as a
+refusal**: the two-character code family is withdrawn, the code band
+begins at three characters, and a description that leaves no spelling
+at all meets `generation-whole-numbers-need-code-room` by name.
+`all_whole_numbers` is EXACT-OBSERVABLE in every case this method
+builds, and no invented record number opens with a character a
+spreadsheet reads as the start of a formula.
 
 In the infeasible corner of owner decision 6 the identifier repeats:
 the groups are filled from the domain in order and, when it is
@@ -2679,7 +2721,7 @@ generation, and every outcome is fixed (P2-D6):
    numeric conflict is otherwise resolvable (G5.5); the residual
    deviation is measured and named.
 5. **Refusal is reserved for documents no rule above can satisfy.** This
-   method has exactly four, each of them a refusal of GENERATION rather
+   method has exactly five, each of them a refusal of GENERATION rather
    than a claim that the description is invalid, and each says the
    profile is VALID, names the two facts that cannot both hold, and
    gives remediation that does not assume the person still holds the
@@ -2702,7 +2744,25 @@ generation, and every outcome is fixed (P2-D6):
      whole number IS a figure, so a longest length of one character
      with `n_all_digits` below `n_present`, and a shortest length of one
      character with `n_all_digits` of zero, are both descriptions no
-     table can hold.
+     table can hold;
+   - `generation-whole-numbers-need-code-room` (G9.6; Phase 3 plan
+     P3-D8.1, owner decision 1) — **the fifth, landed as an amendment
+     to this section and not as an exception taken during
+     implementation** — a declared identifier published as whole
+     numbers whose values must stand in the CODE alphabet without room
+     for a third character. A value written in the code alphabet but
+     not in figures alone, reading back as a whole number, is at least
+     three characters long: one character that reads as a whole number
+     is a figure, and the only two-character spellings put a sign in
+     front of a figure, which G9.1 bars from the first position because
+     a spreadsheet reads a leading `-` as the start of a formula. So a
+     longest length under three with any value in the code alphabet
+     that is not figures alone, and a shortest length under three where
+     the code alphabet is the only band with any count left, are both
+     descriptions no table this method may write can hold. Before this
+     refusal the implementation wrote `-0` through `-9` here, meeting
+     `n_code_alphabet` by breaking G9.1 and leaving the report's
+     formula paragraph saying an invented cell was a published value.
 
    The last two were written as twins with the exact fact named as
    missed until review item P2-C5-F4; the ratified plan reserves the

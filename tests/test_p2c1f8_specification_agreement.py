@@ -250,9 +250,21 @@ def test_the_withheld_remainder_is_recounted_as_plain(
 ) -> None:
     """Thirty plain and three held back come back as thirty-three plain.
 
-    The contract used to call the remainder the cells "that fall in no
-    published style", which nothing can satisfy while `plain` is itself
-    published: every numeric cell text lands in one of the six.
+    TWO WORDINGS ARE WITHDRAWN, AND BOTH ARE BANNED HERE RATHER THAN
+    REPEATED. The contract first called the remainder the cells "that
+    fall in no published style", which nothing can satisfy while
+    `plain` is itself published: every numeric cell text lands in one
+    of the six. It then added the whole remainder to `plain`, which the
+    Phase 3 plan withdrew in turn (P3-D8.1): a published end carrying a
+    decimal point has a cell with no point-free spelling at all, so
+    that rule owed a form no conforming generator could write.
+
+    The rule now is that a pooled cell is spelled by its own value, and
+    the recount is the identity of contract 7.5.7. On these values
+    every pooled cell IS whole, so all three are written plainly and
+    the column reads back exactly as it did -- which is the point: the
+    amendment moved no byte of the ordinary case, only the obligation
+    on the case that could not be met.
     """
     values = [str(n) for n in range(1, 31)] + ["+101", "+102", "+103"]
     document, loaded = _described(tmp_path, values)
@@ -264,10 +276,17 @@ def test_the_withheld_remainder_is_recounted_as_plain(
 
     twin = generation.generate(loaded, 0)
     assert _styles_written(twin) == {"plain": 33}
+    assert [
+        note for note in twin.deviations if note.fact == "numeric_styles"
+    ] == []
 
     text = _words(CONTRACT)
-    assert "the published map with the `(withheld)` remainder added to" in text
+    assert "a cell pooled into `(withheld)` is written by its own value" in text
     assert "that fall in no published style" not in text
+    assert (
+        "the published map with the `(withheld)` remainder added to"
+        not in text
+    )
 
 
 def test_a_style_map_the_values_can_carry_is_written_exactly(
@@ -309,15 +328,21 @@ def test_a_style_the_twin_cannot_place_is_named_in_the_report(
     """The half of G6.4 that SPEAKS, exercised end to end.
 
     Placing a form is not always possible, and where it is not the
-    report owes the reader a sentence. THE FIXTURE HERE WAS CHANGED BY
-    REVIEW ITEM P2-C4-F3: it used to be the 51-cell column whose own
-    values prove its map, which the twin now writes exactly. What is
-    left is the one shape a producer can reach where the arithmetic
-    really does run out. Forty named `plain` cells and six pooled ones
-    ask for all forty-six cells to carry no point, while one cell must
-    read back as the published `min` of `0.5` and one as the published
-    `max` of `9.25`. Forty-four is the ceiling, the twin reaches it,
-    and the report names each published count beside the achieved one.
+    report owes the reader a sentence. THE FIXTURE HERE HAS MOVED
+    TWICE. Review item P2-C4-F3 moved it off the 51-cell column whose
+    own values prove its map, which the twin writes exactly. The
+    Phase 3 plan (P3-D8.1) moved it again: the producer column of forty
+    named `plain` cells and six pooled ones, whose two published ends
+    carry points, was a miss only because the withdrawn rule owed every
+    pooled cell the plain form. A pooled cell has no published form, so
+    it is now spelled by its own value, and that column meets its map.
+
+    What still cannot be placed is a NAMED count, which no producer
+    emits and a hand-written description can: forty-six `leading_plus`
+    cells on a column two of whose cells must read back as numbers with
+    no point-free spelling. Forty-four is the ceiling, the twin reaches
+    it, and the report names the published count beside the achieved
+    one.
     """
     values = ["0.5"] * 3 + ["7"] * 40 + ["9.25"] * 3
     document, loaded = _described(tmp_path, values)
@@ -329,20 +354,26 @@ def test_a_style_the_twin_cannot_place_is_named_in_the_report(
     assert document["columns"][0]["integer_valued"] is False
 
     twin = generation.generate(loaded, 0)
+    assert _styles_written(twin) == {"plain": 44, "decimal": 2}
+    quiet = [note for note in twin.deviations if note.fact == "numeric_styles"]
+    assert quiet == [], [note.published for note in quiet]
+
+    document["columns"][0]["numeric_styles"] = {"leading_plus": 46}
+    target = fixtures.write_profile(tmp_path, "edited-profile.json", document)
+    edited = contract.load_profile(str(target))
+    twin = generation.generate(edited, 0)
     written = _styles_written(twin)
-    assert written == {"plain": 44, "decimal": 2}, (
+    assert written.get("leading_plus", 0) == 44, (
         "this fixture no longer reaches the corner it was built for"
     )
 
     named = [note for note in twin.deviations if note.fact == "numeric_styles"]
     assert named, "the twin missed its published style map and said nothing"
-    assert {note.achieved for note in named} == {
-        str(written.get("plain", 0)),
-        str(written.get("decimal", 0)),
-    }
-    text = rendering.report(loaded, twin)
-    assert "plain form" in text
-    assert "decimal form" in text
+    assert any("leading_plus" in note.published for note in named), [
+        note.published for note in named
+    ]
+    text = rendering.report(edited, twin)
+    assert "leading_plus form" in text
 
 
 def test_a_column_that_meets_its_style_map_is_left_unremarked(

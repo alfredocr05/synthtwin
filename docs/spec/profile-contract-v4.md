@@ -1671,20 +1671,55 @@ spelling that carries case, so it is the only construction that can put
 a numeric column's folded count below its raw one
 (`docs/spec/generation-method-v1.md` G6.5).
 
-**The cells pooled into `(withheld)` are written in the `plain` style**
-(`docs/spec/generation-method-v1.md` G6.4), because `plain` changes
-nothing a reader infers. That fixes what the recount from the written
-CSV is measured against. The earlier wording — which counted the pooled
-cells as the written cells belonging to none of the published styles —
-is withdrawn as unmeetable, and is described rather than repeated so
-that a test can ban it: every numeric cell text falls in one of the six
-styles by the total rule of 7.5.4, so where `plain` is itself a
-published style the pooled cells land inside it and no cell is left
-outside. **The EXACT-OBSERVABLE obligation is therefore the published
-map with the `(withheld)` remainder added to `plain`**: recounted from
-the twin, every style but `plain` matches its own published count
-exactly, and `plain` matches its published count plus the remainder. The
-report names the remainder and how many cells it covered.
+**A cell pooled into `(withheld)` is written by its own value**
+(`docs/spec/generation-method-v1.md` G6.4): plainly where the value has
+a point-free spelling, because `plain` changes nothing a reader infers,
+and in the value's own canonical text (3.2.1) where it has none.
+
+**This amends the rule that wrote EVERY pooled cell plainly** (Phase 3
+plan P3-D8.1, closing the open defect the disposition registry held
+under P2-C5-F3, 2026-08-12). That rule and this section's own
+`min`/`max` exactness cannot both be met: a published end carrying a
+decimal point has no point-free spelling at all, so a column whose
+remainder covered such a cell owed a form no conforming generator could
+write, and the twin was required to miss a total it could have met. The
+obligation is not lowered by the amendment — no published count moves,
+and the two earlier wordings are withdrawn rather than weakened. The
+first, which counted the pooled cells as the written cells belonging to
+none of the published styles, is unmeetable because every numeric cell
+text falls in one of the six styles by the total rule of 7.5.4. The
+second, which added the whole remainder to `plain`, is unmeetable on the
+shape above. Both are described rather than repeated so that a test can
+ban them.
+
+**The EXACT-OBSERVABLE obligation is therefore an identity over the
+recount**, every clause of it computable from the written cells and the
+published map alone. Writing `r(s)` for the cells the recount finds in
+style `s`, `p(s)` for the count the map publishes for it, `R` for the
+`(withheld)` remainder, and `NW` for the written numeric cells whose
+values have no point-free spelling:
+
+- `r(leading_zero) = p(leading_zero)`, `r(leading_plus) =
+  p(leading_plus)` and `r(exponent_upper) = p(exponent_upper)` — the
+  remainder never reaches these three: the first two are the invention
+  family of owner decision 8, and canonical text never carries an
+  upper-case exponent;
+- `r(plain) >= p(plain)`, `r(decimal) >= p(decimal)` and
+  `r(exponent_lower) >= p(exponent_lower)` — **a published form is
+  never substituted away**, whatever the remainder does above it;
+- the spill `D = max(0, NW - p(decimal) - p(exponent_lower) -
+  p(exponent_upper))` is exactly the pooled cells with no point-free
+  spelling, because the published point-carrying counts are spent on
+  such cells first;
+- `r(decimal) + r(exponent_lower) = p(decimal) + p(exponent_lower) + D`,
+  the two canonical forms carrying the spill between them, which of the
+  two being each value's own canonical text;
+- and `r(plain) = p(plain) + R - D`, the remainder's other cells.
+
+An ordinary column publishes no remainder, `D` is zero, and the identity
+is the plain reading: every style matches its published count exactly.
+The report names the remainder, how many cells it covered, and how many
+of them had no point-free spelling of their own.
 
 **An alternate spelling is used ONLY where the published counts require
 it**, so an ordinary all-canonical whole-number column publishes
@@ -1931,7 +1966,7 @@ for exactly that reason.
 | `integer_valued` | EXACT-OBSERVABLE, routed by the published FACT and not by role |
 | `mean`, `std`, `skew` | APPROXIMATED, fixed formula and two-sided bound — both fixed by `docs/spec/generation-method-v1.md` G12.3 |
 | `n_distinct`, `n_distinct_folded` | EXACT-OBSERVABLE using the spellings owner decisions 7, 8 and 10 permit — the ordinary case; APPROXIMATED under the two-sided envelope only where even those cannot supply the count, with the report naming the profile's count beside the twin's. The envelope is fixed by `docs/spec/generation-method-v1.md` G12.8, and BOTH of its ends are measured and printed on every run, because a fallback whose range is never shown is a fallback a reader cannot check (review item P2-C2-F4) |
-| `numeric_styles` | EXACT-OBSERVABLE against the published map with the `(withheld)` remainder added to `plain`, which is the form section 7.5.7 fixes for the pooled cells |
+| `numeric_styles` | EXACT-OBSERVABLE against the recount identity of section 7.5.7: every published count is met or exceeded, the three forms the remainder cannot reach are exact, and the remainder is spelled by its own cells' values |
 | `n_rows` (echo) | LOADER-ONLY |
 
 A mutant that collapses the nine interior rungs onto the endpoints must
@@ -2055,23 +2090,36 @@ its disposition says.
 | `all_whole_numbers` | EXACT-OBSERVABLE in every case, since owner decision 6 keeps the length. A published length range in which a value that must stand outside the figures can be no whole number at all — one character cannot be both — is a document whose own facts cannot all hold, and generation is refused before any cell is built (`docs/spec/generation-method-v1.md` G12, `generation-whole-numbers-need-room`). No producer-written profile carries that pair |
 | `n_distinct`, `n_distinct_folded`, `n_distinct_by_occurrences` | EXACT-OBSERVABLE outside owner decision 6's infeasible corner; all THREE REPORT-ONLY inside it, with the report naming the achieved value beside the published one |
 
-**What the whole-number row does not yet hold, left standing rather than
-written quieter** (review item P2-C5-F4). Two shapes a real table DOES
-produce still cost `all_whole_numbers`: a published length range whose
-longest value is two characters, where some value has to stand in the
-code alphabet — the only two-character whole numbers outside the figures
-begin with a sign, and plan P2-D10 keeps a made-up value from beginning
-with one; and a length end that G9.6 pins onto a group whose band has no
-whole-number spelling at that one length, where the source's own values
-show another pairing that holds every published count. In both the
-ordinary walk takes the value and the fact is recounted from the
-finished cells and named, with its achieved value beside the published
-one. That is an OPEN DEFECT against the ratified plan, which holds this
-fact exact in every case, and not a disposition this contract grants:
-the second shape closes when the length ends and the bands are settled
-in ONE packing rather than pinned first, as G9.5 already does for free
-text, and the first needs an owner decision about the leading character.
-The obligation stands until then.
+**What the whole-number row cost, and how both shapes were settled**
+(review item P2-C5-F4; closed by Phase 3 plan P3-D8.1, owner decision 1,
+2026-08-12). Two shapes a real table produces used to cost
+`all_whole_numbers`, and neither does now.
+
+The first was a length end that G9.6 pinned onto a group whose band has
+no whole-number spelling at that one length, where the source's own
+values show another pairing that holds every published count. It closed
+when the length ends and the bands were settled in ONE packing rather
+than pinned first, as G9.5 already does for free text: the packing walks
+every carrier pair and finds the pairing the source's values prove
+exists.
+
+The second was a published length range whose longest value is two
+characters, where some value has to stand in the code alphabet — the
+only two-character whole numbers outside the figures begin with a sign,
+and G9.1 keeps a made-up value from beginning with one, because that is
+the character common spreadsheet software reads as the start of a
+formula. The implementation met the count by writing the sign anyway,
+which is a ratified rule traded for a published count, and left the
+report's formula paragraph telling the reader that an invented cell was
+a value the description had published. **The owner settled it as a
+refusal, not as a lesser outcome**: the two-character code family is
+withdrawn, and a description it leaves with no spelling meets
+`generation-whole-numbers-need-code-room` — the fifth refusal of method
+G12, landed there as an amendment.
+
+`all_whole_numbers` is therefore EXACT-OBSERVABLE in every case a twin
+is written at all, which is what the ratified plan holds it to, and this
+contract grants no lesser outcome for it.
 
 **`numeric_unrepresentable`**
 

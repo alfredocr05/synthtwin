@@ -51,6 +51,7 @@ import pytest
 import fixtures
 from synthtwin import (
     contract,
+    errors,
     generation,
     parsing,
     profile,
@@ -265,6 +266,119 @@ def test_the_battery_is_the_size_this_file_claims(
         assert document["columns"][0]["role"] == "identifier"
 
 
+def _refusal(loaded: contract.Profile) -> "str | None":
+    """The refusal this description meets, or None if it generates.
+
+    The fifth refusal of method G12 landed with the Phase 3 plan
+    (P3-D8.1), and a description a producer wrote can meet it: a column
+    of two-character whole numbers in the code alphabet has no spelling
+    left once G9.1's bar on a leading sign is kept. The battery below
+    therefore sorts its cases rather than assuming every one of them
+    builds, and the test after it proves the sorting is the published
+    arithmetic and not a convenience.
+    """
+    try:
+        generation.plan_generation(loaded)
+    except errors.ProfileError as stopped:
+        return str(stopped)
+    return None
+
+
+def _no_code_room(document: "dict") -> bool:
+    """The fifth refusal's predicate, from published numbers alone."""
+    column = document["columns"][0]
+    if not column.get("all_whole_numbers"):
+        return False
+    coded = column["n_code_alphabet"] - column["n_all_digits"]
+    wide = column["n_present"] - column["n_code_alphabet"]
+    if column["max_length"] < 3 and coded > 0:
+        return True
+    return (
+        column["min_length"] < 3
+        and column["n_all_digits"] < 1
+        and wide < 1
+        and column["n_present"] > 0
+    )
+
+
+def test_the_fifth_refusal_is_exactly_its_published_arithmetic(
+    tmp_path_factory: pytest.TempPathFactory,
+) -> None:
+    """Both directions, over the whole battery.
+
+    A refusal that fires where a twin was reachable costs the person a
+    twin they could have had; one that stays quiet where none is
+    reachable puts a leading sign in an invented value, which is what
+    the repair was taken to stop. So the predicate is asserted in both
+    directions against the shipped stage: every description the stage
+    refuses meets the arithmetic, and every description that meets the
+    arithmetic is refused.
+    """
+    seen = 0
+    for name, document, loaded in _battery(tmp_path_factory):
+        stopped = _refusal(loaded)
+        expected = _no_code_room(document)
+        if expected:
+            seen = seen + 1
+            assert stopped is not None, (name, document["columns"][0])
+            assert "three characters long" in stopped, (name, stopped)
+        else:
+            assert stopped is None or "three characters long" not in stopped, (
+                name,
+                stopped,
+            )
+    assert seen > 0, (
+        "the battery no longer reaches the corner the fifth refusal "
+        "was written for, so this test proves nothing"
+    )
+
+
+def test_no_invented_whole_record_number_opens_with_a_formula_character(
+    tmp_path_factory: pytest.TempPathFactory,
+) -> None:
+    """G9.1's bar on the whole-number path, asserted for the first time.
+
+    The declared-identifier path used to write `-0` through `-9` for a
+    two-character whole number in the code alphabet, which is a leading
+    sign in an INVENTED value and exactly what G9.1 forbids: common
+    spreadsheet software reads such a cell as the start of a formula,
+    and the report's own paragraph on that hazard tells the reader the
+    cell is a value their description published, which an invented one
+    is not. Nothing in the suite asserted the bar on this path. This
+    does, on every whole-number case the battery builds and every seed.
+
+    THE SCOPE IS THE WHOLE-NUMBER PATH, AND THE REST IS A REGISTERED
+    DEFECT rather than a silence. The same two-character code family is
+    reached by a column whose values are NOT all whole numbers, through
+    `_number_at`, and it writes the same leading sign there. That is a
+    second breach of the same rule, found while closing this one; it is
+    not the defect the Phase 3 plan's owner decision 1 ratified an
+    outcome for, and closing it means either refusing descriptions a
+    producer writes or missing a count no authorization covers -- an
+    owner's decision, not an implementer's. It is registered in
+    `tests/dispositions.py` under `("identifier", "n_all_digits")` with
+    its measurement, so this test states the bound it actually holds.
+    """
+    checked = 0
+    for name, document, loaded in _battery(tmp_path_factory):
+        if not document["columns"][0].get("all_whole_numbers"):
+            continue
+        if _refusal(loaded) is not None:
+            continue
+        for seed in SEEDS:
+            twin = generation.generate(loaded, seed)
+            for cell in twin.columns[0]:
+                if cell == "":
+                    continue
+                assert cell[0] not in ("=", "+", "-", "@"), (
+                    name,
+                    seed,
+                    "an invented record number opens with a formula char",
+                )
+                checked = checked + 1
+    assert checked > 0, "no whole-number cells were checked"
+
+
 def test_every_class_and_alphabet_count_is_written_exactly(
     tmp_path_factory: pytest.TempPathFactory,
 ) -> None:
@@ -277,6 +391,8 @@ def test_every_class_and_alphabet_count_is_written_exactly(
     """
     for name, document, loaded in _battery(tmp_path_factory):
         column = document["columns"][0]
+        if _refusal(loaded) is not None:
+            continue
         for seed in SEEDS:
             twin = generation.generate(loaded, seed)
             counted = _classes(twin)
@@ -312,6 +428,8 @@ def test_the_class_counts_are_not_bought_with_another_exact_fact(
     """
     for name, document, loaded in _battery(tmp_path_factory):
         column = document["columns"][0]
+        if _refusal(loaded) is not None:
+            continue
         for seed in SEEDS:
             twin = generation.generate(loaded, seed)
             cells = twin.columns[0]

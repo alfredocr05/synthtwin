@@ -1929,22 +1929,53 @@ def _style_for(
     shortfall one worse than the column's own values force; and only
     then the largest remaining quota this cell can wear at all. The
     recount of `_style_notes` names whatever the last two answers cost.
+
+    AND THE POOL IS OFFERED TO A CELL THAT CANNOT BE WRITTEN PLAINLY,
+    where it is spelled canonically instead (Phase 3 plan P3-D8.1,
+    closing the open defect the registry held under P2-C5-F3). The
+    remainder used to be placeable only on a cell with a point-free
+    spelling, because contract 7.5.7 wrote every pooled cell `plain`;
+    a column whose published `min` or `max` carries a point has a cell
+    that cannot be plain, so the remainder came out short by that cell
+    and the twin missed a published total it could have met. A pooled
+    cell has no published form -- that is what pooling MEANS -- so
+    nothing is owed by writing it in its own value's canonical text,
+    and `_styled_number` already does exactly that: `_point_free` hands
+    the canonical spelling back where no point-free one exists. The
+    named counts are untouched, because the offer is made only while
+    the pool is still standing and the look-ahead's second answer keeps
+    every NAMED quota placeable on the carriers that remain.
+
+    THE OFFER IS MADE ONLY WHERE THE CARRIERS ARE ALREADY SHORT, which
+    is what keeps the repair to the shape it was taken for. A column
+    whose point-free claims still fit on the cells that can wear them
+    is placed exactly as it was before the repair, byte for byte; the
+    offer opens only once the claims standing outnumber the carriers
+    left, and then it is the pool -- never a named count -- that moves
+    onto a cell spelling itself canonically.
     """
     best = ""
     saved = ""
     carrier = ""
     kept = ""
+    demand = 0
+    for name in _WHOLE_STYLES:
+        demand = demand + left[name]
+    crowded = demand > room
     for name in contract.NUMERIC_STYLES:
         if left[name] <= 0:
             continue
-        if name in _WHOLE_STYLES and not carries:
+        pooled_plain = name == "plain" and pool > 0 and crowded
+        if name in _WHOLE_STYLES and not carries and not pooled_plain:
             continue
         if name == "leading_plus" and negative:
             continue
         if not kept or left[name] > left[kept]:
             kept = name
-        if name in _WHOLE_STYLES and (
-            not carrier or left[name] > left[carrier]
+        if (
+            name in _WHOLE_STYLES
+            and carries
+            and (not carrier or left[name] > left[carrier])
         ):
             carrier = name
         owed = 0
@@ -4828,8 +4859,21 @@ def _identifier_at(
             return _spelling_at(
                 _DIGITS, length, index, _band_head(band, True)
             )
-        if band == _BAND_CODE and length == 2:
-            return _number_at(_BAND_CODE, 2, index)
+        # THE TWO-CHARACTER CODE FAMILY IS GONE (Phase 3 plan P3-D8.1,
+        # closing the registry's open P2-C5-F4). It wrote `-0` through
+        # `-9`, which are the only two-character spellings that are
+        # code-alphabet, not figures alone, and read back as whole
+        # numbers -- and every one of them opens with a character G9.1
+        # bars from the first position, because a leading `-` is what a
+        # spreadsheet reads as a formula. Meeting one published count by
+        # breaking a ratified rule is not a repair, and the report then
+        # said something false besides: its formula paragraph tells the
+        # reader that a hazardous cell is a value the description
+        # published, and `-0` was invented here. So the family is
+        # withdrawn, the code band starts at three characters
+        # (`<digits>e0`), and the descriptions that leaves with no
+        # answer at all are REFUSED by name in `_whole_number_room`
+        # rather than written wrong and reported.
         return _whole_at(band, length, index)
     return _family_at(kind, band, length, 1, index)
 
@@ -4865,8 +4909,6 @@ def _identifier_room(
     if kind == _CLASS_NUMBER and facts.all_whole_numbers:
         if band == _BAND_DIGITS:
             return _power_at_most(10, max(length, 1), _DOMAIN_CEILING)
-        if band == _BAND_CODE and length == 2:
-            return 10
         return _whole_room(band, length)
     return _family_room(kind, band, length, 1)
 
@@ -7052,6 +7094,76 @@ def _whole_numbers_need_room(
     )
 
 
+def _whole_numbers_need_code_room(
+    name: str, shortest: bool, present: int, coded: int, length: int
+) -> str:
+    """Whole record numbers in the code alphabet two characters cannot spell.
+
+    The `generation-whole-numbers-need-code-room` refusal of method
+    G12, and the FIFTH -- landed by the Phase 3 plan's owner decision 1
+    as an amendment to that section rather than as an unannounced
+    branch, which is what the section's own sentence about a fifth
+    refusal requires.
+
+    THE ARITHMETIC, FROM PUBLISHED NUMBERS ALONE. A value written in
+    the code alphabet but not in figures alone, and reading back as a
+    whole number, is at least three characters long. Every shorter
+    candidate is barred by a rule that was ratified before this one: a
+    single character that reads as a whole number is a figure, so it
+    would be counted in `n_all_digits`; and the only two-character
+    spellings left are a sign in front of a figure, which G9.1 refuses
+    at the first position because a leading `-` is what common
+    spreadsheet software reads as the start of a formula. `<digits>e0`
+    is the shortest that remains, and it is three.
+
+    So two published pairs contradict each other outright:
+
+    - every value is a whole number, no value is longer than two
+      characters, and some of them are written in the code alphabet
+      without being figures alone;
+    - every value is a whole number, the shortest value is two
+      characters long, none of them is written in figures alone, and
+      every one of them is written in the code alphabet -- so that
+      shortest value has no band left that can spell it.
+
+    Before this refusal the generator wrote `-0` through `-9` here,
+    which met the count by breaking the formula-context rule and left
+    the report saying a hazardous cell was a value the description had
+    published. Neither fact is traded: the refusal says the description
+    is valid and stops.
+    """
+    wide = f"{length} character" if length == 1 else f"{length} characters"
+    said = (
+        f"the shortest value is {wide} long, that none of the {present} "
+        "values is written in figures alone, and that every one of them "
+        "is written in the code alphabet"
+        if shortest
+        else f"no value is longer than {wide}, and that {coded} of the "
+        f"{present} values are written in the code alphabet without "
+        "being figures alone"
+    )
+    carries = (
+        "so that shortest value has no way left to be written"
+        if shortest
+        else "so each of those values would need a third character"
+    )
+    return (
+        f"The description of the column '{parsing.visible(name)}' is "
+        f"valid, but synthtwin cannot build a twin column from it. It says "
+        f"every value reads as a whole number, that {said}. The shortest "
+        f"whole number written in the code alphabet without being figures "
+        f"alone is three characters long, like '1e0' -- the two-character "
+        f"spellings are a sign in front of a figure, and synthtwin never "
+        f"begins an invented value with a sign, because a spreadsheet "
+        f"reads it as a formula, {carries}. The two facts cannot both "
+        f"hold in any table, so there is nothing to build. "
+        + _edited_by_hand(
+            "say that the values are not all whole numbers",
+            "give the values room for a third character",
+        )
+    )
+
+
 def _seed_out_of_range(seed: int) -> str:
     """A seed outside the range synthtwin states for itself (P2-D8)."""
     return (
@@ -7218,6 +7330,15 @@ def _whole_number_room(
     band can still use: two characters carry `1.` and three carry `1e0`,
     so a description this check passes is one the ordinary walk may
     attempt, and a shortfall it then meets is named rather than refused.
+
+    AND THE SAME ARITHMETIC ONE BAND IN (Phase 3 plan P3-D8.1, closing
+    the registry's open P2-C5-F4). Two characters carry `1.` in the
+    band OUTSIDE the code alphabet, and nothing at all inside it: the
+    two-character code spellings that read as whole numbers all open
+    with a sign, which G9.1 bars at the first position. So a
+    description whose code-alphabet values have no third character to
+    use, or whose shortest value has no band left but that one, is
+    refused here too rather than written with a leading `-`.
     """
     if not facts.all_whole_numbers:
         return
@@ -7239,6 +7360,33 @@ def _whole_number_room(
                 True,
                 column.n_present,
                 facts.n_all_digits,
+                facts.min_length,
+            )
+        )
+    coded = facts.n_code_alphabet - facts.n_all_digits
+    wide = column.n_present - facts.n_code_alphabet
+    if facts.max_length < 3 and coded > 0:
+        raise errors.ProfileError(
+            _whole_numbers_need_code_room(
+                column.name,
+                False,
+                column.n_present,
+                coded,
+                facts.max_length,
+            )
+        )
+    if (
+        facts.min_length < 3
+        and facts.n_all_digits < 1
+        and wide < 1
+        and column.n_present
+    ):
+        raise errors.ProfileError(
+            _whole_numbers_need_code_room(
+                column.name,
+                True,
+                column.n_present,
+                coded,
                 facts.min_length,
             )
         )
@@ -7837,22 +7985,47 @@ def _style_notes(
     in that corner missed its published map in silence. This is the
     half that speaks.
 
-    The published map is compared after the held-back remainder is
-    pooled into `plain`, which is the form the contract fixes for those
-    cells and the same pooling the writer used. WHERE THAT POOLING IS
-    PART OF THE FIGURE, THE SENTENCE SAYS SO (review item P2-C4-F3):
-    a description publishing forty `plain` cells and holding six back
-    owes forty-six, and a reader who went looking for forty-six in the
-    description would not find it. The count that includes held-back
-    cells names them, so the report can be checked against the profile
-    line by line.
+    EVERY NAMED COUNT IS EXACT, AND THE POOL IS SPELLED BY ITS OWN
+    VALUES (Phase 3 plan P3-D8.1). The held-back remainder used to be
+    compared as part of `plain`, which contract 7.5.7 fixed as the form
+    of every pooled cell. That rule and a published end carrying a
+    decimal point cannot both be met -- such an end has no point-free
+    spelling at all -- so the remainder came out short by that cell on
+    a shape a real table produces. The amended rule spells a pooled
+    cell by its own value: point-free where the value has such a
+    spelling, and the value's canonical text where it has none. What
+    the recount owes is therefore an identity rather than six
+    equalities, and each of its clauses is checked here separately so a
+    miss names the clause it broke:
+
+    - `leading_zero`, `leading_plus` and `exponent_upper` are exact
+      against their published counts. The pool never reaches them: the
+      first two are the invention family, and canonical text never
+      carries an upper-case exponent.
+    - `plain`, `decimal` and `exponent_lower` are never BELOW their
+      published counts, so a published form can never be substituted
+      away.
+    - the two canonical point-carrying forms carry, between them,
+      exactly the cells whose values have no point-free spelling and
+      whose forms the published counts do not already name.
+    - and `plain` carries the rest of the pool exactly.
+
+    WHERE THE POOL IS PART OF A FIGURE, THE SENTENCE SAYS SO (review
+    item P2-C4-F3): a description publishing forty `plain` cells and
+    holding six back is owed forty and may be written up to forty-six,
+    and a reader who went looking for either number in the description
+    alone would not find it, so the note names both.
     """
     facts = column.facts
     if not isinstance(facts, contract.NumericFacts):
         return []
-    quotas = _style_quotas(facts.numeric_styles)
+    published = {name: 0 for name in contract.NUMERIC_STYLES}
+    for name in sorted(facts.numeric_styles):
+        if name != contract.WITHHELD:
+            published[name] = facts.numeric_styles[name]
     pooled = _style_pool(facts.numeric_styles)
     counted = {name: 0 for name in contract.NUMERIC_STYLES}
+    pointless = 0
     for cell in written:
         if cell == "":
             continue
@@ -7861,33 +8034,98 @@ def _style_notes(
         counted[parsing.numeric_style(cell)] = (
             counted[parsing.numeric_style(cell)] + 1
         )
+        if parsing.numeric_style(cell) not in _WHOLE_STYLES:
+            pointless = pointless + 1
+    canonical_room = (
+        published["decimal"]
+        + published["exponent_lower"]
+        + published["exponent_upper"]
+    )
+    # How many pooled cells have no point-free spelling of their own,
+    # and so are written in their values' canonical text rather than
+    # plainly. The published point-carrying counts are spent on such
+    # cells first, so this is what is left over -- and it is a function
+    # of the finished cells and the published map alone, which is what
+    # lets a reader recompute it.
+    spilled = max(0, pointless - canonical_room)
+    owing = {name: published[name] for name in contract.NUMERIC_STYLES}
+    owing["plain"] = published["plain"] + pooled - spilled
+    sense = (
+        "The description says how many of this column's cells were "
+        "written in each form -- with a decimal point, with leading "
+        "zeros, plainly, and so on -- and the twin wrote a different "
+        "number of them that way. The values are unaffected; what "
+        "changes is how they LOOK, so a program that decides a "
+        "column's type by reading its cells, or that matches them "
+        "against a pattern, can behave differently here than on the "
+        "real table."
+    )
     notes: list[Deviation] = []
     for name in contract.NUMERIC_STYLES:
-        if quotas[name] == counted[name]:
+        if name in ("decimal", "exponent_lower"):
+            # These two carry the spill between them; which of the two
+            # a cell lands in is its own value's canonical text, so
+            # they are owed a floor each and a total together.
+            if counted[name] >= published[name]:
+                continue
+            notes = notes + [
+                _deviation(
+                    column.name,
+                    "numeric_styles",
+                    f"at least {published[name]} cell(s) written in the "
+                    f"{name} form",
+                    f"{counted[name]}",
+                    sense,
+                )
+            ]
             continue
-        owed = f"{quotas[name]} cell(s) written in the {name} form"
+        if name == "plain" and counted[name] < published[name]:
+            # THE FLOOR, AND WHY IT IS CHECKED BEFORE THE TOTAL. The
+            # spill is read off the finished cells, so a column that
+            # wrote every cell with a point would compute a spill as
+            # large as the plain quota and balance the total against
+            # itself. A published form is never substituted away: the
+            # count named in the description is a floor under the
+            # recount, whatever the pool does above it.
+            notes = notes + [
+                _deviation(
+                    column.name,
+                    "numeric_styles",
+                    f"at least {published[name]} cell(s) written in the "
+                    "plain form",
+                    f"{counted[name]}",
+                    sense,
+                )
+            ]
+            continue
+        if counted[name] == owing[name]:
+            continue
+        owed = f"{owing[name]} cell(s) written in the {name} form"
         if name == "plain" and pooled > 0:
             owed = (
-                f"{quotas[name]} cell(s) written in the plain form -- "
-                f"{quotas[name] - pooled} the description names and "
-                f"{pooled} it held back below the smallest group size, "
-                "which are written plainly because that form changes "
-                "nothing a reader infers"
+                f"{owing[name]} cell(s) written in the plain form -- "
+                f"{published[name]} the description names, and "
+                f"{pooled - spilled} of the {pooled} it held back "
+                "below the smallest group size, which are written "
+                "plainly because that form changes nothing a reader "
+                "infers"
             )
+        notes = notes + [
+            _deviation(
+                column.name, "numeric_styles", owed, f"{counted[name]}", sense
+            )
+        ]
+    carried = counted["decimal"] + counted["exponent_lower"]
+    owed_together = published["decimal"] + published["exponent_lower"] + spilled
+    if carried != owed_together:
         notes = notes + [
             _deviation(
                 column.name,
                 "numeric_styles",
-                owed,
-                f"{counted[name]}",
-                "The description says how many of this column's cells "
-                "were written in each form -- with a decimal point, "
-                "with leading zeros, plainly, and so on -- and the twin "
-                "wrote a different number of them that way. The values "
-                "are unaffected; what changes is how they LOOK, so a "
-                "program that decides a column's type by reading its "
-                "cells, or that matches them against a pattern, can "
-                "behave differently here than on the real table.",
+                f"{owed_together} cell(s) written with a decimal point or "
+                "a lower-case exponent between them",
+                f"{carried}",
+                sense,
             )
         ]
     return notes
