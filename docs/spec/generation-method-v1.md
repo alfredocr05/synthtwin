@@ -1120,8 +1120,9 @@ exactly now, because a remainder names no form and is spelled by its own
 cells' values. **One producer-reachable shape survives, and it is not
 the pool's** (review item P3-C2-F1): a column whose values are whole but
 lie outside the fixed-point window of G6.2 is published `plain` by a
-source that wrote it in figures, while the twin writes the canonical
-exponent form, so the plain count is missed and named. That is the
+source that wrote it in figures, while the twin writes it with a
+decimal point, so the plain count is missed and the spelling is named
+beside it. That is the
 window's own cost, it predates this repair, and the Phase 3 plan carries
 it as a defect for the owner rather than as a disposition this method
 grants. This method grants
