@@ -526,7 +526,7 @@ def test_a_generate_run_refuses_to_write_over_the_profile_it_was_given(
     # that never opened one sends them to check a file that is not
     # involved.
     document = tmp_path / "clinic-profile.json"
-    document.write_text('{"profile_version": 4}\n', encoding="utf-8")
+    document.write_text('{"profile_version": 4}\n', encoding="utf-8", newline="\n")
     report = tmp_path / "clinic-twin-report.txt"
     with pytest.raises(errors.ProfileError) as stopped:
         writing.write_both_files(

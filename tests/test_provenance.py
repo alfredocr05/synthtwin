@@ -257,7 +257,7 @@ def write_manifest(root: Path, fixtures: list[dict]) -> None:
         "fixtures": fixtures,
     }
     (manifest_dir / "fixture-manifest.json").write_text(
-        json.dumps(document, indent=2) + "\n", encoding="utf-8"
+        json.dumps(document, indent=2) + "\n", encoding="utf-8", newline="\n"
     )
 
 
@@ -424,7 +424,7 @@ def test_stray_unlisted_json_fails(tmp_path: Path) -> None:
     """Mutation: a .json profile that is not a known configuration file."""
     write_manifest(tmp_path, [])
     (tmp_path / "profile.json").write_text(
-        '{"count": 12, "mean": 3.5}\n', encoding="utf-8"
+        '{"count": 12, "mean": 3.5}\n', encoding="utf-8", newline="\n"
     )
 
     result = run_checker(tmp_path)
@@ -446,6 +446,7 @@ def test_known_configuration_json_files_pass(tmp_path: Path) -> None:
     (decon_dir / "attestation.json").write_text(
         '{"note": "neutral stand-in for the known configuration file"}\n',
         encoding="utf-8",
+        newline="\n",
     )
 
     result = run_checker(tmp_path)

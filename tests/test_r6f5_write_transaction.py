@@ -252,7 +252,7 @@ def test_unrelated_working_neighbours_are_left_exactly_as_they_were(
     }
     for name, text in neighbours.items():
         (tmp_path / name).write_text(text, encoding="utf-8")
-    first.write_text("last week's profile\n", encoding="utf-8")
+    first.write_text("last week's profile\n", encoding="utf-8", newline="\n")
 
     profile.write_both_files(first, second, PROFILE_TEXT, SUMMARY_TEXT)
 
@@ -303,7 +303,7 @@ def test_a_link_at_the_backup_name_cannot_reach_the_table(
     # place the same rule has to hold.
     table = _table(tmp_path)
     first, second = _outputs(tmp_path)
-    first.write_text(EARLIER_PROFILE, encoding="utf-8")
+    first.write_text(EARLIER_PROFILE, encoding="utf-8", newline="\n")
     trap = tmp_path / f"clinic-profile.json{profile.KEPT_SUFFIX}-1"
     trap.symlink_to(table)
 
@@ -449,7 +449,7 @@ def test_the_second_rename_failing_puts_the_earlier_profile_back(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     first, second = _outputs(tmp_path)
-    first.write_text("last week's profile\n", encoding="utf-8")
+    first.write_text("last week's profile\n", encoding="utf-8", newline="\n")
     second.write_text("last week's summary\n", encoding="utf-8")
     _fail_replace_onto(monkeypatch, [second])
 
@@ -472,7 +472,7 @@ def test_a_rollback_that_itself_fails_names_the_new_and_the_old_file(
     # back. The person is holding a new profile and last week's summary
     # and must be told so in as many words.
     first, second = _outputs(tmp_path)
-    first.write_text("last week's profile\n", encoding="utf-8")
+    first.write_text("last week's profile\n", encoding="utf-8", newline="\n")
     second.write_text("last week's summary\n", encoding="utf-8")
     kept = tmp_path / f"clinic-profile.json{profile.KEPT_SUFFIX}-1"
     real = pathlib.Path.replace
@@ -584,7 +584,7 @@ def test_a_backup_that_will_not_go_is_handed_back_not_passed_over(
     # still sitting under a working name. It is real-derived material,
     # so the caller is given it to report rather than left in the dark.
     first, second = _outputs(tmp_path)
-    first.write_text("last week's profile\n", encoding="utf-8")
+    first.write_text("last week's profile\n", encoding="utf-8", newline="\n")
     kept = tmp_path / f"clinic-profile.json{profile.KEPT_SUFFIX}-1"
     _fail_unlink_of(monkeypatch, [kept])
 
@@ -598,7 +598,7 @@ def test_a_backup_that_will_not_go_is_handed_back_not_passed_over(
 
 def test_a_completed_run_hands_back_nothing(tmp_path: pathlib.Path) -> None:
     first, second = _outputs(tmp_path)
-    first.write_text("last week's profile\n", encoding="utf-8")
+    first.write_text("last week's profile\n", encoding="utf-8", newline="\n")
     assert profile.write_both_files(
         first, second, PROFILE_TEXT, SUMMARY_TEXT
     ) == []
@@ -706,8 +706,8 @@ def test_the_identity_check_fails_closed_when_existence_cannot_be_read(
 ) -> None:
     left = tmp_path / "one.json"
     right = tmp_path / "two.json"
-    left.write_text("a", encoding="utf-8")
-    right.write_text("b", encoding="utf-8")
+    left.write_text("a", encoding="utf-8", newline="\n")
+    right.write_text("b", encoding="utf-8", newline="\n")
     assert not profile.is_the_same_file(left, right)
 
     def stubborn(self: pathlib.Path, **rest: object) -> bool:

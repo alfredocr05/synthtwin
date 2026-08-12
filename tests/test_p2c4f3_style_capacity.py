@@ -41,7 +41,6 @@ import pytest
 
 import fixtures
 from synthtwin import (
-    canonical,
     contract,
     generation,
     parsing,
@@ -158,10 +157,7 @@ def _described(
     )
     table = reading.read_table(str(path))
     document = profile.build_document(table, taxonomy.Settings(), [])
-    target = folder / "table-profile.json"
-    target.write_text(
-        canonical.serialize(document), encoding="utf-8", newline="\n"
-    )
+    target = fixtures.write_profile(folder, "table-profile.json", document)
     return document, contract.load_profile(str(target))
 
 

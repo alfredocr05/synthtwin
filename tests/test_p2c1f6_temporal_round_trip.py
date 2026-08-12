@@ -42,7 +42,6 @@ import pytest
 
 import fixtures
 from synthtwin import (
-    canonical,
     contract,
     errors,
     generation,
@@ -120,10 +119,7 @@ def _loaded(
     folder: pathlib.Path, document: Document, name: str = "profile.json"
 ) -> contract.Profile:
     """Load a description from a file of its own canonical bytes."""
-    target = folder / name
-    target.write_text(
-        canonical.serialize(document), encoding="utf-8", newline="\n"
-    )
+    target = fixtures.write_profile(folder, name, document)
     return contract.load_profile(str(target))
 
 

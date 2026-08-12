@@ -60,7 +60,6 @@ import pytest
 
 import fixtures
 from synthtwin import (
-    canonical,
     contract,
     generation,
     parsing,
@@ -112,10 +111,7 @@ def description(tmp_path_factory: pytest.TempPathFactory) -> pathlib.Path:
         table, taxonomy.Settings(), ["record_code"]
     )
     document["created_with"] = NORMALIZED_VERSION
-    target = folder / "table-profile.json"
-    target.write_text(
-        canonical.serialize(document), encoding="utf-8", newline="\n"
-    )
+    target = fixtures.write_profile(folder, "table-profile.json", document)
     return target
 
 
