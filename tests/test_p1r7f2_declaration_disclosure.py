@@ -158,11 +158,23 @@ def test_a_kept_value_stays_out_of_the_settings_and_stays_in_its_column(
         "values_recorded": False,
     }
     # 40 rows share it, which is above the floor, so it is a label of
-    # this column like any other -- in the column's own folded spelling,
-    # not the capitals the person typed at the command line.
+    # this column like any other -- named in the column's own folded
+    # spelling, with the capitals the file wrote recorded beside it as a
+    # variant, because 40 rows wrote it that way and 40 clears the floor
+    # (owner decisions 9 and 11).
     labels = [level["label"] for level in column["levels"]]
     assert sorted(labels) == ["na", "north", "south"]
-    assert '"NA"' not in written
+    entry = next(level for level in column["levels"] if level["label"] == "na")
+    assert entry["variants"] == {"NA": 40}
+    # THE RULE THIS FILE IS ABOUT IS UNTOUCHED BY THAT. The spelling
+    # reaches the document as a way of writing a label the column
+    # already publishes, held to the same floor; it does not reach the
+    # SETTINGS, which is where a declared value used to travel out of
+    # every column at once.
+    assert '"NA"' not in json.dumps(document["settings"])
+    # And in the written file the spelling appears in exactly one place:
+    # as a way of writing the label it is a way of writing.
+    assert written.count('"NA"') == 1
     assert "--keep-value NA" not in summary_text
 
 

@@ -258,10 +258,120 @@ ROLES_PUBLISHING_NOTHING = (
     ROLE_TEXT,
 )
 
+# THE THREE AXES BESIDE THE ROLE (plan P2-D3, owner decision 1).
+#
+# The role name is a taxonomy verdict carrying a rule's history: it
+# says which rule claimed the column and, through this module, why. The
+# axes are the three questions a consumer actually asks -- what shape
+# are the values, are there usable values at all, and is this column
+# somebody's key -- and Phase 2's generator dispatches on THEM, never on
+# the role. A role added to the tuple above then arrives with its
+# answers already stated, instead of as an unrecognized name in a chain
+# of comparisons somewhere else.
+#
+# Nothing about `role` moves for them. Every role keeps its name and its
+# meaning, and the axes are published beside it, so a consumer written
+# against the earlier document reads every fact it read before.
+TYPE_UNKNOWN = "unknown"
+TYPE_NUMERIC = "numeric"
+TYPE_CODE = "code"
+TYPE_TEXT = "text"
+QUALITY_OK = "ok"
+QUALITY_EMPTY = "empty"
+QUALITY_UNREPRESENTABLE = "unrepresentable"
+STRUCTURAL_DATA = "data"
+STRUCTURAL_IDENTIFIER = "identifier"
+
+# The three vocabularies as tuples, because the publication guard
+# checks each axis against the whole of what it may say (plan P2-D2)
+# and a check against a set gathered from the data it is checking would
+# accept whatever it found. A test holds these to `ROLE_AXES`, so a
+# role added with a new shape word cannot leave them behind.
+STATISTICAL_TYPES = (
+    TYPE_UNKNOWN,
+    TYPE_NUMERIC,
+    ROLE_CONSTANT,
+    ROLE_BINARY,
+    ROLE_DATETIME,
+    ROLE_COUNT,
+    ROLE_CONTINUOUS,
+    ROLE_CATEGORICAL,
+    TYPE_CODE,
+    TYPE_TEXT,
+)
+QUALITY_STATES = (QUALITY_OK, QUALITY_EMPTY, QUALITY_UNREPRESENTABLE)
+STRUCTURAL_ROLES = (STRUCTURAL_DATA, STRUCTURAL_IDENTIFIER)
+
+# What each role answers to the first two questions. The mapping is
+# TOTAL over `ROLES` -- a completeness check in the suite compares the
+# two -- because an axis a column sometimes lacks is an axis nobody can
+# dispatch on.
+#
+# Four roles answer something other than their own name, and each is a
+# case where the role name and the shape of the values are not the same
+# fact: an `empty` column has no shape to report and no usable values;
+# a `numeric_unrepresentable` column was written as numbers and holds
+# none this format can carry; an `identifier` column holds codes; and
+# `free_text` holds text. The other six name their own shape, and are
+# written out one by one rather than derived from the role string,
+# because a mapping a reader can check is worth more than one line of
+# cleverness.
+ROLE_AXES: "dict[str, tuple[str, str]]" = {
+    ROLE_EMPTY: (TYPE_UNKNOWN, QUALITY_EMPTY),
+    ROLE_UNREPRESENTABLE: (TYPE_NUMERIC, QUALITY_UNREPRESENTABLE),
+    ROLE_CONSTANT: (ROLE_CONSTANT, QUALITY_OK),
+    ROLE_BINARY: (ROLE_BINARY, QUALITY_OK),
+    ROLE_DATETIME: (ROLE_DATETIME, QUALITY_OK),
+    ROLE_COUNT: (ROLE_COUNT, QUALITY_OK),
+    ROLE_CONTINUOUS: (ROLE_CONTINUOUS, QUALITY_OK),
+    ROLE_CATEGORICAL: (ROLE_CATEGORICAL, QUALITY_OK),
+    ROLE_IDENTIFIER: (TYPE_CODE, QUALITY_OK),
+    ROLE_TEXT: (TYPE_TEXT, QUALITY_OK),
+}
+
 # The label a suppressed value is replaced by, and the key under which
 # blank cells are counted.
 SUPPRESSED_LABEL = "(withheld)"
 BLANK_SPELLING = parsing.MISSING_BLANK
+
+# HOW A NUMBER WAS WRITTEN, and nothing about what it is (owner
+# decision 10). Six forms, and no seventh may be added by an
+# implementation: a consumer reads this enumeration as closed.
+#
+# WHY THE FACT EXISTS. Three columns -- `0`, `00`, `000`; `0.0`, `00.0`,
+# `000.0`; and `0e0`, `00e0`, `000e0` -- were byte-for-byte identical in
+# every earlier profile: three present values, three different
+# spellings, all numeric, all zero, whole numbers throughout. A person
+# reading the first sees a column of whole numbers and reading the
+# second a column of decimals, so a twin built from those bytes alone
+# could not keep the type its own reader would infer for all three. The
+# form is now counted, so it can be kept.
+#
+# It carries no value, no magnitude and no spelling -- only how many
+# cells used each form.
+#
+# The six names and the ladder that reads one off a cell now live in
+# `parsing`, because the generator has to recount the forms of the twin
+# it wrote and may not import this module. These are bindings to that
+# one rule, not a second copy of it.
+STYLE_PLAIN = parsing.STYLE_PLAIN
+STYLE_LEADING_ZERO = parsing.STYLE_LEADING_ZERO
+STYLE_LEADING_PLUS = parsing.STYLE_LEADING_PLUS
+STYLE_DECIMAL = parsing.STYLE_DECIMAL
+STYLE_EXPONENT_LOWER = parsing.STYLE_EXPONENT_LOWER
+STYLE_EXPONENT_UPPER = parsing.STYLE_EXPONENT_UPPER
+
+# The order the counts are written in. It is the enumeration's order and
+# not the order the ladder in `numeric_style` tests, because this one is
+# only for reading: the document sorts every mapping's keys anyway.
+NUMERIC_STYLES = (
+    STYLE_PLAIN,
+    STYLE_LEADING_ZERO,
+    STYLE_LEADING_PLUS,
+    STYLE_DECIMAL,
+    STYLE_EXPONENT_LOWER,
+    STYLE_EXPONENT_UPPER,
+)
 
 # EVERY key a column block of a nothing-publishing role may carry with
 # its own contents intact. The list is a WHITELIST on purpose. A
@@ -318,6 +428,38 @@ REASON_TOO_RARE = "too_rare"
 REASON_TOO_FEW_OTHERS = "too_few_other_values"
 REASON_KEPT_BY_USER = "kept_by_you"
 
+# Both as tuples, for the publication guard: the decision and the
+# reason are words of this module, and the guard checks them against
+# the whole of what they may be rather than against their type.
+SENTINEL_VERDICTS = (VERDICT_MISSING, VERDICT_KEPT)
+SENTINEL_REASONS = (
+    REASON_OUTLIER_AND_FREQUENT,
+    REASON_NOT_AN_OUTLIER,
+    REASON_TOO_RARE,
+    REASON_TOO_FEW_OTHERS,
+    REASON_KEPT_BY_USER,
+)
+
+# What a datetime column publishes under `resolution`, and which clock
+# its endpoints and ladder are written on. `_datetime_details` and
+# `_datetime_reading` write these same names; they are constants so
+# that the guard's enumeration and the producer's words are one thing.
+RESOLUTION_DATE = "date"
+RESOLUTION_DATETIME = "datetime"
+RESOLUTION_QUARTER = "quarter"
+RESOLUTIONS = (RESOLUTION_DATE, RESOLUTION_DATETIME, RESOLUTION_QUARTER)
+READ_AT_LOCAL = "local"
+READ_AT_UTC = "utc"
+DATETIMES_READ_AT = (READ_AT_LOCAL, READ_AT_UTC)
+
+# The eleven points of the ladder by name, in the ladder's own order,
+# and the keys of the two short summaries a free-text column publishes
+# (its length and its word count). Every key of a published summary of
+# that shape is one of these words.
+LADDER_NAMES = tuple([name for name, _num, _den in LADDER])
+LENGTH_KEYS = ("min", "max", "mean", "p50")
+WORD_KEYS = ("min", "max", "mean")
+
 # What a declared value is compared with, recorded inside every profile
 # so that a reader never has to guess which rule removed a value.
 DECLARATION_MATCHING = "exact_number_when_it_reads_as_one_else_spelling"
@@ -328,6 +470,648 @@ DECLARATION_MATCHING = "exact_number_when_it_reads_as_one_else_spelling"
 CONTRADICTORY_DECLARATION = (
     "the same value cannot be both kept as data and read as 'no value'"
 )
+
+
+# -- THE NOTE GRAMMAR: every sentence the profile publishes ------------
+#
+# WHY SENTENCES NEED A GRAMMAR AT ALL (plan P2-D2, review items
+# P1-R8-F6 and P2-C1-F3). A profile carries two kinds of string: a
+# VALUE the publication rules authorize -- a column's name, a label
+# that cleared the small-cell floor, a date the ladder landed on -- and
+# a SENTENCE synthtwin wrote about the column. Both are text, both stand
+# at a key the document has always had, and a check that reads the key
+# and the type cannot tell them apart. So a note that one day spelled a
+# rare value into its own sentence would be published under a key every
+# rule already permits, and no completeness check would notice, because
+# no key appeared and no type changed.
+#
+# THE RULE THIS SECTION IMPLEMENTS: a sentence in the finished document
+# is not free text. It is built here, by `note`, out of ONE form drawn
+# from the closed table below plus arguments that are whole numbers,
+# words of this package's own vocabulary, or other forms of this same
+# table. `profile.check_publication` then rebuilds each sentence it
+# meets from the form and the arguments the sentence carries and
+# refuses it unless the rebuilt text is identical. A value of the real
+# table cannot become an argument -- it is neither a whole number nor
+# one of the words -- so a sentence carrying one cannot be built; and a
+# sentence assembled by joining or formatting text is a plain string
+# again (`Note` + anything is `str`), which carries no form and is
+# refused at the guard.
+#
+# WHAT A FORM IS. A name in `NOTE_ARITY`, mapped to how many arguments
+# it takes. `rendered` writes the text of each one out in full, so the
+# whole vocabulary of the document's sentences can be read in one place
+# rather than gathered from the branches that happened to build them.
+
+# The publication notes: what a column held back, and why.
+NOTE_UNREPRESENTABLE_WITHHELD = "no_values_unrepresentable"
+NOTE_ONE_VALUE_BELOW_FLOOR = "one_value_below_the_floor"
+NOTE_ONE_OF_TWO_BELOW_FLOOR = "one_of_two_labels_below_the_floor"
+NOTE_LABELS_POOLED = "labels_pooled_below_the_floor"
+NOTE_FREE_TEXT_WITHHELD = "free_text_publishes_no_values"
+NOTE_IDENTIFIER_WITHHELD = "identifier_publishes_no_values"
+
+# The detection evidence: why the column was given the role it has.
+EVIDENCE_EMPTY = "evidence_every_value_absent"
+EVIDENCE_UNREPRESENTABLE = "evidence_numbers_none_holdable"
+EVIDENCE_ONE_VALUE = "evidence_one_value"
+EVIDENCE_TWO_VALUES = "evidence_two_values"
+EVIDENCE_DATES = "evidence_dates"
+EVIDENCE_COUNTS = "evidence_counts_things"
+EVIDENCE_NUMBERS = "evidence_written_as_numbers"
+EVIDENCE_CATEGORIES = "evidence_set_of_categories"
+EVIDENCE_NO_READING_FITS = "evidence_no_reading_fits"
+EVIDENCE_DECLARED_IDENTIFIER = "evidence_declared_identifier"
+
+# Two fragments that appear inside a longer sentence rather than on
+# their own. They are forms like any other, and they travel as
+# arguments of the sentences that carry them, so the whole sentence is
+# still rebuilt from enumerated parts.
+SAID_WRITTEN_AS_NUMBERS = "said_written_as_numbers"
+SAID_READ_AS_DATES = "said_read_as_dates"
+
+# The remarks: what the person running the tool is told about a column.
+REMARK_OUT_OF_RANGE = "remark_values_out_of_range"
+REMARK_CONTRADICTORY = "remark_values_contradictory"
+REMARK_RARE_SENTINELS = "remark_rare_sentinels_unnamed"
+REMARK_UNREPRESENTABLE = "remark_too_few_holdable_numbers"
+REMARK_CASE_ONLY_TWO = "remark_two_values_differ_in_case"
+REMARK_TWO_ALSO_NUMBERS = "remark_two_values_also_read_otherwise"
+REMARK_DATES_ALSO_NUMBERS = "remark_dates_also_read_as_numbers"
+REMARK_MONTH_FIRST = "remark_slashed_dates_are_month_first"
+REMARK_CASE_ONLY_MANY = "remark_values_differ_in_case"
+REMARK_NEAR_CATEGORY_LINE = "remark_close_to_the_category_line"
+REMARK_NO_READING_FITS = "remark_no_reading_fits"
+REMARK_SOME_NOT_NUMBERS = "remark_some_values_are_not_numbers"
+REMARK_NEAR_NUMERIC_LINE = "remark_close_to_the_numeric_line"
+REMARK_ALL_DIFFERENT_NUMBERS = "remark_every_number_is_different"
+REMARK_SPREAD_OUT_OF_RANGE = "remark_spread_out_of_range"
+REMARK_ALL_DIFFERENT_TEXT = "remark_every_value_is_different"
+
+# The header verdict, which the reader settles and the profile
+# publishes. The sentences live in this table with every other
+# published sentence, for the reason the table exists: a verdict built
+# somewhere else would be the one string in the document with no form
+# behind it, and one exception is all a guard needs to stop meaning
+# anything.
+HEADER_NAMES_BY_OPTION = "header_names_because_you_said_so"
+HEADER_DATA_BY_OPTION = "header_data_because_you_said_so"
+HEADER_NAMES_BY_CONVENTION = "header_names_by_convention"
+HEADER_NAMES_SHOWN_BY_COLUMN = "header_names_shown_by_a_column"
+
+# EVERY form, with how many arguments it takes. This mapping is the
+# enumeration: a name that is not a key here is not a form, and `note`
+# and `rendered` both refuse one. Adding a sentence to this profile
+# means adding a line here and a branch to `rendered`, which is the
+# point -- a sentence nobody enumerated cannot be published.
+NOTE_ARITY: "dict[str, int]" = {
+    NOTE_UNREPRESENTABLE_WITHHELD: 0,
+    NOTE_ONE_VALUE_BELOW_FLOOR: 1,
+    NOTE_ONE_OF_TWO_BELOW_FLOOR: 2,
+    NOTE_LABELS_POOLED: 3,
+    NOTE_FREE_TEXT_WITHHELD: 0,
+    NOTE_IDENTIFIER_WITHHELD: 0,
+    EVIDENCE_EMPTY: 0,
+    EVIDENCE_UNREPRESENTABLE: 3,
+    EVIDENCE_ONE_VALUE: 1,
+    EVIDENCE_TWO_VALUES: 0,
+    EVIDENCE_DATES: 3,
+    EVIDENCE_COUNTS: 1,
+    EVIDENCE_NUMBERS: 2,
+    EVIDENCE_CATEGORIES: 3,
+    EVIDENCE_NO_READING_FITS: 5,
+    EVIDENCE_DECLARED_IDENTIFIER: 0,
+    SAID_WRITTEN_AS_NUMBERS: 2,
+    SAID_READ_AS_DATES: 2,
+    REMARK_OUT_OF_RANGE: 1,
+    REMARK_CONTRADICTORY: 1,
+    REMARK_RARE_SENTINELS: 1,
+    REMARK_UNREPRESENTABLE: 2,
+    REMARK_CASE_ONLY_TWO: 0,
+    REMARK_TWO_ALSO_NUMBERS: 0,
+    REMARK_DATES_ALSO_NUMBERS: 0,
+    REMARK_MONTH_FIRST: 0,
+    REMARK_CASE_ONLY_MANY: 0,
+    REMARK_NEAR_CATEGORY_LINE: 2,
+    REMARK_NO_READING_FITS: 5,
+    REMARK_SOME_NOT_NUMBERS: 1,
+    REMARK_NEAR_NUMERIC_LINE: 3,
+    REMARK_ALL_DIFFERENT_NUMBERS: 0,
+    REMARK_SPREAD_OUT_OF_RANGE: 0,
+    REMARK_ALL_DIFFERENT_TEXT: 0,
+    HEADER_NAMES_BY_OPTION: 0,
+    HEADER_DATA_BY_OPTION: 0,
+    HEADER_NAMES_BY_CONVENTION: 0,
+    HEADER_NAMES_SHOWN_BY_COLUMN: 1,
+}
+
+# The same names as a sorted tuple, for a reader and for the tests that
+# walk the whole vocabulary.
+NOTE_FORMS = tuple(sorted(NOTE_ARITY))
+
+# The only WORDS an argument may be. Every other argument is a whole
+# number or another form, so this tuple is the whole of what a sentence
+# can say that is not a count: the names of the date formats, each of
+# which the profile already publishes under `format`.
+#
+# A value of the real table is not here and cannot be added by any
+# route, because this tuple is written out rather than gathered: that
+# is what stops a spelling from becoming an argument.
+NOTE_ARGUMENT_WORDS = parsing.DATE_FORMATS
+
+# What `note` and `rendered` say when they are handed something the
+# grammar does not have. Both are internal invariants -- no input a
+# person can give reaches them -- so they read as checks rather than as
+# advice, and the guard's own refusal is the one a person sees.
+UNKNOWN_NOTE_FORM = "internal check: no sentence of this profile is"
+UNAUTHORIZED_NOTE_ARGUMENT = (
+    "internal check: a sentence of this profile may be built only from "
+    "whole numbers, this package's own words, and other sentences of "
+    "this profile"
+)
+WRONG_NOTE_ARGUMENTS = "internal check: wrong number of parts for"
+
+
+class Note(str):
+    """One sentence of the profile, carrying which sentence it is.
+
+    A Note IS its text: it compares, sorts, joins and serializes as the
+    string it holds, so every consumer written against a profile of
+    plain sentences reads exactly what it read before. What it carries
+    BESIDE the text is where the text came from -- the `form` it was
+    built from and the `arguments` that filled that form.
+
+    That pair is the whole control. `profile.check_publication` rebuilds
+    the text from them and refuses the leaf unless the rebuilt text is
+    identical, so a sentence can appear in a finished document only if
+    this module can write it again from enumerated parts.
+
+    Two properties of Python are load-bearing here, and both are relied
+    on deliberately:
+
+    * anything joined to or formatted from a Note is a plain `str`.
+      A future edit that interpolates a value into a sentence therefore
+      loses the form rather than carrying it along, and the guard sees
+      a string with no origin;
+    * an instance built any other way than through `note` keeps this
+      class's own defaults -- an empty form and no arguments -- which is
+      not a form, so it is refused too.
+
+    Guarantees: the text is fixed at construction and never changes;
+    `form` is one of `NOTE_FORMS` and `arguments` are enumerated
+    whenever the instance came from `note`; no I/O of any kind.
+    """
+
+    form: str = ""
+    arguments: "tuple[object, ...]" = ()
+
+
+def argument_is_enumerated(argument: object) -> bool:
+    """Whether one part of a sentence is a part the grammar allows.
+
+    Guarantees:
+
+    - Inputs: any object, including one this module did not make.
+    - Determinism: the answer depends only on the argument.
+    - Errors raised: none. A part the grammar does not allow is False,
+      never an exception, so a caller can ask about anything.
+    - Boundary: True for a whole number of zero or more, for a word of
+      `NOTE_ARGUMENT_WORDS`, and for a nested (form, arguments) pair
+      whose own parts are enumerated. A value of the real table is text
+      that is not one of those words, so it is False, which is the
+      property the publication guard rests on.
+
+    A truth value is NOT a whole number here. `True` counts as `1` in
+    Python, and a sentence that quietly rendered a flag as a count would
+    read as a fact about the column.
+    """
+    if isinstance(argument, bool):
+        return False
+    if isinstance(argument, int):
+        return argument >= 0
+    if isinstance(argument, str):
+        return argument in NOTE_ARGUMENT_WORDS
+    if isinstance(argument, tuple):
+        if len(argument) != 2:
+            return False
+        form = argument[0]
+        parts = argument[1]
+        if not isinstance(form, str) or form not in NOTE_ARITY:
+            return False
+        if not isinstance(parts, tuple):
+            return False
+        if len(parts) != NOTE_ARITY[form]:
+            return False
+        for part in parts:
+            if not argument_is_enumerated(part):
+                return False
+        return True
+    return False
+
+
+def _whole(arguments: "tuple[object, ...]", place: int) -> int:
+    """One argument as the whole number the form says it is."""
+    argument = arguments[place]
+    if isinstance(argument, bool):
+        raise TypeError(UNAUTHORIZED_NOTE_ARGUMENT)
+    if not isinstance(argument, int):
+        raise TypeError(UNAUTHORIZED_NOTE_ARGUMENT)
+    return argument
+
+
+def _word(arguments: "tuple[object, ...]", place: int) -> str:
+    """One argument as the vocabulary word the form says it is."""
+    argument = arguments[place]
+    if not isinstance(argument, str):
+        raise TypeError(UNAUTHORIZED_NOTE_ARGUMENT)
+    if argument not in NOTE_ARGUMENT_WORDS:
+        raise ValueError(UNAUTHORIZED_NOTE_ARGUMENT)
+    return argument
+
+
+def _said(arguments: "tuple[object, ...]", place: int) -> str:
+    """One argument as the sentence fragment the form says it is."""
+    argument = arguments[place]
+    if not isinstance(argument, tuple):
+        raise TypeError(UNAUTHORIZED_NOTE_ARGUMENT)
+    if len(argument) != 2:
+        raise ValueError(UNAUTHORIZED_NOTE_ARGUMENT)
+    form = argument[0]
+    parts = argument[1]
+    if not isinstance(form, str):
+        raise TypeError(UNAUTHORIZED_NOTE_ARGUMENT)
+    if not isinstance(parts, tuple):
+        raise TypeError(UNAUTHORIZED_NOTE_ARGUMENT)
+    return rendered(form, parts)
+
+
+def rendered(form: str, arguments: "tuple[object, ...]") -> str:
+    """The exact text of one form, written from its arguments alone.
+
+    Guarantees:
+
+    - Inputs: a form of `NOTE_ARITY` and exactly as many arguments as
+      that table gives it, each one enumerated.
+    - Determinism: the text depends only on the form and the arguments.
+      The same pair always writes the same sentence, on every platform
+      and in every run, which is what lets the publication guard rebuild
+      a sentence and compare it.
+    - Errors raised: ValueError for a form this grammar does not have,
+      for the wrong number of arguments, and for a word that is not one
+      of `NOTE_ARGUMENT_WORDS`; TypeError for an argument that is not
+      of the kind the form takes at that place. Both are internal
+      checks: `note` refuses the same arguments before rendering, and
+      the publication guard refuses the sentence rather than letting a
+      failure here reach a person.
+    - Boundary: every branch below is literal text and its own
+      arguments. Nothing here reads a column, a cell, a file or a
+      setting, so no value of the real table can reach a sentence
+      except by being passed in as an argument -- which
+      `argument_is_enumerated` refuses.
+    """
+    if form not in NOTE_ARITY:
+        raise ValueError(f"{UNKNOWN_NOTE_FORM} {form}")
+    if len(arguments) != NOTE_ARITY[form]:
+        raise ValueError(f"{WRONG_NOTE_ARGUMENTS} {form}")
+    if form == NOTE_UNREPRESENTABLE_WITHHELD:
+        return (
+            "no value of this column is published: too few of them are "
+            "numbers this file format can hold"
+        )
+    if form == NOTE_ONE_VALUE_BELOW_FLOOR:
+        return (
+            f"the single value in this column is shared by fewer rows "
+            f"than the smallest group size ({_whole(arguments, 0)}), "
+            f"so the value itself is not published"
+        )
+    if form == NOTE_ONE_OF_TWO_BELOW_FLOOR:
+        return (
+            f"{_whole(arguments, 0)} of the two labels in this "
+            f"column are shared by fewer than "
+            f"{_whole(arguments, 1)} rows, so that label is not "
+            f"published"
+        )
+    if form == NOTE_LABELS_POOLED:
+        return (
+            f"{_whole(arguments, 0)} value(s) of this column are each "
+            f"shared by fewer than {_whole(arguments, 1)} rows, so "
+            f"they are counted together instead of being published "
+            f"({_whole(arguments, 2)} rows in total)"
+        )
+    if form == NOTE_FREE_TEXT_WITHHELD:
+        return (
+            "this column is described as free text, so none of its values "
+            "are published: only how long they are, how many words they "
+            "hold, and how often they repeat"
+        )
+    if form == NOTE_IDENTIFIER_WITHHELD:
+        return (
+            "this column holds record numbers or codes, so no value of it "
+            "is published anywhere in its description: only how many there "
+            "are, how long they are, how often they repeat, and what "
+            "synthtwin decided about them"
+        )
+    if form == EVIDENCE_EMPTY:
+        return (
+            "every value in this column is blank or one of the "
+            "spellings that mean 'no value'"
+        )
+    if form == EVIDENCE_UNREPRESENTABLE:
+        holdable = _whole(arguments, 2)
+        if not holdable:
+            said = "none of them is a number this file format can hold"
+        else:
+            said = (
+                f"only {holdable} of them is a number this "
+                f"file format can hold"
+            )
+        return (
+            f"{_whole(arguments, 0)} of the {_whole(arguments, 1)} values "
+            f"are written as numbers, and " + said
+        )
+    if form == EVIDENCE_ONE_VALUE:
+        return (
+            f"all {_whole(arguments, 0)} values that are present are the same"
+        )
+    if form == EVIDENCE_TWO_VALUES:
+        return (
+            "there are exactly two different values, ignoring upper "
+            "and lower case"
+        )
+    if form == EVIDENCE_DATES:
+        return (
+            f"{_whole(arguments, 0)} of the {_whole(arguments, 1)} values "
+            f"are dates written as "
+            f"{parsing.format_example(_word(arguments, 2))}"
+        )
+    if form == EVIDENCE_COUNTS:
+        return (
+            f"all {_whole(arguments, 0)} numeric values are whole and none "
+            f"is negative, so this column counts things"
+        )
+    if form == EVIDENCE_NUMBERS:
+        return (
+            f"{_whole(arguments, 0)} of the {_whole(arguments, 1)} values "
+            f"are written as numbers"
+        )
+    if form == EVIDENCE_CATEGORIES:
+        return (
+            f"there are {_whole(arguments, 0)} different values, which is "
+            f"within the {_whole(arguments, 1)} a set of categories may "
+            f"have in a table of {_whole(arguments, 2)} rows, so this "
+            f"column is a set of categories"
+        )
+    if form == EVIDENCE_NO_READING_FITS:
+        return (
+            f"{_said(arguments, 0)}, {_said(arguments, 1)}, and there are "
+            f"{_whole(arguments, 2)} different values where a set of "
+            f"categories may have at most {_whole(arguments, 3)} in a "
+            f"table of {_whole(arguments, 4)} rows"
+        )
+    if form == EVIDENCE_DECLARED_IDENTIFIER:
+        return (
+            "you told synthtwin that this column holds record numbers "
+            "rather than measurements"
+        )
+    if form == SAID_WRITTEN_AS_NUMBERS:
+        written = _whole(arguments, 0)
+        if not written:
+            return (
+                f"none of the {_whole(arguments, 1)} values is written as "
+                f"a number"
+            )
+        return (
+            f"{written} of the {_whole(arguments, 1)} values are written "
+            f"as numbers"
+        )
+    if form == SAID_READ_AS_DATES:
+        read = _whole(arguments, 0)
+        if not read:
+            return "none of them reads as a date in any form synthtwin knows"
+        return (
+            f"{read} read as dates written as "
+            f"{parsing.format_example(_word(arguments, 1))}"
+        )
+    if form == REMARK_OUT_OF_RANGE:
+        return (
+            f"{_whole(arguments, 0)} value(s) are numbers too large or "
+            f"too small for this file format to hold. They are counted "
+            f"as numbers for deciding what this column is, and their "
+            f"sign and whole-number status are counted too, but they "
+            f"are left out of every statistic"
+        )
+    if form == REMARK_CONTRADICTORY:
+        return (
+            f"{_whole(arguments, 0)} value(s) are written in a form "
+            f"whose meaning contradicts itself -- a plus or minus sign "
+            f"inside brackets, where the brackets already mean negative. "
+            f"synthtwin will not guess which was meant, so these values "
+            f"are left out of every statistic. Write them with a sign "
+            f"or with brackets, not both, and run the command again"
+        )
+    if form == REMARK_RARE_SENTINELS:
+        return (
+            f"{_whole(arguments, 0)} of the numbers synthtwin uses as "
+            f"stand-ins for 'no value' appeared in this column too few "
+            f"times to be named here; the decision about each of them is "
+            f"recorded in the counts above"
+        )
+    if form == REMARK_UNREPRESENTABLE:
+        return (
+            f"this column is written as numbers, but only "
+            f"{_whole(arguments, 0)} of its {_whole(arguments, 1)} numeric "
+            f"values is a number this file format can hold -- the rest "
+            f"are too large or too small, or in a form whose meaning "
+            f"contradicts itself. Too few of them are left to describe "
+            f"the column, and synthtwin will not invent values in their "
+            f"place, so no statistic and no value of this column is "
+            f"published. Rescale the column (for example, record "
+            f"thousands instead of units) and run the command again"
+        )
+    if form == REMARK_CASE_ONLY_TWO:
+        return (
+            "this column has values that differ only in upper and "
+            "lower case; they are counted, and published, as one"
+        )
+    if form == REMARK_TWO_ALSO_NUMBERS:
+        return (
+            "the two values in this column also read as numbers or "
+            "dates; because there are only two of them, the profile "
+            "records the two values and how often each appears, "
+            "which describes the column exactly"
+        )
+    if form == REMARK_DATES_ALSO_NUMBERS:
+        return (
+            "the values in this column read both as dates and as "
+            "plain numbers; they were read as dates"
+        )
+    if form == REMARK_MONTH_FIRST:
+        return (
+            "dates written with slashes are read month first "
+            "(03/04/2024 is the 4th of March); if this table writes "
+            "the day first, the profile has the month and day the "
+            "wrong way round"
+        )
+    if form == REMARK_CASE_ONLY_MANY:
+        return (
+            "some values in this column differ only in upper and "
+            "lower case; they are counted, and published, as one"
+        )
+    if form == REMARK_NEAR_CATEGORY_LINE:
+        return (
+            f"this column was close to the line between a set of "
+            f"categories and free text: it has {_whole(arguments, 0)} "
+            f"different values and the line is at {_whole(arguments, 1)}"
+        )
+    if form == REMARK_NO_READING_FITS:
+        return (
+            f"synthtwin could not settle what this column holds, so none of "
+            f"its values is published. Here is why: "
+            f"{_said(arguments, 0)} and {_said(arguments, 1)}; a column is "
+            f"described as "
+            f"numbers, or as dates, only when at least "
+            f"{_whole(arguments, 2)} of them "
+            f"read that way. It holds {_whole(arguments, 3)} different "
+            f"values, where "
+            f"a set of categories may hold at most {_whole(arguments, 4)}. "
+            f"Describing it "
+            f"from the part that does read would publish an average, a "
+            f"smallest "
+            f"and a largest value that the rest of the column contradicts, "
+            f"so "
+            f"synthtwin describes it as free text and publishes no value of "
+            f"it "
+            f"at all. If these are measurements written with a currency "
+            f"sign, a "
+            f"per-cent sign, a unit such as mg, or a clock time, write them "
+            f"as "
+            f"plain numbers -- one column for the number, and the unit in "
+            f"the "
+            f"column name -- and run the command again"
+        )
+    if form == REMARK_SOME_NOT_NUMBERS:
+        return (
+            f"{_whole(arguments, 0)} value(s) in this column are not "
+            f"numbers; they were left out of the statistics and are not "
+            f"published"
+        )
+    if form == REMARK_NEAR_NUMERIC_LINE:
+        return (
+            f"this column was close to the line between numbers "
+            f"and text: {_whole(arguments, 0)} of its "
+            f"{_whole(arguments, 1)} values are "
+            f"written as numbers, and the line is at {_whole(arguments, 2)}"
+        )
+    if form == REMARK_ALL_DIFFERENT_NUMBERS:
+        return (
+            "every value in this column is different. That is not "
+            "treated as evidence of anything: the column is described "
+            "as numbers, which keeps its distribution. If it is really "
+            "a record number, run the command again with --identifier "
+            "NAME, where NAME is this column's name, and its values "
+            "will be left out of the profile altogether"
+        )
+    if form == REMARK_SPREAD_OUT_OF_RANGE:
+        return (
+            "the values in this column are so far apart that their "
+            "spread is a number too large for this file format to hold, "
+            "so no standard deviation is published for it: the profile "
+            "records that the spread is out of range rather than a "
+            "number that would be wrong. Every other statistic of this "
+            "column is published as usual. If you need the spread, "
+            "record the column in larger units -- thousands or millions "
+            "instead of units, with the unit in the column name -- and "
+            "run the command again"
+        )
+    if form == REMARK_ALL_DIFFERENT_TEXT:
+        return (
+            "every value in this column is different, and none of the "
+            "forms synthtwin can read fits them. synthtwin did NOT "
+            "assume they are record numbers: it cannot tell from the "
+            "values alone whether these are record numbers or "
+            "measurements written in a form it does not read yet, and a "
+            "wrong guess would throw away the whole distribution. "
+            "Nothing from this column is published either way -- no "
+            "value of it, and no distribution. If these ARE record "
+            "numbers, run the command again with --identifier NAME, "
+            "where NAME is this column's name, and the profile will say "
+            "so. If they are measurements written with a currency sign, "
+            "a per-cent sign, a unit such as mg, or a clock time, write "
+            "them as plain numbers -- one column for the number, and the "
+            "unit in the column name -- and their distribution will be "
+            "described. Do not use --identifier on a measurement: it "
+            "withholds the column entirely"
+        )
+    if form == HEADER_NAMES_BY_OPTION:
+        return (
+            "The first row was read as the column names because the command "
+            "was run with --first-row names."
+        )
+    if form == HEADER_DATA_BY_OPTION:
+        return (
+            "The first row was read as the first record because the command "
+            "was run with --first-row data, so the columns were named "
+            "column_1, column_2, and so on and every record was kept."
+        )
+    if form == HEADER_NAMES_BY_CONVENTION:
+        return (
+            "The first row was read as the column names by convention, not "
+            "by evidence: a CSV file is normally written with its column "
+            "names first, and nothing in this file contradicted that -- no "
+            "value in the first row belongs among the values of the column "
+            "below it. synthtwin did not check that those values ARE names, "
+            "because no such check exists. If that row is really the first "
+            "record, run the command again with --first-row data: the "
+            "columns are then named column_1, column_2, and so on and every "
+            "record is kept."
+        )
+    if form == HEADER_NAMES_SHOWN_BY_COLUMN:
+        return (
+            f"column {_whole(arguments, 0)} holds a number in every row "
+            f"below it, and its first-row value is not a number"
+        )
+    # A form listed in `NOTE_ARITY` with no branch above it is a form
+    # nobody has written the words for, and the last branch's text is
+    # not the right answer for it. It stops here rather than borrowing
+    # somebody else's sentence.
+    raise ValueError(f"{UNKNOWN_NOTE_FORM} {form}")
+
+
+def note(form: str, arguments: "tuple[object, ...]" = ()) -> Note:
+    """Write one sentence of the profile, and say where it came from.
+
+    Guarantees:
+
+    - Inputs: a form of `NOTE_ARITY` and exactly as many arguments as
+      that table gives it, each of them a whole number of zero or more,
+      a word of `NOTE_ARGUMENT_WORDS`, or a nested (form, arguments)
+      pair of this same grammar.
+    - Determinism: the same form and arguments always write the same
+      sentence.
+    - Errors raised: ValueError for an unknown form, for the wrong
+      number of arguments, and for an argument the grammar does not
+      allow -- which is what a value of the real table is.
+    - Boundary: this is the ONLY way a sentence of the finished profile
+      is made. The returned Note carries the form and the arguments, so
+      `profile.check_publication` can rebuild the text and refuse
+      anything it cannot.
+
+    A caller that wants to say something new adds a form to `NOTE_ARITY`
+    and a branch to `rendered`. There is deliberately no way to pass
+    text through: a sentence about a value would need that value as an
+    argument, and no value of a table is one.
+    """
+    if form not in NOTE_ARITY:
+        raise ValueError(f"{UNKNOWN_NOTE_FORM} {form}")
+    if len(arguments) != NOTE_ARITY[form]:
+        raise ValueError(f"{WRONG_NOTE_ARGUMENTS} {form}")
+    for argument in arguments:
+        if not argument_is_enumerated(argument):
+            raise ValueError(UNAUTHORIZED_NOTE_ARGUMENT)
+    written = Note(rendered(form, arguments))
+    written.form = form
+    written.arguments = arguments
+    return written
 
 
 @dataclasses.dataclass(frozen=True)
@@ -435,6 +1219,44 @@ class Settings:
     near_threshold_slack: int = 1
 
 
+def axes_of(role: str, forced_identifier: bool) -> "tuple[str, str, str]":
+    """The three axes a column carries beside its role (plan P2-D3).
+
+    Returns (statistical_type, quality_state, structural_role): what
+    shape the values have, whether there are usable values at all, and
+    whether the column is somebody's key.
+
+    THE THIRD ONE IS NOT DERIVED FROM THE ROLE, and that is the point of
+    having it. A column is structurally an identifier exactly when the
+    person who owns the table named it with `--identifier`, INCLUDING
+    the one case where such a column does not carry the identifier role:
+    a declared column whose cells are all blank or all spellings that
+    mean "no value" is settled as an empty column before any other rule
+    runs, so it arrives here with role `empty` while still being a
+    column whose owner said it holds codes. A consumer that read the
+    role alone would find no trace of the declaration on that column,
+    and would treat it as an ordinary empty one.
+
+    Guarantees:
+
+    - Inputs: a role from `ROLES`, and whether the person declared this
+      column. No value of the column is consulted, so the answer cannot
+      vary with the data it describes.
+    - Determinism: the answer depends only on those two arguments.
+    - Errors raised: ValueError when the role is not one this module
+      defines axes for, which is an internal invariant: `ROLE_AXES` is
+      total over `ROLES` and the suite checks that it stays so.
+    - Boundary: no I/O of any kind, and nothing here can publish a value
+      -- all six results are words of this module's own vocabulary.
+    """
+    if role not in ROLE_AXES:
+        raise ValueError(f"internal check: no axes are defined for {role}")
+    statistical_type, quality_state = ROLE_AXES[role]
+    if forced_identifier:
+        return (statistical_type, quality_state, STRUCTURAL_IDENTIFIER)
+    return (statistical_type, quality_state, STRUCTURAL_DATA)
+
+
 @dataclasses.dataclass(frozen=True)
 class ColumnProfile:
     """One column's description, ready to be written into the profile.
@@ -443,13 +1265,27 @@ class ColumnProfile:
     because it is a field of this class rather than a key some branch
     remembered to add. A count that appears only on the roles someone
     remembered is a count that goes missing exactly when it matters
-    (review items P1-R1-F9, P1-R3-F3).
+    (review items P1-R1-F9, P1-R3-F3). The three axes are here for that
+    same reason: they are what a consumer dispatches on, so a role that
+    carried them and a role that did not would be worse than no axes at
+    all.
     """
 
     name: str
     position: int
     role: str
-    detection_evidence: str
+    # The three axes beside the role (plan P2-D3). `axes_of` above
+    # derives them, and its docstring says why the third one cannot come
+    # from the role.
+    statistical_type: str
+    quality_state: str
+    structural_role: str
+    # The three sentence-bearing fields carry `Note`s, not plain text
+    # (plan P2-D2). A sentence of a profile is built by `note` from an
+    # enumerated form, and these annotations put that rule where a
+    # future edit meets it: assembling one of these out of text is a
+    # type error before it is a publication failure.
+    detection_evidence: Note
     n_present: int
     n_missing: int
     # Exact source spellings, published only for a role whose values may
@@ -460,8 +1296,8 @@ class ColumnProfile:
     # written in full.
     missing_by_class: dict[str, int]
     details: dict[str, object]
-    publication_notes: list[str]
-    remarks: list[str]
+    publication_notes: list[Note]
+    remarks: list[Note]
     # The one classification of the column's cells, as counts. Present
     # on every role, and they always add up to n_present.
     n_numeric: int = 0
@@ -1375,6 +2211,16 @@ class _Cells:
     n_negative_unrepresentable: int
     raw_distinct: int
     folded_counts: dict[str, int]
+    # For each folded identity, the EXACT spellings that folded onto it
+    # and how many rows wrote each one. `folded_counts` is the total of
+    # each of these mappings, and both are kept because they answer
+    # different questions: how many rows share a label, and how those
+    # rows wrote it (owner decisions 9 and 11).
+    #
+    # It is counted here, once, with everything else. A rule that needed
+    # the spellings and went back to the cells for them would be a
+    # second reading of a column this module reads once.
+    spellings_by_folded: dict[str, dict[str, int]]
     all_digits: int
     code_alphabet: int
 
@@ -1410,6 +2256,7 @@ def _tally(
     all_digits = 0
     code_alphabet = 0
     folded_counts: dict[str, int] = {}
+    spellings_by_folded: dict[str, dict[str, int]] = {}
     for cell in classified:
         present += [cell.text]
         if cell.kind == parsing.NUMBER:
@@ -1447,6 +2294,12 @@ def _tally(
             folded_counts[cell.folded] = folded_counts[cell.folded] + 1
         else:
             folded_counts[cell.folded] = 1
+            spellings_by_folded[cell.folded] = {}
+        spellings = spellings_by_folded[cell.folded]
+        if cell.text in spellings:
+            spellings[cell.text] = spellings[cell.text] + 1
+        else:
+            spellings[cell.text] = 1
     return _Cells(
         classified=classified,
         present=present,
@@ -1465,6 +2318,7 @@ def _tally(
         n_negative_unrepresentable=negative_unrepresentable,
         raw_distinct=len(set(present)),
         folded_counts=folded_counts,
+        spellings_by_folded=spellings_by_folded,
         all_digits=all_digits,
         code_alphabet=code_alphabet,
     )
@@ -1912,7 +2766,61 @@ class _Levels:
     suppressed_counts: list[int]
 
 
-def _levels(counts: dict[str, int], settings: Settings) -> _Levels:
+def _variants(
+    spellings: dict[str, int], settings: Settings
+) -> "tuple[dict[str, int], dict[str, int]]":
+    """How one published label was actually written, under the floor.
+
+    Returns (the spellings that may be named, the anonymous multiplicity
+    map of the ones that may not).
+
+    WHY THE PROFILE CARRIES THIS AT ALL (owner decisions 9 and 11). A
+    published label is a FOLDED identity -- trimmed and case-folded --
+    so a column holding `A`, `a`, `B`, `b` publishes two labels of two
+    rows each, and a description built from that alone says nothing
+    about the four different values the column holds. Anything built
+    from it would repeat where the column never did. The implementer
+    proposed accepting that and disclosing it; the owner directed the
+    opposite, so the spellings are recorded and the count of different
+    values can be kept.
+
+    THE FLOOR GOVERNS A SPELLING EXACTLY AS IT GOVERNS A LABEL. A
+    spelling shared by fewer than `small_cell_floor` rows is not named:
+    it is counted, unnamed, into the second mapping, whose keys say how
+    many rows a held-back spelling covered and whose entries say how
+    many different spellings covered exactly that many. Without that
+    second mapping a label of eleven rows written eleven different ways
+    and one written two ways would be the same profile, and neither
+    could be rebuilt.
+
+    Guarantees:
+
+    - Inputs: the exact spellings of ONE folded identity with how many
+      rows wrote each, and the settings whose floor governs them.
+    - Determinism: the answer depends only on those two, and the named
+      spellings are built in sorted order.
+    - Errors raised: none.
+    - Boundary: a spelling reaches the first mapping only when at least
+      `small_cell_floor` rows wrote it -- the same line a whole label
+      has to clear -- so nothing crosses it that a label would not, and
+      the second mapping names nothing at all.
+    """
+    named: dict[str, int] = {}
+    withheld: list[int] = []
+    for spelling in sorted(spellings):
+        count = spellings[spelling]
+        if count >= settings.small_cell_floor:
+            named[spelling] = count
+        else:
+            withheld += [count]
+    return (named, _multiplicity_map(withheld))
+
+
+def _levels(
+    counts: dict[str, int],
+    spellings_by_folded: dict[str, dict[str, int]],
+    settings: Settings,
+) -> _Levels:
     """Published levels, plus everything that did not reach the profile.
 
     Levels are keyed on the value AFTER trimming and case folding --
@@ -1921,6 +2829,15 @@ def _levels(counts: dict[str, int], settings: Settings) -> _Levels:
     another is what let a column the profile called binary publish
     THREE labels, and what let a lone differently-cased row become a
     level of its own (review item P1-R1-F10).
+
+    Each PUBLISHED level also carries how it was written: `variants`
+    names every spelling of it that cleared the floor, and
+    `variants_withheld` counts the ones that did not, without naming
+    them (owner decisions 9 and 11). `_variants` above states the rule
+    and why the profile carries it. A level that did NOT clear the floor
+    carries neither, because it has no entry to carry them in: a
+    spelling of a label the profile refuses to name may not appear
+    beside its count under any other key.
 
     `suppressed_counts` is the anonymous multiset of the withheld
     levels' sizes. Without it a binary column split 1/9 and one split
@@ -1946,7 +2863,15 @@ def _levels(counts: dict[str, int], settings: Settings) -> _Levels:
     for label in ordered:
         count = counts[label]
         if count >= settings.small_cell_floor:
-            entries += [{"label": label, "count": count}]
+            named, withheld = _variants(spellings_by_folded[label], settings)
+            entries += [
+                {
+                    "label": label,
+                    "count": count,
+                    "variants": named,
+                    "variants_withheld": withheld,
+                }
+            ]
         else:
             suppressed_levels = suppressed_levels + 1
             suppressed_rows = suppressed_rows + count
@@ -1992,7 +2917,115 @@ def _text_details(cells: _Cells) -> dict[str, object]:
         },
         "n_all_digits": cells.all_digits,
         "n_code_alphabet": cells.code_alphabet,
+        # The shape of repetition, with no value attached to it (plan
+        # P2-D4). A free-text column publishes no value, so without this
+        # a column of a hundred different notes and one of fifty notes
+        # written twice each are the same description, and anything
+        # grouped by this column would behave differently on a twin than
+        # on the table. `_n_distinct_by_occurrences` states its key form
+        # and exactly what it does and does not disclose; it is the same
+        # field, built by the same function, as the one a declared
+        # record-number column has carried since review item P1-R8-F4.
+        "n_distinct_by_occurrences": _n_distinct_by_occurrences(
+            cells.present
+        ),
     }
+
+
+def numeric_style(text: str) -> str:
+    """Which of the six forms one numeric cell was written in.
+
+    THE RULE ITSELF IS `parsing.numeric_style`, and this is the name the
+    describing side calls it by. It was moved there so that the
+    generator, which may not import this module, recounts the twin's
+    forms with the SAME ladder rather than a copy of it.
+
+    THE LADDER IS FIRST-MATCH-WINS AND ITS ORDER IS PART OF THE
+    CONTRACT, because a producer and a consumer that test the marks in
+    different orders disagree about a cell carrying more than one:
+
+    0. surrounding spaces come off; a value wrapped in a matching pair
+       of accounting brackets is unwrapped and trimmed again; thousands
+       separators are dropped. What is left is the CORE;
+    1. `exponent_upper` -- the core holds an `E`;
+    2. `exponent_lower` -- the core holds an `e`;
+    3. `decimal` -- the core holds a `.`;
+    4. `leading_plus` -- the core begins with `+`;
+    5. `leading_zero` -- after any leading `-`, the core begins with `0`
+       and is longer than that single `0`;
+    6. `plain` -- everything else.
+
+    WHY THE TYPE-BEARING FORMS ARE TESTED FIRST. A reader infers a
+    decimal column from a decimal point or an exponent anywhere in it,
+    so the mark that decides the inferred type is the one that must be
+    counted when a cell carries two. `+0.5` is therefore counted as
+    `decimal` and its leading plus is lost for that cell; the totals
+    still close, and that is the trade this order makes deliberately.
+
+    TWO SOURCE FORMS ARE NOT FORMS HERE, and the consequence is
+    recorded rather than left to be discovered: accounting brackets and
+    thousands separators are classified by the digits inside them. A
+    comma would break a CSV row, and brackets are outside the spellings
+    a twin may write, so neither could be reproduced and neither is
+    counted as its own form.
+
+    Guarantees:
+
+    - Inputs: the text of one cell, exactly as the file spells it.
+      Sensible only for a cell that reads as a number this format can
+      hold; every other cell is counted elsewhere.
+    - Determinism: the answer depends only on the text.
+    - Errors raised: TypeError if handed anything that is not a string
+      instance, through `parsing.trimmed`.
+    - Boundary: the answer is one of six words of this module's own
+      vocabulary, so no spelling and no magnitude of the cell can travel
+      out through it. No I/O of any kind.
+    """
+    return parsing.numeric_style(text)
+
+
+def _numeric_styles(cells: _Cells) -> dict[str, int]:
+    """How many cells of this column used each form, under the floor.
+
+    Counted over the cells that read as a number this format can hold,
+    and over no others: a cell too large to hold, or one whose notation
+    contradicts itself, is written by a rule of its own and has forms
+    this enumeration cannot express, so counting it here would promise
+    something no twin could keep.
+
+    THE FLOOR GOVERNS A FORM AS IT GOVERNS A LABEL. A form used by fewer
+    than `small_cell_floor` cells has no key of its own; its cells are
+    counted into a `(withheld)` remainder, so a single oddly written
+    cell cannot be singled out. What the mapping publishes either way is
+    a count of cells per form -- no value, no magnitude, no spelling.
+
+    Guarantees: accepts a tally of one column; returns a mapping from
+    form names, plus possibly `(withheld)`, to counts that sum to how
+    many cells read as numbers this format can hold. Determinism: the
+    answer depends only on the tally, and the keys are built in the
+    enumeration's order. Raises nothing. No I/O of any kind.
+    """
+    counts: dict[str, int] = {}
+    for cell in cells.classified:
+        if cell.kind != parsing.NUMBER:
+            continue
+        style = numeric_style(cell.text)
+        if style in counts:
+            counts[style] = counts[style] + 1
+        else:
+            counts[style] = 1
+    published_counts: dict[str, int] = {}
+    withheld = 0
+    for style in NUMERIC_STYLES:
+        if style not in counts:
+            continue
+        if counts[style] >= cells.settings.small_cell_floor:
+            published_counts[style] = counts[style]
+        else:
+            withheld = withheld + counts[style]
+    if withheld:
+        published_counts[SUPPRESSED_LABEL] = withheld
+    return published_counts
 
 
 def _numeric_details(cells: _Cells, whole: bool) -> dict[str, object]:
@@ -2016,6 +3049,12 @@ def _numeric_details(cells: _Cells, whole: bool) -> dict[str, object]:
         "n_used_in_statistics": len(numbers),
         "n_left_out_of_statistics": n_present - len(numbers),
         "numeric_share": _share(_numeric_looking(cells), n_present),
+        # How the numbers were WRITTEN, which is not a fact about what
+        # they are (owner decision 10). Without it, a column of `0`, `00`
+        # and `000` and a column of `0.0`, `00.0` and `000.0` are the
+        # same profile, and a reader of either twin would infer a type
+        # the real table does not have for one of them.
+        "numeric_styles": _numeric_styles(cells),
     }
     moments = _moments(numbers)
     for key in sorted(moments):
@@ -2129,7 +3168,7 @@ def _datetime_details(
     for canonical, offset in pairs:
         instant = parsing.instant_key(canonical, offset)
         shown = canonical
-        if reading == "utc":
+        if reading == READ_AT_UTC:
             at_utc = parsing.utc_canonical(canonical, offset)
             if at_utc is not None:
                 shown = at_utc
@@ -2153,11 +3192,11 @@ def _datetime_details(
     digits = 0
     for value in sources:
         digits = max(digits, parsing.subsecond_digits(value, format_name))
-    resolution = "date"
+    resolution = RESOLUTION_DATE
     if format_name == "iso-datetime":
-        resolution = "datetime"
+        resolution = RESOLUTION_DATETIME
     if format_name == "year-quarter":
-        resolution = "quarter"
+        resolution = RESOLUTION_QUARTER
     # An offset is NAMED only where at least `small_cell_floor` rows
     # carry it. Publishing the endpoint's offset unconditionally beside a
     # floored `utc_offsets` map named the one rare zone the map had just
@@ -2204,8 +3243,8 @@ def _datetime_reading(pairs: list[tuple[str, str]]) -> str:
         key = offset if offset else "(none)"
         seen[key] = 1
     if len(seen) <= 1:
-        return "local"
-    return "utc"
+        return READ_AT_LOCAL
+    return READ_AT_UTC
 
 
 def _named_offset(offset: str, published_offsets: dict[str, int]) -> str:
@@ -2237,13 +3276,20 @@ def _finest_precision(sources: list[str], format_name: str) -> str:
 
 @dataclasses.dataclass(frozen=True)
 class _Verdict:
-    """One role decision, with everything it wants to publish."""
+    """One role decision, with everything it wants to publish.
+
+    The evidence, the notes and the remarks are `Note`s rather than
+    plain strings, and the annotations say so: a sentence of the
+    finished profile is built by `note` from an enumerated form, and a
+    branch that assembled one out of text would be caught by the type
+    check before the publication guard ever saw it (plan P2-D2).
+    """
 
     role: str
-    evidence: str
+    evidence: Note
     details: dict[str, object]
-    notes: list[str]
-    remarks: list[str]
+    notes: list[Note]
+    remarks: list[Note]
 
 
 def _all_different(cells: _Cells) -> bool:
@@ -2339,8 +3385,8 @@ def _decide(cells: _Cells, forced_identifier: bool) -> _Verdict:
     settings = cells.settings
     present = cells.present
     n_present = len(present)
-    notes: list[str] = []
-    remarks: list[str] = []
+    notes: list[Note] = []
+    remarks: list[Note] = []
     numeric_looking = _numeric_looking(cells)
     strict_needed = _needed(settings.minimum_parse_rate, n_present)
     folded_distinct = len(cells.folded_counts)
@@ -2377,40 +3423,20 @@ def _decide(cells: _Cells, forced_identifier: bool) -> _Verdict:
         len(cells.numbers) < strict_needed
     ):
         remarks = remarks + [
-            (
-                f"this column is written as numbers, but only "
-                f"{len(cells.numbers)} of its {numeric_looking} numeric "
-                f"values is a number this file format can hold -- the rest "
-                f"are too large or too small, or in a form whose meaning "
-                f"contradicts itself. Too few of them are left to describe "
-                f"the column, and synthtwin will not invent values in their "
-                f"place, so no statistic and no value of this column is "
-                f"published. Rescale the column (for example, record "
-                f"thousands instead of units) and run the command again"
+            note(
+                REMARK_UNREPRESENTABLE,
+                (len(cells.numbers), numeric_looking),
             )
         ]
-        notes = notes + [
-            (
-                "no value of this column is published: too few of them are "
-                "numbers this file format can hold"
-            )
-        ]
+        notes = notes + [note(NOTE_UNREPRESENTABLE_WITHHELD)]
         return _Verdict(
             role=ROLE_UNREPRESENTABLE,
             # "all N of the M values" was false whenever N < M, and the
             # review's own complaint was a detection_evidence sentence
             # that stated something the column did not show.
-            evidence=(
-                f"{numeric_looking} of the {n_present} values are written as "
-                f"numbers, and "
-                + (
-                    "none of them is a number this file format can hold"
-                    if not cells.numbers
-                    else (
-                        f"only {len(cells.numbers)} of them is a number this "
-                        f"file format can hold"
-                    )
-                )
+            evidence=note(
+                EVIDENCE_UNREPRESENTABLE,
+                (numeric_looking, n_present, len(cells.numbers)),
             ),
             details={
                 "n_negative": cells.n_negative,
@@ -2419,6 +3445,14 @@ def _decide(cells: _Cells, forced_identifier: bool) -> _Verdict:
                 "n_whole": cells.n_whole,
                 "n_fraction": cells.n_fraction,
                 "n_whole_unknown": cells.n_whole_unknown,
+                # The same repetition fact free text and declared record
+                # numbers carry (plan P2-D4), for the same reason: this
+                # column publishes no value either, so its shape of
+                # repetition is otherwise unrecorded, and two columns
+                # with different ones would be one description.
+                "n_distinct_by_occurrences": _n_distinct_by_occurrences(
+                    cells.present
+                ),
             },
             notes=notes,
             remarks=remarks,
@@ -2426,18 +3460,19 @@ def _decide(cells: _Cells, forced_identifier: bool) -> _Verdict:
 
     # RULE 3 -- one value, repeated.
     if folded_distinct == 1:
-        levels = _levels(cells.folded_counts, settings)
+        levels = _levels(
+            cells.folded_counts, cells.spellings_by_folded, settings
+        )
         if levels.suppressed_levels:
             notes = notes + [
-                (
-                    "the single value in this column is shared by fewer rows "
-                    f"than the smallest group size ({settings.small_cell_floor}), "
-                    "so the value itself is not published"
+                note(
+                    NOTE_ONE_VALUE_BELOW_FLOOR,
+                    (settings.small_cell_floor,),
                 )
             ]
         return _Verdict(
             role=ROLE_CONSTANT,
-            evidence=f"all {n_present} values that are present are the same",
+            evidence=note(EVIDENCE_ONE_VALUE, (n_present,)),
             details=_level_details(levels),
             notes=notes,
             remarks=remarks,
@@ -2447,40 +3482,25 @@ def _decide(cells: _Cells, forced_identifier: bool) -> _Verdict:
     # counted with, so the role and the published list can never
     # disagree about how many values there are.
     if folded_distinct == 2:
-        levels = _levels(cells.folded_counts, settings)
+        levels = _levels(
+            cells.folded_counts, cells.spellings_by_folded, settings
+        )
         if levels.suppressed_levels:
             notes = notes + [
-                (
-                    f"{levels.suppressed_levels} of the two labels in this "
-                    f"column are shared by fewer than "
-                    f"{settings.small_cell_floor} rows, so that label is not "
-                    f"published"
+                note(
+                    NOTE_ONE_OF_TWO_BELOW_FLOOR,
+                    (levels.suppressed_levels, settings.small_cell_floor),
                 )
             ]
         if cells.raw_distinct != 2:
-            remarks = remarks + [
-                (
-                    "this column has values that differ only in upper and "
-                    "lower case; they are counted, and published, as one"
-                )
-            ]
+            remarks = remarks + [note(REMARK_CASE_ONLY_TWO)]
         if numeric_looking >= strict_needed or _matching_date_format(
             present, settings
         ):
-            remarks = remarks + [
-                (
-                    "the two values in this column also read as numbers or "
-                    "dates; because there are only two of them, the profile "
-                    "records the two values and how often each appears, "
-                    "which describes the column exactly"
-                )
-            ]
+            remarks = remarks + [note(REMARK_TWO_ALSO_NUMBERS)]
         return _Verdict(
             role=ROLE_BINARY,
-            evidence=(
-                "there are exactly two different values, ignoring upper "
-                "and lower case"
-            ),
+            evidence=note(EVIDENCE_TWO_VALUES),
             details=_level_details(levels),
             notes=notes,
             remarks=remarks,
@@ -2505,26 +3525,13 @@ def _decide(cells: _Cells, forced_identifier: bool) -> _Verdict:
             format_name, pairs, sources, unparsed, settings
         )
         if numeric_looking >= strict_needed:
-            remarks = remarks + [
-                (
-                    "the values in this column read both as dates and as "
-                    "plain numbers; they were read as dates"
-                )
-            ]
+            remarks = remarks + [note(REMARK_DATES_ALSO_NUMBERS)]
         if format_name == "month-first-date":
-            remarks = remarks + [
-                (
-                    "dates written with slashes are read month first "
-                    "(03/04/2024 is the 4th of March); if this table writes "
-                    "the day first, the profile has the month and day the "
-                    "wrong way round"
-                )
-            ]
+            remarks = remarks + [note(REMARK_MONTH_FIRST)]
         return _Verdict(
             role=ROLE_DATETIME,
-            evidence=(
-                f"{len(pairs)} of the {n_present} values are dates written "
-                f"as {parsing.format_example(format_name)}"
+            evidence=note(
+                EVIDENCE_DATES, (len(pairs), n_present, format_name)
             ),
             notes=notes,
             remarks=remarks,
@@ -2547,33 +3554,24 @@ def _decide(cells: _Cells, forced_identifier: bool) -> _Verdict:
     # measurements and a small set of labels that happen to be digits is
     # described as labels.
     if folded_distinct <= ceiling:
-        levels = _levels(cells.folded_counts, settings)
+        levels = _levels(
+            cells.folded_counts, cells.spellings_by_folded, settings
+        )
         details = _level_details(levels)
         details["level_ceiling"] = ceiling
         if levels.suppressed_levels:
             notes = notes + [_pooled_note(levels, settings)]
         if cells.raw_distinct != folded_distinct:
-            remarks = remarks + [
-                (
-                    "some values in this column differ only in upper and "
-                    "lower case; they are counted, and published, as one"
-                )
-            ]
+            remarks = remarks + [note(REMARK_CASE_ONLY_MANY)]
         if ceiling - folded_distinct <= settings.near_threshold_slack:
             remarks = remarks + [
-                (
-                    f"this column was close to the line between a set of "
-                    f"categories and free text: it has {folded_distinct} "
-                    f"different values and the line is at {ceiling}"
-                )
+                note(REMARK_NEAR_CATEGORY_LINE, (folded_distinct, ceiling))
             ]
         return _Verdict(
             role=ROLE_CATEGORICAL,
-            evidence=(
-                f"there are {folded_distinct} different values, which is "
-                f"within the {ceiling} a set of categories may have in a "
-                f"table of {cells.n_rows} rows, so this column is a set "
-                f"of categories"
+            evidence=note(
+                EVIDENCE_CATEGORIES,
+                (folded_distinct, ceiling, cells.n_rows),
             ),
             details=details,
             notes=notes,
@@ -2615,43 +3613,54 @@ def _decide(cells: _Cells, forced_identifier: bool) -> _Verdict:
         cells,
         notes=notes,
         remarks=remarks,
-        evidence=(
-            f"{numbers_said}, {dates_said}, and there are "
-            f"{folded_distinct} different values where a set of categories "
-            f"may have at most {ceiling} in a table of {cells.n_rows} rows"
+        evidence=note(
+            EVIDENCE_NO_READING_FITS,
+            (
+                numbers_said,
+                dates_said,
+                folded_distinct,
+                ceiling,
+                cells.n_rows,
+            ),
         ),
     )
 
 
-def _read_as_numbers(numeric_looking: int, n_present: int) -> str:
+def _read_as_numbers(
+    numeric_looking: int, n_present: int
+) -> "tuple[str, tuple[object, ...]]":
     """How much of a column is written as numbers, in words.
 
     "Written as" rather than "read as", and deliberately: this is the
     count the numeric line is compared against, and it includes the
     cells whose writer meant a number that no format can hold. Saying
     they "read as numbers" would claim more than the column shows.
+
+    It returns the FORM and its arguments rather than the words, because
+    this fragment is never published on its own: it goes inside two
+    longer sentences, and a sentence built by formatting one string into
+    another is a plain string with no origin, which the publication
+    guard refuses (plan P2-D2). `taxonomy.rendered` writes the words.
     """
-    if not numeric_looking:
-        return f"none of the {n_present} values is written as a number"
-    return (
-        f"{numeric_looking} of the {n_present} values are written as numbers"
-    )
+    return (SAID_WRITTEN_AS_NUMBERS, (numeric_looking, n_present))
 
 
-def _read_as_dates(present: list[str]) -> str:
-    """How much of a column read as dates, and under which format."""
+def _read_as_dates(present: list[str]) -> "tuple[str, tuple[object, ...]]":
+    """How much of a column read as dates, and under which format.
+
+    Returns the form and its arguments, for the reason above: this
+    fragment is carried inside a longer sentence.
+    """
     best_name, best_count = _best_date_reading(present)
-    if not best_count:
-        return "none of them reads as a date in any form synthtwin knows"
-    return (
-        f"{best_count} read as dates written as "
-        f"{parsing.format_example(best_name)}"
-    )
+    return (SAID_READ_AS_DATES, (best_count, best_name))
 
 
 def _competing_readings(
-    cells: _Cells, ceiling: int, numbers_said: str, dates_said: str
-) -> str:
+    cells: _Cells,
+    ceiling: int,
+    numbers_said: "tuple[str, tuple[object, ...]]",
+    dates_said: "tuple[str, tuple[object, ...]]",
+) -> Note:
     """Why no reading fitted this column, with the rate each one reached.
 
     A column that publishes nothing owes its owner the reason, and the
@@ -2670,28 +3679,23 @@ def _competing_readings(
     n_present = len(cells.present)
     strict_needed = _needed(settings.minimum_parse_rate, n_present)
     folded_distinct = len(cells.folded_counts)
-    return (
-        f"synthtwin could not settle what this column holds, so none of "
-        f"its values is published. Here is why: "
-        f"{numbers_said} and {dates_said}; a column is described as "
-        f"numbers, or as dates, only when at least {strict_needed} of them "
-        f"read that way. It holds {folded_distinct} different values, where "
-        f"a set of categories may hold at most {ceiling}. Describing it "
-        f"from the part that does read would publish an average, a smallest "
-        f"and a largest value that the rest of the column contradicts, so "
-        f"synthtwin describes it as free text and publishes no value of it "
-        f"at all. If these are measurements written with a currency sign, a "
-        f"per-cent sign, a unit such as mg, or a clock time, write them as "
-        f"plain numbers -- one column for the number, and the unit in the "
-        f"column name -- and run the command again"
+    return note(
+        REMARK_NO_READING_FITS,
+        (
+            numbers_said,
+            dates_said,
+            strict_needed,
+            folded_distinct,
+            ceiling,
+        ),
     )
 
 
 def _free_text_verdict(
     cells: _Cells,
-    notes: list[str],
-    remarks: list[str],
-    evidence: str,
+    notes: list[Note],
+    remarks: list[Note],
+    evidence: Note,
 ) -> _Verdict:
     """The free-text block: shape statistics only, and no value at all.
 
@@ -2724,34 +3728,16 @@ def _free_text_verdict(
     `_Verdict` whose role is free text and whose details carry no value
     of the column, only lengths and word counts. Raises nothing. No I/O.
     """
-    notes = notes + [
-        (
-            "this column is described as free text, so none of its values "
-            "are published: only how long they are and how many words they "
-            "hold"
-        )
-    ]
+    # The note covers the WHOLE block, not the part this function used
+    # to build. "Only how long they are and how many words they hold"
+    # stopped being true the moment the block gained how often the
+    # values repeat (plan P2-D4), and a note that promises less than its
+    # block contains is how the next field slips past unnoticed --
+    # exactly the correction the record-number note took at review item
+    # P1-R8-F4.
+    notes = notes + [note(NOTE_FREE_TEXT_WITHHELD)]
     if _all_different(cells):
-        remarks = remarks + [
-            (
-                "every value in this column is different, and none of the "
-                "forms synthtwin can read fits them. synthtwin did NOT "
-                "assume they are record numbers: it cannot tell from the "
-                "values alone whether these are record numbers or "
-                "measurements written in a form it does not read yet, and a "
-                "wrong guess would throw away the whole distribution. "
-                "Nothing from this column is published either way -- no "
-                "value of it, and no distribution. If these ARE record "
-                "numbers, run the command again with --identifier NAME, "
-                "where NAME is this column's name, and the profile will say "
-                "so. If they are measurements written with a currency sign, "
-                "a per-cent sign, a unit such as mg, or a clock time, write "
-                "them as plain numbers -- one column for the number, and the "
-                "unit in the column name -- and their distribution will be "
-                "described. Do not use --identifier on a measurement: it "
-                "withholds the column entirely"
-            )
-        ]
+        remarks = remarks + [note(REMARK_ALL_DIFFERENT_TEXT)]
     return _Verdict(
         role=ROLE_TEXT,
         evidence=evidence,
@@ -2761,13 +3747,15 @@ def _free_text_verdict(
     )
 
 
-def _pooled_note(levels: _Levels, settings: Settings) -> str:
+def _pooled_note(levels: _Levels, settings: Settings) -> Note:
     """The note that says how many levels were withheld and how many rows."""
-    return (
-        f"{levels.suppressed_levels} value(s) of this column are each "
-        f"shared by fewer than {settings.small_cell_floor} rows, so "
-        f"they are counted together instead of being published "
-        f"({levels.suppressed_rows} rows in total)"
+    return note(
+        NOTE_LABELS_POOLED,
+        (
+            levels.suppressed_levels,
+            settings.small_cell_floor,
+            levels.suppressed_rows,
+        ),
     )
 
 
@@ -2864,26 +3852,56 @@ def _n_distinct_by_occurrences(present: list[str]) -> dict[str, int]:
     Raises nothing. No I/O of any kind.
     """
     counts = _occurrences_of_each(present)
+    return _multiplicity_map([counts[value] for value in sorted(counts)])
+
+
+def _multiplicity_map(sizes: list[int]) -> dict[str, int]:
+    """How many of these groups have one member, two members, and so on.
+
+    THE ONE SHAPE, BUILT IN ONE PLACE. Three published mappings are this
+    same fact about three different things -- how many different values
+    cover exactly n rows (`n_distinct_by_occurrences`), and how many
+    different spellings of one published label cover exactly n rows
+    (`variants_withheld`) -- and they must not drift apart in key form,
+    in padding or in order, because a consumer reads them with one
+    routine. `_n_distinct_by_occurrences` above states what this class
+    of fact does and does not disclose; that statement holds for every
+    caller, because none of them passes anything but group sizes.
+
+    THE KEY FORM: each key is a group size in base ten, left-padded with
+    zeros to the width of the largest key in the SAME mapping, because
+    the document sorts keys as text and `"10"` sorts before `"2"` when
+    written bare. A consumer reads a key as a number; leading zeros do
+    not change it.
+
+    Guarantees: accepts the sizes of some collection of groups, each a
+    whole number of one or more; returns a mapping whose entries sum to
+    how many sizes were given and whose keys, read as numbers and
+    weighted by their entries, sum to the total of those sizes. No sizes
+    gives an empty mapping. Determinism: the answer depends only on the
+    multiset of sizes -- their order cannot reach it -- and the keys are
+    built in increasing numeric order. Raises nothing. No I/O of any
+    kind.
+    """
     tally: dict[int, int] = {}
-    for value in counts:
-        occurrences = counts[value]
-        if occurrences in tally:
-            tally[occurrences] = tally[occurrences] + 1
+    for size in sizes:
+        if size in tally:
+            tally[size] = tally[size] + 1
         else:
-            tally[occurrences] = 1
+            tally[size] = 1
     if not tally:
         return {}
     width = len(f"{max(tally)}")
     shape: dict[str, int] = {}
-    for occurrences in sorted(tally):
-        shape[_left_padded(occurrences, width)] = tally[occurrences]
+    for size in sorted(tally):
+        shape[_left_padded(size, width)] = tally[size]
     return shape
 
 
 def _identifier_verdict(
     cells: _Cells,
-    notes: list[str],
-    remarks: list[str],
+    notes: list[Note],
+    remarks: list[Note],
 ) -> _Verdict:
     """The identifier block. No value of the column reaches it.
 
@@ -2918,20 +3936,10 @@ def _identifier_verdict(
     # too narrow is how the next field slips past unnoticed -- which is
     # why "how often they repeat" joined it with the field that made it
     # true (review item P1-R8-F4).
-    notes = notes + [
-        (
-            "this column holds record numbers or codes, so no value of it "
-            "is published anywhere in its description: only how many there "
-            "are, how long they are, how often they repeat, and what "
-            "synthtwin decided about them"
-        )
-    ]
+    notes = notes + [note(NOTE_IDENTIFIER_WITHHELD)]
     return _Verdict(
         role=ROLE_IDENTIFIER,
-        evidence=(
-            "you told synthtwin that this column holds record numbers "
-            "rather than measurements"
-        ),
+        evidence=note(EVIDENCE_DECLARED_IDENTIFIER),
         details={
             "min_length": min(lengths),
             "max_length": max(lengths),
@@ -2955,7 +3963,7 @@ def _identifier_verdict(
 
 
 def _numeric_verdict(
-    cells: _Cells, notes: list[str], remarks: list[str]
+    cells: _Cells, notes: list[Note], remarks: list[Note]
 ) -> _Verdict:
     """The count/continuous block, at the one strength there is.
 
@@ -2970,12 +3978,7 @@ def _numeric_verdict(
     strict_needed = _needed(settings.minimum_parse_rate, n_present)
     unparsed = n_present - numeric_looking
     if unparsed:
-        remarks = remarks + [
-            (
-                f"{unparsed} value(s) in this column are not numbers; they "
-                f"were left out of the statistics and are not published"
-            )
-        ]
+        remarks = remarks + [note(REMARK_SOME_NOT_NUMBERS, (unparsed,))]
     # A column where EVERY value is written as a number is not "close to
     # the line": no value of it could have been different without the
     # data being different. Reporting it as borderline is the useless
@@ -2989,25 +3992,15 @@ def _numeric_verdict(
         )
     ):
         remarks = remarks + [
-            (
-                f"this column was close to the line between numbers "
-                f"and text: {numeric_looking} of its {n_present} values are "
-                f"written as numbers, and the line is at {strict_needed}"
+            note(
+                REMARK_NEAR_NUMERIC_LINE,
+                (numeric_looking, n_present, strict_needed),
             )
         ]
     if cells.raw_distinct >= _needed(
         settings.identifier_uniqueness, n_present
     ):
-        remarks = remarks + [
-            (
-                "every value in this column is different. That is not "
-                "treated as evidence of anything: the column is described "
-                "as numbers, which keeps its distribution. If it is really "
-                "a record number, run the command again with --identifier "
-                "NAME, where NAME is this column's name, and its values "
-                "will be left out of the profile altogether"
-            )
-        ]
+        remarks = remarks + [note(REMARK_ALL_DIFFERENT_NUMBERS)]
     # A column of counts must be whole and non-negative in EVERY cell
     # whose writer meant a number -- including the ones no format can
     # hold. `(1e999)` is visibly negative and `1e-999` is visibly a
@@ -3023,15 +4016,9 @@ def _numeric_verdict(
     )
     role = ROLE_COUNT if counts_things else ROLE_CONTINUOUS
     if role == ROLE_COUNT:
-        evidence = (
-            f"all {numeric_looking} numeric values are whole and none is "
-            f"negative, so this column counts things"
-        )
+        evidence = note(EVIDENCE_COUNTS, (numeric_looking,))
     else:
-        evidence = (
-            f"{numeric_looking} of the {n_present} values are written as "
-            f"numbers"
-        )
+        evidence = note(EVIDENCE_NUMBERS, (numeric_looking, n_present))
     details = _numeric_details(cells, whole_everywhere)
     # A spread larger than this file format can hold is a fact the
     # profile records in a field of its own, and it is also a fact the
@@ -3039,19 +4026,7 @@ def _numeric_verdict(
     # remark the only sign of it is a null where a number belongs
     # (review item P1-R6-F3).
     if details["std_unrepresentable"]:
-        remarks = remarks + [
-            (
-                "the values in this column are so far apart that their "
-                "spread is a number too large for this file format to hold, "
-                "so no standard deviation is published for it: the profile "
-                "records that the spread is out of range rather than a "
-                "number that would be wrong. Every other statistic of this "
-                "column is published as usual. If you need the spread, "
-                "record the column in larger units -- thousands or millions "
-                "instead of units, with the unit in the column name -- and "
-                "run the command again"
-            )
-        ]
+        remarks = remarks + [note(REMARK_SPREAD_OUT_OF_RANGE)]
     return _Verdict(
         role=role,
         evidence=evidence,
@@ -3315,45 +4290,22 @@ def profile_column(
 
     n_present = len(present)
     n_missing = n_rows - n_present
-    remarks: list[str] = []
+    remarks: list[Note] = []
     if cells.n_out_of_range:
         remarks = remarks + [
-            (
-                f"{cells.n_out_of_range} value(s) are numbers too large or "
-                f"too small for this file format to hold. They are counted "
-                f"as numbers for deciding what this column is, and their "
-                f"sign and whole-number status are counted too, but they "
-                f"are left out of every statistic"
-            )
+            note(REMARK_OUT_OF_RANGE, (cells.n_out_of_range,))
         ]
     if cells.n_contradictory:
         remarks = remarks + [
-            (
-                f"{cells.n_contradictory} value(s) are written in a form "
-                f"whose meaning contradicts itself -- a plus or minus sign "
-                f"inside brackets, where the brackets already mean negative. "
-                f"synthtwin will not guess which was meant, so these values "
-                f"are left out of every statistic. Write them with a sign "
-                f"or with brackets, not both, and run the command again"
-            )
+            note(REMARK_CONTRADICTORY, (cells.n_contradictory,))
         ]
     if unpublished:
-        remarks = remarks + [
-            (
-                f"{unpublished} of the numbers synthtwin uses as stand-ins "
-                f"for 'no value' appeared in this column too few times to be "
-                f"named here; the decision about each of them is recorded in "
-                f"the counts above"
-            )
-        ]
+        remarks = remarks + [note(REMARK_RARE_SENTINELS, (unpublished,))]
 
     if not present:
         verdict = _Verdict(
             role=ROLE_EMPTY,
-            evidence=(
-                "every value in this column is blank or one of the "
-                "spellings that mean 'no value'"
-            ),
+            evidence=note(EVIDENCE_EMPTY),
             details={},
             notes=[],
             remarks=[],
@@ -3375,10 +4327,16 @@ def profile_column(
     # ONE construction site. Every count below is a field of the class,
     # so it exists on every role by construction rather than by
     # somebody remembering to add it in ten places.
+    statistical_type, quality_state, structural_role = axes_of(
+        verdict.role, forced_identifier
+    )
     return ColumnProfile(
         name=name,
         position=position,
         role=verdict.role,
+        statistical_type=statistical_type,
+        quality_state=quality_state,
+        structural_role=structural_role,
         detection_evidence=verdict.evidence,
         n_present=n_present,
         n_missing=n_missing,

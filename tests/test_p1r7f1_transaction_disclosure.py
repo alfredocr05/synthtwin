@@ -30,7 +30,7 @@ import pathlib
 import pytest
 
 import fixtures
-from synthtwin import errors, profile
+from synthtwin import errors, profile, writing
 from synthtwin.cli import main
 from synthtwin.paths import PathValidationError
 
@@ -69,7 +69,7 @@ def _refuse_the_write_of(
     working name still succeeds and only the write is refused -- which
     is the state the review item describes.
     """
-    real = profile.validate_local_path
+    real = writing.validate_local_path
     wanted = f"{doomed}"
 
     def picky(raw: object, *, purpose: str) -> pathlib.Path:
@@ -77,7 +77,7 @@ def _refuse_the_write_of(
             raise PathValidationError(REFUSAL)
         return real(raw, purpose=purpose)  # type: ignore[arg-type]
 
-    monkeypatch.setattr(profile, "validate_local_path", picky)
+    monkeypatch.setattr(writing, "validate_local_path", picky)
 
 
 def _fail_unlink_of(

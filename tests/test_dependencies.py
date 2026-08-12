@@ -11,12 +11,14 @@ import pathlib
 
 REPO = pathlib.Path(__file__).resolve().parent.parent
 
-# Exactly the runtime dependencies Phase 1 authorizes (plan P1-D2).
-# numpy left this set at review round 1: its reductions made published
-# statistics depend on row order, so the profiler computes them itself
-# and imports numpy nowhere. It is still in the closure, as a dependency
-# of pandas, and returns as a direct one in Phase 2 for the RNG.
-AUTHORIZED = {"pandas"}
+# Exactly the runtime dependencies the ratified plans authorize: pandas
+# by Phase 1 (plan P1-D2) and numpy by Phase 2 (plan P2-D8). numpy left
+# this set at Phase 1 review round 1, because its REDUCTIONS made
+# published statistics depend on row order -- so the profiler still
+# computes its own statistics and imports numpy nowhere. What Phase 2
+# brings back is the one random stream the generator draws from, reduced
+# by the offline scanner to `default_rng` and one `integers` call.
+AUTHORIZED = {"numpy", "pandas"}
 
 
 def _pyproject_text() -> str:
@@ -163,7 +165,8 @@ def test_the_install_lock_covers_the_runtime_closure() -> None:
     for name in AUTHORIZED:
         assert f"\n{name}==" in text
     assert "\nnumpy==" in text, (
-        "numpy must still be pinned in the closure: pandas requires it"
+        "numpy must still be pinned in the closure: the generator draws "
+        "its one random stream from it and pandas requires it as well"
     )
 
 

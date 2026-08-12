@@ -612,14 +612,19 @@ jobs:
           #   listed suffix may be present (source and doc text only; data
           #   formats are never allowed anywhere, plan D13)
           wheel required synthtwin/__init__.py
+          wheel required synthtwin/canonical.py
           wheel required synthtwin/cli.py
+          wheel required synthtwin/contract.py
           wheel required synthtwin/errors.py
+          wheel required synthtwin/generation.py
           wheel required synthtwin/parsing.py
           wheel required synthtwin/paths.py
           wheel required synthtwin/profile.py
           wheel required synthtwin/reading.py
+          wheel required synthtwin/rendering.py
           wheel required synthtwin/summary.py
           wheel required synthtwin/taxonomy.py
+          wheel required synthtwin/writing.py
           wheel required DIST-INFO/METADATA
           wheel required DIST-INFO/WHEEL
           wheel required DIST-INFO/RECORD
@@ -633,14 +638,19 @@ jobs:
           sdist required ROOT/README.md
           sdist required ROOT/SECURITY.md
           sdist required ROOT/src/synthtwin/__init__.py
+          sdist required ROOT/src/synthtwin/canonical.py
           sdist required ROOT/src/synthtwin/cli.py
+          sdist required ROOT/src/synthtwin/contract.py
           sdist required ROOT/src/synthtwin/errors.py
+          sdist required ROOT/src/synthtwin/generation.py
           sdist required ROOT/src/synthtwin/parsing.py
           sdist required ROOT/src/synthtwin/paths.py
           sdist required ROOT/src/synthtwin/profile.py
           sdist required ROOT/src/synthtwin/reading.py
+          sdist required ROOT/src/synthtwin/rendering.py
           sdist required ROOT/src/synthtwin/summary.py
           sdist required ROOT/src/synthtwin/taxonomy.py
+          sdist required ROOT/src/synthtwin/writing.py
           sdist optional ROOT/src/synthtwin/py.typed
           sdist optional ROOT/.gitignore
           sdist required ROOT/tools/decontamination/allowed_signers
@@ -789,13 +799,16 @@ jobs:
             exit 1
           fi
           "$RUNNER_TEMP/fresh-env/bin/synthtwin"
-      - name: Profile a demonstration table end to end, offline
-        # Plan P1 acceptance criterion 4: a neutral table is built here
-        # by a seeded script (no data file is ever committed, plan D13),
-        # profiled by the installed command with the socket guard in
-        # place, and its publication notes are checked against the
-        # suppression rules -- the rare label must be absent from both
-        # output files and the notes must say so.
+      - name: Profile a demonstration table and generate its twin, offline
+        # Plan P1 acceptance criterion 4 and plan P2 acceptance criterion
+        # 6: a neutral table is built here by a seeded script (no data
+        # file is ever committed, plan D13), profiled by the installed
+        # command with the socket guard in place, and its publication
+        # notes are checked against the suppression rules -- the rare
+        # label must be absent from both output files and the notes must
+        # say so. The description that run writes is then handed BACK to
+        # the installed command, which builds the twin from it; that
+        # second half is described where it is written, below.
         run: |
           DEMO="$RUNNER_TEMP/demo"
           mkdir -p "$DEMO"
@@ -865,10 +878,41 @@ jobs:
                   problems.append("the repetition shape does not sum to n_distinct")
               if sum(int(k) * v for k, v in shape.items()) != codes["n_present"]:
                   problems.append("the repetition shape does not sum to n_present")
-          if document.get("profile_version") != 3:
+          if document.get("profile_version") != 4:
               problems.append(
                   f"unexpected contract version: {document.get('profile_version')}"
               )
+          # Version 4's three axes are what a consumer dispatches on
+          # (plan P2-D3), so they are checked on a clean machine on
+          # EVERY column rather than on the ones this block already
+          # names: an axis that is present on nine columns and absent on
+          # the tenth is worse than no axis at all.
+          for column in document["columns"]:
+              for axis in ("statistical_type", "quality_state", "structural_role"):
+                  if not isinstance(column.get(axis), str) or not column[axis]:
+                      problems.append(f"{column['name']} carries no {axis}")
+          if codes.get("structural_role") != "identifier":
+              problems.append("the declared column is not marked as a key column")
+          if codes.get("statistical_type") != "code":
+              problems.append("the declared column does not hold codes")
+          # And the reserved cross-column block: eight names, every one
+          # empty, because this version preserves no structure between
+          # columns and says so (plan P2-D5).
+          related = document.get("relationships")
+          slots = [
+              "deterministic",
+              "grain",
+              "hierarchy",
+              "keys",
+              "missing_data_process",
+              "statistical",
+              "temporal",
+              "validation_targets",
+          ]
+          if not isinstance(related, dict) or sorted(related) != slots:
+              problems.append(f"unexpected relationship manifest: {related}")
+          elif any(value is not None for value in related.values()):
+              problems.append("the relationship manifest claims structure it has none of")
           for text in (json.dumps(document), summary):
               if "outlying" in text:
                   problems.append("a below-floor label reached an output file")
@@ -881,6 +925,81 @@ jobs:
               sys.exit(1)
           print("profiled the demonstration table; roles and suppression are as expected")
           CHECK
+          # THE SECOND HALF OF THE WORKFLOW, in the same installed wheel,
+          # the same fresh venv and under the same socket guard. Until
+          # this was written the built-artifact smoke test ran `profile`
+          # and never `generate`, so a generation path that worked on a
+          # source checkout and was broken only in a packaged wheel --
+          # a module left out of the wheel allowlist, a lazily imported
+          # name that resolves from the repository and not from
+          # site-packages -- would have shipped with CI green. The input
+          # is the description the run above wrote, so nothing is
+          # committed for this and no table is read a second time: the
+          # generator is handed the description and nothing else.
+          "$RUNNER_TEMP/fresh-env/bin/synthtwin" generate \
+            "$DEMO/table-profile.json" --seed 7
+          "$RUNNER_TEMP/fresh-env/bin/python" - <<'TWIN'
+          import csv
+          import json
+          import os
+          import pathlib
+          import sys
+
+          demo = pathlib.Path(os.environ["RUNNER_TEMP"]) / "demo"
+          twin_path = demo / "table-twin.csv"
+          report_path = demo / "table-twin-report.txt"
+          problems = []
+          for target in (twin_path, report_path):
+              if not target.is_file():
+                  problems.append(f"{target.name} was not written")
+          if problems:
+              print("The end-to-end generation check failed:")
+              for entry in problems:
+                  print(" -", entry)
+              print("A run of 'synthtwin generate' must leave exactly two files")
+              print("beside the description: the twin and its report.")
+              sys.exit(1)
+          document = json.loads(
+              (demo / "table-profile.json").read_text(encoding="utf-8")
+          )
+          names = [column["name"] for column in document["columns"]]
+          # The twin is UTF-8 with no byte-order mark of its own, whatever
+          # the table was written as, so a reader gets the published
+          # column names back rather than a first name with the mark's
+          # bytes stuck to it.
+          if twin_path.read_bytes().startswith(b"\xef\xbb\xbf"):
+              problems.append("the twin begins with a byte-order mark")
+          with twin_path.open("r", encoding="utf-8", newline="") as handle:
+              rows = list(csv.reader(handle))
+          body = []
+          if not rows:
+              problems.append("the twin holds no rows at all")
+          else:
+              if rows[0] != names:
+                  problems.append(f"the twin's header is {rows[0]}, expected {names}")
+              body = rows[1:]
+              # 240 by 10 is this fixture's shape, checked against the
+              # description AND written out, so a description that came
+              # out the wrong shape cannot make the twin look right by
+              # agreeing with it.
+              if len(body) != document["n_rows"] or len(body) != 240:
+                  problems.append(f"the twin has {len(body)} row(s), expected 240")
+              widths = sorted({len(row) for row in body})
+              if widths != [document["n_columns"]] or widths != [10]:
+                  problems.append(f"the twin's rows hold {widths} cell(s), expected [10]")
+          report = report_path.read_text(encoding="utf-8")
+          if "Seed: 7." not in report:
+              problems.append("the report does not name the seed the twin was built at")
+          if problems:
+              print("The end-to-end generation check failed:")
+              for entry in problems:
+                  print(" -", entry)
+              sys.exit(1)
+          print(
+              f"generated the twin from the description alone: {len(body)} rows "
+              f"by {len(names)} columns, with its report beside it"
+          )
+          TWIN
       - name: Egress mutation - a fetch under --network none must fail
         # Plan D5 / D6.5: the deliberate HTTP fetch attempted under the
         # same image and the same --network none isolation must fail.
