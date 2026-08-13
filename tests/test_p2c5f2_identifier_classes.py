@@ -344,6 +344,33 @@ def test_a_sign_leads_an_invented_value_only_to_meet_a_published_count(
             )
             assert digits == column["n_all_digits"], (name, seed)
             assert code == column["n_code_alphabet"], (name, seed)
+            # AND THE TWO THINGS THIS BATTERY DID NOT WATCH. It asserted
+            # eleven published facts and neither the folded count nor
+            # the report, so a change that met every count it named
+            # while filing a deviation for one it did not would have
+            # landed green -- which a design review of the collision
+            # placement demonstrated on this very battery, twelve runs
+            # of eight hundred, every one of them `n_distinct_folded`.
+            # The fold count is what a collision is FOR, so a battery
+            # about the class packing that moves collisions has to
+            # watch it; and an empty deviation list is the shortest
+            # statement that nothing was traded for anything.
+            folded: dict[str, int] = {}
+            for cell in twin.columns[0]:
+                if cell == "":
+                    continue
+                key = parsing.folded(cell)
+                folded[key] = folded.get(key, 0) + 1
+            assert len(folded) == column["n_distinct_folded"], (
+                name,
+                seed,
+                "folded identities: twin differs from description",
+            )
+            assert list(twin.deviations) == [], (
+                name,
+                seed,
+                [note.fact for note in twin.deviations],
+            )
     assert quiet > 0, "no column was checked for the bar itself"
     assert signing > 0, (
         "the battery no longer reaches the corner decision 9 carves out, "
@@ -435,6 +462,33 @@ def test_every_class_and_alphabet_count_is_written_exactly(
             )
             assert digits == column["n_all_digits"], (name, seed)
             assert code == column["n_code_alphabet"], (name, seed)
+            # AND THE TWO THINGS THIS BATTERY DID NOT WATCH. It asserted
+            # eleven published facts and neither the folded count nor
+            # the report, so a change that met every count it named
+            # while filing a deviation for one it did not would have
+            # landed green -- which a design review of the collision
+            # placement demonstrated on this very battery, twelve runs
+            # of eight hundred, every one of them `n_distinct_folded`.
+            # The fold count is what a collision is FOR, so a battery
+            # about the class packing that moves collisions has to
+            # watch it; and an empty deviation list is the shortest
+            # statement that nothing was traded for anything.
+            folded: dict[str, int] = {}
+            for cell in twin.columns[0]:
+                if cell == "":
+                    continue
+                key = parsing.folded(cell)
+                folded[key] = folded.get(key, 0) + 1
+            assert len(folded) == column["n_distinct_folded"], (
+                name,
+                seed,
+                "folded identities: twin differs from description",
+            )
+            assert list(twin.deviations) == [], (
+                name,
+                seed,
+                [note.fact for note in twin.deviations],
+            )
 
 
 def test_the_class_counts_are_not_bought_with_another_exact_fact(

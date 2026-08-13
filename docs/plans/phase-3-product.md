@@ -1104,12 +1104,61 @@ published fact preserved either way.
 **Nothing published is lost in any of these cases** -- the counts are
 exact and the report names the cells -- so what is left is a
 minimisation the twin does not perform, not an obligation it breaks.
-Closing it means choosing collision slots across families with the
-sign in mind, which is a change to the packing rather than to the walk,
-and it wants its own review. The report no longer claims the cells were
-forced; it says synthtwin reached for that shape to meet a count, and
-that carrying more of them than the description forced is a limit of
-synthtwin written down here.
+The report no longer claims the cells were forced; it says synthtwin
+reached for that shape to meet a count, and that carrying more of them
+than the description forced is a limit of synthtwin written down here.
+
+**It was designed, measured and NOT TAKEN, on 2026-08-13, and the
+reason is worth more than the change would have been.** Three
+independent passes -- a mechanism study, a measurement battery and an
+adversarial attack on the proposal before any of it was written --
+settled it:
+
+- **The obvious forms do nothing.** Preferring a collision slot whose
+  FAMILY, or whose own SLOT, can carry a case flip leaves the
+  counterexample at fourteen hazardous cells, because the slot's family
+  IS flip-capable; what is caseless is the parent it inherits, which is
+  the length-pinned carrier. Only a parent-aware rule moves it.
+- **The parent-aware rule costs a published fact.** On this project's
+  own 200-description battery at four seeds it loses `n_distinct_folded`
+  on twelve runs -- while reducing hazardous cells there by ZERO,
+  because all five hazard-writing cases in that battery write the
+  forced floor and none has a collision to move. A reach guard removes
+  most of the loss and one case survives it: a preference concentrates
+  collisions on one family, and a family's supply of partners is a
+  function of a spelling that does not exist when the order is chosen.
+- **The trade is the one this module refuses.** On one producer column
+  the rule halves the hazard AND misses the folded count in the same
+  run, which `_partner_of`'s own docstring names as the trade never
+  made silently.
+- **The measured benefit is three columns in twelve hundred.**
+
+So the bound stands as written above, and the door is left where the
+information actually is: the packing, `_identifier_families`, is the one
+place that can see the group sizes and both margins before any spelling
+is chosen, and could prefer an exact packing that does not put the
+length-pinned carrier in the same family as a group owing a collision.
+That is unmeasured and would need its own review.
+
+**And the study found something larger, which IS an obligation and is
+flagged for the owner.** Over a 1,200-column battery of hazard-shaped
+producer descriptions, the SHIPPED generator already misses
+`n_distinct_folded` on 44 of them -- 3.7 per cent -- and every one is a
+description a real producer wrote, so the column's own values are a
+conforming assignment and the miss is a fidelity defect rather than
+owner decision 6's infeasible corner. `_fold_room`, the pre-generation
+check, counts the whole wide alphabet and knows nothing about families,
+slots or windows, so it never fires on these. This is not the hazard
+question and does not wait on it: it is a published count the twin does
+not meet on a shape a producer reaches. **It needs an owner decision on
+the same two terms as the others -- repair the fold feasibility, or
+authorize the miss -- and it should be measured against the shipped
+baseline before anything else in this area is changed.**
+
+**The battery now watches it.** The 800-run identifier battery asserted
+eleven published facts and neither the folded count nor the report, so
+the change above would have landed green. It asserts both now, shown
+green on shipped code first.
 
 **What the oracle does NOT yet carry, said plainly.** The reference
 oracle chooses one parent per partner -- `taking % identities` -- while
