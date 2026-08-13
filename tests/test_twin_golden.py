@@ -365,7 +365,7 @@ def test_the_same_description_and_seed_give_the_same_twin_twice(
 # no spelling of that width without a sign, because the real table had
 # values written that way.
 GOLDEN_REPORT_SHA256 = (
-    "876be65bb361f24980545d648e08aa7b2e51b4c2a2af7487aa8e57a5367977bb"
+    "ca9d5dc4640c727afd9001bda84a5859e2a92ed81c454e6ce46a918074281962"
 )
 
 

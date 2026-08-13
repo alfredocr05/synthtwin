@@ -1088,8 +1088,28 @@ letters, or none of which do, is laid out exactly as it was -- no
 frozen vector moved. The oracle carries the same preference, and the
 counterexample is a test.
 
-**So decision 9's bound reads as it was written**: a sign is written
-only where a group's own length window admits nothing else.
+**The bound decision 9 actually has, stated after two rounds of
+narrowing it** (review item P3-C7-F1). A sign is written only where a
+group's own length window admits nothing else -- and the collision
+placement around it is improved rather than optimal. The parent choice
+now avoids a caseless parent WITHIN a family; it cannot move a
+collision to a DIFFERENT family, because `_collision_slots` trades only
+between groups of equal size and `_partner_of` searches only the family
+the packing already gave the slot. A producer column of `-3` twelve
+times, `-34023` twice, `8e999` three times and `8E999` twice therefore
+writes fourteen hazardous cells where an allocation putting the
+collision on the out-of-range pair would write two, with every
+published fact preserved either way.
+
+**Nothing published is lost in any of these cases** -- the counts are
+exact and the report names the cells -- so what is left is a
+minimisation the twin does not perform, not an obligation it breaks.
+Closing it means choosing collision slots across families with the
+sign in mind, which is a change to the packing rather than to the walk,
+and it wants its own review. The report no longer claims the cells were
+forced; it says synthtwin reached for that shape to meet a count, and
+that carrying more of them than the description forced is a limit of
+synthtwin written down here.
 
 **What the oracle does NOT yet carry, said plainly.** The reference
 oracle chooses one parent per partner -- `taking % identities` -- while
