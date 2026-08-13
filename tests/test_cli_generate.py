@@ -593,12 +593,18 @@ def test_the_report_states_the_same_things_every_run(
         # the provenance claim, and its one qualification
         "read no",
         "It does NOT say that no row of the twin can equal a row of your",
-        # all three artifacts, and institutional handling
-        "All three files",
+        # all four artifacts, and institutional handling
+        "All four files",
         "institution",
         # the formula-context warning
         "reads a cell that begins",
         "NOT protection",
+        # the teaching chain's middle link: this report passes no
+        # verdict, and the command that produces one is named (plan
+        # P3-D6). The sentence that used to sit here called a verdict
+        # later work, and it is not later work any more.
+        "This report passes NO verdict",
+        "`synthtwin validate`",
     ):
         assert wanted in told, wanted
     # The same text reaches the screen and the file; neither can say

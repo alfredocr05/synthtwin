@@ -1,12 +1,13 @@
 # synthtwin
 
 > **Status: early (Phase 3).** synthtwin is **not on PyPI**. What
-> exists today is both halves of the workflow -- the profiler, which
-> reads a CSV table on your computer and describes it, and the
-> generator, which builds the synthetic twin from that description and
-> nothing else -- plus the security baseline the whole project rests
-> on. Every capability on this page is tagged **[built]** or
-> **[planned]** so there is no ambiguity about which is which.
+> exists today is the whole workflow -- the profiler, which reads a CSV
+> table on your computer and describes it; the generator, which builds
+> the synthetic twin from that description and nothing else; and the
+> validator, which measures a written file against the description and
+> writes the quality report -- plus the security baseline the whole
+> project rests on. Every capability on this page is tagged **[built]**
+> or **[planned]** so there is no ambiguity about which is which.
 >
 > **The one thing to know before you use a twin:** it is faithful one
 > column at a time. It carries no cross-column structure at all -- see
@@ -35,8 +36,8 @@ rely on a twin.
 
 ## What synthtwin does today [built]
 
-Given one table of real data, two commands produce four files, of
-three kinds:
+Given one table of real data, three commands produce five files, of
+four kinds:
 
 1. **A synthetic twin** - a table of the same shape whose columns each
    behave like the matching column of the original, every cell of it
@@ -49,19 +50,23 @@ three kinds:
    approximately (with the value the twin actually reached printed
    beside the value the description publishes), and which it does not
    hold at all.
+4. **A plain-language quality report** - written by `synthtwin
+   validate`, which measures a CSV file against the description and
+   says which of its obligations the file meets, which it misses, and
+   which nothing written in a CSV could evidence either way. A passing
+   report means exactly one thing: no checkable obligation was missed.
+   It is not a verdict that the twin is fit for an analysis, and it
+   cannot tell a synthetic file from a real one.
 
 ## What synthtwin does not do yet [planned]
 
-4. **A relationships file** - the dependencies between columns, so that
+5. **A relationships file** - the dependencies between columns, so that
    a twin could preserve them. **Nothing of this exists today.** The
    description carries a reserved block for it whose every slot is
    empty, and synthtwin refuses a description that fills one. Until it
-   is built, the twin carries no cross-column structure at all.
-5. **A plain-language quality report** - a verdict on how faithful the
-   twin is, written so you can judge it without a statistics
-   background. The generation report above measures published facts and
-   deliberately passes no verdict; it says so rather than letting its
-   silence read as a pass.
+   is built, the twin carries no cross-column structure at all. Nothing
+   the quality report checks is a cross-column fact, because the
+   description publishes none.
 
 ## Who it is for
 
@@ -73,11 +78,13 @@ next.
 
 ## What works today
 
-Two commands, run one after the other.
+Three commands, run one after the other. Each one ends by printing the
+next.
 
 ```
 synthtwin profile my-table.csv
 synthtwin generate my-table-profile.json
+synthtwin validate my-table-profile.json --twin my-table-twin.csv
 ```
 
 The first reads `my-table.csv` on your computer and writes two files
@@ -110,9 +117,10 @@ your numeric and date columns, the points in between that describe their
 shape, and, for each label it names, the exact spellings your file used
 for that label wherever eleven rows or more wrote it that way. It is
 real-derived material, and your institution's rules for such material
-apply to it. The same is true of the other two files a full run produces:
-the profile, the twin and the report all carry facts computed from your
-real data, so those rules apply to all three, not to the profile alone.
+apply to it. The same is true of the other files a full run produces:
+the profile, the twin, the twin's report and the quality report all
+carry facts computed from your real data, so those rules apply to all
+four, not to the profile alone.
 
 The second reads that description -- and nothing else, not your table
 again -- and writes two more files beside it:
@@ -128,6 +136,20 @@ rows, and the same amount of missing data as your table, and each of
 its columns behaves like the matching column of yours. Read "What the
 twin does not carry" below before you draw anything from two of its
 columns at once.
+
+The third reads the description and one CSV file -- by default the twin
+beside it, or whatever `--twin` names -- and writes one more file:
+
+- `my-table-twin-quality.txt` - the quality report, which lists every
+  obligation the description sets, the outcome of each, and every
+  obligation no CSV can evidence either way, with the reason. It is
+  also printed on the screen.
+
+The exit code carries the same answer for a script: `0` when nothing was
+missed, `3` when something was, `1` when the check could not run at all,
+and `2` when the command line could not be used. A tool reading exit
+codes can therefore tell a file that failed its check from a file that
+was never evaluated, without parsing prose.
 
 ### The options
 
@@ -199,6 +221,24 @@ run that finds either name taken stops and changes nothing, because
 synthtwin has no way of telling an earlier twin of its own from a file
 of yours that happens to be there.
 
+Three for `validate`:
+
+```
+synthtwin validate my-table-profile.json --twin my-table-twin.csv
+synthtwin validate my-table-profile.json --out-dir reports
+synthtwin validate my-table-profile.json --replace
+```
+
+`--twin` names the CSV file to measure; left out, synthtwin measures the
+twin beside the description. It measures whatever file you name: it has
+no way of telling a twin of its own from any other CSV, and the report
+says so rather than implying otherwise. `--out-dir` works as it does
+above, and decides only where the quality report goes -- it says nothing
+about where an earlier `generate` run put its twin, which is why the
+line the generator prints when it finishes always spells out `--twin`.
+`--replace` lets a re-run write over a quality report an earlier run
+left at that name, on the same reasoning as above.
+
 ## What the twin does not carry
 
 This is the section to read before you trust a number computed from a
@@ -236,10 +276,16 @@ run, whether or not anything else went wrong.
 - **[built]** `synthtwin generate` - the twin and the report described
   above, built from the description and a seed and from nothing else.
   The generator never opens your table; it is not given a path to one.
+- **[built]** `synthtwin validate` - the quality report described
+  above, measured by describing the file again with the profiler's own
+  producer and comparing. It never reaches the generator, so its
+  verdicts are a second opinion rather than the planner marking its own
+  work, and it consumes no randomness at all.
 - **[built]** The generation report, which names every published fact
   the twin missed, every fact it only approximates with the bound it was
   held to, and the two limits under "What the twin does not carry"
-  above. It is not a fidelity verdict, and it says so.
+  above. It passes no verdict of its own and says so, and it ends by
+  teaching the `validate` command line that produces one.
 - **[built]** The `synthtwin` command's version and status output.
 - **[built]** The offline guarantee's layered checks: a best-effort
   import-allowlist scanner for the source tree, a socket guard in the
@@ -255,9 +301,6 @@ run, whether or not anything else went wrong.
   generating script and byte-compared in CI.
 - **[built]** Continuous integration with a single aggregate gate, and
   the written plans and their review record in `docs/plans/`.
-- **[planned]** Validation and the quality report - a verdict on how
-  faithful a twin is. Phase 3, behind its own written plan and
-  adversarial review.
 - **[planned]** Relationships between columns. The description
   describes each column on its own, and the twin therefore carries no
   cross-column structure at all; how columns move together arrives in a
@@ -287,9 +330,15 @@ will work there unchanged.
 the profiler and the generator apart: the profiler runs where the real
 data lives and writes a profile file; the generator needs only that
 profile. The real data never has to move. The separation is held by the
-import graph rather than by anybody's care -- one module opens your
+import graph rather than by anybody's care -- one module opens a CSV
 table, and a `generate` run never reaches it at any instant, from the
-moment the command starts.
+moment the command starts. `validate` does reach it, and must: measuring
+a file means describing that file with the profiler's own producer. What
+`validate` never reaches is the generator, so its verdicts cannot
+inherit the planner's own defects, and no random source is in its
+closure at all. The boundary this architecture keeps is that GENERATION
+reads a description and nothing else -- not that only one command opens
+a file.
 
 **Dependencies are governed [built].** synthtwin has exactly two direct
 runtime dependencies. pandas is justified in writing in
@@ -334,10 +383,10 @@ was copied. The arithmetic left no other answer, and any tool that
 reproduces published counts exactly lands in the same place.
 
 So synthtwin offers **no formal privacy guarantee** and claims no
-differential-privacy property. All three files a full run produces --
-the profile, the twin and the report -- carry facts computed from your
-real data, and your institution's rules for real-derived material apply
-to all three, not to the profile alone. What synthtwin does give you is
+differential-privacy property. All four files a full run produces --
+the profile, the twin, the twin's report and the quality report -- carry
+facts computed from your real data, and your institution's rules for
+real-derived material apply to all four, not to the profile alone. What synthtwin does give you is
 an architecture in which the real table never has to move, plus a
 written account, in `SECURITY.md` and in the run's own report, of
 exactly which real facts each file carries.

@@ -6,6 +6,49 @@ exists).
 
 ## [Unreleased]
 
+### Added in Phase 3: `synthtwin validate`, and the fourth artifact
+- **The third command.** `synthtwin validate <description>` reads the
+  description and one CSV file -- by default the twin beside it, or
+  whatever `--twin` names -- describes that file again with the
+  profiler's own producer, and writes `<stem>-twin-quality.txt`: which
+  of the description's obligations the file meets, which it misses, and
+  which nothing written in a CSV can evidence either way. `--out-dir`
+  and `--replace` work as they do on `generate`.
+- **The exit code is the machine channel** (validation method V6.5): 0
+  when the check ran and nothing was missed, 3 when it ran and something
+  was, 1 when it could not run at all, 2 when the command line could not
+  be used. A tool reading exit codes can tell a file that failed its
+  check from a file that was never evaluated without parsing prose.
+- **The quality report** states its verdict from the census alone. There
+  is no sentence saying that every published fact was found, and none
+  can be written from these counts: a pass means no checkable obligation
+  was missed, with the within-window, authorized-deviation, withheld and
+  not-checkable counts standing beside it and never folded into it. It
+  carries the same limits every run -- no cross-column structure was
+  validated because none is carried, rows independent and the grain
+  undescribed, numbers on a twin are not research results -- plus the
+  verdict-scope sentence: it is not a fitness verdict for any analysis,
+  it validates nothing the description does not publish, and it cannot
+  tell a synthetic file from a real one.
+- **The write transaction gained a one-target form.** The quality report
+  is one file, so two-files-or-neither is not a rule it can keep; every
+  other rule is kept, and one is widened. The file a run may not write
+  over is now a SET, because `validate` is handed two files and neither
+  the description nor the file being measured may be landed on -- by
+  lexical path, resolved path, link, alias, or a substitution made
+  between the check and the write. A third `ArtifactWords` set gives the
+  refusals the validator's own nouns.
+- **The teaching chain runs end to end** (plan P3-D6): `profile` teaches
+  `generate`, `generate` ends by printing the `validate` command line
+  with this twin's own paths in it, and `validate` says what its verdict
+  means, what it does not, and which exit code automation saw.
+- **The handling rule now names four artifacts** on every claim-bearing
+  surface. The quality report states measurements taken from the file it
+  checked, so a verdict travels under the same rules as the thing it
+  measured. The generation report's bytes moved with it and its golden
+  hash was re-recorded; the sentence that called a fidelity verdict
+  later work is gone, because it is not later work any more.
+
 ### Fixed in Phase 3: the sign a table already had, and the check that had gone quiet
 - **Owner decision 9 (2026-08-13).** A record number synthtwin invents
   may open with a sign where the published counts leave no other

@@ -620,10 +620,12 @@ jobs:
           wheel required synthtwin/parsing.py
           wheel required synthtwin/paths.py
           wheel required synthtwin/profile.py
+          wheel required synthtwin/quality.py
           wheel required synthtwin/reading.py
           wheel required synthtwin/rendering.py
           wheel required synthtwin/summary.py
           wheel required synthtwin/taxonomy.py
+          wheel required synthtwin/validation.py
           wheel required synthtwin/writing.py
           wheel required DIST-INFO/METADATA
           wheel required DIST-INFO/WHEEL
@@ -646,10 +648,12 @@ jobs:
           sdist required ROOT/src/synthtwin/parsing.py
           sdist required ROOT/src/synthtwin/paths.py
           sdist required ROOT/src/synthtwin/profile.py
+          sdist required ROOT/src/synthtwin/quality.py
           sdist required ROOT/src/synthtwin/reading.py
           sdist required ROOT/src/synthtwin/rendering.py
           sdist required ROOT/src/synthtwin/summary.py
           sdist required ROOT/src/synthtwin/taxonomy.py
+          sdist required ROOT/src/synthtwin/validation.py
           sdist required ROOT/src/synthtwin/writing.py
           sdist optional ROOT/src/synthtwin/py.typed
           sdist optional ROOT/.gitignore

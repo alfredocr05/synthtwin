@@ -3,9 +3,9 @@
 This document states what synthtwin defends against, how each defense is
 built, what it deliberately does not defend against, and how an outside
 auditor can check every claim. It commits only to what the built phases
-can demonstrate - Phase 0's security baseline, Phase 1's profiler and
-Phase 2's generator; anything that arrives in a later phase is tagged
-**[planned]**.
+can demonstrate - Phase 0's security baseline, Phase 1's profiler,
+Phase 2's generator and Phase 3's validator; anything that arrives in a
+later phase is tagged **[planned]**.
 
 ## Threat model, in plain language
 
@@ -133,10 +133,14 @@ Stated here so that no reader has to discover them independently:
   consequences follow and are stated rather than left to be worked out.
   synthtwin offers **no formal privacy guarantee** and claims no
   differential-privacy property; statistical disclosure is out of scope,
-  as the threat model above says. And all three artifacts a full run
-  produces - the profile, the twin and the report - carry facts computed
-  from real data, so the institution's rules for real-derived material
-  apply to all three, never to the profile alone.
+  as the threat model above says. And all four artifacts a full run
+  produces - the profile, the twin, the twin's report and the quality
+  report - carry facts computed from real data, so the institution's
+  rules for real-derived material apply to all four, never to the
+  profile alone. The quality report is the fourth and the easiest to
+  overlook: it states counts and measurements taken from the file it
+  checked, so a verdict travels under the same rules as the thing it
+  measured.
 - **What the twin carries, stated so that neither its risk nor its
   usefulness is overstated.** The twin reproduces the facts the profile
   publishes about each column ON ITS OWN. It carries no cross-column
@@ -156,8 +160,8 @@ Stated here so that no reader has to discover them independently:
   `small_cell_floor` rows share (11 by default), the smallest and
   largest values of numeric columns and the points between them, and
   counts about groups nobody is named in. Handle it under your
-  institution's rules for real-derived material - together with the twin
-  and the report, per the entry above. Profile version 4 widened what it
+  institution's rules for real-derived material - together with the
+  twin, the twin's report and the quality report, per the entry above. Profile version 4 widened what it
   carries in exactly two ways, and each gets its own entry below rather
   than a clause here.
 - **Version 4 publishes the exact spellings of the labels the profile

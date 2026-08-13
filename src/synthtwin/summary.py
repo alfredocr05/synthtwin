@@ -513,17 +513,22 @@ def _disclosure_lines(document: dict[str, object]) -> list[str]:
         "  It contains no rows of your table, but it is not anonymous",
         "  either. Here is exactly what is in it.",
         "",
-        # THE HANDLING RULE COVERS THREE FILES, NOT ONE (plan P2-D11).
-        # Saying it of the profile alone reads as permission for the
-        # other two, and it is not: the twin reproduces published counts
-        # exactly and the report quotes published facts back, so both
-        # are real-derived as well. The person deciding what may leave
-        # their machine has to be told about all three in the one place
-        # they are reading about it.
-        "  The same is true of the other two files a full run makes.",
-        "  The profile, the twin and the report all carry facts",
-        "  computed from your real data, so those rules apply to all",
-        "  three of them, not to the profile alone.",
+        # THE HANDLING RULE COVERS FOUR FILES, NOT ONE (plan P2-D11,
+        # widened by P3-D3). Saying it of the profile alone reads as
+        # permission for the others, and it is not: the twin reproduces
+        # published counts exactly, the report quotes published facts
+        # back, and the quality report states measurements taken from the
+        # file it checked, so all three are real-derived as well. The
+        # person deciding what may leave their machine has to be told
+        # about all four in the one place they are reading about it.
+        "  The same is true of the other three files a full run makes.",
+        # The four artifacts are named in ONE line rather than wrapped
+        # across two, because the claim inventory reads this file as
+        # text and a phrase split between two string literals is a
+        # phrase no reader of the source can grep for.
+        "  The profile, the twin, the twin's report and the quality report",
+        "  all carry facts computed from your real data, so those rules",
+        "  apply to all four of them, not to the profile alone.",
         "",
     ]
     if with_labels:
@@ -677,6 +682,13 @@ def render(document: dict[str, object], encoding_note: str) -> str:
         "Numbers computed on a twin are not research results -- develop your",
         "analysis on the twin, then run the finished analysis on your real",
         "table.",
+        "",
+        "After that, 'synthtwin validate' measures the twin against this",
+        "description and writes the quality report: which of the",
+        "obligations recorded below the file meets, which it misses, and",
+        "which nothing written in a CSV can evidence either way. Each",
+        "command prints the next one for you when it finishes, so you",
+        "never have to work out a command line from this page.",
         "",
         # WHAT THE DESCRIPTION DOES NOT DESCRIBE (plan P2-D11, residual
         # R-P2-3). This page is where a person first meets the idea of a

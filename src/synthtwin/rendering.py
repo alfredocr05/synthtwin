@@ -42,8 +42,12 @@ are printed in full, so no fact is approximate and unchecked.
 
 What is still NOT here is a fidelity verdict: no claim that the twin is
 good enough for a purpose, and no measure of anything the description
-never published. That is Phase 3's work, and this report says so rather
-than implying the silence is a pass.
+never published. A verdict of the second kind now exists and is a
+different command's: `synthtwin validate` measures a written file
+against the description and writes the quality report. This report
+teaches that command rather than letting its own silence read as a pass,
+and it passes no verdict of its own even so -- what it prints is what
+the generator measured while writing the cells.
 
 THE BOUNDARY THIS MODULE UPHOLDS (plan P2-D1). It reads the loaded
 description and the built twin, and nothing else. It opens no file,
@@ -802,6 +806,43 @@ def _notes_for(profile: contract.Profile, name: str) -> "list[str]":
     return found
 
 
+def _verdict_lines() -> "list[str]":
+    """What this report is not, and which command produces the other thing.
+
+    The teaching chain's middle link, in the file rather than only on the
+    screen (plan P3-D6, P3-D7 stage 2). Everything above is a MEASUREMENT
+    the generator took on the cells it had just written; none of it is a
+    verdict, and the sentence that used to sit here said a verdict was
+    later work. It is not later work any more, so the report names the
+    command instead -- and states in the same breath what that command's
+    verdict does and does not mean, because a reader who runs it on the
+    strength of this paragraph will read its answer through this one.
+
+    No path is named, here or anywhere in this report: the same run
+    writes the same bytes wherever its files are put. The command line
+    with this twin's own paths in it is printed by the command when the
+    run finishes.
+    """
+    return [
+        "This report passes NO verdict on how good the twin is. Every",
+        "number above is one the generator measured on the cells it had",
+        "just written, with the published value beside it; none of it is a",
+        "judgement about whether the twin is good enough for anything.",
+        "",
+        "There is a command that measures a written file against this",
+        "description and writes a verdict: `synthtwin validate`, run on",
+        "the description with --twin and the path of the file to check.",
+        "The command that wrote this twin printed that line with the paths",
+        "already filled in. What it produces is a quality report saying",
+        "which of the description's obligations the file meets, which it",
+        "misses, and which nothing written in a CSV can evidence either",
+        "way -- and a passing one means exactly that no checkable",
+        "obligation was missed. It is not a verdict that the twin is fit",
+        "for an analysis, it checks nothing this description does not",
+        "publish, and it cannot tell a synthetic file from a real one.",
+    ]
+
+
 def _handling_lines() -> "list[str]":
     """Where the twin's values come from, and how the files are handled.
 
@@ -834,10 +875,11 @@ def _handling_lines() -> "list[str]":
         "copied; there was nothing else to write. The smaller the table and",
         "the fewer its columns, the more often that happens.",
         "",
-        "HOW TO KEEP THESE FILES. All three files of a full run --",
-        "the description, this twin and this report -- carry facts computed",
+        "HOW TO KEEP THESE FILES. All four files of a full run --",
+        "the description, this twin, this report and the quality report",
+        "'synthtwin validate' writes -- carry facts computed",
         "from your real data: counts, ranges, published labels and the",
-        "spellings named above. Keep all three under the rules your",
+        "spellings named above. Keep all four under the rules your",
         "institution applies to the table itself, and check with whoever",
         "approves data leaving your environment before you move any of them",
         "anywhere. synthtwin offers no formal privacy guarantee: nothing",
@@ -954,7 +996,14 @@ def report(profile: contract.Profile, twin: generation.Twin) -> str:
         lines = lines + _column_lines(
             column, twin.outcomes[place], _notes_for(profile, column.name)
         )
-    lines = lines + [_RULE, ""] + _handling_lines()
+    lines = lines + [
+        _RULE,
+        "WHAT THIS REPORT IS NOT, AND WHAT TO RUN FOR THE OTHER THING",
+        _RULE,
+        "",
+    ]
+    lines = lines + _verdict_lines()
+    lines = lines + ["", _RULE, ""] + _handling_lines()
     # The lines are joined by hand: the offline policy accepts a text
     # method only with arguments it has resolved, and a list built while
     # the program runs is not one (plan D6.2).

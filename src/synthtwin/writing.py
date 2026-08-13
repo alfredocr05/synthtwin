@@ -33,14 +33,25 @@ this module's own syntax to check that every one of these refusals is
 composed with the words it was handed, rather than trusting a list
 somebody has to remember to update.
 
+AND THE COUNT OF FILES IS NOW AN ARGUMENT TOO (plan P3-D1). A third
+command writes ONE artifact, the quality report, so the transaction has
+a one-target form beside the two-file one: `write_one_file`. It keeps
+every rule below except the one that has nothing to hold on to -- there
+is no pair to leave half-published -- and it widens one: the file a
+command may not write over is a SET here, because `validate` is handed
+two files and neither the description nor the file being measured may
+be landed on. The same-file machinery is the shipped one, asked once per
+input, and asked a second time once the output exists.
+
 THE RULE THIS MODULE KEEPS, stated once so it can be checked: when
-`write_both_files` returns, both files hold the text it was given; when
-it raises, each of the two names holds exactly what it held before --
-the earlier file or nothing -- unless the person is told otherwise, and
-they are told by name, every file that is on disk and what each one
-holds, checked by looking rather than assumed from what was attempted.
-The function's own docstring states the bounds of that claim, including
-the two residuals it does not close.
+`write_both_files` returns, both files hold the text it was given -- and
+when `write_one_file` returns, the one output name does; when either
+raises, each output name holds exactly what it held before -- the
+earlier file or nothing -- unless the person is told otherwise, and they
+are told by name, every file that is on disk and what each one holds,
+checked by looking rather than assumed from what was attempted. Each
+function's own docstring states the bounds of that claim, including the
+residuals it does not close.
 
 Imports here stay within the allowlist (plan D6.2): dataclasses,
 pathlib, and this package's own modules. Nothing here reads a table, and
@@ -87,12 +98,20 @@ class DiskState:
     outputs, and every other name this run reached for was either
     withdrawn by the filesystem or never reached at all.
 
-    All three fields are for the caller to print; nothing here decides
+    `target_written` is the one-target form's answer to the same
+    question (plan P3-D1). It is a second field rather than a reuse of
+    `both_files_written` because a run that wrote ONE file did not write
+    both, and a caller reading a flag whose name says "both" would
+    report two files where one was written. Each entry point sets its
+    own, and neither reads the other's.
+
+    All four fields are for the caller to print; nothing here decides
     what to say about them.
     """
 
     sentence: str = ""
     both_files_written: bool = False
+    target_written: bool = False
     left_behind: str = ""
 
 
@@ -1535,6 +1554,488 @@ def write_both_files(
             # half of one; the record of a finished write is filled in
             # leftover-first, so it too is lost whole rather than left
             # announcing two files while keeping a leftover back.
+            pass
+        raise
+
+
+# -- the one-target form (plan P3-D1) ---------------------------------
+#
+# `validate` writes ONE file. Two-files-or-neither is not a rule it can
+# keep, because there is no second file to keep it with -- so the
+# transaction gains a form that keeps every OTHER rule: the working name
+# of synthtwin's own making, the rename into place, the earlier file set
+# aside so it can come back, the cleanup that looks rather than assumes,
+# and the sentence naming every file on disk after a stop.
+#
+# What is genuinely different is the guarded source. The two-file form
+# spares ONE file the command was handed. This one spares a SET, because
+# `validate` is handed two files and neither may be written over: the
+# description the verdicts are measured against, and the file being
+# measured, which may be somebody's own table. The same-file machinery
+# is the shipped one -- `is_the_same_file` and `_is_one_of`, unchanged --
+# and what widens is only the list it is asked about.
+#
+# Every primitive below this comment is shared with the two-file form:
+# the working-name claim, the part write, the removal that checks by
+# looking, the state codes, and both sentences a person reads. Only the
+# ORDER of steps is written twice, because one rename is not two.
+
+
+def _state_nothing_published_one(
+    target: pathlib.Path,
+    leftovers: "list[tuple[pathlib.Path, str]]",
+    target_code: str = errors.ON_DISK_BEFORE,
+) -> str:
+    """The nothing-was-published sentence, for one output name.
+
+    `_state_nothing_published`'s reasoning at one file: the output holds
+    what it held, and the only names that can have changed are
+    synthtwin's own working files, each of which is removed here or
+    named with what it holds.
+    """
+    left = _clear_away(leftovers)
+    on_disk = [
+        _named_state(target, target_code, errors.ON_DISK_ABSENT)
+    ] + left
+    return errors.nothing_was_written([], on_disk)
+
+
+def _state_part_way_through_one(
+    target: pathlib.Path,
+    leftovers: "list[tuple[pathlib.Path, str]]",
+    kept: "pathlib.Path | None",
+    kept_holds_the_earlier_file: bool,
+    words: errors.ArtifactWords,
+) -> str:
+    """The same, for a stop once the rename into place had begun.
+
+    The output name is between one state and another and this code
+    cannot say which side of the move it is on, so a file that IS there
+    is described as the unsettled thing it is. A name that is EMPTY is
+    described by what this run did: with an earlier file set aside, it
+    was taken away and is named under its working name; with none, there
+    was never a file there and there is none now.
+
+    The set-aside name is never guessed at and never removed, for the
+    reason the two-file form gives: it is the one file under these names
+    that this run did not produce.
+    """
+    left = _clear_away(leftovers)
+    if kept is None:
+        empty_target = errors.ON_DISK_ABSENT
+    else:
+        empty_target = errors.ON_DISK_TAKEN_AWAY
+    on_disk = [_named_state(target, errors.ON_DISK_UNSETTLED, empty_target)]
+    if kept is not None:
+        holds = errors.ON_DISK_UNSETTLED
+        if kept_holds_the_earlier_file:
+            holds = errors.ON_DISK_SET_ASIDE
+        on_disk = on_disk + [
+            _named_state(kept, holds, errors.ON_DISK_ABSENT)
+        ]
+    return errors.rollback_failed([], on_disk + left, words)
+
+
+def _stopped_clean_one(
+    trouble: str,
+    target: pathlib.Path,
+    leftovers: "list[tuple[pathlib.Path, str]]",
+    target_code: str = errors.ON_DISK_BEFORE,
+) -> errors.TransactionRefusal:
+    """One-target refusal for a failure that published nothing.
+
+    The type is true here on the same terms as the two-file form's:
+    `_state_nothing_published_one` clears the working files away and
+    looks at every name before this returns, so the object handed back
+    carries a cleanup that has run and a message that names every file.
+    """
+    return errors.TransactionRefusal(
+        f"{trouble} {_state_nothing_published_one(target, leftovers, target_code)}"
+    )
+
+
+def _stopped_broken_one(
+    trouble: str,
+    target: pathlib.Path,
+    kept: "pathlib.Path | None",
+    leftovers: "list[tuple[pathlib.Path, str]]",
+    words: errors.ArtifactWords,
+) -> errors.TransactionRefusal:
+    """One-target refusal for a failure whose own undoing did not finish."""
+    left = _clear_away(leftovers)
+    on_disk = [
+        _named_state(target, errors.ON_DISK_NEW, errors.ON_DISK_TAKEN_AWAY)
+    ]
+    if kept is not None:
+        on_disk = on_disk + [
+            _named_state(
+                kept, errors.ON_DISK_SET_ASIDE, errors.ON_DISK_ABSENT
+            )
+        ]
+    return errors.TransactionRefusal(
+        f"{trouble} {errors.rollback_failed([], on_disk + left, words)}"
+    )
+
+
+def _finished_one(
+    state: "DiskState | None", kept: "pathlib.Path | None"
+) -> None:
+    """Record that the file reached its name, for a stop after that.
+
+    `_finished`'s reasoning at one file: the rename has returned, so the
+    output name holds this run's file and there is nothing to put back.
+    A failure arriving from here on is not a rollback and may not be
+    described as one.
+
+    `left_behind` is set before the flag, so a second stop inside this
+    function can cost the whole report but can never announce a written
+    file while keeping a leftover to itself.
+    """
+    if state is None:
+        return
+    if kept is not None and _what_is_there(kept) != "nothing":
+        state.left_behind = f"{pathlib.Path(kept)}"
+    state.target_written = True
+
+
+def _describe_the_stop_one(
+    state: "DiskState | None",
+    target: pathlib.Path,
+    part: "pathlib.Path | None",
+    holds: str,
+    progress: _Progress,
+    claimed: "_Claimed | None",
+    words: errors.ArtifactWords,
+) -> None:
+    """Clear up after a failure nobody composed; say what is on disk.
+
+    Everything this needs arrives as an argument, for the reason
+    `_describe_the_stop` gives: the handler that calls it holds no value
+    it had to compute after the guard opened, so no stop inside the
+    guarded work can turn the person's failure into an UnboundLocalError
+    raised from the cleanup.
+    """
+    if progress.installed:
+        _finished_one(state, progress.kept)
+        return
+    waiting: list[tuple[pathlib.Path, str]] = []
+    if part is not None:
+        waiting = waiting + [(part, holds)]
+    known = [f"{target}"]
+    for place, _code in waiting:
+        known = known + [f"{place}"]
+    if progress.kept is not None:
+        known = known + [f"{progress.kept}"]
+    extra = _unclaimed(claimed, known)
+    if progress.moving:
+        _remember(
+            state,
+            _state_part_way_through_one(
+                target, waiting + extra, progress.kept, progress.aside, words
+            ),
+        )
+        return
+    if progress.kept is not None:
+        # Claimed for the earlier file, and the move of that file into it
+        # had not begun: the name holds the empty file synthtwin created
+        # there, which is synthtwin's own to clear away.
+        waiting = waiting + [(progress.kept, errors.ON_DISK_EMPTY_WORKING)]
+    _remember(state, _state_nothing_published_one(target, waiting + extra))
+
+
+def _move_one_into_place(
+    target: pathlib.Path,
+    part: pathlib.Path,
+    forbidden: "list[pathlib.Path]",
+    sources: "list[tuple[pathlib.Path, str]]",
+    progress: _Progress,
+    words: errors.ArtifactWords,
+    claimed: "_Claimed | None" = None,
+) -> "list[str]":
+    """The rename itself; `write_one_file` holds the handler around it.
+
+    Nothing is set up in here that the handler needs. Every name the
+    handler describes it already had before it opened, and the two
+    answers only this function can give -- how far the move got, and
+    whether the file reached its name -- are written into ``progress`` as
+    they become true, never inferred afterwards.
+
+    THE SECOND SAME-FILE QUESTION IS ASKED HERE, once the file really is
+    at the output name (plan P3-D1: no substitution between the check
+    and the write). Before the rename, a guarded source and an output
+    name that does not exist yet can be one file on a filesystem that
+    folds their spellings together, and the shipped identity check
+    answers what it can from the resolved paths alone. Afterwards both
+    names exist and the filesystem itself settles it -- so it is asked
+    again, and a run that finds the output has become one of its own
+    inputs is undone rather than reported as finished.
+    """
+    place = pathlib.Path(target)
+    new_file = pathlib.Path(part)
+    holding = [(new_file, errors.ON_DISK_WORKING)]
+
+    what = _what_is_there(place)
+    if what == "unknown":
+        raise _stopped_clean_one(
+            errors.output_not_writable(
+                f"{place}", errors.COULD_NOT_CHECK, words
+            ),
+            place,
+            holding,
+        )
+    if what == "folder":
+        raise _stopped_clean_one(
+            errors.output_is_a_folder(f"{place}"), place, holding
+        )
+    if what == "link" or what == "other":
+        raise _stopped_clean_one(
+            errors.output_is_not_a_plain_file(f"{place}"), place, holding
+        )
+
+    kept: pathlib.Path | None = None
+    if what == "file":
+        # An earlier report is there. It moves to a working name of
+        # synthtwin's own making -- not over anything -- so that it can
+        # come back if the rest of the run does not finish.
+        spare = forbidden + [new_file]
+        aside_name, trouble, owned = _claim_working_name(
+            place, KEPT_SUFFIX, spare, words, claimed
+        )
+        if aside_name is None:
+            raise _stopped_clean_one(trouble, place, holding + owned)
+        kept = aside_name
+        progress.kept = aside_name
+        # From here the output is between one state and another, and a
+        # failure this function did not foresee can no longer be
+        # described as "nothing was touched".
+        progress.moving = True
+        try:
+            place.replace(kept)
+        except OSError as error:
+            raise _stopped_clean_one(
+                errors.output_not_writable(f"{place}", f"{error}", words),
+                place,
+                holding + [(kept, errors.ON_DISK_EMPTY_WORKING)],
+            ) from error
+        # And now that name holds the earlier report for certain, which
+        # is a different thing to tell a person from "it holds either
+        # that report or an empty file synthtwin made".
+        progress.aside = True
+
+    progress.moving = True
+    try:
+        new_file.replace(place)
+    except OSError as error:
+        # The move did not happen, so the working file is still sitting
+        # at its own name holding the whole report. It goes in the
+        # leftovers, where the cleanup removes it and the message names
+        # it if it will not go -- passing an empty list here would
+        # report a clean folder with a real-derived file in it.
+        trouble = errors.output_not_writable(f"{place}", f"{error}", words)
+        if _take_out(kept, place):
+            raise _stopped_clean_one(
+                trouble, place, holding, _after_undo(kept)
+            ) from error
+        raise _stopped_broken_one(
+            trouble, place, kept, holding, words
+        ) from error
+
+    # From here the working name is EMPTY: the move succeeded, so the
+    # file that was under it is the file at the output name now. The two
+    # refusals below therefore hand over no leftovers -- there is nothing
+    # of this run's making left to clear away but the output itself,
+    # which `_take_out` handles.
+    landed = _lands_on_a_source(place, sources)
+    if landed:
+        trouble = errors.output_would_replace_an_input(
+            f"{place}", landed, words
+        )
+        if _take_out(kept, place):
+            raise _stopped_clean_one(trouble, place, [], _after_undo(kept))
+        raise _stopped_broken_one(trouble, place, kept, [], words)
+
+    # The name now holds this run's file. From here there is nothing to
+    # put back, and a failure that arrives after this line must not be
+    # described as a rollback that could not finish. The rename above
+    # and this line are two statements: a stop between them is the one
+    # place where the move may have landed and this record does not yet
+    # say so, and `write_one_file` states that bound rather than papering
+    # over it.
+    progress.installed = True
+
+    if kept is None:
+        return []
+    if _remove_and_check(kept):
+        return []
+    # The file is written and correct; the only thing wrong is that the
+    # earlier report is still sitting under a working name. It is
+    # real-derived material, so it is handed back to the caller to be
+    # reported rather than passed over in silence.
+    return [f"{kept}"]
+
+
+def _lands_on_a_source(
+    target: pathlib.Path, sources: "list[tuple[pathlib.Path, str]]"
+) -> str:
+    """The noun of the guarded input ``target`` leads to, or "".
+
+    `_is_one_of` answers the same question for a list of paths; this one
+    is needed instead because a refusal has to say WHICH input was
+    caught, and the two inputs of a check are not interchangeable to the
+    person reading it.
+    """
+    for place, noun in sources:
+        if is_the_same_file(target, place):
+            return noun
+    return ""
+
+
+def write_one_file(
+    target: pathlib.Path,
+    text: str,
+    sources: "list[tuple[pathlib.Path, str]] | None" = None,
+    state: "DiskState | None" = None,
+    words: errors.ArtifactWords = errors.PROFILE_WORDS,
+) -> "list[str]":
+    """Write one file whole, or leave the folder exactly as it was.
+
+    THE ONE-TARGET FORM OF THE TRANSACTION (plan P3-D1). `validate`
+    produces a single artifact, so two-files-or-neither is not a rule it
+    can keep; every other rule this module keeps is kept here, in the
+    same code, with the same wordings.
+
+    THE RULE, stated so it can be checked: when this returns, the output
+    name holds the text it was given. When it raises -- with ANY
+    exception, not only the ones in this catalog -- that name holds
+    exactly what it held before, the earlier file or nothing, unless the
+    person is told otherwise; and they are told by name, every file that
+    is on disk and what each one holds, checked by looking rather than
+    assumed from what was attempted. The rule is about ONE failure: a
+    second one arriving while the first is being described can cost the
+    telling, which is `write_both_files`'s RESIDUAL ONE, unchanged.
+
+    Guarantees:
+
+    - Inputs: the output path, the whole text to put there, the files
+      this command was handed with the noun each is called by, optionally
+      a DiskState for the sentence a failure this module did not compose
+      leaves behind, and optionally the words this command uses for its
+      own files. Nothing but that text is written anywhere, so the
+      published bytes never depend on which working name a run used.
+    - THE GUARDED SOURCES ARE A SET, and that is the difference from the
+      two-file form (plan P3-D1). Each is checked against the output
+      name and against every working name, by lexical path, by resolved
+      path, by the case-folded spelling a folding filesystem would treat
+      as one, and by the filesystem's own identity where both names
+      exist -- the shipped `is_the_same_file`, asked once per input. The
+      question is asked AGAIN once the file is at the output name, where
+      a substitution made between the check and the write becomes
+      decidable, and a run that finds the output has become one of its
+      inputs is undone. Left out, no source is guarded, which is right
+      only for a caller that was handed no file.
+    - The words: left out, the profiler's set is used, which is what
+      makes every message this transaction composed before the parameter
+      existed the same byte for byte. A command whose output is neither
+      a profile nor a twin MUST pass its own set; nothing here can
+      detect that it did not, and the cost of the omission is a person
+      being sent to look at the wrong file.
+    - Files touched: only files synthtwin itself created, plus the
+      output name. A file of any other name that was already there is
+      never written to and never removed -- the run stops instead and
+      says which files are in the way.
+    - Returns: the working files still on disk after an otherwise
+      complete run, so the caller can report them. Normally empty.
+    - Errors raised: ProfileError -- as `errors.TransactionRefusal`, one
+      of its subclasses -- with a plain-language message for every
+      refusal this module can describe, each carrying the state of every
+      name. Anything else that can be raised in here leaves as itself,
+      with the same type and the same message it had, after the cleanup
+      has run and ``state`` has been given the sentence: the transaction
+      may not rewrite a failure whose meaning belongs to somebody else.
+    - The guard's own bounds: the handler is entered before the first
+      working name is reached for, and every value it uses is bound
+      before that -- so there is NO statement between "a file synthtwin
+      made is on disk" and "a handler that will clear it away and name
+      it is in force".
+
+    What this does NOT promise is what the two-file form does not
+    promise either: durability against a power cut, since the call that
+    forces a write to the disk is outside the import allowlist (plan
+    D6.2); safety against another program changing these very names
+    between synthtwin looking and synthtwin writing, which SECURITY.md
+    names; and a clean folder after a stop inside a creation, where a
+    name reached for may hold an empty file synthtwin made and may
+    equally hold one that was already there. Such a name is NAMED to the
+    person and never removed.
+
+    One promise the two-file form makes is absent here because there is
+    nothing to promise: no pair of outputs can be left half-published,
+    since there is no pair.
+    """
+    place = pathlib.Path(target)
+    guarded = sources if sources is not None else []
+    _refuse_unless_plain_file(place, words)
+    landed = _lands_on_a_source(place, guarded)
+    if landed:
+        raise errors.ProfileError(
+            errors.output_would_replace_an_input(f"{place}", landed, words)
+        )
+    forbidden = [place]
+    for source, _noun in guarded:
+        forbidden = forbidden + [pathlib.Path(source)]
+
+    # EVERYTHING THE HANDLER WILL NEED IS BOUND HERE, before the guard
+    # opens, and this is the only place it can be done: right now nothing
+    # of synthtwin's making is on disk, so a stop anywhere in these four
+    # lines leaves the folder exactly as the run found it. From the `try`
+    # below to the end of this function there is no other setup.
+    part: pathlib.Path | None = None
+    holds = errors.ON_DISK_EMPTY_WORKING
+    claimed = _Claimed([])
+    progress = _Progress()
+    try:
+        part, trouble, owned = _claim_working_name(
+            place, PART_SUFFIX, forbidden, words, claimed
+        )
+        if part is None:
+            raise _stopped_clean_one(trouble, place, owned)
+
+        # Marked as possibly holding text BEFORE the write begins rather
+        # than after, because a write that stops half way has already put
+        # some of the report there.
+        holds = errors.ON_DISK_WORKING
+        trouble, holding = _write_part(part, text, words)
+        if trouble:
+            raise _stopped_clean_one(trouble, place, [(part, holding)])
+
+        # The rename runs INSIDE this same guard rather than under one of
+        # its own. There is no instant between the two, because there are
+        # no longer two.
+        return _move_one_into_place(
+            place, part, forbidden, guarded, progress, words, claimed
+        )
+    except errors.TransactionRefusal:
+        # Composed by this transaction, which is a fact about the object
+        # and not a guess from its type: the two `_stopped_*_one`
+        # builders are the only places that make one, and each has run
+        # the cleanup and put the state of every name into the message
+        # before handing it back.
+        raise
+    except BaseException:
+        # ANYTHING else, and the handler does not ask what -- the repair
+        # `write_both_files` carries, kept here rather than reasoned
+        # about again. A failure that reaches here keeps its type and its
+        # message, because the caller has advice for it that this module
+        # does not.
+        try:
+            _describe_the_stop_one(
+                state, place, part, holds, progress, claimed, words
+            )
+        except BaseException:  # noqa: BLE001,S110 -- the drop IS the repair.
+            # A SECOND failure while the first was being described. It is
+            # dropped and the first continues below with its own type and
+            # message, for the reason `write_both_files` states: the
+            # caller's advice belongs to the first.
             pass
         raise
 

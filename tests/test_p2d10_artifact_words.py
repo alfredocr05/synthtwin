@@ -303,6 +303,13 @@ _WORD_TAKING = {
     "output_folder_missing",
     "output_not_writable",
     "output_would_replace_the_table",
+    # The one-target transaction's own guarded-source refusal (plan
+    # P3-D1). It takes the words for the same reason the four above do:
+    # composed without them it would tell somebody in a stopped
+    # `validate` run that writing THE DESCRIPTION would have replaced
+    # one of its inputs, when the description is a file that command
+    # never writes.
+    "output_would_replace_an_input",
 }
 
 _TRANSACTION = ast.parse(

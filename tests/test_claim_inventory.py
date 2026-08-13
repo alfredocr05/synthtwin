@@ -126,10 +126,12 @@ SURFACES = (
     "src/synthtwin/parsing.py",
     "src/synthtwin/paths.py",
     "src/synthtwin/profile.py",
+    "src/synthtwin/quality.py",
     "src/synthtwin/reading.py",
     "src/synthtwin/rendering.py",
     "src/synthtwin/summary.py",
     "src/synthtwin/taxonomy.py",
+    "src/synthtwin/validation.py",
     "src/synthtwin/writing.py",
     "docs/spec/profile-contract-v4.md",
     "docs/spec/generation-method-v1.md",
@@ -155,16 +157,40 @@ RETIRED_CLAIMS = (
     "not one real row",
 )
 
-# The handling rule has to name all three artifacts. Three phrasings
-# are accepted, because the surfaces are written in three registers and
-# forcing one sentence on all of them would make some of them read
-# worse: the documents a person reads use articles; the normative
-# contract lists the artifacts bare; and the two files a run writes for
-# a reader call the profile "the description", which is the word those
-# files use for it throughout and the word a non-programmer recognizes.
-# All three name every artifact, which is the whole point, and none of
-# them can be satisfied by naming the profile alone.
-THREE_ARTIFACT_FORMS = (
+# The handling rule has to name every artifact a run can produce, and
+# the count moved from three to four when `synthtwin validate` shipped
+# (plan P3-D3, P3-D7 stage 2): the quality report states measurements
+# taken from the file it checked, so it is real-derived exactly as the
+# profile, the twin and the twin's report are.
+#
+# Several phrasings are accepted, because the surfaces are written in
+# several registers and forcing one sentence on all of them would make
+# some of them read worse: the documents a person reads use articles;
+# the normative contract lists the artifacts bare; and the files a run
+# writes for a reader call the profile "the description", which is the
+# word those files use for it throughout and the word a non-programmer
+# recognizes. Every accepted form names every artifact of the run it is
+# speaking about, which is the whole point, and none of them can be
+# satisfied by naming the profile alone.
+#
+# THE THREE-ARTIFACT FORMS ARE STILL ACCEPTED, and that is deliberate
+# rather than an unfinished migration. A surface speaking about what a
+# PROFILE-AND-GENERATE run produces names three files and is telling the
+# truth; the profile contract is such a surface, and it is a sealed
+# document that no code change may rewrite in passing. What the rule
+# keeps out is the lonely sentence -- the profile named as real-derived
+# with the other files left unmentioned -- and every form here keeps it
+# out.
+ARTIFACT_HANDLING_FORMS = (
+    "the profile, the twin, the twin's report and the quality report",
+    "the profile, the twin, this report and the quality report",
+    (
+        "the description, the twin, the twin's report and the quality "
+        "report"
+    ),
+    "the description, this twin, this report and the quality report",
+    "the profile, the twin, the twin's report and this quality report",
+    "the description, the twin, the twin's report and this quality report",
     "the profile, the twin and the report",
     "profile, twin and report",
     "the description, this twin and this report",
@@ -206,11 +232,11 @@ QUALIFIED_MARKS = (
         "the statement that synthtwin offers no formal privacy guarantee",
     ),
     (
-        THREE_ARTIFACT_FORMS,
+        ARTIFACT_HANDLING_FORMS,
         (
-            "the handling rule naming all three artifacts, so that the "
-            "institution's rules are not read as applying to the "
-            "profile alone"
+            "the handling rule naming every artifact of the run it "
+            "describes, so that the institution's rules are not read as "
+            "applying to the profile alone"
         ),
     ),
 )
@@ -231,6 +257,7 @@ CLAIM_BEARING = (
     "SECURITY.md",
     "src/synthtwin/__init__.py",
     "src/synthtwin/cli.py",
+    "src/synthtwin/quality.py",
     "src/synthtwin/rendering.py",
     "src/synthtwin/summary.py",
 )
@@ -364,11 +391,23 @@ STRUCTURE_MARKS = (
 )
 
 # The surfaces that must carry the whole structure statement. These are
-# `CLAIM_BEARING` plus the generator itself, for the reason the module
-# docstring gives: `generation.py` is the code that makes columns
-# independently, and the charter requires a module's docstring to state
-# the guarantees it upholds.
-STRUCTURE_BEARING = CLAIM_BEARING + ("src/synthtwin/generation.py",)
+# `CLAIM_BEARING` plus two modules, for the reason the module docstring
+# gives: `generation.py` is the code that makes columns independently,
+# and the charter requires a module's docstring to state the guarantees
+# it upholds.
+#
+# `validation.py` joined them when the validator shipped (plan P3-D7,
+# stage 2), and its reason is the sharper one. A validator's silence is
+# read as coverage: somebody holding a quality report that missed
+# nothing will believe the file was checked for whatever they care
+# about, and this version checks not one cross-column fact -- because
+# the description publishes none. A module that measures obligations and
+# does not say which obligations do not exist has left out the largest
+# thing about itself.
+STRUCTURE_BEARING = CLAIM_BEARING + (
+    "src/synthtwin/generation.py",
+    "src/synthtwin/validation.py",
+)
 
 # Where a person finds out which commands exist. Both command words are
 # required on each, because naming one and not the other is how the
@@ -379,7 +418,17 @@ COMMAND_BEARING = (
     "src/synthtwin/__init__.py",
     "src/synthtwin/cli.py",
 )
-COMMAND_WORDS = ("synthtwin profile", "synthtwin generate")
+# All three command words are required on each. `synthtwin validate`
+# joined them when the validator shipped (plan P3-D7, stage 2): a
+# surface that teaches two thirds of the workflow leaves a zero-code
+# reader with no way to learn that the third command exists, which is
+# exactly what the front page's old "[planned]" tag amounted to for
+# `generate`.
+COMMAND_WORDS = (
+    "synthtwin profile",
+    "synthtwin generate",
+    "synthtwin validate",
+)
 
 # Where the phase state is stated, and the exact sentence each states
 # it in. One sentence per surface, so the ban on parenthesized currency
@@ -407,11 +456,18 @@ DEPENDENCY_NAMES = ("pandas", "numpy")
 
 # The front page tags every capability built or planned, and promises
 # in its own opening paragraph that it does. These are the tags that
-# have to be there for the promise to be kept: the two commands that
-# exist, tagged built; the two outputs that do not, tagged planned; and
+# have to be there for the promise to be kept: the three commands that
+# exist, tagged built; the capabilities that do not, tagged planned; and
 # the two section headings that separate the one group from the other.
 # Pinned as exact wording rather than counted, because a page that
 # tagged everything "[built]" would satisfy any count.
+#
+# VALIDATION MOVED FROM PLANNED TO BUILT when `synthtwin validate`
+# shipped (plan P3-D7, stage 2), and the tag moved in the same commit as
+# the command. Relationships between columns did NOT move and must not:
+# the description still publishes eight empty slots, the twin still
+# carries no cross-column structure, and the quality report checks no
+# cross-column fact because there is none to check.
 FRONT_PAGE_TAGS = (
     ("## what synthtwin does today [built]", "the built-capability heading"),
     (
@@ -423,13 +479,18 @@ FRONT_PAGE_TAGS = (
     ),
     ("**[built]** `synthtwin profile`", "the profiler, tagged built"),
     ("**[built]** `synthtwin generate`", "the generator, tagged built"),
+    ("**[built]** `synthtwin validate`", "the validator, tagged built"),
     (
         "**[planned]** relationships between columns",
         "cross-column structure, tagged planned",
     ),
     (
-        "**[planned]** validation and the quality report",
-        "the fidelity verdict, tagged planned",
+        "**[planned]** pypi publication",
+        (
+            "the release, tagged planned, which is what keeps the "
+            "planned group from being emptied now that validation has "
+            "left it"
+        ),
     ),
 )
 
@@ -548,16 +609,17 @@ def test_the_handling_rule_is_never_left_at_the_profile_alone() -> None:
         text = _text(relative)
         if subject not in text:
             continue
-        if not any(form in text for form in THREE_ARTIFACT_FORMS):
+        if not any(form in text for form in ARTIFACT_HANDLING_FORMS):
             silent.append(relative)
     assert not silent, (
         "These surfaces state the institutional-handling rule but name "
         "only the profile:\n  "
         + "\n  ".join(silent)
-        + "\n\nAll three artifacts a full run produces -- the profile, "
-        "the twin and the report -- carry facts computed from real "
-        "data. Naming one of them and stopping reads as permission for "
-        "the other two. Add the three-artifact sentence beside the rule."
+        + "\n\nEvery artifact a full run produces -- the profile, the "
+        "twin, the twin's report and the quality report -- carries facts "
+        "computed from real data. Naming one of them and stopping reads "
+        "as permission for the others. Add the sentence that names them "
+        "all beside the rule."
     )
 
 
