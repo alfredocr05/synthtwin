@@ -1072,25 +1072,38 @@ covers the branch in the same change; until then the independent check
 on pooled spelling is not in force and this sentence is the record of
 that.
 
-**One bound of decision 9 is not yet met, and it is written down rather
-than left to be found** (review item P3-C6-F1, 2026-08-13). The
-permission to write a sign is the GROUP's, decided by the packing --
-except on a fold-collision PARTNER, which takes its parent's spelling
-before that gate is reached. A column of eleven `-3`, eleven `-3 ` and
-eleven `1e0` therefore writes twenty-two hazardous cells where eleven
-would do: the partner inherits the sign, and an allocation using `0e0`
-and `0E0` as the collision pair would have preserved every published
-count with half the hazard.
+**The bound decision 9 had is closed** (review item P3-C6-F1,
+2026-08-13). The permission to write a sign is the GROUP's, but a
+fold-collision PARTNER carries its parent's spelling and reached it
+before that gate: a column of eleven `-3`, eleven `-3 ` and eleven
+`1e0` wrote twenty-two hazardous cells where eleven would do, because
+the partner of `-0` can only be an edge-spaced `-0 `. Every count was
+exact; what was wrong was the hazard, doubled for nothing.
 
-Nothing published is lost -- every count is exact and the report names
-the cells -- so this is a bound on the carve-out rather than a broken
-obligation. It stays open because closing it means choosing WHICH
-groups carry the fold collisions with the sign in mind, which is
-`_collision_slots`' question and not a gate that can be added at the
-partner. **Until it closes, decision 9's bound reads: a sign is written
-only where a group's own length window admits nothing else, or where
-that group is the fold partner of such a group.** The invariant test
-asserts the shape of every signed cell, which holds either way.
+The parent is now chosen with the flip in mind: one that can be
+case-flipped is taken first, so the collision lands on `0e0` and `0E0`
+and the signed group keeps its eleven cells. Both passes keep the
+cyclic order the method fixes, so a column whose parents all hold
+letters, or none of which do, is laid out exactly as it was -- no
+frozen vector moved. The oracle carries the same preference, and the
+counterexample is a test.
+
+**So decision 9's bound reads as it was written**: a sign is written
+only where a group's own length window admits nothing else.
+
+**What the oracle does NOT yet carry, said plainly.** The reference
+oracle chooses one parent per partner -- `taking % identities` -- while
+the shipped code has always walked every parent in turn, so the
+preference cannot be expressed there without widening that search. The
+widening is almost certainly right, since it is what the shipped code
+does, but it makes a fixture in
+`tests/test_p2c2f7_oracle_identifier_bands.py` reachable that was
+written to be infeasible, and replacing that fixture is work this
+change did not do. **The divergence is older than this repair and no
+frozen case reaches it**; it is written here so the next person meets
+it as a known item rather than as a surprise, and closing it means
+widening the oracle's parent walk and giving that test a fixture whose
+infeasibility survives the wider search.
 
 ### P3-D8.2 Release preconditions (each verified, none assumed)
 
