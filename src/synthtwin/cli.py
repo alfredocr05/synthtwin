@@ -1,12 +1,15 @@
-"""The `synthtwin` command (plan P1-D3, P1-D7 and P2-D10).
+"""The `synthtwin` command (plan P1-D3, P1-D7, P2-D10 and P3-D1).
 
-Two commands share one command line. `synthtwin profile <table>` reads a
-local CSV file and writes two files beside it -- the profile, which is
+Three commands share one command line. `synthtwin profile <table>` reads
+a local CSV file and writes two files beside it -- the profile, which is
 what the twin is built from, and a plain-language summary of what was
 found and what left the table. `synthtwin generate <profile>` reads that
 profile and writes two more -- the twin table, and a report saying what
 the twin carries, what it only approximates, and what it does not carry
-at all.
+at all. `synthtwin validate <profile>` reads that profile and one CSV
+file, measures the file against it, and writes the quality report: which
+obligations the file met, which it missed, and which no CSV could ever
+evidence either way.
 
 Zero-code use is the requirement (charter principle 2): each command
 works with one path and nothing else. Everything else is an option with
@@ -14,18 +17,33 @@ a sensible default, and every message, including every refusal, is
 written for a person who has never programmed.
 
 WHY EACH COMMAND'S MODULES ARE IMPORTED INSIDE ITS OWN BRANCH (plan
-P2-D1). The generator never reads the real table, and that promise is
-kept by the import graph rather than by anybody's care: `reading` is the
-only module that opens a table, and a `generate` run has to be free of it
-at EVERY instant, not merely after the dispatch. Python runs a module's
-top-level imports before any branch of it exists, so importing this
-module used to start the table reader -- and pandas underneath it --
-whatever the person had typed, which put module initialization outside
-any boundary a check could draw. The profiler's modules are therefore
-imported inside `_run_profile`, the generator's inside `_run_generate`,
-and what is left at the top of this file reaches neither the reader nor
-pandas: `errors` and `parsing` import nothing outside this package, and
-`paths` imports os, pathlib, sys and typing.
+P2-D1, extended by P3-D1). The generator never reads the real table, and
+that promise is kept by the import graph rather than by anybody's care:
+`reading` is the only module that opens a table, and a `generate` run has
+to be free of it at EVERY instant, not merely after the dispatch. Python
+runs a module's top-level imports before any branch of it exists, so
+importing this module used to start the table reader -- and pandas
+underneath it -- whatever the person had typed, which put module
+initialization outside any boundary a check could draw. The profiler's
+modules are therefore imported inside `_run_profile`, the generator's
+inside `_run_generate`, the validator's inside `_run_validate`, and what
+is left at the top of this file reaches none of them: `errors` and
+`parsing` import nothing outside this package, and `paths` imports os,
+pathlib, sys and typing.
+
+THE VALIDATE BRANCH IS FENCED FROM BOTH SIDES, and only one side of that
+fence is the reader's. It DOES import the reader, because measuring a
+file means describing that file with the profiler's own producer, which
+is the only way the recount is the same measurement the description was
+made with. What it does NOT import is the generator: a check that called
+the planner would inherit every planning defect of the thing it is
+checking, which is the one thing a second opinion may not do, and the
+generator is where this package's only random number generator lives, so
+importing it would put a random source in the closure of a command whose
+bytes must be a fixed function of its two files. That is also why the
+quality report is rendered by `quality` rather than by `rendering`:
+`rendering` imports the generator, so a validate run that reached it
+would cross both of those lines at once.
 
 One consequence of that rule looks like an oversight and is not. The
 parser's own vocabulary -- the three choices for `--first-row`, the
@@ -87,9 +105,10 @@ _FIRST_ROW_NAMES = "names"
 _FIRST_ROW_DATA = "data"
 _SMALLEST_GROUP = 11
 
-# The two commands, as the words a person types.
+# The three commands, as the words a person types.
 _PROFILE = "profile"
 _GENERATE = "generate"
+_VALIDATE = "validate"
 
 # THE SEED'S ACCEPTED SPELLING AND RANGE (plan P2-D8). synthtwin states
 # its own range rather than passing whatever was typed to the library
@@ -110,6 +129,11 @@ _PROFILE_MARK = "-profile"
 _TWIN_SUFFIX = "-twin.csv"
 _REPORT_SUFFIX = "-twin-report.txt"
 
+# And the one file `validate` writes, by the same construction (plan
+# P3-D1). It collides with none of the other four by construction: those
+# end '-profile.json', '-profile.txt', '-twin.csv' and '-twin-report.txt'.
+_QUALITY_SUFFIX = "-twin-quality.txt"
+
 _STATUS = """synthtwin {version}
 
 Status: early. `synthtwin profile <your-table.csv>` reads a CSV table on
@@ -117,7 +141,11 @@ this computer and writes a description of it -- what each column holds,
 how its values are spread, and what is missing. Then `synthtwin generate
 <your-table-profile.json>` builds the synthetic twin from that
 description and a seed, and from nothing else, and writes it beside a
-report saying what the twin carries and what it does not.
+report saying what the twin carries and what it does not. Then
+`synthtwin validate <your-table-profile.json>` measures that twin
+against the description and writes the quality report: which of the
+description's obligations the file met, which it missed, and which
+nothing written in a CSV could evidence either way.
 
 What the twin does NOT carry, before anything else here claims more.
 This version builds every column on its own and carries no cross-column
@@ -142,9 +170,10 @@ eleven rows share, publishes that label with the count eleven -- so the
 twin writes it in all eleven of its rows. synthtwin offers no formal
 privacy guarantee.
 
-All three files -- the profile, the twin and the report -- are computed
-from your real data, so your institution's rules for real-derived
-material apply to all three, not to the profile alone.
+All four files -- the profile, the twin, the twin's report and the
+quality report -- are computed from your real data, so your
+institution's rules for real-derived material apply to all four, not to
+the profile alone.
 
 Everything runs on this computer. synthtwin never sends anything
 anywhere, and it accepts only plain paths to local files.
@@ -175,6 +204,13 @@ _HELP_EPILOG = """examples:
 
   synthtwin generate data-profile.json --replace
       build it again over the two files an earlier run left there
+
+  synthtwin validate data-profile.json
+      measure data-twin.csv against that description and write
+      data-twin-quality.txt beside it
+
+  synthtwin validate data-profile.json --twin somewhere/other.csv
+      measure that file instead of the twin beside the description
 """
 
 
@@ -246,7 +282,7 @@ def _encoding_note(encoding: str, used_fallback: bool) -> str:
 
 
 def _left_behind_note(
-    left: "list[str]", produced: str = "profile"
+    left: "list[str]", produced: str = "profile", one_output: bool = False
 ) -> str:
     """The caution for working files a finished run could not clear away.
 
@@ -263,12 +299,19 @@ def _left_behind_note(
     it.
 
     ``produced`` is what the running command calls what it wrote -- the
-    profile, or the twin -- for the one sentence that names it. It
-    defaults to the profiler's word, which is what keeps that command's
-    caution the same text it has always been, and `generate` passes its
-    own: telling somebody that nothing is wrong with their profile after
-    a run that never wrote one sends them to look at the wrong file
-    (plan P2-D10).
+    profile, the twin, or the quality report -- for the one sentence that
+    names it. It defaults to the profiler's word, which is what keeps
+    that command's caution the same text it has always been, and the
+    other two commands pass their own: telling somebody that nothing is
+    wrong with their profile after a run that never wrote one sends them
+    to look at the wrong file (plan P2-D10).
+
+    ``one_output`` says whether the run wrote one file or two, and it is
+    a parameter rather than a guess because this sentence opens by
+    telling the reader that what they came for is complete. "Both files
+    above were written" is a false sentence in a `validate` run, which
+    writes one, and a caution that opens with a false clause is a
+    caution the reader stops trusting (plan P3-D1).
 
     Every path is put through `_shown` before it reaches the sentence,
     like every other path this module prints.
@@ -279,9 +322,12 @@ def _left_behind_note(
     one_only = len(left) == 1
     which = "this one" if one_only else "these"
     them = "it" if one_only else "them"
+    written = "Both files above were written and are complete"
+    if one_output:
+        written = "The file above was written and is complete"
     return (
-        f"\nSomething to tidy up by hand. Both files above were written "
-        f"and are complete -- nothing is wrong with your {produced}. "
+        f"\nSomething to tidy up by hand. {written} "
+        f"-- nothing is wrong with your {produced}. "
         f"synthtwin makes itself a working file beside each output "
         f"while it writes, and removes it at the end; {which} could not "
         f"be removed:{listed}\n"
@@ -296,9 +342,16 @@ class _Options:
     """What the user asked for, read off the command line.
 
     `given` is the one path the command word takes: the CSV table for
-    `profile`, the description for `generate`. It is one field because
-    it is one position on the command line, and calling it after either
-    command would make the other one read as a mistake.
+    `profile`, the description for `generate` and for `validate`. It is
+    one field because it is one position on the command line, and
+    calling it after any one command would make the others read as a
+    mistake.
+
+    `twin` is the second file `validate` reads, and it is a named option
+    rather than a second position for the reason the whole command line
+    is shaped that way: a person types one path, and every other file is
+    worked out for them. Left out, the twin beside the description is
+    what gets measured.
 
     `seed` is the text that was typed, not a number. Whether it is a
     number synthtwin can use is decided by `_seed_or_refusal` in words a
@@ -309,6 +362,7 @@ class _Options:
     version: bool
     command: "str | None"
     given: "str | None"
+    twin: "str | None"
     out_dir: "str | None"
     smallest_group: int
     identifiers: list[str]
@@ -357,11 +411,13 @@ def _parse_arguments(argv: "list[str] | None") -> _Options:
         "command",
         nargs="?",
         default=None,
-        choices=[_PROFILE, _GENERATE],
+        choices=[_PROFILE, _GENERATE, _VALIDATE],
         help=(
             "what to do: 'profile' describes a CSV table on this "
             "computer, 'generate' builds the synthetic twin from a "
-            "description 'profile' wrote"
+            "description 'profile' wrote, 'validate' measures a CSV "
+            "file against that description and writes the quality "
+            "report"
         ),
     )
     parser.add_argument(
@@ -370,7 +426,19 @@ def _parse_arguments(argv: "list[str] | None") -> _Options:
         default=None,
         help=(
             "the file to work on: the CSV table for 'profile', the "
-            "description for 'generate'"
+            "description for 'generate' and for 'validate'"
+        ),
+    )
+    parser.add_argument(
+        "--twin",
+        default=None,
+        metavar="PATH",
+        help=(
+            "the CSV file for 'validate' to measure (the default is the "
+            "twin beside the description, the file 'generate' wrote). "
+            "synthtwin measures whatever file you name here: it has no "
+            "way of telling a twin of its own from any other CSV, and "
+            "the report says so. Used by 'validate' only"
         ),
     )
     parser.add_argument(
@@ -378,8 +446,8 @@ def _parse_arguments(argv: "list[str] | None") -> _Options:
         default=None,
         metavar="FOLDER",
         help=(
-            "folder to write the two files into (the default is the "
-            "folder the file you named is in)"
+            "folder to write this command's own files into (the default "
+            "is the folder the file you named is in)"
         ),
     )
     parser.add_argument(
@@ -400,9 +468,10 @@ def _parse_arguments(argv: "list[str] | None") -> _Options:
         action="store_true",
         help=(
             "let 'generate' write over the twin and the report an "
-            "earlier run left at those names. Without it, a run that "
-            "finds either name taken stops and changes nothing: "
-            "synthtwin has no way of telling an earlier twin of its own "
+            "earlier run left at those names, and 'validate' over the "
+            "quality report. Without it, a run that finds any of those "
+            "names taken stops and changes nothing: synthtwin has no "
+            "way of telling a file an earlier run of its own left there "
             "from a file of yours that happens to be there"
         ),
     )
@@ -510,10 +579,10 @@ def _parse_arguments(argv: "list[str] | None") -> _Options:
         _refuse_the_command_line(
             f"This part of what you typed was not understood: {listed}. "
             f"synthtwin works on one file at a time, so the command is "
-            f"either  synthtwin profile my-table.csv  or  synthtwin "
-            f"generate my-table-profile.json  and nothing else. If the "
-            f"path has a space in it, put quotation marks around the "
-            f"whole path."
+            f"one of  synthtwin profile my-table.csv  ,  synthtwin "
+            f"generate my-table-profile.json  and  synthtwin validate "
+            f"my-table-profile.json  and nothing else. If the path has a "
+            f"space in it, put quotation marks around the whole path."
         )
     if args.command == _PROFILE and args.path is None:
         _refuse_the_command_line(
@@ -526,6 +595,13 @@ def _parse_arguments(argv: "list[str] | None") -> _Options:
             "example: synthtwin generate my-table-profile.json -- that "
             "is the file 'synthtwin profile' wrote."
         )
+    if args.command == _VALIDATE and args.path is None:
+        _refuse_the_command_line(
+            "Please say which description to measure the file against, "
+            "for example: synthtwin validate my-table-profile.json -- "
+            "that is the file 'synthtwin profile' wrote. Add --twin and "
+            "a path if the file to measure is not the twin beside it."
+        )
     named = args.identifier if args.identifier is not None else []
     kept = args.keep_value if args.keep_value is not None else []
     declared_missing = (
@@ -535,6 +611,7 @@ def _parse_arguments(argv: "list[str] | None") -> _Options:
         version=bool(args.version),
         command=args.command,
         given=args.path,
+        twin=args.twin,
         out_dir=args.out_dir,
         smallest_group=int(args.smallest_group),
         identifiers=list(named),
@@ -995,7 +1072,260 @@ def _run_generate(
         # file that may hold real-derived text.
         _warn(_left_behind_note(left_behind, "twin"))
     _say(f"\nWritten:\n  {shown_twin_path}\n  {shown_report_path}")
+    _say(_teaching_validate(description, twin_path))
     return 0
+
+
+def _teaching_validate(
+    description: str, twin_path: pathlib.Path
+) -> str:
+    """The sentence that ends a finished `generate` run (plan P3-D6).
+
+    The teaching chain: `profile` ends by teaching `generate`, `generate`
+    ends by teaching `validate`, and `validate` ends by saying what its
+    verdict means. Somebody who has never used a command line has to be
+    able to get from the first command to the last without reading
+    anything but what the previous one printed.
+
+    The line names `--twin` even where the twin sits exactly where
+    validate would look for it. Working out when the option can be left
+    out means reasoning about `--out-dir`, and a taught command line that
+    is right only sometimes is worse than a longer one that is always
+    right.
+
+    Both paths pass through `_shown`, like every other path this module
+    prints.
+    """
+    return (
+        f"\nNext, measure the twin against the description:\n"
+        f"  synthtwin validate {_shown(description)} "
+        f"--twin {_shown(twin_path)}\n"
+        f"That writes a quality report saying which of the description's "
+        f"obligations the twin holds, which it misses, and which nothing "
+        f"written in a CSV can evidence either way."
+    )
+
+
+# -- checking a written file against the description (plan P3-D1) ------
+
+
+def _quality_path(
+    description: pathlib.Path, out_dir: "str | None"
+) -> pathlib.Path:
+    """Where the quality report goes (plan P3-D1).
+
+    Guarantees:
+
+    - Inputs: the path of the description this run was given, and the
+      folder the person asked for, or nothing for the folder the
+      description is in.
+    - Determinism: the same path for the same two inputs.
+    - Errors raised: ProfileError, with a plain-language message, when a
+      named folder does not exist; PathValidationError when the folder or
+      the output name is not a plain local path.
+    - Boundary: nothing is opened, created or written here.
+
+    The exact target goes through the locality gate, not only the folder,
+    for the reason `_twin_paths` gives: a link left at the report's name
+    would otherwise send the file wherever it points. The name cannot
+    collide with any of the four artifacts that already exist, which end
+    '-profile.json', '-profile.txt', '-twin.csv' and '-twin-report.txt'.
+    """
+    source = pathlib.Path(description)
+    stem = _twin_stem(f"{source.stem}")
+    if out_dir is None:
+        folder = pathlib.Path(source.parent)
+    else:
+        validated = validate_local_path(out_dir, purpose="output folder")
+        folder = pathlib.Path(validated)
+        if not folder.is_dir():
+            raise errors.ProfileError(
+                errors.output_folder_missing(
+                    f"{folder}", errors.QUALITY_WORDS
+                )
+            )
+    target = validate_local_path(
+        f"{folder / (stem + _QUALITY_SUFFIX)}", purpose="output file"
+    )
+    return pathlib.Path(target)
+
+
+def _measured_path(description: str, twin_given: "str | None") -> str:
+    """Which file this run measures: the one named, or the twin beside it.
+
+    The default is derived from the DESCRIPTION's own folder rather than
+    from `--out-dir`, because `--out-dir` says where this command writes
+    and says nothing about where an earlier `generate` run put its twin.
+    A person whose twin is somewhere else names it with `--twin`, which
+    is the line the finished `generate` run taught them.
+    """
+    if twin_given is not None:
+        return twin_given
+    twin_path, _report_path = _twin_paths(pathlib.Path(description), None)
+    return f"{twin_path}"
+
+
+def _verdict_lines(missed: int, code: int) -> str:
+    """What the verdict means, what it does not, and what code was seen.
+
+    Plan P3-D6's third teaching sentence. It says the same things the
+    report's own summary says, because the person who reads the screen
+    and the person who reads the file are the same person, and two
+    accounts of one verdict is one account too many.
+    """
+    if missed == 0:
+        headline = (
+            "No checkable obligation was missed. That is the whole of "
+            "what this says."
+        )
+    else:
+        headline = (
+            f"{missed} checkable obligation(s) were missed. The quality "
+            f"report names every one of them, with what the description "
+            f"asks for beside what the file was found to hold."
+        )
+    return (
+        f"\nWhat this means. {headline} It is not a verdict that the "
+        f"file is fit for any analysis; it validates nothing this "
+        f"description does not publish; and it cannot tell a synthetic "
+        f"file from a real one, because nothing in a CSV proves where "
+        f"its rows came from.\n"
+        f"Automation saw exit code {code}: 0 means nothing was missed, 3 "
+        f"means something was, 1 means the check could not run at all, "
+        f"and 2 means the command line could not be used."
+    )
+
+
+def _run_validate(
+    description: str,
+    twin_given: "str | None",
+    out_dir: "str | None",
+    replace: bool,
+) -> int:
+    """Do the work of `synthtwin validate`; return the exit code.
+
+    The order of operations is a control here as much as in the other
+    two commands, and it is exactly this: the description is loaded
+    first, so a missing or unreadable one says so rather than being
+    reported as a name clash; every refusal that can be decided from the
+    NAMES alone -- a folder in the way, an output leading back to either
+    input, an output name already taken -- is made next, before a byte of
+    the measured file is read; and the measurement then happens entirely
+    in memory, so a description no file can be the twin of is refused
+    with nothing on disk either. A refused run leaves the folder exactly
+    as it found it, at every one of those points.
+
+    THE MODULES ARE IMPORTED HERE, inside the branch (plan P2-D1, P3-D1).
+    This branch DOES reach the table reader, through `validation`, and it
+    must: measuring a file means describing that file with the profiler's
+    own producer. What it must not reach is the generator, so `rendering`
+    -- which imports it -- is not among these four, and the quality
+    report is rendered by `quality` instead. This is the only place in
+    the package where validation is reached from the command line.
+
+    THE EXIT CODE IS THE PRODUCT AS MUCH AS THE REPORT IS (V6.5). 0 when
+    the check ran and nothing was missed, 3 when it ran and something
+    was, 1 when it could not run at all, 2 when the command line could
+    not be used. Automation tells a file that failed its check from a
+    file that was never evaluated without reading a word of prose.
+
+    A PRE-EXISTING OUTPUT IS REFUSED, on the generate command's own
+    reasoning (R-P2-12 parity): synthtwin cannot tell a quality report an
+    earlier run of its own wrote from a file of the person's that happens
+    to sit at that name, so it refuses, names the file, and teaches
+    `--replace`.
+    """
+    from synthtwin import contract, quality, validation, writing
+
+    loaded = contract.load_profile(description)
+    measured = _measured_path(description, twin_given)
+    quality_path = _quality_path(pathlib.Path(description), out_dir)
+    writing.refuse_if_folder(quality_path, errors.QUALITY_WORDS)
+
+    # The output must never be either file this run reads. A link left
+    # at the report's name resolves to a permitted local path, so the
+    # locality gate cannot catch this one -- and what would be destroyed
+    # is either the description the verdicts are measured against or the
+    # file being measured, which may be somebody's own table.
+    source = validate_local_path(description, purpose="input")
+    measured_source = validate_local_path(measured, purpose="input")
+    guarded = [
+        (pathlib.Path(source), errors.INPUT_DESCRIPTION),
+        (pathlib.Path(measured_source), errors.INPUT_MEASURED_FILE),
+    ]
+    for place, noun in guarded:
+        if quality_path == place or writing.is_the_same_file(
+            quality_path, place
+        ):
+            _warn(
+                errors.output_would_replace_an_input(
+                    _shown(place), noun, errors.QUALITY_WORDS
+                )
+            )
+            return 1
+
+    shown_quality_path = _shown(quality_path)
+    if not replace and _already_there(quality_path):
+        _warn(errors.quality_target_already_there(shown_quality_path))
+        return 1
+
+    outcome = validation.measure(loaded, measured)
+    # The report is a human-facing sink like the profiler's summary and
+    # the twin's report, so it crosses the display boundary once, here,
+    # and the same text is what reaches the screen and what is written to
+    # disk. The two cannot differ.
+    report_text = parsing.visible_lines(
+        quality.quality_report(loaded, outcome)
+    )
+    code = 3 if outcome.census.missed else 0
+
+    _say(report_text)
+    _say(f"This file will be written:\n  {shown_quality_path}")
+    _say(
+        "\nIt carries counts and measurements taken from the file it "
+        "checked, so it is real-derived material like the description "
+        "and the twin. Keep it under the same rules your institution "
+        "applies to the table itself, and read the report above before "
+        "moving it anywhere."
+    )
+
+    # The same two halves as the other two commands' writes, for the same
+    # two reasons: the returned list names every working file a finished
+    # run could not clear away, and the DiskState carries the sentence
+    # for a failure the transaction could not describe in its own words
+    # (review items P1-R6-F5 and P1-R7-F1). The words are the
+    # validator's, so a stop names the quality report and the description
+    # rather than a profile and a table this run never had.
+    state = writing.DiskState()
+    try:
+        left_behind = writing.write_one_file(
+            quality_path,
+            report_text,
+            sources=guarded,
+            state=state,
+            words=errors.QUALITY_WORDS,
+        )
+    except BaseException:
+        if state.sentence:
+            _warn(_shown(state.sentence))
+        elif state.target_written:
+            _say(f"\nWritten:\n  {shown_quality_path}")
+            if state.left_behind:
+                _warn(
+                    _left_behind_note(
+                        [state.left_behind], "quality report", True
+                    )
+                )
+        raise
+    if left_behind:
+        # A caution, not a refusal, and printed BEFORE the confirmation
+        # for the reason the other two commands give: if only one of the
+        # two lines reaches the person, it must be the one naming a file
+        # that may hold real-derived text.
+        _warn(_left_behind_note(left_behind, "quality report", True))
+    _say(f"\nWritten:\n  {shown_quality_path}")
+    _say(_verdict_lines(outcome.census.missed, code))
+    return code
 
 
 def main(argv: "list[str] | None" = None) -> int:
@@ -1005,24 +1335,37 @@ def main(argv: "list[str] | None" = None) -> int:
 
     - Inputs: `argv` is the list of command-line arguments to parse, or
       `None` to parse `sys.argv[1:]`. Recognized: `--version`, `--help`,
-      the `profile` command word with its options, and the `generate`
-      command word with `--seed`, `--out-dir` and `--replace`.
-    - Return codes: 0 when the work finished; 1 when the file given
-      could not be read or the two output files could not be written,
-      with a plain-language explanation on the error stream; 2 when an
-      option's value was not usable, which includes naming one value both
-      with `--keep-value` and with `--missing-value`, and a seed that is
-      not a whole number in figures inside the stated range. `SystemExit`
-      with code 2 still ends the run for a word on the command line that
-      synthtwin does not recognize, and with code 0 for `--help`. 0
-      always means both files were written: a working file that could not
-      be cleared away afterwards is named on the error stream as a
-      caution and does not change the code, because nothing about the
-      output is wrong.
+      the `profile` command word with its options, the `generate`
+      command word with `--seed`, `--out-dir` and `--replace`, and the
+      `validate` command word with `--twin`, `--out-dir` and
+      `--replace`.
+    - Return codes: 0 when the work finished; 1 when a file given could
+      not be read or an output file could not be written, with a
+      plain-language explanation on the error stream; 2 when an option's
+      value was not usable, which includes naming one value both with
+      `--keep-value` and with `--missing-value`, and a seed that is not a
+      whole number in figures inside the stated range. `SystemExit` with
+      code 2 still ends the run for a word on the command line that
+      synthtwin does not recognize, and with code 0 for `--help`. For
+      `profile` and `generate`, 0 always means both files were written: a
+      working file that could not be cleared away afterwards is named on
+      the error stream as a caution and does not change the code, because
+      nothing about the output is wrong.
+
+      `validate` splits the finished run in two, and the split is the
+      machine channel this phase ships (V6.5): 0 when the check ran to
+      completion and no obligation was MISSED, and 3 when it ran to
+      completion and at least one was. Both mean the quality report was
+      written. Automation therefore tells a file that failed its check
+      from a file that was never evaluated -- which is what 1 means on
+      this command -- without reading a word of prose.
     - Determinism: the same table and the same options produce the same
       two files, byte for byte, on the same platform (plan D12 and
       P1-D11); so do the same description, the same seed and the same
-      version of synthtwin (plan P2-D8).
+      version of synthtwin (plan P2-D8); and so does the quality report,
+      whose bytes are a fixed function of the description's bytes, the
+      measured file's bytes and the version (V10). A validate run
+      consumes no randomness and reaches no random source at all.
     - Errors raised: none that reach the user as a traceback. Every
       refusal in the catalog and every path rejection is caught here and
       printed as a message that says what happened and what to do next.
@@ -1045,16 +1388,22 @@ def main(argv: "list[str] | None" = None) -> int:
       (3) a stopped MACHINE is not covered at all, because nothing runs
       afterwards to write anything.
     - Boundary: the only file `profile` reads is the table the user
-      named, and the only file `generate` reads is the description the
-      user named, both through the path validator; the only files either
-      writes are the two it reports at the end, plus working files of
-      synthtwin's own making beside them, which are removed before the
-      command returns -- and named on the error stream in the rare case
-      that one could not be. A `generate` run never opens a table and
-      never reaches the module that can: the reader is not imported at
-      all unless the person typed `profile` (plan P2-D1). No network,
-      subprocess, native, or dynamic-code operation is performed
-      anywhere in the package.
+      named; the only file `generate` reads is the description the user
+      named; `validate` reads exactly two, the description and the file
+      it measures, and never the generation report -- everything it needs
+      to know about what the description authorizes is recomputed from
+      the description alone. Every one of those paths goes through the
+      path validator. The only files any of the three writes are the ones
+      it reports at the end, plus working files of synthtwin's own making
+      beside them, which are removed before the command returns -- and
+      named on the error stream in the rare case that one could not be. A
+      `generate` run never opens a table and never reaches the module
+      that can: the reader is not imported at all unless the person typed
+      `profile` or `validate` (plan P2-D1, P3-D1). A `validate` run never
+      reaches the generator, so no random source is in its closure, and
+      it never writes, moves, truncates or re-encodes either of the two
+      files it read. No network, subprocess, native, or dynamic-code
+      operation is performed anywhere in the package.
     - Display: nothing reaches the screen, the error stream, the summary
       file or the report file without passing the display boundary
       described at the top of this module. A path or a value carrying an
@@ -1075,10 +1424,15 @@ def main(argv: "list[str] | None" = None) -> int:
         return 0
 
     generating = options.command == _GENERATE
+    validating = options.command == _VALIDATE
     try:
         if generating:
             return _run_generate(
                 named, options.out_dir, options.seed, options.replace
+            )
+        if validating:
+            return _run_validate(
+                named, options.twin, options.out_dir, options.replace
             )
         return _run_profile(
             named,
@@ -1106,10 +1460,18 @@ def main(argv: "list[str] | None" = None) -> int:
         # the description and rendering it allocate again, and so does
         # building a twin, which holds every cell of every column at once.
         # One refusal per command covers them all rather than a traceback
-        # reaching the user, and the two say different things because the
-        # two runs are holding different files.
+        # reaching the user, and the three say different things because
+        # the three runs are holding different files.
+        #
+        # The validate wording names the DESCRIPTION, because that is the
+        # file the person typed and this handler cannot know how far the
+        # run got. A failure inside the measurement itself is composed by
+        # `validation.measure`, which does know, and names the file it
+        # was reading.
         if generating:
             _warn(errors.twin_out_of_memory(_shown(named)))
+        elif validating:
+            _warn(errors.quality_out_of_memory(_shown(named)))
         else:
             _warn(errors.out_of_memory_while_describing(_shown(named)))
         return 1

@@ -17,10 +17,11 @@ spelling, a detail quoted from a library -- passes through
 escape sequence, and a refusal is a human-facing sink like any other
 (review item P1-R3-F9).
 
-A HANDFUL OF THESE MESSAGES SERVE TWO COMMANDS, and the words they use
-for the files differ between them. `ArtifactWords` below holds exactly
-those words, the two sets are written out beside it, and the builders
-that need one take it as an argument (plan P2-D10).
+A HANDFUL OF THESE MESSAGES SERVE THREE COMMANDS, and the words they
+use for the files differ between them. `ArtifactWords` below holds
+exactly those words, the three sets are written out beside it, and the
+builders that need one take it as an argument (plan P2-D10, extended to
+the quality report by P3-D1).
 
 Imports here stay within the allowlist (plan D6.2): `dataclasses`, for
 that one record, and `parsing`, for `visible`.
@@ -513,6 +514,41 @@ TWIN_WORDS = ArtifactWords(
     mismatch="a report from one run does not describe the twin from another",
 )
 
+# The validator's set (plan P3-D1). `validate` writes ONE file, so the
+# transaction it uses is the one-target form and `mismatch` reads
+# differently here from the two sets above: there is no second file this
+# one has to match, and what a stale quality report contradicts is the
+# FILE IT MEASURED. A report left standing from an earlier run states
+# verdicts about bytes that are no longer at that name, which is the
+# same failure -- a reader trusting a sentence about a file that is not
+# there -- reached by a different route.
+#
+# `given` is the description rather than the measured file because that
+# is the file the command is HANDED, exactly as `generate` is handed a
+# description; the measured file is named by its own noun wherever a
+# message needs to tell the two apart (`INPUT_MEASURED_FILE` below).
+QUALITY_WORDS = ArtifactWords(
+    produced="quality report",
+    given="description",
+    new_file="the quality report",
+    loss=(
+        "That would have destroyed the description the verdicts are "
+        "measured against."
+    ),
+    mismatch=(
+        "a quality report from one run does not describe the file "
+        "another run measured"
+    ),
+)
+
+# The two files a `validate` run reads, as the nouns a refusal uses to
+# say WHICH of them an output name would have landed on (plan P3-D1).
+# One `ArtifactWords` carries one `given`, and this command is handed
+# two files, so the second one is named here rather than by bending a
+# record that exists to name one.
+INPUT_DESCRIPTION = "description"
+INPUT_MEASURED_FILE = "file you asked synthtwin to check"
+
 
 COULD_NOT_CHECK = (
     "synthtwin could not read what is at that name to see whether it is "
@@ -813,6 +849,36 @@ def output_would_replace_the_table(
         f"replaced your own {words.given} at {path}. {words.loss} This "
         f"usually means a file of the {words.produced}'s name is a link "
         f"pointing back at the {words.given}. Remove that link, or use "
+        f"the option for a different output folder, then run the command "
+        f"again. Nothing was written."
+    )
+
+
+def output_would_replace_an_input(
+    path: str, source: str, words: ArtifactWords = PROFILE_WORDS
+) -> str:
+    """Message for an output name that leads back to one of two inputs.
+
+    `output_would_replace_the_table` above protects the ONE file its
+    command was handed. `validate` is handed two -- the description and
+    the file it measures -- and a report written over either of them is
+    the same accident with two different costs, so the refusal has to
+    say which one it caught (plan P3-D1). ``source`` is one of the two
+    nouns written out beside `QUALITY_WORDS`, never a value out of a
+    file: on this path the measured file may not be the reader's own
+    table, and a refusal travels as freely as a report does.
+
+    ``words`` supplies what would have been written. The remaining
+    fields of the record are not used here on purpose: `loss` and
+    `given` speak about one handed-in file, and this message's whole
+    job is that there are two.
+    """
+    return (
+        f"synthtwin stopped because writing {words.new_file} would have "
+        f"replaced the {source} at {path}. Both files a check reads have "
+        f"to still be there when it finishes, so synthtwin wrote nothing. "
+        f"This usually means a file of the {words.produced}'s name is a "
+        f"link pointing back at one of them. Remove that link, or use "
         f"the option for a different output folder, then run the command "
         f"again. Nothing was written."
     )
@@ -1155,6 +1221,51 @@ def profile_out_of_memory(path: str) -> str:
 # library underneath accepts a wider set than synthtwin does and refuses
 # a negative one in its own words, which name a bit width and a data
 # type; neither message below lets that reach a person (plan P2-D8).
+
+
+def quality_out_of_memory(path: str) -> str:
+    """Message for a machine that ran out of memory checking a file.
+
+    It names the DESCRIPTION, which is the file the person typed. A
+    failure inside the measurement itself is composed where the file
+    being read is known, and names that file instead; this one covers
+    the rest of the run, where the honest answer is that synthtwin
+    cannot say which of the two files it was holding at the time.
+    """
+    return (
+        f"There was not enough memory to finish checking a file against "
+        f"the description at {path}. Checking holds a whole description "
+        f"of the measured file in memory at once, beside the description "
+        f"it is being compared with, so it needs several times the space "
+        f"the files themselves take. Please close other programs and run "
+        f"the command again, or use a computer with more memory. Nothing "
+        f"was written."
+    )
+
+
+def quality_target_already_there(target: str) -> str:
+    """Message for a `validate` run whose one output name is taken.
+
+    The generate refusal's reasoning, at one file (plan P3-D1, R-P2-12
+    parity). synthtwin cannot tell an earlier quality report of its own
+    from a file of the person's that happens to sit at that name, and
+    reading it to find out would open a third file on a path that is
+    allowed exactly two. So it refuses, names the file, and teaches
+    `--replace`.
+
+    It is one paragraph, like every other message here: a refusal is
+    shown as a VALUE on its way to the screen, so a line feed inside one
+    reaches the reader as text rather than as layout.
+    """
+    return (
+        f"synthtwin stopped because something is already at the name it "
+        f"would write. This run writes one file, {target}, and it is "
+        f"already there. Nothing was written and nothing was changed. If "
+        f"that file can be replaced -- the usual reason is checking the "
+        f"same twin again -- add --replace to the command. If not, move "
+        f"or rename what is there, or give --out-dir a different folder "
+        f"to write into, then run the command again."
+    )
 
 
 def twin_out_of_memory(path: str) -> str:

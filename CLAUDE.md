@@ -75,7 +75,7 @@ from, not a promise that no twin row can equal a real one.
 
 ## The outputs, and which of them exist today
 
-Built now, by the two commands that exist:
+Built now, by the three commands that exist:
 
 1. **The synthetic twin table** - same shape and the same published
    behaviour column by column, every cell derived from the profile and
@@ -87,21 +87,30 @@ Built now, by the two commands that exist:
 3. **The generation report** - written beside every twin, saying which
    published facts the twin holds exactly, which it holds only
    approximately with the achieved value printed beside the published
-   one, and which it does not hold at all.
+   one, and which it does not hold at all. It passes no verdict of its
+   own and says so, and it ends by teaching the command that produces
+   one.
+4. **The plain-language quality report** - written by `synthtwin
+   validate`, which reads the profile and one CSV file, describes that
+   file again with the profiler's own producer, and reports which of
+   the profile's obligations the file meets, which it misses, and which
+   nothing written in a CSV can evidence either way. A passing report
+   means exactly one thing - no checkable obligation was missed - with
+   the within-window, authorized-deviation, withheld and not-checkable
+   counts standing beside it and never folded into it. It is not a
+   fitness verdict for any analysis, it validates nothing the profile
+   does not publish, and it cannot tell a synthetic file from a real
+   one.
 
-Not built. These are named here as roadmap and are never written about
-as though they existed:
+Not built. This is named here as roadmap and is never written about as
+though it existed:
 
-4. **The relationship summary** - which columns move together, and what
+5. **The relationship summary** - which columns move together, and what
    a twin would then have to do about it. None of it exists: the
    profile's relationship manifest is eight reserved slots, every one
    empty, and the loader refuses a profile that fills any of them. It
-   arrives with Phase 5.
-5. **The plain-language quality report** - how well the twin matches,
-   stated honestly, in words a non-statistician can read. Phase 3. The
-   generation report of item 3 measures published facts and passes no
-   verdict on fidelity; it says so in as many words rather than letting
-   its silence read as a pass.
+   arrives with Phase 5. Nothing the quality report checks is a
+   cross-column fact, because the profile publishes none.
 
 ## Honest limits
 
@@ -132,10 +141,10 @@ as though they existed:
   every public surface.
 - synthtwin is not a formal privacy mechanism, claims no
   differential-privacy property, and offers no formal privacy guarantee.
-  All three artifacts a full run produces - the profile, the twin and
-  the report - carry facts computed from real data, so the institution's
-  rules for real-derived material apply to all three, never to the
-  profile alone.
+  All four artifacts a full run produces - the profile, the twin, the
+  twin's report and the quality report - carry facts computed from real
+  data, so the institution's rules for real-derived material apply to
+  all four, never to the profile alone.
 - The offline guarantee is a property of the code, verified by source
   audit and scans - it is not an OS-level sandbox. Institutions that
   require enforcement run the tool inside their own network-isolated
@@ -143,10 +152,17 @@ as though they existed:
 
 ## Rules of the road
 
-- **The profile/generator boundary.** The profiler is the only code
-  path that reads the real table. The generator never reads the real
-  table - it consumes only the profile file. No debugging convenience,
-  test helper, or one-time exception crosses that line, ever.
+- **The profile/generator boundary.** The generator never reads a
+  table at all - it consumes only the profile file, and the module that
+  opens a CSV is not in its import graph at any instant. Two code paths
+  DO open a CSV, and stating it at that width is owner decision 6 of
+  the Phase 3 plan: the profiler reads the user's real table, and the
+  validator reads the one file it was asked to check, because measuring
+  a file means describing it with the profiler's own producer. The
+  validator in turn never imports the generator, so its verdicts cannot
+  inherit the planner's own defects and no random source is in its
+  closure. No debugging convenience, test helper, or one-time exception
+  crosses any of those lines, ever.
 - **Determinism.** One RNG, created once from the user's seed, threaded
   explicitly through every consumer. No module-level randomness; sorted
   iteration wherever randomness is consumed; output column order a

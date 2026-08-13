@@ -364,8 +364,21 @@ def test_the_same_description_and_seed_give_the_same_twin_twice(
 # necessity. It now says what the counts actually say -- that they left
 # no spelling of that width without a sign, because the real table had
 # values written that way.
+#
+# RE-RECORDED at the validator's landing (plan P3-D6, P3-D7 stage 2).
+# The twin digest above held, so the cells are untouched; what moved is
+# what a person is told. The report gained a section, "WHAT THIS REPORT
+# IS NOT, AND WHAT TO RUN FOR THE OTHER THING", saying in as many words
+# that this report passes no verdict and naming `synthtwin validate` as
+# the command that does -- with what that verdict does and does not mean
+# beside it, because a reader who runs it on the strength of this
+# paragraph will read its answer through this one. And the handling rule
+# moved from three files to four: the quality report states measurements
+# taken from the file it checked, so it is real-derived exactly as the
+# other three are. The report says strictly MORE than it did; nothing
+# was dropped.
 GOLDEN_REPORT_SHA256 = (
-    "ca9d5dc4640c727afd9001bda84a5859e2a92ed81c454e6ce46a918074281962"
+    "275f90d5e3ea341210a74bcd1c1520f83865420115f88e02c5195ce1593bd48d"
 )
 
 

@@ -90,6 +90,22 @@ environment to wherever the twin is generated.
 
 ## P1-D1. The deliverable and its boundary role
 
+**Amended 2026-08-13, at the validator's landing (Phase 3 plan P3-D7,
+stage 2; owner decision 6).** The sentence below that everything
+downstream consumes the profile AND NOTHING ELSE was written before
+`synthtwin validate` existed and is superseded for that command alone.
+The validator reads TWO files, the profile and the CSV it was asked to
+measure, because measuring a written file against a description means
+describing that file with the profiler's own producer; a validator that
+recounted beside the producer would be a second implementation of the
+profiler and would drift from it. The boundary this plan draws is
+unchanged where it matters and is now stated at its true width: the
+GENERATOR reads the profile and nothing else, and the module that opens
+a CSV is not in its import graph at any instant. The validator in turn
+never imports the generator. Nothing else in this section is affected,
+and the record of what was written here is left standing rather than
+rewritten.
+
 The profiler is the ONLY code path that will ever read real data (charter
 rule). Its output contract is therefore the project's central interface:
 everything downstream — generator, validator, quality report — consumes

@@ -34,23 +34,32 @@ published counts exactly can force a twin row to match a real one: an
 11-row single-column table whose one label clears the disclosure floor
 publishes that label with the count 11, so the twin holds it in all 11
 rows. Nothing was copied; the arithmetic left no other answer. synthtwin
-offers no formal privacy guarantee, and all three artifacts a full run
-produces — the profile, the twin and the report — carry facts computed
-from real data and are handled under the institution's rules for
-real-derived material, never the profile alone.
+offers no formal privacy guarantee, and all four artifacts a full run
+produces — the profile, the twin, the twin's report and the quality
+report — carry facts computed from real data and are handled under the
+institution's rules for real-derived material, never the profile alone.
 
-Status: both halves are built. `synthtwin profile <table>` reads a
-local CSV table and writes the description the twin is built from,
+Status: all three commands are built. `synthtwin profile <table>` reads
+a local CSV table and writes the description the twin is built from,
 together with a plain-language summary of what was found and what of the
 real table the description carries. `synthtwin generate <description>`
 builds the twin from that description and a seed and from nothing else,
 and writes it beside a report naming which published facts the twin
 holds exactly, which it holds only approximately with the achieved value
-beside the published one, and which it does not hold at all.
+beside the published one, and which it does not hold at all. `synthtwin
+validate <description>` measures a written CSV file against that
+description and writes the quality report: which obligations the file
+meets, which it misses, and which no CSV could evidence either way. Its
+exit code says which of those happened, so automation can tell a file
+that failed its check from a file that was never evaluated.
 
-One rule shapes this package's structure: `synthtwin.reading` is the only
-module that opens the user's table. Everything else receives values that
-have already been read, so the boundary between the code that touches
-real data and the code that builds the twin is visible in the import
-graph rather than promised in prose.
+One rule shapes this package's structure, and Phase 3 states it at its
+true width: `synthtwin.reading` is the only module that opens a CSV
+table, and GENERATION never reaches it. The profiler reads the user's
+table; the validator reads the file it was asked to check, because
+measuring a file means describing it with the profiler's own producer;
+the generator reads a description and nothing else, and never the
+validator's modules either. That boundary is visible in the import graph
+rather than promised in prose: each command's modules are imported
+inside its own branch of the command line.
 """

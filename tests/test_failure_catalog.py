@@ -157,6 +157,18 @@ CASES: "dict[str, tuple[object, ...]]" = {
         ["/data/clinic-twin.csv"],
     ),
     "twin_out_of_memory": ("/data/clinic-profile.json",),
+    # Checking a written file against a description (plan P3-D1). The
+    # first two belong to the command, the third to the machine. The
+    # source noun in the second is one of the two written out in
+    # errors.py beside `QUALITY_WORDS`, never a value out of a file: on
+    # this path the measured file may not be the reader's own table and
+    # a refusal travels as freely as a report does.
+    "quality_target_already_there": ("/data/clinic-twin-quality.txt",),
+    "output_would_replace_an_input": (
+        "/data/clinic-profile.json",
+        "description",
+    ),
+    "quality_out_of_memory": ("/data/clinic-profile.json",),
     # The publication guard's one refusal (plan P2-D2, review item
     # P2-C1-F3). Its argument is the PLACE in the description, written
     # from the guard's own path steps: no key of the document and no
