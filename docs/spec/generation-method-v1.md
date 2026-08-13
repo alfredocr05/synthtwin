@@ -847,12 +847,19 @@ happened: a real column holding `1.5` beside `100` publishes eleven
 
 So the point-free spelling of a value `v` is defined for its own sake:
 let `D` and `decpt` be the shortest round-trip digits and decimal point
-of G6.2. Where `decpt >= len(D)` and `-4 < decpt <= 16` — that is, `v`
-is a whole number the fixed-point window holds — the point-free
-spelling is the sign, `D`, and `decpt - len(D)` trailing zeros, and it
-reads back through `parsing.parse_number` as exactly `v`. Zero is
-written `0`, never `-0`. Where those conditions do not hold, no
-point-free spelling of `v` exists; the canonical spelling stands in its
+of G6.2. Where `decpt >= len(D)` — that is, `v` is a whole number — the
+point-free spelling is the sign, `D`, and `decpt - len(D)` trailing
+zeros, and it reads back through `parsing.parse_number` as exactly `v`.
+Zero is written `0`, never `-0`. **There is no width ceiling** (owner
+decision 10, 2026-08-13): an earlier revision stopped at
+`-4 < decpt <= 16`, which is the fixed-point window of the CANONICAL
+spelling, and that window governs the numbers inside a profile document
+rather than the spelling of a cell in the twin. A plain cell owes that
+it reads back as the same number and that it classifies as plain, and
+the digits of a whole value do both however many there are; while the
+ceiling stood, a column whose source wrote `100000000000000000000` in
+figures was published `plain` and written back with a point. Where `v`
+is not whole, no point-free spelling of it exists; the canonical spelling stands in its
 place and G6.4 does not offer the three styles to such a cell unless
 every other quota is already spent.
 
@@ -3314,8 +3321,9 @@ fail.
 **Two committed JSON files, and ONE oracle** (review item P2-C3-F3).
 `tests/reference/generation-reference-vectors.json` carries the nine
 cases G14.3 names first and
-`tests/reference/generation-branch-vectors.json` carries the five it
-names after them. Both are written by
+`tests/reference/generation-branch-vectors.json` carries the six it
+names after them (five, until owner decision 11 added the
+pooled-spelling case). Both are written by
 `tools/reference/make_generation_reference_vectors.py` — the second
 through the entry point `tools/reference/make_generation_branch_vectors.py`,
 which runs that oracle and asks it for the second case set — so there is
@@ -3393,9 +3401,12 @@ proved" cannot quietly stop being true when a field is added.
 ### G14.3 The required cases
 
 The four the plan names (P2-D7), five more this method's own mechanisms
-need, four more for the branches those nine leave unexercised (review
+need, five more for the branches those nine leave unexercised (four at
+review item P2-C4-C3 and one at owner decision 11, review
 item P2-C3-F3), and one more for the published end the ordinal space
-cannot hold (review item P2-C4-C3). **All fourteen are required.** The
+cannot hold (review item P2-C4-C3), and the pooled remainder written by
+its own value beside a whole number wider than the fixed-point window
+(owner decision 11). **All fifteen are required.** The
 first nine are the first committed file and the last five the second
 (G14.2):
 
@@ -3483,6 +3494,22 @@ G9.3. Each of the four reaches exactly one of those branches:
   that G5.3's clamp is not decoration: the four IEEE-754 operations of
   the convex form can land one unit in the last place away from a value
   both rungs agree on, and the clamp is what brings it back.
+
+**Why the fifteenth exists** (2026-08-13; owner decision 11). The
+independent oracle still implemented the pooled-plain rule the Phase 3
+repair retired, and no committed case reached the branch, so both files
+stayed byte-identical while the check they exist to be proved nothing
+there. `numeric_pooled_spelling` reaches it, and reaches owner decision
+10's point-free spelling at any width in the same twelve cells: its
+published smallest value carries a decimal point, so the cell that must
+read back as it can wear no point-free form and the held-back cell is
+the one that lands there; its published largest is ten to the twentieth,
+whole, and written in figures. **What the case freezes is the CELLS**,
+and the pooled rule's own difference is in the recount rather than in
+them -- the retired rule wrote the same canonical text for that cell and
+differed only in what it then owed -- so the recount identity of 7.5.7
+is guarded by the style batteries and the report's golden bytes, and
+this case guards the width.
 
 **Why the fourteenth exists** (2026-08-12; review item P2-C4-C3). The
 obligation G7.5's endpoint route carries had been lowered twice and

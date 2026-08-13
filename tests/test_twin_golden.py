@@ -349,8 +349,16 @@ def test_the_same_description_and_seed_give_the_same_twin_twice(
 # the old report said was dropped: the count, the column names, the
 # refusal to alter the cells, the quoting warning and the import advice
 # are all still there, with more beside them.
+#
+# RE-RECORDED AGAIN the same day, for review item P3-C5-F8: a column
+# whose only hazardous cell is its NAME is no longer described as
+# holding invented ones, because a name came from the description; and
+# the closing sentence no longer says the same cells behave the same way
+# in the real table, which an invented value cannot promise. It says
+# what is true instead -- values written that way behave the same way
+# there, which is why the twin has them.
 GOLDEN_REPORT_SHA256 = (
-    "161f5260c8a3b3ce7fcc69f66877c09978314b32c28be0156d13874a9b3b979d"
+    "88a7c5ee9e6e56375206d1260ad725c15b4ccdd75769ad818f6866475a613f4c"
 )
 
 

@@ -423,7 +423,7 @@ class GenerationPlan:
 
     Building one is the generation-feasibility stage of plan P2-D6: it
     runs after the loader and before any generation, it never calls a
-    conforming description invalid, and it is where the five refusals of
+    conforming description invalid, and it is where the four refusals of
     method G12 are raised -- so a refused run leaves the folder exactly
     as it found it.
     """
@@ -4711,6 +4711,18 @@ def _identifier_cells(
     for index in range(total):
         kind = kinds[index]
         band = bands[index]
+        # THE PERMISSION IS THIS GROUP'S, NOT THE COLUMN'S (review item
+        # P3-C5-F1). The packing answers one question for the whole
+        # column -- is there any assignment without the two-character
+        # signed family -- and handing that one answer to every group
+        # let groups with room for three characters take a sign as well,
+        # because the walk starts at the shortest length and stops at
+        # the first spelling it finds. A group may reach for the sign
+        # only where its OWN length window admits nothing else: where
+        # the window is the single width of two, which is what a
+        # carrier pinned to a two-character end has, and what every
+        # group has on a column no value of which may be longer.
+        signed_here = signed and windows[index][0] == windows[index][1] == 2
         partner = _partner_of(
             index, folded, spellings, families, used, windows
         )
@@ -4721,11 +4733,13 @@ def _identifier_cells(
         spelling: str | None = None
         if index == carriers[0]:
             spelling = _pinned_identifier(
-                kind, band, facts, facts.min_length, used, letter, signed
+                kind, band, facts, facts.min_length, used, letter,
+                signed_here,
             )
         elif index == carriers[1] and facts.max_length > facts.min_length:
             spelling = _pinned_identifier(
-                kind, band, facts, facts.max_length, used, letter, signed
+                kind, band, facts, facts.max_length, used, letter,
+                signed_here,
             )
         else:
             spelling, again = _next_identifier(
@@ -4735,7 +4749,7 @@ def _identifier_cells(
                 states[families[index]],
                 used,
                 letter,
-                signed,
+                signed_here,
             )
             if again:
                 repeated = repeated + 1
@@ -5095,8 +5109,15 @@ def _identifier_families(
                 carriers,
                 signing,
             )
+    # NO EXACT ALLOCATION EXISTS, SO THE SIGN SECURES NOTHING (review
+    # item P3-C5-F2). Reaching this line means neither search found an
+    # assignment of whole groups meeting every published count, with the
+    # family closed or open. Decision 9 permits the sign to MEET a count;
+    # where no arrangement meets them, taking the hazard buys the person
+    # nothing and the miss is named either way. So the fallback is
+    # walked with the family closed.
     carriers = _shape_choices(total)[0]
-    permits = _identifier_windows(facts, total, carriers, True)
+    permits = _identifier_windows(facts, total, carriers, False)
     kinds = _allocation(
         groups,
         classes,
@@ -5116,7 +5137,7 @@ def _identifier_families(
     return (
         _collision_slots(together, groups, folded, partners, permits),
         carriers,
-        True,
+        False,
     )
 
 
@@ -7201,17 +7222,19 @@ def plan_generation(profile: contract.Profile) -> GenerationPlan:
       published facts allow, so its answer is the same for every seed.
     - Determinism: a fixed function of the description. It reads no
       clock, no environment and no random source.
-    - Errors raised: `errors.ProfileError`, and only for the five
+    - Errors raised: `errors.ProfileError`, and only for the four
       refusals method G12 names -- a column of numbers whose counts of
       zero and negative values leave no room; a column of text or of
       unheld numbers needing more different values than its own length
       range can spell; a column of text whose published word extreme
       needs more characters than its own published length carries; a
       declared column of record numbers published as whole numbers that
-      one character cannot write outside the figures; and one whose
-      whole numbers must stand in the code alphabet with no room for a
-      third character, the shortest such spelling being three long once
-      a leading sign is barred. Each says the description is VALID,
+      one character cannot write outside the figures. A fifth stood
+      here for one day, for whole record numbers in the code alphabet
+      with no room for a third character; owner decision 9 withdrew it,
+      because the counts that reach it prove the real column held
+      sign-leading values and refusing denied a person a twin over a
+      character their own file used. Each says the description is VALID,
       names the two facts that cannot both hold, and gives something to
       do next that does not assume the person still has the table. All are raised HERE, before any generation,
       so a refused run leaves every byte on disk exactly as it found it.

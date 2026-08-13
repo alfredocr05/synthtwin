@@ -2127,13 +2127,16 @@ formula. The implementation met the count by writing the sign anyway,
 which is a ratified rule traded for a published count, and left the
 report's formula paragraph telling the reader that an invented cell was
 a value the description had published. **The owner settled it as a
-refusal, not as a lesser outcome**: the two-character code family is
-withdrawn, and a description it leaves with no spelling meets
-G9.1's bounded carve-out: the twin writes the sign, and the report
-counts those cells and names their column. A fifth refusal stood here
-for one day and was withdrawn by the same owner decision, because a
-description carrying those counts proves the real column held such
-values.
+bounded carve-out to G9.1, not as a refusal and not as a lesser
+outcome** (decision 9, 2026-08-13): the twin writes the sign, and the
+report counts those cells and names their column. A description
+carrying those counts proves the real column held such values, since no
+other spelling of that width exists, so the twin inherits a hazard the
+table already had. Where the sign is needed is decided by the packing,
+which reaches for it only when no assignment of whole groups meets
+every published count without it. A fifth generation refusal stood here
+for one day and was withdrawn by the same decision; method G12 has
+four.
 
 `all_whole_numbers` is therefore EXACT-OBSERVABLE in every case a twin
 is written at all, which is what the ratified plan holds it to, and this
