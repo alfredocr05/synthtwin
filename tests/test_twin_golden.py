@@ -357,8 +357,15 @@ def test_the_same_description_and_seed_give_the_same_twin_twice(
 # in the real table, which an invented value cannot promise. It says
 # what is true instead -- values written that way behave the same way
 # there, which is why the twin has them.
+#
+# RE-RECORDED once more for review item P3-C6-F2: the paragraph said
+# every other spelling of that width would have broken a count, and a
+# case-varied exponent can be a safe one, so the sentence overstated
+# necessity. It now says what the counts actually say -- that they left
+# no spelling of that width without a sign, because the real table had
+# values written that way.
 GOLDEN_REPORT_SHA256 = (
-    "88a7c5ee9e6e56375206d1260ad725c15b4ccdd75769ad818f6866475a613f4c"
+    "876be65bb361f24980545d648e08aa7b2e51b4c2a2af7487aa8e57a5367977bb"
 )
 
 

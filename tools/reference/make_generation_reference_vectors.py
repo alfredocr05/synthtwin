@@ -4712,10 +4712,12 @@ DEFINITIONS = {
     "and in d[.ddd]e+/-XX otherwise with the sign always written and the "
     "exponent at least two digits. Beside it, and not always the same text, "
     "the POINT-FREE spelling the three styles carrying neither a point nor "
-    "an exponent are written from: where decpt >= len(D) and -4 < decpt <= "
-    "16 it is the sign, D and decpt - len(D) trailing zeros, and where those "
-    "conditions do not hold the value has no point-free spelling at all "
-    "(G6.2).",
+    "an exponent are written from: where decpt >= len(D) -- that is, where "
+    "the value is whole, at any width -- it is the sign, D and "
+    "decpt - len(D) trailing zeros, and where it is not whole the value has "
+    "no point-free spelling at all (G6.2, as owner decision 10 amended it; "
+    "the -4 < decpt <= 16 window this sentence used to carry belongs to the "
+    "canonical spelling above and not to this one).",
     "style_allocation": "the VALUES step first: W is the point-free quota of "
     "the effective map, and while fewer cells than that hold a value with a "
     "point-free spelling the strata are walked in ascending order and the "

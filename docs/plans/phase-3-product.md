@@ -1072,6 +1072,26 @@ covers the branch in the same change; until then the independent check
 on pooled spelling is not in force and this sentence is the record of
 that.
 
+**One bound of decision 9 is not yet met, and it is written down rather
+than left to be found** (review item P3-C6-F1, 2026-08-13). The
+permission to write a sign is the GROUP's, decided by the packing --
+except on a fold-collision PARTNER, which takes its parent's spelling
+before that gate is reached. A column of eleven `-3`, eleven `-3 ` and
+eleven `1e0` therefore writes twenty-two hazardous cells where eleven
+would do: the partner inherits the sign, and an allocation using `0e0`
+and `0E0` as the collision pair would have preserved every published
+count with half the hazard.
+
+Nothing published is lost -- every count is exact and the report names
+the cells -- so this is a bound on the carve-out rather than a broken
+obligation. It stays open because closing it means choosing WHICH
+groups carry the fold collisions with the sign in mind, which is
+`_collision_slots`' question and not a gate that can be added at the
+partner. **Until it closes, decision 9's bound reads: a sign is written
+only where a group's own length window admits nothing else, or where
+that group is the fold partner of such a group.** The invariant test
+asserts the shape of every signed cell, which holds either way.
+
 ### P3-D8.2 Release preconditions (each verified, none assumed)
 
 1. Phase 3 code review record permits release, **and the review
