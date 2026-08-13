@@ -338,8 +338,19 @@ def test_the_same_description_and_seed_give_the_same_twin_twice(
 # one holds every line the old one held and six lines more, and the
 # column whose count falls short of its published one now prints the
 # range it could fall in rather than only the shortfall.
+# RE-RECORDED 2026-08-13, owner decision 9, and what moved is a
+# correction rather than a rewording. The spreadsheet paragraph used to
+# tell every reader that a hazardous cell was a value their description
+# published -- which is false for a column that publishes no value at
+# all, where synthtwin invented the cell itself. The report now names
+# those columns, says the cells were made up, says why the description's
+# own counts left no other spelling of that width, and points the reader
+# at the real table, where the same cells behave the same way. Nothing
+# the old report said was dropped: the count, the column names, the
+# refusal to alter the cells, the quoting warning and the import advice
+# are all still there, with more beside them.
 GOLDEN_REPORT_SHA256 = (
-    "4083f570c4548284dca9178eb5b2a56dcf3a1be25acd4953f0b483a7f16e72aa"
+    "161f5260c8a3b3ce7fcc69f66877c09978314b32c28be0156d13874a9b3b979d"
 )
 
 

@@ -4671,7 +4671,7 @@ def _identifier_cells(
     folded = min(column.n_distinct_folded, total)
     partners = total - folded
     width = len(_BANDS)
-    packed, pinned = _identifier_families(
+    packed, pinned, signed = _identifier_families(
         column, facts, groups, folded, partners
     )
     order = _collision_order(
@@ -4721,11 +4721,11 @@ def _identifier_cells(
         spelling: str | None = None
         if index == carriers[0]:
             spelling = _pinned_identifier(
-                kind, band, facts, facts.min_length, used, letter
+                kind, band, facts, facts.min_length, used, letter, signed
             )
         elif index == carriers[1] and facts.max_length > facts.min_length:
             spelling = _pinned_identifier(
-                kind, band, facts, facts.max_length, used, letter
+                kind, band, facts, facts.max_length, used, letter, signed
             )
         else:
             spelling, again = _next_identifier(
@@ -4735,6 +4735,7 @@ def _identifier_cells(
                 states[families[index]],
                 used,
                 letter,
+                signed,
             )
             if again:
                 repeated = repeated + 1
@@ -4844,6 +4845,7 @@ def _identifier_at(
     facts: contract.IdentifierFacts,
     length: int,
     index: int,
+    signed: bool = False,
 ) -> "str | None":
     """The ``index``-th record number of one class, band and length (G9.6).
 
@@ -4877,27 +4879,51 @@ def _identifier_at(
             return _spelling_at(
                 _DIGITS, length, index, _band_head(band, True)
             )
-        # THE TWO-CHARACTER CODE FAMILY IS GONE (Phase 3 plan P3-D8.1,
-        # closing the registry's open P2-C5-F4). It wrote `-0` through
-        # `-9`, which are the only two-character spellings that are
-        # code-alphabet, not figures alone, and read back as whole
-        # numbers -- and every one of them opens with a character G9.1
-        # bars from the first position, because a leading `-` is what a
-        # spreadsheet reads as a formula. Meeting one published count by
-        # breaking a ratified rule is not a repair, and the report then
-        # said something false besides: its formula paragraph tells the
-        # reader that a hazardous cell is a value the description
-        # published, and `-0` was invented here. So the family is
-        # withdrawn, the code band starts at three characters
-        # (`<digits>e0`), and the descriptions that leaves with no
-        # answer at all are REFUSED by name in `_whole_number_room`
-        # rather than written wrong and reported.
+        # THE TWO-CHARACTER CODE FAMILY IS KEPT, AND FLAGGED (owner
+        # decision 9, 2026-08-13). `-0` through `-9` are the only
+        # two-character spellings that are code-alphabet, not figures
+        # alone, and read back as whole numbers, and each opens with the
+        # character a spreadsheet reads as the start of a formula.
+        #
+        # The owner weighed the two ways of being wrong and chose this
+        # one. A description carrying these counts PROVES the real
+        # column held sign-leading values, since no other spelling of
+        # that width exists -- so the twin inherits a hazard the table
+        # already had rather than manufacturing one, which is the
+        # distinction G9.1's bar was written to draw. Refusing instead
+        # would leave the person with no twin at all over a character
+        # their own file used; writing something else would leave them
+        # developing code against a column that behaves differently from
+        # the one they will run it on, which is the failure that costs
+        # them a working analysis rather than a warning.
+        #
+        # So the cells are written, COUNTED, and named in the report's
+        # formula paragraph every run -- which says plainly that these
+        # were made up by synthtwin, so nobody reads them as values
+        # their description published.
+        if band == _BAND_CODE and length == 2 and signed:
+            return _number_at(_BAND_CODE, 2, index)
         return _whole_at(band, length, index)
+    # THE SAME GUARD ON THE PATH BESIDE IT. A column whose values are
+    # not all whole numbers reaches the same two-character code family
+    # through `_family_at`, and the reasoning does not change with the
+    # published flag: the sign is permitted where the counts leave no
+    # other spelling and refused where they do. Without this, a column
+    # with room for three characters took the sign anyway, which is a
+    # hazard the description never required.
+    if kind == _CLASS_NUMBER and band == _BAND_CODE and length == 2 and (
+        not signed
+    ):
+        return None
     return _family_at(kind, band, length, 1, index)
 
 
 def _identifier_room(
-    kind: str, band: str, facts: contract.IdentifierFacts, length: int
+    kind: str,
+    band: str,
+    facts: contract.IdentifierFacts,
+    length: int,
+    signed: bool = False,
 ) -> int:
     """How many spellings one record-number family holds, saturated (G9.4)."""
     if kind == _CLASS_TEXT:
@@ -4921,18 +4947,27 @@ def _identifier_room(
     # actually writes is checked against the width asked for, and a
     # family that cannot answer at this one is not offered to the
     # packing at all.
-    first = _identifier_at(kind, band, facts, length, 0)
+    first = _identifier_at(kind, band, facts, length, 0, signed)
     if first is None or len(first) != length:
         return 0
     if kind == _CLASS_NUMBER and facts.all_whole_numbers:
         if band == _BAND_DIGITS:
             return _power_at_most(10, max(length, 1), _DOMAIN_CEILING)
+        if band == _BAND_CODE and length == 2 and signed:
+            return 10
         return _whole_room(band, length)
+    if kind == _CLASS_NUMBER and band == _BAND_CODE and length == 2 and (
+        not signed
+    ):
+        return 0
     return _family_room(kind, band, length, 1)
 
 
 def _identifier_permits(
-    facts: contract.IdentifierFacts, shortest: int, longest: int
+    facts: contract.IdentifierFacts,
+    shortest: int,
+    longest: int,
+    signed: bool = False,
 ) -> int:
     """The class-and-alphabet pairs one group may stand in (G9.6).
 
@@ -4949,7 +4984,7 @@ def _identifier_permits(
         for band in range(width):
             for length in range(shortest, max(longest, shortest) + 1):
                 if _identifier_room(
-                    _CLASSES[place], _BANDS[band], facts, length
+                    _CLASSES[place], _BANDS[band], facts, length, signed
                 ) > 0:
                     mask = mask | (1 << (place * width + band))
                     break
@@ -4964,7 +4999,7 @@ def _identifier_families(
     groups: "tuple[int, ...]",
     folded: int,
     partners: int,
-) -> "tuple[list[int], tuple[int, int]]":
+) -> "tuple[list[int], tuple[int, int], bool]":
     """Which class and which alphabet every group of record numbers answers for.
 
     THE FOUR CLASS COUNTS AND THE TWO ALPHABET COUNTS ARE ONE QUESTION
@@ -5020,31 +5055,48 @@ def _identifier_families(
         facts.n_code_alphabet - facts.n_all_digits,
         column.n_present - facts.n_code_alphabet,
     ]
-    sized: dict[tuple[int, int], int] = {}
-    spent: dict[tuple[tuple[int, int], ...], int] = {}
-    for carriers in _shape_choices(total):
-        shape = (groups[carriers[0]], groups[carriers[1]])
-        if shape in sized:
-            continue
-        sized[shape] = 1
-        permits = _identifier_windows(facts, total, carriers)
-        seen = tuple(sorted(
-            [(groups[place], permits[place]) for place in range(total)]
-        ))
-        if seen in spent:
-            continue
-        spent[seen] = 1
-        together = _joint_allocation(groups, classes, alphabets, permits)
-        if together is None:
-            continue
-        return (
-            _collision_slots(
-                together, groups, folded, partners, permits
-            ),
-            carriers,
-        )
+    # THE PACKING DECIDES WHETHER THE SIGN IS THE LAST WAY, and no
+    # predicate written by hand does (owner decision 9, 2026-08-13).
+    # Two attempts are made in order: first with the two-character code
+    # family CLOSED, so a description that can meet every published
+    # count some other way does, and only then with it OPEN. Whichever
+    # attempt succeeds is the answer, and the flag it succeeded under
+    # travels back so the walk spells its cells the same way.
+    #
+    # This replaces two predicates that both got it wrong from the
+    # published numbers alone -- one permitted a sign where three
+    # characters were available, the other refused one where the
+    # remaining bands genuinely could not carry a short cell -- because
+    # what "no other spelling" means is exactly "no other assignment of
+    # whole groups meets every published count", which is the question
+    # this packer already answers completely.
+    for signing in (False, True):
+        sized: dict[tuple[int, int], int] = {}
+        spent: dict[tuple[tuple[int, int], ...], int] = {}
+        for carriers in _shape_choices(total):
+            shape = (groups[carriers[0]], groups[carriers[1]])
+            if shape in sized:
+                continue
+            sized[shape] = 1
+            permits = _identifier_windows(facts, total, carriers, signing)
+            seen = tuple(sorted(
+                [(groups[place], permits[place]) for place in range(total)]
+            ))
+            if seen in spent:
+                continue
+            spent[seen] = 1
+            together = _joint_allocation(groups, classes, alphabets, permits)
+            if together is None:
+                continue
+            return (
+                _collision_slots(
+                    together, groups, folded, partners, permits
+                ),
+                carriers,
+                signing,
+            )
     carriers = _shape_choices(total)[0]
-    permits = _identifier_windows(facts, total, carriers)
+    permits = _identifier_windows(facts, total, carriers, True)
     kinds = _allocation(
         groups,
         classes,
@@ -5064,6 +5116,7 @@ def _identifier_families(
     return (
         _collision_slots(together, groups, folded, partners, permits),
         carriers,
+        True,
     )
 
 
@@ -5071,6 +5124,7 @@ def _identifier_windows(
     facts: contract.IdentifierFacts,
     total: int,
     carriers: "tuple[int, int]",
+    signed: bool = False,
 ) -> "list[int]":
     """The pairs every group may stand in, under one choice of end carriers."""
     permits: list[int] = []
@@ -5081,7 +5135,9 @@ def _identifier_windows(
             highest = facts.min_length
         elif index == carriers[1] and facts.max_length > facts.min_length:
             shortest = facts.max_length
-        permits = permits + [_identifier_permits(facts, shortest, highest)]
+        permits = permits + [
+            _identifier_permits(facts, shortest, highest, signed)
+        ]
     return permits
 
 
@@ -5117,6 +5173,7 @@ def _pinned_identifier(
     length: int,
     used: "dict[str, int]",
     letter: bool,
+    signed: bool = False,
 ) -> str:
     """The first free record number of one family at one exact length.
 
@@ -5128,11 +5185,13 @@ def _pinned_identifier(
     count that cost.
     """
     for asking in ((True, False) if letter else (False,)):
-        ceiling = _identifier_room(kind, band, facts, length)
+        ceiling = _identifier_room(kind, band, facts, length, signed)
         index = 0
         asked = 0
         while index < min(ceiling, len(used) + _ASK_STEPS + 2):
-            candidate = _identifier_at(kind, band, facts, length, index)
+            candidate = _identifier_at(
+                kind, band, facts, length, index, signed
+            )
             index = index + 1
             if candidate is None:
                 break
@@ -5166,6 +5225,7 @@ def _next_identifier(
     state: "list[int]",
     used: "dict[str, int]",
     letter: bool,
+    signed: bool = False,
 ) -> "tuple[str, bool]":
     """The next record number of one family, and whether it repeats.
 
@@ -5193,12 +5253,16 @@ def _next_identifier(
     what makes a column's walk one walk rather than one per value.
     """
     began = [state[0], state[1], state[2]]
-    found = _walked_identifier(kind, band, facts, state, used, letter)
+    found = _walked_identifier(
+        kind, band, facts, state, used, letter, signed
+    )
     if found is None and letter:
         state[0] = began[0]
         state[1] = began[1]
         state[2] = began[2]
-        found = _walked_identifier(kind, band, facts, state, used, False)
+        found = _walked_identifier(
+            kind, band, facts, state, used, False, signed
+        )
     if found is not None:
         return found
     return (
@@ -5219,6 +5283,7 @@ def _walked_identifier(
     state: "list[int]",
     used: "dict[str, int]",
     letter: bool,
+    signed: bool = False,
 ) -> "tuple[str, bool] | None":
     """One pass of a record-number family's walk, from where it stopped."""
     length = state[0]
@@ -5233,11 +5298,13 @@ def _walked_identifier(
             index = 0
             spent = True
             state[2] = 1
-        if index >= _identifier_room(kind, band, facts, length):
+        if index >= _identifier_room(kind, band, facts, length, signed):
             length = length + 1
             index = 0
             continue
-        candidate = _identifier_at(kind, band, facts, length, index)
+        candidate = _identifier_at(
+            kind, band, facts, length, index, signed
+        )
         index = index + 1
         if candidate is None:
             length = length + 1
@@ -7112,128 +7179,6 @@ def _whole_numbers_need_room(
     )
 
 
-def _whole_numbers_need_code_room(
-    name: str, shortest: bool, present: int, coded: int, length: int
-) -> str:
-    """Whole record numbers in the code alphabet two characters cannot spell.
-
-    The `generation-whole-numbers-need-code-room` refusal of method
-    G12, and the FIFTH -- landed by the Phase 3 plan's owner decision 1
-    as an amendment to that section rather than as an unannounced
-    branch, which is what the section's own sentence about a fifth
-    refusal requires.
-
-    THE ARITHMETIC, FROM PUBLISHED NUMBERS ALONE. A value written in
-    the code alphabet but not in figures alone, and reading back as a
-    whole number, is at least three characters long. Every shorter
-    candidate is barred by a rule that was ratified before this one: a
-    single character that reads as a whole number is a figure, so it
-    would be counted in `n_all_digits`; and the only two-character
-    spellings left are a sign in front of a figure, which G9.1 refuses
-    at the first position because a leading `-` is what common
-    spreadsheet software reads as the start of a formula. `<digits>e0`
-    is the shortest that remains, and it is three.
-
-    WHAT IS IMPOSSIBLE IS THE TWIN, NOT THE TABLE (review item
-    P3-C1-F6). A real table holds these facts easily -- it holds them by
-    writing `-3` -- and the message says so rather than telling a person
-    their own data cannot exist. What no conforming twin can do is hold
-    them while keeping G9.1's bar, because every spelling left to an
-    INVENTED value opens with the sign. So two published pairs are
-    jointly unwritable here:
-
-    - every value is a whole number, no value is longer than two
-      characters, and some of them are written in the code alphabet
-      without being figures alone;
-    - every value is a whole number, the shortest value is two
-      characters long, none of them is written in figures alone, and
-      every one of them is written in the code alphabet -- so that
-      shortest value has no band left that can spell it.
-
-    Before this refusal the generator wrote `-0` through `-9` here,
-    which met the count by breaking the formula-context rule and left
-    the report saying a hazardous cell was a value the description had
-    published. Neither fact is traded: the refusal says the description
-    is valid and stops.
-    """
-    wide = f"{length} character" if length == 1 else f"{length} characters"
-    said = (
-        f"the shortest value is {wide} long, that none of the {present} "
-        "values is written in figures alone, and that every one of them "
-        "is written in the code alphabet"
-        if shortest
-        else f"no value is longer than {wide}, and that {coded} of the "
-        f"{present} values are written in the code alphabet without "
-        "being figures alone"
-    )
-    carries = (
-        "so that shortest value has no way left to be written"
-        if shortest
-        else "so each of those values would need a third character"
-    )
-    return (
-        f"The description of the column '{parsing.visible(name)}' is "
-        f"valid, but synthtwin cannot build a twin column from it. It says "
-        f"every value reads as a whole number, that {said}. The shortest "
-        f"whole number written in the code alphabet without being figures "
-        f"alone that synthtwin will invent is three characters long, "
-        f"like '1e0'. Your table's own two-character ones, like '-3', "
-        f"put a sign in front of a figure, and synthtwin never begins a "
-        f"value it made up with a sign, because a spreadsheet reads it "
-        f"as the start of a formula, {carries}. Your own table can hold "
-        f"these two facts together -- it holds them with the sign -- "
-        f"but synthtwin cannot write a twin that does, so there is "
-        f"nothing to build. "
-        + _no_twin_can_hold_it(
-            "say that the values are not all whole numbers",
-            "give the values room for a third character",
-        )
-    )
-
-
-def _no_twin_can_hold_it(first: str, second: str) -> str:
-    """What to do about a pair a real table holds and no twin can.
-
-    THE OTHER TAIL WOULD BE FALSE HERE (review item P3-C2-F3).
-    `_edited_by_hand` tells the person that no described table produces
-    this pair, that their description must have been edited, and that
-    describing the table again would settle it. For the four refusals it
-    serves, all three are true. For the fifth they are all false: the
-    shipped producer writes this pair from a real table of values like
-    `-3`, so describing that table again produces exactly the same pair,
-    and sending the person around that loop would waste their time and
-    tell them their file is corrupt when it is not.
-
-    So this tail says the true thing instead -- the twin is what cannot
-    be written, the description is fine, and the two edits are offered
-    as choices rather than as repairs to something broken. It promises
-    nothing about what the twin will then carry or what the report will
-    then say (review item P3-C3-F3): editing the whole-number fact to
-    false leaves a twin whose values still read as whole numbers and a
-    report that names the edited fact as missed, so a sentence saying
-    the twin carries the chosen fact would have been false on one of
-    the two edits it offers. What it does say is the part that holds
-    for both: the fact is no longer the table's, and the description is
-    the only thing left to compare against.
-    """
-    return (
-        f"Nothing has been written and every file in the folder is as it "
-        f"was. What to do next: the description is not damaged and does "
-        f"not need making again -- describing the same table would "
-        f"produce the same pair. What synthtwin cannot do is invent "
-        f"values that hold both facts at once. Either of two edits to "
-        f"the description file lets it build, and the twin then carries "
-        f"the fact you chose rather than the one it replaced: {first}, "
-        f"or {second}. Whichever you choose, that fact is no longer the "
-        f"one your table had, so the twin's record numbers differ from "
-        f"your table's in that respect -- the description you edited is "
-        f"the only thing synthtwin can compare against afterwards, and "
-        f"it will match the edited fact rather than the original one. "
-        f"The description file is all synthtwin needs for this, so "
-        f"neither edit asks you for the table."
-    )
-
-
 def _seed_out_of_range(seed: int) -> str:
     """A seed outside the range synthtwin states for itself (P2-D8)."""
     return (
@@ -7403,14 +7348,13 @@ def _whole_number_room(
     so a description this check passes is one the ordinary walk may
     attempt, and a shortfall it then meets is named rather than refused.
 
-    AND THE SAME ARITHMETIC ONE BAND IN (Phase 3 plan P3-D8.1, closing
-    the registry's open P2-C5-F4). Two characters carry `1.` in the
-    band OUTSIDE the code alphabet, and nothing at all inside it: the
-    two-character code spellings that read as whole numbers all open
-    with a sign, which G9.1 bars at the first position. So a
-    description whose code-alphabet values have no third character to
-    use, or whose shortest value has no band left but that one, is
-    refused here too rather than written with a leading `-`.
+    AND ONE BAND IN, THE ANSWER IS A FLAG RATHER THAN A STOP (owner
+    decision 9, 2026-08-13). Two characters carry `1.` outside the code
+    alphabet, and inside it only a sign in front of a figure. A refusal
+    stood here briefly; the owner withdrew it, because the counts that
+    reach it prove the real column held such values, and refusing would
+    deny someone a twin over a character their own table used. The
+    cells are written and the report's formula paragraph names them.
     """
     if not facts.all_whole_numbers:
         return
@@ -7432,33 +7376,6 @@ def _whole_number_room(
                 True,
                 column.n_present,
                 facts.n_all_digits,
-                facts.min_length,
-            )
-        )
-    coded = facts.n_code_alphabet - facts.n_all_digits
-    wide = column.n_present - facts.n_code_alphabet
-    if facts.max_length < 3 and coded > 0:
-        raise errors.ProfileError(
-            _whole_numbers_need_code_room(
-                column.name,
-                False,
-                column.n_present,
-                coded,
-                facts.max_length,
-            )
-        )
-    if (
-        facts.min_length < 3
-        and facts.n_all_digits < 1
-        and wide < 1
-        and column.n_present
-    ):
-        raise errors.ProfileError(
-            _whole_numbers_need_code_room(
-                column.name,
-                True,
-                column.n_present,
-                coded,
                 facts.min_length,
             )
         )

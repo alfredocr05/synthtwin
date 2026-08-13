@@ -51,7 +51,6 @@ import pytest
 import fixtures
 from synthtwin import (
     contract,
-    errors,
     generation,
     parsing,
     profile,
@@ -266,120 +265,73 @@ def test_the_battery_is_the_size_this_file_claims(
         assert document["columns"][0]["role"] == "identifier"
 
 
-def _refusal(loaded: contract.Profile) -> "str | None":
-    """The refusal this description meets, or None if it generates.
-
-    The fifth refusal of method G12 landed with the Phase 3 plan
-    (P3-D8.1), and a description a producer wrote can meet it: a column
-    of two-character whole numbers in the code alphabet has no spelling
-    left once G9.1's bar on a leading sign is kept. The battery below
-    therefore sorts its cases rather than assuming every one of them
-    builds, and the test after it proves the sorting is the published
-    arithmetic and not a convenience.
-    """
-    try:
-        generation.plan_generation(loaded)
-    except errors.ProfileError as stopped:
-        return str(stopped)
-    return None
-
-
-def _no_code_room(document: "dict") -> bool:
-    """The fifth refusal's predicate, from published numbers alone."""
-    column = document["columns"][0]
-    if not column.get("all_whole_numbers"):
-        return False
-    coded = column["n_code_alphabet"] - column["n_all_digits"]
-    wide = column["n_present"] - column["n_code_alphabet"]
-    if column["max_length"] < 3 and coded > 0:
-        return True
-    return (
-        column["min_length"] < 3
-        and column["n_all_digits"] < 1
-        and wide < 1
-        and column["n_present"] > 0
-    )
-
-
-def test_the_fifth_refusal_is_exactly_its_published_arithmetic(
+def test_a_sign_leads_an_invented_value_only_to_meet_a_published_count(
     tmp_path_factory: pytest.TempPathFactory,
 ) -> None:
-    """Both directions, over the whole battery.
+    """G9.1's bar, and the one carve-out owner decision 9 grants it.
 
-    A refusal that fires where a twin was reachable costs the person a
-    twin they could have had; one that stays quiet where none is
-    reachable puts a leading sign in an invented value, which is what
-    the repair was taken to stop. So the predicate is asserted in both
-    directions against the shipped stage: every description the stage
-    refuses meets the arithmetic, and every description that meets the
-    arithmetic is refused.
+    The bar is real and this is the first test to assert it on this
+    path: an invented record number opening with a character a
+    spreadsheet reads as a formula is a hazard synthtwin created. The
+    carve-out is real too, and it is bounded by WORK RATHER THAN BY A
+    PREDICATE: the packing runs first with the two-character code
+    family closed and reaches for it only when no assignment of whole
+    groups meets every published count without it. So the property to
+    assert is not which columns are allowed a sign -- that is the
+    packer's finding, and a second guess at it here would just be a
+    second implementation to disagree with -- but that no column ever
+    takes the hazard for nothing.
+
+    Two directions, and both matter. A column that writes a sign must
+    meet every one of the six published counts, which is the proof the
+    sign was doing the work it was permitted for. And most columns must
+    write none at all, which is the proof the carve-out stayed a corner
+    rather than becoming the ordinary path.
     """
-    seen = 0
+    signing = quiet = 0
     for name, document, loaded in _battery(tmp_path_factory):
-        stopped = _refusal(loaded)
-        expected = _no_code_room(document)
-        if expected:
-            seen = seen + 1
-            assert stopped is not None, (name, document["columns"][0])
-            assert "three characters long" in stopped, (name, stopped)
-        else:
-            assert stopped is None or "three characters long" not in stopped, (
-                name,
-                stopped,
-            )
-    assert seen > 0, (
-        "the battery no longer reaches the corner the fifth refusal "
-        "was written for, so this test proves nothing"
-    )
-
-
-def test_no_invented_whole_record_number_opens_with_a_formula_character(
-    tmp_path_factory: pytest.TempPathFactory,
-) -> None:
-    """G9.1's bar on the whole-number path, asserted for the first time.
-
-    The declared-identifier path used to write `-0` through `-9` for a
-    two-character whole number in the code alphabet, which is a leading
-    sign in an INVENTED value and exactly what G9.1 forbids: common
-    spreadsheet software reads such a cell as the start of a formula,
-    and the report's own paragraph on that hazard tells the reader the
-    cell is a value their description published, which an invented one
-    is not. Nothing in the suite asserted the bar on this path. This
-    does, on every whole-number case the battery builds and every seed.
-
-    THE SCOPE IS THE WHOLE-NUMBER PATH, AND THE REST IS A REGISTERED
-    DEFECT rather than a silence. The same two-character code family is
-    reached by a column whose values are NOT all whole numbers, through
-    `_number_at`, and it writes the same leading sign there. That is a
-    second breach of the same rule, found while closing this one; it is
-    not the defect the Phase 3 plan's owner decision 1 ratified an
-    outcome for, and closing it means either refusing descriptions a
-    producer writes or missing a count no authorization covers -- an
-    owner's decision, not an implementer's. It is recorded with its
-    measurement in `docs/plans/phase-3-product.md` (P3-D8.1) -- not in
-    `dispositions.OPEN`, which carries only a fact some governing
-    document states a LESSER outcome for, and no document states one
-    here: the specifications say the bar holds, and the code is what
-    breaks it. So this test states the bound it actually holds.
-    """
-    checked = 0
-    for name, document, loaded in _battery(tmp_path_factory):
-        if not document["columns"][0].get("all_whole_numbers"):
-            continue
-        if _refusal(loaded) is not None:
-            continue
+        column = document["columns"][0]
         for seed in SEEDS:
             twin = generation.generate(loaded, seed)
-            for cell in twin.columns[0]:
-                if cell == "":
-                    continue
-                assert cell[0] not in ("=", "+", "-", "@"), (
+            leading = [
+                cell
+                for cell in twin.columns[0]
+                if cell and cell[0] in ("=", "+", "-", "@")
+            ]
+            if not leading:
+                quiet = quiet + 1
+                continue
+            signing = signing + 1
+            counted = _classes(twin)
+            for field, reading_back in CLASS_FACTS:
+                assert counted.get(reading_back, 0) == column[field], (
                     name,
                     seed,
-                    "an invented record number opens with a formula char",
+                    "a sign was written and a published count still missed",
+                    field,
                 )
-                checked = checked + 1
-    assert checked > 0, "no whole-number cells were checked"
+            present = [
+                parsing.trimmed(cell)
+                for cell in twin.columns[0]
+                if cell != ""
+            ]
+            digits = len(
+                [one for one in present if one and parsing.is_digit_text(one)]
+            )
+            code = len(
+                [one for one in present if one and parsing.is_code_text(one)]
+            )
+            assert digits == column["n_all_digits"], (name, seed)
+            assert code == column["n_code_alphabet"], (name, seed)
+    assert quiet > 0, "no column was checked for the bar itself"
+    assert signing > 0, (
+        "the battery no longer reaches the corner decision 9 carves out, "
+        "so the carve-out is asserted of nothing"
+    )
+    assert signing * 4 < quiet, (
+        "the carve-out has stopped being a corner: it now covers a "
+        f"quarter or more of the battery ({signing} of {signing + quiet})"
+    )
 
 
 def test_every_class_and_alphabet_count_is_written_exactly(
@@ -394,8 +346,6 @@ def test_every_class_and_alphabet_count_is_written_exactly(
     """
     for name, document, loaded in _battery(tmp_path_factory):
         column = document["columns"][0]
-        if _refusal(loaded) is not None:
-            continue
         for seed in SEEDS:
             twin = generation.generate(loaded, seed)
             counted = _classes(twin)
@@ -431,8 +381,6 @@ def test_the_class_counts_are_not_bought_with_another_exact_fact(
     """
     for name, document, loaded in _battery(tmp_path_factory):
         column = document["columns"][0]
-        if _refusal(loaded) is not None:
-            continue
         for seed in SEEDS:
             twin = generation.generate(loaded, seed)
             cells = twin.columns[0]
@@ -477,7 +425,7 @@ def test_the_alphabet_only_walk_puts_the_reviewed_column_back(
         parsing.NUMBER, 0
     ) == 23
 
-    def alphabets_alone(column, facts, groups, folded, partners):
+    def alphabets_alone(column, facts, groups, folded, partners, signed=False):
         """The band packing of revision 2, and its class-free reading."""
         quotas = [
             facts.n_all_digits,
@@ -494,6 +442,7 @@ def test_the_alphabet_only_walk_puts_the_reviewed_column_back(
         return (
             [text * width + place for place in chosen],
             generation._FIRST_TWO,
+            False,
         )
 
     monkeypatch.setattr(

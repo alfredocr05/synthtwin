@@ -49,6 +49,7 @@ from synthtwin import (
     parsing,
     profile,
     reading,
+    rendering,
     taxonomy,
 )
 from synthtwin.cli import main
@@ -110,19 +111,15 @@ def _speaks_the_plan(
     message: str,
     column: str,
     facts: "tuple[str, ...]",
-    from_a_real_table: bool = False,
 ) -> None:
     """P2-D6 rule 5, checked clause by clause on the message itself.
 
-    ``from_a_real_table`` is the fifth refusal's case (review item
-    P3-C2-F3). The other four are reached only by a description whose
-    facts no table produces, so describing the table again settles
-    them and the message says so. A producer writes the fifth from a
-    real table of values like `-3`, so that advice would send the
-    person round a loop that ends where it started and would tell them
-    their file is damaged when it is not. The clause is therefore
-    asserted in whichever direction is TRUE for the refusal at hand,
-    and never simply dropped.
+    Every refusal this file covers is reached only by a description
+    whose facts no table produces, so describing the table again
+    settles it and the message says so. The one refusal that was NOT
+    like that -- a pair a producer writes from a real table -- was
+    withdrawn by owner decision 9 rather than given a second dialect of
+    this check.
     """
     assert "is valid" in message, message
     assert f"'{parsing.visible(column)}'" in message, message
@@ -134,11 +131,6 @@ def _speaks_the_plan(
     # the clause four repairs kept losing. The description file is what
     # they are holding, so it is what the message reaches for first.
     assert "description file is all synthtwin needs" in message, message
-    if from_a_real_table:
-        assert "would produce the same pair" in message, message
-        assert "does not need making again" in message, message
-        assert "synthtwin profile" not in message, message
-        return
     assert "neither edit asks you for the table" in message, message
     # ...and the table is still offered to the people who do have it.
     assert "synthtwin profile" in message, message
@@ -208,65 +200,29 @@ def test_a_one_character_shortest_value_with_no_figures_refuses(
     )
 
 
-# -- case 1b: the fifth refusal, one band in (Phase 3, P3-D8.1) -------
+# -- case 1b: the pair a real table holds, BUILT and flagged ----------
 
 
-def test_two_character_code_whole_numbers_refuse_generation(
+def test_two_character_code_whole_numbers_are_built_and_flagged(
     tmp_path: pathlib.Path,
 ) -> None:
-    """The fifth refusal of method G12, from the longest-length end.
+    """Owner decision 9 (2026-08-13): a flag, not a stop.
 
-    A value written in the code alphabet but not in figures alone, and
-    reading back as a whole number, is at least three characters long:
-    one character that reads as a whole number is a figure, and the
-    only two-character spellings put a sign in front of a figure, which
-    G9.1 bars from the first position. So a description whose longest
-    value is two characters and some of whose values stand in the code
-    alphabet without being figures alone is one no table synthtwin may
-    write can hold.
+    A value in the code alphabet that is not figures alone and reads
+    back as a whole number is at least three characters long -- unless
+    it puts a sign in front of a figure, which is what a two-character
+    one must do. A refusal stood here for one day. The owner withdrew
+    it: a description carrying these counts PROVES the real column held
+    sign-leading values, since no other spelling of that width exists,
+    so refusing would deny someone a twin over a character their own
+    table used, and would leave them without the column they need to
+    develop against.
 
-    The implementation used to write `-0` through `-9` here, meeting
-    `n_code_alphabet` by breaking G9.1 and leaving the report's formula
-    paragraph telling the reader an invented cell was a value their
-    description published.
-    """
-    document = _document(
-        tmp_path,
-        fixtures.single_column_table("code", ["ab"] * 11 + ["70"] * 11),
-        ["code"],
-    )
-    block = _column(document, "code")
-    assert block["role"] == "identifier"
-    assert block["max_length"] == 2
-    assert block["n_code_alphabet"] - block["n_all_digits"] == 11
-    block["all_whole_numbers"] = True
-    described = _loaded(tmp_path, document)
-    with pytest.raises(errors.ProfileError) as raised:
-        generation.plan_generation(described)
-    _speaks_the_plan(
-        f"{raised.value}",
-        "code",
-        (
-            "every value reads as a whole number",
-            "no value is longer than 2 characters",
-            "11 of the 22 values are written in the code alphabet",
-            "three characters long",
-        ),
-        from_a_real_table=True,
-    )
-
-
-def test_a_two_character_shortest_value_with_only_the_code_band_refuses(
-    tmp_path: pathlib.Path,
-) -> None:
-    """The same proof from the other end of the length range.
-
-    Where the shortest published value is two characters, none of the
-    values is written in figures alone, and every one of them stands in
-    the code alphabet, the value carrying that shortest length has no
-    band left: the figures are ruled out by the published count, the
-    band outside the code alphabet is ruled out by the same count, and
-    the code alphabet itself needs a third character.
+    What the twin does instead is write the cells and SAY SO. This
+    asserts both halves: the description builds, and the report's
+    formula paragraph names the column and tells the reader the cells
+    were invented rather than published -- which is the sentence that
+    used to be false.
     """
     document = _document(
         tmp_path,
@@ -274,24 +230,26 @@ def test_a_two_character_shortest_value_with_only_the_code_band_refuses(
         ["code"],
     )
     block = _column(document, "code")
+    assert block["role"] == "identifier"
     assert block["min_length"] == 2
     assert block["n_all_digits"] == 0
-    assert block["n_present"] - block["n_code_alphabet"] == 0
     assert block["all_whole_numbers"] is True
     described = _loaded(tmp_path, document)
-    with pytest.raises(errors.ProfileError) as raised:
-        generation.plan_generation(described)
-    _speaks_the_plan(
-        f"{raised.value}",
-        "code",
-        (
-            "every value reads as a whole number",
-            "the shortest value is 2 characters long",
-            "every one of them is written in the code alphabet",
-            "three characters long",
-        ),
-        from_a_real_table=True,
-    )
+
+    twin = generation.generate(described, 0)
+    assert twin.columns, "the description must build"
+    assert [
+        note for note in twin.deviations if note.fact == "all_whole_numbers"
+    ] == []
+
+    hazardous = [
+        cell for cell in twin.columns[0] if cell and cell[0] in "=+-@"
+    ]
+    assert hazardous, "the fixture no longer reaches the corner"
+    text = rendering.report(described, twin)
+    assert "synthtwin MADE UP" in text, text
+    assert "'code'" in text
+    assert "no other way" in text
 
 
 def test_the_whole_number_refusal_is_narrow(tmp_path: pathlib.Path) -> None:
@@ -303,16 +261,10 @@ def test_the_whole_number_refusal_is_narrow(tmp_path: pathlib.Path) -> None:
     a refusal there would be a stop nobody asked for. The unedited
     description is built too.
 
-    BOTH WHOLE-NUMBER REFUSALS ARE HELD TO THAT (Phase 3 plan P3-D8.1
-    added the second). The first case below is two characters wide with
-    no value in the code alphabet that is not figures alone, so the
-    wide band's `1.` answers it; the second is three characters wide
-    with code-alphabet values, so the code band's `1e0` answers that.
-    Neither may be refused. The fixture for the first case CHANGED with
-    the fifth refusal: it used to be `ab`/`70`, which is two characters
-    wide WITH a code-alphabet value that is not figures alone, and that
-    pair is exactly what the fifth refusal now stops -- so it moved to
-    a pair the wide band can still carry.
+    Two characters carry `1.` outside the code alphabet and a sign in
+    front of a figure inside it, so both cases below have an answer and
+    neither may be refused. They were briefly split by a fifth refusal,
+    which owner decision 9 withdrew.
     """
     document = _document(tmp_path, _identifier_table(), ["code"])
     plain = _loaded(tmp_path, document, "plain")
@@ -332,11 +284,11 @@ def test_the_whole_number_refusal_is_narrow(tmp_path: pathlib.Path) -> None:
 
     coded = _document(
         tmp_path,
-        fixtures.single_column_table("code", ["1e0"] * 11 + ["70"] * 11),
+        fixtures.single_column_table("code", ["ab"] * 11 + ["70"] * 11),
         ["code"],
     )
     block = _column(coded, "code")
-    assert block["max_length"] == 3
+    assert block["max_length"] == 2
     assert block["n_code_alphabet"] - block["n_all_digits"] > 0
     block["all_whole_numbers"] = True
     built = generation.generate(_loaded(tmp_path, coded, "coded"), 0)
