@@ -2129,8 +2129,11 @@ report's formula paragraph telling the reader that an invented cell was
 a value the description had published. **The owner settled it as a
 refusal, not as a lesser outcome**: the two-character code family is
 withdrawn, and a description it leaves with no spelling meets
-`generation-whole-numbers-need-code-room` — the fifth refusal of method
-G12, landed there as an amendment.
+G9.1's bounded carve-out: the twin writes the sign, and the report
+counts those cells and names their column. A fifth refusal stood here
+for one day and was withdrawn by the same owner decision, because a
+description carrying those counts proves the real column held such
+values.
 
 `all_whole_numbers` is therefore EXACT-OBSERVABLE in every case a twin
 is written at all, which is what the ratified plan holds it to, and this

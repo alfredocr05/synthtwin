@@ -1052,7 +1052,7 @@ ANCHORS: "tuple[tuple[str, str], ...]" = (
         "docs/spec/generation-method-v1.md",
         (
             "**Refusal is reserved for documents no rule above can "
-            "satisfy.** This method has exactly five"
+            "satisfy.** This method has exactly four"
         ),
     ),
 )

@@ -1646,7 +1646,14 @@ of G9.2 produces:**
   can be changed by trimming or read as blank;
 - the first character is never `=`, `+`, `-` or `@`, so no invented
   value creates a spreadsheet formula hazard the report would have to
-  count (published labels are a different matter: they are written
+  count — **with one carve-out, bounded by the packing** (owner
+  decision 9): a two-character value of the code alphabet that is not
+  figures alone and reads back as a whole number has no other spelling,
+  and a description publishing those counts proves the real column held
+  one, so the twin reproduces the character rather than refusing to
+  build. It is reached only where no assignment of whole groups meets
+  every published count without it, and the report counts it and names
+  its column (published labels are a different matter: they are written
   unchanged, counted and warned);
 - a comma or a quote character inside an invented value is permitted;
   the writer quotes the field and the reader reads it back unchanged,
@@ -2467,13 +2474,26 @@ two-character whole numbers begin with a sign, which G9.1 keeps a
 made-up value from beginning with, and the implementation wrote one
 anyway — meeting the count by breaking the bar, and leaving the
 report's formula paragraph telling the reader that an invented cell was
-a value the description published. **The owner settled it as a
-refusal**: the two-character code family is withdrawn, the code band
-begins at three characters, and a description that leaves no spelling
-at all meets `generation-whole-numbers-need-code-room` by name.
-`all_whole_numbers` is EXACT-OBSERVABLE in every case this method
-builds, and no invented record number opens with a character a
-spreadsheet reads as the start of a formula.
+a value the description published.
+
+**The owner settled it as a bounded carve-out, not a refusal** (owner
+decision 9, 2026-08-13). A description carrying those counts PROVES the
+real column held sign-leading values, since no other spelling of that
+width exists, so the twin inherits a hazard the table already had
+rather than manufacturing one — which is the distinction G9.1's bar was
+written to draw. Refusing instead would deny a person a twin over a
+character their own file used. The family is written where it is
+needed, and the report's formula paragraph names those columns, says
+the cells were invented, and says why.
+
+**"Where it is needed" is decided by the packing and by nothing else.**
+The class-and-alphabet search above runs first with the two-character
+code family CLOSED, and reaches for it only when no assignment of whole
+groups meets every published count without it — so a column with room
+for three characters writes `1e0` and no sign at all.
+`all_whole_numbers` stays EXACT-OBSERVABLE in every case this method
+builds, and every invented record number opening with such a character
+does so because the published counts leave no other way to spell it.
 
 In the infeasible corner of owner decision 6 the identifier repeats:
 the groups are filled from the domain in order and, when it is
@@ -2738,7 +2758,7 @@ generation, and every outcome is fixed (P2-D6):
    numeric conflict is otherwise resolvable (G5.5); the residual
    deviation is measured and named.
 5. **Refusal is reserved for documents no rule above can satisfy.** This
-   method has exactly five, each of them a refusal of GENERATION rather
+   method has exactly four, each of them a refusal of GENERATION rather
    than a claim that the description is invalid, and each says the
    profile is VALID, names the two facts that cannot both hold, and
    gives remediation that does not assume the person still holds the
@@ -2762,24 +2782,16 @@ generation, and every outcome is fixed (P2-D6):
      with `n_all_digits` below `n_present`, and a shortest length of one
      character with `n_all_digits` of zero, are both descriptions no
      table can hold;
-   - `generation-whole-numbers-need-code-room` (G9.6; Phase 3 plan
-     P3-D8.1, owner decision 1) — **the fifth, landed as an amendment
-     to this section and not as an exception taken during
-     implementation** — a declared identifier published as whole
-     numbers whose values must stand in the CODE alphabet without room
-     for a third character. A value written in the code alphabet but
-     not in figures alone, reading back as a whole number, is at least
-     three characters long: one character that reads as a whole number
-     is a figure, and the only two-character spellings put a sign in
-     front of a figure, which G9.1 bars from the first position because
-     a spreadsheet reads a leading `-` as the start of a formula. So a
-     longest length under three with any value in the code alphabet
-     that is not figures alone, and a shortest length under three where
-     the code alphabet is the only band with any count left, are both
-     descriptions no table this method may write can hold. Before this
-     refusal the implementation wrote `-0` through `-9` here, meeting
-     `n_code_alphabet` by breaking G9.1 and leaving the report's
-     formula paragraph saying an invented cell was a published value.
+   A FIFTH REFUSAL WAS ADDED HERE ON 2026-08-12 AND WITHDRAWN ON
+   2026-08-13, both by amendment, and the round trip is recorded rather
+   than erased. `generation-whole-numbers-need-code-room` stopped a
+   declared identifier published as whole numbers whose values must
+   stand in the code alphabet with no room for a third character. The
+   owner withdrew it under decision 9: a description carrying those
+   counts proves the real column held sign-leading values, so refusing
+   denied a person a twin over a character their own file used. G9.1's
+   bar carries the bounded carve-out instead, and the report counts and
+   names the cells.
 
    The last two were written as twins with the exact fact named as
    missed until review item P2-C5-F4; the ratified plan reserves the

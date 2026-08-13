@@ -417,7 +417,31 @@ def _independence_lines() -> "list[str]":
     ]
 
 
-def _formula_lines(twin: generation.Twin) -> "list[str]":
+def _invented_columns(profile: contract.Profile) -> "frozenset[str]":
+    """The columns whose every value the twin made up (contract 6.10).
+
+    Three roles publish no value of the table anywhere in their block --
+    record numbers, free text, and numbers too large to hold -- and so
+    does any column declared a record number, whatever its role. A cell
+    of one of those columns was invented by synthtwin; a cell of any
+    other MAY be a value the description published. The report needs
+    the difference because it tells the reader two different things
+    about a spreadsheet hazard, and saying the wrong one is a lie about
+    where the cell came from.
+    """
+    made_up: list[str] = []
+    for column in profile.columns:
+        if column.structural_role == "identifier" or column.role in (
+            "free_text",
+            "numeric_unrepresentable",
+        ):
+            made_up = made_up + [column.name]
+    return frozenset(made_up)
+
+
+def _formula_lines(
+    profile: contract.Profile, twin: generation.Twin
+) -> "list[str]":
     """The spreadsheet warning, which appears whatever the count is.
 
     The hazard is counted and the columns are named, and the twin is
@@ -427,8 +451,23 @@ def _formula_lines(twin: generation.Twin) -> "list[str]":
     protection, because it is not protection: the quoting belongs to the
     file format and the spreadsheet strips it before it decides what the
     cell is.
+
+    AND IT SAYS WHICH KIND OF CELL EACH COLUMN HOLDS (owner decision 9,
+    2026-08-13). This paragraph used to tell every reader that a
+    hazardous cell was a value their description published, which is
+    false for a column that publishes no values at all: there the cell
+    was INVENTED, and it opens with a sign because the description's own
+    counts leave no other spelling of that width -- which is itself the
+    proof that the real column held such values. Both facts are worth a
+    sentence, and neither is worth a sentence that says the other.
     """
     total, named = _formula_hazard(twin)
+    made_up = _invented_columns(profile)
+    invented = [
+        f"'{_shown(name)}'" for name in
+        [twin.names[place] for place in range(len(twin.columns))]
+        if name in made_up
+    ]
     lines = [
         "Common spreadsheet software reads a cell that begins with  =  +  -",
         "@  a tab or a carriage return as a formula rather than as text,",
@@ -442,6 +481,18 @@ def _formula_lines(twin: generation.Twin) -> "list[str]":
             f"This twin has {total} such cell(s), in these columns:",
             f"  {_joined(named)}",
         ]
+        touched = [one for one in named if one in invented]
+        if touched:
+            lines = lines + [
+                "",
+                "Some of those cells synthtwin MADE UP, in these columns:",
+                f"  {_joined(touched)}",
+                "Those columns publish no value of your table, so every",
+                "cell in them is invented. They begin with that character",
+                "because your description's own counts leave no other way",
+                "to spell a value of that width -- which is also how you",
+                "know your real column held values written that way.",
+            ]
     else:
         lines = lines + [
             "No cell of this twin begins with one of those characters, and",
@@ -450,14 +501,22 @@ def _formula_lines(twin: generation.Twin) -> "list[str]":
         ]
     return lines + [
         "",
-        "synthtwin does not change those cells. A value the description",
-        "publishes has to be written exactly as it was published, or the",
-        "counts the twin exists to reproduce stop holding. Quotation marks",
-        "around a cell are NOT protection: they belong to the file format,",
-        "and a spreadsheet removes them before it decides what the cell is.",
-        "What to do instead: open the twin with the program that will use",
-        "it -- your analysis code -- or with a spreadsheet's 'import as",
-        "text' route, rather than by double-clicking the file.",
+        "synthtwin does not change those cells, and there is no spelling",
+        "that would make a spreadsheet read them as text. Where the value",
+        "is one your description published, it has to be written exactly",
+        "as published or the counts the twin exists to reproduce stop",
+        "holding. Where synthtwin invented it, every other spelling of",
+        "that width would have broken a count your description states.",
+        "Quotation marks around a cell are NOT protection: they belong to",
+        "the file format, and a spreadsheet removes them before it decides",
+        "what the cell is.",
+        "",
+        "What to do: open the twin with the program that will use it --",
+        "your analysis code -- or with a spreadsheet's 'import as text'",
+        "route, rather than by double-clicking the file. And if this",
+        "matters to your work, it matters on your real table too: the",
+        "same cells behave the same way there, so this is worth settling",
+        "in the real file rather than working around it in the twin.",
     ]
 
 
@@ -841,7 +900,7 @@ def report(profile: contract.Profile, twin: generation.Twin) -> str:
         _RULE,
         "",
     ]
-    lines = lines + _formula_lines(twin)
+    lines = lines + _formula_lines(profile, twin)
     lines = lines + [
         "",
         _RULE,

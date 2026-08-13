@@ -991,7 +991,25 @@ themselves so a reader meets the ruling before the history.
    over a character the source itself used. **And the report's own
    false sentence is corrected**: its formula paragraph told the reader
    every hazardous cell was a value the description published, which an
-   invented one is not.
+   invented one is not. It now names the columns whose cells were
+   invented, says why the counts left no other spelling, and points at
+   the real table, where the same cells behave the same way.
+
+   **How "no other spelling" is decided, which took three attempts and
+   is recorded because two of them were wrong.** The rule is a last
+   resort, so something has to decide when the resort is reached. Two
+   predicates over the published numbers were tried and both were
+   wrong: one permitted a sign on a column with room for three
+   characters, which manufactures a hazard the description never
+   required; the other refused one on a column whose remaining bands
+   genuinely could not carry a short cell, which cost a published count
+   the source's own values prove is reachable. **The packing decides
+   it instead**: the class-and-alphabet search runs first with the
+   two-character code family CLOSED and reaches for it only when no
+   assignment of whole groups meets every published count without it.
+   That is what "no other spelling" means, stated as the question the
+   packer already answers completely, and it needs no second opinion
+   about the arithmetic to disagree with.
 
 10. **A whole number is written without a decimal point, however wide
     it is.** The owner declined to move any cutoff and asked the
