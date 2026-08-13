@@ -1037,10 +1037,13 @@ back as that style:
 
 - **`leading_plus`** needs a value that is not negative.
 - **`plain`, `leading_zero` and `leading_plus`** need a value with a
-  POINT-FREE spelling (G6.2) — a whole value the fixed-point window
-  holds. `1e+16` has none, and neither has `12.5`; inserting zeros or a
-  plus in front of either leaves the point or the exponent exactly where
-  it was, so `012.5` classifies as `decimal`, not as `leading_zero`.
+  POINT-FREE spelling (G6.2) — a WHOLE value, at any width (owner
+  decision 10; the fixed-point window this clause used to name governs
+  the canonical spelling and not this one). `12.5` has none; inserting
+  zeros or a plus in front of it leaves the point exactly where it was,
+  so `012.5` classifies as `decimal`, not as `leading_zero`. `1e+16` and
+  `1e+20` DO have one — their digits — which is what keeps a column of
+  wide whole numbers reading as whole numbers.
 - **`decimal`, `exponent_lower` and `exponent_upper`** can spell any
   finite value.
 
