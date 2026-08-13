@@ -359,6 +359,50 @@ def test_a_sign_leads_an_invented_value_only_to_meet_a_published_count(
     )
 
 
+def test_a_fold_partner_does_not_double_the_signed_cells(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Review item P3-C6-F1: the collision lands where it costs nothing.
+
+    A fold-collision partner carries its parent's spelling, and the
+    partner that keeps the length exactly where it was is a CASE FLIP,
+    which needs a letter. Where the parent is the two-character signed
+    family owner decision 9 permits, `-0` holds none, so the partner
+    came out `-0 ` and this column wrote twenty-two cells a spreadsheet
+    reads as a formula where eleven would do -- every count exact, and
+    twice the hazard the description required.
+
+    The parent is now chosen with that in mind: one that can be
+    case-flipped is taken first, so the collision lands on `0e0` and
+    `0E0`, the signed group keeps its eleven cells, and the published
+    counts are where the packing put them. This is the allocation the
+    review said existed, asserted here so it cannot be lost again.
+    """
+    document, loaded = _described(
+        tmp_path, ["-3"] * 11 + ["-3 "] * 11 + ["1e0"] * 11
+    )
+    column = document["columns"][0]
+    assert column["n_distinct"] == 3
+    assert column["n_distinct_folded"] == 2, "the fixture must fold"
+
+    for seed in SEEDS:
+        twin = generation.generate(loaded, seed)
+        cells = [cell for cell in twin.columns[0] if cell]
+        hazardous = [cell for cell in cells if cell[0] in ("=", "+", "-", "@")]
+        assert len(hazardous) == 11, (seed, sorted(set(cells)))
+        assert len(set(cells)) == 3, (seed, sorted(set(cells)))
+        counted = _classes(twin)
+        for field, reading_back in CLASS_FACTS:
+            assert counted.get(reading_back, 0) == column[field], (seed, field)
+        present = [parsing.trimmed(cell) for cell in cells]
+        assert len(
+            [one for one in present if parsing.is_code_text(one)]
+        ) == column["n_code_alphabet"], seed
+        assert [
+            note for note in twin.deviations
+        ] == [], [note.fact for note in twin.deviations]
+
+
 def test_every_class_and_alphabet_count_is_written_exactly(
     tmp_path_factory: pytest.TempPathFactory,
 ) -> None:

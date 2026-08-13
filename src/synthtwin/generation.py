@@ -165,6 +165,15 @@ _PCT = (0, 1, 5, 10, 25, 50, 75, 90, 95, 99, 100)
 # reproducible; `_DIGITS` is a subset of it, which is what makes an
 # all-figures value count toward that same fact.
 _DIGITS = tuple("0123456789")
+# The letters of the code alphabet, written out here so that asking
+# whether a spelling holds one is a MEMBERSHIP test against a
+# first-party constant rather than a method call on a value the offline
+# audit cannot trace (plan D6.2). A case flip needs a letter, which is
+# what `_partner_of` asks before it chooses a parent.
+_LETTERS = tuple(
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+)
+
 _CODE = tuple(
     "-0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz"
 )
@@ -5104,7 +5113,12 @@ def _identifier_families(
                 continue
             return (
                 _collision_slots(
-                    together, groups, folded, partners, permits
+                    together,
+                    groups,
+                    folded,
+                    partners,
+                    permits,
+                    _caseless_slots(together, facts, carriers, total),
                 ),
                 carriers,
                 signing,
@@ -5135,7 +5149,14 @@ def _identifier_families(
         kinds[index] * width + bands[index] for index in range(total)
     ]
     return (
-        _collision_slots(together, groups, folded, partners, permits),
+        _collision_slots(
+            together,
+            groups,
+            folded,
+            partners,
+            permits,
+            _caseless_slots(together, facts, carriers, total),
+        ),
         carriers,
         False,
     )
@@ -5489,10 +5510,47 @@ def _partner_of(
         return None
     place = index - folded
     shortest, longest = windows[index]
-    for step in range(folded):
-        parent_place = (place + step) % folded
-        if families[parent_place] != families[index]:
-            continue
+    # A PARENT THAT CAN BE CASE-FLIPPED IS TAKEN FIRST (review item
+    # P3-C6-F1). The partner that keeps the length exactly where it was
+    # is a case flip, and it needs a letter; a parent holding none can
+    # only be answered by an edge-spaced copy. That costs nothing on
+    # most columns and costs a SECOND spreadsheet hazard on one: where
+    # the parent is the two-character signed family owner decision 9
+    # permits, `-0` has no letter, so the partner came out `-0 ` and a
+    # column of `-3`, `-3 ` and `1e0` wrote twenty-two hazardous cells
+    # where eleven would do. Both passes keep the cyclic order the
+    # method fixes, so a column whose parents all hold letters, or none
+    # of which do, is laid out exactly as it was.
+    for lettered in (True, False):
+        for step in range(folded):
+            parent_place = (place + step) % folded
+            if families[parent_place] != families[index]:
+                continue
+            has_letter = False
+            for character in spellings[parent_place]:
+                if character in _LETTERS:
+                    has_letter = True
+                    break
+            if has_letter != lettered:
+                continue
+            found = _partner_from(
+                parent_place, index, spellings, used, shortest, longest
+            )
+            if found is not None:
+                return found
+    return None
+
+
+def _partner_from(
+    parent_place: int,
+    index: int,
+    spellings: "list[str]",
+    used: "dict[str, int]",
+    shortest: int,
+    longest: "int | None",
+) -> "str | None":
+    """One parent's family, walked from its own start (G9.3 step 2)."""
+    if True:
         parent = spellings[parent_place]
         order = 1
         steps = len(used) + 1
@@ -5567,12 +5625,64 @@ def _letter_asks(families: "list[str]", folded: int) -> "list[bool]":
     return asks
 
 
+def _caseless_slots(
+    cells: "list[int]",
+    facts: contract.IdentifierFacts,
+    carriers: "tuple[int, int]",
+    total: int,
+) -> "frozenset[int]":
+    """The groups whose spelling holds no letter to flip (review P3-C6-F1).
+
+    A fold-collision partner is built from its parent's spelling, and
+    the partner that keeps the length exactly where it was is a CASE
+    FLIP -- which needs a letter. Where the parent holds none, the
+    partner has to be an edge-spaced copy instead, and an edge-spaced
+    copy of a value opening with a sign is a SECOND cell a spreadsheet
+    reads as a formula.
+
+    `_collision_slots` already trades the collision slots away from the
+    band written in figures alone, for exactly this reason. The
+    two-character code family owner decision 9 permits is caseless in
+    the same way and was not named: `-0` through `-9` hold no letter
+    either, so a column of `-3`, `-3 ` and `1e0` wrote twenty-two
+    hazardous cells where eleven would do. This names those slots so the
+    same trade reaches them, and the collision lands on `0e0`/`0E0`
+    instead -- one flip, no second hazard, every published count where
+    the packing put it.
+    """
+    width = len(_BANDS)
+    number = 0
+    for place in range(len(_CLASSES)):
+        if _CLASSES[place] == _CLASS_NUMBER:
+            number = place
+    code = 0
+    for place in range(width):
+        if _BANDS[place] == _BAND_CODE:
+            code = place
+    caught: list[int] = []
+    for place in range(total):
+        low = facts.min_length
+        high = facts.max_length
+        if place == carriers[0]:
+            high = facts.min_length
+        elif place == carriers[1] and facts.max_length > facts.min_length:
+            low = facts.max_length
+        if low != high or low != 2:
+            continue
+        if cells[place] // width == number and (
+            cells[place] - (cells[place] // width) * width
+        ) == code:
+            caught = caught + [place]
+    return frozenset(caught)
+
+
 def _collision_slots(
     cells: "list[int]",
     groups: "tuple[int, ...]",
     folded: int,
     partners: int,
     permits: "list[int]",
+    caseless: "frozenset[int] | None" = None,
 ) -> "list[int]":
     """Prefer a band with a case for the fold-collision slots (G9.3).
 
@@ -5605,14 +5715,24 @@ def _collision_slots(
     width = len(_BANDS)
     needed = [place for place in range(min(partners, folded))]
     needed = needed + [place for place in range(folded, total)]
+    barren = caseless if caseless is not None else frozenset()
     moved = [cell for cell in cells]
     for place in needed:
-        if moved[place] - (moved[place] // width) * width != 0:
+        # A SLOT NEEDS TRADING WHERE ITS SPELLING HOLDS NO LETTER: the
+        # band written in figures alone, and the two-character signed
+        # code family beside it (review item P3-C6-F1).
+        if (
+            moved[place] - (moved[place] // width) * width != 0
+            and place not in barren
+        ):
             continue
         for other in range(total):
             if other in needed or groups[other] != groups[place]:
                 continue
-            if moved[other] - (moved[other] // width) * width == 0:
+            if (
+                moved[other] - (moved[other] // width) * width == 0
+                or other in barren
+            ):
                 continue
             # A TRADE IS ONLY A TRADE WHERE BOTH SLOTS CAN WRITE WHAT
             # THEY ARE HANDED (review item P2-C5-F2). A slot carrying a
