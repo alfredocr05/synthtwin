@@ -302,6 +302,27 @@ def test_a_sign_leads_an_invented_value_only_to_meet_a_published_count(
                 quiet = quiet + 1
                 continue
             signing = signing + 1
+            # AND EVERY SIGNED CELL IS THE ONE SHAPE THAT HAS NO OTHER
+            # SPELLING (review item P3-C5-F1). Counting runs said
+            # nothing about the cells inside them, and the defect that
+            # item found was exactly there: a column where one group
+            # had to sign and every group did. A fraction of the column
+            # is the wrong bound -- a column of one group may legitimately
+            # be signed throughout -- so what is asserted is the shape
+            # itself. The carve-out covers exactly the two-character
+            # value that is code-alphabet, not figures alone, and reads
+            # back as a whole number; nothing else has no other
+            # spelling, so nothing else may carry a sign.
+            for cell in leading:
+                assert len(cell) == 2, (name, seed, cell, "not two wide")
+                assert parsing.is_code_text(cell), (name, seed, cell)
+                assert not parsing.is_digit_text(cell), (name, seed, cell)
+                assert parsing.classify_number(cell) == parsing.NUMBER, (
+                    name,
+                    seed,
+                    cell,
+                    "a signed cell that is not even a number",
+                )
             counted = _classes(twin)
             for field, reading_back in CLASS_FACTS:
                 assert counted.get(reading_back, 0) == column[field], (
@@ -330,7 +351,11 @@ def test_a_sign_leads_an_invented_value_only_to_meet_a_published_count(
     )
     assert signing * 4 < quiet, (
         "the carve-out has stopped being a corner: it now covers a "
-        f"quarter or more of the battery ({signing} of {signing + quiet})"
+        f"quarter or more of the battery ({signing} of {signing + quiet}). "
+        "The threshold is a smoke alarm rather than a derived bound -- "
+        "what bounds each run is the per-run assertion above, and what "
+        "bounds the mechanism is that the packing reaches for the "
+        "family only when nothing else meets every published count."
     )
 
 

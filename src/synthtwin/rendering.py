@@ -463,11 +463,22 @@ def _formula_lines(
     """
     total, named = _formula_hazard(twin)
     made_up = _invented_columns(profile)
-    invented = [
-        f"'{_shown(name)}'" for name in
-        [twin.names[place] for place in range(len(twin.columns))]
-        if name in made_up
-    ]
+    # A HAZARDOUS HEADER IS NOT AN INVENTED CELL (review item P3-C5-F8).
+    # The count above takes the header row's names beside the data,
+    # because a name is a cell of the file like any other -- but a name
+    # came from the description, and calling it made-up would be the
+    # same class of false sentence this paragraph was rewritten to
+    # remove. So the invented list is built from DATA cells only, and a
+    # column whose only hazard is its name is left out of it.
+    invented: list[str] = []
+    for place in range(len(twin.columns)):
+        name = twin.names[place]
+        if name not in made_up:
+            continue
+        for cell in twin.columns[place]:
+            if _first_character(cell) in _FORMULA_LEADERS:
+                invented = invented + [f"'{_shown(name)}'"]
+                break
     lines = [
         "Common spreadsheet software reads a cell that begins with  =  +  -",
         "@  a tab or a carriage return as a formula rather than as text,",
@@ -488,10 +499,10 @@ def _formula_lines(
                 "Some of those cells synthtwin MADE UP, in these columns:",
                 f"  {_joined(touched)}",
                 "Those columns publish no value of your table, so every",
-                "cell in them is invented. They begin with that character",
-                "because your description's own counts leave no other way",
-                "to spell a value of that width -- which is also how you",
-                "know your real column held values written that way.",
+                "value in them is invented. Your description's own counts",
+                "are what leave no other way to spell a value of that",
+                "width -- which is also how you know your real column",
+                "held values written the same way.",
             ]
     else:
         lines = lines + [
@@ -514,9 +525,10 @@ def _formula_lines(
         "What to do: open the twin with the program that will use it --",
         "your analysis code -- or with a spreadsheet's 'import as text'",
         "route, rather than by double-clicking the file. And if this",
-        "matters to your work, it matters on your real table too: the",
-        "same cells behave the same way there, so this is worth settling",
-        "in the real file rather than working around it in the twin.",
+        "matters to your work, it is worth settling in your real table",
+        "rather than working around it here: values written that way",
+        "behave the same way there, which is why the twin has them at",
+        "all.",
     ]
 
 

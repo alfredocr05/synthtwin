@@ -4274,7 +4274,7 @@ CASE_SET_ACCOUNTS = {
     "tests/reference/generation-branch-vectors.json: one transform, one proof "
     "layer, two files, because a committed fixture must stay under the "
     "provenance manifest's byte cap and these nine already spend most of it.",
-    BRANCH_PART: "The five cases method section G14.3 adds for the branches "
+    BRANCH_PART: "The six cases method section G14.3 adds for the branches "
     "its first nine leave unexercised (review items P2-C3-F3 and P2-C4-C3): "
     "the joint class-and-sign packing of an unrepresentable column, the joint "
     "class-and-alphabet packing of free text, a fold collision no case change "
