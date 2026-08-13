@@ -6,6 +6,21 @@ exists).
 
 ## [Unreleased]
 
+### Fixed in Phase 3: a whole number keeps its shape at any width
+- **Owner decision 10 (2026-08-13).** A column whose source wrote very
+  wide whole numbers in figures -- more than sixteen of them -- was
+  published `plain` and came back from the twin as
+  `100000000000000000000.0`, which a reader takes for a decimal column.
+  That is exactly the type change the published spelling map exists to
+  prevent. The sixteen-figure ceiling that caused it belongs to the
+  canonical spelling of a number in the profile DOCUMENT, and was being
+  applied to the twin's plain cells, where it does not govern: such a
+  cell owes only that it reads back as the same number and classifies
+  as plain, and a whole value's full digit expansion does both however
+  wide it is. No frozen case reached the branch, so no golden hash and
+  no reference vector moved; a column that does reach it now writes its
+  digits.
+
 ### Fixed in Phase 3: the two open defects the registry carried
 - **The pooled numeric spelling (P2-C5-F3).** A description holds back
   the forms used by fewer rows than the smallest group size, and the

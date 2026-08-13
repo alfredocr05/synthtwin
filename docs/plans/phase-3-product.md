@@ -958,6 +958,63 @@ path by name
 (`test_no_invented_whole_record_number_opens_with_a_formula_character`),
 and the breach is stated rather than implied.
 
+**OWNER DECISIONS 9, 10 AND 11, taken 2026-08-13**, settling the three
+records this section carried. They are written before the records
+themselves so a reader meets the ruling before the history.
+
+9. **An invented record number MAY open with a sign, where the
+   published counts leave no other spelling — and it is counted and
+   warned about, never quiet.** The owner directed that the twin
+   reproduce what the table had rather than refuse. The reasoning is
+   the published facts' own: a two-character value that is in the code
+   alphabet, is not figures alone, and reads back as a whole number has
+   no spelling but a sign in front of a figure, so a description
+   carrying those counts PROVES the real column held such values. The
+   twin therefore inherits a hazard the table already had instead of
+   manufacturing one, which is the distinction G9.1's bar was written
+   to draw, and G9.1 is amended to say so rather than being quietly
+   crossed.
+
+   **Two things this decision does NOT buy, stated because the owner
+   asked for them and they are not available.** There is no way to make
+   a spreadsheet stop reading a leading `-` as a formula: ordinary CSV
+   quoting is not a mitigation, which Phase 2 established by test and
+   this decision does not reopen. And an identifier column publishes no
+   value of the table at all, so the twin cannot copy `-3`; it
+   reproduces the CHARACTER the counts require, not the values. What
+   the person gets instead is the truth: the formula paragraph counts
+   these cells and names their columns every run.
+
+   **The fifth refusal of method G12 is withdrawn with this decision**,
+   by the same amendment procedure that landed it: the descriptions it
+   stopped now have an answer, so a refusal there would deny a twin
+   over a character the source itself used. **And the report's own
+   false sentence is corrected**: its formula paragraph told the reader
+   every hazardous cell was a value the description published, which an
+   invented one is not.
+
+10. **A whole number is written without a decimal point, however wide
+    it is.** The owner declined to move any cutoff and asked the
+    simpler question — why is the `.0` there at all — and the answer is
+    that nothing requires it. A `plain` cell owes two things: it must
+    read back as the same number, and it must classify as `plain`. The
+    full digit expansion of a whole value does both at any width. The
+    sixteen-digit limit belongs to the canonical FLOAT spelling of
+    section 3.2.1 and was being applied where it does not govern, so a
+    column of very wide whole numbers came out as
+    `100000000000000000000.0` when the source had written the digits.
+    The limit is lifted from the point-free spelling only; the
+    canonical grammar itself is untouched. **This changes twin bytes on
+    such columns and is a changelogged regeneration event under D12.**
+
+11. **The frozen reference oracle is brought into agreement with the
+    shipped code now**, rather than waiting. It still implements the
+    retired pooled-plain rule on a branch no frozen case exercises, so
+    its independent check is not in force there; decisions 9 and 10
+    settle what it must agree with, and it is updated to that with a
+    case that covers the branch, so the disagreement cannot return
+    invisibly.
+
 **A SECOND defect the reviews found, also for the owner** (2026-08-12,
 review item P3-C2-F1). A producer column whose values are whole but lie
 outside the fixed-point window -- twenty cells of ten to the twentieth

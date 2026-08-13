@@ -199,11 +199,21 @@ def _point_free_number(value: float) -> bool:
 
     Stated here from the number rather than read from the generator, so
     the expectation below is not the implementation's own opinion: a
-    value can be written in digits alone exactly when it is whole and
-    its digits are the shortest round trip's, which the contract's
-    fixed-point window holds up to `1e+16`.
+    value can be written in digits alone exactly when it is WHOLE, at
+    any width.
+
+    THE SIXTEEN-FIGURE CEILING IS GONE (owner decision 10, 2026-08-13).
+    It was the contract's fixed-point window, which governs the
+    canonical spelling of a number in the profile DOCUMENT and not the
+    spelling of a plain cell in the twin. A plain cell owes two things
+    -- it reads back as the same number and it classifies as plain --
+    and the full digit expansion of a whole value does both however
+    many figures it takes. While the ceiling stood, a column whose
+    source wrote very wide whole numbers in figures published them
+    `plain` and got `100000000000000000000.0` back, which a reader
+    takes for a decimal column.
     """
-    return float(value).is_integer() and abs(value) < 1e16
+    return float(value).is_integer()
 
 
 def _ceiling(document: dict) -> int:

@@ -91,14 +91,22 @@ def test_a_whole_value_has_a_point_free_spelling_that_reads_back() -> None:
 def test_a_value_with_no_point_free_spelling_is_not_offered_one() -> None:
     """The other half of point 1: the rule refuses what it cannot write.
 
-    `12.5` is not whole and `1e+16` stands outside the window in which
-    the shortest round trip is written in fixed-point notation, so
-    neither has a point-free spelling and neither may wear one of the
-    three styles that need one.
+    A value that is not whole has no spelling without a point, so it may
+    wear none of the three styles that need one. `12.5`, `1e-05` and
+    `-2.5` are those values.
+
+    A WHOLE VALUE HAS ONE AT ANY WIDTH (owner decision 10, 2026-08-13).
+    This test used to put `1e+16` on the refusing side, because the
+    contract's fixed-point window stops there -- but that window governs
+    the canonical spelling of a number in the profile document, not the
+    spelling of a plain cell in the twin, and a whole value's full digit
+    expansion reads back exactly however wide it is. So the wide whole
+    numbers move to the side that CAN be written plainly, which is what
+    stops a column of them from coming back as a decimal one.
     """
-    for value in (12.5, 1e16, 1e-05, -2.5):
+    for value in (12.5, 1e-05, -2.5):
         assert not generation._carries_plainly(value, False)
-    for value in (0.0, 5.0, 1e15):
+    for value in (0.0, 5.0, 1e15, 1e16, 1e20):
         assert generation._carries_plainly(value, False)
 
 

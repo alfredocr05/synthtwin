@@ -1761,7 +1761,25 @@ def _point_free(value: float, canonical: str) -> str:
     sign, figures, place = _digits_and_point(value)
     if figures == "0":
         return "0"
-    if place >= len(figures) and -4 < place <= 16:
+    if place >= len(figures):
+        # A WHOLE VALUE IS WRITTEN WITHOUT A POINT AT ANY WIDTH (owner
+        # decision 10, 2026-08-13). The sixteen-figure ceiling that used
+        # to stand here belongs to the CANONICAL spelling of contract
+        # 3.2.1, which turns to an exponent above it -- and that grammar
+        # governs the profile document's own numbers, not the twin's
+        # plain cells. A `plain` cell owes exactly two things: it reads
+        # back as the same number, and it classifies as `plain`. The
+        # full digit expansion of a whole value does both however wide
+        # it is, because the figures are the shortest round trip and the
+        # zeros after them carry no information the float does not
+        # already hold.
+        #
+        # What the ceiling cost was a column whose source wrote very
+        # wide whole numbers in figures: it published them `plain`, and
+        # the twin wrote `100000000000000000000.0`, which a reader takes
+        # for a decimal column. That is the type change owner decision
+        # 10 of Phase 2 exists to prevent, arriving through the door
+        # this line left open.
         return f"{sign}{figures}{'0' * (place - len(figures))}"
     return canonical
 
