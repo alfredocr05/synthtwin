@@ -1250,18 +1250,26 @@ def point_free_spelling(value, integer_valued):
     else (G6.2's first clause), so it IS the point-free spelling and is
     returned unchanged.  Otherwise, with ``D`` and ``decpt`` the
     shortest round-trip digits and decimal point: where
-    ``decpt >= len(D)`` and ``-4 < decpt <= 16`` -- a whole value the
-    fixed-point window holds -- the spelling is the sign, ``D`` and
-    ``decpt - len(D)`` trailing zeros, and zero is written ``0`` and
-    never ``-0``.  Where those conditions do not hold the value has no
-    point-free spelling at all: ``1e+16`` has none and neither has
-    ``12.5``, because inserting zeros in front of either leaves the
-    point or the exponent exactly where it was.
+    ``decpt >= len(D)`` -- a whole value -- the spelling is the sign,
+    ``D`` and ``decpt - len(D)`` trailing zeros, and zero is written
+    ``0`` and never ``-0``.  Where that does not hold the value has no
+    point-free spelling at all: ``12.5`` has none, because inserting
+    zeros in front of it leaves the point exactly where it was.
+
+    THERE IS NO WIDTH CEILING (owner decision 10, 2026-08-13).  An
+    earlier revision stopped at ``decpt <= 16``, the fixed-point window
+    of the contract's CANONICAL spelling -- which governs the numbers
+    inside a profile document and not the spelling of a cell in the
+    twin.  A plain cell owes that it reads back as the same number and
+    that it classifies as plain, and the full digit expansion of a whole
+    value does both however many figures it takes.  While the ceiling
+    stood, a column whose source wrote ``100000000000000000000`` in
+    figures was published ``plain`` and written back with a point.
     """
     if integer_valued:
         return canonical_spelling(value, True)
     digits, decpt = shortest_round_trip(value)
-    if not (-4 < decpt <= 16) or decpt < len(digits):
+    if decpt < len(digits):
         return None
     sign = "-" if value < 0 else ""
     return sign + digits + "0" * (decpt - len(digits))
@@ -1524,7 +1532,22 @@ def style_allocation(published, values, integer_valued):
     def wearable(style, index):
         if style == "leading_plus" and values[index] < 0:
             return False
-        return point_free[index] or style not in POINT_FREE_STYLES
+        if point_free[index] or style not in POINT_FREE_STYLES:
+            return True
+        # THE POOL IS OFFERED TO A CELL THAT CANNOT BE WRITTEN PLAINLY,
+        # where it is spelled canonically instead (Phase 3 plan
+        # P3-D8.1).  Contract 7.5.7 used to write every pooled cell
+        # `plain`, which a column whose published `min` or `max` carries
+        # a point can never do, so the remainder came out short by that
+        # cell.  A pooled cell has no published form, so nothing is owed
+        # by writing it in its own value's canonical text.  The offer
+        # opens only while the pool is still standing AND the point-free
+        # claims outnumber the carriers left, which is what keeps every
+        # other column placed exactly as before.
+        if style != "plain" or pool <= 0:
+            return False
+        demand = sum(remaining[name] for name in POINT_FREE_STYLES)
+        return demand > carriers[index + 1]
 
     chosen = []
     missed = {}
@@ -3818,6 +3841,74 @@ def _numeric_integer():
     }
 
 
+def _numeric_pooled_spelling():
+    """The two branches owner decisions 9 to 11 left without a witness.
+
+    THIS CASE EXISTS BECAUSE A REVIEW FOUND THE ORACLE AND THE SHIPPED
+    CODE DISAGREEING WHERE NOTHING LOOKED (review item P3-C4-F2, owner
+    decision 11). The pooled-spelling rule changed and no frozen case
+    reached it, so both files stayed green while the independent check
+    they exist to be was, on that branch, checking nothing. Two branches
+    meet in this one column:
+
+    - **a pooled cell with no point-free spelling.** The published
+      smallest value carries a decimal point, so the cell that must read
+      back as it cannot be written plainly -- and the map's held-back
+      remainder used to be owed exactly that. A pooled cell names no
+      form, so it is written in its own value's canonical text, and the
+      recount identity of contract 7.5.7 is what the twin owes instead.
+    - **a whole value wider than the fixed-point window.** The published
+      largest value is ten to the twentieth, whole, and published
+      `plain` because a source that wrote it wrote its digits. Owner
+      decision 10 lifted the sixteen-figure ceiling that used to send it
+      back with a decimal point, so it is written in figures here.
+    """
+    ladder, ladder_claims, rungs = _ladder_fields({
+        "min": "0.5", "p01": "4", "p05": "4", "p10": "4",
+        "p25": "4", "p50": "4", "p75": "4",
+        "p90": "4", "p95": "4", "p99": "4",
+        "max": "1e+20",
+    })
+    claims = {
+        ("column", "percentiles") + key: value
+        for key, value in ladder_claims.items()
+    }
+    moments = {}
+    for name, text in (("mean", "1e+19"), ("std", "3e+19"),
+                       ("skew", "3"), ("numeric_share", "1")):
+        field, claim = nearest_field(text)
+        moments[name] = field
+        claims[("column", name)] = claim
+    column = _universal(
+        "column_1", "continuous", "continuous", "data", "ok",
+        n_present=12, n_missing=0, n_distinct=3, n_distinct_folded=3,
+        n_numeric=12, n_not_numeric=0, n_out_of_range=0, n_contradictory=0,
+        percentiles=ladder, std_unrepresentable=False,
+        n_zero=0, n_negative=0, n_negative_unrepresentable=0,
+        n_used_in_statistics=12, n_left_out_of_statistics=0,
+        integer_valued=False, n_rows=12,
+        numeric_styles={"plain": 11, "(withheld)": 1},
+        **moments,
+    )
+    return {
+        "why": "the pooled remainder written by its own value, and a whole "
+        "value wider than the fixed-point window written in figures. Eleven "
+        "cells are published plain and one is held back below the smallest "
+        "group size; the cell that must read back as the published smallest "
+        "value carries a decimal point and can wear no point-free form at "
+        "all, so the held-back cell is the one that lands there and is "
+        "written canonically. The published largest value is whole and wider "
+        "than the window the canonical spelling switches at, and is written "
+        "in its digits rather than with a point. Neither branch had a frozen "
+        "case until owner decision 11 asked for one.",
+        "column": column,
+        "rows": 12,
+        "identifier_declared": False,
+        "rungs": rungs,
+        "claims": claims,
+    }
+
+
 def _numeric_decimal_styles():
     ladder, ladder_claims, rungs = _ladder_fields({
         "min": "1e-05", "p01": "0.0001", "p05": "0.001", "p10": "0.01",
@@ -4159,6 +4250,7 @@ NAMED_CASE_BUILDERS = {
 
 BRANCH_CASE_BUILDERS = {
     "free_text_joint": _free_text_joint,
+    "numeric_pooled_spelling": _numeric_pooled_spelling,
     "identifier_edge_spacing": _identifier_edge_spacing,
     "leap_second_endpoint": _leap_second_endpoint,
     "numeric_point_free_styles": _numeric_point_free_styles,
@@ -4317,6 +4409,16 @@ GIVEN_WORDS = {
         10286796248990847147, 3073121396252394582, 5850044163583767416,
         18384416552906420653, 15259945026574340491, 1508198782665164068,
         17439788078174870154, 7339215063107649377, 9204310222248724882,
+    ),
+    # The twelve words of the pooled-spelling case (owner decision
+    # 11): one content word and eleven placement words, drawn in
+    # the one form G3.2 permits so the shipped generator reaches
+    # the same cells from the same stream.
+    "numeric_pooled_spelling": (
+        12955849785445258386, 11136466736298123742, 10038147400135452611,
+        15147492697428057229, 14236867650031288, 2173290989802069806,
+        11540999283663690755, 7558342730909420832, 4008536478337168684,
+        7977734629748327352, 2774262970987807365, 3332551472928899385,
     ),
     "numeric_point_free_styles": (
         17164562756356967436, 9452808604124318311, 13143735524693854369,

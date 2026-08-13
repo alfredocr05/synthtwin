@@ -1026,12 +1026,17 @@ themselves so a reader meets the ruling before the history.
     such columns and is a changelogged regeneration event under D12.**
 
 11. **The frozen reference oracle is brought into agreement with the
-    shipped code now**, rather than waiting. It still implements the
-    retired pooled-plain rule on a branch no frozen case exercises, so
-    its independent check is not in force there; decisions 9 and 10
-    settle what it must agree with, and it is updated to that with a
-    case that covers the branch, so the disagreement cannot return
-    invisibly.
+    shipped code now**, rather than waiting. It implemented the retired
+    pooled-plain rule on a branch no frozen case exercised, so its
+    independent check was not in force there -- the disagreement was
+    real and every vector stayed green. **Done**: the oracle carries
+    the pooled cell spelled by its own value and decision 10's
+    point-free spelling at any width; a sixth branch case,
+    `numeric_pooled_spelling`, reaches both in one column, whose
+    published smallest value carries a point and whose largest is a
+    whole number wider than the canonical window; and the case carries
+    a mutant that puts the sixteen-figure ceiling back and must change
+    its cells. The check cannot go quiet on that branch again.
 
 **A SECOND defect the reviews found, also for the owner** (2026-08-12,
 review item P3-C2-F1). A producer column whose values are whole but lie

@@ -6,6 +6,28 @@ exists).
 
 ## [Unreleased]
 
+### Fixed in Phase 3: the sign a table already had, and the check that had gone quiet
+- **Owner decision 9 (2026-08-13).** A record number synthtwin invents
+  may open with a sign where the published counts leave no other
+  spelling of that width -- which is also the proof the real column held
+  such values, so the twin inherits a hazard the table had rather than
+  making one up. The refusal that stood here for a day is withdrawn.
+  Where it is needed is decided by the packing, which runs first with
+  that family closed and reaches for it only when no assignment of whole
+  groups meets every published count without it.
+- The generation report's spreadsheet paragraph told every reader that a
+  hazardous cell was a value their description published. For a column
+  that publishes no values at all that was false. It now names the
+  columns whose cells were invented, says why the counts left no other
+  spelling, and says that the same cells behave the same way in the real
+  table -- which is where it points the reader to settle it.
+- **Owner decision 11 (2026-08-13).** The frozen reference oracle still
+  implemented the retired pooled-plain rule on a branch no frozen case
+  exercised, so the independent check on pooled spelling was not in
+  force there and every vector stayed green regardless. The oracle now
+  carries the amended rule, a sixth branch case reaches the branch, and
+  that case carries a mutant which must change its cells.
+
 ### Fixed in Phase 3: a whole number keeps its shape at any width
 - **Owner decision 10 (2026-08-13).** A column whose source wrote very
   wide whole numbers in figures -- more than sixteen of them -- was
