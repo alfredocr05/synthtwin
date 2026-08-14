@@ -1230,6 +1230,22 @@ distinctness counts and all three suppression counts.
    spelling removed, which is the same cell list for every file that
    description cannot tell apart.
 
+   **THIS CLAUSE'S ACCOUNT OF ITSELF WAS WRONG, AND AMENDMENT A-P3-9
+   CLAUSE 1 CORRECTS IT** (2026-08-14, review item P3-V4-F1). "Every
+   disputed spelling removed" was implemented as every cell wearing a
+   built-in missing spelling and every cell whose value is one of the
+   three built-in numeric stand-ins, whatever the description says
+   about them — and a description can NAME such a value as data, by
+   every one of V2.3's published routes. A cell so named is disputed by
+   nobody: both readings count it as a value. Deleting it is a
+   measurement error, not a report-detail cost, and this clause priced
+   it as the second while it was the first: the twin the shipped
+   generator writes from a description keeping `-999` was reported
+   `styles.at-least.plain` and `styles.remainder` MISSED, at exit 3.
+   The cost recorded below is the pooled-presence cost, which is real
+   and stands; the false rejection is A-P3-9's to state, and it is not
+   a cost this plan accepted.
+
 3. **Whether a number's TEXT is a spelling its own value licenses is
    outside V5.1's envelope: a ruling, and it changes no obligation. It
    closes the residual A-P3-3 clause 1 left open, in the direction that
@@ -1261,9 +1277,20 @@ distinctness counts and all three suppression counts.
    takes NO number from the submitted description at all — its only
    profile input is the boolean `integer_valued` — so no sequence of
    candidate descriptions can binary-search anything through it, which
-   is the attack V5.3 names. What a report can carry is one bit per
-   column: this column is not written in the twin's own spelling
-   discipline.
+   is the attack V5.3 names.
+
+   **THE BOUND THIS CLAUSE STATED FOR THE PAIR WAS TRUE OF ONE OF THEM,
+   AND AMENDMENT A-P3-10 CLAUSE 1 CORRECTS IT** (2026-08-14, review item
+   P3-V4-F2). "What a report can carry is one bit per column" is what
+   stood here, and `styles.canonical.<form>` never had that property: it
+   compares its recount against a count the SUBMITTED description names,
+   so eleven candidate descriptions read the exact number of
+   non-canonical cells off the verdict, and two files the producer
+   describes byte for byte alike got HELD and MISSED. The recount is now
+   read at the publication floor's own resolution, which is the bound
+   A-P3-10 clause 1 states, measures and prices; the sentence about
+   `styles.spelled` stands as written, and the ruling itself is
+   unchanged.
 
    **The FORM counts stay gated exactly as A-P3-3 clause 1 left them**,
    and nothing here relaxes them: which of the six forms a cell wears IS
@@ -1505,14 +1532,23 @@ V5.3 says the gate exists to stop.
    no-data refusal names the file and says it holds no rows, so the row
    count MISSES with its measured zero, and every obligation of every
    column MISSES because a column with no cells carries none of them.
-   The unusable-header refusal names the column NUMBERS at fault, so the
-   header's presence, its names and its order all MISS, with those
-   numbers on the line — and the profiler's own form of that refusal
-   quotes the repeated NAME, so naming positions publishes strictly less
-   than describing the file would. What that refusal does not carry is a
-   count: it stops at the first row, so the file's width and its record
-   count are numbers no run of the producer on that file ever publishes,
-   and those are the two clause 1 withholds there.
+   The unusable-header refusal says which fault it is, so the header's
+   presence, its names and its order all MISS with that fault on the
+   line. What that refusal does not carry is a count: it stops at the
+   first row, so the file's width and its record count are numbers no
+   run of the producer on that file ever publishes, and those are the
+   two clause 1 withholds there.
+
+   **THIS CLAUSE NAMED THE COLUMN NUMBERS AND SAID THAT PUBLISHED
+   STRICTLY LESS THAN DESCRIBING THE FILE WOULD; IT DOES NOT, AND
+   AMENDMENT A-P3-10 CLAUSES 2 AND 3 CORRECT IT** (2026-08-14, review
+   item P3-V4-F3). The profiler's own refusal for a REPEATED name quotes
+   the name and names no position, so the positions are a fact of their
+   own rather than a smaller one: `dup,a,dup` and `a,dup,dup` draw one
+   sentence out of the producer and drew two reports. The report now
+   states the fault and not the place. The BLANK-name refusal is
+   unchanged, because the profiler's own form of that one does name the
+   column number.
 
 3. **The zero-row predicates are NOT gated, and this is a ruling with a
    residual left open. It changes no obligation and no line of code; it
@@ -1681,6 +1717,366 @@ to forget.
    one. That is not a cost so much as the removal of a false permission
    — and the generation report's bytes moved for it, with the golden
    re-recorded.
+
+**Amendment A-P3-9 — four readings that contradicted the construction
+they are a second opinion on, and one of them REJECTED A FILE THE
+SHIPPED GENERATOR WROTE. Clauses 1 to 3 RAISE and none of them lowers
+an obligation; clause 4 WIDENS one cited envelope in the only direction
+this document may take and leaves the other direction as an owner item
+against method G12.5. Clause 1 also corrects amendment A-P3-5 clause
+2's account of what that amendment did** (2026-08-14, review items
+P3-V4-F1, P3-V4-F4 and P3-V4-F5, and one divergence the repair's own
+comparison found).
+
+**What they have in common, stated first, because it is the reason they
+are one amendment.** V1.4 keeps the generator out of the validator's
+import graph so that a verdict cannot inherit the planner's own
+defects, and V4.2 says what that costs: the same rule is then WRITTEN
+TWICE, once in each module, from the specification. A second writing
+that says something the first does not is not a second opinion — it is
+a third rule, and every file is measured against a construction that
+does not exist. Each of these was such a writing, each was found by
+comparing the two rather than by reading either, and the repair in
+every case is the same: write the rule out from the method, and put the
+comparison in the suite so the next drift is red on the commit that
+writes it. **Two of the four were not in the review at all**: the
+review named the pinning and the 119, and writing the window out from
+the method found the ladder being read with floating-point arithmetic
+in the wrong unit, while extending the comparison to a column that
+carries offsets found the fourth.
+
+1. **A cell the file's own description reads as DATA is measured, not
+   deleted. THIS RAISES: two obligations that reported MISSED on
+   conforming files now report what is true of them, and no obligation
+   is weakened.** Amendment A-P3-5 clause 2 sends the gated side of a
+   pooling column a cell list with the disputed spellings removed; the
+   implementation removed every built-in missing spelling and every
+   built-in numeric stand-in unconditionally. The producer reads
+   neither kind as a hole where the description names it as data, and a
+   researcher who keeps `-999` as a real measurement has a description
+   that does — `--keep-value -999`, published as the candidate verdict
+   `kept_by_you`. Measured here, on the shipped code: a sixty-row
+   description with eleven kept `-999` readings, forty-eight decimals
+   and one pooled blank, against **the twin `synthtwin generate` writes
+   from that very description**, gives 60 HELD, 15 WITHIN, 0 WITHHELD,
+   **2 MISSED** and exit 3 — `styles.at-least.plain` and
+   `styles.remainder` — where the repaired reading gives 62 HELD, 15
+   WITHIN, 0 MISSED and exit 0.
+
+   **The route the review named is one of four, and the class is the
+   other three.** A description names a spelling as data by every
+   published route of V2.3, and the FILE's own description names one
+   more: a stand-in it read as an ordinary number because the column's
+   own spread makes it no outlier. That one is not rescuable from the
+   submitted description at all, and it was live on the same line: a
+   sixty-row column of readings around minus a thousand, measured
+   against **the very table it was described from**, reported the same
+   two obligations MISSED. Its twin holds no `-999` cell at all, so a
+   repair tested only through the generator would have called that
+   route closed.
+
+   **What the reading is now, and what it leaves open at its exact
+   size.** A cell is dropped only where the file's own description reads
+   it as a hole: the producer's own order is followed — the settings'
+   kept set first, the built-in table of missing spellings next, and a
+   stand-in's fate is the column's own published verdict on that
+   candidate — and where that description publishes no verdict for a
+   candidate, because fewer than `small_cell_floor` cells share it, the
+   one number it does publish settles it: how many of its cells are
+   non-blank and read as holes. Where the certain holes already account
+   for all of them, nothing more is dropped. **What is left open** is
+   the case where they do not: a column whose description pools some
+   missing source AND holds a sub-floor stand-in it keeps as data AND
+   reads some other non-blank cell as a hole loses those sub-floor cells
+   from its recount. That is at most `small_cell_floor - 1` cells per
+   candidate, it is residual R-P2-13's own corner, and clause 1 of
+   A-P3-5 already records that corner as a place a value reading back
+   as a hole can cost a verdict. **The confidentiality half is
+   untouched and is asserted rather than argued:** the recount never
+   keeps a cell the file's own description does not count as a value,
+   and two files that description cannot tell apart still get the same
+   census, on a column holding kept stand-ins.
+
+2. **The datetime rank window is the METHOD's, ends pinned and
+   allowance the method's own. THIS RAISES: a bound that passed a file
+   the construction forbids now misses it, and a rung that missed by
+   most of a minute is no longer called WITHIN.** Method G12.4 pins rank
+   `0` to the published `earliest` and rank `P - 1` to the published
+   `latest` — G7.3 writes those two cells from the endpoint's own
+   fields, so they have no room at all — and the shipped validator gave
+   both of them the interior band. G12.5's separateness walk then let
+   the first window swallow ranks that cannot share its instant.
+   Measured: a twelve-rank quarterly description against twelve rows
+   holding six different quarters, both published ends among them,
+   reported `n_distinct` and `n_distinct_folded` **WITHIN** a window
+   whose lower end the pinned construction puts at seven. The same file
+   now MISSES both, with both ends still HELD. (The review's own witness
+   passed four where the construction forces five; its published
+   quarters are not recorded, so the file kept in the suite is one of
+   the same shape rather than that one.)
+
+   **And `u` is one unit of the ordinal SPACE, not one step of the
+   published precision.** G12.4's allowance is "one unit for the
+   downward rounding of the whole-number interpolation itself, plus 59
+   seconds where the precision is minutes"; the ordinal unit of a column
+   of dates and times is ONE SECOND whatever its precision, so the
+   allowance is 60 and the validator used 60 + 59 = 119. Measured: a
+   sixty-minute sequential description against three cells at the first
+   minute, fifty-six at the second and one at the last reported
+   `date-ladder.p05` WITHIN a window it sits a whole minute below. **The
+   previous round's own repair test asserted the 119**, and no fixture
+   in the suite published minute precision at all, so the branch was
+   reached by nothing: the test was written around the implementation
+   instead of around the method, and a test that reads the code it
+   checks can only ever agree with it. The suite now walks the
+   producer's own list of precisions, so a precision with no fixture is
+   red on the commit that adds it.
+
+3. **The ladder is read by the method's whole-number interpolation, in
+   the method's own unit. THIS RAISES, it was found by writing the rule
+   out rather than by patching the two numbers above, and it removes a
+   false rejection nobody had reported.** G12.4 reads `Ladder_d` "by the
+   same whole-number interpolation G7.3 builds cells with", and "no
+   float is formed anywhere in G7" is the method's sentence about that
+   space. The validator read the datetime ladder with the piecewise-
+   linear FLOAT reader the numeric ladder uses, and worked the rung's
+   rank out through a floating-point share. Those are different
+   functions: the float reading sits above the method's floor by the
+   fraction the floor discards, so a window's low end was up to one
+   ordinal unit too HIGH — the strict direction, which is a conforming
+   twin reported MISSED. It also hid the third divergence, since one
+   fixture's rungs happened to sit where the difference did not show.
+   For a column of whole DATES the two writings differ by up to a whole
+   day, because the method's unit there is one day and this reading
+   counts in seconds, and a floor does not commute with a change of
+   unit. The suite now compares the two writings of the window itself —
+   every rank, at eight column heights, at every resolution and every
+   precision the producer can publish — rather than comparing the
+   ordinal spaces and reasoning that the rest follows.
+
+   **What moved in the shipped output, and the one direction of it that
+   is a WIDENING, said plainly.** The demonstration twin's quality
+   report changes at eleven windows of one column: every one of the nine
+   rung windows of `recorded_on` now ends on a whole day where the
+   seconds-floored reading ended part way through one — `between
+   1703980800.0 and 1704132000.0` ended at two in the afternoon, which
+   is not an instant a column of whole dates can hold at all — and the
+   two distinctness lines read `84 (between 106.0 and 240.0)` where they
+   read `119.0`. **That lower end moved DOWN**, so a file whose date
+   distinctness lands between the two numbers is now reported WITHIN
+   where it was MISSED. **It is not a bar this plan is lowering, and the
+   difference matters:** G12.5 fixes that envelope, this document cites
+   it and may not restate it, and V3.5 says in as many words that a
+   narrower envelope is the generation method's change to make. The old
+   number was a bound the validator drew for itself out of arithmetic
+   the method does not use — the same arithmetic that would have
+   reported a conforming twin MISSED at a rung. Withdrawing an invented
+   bound and reporting the cited one is the only reading V1.4 leaves.
+   Anyone who wants the tighter bound writes it into G12.5, where the
+   generator will be held to it too. The census is unchanged entry for
+   entry and the golden is re-recorded.
+
+   One registered red case moved with it and is named rather than
+   quietly rebound: `date-ladder.p10` on the quarter fixture was covered
+   by an edit that piles the column's middle LOW, and that rung's window
+   begins AT the published earliest, so no file can miss it from below —
+   the edit could only appear to catch it while the window was a
+   fraction of a quarter too narrow. The battery gains the same edit the
+   other way up, and the rung is covered by a case that can actually
+   fail it.
+
+4. **A fourth divergence the comparison found, resolved in the only
+   direction this document may take, and left as an OWNER ITEM against
+   method G12.5.** The upper end of G12.5 multiplies the instants a
+   range holds by `M`, "the number of named offsets", and derives that
+   from every cell being "spelled with one of the offsets `utc_offsets`
+   names by name". G7.4 says otherwise about two of that map's keys: a
+   cell allocated `(none)` is written with NO offset, and so is one
+   allocated `(withheld)` — "and this is a loss, named as one". So a
+   column mixing a named offset with either key writes its instants one
+   more way than `M` counts, and the generator's own writing of `M`
+   counts the named offsets alone. **The validator takes the wider
+   reading — one per named offset, plus one where any cell is written
+   with none —** because the tighter one is a bound a conforming twin
+   can be reported MISSED against, and V3.5 says a narrower envelope is
+   the generation method's change to make and not this document's. The
+   two readings are identical on every column that does not mix the
+   two, so no verdict on any existing fixture moves, and the suite pins
+   where they may differ with a column reaching all three keys.
+   **The owner item:** G12.5's upper end is understated for such a
+   column in the generation method itself, so the generator's own report
+   can name `n_distinct` a deviation on a twin that is doing exactly
+   what G7.4 tells it to. Fixing that is a Phase 2 method change with
+   its own counted re-seal; nothing here does it quietly.
+
+**Amendment A-P3-10 — two guarantees this plan wrote down that the code
+did not have, and the class behind the second. Clause 1 RAISES a
+confidentiality bound from "the exact count, by candidate search" to
+"the count at the publication floor's own resolution" and LOWERS one
+subcheck's teeth by less than one floor, priced exactly; clause 2 makes
+an equivalence hold BY CONSTRUCTION, which RAISES, and LOWERS one line
+of detail in one refusal and one report; clause 3 corrects amendment
+A-P3-7 clause 2's account of what it did. THIS DEFINES WHAT A RULING
+THAT PUTS A FACT OUTSIDE THE ENVELOPE OWES, AND CLAUSE 1 SAYS WHAT
+REVERSING IT COSTS** (2026-08-14, review items P3-V4-F2 and P3-V4-F3).
+
+**What they have in common, stated first, because it is the reason they
+are one amendment.** V5 is not a rule the code follows; it is a
+PROPERTY the code either has or does not have, and both of these were
+written into this document as properties and then not had. One was a
+bound a ruling carried — a ruling may put a fact outside V5.1's
+envelope, and what makes that rulable rather than convenient is the
+size of what escapes, so the size is the whole of the ruling. The other
+was an equivalence two pieces of code were supposed to keep between
+them by hand. Neither survived being measured. A bound nobody measures
+is a sentence, and an equivalence nobody constructs is a maintenance
+task somebody will lose.
+
+1. **The canonical ceiling reads its recount at the publication floor's
+   own resolution, so a sequence of candidate descriptions locates the
+   block and not the count. THIS RAISES the bound amendment A-P3-5
+   clause 3 claimed and did not have, and LOWERS that subcheck's teeth
+   by less than one floor.** A-P3-5 clause 3 ruled canonicality outside
+   V5.1's envelope on a stated bound: "neither subcheck prints a
+   measured count", and "what a report can carry is one bit per column".
+   The first half is true. The second is not, and `styles.canonical.
+   <form>` is where it fails: it compares the exact number of cells of a
+   form that are not their own value's canonical text — a number the
+   producer publishes about no file at any count, which is the very
+   ground the ruling stands on — against the count the SUBMITTED
+   description names. So the verdict flips at exactly that number.
+   Measured here, on the shipped code, on a sixty-row column carrying
+   forty-eight `decimal` cells of which thirty-seven are written with a
+   leading zero: candidate descriptions publishing 0, 11, 15, 20, 25,
+   30, 33 and 36 `decimal` cells give MISSED and 37, 38, 40, 44 and 48
+   give HELD. **The flip sits at thirty-seven, which IS the hidden
+   number**, so a bisection over the column's own length reads it out.
+   And two measured files carrying thirty-six and thirty-seven of them —
+   whose full descriptions `synthtwin profile` writes BYTE FOR BYTE
+   ALIKE — got HELD and MISSED.
+
+   **The repair is one function and it is the only way the recount
+   reaches a verdict.** `_at_the_floors_resolution` rounds the recount
+   DOWN to a whole number of publication floors before the comparison,
+   so the same sweep now flips between 30 and 33 — three floors of
+   eleven — and all it establishes is that the count lies between 33 and
+   43, whatever else is asked. That is
+   the resolution the producer's own floor sets everywhere else: a
+   description names no count below `small_cell_floor` and pools every
+   one of them (V5.4), so a report that cannot separate two counts
+   inside one such block states nothing that description would not.
+   **Rounding DOWN is the direction that cannot accuse a file**: the
+   result is never more than the count, so a MISSED here is a file
+   genuinely over its licence and a conforming twin — whose count is at
+   most its licence — is HELD whatever the floor is.
+
+   **What it costs, priced rather than left to be found.** A file
+   between ONE cell and one floor over its licence is no longer missed
+   at this subcheck. The round-1 red case moved with it, from "one cell
+   over the licence" to "one floor over", and both halves are pinned:
+   the file one cell over is asserted HELD, so the cost cannot grow back
+   into the oracle unnoticed. **And there is no third way**, which is an
+   argument rather than a preference: the licence is a number the
+   submitted description chooses, so a verdict that separates a count of
+   `p` from a count of `p + 1` for every `p` IS an exact oracle on that
+   count, whatever else is done to it. Teeth at one cell and a bound
+   better than exact cannot both be had.
+
+   **What is left open, at its exact size.** For a form the FILE's own
+   description NAMES, a candidate sweep still locates the count of
+   non-canonical cells to within one publication floor — eleven by
+   default — and never the count, never which cells they are, never
+   their values and never their spellings. Where that description POOLS
+   the form nothing escapes at all: that side of the subcheck reports
+   HELD where the room the description leaves cannot reach the licence
+   and WITHHELD otherwise, and never consults the recount. And a
+   description written under a floor of ONE is the identity — such a
+   description names every count it has exactly and pools nothing — so
+   the bound degrades exactly as far as the person who set that floor
+   asked it to.
+
+   **How to reverse this.** Settle the clause from the window on both
+   sides, which is V5-honest and leaks nothing: HELD where the room the
+   file's own description leaves cannot reach the licence, WITHHELD
+   where it can. It was reinstated in memory against the shipped suite
+   and it costs the subcheck's whole ability to verdict — the odd cells
+   of a form are a subset of that form's cells, so the recount can never
+   exceed what that description already allows, and the subcheck could
+   then never report MISSED on any file. That is the vacuity V3.4
+   refuses by name; it reverses this plan's own P3-D8.1 ceiling and
+   takes review item P3-V1-F7's repair with it. Measured: **eleven tests
+   go red**, including `test_every_registered_red_case_misses_the_site_
+   it_names` and the entry table's coverage identity.
+
+2. **The report on a file the producer REFUSES is chosen by the refusal
+   the reader actually raises, so the equivalence V5.1-A1 promises holds
+   BY CONSTRUCTION. THIS RAISES: a whole class closes rather than four
+   paths. It LOWERS one line of detail in one refusal and in one
+   report.** Amendment A-P3-7 put two of the reader's refusals on the
+   reporting side, because V9 makes a structural mismatch a MISSED
+   verdict with a plain explanation. The shipped code decided WHICH of
+   those two reports a file gets by walking the file itself, before the
+   reader was called — two predicates of the validator's own, over the
+   validator's own record walk. The reader asks the same two questions
+   in its own order, with a zero-byte check and a ragged check standing
+   between them, so the two readings had a PRECEDENCE to agree about as
+   well as a pair of answers. Four ways they did not, measured here with
+   the shipped predicates reinstated in memory:
+
+   - `dup,a,dup` and `a,dup,dup` over the same forty rows draw one
+     sentence out of `synthtwin profile` — it quotes the repeated NAME —
+     and drew two reports, differing at `header.names` and
+     `columns.order`, which carried the two column numbers;
+   - a NUL-bearing header alone and the same header with one data row
+     under it draw one sentence out of the producer — the reader raises
+     its zero-byte refusal inside its own streaming loop, before it has
+     counted a row — and drew a REPORT and a REFUSAL, so the existence
+     of that row was told by the shape of the reply;
+   - a ragged file and the same ragged file with a name repeated in its
+     header draw one sentence — the reader refuses for raggedness first
+     — and drew a REFUSAL and a REPORT. The same with a name left blank;
+   - and the same three files reached that report at all, which is a
+     report about a file no reading of it finished.
+
+   **The repair is a construction and not a rule.** There is no second
+   walk: `measure` calls the reader, catches the refusal, and chooses
+   the report from WHICH refusal it is — a word of the error module's
+   own vocabulary carried on the refusal object, so nothing matches on
+   prose. Two files the reader refuses with the same word cannot reach
+   different reports, because the same word chooses the report. The
+   suite asserts the rule itself over a battery crossing every refusal
+   the reader has: **two files `synthtwin profile` refuses with the same
+   sentence get the same report**, with the four routes above among the
+   named cases. The header-presence question is answered from the
+   reader's own first record for the same reason, so the last second
+   reading of the bytes is gone from that path too; no obligation
+   changes.
+
+   **What it costs, and it is two things.** The checked-file
+   repeated-name REFUSAL and the repeated-name REPORT no longer name the
+   two column numbers — clause 3 says why that is a correction and not a
+   loss — so a person told their checked file repeats a name is told
+   which fault it is and not where. The blank-name case is unchanged and
+   still names its position, because the profiler's own refusal for that
+   one names it. And a file the reader refuses for something else BEFORE
+   it reaches the header question — ragged, a zero byte, a blank line in
+   a one-column file — now comes back as that refusal where it used to
+   come back as a header report. Nothing is lost by that beyond a
+   report: the refusal is the more actionable of the two, it is the one
+   `synthtwin profile` gives for the same file, and every obligation
+   that report would have missed is one no file reaching there can meet.
+
+3. **Amendment A-P3-7 clause 2's account of its own naming was wrong,
+   and this corrects it in place.** That clause reads "the profiler's
+   own form of that refusal quotes the repeated NAME, so naming
+   positions publishes strictly less than describing the file would".
+   The two are not ordered: a NAME and a pair of POSITIONS are different
+   facts, and the positions are not derivable from the name. `dup,a,dup`
+   and `a,dup,dup` are the counterexample and it is one line long — one
+   refusal between them, two reports. The clause's ruling that the
+   report may state what the refusal states stands unchanged and is
+   right; what was wrong was the claim that the numbers were inside it.
+   Clause 2 above is the repair, and V5.1-A1 is corrected with it.
 
 ## P3-D7. Repository claims, staged honestly
 

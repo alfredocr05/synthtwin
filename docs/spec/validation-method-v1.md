@@ -362,6 +362,34 @@ rather than withheld. The suite walks the producer's own list of
 resolutions, so a resolution added there without a reading here is red
 on the commit that adds it.
 
+**V3.4-A2 And the measurement taken in that space is the CONSTRUCTION's
+own, written from the method and compared with the generator's writing
+of it** (2026-08-14, review items P3-V4-F4 and P3-V4-F5; the plan's
+amendment A-P3-9 clauses 2 and 3 are the ruling and this follows it).
+A1 fixed the space every published instant is read into and said
+nothing about the arithmetic done in it, and three readings then
+diverged from the G12 construction they check: the rank windows of
+G12.4 were drawn without the pinning that fixes the first and last
+ranks at the published `earliest` and `latest`, the reading allowance
+`u` was one step of the published PRECISION rather than one unit of the
+ordinal SPACE, and the ladder was read with the floating-point reader
+the numeric ladder uses rather than with the whole-number interpolation
+G7.3 builds cells with. Each produced a verdict the generator
+contradicts, in both directions: a file passing a distinctness bound its
+own construction forbids, and a conforming twin missing a rung by less
+than one ordinal unit.
+
+**So a window this method cites is written out from the cited clause,
+in the whole-number arithmetic that clause fixes, and the two writings
+are compared in the suite where both may be imported** — exactly as
+V4.2 compares the two corner classifiers and V6.4-A1 the two canonical
+writings. The comparison is over every resolution AND every precision
+the producer can publish, walked from the producer's own lists, and
+over a spread of column heights: comparing the two ORDINAL SPACES and
+reasoning that the windows follow is what let the third divergence
+stand, because a scale factor cancels out of a subtraction and does not
+cancel out of a floor.
+
 **V3.5 The kind of an entry is decided by the DESCRIPTION, and four
 entries are decided that way** (2026-08-13, review items P3-V2-C-F1,
 F2, F3 and F7; the plan's amendment A-P3-2 is the ruling and this
@@ -473,12 +501,32 @@ row count is measured and missed and every obligation of every column
 is missed with it — a column with no cells carries none of them — and
 what only its header line could answer, the width, the presence, the
 names, the order and each column's position, is WITHHELD under a
-sentence of its own. The unusable-header refusal names the column
-NUMBERS at fault, so the header's presence, its names and its order are
-missed with those numbers on the line, which is strictly less than the
-profiler's own form of that refusal publishes, while the width and the
-record count — two numbers that refusal stops before reaching — are
-withheld. On both paths the encoding rule is withheld too, because
+sentence of its own. The unusable-header refusal says which fault the
+first row carries, so the header's presence, its names and its order
+are missed with that fault on the line, while the width and the record
+count — two numbers that refusal stops before reaching — are withheld.
+
+**V5.1-A1.1 The report is chosen by the refusal the reader RAISES, and
+the two faults are not the same size** (2026-08-14, review item
+P3-V4-F3; the plan's amendment A-P3-10 clauses 2 and 3 are the ruling
+and this follows them). Which of these two reports a file gets was
+settled by a walk of the file taken before the reader was called, and
+that walk and the reader had a precedence to agree about — a zero-byte
+check and a ragged check stand between the reader's own two questions.
+They did not agree, on four routes, and on each of them two files the
+producer refuses identically got different reports. So the walk is gone
+and the branch is the reader's own refusal: two files the producer
+refuses with one sentence cannot reach two reports, because the same
+refusal chooses the report.
+
+**And what that refusal names differs between the two faults.** The
+profiler's refusal for a BLANK name names the column NUMBER, so the
+report states it. Its refusal for a REPEATED name quotes the NAME and
+names no position, so `dup,a,dup` and `a,dup,dup` are one file to it;
+naming the positions is therefore not "less than the name" but a fact
+of its own, and the report states the fault alone. V5.4's rule that no
+string of the measured file is ever printed is untouched: the name is
+not printed either. On both paths the encoding rule is withheld too, because
 which reading a file was read under is a fact the producer publishes
 about the files it describes. Nothing is lost by any of it: neither
 path is reachable by a conforming twin of the description that reaches
@@ -547,6 +595,24 @@ measured count, and `styles.spelled` takes no number from the submitted
 description at all, so no sequence of candidate descriptions can
 binary-search anything through it. Which of the six FORMS a cell wears
 is published and floored, and stays gated.
+
+**V5.3-A2 The bound is a property, so it is measured; and one of the
+two did not have it** (2026-08-14, review item P3-V4-F2; the plan's
+amendment A-P3-10 clause 1 is the ruling and this follows it).
+`styles.canonical.<form>` compares its recount of non-canonical cells
+against a count the SUBMITTED description names, so the verdict flipped
+at exactly that recount and eleven candidate descriptions read the
+hidden number off it — the attack this section exists to stop, through
+the subcheck a ruling had exempted. **So a recount that a ruling has put
+outside the envelope enters a verdict only at the publication floor's
+own resolution**: rounded DOWN to a whole number of `small_cell_floor`,
+which is the resolution below which the producer names no count at all,
+and downward so that a MISSED is never a file the ceiling has not
+actually been exceeded by. What a sweep can then locate is the
+floor-wide block and not the count. The plan's amendment states the
+residual at its size, prices the teeth this costs — a file less than one
+floor over its licence is no longer missed there — and shows why teeth
+at one cell and a bound better than the exact count cannot both be had.
 
 **V5.4 What may be printed, exactly.**
 

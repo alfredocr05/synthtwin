@@ -72,12 +72,28 @@ the product is a file the product reads, whatever it is called. The
 product's module names come from the package directory rather than a
 list here, so a new module joins the rule on the commit that adds it.
 
+AND THE THIRD LEG WAS WALKED AROUND (2026-08-14, review item
+P3-V4-F9). It followed a written path by the NAME OF THE VARIABLE, so a
+helper that writes an extensionless file and RETURNS it, a caller that
+puts the return value in a list, and a `choices[0]` handed to
+`validation.measure` was three steps past the end of it and the guard
+said nothing. That is the fourth time a rule here has been found with a
+route around it, and each route was narrower than the last, which is
+what a shrinking classifier looks like. So there is no classifier on
+the main rule any more: EVERY text-mode write in this suite pins its
+line ending, whatever it writes and whoever reads it. What that costs
+is a keyword argument on sixty-six writes that did not strictly need
+one -- a scanner's fixture, a hashed manifest, a stand-in file -- and
+every one of those had its bytes decided by the platform too, so the
+cost buys the same property one class wider. The classification is
+kept, because rules 2 and 3 below are about descriptions specifically
+and still have to know which write is one.
+
 WHAT THIS FILE CHECKS, and it states the whole of it:
 
-1. Every ``write_text`` call in the suite that writes a file the
-   product reads -- one whose text comes from the canonical serializer,
-   whose target names a `.json` or `.csv` file, or whose target is
-   passed to the product afterwards -- passes an explicit ``newline``.
+1. Every ``write_text`` call in the suite passes an explicit
+   ``newline``. No analysis decides which ones are covered, so no
+   analysis can be walked around.
 2. The only module that composes description bytes itself, instead of
    asking the fixture for them, is the one whose whole subject is the
    refusal of bytes synthtwin would never have written.
@@ -101,15 +117,15 @@ WHAT THIS FILE CHECKS, and it states the whole of it:
    properties all of the above exists to keep from reaching a person --
    one as a refusal nobody can reproduce, one as a false verdict against
    the product.
+8. Every ``open`` in a writing mode passes an explicit ``newline`` too.
+   It is the other call that leaves bytes on a disk, and rule 1 would
+   otherwise be total over one of the two ways to write a file.
 
-WHAT IT DOES NOT CHECK. Only ``write_text`` is read. A file written
-through ``open`` would pass unnoticed here; nothing in the suite writes
-one that way, and the fixture is the door every test now uses. And the
-third leg follows a file by the NAME OF THE VARIABLE it was written
-through, so a path handed to the product through a data structure --
-built into a list in one function and read out of it in another --
-is outside it. Rule 4's floor is what turns a shrinking rule red rather
-than quiet.
+WHAT IT DOES NOT CHECK, stated in full because a rule's edge is the
+part that rots. Two call names are read -- ``write_text`` and ``open``
+-- and they are the two this suite writes files with. A route to the
+filesystem that is neither, and a write inside `tools/`, are outside
+this file.
 """
 
 import ast
@@ -363,26 +379,184 @@ def product_input_writes(source: str) -> "list[tuple[int, bool, bool, str]]":
 # --------------------------------------------------------------------
 
 
-def test_every_file_the_product_reads_fixes_its_own_line_endings() -> None:
-    """Both defects, made impossible to reintroduce unnoticed."""
+def every_text_write(source: str) -> "list[tuple[int, bool]]":
+    """Every ``write_text`` in ``source``: its line, and whether it pins.
+
+    NO CLASSIFICATION AT ALL, and that is the repair (review item
+    P3-V4-F9). Every version of this rule until now decided first
+    whether a write was one the product would read, and each version's
+    answer had a route around it: a name with no extension, then a
+    variable followed only while it stayed a bare name in the same
+    module. The reviewer walked through the second one -- a helper that
+    writes and returns an extensionless path, a caller that puts it in
+    a list and hands over `paths[0]` -- and the guard said nothing.
+
+    A rule with a route around it is a rule that cannot fail for
+    whatever takes the route. So there is no route: a text-mode write
+    in this suite pins its line ending, whatever it writes and whoever
+    reads it. That asks for a keyword argument on a few writes that did
+    not need one -- a scanner's fixture, a manifest -- and every one of
+    those is a file whose bytes were being decided by the platform too,
+    which is the same defect wearing different clothes.
+
+    `product_input_writes` is kept, because the rules that follow it
+    are about descriptions specifically and still need to know which
+    write is one.
+    """
+    found: list[tuple[int, bool]] = []
+    for node in ast.walk(ast.parse(source)):
+        if not isinstance(node, ast.Call):
+            continue
+        named = node.func
+        if not isinstance(named, ast.Attribute) or named.attr != "write_text":
+            continue
+        keywords = {keyword.arg for keyword in node.keywords}
+        found.append((node.lineno, "newline" in keywords))
+    return found
+
+
+def test_every_file_this_suite_writes_fixes_its_own_line_endings() -> None:
+    """Both defects, and every shape of them, made impossible.
+
+    The rule is TOTAL over `write_text` (review item P3-V4-F9): no
+    analysis decides which writes it covers, so no analysis can be
+    walked around.
+    """
     loose = []
     for path in _test_modules():
         source = path.read_text(encoding="utf-8")
-        for line, _composed, newline, _named in product_input_writes(source):
+        for line, newline in every_text_write(source):
             if not newline:
                 loose.append(f"{path.name} line {line}")
     assert not loose, (
-        "these calls write a file synthtwin's own readers open -- a "
-        "description, a table, a measured file, or a file named like "
-        "one -- with the line ending left to the platform. What they "
-        "leave on Windows is a file the loader must refuse, or a file "
-        "whose line endings the check must report as MISSED: "
+        "these calls write a file with the line ending left to the "
+        "platform. On Windows that is different bytes from the ones "
+        "the author saw -- a description the loader must refuse, a "
+        "measured file whose line-ending rule must be reported MISSED, "
+        "or a fixture whose hash a guard computes differently: "
         + ", ".join(loose)
         + f". Ask {THE_ONE_PLACE} for a description or `fixtures.write` "
         "for any other file; if the bytes have to be exactly what this "
         "test composed, pass newline= so that they are the same bytes "
         "on every platform."
     )
+
+
+_WRITING_MODES = ("w", "a", "x", "+")
+
+
+def every_handle_write(source: str) -> "list[tuple[int, bool]]":
+    """Every ``open`` in a writing text mode: its line, and whether it pins.
+
+    Both spellings -- the builtin and `pathlib.Path.open` -- because
+    both leave bytes on a disk. A binary mode is not here: it writes
+    what it is given and translates nothing. A mode this cannot read --
+    one built out of a variable -- is treated as a writing mode, which
+    errs in the direction this whole file errs in.
+    """
+    found: list[tuple[int, bool]] = []
+    for node in ast.walk(ast.parse(source)):
+        if not isinstance(node, ast.Call):
+            continue
+        named = node.func
+        # The mode is the FIRST argument of `path.open` and the second
+        # of the builtin, which is the whole difference between the two
+        # spellings as far as this reading is concerned.
+        if isinstance(named, ast.Attribute):
+            opening, where = named.attr == "open", 0
+        elif isinstance(named, ast.Name):
+            opening, where = named.id == "open", 1
+        else:
+            continue
+        if not opening:
+            continue
+        mode: ast.expr | None = (
+            node.args[where] if len(node.args) > where else None
+        )
+        for keyword in node.keywords:
+            if keyword.arg == "mode":
+                mode = keyword.value
+        if isinstance(mode, ast.Constant) and isinstance(mode.value, str):
+            spelled = mode.value
+            if "b" in spelled:
+                continue
+            if not any(letter in spelled for letter in _WRITING_MODES):
+                continue
+        elif mode is None:
+            # No mode at all is "r": a read translates nothing on to a
+            # disk, so it is not this rule's business.
+            continue
+        found.append((node.lineno, "newline" in {k.arg for k in node.keywords}))
+    return found
+
+
+def test_every_handle_this_suite_opens_to_write_fixes_its_line_endings() -> (
+    None
+):
+    """Rule 1's other half: the call that is not ``write_text``.
+
+    A rule total over one of the two ways to write a file is a rule
+    with the other one outside it, which is the shape review item
+    P3-V4-F9 found in the leg before this. Both are read now.
+    """
+    loose = []
+    for path in _test_modules():
+        source = path.read_text(encoding="utf-8")
+        for line, newline in every_handle_write(source):
+            if not newline:
+                loose.append(f"{path.name} line {line}")
+    assert not loose, (
+        "these calls open a file for writing in text mode with the line "
+        "ending left to the platform: " + ", ".join(loose) + ". Pass "
+        "newline= so that the bytes are the same on every platform."
+    )
+    # ...and the reading really does recognize the shapes it claims to,
+    # so that a suite which stopped opening handles cannot make this
+    # rule quiet.
+    assert every_handle_write('open(p, "w", encoding="utf-8")\n') == [(1, False)]
+    assert every_handle_write('p.open("w", newline="")\n') == [(1, True)]
+    assert every_handle_write('open(p, "rb")\n') == []
+    assert every_handle_write('open(p)\n') == []
+
+
+def test_the_rule_is_total_over_the_writes_it_can_see() -> None:
+    """The escape route review item P3-V4-F9 walked through, closed.
+
+    The guard used to follow a written path by the NAME OF THE
+    VARIABLE, in the same module, and stop there. This is the source
+    the reviewer built: a helper writes an extensionless file and
+    RETURNS it, the caller stores it in a list, and the product is
+    handed `choices[0]` -- three steps, none of them a bare name at the
+    point of the write. Under the rule that classified writes, nothing
+    here was a product input and the missing ``newline`` was invisible.
+
+    It is asserted of the DETECTOR rather than of the suite, because
+    the suite must not contain the defect for this to have teeth.
+    """
+    escaping = '''
+def _written(folder):
+    target = folder / "measured"
+    target.write_text("a,b\\n1,2\\n", encoding="utf-8")
+    return target
+
+
+def test_it(tmp_path):
+    choices = [_written(tmp_path)]
+    validation.measure(described, str(choices[0]))
+'''
+    seen = every_text_write(escaping)
+    assert seen == [(4, False)], (
+        "the rule no longer sees a write that reaches the product "
+        "through a helper's return value and a list, which is the route "
+        f"review item P3-V4-F9 walked through: {seen}"
+    )
+    # ...and it is not simply saying "not pinned" about everything: the
+    # same write with the argument is not reported.
+    pinned = escaping.replace('encoding="utf-8")', 'encoding="utf-8", newline="\\n")')
+    assert every_text_write(pinned) == [(4, True)]
+    # ...and a module with no write at all yields nothing, so the rule
+    # is answering about writes rather than about lines.
+    assert every_text_write("x = 1\n") == []
 
 
 # --------------------------------------------------------------------

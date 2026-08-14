@@ -147,7 +147,7 @@ def test_posix_symlink_chain_resolves(tmp_path: pathlib.Path) -> None:
     real_dir = tmp_path / "real_dir"
     real_dir.mkdir()
     target_file = real_dir / "content.txt"
-    target_file.write_text("hello\n", encoding="utf-8")
+    target_file.write_text("hello\n", encoding="utf-8", newline="\n")
     link_one = tmp_path / "link_one"
     link_one.symlink_to(real_dir)
     link_two = tmp_path / "link_two"

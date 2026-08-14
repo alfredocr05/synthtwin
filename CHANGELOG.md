@@ -68,6 +68,136 @@ exists).
   and refuses a walkthrough that runs two of the three commands and
   stops.
 
+### Fixed in Phase 3: six proofs that proved less than they claimed, and two stale sentences
+- **The non-vacuity proof no longer reads its answer off the thing it
+  is testing** (review item P3-V4-F6). An entry of the shipped
+  validator's table is the triple (registry fact, profile predicate,
+  subcheck), and five hundred and nineteen of the five hundred and
+  eighty-eight registered red cases named only two of the three: the
+  registry FACT was taken off the validator's own output at test time.
+  Rebinding a subcheck to another fact of the same disposition
+  therefore moved the expectation with it, and coverage, membership and
+  uniqueness all stayed green over a table whose facts were wrong. The
+  binding is now written out in the test file and compared with the
+  shipped table in both directions: the roles the fixtures are
+  described with are stated and checked against the DESCRIPTION, the
+  fact each subcheck answers for is stated and checked against the
+  REGISTRY, and no site may bind a fact other than the one stated. Two
+  hundred and thirty-eight lines of stated expectation replace five
+  hundred and nineteen derived ones.
+- **The claim guard can no longer be evaded by how a constant is
+  spelled** (review item P3-V4-F7). The reading that counts what a full
+  run leaves behind recognized one spelling of an output name, so a
+  sixth output declared as a typed constant, in single quotes, under
+  any other name, or built by a call left every "five files" sentence
+  in the repository green beside a run that wrote six. The reading is
+  now of the package's own syntax rather than of one line shape, and
+  beside it a test RUNS the three commands and counts the files on the
+  disk, which no spelling can hide from. It found a live stale claim on
+  the way: `quality.py`'s handling helper said "four files" while
+  printing the five-file rule.
+- **A private docstring stopped claiming a necessity the report does
+  not.** The generation report says an invented sign-leading cell
+  proves the real column held such values only WHERE the description's
+  counts leave no other spelling, and says synthtwin does not always
+  reach for the fewest it could. The helper that composes those lines
+  still said it flatly, of every such cell.
+- **The randomness trap reaches the engines** (review item P3-V4-F8).
+  It enumerated four modules written out by hand and their public
+  attributes, so `numpy.random._mt19937.MT19937(1).random_raw()`
+  returned values with the whole claimed trap installed. Every module
+  reachable by attribute from `numpy.random`, `random` or `secrets` is
+  now walked, private submodules included; classes are trapped where
+  their methods cannot be; and the two module-level generator instances
+  are replaced by stand-ins that refuse to be read.
+- **The line-ending guard has no route around it any more** (review
+  item P3-V4-F9). It followed a written path by the name of the
+  variable, so a helper that returned an extensionless path, stored in
+  a list and handed over as `paths[0]`, was outside it. Every
+  text-mode write in the suite now pins its line ending -- sixty-six
+  writes gained the argument -- and so does every handle opened for
+  writing, so no classification decides what the rule covers.
+- **The failure catalog's reachability is driven, not searched**
+  (review item P3-V4-F10). Its reachability test looks for the
+  builder's name in the source, which a refusal whose raise site had
+  been refactored away would still pass -- measured: taking both
+  handlers for an unreadable measured file out and leaving the token
+  behind kept that test green while a `PermissionError` reached the
+  person as a traceback. The refusals plan P3-D6 names for the validate
+  path are now produced by running the shipped command at the real
+  condition, with the exit code and the printed sentence both asserted.
+- **A stopped `validate` run says which file it did not write** (review
+  item P3-V4-F11). It said "No new description was published" about a
+  command that writes no description, and a stopped `generate` run said
+  its own twin file held "the new description this run produced". The
+  words a command carries now reach both sentences and the clause
+  saying what a working file holds; the profiler's messages are
+  unchanged to the byte.
+
+### Fixed in Phase 3: two guarantees the documents claimed and the code did not have
+- **A verdict about a spelling no longer counts out loud.** Whether a
+  numeric cell's text is a spelling its own value licenses is a fact
+  `synthtwin profile` publishes about no file at any count, so the plan
+  rules it outside the disclosure envelope -- and a ruling like that is
+  worth exactly the bound it carries. The bound written down was one
+  bit per column; the ceiling on non-canonical cells compared its exact
+  recount against a number the submitted description names, so eleven
+  candidate descriptions read that recount off the report exactly, and
+  two files whose own descriptions are the same bytes came back HELD and
+  MISSED. The recount now reaches the verdict only at the publication
+  floor's own resolution -- the resolution below which a description
+  names no count at all -- so a sweep locates the floor-wide block and
+  never the number. It costs teeth, and the plan prices them: a file
+  less than one floor over its licence is no longer missed there, and
+  no arrangement can have both, because the licence is the submitted
+  description's own number.
+- **A report about a file the producer refuses says what that refusal
+  says, and now it cannot say anything else.** Two of the reader's
+  refusals are reported on rather than passed along, and which report a
+  file got was decided by a walk `synthtwin validate` did before the
+  reader was called. That walk and the reader had a precedence to agree
+  about, and did not: moving a repeated name's columns moved the report,
+  adding one row under a header holding a zero byte turned a report into
+  a refusal, and a ragged file changed which refusal it drew as soon as
+  a name was repeated in it. The walk is gone. The reader is called
+  first and the report is chosen by the refusal it raises, so two files
+  the producer refuses with one sentence get one report by construction.
+  The repeated-name refusal and report also stop naming which columns
+  repeat: the profiler's own refusal quotes the name and names no place,
+  so the place was never a fact a report about that file could state.
+
+### Fixed in Phase 3: three readings the validator's own generator contradicts
+- **A reading you keep is a reading, not a hole.** A researcher who
+  keeps `-999` as real data profiles with `--keep-value -999`, and the
+  description publishes that candidate as kept. `synthtwin validate`
+  deleted those cells from its recount anyway -- every built-in missing
+  spelling and every built-in numeric stand-in, whatever the description
+  said about them -- so the twin `synthtwin generate` writes from that
+  very description came back with style obligations MISSED and exit 3.
+  A cell is now dropped only where describing the measured file reads it
+  as a hole: the description's own kept set first, the built-in table of
+  missing spellings next, and a stand-in's fate taken from the column's
+  own published verdict on that candidate. The same defect rejected a
+  person's own table where the producer keeps a stand-in because the
+  column's spread makes it no outlier -- a route with no declaration in
+  it at all, which the twin cannot even reach.
+- **A column of dates is measured against the construction that writes
+  it.** The generator pins the first and last cells of a datetime column
+  to the published earliest and latest instants; the validator's window
+  did not, so a file holding six different quarters passed a bound its
+  own construction puts at seven. The allowance for reading a cell back
+  was a step of the published precision plus fifty-nine seconds instead
+  of one unit of the ordinal space plus fifty-nine, so a rung sitting a
+  whole minute below its window was reported inside it. And the ladder
+  was read with floating-point arithmetic where the method fixes whole
+  numbers, in seconds where the method counts a whole date in days,
+  which drew windows ending in the middle of a day -- part of a day
+  narrower than the construction, so a conforming twin could be called
+  wrong at a rung. All three are one repair: the window is written out
+  from the method, and the suite compares that writing with the
+  generator's own at every resolution, every precision and eight column
+  lengths, so the next drift is red on the commit that writes it.
+
 ### Fixed in Phase 3: the sign a table already had, and the check that had gone quiet
 - **Owner decision 9 (2026-08-13).** A record number synthtwin invents
   may open with a sign where the published counts leave no other

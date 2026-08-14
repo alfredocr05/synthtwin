@@ -378,7 +378,7 @@ def test_the_seal_reddens_on_any_new_or_reworded_passage(
             + "\n\nThe generated form is permitted to differ from the "
             "described one where the ladder is crowded, and the "
             "generated form then governs.\n",
-            encoding="utf-8",
+            encoding="utf-8", newline="\n",
         )
         substituted = dict(RELATIVE)
         substituted[name] = copy
@@ -1458,7 +1458,7 @@ def test_the_guard_reddens_on_every_lowering_this_repository_has_made(
         mutated = tmp_path / f"{path.stem}-{place}.md"
         mutated.write_text(
             "\n\n".join(blocks[:place] + [added] + blocks[place:]),
-            encoding="utf-8",
+            encoding="utf-8", newline="\n",
         )
         # The whole guard, not one helper: the mutated copy replaces its
         # own document in the scan, and the sentence has to come back as
@@ -1537,7 +1537,7 @@ def _with_document(
 ) -> "dict[str, pathlib.Path]":
     """The three documents, with one of them replaced by a scratch copy."""
     copy = tmp_path / pathlib.Path(relative).name
-    copy.write_text(body, encoding="utf-8")
+    copy.write_text(body, encoding="utf-8", newline="\n")
     substituted = dict(RELATIVE)
     substituted[relative] = copy
     return substituted

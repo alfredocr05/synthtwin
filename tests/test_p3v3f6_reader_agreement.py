@@ -16,12 +16,23 @@ without the reader ever being asked.
 
 WHAT THE CLASS IS. Not "131,072". The walk is a second reading of the
 same bytes, and the shipped reader is the one the description was made
-with, so the property is: **wherever the reader gets a reading, the walk
-gets the same one; and wherever the reader refuses, the walk does not
-hand back a reading that a report could be built on.** Both directions
+with, so the property is: **wherever the reader gets a reading, the
+report is built on the reader's; and wherever the reader refuses, no
+report is built on a reading somebody else managed.** Both directions
 are asserted here, and the boundaries the two readings can differ at are
 crossed rather than approached -- the catalogue's own long-field file is
 two hundred characters, which is why nothing saw this.
+
+AND THE SECOND READING IS GONE FROM THIS PATH ENTIRELY (review item
+P3-V4-F3). `_holds_no_data` and `_unusable_header` decided which report
+a file got before the reader was called; both are deleted, `measure`
+calls the reader first and decides from the refusal the reader raises,
+so the property above is now a property of the construction. It is
+asserted here at the surface it governs -- what `measure` does with each
+of these files -- rather than against a helper that no longer exists.
+The walk itself remains for the degenerate zero-row path, where there is
+no reader reading to take an answer from, so the limit assertions below
+still govern something.
 
 THE LIMIT IS ONE CONSTANT, NOT TWO EQUAL ONES. `reading.FIELD_SIZE_LIMIT`
 is what the walk sets, so the test that proves it is a test that MOVES
@@ -114,24 +125,54 @@ def test_a_conforming_twin_of_long_values_is_read_and_not_refused(
     assert outcome.census.held > 0
 
 
-def test_the_walk_and_the_reader_agree_about_whether_a_file_has_rows(
+def _shape_of(outcome: validation.Outcome) -> str:
+    """Which of `measure`'s three reports this is, read off the census.
+
+    A file the producer describes gets a report whose column count is a
+    comparison; a file it refuses for holding no rows gets one where
+    that count is WITHHELD under the refused-file sentence and the row
+    count MISSES with a measured zero; a file whose first row cannot
+    name columns gets one where the row count is withheld too.
+    """
+    verdicts = {
+        check.subcheck: check for check in outcome.checks
+        if check.subcheck in ("rows.n_rows", "columns.n_columns")
+    }
+    columns = verdicts["columns.n_columns"]
+    rows = verdicts["rows.n_rows"]
+    if columns.verdict != validation.WITHHELD:
+        return "described"
+    if rows.verdict == validation.WITHHELD:
+        return "unusable-header"
+    return "no-rows"
+
+
+def test_the_reader_alone_decides_which_report_a_file_gets(
     tmp_path: pathlib.Path,
 ) -> None:
     """The class, in the direction the finding was found in.
 
-    `_holds_no_data` is what routes a file to the whole-report-of-MISSES
-    exit, and it may say yes only about a file the reader would also
-    read no rows from. The battery crosses the field limit in a value,
-    in a name, inside quotes and beside a quoted line break, because a
-    limit is counted over the parsed field and the four are not the same
-    number of characters.
+    The whole-report-of-MISSES exit is for a file the READER reads no
+    rows from, and nothing else may route a file to it. The battery
+    crosses the field limit in a value, in a name, inside quotes and
+    beside a quoted line break, because a limit is counted over the
+    parsed field and the four are not the same number of characters.
+
+    It is driven through `measure` rather than through a predicate,
+    because the predicate is gone: what is asserted is that the report
+    `measure` writes matches what the reader did with the same file, on
+    every file here -- read it, refuse it for holding no rows, or refuse
+    it for something else, in which case there is no report at all.
     """
     folder = tmp_path / "rows"
     folder.mkdir()
     long = "x" * PAST_THE_DEFAULT
+    described = _described(folder, _long_value_table(400), "short")
     files = {
         "ordinary": "a,b\n1,2\n",
         "header-only": "a,b\n",
+        "empty": "",
+        "blank-lines-only": "\n\n",
         "long-value": f"a,b\n{long},2\n",
         "long-value-quoted": f'a,b\n"{long}",2\n',
         "long-name": f"{long},b\n1,2\n",
@@ -141,24 +182,32 @@ def test_the_walk_and_the_reader_agree_about_whether_a_file_has_rows(
     for label in sorted(files):
         target = folder / f"{label}.csv"
         target.write_text(files[label], encoding="utf-8", newline="")
-        as_read = validation._read_utf8(target)
-        assert as_read is not None, label
-        theirs = 0
+        theirs = ""
         try:
-            theirs = reading.read_table(
-                str(target), first_row=reading.FIRST_ROW_NAMES
-            ).n_rows
-        except errors.ProfileError:
-            theirs = -1
-        mine = validation._holds_no_data(as_read, True)
-        if theirs > 0:
-            assert not mine, (
-                f"{label}: the reader reads {theirs} rows and the walk "
-                f"before it calls the file empty, so the report is built "
-                f"without the reader"
+            reading.read_table(
+                str(target),
+                first_row=reading.FIRST_ROW_NAMES,
+                refusals=reading.REFUSALS_NAME_POSITIONS,
             )
-        if theirs == 0:
-            assert mine, label
+            theirs = "described"
+        except errors.ShapeRefusal as refusal:
+            theirs = (
+                "no-rows"
+                if refusal.kind == errors.NO_DATA_TO_DESCRIBE
+                else "unusable-header"
+            )
+        except errors.ProfileError:
+            theirs = "refused"
+        mine = ""
+        try:
+            mine = _shape_of(validation.measure(described, str(target)))
+        except errors.ProfileError:
+            mine = "refused"
+        assert mine == theirs, (
+            f"{label}: the reader answered {theirs!r} and the report is "
+            f"{mine!r}, so what a person is told about this file is not "
+            f"what running the producer on it would say"
+        )
 
 
 def test_a_file_the_reader_refuses_is_refused_and_not_reported(
@@ -197,10 +246,6 @@ def test_a_file_the_reader_refuses_is_refused_and_not_reported(
     assert not whole, (
         "the walk says it read the whole file, and the reader cannot "
         "read it at all"
-    )
-    assert not validation._holds_no_data(as_read, True), (
-        "a file the walk could not finish is being called a file with "
-        "no rows, which is a verdict about a file nobody read"
     )
     with pytest.raises(errors.ProfileError) as raised:
         validation.measure(described, str(target))

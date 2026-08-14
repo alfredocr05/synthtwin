@@ -460,10 +460,21 @@ def _formula_lines(
     2026-08-13). This paragraph used to tell every reader that a
     hazardous cell was a value their description published, which is
     false for a column that publishes no values at all: there the cell
-    was INVENTED, and it opens with a sign because the description's own
-    counts leave no other spelling of that width -- which is itself the
-    proof that the real column held such values. Both facts are worth a
-    sentence, and neither is worth a sentence that says the other.
+    was INVENTED. Both facts are worth a sentence, and neither is worth
+    a sentence that says the other.
+
+    AND THE NECESSITY IS NOT CLAIMED OF EVERY SUCH CELL, in this
+    docstring any more than in the paragraph it describes (review round
+    4's standing owner item). This said the invented cell "opens with a
+    sign because the description's own counts leave no other spelling
+    of that width -- which is itself the proof that the real column held
+    such values", flatly, of every one of them. That holds only WHERE
+    the counts leave no other spelling, and synthtwin does not always
+    reach for the fewest such cells it could: where a twin carries more
+    of them than the description forced, the extra ones are a limit of
+    synthtwin and prove nothing about the real column. The lines below
+    say exactly that to the reader, and a private docstring that says
+    otherwise is the same false sentence with a smaller audience.
     """
     total, named = _formula_hazard(twin)
     made_up = _invented_columns(profile)

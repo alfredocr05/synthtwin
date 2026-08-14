@@ -709,6 +709,7 @@ def _state_nothing_published(
     target: pathlib.Path,
     summary_target: pathlib.Path,
     leftovers: "list[tuple[pathlib.Path, str]]",
+    words: errors.ArtifactWords,
     target_code: str = errors.ON_DISK_BEFORE,
 ) -> str:
     """Clear away the working files; say what is at each name afterwards.
@@ -726,7 +727,7 @@ def _state_nothing_published(
             summary_target, errors.ON_DISK_BEFORE, errors.ON_DISK_ABSENT
         ),
     ] + left
-    return errors.nothing_was_written([], on_disk)
+    return errors.nothing_was_written([], on_disk, words)
 
 
 def _state_part_way_through(
@@ -802,6 +803,7 @@ def _stopped_clean(
     target: pathlib.Path,
     summary_target: pathlib.Path,
     leftovers: "list[tuple[pathlib.Path, str]]",
+    words: errors.ArtifactWords,
     target_code: str = errors.ON_DISK_BEFORE,
 ) -> errors.TransactionRefusal:
     """The refusal for a failure that published nothing, with the disk in it.
@@ -812,10 +814,10 @@ def _stopped_clean(
     handed back carries a cleanup that has run and a message that names
     every file. The transaction's handler relies on exactly that.
     """
-    return errors.TransactionRefusal(
-        f"{trouble} "
-        f"{_state_nothing_published(target, summary_target, leftovers, target_code)}"
+    stated = _state_nothing_published(
+        target, summary_target, leftovers, words, target_code
     )
+    return errors.TransactionRefusal(f"{trouble} {stated}")
 
 
 def _stopped_broken(
@@ -952,10 +954,15 @@ def _move_into_place(
             target,
             summary_target,
             both,
+            words,
         )
     if what == "folder":
         raise _stopped_clean(
-            errors.output_is_a_folder(f"{target}"), target, summary_target, both
+            errors.output_is_a_folder(f"{target}"),
+            target,
+            summary_target,
+            both,
+            words,
         )
     if what == "link" or what == "other":
         raise _stopped_clean(
@@ -963,6 +970,7 @@ def _move_into_place(
             target,
             summary_target,
             both,
+            words,
         )
 
     kept: pathlib.Path | None = None
@@ -976,7 +984,7 @@ def _move_into_place(
         )
         if aside_name is None:
             raise _stopped_clean(
-                trouble, target, summary_target, both + owned
+                trouble, target, summary_target, both + owned, words
             )
         kept = aside_name
         progress.kept = aside_name
@@ -992,6 +1000,7 @@ def _move_into_place(
                 target,
                 summary_target,
                 both + [(kept, errors.ON_DISK_EMPTY_WORKING)],
+                words,
             ) from error
         # And now that name holds the earlier profile for certain, which
         # is a different thing to tell a person from "it holds either
@@ -1009,6 +1018,7 @@ def _move_into_place(
                 target,
                 summary_target,
                 both,
+                words,
                 _after_undo(kept),
             ) from error
         raise _stopped_broken(
@@ -1031,6 +1041,7 @@ def _move_into_place(
                 target,
                 summary_target,
                 [(new_summary, errors.ON_DISK_WORKING)],
+                words,
                 _after_undo(kept),
             )
         raise _stopped_broken(
@@ -1054,6 +1065,7 @@ def _move_into_place(
                 target,
                 summary_target,
                 [(new_summary, errors.ON_DISK_WORKING)],
+                words,
                 _after_undo(kept),
             ) from error
         raise _stopped_broken(
@@ -1215,7 +1227,9 @@ def _describe_the_stop(
         # into it had not begun: the name holds the empty file synthtwin
         # created there, which is synthtwin's own to clear away.
         waiting = waiting + [(progress.kept, errors.ON_DISK_EMPTY_WORKING)]
-    _remember(state, _state_nothing_published(first, second, waiting + extra))
+    _remember(
+        state, _state_nothing_published(first, second, waiting + extra, words)
+    )
 
 
 def write_both_files(
@@ -1459,7 +1473,7 @@ def write_both_files(
             first, PART_SUFFIX, forbidden, words, claimed
         )
         if first_part is None:
-            raise _stopped_clean(trouble, first, second, owned)
+            raise _stopped_clean(trouble, first, second, owned, words)
         second_part, trouble, owned = _claim_working_name(
             second, PART_SUFFIX, forbidden + [first_part], words, claimed
         )
@@ -1469,6 +1483,7 @@ def write_both_files(
                 first,
                 second,
                 [(first_part, errors.ON_DISK_EMPTY_WORKING)] + owned,
+                words,
             )
 
         first_holds = errors.ON_DISK_WORKING
@@ -1482,6 +1497,7 @@ def write_both_files(
                     (first_part, holds),
                     (second_part, errors.ON_DISK_EMPTY_WORKING),
                 ],
+                words,
             )
         second_holds = errors.ON_DISK_WORKING
         trouble, holds = _write_part(second_part, summary_text, words)
@@ -1494,6 +1510,7 @@ def write_both_files(
                     (first_part, errors.ON_DISK_WORKING),
                     (second_part, holds),
                 ],
+                words,
             )
 
         # The renaming runs INSIDE this same guard rather than under one
@@ -1585,6 +1602,7 @@ def write_both_files(
 def _state_nothing_published_one(
     target: pathlib.Path,
     leftovers: "list[tuple[pathlib.Path, str]]",
+    words: errors.ArtifactWords,
     target_code: str = errors.ON_DISK_BEFORE,
 ) -> str:
     """The nothing-was-published sentence, for one output name.
@@ -1598,7 +1616,7 @@ def _state_nothing_published_one(
     on_disk = [
         _named_state(target, target_code, errors.ON_DISK_ABSENT)
     ] + left
-    return errors.nothing_was_written([], on_disk)
+    return errors.nothing_was_written([], on_disk, words)
 
 
 def _state_part_way_through_one(
@@ -1641,6 +1659,7 @@ def _stopped_clean_one(
     trouble: str,
     target: pathlib.Path,
     leftovers: "list[tuple[pathlib.Path, str]]",
+    words: errors.ArtifactWords,
     target_code: str = errors.ON_DISK_BEFORE,
 ) -> errors.TransactionRefusal:
     """One-target refusal for a failure that published nothing.
@@ -1651,7 +1670,8 @@ def _stopped_clean_one(
     carries a cleanup that has run and a message that names every file.
     """
     return errors.TransactionRefusal(
-        f"{trouble} {_state_nothing_published_one(target, leftovers, target_code)}"
+        f"{trouble} "
+        f"{_state_nothing_published_one(target, leftovers, words, target_code)}"
     )
 
 
@@ -1741,7 +1761,9 @@ def _describe_the_stop_one(
         # had not begun: the name holds the empty file synthtwin created
         # there, which is synthtwin's own to clear away.
         waiting = waiting + [(progress.kept, errors.ON_DISK_EMPTY_WORKING)]
-    _remember(state, _state_nothing_published_one(target, waiting + extra))
+    _remember(
+        state, _state_nothing_published_one(target, waiting + extra, words)
+    )
 
 
 def _move_one_into_place(
@@ -1783,14 +1805,18 @@ def _move_one_into_place(
             ),
             place,
             holding,
+            words,
         )
     if what == "folder":
         raise _stopped_clean_one(
-            errors.output_is_a_folder(f"{place}"), place, holding
+            errors.output_is_a_folder(f"{place}"), place, holding, words
         )
     if what == "link" or what == "other":
         raise _stopped_clean_one(
-            errors.output_is_not_a_plain_file(f"{place}"), place, holding
+            errors.output_is_not_a_plain_file(f"{place}"),
+            place,
+            holding,
+            words,
         )
 
     kept: pathlib.Path | None = None
@@ -1803,7 +1829,7 @@ def _move_one_into_place(
             place, KEPT_SUFFIX, spare, words, claimed
         )
         if aside_name is None:
-            raise _stopped_clean_one(trouble, place, holding + owned)
+            raise _stopped_clean_one(trouble, place, holding + owned, words)
         kept = aside_name
         progress.kept = aside_name
         # From here the output is between one state and another, and a
@@ -1817,6 +1843,7 @@ def _move_one_into_place(
                 errors.output_not_writable(f"{place}", f"{error}", words),
                 place,
                 holding + [(kept, errors.ON_DISK_EMPTY_WORKING)],
+                words,
             ) from error
         # And now that name holds the earlier report for certain, which
         # is a different thing to tell a person from "it holds either
@@ -1835,7 +1862,7 @@ def _move_one_into_place(
         trouble = errors.output_not_writable(f"{place}", f"{error}", words)
         if _take_out(kept, place):
             raise _stopped_clean_one(
-                trouble, place, holding, _after_undo(kept)
+                trouble, place, holding, words, _after_undo(kept)
             ) from error
         raise _stopped_broken_one(
             trouble, place, kept, holding, words
@@ -1852,7 +1879,9 @@ def _move_one_into_place(
             f"{place}", landed, words
         )
         if _take_out(kept, place):
-            raise _stopped_clean_one(trouble, place, [], _after_undo(kept))
+            raise _stopped_clean_one(
+                trouble, place, [], words, _after_undo(kept)
+            )
         raise _stopped_broken_one(trouble, place, kept, [], words)
 
     # The name now holds this run's file. From here there is nothing to
@@ -2008,7 +2037,7 @@ def write_one_file(
             place, PART_SUFFIX, forbidden, words, claimed
         )
         if part is None:
-            raise _stopped_clean_one(trouble, place, owned)
+            raise _stopped_clean_one(trouble, place, owned, words)
 
         # Marked as possibly holding text BEFORE the write begins rather
         # than after, because a write that stops half way has already put
@@ -2016,7 +2045,9 @@ def write_one_file(
         holds = errors.ON_DISK_WORKING
         trouble, holding = _write_part(part, text, words)
         if trouble:
-            raise _stopped_clean_one(trouble, place, [(part, holding)])
+            raise _stopped_clean_one(
+                trouble, place, [(part, holding)], words
+            )
 
         # The rename runs INSIDE this same guard rather than under one of
         # its own. There is no instant between the two, because there are

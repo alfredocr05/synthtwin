@@ -525,7 +525,7 @@ def _expectations_lines() -> "list[str]":
 
 
 def _handling_lines() -> "list[str]":
-    """Where the numbers came from, and how the four files are handled.
+    """Where the numbers came from, and how the five files are handled.
 
     V7.5. This report states measured facts about a file derived from
     real data, so it is real-derived material exactly as the description,

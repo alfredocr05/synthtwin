@@ -306,7 +306,11 @@ def test_forged_fixture_content_fails(tmp_path: Path) -> None:
     isolates the generator byte-compare: only the re-run catches it.
     """
     seed = 7
-    (tmp_path / "gen_fixture.py").write_text(GENERATOR_SOURCE, encoding="utf-8")
+    (
+        tmp_path / "gen_fixture.py").write_text(GENERATOR_SOURCE,
+        encoding="utf-8",
+        newline="\n",
+    )
     fixture_dir = tmp_path / "fixtures"
     fixture_dir.mkdir()
     forged = b"this content was substituted and never came from the script\n"
@@ -330,7 +334,11 @@ def test_correct_fixture_passes(tmp_path: Path) -> None:
     """A listed fixture whose bytes equal its generator output is accepted."""
     seed = 7
     payload = expected_generator_bytes(seed)
-    (tmp_path / "gen_fixture.py").write_text(GENERATOR_SOURCE, encoding="utf-8")
+    (
+        tmp_path / "gen_fixture.py").write_text(GENERATOR_SOURCE,
+        encoding="utf-8",
+        newline="\n",
+    )
     fixture_dir = tmp_path / "fixtures"
     fixture_dir.mkdir()
     (fixture_dir / "sample.txt").write_bytes(payload)
@@ -350,7 +358,11 @@ def test_stale_manifest_sha256_fails(tmp_path: Path) -> None:
     """A manifest digest that no longer matches the committed bytes fails."""
     seed = 7
     payload = expected_generator_bytes(seed)
-    (tmp_path / "gen_fixture.py").write_text(GENERATOR_SOURCE, encoding="utf-8")
+    (
+        tmp_path / "gen_fixture.py").write_text(GENERATOR_SOURCE,
+        encoding="utf-8",
+        newline="\n",
+    )
     fixture_dir = tmp_path / "fixtures"
     fixture_dir.mkdir()
     (fixture_dir / "sample.txt").write_bytes(payload)
@@ -367,7 +379,11 @@ def test_listed_fixture_missing_from_disk_fails(tmp_path: Path) -> None:
     """A manifest entry whose fixture file is absent fails the check."""
     seed = 7
     payload = expected_generator_bytes(seed)
-    (tmp_path / "gen_fixture.py").write_text(GENERATOR_SOURCE, encoding="utf-8")
+    (
+        tmp_path / "gen_fixture.py").write_text(GENERATOR_SOURCE,
+        encoding="utf-8",
+        newline="\n",
+    )
     write_manifest(
         tmp_path,
         [make_entry("fixtures/sample.txt", "gen_fixture.py", seed, payload)],
@@ -409,7 +425,7 @@ def test_stray_jsonl_fails(tmp_path: Path) -> None:
     """Mutation: a .jsonl table placed in the tree with no allowlist entry."""
     write_manifest(tmp_path, [])
     (tmp_path / "rows.jsonl").write_text(
-        '{"a": 1, "b": 2}\n{"a": 3, "b": 4}\n', encoding="utf-8"
+        '{"a": 1, "b": 2}\n{"a": 3, "b": 4}\n', encoding="utf-8", newline="\n"
     )
 
     result = run_checker(tmp_path)
@@ -462,7 +478,11 @@ def test_every_extended_data_suffix_fails(tmp_path: Path) -> None:
     """Mutation: one stray file per newly covered suffix, all reported."""
     write_manifest(tmp_path, [])
     for suffix in EXTENDED_DATA_SUFFIXES:
-        (tmp_path / ("stray" + suffix)).write_text("payload\n", encoding="utf-8")
+        (
+            tmp_path / ("stray" + suffix)).write_text("payload\n",
+            encoding="utf-8",
+            newline="\n",
+        )
 
     result = run_checker(tmp_path)
     assert result.returncode == 1
@@ -514,10 +534,10 @@ def test_stray_yaml_outside_github_fails(tmp_path: Path) -> None:
     """Mutation: .yaml and .yml files at the tree root, both reported."""
     write_manifest(tmp_path, [])
     (tmp_path / "schema.yaml").write_text(
-        "columns:\n  - a\n  - b\n", encoding="utf-8"
+        "columns:\n  - a\n  - b\n", encoding="utf-8", newline="\n"
     )
     (tmp_path / "profile.yml").write_text(
-        "count: 12\nmean: 3.5\n", encoding="utf-8"
+        "count: 12\nmean: 3.5\n", encoding="utf-8", newline="\n"
     )
 
     result = run_checker(tmp_path)
@@ -543,12 +563,12 @@ def test_yaml_elsewhere_under_github_fails(tmp_path: Path) -> None:
     github_dir = tmp_path / ".github"
     github_dir.mkdir()
     (github_dir / "nonworkflow.yaml").write_text(
-        "rows:\n  - [3, 9, 27]\n  - [4, 16, 64]\n", encoding="utf-8"
+        "rows:\n  - [3, 9, 27]\n  - [4, 16, 64]\n", encoding="utf-8", newline="\n"
     )
     nested = github_dir / "workflows" / "nested"
     nested.mkdir(parents=True)
     (nested / "deep.yml").write_text(
-        "count: 12\nmean: 3.5\n", encoding="utf-8"
+        "count: 12\nmean: 3.5\n", encoding="utf-8", newline="\n"
     )
 
     result = run_checker(tmp_path)
@@ -575,10 +595,10 @@ def test_new_yaml_in_workflow_directory_fails(tmp_path: Path) -> None:
     workflows = tmp_path / ".github" / "workflows"
     workflows.mkdir(parents=True)
     (workflows / "ci.yml").write_text(
-        "name: neutral workflow stand-in\n", encoding="utf-8"
+        "name: neutral workflow stand-in\n", encoding="utf-8", newline="\n"
     )
     (workflows / "added-later.yaml").write_text(
-        "rows:\n  - [3, 9, 27]\n  - [4, 16, 64]\n", encoding="utf-8"
+        "rows:\n  - [3, 9, 27]\n  - [4, 16, 64]\n", encoding="utf-8", newline="\n"
     )
 
     result = run_checker(tmp_path)
@@ -599,7 +619,7 @@ def test_reviewed_yaml_configuration_path_passes(tmp_path: Path) -> None:
     workflows = tmp_path / ".github" / "workflows"
     workflows.mkdir(parents=True)
     (workflows / "ci.yml").write_text(
-        "name: neutral workflow stand-in\n", encoding="utf-8"
+        "name: neutral workflow stand-in\n", encoding="utf-8", newline="\n"
     )
 
     result = run_checker(tmp_path)
@@ -613,7 +633,7 @@ def test_stray_sql_dump_fails(tmp_path: Path) -> None:
     """Mutation: an SQL dump placed in the tree with no allowlist entry."""
     write_manifest(tmp_path, [])
     (tmp_path / "dump.sql").write_text(
-        "CREATE TABLE t (a INTEGER);\n", encoding="utf-8"
+        "CREATE TABLE t (a INTEGER);\n", encoding="utf-8", newline="\n"
     )
 
     result = run_checker(tmp_path)
@@ -672,7 +692,7 @@ def test_absolute_generator_path_rejected(tmp_path: Path) -> None:
     seed = 7
     payload = b"placeholder\n"
     generator = tmp_path / "gen_sentinel.py"
-    generator.write_text(SENTINEL_GENERATOR_SOURCE, encoding="utf-8")
+    generator.write_text(SENTINEL_GENERATOR_SOURCE, encoding="utf-8", newline="\n")
     fixture_dir = tmp_path / "fixtures"
     fixture_dir.mkdir()
     (fixture_dir / "sample.txt").write_bytes(payload)
@@ -698,13 +718,17 @@ def test_dotdot_paths_rejected(tmp_path: Path) -> None:
     root = tmp_path / "repo"
     root.mkdir()
     outside = tmp_path / "outside_gen.py"
-    outside.write_text(SENTINEL_GENERATOR_SOURCE, encoding="utf-8")
+    outside.write_text(SENTINEL_GENERATOR_SOURCE, encoding="utf-8", newline="\n")
     seed = 7
     payload = b"placeholder\n"
     fixture_dir = root / "fixtures"
     fixture_dir.mkdir()
     (fixture_dir / "sample.txt").write_bytes(payload)
-    (root / "gen_fixture.py").write_text(GENERATOR_SOURCE, encoding="utf-8")
+    (
+        root / "gen_fixture.py").write_text(GENERATOR_SOURCE,
+        encoding="utf-8",
+        newline="\n",
+    )
     write_manifest(
         root,
         [
@@ -734,7 +758,7 @@ def test_generator_socket_attempt_fails_with_guard_message(
     seed = 7
     payload = b"placeholder\n"
     (tmp_path / "gen_fixture.py").write_text(
-        SOCKET_GENERATOR_SOURCE, encoding="utf-8"
+        SOCKET_GENERATOR_SOURCE, encoding="utf-8", newline="\n"
     )
     fixture_dir = tmp_path / "fixtures"
     fixture_dir.mkdir()
@@ -758,7 +782,11 @@ def test_untracked_generator_in_git_tree_fails(tmp_path: Path) -> None:
     """Mutation: in a committed tree, an untracked generator is refused."""
     seed = 7
     payload = expected_generator_bytes(seed)
-    (tmp_path / "gen_fixture.py").write_text(GENERATOR_SOURCE, encoding="utf-8")
+    (
+        tmp_path / "gen_fixture.py").write_text(GENERATOR_SOURCE,
+        encoding="utf-8",
+        newline="\n",
+    )
     fixture_dir = tmp_path / "fixtures"
     fixture_dir.mkdir()
     (fixture_dir / "sample.txt").write_bytes(payload)
@@ -798,7 +826,11 @@ def test_fully_tracked_git_tree_passes(tmp_path: Path) -> None:
     """A committed tree whose entry paths are all tracked stays green."""
     seed = 7
     payload = expected_generator_bytes(seed)
-    (tmp_path / "gen_fixture.py").write_text(GENERATOR_SOURCE, encoding="utf-8")
+    (
+        tmp_path / "gen_fixture.py").write_text(GENERATOR_SOURCE,
+        encoding="utf-8",
+        newline="\n",
+    )
     fixture_dir = tmp_path / "fixtures"
     fixture_dir.mkdir()
     (fixture_dir / "sample.txt").write_bytes(payload)
@@ -929,7 +961,7 @@ def test_generator_low_level_socket_attempt_fails(tmp_path: Path) -> None:
     seed = 7
     payload = b"placeholder\n"
     (tmp_path / "gen_fixture.py").write_text(
-        LOW_LEVEL_SOCKET_GENERATOR_SOURCE, encoding="utf-8"
+        LOW_LEVEL_SOCKET_GENERATOR_SOURCE, encoding="utf-8", newline="\n"
     )
     fixture_dir = tmp_path / "fixtures"
     fixture_dir.mkdir()
@@ -957,7 +989,7 @@ def test_generator_subprocess_attempt_fails(tmp_path: Path) -> None:
     seed = 7
     payload = b"placeholder\n"
     (tmp_path / "gen_fixture.py").write_text(
-        SUBPROCESS_GENERATOR_SOURCE, encoding="utf-8"
+        SUBPROCESS_GENERATOR_SOURCE, encoding="utf-8", newline="\n"
     )
     fixture_dir = tmp_path / "fixtures"
     fixture_dir.mkdir()
@@ -988,7 +1020,7 @@ def test_generator_spawn_primitive_attempt_fails(tmp_path: Path) -> None:
     seed = 7
     payload = b"placeholder\n"
     (tmp_path / "gen_fixture.py").write_text(
-        SPAWN_PRIMITIVE_GENERATOR_SOURCE, encoding="utf-8"
+        SPAWN_PRIMITIVE_GENERATOR_SOURCE, encoding="utf-8", newline="\n"
     )
     fixture_dir = tmp_path / "fixtures"
     fixture_dir.mkdir()
@@ -1020,7 +1052,7 @@ def test_generator_native_socket_attempt_fails(tmp_path: Path) -> None:
     seed = 7
     payload = b"placeholder\n"
     (tmp_path / "gen_fixture.py").write_text(
-        NATIVE_SOCKET_GENERATOR_SOURCE, encoding="utf-8"
+        NATIVE_SOCKET_GENERATOR_SOURCE, encoding="utf-8", newline="\n"
     )
     fixture_dir = tmp_path / "fixtures"
     fixture_dir.mkdir()
@@ -1054,7 +1086,7 @@ def test_generator_fork_exec_helper_import_fails(tmp_path: Path) -> None:
     seed = 7
     payload = b"placeholder\n"
     (tmp_path / "gen_fixture.py").write_text(
-        POSIX_FORK_EXEC_GENERATOR_SOURCE, encoding="utf-8"
+        POSIX_FORK_EXEC_GENERATOR_SOURCE, encoding="utf-8", newline="\n"
     )
     fixture_dir = tmp_path / "fixtures"
     fixture_dir.mkdir()
@@ -1077,7 +1109,7 @@ def test_generator_fork_exec_helper_import_fails(tmp_path: Path) -> None:
 def test_guard_runner_allows_innocent_generator(tmp_path: Path) -> None:
     """The audit-hook guard does not disturb an ordinary file-writing run."""
     generator = tmp_path / "gen_fixture.py"
-    generator.write_text(GENERATOR_SOURCE, encoding="utf-8")
+    generator.write_text(GENERATOR_SOURCE, encoding="utf-8", newline="\n")
     out_path = tmp_path / "out.txt"
 
     proc = subprocess.run(
@@ -1153,7 +1185,7 @@ def test_installer_refuses_to_overwrite_foreign_hook(tmp_path: Path) -> None:
     hooks_dir.mkdir(parents=True, exist_ok=True)
     hook = hooks_dir / "pre-push"
     foreign = "#!/bin/sh\necho organizational security hook\n"
-    hook.write_text(foreign, encoding="utf-8")
+    hook.write_text(foreign, encoding="utf-8", newline="\n")
     hook.chmod(0o755)
 
     result = run_installer(tmp_path)
@@ -1217,7 +1249,11 @@ def test_installer_resolves_linked_worktree_hook_path(tmp_path: Path) -> None:
     main = tmp_path / "main"
     main.mkdir()
     git_in_tree(main, "init")
-    (main / "README.txt").write_text("neutral placeholder\n", encoding="utf-8")
+    (
+        main / "README.txt").write_text("neutral placeholder\n",
+        encoding="utf-8",
+        newline="\n",
+    )
     git_in_tree(main, "add", "README.txt")
     git_in_tree(
         main,

@@ -710,7 +710,15 @@ def _read_streamed(
     except UnicodeDecodeError:
         return None
     if header is None:
-        raise errors.ProfileError(errors.file_is_empty(shown))
+        # A file with no record in it at all has no rows to describe,
+        # which is what `no_data_rows` below says of a file with only a
+        # header. The two sentences differ because the advice does; the
+        # SHAPE word is the same, so a caller reporting on a file the
+        # producer refuses does not have to tell them apart to know that
+        # nothing in this file was described (review item P3-V4-F3).
+        raise errors.shape_refusal(
+            errors.file_is_empty(shown), errors.NO_DATA_TO_DESCRIBE
+        )
     if ragged:
         raise errors.ProfileError(
             errors.ragged_rows(shown, width, offenders, ragged)
@@ -795,7 +803,9 @@ def _read_authoritatively(
         csv.field_size_limit(previous_limit)
 
     if not found.n_rows:
-        raise errors.ProfileError(errors.no_data_rows(shown))
+        raise errors.shape_refusal(
+            errors.no_data_rows(shown), errors.NO_DATA_TO_DESCRIBE
+        )
     if found.header_source == HEADER_FROM_FILE:
         _check_the_names_are_usable(found.column_names, shown, refusals)
     return found
@@ -821,17 +831,43 @@ def _check_the_names_are_usable(
     one did not, so it was the one escape left in the reader: whatever
     the caller had asked for, the repeated-name refusal here QUOTED the
     repeated name, and on the checking path that name is a string out of
-    a file nobody promised was the reader's (V9). Two files reached it
-    -- a leading blank line, and a newline inside a quoted name -- and
-    printed a measured name on the screen. The caller that meets those
-    files now settles them before this is reached and reports them as
-    missed obligations; this is the belt, and it is worn at the same
-    place the other two wear theirs, so a future disagreement about
-    which row is the first one cannot spend what those two saved.
+    a file nobody promised was the reader's (V9).
+
+    AND BOTH REFUSALS ARE RAISED AS SHAPE REFUSALS, WHICH IS WHAT MAKES
+    THE CHECKING CALLER'S REPORT EQUIVALENT TO THIS ONE BY CONSTRUCTION
+    (review item P3-V4-F3). `synthtwin validate` reports on these two
+    rather than passing them on, and it used to decide which report a
+    file gets by walking the file itself before ever calling this
+    reader. Those two readings drifted: a ragged file with a repeated
+    name reached the reader's ragged refusal here and the header report
+    there, and a NUL-bearing header reached the zero-byte refusal here
+    and a report there as soon as a row was added. Now the caller
+    catches what this raises and reports on THAT, so this function is
+    the one place the precedence lives.
+
+    The blank-name refusal names the column NUMBER on both paths,
+    because the profiler's own form of it does and a report may state
+    what that refusal states. The repeated-name refusal names neither
+    the name nor a position on the checking path: the profiler's form
+    quotes the NAME, which two files with the repeat in different
+    columns share, so a position is a fact that refusal does not carry.
+
+    THE CHECKING FORM'S SENTENCE IS THE BELT AND IS MEANT TO BE ONE. The
+    caller that asks for it reports on this refusal instead of showing
+    it, so a person reaches these words only where that caller hands one
+    back -- which today it does only for an internal contradiction, a
+    header fault raised about a reading whose names it never took from
+    the file. The sentence is written for that reader anyway, and it now
+    carries neither the name nor the place, so escaping costs nothing
+    either way.
     """
     for position, name in enumerate(header, start=1):
         if not parsing.trimmed(name):
-            raise errors.ProfileError(errors.empty_column_name(position))
+            raise errors.shape_refusal(
+                errors.empty_column_name(position),
+                errors.HEADER_NAME_MISSING,
+                position,
+            )
     seen: dict[str, int] = {}
     for name in header:
         if name in seen:
@@ -842,20 +878,13 @@ def _check_the_names_are_usable(
     if not repeated:
         return
     if refusals == REFUSALS_NAME_POSITIONS:
-        first = 0
-        later = 0
-        for position in range(len(header)):
-            if header[position] != repeated[0]:
-                continue
-            if not first:
-                first = position + 1
-                continue
-            if not later:
-                later = position + 1
-        raise errors.ProfileError(
-            errors.checked_file_repeats_a_column_name(shown, first, later)
+        raise errors.shape_refusal(
+            errors.checked_file_repeats_a_column_name(shown),
+            errors.HEADER_NAME_REPEATED,
         )
-    raise errors.ProfileError(errors.duplicate_column_names(repeated))
+    raise errors.shape_refusal(
+        errors.duplicate_column_names(repeated), errors.HEADER_NAME_REPEATED
+    )
 
 
 def _settle_the_first_row(
