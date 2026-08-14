@@ -288,7 +288,7 @@ def test_the_earlier_profile_survives_a_stop_in_the_set_aside_creation(
     # yet, so the earlier profile is still under its own name -- and that
     # is the one file in this transaction no failure path may delete.
     first, second = _outputs(tmp_path)
-    first.write_text("last week's profile\n", encoding="utf-8")
+    first.write_text("last week's profile\n", encoding="utf-8", newline="")
     kept = pathlib.Path(f"{first}{profile.KEPT_SUFFIX}-1")
     _stop_inside_the_creation_of(monkeypatch, kept, KeyboardInterrupt())
     state = profile.DiskState()
@@ -317,7 +317,7 @@ def test_a_set_aside_earlier_profile_is_still_never_removed(
     # that name and must not act on it, because what is under it now is
     # not what synthtwin put there.
     first, second = _outputs(tmp_path)
-    first.write_text("last week's profile\n", encoding="utf-8")
+    first.write_text("last week's profile\n", encoding="utf-8", newline="")
     first_part = pathlib.Path(f"{first}{profile.PART_SUFFIX}-1")
     kept = pathlib.Path(f"{first}{profile.KEPT_SUFFIX}-1")
     real = pathlib.Path.replace

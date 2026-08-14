@@ -46,12 +46,27 @@ exists).
   `generate`, `generate` ends by printing the `validate` command line
   with this twin's own paths in it, and `validate` says what its verdict
   means, what it does not, and which exit code automation saw.
-- **The handling rule now names four artifacts** on every claim-bearing
-  surface. The quality report states measurements taken from the file it
-  checked, so a verdict travels under the same rules as the thing it
-  measured. The generation report's bytes moved with it and its golden
-  hash was re-recorded; the sentence that called a fidelity verdict
-  later work is gone, because it is not later work any more.
+- **The handling rule now names every file a run leaves behind** on
+  every claim-bearing surface: the profile, the plain-language summary
+  beside it, the twin, the twin's report and the quality report. The
+  quality report states measurements taken from the file it checked, so
+  a verdict travels under the same rules as the thing it measured. The
+  summary joined the list at the same time (plan amendment A-P3-8): it
+  was never named, in this phase or the last, although it is the half of
+  the description a person actually reads and it repeats the real labels
+  the profile publishes. The generation report's bytes moved with it and
+  its golden hash was re-recorded; the sentence that called a fidelity
+  verdict later work is gone, because it is not later work any more.
+- **The claim inventory counts instead of remembering.** The guard that
+  was supposed to catch a stale claim accepted the retired wording, so
+  six surfaces still counted the commands and the run's files the way
+  they were counted before the validator shipped, while every test
+  passed. It now takes both totals from the
+  product itself -- the commands from the shipped parser, the files from
+  the output names the modules carry -- and holds every surface to them,
+  bans a built capability from being described as a later phase's work,
+  and refuses a walkthrough that runs two of the three commands and
+  stops.
 
 ### Fixed in Phase 3: the sign a table already had, and the check that had gone quiet
 - **Owner decision 9 (2026-08-13).** A record number synthtwin invents
@@ -350,7 +365,8 @@ normatively.
   called it. Nothing about either changed but where it lives; both are
   re-exported under the names they had.
 - **The write transaction's refusals name the files of whichever command
-  is running.** The transaction serves two commands now, and four of the
+  is running.** The transaction is no longer the profiler's alone, and
+  four of the
   messages it composes named the profiler's files in plain words: "The
   profile could not be written to ...", "... next to your table", "...
   replaced your own table", and "a profile and a summary from two
@@ -442,14 +458,15 @@ new facts require.
   and each of those rows is a row the real table has. synthtwin offers no
   formal privacy guarantee, and now says so where a person will read it
   rather than only in the plans.
-- **Institutional handling covers all three files, not the profile
-  alone.** The profiler's summary, `README.md`, the charter and
+- **Institutional handling covers the twin and the report too, not the
+  profile alone.** The profiler's summary, `README.md`, the charter and
   `SECURITY.md` each said the profile is real-derived material and left
   the twin and the report unmentioned, which reads as permission for the
   other two. It is not: the twin reproduces published counts exactly and
   the report quotes published facts back. The profile, the twin and the
   report all carry facts computed from real data, and every surface now
-  says the institution's rules apply to all three.
+  says the institution's rules reach each of them. (Phase 3 widened the
+  rule again, to every file a run leaves behind; see above.)
 - **`SECURITY.md` gained an entry for each of version 4's two new
   published facts**, so a reader weighing whether a profile may leave the
   machine can see the delta rather than infer it. The label-spelling

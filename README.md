@@ -117,10 +117,13 @@ your numeric and date columns, the points in between that describe their
 shape, and, for each label it names, the exact spellings your file used
 for that label wherever eleven rows or more wrote it that way. It is
 real-derived material, and your institution's rules for such material
-apply to it. The same is true of the other files a full run produces:
-the profile, the twin, the twin's report and the quality report all
-carry facts computed from your real data, so those rules apply to all
-four, not to the profile alone.
+apply to it. The same is true of every other file a full run produces:
+the profile, the plain-language summary beside it, the twin, the twin's
+report and the quality report all carry facts computed from your real
+data, so those rules apply to all five, not to the profile alone. The
+summary is on that list for the reason that makes it easy to forget --
+it is the readable one, so it is the one that gets pasted into an email,
+and it repeats the real labels the profile publishes.
 
 The second reads that description -- and nothing else, not your table
 again -- and writes two more files beside it:
@@ -391,10 +394,11 @@ was copied. The arithmetic left no other answer, and any tool that
 reproduces published counts exactly lands in the same place.
 
 So synthtwin offers **no formal privacy guarantee** and claims no
-differential-privacy property. All four files a full run produces --
-the profile, the twin, the twin's report and the quality report -- carry
-facts computed from your real data, and your institution's rules for
-real-derived material apply to all four, not to the profile alone. What synthtwin does give you is
+differential-privacy property. All five files a full run produces --
+the profile, the plain-language summary beside it, the twin, the twin's
+report and the quality report -- carry facts computed from your real
+data, and your institution's rules for real-derived material apply to
+all five, not to the profile alone. What synthtwin does give you is
 an architecture in which the real table never has to move, plus a
 written account, in `SECURITY.md` and in the run's own report, of
 exactly which real facts each file carries.
@@ -413,7 +417,7 @@ These are design limits, stated up front so nobody discovers them late:
 | CSV only, for now | The profiler reads comma-separated files saved as UTF-8 (or, as a fallback, Western European text). Spreadsheets, databases and columnar formats come later. |
 | The table has to fit in memory | A table is read into memory whole; reading very large files in pieces is planned but not built. A file of a few hundred megabytes is comfortable on an ordinary machine; several gigabytes is not, and you are told so in words rather than by a crash. |
 | The file is read twice | Once to check its shape and once to read its values, by two different readers whose results must agree. That costs a second pass over the file and buys the guarantee that a malformed row is refused rather than quietly turned into missing values. |
-| Small tables degrade | With few rows, the statistics the profiler measures are noisy, and the twin's fidelity drops accordingly. The quality report of Phase 3 will say so plainly; today's generation report names each approximate fact with the value the twin reached beside the published one, which is where a small table shows. |
+| Small tables degrade | With few rows, the statistics the profiler measures are noisy, and the twin's fidelity drops accordingly. Two files say where: the generation report names each approximate fact with the value the twin reached beside the published one, and `synthtwin validate` writes the quality report, which is where a small table shows as missed obligations rather than as a feeling. |
 
 ## Determinism [built]
 
@@ -428,7 +432,8 @@ seed, so byte-stability is promised only across identical inputs.
 
 ## Installing
 
-synthtwin is **not on PyPI** yet. To use both commands from a clone:
+synthtwin is **not on PyPI** yet. To use all three commands from a
+clone:
 
 ```
 git clone https://github.com/alfredocr05/synthtwin
@@ -436,6 +441,7 @@ cd synthtwin
 pip install -e .
 synthtwin profile my-table.csv
 synthtwin generate my-table-profile.json
+synthtwin validate my-table-profile.json
 ```
 
 On a machine that must install everything by hash, and that may have no
@@ -462,14 +468,14 @@ pip install --no-index --find-links wheelhouse \
 pip install --no-index --no-deps wheelhouse/synthtwin-<version>-py3-none-any.whl
 ```
 
-Both commands are barred from the network by `--no-index`, and the
+Both pip commands are barred from the network by `--no-index`, and the
 first checks every hash. `--no-deps` on the second is what keeps the
 verified versions in place.
 
 Do **not** substitute `pip install .` from a source folder for the
 second command. It runs a build backend that pip fetches from the
 network, `requirements-install.lock` does not pin that backend, and on a
-machine with no network it simply fails. CI runs exactly the two
+machine with no network it simply fails. CI runs exactly the two pip
 commands above on every build, against the wheel produced inside a
 container with no network.
 

@@ -249,7 +249,53 @@ def test_two_character_code_whole_numbers_are_built_and_flagged(
     text = rendering.report(described, twin)
     assert "synthtwin MADE UP" in text, text
     assert "'code'" in text
-    assert "no other way" in text
+    _the_inference_is_conditional(text)
+
+
+def _the_inference_is_conditional(text: str) -> None:
+    """The report's necessity claim is WHERE-claused, on both paragraphs.
+
+    Review round 3's standing owner item, closed by plan amendment
+    A-P3-8 clause 4. The claim that the description's counts leave no
+    other way to spell a value of that width is TRUE of the cells the
+    counts force and FALSE of the rest: a fold-collision partner carries
+    its parent's spelling, so a twin can hold more such cells than any
+    count required, which the plan measured at fourteen where two would
+    do. The report said both things eighteen lines apart -- the flat
+    claim first, the admission second -- and a person reads the first
+    one.
+
+    So this asserts the SHAPE of the sentence rather than its wording:
+    wherever the report says the counts leave no other spelling, the
+    clause is conditional, and the report says in as many words that it
+    cannot tell the reader which cell is which.
+    """
+    said = " ".join(text.split())
+    for flat in (
+        "counts are what leave no other way",
+        "your own table held values written that way, which is what",
+    ):
+        assert flat not in said, (
+            f"the report states the necessity claim flatly ({flat!r}). "
+            f"It is false for a fold-collision partner, which carries "
+            f"its parent's spelling and is not forced by any count "
+            f"(plan P3-C7-F1). Say it under a 'where' clause, or the "
+            f"reader takes every one of these cells as proof about "
+            f"their own column."
+        )
+    for conditional in (
+        (
+            "Where your description's own counts leave no other way to "
+            "spell a value of that width"
+        ),
+        "Where those counts leave no other spelling of that width",
+        "this report cannot tell you which cell is which",
+        "does not always reach for the fewest",
+    ):
+        assert conditional in said, (
+            f"the report no longer says {conditional!r}, which is half "
+            f"of what makes the necessity claim honest"
+        )
 
 
 def test_the_whole_number_refusal_is_narrow(tmp_path: pathlib.Path) -> None:

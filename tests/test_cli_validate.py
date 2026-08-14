@@ -836,65 +836,72 @@ def test_a_validate_run_never_asks_for_the_generator(
     )
 
 
-# Every door to a random value that a validate run's process has open,
-# module by module. `numpy.random` is open because the reader needs
-# pandas and pandas imports numpy; `random`, `secrets` and `os.urandom`
-# are open because the standard library is. The claim this package
-# makes is not that these doors are shut -- three of them cannot be
-# shut while pandas is a dependency -- it is that a validate run walks
-# through none of them, and that is a claim a trap can settle.
-_RANDOM_DOORS = (
-    (
-        "numpy.random",
-        (
-            "default_rng",
-            "Generator",
-            "RandomState",
-            "SeedSequence",
-            "random",
-            "random_sample",
-            "rand",
-            "randn",
-            "randint",
-            "choice",
-            "normal",
-            "uniform",
-            "shuffle",
-            "permutation",
-            "standard_normal",
-            "bytes",
-            "seed",
-        ),
-    ),
-    ("numpy.random.mtrand", ("RandomState",)),
-    (
-        "random",
-        (
-            "random",
-            "randint",
-            "randrange",
-            "choice",
-            "choices",
-            "sample",
-            "shuffle",
-            "uniform",
-            "gauss",
-            "getrandbits",
-            "randbytes",
-            "Random",
-            "SystemRandom",
-            "seed",
-        ),
-    ),
-    ("os", ("urandom",)),
-    ("secrets", ("token_bytes", "token_hex", "randbits", "choice")),
+# Every door to a random value that a validate run's process has open.
+# `numpy.random` is open because the reader needs pandas and pandas
+# imports numpy; `random`, `secrets` and `os.urandom` are open because
+# the standard library is. The claim this package makes is not that
+# these doors are shut -- three of them cannot be shut while pandas is a
+# dependency -- it is that a validate run walks through none of them,
+# and that is a claim a trap can settle.
+#
+# THE DOORS ARE READ OFF THE MODULES, NOT WRITTEN OUT HERE (review item
+# P3-V3-F9). They were written out: seventeen names of `numpy.random`,
+# fourteen of `random`, four of `secrets`, two more, thirty-seven in
+# all -- and `numpy.random.beta`, `numpy.random.poisson` and
+# `numpy.random.binomial` returned values with every one of the
+# thirty-seven installed. A trap that cannot catch the call it was not
+# told about is a check that cannot fail for that call, which is the
+# defect this project's charter names, and hand-enumerating a library's
+# surface is how it was built. So the trap now asks each module what it
+# offers and traps all of it.
+#
+# WHAT COUNTS AS A DOOR: every public attribute of a randomness module
+# that can be CALLED and is not itself a module. That takes in a few
+# that draw nothing -- `numpy.random.get_state`, `secrets.compare_digest`
+# -- and trapping them is the cheap side of the trade: a validate run
+# calls nothing in any of these modules, so a trap on a harmless
+# neighbour costs nothing and a missing trap costs the guarantee. Only
+# `os` is named by attribute, because `os` is not a randomness module
+# and `urandom` is its one door.
+_RANDOM_MODULES = ("numpy.random", "numpy.random.mtrand", "random", "secrets")
+_NAMED_DOORS = (("os", ("urandom",)),)
+
+# Two floors, because a derivation can fail in two directions. The
+# COUNT catches a reading that returned almost nothing -- it is set well
+# under what the modules currently offer, so a library dropping a
+# deprecated alias does not turn the suite red, and far above the
+# thirty-seven the hand-written list managed. The NAMES catch a reading
+# that returned plenty of the wrong things: each is a door somebody
+# would actually reach for, and the last three are the ones the
+# hand-written list let through.
+_DOORS_FLOOR = 120
+_DOORS_BY_NAME = (
+    "numpy.random.default_rng",
+    "numpy.random.Generator",
+    "numpy.random.random",
+    "numpy.random.beta",
+    "numpy.random.poisson",
+    "numpy.random.binomial",
+    "random.random",
+    "random.SystemRandom",
+    "secrets.token_bytes",
+    "os.urandom",
 )
 
-# How many of those doors must actually be trapped for the test below to
-# mean anything. Well under the number above, so a renamed function in a
-# future numpy does not turn the suite red -- but far enough above zero
-# that a trap installing nothing at all cannot pass in silence.
-_DOORS_FLOOR = 25
+
+def _doors_of(module: object) -> "list[str]":
+    """Every public name of a randomness module that can be called."""
+    import types
+
+    found: list[str] = []
+    for name in sorted(dir(module)):
+        if name.startswith("_"):
+            continue
+        value = getattr(module, name)
+        if isinstance(value, types.ModuleType) or not callable(value):
+            continue
+        found.append(name)
+    return found
 
 
 def _trap_every_random_source(
@@ -903,8 +910,14 @@ def _trap_every_random_source(
     """Make every reachable random source raise; return what was trapped."""
     import importlib
 
+    doors: list[tuple[str, tuple[str, ...]]] = []
+    for module_name in _RANDOM_MODULES:
+        module = importlib.import_module(module_name)
+        doors.append((module_name, tuple(_doors_of(module))))
+    doors = doors + [(name, tuple(named)) for name, named in _NAMED_DOORS]
+
     trapped: list[str] = []
-    for module_name, attributes in _RANDOM_DOORS:
+    for module_name, attributes in doors:
         module = importlib.import_module(module_name)
         for attribute in attributes:
             if not hasattr(module, attribute):
@@ -913,8 +926,9 @@ def _trap_every_random_source(
 
             def _refuse(*args: object, __named: str = spelled, **kw: object):
                 raise AssertionError(
-                    f"a validate run asked {__named} for a random value. "
-                    f"A validate run consumes no randomness: its report's "
+                    f"a validate run called {__named}, which lives in a "
+                    f"module that exists to produce random values. A "
+                    f"validate run consumes no randomness: its report's "
                     f"bytes are a fixed function of its two files, and a "
                     f"draw from anywhere breaks that (V10)."
                 )
@@ -952,6 +966,14 @@ def test_a_validate_run_draws_from_no_random_source(
     assert len(trapped) >= _DOORS_FLOOR, (
         f"the trap installed only {len(trapped)} raisers, so passing it "
         f"proves very little: {sorted(trapped)}"
+    )
+    unwatched = [door for door in _DOORS_BY_NAME if door not in trapped]
+    assert not unwatched, (
+        f"these doors are open in this process and the trap did not "
+        f"close them: {unwatched}. The list is read off the modules, so "
+        f"a name missing here means the reading is wrong, not that the "
+        f"list is out of date -- three of these were exactly what the "
+        f"hand-written list used to let through (review item P3-V3-F9)."
     )
     assert main(["validate", f"{description}"]) == 0
     printed = capsys.readouterr().out
@@ -1418,11 +1440,12 @@ def test_the_report_carries_its_limits_on_every_run(
         "NOT CHECKABLE IN THIS VERSION",
         "any target that ties two columns together",
         "Nothing here promises when.",
-        # V7.5: the fourth artifact
-        "All four files a full run produces",
+        # V7.5: every file a full run leaves behind, the fifth of them
+        # named by plan amendment A-P3-8
+        "All five files a full run produces",
         (
-            "the description, the twin, the twin's report and this "
-            "quality report"
+            "the description, the plain-language summary beside it, the "
+            "twin, the twin's report and this quality report"
         ),
         # the not-checkable census
         "WHAT COULD NOT BE CHECKED, AND WHY",

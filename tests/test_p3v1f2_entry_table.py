@@ -23,6 +23,22 @@ requires three things of the shipped validator:
   such a case. The floor counts distinct perturbation classes PER
   DISPOSITION CLASS, so the battery cannot rot into one shared edit.
 
+AND THE THIRD ROUND FOUND THE MACHINERY WEAKER THAN IT CLAIMED AGAIN
+(review item P3-V3-F7). Two things were wrong with it and both are
+here. Coverage was credited to ANY perturbation whose wreckage happened
+to reach a site, so the registration proved nothing about the identity:
+a registered row could be deleted and the suite stayed green. And one
+kind of entry was EXCUSED by a proof that no file could move it, which
+was false -- it reasoned about the file's own description while the
+counts it excused are taken over the blank split, where the floor's
+worth of cells spelling a missing marker moves all three with the role
+still holding. So: coverage is credited to a registered case and to
+nothing else, which makes the registration total over the shipped sites
+(592 rows over 588 sites, 73 curated and 519 derived); each derived row
+must be an edit aimed
+at the site it covers; the floor is counted over the registration; and
+nothing is excused at all.
+
 WHAT AN ENTRY IS, AND WHY THE ANSWER CHANGED (review item P3-V2-B-F4).
 This machinery used to reduce a run to the SET OF SUBCHECK NAMES it made
 miss, and to ask of the shipped table only whether each name appeared in
@@ -51,9 +67,9 @@ Every one of the four names is repaired -- each is a listing entry on
 the descriptions that leave it nothing to check, recorded as a lowering
 in plan amendment A-P3-2 -- and one check that was DEFEATED rather than
 vacuous, the headerless `header.presence`, is repaired with a red case
-of its own. The coverage identity below is now total but for the one
-PROVED exemption, and reverting any of the five in memory turns it red
-naming exactly the sites that finding named.
+of its own. The coverage identity below is total, with nothing excused
+at all, and reverting any of the five in memory turns it red naming
+exactly the sites that finding named.
 
 WHAT THE PERTURBATIONS MAY BE, AND WHY A MISSING COLUMN IS NOT ONE.
 Every mutation here leaves a file that reads as a table and is measured
@@ -139,15 +155,31 @@ def _unrepresentable_table() -> str:
 def _pooled_styles_table() -> str:
     """A numeric column whose style map the publication floor pools.
 
-    Ten cells of one whole number and one each of two fractions: the two
-    point-carrying spellings each cover one row, which is under the
-    floor, so the description publishes the single pooled key and no
-    count for either form. That is the shape the canonical-split
-    subcheck exists for -- a pooled cell has no published form, so the
-    only thing it can owe is its own value's canonical text -- and it is
-    the shape review item P3-V1-F7 was found on.
+    Whole numbers and one each of two fractions: the two point-carrying
+    spellings each cover one row, which is under the floor, so the
+    description publishes the single pooled key and no count for either
+    form. That is the shape the canonical-split subcheck exists for -- a
+    pooled cell has no published form, so the only thing it can owe is
+    its own value's canonical text -- and it is the shape review item
+    P3-V1-F7 was found on.
+
+    IT IS THIRTY-SIX CELLS AND WAS TWELVE, AND THE LENGTH IS THE
+    HARNESS'S DOING RATHER THAN THE FIXTURE'S (review item P3-V3-F7).
+    Three counts of this column had no perturbation that could make them
+    miss, and the round-2 machinery called that a proof that no file
+    could -- which was false. What moves them without changing the role
+    the file's own description reads is the publication floor's worth of
+    cells spelling one of the producer's own absence words: the
+    description then names that source, the blank split is published,
+    and the counts are taken over it (plan amendment A-P3-5 clause 1).
+    Twelve cells left no room for eleven of them, and ten of one number
+    left the twenty-five that remain reading as a CONSTANT column, which
+    moves the role and closes the gate just as surely. So the column is
+    long enough for the edit to be made and its whole numbers are spread
+    rather than repeated. Nothing else about it moved: the two fractions
+    are still one cell each and still pooled.
     """
-    values = ["1" for _index in range(10)] + ["1.5", "2.5"]
+    values = [f"{index % 9 + 1}" for index in range(34)] + ["1.5", "2.5"]
     return fixtures.single_column_table("reading", values)
 
 
@@ -163,6 +195,47 @@ def _spelled_styles_table() -> str:
     """
     values = [f"{index + 1}e-05" for index in range(40)]
     return fixtures.single_column_table("reading", values)
+
+
+def _quarter_table() -> str:
+    """A datetime column whose values name QUARTERS rather than instants.
+
+    REVIEW ITEM P3-V3-F4. Every datetime fixture in this file published
+    `resolution: date`, and a quarter is the one resolution of the three
+    that names no instant -- so both distinctness counts and all nine
+    interior ladder rungs were unconditionally WITHHELD on any column of
+    quarters, and no fixture here had a column of quarters for the
+    coverage identity to notice. A description publishing twelve
+    quarters from `2018-Q1` to `2024-Q4` therefore passed against a file
+    holding three of them, at exit 0.
+
+    The values are lopsided on purpose: a ladder that is nearly a
+    straight line cannot tell a conforming file from one that spreads
+    its values evenly, so most of them sit in the early years and the
+    later ones are thin.
+
+    It is TWO columns and it is as long as the every-role fixture, for
+    two reasons that are the harness's and not the finding's. A column
+    of one table cannot be emptied -- the file left behind is no table
+    at all and the reader refuses it before any verdict exists -- so a
+    one-column fixture leaves `axes.quality_state` with no perturbation
+    that can move it. And the producer asks that at least
+    `minimum_parse_rate` of a column's written cells read as its own
+    kind, which at sixty cells is every one of them: a single cell that
+    is not a quarter would change the column's ROLE rather than its
+    count of unreadable cells, and `counts.n_unparsed` would have no
+    case either.
+    """
+    quarters = []
+    regions = []
+    for index in range(240):
+        year = 2018 + (index * index) % 7
+        quarters = quarters + [f"{year}-Q{(index % 4) + 1}"]
+        regions = regions + [fixtures.REGIONS[index % 4]]
+    return fixtures.rows_to_csv(
+        ["when", "region"],
+        [[moment, regions[at]] for at, moment in enumerate(sorted(quarters))],
+    )
 
 
 @pytest.fixture(scope="module")
@@ -200,6 +273,12 @@ def runs(
         (
             "spelled",
             _spelled_styles_table(),
+            None,
+            reading.FIRST_ROW_AUTOMATIC,
+        ),
+        (
+            "quarters",
+            _quarter_table(),
             None,
             reading.FIRST_ROW_AUTOMATIC,
         ),
@@ -711,6 +790,90 @@ def _numbered(described: contract.Profile, text: str, index: int) -> str:
     return _rebuilt(rows)
 
 
+def _quartered(described: contract.Profile, text: str, index: int) -> str:
+    """One column of quarters moved wholesale into other quarters.
+
+    The companion of `_dated`'s `moved` rule for the resolution that
+    names no instant (review item P3-V3-F4). Every cell stays a quarter,
+    so the column keeps its role, its resolution and its precision and
+    the file's own description still publishes a ladder of quarters --
+    what moves is where on that ladder the values sit.
+    """
+    rows = _rows_of(text)
+    first = _first_record(described)
+    step = 0
+    for row in range(first, len(rows)):
+        if not rows[row][index]:
+            continue
+        rows[row][index] = f"{2030 + (step % 3)}-Q{(step % 4) + 1}"
+        step = step + 1
+    return _rebuilt(rows)
+
+
+def _ladder_crushed(
+    described: contract.Profile, text: str, index: int
+) -> str:
+    """A datetime column with its two ends kept and its middle piled low.
+
+    THE PERTURBATION THE NINE INTERIOR RUNGS ANSWER FOR ON THEIR OWN,
+    written for EVERY resolution rather than for the two that name an
+    instant (review item P3-V3-F4). The first and last written cells are
+    left exactly where they are, so `earliest`, `latest` and both ENDS
+    of the ladder still hold; every cell between them is moved into the
+    lower half of the published range, spread over as many different
+    values as that half holds, so the column keeps its role, its
+    resolution, its precision and a cardinality like its own. What is
+    left to catch the file is the nine rungs between the ends -- which
+    is the shape the quarter finding was found on, where all nine were
+    withheld whatever the file held.
+
+    The cells are built with the GENERATOR's own writer, which a test
+    may import and the validator may not: a perturbation has to be a
+    file the description's own kind of column could be written as, or
+    the verdict it draws is about the role and not about the ladder.
+    """
+    column = described.columns[index]
+    facts = column.facts
+    if not isinstance(facts, contract.DatetimeFacts):
+        return ""
+    low = generation._ordinal_of(facts.earliest, facts.resolution)
+    high = generation._ordinal_of(facts.latest, facts.resolution)
+    half = (high - low) // 2
+    if half < 4:
+        return ""
+    rows = _rows_of(text)
+    first = _first_record(described)
+    written = [row for row in range(first, len(rows)) if rows[row][index]]
+    if len(written) < 12:
+        return ""
+    # The two ends are kept where the twin put them -- WHEREVER it put
+    # them. Keeping the first and last WRITTEN cells instead would keep
+    # whatever the twin happens to hold at those two rows, and a twin
+    # does not write its values in order, so the ends moved with
+    # everything else and the two end checks did the catching.
+    keep: set[int] = set()
+    for row in written:
+        if rows[row][index] == facts.earliest:
+            keep.add(row)
+            break
+    for row in written:
+        if rows[row][index] == facts.latest and row not in keep:
+            keep.add(row)
+            break
+    place = 0
+    for row in written:
+        if row in keep:
+            continue
+        rows[row][index] = generation._cell_of_ordinal(
+            low + (place % half),
+            facts.resolution,
+            facts.time_precision,
+            facts.subsecond_digits,
+        )
+        place = place + 1
+    return _rebuilt(rows)
+
+
 def _dated(described: contract.Profile, text: str, index: int, rule: str) -> str:
     """One datetime column rewritten under one of five named rules.
 
@@ -1204,6 +1367,23 @@ def _column_perturbations(
             CLASS_PRESENCE,
             _changed(described, twin, index, False, ""),
         ),
+        # THE EDIT THE TWO READINGS OF PRESENCE DISAGREE ABOUT, and the
+        # one the round-3 exemption was found false by (review item
+        # P3-V3-F7). The producer reads a cell spelling one of its own
+        # absence words as a HOLE; the blank split reads it as a written
+        # cell that is not a number (V2.4). So the publication floor's
+        # worth of them leaves the file's own description reading the
+        # column as the same numeric kind -- the role check HOLDS and the
+        # disclosure gate stays open -- while every count taken over the
+        # split moves. It takes the FLOOR'S worth and not one: below the
+        # floor the description pools the spelling away, the split is not
+        # published, and amendment A-P3-5 clause 1 settles those counts
+        # off the file's own description, where they hold.
+        (
+            f"marked-{name}",
+            CLASS_PRESENCE,
+            _floor_cells(described, twin, index, "na"),
+        ),
         (
             f"filled-{name}",
             CLASS_PRESENCE,
@@ -1343,12 +1523,27 @@ def _column_perturbations(
             ),
         ]
     if column.role == "datetime":
+        # THE TWO EDITS EVERY RESOLUTION CARRIES, and they are chosen by
+        # the resolution the description publishes rather than assumed
+        # (review item P3-V3-F4). A column of quarters rewritten as
+        # whole dates is a column of another resolution, so the ladder
+        # it moved is not the ladder it is measured against; a column of
+        # quarters rewritten as quarters is.
+        quarterly = column.facts.resolution == taxonomy.RESOLUTION_QUARTER
         built = built + [
             (
-                f"moved-{name}",
+                f"crushed-{name}",
                 CLASS_DATE,
-                _dated(described, twin, index, "moved"),
-            ),
+                _ladder_crushed(described, twin, index),
+            )
+        ]
+        moved = (
+            _quartered(described, twin, index)
+            if quarterly
+            else _dated(described, twin, index, "moved")
+        )
+        built = built + [
+            (f"moved-{name}", CLASS_DATE, moved),
             (
                 f"mixed-{name}",
                 CLASS_PRECISION,
@@ -1487,11 +1682,19 @@ def battery(
 
 
 class RedCase(typing.NamedTuple):
-    """One registered red case, bound to the site it must make miss."""
+    """One registered red case, bound to the SITE it must make miss.
+
+    The site is the whole triple V3.1 fixes -- the registry FACT
+    included (review item P3-V3-F7). Without it a case named a column
+    and a subcheck, and the registry could move a subcheck from one fact
+    to another with every registration still passing, which is drift the
+    disposition seal exists to stop.
+    """
 
     fixture: str
     perturbation: str
     column: str
+    fact: str
     subcheck: str
 
 
@@ -1503,42 +1706,125 @@ class RedCase(typing.NamedTuple):
 # same description, and the version this replaces could not tell the two
 # apart. One perturbation may be registered against more than one site,
 # which is why this is a list of cases and not a mapping from the edit.
+#
+# THESE ARE THE CURATED ONES, AND THEY ARE NO LONGER THE WHOLE
+# REGISTRATION (review item P3-V3-F7). Coverage used to be credited to
+# ANY perturbation in the battery that happened to make a site miss, so
+# these rows proved something about the checks they name and nothing
+# about the identity: deleting one left the suite green, because some
+# other edit's collateral miss went on counting. Coverage is now
+# credited to a registered case and to nothing else (V8.3), which makes
+# these rows load-bearing and requires the registration to be TOTAL over
+# the shipped sites. The rest of it is `COVERING_RED_CASES` below; these
+# keep their place because a human chose each one against a finding, and
+# they are preferred over the derived row for the same site.
 NAMED_RED_CASES = (
-    RedCase("every-role", "blanked-cell", "record_code", "presence.n_present"),
-    RedCase("every-role", "moved-cell", "record_code", "length.min"),
-    RedCase("every-role", "dropped-row", "", "rows.n_rows"),
-    RedCase("every-role", "added-row", "", "rows.n_rows"),
-    RedCase("every-role", "carriage-returns", "", "bytes.line-endings"),
-    RedCase("every-role", "byte-order-mark", "", "bytes.byte-order-mark"),
-    RedCase("every-role", "no-terminal-newline", "", "bytes.terminal-newline"),
-    RedCase("every-role", "not-utf8", "", "bytes.utf8"),
-    RedCase("every-role", "added-column", "", "columns.n_columns"),
-    RedCase("every-role", "dropped-column", "", "columns.order"),
-    RedCase("every-role", "swapped-1-2", "record_code", "position.at"),
-    RedCase("every-role", "renamed-record_code", "", "header.names"),
-    RedCase("every-role", "recased-region", "region", "levels.north.variants"),
+    RedCase(
+        "every-role",
+        "blanked-cell",
+        "record_code",
+        "universal.n_present",
+        "presence.n_present",
+    ),
+    RedCase(
+        "every-role",
+        "moved-cell",
+        "record_code",
+        "identifier.min_length",
+        "length.min",
+    ),
+    RedCase("every-role", "dropped-row", "", "document.n_rows", "rows.n_rows"),
+    RedCase("every-role", "added-row", "", "document.n_rows", "rows.n_rows"),
+    RedCase(
+        "every-role",
+        "carriage-returns",
+        "",
+        "document.line-endings",
+        "bytes.line-endings",
+    ),
+    RedCase(
+        "every-role",
+        "byte-order-mark",
+        "",
+        "document.encoding",
+        "bytes.byte-order-mark",
+    ),
+    RedCase(
+        "every-role",
+        "no-terminal-newline",
+        "",
+        "document.line-endings",
+        "bytes.terminal-newline",
+    ),
+    RedCase("every-role", "not-utf8", "", "document.encoding", "bytes.utf8"),
+    RedCase(
+        "every-role",
+        "added-column",
+        "",
+        "document.n_columns",
+        "columns.n_columns",
+    ),
+    RedCase("every-role", "dropped-column", "", "document.columns", "columns.order"),
+    # ...AND THE SAME SITE UNDER TWO MORE CLASSES OF EDIT, which is what
+    # the vacuity floor asks of the STRUCTURAL disposition and what the
+    # shipped table gives it only one executable subcheck to answer with
+    # (review item P3-V3-F7). The floor is counted over the REGISTRATION
+    # now rather than over every collateral miss the battery makes, so
+    # the three classes have to be registered: a column taken out, two
+    # columns swapped, one column renamed. A site with more than one
+    # registered case is deliberate here, as it is for the headerless
+    # `header.presence` below, and it is the only thing that weakens
+    # "delete a row and the identity says so" -- for these three, two
+    # rows have to go.
+    RedCase("every-role", "swapped-1-2", "", "document.columns", "columns.order"),
+    RedCase(
+        "every-role",
+        "renamed-record_code",
+        "",
+        "document.columns",
+        "columns.order",
+    ),
+    RedCase(
+        "every-role",
+        "swapped-1-2",
+        "record_code",
+        "universal.position",
+        "position.at",
+    ),
+    RedCase("every-role", "renamed-record_code", "", "universal.name", "header.names"),
+    RedCase(
+        "every-role",
+        "recased-region",
+        "region",
+        "label.variants",
+        "levels.north.variants",
+    ),
     RedCase(
         "every-role",
         "spaced-region",
         "region",
+        "label.variants_withheld",
         "levels.north.variants_withheld",
     ),
     RedCase(
         "every-role",
         "leading_zero-visits",
         "visits",
+        "numeric.numeric_styles",
         f"styles.exact.{parsing.STYLE_LEADING_ZERO}",
     ),
     RedCase(
         "every-role",
         "leading_plus-visits",
         "visits",
+        "numeric.numeric_styles",
         f"styles.exact.{parsing.STYLE_LEADING_PLUS}",
     ),
     RedCase(
         "every-role",
         "exponent_upper-amount",
         "amount",
+        "numeric.numeric_styles",
         f"styles.exact.{parsing.STYLE_EXPONENT_UPPER}",
     ),
     # The same two forms on a column the whole-column restyle cannot
@@ -1552,94 +1838,282 @@ NAMED_RED_CASES = (
         "every-role",
         "floor-zero-led-amount",
         "amount",
+        "numeric.numeric_styles",
         f"styles.exact.{parsing.STYLE_LEADING_ZERO}",
     ),
     RedCase(
         "every-role",
         "floor-plussed-amount",
         "amount",
+        "numeric.numeric_styles",
         f"styles.exact.{parsing.STYLE_LEADING_PLUS}",
     ),
     RedCase(
         "pooled",
         "noncanonical-reading",
         "reading",
+        "numeric.numeric_styles",
         f"styles.canonical.{parsing.STYLE_DECIMAL}",
     ),
     RedCase(
         "spelled",
         "exponent_upper-reading",
         "reading",
+        "numeric.numeric_styles",
         f"styles.at-least.{parsing.STYLE_EXPONENT_LOWER}",
     ),
-    RedCase("every-role", "moved-recorded_on", "recorded_on", "date-ladder.min"),
+    RedCase(
+        "every-role",
+        "moved-recorded_on",
+        "recorded_on",
+        "datetime.date_percentiles.min",
+        "date-ladder.min",
+    ),
     RedCase(
         "every-role",
         "timed-recorded_on",
         "recorded_on",
+        "datetime.time_precision",
         "precision.time_precision",
     ),
     RedCase(
         "every-role",
         "subsecond-recorded_on",
         "recorded_on",
+        "datetime.subsecond_digits",
         "counts.subsecond_digits",
     ),
     RedCase(
         "every-role",
         "one-worded-recorded_on",
         "recorded_on",
+        "datetime.n_unparsed",
         "counts.n_unparsed",
     ),
-    RedCase("every-role", "mixed-recorded_on", "recorded_on", "offsets.earliest"),
-    RedCase("every-role", "shortened-comment", "comment", "length.min"),
-    RedCase("every-role", "lengthened-comment", "comment", "words.max"),
+    RedCase(
+        "every-role",
+        "mixed-recorded_on",
+        "recorded_on",
+        "datetime.earliest_utc_offset",
+        "offsets.earliest",
+    ),
+    # THE NINE RUNGS BETWEEN THE ENDS, ON THEIR OWN TERMS (review item
+    # P3-V3-F4). A file whose ladder is moved wholesale is caught by the
+    # two ENDS, so the interior rungs could be asleep behind them and
+    # nothing here would say so. `crushed` keeps both ends, the role,
+    # the resolution and the precision exactly where the description
+    # puts them and piles the middle low, so the only checks left to
+    # catch it are the nine -- and on the quarter fixture the two counts
+    # of how many different values the column holds, which were WITHHELD
+    # on every file before this repair.
+    RedCase(
+        "every-role",
+        "crushed-recorded_on",
+        "recorded_on",
+        "datetime.date_percentiles",
+        "date-ladder.p50",
+    ),
+    RedCase(
+        "quarters",
+        "crushed-when",
+        "when",
+        "datetime.date_percentiles",
+        "date-ladder.p50",
+    ),
+    RedCase(
+        "quarters",
+        "crushed-when",
+        "when",
+        "datetime.date_percentiles",
+        "date-ladder.p99",
+    ),
+    RedCase(
+        "quarters",
+        "crushed-when",
+        "when",
+        "datetime.n_distinct",
+        "distinct.n_distinct",
+    ),
+    RedCase(
+        "quarters",
+        "crushed-when",
+        "when",
+        "datetime.n_distinct_folded",
+        "distinct.n_distinct_folded",
+    ),
+    RedCase(
+        "quarters",
+        "moved-when",
+        "when",
+        "datetime.date_percentiles.min",
+        "date-ladder.min",
+    ),
+    RedCase("quarters", "moved-when", "when", "datetime.latest", "ends.latest"),
+    RedCase(
+        "quarters",
+        "timed-when",
+        "when",
+        "datetime.resolution",
+        "precision.resolution",
+    ),
+    RedCase(
+        "quarters",
+        "one-worded-when",
+        "when",
+        "datetime.n_unparsed",
+        "counts.n_unparsed",
+    ),
+    RedCase(
+        "every-role",
+        "shortened-comment",
+        "comment",
+        "free_text.length.min",
+        "length.min",
+    ),
+    RedCase(
+        "every-role",
+        "lengthened-comment",
+        "comment",
+        "free_text.words.max",
+        "words.max",
+    ),
     RedCase(
         "every-role",
         "repeated-record_code",
         "record_code",
+        "identifier.n_distinct_by_occurrences",
         "distinct.n_distinct_by_occurrences",
     ),
     RedCase(
-        "every-role", "digits-record_code", "record_code", "counts.n_all_digits"
-    ),
-    RedCase("every-role", "filled-visits", "visits", "presence.n_missing"),
-    RedCase("every-role", "crowded-visits", "visits", "ladder.p50"),
-    RedCase("every-role", "crowded-amount", "amount", "ladder.p90"),
-    RedCase("every-role", "raised-amount", "amount", "ladder.max"),
-    RedCase("every-role", "zeroed-visits", "visits", "counts.n_zero"),
-    RedCase("every-role", "negated-visits", "visits", "counts.n_negative"),
-    RedCase("every-role", "fractioned-visits", "visits", "type.integer_valued"),
-    RedCase(
-        "every-role", "contradicted-visits", "visits", "counts.n_contradictory"
+        "every-role",
+        "digits-record_code",
+        "record_code",
+        "identifier.n_all_digits",
+        "counts.n_all_digits",
     ),
     RedCase(
-        "every-role", "overflowed-visits", "visits", "counts.n_out_of_range"
+        "every-role",
+        "filled-visits",
+        "visits",
+        "universal.n_missing",
+        "presence.n_missing",
+    ),
+    RedCase(
+        "every-role",
+        "crowded-visits",
+        "visits",
+        "numeric.percentiles",
+        "ladder.p50",
+    ),
+    RedCase(
+        "every-role",
+        "crowded-amount",
+        "amount",
+        "numeric.percentiles",
+        "ladder.p90",
+    ),
+    RedCase(
+        "every-role",
+        "raised-amount",
+        "amount",
+        "numeric.percentiles.max",
+        "ladder.max",
+    ),
+    RedCase("every-role", "zeroed-visits", "visits", "numeric.n_zero", "counts.n_zero"),
+    RedCase(
+        "every-role",
+        "negated-visits",
+        "visits",
+        "numeric.n_negative",
+        "counts.n_negative",
+    ),
+    RedCase(
+        "every-role",
+        "fractioned-visits",
+        "visits",
+        "numeric.integer_valued",
+        "type.integer_valued",
+    ),
+    RedCase(
+        "every-role",
+        "contradicted-visits",
+        "visits",
+        "universal.n_contradictory",
+        "counts.n_contradictory",
+    ),
+    RedCase(
+        "every-role",
+        "overflowed-visits",
+        "visits",
+        "universal.n_out_of_range",
+        "counts.n_out_of_range",
     ),
     # FOUR OF THE TEN THE REGISTER OF GAPS CARRIED, all of them on the
     # numeric roles. Each is ONE cell in two hundred and forty, so the
     # column keeps the role the file's own description reads it as and
     # the disclosure gate stays open (review item P3-V2-B-F5).
-    RedCase("every-role", "one-worded-amount", "amount", "counts.numeric_share"),
+    RedCase(
+        "every-role",
+        "one-worded-amount",
+        "amount",
+        "numeric.numeric_share",
+        "counts.numeric_share",
+    ),
     RedCase(
         "every-role",
         "one-overflowed-amount",
         "amount",
+        "numeric.n_left_out_of_statistics",
         "counts.n_left_out_of_statistics",
     ),
     RedCase(
         "every-role",
         "one-underflowed-amount",
         "amount",
+        "numeric.n_negative_unrepresentable",
         "counts.n_negative_unrepresentable",
     ),
-    RedCase("every-role", "vast-amount", "amount", "type.std_unrepresentable"),
-    RedCase("every-role", "rewritten-recorded_on", "recorded_on", "axes.role"),
-    RedCase("every-role", "rewritten-unused", "unused", "presence.n_present"),
-    RedCase("every-role", "emptied-region", "region", "axes.quality_state"),
-    RedCase("unrepresentable", "rewritten-overflow", "overflow", "axes.role"),
     RedCase(
-        "unrepresentable", "blanked-overflow", "overflow", "presence.n_present"
+        "every-role",
+        "vast-amount",
+        "amount",
+        "numeric.std_unrepresentable",
+        "type.std_unrepresentable",
+    ),
+    RedCase(
+        "every-role",
+        "rewritten-recorded_on",
+        "recorded_on",
+        "universal.role",
+        "axes.role",
+    ),
+    RedCase(
+        "every-role",
+        "rewritten-unused",
+        "unused",
+        "universal.n_present",
+        "presence.n_present",
+    ),
+    RedCase(
+        "every-role",
+        "emptied-region",
+        "region",
+        "universal.quality_state",
+        "axes.quality_state",
+    ),
+    RedCase(
+        "unrepresentable",
+        "rewritten-overflow",
+        "overflow",
+        "universal.role",
+        "axes.role",
+    ),
+    RedCase(
+        "unrepresentable",
+        "blanked-overflow",
+        "overflow",
+        "universal.n_present",
+        "presence.n_present",
     ),
     # ...and the three the register carried on the invention role, all
     # three of them one cell of the hundred and twenty (review item
@@ -1649,21 +2123,33 @@ NAMED_RED_CASES = (
     # role the file's own description reads the column as, which this
     # one does not.
     RedCase(
-        "unrepresentable", "one-fractioned-overflow", "overflow", "counts.n_fraction"
+        "unrepresentable",
+        "one-fractioned-overflow",
+        "overflow",
+        "numeric_unrepresentable.n_fraction",
+        "counts.n_fraction",
     ),
     RedCase(
         "unrepresentable",
         "one-contradicted-overflow",
         "overflow",
+        "numeric_unrepresentable.n_sign_unknown",
         "counts.n_sign_unknown",
     ),
     RedCase(
         "unrepresentable",
         "one-contradicted-overflow",
         "overflow",
+        "numeric_unrepresentable.n_whole_unknown",
         "counts.n_whole_unknown",
     ),
-    RedCase("headerless", "written-header", "", "header.presence"),
+    RedCase(
+        "headerless",
+        "written-header",
+        "",
+        "document.source.header_source",
+        "header.presence",
+    ),
     # ...AND THE SAME EDIT WITH ITS PRICE PAID (review item
     # P3-V2-C-F8). The check used to ask for a header line AND a row
     # count above the published one, so writing the header and dropping
@@ -1671,26 +2157,722 @@ NAMED_RED_CASES = (
     # row is a record" about a file whose first line was the published
     # names. Both cases are registered: the second is what proves the
     # conjunct is gone.
-    RedCase("headerless", "header-and-short", "", "header.presence"),
-    RedCase("headerless", "swapped-1-2", "column_1", "axes.role"),
-    RedCase("headerless", "crowded-column_1", "column_1", "ladder.p25"),
-    RedCase("headerless", "dropped-column", "column_2", "position.at"),
+    RedCase(
+        "headerless",
+        "header-and-short",
+        "",
+        "document.source.header_source",
+        "header.presence",
+    ),
+    RedCase("headerless", "swapped-1-2", "column_1", "universal.role", "axes.role"),
+    RedCase(
+        "headerless",
+        "crowded-column_1",
+        "column_1",
+        "numeric.percentiles",
+        "ladder.p25",
+    ),
+    RedCase(
+        "headerless",
+        "dropped-column",
+        "column_2",
+        "universal.position",
+        "position.at",
+    ),
     # EVERY NUMERIC COLUMN OF EVERY FIXTURE, on the subcheck that asks
     # whether a cell's text is a spelling of its own value at all
     # (review item P3-V2-C-F1). One named case per site, because the
     # whole finding was a check that held on one column while a
     # same-named one failed on another.
-    RedCase("every-role", "padded-visits", "visits", "styles.spelled"),
-    RedCase("every-role", "padded-reading", "reading", "styles.spelled"),
-    RedCase("every-role", "padded-amount", "amount", "styles.spelled"),
-    RedCase("pooled", "padded-reading", "reading", "styles.spelled"),
-    RedCase("spelled", "padded-reading", "reading", "styles.spelled"),
-    RedCase("headerless", "padded-column_1", "column_1", "styles.spelled"),
+    RedCase(
+        "every-role",
+        "padded-visits",
+        "visits",
+        "numeric.numeric_styles",
+        "styles.spelled",
+    ),
+    RedCase(
+        "every-role",
+        "padded-reading",
+        "reading",
+        "numeric.numeric_styles",
+        "styles.spelled",
+    ),
+    RedCase(
+        "every-role",
+        "padded-amount",
+        "amount",
+        "numeric.numeric_styles",
+        "styles.spelled",
+    ),
+    RedCase(
+        "pooled",
+        "padded-reading",
+        "reading",
+        "numeric.numeric_styles",
+        "styles.spelled",
+    ),
+    RedCase(
+        "spelled",
+        "padded-reading",
+        "reading",
+        "numeric.numeric_styles",
+        "styles.spelled",
+    ),
+    RedCase(
+        "headerless",
+        "padded-column_1",
+        "column_1",
+        "numeric.numeric_styles",
+        "styles.spelled",
+    ),
 )
 
 
-def test_every_registered_red_case_misses_the_subcheck_it_names(
+# THE REST OF THE REGISTRATION: one row for every shipped site the
+# curated table above does not name (review item P3-V3-F7). Coverage is
+# credited to a registered case and to nothing else, so the registration
+# has to reach every entry the shipped validator files -- five hundred
+# and eighty-eight of them across the six fixtures -- or the coverage
+# identity says so by name.
+#
+# A row is (perturbation, subcheck), under the fixture and the column
+# whose site it covers. The registry FACT is not written out a second
+# time here: `test_no_two_sites_of_one_fixture_share_a_name` below
+# asserts that no two sites of one fixture share a column and a
+# subcheck, so the pair names exactly one entry of the shipped table and
+# the fact comes off that entry. The curated rows above carry the fact
+# in full, because a hand wrote each of them.
+#
+# HOW EACH ROW WAS CHOSEN, written down so a later hand chooses the same
+# way: the NARROWEST edit that reaches the site, preferring one aimed at
+# the site's own column. Among the perturbations that make the site
+# miss, that is the one making the fewest others miss; where two tie, the
+# first by name. Aiming is what keeps a site from being "covered" by an
+# edit that destroyed some other column and took this one down with it,
+# which is V8.2's own complaint at the grain of the identity, and
+# `test_a_registered_case_is_aimed_at_the_site_it_covers` holds every
+# row to it with the two exceptions named there.
+COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
+    "every-role": {
+        "": (
+            ("added-column", "header.presence"),
+        ),
+        "amount": (
+            ("contradicted-amount", "axes.quality_state"),
+            ("rewritten-amount", "axes.role"),
+            ("rewritten-amount", "axes.statistical_type"),
+            ("contradicted-amount", "counts.n_contradictory"),
+            ("one-negated-amount", "counts.n_negative"),
+            ("rewritten-amount", "counts.n_not_numeric"),
+            ("rewritten-amount", "counts.n_numeric"),
+            ("one-overflowed-amount", "counts.n_out_of_range"),
+            ("one-contradicted-amount", "counts.n_used_in_statistics"),
+            ("one-zeroed-amount", "counts.n_zero"),
+            ("spread-amount", "distinct.n_distinct"),
+            ("spread-amount", "distinct.n_distinct_folded"),
+            ("one-negated-amount", "ladder.min"),
+            ("negated-amount", "ladder.p01"),
+            ("fractioned-amount", "ladder.p05"),
+            ("fractioned-amount", "ladder.p10"),
+            ("spread-amount", "ladder.p25"),
+            ("floor-plussed-amount", "ladder.p50"),
+            ("spread-amount", "ladder.p75"),
+            ("crowded-amount", "ladder.p95"),
+            ("crowded-amount", "ladder.p99"),
+            ("raised-amount", "moments.mean"),
+            ("raised-amount", "moments.skew"),
+            ("raised-amount", "moments.std"),
+            ("renamed-amount", "position.at"),
+            ("emptied-amount", "presence.n_missing"),
+            ("emptied-amount", "presence.n_present"),
+            ("one-plussed-amount", "styles.at-least.decimal"),
+            ("exponent_lower-amount", "styles.canonical.exponent_lower"),
+            ("one-plussed-amount", "styles.published.decimal"),
+            ("negated-amount", "styles.remainder"),
+            ("exponent_upper-amount", "styles.spill"),
+            ("vast-amount", "type.integer_valued"),
+        ),
+        "answer": (
+            ("emptied-answer", "axes.quality_state"),
+            ("emptied-answer", "axes.role"),
+            ("emptied-answer", "axes.statistical_type"),
+            ("one-contradicted-answer", "counts.n_contradictory"),
+            ("blanked-answer", "counts.n_not_numeric"),
+            ("one-bracketed-answer", "counts.n_numeric"),
+            ("one-overflowed-answer", "counts.n_out_of_range"),
+            ("spaced-answer", "distinct.n_distinct"),
+            ("marked-answer", "distinct.n_distinct_folded"),
+            ("marked-answer", "levels.no.count"),
+            ("rewritten-answer", "levels.no.label"),
+            ("recased-answer", "levels.no.variants"),
+            ("spaced-answer", "levels.no.variants_withheld"),
+            ("marked-answer", "levels.set"),
+            ("blanked-answer", "levels.yes.count"),
+            ("rewritten-answer", "levels.yes.label"),
+            ("recased-answer", "levels.yes.variants"),
+            ("spaced-answer", "levels.yes.variants_withheld"),
+            ("renamed-answer", "position.at"),
+            ("blanked-answer", "presence.n_missing"),
+            ("blanked-answer", "presence.n_present"),
+            ("one-worded-answer", "suppressed.counts"),
+            ("one-worded-answer", "suppressed.suppressed_levels"),
+            ("one-worded-answer", "suppressed.suppressed_rows"),
+        ),
+        "batch": (
+            ("emptied-batch", "axes.quality_state"),
+            ("emptied-batch", "axes.role"),
+            ("emptied-batch", "axes.statistical_type"),
+            ("one-contradicted-batch", "counts.n_contradictory"),
+            ("blanked-batch", "counts.n_not_numeric"),
+            ("one-bracketed-batch", "counts.n_numeric"),
+            ("one-overflowed-batch", "counts.n_out_of_range"),
+            ("spaced-batch", "distinct.n_distinct"),
+            ("marked-batch", "distinct.n_distinct_folded"),
+            ("blanked-batch", "levels.one.count"),
+            ("rewritten-batch", "levels.one.label"),
+            ("recased-batch", "levels.one.variants"),
+            ("spaced-batch", "levels.one.variants_withheld"),
+            ("marked-batch", "levels.set"),
+            ("renamed-batch", "position.at"),
+            ("blanked-batch", "presence.n_missing"),
+            ("blanked-batch", "presence.n_present"),
+            ("one-worded-batch", "suppressed.counts"),
+            ("one-worded-batch", "suppressed.suppressed_levels"),
+            ("one-worded-batch", "suppressed.suppressed_rows"),
+        ),
+        "comment": (
+            ("emptied-comment", "axes.quality_state"),
+            ("one-word-comment", "axes.role"),
+            ("one-word-comment", "axes.statistical_type"),
+            ("one-zero-led-comment", "counts.n_all_digits"),
+            ("one-worded-comment", "counts.n_code_alphabet"),
+            ("one-contradicted-comment", "counts.n_contradictory"),
+            ("marked-comment", "counts.n_not_numeric"),
+            ("one-bracketed-comment", "counts.n_numeric"),
+            ("one-overflowed-comment", "counts.n_out_of_range"),
+            ("marked-comment", "distinct.n_distinct"),
+            ("marked-comment", "distinct.n_distinct_by_occurrences"),
+            ("marked-comment", "distinct.n_distinct_folded"),
+            ("lengthened-comment", "length.max"),
+            ("marked-comment", "length.mean"),
+            ("lengthened-comment", "length.p50"),
+            ("renamed-comment", "position.at"),
+            ("blanked-comment", "presence.n_missing"),
+            ("blanked-comment", "presence.n_present"),
+            ("one-worded-comment", "words.mean"),
+            ("one-worded-comment", "words.min"),
+        ),
+        "reading": (
+            ("contradicted-reading", "axes.quality_state"),
+            ("one-negated-reading", "axes.role"),
+            ("one-negated-reading", "axes.statistical_type"),
+            ("contradicted-reading", "counts.n_contradictory"),
+            ("filled-overflowed-reading", "counts.n_left_out_of_statistics"),
+            ("one-negated-reading", "counts.n_negative"),
+            ("filled-underflowed-reading", "counts.n_negative_unrepresentable"),
+            ("worded-reading", "counts.n_not_numeric"),
+            ("filled-plussed-reading", "counts.n_numeric"),
+            ("filled-overflowed-reading", "counts.n_out_of_range"),
+            ("filled-plussed-reading", "counts.n_used_in_statistics"),
+            ("one-zeroed-reading", "counts.n_zero"),
+            ("filled-worded-reading", "counts.numeric_share"),
+            ("emptied-reading", "distinct.n_distinct"),
+            ("emptied-reading", "distinct.n_distinct_folded"),
+            ("raised-reading", "ladder.max"),
+            ("one-zeroed-reading", "ladder.min"),
+            ("zeroed-reading", "ladder.p01"),
+            ("zeroed-reading", "ladder.p05"),
+            ("zeroed-reading", "ladder.p10"),
+            ("zeroed-reading", "ladder.p25"),
+            ("zeroed-reading", "ladder.p50"),
+            ("enormous-reading", "ladder.p75"),
+            ("spread-reading", "ladder.p90"),
+            ("enormous-reading", "ladder.p95"),
+            ("enormous-reading", "ladder.p99"),
+            ("raised-reading", "moments.mean"),
+            ("raised-reading", "moments.skew"),
+            ("raised-reading", "moments.std"),
+            ("renamed-reading", "position.at"),
+            ("filled-overflowed-reading", "presence.n_missing"),
+            ("filled-overflowed-reading", "presence.n_present"),
+            ("one-plussed-reading", "styles.at-least.plain"),
+            ("noncanonical-reading", "styles.canonical.decimal"),
+            ("exponent_lower-reading", "styles.canonical.exponent_lower"),
+            ("exponent_upper-reading", "styles.exact.exponent_upper"),
+            ("leading_plus-reading", "styles.exact.leading_plus"),
+            ("leading_zero-reading", "styles.exact.leading_zero"),
+            ("one-plussed-reading", "styles.published.plain"),
+            ("one-plussed-reading", "styles.remainder"),
+            ("exponent_lower-reading", "styles.spill"),
+            ("one-fractioned-reading", "type.integer_valued"),
+            ("vast-reading", "type.std_unrepresentable"),
+        ),
+        "record_code": (
+            ("emptied-record_code", "axes.quality_state"),
+            ("renamed-record_code", "axes.role"),
+            ("renamed-record_code", "axes.statistical_type"),
+            ("one-bracketed-record_code", "counts.n_code_alphabet"),
+            ("one-contradicted-record_code", "counts.n_contradictory"),
+            ("one-tiny-record_code", "counts.n_not_numeric"),
+            ("one-negated-record_code", "counts.n_numeric"),
+            ("one-tiny-record_code", "counts.n_out_of_range"),
+            ("marked-record_code", "distinct.n_distinct"),
+            ("marked-record_code", "distinct.n_distinct_folded"),
+            ("repeated-record_code", "length.max"),
+            ("blanked-record_code", "presence.n_missing"),
+            ("digits-record_code", "type.all_whole_numbers"),
+        ),
+        "recorded_on": (
+            ("emptied-recorded_on", "axes.quality_state"),
+            ("rewritten-recorded_on", "axes.statistical_type"),
+            ("one-contradicted-recorded_on", "counts.n_contradictory"),
+            ("blanked-recorded_on", "counts.n_not_numeric"),
+            ("one-bracketed-recorded_on", "counts.n_numeric"),
+            ("one-overflowed-recorded_on", "counts.n_out_of_range"),
+            ("moved-recorded_on", "date-ladder.max"),
+            ("moved-recorded_on", "date-ladder.p01"),
+            ("crushed-recorded_on", "date-ladder.p05"),
+            ("crushed-recorded_on", "date-ladder.p10"),
+            ("crushed-recorded_on", "date-ladder.p25"),
+            ("crushed-recorded_on", "date-ladder.p75"),
+            ("crushed-recorded_on", "date-ladder.p90"),
+            ("crushed-recorded_on", "date-ladder.p95"),
+            ("crushed-recorded_on", "date-ladder.p99"),
+            ("rewritten-recorded_on", "distinct.n_distinct"),
+            ("rewritten-recorded_on", "distinct.n_distinct_folded"),
+            ("moved-recorded_on", "ends.earliest"),
+            ("moved-recorded_on", "ends.latest"),
+            ("one-worded-recorded_on", "offsets.(none)"),
+            ("offset-recorded_on", "offsets.latest"),
+            ("mixed-recorded_on", "offsets.read-at"),
+            ("renamed-recorded_on", "position.at"),
+            ("timed-recorded_on", "precision.resolution"),
+            ("blanked-recorded_on", "presence.n_missing"),
+            ("blanked-recorded_on", "presence.n_present"),
+        ),
+        "region": (
+            ("emptied-region", "axes.role"),
+            ("emptied-region", "axes.statistical_type"),
+            ("one-contradicted-region", "counts.n_contradictory"),
+            ("blanked-region", "counts.n_not_numeric"),
+            ("one-bracketed-region", "counts.n_numeric"),
+            ("one-overflowed-region", "counts.n_out_of_range"),
+            ("one-worded-region", "distinct.n_distinct"),
+            ("one-worded-region", "distinct.n_distinct_folded"),
+            ("marked-region", "levels.east.count"),
+            ("rewritten-region", "levels.east.label"),
+            ("recased-region", "levels.east.variants"),
+            ("spaced-region", "levels.east.variants_withheld"),
+            ("blanked-region", "levels.north.count"),
+            ("rewritten-region", "levels.north.label"),
+            ("marked-region", "levels.set"),
+            ("marked-region", "levels.south.count"),
+            ("rewritten-region", "levels.south.label"),
+            ("recased-region", "levels.south.variants"),
+            ("spaced-region", "levels.south.variants_withheld"),
+            ("marked-region", "levels.west.count"),
+            ("rewritten-region", "levels.west.label"),
+            ("recased-region", "levels.west.variants"),
+            ("spaced-region", "levels.west.variants_withheld"),
+            ("renamed-region", "position.at"),
+            ("blanked-region", "presence.n_missing"),
+            ("blanked-region", "presence.n_present"),
+            ("one-worded-region", "suppressed.counts"),
+            ("one-worded-region", "suppressed.suppressed_levels"),
+            ("one-worded-region", "suppressed.suppressed_rows"),
+        ),
+        "unused": (
+            ("filled-bracketed-unused", "axes.quality_state"),
+            ("filled-bracketed-unused", "axes.role"),
+            ("filled-bracketed-unused", "axes.statistical_type"),
+            ("filled-contradicted-unused", "counts.n_contradictory"),
+            ("filled-worded-unused", "counts.n_not_numeric"),
+            ("filled-bracketed-unused", "counts.n_numeric"),
+            ("filled-overflowed-unused", "counts.n_out_of_range"),
+            ("filled-bracketed-unused", "distinct.n_distinct"),
+            ("filled-bracketed-unused", "distinct.n_distinct_folded"),
+            ("renamed-unused", "position.at"),
+            ("filled-bracketed-unused", "presence.n_missing"),
+        ),
+        "visits": (
+            ("contradicted-visits", "axes.quality_state"),
+            ("one-negated-visits", "axes.role"),
+            ("one-negated-visits", "axes.statistical_type"),
+            ("filled-overflowed-visits", "counts.n_left_out_of_statistics"),
+            ("filled-underflowed-visits", "counts.n_negative_unrepresentable"),
+            ("worded-visits", "counts.n_not_numeric"),
+            ("filled-plussed-visits", "counts.n_numeric"),
+            ("filled-plussed-visits", "counts.n_used_in_statistics"),
+            ("filled-worded-visits", "counts.numeric_share"),
+            ("emptied-visits", "distinct.n_distinct"),
+            ("emptied-visits", "distinct.n_distinct_folded"),
+            ("raised-visits", "ladder.max"),
+            ("one-negated-visits", "ladder.min"),
+            ("negated-visits", "ladder.p01"),
+            ("negated-visits", "ladder.p05"),
+            ("marked-visits", "ladder.p10"),
+            ("crowded-visits", "ladder.p25"),
+            ("crowded-visits", "ladder.p75"),
+            ("crowded-visits", "ladder.p90"),
+            ("enormous-visits", "ladder.p95"),
+            ("enormous-visits", "ladder.p99"),
+            ("raised-visits", "moments.mean"),
+            ("raised-visits", "moments.std"),
+            ("renamed-visits", "position.at"),
+            ("filled-overflowed-visits", "presence.n_present"),
+            ("one-plussed-visits", "styles.at-least.plain"),
+            ("noncanonical-visits", "styles.canonical.decimal"),
+            ("exponent_lower-visits", "styles.canonical.exponent_lower"),
+            ("exponent_upper-visits", "styles.exact.exponent_upper"),
+            ("one-plussed-visits", "styles.published.plain"),
+            ("one-plussed-visits", "styles.remainder"),
+            ("exponent_lower-visits", "styles.spill"),
+            ("marked-visits", "type.std_unrepresentable"),
+        ),
+    },
+    "unrepresentable": {
+        "": (
+            ("byte-order-mark", "bytes.byte-order-mark"),
+            ("carriage-returns", "bytes.line-endings"),
+            ("no-terminal-newline", "bytes.terminal-newline"),
+            ("not-utf8", "bytes.utf8"),
+            ("added-column", "columns.n_columns"),
+            ("added-column", "columns.order"),
+            ("added-column", "header.names"),
+            ("added-column", "header.presence"),
+            ("added-row", "rows.n_rows"),
+        ),
+        "overflow": (
+            ("rewritten-overflow", "axes.quality_state"),
+            ("rewritten-overflow", "axes.statistical_type"),
+            ("one-contradicted-overflow", "counts.n_contradictory"),
+            ("marked-overflow", "counts.n_negative"),
+            ("one-worded-overflow", "counts.n_not_numeric"),
+            ("one-bracketed-overflow", "counts.n_numeric"),
+            ("marked-overflow", "counts.n_out_of_range"),
+            ("marked-overflow", "counts.n_positive"),
+            ("marked-overflow", "counts.n_whole"),
+            ("one-underflowed-overflow", "distinct.n_distinct"),
+            ("one-underflowed-overflow", "distinct.n_distinct_by_occurrences"),
+            ("one-underflowed-overflow", "distinct.n_distinct_folded"),
+            ("renamed-overflow", "position.at"),
+            ("blanked-overflow", "presence.n_missing"),
+        ),
+    },
+    "pooled": {
+        "": (
+            ("byte-order-mark", "bytes.byte-order-mark"),
+            ("carriage-returns", "bytes.line-endings"),
+            ("no-terminal-newline", "bytes.terminal-newline"),
+            ("not-utf8", "bytes.utf8"),
+            ("added-column", "columns.n_columns"),
+            ("added-column", "columns.order"),
+            ("added-column", "header.names"),
+            ("added-column", "header.presence"),
+            ("added-row", "rows.n_rows"),
+        ),
+        "reading": (
+            ("contradicted-reading", "axes.quality_state"),
+            ("one-worded-reading", "axes.role"),
+            ("one-worded-reading", "axes.statistical_type"),
+            ("contradicted-reading", "counts.n_contradictory"),
+            ("marked-reading", "counts.n_left_out_of_statistics"),
+            ("one-negated-reading", "counts.n_negative"),
+            ("marked-reading", "counts.n_negative_unrepresentable"),
+            ("one-worded-reading", "counts.n_not_numeric"),
+            ("one-worded-reading", "counts.n_numeric"),
+            ("one-overflowed-reading", "counts.n_out_of_range"),
+            ("blanked-reading", "counts.n_used_in_statistics"),
+            ("one-zeroed-reading", "counts.n_zero"),
+            ("marked-reading", "counts.numeric_share"),
+            ("fractioned-reading", "distinct.n_distinct"),
+            ("fractioned-reading", "distinct.n_distinct_folded"),
+            ("raised-reading", "ladder.max"),
+            ("one-negated-reading", "ladder.min"),
+            ("one-negated-reading", "ladder.p01"),
+            ("negated-reading", "ladder.p05"),
+            ("vast-reading", "ladder.p10"),
+            ("enormous-reading", "ladder.p25"),
+            ("crowded-reading", "ladder.p50"),
+            ("crowded-reading", "ladder.p75"),
+            ("enormous-reading", "ladder.p90"),
+            ("enormous-reading", "ladder.p95"),
+            ("raised-reading", "ladder.p99"),
+            ("raised-reading", "moments.mean"),
+            ("raised-reading", "moments.std"),
+            ("renamed-reading", "position.at"),
+            ("blanked-reading", "presence.n_missing"),
+            ("blanked-reading", "presence.n_present"),
+            ("fractioned-reading", "styles.at-least.plain"),
+            ("exponent_lower-reading", "styles.canonical.exponent_lower"),
+            ("exponent_upper-reading", "styles.exact.exponent_upper"),
+            ("leading_plus-reading", "styles.exact.leading_plus"),
+            ("leading_zero-reading", "styles.exact.leading_zero"),
+            ("fractioned-reading", "styles.published.plain"),
+            ("leading_plus-reading", "styles.remainder"),
+            ("exponent_lower-reading", "styles.spill"),
+            ("vast-reading", "type.integer_valued"),
+            ("vast-reading", "type.std_unrepresentable"),
+        ),
+    },
+    "spelled": {
+        "": (
+            ("byte-order-mark", "bytes.byte-order-mark"),
+            ("carriage-returns", "bytes.line-endings"),
+            ("no-terminal-newline", "bytes.terminal-newline"),
+            ("not-utf8", "bytes.utf8"),
+            ("added-column", "columns.n_columns"),
+            ("added-column", "columns.order"),
+            ("added-column", "header.names"),
+            ("added-column", "header.presence"),
+            ("added-row", "rows.n_rows"),
+        ),
+        "reading": (
+            ("one-contradicted-reading", "axes.quality_state"),
+            ("one-worded-reading", "axes.role"),
+            ("one-worded-reading", "axes.statistical_type"),
+            ("one-contradicted-reading", "counts.n_contradictory"),
+            ("marked-reading", "counts.n_left_out_of_statistics"),
+            ("one-underflowed-reading", "counts.n_negative"),
+            ("marked-reading", "counts.n_negative_unrepresentable"),
+            ("one-worded-reading", "counts.n_not_numeric"),
+            ("one-worded-reading", "counts.n_numeric"),
+            ("one-overflowed-reading", "counts.n_out_of_range"),
+            ("blanked-reading", "counts.n_used_in_statistics"),
+            ("one-zeroed-reading", "counts.n_zero"),
+            ("marked-reading", "counts.numeric_share"),
+            ("rewritten-reading", "distinct.n_distinct"),
+            ("rewritten-reading", "distinct.n_distinct_folded"),
+            ("one-fractioned-reading", "ladder.max"),
+            ("one-zeroed-reading", "ladder.min"),
+            ("one-zeroed-reading", "ladder.p01"),
+            ("zeroed-reading", "ladder.p05"),
+            ("crowded-reading", "ladder.p10"),
+            ("crowded-reading", "ladder.p25"),
+            ("crowded-reading", "ladder.p50"),
+            ("crowded-reading", "ladder.p75"),
+            ("crowded-reading", "ladder.p90"),
+            ("crowded-reading", "ladder.p95"),
+            ("one-fractioned-reading", "ladder.p99"),
+            ("one-fractioned-reading", "moments.mean"),
+            ("one-fractioned-reading", "moments.skew"),
+            ("one-fractioned-reading", "moments.std"),
+            ("renamed-reading", "position.at"),
+            ("blanked-reading", "presence.n_missing"),
+            ("blanked-reading", "presence.n_present"),
+            ("noncanonical-reading", "styles.canonical.decimal"),
+            ("exponent_upper-reading", "styles.exact.exponent_upper"),
+            ("floor-plussed-reading", "styles.exact.leading_plus"),
+            ("floor-zero-led-reading", "styles.exact.leading_zero"),
+            ("spread-reading", "styles.published.exponent_lower"),
+            ("added-row", "styles.remainder"),
+            ("exponent_upper-reading", "styles.spill"),
+            ("vast-reading", "type.integer_valued"),
+            ("vast-reading", "type.std_unrepresentable"),
+        ),
+    },
+    "quarters": {
+        "": (
+            ("byte-order-mark", "bytes.byte-order-mark"),
+            ("carriage-returns", "bytes.line-endings"),
+            ("no-terminal-newline", "bytes.terminal-newline"),
+            ("not-utf8", "bytes.utf8"),
+            ("added-column", "columns.n_columns"),
+            ("added-column", "columns.order"),
+            ("added-column", "header.names"),
+            ("added-column", "header.presence"),
+            ("added-row", "rows.n_rows"),
+        ),
+        "region": (
+            ("emptied-region", "axes.quality_state"),
+            ("emptied-region", "axes.role"),
+            ("emptied-region", "axes.statistical_type"),
+            ("one-contradicted-region", "counts.n_contradictory"),
+            ("blanked-region", "counts.n_not_numeric"),
+            ("one-bracketed-region", "counts.n_numeric"),
+            ("one-overflowed-region", "counts.n_out_of_range"),
+            ("one-worded-region", "distinct.n_distinct"),
+            ("one-worded-region", "distinct.n_distinct_folded"),
+            ("marked-region", "levels.east.count"),
+            ("rewritten-region", "levels.east.label"),
+            ("recased-region", "levels.east.variants"),
+            ("spaced-region", "levels.east.variants_withheld"),
+            ("marked-region", "levels.north.count"),
+            ("rewritten-region", "levels.north.label"),
+            ("recased-region", "levels.north.variants"),
+            ("spaced-region", "levels.north.variants_withheld"),
+            ("marked-region", "levels.set"),
+            ("blanked-region", "levels.south.count"),
+            ("rewritten-region", "levels.south.label"),
+            ("recased-region", "levels.south.variants"),
+            ("spaced-region", "levels.south.variants_withheld"),
+            ("marked-region", "levels.west.count"),
+            ("rewritten-region", "levels.west.label"),
+            ("recased-region", "levels.west.variants"),
+            ("spaced-region", "levels.west.variants_withheld"),
+            ("renamed-region", "position.at"),
+            ("blanked-region", "presence.n_missing"),
+            ("blanked-region", "presence.n_present"),
+            ("one-worded-region", "suppressed.counts"),
+            ("one-worded-region", "suppressed.suppressed_levels"),
+            ("one-worded-region", "suppressed.suppressed_rows"),
+        ),
+        "when": (
+            ("emptied-when", "axes.quality_state"),
+            ("rewritten-when", "axes.role"),
+            ("rewritten-when", "axes.statistical_type"),
+            ("one-contradicted-when", "counts.n_contradictory"),
+            ("blanked-when", "counts.n_not_numeric"),
+            ("one-bracketed-when", "counts.n_numeric"),
+            ("one-overflowed-when", "counts.n_out_of_range"),
+            ("subsecond-when", "counts.subsecond_digits"),
+            ("timed-when", "date-ladder.max"),
+            ("moved-when", "date-ladder.p01"),
+            ("moved-when", "date-ladder.p05"),
+            ("crushed-when", "date-ladder.p10"),
+            ("crushed-when", "date-ladder.p25"),
+            ("crushed-when", "date-ladder.p75"),
+            ("crushed-when", "date-ladder.p90"),
+            ("crushed-when", "date-ladder.p95"),
+            ("timed-when", "ends.earliest"),
+            ("blanked-when", "offsets.(none)"),
+            ("offset-when", "offsets.earliest"),
+            ("offset-when", "offsets.latest"),
+            ("mixed-when", "offsets.read-at"),
+            ("renamed-when", "position.at"),
+            ("timed-when", "precision.time_precision"),
+            ("blanked-when", "presence.n_missing"),
+            ("blanked-when", "presence.n_present"),
+        ),
+    },
+    "headerless": {
+        "": (
+            ("byte-order-mark", "bytes.byte-order-mark"),
+            ("carriage-returns", "bytes.line-endings"),
+            ("no-terminal-newline", "bytes.terminal-newline"),
+            ("not-utf8", "bytes.utf8"),
+            ("added-column", "columns.n_columns"),
+            ("added-row", "rows.n_rows"),
+        ),
+        "column_1": (
+            ("contradicted-column_1", "axes.quality_state"),
+            ("one-worded-column_1", "axes.statistical_type"),
+            ("contradicted-column_1", "counts.n_contradictory"),
+            ("marked-column_1", "counts.n_left_out_of_statistics"),
+            ("one-negated-column_1", "counts.n_negative"),
+            ("marked-column_1", "counts.n_negative_unrepresentable"),
+            ("one-worded-column_1", "counts.n_not_numeric"),
+            ("one-worded-column_1", "counts.n_numeric"),
+            ("one-overflowed-column_1", "counts.n_out_of_range"),
+            ("blanked-column_1", "counts.n_used_in_statistics"),
+            ("one-zeroed-column_1", "counts.n_zero"),
+            ("marked-column_1", "counts.numeric_share"),
+            ("emptied-column_1", "distinct.n_distinct"),
+            ("emptied-column_1", "distinct.n_distinct_folded"),
+            ("raised-column_1", "ladder.max"),
+            ("one-zeroed-column_1", "ladder.min"),
+            ("zeroed-column_1", "ladder.p01"),
+            ("zeroed-column_1", "ladder.p05"),
+            ("floor-plussed-column_1", "ladder.p10"),
+            ("floor-plussed-column_1", "ladder.p50"),
+            ("floor-plussed-column_1", "ladder.p75"),
+            ("crowded-column_1", "ladder.p90"),
+            ("crowded-column_1", "ladder.p95"),
+            ("raised-column_1", "ladder.p99"),
+            ("floor-plussed-column_1", "moments.mean"),
+            ("raised-column_1", "moments.skew"),
+            ("raised-column_1", "moments.std"),
+            ("blanked-column_1", "presence.n_missing"),
+            ("blanked-column_1", "presence.n_present"),
+            ("one-plussed-column_1", "styles.at-least.plain"),
+            ("noncanonical-column_1", "styles.canonical.decimal"),
+            ("exponent_lower-column_1", "styles.canonical.exponent_lower"),
+            ("exponent_upper-column_1", "styles.exact.exponent_upper"),
+            ("leading_plus-column_1", "styles.exact.leading_plus"),
+            ("leading_zero-column_1", "styles.exact.leading_zero"),
+            ("one-plussed-column_1", "styles.published.plain"),
+            ("one-plussed-column_1", "styles.remainder"),
+            ("exponent_lower-column_1", "styles.spill"),
+            ("fractioned-column_1", "type.integer_valued"),
+            ("vast-column_1", "type.std_unrepresentable"),
+        ),
+        "column_2": (
+            ("emptied-column_2", "axes.quality_state"),
+            ("emptied-column_2", "axes.role"),
+            ("emptied-column_2", "axes.statistical_type"),
+            ("one-contradicted-column_2", "counts.n_contradictory"),
+            ("blanked-column_2", "counts.n_not_numeric"),
+            ("one-bracketed-column_2", "counts.n_numeric"),
+            ("one-overflowed-column_2", "counts.n_out_of_range"),
+            ("one-worded-column_2", "distinct.n_distinct"),
+            ("one-worded-column_2", "distinct.n_distinct_folded"),
+            ("marked-column_2", "levels.east.count"),
+            ("rewritten-column_2", "levels.east.label"),
+            ("recased-column_2", "levels.east.variants"),
+            ("spaced-column_2", "levels.east.variants_withheld"),
+            ("marked-column_2", "levels.north.count"),
+            ("rewritten-column_2", "levels.north.label"),
+            ("recased-column_2", "levels.north.variants"),
+            ("spaced-column_2", "levels.north.variants_withheld"),
+            ("marked-column_2", "levels.set"),
+            ("blanked-column_2", "levels.south.count"),
+            ("rewritten-column_2", "levels.south.label"),
+            ("recased-column_2", "levels.south.variants"),
+            ("spaced-column_2", "levels.south.variants_withheld"),
+            ("marked-column_2", "levels.west.count"),
+            ("rewritten-column_2", "levels.west.label"),
+            ("recased-column_2", "levels.west.variants"),
+            ("spaced-column_2", "levels.west.variants_withheld"),
+            ("blanked-column_2", "presence.n_missing"),
+            ("blanked-column_2", "presence.n_present"),
+            ("one-worded-column_2", "suppressed.counts"),
+            ("one-worded-column_2", "suppressed.suppressed_levels"),
+            ("one-worded-column_2", "suppressed.suppressed_rows"),
+        ),
+    },
+}
+
+
+@pytest.fixture(scope="module")
+def registered(
+    tmp_path_factory: pytest.TempPathFactory,
+    runs: "list[tuple[str, contract.Profile, str]]",
+) -> "list[RedCase]":
+    """The whole registration: the curated rows, then the covering ones.
+
+    A covering row names its site by column and subcheck, and the
+    registry fact is read off the shipped table -- which
+    `test_no_two_sites_of_one_fixture_share_a_name` proves is one entry
+    and not two. A covering row that names no shipped site is kept,
+    fact and all, so that the coverage identity reports it as a dead row
+    rather than dropping it silently.
+    """
+    folder = tmp_path_factory.mktemp("registration")
+    cases = list(NAMED_RED_CASES)
+    for name, described, twin in runs:
+        outcome = _measured(folder, described, twin, f"{name}-registered.csv")
+        facts = {
+            (site.column, site.subcheck): site.fact
+            for site in _sites_of(outcome)
+        }
+        for column in sorted(COVERING_RED_CASES.get(name, {})):
+            for perturbation, subcheck in COVERING_RED_CASES[name][column]:
+                cases = cases + [
+                    RedCase(
+                        name,
+                        perturbation,
+                        column,
+                        facts.get((column, subcheck), "(no such site)"),
+                        subcheck,
+                    )
+                ]
+    return cases
+
+
+def test_every_registered_red_case_misses_the_site_it_names(
     battery: "dict[str, dict[str, Case]]",
+    registered: "list[RedCase]",
 ) -> None:
     """V8.2: the case names the SITE, and that site must miss.
 
@@ -1701,28 +2883,115 @@ def test_every_registered_red_case_misses_the_subcheck_it_names(
     column is the same failure at a finer grain (review item
     P3-V2-B-F4): it was accepted for as long as a case named a bare
     subcheck string.
+
+    THE COMPARISON IS THE WHOLE SITE, THE REGISTRY FACT INCLUDED
+    (review item P3-V3-F7). It was the column and the subcheck, so the
+    registry could rebind a subcheck to another fact with every case
+    still passing. And it is asked of EVERY registered case, curated or
+    covering, because coverage is now credited to nothing else.
     """
-    for case in sorted(NAMED_RED_CASES):
+    for case in sorted(registered):
         assert case.perturbation in battery[case.fixture], (
             f"{case.fixture}/{case.perturbation} was not built, so the "
             f"case names a perturbation this battery does not make"
         )
-        reached = {
-            (site.column, site.subcheck)
-            for site in battery[case.fixture][case.perturbation].missed
-        }
-        assert (case.column, case.subcheck) in reached, (
+        reached = battery[case.fixture][case.perturbation].missed
+        assert Site(case.column, case.fact, case.subcheck) in reached, (
             f"the red case {case.fixture}/{case.perturbation} names "
-            f"{case.subcheck} on column {case.column!r}, and THAT check "
-            f"did not report MISSED -- so whatever else went red, the "
-            f"named check did not do its job"
+            f"{case.subcheck} ({case.fact}) on column {case.column!r}, "
+            f"and THAT check did not report MISSED -- so whatever else "
+            f"went red, the named check did not do its job"
         )
+
+
+def test_no_two_sites_of_one_fixture_share_a_name(
+    tmp_path: pathlib.Path,
+    runs: "list[tuple[str, contract.Profile, str]]",
+) -> None:
+    """A column and a subcheck name ONE entry, which the table relies on.
+
+    `COVERING_RED_CASES` names its sites by column and subcheck and
+    takes the registry fact off the shipped table. That is only honest
+    while the pair identifies one entry: two sites sharing a column and
+    a subcheck under different facts would make a covering row ambiguous
+    and would hide one of the two from the coverage identity. It is
+    asserted rather than assumed, on the shipped table itself.
+    """
+    for name, described, twin in runs:
+        outcome = _measured(tmp_path, described, twin, f"{name}-names.csv")
+        seen: dict[tuple[str, str], str] = {}
+        for site in _sites_of(outcome):
+            key = (site.column, site.subcheck)
+            if key in seen:
+                assert seen[key] == site.fact, (
+                    f"{name}: {site.column}: {site.subcheck} is filed "
+                    f"under two registry facts, {seen[key]} and "
+                    f"{site.fact}, so naming the pair names neither"
+                )
+            seen[key] = site.fact
+
+
+def test_a_registered_case_is_aimed_at_the_site_it_covers(
+    registered: "list[RedCase]",
+    runs: "list[tuple[str, contract.Profile, str]]",
+) -> None:
+    """V8.2 at the grain of the identity: the edit is aimed at the site.
+
+    A site "covered" by an edit that destroyed some other column, or by
+    a whole-file edit that took every column down with it, is the
+    complaint V8.2 makes about a check caught by a neighbour -- the
+    miss is the wreckage and not the measurement. So a derived row of
+    `COVERING_RED_CASES` must be an edit of the site's OWN column, and a
+    document-level site must be covered by an edit of no column at all.
+
+    ONE SITE IN THE DERIVED TABLE IS NOT, and it is named here rather
+    than waved through by a rule with a hole in it: `styles.remainder`
+    on the `spelled` fixture's one column, which no edit named for that
+    column reaches -- each of those either leaves the remainder where it
+    is or moves the role -- and which `added-row` reaches by repeating a
+    row, an edit that writes one more cell into that same column.
+
+    THE CURATED ROWS ARE NOT WALKED HERE, and that is deliberate rather
+    than an oversight: a hand chose each of them against a finding, with
+    the reason written beside it, and several are whole-file edits ON
+    PURPOSE -- a column swap is the edit a position check exists for,
+    and a file that stops short is the only thing the last column's
+    position can miss on. A rule that read their names would have to
+    call those wreckage, which they are not.
+    """
+    allowed = {("spelled", "reading", "styles.remainder")}
+    curated = set(NAMED_RED_CASES)
+    columns = {
+        name: [column.name for column in described.columns]
+        for name, described, _twin in runs
+    }
+    for case in sorted(registered):
+        if case in curated:
+            continue
+        if (case.fixture, case.column, case.subcheck) in allowed:
+            continue
+        mine = columns[case.fixture]
+        if case.column:
+            assert case.perturbation.endswith(f"-{case.column}"), (
+                f"{case.fixture}/{case.perturbation} is registered "
+                f"against {case.subcheck} on column {case.column!r} and "
+                f"is not an edit of that column, so what it shows is "
+                f"that the check misses when something else was broken"
+            )
+            continue
+        for other in mine:
+            assert not case.perturbation.endswith(f"-{other}"), (
+                f"{case.fixture}/{case.perturbation} is an edit of "
+                f"column {other!r} and is registered against the "
+                f"document-level {case.subcheck}"
+            )
 
 
 def test_the_coverage_identity_walks_the_shipped_table(
     tmp_path: pathlib.Path,
     runs: "list[tuple[str, contract.Profile, str]]",
     battery: "dict[str, dict[str, Case]]",
+    registered: "list[RedCase]",
 ) -> None:
     """V8.3: every executable subcheck has a registered way to fail.
 
@@ -1738,34 +3007,84 @@ def test_the_coverage_identity_walks_the_shipped_table(
     539 entries were covered by a same-named check somewhere else, and
     three checks that cannot fail at all sat inside that number.
 
-    ONE KIND OF ENTRY IS EXCUSED, and it is PROVED from the
-    description's own published numbers by
-    `_no_file_can_move_this_and_keep_the_role` below. There was a second
-    -- a register of OPEN DEFECTS, five entries that could not fail
-    because the CHECK could not fail -- and it is gone, because all five
-    are repaired (review items P3-V2-C-F1, F2, F3, F7 and F8). An empty
-    register policed by two assertions is two assertions asserting
-    nothing, so the register and its tests went with the defects rather
-    than staying as a place for the next one to be parked.
+    AND COVERAGE IS CREDITED TO A REGISTERED CASE AND TO NOTHING ELSE
+    (review item P3-V3-F7). It used to be credited to the whole
+    battery's collateral: any perturbation that happened to make a site
+    miss covered it, whatever it had been built for. Two things followed
+    and both were defects. A registration could be deleted and the suite
+    stayed green, because another edit's wreckage went on counting --
+    which is V8.3's "registered, named" read as though it said
+    "reached". And a site could be covered only by an edit that broke
+    something else, which is exactly the failure V8.2 refuses one grain
+    up. The registration is now total over the shipped sites: 592 rows
+    over 588 sites, 73 curated and 519 derived, each derived one an edit
+    aimed at the site it covers. THREE sites carry more than one row on
+    purpose: `columns.order` carries three, because it is the whole of
+    what the shipped table files for the STRUCTURAL disposition and the
+    floor below asks that class for three edits; `rows.n_rows` carries
+    two, a row taken out and a row added; and the headerless
+    `header.presence` carries the plain edit and the compensating one
+    that used to defeat it. For those three, deleting one row is not
+    enough to turn this red. Every one of the other 585 is on its own.
+
+    NOTHING IS EXCUSED. There were two exemptions here and both are
+    gone. A register of OPEN DEFECTS went with round 2's repairs. The
+    other called three short-numeric counts unreachable and PROVED it
+    from the role line -- and the proof was false, because it reasoned
+    about the file's own description and the counts are taken over the
+    blank split (review item P3-V3-F7): the publication floor's worth of
+    cells spelling a missing marker moves all three while the role holds
+    and the gate stays open. The `marked-<column>` perturbation is that
+    edit, one fixture was lengthened so the edit fits in it, and all
+    nine sites have registered cases. An exemption that is argued rather
+    than constructed is how that hole was made, so there is no longer a
+    place to park one.
     """
+    covered: dict[str, set[Site]] = {}
+    for case in registered:
+        if case.perturbation not in battery[case.fixture]:
+            continue
+        found = Site(case.column, case.fact, case.subcheck)
+        if found in battery[case.fixture][case.perturbation].missed:
+            covered.setdefault(case.fixture, set()).add(found)
     uncovered: list[str] = []
     walked: dict[str, int] = {}
     for name, described, twin in runs:
-        reached: set[Site] = set()
-        for label in battery[name]:
-            reached = reached | battery[name][label].missed
         outcome = _measured(tmp_path, described, twin, f"{name}-green.csv")
-        walked[name] = len(_sites_of(outcome))
-        for site in _sites_of(outcome):
-            if site in reached:
-                continue
-            if _no_file_can_move_this_and_keep_the_role(described, site):
+        sites = _sites_of(outcome)
+        walked[name] = len(sites)
+        mine = covered.get(name, set())
+        for site in sites:
+            if site in mine:
                 continue
             uncovered = uncovered + [f"{name}: {site.column}: {site.subcheck}"]
     assert not uncovered, (
         "these executable subchecks have no registered red case, so "
         "nothing in this suite shows they can fail at all:\n  "
         + "\n  ".join(sorted(set(uncovered)))
+    )
+    # ...and no row of the registration names a site the shipped table
+    # does not carry. A dead row is a registration that proves nothing
+    # and reads as though it proved something, which is the other half
+    # of the same rot.
+    dead: list[str] = []
+    for name, described, twin in runs:
+        outcome = _measured(tmp_path, described, twin, f"{name}-alive.csv")
+        sites = set(_sites_of(outcome))
+        for case in registered:
+            if case.fixture != name:
+                continue
+            if Site(case.column, case.fact, case.subcheck) in sites:
+                continue
+            dead = dead + [
+                (
+                    f"{name}: {case.perturbation}: {case.column}: "
+                    f"{case.subcheck} ({case.fact})"
+                )
+            ]
+    assert not dead, (
+        "these registered red cases name a site the shipped validator "
+        "does not file, so they cover nothing:\n  " + "\n  ".join(sorted(dead))
     )
     # ...and the walk walked. An identity that reaches no entry is an
     # identity that holds whatever the validator does, which is the
@@ -1774,119 +3093,40 @@ def test_the_coverage_identity_walks_the_shipped_table(
         assert filed, f"{name} filed no executable subcheck at all"
 
 
-# The three counts a numeric column publishes when every one of its
-# written cells is a number this format can hold, and the value each
-# takes there.
-_ALL_NUMERIC_COUNTS = {
-    "counts.numeric_share": "1.0",
-    "counts.n_left_out_of_statistics": "0",
-    "counts.n_negative_unrepresentable": "0",
-}
-
-
-def _no_file_can_move_this_and_keep_the_role(
-    described: contract.Profile, site: Site
-) -> bool:
-    """Whether the producer's own role line leaves this entry no file.
-
-    A PROOF, not an excuse, and it is the second of the two kinds of
-    entry the coverage identity may pass over. Each of the three counts
-    above moves only when the column holds a written cell that is not a
-    number this format can hold. The producer decides the numeric roles
-    on a COUNT -- at least `minimum_parse_rate` of the written cells
-    must read as numbers it can hold -- so a column has room for
-    `n_present - needed` such cells before the file's own description
-    reads it as a column of another kind. Where that room is NONE, every
-    file that moves one of these counts is a file whose role check
-    MISSES and whose numeric block V5.3 requires to be withheld: the
-    entry cannot reach MISSED, and no perturbation is hiding.
-
-    The room is none for every column of fewer than a hundred written
-    cells, which is three of the five fixtures here; the every-role
-    fixture's numeric columns have room for two, and all three counts
-    are reached on each of them by a single edited cell. So this is a
-    statement about short columns and not about the checks, and
-    `test_the_proof_excuses_nothing_a_red_case_reaches` holds it to
-    exactly that.
-
-    Nothing about this is a bar being lowered: the obligation stands,
-    the check is real, and on a description with room it is one edited
-    cell away from missing.
-    """
-    wanted = _ALL_NUMERIC_COUNTS.get(site.subcheck)
-    if wanted is None:
-        return False
-    for column in described.columns:
-        if column.name != site.column:
-            continue
-        if column.role not in NUMERIC_ROLES:
-            return False
-        return _needs_every_written_cell(described, column)
-    return False
-
-
-def _needs_every_written_cell(
-    described: contract.Profile, column: contract.ColumnBlock
-) -> bool:
-    """Whether the numeric role line leaves this column no room at all.
-
-    The producer applies its rate as a whole number of cells, never as a
-    compared share, so this counts the same way: the smallest whole
-    number of cells that reaches the rate, against how many the column
-    has.
-    """
-    exact = described.settings.minimum_parse_rate * column.n_present
-    whole = int(exact)
-    needed = whole + 1 if whole < exact else whole
-    return needed >= column.n_present
-
-
-def test_the_proof_excuses_nothing_a_red_case_reaches(
-    tmp_path: pathlib.Path,
-    runs: "list[tuple[str, contract.Profile, str]]",
-    battery: "dict[str, dict[str, Case]]",
-) -> None:
-    """The proved exemption, watched from both ends.
-
-    A proof that quietly covered entries a perturbation DOES reach would
-    be an excuse wearing a proof's clothes -- it would go on holding
-    after the day somebody made one of them falsifiable. So: every entry
-    the proof passes over is one the battery really does not reach, and
-    the proof is not empty, and on the one fixture whose columns have
-    room the same three counts are all reached by a red case.
-    """
-    excused = 0
-    for name, described, twin in runs:
-        reached: set[Site] = set()
-        for label in battery[name]:
-            reached = reached | battery[name][label].missed
-        outcome = _measured(tmp_path, described, twin, f"{name}-proof.csv")
-        for site in _sites_of(outcome):
-            if not _no_file_can_move_this_and_keep_the_role(described, site):
-                continue
-            excused = excused + 1
-            assert site not in reached, (
-                f"{name}: {site.column}: {site.subcheck} is excused by a "
-                f"proof that no file can make it miss, and a registered "
-                f"perturbation makes it miss"
-            )
-    assert excused, "the proof excuses nothing here, so it asserts nothing"
-    # ...and where the room is not none, all three are covered: the
-    # proof is about the length of a column and not about the checks.
-    for name, described, twin in runs:
-        reached = set()
-        for label in battery[name]:
-            reached = reached | battery[name][label].missed
-        for column in described.columns:
-            if column.role not in NUMERIC_ROLES:
-                continue
-            if _needs_every_written_cell(described, column):
-                continue
-            for subcheck in sorted(_ALL_NUMERIC_COUNTS):
-                assert any(
-                    site.column == column.name and site.subcheck == subcheck
-                    for site in reached
-                ), f"{name}: {column.name}: {subcheck}"
+# THE TWO EXEMPTIONS ARE GONE, BECAUSE NEITHER WAS ONE.
+#
+# Round 2 found five executable subchecks the shipped validator filed
+# against descriptions no file could make them miss on -- `axes.
+# structural_role` on every column of every ordinary description,
+# `styles.canonical.<form>` on a column whose published count is its own
+# cell count, `moments.skew` where G12.3's own fallback is the whole
+# attainable range, `position.at` on the first column of a headerless
+# description, and `header.presence` in the headerless direction, which
+# a compensating edit defeated. They were carried here as a REGISTER OF
+# OPEN DEFECTS while they stood (review items P3-V2-C-F1, F2, F3, F7 and
+# F8). Four are now listing entries with a sentence saying why nothing
+# in a CSV settles them, recorded as lowerings in plan amendment
+# A-P3-2; the fifth is a repaired check with two registered red cases.
+#
+# The replacement was a PROOF that no file could move three counts of a
+# short numeric column without moving its role, and the proof was false
+# (review item P3-V3-F7). It read the role line off the file's own
+# description, where a cell spelling `na` is a hole -- and these three
+# counts are taken over the BLANK SPLIT, where the same cell is a
+# written cell that is not a number (V2.4, and plan amendment A-P3-5
+# clause 1 for which of the two supplies the verdict). The publication
+# floor's worth of such cells therefore moves all three while the role
+# check HOLDS and the disclosure gate stays open, so an entry the
+# coverage identity was skipping could be forced to HELD with the suite
+# still green. `marked-<column>` is that edit, the `pooled` fixture was
+# lengthened until the edit fits in it, and all nine sites now carry
+# registered cases.
+#
+# NOTHING IS EXCUSED FROM THE COVERAGE IDENTITY ANY MORE. An exemption
+# that is argued rather than constructed is how the last one was made,
+# and an empty register policed by two tests would be two tests
+# asserting nothing -- so neither is kept as a place for the next one to
+# be parked.
 
 
 # THE REGISTER OF OPEN DEFECTS IS GONE, BECAUSE THE DEFECTS ARE.
@@ -1912,6 +3152,7 @@ def test_the_vacuity_floor_counts_classes_per_disposition(
     tmp_path: pathlib.Path,
     runs: "list[tuple[str, contract.Profile, str]]",
     battery: "dict[str, dict[str, Case]]",
+    registered: "list[RedCase]",
 ) -> None:
     """V8.5: a counted floor of red-case CLASSES per disposition class.
 
@@ -1968,15 +3209,27 @@ def test_the_vacuity_floor_counts_classes_per_disposition(
         "counted per class, so a class that arrives or leaves changes "
         "what this asserts and is read in the diff"
     )
+    # AND THE CLASSES ARE COUNTED OVER THE REGISTRATION, not over every
+    # miss the battery produces (review item P3-V3-F7). A floor counted
+    # over collateral is a floor a battery meets by accident: an edit
+    # built for one class, taking a neighbour of another class down with
+    # it, used to count for that neighbour's floor. What has to be
+    # varied is what this suite REGISTERS, so that is what is counted --
+    # and each of those rows has already been shown to make the site it
+    # names miss.
+    kinds = {
+        label: battery[name][label].kind
+        for name in battery
+        for label in battery[name]
+    }
     classes: dict[str, set[str]] = {}
-    for name in battery:
-        for label in battery[name]:
-            case = battery[name][label]
-            for site in case.missed:
-                key = disposition_of(site.fact)
-                if key not in classes:
-                    classes[key] = set()
-                classes[key].add(case.kind)
+    for case in registered:
+        if case.perturbation not in battery[case.fixture]:
+            continue
+        key = disposition_of(case.fact)
+        if key not in classes:
+            classes[key] = set()
+        classes[key].add(kinds[case.perturbation])
     for disposition in dispositions.DISPOSITIONS + ("BYTE-RULE",):
         if disposition not in carried:
             continue

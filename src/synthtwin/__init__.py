@@ -34,10 +34,11 @@ published counts exactly can force a twin row to match a real one: an
 11-row single-column table whose one label clears the disclosure floor
 publishes that label with the count 11, so the twin holds it in all 11
 rows. Nothing was copied; the arithmetic left no other answer. synthtwin
-offers no formal privacy guarantee, and all four artifacts a full run
-produces — the profile, the twin, the twin's report and the quality
-report — carry facts computed from real data and are handled under the
-institution's rules for real-derived material, never the profile alone.
+offers no formal privacy guarantee, and all five files a full run
+produces — the profile, the plain-language summary beside it, the twin,
+the twin's report and the quality report — carry facts computed from
+real data and are handled under the institution's rules for
+real-derived material, never the profile alone.
 
 Status: all three commands are built. `synthtwin profile <table>` reads
 a local CSV table and writes the description the twin is built from,

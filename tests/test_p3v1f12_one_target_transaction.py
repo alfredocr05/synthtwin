@@ -488,7 +488,7 @@ def _run_with_a_stop(
     places = _inputs(folder)
     target = folder / "clinic-twin-quality.txt"
     if earlier:
-        target.write_text(OLD_REPORT, encoding="utf-8")
+        target.write_text(OLD_REPORT, encoding="utf-8", newline="")
     state = writing.DiskState()
     stop = _Stop(nth, failure, frames)
     caught: BaseException | None = None

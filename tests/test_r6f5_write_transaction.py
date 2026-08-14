@@ -450,7 +450,7 @@ def test_the_second_rename_failing_puts_the_earlier_profile_back(
 ) -> None:
     first, second = _outputs(tmp_path)
     first.write_text("last week's profile\n", encoding="utf-8", newline="\n")
-    second.write_text("last week's summary\n", encoding="utf-8")
+    second.write_text("last week's summary\n", encoding="utf-8", newline="")
     _fail_replace_onto(monkeypatch, [second])
 
     with pytest.raises(errors.ProfileError) as raised:
@@ -473,7 +473,7 @@ def test_a_rollback_that_itself_fails_names_the_new_and_the_old_file(
     # and must be told so in as many words.
     first, second = _outputs(tmp_path)
     first.write_text("last week's profile\n", encoding="utf-8", newline="\n")
-    second.write_text("last week's summary\n", encoding="utf-8")
+    second.write_text("last week's summary\n", encoding="utf-8", newline="")
     kept = tmp_path / f"clinic-profile.json{profile.KEPT_SUFFIX}-1"
     real = pathlib.Path.replace
 

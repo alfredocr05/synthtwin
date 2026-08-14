@@ -379,8 +379,32 @@ def test_the_same_description_and_seed_give_the_same_twin_twice(
 # taken from the file it checked, so it is real-derived exactly as the
 # other three are. The report says strictly MORE than it did; nothing
 # was dropped.
+# RE-RECORDED AGAIN, for two paragraphs and nothing else (plan
+# amendment A-P3-8, review item P3-V3-F8 and round 3's standing owner
+# item). The twin digest above held again.
+#
+# The handling paragraph named four files where a full run leaves five:
+# the profiler writes its description TWICE, once for a program and
+# once in words, and the plain-language half -- the one a person
+# actually reads, the one that repeats the published labels -- was
+# named on no surface of this project, in this phase or the last. It is
+# named now, and the paragraph rewrapped around it.
+#
+# The formula paragraph stopped stating a necessity it cannot always
+# keep. It told a reader that the description's own counts leave no
+# other way to spell a value of that width -- true of the cells the
+# counts force, false of a fold-collision partner, which carries its
+# parent's spelling and is not forced by anything (plan P3-C7-F1,
+# measured at fourteen such cells where two would do). The claim is now
+# under a "where" clause on both paragraphs that make it, the report
+# says it cannot tell the reader which cell is which, and a blank line
+# separates the two points that had run together.
+#
+# The report says strictly MORE than it did in the first case and less
+# than it did in the second, which is the honest direction: what it
+# stopped saying was not true. No verdict, count or order moved.
 GOLDEN_REPORT_SHA256 = (
-    "275f90d5e3ea341210a74bcd1c1520f83865420115f88e02c5195ce1593bd48d"
+    "a8fa24c436b76c83d28a2e83dde225ddf0acd9ed7dad3ef77dfd2ba6bb11610f"
 )
 
 
@@ -579,8 +603,15 @@ def test_the_report_names_the_seed_the_twin_was_built_at(
 # file is `<stem>-twin.csv`, so its report is still
 # `<stem>-twin-quality.txt` and the command a finished `generate` run
 # teaches still writes exactly the file it always wrote.
+# IT MOVED AGAIN, in the same sentence and for the same reason as the
+# report's digest above (plan amendment A-P3-8, review item P3-V3-F8):
+# "HOW TO KEEP THIS FILE" named four files where a full run leaves
+# five, and the profiler's plain-language summary is the fifth. Nothing
+# else in the report changed -- same census, same verdicts, same
+# obligations, same order, same name line -- and the census was
+# compared entry for entry before this was re-recorded.
 GOLDEN_QUALITY_SHA256 = (
-    "95fe101ec70932f06a743ee6abddd47bafb0fbf0bd50fbf40b68c372b49d4dbe"
+    "4a52dabab71f155a8602cdd52c28c5538460fbef1bbf82c4f7ec091a5c9f76e4"
 )
 
 

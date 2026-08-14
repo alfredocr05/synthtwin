@@ -133,14 +133,19 @@ Stated here so that no reader has to discover them independently:
   consequences follow and are stated rather than left to be worked out.
   synthtwin offers **no formal privacy guarantee** and claims no
   differential-privacy property; statistical disclosure is out of scope,
-  as the threat model above says. And all four artifacts a full run
-  produces - the profile, the twin, the twin's report and the quality
-  report - carry facts computed from real data, so the institution's
-  rules for real-derived material apply to all four, never to the
-  profile alone. The quality report is the fourth and the easiest to
-  overlook: it states counts and measurements taken from the file it
-  checked, so a verdict travels under the same rules as the thing it
-  measured.
+  as the threat model above says. And all five files a full run
+  produces - the profile, the plain-language summary beside it, the
+  twin, the twin's report and the quality report - carry facts computed
+  from real data, so the institution's rules for real-derived material
+  apply to all five, never to the profile alone. Two of the five are
+  easy to overlook, and they are named rather than left to be worked
+  out. The quality report states counts and measurements taken from the
+  file it checked, so a verdict travels under the same rules as the
+  thing it measured. And the plain-language summary is a file of its
+  own, printed on the screen and written beside the profile: it repeats
+  the published labels and the published endpoints in words, so it
+  carries what the profile carries and is handled the same way (plan
+  amendment A-P3-8).
 - **What the twin carries, stated so that neither its risk nor its
   usefulness is overstated.** The twin reproduces the facts the profile
   publishes about each column ON ITS OWN. It carries no cross-column
@@ -161,7 +166,8 @@ Stated here so that no reader has to discover them independently:
   largest values of numeric columns and the points between them, and
   counts about groups nobody is named in. Handle it under your
   institution's rules for real-derived material - together with the
-  twin, the twin's report and the quality report, per the entry above. Profile version 4 widened what it
+  plain-language summary beside it, the twin, the twin's report and the
+  quality report, per the entry above. Profile version 4 widened what it
   carries in exactly two ways, and each gets its own entry below rather
   than a clause here.
 - **Version 4 publishes the exact spellings of the labels the profile

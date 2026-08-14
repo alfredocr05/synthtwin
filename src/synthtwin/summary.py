@@ -513,22 +513,23 @@ def _disclosure_lines(document: dict[str, object]) -> list[str]:
         "  It contains no rows of your table, but it is not anonymous",
         "  either. Here is exactly what is in it.",
         "",
-        # THE HANDLING RULE COVERS FOUR FILES, NOT ONE (plan P2-D11,
-        # widened by P3-D3). Saying it of the profile alone reads as
-        # permission for the others, and it is not: the twin reproduces
-        # published counts exactly, the report quotes published facts
-        # back, and the quality report states measurements taken from the
-        # file it checked, so all three are real-derived as well. The
-        # person deciding what may leave their machine has to be told
-        # about all four in the one place they are reading about it.
-        "  The same is true of the other three files a full run makes.",
-        # The four artifacts are named in ONE line rather than wrapped
-        # across two, because the claim inventory reads this file as
-        # text and a phrase split between two string literals is a
-        # phrase no reader of the source can grep for.
-        "  The profile, the twin, the twin's report and the quality report",
-        "  all carry facts computed from your real data, so those rules",
-        "  apply to all four of them, not to the profile alone.",
+        # THE HANDLING RULE COVERS FIVE FILES, NOT ONE (plan P2-D11,
+        # widened by P3-D3 and again by amendment A-P3-8). Saying it of
+        # the profile alone reads as permission for the others, and it
+        # is not: the twin reproduces published counts exactly, the
+        # report quotes published facts back, the quality report states
+        # measurements taken from the file it checked, and THIS FILE --
+        # the one being read right now -- repeats the published labels
+        # in words. The person deciding what may leave their machine has
+        # to be told about all five in the one place they are reading
+        # about it, and the file they are holding is one of the five.
+        "  The same is true of the other four files a full run makes,",
+        "  this page among them: it repeats in words what the profile",
+        "  carries, the real labels listed below included.",
+        "  The profile, the plain-language summary beside it, the twin,",
+        "  the twin's report and the quality report all carry facts",
+        "  computed from your real data, so those rules apply to all",
+        "  five of them, not to the profile alone.",
         "",
     ]
     if with_labels:

@@ -92,9 +92,10 @@ equal a row of the real table -- holding a published count exactly can
 force a twin row to match a real one, with nothing copied, and a check
 here confirming that count does not change it. synthtwin offers no
 formal privacy guarantee. Every measurement this module returns is
-taken from a file derived from real data, so the description, the twin,
-the twin's report and the quality report are all real-derived material
-and are kept under the rules the real table is kept under.
+taken from a file derived from real data, so the description, the
+plain-language summary beside it, the twin, the twin's report and the
+quality report are all real-derived material and are kept under the
+rules the real table is kept under.
 """
 
 import csv
@@ -399,6 +400,34 @@ _GATE_POOLED = (
     "either way"
 )
 
+# THE THIRD WAY THE GATE CLOSES: THERE IS NO DESCRIPTION AT ALL (review
+# item P3-V3-F3; V5.1).
+#
+# The two above are for a file `synthtwin profile` describes, whose
+# description carries no fact of this kind or pools the count this one
+# compares. This one is for a file it REFUSES: a file with no data rows
+# to describe, and a file whose first row cannot name a table's columns.
+# Describing those publishes nothing whatever -- not the header's names,
+# not its width, not how many records the file holds -- so a report
+# stating any of it states about the measured file something no run of
+# the profiler on that file would ever say, and repeated candidate
+# descriptions would then read the header off the verdicts, which is the
+# attack V5.3 says the gate exists to stop.
+#
+# What the refusal itself publishes is still said, because it is what a
+# reader gets by running the profiler on the file: that the file holds
+# no rows, or that its first row repeats a name or leaves one blank, at
+# the column NUMBERS the profiler's own refusal names.
+_GATE_REFUSED = (
+    "describing this file on its own would publish nothing at all -- "
+    "`synthtwin profile` refuses a file it cannot read a table out of -- "
+    "so neither the measurement nor its outcome is shown"
+)
+
+# The fact whose whole evidence is the header line, named once because
+# two places have to agree about which check that is.
+_POSITION_FACT = "universal.position"
+
 # What a column carries instead of a measurement when its cells, counted
 # the way V2.4 counts them, are not of the kind this obligation asks for
 # at all (review item P3-V2-A1). This is a MISS and not a withholding:
@@ -414,6 +443,33 @@ _NOT_OF_THAT_KIND = (
 # The byte-order mark as one character, written as its code point so
 # that nobody has to trust an invisible character in this file.
 _BYTE_ORDER_MARK = "\ufeff"
+
+# The characters method G7.1's ordinal space is read off, and the ten
+# figures a whole number is spelled with. First-party constants: nothing
+# here is ever read from a file, and membership against them is how this
+# module takes a text apart without calling a method the offline audit
+# cannot trace (plan D6.2).
+_DIGITS = "0123456789"
+_DATE_DASH = "-"
+_QUARTER_MARK = "Q"
+
+# The characters method G2's writing rule turns on, and the two it
+# writes with. A field is quoted when and only when it holds one of
+# `_MUST_BE_QUOTED`, and a quote character inside a quoted field is
+# written twice.
+_QUOTE = '"'
+_COMMA = ","
+_LINE_FEED = "\n"
+_CARRIAGE_RETURN = "\r"
+_MUST_BE_QUOTED = _COMMA + _QUOTE + _LINE_FEED + _CARRIAGE_RETURN
+
+# The three ways a written record can end, longest first so that the
+# two-character one is recognised before its own first half.
+_LINE_BREAKS = (
+    _CARRIAGE_RETURN + _LINE_FEED,
+    _LINE_FEED,
+    _CARRIAGE_RETURN,
+)
 
 # WHICH SUBCHECKS THIS MODULE MEASURES FROM THE WRITTEN CELLS (V2.4).
 #
@@ -1096,13 +1152,32 @@ def _read_bytes(place: pathlib.Path) -> bytes:
 def _read_utf8(place: pathlib.Path) -> "str | None":
     """The file as UTF-8 text, or None when its bytes are not UTF-8.
 
+    THE BYTES ARE DECODED AND NOT RE-READ, so that no line ending is
+    translated on the way in (review item P3-V3-F6). The reader opens
+    the measured file with `newline=""` and translates nothing: a
+    carriage return inside a quoted value stays the character it is.
+    Reading the same file as text in the ordinary way turns every one of
+    them into a line feed, and this module then stood in for a reader
+    that had read something else -- so a conforming twin whose column
+    name holds a carriage return read back under a name it does not
+    have, and missed its names, its order and its header presence. Every
+    walk below is written for untranslated text (`_split_lines`), and
+    this is where it gets it.
+
+    The bytes are turned into text by the BUILT-IN and not by a method
+    of their own: the offline audit accepts no method call on a value it
+    cannot trace, and the one accepted way to obtain a path's bytes
+    hands back exactly such a value (plan D6.2). `str(data, "utf-8")` is
+    `data.decode("utf-8")` written the way the audit reads.
+
     The path is rebuilt here for the reason `_read_bytes` gives: a value
     an allowlisted API built is a value whose methods the offline audit
     has already checked, and a parameter is not (plan D6.2).
     """
     file_path = pathlib.Path(place)
+    data = file_path.read_bytes()
     try:
-        return file_path.read_text(encoding="utf-8")
+        return str(data, "utf-8")
     except UnicodeDecodeError:
         return None
 
@@ -1114,12 +1189,14 @@ def _read_fallback(place: pathlib.Path) -> str:
     all -- which is the point: a file whose bytes are not UTF-8 still
     has a first row, and the reader still reads it, so the header
     question below has to be settled on the same text the reader would
-    settle it on.
+    settle it on. Decoded rather than re-read, for the reason
+    `_read_utf8` gives.
 
     The path is rebuilt here for the reason `_read_bytes` gives.
     """
     file_path = pathlib.Path(place)
-    return file_path.read_text(encoding="latin-1")
+    data = file_path.read_bytes()
+    return str(data, "latin-1")
 
 
 def _starts_with_a_mark(data: bytes) -> bool:
@@ -1133,21 +1210,71 @@ def _starts_with_a_mark(data: bytes) -> bool:
     return data[:3] == b"\xef\xbb\xbf"
 
 
-def _first_line(text: str) -> str:
-    """The text up to and including its first line feed, or all of it."""
+def _a_return_ends_a_line(text: str) -> bool:
+    """True when a carriage return in this file ends one of its lines.
+
+    THE OBLIGATION IS ABOUT LINE ENDINGS, AND A QUOTED RETURN IS NOT ONE
+    (review item P3-V3-F5's second witness, re-derived). This was
+    `\\r in the bytes`, and the method writes a carriage return inside a
+    quoted field whenever a published name or label holds one -- so the
+    twin the shipped renderer writes for such a description was reported
+    as carrying carriage returns, which is a conforming file told it
+    broke a rule it kept. What is checked is what V6.2 names: that the
+    file's RECORDS are ended by line feeds.
+
+    The walk is the CSV quoting rule and nothing more: a field is quoted
+    when it opens with a quote character, a doubled quote inside one is
+    a quote and not the end of the field, and everything outside a
+    quoted field is the file's own punctuation. A carriage return found
+    there ends a line.
+    """
     if not isinstance(text, str):
         raise TypeError("internal check: a file's text was not text")
-    at = text.find("\n")
-    if at < 0:
-        return text
-    return text[: at + 1]
+    # A file with no carriage return in it at all has none ending a
+    # line, and that is nearly every file: the walk below is a character
+    # at a time and this settles the ordinary case in one pass at the
+    # language's own speed.
+    if text.find(_CARRIAGE_RETURN) < 0:
+        return False
+    inside = False
+    opening = True
+    skip = False
+    for index in range(len(text)):
+        if skip:
+            skip = False
+            continue
+        character = text[index]
+        if inside:
+            if character != _QUOTE:
+                continue
+            if text[index + 1 : index + 2] == _QUOTE:
+                skip = True
+                continue
+            inside = False
+            opening = False
+            continue
+        if character == _QUOTE and opening:
+            inside = True
+            opening = False
+            continue
+        if character == _CARRIAGE_RETURN:
+            return True
+        if character == _COMMA or character == _LINE_FEED:
+            opening = True
+            continue
+        opening = False
+    return False
 
 
-def _header_names(line: str) -> "list[str]":
-    """The column names one header line holds, by the CSV rules."""
-    for row in csv.reader([line]):
-        return [f"{cell}" for cell in row]
-    return []
+# WHAT USED TO STAND HERE, and why it does not (review item P3-V3-F5).
+# `_first_line` returned the text up to the first line feed, and it was
+# the whole of the zero-row byte check: one physical line, ending in a
+# feed. A record is not a line -- a published name holding a line feed
+# is written as one record over two of them -- so nothing in this module
+# settles a question about the file's shape on a physical line any more,
+# and the function is gone rather than left for the next caller to
+# reach for. `_header_names` went with it: it read one line's names with
+# the CSV rules, which is `_first_record`'s job over the whole record.
 
 
 def _without_a_mark(line: str) -> str:
@@ -1246,7 +1373,8 @@ def _records_of(text: str) -> "list[list[str]]":
     A csv.Error is not raised on: a file the reader cannot parse is a
     catalogued refusal of its own, raised where the reader raises it and
     in the position-naming form V9 asks for, so this returns what it has
-    and lets that happen.
+    and leaves the refusal where it belongs. `_walked` is the same walk
+    with its second answer kept: whether the file was read to its end.
 
     Guarantees:
 
@@ -1255,17 +1383,57 @@ def _records_of(text: str) -> "list[list[str]]":
     - Determinism: a fixed function of that text.
     - Errors raised: none.
     """
-    records: list[list[str]] = []
-    try:
-        for row in csv.reader(_split_lines(text)):
-            if not row:
-                # A blank line carries no values, exactly as
-                # `reading._read_streamed` drops it.
-                continue
-            records += [[f"{cell}" for cell in row]]
-    except csv.Error:
-        return records
+    records, _whole = _walked(text)
     return records
+
+
+def _walked(text: str) -> "tuple[list[list[str]], bool]":
+    """The records, and whether the walk reached the end of the file.
+
+    THIS STANDS IN FOR THE READER, SO IT READS UNDER THE READER'S OWN
+    LIMITS (review item P3-V3-F6). The module-wide field size limit is a
+    setting of the `csv` module, not of one reader: `reading` raises it
+    to its own published ceiling for the length of its pass and puts it
+    back afterwards, and this walk used to run under whatever the
+    interpreter's default happened to be -- 131,072 characters. A
+    conforming twin holding eleven values one character longer than that
+    therefore parsed here as a header and nothing else, was classified as
+    a file holding no rows, and got a whole report of MISSED verdicts
+    without the reader ever being asked. The limit here is
+    `reading.FIELD_SIZE_LIMIT` itself rather than a number of this
+    module's own, so the two cannot be moved apart by editing one place.
+
+    AND THE SECOND HALF OF THE SAME DISAGREEMENT is what the flag is
+    for. A field longer than even that limit stops this walk part way,
+    and the truncated record list read as "this file holds no rows" --
+    which is a verdict about a file nobody managed to read. A caller
+    that is deciding what the file HOLDS asks for the flag and hands an
+    unfinished reading on to the reader, which refuses it in the
+    position-naming form V9 asks for.
+
+    Guarantees:
+
+    - Inputs: the file's characters, in the encoding the reader settled
+      on, with any byte-order mark already taken off the front.
+    - Determinism: a fixed function of that text.
+    - Errors raised: none. The limit is restored on every path.
+    """
+    records: list[list[str]] = []
+    previous_limit = csv.field_size_limit()
+    try:
+        csv.field_size_limit(reading.FIELD_SIZE_LIMIT)
+        try:
+            for row in csv.reader(_split_lines(text)):
+                if not row:
+                    # A blank line carries no values, exactly as
+                    # `reading._read_streamed` drops it.
+                    continue
+                records += [[f"{cell}" for cell in row]]
+        except csv.Error:
+            return (records, False)
+    finally:
+        csv.field_size_limit(previous_limit)
+    return (records, True)
 
 
 def _first_record(text: str) -> "list[str]":
@@ -1284,6 +1452,80 @@ def _first_record(text: str) -> "list[str]":
     if not records:
         return []
     return records[0]
+
+
+def _without_the_last_break(text: str) -> str:
+    """``text`` with the line ending of its LAST record taken off.
+
+    The three the reader recognises, longest first. What a record ends
+    with is `bytes.line-endings`' obligation and `bytes.terminal-newline`'s
+    between them, and a check that answered for it as well would accuse
+    one file twice for one fault (V3.6).
+    """
+    for ending in _LINE_BREAKS:
+        if len(text) >= len(ending) and text[len(text) - len(ending) :] == ending:
+            return text[: len(text) - len(ending)]
+    return text
+
+
+# -- method G2's writing rule, written from the method (V1.4) ---------
+#
+# THE VALIDATOR MAY NOT IMPORT THE RENDERER, so the one canonical
+# writing a check needs -- the header line of the degenerate zero-row
+# form -- is derived here from the method's own words instead. That is
+# the same arrangement V4.2 makes for the corner classifier: a shared
+# mistake now needs writing twice from two texts. Where both may be
+# imported, the suite compares the two writings character for character
+# over every class of name the loader admits.
+
+
+def _canonical_record(cells: "list[str]") -> str:
+    """One record as method G2 writes it, without its line ending.
+
+    Fields are joined by a comma; each is written by `_canonical_field`;
+    and the two canonical exceptions to minimal quoting are here: the
+    first cell of a header record beginning with the byte-order mark is
+    quoted whatever else it holds, and the one cell of a one-cell record
+    holding nothing is written as two quote characters, because a line
+    with nothing on it is not a record any reader agrees about.
+    """
+    if len(cells) == 1 and not cells[0]:
+        return _QUOTE + _QUOTE
+    text = ""
+    for place in range(len(cells)):
+        if place:
+            text = text + _COMMA
+        always = place == 0 and cells[place][:1] == _BYTE_ORDER_MARK
+        text = text + _canonical_field(cells[place], always)
+    return text
+
+
+def _canonical_field(cell: str, always: bool) -> str:
+    """One cell as method G2 writes it.
+
+    Quoted when and only when it holds a comma, a quote character, a
+    carriage return or a line feed -- or when ``always`` says it is the
+    byte-order-mark exception -- and a quote character inside a quoted
+    field is written twice. There is no escape character.
+    """
+    special = False
+    quoted = False
+    for character in cell:
+        if character == _QUOTE:
+            quoted = True
+            special = True
+        elif character in _MUST_BE_QUOTED:
+            special = True
+    if not special and not always:
+        return cell
+    if not quoted:
+        return _QUOTE + cell + _QUOTE
+    body = ""
+    for character in cell:
+        body = body + character
+        if character == _QUOTE:
+            body = body + _QUOTE
+    return _QUOTE + body + _QUOTE
 
 
 def _unusable_header(found: "list[str]") -> str:
@@ -1823,18 +2065,39 @@ def measure(description: contract.Profile, path: str) -> Outcome:
         ) from error
 
     headed = description.source.header_source == reading.HEADER_FROM_FILE
-    checks = _byte_checks(description, data, text, headed)
     if description.n_rows == 0:
+        # THE ONE PREDICATE THE DISCLOSURE GATE DOES NOT CLOSE ON A FILE
+        # THE PRODUCER REFUSES (review item P3-V3-F3; V5.1 against V3.4).
+        # A zero-row description's own conforming twin IS a file the
+        # producer refuses -- the header line and nothing more, or no
+        # bytes at all (V1.5) -- so withholding here would silence the
+        # whole obligation on the only file the description says is
+        # right, and owner decision 7's byte form could never HOLD on
+        # any file at all. That is the vacuity V3.4-A1 names, and it
+        # takes review item P3-V3-F5's repair with it. What escapes is
+        # written out in plan amendment A-P3-7 clause 2 rather than left
+        # to be found.
         return _assembled(
-            checks
+            _byte_checks(description, data, text, headed, as_read, False)
             + [_zero_row_form(description, data, text, headed)]
             + _zero_row_structure(description, text, headed),
             _zero_row_listings(description, headed),
             measured_name,
         )
-    if _holds_no_data(text, headed):
+    # ...AND THE TWO PATHS IT DOES. On both of these the producer refuses
+    # the measured file, so nothing describing that file publishes is
+    # available to report; on both, this description's own twin is a file
+    # the producer describes, so withholding costs no obligation any file
+    # that could hold it. `as_read` rather than `text`: a file whose bytes
+    # are not UTF-8 holds no more rows than one whose bytes are, and
+    # sending only one of the two on to the reader made a refusal out of
+    # one and a report out of the other -- which is the encoding of a
+    # file the producer describes nowhere, told by which of the two a
+    # person got back.
+    if _holds_no_data(as_read, headed):
         return _assembled(
-            checks + _no_rows_at_all(description, as_read, headed),
+            _byte_checks(description, data, text, headed, as_read, True)
+            + _no_rows_at_all(description, headed),
             _listings(description, headed),
             measured_name,
         )
@@ -1845,19 +2108,31 @@ def measure(description: contract.Profile, path: str) -> Outcome:
         # here because the reader refuses it -- and refuses it in words
         # that QUOTE the repeated name, which on this path may be a
         # string out of a file nobody promised was the reader's.
-        found = _first_record(as_read)
+        #
+        # The file is walked here for the one answer this decision needs
+        # -- which names the first record holds. It counted the records
+        # too until review item P3-V3-F3: a report on a file the producer
+        # refuses may not state a number nothing describing that file
+        # publishes, and its record count is such a number.
+        walked, whole = _walked(_without_a_mark(as_read))
+        found = walked[0] if walked else []
         unusable = _unusable_header(found)
-        if unusable:
-            records = len(_records_of(_without_a_mark(as_read)))
+        # AND ONLY WHERE THE WHOLE FILE WAS WALKED (review item
+        # P3-V3-F6). A walk that stopped part way is a reading of the
+        # file that did not finish, and V1.5-A1 is explicit that a file
+        # neither reading can parse is a catalogued refusal rather than a
+        # report built on the records one of them happened to reach. The
+        # reader refuses such a file outright, so a run that cannot
+        # finish the walk goes on to it and gets that refusal.
+        if unusable and whole:
             return _assembled(
-                checks
-                + _unnamed_column_checks(
-                    description, found, unusable, records - 1
-                )
+                _byte_checks(description, data, text, headed, as_read, True)
+                + _unnamed_column_checks(description, unusable)
                 + _no_column_is_named(description, unusable, headed),
                 _listings(description, headed),
                 measured_name,
             )
+    checks = _byte_checks(description, data, text, headed, as_read, False)
     first_row = reading.FIRST_ROW_NAMES if headed else reading.FIRST_ROW_DATA
     try:
         table = reading.read_table(
@@ -1958,10 +2233,39 @@ def _byte_checks(
     data: bytes,
     text: "str | None",
     headed: bool,
+    as_read: str,
+    refused: bool,
 ) -> "list[Check]":
-    """Every rule about the file's bytes, each one able to fail."""
+    """Every rule about the file's bytes, each one able to fail.
+
+    ``as_read`` is the file in the encoding the READER settled on, and
+    it is what the line-ending rule is asked about: which characters are
+    line endings is a question about records, and only the text the
+    reader read can answer it.
+
+    ``refused`` says the producer would refuse this file, and exactly ONE
+    of these four rules is gated on it (review item P3-V3-F3). Which
+    encoding a file was read under is a fact the producer PUBLISHES --
+    `source.encoding`, and `used_fallback_encoding` beside it -- so on a
+    file it publishes nothing about, stating it states what describing
+    that file never would (V5.1). The other three are not published about
+    any file at any count, which is the test amendment A-P3-3 clause 6
+    ruled them outside the envelope on and A-P3-5 clause 3 wrote down:
+    no cell, no name, no count and no person is in a line ending, a
+    terminal newline or a byte-order mark.
+    """
     checks = [
-        _exact(
+        Check(
+            "",
+            "document.encoding",
+            "bytes.utf8",
+            WITHHELD,
+            "written as UTF-8",
+            "",
+            _GATE_REFUSED,
+        )
+        if refused
+        else _exact(
             "",
             "document.encoding",
             "bytes.utf8",
@@ -1986,7 +2290,7 @@ def _byte_checks(
             "line feed endings",
             (
                 "carriage returns"
-                if b"\r" in data
+                if _a_return_ends_a_line(as_read)
                 else "line feed endings"
             ),
         ),
@@ -2027,9 +2331,30 @@ def _zero_row_form(
     absorbed are two other facts' whole obligation, so `universal.name`
     and `document.columns` were bound by NOTHING on that predicate while
     a census called itself every obligation the description sets. They
-    are checks of their own there now, and this one answers for the
-    bytes it names: the file stops after its first record and ends in a
-    newline.
+    are checks of their own there now.
+
+    WHAT IS LEFT IS THE WRITING, AND IT IS MEASURED IN RECORDS RATHER
+    THAN IN PHYSICAL LINES (review item P3-V3-F5). The version this
+    replaces asked for one physical line ending in a line feed, which is
+    neither exact nor record-aware, and it was wrong in both directions:
+
+    * `"reading"` quoted is not the twin's writing of the name
+      `reading`, and every quoting of every name passed, because reading
+      the names back is `header.names`' question and how they are
+      SPELLED was nobody's;
+    * a published name holding a line feed is written `"alpha\\nbeta"`,
+      which is ONE record over two physical lines -- so the conforming
+      file the shipped renderer writes was reported MISSED.
+
+    So this subcheck answers for exactly what no other one does: the
+    file holds ONE record, that record is written the way method G2
+    fixes -- minimal quoting, a doubled quote inside a quoted field, the
+    byte-order-mark exception -- and nothing follows it. Which names
+    they are stays `header.names`', the count stays
+    `document.n_columns`', the order stays `document.columns`', and how
+    the record's own line ends stays the two byte rules', which is why
+    the terminator is taken off before the comparison instead of being
+    a fourth thing this one answers for.
     """
     subcheck = "bytes.zero-row-form"
     fact = "document.n_rows"
@@ -2037,12 +2362,17 @@ def _zero_row_form(
         published = "a file of no bytes at all"
         measured = published if len(data) == 0 else "a file holding bytes"
         return _exact("", fact, subcheck, published, measured)
-    published = "the header line and its newline, and nothing more"
+    published = "the header line as the twin writes it, and nothing more"
     if text is None:
         return Check("", fact, subcheck, MISSED, published, "not UTF-8")
-    line = _first_line(text)
-    holds = len(text) == len(line) and line[len(line) - 1 :] == "\n"
-    return _silent("", fact, subcheck, published, holds)
+    body = _without_a_mark(text)
+    records = _records_of(body)
+    if len(records) != 1:
+        return _silent("", fact, subcheck, published, False)
+    written = _canonical_record(records[0])
+    return _silent(
+        "", fact, subcheck, published, _without_the_last_break(body) == written
+    )
 
 
 def _zero_row_structure(
@@ -2116,7 +2446,7 @@ def _zero_row_structure(
     ]
 
 
-def _holds_no_data(text: "str | None", headed: bool) -> bool:
+def _holds_no_data(text: str, headed: bool) -> bool:
     """True when a file the description expects rows from holds none.
 
     The profiler's own reader refuses such a file, and refusing here
@@ -2137,10 +2467,28 @@ def _holds_no_data(text: "str | None", headed: bool) -> bool:
     stood between a file of no bytes and a file of one newline. Counting
     the records the reader would read puts both sides of that step on
     the reportable side.
+
+    AND AN UNFINISHED READING IS NOT AN EMPTY FILE (review item
+    P3-V3-F6). Where the walk stops part way -- a field longer than the
+    reader's own ceiling is the only way left -- the records it has are
+    not what the file holds, and answering True here would hand a whole
+    report of MISSED verdicts to a file nobody read. So a file that
+    cannot be walked to its end goes on to the reader, which refuses it
+    in the position-naming form V9 asks for.
+
+    AND IT IS ASKED OF THE TEXT THE READER SETTLED ON (review item
+    P3-V3-F3). The version this replaces asked it of the UTF-8 reading
+    alone and answered False where there was none, so a header-only file
+    whose bytes are not UTF-8 walked past here into the reader and came
+    back as a refusal, while the same file written in UTF-8 got a full
+    report. The producer refuses both and publishes nothing about
+    either, so which of the two answers a person got back was the file's
+    own encoding, told by the shape of the reply.
     """
-    if text is None:
+    walked, whole = _walked(_without_a_mark(text))
+    if not whole:
         return False
-    records = len(_records_of(_without_a_mark(text)))
+    records = len(walked)
     if not headed:
         return records == 0
     return records <= 1
@@ -2148,38 +2496,48 @@ def _holds_no_data(text: "str | None", headed: bool) -> bool:
 
 def _unnamed_column_checks(
     description: contract.Profile,
-    found: "list[str]",
     why: str,
-    rows: int,
 ) -> "list[Check]":
     """The verdicts a file whose first row cannot name columns still gets.
 
     Three obligations are settled by that first row alone and all three
     are missed: the header line the description says was written is not
     one, the published names did not read back, and the published order
-    is not there to read. The column COUNT is still a real comparison
-    and can hold, so it is measured rather than assumed missed. So is
-    the ROW COUNT, which is counted the way the reader counts rows --
-    records, blank lines dropped -- rather than left out of the census
-    on the ground that the reader was not called (review item
-    P3-V2-E-F2).
+    is not there to read. They are the same three for every file that
+    reaches here, and what makes them sayable is that they are what the
+    profiler's own refusal of this file says -- at the column NUMBERS
+    that refusal names, never what stood in them.
 
-    ``why`` names the column NUMBERS at fault, never what stood in them.
+    AND THE TWO COUNTS ARE NOT (review item P3-V3-F3). They were
+    measured here and shown: the header's width, and the file's record
+    count counted the way the reader counts rows. `synthtwin profile`
+    stops at this file's first row and publishes neither, so a report
+    that shows them states about the measured file two numbers no run of
+    the producer on that file would ever publish (V5.1) -- and the
+    review's own witness was the row count, which moved with the file
+    while the refusal class did not. Both are WITHHELD, and nothing is
+    lost by it: the three obligations above miss on every file that
+    reaches here, and so does every obligation of every column, so this
+    report is an exit-3 report whatever the file holds.
     """
     return [
-        _exact(
+        Check(
             "",
             "document.n_rows",
             "rows.n_rows",
+            WITHHELD,
             _shown_count(description.n_rows),
-            _shown_count(rows),
+            "",
+            _GATE_REFUSED,
         ),
-        _exact(
+        Check(
             "",
             "document.n_columns",
             "columns.n_columns",
+            WITHHELD,
             _shown_count(description.n_columns),
-            _shown_count(len(found)),
+            "",
+            _GATE_REFUSED,
         ),
         Check(
             "",
@@ -2253,20 +2611,46 @@ def _no_column_is_named(
 
 
 def _no_rows_at_all(
-    description: contract.Profile, text: str, headed: bool
+    description: contract.Profile, headed: bool
 ) -> "list[Check]":
     """Every verdict a file the description expects rows from still gets.
 
     A file holding no records where the description publishes some is
     not a file with fewer obligations (review item P3-V1-F11): the row
-    count misses, the structural facts its first line CAN evidence are
-    measured from that line, and every per-column obligation is missed,
-    because a column with no cells carries none of them. The version
-    this replaces returned the row count alone and a listing per column,
-    so a report on a header-only file said five obligations were every
-    measurable one.
+    count misses, and every per-column obligation is missed, because a
+    column with no cells carries none of them. The version this replaces
+    returned the row count alone and a listing per column, so a report
+    on a header-only file said five obligations were every measurable
+    one.
+
+    AND NOTHING IS SAID ABOUT THE HEADER LINE (review item P3-V3-F3).
+    The version this replaces read the file's first record and settled
+    the width, the names, the order and each column's position against
+    it. `synthtwin profile` REFUSES a file with no rows to describe: it
+    publishes none of those, about this file or any other file with no
+    rows, so a report stating them states what describing the file never
+    would (V5.1). Two header-only files named alike -- one carrying the
+    published names, one carrying two other words -- got four different
+    verdicts and a different census, so a person holding the file and a
+    candidate description could read the header off the report one guess
+    at a time, which is the attack V5.3 names. All four are WITHHELD
+    now, and the file is told what the profiler's own refusal of it
+    tells: it holds no rows, so it holds nothing for any obligation of
+    any column to be met by.
+
+    NOTHING IS LOST BY IT, and that is why it is a withholding rather
+    than a conflict. This description publishes rows, so its own twin
+    carries them and never reaches here: every one of these obligations
+    still answers on the file the description says is right, and the
+    file that reaches here misses its row count and every obligation of
+    every column whatever its header says.
+
+    The headerless form keeps its header question, because it is not
+    about the file's own header at all: a description whose names were
+    generated asks for no header line, a file with no records carries no
+    line of any kind, and the answer is the same for every file that
+    reaches here.
     """
-    found = _first_record(text) if headed else []
     names = [column.name for column in description.columns]
     checks = [
         Check(
@@ -2277,51 +2661,66 @@ def _no_rows_at_all(
             _shown_count(description.n_rows),
             _shown_count(0),
         ),
-        _exact(
+        Check(
             "",
             "document.n_columns",
             "columns.n_columns",
+            WITHHELD,
             _shown_count(description.n_columns),
-            _shown_count(len(found)),
-        ),
-        _exact(
             "",
-            "document.source.header_source",
-            "header.presence",
-            (
-                "a header line"
-                if headed
-                else "no header line, the first row is a record"
-            ),
-            # ONE RULE, NOT TWO. The version this replaces wrote the
-            # header question out a second time here, and the two copies
-            # then had to be kept in step by hand. `_header_presence`
-            # carries the rule and its reasons; this path differs only
-            # in the text it is asked about, which for a headerless
-            # description is a file of no bytes at all.
-            _header_presence(text if headed else "", names, headed),
+            _GATE_REFUSED,
         ),
     ]
     if headed:
         checks = checks + [
-            _silent(
+            Check(
+                "",
+                "document.source.header_source",
+                "header.presence",
+                WITHHELD,
+                "a header line",
+                "",
+                _GATE_REFUSED,
+            ),
+            Check(
                 "",
                 "universal.name",
                 "header.names",
+                WITHHELD,
                 "the published names, in the published order",
-                found == names,
+                "",
+                _GATE_REFUSED,
             ),
-            _silent(
+            Check(
                 "",
                 "document.columns",
                 "columns.order",
+                WITHHELD,
                 "the published column order",
-                found == names,
+                "",
+                _GATE_REFUSED,
             ),
+        ]
+    else:
+        checks = checks + [
+            _exact(
+                "",
+                "document.source.header_source",
+                "header.presence",
+                "no header line, the first row is a record",
+                # ONE RULE, NOT TWO. The version this replaces wrote the
+                # header question out a second time here, and the two
+                # copies then had to be kept in step by hand.
+                # `_header_presence` carries the rule and its reasons;
+                # this path differs only in the text it is asked about,
+                # which for a headerless description reaching here is a
+                # file with no record in it at all.
+                _header_presence("", names, False),
+            )
         ]
     for column in description.columns:
         checks = checks + _nothing_left_to_measure(
-            description, column, found, headed
+            description, column, None if headed else [], headed
         )
     return checks
 
@@ -2517,7 +2916,25 @@ def _obligations(
     """
     name = column.name
     floor = description.settings.small_cell_floor
-    present, missing = _presence_of(cells)
+    # WHICH READING OF PRESENCE MAY BE REPORTED (plan amendment A-P3-5).
+    # The blank split is the measurement V2.4 asks for, and it is the one
+    # taken wherever the file's own description publishes the split. Where
+    # that description pools its missing sources under the publication
+    # floor, the split is a fact about the file it does not publish, and
+    # the two counts come off the description itself -- which says the
+    # same thing about every file it describes, which is the whole of
+    # V5.1.
+    #
+    # THE TWO COUNTS ASK THE WEAKER QUESTION, deliberately. They need
+    # only how MANY holes are non-blank, which the class map publishes
+    # for every role; the rest need the SPELLINGS too. Asking both the
+    # same way would have thrown away the round-2 witness on every column
+    # whose role publishes no spelling of its own.
+    split_published = _split_is_published(block)
+    if _split_size_is_published(block):
+        present, missing = _presence_of(cells)
+    else:
+        present, missing = _own_presence(block, cells)
     checks: list[Check] = []
     if _position_is_evidencible(column, headed):
         checks = checks + [_position_check(column, names, headed)]
@@ -2583,11 +3000,67 @@ def _obligations(
     # the two together. A re-description that never happened is a
     # different case and is not this one: it is settled by the callers
     # above, which hand both sides the same empty block.
+    # AND THE CELLS THE GATED SIDE SEES ARE THE ONES THAT DESCRIPTION
+    # READS (plan amendment A-P3-5). The style clauses recount the
+    # WRITTEN cells rather than a re-description, and settle each recount
+    # against the room the file's own description leaves -- room that
+    # `_unread_cells` widens by exactly the disputed cells. So the same
+    # two files leaked there too: fifty-nine numbers and one empty cell
+    # beside fifty-nine numbers and one `n/a`, one description between
+    # them, and SEVEN style subchecks changed verdict, nineteen misses
+    # becoming seventeen misses and seven withholdings. The reviewer's
+    # witness named the presence counts; repairing only those would have
+    # left this half of the same class open.
+    own_cells = cells if split_published else _cells_that_description_reads(cells)
     gated = _universal_checks(column, block, mine)
-    gated = gated + _role_checks(column, block, cells, floor, mine)
+    gated = gated + _role_checks(column, block, own_cells, floor, mine)
     measured = _universal_checks(column, split, mine)
     measured = measured + _role_checks(column, split, cells, floor, mine)
-    return checks + _governed(gated, measured)
+    return checks + _governed(gated, measured, split_published)
+
+
+def _cells_that_description_reads(cells: "list[str]") -> "list[str]":
+    """The cells with every spelling the blank split disputes taken out.
+
+    The disputed cells are the non-blank ones the producer's own absence
+    rules read as holes, and `_KEPT_OVER_THE_SPLIT` is the list of what
+    they can spell -- the producer's own first-party constants, the same
+    ones `settings_over_the_split` names as kept. Dropping them leaves a
+    cell list that is the same for every file the description cannot
+    tell apart, which is what makes the clauses settled from it safe to
+    report (V5.1).
+
+    A NUMERIC STAND-IN IS MATCHED ON ITS VALUE, not on its text, and the
+    difference is not pedantry: the producer decides a stand-in from the
+    NUMBER, so `-9999.0` and `-9999` are one candidate to it and would be
+    two spellings to a text comparison -- which would have left the
+    second one in the recount and the leak open in exactly the corner
+    this closes. It is the profiler's own declaration-matching rule for a
+    numeric candidate, which the settings carry and V2.3 names.
+
+    THE COST, STATED. A cell holding one of those spellings as GENUINE
+    data is dropped here too. That costs recount detail on a file whose
+    own description pools its missing sources and that holds such a
+    value -- residual R-P2-13's corner -- and it costs it in the safe
+    direction, since a smaller recount can only widen what a clause
+    declines to settle. It cannot happen on a file whose description
+    names its missing sources, which is where this branch is not taken.
+    """
+    kept: list[str] = []
+    for cell in cells:
+        body = parsing.trimmed(cell)
+        disputed = False
+        for spelling in _KEPT_OVER_THE_SPLIT:
+            if body.casefold() == spelling:
+                disputed = True
+        number = parsing.parse_number(body)
+        if number is not None:
+            for stand_in in parsing.NUMERIC_SENTINELS:
+                if number == stand_in:
+                    disputed = True
+        if not disputed:
+            kept = kept + [cell]
+    return kept
 
 
 def _position_is_evidencible(column: contract.ColumnBlock, headed: bool) -> bool:
@@ -2641,7 +3114,7 @@ def _position_check(
     one invented line: the obligation belongs to the description, so it
     is asked of every file.
     """
-    fact = "universal.position"
+    fact = _POSITION_FACT
     subcheck = "position.at"
     published = f"column number {column.position}"
     if headed:
@@ -2705,16 +3178,38 @@ def _nothing_left_to_measure(
 ) -> "list[Check]":
     """Every obligation of a column in a file that holds no rows.
 
-    What the first line still evidences is measured -- the column stands
-    where the description puts it, or it does not -- and everything a
-    cell would have had to carry is MISSED, because there are no cells.
-    The gate's own sentence would be the wrong reason here: nothing was
-    withheld, there was nothing to describe.
+    Everything a cell would have had to carry is MISSED, because there
+    are no cells. The gate's own sentence would be the wrong reason for
+    those: nothing was withheld, there was nothing to describe.
+
+    WHERE THIS COLUMN STANDS IS THE ONE QUESTION THE HEADER LINE ANSWERS,
+    AND ON A FILE THE PRODUCER REFUSES IT IS NOT ANSWERED (review item
+    P3-V3-F3). ``names`` is None exactly where the caller has a header
+    line it may not read anything off -- a headed description against a
+    file with no rows -- and there the position check is WITHHELD under
+    the refusal's own sentence rather than turned into the miss the rest
+    of the column takes. A headerless description hands over the empty
+    record it really has, and the answer is the same for every file that
+    reaches there: no column stands at any number in a file with no
+    records.
     """
     filled: list[Check] = []
     for check in _obligations(
         description, column, [], {}, {}, names, headed
     ):
+        if check.fact == _POSITION_FACT and names is None:
+            filled = filled + [
+                Check(
+                    check.column,
+                    check.fact,
+                    check.subcheck,
+                    WITHHELD,
+                    check.published,
+                    "",
+                    _GATE_REFUSED,
+                )
+            ]
+            continue
         if check.verdict == WITHHELD and check.citation == _GATE_CLOSED:
             filled = filled + [
                 Check(
@@ -2746,6 +3241,11 @@ def _presence_of(cells: "list[str]") -> "tuple[int, int]":
     The contract's own rule for twins: every absent cell is written as
     an empty field. So presence is decided here and nowhere else, with
     no sentinel and no declaration machinery anywhere near a verdict.
+
+    WHETHER THIS COUNT MAY BE REPORTED is a separate question and
+    `_split_is_published` below is where it is asked (plan amendment
+    A-P3-5). This function says what the split holds; that one says
+    whether describing the file would publish it.
     """
     present = 0
     for cell in cells:
@@ -2754,8 +3254,129 @@ def _presence_of(cells: "list[str]") -> "tuple[int, int]":
     return present, len(cells) - present
 
 
+def _own_presence(
+    block: "dict[str, object]", cells: "list[str]"
+) -> "tuple[int, int]":
+    """The two presence counts as the file's OWN description states them.
+
+    Used where that description pools its missing sources, so that the
+    blank split may not be reported (`_split_is_published`). It is the
+    same file and the same cells; what differs is only which cells the
+    producer's own absence rules count as holes, and those are the ones
+    a description of this file publishes.
+
+    A description that carries neither count cannot answer, and there the
+    blank split is what there is -- no statement about a fact the
+    description does not carry can be narrower than one it does.
+    """
+    present = _count_at(block, "n_present")
+    missing = _count_at(block, "n_missing")
+    if present is None or missing is None:
+        return _presence_of(cells)
+    return present, missing
+
+
+def _split_is_published(block: "dict[str, object]") -> bool:
+    """Whether describing this file publishes its own blank/non-blank split.
+
+    THE CONFLICT THIS SETTLES, IN ONE SENTENCE (plan amendment A-P3-5;
+    review items P3-V3-F1 and P3-V3-F2). V2.4 counts presence by
+    BLANKNESS; the producer counts it by its own absence rules; and the
+    two differ exactly on the cells that are non-blank and read as
+    absences -- a built-in missing marker, or a number it judges a
+    stand-in for "no value". V5.1 lets the report state only what
+    describing the file would publish about it. So a verdict taken over
+    the blank split is a statement the file's own description makes only
+    when that description says how many of its missing cells were spelled
+    which way -- and that is a floored fact, published per spelling in
+    `missing_by_source` and pooled into one unnamed total below the
+    publication floor, because a count of two cells sharing a rare
+    spelling is a count the floor exists to hide.
+
+    WHERE THE DESCRIPTION NAMES EVERY MISSING CELL'S SOURCE, a reader of
+    that description knows the exact multiset of spellings the missing
+    cells wear, so every measurement the split takes is derivable from
+    what `synthtwin profile` publishes about this file, and reporting it
+    states nothing new. That is what this returns True for, and it is
+    the ordinary case: a column with no missing cells at all, and a twin
+    whose blanks reach the floor, both name every source.
+
+    WHERE IT POOLS ANY OF THEM the split is not derivable, two files the
+    producer describes byte for byte alike hold different splits, and
+    `_governed` falls back to the file's own description -- which is
+    inside the envelope by construction, because it IS the description.
+    It does not fall back to a withholding: a silence any file could buy
+    by writing one marker cell is the defect amendment V2.4-A1 exists to
+    close, and this returns False on exactly the files that could buy it.
+
+    Guarantees:
+
+    - Inputs: one column of the file's OWN description. Not the split
+      description, and no measured cell: what may be said has to be a
+      function of what describing the file publishes, or the file
+      decides what may be said about it (V5.2).
+    - Determinism: a fixed function of that block.
+    - Errors raised: none.
+    """
+    missing = _count_at(block, "n_missing")
+    if missing is None:
+        # No re-description at all. The degenerate paths hand both sides
+        # the same empty block, so there is no second reading to choose
+        # between and nothing here can move a verdict.
+        return True
+    by_source = _map_at(block, "missing_by_source")
+    if by_source is None:
+        return missing == 0
+    named = 0
+    for key in sorted(by_source):
+        if key == parsing.MISSING_WITHHELD:
+            return False
+        named = named + by_source[key]
+    return named == missing
+
+
+def _split_size_is_published(block: "dict[str, object]") -> bool:
+    """Whether describing this file publishes HOW MANY cells the split adds.
+
+    A weaker question than `_split_is_published` above, and worth asking
+    separately because it has a different answer and buys back real
+    teeth (plan amendment A-P3-5 clause 1).
+
+    `missing_by_class` counts a column's holes under synthtwin's own five
+    words -- blank, declared-missing, numeric-sentinel, text-code, and
+    the pooled remainder -- and because those words carry nothing from
+    the table it is published for EVERY role, including the three that
+    publish no value of the table at all. So where its pooled remainder
+    is empty, the number of holes that are non-blank is published
+    exactly, even where their SPELLINGS are not. The two counts the blank
+    split owns are then derivable from what describing the file
+    publishes, and reporting them says nothing new -- while the
+    measurements that need the spellings, distinctness among them, still
+    do not.
+
+    That difference is what keeps the round-2 witness caught on a column
+    whose role publishes no spellings: thirty holes all spelled the same
+    way reach the publication floor, the class map names them
+    `(text-code): 30`, and `presence.n_present` misses again.
+
+    Guarantees:
+
+    - Inputs: one column of the file's OWN description. No measured
+      cell, for the reason `_split_is_published` gives.
+    - Determinism: a fixed function of that block.
+    - Errors raised: none.
+    """
+    missing = _count_at(block, "n_missing")
+    if missing is None:
+        return True
+    by_class = _map_at(block, "missing_by_class")
+    if by_class is None:
+        return missing == 0
+    return _counted(by_class, parsing.MISSING_WITHHELD) == 0
+
+
 def _governed(
-    gated: "list[Check]", measured: "list[Check]"
+    gated: "list[Check]", measured: "list[Check]", split_published: bool
 ) -> "list[Check]":
     """One verdict per obligation: the gate's say, then the split's number.
 
@@ -2802,6 +3423,19 @@ def _governed(
     let any registered red case be defeated by one added cell. The gap
     is closed by MEASURING over the split rather than by declining to,
     which is what V2.4 asked for all along.
+
+    AND THE SPLIT'S NUMBER IS ONLY TAKEN WHERE THE FILE'S OWN
+    DESCRIPTION PUBLISHES THE SPLIT (``split_published``; plan amendment
+    A-P3-5, review item P3-V3-F1). Where it pools its missing sources
+    below the publication floor, two files that description cannot tell
+    apart hold different splits -- fifty-nine labels and one empty cell
+    beside fifty-nine labels and one `n/a` -- and the split's verdict
+    told them apart, at eight subchecks, two censuses and two exit
+    statuses, which V5.1 forbids. There the file's OWN description
+    supplies the verdict instead. That is inside the envelope by
+    construction, it is never a silence, and it never lets a file stop
+    a check: every obligation still lands on a verdict taken from one
+    description or the other.
     """
     settled: list[Check] = []
     # Paired strictly: the two sides are the same obligations in the
@@ -2812,6 +3446,9 @@ def _governed(
             settled = settled + [closed]
             continue
         if closed.subcheck in _MEASURED_FROM_THE_CELLS:
+            settled = settled + [closed]
+            continue
+        if not split_published:
             settled = settled + [closed]
             continue
         if found.verdict == WITHHELD and found.citation == _GATE_CLOSED:
@@ -4596,12 +5233,22 @@ def _date_ladder_checks(
 ) -> "list[Check]":
     """The date ladder: the two ends exact, the nine interior in windows.
 
-    The window is method G12.4's, taken in the ordinal space of whole
-    seconds the profiler's own `parsing.instant_key` reads a canonical
-    instant into. The rung a description publishes is SELECTED, not
-    interpolated -- there is no half-way point between two dates a
-    calendar recognises -- so the window is the band the rank's own two
-    ends make, widened by what reading a written cell back can lose.
+    The window is method G12.4's, taken in the ordinal space method
+    G7.1 fixes for the resolution this column publishes (`_instant_of`).
+    The rung a description publishes is SELECTED, not interpolated --
+    there is no half-way point between two dates a calendar recognises
+    -- so the window is the band the rank's own two ends make, widened
+    by what reading a written cell back can lose.
+
+    EVERY RESOLUTION, INCLUDING QUARTERS (review item P3-V3-F4). These
+    nine rungs used to be WITHHELD one by one on any column of quarters,
+    because the space was `parsing.instant_key`'s alone and a quarter
+    names no instant in it. The method defines a quarter's ordinal and
+    applies this bound to quarters in as many words, so the obligation
+    was there and only the measurement was missing: a file holding three
+    of the twelve published quarters passed with these nine and both
+    distinctness counts silenced. There is no branch here that a
+    resolution can silence any more.
     """
     name = column.name
     measured = _inner_at(block, "date_percentiles")
@@ -4618,28 +5265,13 @@ def _date_ladder_checks(
                 None if found is None else found == expected,
             )
         ]
-    ordinals = _date_points(published.rungs)
-    if ordinals is None:
-        # A ladder whose rungs name no instant -- a column of quarters --
-        # has no ordinal space to draw a window in. The nine rungs are
-        # withheld one by one rather than dropped, for the reason the
-        # style gate gives.
-        for index in range(1, len(_LADDER_KEYS) - 1):
-            checks = checks + [
-                _withheld(
-                    name,
-                    "datetime.date_percentiles",
-                    f"date-ladder.{_LADDER_KEYS[index]}",
-                    _GATE_CLOSED,
-                )
-            ]
-        return checks
+    ordinals = _date_points(published.rungs, facts.resolution)
     dated = max(1, column.n_present - facts.n_unparsed)
     unit = _reading_unit(facts)
     for index in range(1, len(_LADDER_KEYS) - 1):
         key = _LADDER_KEYS[index]
         found = None if measured is None else _text_at(measured, key)
-        seen = None if found is None else parsing.instant_key(found, "")
+        seen = None if found is None else _instant_of(found, facts.resolution)
         rank = ((dated - 1) * _LADDER_SHARES[index] * 100) // 100
         low = _ladder_at(ordinals, rank / dated) - unit
         high = _ladder_at(ordinals, min(1.0, (rank + 1) / dated))
@@ -4659,7 +5291,7 @@ def _date_ladder_checks(
 
 def _datetime_distinct_window(
     column: contract.ColumnBlock, facts: contract.DatetimeFacts
-) -> "tuple[float, float] | None":
+) -> "tuple[float, float]":
     """How many different values a column of dates may hold (G12.5).
 
     The LOWER end counts ranks whose windows of G12.4 do not overlap:
@@ -4675,10 +5307,16 @@ def _datetime_distinct_window(
     dates publishes 84 while the construction writes a value per rank.
     That is what the matrix means by giving a column of dates its own
     explicit cardinality bound.
+
+    IT IS DRAWN FOR EVERY RESOLUTION AND RETURNS NO "CANNOT SAY"
+    (review item P3-V3-F4). It used to hand back nothing for a column of
+    quarters, and both distinctness counts were then WITHHELD whatever
+    the file held -- so a twelve-row file carrying three of twelve
+    published quarters was told its distinctness could not be shown. The
+    ordinal space below is the method's own for each resolution, so
+    there is nothing left here for a resolution to silence.
     """
-    ordinals = _date_points(facts.date_percentiles.rungs)
-    if ordinals is None:
-        return None
+    ordinals = _date_points(facts.date_percentiles.rungs, facts.resolution)
     dated = max(1, column.n_present - facts.n_unparsed)
     unit = _reading_unit(facts)
     separate = 0
@@ -4690,10 +5328,8 @@ def _datetime_distinct_window(
             separate = separate + 1
             ceiling = high
     step = _precision_step(facts)
-    earliest = parsing.instant_key(facts.earliest, "")
-    latest = parsing.instant_key(facts.latest, "")
-    if earliest is None or latest is None:
-        return None
+    earliest = _ordinal_of(facts.earliest, facts.resolution)
+    latest = _ordinal_of(facts.latest, facts.resolution)
     named = 0
     for key in facts.utc_offsets:
         if key != taxonomy.SUPPRESSED_LABEL:
@@ -4705,7 +5341,15 @@ def _datetime_distinct_window(
 
 
 def _precision_step(facts: contract.DatetimeFacts) -> int:
-    """How many whole seconds apart two neighbouring instants are."""
+    """How far apart two neighbouring instants are, in this column's unit.
+
+    The unit is the resolution's own (`_instant_of`): one quarter for a
+    column of quarters, one day for a column of dates, one second for a
+    column of dates and times -- so a column written to the minute steps
+    sixty of its own units.
+    """
+    if facts.resolution == taxonomy.RESOLUTION_QUARTER:
+        return 1
     if facts.resolution == taxonomy.RESOLUTION_DATE:
         return 86400
     if facts.time_precision == parsing.PRECISION_MINUTE:
@@ -4714,30 +5358,114 @@ def _precision_step(facts: contract.DatetimeFacts) -> int:
 
 
 def _date_points(
-    rungs: "tuple[str, ...]",
-) -> "list[tuple[float, float]] | None":
-    """The published date ladder as (share, whole seconds) points."""
+    rungs: "tuple[str, ...]", resolution: str
+) -> "list[tuple[float, float]]":
+    """The published date ladder as (share, ordinal) points."""
     points: list[tuple[float, float]] = []
     for index, moment in enumerate(rungs):
-        seconds = parsing.instant_key(moment, "")
-        if seconds is None:
-            return None
-        points = points + [(_LADDER_SHARES[index], float(seconds))]
+        points = points + [
+            (_LADDER_SHARES[index], float(_ordinal_of(moment, resolution)))
+        ]
     return points
 
 
 def _reading_unit(facts: contract.DatetimeFacts) -> float:
-    """What reading one written cell back can lose, in whole seconds.
+    """What reading one written cell back can lose, in this column's unit.
 
-    One unit for the downward rounding of the whole-number
-    interpolation itself, plus the fifty-nine seconds a cell written to
-    the minute carries no room for.
+    Method G12.4's `u`: one unit for the downward rounding of the
+    whole-number interpolation itself, plus the fifty-nine seconds a
+    cell written to the minute carries no room for. A date, a quarter, a
+    second and a subsecond cell each carry their own unit exactly and
+    lose nothing further, so each of those is one unit of its own space.
     """
+    if facts.resolution == taxonomy.RESOLUTION_QUARTER:
+        return 1.0
     if facts.resolution == taxonomy.RESOLUTION_DATE:
         return 86400.0
     if facts.time_precision == parsing.PRECISION_MINUTE:
         return 119.0
     return 1.0
+
+
+# -- method G7.1's ordinal space, one per resolution -------------------
+
+
+def _ordinal_of(published: str, resolution: str) -> int:
+    """One published instant as a whole number (method G7.1).
+
+    ``published`` is text the strict loader has already admitted as a
+    canonical value of ``resolution`` -- an endpoint or a ladder rung --
+    so it always names an ordinal. A description that reached here
+    carrying anything else is a loader that stopped checking, and the
+    internal check below says so rather than letting a window be drawn
+    round a number nobody computed.
+    """
+    ordinal = _instant_of(published, resolution)
+    if ordinal is None:
+        raise TypeError(
+            "internal check: a published instant names no point in the "
+            "ordinal space its own resolution fixes"
+        )
+    return ordinal
+
+
+def _instant_of(moment: str, resolution: str) -> "int | None":
+    """One canonical instant as a whole number, or None (method G7.1).
+
+    THE SPACE IS THE RESOLUTION'S OWN, AND THERE ARE THREE OF THEM. The
+    method's own table fixes one ordinal unit per resolution: one
+    quarter for a quarter, one day for a date, one second for a date and
+    time. Two of the three are what `parsing.instant_key` already reads
+    a canonical instant into, scaled to whole seconds; the third is
+    written out here because a quarter names no instant at all and that
+    function returns None for one by design.
+
+    WHY THIS IS WRITTEN HERE AND NOT IMPORTED (V1.4, review item
+    P3-V3-F4). The generator computes the same ordinal from the same
+    table, and a validator that called its function would share every
+    arithmetic error with the code it is a second opinion on. So this is
+    the method's table written a second time, from the method, and the
+    suite compares the two writings where both may be imported.
+
+    Returns None where the text is not a canonical value of that
+    resolution -- which is how a measured file that re-describes as
+    another kind of column reaches its own verdict rather than a number
+    taken in the wrong space.
+    """
+    if resolution == taxonomy.RESOLUTION_QUARTER:
+        return _quarter_ordinal(moment)
+    return parsing.instant_key(moment, "")
+
+
+def _quarter_ordinal(moment: str) -> "int | None":
+    """`YYYY-Qn` as `4 * (year - 1970) + (n - 1)`, or None (G7.1).
+
+    Whole-number arithmetic on four digits and one, so the answer is the
+    same on every machine and no calendar is consulted: a quarter names
+    a span rather than an instant, which is exactly why it has a space
+    of its own.
+    """
+    if len(moment) != 7:
+        return None
+    if moment[4:5] != _DATE_DASH or moment[5:6] != _QUARTER_MARK:
+        return None
+    year = _whole_number(moment[0:4])
+    quarter = _whole_number(moment[6:7])
+    if year is None or quarter is None:
+        return None
+    if quarter < 1 or quarter > 4:
+        return None
+    return 4 * (year - 1970) + (quarter - 1)
+
+
+def _whole_number(figures: str) -> "int | None":
+    """``figures`` as a whole number, or None when it is not all digits."""
+    if not figures:
+        return None
+    for character in figures:
+        if character not in _DIGITS:
+            return None
+    return int(figures)
 
 
 # -- free text, identifiers, and the unrepresentable role -------------
