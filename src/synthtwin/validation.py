@@ -523,6 +523,25 @@ _KEPT_OVER_THE_SPLIT = tuple(
     )
 )
 
+# The same three stand-ins, as the EXACT numbers the producer decides
+# them by (review items P1-R8-F2 and P3-V4-F1).
+#
+# WHY NOT THE BINARY64 VALUES. The producer asks which cells ARE a
+# candidate by the number the cell's digits denote, exactly, and Phase 1
+# made it exact for a reason it wrote down: two decimal spellings a
+# person can tell apart round to one binary64 value, so a rule that
+# compares the rounded values makes one number out of two. This module
+# re-describes the measured file with that producer, so a cell it
+# decides differently is a cell the two sides disagree about -- and
+# comparing the rounded values here erased eleven cells of
+# `-999.00000000000001` that the producer's own description of the same
+# file counts as ordinary readings, and reported two style obligations
+# MISSED against that description. The identity is `taxonomy`'s own
+# published rule and is not written a second time here.
+_STAND_IN_EXACTS = tuple(
+    [taxonomy.exact_of_number(value) for value in parsing.NUMERIC_SENTINELS]
+)
+
 # The eleven ladder positions as probabilities, in ladder order.
 _LADDER_SHARES = tuple(
     [number / denominator for _name, number, denominator in taxonomy.LADDER]
@@ -3117,12 +3136,22 @@ def _cells_that_description_reads(
       Where the certain holes already account for every one of them, no
       unpublished candidate is a hole and none of its cells is dropped.
 
-    A NUMERIC STAND-IN IS MATCHED ON ITS VALUE, not on its text, on both
-    sides, and the difference is not pedantry: the producer decides a
-    stand-in from the NUMBER, so `-9999.0` and `-9999` are one candidate
-    to it and would be two spellings to a text comparison. It is the
-    profiler's own declaration-matching rule for a numeric candidate,
-    which the settings carry and V2.3 names.
+    A NUMERIC STAND-IN IS MATCHED ON THE EXACT NUMBER ITS DIGITS
+    DENOTE, on both sides, which is neither its text nor the binary64
+    value that text rounds to (review item P3-V4-F1, and it reopened the
+    class Phase 1 closed as P1-R8-F2). Not the text, because the
+    producer decides a stand-in from the number: `-9999.0` and `-9999`
+    are one candidate to it and would be two spellings to a text
+    comparison. And not the rounded value, because two decimal spellings
+    a person can tell apart round to one binary64 value: this function
+    read `-999.00000000000001` as the stand-in `-999`, while the
+    producer -- whose comparison Phase 1 made exact for that very reason
+    -- reads it as an ordinary reading and publishes it as one. Eleven
+    such cells were deleted from a recount settled against a floor that
+    same description publishes exactly, and `styles.at-least.decimal`
+    was reported MISSED against the file's own description. The rule
+    used here is `taxonomy.exact_of_spelling`, the producer's own, by
+    name; there is no second writing of it to drift.
 
     WHAT IS LEFT OPEN, at its exact size. Where the description does
     leave an unpublished candidate's verdict undecided -- it pools some
@@ -3136,6 +3165,17 @@ def _cells_that_description_reads(
     twin whose absent cells are all written empty -- which is every
     conforming twin but that corner -- reaches this function with
     nothing disputed at all and loses no cell.
+
+    THAT BOUND IS TRUE OF THE EXACT RULE AND WAS FALSE OF THE ROUNDING
+    ONE, which is how the size of this residual hid the defect above. A
+    candidate goes unnamed only because fewer than `small_cell_floor`
+    cells hold it, so "fewer than the floor per candidate" follows from
+    the identity being the producer's -- but under a rounding identity a
+    cell that is NOT the candidate counted as one, and a column holding
+    eleven such cells lost all eleven while the sentence above still
+    said fewer than eleven. The suite asserts the bound by counting the
+    cells rather than by trusting it, which is what makes the sentence
+    checkable rather than merely written.
 
     Guarantees:
 
@@ -3163,15 +3203,26 @@ def _holes_by_the_description(
     The two certainties and the one budget `_cells_that_description_reads`
     describes, in that order. Split out so the rule can be read on its
     own and tested on its own.
+
+    EVERY NUMBER HERE IS AN EXACT ONE, and the two names that make it so
+    are the producer's own: `taxonomy.exact_of_spelling` for a cell or a
+    declared spelling, `taxonomy.exact_of_number` for a candidate the
+    producer carries as a number. Nothing in this function compares two
+    numbers any other way, because a cell's identity decided in binary64
+    beside a producer that decides it exactly is a cell the two sides can
+    disagree about (review item P3-V4-F1).
     """
     kept_spellings_folded: dict[str, int] = {}
-    kept_numbers: list[float] = []
+    kept_numbers: list[tuple[int, tuple[str, ...], int]] = []
     for spelling in kept:
-        number = parsing.parse_number(spelling)
+        number = taxonomy.exact_of_spelling(spelling)
         if number is None:
             # The producer matches a declaration that names no number by
             # its folded spelling, and one that names a number by the
-            # number alone (`taxonomy._split_missing`, and V2.3).
+            # number alone (`taxonomy._split_missing`, and V2.3). Which
+            # of the two a spelling is, is the reader of record's own
+            # answer, asked here through the same name the producer asks
+            # it through rather than through a second reading of it.
             kept_spellings_folded[parsing.folded(spelling)] = 1
         else:
             kept_numbers = kept_numbers + [number]
@@ -3185,7 +3236,7 @@ def _holes_by_the_description(
         is_hole = False
         undecided = False
         if body:
-            stand_in = _stand_in_of(parsing.parse_number(body))
+            stand_in = _stand_in_of(taxonomy.exact_of_spelling(cell))
             # The producer's own order: what the settings name as data
             # beats every rule below it, the built-in table of missing
             # spellings comes next, and a stand-in's fate is the
@@ -3218,23 +3269,37 @@ def _holes_by_the_description(
     return settled
 
 
-def _stand_in_of(number: "float | None") -> "float | None":
-    """The built-in numeric stand-in this number IS, or None.
+def _stand_in_of(
+    number: "tuple[int, tuple[str, ...], int] | None",
+) -> "tuple[int, tuple[str, ...], int] | None":
+    """The built-in numeric stand-in this cell IS, or None.
 
-    Matched on the value, which is how the producer decides a candidate
-    (V2.3), so `-999`, `-999.0` and `-999.00` are one candidate here as
-    they are one candidate there.
+    Matched on the EXACT number the cell's digits denote, which is how
+    the producer decides a candidate (V2.3, and `_sentinel_verdicts`
+    counts a candidate's rows that way for review item P1-R8-F2). So
+    `-999`, `-999.0` and `-999.00` are one candidate here as they are
+    one candidate there -- and `-999.00000000000001` is not that
+    candidate on either side, though it rounds to the same binary64
+    value, because it is a different number and the producer describes
+    it as one (review item P3-V4-F1).
     """
     if number is None:
         return None
-    for candidate in parsing.NUMERIC_SENTINELS:
+    for candidate in _STAND_IN_EXACTS:
         if number == candidate:
             return candidate
     return None
 
 
-def _named(numbers: "list[float]", value: "float | None") -> bool:
-    """Whether ``value`` is one of ``numbers``; False for no number."""
+def _named(
+    numbers: "list[tuple[int, tuple[str, ...], int]]",
+    value: "tuple[int, tuple[str, ...], int] | None",
+) -> bool:
+    """Whether ``value`` is one of ``numbers``; False for no number.
+
+    Both sides are canonical triples, so this is the producer's own
+    `_declared_number` comparison and not a rounding of it.
+    """
     if value is None:
         return False
     for number in numbers:
@@ -3245,28 +3310,31 @@ def _named(numbers: "list[float]", value: "float | None") -> bool:
 
 def _candidates_the_description_keeps(
     block: "dict[str, object]",
-) -> "list[float]":
+) -> "list[tuple[int, tuple[str, ...], int]]":
     """The stand-ins the file's own description read as ordinary numbers."""
     return _candidates_with(block, taxonomy.VERDICT_KEPT)
 
 
 def _candidates_the_description_drops(
     block: "dict[str, object]",
-) -> "list[float]":
+) -> "list[tuple[int, tuple[str, ...], int]]":
     """The stand-ins the file's own description read as "no value"."""
     return _candidates_with(block, taxonomy.VERDICT_MISSING)
 
 
 def _candidates_with(
     block: "dict[str, object]", verdict: str
-) -> "list[float]":
+) -> "list[tuple[int, tuple[str, ...], int]]":
     """Every published sentinel candidate carrying one verdict, as numbers.
+
+    Each one as the EXACT number its published spelling denotes, which
+    is the identity the cells are compared at.
 
     A candidate below the publication floor is published by no entry at
     all, so it appears in neither list and the caller settles it from
     the count of holes instead.
     """
-    found: list[float] = []
+    found: list[tuple[int, tuple[str, ...], int]] = []
     if "sentinel_verdicts" not in block:
         return found
     entries = block["sentinel_verdicts"]
@@ -3284,7 +3352,7 @@ def _candidates_with(
         candidate = _text_at(inner, "candidate")
         if candidate is None:
             continue
-        number = parsing.parse_number(candidate)
+        number = taxonomy.exact_of_spelling(candidate)
         if number is not None:
             found = found + [number]
     return found

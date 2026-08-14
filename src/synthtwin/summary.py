@@ -489,6 +489,83 @@ def _declaration_lines(document: dict[str, object]) -> list[str]:
     ]
 
 
+def _lowered_floor_lines(floor: int) -> list[str]:
+    """Said only where this profile was made under a lowered floor.
+
+    THIS PAGE IS ONE OF THE FOUR THAT MUST SAY IT (owner ruling
+    2026-08-14, plan amendment A-P3-11). The owner ruled that
+    `--smallest-group` below the default is let through end to end, and
+    ruled with it that every artifact made from such a description
+    carries the fact on its own face -- because a person is handed one
+    of these files, not the set, and the JSON's `small_cell_floor` is a
+    number in a document a non-programmer does not open. So this page
+    says it, the generation report says it and the quality report says
+    it, each without reference to the others.
+
+    IT IS CONDITIONAL, and that is the opposite of the rule the honest
+    limits are written under. A limit true of every run is printed on
+    every run so that nobody comes to expect its absence. This is not a
+    limit of synthtwin; it is a fact about THIS description that is
+    false of an ordinary one, and printing it on every run -- "your
+    floor was not lowered" -- is how a reader is trained to skip
+    the paragraph that matters.
+
+    Guarantees:
+
+    - Inputs: the floor this description was made with.
+    - Determinism: a fixed function of that number.
+    - Errors raised: none.
+    - Boundary: no value of the table reaches it.
+    """
+    if floor >= taxonomy.Settings().small_cell_floor:
+        return []
+    usual = taxonomy.Settings().small_cell_floor
+    lines = [
+        (
+            "  THE SMALLEST GROUP SIZE WAS LOWERED FOR THIS PROFILE, TO "
+            f"{floor}."
+        ),
+        "",
+        f"  synthtwin normally leaves a value out unless at least {usual}",
+        "  rows share it. This profile names values that as few as",
+        f"  {floor} row(s) share, and says how many rows that is.",
+        "",
+    ]
+    # "a group of 1 is 1 people" is not English, so at a floor of one the
+    # sentence is the one that is true there rather than the general one
+    # with a bad number in it.
+    if floor < 2:
+        lines = lines + [
+            "  A named group can be a single row. If one row of your table",
+            "  is one person, this profile says out loud that exactly one",
+            "  person -- on their own -- has that value.",
+            "",
+        ]
+    else:
+        lines = lines + [
+            (
+                "  If one row of your table is one person, a group of "
+                f"{floor} is"
+            ),
+            f"  {floor} people.",
+            "",
+        ]
+    return lines + [
+        "  What that can mean for a person. Somebody who already knows",
+        "  one true thing about someone in your table -- that they are in",
+        "  it at all -- can find the small group that person must be in",
+        "  and read off everything else this profile says about that",
+        f"  group. That is what the usual {usual} prevents and what this",
+        "  profile does not.",
+        "",
+        "  It does not stop with this file. The twin is built to hold",
+        "  these counts exactly, and the twin's report and the quality",
+        "  report quote them back, so all five files of a full run carry",
+        "  them.",
+        "",
+    ]
+
+
 def _disclosure_lines(document: dict[str, object]) -> list[str]:
     """What of the real table this profile carries, and what it does not."""
     with_labels: list[str] = []
@@ -532,6 +609,7 @@ def _disclosure_lines(document: dict[str, object]) -> list[str]:
         "  five of them, not to the profile alone.",
         "",
     ]
+    lines = lines + _lowered_floor_lines(floor)
     if with_labels:
         # THE SPELLINGS ARE PART OF THIS CLAIM, and saying only "labels"
         # would now be a promise the profile no longer keeps. A label is

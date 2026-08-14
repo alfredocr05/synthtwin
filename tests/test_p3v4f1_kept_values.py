@@ -20,7 +20,25 @@ The note left beside the deletion called it "recount detail, in the safe
 direction"; a smaller recount is a smaller count against a floor the
 description publishes exactly, and `styles.at-least.plain` is a floor.
 
-SO THIS FILE ASSERTS THE CLASS AND NOT THE WITNESS, in four parts:
+AND ROUND 4'S REPAIR WAS NOT THE CLASS EITHER (review round 5, item 1).
+It stopped the unconditional deletion and left the two sides deciding
+"is this cell a hole?" by DIFFERENT ARITHMETIC: the producer compares
+the exact number a cell's digits denote, and this module compared the
+binary64 value that number rounds to. One column of eleven
+`-999.00000000000001` cells, six exact `-999` holes and forty-three
+ordinary readings then had all seventeen erased -- the producer keeps
+the eleven and publishes `n_present=54` -- and `styles.at-least.decimal`
+and `styles.spill` were reported MISSED against the table's own profile.
+That is the class Phase 1 closed as P1-R8-F2, reintroduced one module
+over: `taxonomy` made this comparison exact, and this module wrote a
+rounding one beside it instead of standing on it.
+
+The arithmetic test below skipped its equality assertion on exactly that
+witness, which is why the witness survived the round it was written for.
+It does not skip now: where cells are dropped, each one has to BE a cell
+the producer itself could read as an absence.
+
+SO THIS FILE ASSERTS THE CLASS AND NOT THE WITNESS, in six parts:
 
 * THE WITNESS ITSELF, end to end through the three commands' own code;
 * EVERY PUBLISHED ROUTE by which a description names a spelling as data
@@ -29,20 +47,27 @@ SO THIS FILE ASSERTS THE CLASS AND NOT THE WITNESS, in four parts:
   own description reads as an ordinary number because it is no outlier.
   That one is a false rejection the review never wrote down, and it was
   live on the same line;
+* THE ROUND-5 WITNESS, on every numeric sentinel rather than the one it
+  names, at the grain the two sides meet: which cells ARE a candidate;
 * THE RULE IN ARITHMETIC, over every fixture and both directions: the
   cells left behind are never MORE than the file's own description
   counts as present -- which is the confidentiality half amendment
-  A-P3-5 clause 2 exists for -- and never FEWER where that description
-  publishes a verdict for every candidate it holds, which is the half
-  this finding is;
-* AND THE HALF THAT MUST NOT MOVE: two files that description cannot
-  tell apart still get the same census, on a column that also holds
-  kept stand-ins.
+  A-P3-5 clause 2 exists for -- and never FEWER except by the residual
+  `_cells_that_description_reads` states, with every dropped cell shown
+  to be a cell the producer's own rules could read as an absence;
+* THE HALF THAT MUST NOT MOVE: two files that description cannot tell
+  apart still get the same census, on a column that also holds kept
+  stand-ins;
+* AND THE CLASS AS A SHAPE, not as a case: no function that decides
+  which cells the file's own description reads may ask a rounding reader
+  for a number, whatever it is called and whenever it is added.
 
 Every table is built at test time by the seeded neutral builders in
 `fixtures.py`; no data-format file enters the repository (plan D13).
 """
 
+import ast
+import inspect
 import pathlib
 
 import pytest
@@ -64,6 +89,22 @@ SEED = 20260814
 # A floor of eleven is the shipped default; the fixtures below lean on
 # it rather than on a number written out here.
 _FLOOR = taxonomy.Settings().small_cell_floor
+
+# One row per numeric sentinel: the sentinel as a person writes it, and a
+# decimal spelling that denotes a DIFFERENT number while rounding to the
+# same binary64 value. This is the same battery Phase 1 closed P1-R8-F2
+# with, restated here because the defect came back on the other side of
+# the boundary and a sentinel added later must arrive with its own
+# neighbour rather than inherit a repair nothing checks for it.
+NEIGHBOURS = [
+    ("-9999", "-9999.0000000000001"),
+    ("-999", "-999.00000000000001"),
+    ("9999", "9999.0000000000001"),
+]
+
+# The round-5 witness's own two spellings.
+_NEAR = "-999.00000000000001"
+_HOLE = "-999"
 
 
 def _described(
@@ -141,6 +182,47 @@ def _ordinary_sentinel_values() -> "list[str]":
         else:
             values = values + [str(round(-1100.0 + index * 3.5, 1))]
     return values
+
+
+def _near_neighbour_values(sentinel: str, neighbour: str) -> "list[str]":
+    """The round-5 witness: eleven near numbers, six holes, forty-three readings.
+
+    Eleven is the publication floor, and it is the number the witness
+    needs rather than a round one: the residual
+    `_cells_that_description_reads` states is bounded by cells of an
+    UNPUBLISHED candidate, so a column that loses a whole floor's worth
+    of cells has lost cells no residual can account for.
+
+    The six exact `-999` cells sit below that floor, so the description
+    publishes no verdict naming the candidate at all and pools their
+    spelling in `missing_by_source` -- which is exactly the branch that
+    hands the gated side a trimmed cell list. The readings are written
+    at their canonical spelling, so nothing but the near numbers can put
+    a cell outside its value's permitted spellings.
+    """
+    values: list[str] = []
+    for index in range(60):
+        if index % 5 == 0 and index < 55:
+            values = values + [neighbour]
+        elif index % 10 == 3:
+            values = values + [sentinel]
+        else:
+            values = values + [str(round(1.0 + index * 0.25, 2))]
+    return values
+
+
+def _near_neighbour_witness(
+    folder: pathlib.Path, sentinel: str, neighbour: str
+) -> "tuple[contract.Profile, str]":
+    """The witness table for one sentinel, and its own description.
+
+    No twin is built: a conforming twin of this description cannot hold
+    these spellings at all -- the generator writes a value's shortest
+    round-trip text -- and the file a person points this command at is
+    the table itself (V1.2). That is the file the finding is about.
+    """
+    table = _two_column_table(_near_neighbour_values(sentinel, neighbour))
+    return (_described(folder, table, f"near{sentinel}"), table)
 
 
 @pytest.fixture(scope="module")
@@ -319,6 +401,154 @@ def test_the_style_recount_still_counts_the_kept_cells(
         )
 
 
+# -- the round-5 witness: one identity, asked the same way twice -------
+
+
+@pytest.mark.parametrize(("sentinel", "neighbour"), NEIGHBOURS)
+def test_the_two_sides_ask_the_same_question_of_a_near_neighbour(
+    sentinel: str, neighbour: str
+) -> None:
+    """The premise, at the grain the two sides meet: which cells ARE a candidate.
+
+    The producer decides that by the exact number a cell's digits denote
+    (`taxonomy.exact_of_spelling`, made exact for review item P1-R8-F2),
+    and this module has to reach the same answer about the same cell or
+    it is describing a different table from the one it is checking. The
+    neighbour is a number the sentinel is not, sharing the sentinel's
+    binary64 value, so a rounding comparison calls it the candidate and
+    an exact one does not.
+    """
+    held = parsing.parse_number(sentinel)
+    assert held in parsing.NUMERIC_SENTINELS
+    assert held is not None
+    assert parsing.classify_number(neighbour) == parsing.NUMBER
+    # The two spellings really are one binary64 value and two numbers.
+    assert parsing.parse_number(neighbour) == held
+    assert taxonomy.exact_of_spelling(neighbour) != taxonomy.exact_of_number(
+        held
+    )
+    assert taxonomy.exact_of_spelling(sentinel) == taxonomy.exact_of_number(
+        held
+    )
+    # ...and the validator answers the producer's question, not a
+    # rounding of it.
+    assert validation._stand_in_of(
+        taxonomy.exact_of_spelling(sentinel)
+    ) == taxonomy.exact_of_number(held)
+    assert validation._stand_in_of(taxonomy.exact_of_spelling(neighbour)) is None
+
+
+def test_every_numeric_sentinel_has_a_neighbour_here() -> None:
+    """A sentinel added later arrives with its own case.
+
+    The defect was in machinery all three share on both sides, so
+    inheriting a repair nothing checks is exactly how it comes back.
+    """
+    named = [parsing.parse_number(row[0]) for row in NEIGHBOURS]
+    assert sorted(named) == sorted(parsing.NUMERIC_SENTINELS)
+
+
+@pytest.mark.parametrize(("sentinel", "neighbour"), NEIGHBOURS)
+def test_the_witness_reaches_the_branch_the_finding_is_about(
+    tmp_path: pathlib.Path, sentinel: str, neighbour: str
+) -> None:
+    """Written first, because every assertion below is about this shape.
+
+    The producer keeps the eleven near numbers as ordinary readings and
+    removes the six exact holes, so it publishes `n_present=54`; the six
+    sit below the publication floor, so no verdict names the candidate
+    and the missing source is pooled -- which is the branch that hands
+    the gated side a trimmed cell list at all. If any of that stops
+    being true the fixture stops being the witness.
+    """
+    described, table = _near_neighbour_witness(tmp_path, sentinel, neighbour)
+    column = _reading_column(described)
+    assert column.n_present == 54
+    assert column.n_missing == 6
+    assert column.sentinel_verdicts == ()
+    blocks, _columns = _blocks_of(described, table, tmp_path, "reach")
+    block = blocks[1]
+    assert block["n_sentinel_candidates_unpublished"] == 1
+    assert not validation._split_is_published(block)
+    facts = column.facts
+    assert isinstance(facts, contract.NumericFacts)
+    assert facts.numeric_styles.get(parsing.STYLE_DECIMAL, 0) == 54
+
+
+@pytest.mark.parametrize(("sentinel", "neighbour"), NEIGHBOURS)
+def test_the_witness_keeps_every_cell_its_own_description_counts(
+    tmp_path: pathlib.Path, sentinel: str, neighbour: str
+) -> None:
+    """THE FINDING (review round 5, item 1), on all three sentinels.
+
+    Eleven cells the producer describes as ordinary readings were
+    deleted from the recount, and the two obligations settled against
+    that recount were reported MISSED against the table's OWN profile:
+    `styles.at-least.decimal`, whose published count is a floor the file
+    has to reach, and `styles.spill`, which is that floor's remainder.
+
+    Both are asserted, and so is the arithmetic underneath them: the
+    cells left behind are exactly the cells that description counts as
+    values, no fewer.
+    """
+    described, table = _near_neighbour_witness(tmp_path, sentinel, neighbour)
+    outcome = _measure(tmp_path, described, table, f"near{sentinel}.csv")
+    verdicts = {
+        check.subcheck: check.verdict
+        for check in outcome.checks
+        if check.column == "reading"
+    }
+    for subcheck in (
+        f"styles.at-least.{parsing.STYLE_DECIMAL}",
+        "styles.spill",
+    ):
+        assert verdicts[subcheck] == validation.HELD, (
+            f"{subcheck} is {verdicts[subcheck]} against the very profile "
+            f"this table was described by: the recount lost the cells that "
+            f"description counts as values"
+        )
+    blocks, columns = _blocks_of(described, table, tmp_path, f"near{sentinel}")
+    block = blocks[1]
+    read = validation._cells_that_description_reads(
+        block, columns[1], validation.kept_spellings(described)
+    )
+    counted = len([cell for cell in read if parsing.trimmed(cell)])
+    assert counted == block["n_present"]
+
+
+@pytest.mark.parametrize(("sentinel", "neighbour"), NEIGHBOURS)
+def test_deleting_those_cells_hid_a_real_violation_as_well(
+    tmp_path: pathlib.Path, sentinel: str, neighbour: str
+) -> None:
+    """The other direction of the same defect, and it is not a smaller one.
+
+    A deletion does not only cost a floor its cells; it takes the cells
+    out of every clause measured from the written text. These eleven are
+    in no permitted spelling of the number they hold -- the shortest text
+    that reads back as it is far shorter -- so `styles.spelled` is a
+    genuine MISS of this file, and it was reported HELD while the cells
+    were being deleted. A check that cannot see the cells that break it
+    is the vacuity V3.4 refuses by name.
+
+    So this file is one its own description calls right in every clause
+    but that one, and the report now says exactly that: the two the
+    finding names HOLD, and the one the bytes really break MISSES.
+    """
+    described, table = _near_neighbour_witness(tmp_path, sentinel, neighbour)
+    outcome = _measure(tmp_path, described, table, f"spelled{sentinel}.csv")
+    missed = sorted(
+        {
+            f"{check.column}: {check.subcheck}"
+            for check in outcome.checks
+            if check.verdict == validation.MISSED
+        }
+    )
+    assert missed == ["reading: styles.spelled"], (
+        "the only obligation this file breaks is the spelling of its near "
+        f"numbers, and the report says: {missed}"
+    )
+
+
 def _blocks_of(
     described: contract.Profile, text: str, folder: pathlib.Path, stem: str
 ) -> "tuple[dict[str, object], list[list[str]]]":
@@ -333,6 +563,36 @@ def _blocks_of(
     return blocks, table.columns
 
 
+def _stand_in_exacts() -> "list[tuple[int, tuple[str, ...], int]]":
+    """The three stand-ins as the producer's own exact numbers.
+
+    Computed here from `taxonomy` rather than read off the validator, so
+    that this test is a second opinion on the validator's identity and
+    not a restatement of it.
+    """
+    return [
+        taxonomy.exact_of_number(value)
+        for value in parsing.NUMERIC_SENTINELS
+    ]
+
+
+def _candidates_named_in(
+    block: "dict[str, object]",
+) -> "list[tuple[int, tuple[str, ...], int]]":
+    """Every stand-in this description publishes a verdict for, exactly."""
+    entries = block["sentinel_verdicts"]
+    assert isinstance(entries, list)
+    named: list[tuple[int, tuple[str, ...], int]] = []
+    for entry in entries:
+        assert isinstance(entry, dict)
+        spelling = entry["candidate"]
+        assert isinstance(spelling, str)
+        exact = taxonomy.exact_of_spelling(spelling)
+        assert exact is not None
+        named = named + [exact]
+    return named
+
+
 @pytest.mark.parametrize(
     "stem",
     [
@@ -341,6 +601,9 @@ def _blocks_of(
         "not_an_outlier-twin",
         "not_an_outlier-table",
         "markers",
+        "near-0",
+        "near-1",
+        "near-2",
     ],
 )
 def test_the_cells_left_behind_are_the_cells_that_description_counts(
@@ -357,15 +620,36 @@ def test_the_cells_left_behind_are_the_cells_that_description_counts(
     be told apart (amendment A-P3-5 clause 2). That direction is
     asserted on every column of every fixture, unconditionally.
 
-    NEVER FEWER where that description publishes a verdict for every
-    stand-in the column holds: there the reading is EXACT, and a cell it
-    counts as a value is a cell the recount has to see. Where a stand-in
-    sits below the publication floor its verdict is published by no
-    entry at all, and the drop is settled from the count of holes
-    instead -- bounded, and named in `_cells_that_description_reads`
-    rather than left to be found.
+    NEVER FEWER, AND THE EXCEPTION IS STATED RATHER THAN STEPPED AROUND
+    (review round 5, item 1). The version this replaces asserted equality
+    only where the description published a verdict for every stand-in the
+    column holds, and SKIPPED it otherwise -- which is exactly the shape
+    of the witness that survived the round: eleven cells of a near
+    neighbour erased under a candidate whose verdict sits below the
+    publication floor. A test that steps around the case it was written
+    for is worse than none.
+
+    So the exception is now measured instead of assumed, in two parts
+    that hold on every column of every fixture:
+
+    * EVERY DROPPED CELL IS ONE THE PRODUCER'S OWN RULES COULD READ AS AN
+      ABSENCE -- a built-in missing spelling, or a cell whose EXACT
+      number is one of the three stand-ins. A cell that is neither is a
+      cell no reading of the description calls a hole, and deleting it is
+      the defect itself;
+    * AND HOW MANY MAY GO IS BOUNDED BY THE CELLS OF THE CANDIDATES THAT
+      DESCRIPTION DOES NOT NAME. That is the residual
+      `_cells_that_description_reads` states at its size, counted from
+      the cells rather than trusted: a near neighbour is not a cell of
+      the candidate, so erasing eleven of them exceeds this bound even
+      where a candidate does go unnamed.
     """
-    if stem == "markers":
+    if stem[:5] == "near-":
+        sentinel, neighbour = NEIGHBOURS[int(stem[5:])]
+        described, text = _near_neighbour_witness(
+            tmp_path, sentinel, neighbour
+        )
+    elif stem == "markers":
         # The other side of the same coin: cells that ARE holes to the
         # file's own description, which must be dropped.
         described, _table, _twin = kept_by_you
@@ -394,14 +678,41 @@ def test_the_cells_left_behind_are_the_cells_that_description_counts(
             f"{published} as values, so it is recounting cells that "
             f"description does not publish"
         )
-        unpublished = block["n_sentinel_candidates_unpublished"]
-        if unpublished == 0:
-            assert counted == published, (
-                f"{stem}, column {position}: the description publishes a "
-                f"verdict for every stand-in this column holds, so the "
-                f"reading is exact -- and {published - counted} cell(s) it "
-                f"counts as values were deleted from the recount"
+        # Which cells went, and whether each one is a cell the producer
+        # itself could read as an absence.
+        holes = validation._holes_by_the_description(block, cells, kept)
+        stand_ins = _stand_in_exacts()
+        for index, is_hole in enumerate(holes):
+            if not is_hole:
+                continue
+            cell = cells[index]
+            if parsing.is_missing_text(cell):
+                continue
+            assert taxonomy.exact_of_spelling(cell) in stand_ins, (
+                f"{stem}, column {position}, row {index}: a cell the "
+                f"file's own description reads as neither a missing "
+                f"spelling nor one of the three stand-ins was deleted "
+                f"from the recount, so the recount is not that "
+                f"description's reading of this column"
             )
+        # ...and the residual, at the size the rule states: only the
+        # cells of a candidate that description does not name may go
+        # beyond the holes it accounts for.
+        unnamed = 0
+        named = _candidates_named_in(block)
+        for exact in stand_ins:
+            if exact in named:
+                continue
+            for cell in cells:
+                if taxonomy.exact_of_spelling(cell) == exact:
+                    unnamed = unnamed + 1
+        assert published - counted <= unnamed, (
+            f"{stem}, column {position}: {published - counted} cell(s) the "
+            f"file's own description counts as values were deleted from "
+            f"the recount, and that description holds only {unnamed} "
+            f"cell(s) of a stand-in it publishes no verdict for -- so "
+            f"cells that are no stand-in at all were deleted"
+        )
 
 
 def test_two_files_the_producer_describes_alike_still_agree(
@@ -438,3 +749,92 @@ def test_two_files_the_producer_describes_alike_still_agree(
     mine = [(check.subcheck, check.verdict) for check in blank.checks]
     theirs = [(check.subcheck, check.verdict) for check in spelled.checks]
     assert mine == theirs
+
+
+# -- the class as a shape, so a new site cannot reopen it --------------
+
+
+# The readers that answer "what number is this text?" by rounding it to
+# binary64. The producer decides a cell's identity exactly and every one
+# of these loses the distinction it decides by.
+_ROUNDING_READERS = ["parse_number", "float", "int", "round"]
+
+# The rule that decides which cells the file's own description reads.
+# The walk below starts here and follows every call it makes.
+_THE_HOLE_RULE = "_cells_that_description_reads"
+
+
+def _functions_of(module: object) -> "dict[str, ast.FunctionDef]":
+    """Every module-level function of one shipped module, by name."""
+    tree = ast.parse(inspect.getsource(module))  # type: ignore[arg-type]
+    found: dict[str, ast.FunctionDef] = {}
+    for node in tree.body:
+        if isinstance(node, ast.FunctionDef):
+            found[node.name] = node
+    return found
+
+
+def _calls_in(node: ast.FunctionDef) -> "list[str]":
+    """Every name this function calls, plain or through a module."""
+    named: list[str] = []
+    for inner in ast.walk(node):
+        if not isinstance(inner, ast.Call):
+            continue
+        if isinstance(inner.func, ast.Name):
+            named = named + [inner.func.id]
+        elif isinstance(inner.func, ast.Attribute):
+            named = named + [inner.func.attr]
+    return named
+
+
+def test_the_hole_rule_asks_no_rounding_reader() -> None:
+    """No function that decides which cells are read may round a number.
+
+    THE CLASS, NOT THE CASE. Two repairs of this finding have now been
+    written, and both times the defect was one comparison in one
+    function; the third time it would be a helper somebody adds beside
+    them. So this walks the whole closure -- every function reachable by
+    call from the rule that decides which cells the file's own
+    description reads -- and asserts that not one of them asks a reader
+    that answers in binary64. A new helper is inside the walk on the
+    commit that adds it, without anybody remembering this file exists.
+
+    The exact identity is `taxonomy`'s published rule, and the closure
+    has to be standing on it rather than beside it, so that is asserted
+    too: taking it away leaves the closure with no way to tell two
+    numbers apart at all.
+    """
+    functions = _functions_of(validation)
+    assert _THE_HOLE_RULE in functions, (
+        "the rule this walk starts from was renamed, so the walk is "
+        "asserting nothing"
+    )
+    reached: dict[str, int] = {_THE_HOLE_RULE: 1}
+    frontier = [_THE_HOLE_RULE]
+    exact_asked = 0
+    while frontier:
+        name = frontier[0]
+        frontier = frontier[1:]
+        called = _calls_in(functions[name])
+        for reader in _ROUNDING_READERS:
+            assert reader not in called, (
+                f"`{name}` decides which cells the file's own description "
+                f"reads and calls `{reader}`, which answers in binary64 -- "
+                f"the producer decides the same question exactly, and two "
+                f"spellings a person can tell apart round to one value "
+                f"(review items P1-R8-F2 and P3-V4-F1)"
+            )
+        for call in called:
+            if call == "exact_of_spelling" or call == "exact_of_number":
+                exact_asked = exact_asked + 1
+            if call in functions and call not in reached:
+                reached[call] = 1
+                frontier = frontier + [call]
+    assert exact_asked, (
+        "nothing in the closure asks `taxonomy` for an exact number, so "
+        "it is deciding a cell's identity some other way"
+    )
+    # The walk has to have gone somewhere: a closure of one function
+    # would pass every assertion above while the rounding sat one call
+    # away.
+    assert len(reached) > 3

@@ -170,6 +170,31 @@ Stated here so that no reader has to discover them independently:
   quality report, per the entry above. Profile version 4 widened what it
   carries in exactly two ways, and each gets its own entry below rather
   than a clause here.
+- **The floor is a number the person running the tool sets, and it can be
+  set below the default** (owner ruling 2026-08-14; Phase 3 plan
+  amendment A-P3-11, carried into the contract's section 4.4 under a
+  counted re-seal). `--smallest-group` accepts any whole number of 1 or
+  more, and the whole workflow - profile, generate, validate - runs on
+  the description it produces. This is the one control in this document
+  that a user can lower, so it is stated as a control rather than as an
+  option. **What lowering it gives up:** at a floor of `f`, no group
+  named in the description covers fewer than `f` rows, and at `f = 1`
+  every group is named exactly, a group of one row included. Where one
+  row of the real table is one person, the description then publishes
+  that a value exists together with how many people have it - the count
+  is the disclosure, not a route to one - and the twin holds those counts
+  exactly, so all five files carry them. **What it does not give up:**
+  every floor-governed invariant of the contract still binds at the value
+  the document carries, a floor of zero or below is still refused, and a
+  hand-edited description is still refused for every other reason it was
+  refused before. **What the product does about it:** a `profile` run at
+  a lowered number prints an unmissable warning before either file
+  exists, saying what a group that small can reveal about a person; and
+  the plain-language summary, the generation report and the quality
+  report each state on their own face that the description was made that
+  way, so that a reader handed one file alone can tell. synthtwin does
+  not refuse the setting: it is the table owner's decision, taken with
+  the consequence in front of them.
 - **Version 4 publishes the exact spellings of the labels the profile
   already names** (plan P2-D0 owner decisions 9 and 11). Through version
   3 a label left the machine in one settled form only: the producer

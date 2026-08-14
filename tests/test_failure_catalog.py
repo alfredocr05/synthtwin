@@ -7,8 +7,11 @@ here -- that every message has the shape a person can act on, and that
 every message in the catalog is actually raised by some code path.
 """
 
+import contextlib
 import inspect
+import os
 import pathlib
+import stat
 
 import pytest
 
@@ -633,27 +636,241 @@ def _with_a_twin(folder: "pathlib.Path") -> "pathlib.Path":
     return description
 
 
+# ---------------------------------------------------------------------
+# A FILE THIS HOST WILL NOT LET SYNTHTWIN READ (review item P3-V4-F10,
+# round 5 item 10)
+# ---------------------------------------------------------------------
+#
+# WHY THIS IS NOT ONE LINE OF CODE. `os.chmod(path, 0)` is the POSIX
+# spelling of "nobody may read this", and for one round it was the whole
+# of this condition, guarded by `os.geteuid() == 0` -- a function
+# Windows does not have. Every Windows cell of the governed matrix (the
+# `tests` job of `.github/workflows/ci.yml`) therefore ended in an
+# AttributeError before it proved anything, and the charter requires CI
+# green before a merge. Guarding the guard with `sys.platform` would
+# have swapped the error for a skip, which is the same defect wearing a
+# different coat: this refusal exists for the person whose file cannot
+# be read, and Windows is where that most often happens -- the file is
+# open in another program. A proof that steps aside on the platform it
+# is most needed on proves nothing there.
+#
+# So the condition is written once per platform, in the mechanism that
+# platform actually has, and EVERY mechanism IS CHECKED before the
+# command is run: the file has to still be there and has to refuse to
+# open. A mechanism that fails that check is undone and not used; if no
+# mechanism on this host achieves it, the case fails and names the host,
+# rather than passing or skipping. The one configuration in which no
+# mechanism can exist is named in `_a_file_that_will_not_open`.
+
+
+def _present_but_will_not_open(place: pathlib.Path) -> bool:
+    """Whether ``place`` is still there and still refuses to be read.
+
+    BOTH HALVES MATTER. `validation.measure` asks three questions in
+    order -- is anything there, is it a folder, do its bytes come back
+    -- and only the third produces `file_unreadable`. A mechanism that
+    makes the file disappear, or that stops the filesystem answering
+    about it at all (which is what `Path.exists` reports), would drive
+    the command to `file_missing` instead: a different refusal, reached
+    for a different reason, with this case none the wiser. So the
+    witness is checked against the same two questions the product asks
+    before the one it is here to prove.
+    """
+    if not place.exists():
+        return False
+    try:
+        place.read_bytes()
+    except OSError:
+        return True
+    return False
+
+
+def _mode_bits_forbid_everybody(place: pathlib.Path) -> "object | None":
+    """POSIX: take every read permission off the file.
+
+    This is the mechanism the person meets as "permission denied", and
+    it is the one the ordinary CI accounts (`runner` on the hosted
+    Linux and macOS images) can produce. It does nothing for a
+    superuser, who reads a file whose mode bits forbid everybody; the
+    caller checks, so that configuration is named rather than passed.
+    """
+    was = stat.S_IMODE(place.stat().st_mode)
+    os.chmod(place, 0)
+
+    def undo() -> None:
+        os.chmod(place, was)
+
+    return undo
+
+
+def _a_lock_over_every_byte(place: pathlib.Path) -> "object | None":
+    """Windows: lock the whole file against every other handle.
+
+    THE REAL WINDOWS CONDITION, not a translation of the POSIX one.
+    `chmod` on Windows moves the read-only attribute and nothing else,
+    so the file stays perfectly readable and the POSIX mechanism proves
+    nothing there. What actually stops a Windows user reading their own
+    file is another program holding it: locks on Windows are mandatory,
+    and a read of a locked region through any other handle fails with a
+    permission error -- which is the exception `validation.measure`
+    turns into this refusal.
+
+    The lock is taken through the C runtime's own call (`msvcrt`, a
+    standard-library module that exists only on Windows), over the
+    file's whole length from byte zero, and it is released and the
+    handle closed by the undo -- both because the case must leave the
+    folder as it found it and because Windows will not delete a file
+    with an open handle on it, which would strand the temporary folder.
+
+    The handle is opened in BINARY read-write mode: `msvcrt.locking`
+    needs a descriptor that may write, and a binary handle translates
+    no byte on its way anywhere, which is what the suite's own
+    line-ending rule asks of every handle it opens.
+    """
+    try:
+        import msvcrt
+    except ImportError:  # pragma: no cover -- not a Windows host
+        return None
+
+    size = place.stat().st_size
+    if size == 0:
+        return None
+    # A context manager is exactly what this must not be: the lock has
+    # to outlive this call, because it is held while the command runs,
+    # and the undo below is what closes the handle.
+    handle = open(place, "r+b")  # noqa: SIM115 -- outlives this call
+    try:
+        os.lseek(handle.fileno(), 0, os.SEEK_SET)
+        msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, size)
+    except OSError:
+        handle.close()
+        return None
+
+    def undo() -> None:
+        try:
+            os.lseek(handle.fileno(), 0, os.SEEK_SET)
+            msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, size)
+        except OSError:
+            pass
+        finally:
+            handle.close()
+
+    return undo
+
+
+def _an_open_handle_that_shares_nothing(
+    place: pathlib.Path,
+) -> "object | None":
+    """Windows, second mechanism: hold the file open sharing nothing.
+
+    A file opened with no sharing cannot be opened again by anybody,
+    which is the sharing violation a Windows user meets as "the file is
+    in use by another program". It is second rather than first because
+    it is the more invasive of the two: a handle that shares nothing
+    also refuses the open that `stat` would like to make, and the
+    product asks `Path.exists` before it reads. Modern CPython answers
+    `stat` from the directory entry when the file cannot be opened, so
+    this should still leave a file that is present and unreadable -- and
+    `_present_but_will_not_open` is what settles whether it does on the
+    host in front of us, rather than this comment.
+    """
+    try:
+        import _winapi
+    except ImportError:  # pragma: no cover -- not a Windows host
+        return None
+
+    generic_read = 0x80000000
+    share_nothing = 0
+    open_existing = 3
+    try:
+        handle = _winapi.CreateFile(
+            f"{place}", generic_read, share_nothing, 0, open_existing, 0, 0
+        )
+    except OSError:
+        return None
+
+    def undo() -> None:
+        _winapi.CloseHandle(handle)
+
+    return undo
+
+
+def _mechanisms_on_this_host() -> "tuple[object, ...]":
+    """Every way THIS platform has of taking a read away.
+
+    Windows gets both of its own, in the order that disturbs the file
+    least first. POSIX gets the one it has. A platform nobody has
+    written a mechanism for gets none, and the caller says so by name.
+    """
+    if os.name == "nt":
+        return (_a_lock_over_every_byte, _an_open_handle_that_shares_nothing)
+    return (_mode_bits_forbid_everybody,)
+
+
+def _a_file_that_will_not_open(place: pathlib.Path) -> "object":
+    """Make ``place`` refuse to be read here, and hand back the undo.
+
+    Guarantees:
+
+    - The file is present and refuses to open when this returns; that
+      is checked, not assumed, whatever mechanism achieved it.
+    - The returned callable puts the file back exactly as it was.
+    - It SKIPS in exactly one configuration -- a POSIX superuser, who
+      reads a file whose mode bits forbid everybody, and for whom this
+      platform's other mechanisms (advisory locks) do not stop a read
+      either. No governed CI cell is one: the hosted Linux and macOS
+      images run the suite as an ordinary account, and the Windows
+      cells do not take this branch at all.
+    - On every other host it either produces the condition or FAILS.
+      A file nobody can read is what this refusal is for, so a host
+      where the case cannot be built is news about the case, and news
+      is not something to skip past.
+    """
+    for mechanism in _mechanisms_on_this_host():
+        undo = mechanism(place)
+        if undo is None:
+            continue
+        if _present_but_will_not_open(place):
+            return undo
+        undo()  # type: ignore[operator]
+    if os.name != "nt" and os.geteuid() == 0:
+        pytest.skip(
+            "this account is a POSIX superuser, which reads a file whose "
+            "mode bits forbid everybody; no CI cell runs as one"
+        )
+    pytest.fail(
+        f"no mechanism this file knows about made {place.name} refuse to "
+        f"be read on this host (os.name={os.name!r}), so the refusal for "
+        f"a file that cannot be read has no reachability proof here. "
+        f"Write the mechanism this platform has and add it to "
+        f"_mechanisms_on_this_host; do not skip the case, because the "
+        f"person whose file will not open is on this platform too"
+    )
+
+
 # One entry per refusal plan P3-D6 names for the validate path: the
 # builder that must fire, a phrase of its sentence that must reach the
-# screen, and the condition, built in a folder of the case's own.
-def _missing_measured_file(folder, description):
+# screen, and the condition, built in a folder of the case's own. Each
+# builder is handed an `undo` stack for whatever it has to put back
+# afterwards -- a locked file has to be unlocked and a mode restored
+# before the temporary folder can be swept up, and on Windows a file
+# with a handle still on it cannot be deleted at all.
+def _missing_measured_file(folder, description, undo):
     return ["validate", f"{description}", "--twin", f"{folder / 'gone.csv'}"]
 
 
-def _measured_file_is_a_folder(folder, description):
+def _measured_file_is_a_folder(folder, description, undo):
     (folder / "a-folder").mkdir()
     return ["validate", f"{description}", "--twin", f"{folder / 'a-folder'}"]
 
 
-def _measured_file_cannot_be_read(folder, description):
-    import os
-
+def _measured_file_cannot_be_read(folder, description, undo):
     twin = folder / "clinic-twin.csv"
-    os.chmod(twin, 0)
+    undo.callback(_a_file_that_will_not_open(twin))
     return ["validate", f"{description}"]
 
 
-def _measured_file_holds_a_field_too_long(folder, description):
+def _measured_file_holds_a_field_too_long(folder, description, undo):
     import fixtures
 
     bad = fixtures.write(
@@ -662,27 +879,27 @@ def _measured_file_holds_a_field_too_long(folder, description):
     return ["validate", f"{description}", "--twin", f"{bad}"]
 
 
-def _measured_file_is_not_text_a_reader_can_take(folder, description):
+def _measured_file_is_not_text_a_reader_can_take(folder, description, undo):
     target = folder / "binary.csv"
     target.write_bytes(b"region,visits\n\x00\x01\x02,1\n")
     return ["validate", f"{description}", "--twin", f"{target}"]
 
 
-def _the_report_is_already_there(folder, description):
+def _the_report_is_already_there(folder, description, undo):
     from synthtwin.cli import main
 
     assert main(["validate", f"{description}"]) == 0
     return ["validate", f"{description}"]
 
 
-def _the_report_would_land_on_the_description(folder, description):
+def _the_report_would_land_on_the_description(folder, description, undo):
     report = folder / "clinic-twin-quality.txt"
     report.unlink(missing_ok=True)
     report.symlink_to(description)
     return ["validate", f"{description}", "--replace"]
 
 
-def _the_report_would_land_on_the_measured_file(folder, description):
+def _the_report_would_land_on_the_measured_file(folder, description, undo):
     report = folder / "clinic-twin-quality.txt"
     report.unlink(missing_ok=True)
     report.symlink_to(folder / "clinic-twin.csv")
@@ -744,24 +961,31 @@ def test_a_p3d6_refusal_is_reached_by_running_the_command(
     tmp_path: pathlib.Path,
     capsys: "pytest.CaptureFixture[str]",
 ) -> None:
-    """The refusal, produced by the shipped command at a real condition."""
-    import os
+    """The refusal, produced by the shipped command at a real condition.
 
+    NOTHING HERE ASKS WHAT PLATFORM IT IS ON. Each condition builds
+    itself in the mechanism its host has, and says so if it cannot; a
+    test body that reached for a POSIX-only call to decide whether to
+    run was what stopped the whole Windows matrix executing (round 5
+    item 10).
+    """
     from synthtwin.cli import main
 
-    if name == "file_unreadable" and os.geteuid() == 0:
-        pytest.skip("a superuser can read a file with no permissions at all")
-    description = (
-        _with_a_twin(tmp_path) if needs_a_twin else _a_described_table(tmp_path)
-    )
-    capsys.readouterr()
-    fired: set[str] = set()
-    builders = _builders_recording(fired)
-    try:
-        code = main(build(tmp_path, description))  # type: ignore[operator]
-    finally:
-        _put_the_builders_back(builders)
-    printed = capsys.readouterr()
+    with contextlib.ExitStack() as undo:
+        description = (
+            _with_a_twin(tmp_path)
+            if needs_a_twin
+            else _a_described_table(tmp_path)
+        )
+        capsys.readouterr()
+        fired: set[str] = set()
+        builders = _builders_recording(fired)
+        try:
+            argv = build(tmp_path, description, undo)  # type: ignore[operator]
+            code = main(argv)
+        finally:
+            _put_the_builders_back(builders)
+        printed = capsys.readouterr()
     said = printed.out + printed.err
     assert code == 1, (
         f"the command returned {code} where 1 is the code for a run that "

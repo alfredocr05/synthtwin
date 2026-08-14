@@ -715,9 +715,19 @@ def battery() -> list[Mutation]:
             edit("visits", integer_valued=1),
             names="a yes or no value",
         ),
+        # THE SMALLEST FLOOR ALLOWED IS ONE, NOT ELEVEN (owner ruling
+        # 2026-08-14, plan amendment A-P3-11). This mutation used to set
+        # the floor to 3 and expect a refusal. Three is now a floor a
+        # person can ask for with `--smallest-group`, and the whole
+        # workflow runs on it, so a description carrying 3 is refused by
+        # nothing here -- it trips B5 further down only because THIS
+        # document's held-back labels were sized for a floor of eleven.
+        # Zero is what R16 still has to refuse, and it is the honest
+        # replacement: "below the floor" would then reach counts of
+        # nothing at all, which no count is.
         Mutation(
             "R16", "a floor below the smallest one allowed",
-            edit_in("settings", small_cell_floor=3),
+            edit_in("settings", small_cell_floor=0),
             names="small_cell_floor",
         ),
         Mutation(

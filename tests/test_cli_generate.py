@@ -334,10 +334,6 @@ def test_the_refusal_offers_no_route_but_replace(
         assert absent not in told
 
 
-@pytest.mark.skipif(
-    sys.platform == "win32",
-    reason="a link an ordinary user can make is a POSIX thing",
-)
 def test_an_output_that_leads_back_to_the_description_is_refused(
     tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -347,15 +343,56 @@ def test_an_output_that_leads_back_to_the_description_is_refused(
     '-twin.csv' and the other '-twin-report.txt' -- so the route that
     matters is a link left at one of them, which resolves to a perfectly
     local path and passes every lexical check.
+
+    TWO RULES CAN STOP IT, and which one does is the platform's
+    business rather than this test's -- the same shape
+    `test_a_link_pointing_at_the_table_is_refused` in
+    `test_cli_profile.py` keeps for the profile command. On POSIX the
+    link resolves to an ordinary local path and the run is stopped by
+    the comparison that finds the twin's name and the description are
+    one file. On Windows the locality check refuses the link itself,
+    before that comparison is reached, because a link there can lead to
+    a network location.
+
+    This carried `skipif(sys.platform == "win32")` for two rounds, on
+    the reasoning that a link an ordinary user can make is a POSIX
+    thing (round 5 item 10). The cost was that the ONE command that
+    writes a twin had nothing at all asserted about this route on
+    Windows -- the platform with the stricter rule. What every platform
+    asserts is the property that matters: the run stops, and the
+    description comes out byte for byte what it went in as. Only the
+    sentence differs, and each is pinned on the platform whose rule
+    produced it.
     """
     description = _described(tmp_path, _plain_table())
     before = description.read_bytes()
-    _twin_of(description).symlink_to(description)
+    link = _twin_of(description)
+    link.symlink_to(description)
+
     assert main(["generate", f"{description}"]) == 1
     told = capsys.readouterr().err
-    assert f"{description}" in told
-    assert "profile" in told, "the refusal names the file THIS command reads"
-    assert description.read_bytes() == before
+
+    assert description.read_bytes() == before, (
+        "the description the twin is built from must come out of a "
+        "refusal byte-for-byte what it went in as"
+    )
+    assert not _report_of(description).exists(), (
+        "a refused run publishes neither of the two files"
+    )
+    assert "Traceback" not in told, "the reason must arrive as a sentence"
+
+    if sys.platform == "win32":
+        # The stricter rule, and the only place this command reaches it.
+        assert "is a link" in told
+        assert "network location" in told
+        assert link.name in told, (
+            "the person has to be told which name is the link"
+        )
+    else:
+        assert f"{description}" in told
+        assert "profile" in told, (
+            "the refusal names the file THIS command reads"
+        )
 
 
 def test_out_dir_moves_both_files_and_leaves_the_folder_alone(

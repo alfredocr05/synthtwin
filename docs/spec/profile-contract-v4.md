@@ -100,7 +100,7 @@ individually (section 9).
 | **absent** | a cell counted as holding no value, for any of the five recorded reasons; `n_missing` counts them |
 | **raw identity** | a present cell's text exactly as the file spells it. `n_distinct` counts raw identities |
 | **folded identity** | a present cell's text after trimming and a Unicode `casefold()`. `n_distinct_folded` counts folded identities, and every published label is a folded identity |
-| **the floor** | `settings.small_cell_floor`, the smallest number of rows a published group may cover. Its value is in the document; it is never below 11 |
+| **the floor** | `settings.small_cell_floor`, the smallest number of rows a published group may cover. Its value is in the document and the document is the only place it is fixed: it is at least 1, and 11 is what `synthtwin profile` writes when nobody asks for another (section 4.4's amendment) |
 | **withheld** | held back by the floor and pooled into a counted remainder, never named |
 | **the ladder** | the fixed eleven rungs `min`, `p01`, `p05`, `p10`, `p25`, `p50`, `p75`, `p90`, `p95`, `p99`, `max`, in that order |
 
@@ -280,7 +280,7 @@ document.
 
 | key | JSON type | range / permitted values |
 |---|---|---|
-| `small_cell_floor` | integer | ≥ 11 |
+| `small_cell_floor` | integer | ≥ 1 |
 | `identifier_uniqueness` | number | 0.0 ≤ x ≤ 1.0 |
 | `identifier_minimum_rows` | integer | ≥ 0 |
 | `minimum_parse_rate` | number | 0.0 ≤ x ≤ 1.0 |
@@ -308,6 +308,59 @@ some column block. A name that matches no column is a refusal: it means
 the profile and the schema disagree about which columns were declared.
 
 **Invariant S9.** `categorical_floor <= categorical_ceiling`.
+
+**This amends the floor's minimum from eleven to one. THIS LOWERS**
+(owner ruling 2026-08-14; Phase 3 plan amendment A-P3-11). Through the
+previous wording this row read `≥ 11` and a loader refused anything
+below it, while `synthtwin profile --smallest-group 2` accepted the
+number, wrote the description, and told the person to hand that file to
+`synthtwin generate` — which then refused it and advised them to make
+the description again and use it exactly as written, which is what they
+had done. A documented option produced a file the product would not
+read.
+
+**What is given up, stated at its size.** The floor is the whole of what
+keeps a published group too large to point at one person. At 11 no group
+named anywhere in a description covers fewer than eleven rows; at `f` no
+group covers fewer than `f`, and at 1 every group is named exactly,
+including a group of one row. Where one row of the real table is one
+person, a description written at a low floor publishes the existence of
+that person's value together with how many people share it. That is not
+a route to a disclosure; it is the disclosure. The producer publishes
+the same facts it always did, and the floor decides which of them are
+named — so the loss is exactly the pooling that `(withheld)`,
+`suppressed_levels`, `suppressed_level_counts`, `variants_withheld` and
+the pooled remainders of sections 5.4, 6.3, 7.4 and 7.5 exist to
+perform. On whose authority: the owner's, ruled on 2026-08-14 with the
+consequence stated to them and accepted.
+
+**No other rule of this contract is relaxed by it.** Every floor-governed
+invariant is written as "at least the floor" and "below the floor", so
+each one still binds at the value the document carries: B5, D3, N2, N4,
+P2, V1 and W5 hold at `f` exactly as they held at 11. At `f = 1` the
+"below the floor" half is the empty range, so `suppressed_level_counts`,
+`variants_withheld` and every pooled `(withheld)` remainder must be
+empty or absent, and a document that fills one is refused for breaking
+the same invariant it always broke. A hand-edited description is refused
+for every reason it was refused before; the only refusal withdrawn is
+the one against the floor's own value.
+
+**Zero and below are still refused.** One is the smallest workable
+value, not a preference: "below the floor" at zero would name counts of
+nothing at all, and no count is. The refusal for a floor of zero is R16,
+unchanged.
+
+**What the artifacts owe when the floor is under the default.** This
+contract governs the profile document, which carries the floor as a
+number under `settings` and needs no further wording. Of the five files
+a full run leaves behind, the readable ones — the plain-language
+summary, the twin's report and the quality report — each state on their
+own face that the description was made under a lowered floor and what
+that can mean for a person, and the screen a `profile` run prints says
+it before either of its files exists. That
+obligation is the plan's (amendment A-P3-11), not this contract's, and
+is recorded here because a reader of this section will ask where the
+disclosure went.
 
 ### 4.5 `publication_notes`
 

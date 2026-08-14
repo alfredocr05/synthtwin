@@ -2078,6 +2078,253 @@ task somebody will lose.
    right; what was wrong was the claim that the numbers were inside it.
    Clause 2 above is the repair, and V5.1-A1 is corrected with it.
 
+**Amendment A-P3-11 — `--smallest-group` below eleven runs the whole
+workflow, and every file the run leaves says so. THIS LOWERS a
+confidentiality bound, on the owner's ruling of 2026-08-14, and prices
+it here rather than softening it. It RAISES what four artifacts must
+state about themselves** (2026-08-14, owner ruling; the question put to
+the owner was what `--smallest-group` should do when given a value below
+eleven, and the ruling was: let it through everywhere).
+
+**The defect the ruling closes.** `synthtwin profile t.csv
+--smallest-group 2` exited 0 and wrote both files. `synthtwin generate`
+and `synthtwin validate` then refused that description, because contract
+4.4 required `small_cell_floor >= 11` and the strict loader enforced it
+— and the refusal ended by telling the person to make the description
+again by running `synthtwin profile` and to use the file exactly as it
+writes it, which is precisely what they had done. A documented option
+produced an unusable file and a refusal that could not be acted on.
+
+1. **The contract's minimum moves from eleven to one, and the loader
+   with it. THIS LOWERS.** `docs/spec/profile-contract-v4.md` section
+   4.4 and its glossary row carry the amendment in place, under a
+   counted re-seal. What is given up is stated there at its size and is
+   restated here because this plan is where a bar is lowered or not: the
+   floor is the whole of what keeps a published group too large to point
+   at one person, and at a floor of `f` a description names groups of
+   `f`. Where one row of the real table is one person, a description
+   written at a low floor publishes that a value exists together with
+   how many people have it — and at a floor of one, that exactly one
+   person has it. The count is the disclosure, not a route to one.
+
+   **What is NOT lowered, and it is the larger part.** Every
+   floor-governed invariant is written as "at least the floor" and
+   "below the floor" and still binds at the value the document carries:
+   B5, D3, N2, N4, P2, V1 and W5 hold at `f` exactly as at eleven. At
+   `f = 1` the "below the floor" half is the empty range, so nothing may
+   be held back at all and `suppressed_level_counts`,
+   `variants_withheld` and every pooled `(withheld)` remainder must be
+   empty; a document that fills one is refused for breaking the
+   invariant it always broke. Zero and below are still refused under
+   R16: "below the floor" at zero would name counts of nothing at all,
+   and no count is. **One is the smallest workable floor**, measured
+   rather than assumed — the sweep is recorded in clause 4.
+
+   **On whose authority.** The owner's, ruled 2026-08-14, with the
+   consequence stated and accepted. No review verdict and no
+   implementer's judgment stands behind this clause.
+
+2. **Four artifacts must say on their own face that the description was
+   made under a lowered floor. THIS RAISES.** The reasoning is the one
+   that put the handling rule on all five files (amendment A-P3-8
+   clause 2): a person is handed ONE of these files, not the set, and
+   the floor lives in the description's JSON as a number a
+   non-programmer does not open. So the profiler's plain-language
+   summary, the generation report and the quality report each state it
+   without reference to the others, and the `profile` command prints an
+   unmissable warning BEFORE either file exists — the same ordering
+   control P1-D6 fixes for the disclosure itself. Each of the four says
+   what a group that small can reveal about a person, in those words:
+   not "the floor was lowered" but that somebody who already knows one
+   true thing about a person in the table can find the small group that
+   person must be in and read the rest of what it says.
+
+   **The twin CSV is the fifth file and carries no sentence**, because a
+   CSV has nowhere to put one without corrupting the table its whole
+   purpose is to be. Its report is written beside it and is one of the
+   four; that is the same reasoning under which the twin has always
+   carried its warnings in the report rather than in the cells.
+
+   **All four are CONDITIONAL, and that is the opposite of the rule the
+   honest bounds are written under.** A limit true of every run is
+   printed on every run so that nobody comes to expect its absence.
+   These state a fact about ONE description that is false of an ordinary
+   one, and a paragraph appearing on every run to say the floor was NOT
+   lowered is how a reader is trained to skip the paragraph that
+   matters. The bytes of a report made at the default floor are
+   therefore unchanged by this amendment, with one exception, which is
+   clause 3.
+
+3. **The quality report names the floor it is running at, on every run.
+   THIS RAISES.** Its withholding rule read "a group fewer rows carry
+   than the publication floor is never named in any description — that
+   is what the floor is for". That was written when every description
+   had one floor. It is not one number any more, so "any description"
+   now invites a reader to supply eleven and be wrong about what the
+   lines above are showing them. The number is printed at the point
+   where it decides something, which is also the one place a reader of
+   an ordinary report is told what protects them. **This is the only
+   change to the bytes of an artifact made at the default floor**, and
+   `GOLDEN_QUALITY_SHA256` is re-recorded for it in the same commit,
+   with the diff read line by line first.
+
+   **And `validate` is deliberately the loudest of the four**, because
+   it is the file that travels: the quality report goes to whoever is
+   deciding whether to trust a twin, and under a lowered floor its
+   obligation lines print published and measured counts down to that
+   floor where at eleven they would have been withheld. Its section says
+   that in as many words. The gate itself is unchanged — it asks what a
+   description of the measured file would publish, and under a lowered
+   floor such a description names small groups — so what changed is what
+   the report tells the reader about its own reach, not the reach.
+
+4. **The sweep for arithmetic that assumed eleven, and its result.**
+   Every floor-consuming site was read and the whole workflow was run at
+   floors 1 and 2 end to end. Three sites take a value derived from the
+   floor rather than the floor: `_recount_window`'s `room = floor - 1`,
+   which is clamped at zero and correct at one; `_at_the_floors_
+   resolution`, whose own docstring already ruled the floor-of-one case
+   the identity (amendment A-P3-10 clause 1); and `_multiplicity`, whose
+   permitted key range is `1 .. floor - 1` and which at a floor of one
+   is the empty range. The last of the three composed its refusal as "a
+   number of rows from 1 to 0", which is a sentence sending a person to
+   look for a number that cannot exist, and it now says the block must
+   be empty and why. **Nothing else in the product reads the floor as a
+   magnitude.** The generator reads it not at all — contract 4.4 makes
+   the settings subtree loader-only — so no published count and no
+   window moves with it.
+
+   **One wart is recorded rather than repaired**, because it lives in a
+   file this change was told not to edit: `validation._below_the_floor`
+   prints "fewer than 1" for a published label the measured file does
+   not hold at all, on a description written at a floor of one. It is
+   true — zero is fewer than one — and it is the correct verdict path;
+   it reads oddly. The honest wording is "not there at all" and it is
+   one line in `validation.py`.
+
+**Amendment A-P3-12 — the fold-collision layout is CHECKED against what
+the families actually supplied, and repaired where a collision could
+not be built. THIS RAISES: a published `n_distinct_folded` the twin
+missed on 3.7 per cent of a battery of descriptions a real producer
+wrote is now met on every one of them. It LOWERS nothing, and the one
+thing it costs is priced below** (2026-08-14, owner ruling on the
+recorded fidelity miss; the question put to the owner was repair the
+fold feasibility or authorize the miss, and the ruling was: fix the
+generator now).
+
+**The defect the ruling closes, in the terms the study that found it
+left it.** A column of record numbers publishing fewer folded
+identities than raw spellings owes `n_distinct - n_distinct_folded`
+collisions, and G9.3 settles which slots carry them BEFORE any spelling
+exists. What a family can supply is a fact about spellings: its
+identities' own case positions, and whatever edge spacing their lengths
+leave inside the taking slot's window. Edge spacing only LENGTHENS, so
+an identity pinned to the longest published length supplies no spaced
+partner at all; a family whose flips are spent supplies no further one.
+A layout could therefore ask one family for more collisions than it
+holds while another family of the same column had room to spare, and
+the twin then wrote a fresh identity where a partner was owed. The
+pre-generation feasibility check `_fold_room` never fires on these: it
+counts the whole wide alphabet and knows nothing about families, slots
+or windows.
+
+**Measured before anything was changed, twice, on two independently
+built batteries of hazard-shaped producer descriptions — every column
+built from real values, so the column's own multiset is a conforming
+assignment of every count its description publishes.** On the battery
+the earlier study built, 1,200 columns at seed 0: **44 missed
+`n_distinct_folded`, 3.7 per cent**, which reproduces that study's
+recorded number exactly. On a second battery built for this amendment,
+918 columns that publish a fold collision, at seed 0: **68 missed it,
+7.4 per cent**. At four seeds the two batteries give 176 of 4,800 runs
+and 272 of 3,672 runs. Every miss was `n_distinct_folded` and no other
+published fact was ever missed.
+
+1. **The layout is laid out again where a collision could not be
+   built, and the layouts are offered in a fixed order whose FIRST
+   member is the layout that shipped. THIS RAISES.**
+   `docs/spec/generation-method-v1.md` section G9.3 carries the rule as
+   a new step 5 and G9.6's collision-slot bullet points at it, under a
+   counted re-seal. Four handles, in this order: the shipped layout
+   unchanged; then every family that fell short asked for no more
+   collisions than it was just shown to supply; then the slots carrying
+   the two published length ends offered a collision before any other
+   slot of their family; then each further exact packing of G9.6,
+   including the packings its search reaches by holding one group to
+   one family. At most two hundred and fifty-six candidate packings are
+   examined on one column, and where every offered layout falls short
+   the column keeps the first and the shortfall is recounted from the
+   finished cells and named, exactly as before.
+
+   **Why this is not the change that was rejected on 2026-08-13.** That
+   proposal re-ranked the collision choice on EVERY column, and an
+   adversary measured it losing `n_distinct_folded` on twelve runs of
+   this project's own 200-description battery while cutting hazardous
+   cells there by zero. This one cannot reach a column the shipped rule
+   already answered: the shipped layout is offered first and is
+   returned the moment it supplies every collision it owes, so a
+   description that layout answers is answered by it, byte for byte.
+   The property is measured rather than argued — see clause 3.
+
+2. **After: zero, on both batteries, at four seeds.** Shipped 44 of
+   1,200 and 68 of 918 at seed 0; repaired **0 and 0**. At seeds 0, 1,
+   17 and 63: shipped 176 and 272 runs missing, repaired **0 and 0**.
+   No run of either battery, before or after, missed any published fact
+   other than `n_distinct_folded`, and every miss that remains — there
+   are none on these batteries — is named in the generation report as a
+   deviation carrying the published value and the achieved one.
+
+3. **What it does NOT move, measured rather than asserted.** On this
+   project's own 200-description identifier battery at four seeds, 800
+   runs: **not one byte moved**, no run missed a fact before or after,
+   and the count of cells opening with a character a spreadsheet reads
+   as a formula is 140 before and 140 after. Across both hazard
+   batteries the same property holds run by run: **every run whose bytes
+   moved is a run the shipped generator got wrong**, 176 of 176 and 272
+   of 272, and no run that was exact before is exact-but-different
+   after. All fifteen frozen generation reference vectors and their
+   mutants pass unchanged.
+
+4. **What it costs, priced rather than left to be found.** Two things,
+   and both are named here because this plan is where a price is paid.
+
+   **First, spreadsheet hazards, on two columns in 1,200.** The cells a
+   twin writes that open with a formula leader are counted in the bound
+   this plan states above; the repair moves them only inside the columns
+   it repairs. Measured over the 1,200-column battery: 42 of the 44
+   repaired columns write the same number as before, and two write 9
+   and 12 where they wrote none — 1,036 cells to 1,120 over four seeds.
+   No column writes fewer. On the 918-column battery the total is
+   unchanged at 744. Nothing published is traded for this: the columns
+   in question now meet a published count they missed, the hazardous
+   cells are named in the report as they always were, and the bound
+   this plan states — that carrying more of them than the counts force
+   is a limit of synthtwin — is where it was.
+
+   **Second, work, bounded and counted.** A column whose first layout
+   supplies every collision costs exactly what it cost before: the
+   packing search stops at its first success, as it always did, and the
+   repair never runs. A column that falls short is the one that carries
+   the cost of the further layouts, and it carries all of it. Measured
+   end to end on the shipped code, the old rule against the new over the
+   same 4,800 and 3,672 generations: **16.1 seconds to 18.5, and 26.0 to
+   27.9** — fifteen per cent and seven, with every failing column of
+   both batteries included in the total. The deepest single column of
+   either battery examined **twenty-one** candidate packings against the
+   stated ceiling of 256.
+
+5. **What is still open, said plainly.** Both batteries are batteries;
+   they are wide but they are not a proof. The rule ends in a stated
+   number of steps and a description can spend that budget, so the
+   deviation path is live and is the reason it is still built and still
+   named. And the divergence this plan already records at P3-D8.1 —
+   that the reference oracle models neither `_collision_order` nor this
+   repair, and raises rather than states cells for a description whose
+   collisions cannot be built — is unchanged and is not widened: the
+   repair is reachable only on descriptions for which that oracle
+   already refuses to state an answer, so no frozen case reaches it and
+   none can be added without widening the oracle first.
+
 ## P3-D7. Repository claims, staged honestly
 
 **The claim-inventory migration table is a deliverable of this plan's
@@ -2529,10 +2776,19 @@ owner decision 6's infeasible corner. `_fold_room`, the pre-generation
 check, counts the whole wide alphabet and knows nothing about families,
 slots or windows, so it never fires on these. This is not the hazard
 question and does not wait on it: it is a published count the twin does
-not meet on a shape a producer reaches. **It needs an owner decision on
+not meet on a shape a producer reaches. **It needed an owner decision on
 the same two terms as the others -- repair the fold feasibility, or
 authorize the miss -- and it should be measured against the shipped
 baseline before anything else in this area is changed.**
+
+**RULED, AND CLOSED BY AMENDMENT A-P3-12** (2026-08-14). The owner ruled
+repair. The shipped baseline was measured first and independently, on
+this battery and on a second one built for the repair: 44 of 1,200 and
+68 of 918 at seed 0, which reproduces the number above. Both are now
+nought, at four seeds, with no other published fact moved and not one
+byte moved on any column the shipped generator already answered. The
+price -- two of the 1,200 columns now write hazardous cells where they
+wrote none -- is stated in A-P3-12 clause 4.
 
 **The battery now watches it.** The 800-run identifier battery asserted
 eleven published facts and neither the folded count nor the report, so

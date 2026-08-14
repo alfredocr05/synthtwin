@@ -150,6 +150,20 @@ SETTINGS_KEYS = (
 
 DECLARATION_KEYS = ("n_declared", "values_recorded")
 
+# THE FLOOR `synthtwin profile` WRITES WHEN NOBODY ASKS FOR ANOTHER
+# (contract 4.4). The loader accepts any whole number of 1 or more --
+# the owner's ruling of 2026-08-14, plan amendment A-P3-11 -- so this is
+# not a bound and no refusal is taken against it. It is the number the
+# reports compare a description's own floor against, so that a
+# description made with a LOWER one can be recognized and said out loud
+# on the face of every file built from it.
+#
+# It is the same number `taxonomy.Settings` defaults to. The two are
+# written in two modules because the generation and validation paths may
+# not import the profiler's taxonomy at all, and the suite compares them
+# so a change in one cannot pass unnoticed in the other.
+DEFAULT_SMALL_CELL_FLOOR = 11
+
 # The eight reserved cross-column names. This version of synthtwin
 # carries no structure between columns and says so in eight named
 # places, every one of them empty (contract 4.6, S12).
@@ -1757,6 +1771,13 @@ def _multiplicity(
       the permitted key range -- `floor - 1` where the floor governs the
       pattern (a held-back spelling, W5), or None where nothing bounds
       it (a column's own repetition pattern).
+
+      A TOP OF ZERO IS A REAL CASE AND IT MEANS "EMPTY" (owner ruling
+      2026-08-14, plan amendment A-P3-11). A description made with a
+      smallest group size of one holds nothing back, so a floor-governed
+      pattern under it has no permitted key at all. The refusal says
+      that in those words: "a number of rows from 1 to 0" would send a
+      person looking for a number that cannot exist.
     - Determinism: the answer depends only on the value.
     - Errors raised: ProfileError when it is not a block of entries
       (R15), when a key is not a row count written in base ten or is
@@ -1790,6 +1811,12 @@ def _multiplicity(
         top = "a number of rows of 1 or more"
         if floor is not None:
             top = f"a number of rows from 1 to {floor}"
+        if floor is not None and floor < 1:
+            top = (
+                "no entry at all -- this description was made with a "
+                "smallest group size of 1, so nothing was held back and "
+                "this block is empty"
+            )
         if rows < 1 or (floor is not None and rows > floor):
             raise _out_of_range(f"{key} -> {name}", where, f"{rows}", top)
         if width and len(name) != width:
@@ -2173,11 +2200,31 @@ def _settings(value: object) -> SettingsBlock:
     S8 -- that every declared name is a column of this table -- is not
     checked here, because it needs the columns. It is checked once they
     have been read.
+
+    THE FLOOR'S MINIMUM IS ONE, NOT ELEVEN (owner ruling 2026-08-14,
+    plan amendment A-P3-11). `--smallest-group` is a documented option
+    and it accepted any positive number, so `synthtwin profile
+    t.csv --smallest-group 2` wrote a description that this loader then
+    refused -- and the refusal told the person to run `synthtwin
+    profile` and use the file exactly as written, which is what they
+    had done. One is the smallest number the rest of the format can
+    carry: every floor-governed rule is stated as "at least the floor"
+    and "below the floor", and at a floor of one the second half is the
+    empty range, so nothing is ever held back and every invariant above
+    still holds. Zero is refused here as it always was -- a floor of
+    zero would make "below the floor" reach counts of nothing at all,
+    which no count is.
+
+    WHAT LOWERING IT GIVES UP is not this loader's to soften: the
+    description then names groups as small as the floor, and the twin,
+    both reports and the plain-language summary carry those counts too.
+    Every one of those four says so on its face when the floor is under
+    the default, which is the other half of the ruling.
     """
     where = "in the block of rules that produced the description"
     mapping = _mapping(value, "settings", _AT_THE_TOP)
     _keys(mapping, where, SETTINGS_KEYS, "that block")
-    floor = _whole(mapping["small_cell_floor"], "small_cell_floor", where, 11)
+    floor = _whole(mapping["small_cell_floor"], "small_cell_floor", where, 1)
     ceiling = _whole(
         mapping["categorical_ceiling"], "categorical_ceiling", where, 1
     )

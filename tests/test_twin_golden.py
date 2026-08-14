@@ -633,8 +633,35 @@ def test_the_report_names_the_seed_the_twin_was_built_at(
 # narrower one. The census is the same six numbers it was -- 249 held,
 # 49 within, 2 authorized, 0 withheld, 0 missed, 77 not checkable -- and
 # the two files were diffed line by line before this was re-recorded.
+#
+# AND ONCE MORE, FOR ONE PARAGRAPH THAT NOW NAMES ITS OWN NUMBER (owner
+# ruling 2026-08-14; plan amendment A-P3-11 clause 3). The floor is a
+# number the person running the tool sets, and `--smallest-group` below
+# eleven now runs the whole workflow -- so the withholding rule at the
+# foot of the report could no longer say "a group fewer rows carry than
+# the publication floor is never named in ANY description". That
+# sentence was true when every description had one floor; with floors
+# varying it invites a reader to supply eleven and be wrong about what
+# the lines above are showing them. It now prints the floor this
+# description was made with, at the point where that number decides
+# something, which is also the one place a reader of an ordinary report
+# is told what protects them.
+#
+# THE TWO REPORTS WERE DIFFED LINE BY LINE BEFORE THIS WAS RE-RECORDED,
+# and the diff is six lines out and seven lines in, all of them inside
+# that one paragraph. Everything else is byte for byte what it was:
+# same census -- 249 held, 49 within, 2 authorized, 0 withheld, 0
+# missed, 77 not checkable -- same verdicts, same obligations, same
+# order, same name line. The lowered-floor section that amendment
+# A-P3-11 clause 2 adds does NOT appear here and must not: this
+# description is made at the default floor, and that section is
+# conditional on purpose (a paragraph printed on every run to say the
+# floor was not lowered is how a reader is trained to skip the paragraph
+# that matters). If this digest ever moves because that section
+# appeared, the defect is that the fixture's floor changed, not that the
+# report gained a sentence.
 GOLDEN_QUALITY_SHA256 = (
-    "451eb288d6f180c3609a42ccf34ad21f99dba48c22681fa526fe3f55a7841f46"
+    "c4e77d6925959925885ee56c5936ac3f003554e6c5435df2e0b2722795a50187"
 )
 
 
