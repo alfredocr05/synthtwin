@@ -1974,12 +1974,21 @@ def write_one_file(
     """
     place = pathlib.Path(target)
     guarded = sources if sources is not None else []
-    _refuse_unless_plain_file(place, words)
+    # THE SOURCE-AWARE QUESTION IS ASKED FIRST, and the order is the
+    # whole of what it buys (review item P3-V1-F12). A link at the output
+    # name pointing back at an input is BOTH a special entry and an
+    # input, and the plain-file refusal answered first: the person was
+    # told that something which is not an ordinary file is in the way,
+    # which is true and is not the news. The news is that the name they
+    # gave leads to one of the two files the check reads, and which one.
+    # Nothing is lost by the swap -- a target that is a special entry and
+    # not an input still meets the refusal below, on the next line.
     landed = _lands_on_a_source(place, guarded)
     if landed:
         raise errors.ProfileError(
             errors.output_would_replace_an_input(f"{place}", landed, words)
         )
+    _refuse_unless_plain_file(place, words)
     forbidden = [place]
     for source, _noun in guarded:
         forbidden = forbidden + [pathlib.Path(source)]

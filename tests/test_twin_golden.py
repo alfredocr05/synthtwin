@@ -64,9 +64,11 @@ from synthtwin import (
     generation,
     parsing,
     profile,
+    quality,
     reading,
     rendering,
     taxonomy,
+    validation,
 )
 
 # The seed the golden run is made at. Nothing about this number is
@@ -432,3 +434,90 @@ def test_the_report_names_the_seed_the_twin_was_built_at(
     than inside a digest that would only say "something moved".
     """
     assert f"Seed: {GOLDEN_SEED}." in rendering.report(loaded, built)
+
+
+# -- the quality report's bytes ---------------------------------------
+
+# THE FOURTH ARTIFACT'S GOLDEN (review item P3-V1-F13). The twin above,
+# validated against the description it was built from, and the quality
+# report that check produces. Until this existed, every test of the
+# report compared one platform's output with its own -- the repeat run,
+# the relocated run -- so a formatting difference that appeared on one
+# CI cell only made all of them pass while the cells disagreed with each
+# other, which is exactly the determinism defect plan D12 calls
+# release-blocking.
+#
+# WHAT MOVING IT MEANS, in the same three cases the twin's digests are
+# read under:
+#
+# * the description or twin digest above moved as well -- the producer
+#   or the generator changed, this follows from it, and all four are
+#   re-recorded together once that change is understood;
+# * they held and this moved -- what changed is what a person is TOLD
+#   about a file that was checked: a sentence, an order, a verdict, or
+#   the set of obligations the census carries. Read the new report
+#   before re-recording. A census that carries FEWER obligations than it
+#   did is a defect even when nothing crashed, because the summary above
+#   it says the counts cover every obligation the description sets;
+# * it moved on one platform, one interpreter version or one library
+#   version only -- that is not a legitimate change at all. It is a
+#   determinism defect and is release-blocking (plan D12, V10).
+GOLDEN_QUALITY_SHA256 = (
+    "d6a5583498cb28720e0aa99d35a1a3733d0f0a249bdf669bdd0d03cb3b30ccad"
+)
+
+
+def test_golden_hash_of_the_quality_report_for_the_demonstration_twin(
+    tmp_path: pathlib.Path,
+    description: pathlib.Path,
+    loaded: contract.Profile,
+    built: generation.Twin,
+) -> None:
+    """Pin the bytes of the quality report for one description and one file.
+
+    V10: the report's bytes are a fixed function of the description's
+    bytes, the measured file's bytes and the version, on one platform
+    under the locked dependency set -- with cross-platform agreement
+    verified empirically by this digest on every CI cell, exactly as the
+    twin's is.
+
+    The twin is written to a file and measured through `validation`'s
+    own entry point, so what is pinned is the whole path a person takes:
+    describe, build, check.
+    """
+    target = tmp_path / "twin.csv"
+    target.write_text(rendering.twin_csv(built), encoding="utf-8")
+    outcome = validation.measure(loaded, str(target))
+    written = parsing.visible_lines(quality.quality_report(loaded, outcome))
+    digest = _digest(written)
+    assert digest == GOLDEN_QUALITY_SHA256, (
+        "the quality report for the fixed demonstration twin changed. If "
+        "the description and twin digests above held, both inputs are "
+        "untouched and what moved is what the check SAYS -- a sentence, "
+        "an order, a verdict, or which obligations the census carries. "
+        "Read the new report before re-recording: a census that carries "
+        "fewer obligations than it did is a defect even when nothing "
+        "crashed. If this appeared on one platform, one interpreter "
+        "version or one library version only, it is a determinism defect "
+        f"and is release-blocking (plan D12). New digest: {digest}"
+    )
+
+
+def test_the_quality_report_of_the_golden_twin_misses_nothing(
+    tmp_path: pathlib.Path,
+    loaded: contract.Profile,
+    built: generation.Twin,
+) -> None:
+    """One fact of the pinned report, stated where a hash cannot state it.
+
+    The digest above would be just as stable if the demonstration twin
+    started missing half the description's obligations, so the property
+    that makes it the RIGHT digest is asserted separately: the twin of
+    this description, measured against it, misses nothing.
+    """
+    target = tmp_path / "twin.csv"
+    target.write_text(rendering.twin_csv(built), encoding="utf-8")
+    outcome = validation.measure(loaded, str(target))
+    assert outcome.census.missed == 0
+    assert outcome.census.withheld == 0
+    assert outcome.census.held > 0

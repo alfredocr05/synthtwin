@@ -20,7 +20,9 @@ Every table is built at test time by the seeded neutral builders in
 `fixtures.py`; no data-format file enters the repository (plan D13).
 """
 
+import csv
 import dataclasses
+import io
 import pathlib
 
 import pytest
@@ -52,9 +54,10 @@ def _describe(
     text: str,
     declared: "list[str] | None" = None,
     stem: str = "table",
+    first_row: str = reading.FIRST_ROW_AUTOMATIC,
 ) -> contract.Profile:
     """Profile one table's text through the real producer and loader."""
-    return _described(folder, text, declared, stem)[0]
+    return _described(folder, text, declared, stem, first_row)[0]
 
 
 def _described(
@@ -62,6 +65,7 @@ def _described(
     text: str,
     declared: "list[str] | None" = None,
     stem: str = "table",
+    first_row: str = reading.FIRST_ROW_AUTOMATIC,
 ) -> "tuple[contract.Profile, str]":
     """The same, with the description's own bytes beside it.
 
@@ -69,9 +73,14 @@ def _described(
     every label a result may name is one the description itself
     carries, so a string that is in neither the description nor this
     module's own fixed words is a string read out of the measured file.
+
+    ``first_row`` chooses which reading the description is built from,
+    so that a HEADERLESS description -- one whose names were generated,
+    and whose twin therefore carries no header line -- can be built
+    here as the profiler really builds one.
     """
     table_path = fixtures.write(folder, f"{stem}.csv", text)
-    table = reading.read_table(str(table_path))
+    table = reading.read_table(str(table_path), first_row=first_row)
     document = profile.build_document(
         table, taxonomy.Settings(), declared if declared else []
     )
@@ -366,6 +375,93 @@ def test_red_a_respelled_number_misses_its_style(
     assert found[0].verdict == validation.MISSED
 
 
+def test_red_a_respelled_pooled_cell_misses_the_canonical_split(
+    tmp_path: pathlib.Path,
+) -> None:
+    """NAMED SUBCHECK: styles.canonical.decimal, on a pooled cell.
+
+    Review item P3-V1-F7, on the reviewer's own fixture. Ten `1`s beside
+    `1.5` and `2.5` publish `numeric_styles` as the single withheld key:
+    every cell of the column is POOLED, and no style is named at any
+    count. Plan P3-D8.1 says a pooled cell owes exactly its own value's
+    canonical text, because the published counts are the only licence
+    for a point-carrying spelling that is not that text -- so with no
+    count published, a `2.50` where the value's canonical text is `2.5`
+    is owed and not met.
+
+    Every count-based clause of the identity survives that edit
+    untouched: the value is the same number, the style is the same
+    style, the spill and the remainder balance exactly as before. The
+    whole column passed with exit 0 until this subcheck existed, which
+    is what makes it the case the clause was ratified for.
+    """
+    folder = tmp_path / "pooled"
+    folder.mkdir()
+    values = ["1" for _index in range(10)] + ["1.5", "2.5"]
+    described = _describe(
+        folder,
+        fixtures.single_column_table("reading", values),
+        stem="pooled",
+    )
+    facts = described.columns[0].facts
+    assert isinstance(facts, contract.NumericFacts)
+    assert facts.numeric_styles == {taxonomy.SUPPRESSED_LABEL: 12}
+    twin = _twin_text(described)
+    good = _measure(folder, described, twin, "pooled-twin.csv")
+    assert _missed(good) == []
+    assert _verdicts(good, "styles.canonical.decimal") == [validation.HELD]
+    # One pooled cell re-spelled into a non-canonical text of the SAME
+    # style and the SAME value.
+    lines = twin.split("\n")
+    changed = 0
+    for index in range(1, len(lines)):
+        body = lines[index]
+        if not body:
+            continue
+        if parsing.numeric_style(body) != parsing.STYLE_DECIMAL:
+            continue
+        lines[index] = f"{body}0"
+        changed = changed + 1
+        break
+    assert changed == 1
+    bad = _measure(folder, described, "\n".join(lines), "pooled-odd.csv")
+    assert (
+        _verdicts(bad, "styles.canonical.decimal") == [validation.MISSED]
+    )
+
+
+def test_the_canonical_split_still_licenses_the_published_counts(
+    tmp_path: pathlib.Path,
+) -> None:
+    """...and the ceiling is the PUBLISHED count, not zero.
+
+    The clause is a ceiling on non-canonical cells, and the published
+    count is what raises it: a column that publishes `decimal` cells has
+    bought exactly that many spellings of its own choosing, and a check
+    that refused them would accuse the generator of doing what the
+    description asked for. The pair matters as much as the red case
+    does.
+    """
+    folder = tmp_path / "licensed"
+    folder.mkdir()
+    values = [f"{index % 20}.5" for index in range(60)]
+    described = _describe(
+        folder,
+        fixtures.single_column_table("amount", values),
+        stem="licensed",
+    )
+    facts = described.columns[0].facts
+    assert isinstance(facts, contract.NumericFacts)
+    assert facts.numeric_styles.get(parsing.STYLE_DECIMAL, 0) > 0
+    outcome = _measure(
+        folder, described, _twin_text(described), "licensed-twin.csv"
+    )
+    assert _verdicts(outcome, "styles.canonical.decimal") == [
+        validation.HELD
+    ]
+    assert _missed(outcome) == []
+
+
 def test_red_a_shifted_date_misses_a_ladder_end(
     tmp_path: pathlib.Path,
     every_role: "tuple[contract.Profile, str]",
@@ -471,6 +567,72 @@ def test_red_an_edited_header_misses_the_header_names(
     lines[0] = ",".join(cells)
     outcome = _measure(tmp_path, described, "\n".join(lines))
     assert _verdicts(outcome, "header.names") == [validation.MISSED]
+
+
+def test_red_a_removed_header_misses_the_header_presence(
+    tmp_path: pathlib.Path,
+) -> None:
+    """NAMED SUBCHECK: header.presence, on a headered twin with no header.
+
+    Review item P3-V1-F8. The check this replaces compared the file's
+    first line with the names the reader had just DERIVED from that
+    line, so the two agreed whatever the file held and this
+    perturbation -- the plainest one there is -- reported HELD.
+    Neighbouring checks caught the file; the named one slept, which V8.2
+    calls a red battery.
+
+    The column here holds a value in every row, so the file with its
+    header taken off still reads as a table and the reader returns it.
+    That is deliberate: it puts the perturbation through
+    `_header_presence` itself rather than through the structural path
+    that catches a first row which cannot name columns at all.
+    """
+    folder = tmp_path / "header"
+    folder.mkdir()
+    described = _describe(
+        folder,
+        fixtures.single_column_table(
+            "reading", fixtures.numbers(71, 60, 1, 400)
+        ),
+        stem="headed",
+    )
+    twin = _twin_text(described)
+    good = _measure(folder, described, twin, "headed-twin.csv")
+    assert _verdicts(good, "header.presence") == [validation.HELD]
+    lines = twin.split("\n")
+    bad = _measure(
+        folder, described, "\n".join(lines[1:]), "no-header.csv"
+    )
+    assert _verdicts(bad, "header.presence") == [validation.MISSED]
+
+
+def test_red_a_header_written_into_a_headerless_file_misses_presence(
+    tmp_path: pathlib.Path,
+) -> None:
+    """NAMED SUBCHECK: header.presence, in the other direction.
+
+    A description whose names were GENERATED asks for a file with no
+    header line at all, and the check has to be able to fail that way
+    too: the version this replaces returned the expected words
+    unconditionally in this mode, so nothing whatever could move it.
+    """
+    folder = tmp_path / "headerless"
+    folder.mkdir()
+    values = fixtures.numbers(61, 40, 1, 9)
+    described = _describe(
+        folder,
+        "\n".join(values) + "\n",
+        stem="bare",
+        first_row=reading.FIRST_ROW_DATA,
+    )
+    assert described.source.header_source == reading.HEADER_GENERATED
+    twin = _twin_text(described)
+    good = _measure(folder, described, twin, "bare-twin.csv")
+    assert _verdicts(good, "header.presence") == [validation.HELD]
+    written = [column.name for column in described.columns]
+    injected = ",".join(written) + "\n" + twin
+    bad = _measure(folder, described, injected, "bare-headed.csv")
+    assert _verdicts(bad, "header.presence") == [validation.MISSED]
 
 
 def test_red_a_dropped_column_misses_the_column_count(
@@ -751,7 +913,7 @@ def test_the_settings_are_rebuilt_from_the_description(
     )
 
 
-def test_the_kept_set_recovers_all_three_published_routes(
+def test_the_kept_set_reaches_all_three_published_routes(
     tmp_path: pathlib.Path,
     every_role: "tuple[contract.Profile, str]",
 ) -> None:
@@ -817,6 +979,81 @@ def test_presence_is_blankness_and_never_the_redescription(
     assert found[0].verdict == validation.MISSED
 
 
+def test_a_presence_gap_withholds_rather_than_discarding(
+    tmp_path: pathlib.Path,
+) -> None:
+    """V2.4, and review item P3-V1-F6: nothing dependent may vanish.
+
+    The same file as the test above: sixty non-blank cells, thirty of
+    which the profiler reads as absences, against a description
+    publishing thirty present. Presence is blankness, so the two
+    readings disagree -- and the version this replaces then returned one
+    synthetic `presence.agreement` check, built so that it could only
+    ever be WITHHELD, and dropped every level, variant, distinctness and
+    ladder obligation the column carries. An extra bad variant in such a
+    file drew no line at all.
+
+    Two things are asserted, and they are the two halves of the rule.
+    Every obligation still HAS a line: the set of subcheck identities is
+    the same one a file with no gap produces, compared against the
+    description's own twin rather than against a list written here.
+    And none of them carries a verdict taken from the wrong set of
+    cells: each is WITHHELD, with the sentence saying why.
+    """
+    folder = tmp_path / "gap"
+    folder.mkdir()
+    values = ["north" for _index in range(30)] + [
+        "n/a" for _index in range(30)
+    ]
+    described = _describe(
+        folder,
+        fixtures.single_column_table("region", values),
+        stem="gap",
+    )
+    assert described.columns[0].n_present == 30
+    clean = _measure(
+        folder, described, _twin_text(described), "gap-twin.csv"
+    )
+    gapped = _measure(
+        folder,
+        described,
+        fixtures.single_column_table("region", values),
+        "gap-again.csv",
+    )
+    named = [check.subcheck for check in gapped.checks]
+    assert "presence.agreement" not in named
+    assert sorted(named) == sorted(
+        check.subcheck for check in clean.checks
+    )
+    # The blank split still verdicts the two counts it owns...
+    assert _verdicts(gapped, "presence.n_present") == [validation.MISSED]
+    assert _verdicts(gapped, "presence.n_missing") == [validation.MISSED]
+    # ...and every measurement whose input is the present set is
+    # withheld rather than taken from the re-description's own count.
+    # The obligations settled without reading a single cell are not
+    # among them: where the column stands, and the four axes the file's
+    # own description reads it as.
+    settled = (
+        "presence.n_present",
+        "presence.n_missing",
+        "position.at",
+        "axes.role",
+        "axes.statistical_type",
+        "axes.quality_state",
+        "axes.structural_role",
+    )
+    dependent = [
+        check
+        for check in gapped.checks
+        if check.column == "region" and check.subcheck not in settled
+    ]
+    assert dependent
+    for check in dependent:
+        assert check.verdict == validation.WITHHELD, check
+        assert check.citation
+    assert gapped.census.withheld == len(dependent)
+
+
 # -- V4: the corners, and V4.3's refusals -----------------------------
 
 
@@ -835,14 +1072,24 @@ def test_the_corner_classifier_is_a_function_of_the_profile_alone(
             assert validation.CORNER_CITATIONS[corner]
 
 
-def test_the_offsets_corner_is_named_with_its_citation(
+def test_the_offsets_corner_is_listed_and_carries_no_verdict(
     tmp_path: pathlib.Path,
 ) -> None:
     """A datetime column whose offsets are the single withheld key.
 
-    The verdict must be AUTHORIZED-DEVIATION, and it must APPEAR with
-    the passage that authorizes it: a deviation the validator fails to
-    name is itself a red test.
+    REVIEW ITEM P3-V1-F4. In this corner the four offset facts are
+    REPORT-ONLY -- the registry's own class for them, and V4.1's -- and
+    a REPORT-ONLY fact is a listing entry: it produces no verdict and is
+    counted where a not-checkable obligation is counted. The version
+    this test was first written against returned four
+    AUTHORIZED-DEVIATION checks, which put four facts nothing had been
+    measured against into the count of obligations the file WAS checked
+    against, and a pass census then said more than it could support.
+
+    Two things are asserted: no verdict of any kind is filed under any
+    of the four identities, and each appears in the census with the
+    passage that authorizes the lesser outcome, because a lowering shown
+    without its authority is one nobody can check.
     """
     folder = tmp_path / "offsets"
     folder.mkdir()
@@ -872,14 +1119,29 @@ def test_the_offsets_corner_is_named_with_its_citation(
     outcome = _measure(
         folder, described, _twin_text(described), "offset-twin.csv"
     )
-    named = [
-        check
-        for check in outcome.checks
-        if check.subcheck == "offsets.map"
+    offsets = (
+        "offsets.map",
+        "offsets.earliest",
+        "offsets.latest",
+        "offsets.read-at",
+    )
+    for subcheck in offsets:
+        assert _verdicts(outcome, subcheck) == []
+    listed = [
+        listing
+        for listing in outcome.listings
+        if listing.subcheck in offsets
     ]
-    assert len(named) == 1
-    assert named[0].verdict == validation.AUTHORIZED_DEVIATION
-    assert named[0].citation
+    assert len(listed) == len(offsets)
+    for listing in listed:
+        assert listing.column == column.name
+        assert (
+            validation.CORNER_CITATIONS[
+                validation.CORNER_DATETIME_OFFSETS_WITHHELD
+            ]
+            in listing.reason
+        )
+    assert outcome.census.not_checkable >= len(offsets)
 
 
 def test_a_generation_refusal_is_a_refusal_and_never_a_verdict(
@@ -928,6 +1190,94 @@ def test_a_generation_refusal_is_a_refusal_and_never_a_verdict(
     assert "cannot be this description's twin" in said
 
 
+def _single_character_description(
+    folder: pathlib.Path, count: int
+) -> contract.Profile:
+    """A description of one column of ``count`` one-character values.
+
+    Every value is outside the code alphabet and every one is written
+    once, so the description publishes `count` different values, both
+    length ends at one, and both alphabet counts at zero. It is the
+    fixture the generator's own boundary test uses, built here from the
+    same real producer so that nothing about the capacity is written
+    into this file.
+    """
+    values = [chr(0x100 + 2 * index) for index in range(count)]
+    return _describe(
+        folder,
+        fixtures.single_column_table("note", values),
+        stem=f"tiny-{count}",
+    )
+
+
+def test_a_description_the_domain_cannot_hold_refuses_rather_than_verdicts(
+    tmp_path: pathlib.Path,
+) -> None:
+    """REVIEW ITEM P3-V1-F5: the fourth G12 refusal, reached from validate.
+
+    Twenty-six different one-character values outside the code alphabet,
+    where twenty-five such values exist to be written. Generation
+    refuses this description by name and no conforming twin of it can
+    exist, so validation may not return an outcome for it -- a verdict
+    on a file measured against an impossible obligation is a report
+    saying the file failed to be something nothing could be, and where
+    the file happens to hold nothing the description publishes it could
+    even pass.
+
+    THE BOUNDARY IS ASSERTED FROM BOTH SIDES, because a refusal that
+    fires one value early is a description a person cannot get a twin of
+    for no reason: twenty-five validates, twenty-six refuses, and both
+    descriptions come from the shipped producer.
+    """
+    folder = tmp_path / "domain"
+    folder.mkdir()
+    inside = _single_character_description(folder, 25)
+    assert validation.refusal_of(inside) == ""
+    outcome = _measure(
+        folder, inside, _twin_text(inside), "inside-twin.csv"
+    )
+    assert outcome.census.missed == 0
+    beyond = _single_character_description(folder, 26)
+    assert validation.refusal_of(beyond) == (
+        validation.REFUSAL_DOMAIN_TOO_SMALL
+    )
+    target = fixtures.write(folder, "any.csv", "note\nx\n")
+    with pytest.raises(errors.ProfileError) as raised:
+        validation.measure(beyond, str(target))
+    said = f"{raised.value}"
+    assert "cannot be this description's twin" in said
+    assert "is valid" in said
+    # ...and the two sides agree about which descriptions are impossible.
+    # A shared design error would now need the same mistake written
+    # twice, from two documents (V4.2's reasoning, applied to G9.4).
+    with pytest.raises(errors.ProfileError):
+        generation.plan_generation(beyond)
+    generation.plan_generation(inside)
+
+
+def test_the_domain_rule_never_refuses_an_ordinary_column_of_text(
+    tmp_path: pathlib.Path,
+    every_role: "tuple[contract.Profile, str]",
+) -> None:
+    """The direction that makes the rule safe to have at all.
+
+    Every bound the capacity arithmetic compares against is an UPPER
+    bound on what the construction can write, so a description a twin
+    exists for can never meet this refusal. The every-role fixture
+    carries a column of free text with eighty different values, and the
+    battery's other free-text fixtures carry more; none of them may be
+    refused.
+    """
+    described, _twin = every_role
+    assert validation.refusal_of(described) == ""
+    folder = tmp_path / "wide-text"
+    folder.mkdir()
+    for count in (2, 10, 25):
+        assert validation.refusal_of(
+            _single_character_description(folder, count)
+        ) == ""
+
+
 # -- V9: refusals that name positions, never values -------------------
 
 
@@ -953,6 +1303,114 @@ def test_a_folder_instead_of_a_file_refuses(
         validation.measure(described, str(folder))
 
 
+def _two_column_description(folder: pathlib.Path) -> contract.Profile:
+    """An ordinary two-column description to point a hostile file at."""
+    return _describe(
+        folder,
+        fixtures.rows_to_csv(
+            ["c0", "c1"],
+            [
+                [value, fixtures.REGIONS[index % 4]]
+                for index, value in enumerate(fixtures.numbers(91, 60, 1, 9))
+            ],
+        ),
+        stem="two",
+    )
+
+
+def test_a_value_the_two_readers_read_differently_names_positions(
+    tmp_path: pathlib.Path,
+) -> None:
+    """REACHABILITY: the value-disagreement refusal, from validate.
+
+    The file is the one the reading battery uses for this: the standard
+    reader yields ["", "B"] for that row and pandas' C reader yields
+    ["B", ""], with equal row and column counts and no zero byte
+    anywhere. The profiler's form of the refusal names the column by the
+    NAME it read out of the file. Here the file may be anybody's, so the
+    refusal names the column NUMBER, and this asserts it names nothing
+    else (V9).
+    """
+    folder = tmp_path / "disagree-value"
+    folder.mkdir()
+    described = _two_column_description(folder)
+    target = folder / "crooked.csv"
+    target.write_bytes(b"c0,c1\n\r,B\nz,w\n")
+    with pytest.raises(errors.ProfileError) as raised:
+        validation.measure(described, str(target))
+    said = f"{raised.value}"
+    assert "row 1, column number 1" in said, said
+    assert "may not be your own table" in said, said
+    assert "'c0'" not in said and "'c1'" not in said, said
+
+
+def test_a_name_the_two_readers_read_differently_names_positions(
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """REACHABILITY: the name-disagreement refusal, from validate.
+
+    The file is rewritten between the two reading passes, which is how
+    the reading battery reaches this one. The profiler's form quotes
+    both names it read; on this path the file may be somebody else's
+    table, so the refusal names the column number and neither spelling.
+    """
+    folder = tmp_path / "disagree-name"
+    folder.mkdir()
+    described = _two_column_description(folder)
+    target = folder / "rewritten.csv"
+    target.write_bytes(b"c0,c1\n1,north\n2,south\n")
+    real = reading._read_authoritatively
+
+    def rewrite_after_reading(
+        table_path: object, shown: str, first_row: str, refusals: str
+    ) -> object:
+        found = real(table_path, shown, first_row, refusals)
+        pathlib.Path(f"{table_path}").write_bytes(
+            b"zzmarkerzz,c1\n1,north\n2,south\n"
+        )
+        return found
+
+    monkeypatch.setattr(
+        reading, "_read_authoritatively", rewrite_after_reading
+    )
+    with pytest.raises(errors.ProfileError) as raised:
+        validation.measure(described, str(target))
+    said = f"{raised.value}"
+    assert "name of column number 1" in said, said
+    assert "zzmarkerzz" not in said, said
+    assert "may not be your own table" in said, said
+
+
+def test_a_file_the_checking_pass_cannot_read_names_no_detail(
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """REACHABILITY: the not-readable-as-CSV refusal, from validate.
+
+    The checking pass's own account of what went wrong can carry a
+    piece of the file with it -- a byte it stopped at, a fragment of a
+    line -- and the profiler's form of this refusal prints that account.
+    The library is made to fail with an account that holds a marker, and
+    the marker may not reach the refusal.
+    """
+    folder = tmp_path / "unreadable"
+    folder.mkdir()
+    described = _two_column_description(folder)
+    target = fixtures.write(folder, "ordinary.csv", "c0,c1\n1,north\n2,south\n")
+
+    def refuse_to_read(*_args: object, **_keywords: object) -> object:
+        raise ValueError("stopped at zzmarkerzz on line 2")
+
+    monkeypatch.setattr(reading.pandas, "read_csv", refuse_to_read)
+    with pytest.raises(errors.ProfileError) as raised:
+        validation.measure(described, str(target))
+    said = f"{raised.value}"
+    assert "zzmarkerzz" not in said, said
+    assert "could not be read as a CSV table" in said, said
+    assert "may not be your own table" in said, said
+
+
 def test_a_structural_mismatch_is_a_verdict_and_not_a_refusal(
     tmp_path: pathlib.Path,
     every_role: "tuple[contract.Profile, str]",
@@ -964,6 +1422,366 @@ def test_a_structural_mismatch_is_a_verdict_and_not_a_refusal(
         lines.append(line if not line else f"{line},extra")
     outcome = _measure(tmp_path, described, "\n".join(lines), "wide.csv")
     assert _verdicts(outcome, "columns.n_columns") == [validation.MISSED]
+
+
+def test_a_repeated_header_name_is_a_verdict_and_names_no_value(
+    tmp_path: pathlib.Path,
+) -> None:
+    """V9's last paragraph, and review item P3-V1-F10.
+
+    A file whose first row uses one name twice cannot name a table's
+    columns, and the profiler's reader refuses it -- in a sentence that
+    QUOTES the repeated name. Reached from validate, that refusal both
+    printed a string out of a file nobody promised was the reader's and
+    turned a wrong name into a run that never happened. A wrong name is
+    a MISSED verdict with a report; the columns nothing could be matched
+    to are listed rather than dropped; and the spelling appears nowhere.
+    """
+    folder = tmp_path / "repeated"
+    folder.mkdir()
+    described = _describe(
+        folder,
+        fixtures.rows_to_csv(
+            ["reading", "region"],
+            [
+                [value, fixtures.REGIONS[index % 4]]
+                for index, value in enumerate(fixtures.numbers(81, 60, 1, 9))
+            ],
+        ),
+        stem="two",
+    )
+    marker = "zzmarkerzz"
+    rows = [f"{index},{index}" for index in range(60)]
+    hostile = f"{marker},{marker}\n" + "\n".join(rows) + "\n"
+    outcome = _measure(folder, described, hostile, "repeated.csv")
+    assert _verdicts(outcome, "header.names") == [validation.MISSED]
+    assert _verdicts(outcome, "header.presence") == [validation.MISSED]
+    assert _verdicts(outcome, "columns.order") == [validation.MISSED]
+    # ...and no column's obligations vanish: each is listed with a
+    # reason instead of leaving the census without a line.
+    listed = [
+        listing.column
+        for listing in outcome.listings
+        if listing.fact == "universal.position"
+    ]
+    for column in described.columns:
+        assert column.name in listed
+    spoken = []
+    for check in outcome.checks:
+        spoken = spoken + [check.published, check.achieved, check.citation]
+    for listing in outcome.listings:
+        spoken = spoken + [listing.reason, listing.column, listing.fact]
+    assert marker not in " ".join(spoken)
+
+
+def test_a_blank_header_name_is_a_verdict_and_names_the_position(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The other unusable first row, and it names WHICH column."""
+    folder = tmp_path / "blank"
+    folder.mkdir()
+    described = _describe(
+        folder,
+        fixtures.rows_to_csv(
+            ["reading", "region"],
+            [
+                [value, fixtures.REGIONS[index % 4]]
+                for index, value in enumerate(fixtures.numbers(83, 60, 1, 9))
+            ],
+        ),
+        stem="two",
+    )
+    rows = [f"{index},{index}" for index in range(60)]
+    hostile = "reading,\n" + "\n".join(rows) + "\n"
+    outcome = _measure(folder, described, hostile, "blank.csv")
+    found = [
+        check for check in outcome.checks if check.subcheck == "header.names"
+    ]
+    assert len(found) == 1
+    assert found[0].verdict == validation.MISSED
+    assert found[0].achieved == "no name at column number 2"
+
+
+def test_red_a_reshaped_text_column_misses_the_length_average(
+    tmp_path: pathlib.Path,
+    every_role: "tuple[contract.Profile, str]",
+) -> None:
+    """NAMED SUBCHECK: length.mean, at method G12.6's own reach.
+
+    REVIEW ITEM P3-V1-F9, reproduced as the reviewer wrote it. The
+    every-role `comment` column publishes eighty singleton groups,
+    lengths from 48 to 50, and an average of 49.525. G12.6 bounds what
+    the walk can achieve to 49.5125-49.5375; the window this replaces
+    was the two published ends, 48 to 50, and it accepted a file whose
+    cells were half at 48 and half at 50 -- an average of 49.0, with
+    every extreme, every word count and the whole repetition pattern
+    preserved. Nothing else in the report would have said a word about
+    it.
+
+    Both directions are asserted, because a window that catches this
+    file by being narrow would accuse the conforming twin: the twin
+    lands inside, the reshaped file does not.
+    """
+    described, twin = every_role
+    column = None
+    for entry in described.columns:
+        if isinstance(entry.facts, contract.TextFacts):
+            column = entry
+    assert column is not None
+    facts = column.facts
+    assert isinstance(facts, contract.TextFacts)
+    assert facts.length.minimum == 48
+    assert facts.length.maximum == 50
+    green = _measure(tmp_path, described, twin, "text-green.csv")
+    assert _verdicts(green, "length.mean") == [validation.WITHIN_BOUND]
+    index = column.position - 1
+    # Read and rewritten as CSV rather than split on commas: a free-text
+    # cell can hold a comma and is then quoted, and splitting such a
+    # line takes the row apart.
+    rows = [row for row in csv.reader(io.StringIO(twin))]
+    step = 0
+    for row in range(1, len(rows)):
+        if not rows[row][index]:
+            continue
+        wanted = 48 if step % 2 == 0 else 50
+        body = f"aa bb cc dd ee ff gg h{step:04d}"
+        body = body + "z" * (wanted - len(body))
+        assert len(body) == wanted
+        rows[row][index] = body
+        step = step + 1
+    out = io.StringIO()
+    csv.writer(out, lineterminator="\n").writerows(rows)
+    outcome = _measure(tmp_path, described, out.getvalue(), "text-red.csv")
+    # The perturbation leaves every neighbouring obligation held, which
+    # is what makes it a test of THIS subcheck.
+    # ...counting the identifier column, which carries the same two
+    # length identities and is untouched by this edit.
+    assert validation.MISSED not in _verdicts(outcome, "length.min")
+    assert validation.MISSED not in _verdicts(outcome, "length.max")
+    assert validation.MISSED not in _verdicts(outcome, "words.max")
+    assert _verdicts(outcome, "length.mean") == [validation.MISSED]
+
+
+# -- V3.3 and P3-D2: the obligation set belongs to the DESCRIPTION ----
+#    (review items P3-V1-F3 and P3-V1-F11)
+
+
+def _identities(outcome: validation.Outcome) -> "set[tuple[str, str, str]]":
+    """Every obligation one run accounted for, as its bare identity.
+
+    Checks and listings together, because the two are the same
+    obligation reported two ways: an obligation a file could be measured
+    against carries a verdict, and one it could not carries a line in
+    the not-checkable census. What may never happen is for it to be in
+    neither.
+    """
+    found = {
+        (check.column, check.fact, check.subcheck)
+        for check in outcome.checks
+    }
+    return found | {
+        (listing.column, listing.fact, listing.subcheck)
+        for listing in outcome.listings
+    }
+
+
+def test_the_obligation_set_is_a_function_of_the_description(
+    tmp_path: pathlib.Path,
+    every_role: "tuple[contract.Profile, str]",
+) -> None:
+    """REVIEW ITEM P3-V1-F11, stated as the property it violates.
+
+    What a description obliges a file to carry is fixed by the
+    DESCRIPTION. A file that is missing a column, or holds no rows, or
+    whose first row cannot name a table's columns, does not thereby owe
+    less: what it cannot carry it MISSES, or is listed as unmeasurable
+    with the reason -- never dropped. The version this test was written
+    against collapsed a 249-check census to five against a header-only
+    file and to one invented line for a dropped column, and the report
+    then called those five every measurable obligation.
+
+    So the identity sets are compared, not the counts: the same
+    (column, fact, subcheck) triples, whatever file the description is
+    pointed at.
+    """
+    described, twin = every_role
+    lines = twin.split("\n")
+    narrowed = []
+    for line in lines:
+        if not line:
+            narrowed.append(line)
+            continue
+        cells = line.split(",")
+        narrowed.append(",".join(cells[: len(cells) - 1]))
+    files = {
+        "twin": twin,
+        "header-only": lines[0] + "\n",
+        "dropped-column": "\n".join(narrowed),
+        "one-row": lines[0] + "\n" + lines[1] + "\n",
+        "unusable-header": (
+            ",".join(["same" for _cell in lines[0].split(",")])
+            + "\n"
+            + "\n".join(lines[1:])
+        ),
+    }
+    expected = _identities(_measure(tmp_path, described, twin, "base.csv"))
+    assert len(expected) > 200
+    for name in sorted(files):
+        outcome = _measure(tmp_path, described, files[name], f"{name}.csv")
+        assert _identities(outcome) == expected, name
+
+
+def test_a_missing_column_misses_its_obligations_rather_than_dropping_them(
+    tmp_path: pathlib.Path,
+    every_role: "tuple[contract.Profile, str]",
+) -> None:
+    """NAMED SUBCHECK: position.at, and every obligation beside it.
+
+    A file one column short used to draw one invented `column.present`
+    miss, and every other obligation that column carried left the census
+    without a line -- so a reader was told the file had been measured
+    against every obligation the description sets while dozens of them
+    had been quietly removed by the file's own shape.
+    """
+    described, twin = every_role
+    last = described.columns[len(described.columns) - 1]
+    narrowed = []
+    for line in twin.split("\n"):
+        if not line:
+            narrowed.append(line)
+            continue
+        cells = line.split(",")
+        narrowed.append(",".join(cells[: len(cells) - 1]))
+    outcome = _measure(tmp_path, described, "\n".join(narrowed), "short.csv")
+    mine = [
+        check for check in outcome.checks if check.column == last.name
+    ]
+    assert len(mine) > 5
+    for check in mine:
+        assert check.verdict == validation.MISSED, check
+    assert validation.MISSED in _verdicts(outcome, "position.at")
+
+
+def test_a_file_holding_no_rows_misses_every_obligation_it_cannot_carry(
+    tmp_path: pathlib.Path,
+    every_role: "tuple[contract.Profile, str]",
+) -> None:
+    """The header-only file of review item P3-V1-F11.
+
+    Five checks and ten listings, against a description that sets nearly
+    three hundred obligations, was the census this file used to produce
+    -- and the summary above it said those five were every obligation a
+    file can be measured against.
+    """
+    described, twin = every_role
+    outcome = _measure(
+        tmp_path, described, twin.split("\n")[0] + "\n", "head.csv"
+    )
+    assert outcome.census.missed > 200
+    assert _verdicts(outcome, "rows.n_rows") == [validation.MISSED]
+    # The header line still evidences what a header line evidences.
+    assert _verdicts(outcome, "header.names") == [validation.HELD]
+    assert _verdicts(outcome, "columns.n_columns") == [validation.HELD]
+    for column in described.columns:
+        mine = [
+            check for check in outcome.checks if check.column == column.name
+        ]
+        assert len(mine) > 5
+
+
+def test_every_column_carries_its_four_axes_and_its_position(
+    tmp_path: pathlib.Path,
+    every_role: "tuple[contract.Profile, str]",
+) -> None:
+    """REVIEW ITEM P3-V1-F3: four registry facts were in no entry at all.
+
+    `universal.position`, `universal.role`, `universal.quality_state`
+    and `universal.structural_role` appeared in no check, no listing and
+    no input-side binding, while the report said its counts covered
+    every obligation. Each is bound here, per column, and the green
+    direction holds: the twin re-reads as the same kind of column, which
+    is what Phase 2's decisions 5, 8 and 10 bought.
+    """
+    described, twin = every_role
+    outcome = _measure(tmp_path, described, twin)
+    for subcheck, fact in (
+        ("position.at", "universal.position"),
+        ("axes.role", "universal.role"),
+        ("axes.statistical_type", "universal.statistical_type"),
+        ("axes.quality_state", "universal.quality_state"),
+        ("axes.structural_role", "universal.structural_role"),
+    ):
+        mine = [
+            check for check in outcome.checks if check.subcheck == subcheck
+        ]
+        assert len(mine) == len(described.columns), subcheck
+        for check in mine:
+            assert check.fact == fact
+            assert check.verdict == validation.HELD
+
+
+def test_red_swapped_columns_miss_the_position_of_each(
+    tmp_path: pathlib.Path,
+    every_role: "tuple[contract.Profile, str]",
+) -> None:
+    """NAMED SUBCHECK: position.at.
+
+    Two whole columns exchanged, header and cells together. The file
+    still holds every value the description publishes and still reads as
+    a table of the same width, so nothing about its content is wrong --
+    what is wrong is that two columns are not where the description puts
+    them, which is the obligation `universal.position` states.
+    """
+    described, twin = every_role
+    first = described.columns[0].position - 1
+    second = described.columns[1].position - 1
+    swapped = []
+    for line in twin.split("\n"):
+        if not line:
+            swapped.append(line)
+            continue
+        cells = line.split(",")
+        cells[first], cells[second] = cells[second], cells[first]
+        swapped.append(",".join(cells))
+    outcome = _measure(tmp_path, described, "\n".join(swapped), "swapped.csv")
+    missed = [
+        check.column
+        for check in outcome.checks
+        if check.subcheck == "position.at"
+        and check.verdict == validation.MISSED
+    ]
+    assert described.columns[0].name in missed
+    assert described.columns[1].name in missed
+
+
+def test_red_a_renamed_declared_identifier_misses_its_structural_role(
+    tmp_path: pathlib.Path,
+    every_role: "tuple[contract.Profile, str]",
+) -> None:
+    """NAMED SUBCHECK: axes.structural_role.
+
+    The declaration reaches the column the person NAMED, so a file whose
+    header calls that column something else holds a column the file's
+    own description reads as ordinary data. The axis is the one fact
+    that says so, and it is a fact a CSV can evidence.
+    """
+    described, twin = every_role
+    declared = described.settings.forced_identifiers[0]
+    lines = twin.split("\n")
+    names = lines[0].split(",")
+    for index, name in enumerate(names):
+        if name == declared:
+            names[index] = "another_name"
+    lines[0] = ",".join(names)
+    outcome = _measure(tmp_path, described, "\n".join(lines), "renamed.csv")
+    named = [
+        check
+        for check in outcome.checks
+        if check.subcheck == "axes.structural_role"
+        and check.column == declared
+    ]
+    assert len(named) == 1
+    assert named[0].verdict == validation.MISSED
 
 
 # -- V6.4: the two degenerate zero-row forms --------------------------

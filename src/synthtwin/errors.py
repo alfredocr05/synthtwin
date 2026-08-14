@@ -270,6 +270,87 @@ def readers_disagree_about_a_value(path: str, row: int, column: str) -> str:
     )
 
 
+# THE SAME THREE REFUSALS, FOR A FILE NOBODY PROMISED WAS THEIRS
+# (plan P3-D1, V9; review item P3-V1-F10).
+#
+# The three messages above quote what the reader found -- the name it
+# read back, the column a value sits in -- and on the profiler's path
+# that is right: the person handed synthtwin their own table and asked
+# it to describe it, so naming what is in it tells them where to look.
+#
+# `synthtwin validate` is pointed at a file nobody promised was theirs.
+# It may be a twin, somebody else's table, or the wrong table entirely,
+# and a refusal travels as freely as a report does: it is printed, it is
+# copied into a ticket, it is pasted into a message. So on that path
+# every refusal names POSITIONS -- which column, which row -- and never
+# a value. These are those forms. They are separate builders rather than
+# a flag inside the ones above because a message a reader can act on is
+# written, not assembled, and because the profiler's own wording then
+# stays byte for byte what it was.
+
+
+def checked_file_readers_disagree_about_a_name(
+    path: str, position: int
+) -> str:
+    """Message for the two passes finding different names, by position."""
+    return (
+        f"synthtwin read {path} twice and the two readings do not agree "
+        f"about the name of column number {position}. There are two "
+        f"usual causes. Either something else was writing to the file "
+        f"while synthtwin was reading it -- make sure nothing else is "
+        f"using the file and run the command again -- or that name is "
+        f"written in a way the two readers read differently, which a "
+        f"stray carriage return, a zero byte, or a quotation mark that "
+        f"was never closed will do. Open the file in your spreadsheet "
+        f"program, save it again choosing 'CSV UTF-8', and run the "
+        f"command again. synthtwin refuses to check a file it could not "
+        f"read the same way twice, and it does not print what it found "
+        f"in the file: this file may not be your own table."
+    )
+
+
+def checked_file_readers_disagree_about_a_value(
+    path: str, row: int, position: int
+) -> str:
+    """Message for the two passes finding different values, by position."""
+    return (
+        f"synthtwin read {path} with two separate readers and they do "
+        f"not agree about the value in row {row}, column number "
+        f"{position}. Rows are counted after the first row, leaving out "
+        f"blank lines. There are two usual causes. Either something else "
+        f"was writing to the file while synthtwin was reading it -- make "
+        f"sure nothing else is using the file and run the command again "
+        f"-- or that part of the file is written in a way the two "
+        f"readers read differently, which a stray carriage return, a "
+        f"zero byte, or a quotation mark that was never closed will do. "
+        f"Open the file in your spreadsheet program, save it again "
+        f"choosing 'CSV UTF-8', and run the command again. synthtwin "
+        f"refuses to check a file it could not read the same way twice, "
+        f"and it does not print what it found in the file: this file may "
+        f"not be your own table."
+    )
+
+
+def checked_file_unreadable_as_csv(path: str) -> str:
+    """Message for a checked file the CSV reader could not make sense of.
+
+    The profiler's form of this quotes the reader's own account of what
+    went wrong, and that account can carry a piece of the file with it --
+    a byte it stopped at, a fragment of a line. Here it is left out and
+    the shape of the trouble is stated instead.
+    """
+    return (
+        f"The file {path} could not be read as a CSV table. synthtwin "
+        f"reads comma-separated files with one row per line and "
+        f"quotation marks around any value that contains a comma. A "
+        f"quotation mark that was never closed is the usual cause. Open "
+        f"the file in your spreadsheet program, save it again choosing "
+        f"'CSV UTF-8', and run the command again. synthtwin does not "
+        f"print what it found in the file: this file may not be your "
+        f"own table."
+    )
+
+
 def duplicate_column_names(names: list[str]) -> str:
     """Message for repeated column names in the header row."""
     listed = _listed(names)
