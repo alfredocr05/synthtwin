@@ -672,6 +672,35 @@ def _handling_lines(description: contract.Profile) -> "list[str]":
     them. The number is therefore printed, on every run, at the point
     where it decides something -- which is also the one place a reader
     of an ordinary report is told what protects them.
+
+    AND THE WITHHOLDING RULE SAYS BOTH WHAT IT IS AND WHAT IT IS NOT
+    (owner ruling 2026-08-14, plan amendment A-P3-13). The rule is about
+    what one report says: this page answers questions about the one file
+    it was handed, and a number it withholds is a number it does not
+    print anywhere. It is not a defence against a person who holds the
+    checked file and re-runs the check with descriptions of their own,
+    watching which lines move; the owner ruled that defence out of
+    scope, because such a person can read the file. A reader who is not
+    told that will read WITHHELD as a promise it never made, so the
+    limit is printed beside the rule rather than kept in a plan.
+
+    IT IS SAID ONCE, in the register `rendering` uses for what a report
+    IS NOT -- two short paragraphs closing the part that says what
+    WITHHELD means, in words a researcher can act on rather than in the
+    method's. Repeating it elsewhere teaches a reader to skip it.
+
+    AND IT SAYS IT IS NOT PERMISSION TO MOVE THE PAGE, because on a
+    lowered floor it would otherwise read as one. Read the two sections
+    together on a description made with `--smallest-group 3`: this one
+    says the withholding protects the page for a reader who holds no
+    file, and the section at the head of the report says that same page
+    now carries counts down to three rows and that whoever approves data
+    leaving the environment should be told before it moves. A sentence
+    ending "so this page can be handed to somebody who has no copy of
+    the file" -- which is what stood here first -- puts those two in a
+    fight the reader has to settle. What the rule buys is silence about
+    what it withholds, not a licence for the report, and the paragraph
+    now says so in the same breath.
     """
     floor = description.settings.small_cell_floor
     return [
@@ -719,6 +748,24 @@ def _handling_lines(description: contract.Profile) -> "list[str]":
         "A withheld count therefore stands on the verdict above rather",
         "than being quietly dropped: the obligation was set, and this",
         "report is not able to tell you whether this file met it.",
+        "",
+        "WHAT WITHHELD PROTECTS, AND WHAT IT DOES NOT -- said here rather",
+        "than left for you to assume. What it protects is this page, for a",
+        "reader who has no copy of the file it is about: every question",
+        "this report answers is a question about the one file it was",
+        "given, and a number it withholds is a number it does not print --",
+        "not in this file, not on the screen, not in a message that stops",
+        "the command. That is a rule about what the page SAYS, and it is",
+        "not permission to move the page: everything above about keeping",
+        "these five files applies to this one unchanged.",
+        "",
+        "What it is NOT is a barrier against somebody who HAS the checked",
+        "file and runs this check on it again and again, each time with a",
+        "description they wrote themselves, watching which lines move. That",
+        "person can narrow a number withheld here, and synthtwin does not",
+        "try to stop them: whoever can run this check on a file can read",
+        "the file. So who may hold the file is a decision of its own, and",
+        "this report being careful is not a substitute for making it.",
     ]
 
 

@@ -154,6 +154,22 @@ though it existed:
   audit and scans - it is not an OS-level sandbox. Institutions that
   require enforcement run the tool inside their own network-isolated
   environment.
+- **What the quality report withholds is a rule about ONE report, and
+  it is not a barrier against somebody who re-runs the check** (owner
+  ruling 2026-08-14, plan amendment A-P3-13, validation method V5-A1).
+  A number `synthtwin validate` withholds is a number it does not
+  print - not in the report, not on the screen, not in a message that
+  stops the command - so one report can be handed to a person holding
+  no file at all, and that is what the rule buys. It is not a defence
+  against a person who HAS the checked file and runs the check again
+  and again with descriptions of their own, watching which verdicts
+  move: such a person can narrow a number one report withholds, and
+  synthtwin does not try to stop them, because running this check on a
+  file requires holding that file. Claiming the wider guarantee - in
+  any wording, on any surface here, including a comment that gives it
+  as a reason for a rule that has another one - is a defect and not a
+  nuance, and the claim inventory in `tests/test_claim_inventory.py`
+  turns the suite red on it.
 
 ## Rules of the road
 

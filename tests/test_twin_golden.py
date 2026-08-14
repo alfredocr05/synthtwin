@@ -660,8 +660,43 @@ def test_the_report_names_the_seed_the_twin_was_built_at(
 # that matters). If this digest ever moves because that section
 # appeared, the defect is that the fixture's floor changed, not that the
 # report gained a sentence.
+#
+# AND ONCE MORE, FOR THE LIMIT THE WITHHOLDING RULE NOW STATES ABOUT
+# ITSELF (owner ruling 2026-08-14; plan amendment A-P3-13 clause 4). The
+# owner was asked whether the validator should defend against someone
+# submitting hand-crafted descriptions to extract hidden numbers, and
+# ruled: no -- say so honestly instead. So the report's own page says
+# BOTH halves: what the withholding protects, which is this page and the
+# reader who holds no file, and what it does not, which is a person who
+# has the checked file and re-runs the check with descriptions of their
+# own. A reader told only the first half reads WITHHELD as a promise it
+# never made; a reader told only the second reads it as worthless.
+#
+# THE REPORTS WERE DIFFED LINE BY LINE BEFORE EACH RE-RECORD, and the
+# paragraph landed in three goes: thirteen lines in and none out when it
+# first appeared; then fifteen in and twelve out, when it gained the
+# statement of what the rule PROTECTS and split into two blocks; then
+# eight in and six out, the change this digest records.
+#
+# WHY THE THIRD, because it was found by reading the page and not by a
+# test. The first block ended "so this page can be handed to somebody
+# who has no copy of the file at all", and on a description made with
+# `--smallest-group 3` that sentence sits nine hundred lines under a
+# section saying this same page now carries counts down to three rows
+# and that whoever approves data leaving the environment should be told
+# before it moves. The withholding rule says what the page may SAY; it
+# has never been permission to move the page, and the paragraph now says
+# so where a reader meets it.
+#
+# Everything else is byte for byte what it was through all three: same
+# census -- 249 held, 49 within, 2 authorized, 0 withheld, 0 missed, 77
+# not checkable -- same verdicts, same obligations, same order, same
+# name line. The canonical ceiling that amendment A-P3-13 clause 2 gives
+# its teeth back to holds on this description, as it must: the twin is
+# conforming, so its recount is inside its licence whichever way the
+# comparison is read.
 GOLDEN_QUALITY_SHA256 = (
-    "c4e77d6925959925885ee56c5936ac3f003554e6c5435df2e0b2722795a50187"
+    "2ac57742dd2ddd92c964d8d16f45c80a208ae2c7bf179c068a75295fa3aef35f"
 )
 
 

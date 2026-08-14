@@ -479,6 +479,53 @@ passing report.
 
 ## V5. The disclosure gate: what a report may say about the measured file
 
+**V5-A1 The one thing this section stops promising, and it is named
+before any rule below is read** (2026-08-14, owner ruling; the plan's
+amendment A-P3-13 is the ruling and this follows it). Every rule in this
+section was written to hold against two different readers, and only one
+of them is still in scope.
+
+- **The reader of ONE report, who may not hold the measured file.** A
+  quality report travels: it is written to a file, printed on a screen,
+  and sent to whoever is deciding whether to trust a twin. Everything
+  below is about that reader and **binds exactly as written**. What the
+  report states, on any surface, stays inside what `synthtwin profile`
+  run on the measured file would publish; no measured value, no string
+  of that file, and no count its own description pools ever appears, in
+  the report, on the screen, or in a refusal (V5.4, V9).
+- **The person who submits DESCRIPTIONS OF THEIR OWN and runs the check
+  again, watching which verdicts change. THIS SECTION NO LONGER
+  DEFENDS AGAINST THAT PERSON.** Such a sequence of runs can narrow a
+  number one report withholds — the count of a sub-floor group, the
+  count of cells a form is written in, the header of a file the
+  producer refuses — and no rule below is written to stop it.
+
+**On whose authority, and on what reasoning.** The owner's, ruled
+2026-08-14, with the consequence stated and accepted; no review verdict
+and no implementer's judgment stands behind it. The reasoning is that
+running this check on a file requires holding that file: `validate`
+answers questions about a file whoever runs it already has in hand,
+and a question they could settle by reading the file is not a question
+this method has to refuse. **What that reasoning does NOT reach, so it
+is not extended past it:** the report is a separate artifact that
+leaves the person's hands, and one report is read by people who hold
+nothing. That is why the first reader above keeps every rule.
+
+**What this costs, said as a cost.** A number a single report withholds
+is no longer a number this method claims cannot be found; it is a
+number this method does not print. Anyone who could run the check
+already had the file, so nothing is disclosed that was not already
+held — but the guarantee is narrower than the words this document used
+to carry, and a reader who took those words for a bound on what the
+tool can be made to reveal was reading more than is now promised.
+
+**Where this changes a rule below, it says so at that rule**, and every
+clause that was written to defeat the second reader alone is corrected
+in place rather than left to be reconciled: V5.3's second sentence and
+V5.3-A2 are the two, and V5.3-A2's rule is withdrawn. Nothing else in
+this section moves, and no rule here may be re-derived from the
+withdrawn promise.
+
 **V5.1 The rule.** The quality report may state about the measured file
 only what `synthtwin profile`, run on THAT FILE under the profile's own
 settings, would publish about it.
@@ -552,8 +599,12 @@ the gate consults the FILE's own description, which V2.1 already builds.
 
 **V5.3 What the gate governs: the verdict as well as the value.** A
 within-bound or missed line stated against a candidate value is itself a
-measurement-derived statement, and repeated candidate profiles would
-binary-search a number the file's own description withholds. So where
+measurement-derived statement, ~~and repeated candidate profiles would
+binary-search a number the file's own description withholds~~ — **that
+second reason is withdrawn by V5-A1 above and this clause stands on the
+first, which is enough on its own: a verdict printed in one report is
+something that report says about the measured file, and one report is
+read by people who hold nothing.** So where
 the gate closes over a subcheck, its verdict is WITHHELD: neither the
 measurement nor its outcome is shown, one fixed sentence says the file's
 own description would not publish what this check measures, and the
@@ -592,9 +643,22 @@ the fact about ANY file at ANY count**:
 can carry a person's own data where a line ending cannot, so what
 escapes is bounded rather than waved away: neither subcheck prints a
 measured count, and `styles.spelled` takes no number from the submitted
-description at all, so no sequence of candidate descriptions can
-binary-search anything through it. Which of the six FORMS a cell wears
-is published and floored, and stays gated.
+description at all — **which is no longer a bound this document owes,
+and is written here as a fact rather than as a promise, for the reason
+the next paragraph gives.**
+
+**WHAT SUCH A BOUND OWES IS NARROWER FROM 2026-08-14, AND V5-A1 IS THE
+RULING.** The half of it that mattered — neither subcheck prints a
+measured count — stands unchanged and is what a reader of one report is
+protected by. The half that was about somebody submitting one
+description after another is no longer an obligation any ruling here
+owes, because no rule in this section defends against that person any
+more. What the clause above used to conclude from `styles.spelled`
+taking no number — that such a person could get nothing through it — is
+therefore struck as a promise and left standing only as the fact it
+rests on, so that nothing here can be read as a guarantee about that
+person and no future ruling has to establish one. Which of the six
+FORMS a cell wears is published and floored, and stays gated.
 
 **V5.3-A2 The bound is a property, so it is measured; and one of the
 two did not have it** (2026-08-14, review item P3-V4-F2; the plan's
@@ -602,8 +666,10 @@ amendment A-P3-10 clause 1 is the ruling and this follows it).
 `styles.canonical.<form>` compares its recount of non-canonical cells
 against a count the SUBMITTED description names, so the verdict flipped
 at exactly that recount and eleven candidate descriptions read the
-hidden number off it — the attack this section exists to stop, through
-the subcheck a ruling had exempted. **So a recount that a ruling has put
+hidden number off it — which this section was written to stop when it
+was written, and no longer is (V5-A1 above withdrew that reader in
+2026-08-14, after this clause was made) — through the subcheck a ruling
+had exempted. **So a recount that a ruling has put
 outside the envelope enters a verdict only at the publication floor's
 own resolution**: rounded DOWN to a whole number of `small_cell_floor`,
 which is the resolution below which the producer names no count at all,
@@ -613,6 +679,27 @@ floor-wide block and not the count. The plan's amendment states the
 residual at its size, prices the teeth this costs — a file less than one
 floor over its licence is no longer missed there — and shows why teeth
 at one cell and a bound better than the exact count cannot both be had.
+
+**THIS CLAUSE'S RULE IS WITHDRAWN, AND V5-A1 ABOVE IS THE RULING**
+(2026-08-14, owner ruling; the plan's amendment A-P3-13 clause 2). The
+whole of A2 is a defence against the second reader V5-A1 puts out of
+scope: the recount is read exactly again, `_at_the_floors_resolution` is
+deleted rather than left unused, and a file ONE cell over its licence
+MISSES again. **This RAISES the subcheck by the exact amount A2 priced
+and lowers nothing**: the only files whose verdict moves are files
+between one cell and one floor over a licence, and every one of them
+moves from HELD to MISSED, which is the direction that cannot excuse a
+file. Round 5 measured that A2 did not even buy what it cost — the
+publication floor is itself a number the submitted description chooses,
+so sweeping `small_cell_floor` from 11 upwards read the exact count back
+off the rounded comparison — and that is recorded here as fact rather
+than as the reason: the reason is the ruling. **What is still true of
+this subcheck** is the half V5.3-A1's bound rested on: it prints no
+measured count on any file, so one report carries the licence and the
+verdict and never the recount. **To reverse**, restore the rounding
+function and the one call, which costs teeth at every count inside a
+floor-wide block and buys the block-resolution bound back against a
+person who holds the file anyway.
 
 **V5.4 What may be printed, exactly.**
 

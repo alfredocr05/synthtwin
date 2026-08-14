@@ -73,6 +73,17 @@ is WITHHELD and neither the measurement nor its outcome is shown.
 Sub-floor counts are named as "fewer than the floor" and the exact
 number never appears beside a name.
 
+AND WHAT THAT RULE IS NOT, SAID HERE SO THAT NOBODY BUILDS ON IT (owner
+ruling 2026-08-14; plan amendment A-P3-13). It is a rule about what ONE
+report says, because a report travels and its reader may not hold the
+file it is about. It is NOT a defence against somebody who holds the
+measured file and runs this check over and over with descriptions they
+wrote themselves, watching which verdicts change: that person can
+narrow a number a single report withholds, and this module does not try
+to stop them, because they are asking questions about a file they have
+in front of them. Nothing in this module may be written as though that
+defence existed.
+
 **No string read from the measured file leaves this module**, in any
 field of any result. That is narrower than V5.4 requires -- the file's
 own description would publish some of them -- and it is deliberate: it
@@ -384,8 +395,16 @@ _GATE_CLOSED = (
 # So two files the producer describes byte for byte alike can differ in
 # which form those pooled cells wear, and a verdict that told them apart
 # would state about the file a count the file's own description withheld
-# -- and repeated candidate descriptions would then read the count off
-# the verdicts, which is the attack V5.3 says the gate exists to stop.
+# -- which is what V5.1 forbids ONE report to say, whoever reads it.
+#
+# THAT IS THE WHOLE OF WHY THIS GATE IS HERE, since 2026-08-14. It used
+# to give a second reason: that repeated candidate descriptions would
+# read the count off the verdicts. The owner ruled that reason out of
+# scope (plan amendment A-P3-13) -- a person who can run the check again
+# with a description they wrote is holding the file -- so nothing here
+# rests on it. The first reason is untouched and is enough on its own:
+# the report travels, and a reader of one report may not be told a count
+# that describing the file would pool.
 #
 # The verdict is only withheld where the file's own description leaves
 # it OPEN. Where what that description does publish settles the answer
@@ -410,9 +429,12 @@ _GATE_POOLED = (
 # Describing those publishes nothing whatever -- not the header's names,
 # not its width, not how many records the file holds -- so a report
 # stating any of it states about the measured file something no run of
-# the profiler on that file would ever say, and repeated candidate
-# descriptions would then read the header off the verdicts, which is the
-# attack V5.3 says the gate exists to stop.
+# the profiler on that file would ever say. That is V5.1 about ONE
+# report, and it is the whole reason this gate is here: the report
+# travels to people who do not hold the file. The second reason this
+# comment used to give -- that repeated candidate descriptions would
+# read the header off the verdicts -- is out of scope from 2026-08-14
+# (plan amendment A-P3-13) and nothing here rests on it.
 #
 # What the refusal itself publishes is still said, because it is what a
 # reader gets by running the profiler on the file: that the file holds
@@ -2254,9 +2276,12 @@ def _why_no_column_is_named(refusal: errors.ShapeRefusal) -> str:
     name and names no position -- `dup,a,dup` and `a,dup,dup` get one
     sentence between them -- so a report that named the positions would
     state about the measured file something no run of the producer on
-    that file publishes, and a candidate could then read the repeat's
-    place off the report. The fact itself is what that refusal carries,
-    and the fact is what this says.
+    that file publishes. That is true of ONE report and is why this
+    function exists; the sentence that used to follow it, about a
+    candidate reading the repeat's place off the report, is out of scope
+    from 2026-08-14 (plan amendment A-P3-13) and nothing here rests on
+    it. The fact itself is what that refusal carries, and the fact is
+    what this says.
     """
     if refusal.kind == errors.HEADER_NAME_MISSING:
         return f"no name at column number {refusal.position}"
@@ -2668,12 +2693,20 @@ def _no_rows_at_all(
     rows, so a report stating them states what describing the file never
     would (V5.1). Two header-only files named alike -- one carrying the
     published names, one carrying two other words -- got four different
-    verdicts and a different census, so a person holding the file and a
-    candidate description could read the header off the report one guess
-    at a time, which is the attack V5.3 names. All four are WITHHELD
-    now, and the file is told what the profiler's own refusal of it
-    tells: it holds no rows, so it holds nothing for any obligation of
-    any column to be met by.
+    verdicts and a different census, so one report told its reader what
+    the checked file's header line spells -- about a file `synthtwin
+    profile` will not say a word about. All four are WITHHELD now, and
+    the file is told what the profiler's own refusal of it tells: it
+    holds no rows, so it holds nothing for any obligation of any column
+    to be met by.
+
+    THE REASON IS THE ONE REPORT, not a sequence of them (plan amendment
+    A-P3-13, 2026-08-14). This paragraph used to say the defect was that
+    a person holding the file could read its header off one candidate
+    description at a time. The owner ruled that out of scope -- such a
+    person has the file open -- and the withholding stands on the other
+    half, which is untouched: the report travels, and a reader of one
+    report may not be told what describing the file would not publish.
 
     NOTHING IS LOST BY IT, and that is why it is a withholding rather
     than a conflict. This description publishes rows, so its own twin
@@ -4510,21 +4543,26 @@ def _style_checks(
     description was made with.
 
     AND EVERY CLAUSE IS READ THROUGH THE FILE'S OWN DESCRIPTION (review
-    item P3-V2-D-F2; V5.3 and V5.4). The counts were never printed --
-    that much was already true -- but nine of the ten clauses compared
-    the exact recount against a published number and reported the
-    outcome, and an outcome stated against a number the SUBMITTED
-    description chose is a number the submitted description can search
-    for. Two witnesses were run against the version this replaces. Two
-    files `synthtwin profile` describes byte for byte alike, differing
-    only in whether one pooled cell was written `1E5` or `1e5`, produced
-    different reports, different censuses and different screen output.
-    And six candidate descriptions differing only in their style map
-    pinned a sub-floor count exactly -- the plain cells at two and the
-    leading-zero cells at one, both under a floor of eleven and both
-    pooled by the producer -- by trying each and finding the one that
-    HELD. That second one is verbatim the situation V5.3 says this gate
-    exists to prevent.
+    item P3-V2-D-F2; V5.1, V5.3 and V5.4). The counts were never printed
+    -- that much was already true -- but nine of the ten clauses
+    compared the exact recount against a published number and reported
+    the outcome, and a form fewer cells wear than the publication floor
+    is a form no description of that file names. The witness this stands
+    on: two files `synthtwin profile` describes byte for byte alike,
+    differing only in whether one pooled cell was written `1E5` or
+    `1e5`, produced different reports, different censuses and different
+    screen output. ONE report told them apart, which is the thing V5.1
+    forbids however few times it is run.
+
+    A SECOND WITNESS USED TO STAND HERE AND NO LONGER CARRIES ANY WEIGHT
+    (plan amendment A-P3-13, owner ruling 2026-08-14): six candidate
+    descriptions differing only in their style map pinned a sub-floor
+    count exactly, by trying each and finding the one that HELD. The
+    owner ruled that a person who can submit descriptions of their own
+    choosing and re-run the check is holding the file, so this product
+    no longer promises to stop them. Nothing in this function changed
+    for it, because the first witness settles every clause here on its
+    own.
 
     So each clause is settled against a WINDOW rather than against the
     recount: what the file's own description publishes about its own
@@ -4693,53 +4731,45 @@ def _style_checks(
     # cells wear, because a cell that is not canonical IN a form is
     # first of all a cell in that form.
     #
-    # WHERE THE FORM IS NAMED the recount is read AT THE PUBLICATION
-    # FLOOR'S OWN RESOLUTION, and that is what stops the ceiling being an
-    # exact count oracle (review item P3-V4-F2; plan amendment A-P3-10
-    # clause 1). The version this replaces compared the exact recount
-    # `odd` against the count the SUBMITTED description names, so the
-    # verdict flipped at exactly `odd` and repeated candidates read that
-    # number off one guess at a time -- measured, with a fixed file
-    # holding thirty-seven leading-zero decimal cells: candidate counts
-    # 0, 11, 20 and 36 gave MISSED and 37, 38 and 48 gave HELD, and two
-    # measured files holding thirty-six and thirty-seven of them, whose
-    # full descriptions `synthtwin profile` writes BYTE FOR BYTE ALIKE,
-    # got HELD and MISSED. Amendment A-P3-5 clause 3 ruled canonicality
-    # outside V5.1's envelope on a stated BOUND -- one bit per column,
-    # nothing a candidate search can walk -- and that bound was false.
+    # WHERE THE FORM IS NAMED the recount is compared EXACTLY, and one
+    # cell over the licence misses (owner ruling 2026-08-14; plan
+    # amendment A-P3-13, which withdraws A-P3-10 clause 1's rounding).
+    # Between the two rounds this line rounded the recount DOWN to a
+    # whole number of publication floors, so that a person trying one
+    # candidate description after another could locate the count no
+    # closer than a floor-wide block. That defence is no longer owed:
+    # the owner ruled that `validate` answers questions about a file the
+    # person running it already holds, so narrowing a withheld number by
+    # submitting descriptions and watching verdicts flip is not a thing
+    # this product defends against. It bought a bound that round 5 then
+    # showed it did not even have -- the floor is itself a number the
+    # candidate chooses, so sweeping `small_cell_floor` read the exact
+    # count straight back off the rounded comparison -- and it cost
+    # every file between one cell and one floor over its licence.
     #
-    # THE RECOUNT ENTERS THE VERDICT ONLY THROUGH `_at_the_floors_
-    # resolution`, which rounds it DOWN to a whole number of publication
-    # floors. Two consequences, and they are the whole of the repair:
-    # a candidate sweep can locate the count no closer than the floor the
-    # description itself was written under -- the same resolution below
-    # which that description names no count at all (V5.4) -- and the
-    # subcheck still MISSES, on any file carrying one floor's worth of
-    # cells more than its licence, so V3.4's vacuity is not traded for
-    # V5.3's silence.
+    # WHAT STILL HOLDS HERE, and it is the half that governs the report
+    # a reader is handed. No measured count is printed by this subcheck
+    # on any file: the line says the licence and the verdict, never the
+    # recount, and V5.4 is untouched. And the FORM counts are gated as
+    # they were -- which of the six forms a cell wears is published and
+    # floored, so the pooled branch below still settles against the room
+    # the file's own description leaves and never against the recount.
     #
-    # AND ROUNDING DOWN IS THE DIRECTION THAT CANNOT ACCUSE A FILE.
-    # `seen <= odd` always, so a MISSED here is a file genuinely over the
-    # ceiling and a conforming twin -- whose `odd` is at most its licence
-    # -- is HELD whatever the floor is.
-    #
-    # WHAT IT COSTS, and why no third way keeps both. Teeth at ONE cell
-    # over the licence and a bound better than the exact count are
-    # mutually exclusive: the licence is a number the submitted
-    # description chooses, so a verdict that separates `odd == p` from
-    # `odd == p + 1` for every `p` IS the oracle, whatever else is done
-    # to it. So a file between one and one floor over its licence is no
-    # longer missed here. Every such file still misses `styles.spelled`
-    # where its cells are not spellings of their own values at all, and
-    # the form counts above still answer for how many cells wear the
-    # form.
+    # WHY THE EXACT COMPARISON IS INSIDE THE RULING at all. Amendment
+    # A-P3-5 clause 3 ruled canonicality outside V5.1's envelope: the
+    # producer's own form ladder discards it, so it publishes it about no
+    # file at any count, there is no floor to appeal to and no window to
+    # draw, and withholding would withhold it forever. Two files that
+    # description cannot tell apart therefore get different verdicts here
+    # BY RULING, and always did; what A-P3-10 clause 1 added was a bound
+    # against the candidate sweep, and the sweep is what the owner ruled
+    # out of scope.
     for style in _ceilinged_styles(column, facts):
         odd = _noncanonical_cells(cells, style, facts.integer_valued)
-        seen = _at_the_floors_resolution(odd, floor)
-        settled: bool | None = seen <= named(style)
+        settled: bool | None = odd <= named(style)
         if style not in own:
             settled = _window_at_most(
-                (0, window((style,))[1]), seen, named(style)
+                (0, window((style,))[1]), odd, named(style)
             )
         checks = checks + [
             _silent(
@@ -4773,46 +4803,16 @@ def _style_checks(
     return checks
 
 
-def _at_the_floors_resolution(count: int, floor: int) -> int:
-    """``count`` rounded DOWN to a whole number of publication floors.
-
-    THE ONE PLACE A CANONICALITY RECOUNT ENTERS A VERDICT (review item
-    P3-V4-F2). Whether a numeric cell's TEXT is a spelling its own value
-    licenses is ruled outside V5.1's envelope (plan amendment A-P3-5
-    clause 3), and a ruling of that kind carries its bound with it. The
-    bound the ruling stated was one bit per column and no candidate
-    search; `styles.canonical.<form>` compares its recount against a
-    count the SUBMITTED description names, so the exact recount was
-    recoverable by trying candidates until the verdict flipped.
-
-    Rounding to the floor is what makes the stated bound true, at the
-    only resolution this product has for "a count too small to name": a
-    description names no count below `small_cell_floor` and pools
-    everything under it (V5.4), so a report that cannot separate two
-    counts inside one such block states nothing that description would
-    not. What a candidate sweep can still learn is which block the count
-    lies in, which is written down in the amendment rather than left to
-    be found.
-
-    DOWN, not to the nearest: the result is never more than the count, so
-    a verdict taken over it can never accuse a file of holding cells it
-    does not hold.
-
-    A floor of one is the identity, and honestly so: a description
-    written under it names every count it has exactly and pools nothing,
-    so there is no block for this to round into.
-
-    Guarantees:
-
-    - Inputs: a count of cells, and the publication floor the file's own
-      description was written under. Both non-negative; a floor below
-      one is treated as one.
-    - Determinism: a fixed function of the two.
-    - Errors raised: none.
-    """
-    if floor <= 1:
-        return count
-    return floor * (count // floor)
+# WHAT USED TO STAND HERE, and why nothing does (owner ruling
+# 2026-08-14; plan amendment A-P3-13). `_at_the_floors_resolution`
+# rounded the canonical recount DOWN to a whole number of publication
+# floors before it reached a verdict, so that a person submitting one
+# candidate description after another could locate the count no closer
+# than a floor-wide block. The owner ruled that defence out of scope --
+# `validate` answers questions about a file the person running it holds
+# -- and the amendment withdraws it in those words. The function is
+# deleted rather than left unused so that no later reader takes it for a
+# rule still in force, and the ceiling's teeth are back at one cell.
 
 
 def _floor_styles(facts: contract.NumericFacts) -> "list[str]":

@@ -247,8 +247,8 @@ def test_two_files_the_producer_refuses_alike_get_one_report(
             assert first == other, (
                 f"{labels[0]!r} and {label!r} draw one sentence out of "
                 f"`synthtwin profile` and two different reports out of "
-                f"`synthtwin validate`, so a candidate description reads "
-                f"off the report something describing the file never "
+                f"`synthtwin validate`, so ONE report states about the "
+                f"checked file something describing that file never "
                 f"publishes (V5.1)"
             )
             checked = checked + 1

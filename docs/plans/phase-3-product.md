@@ -597,6 +597,16 @@ E-F4, E-F5 and E-F6).
    files a reader would want told apart are two files the producer
    describes identically.
 
+   **THIS CLAUSE STANDS ON THE FIRST OF ITS TWO WITNESSES, AND
+   AMENDMENT A-P3-13 WITHDRAWS THE SECOND** (2026-08-14, owner ruling).
+   The `1E5`/`1e5` witness is ONE report telling two files apart that
+   the producer describes byte for byte alike, and that is what this
+   clause is for; the six candidate descriptions pinning a sub-floor
+   count are the reader the owner has now put out of scope. Nothing
+   here changes: no verdict moves, no window widens, and the cost this
+   clause records is still paid. What changes is that the clause may
+   not be re-derived from the withdrawn half.
+
    **And one half of the same class was left OPEN here. IT IS CLOSED BY
    AMENDMENT A-P3-5 CLAUSE 3, in the direction that keeps the
    subcheck.** Where the form IS named the canonical ceiling is still
@@ -808,9 +818,13 @@ exact-shape tested.
     publishes that class of fact for that column, **and "appears"
     covers the VERDICT as well as the value**: a within-bound or
     missed line against a candidate value is itself a
-    measurement-derived statement, and repeated candidate profiles
+    measurement-derived statement, ~~and repeated candidate profiles
     would otherwise binary-search a value the file's own profile
-    withholds. Where the gate closes, the subcheck's verdict is
+    withholds~~ — **the second half of that ground is withdrawn by
+    amendment A-P3-13 and this rule stands on the first, which is
+    enough on its own: a verdict is something one report says about
+    the measured file, and one report is read by people who do not
+    hold it.** Where the gate closes, the subcheck's verdict is
     WITHHELD, with one fixed sentence saying the file's own
     description would not publish what this check measures, so
     neither the measurement nor its outcome is shown. What the
@@ -1273,11 +1287,25 @@ distinctness counts and all three suppression counts.
    own data, since `1.50` beside `1.5` records the precision a
    measurement was taken at. What makes it rulable anyway is the size
    and shape of what escapes, which is bounded here rather than
-   asserted: neither subcheck prints a measured count, `styles.spelled`
-   takes NO number from the submitted description at all — its only
-   profile input is the boolean `integer_valued` — so no sequence of
-   candidate descriptions can binary-search anything through it, which
-   is the attack V5.3 names.
+   asserted: neither subcheck prints a measured count, and
+   `styles.spelled` takes NO number from the submitted description at
+   all — its only profile input is the boolean `integer_valued` —
+   **which is now written as a fact and not as a bound, for the reason
+   the next paragraph gives.**
+
+   **WHAT A RULING OF THIS KIND OWES IS NARROWER FROM 2026-08-14, AND
+   AMENDMENT A-P3-13 IS THE RULING.** The first half — neither subcheck
+   prints a measured count — is what a reader of one report is
+   protected by and is still owed. The half that was about somebody
+   submitting one description after another is no longer owed by any
+   ruling here, because no rule in this plan defends against that
+   person. What this clause used to conclude from `styles.spelled`
+   taking no number — that such a person could get nothing through it —
+   is therefore struck as a promise and left standing only as the fact
+   it rested on, so that no reader takes it for a guarantee about that
+   person. A-P3-10 clause 1 — which was written to make the same
+   conclusion true of the other subcheck — is withdrawn by A-P3-13
+   clause 2.
 
    **THE BOUND THIS CLAUSE STATED FOR THE PAIR WAS TRUE OF ONE OF THEM,
    AND AMENDMENT A-P3-10 CLAUSE 1 CORRECTS IT** (2026-08-14, review item
@@ -1485,8 +1513,20 @@ hundred and forty rows: the header-only files `age,site` and `foo,bar`,
 under the same name, gave **11 HELD, 1 WITHHELD, 73 MISSED** and
 **6 HELD, 1 WITHHELD, 78 MISSED** — five verdicts apart, on a file the
 profiler refuses to say one word about. Repeated candidate descriptions
-read the header off those five, one guess at a time, which is the attack
-V5.3 says the gate exists to stop.
+read the header off those five, one guess at a time, which is what V5.3
+was written against at the time this amendment was made and no longer
+is: V5-A1 withdrew that reader later the same day, and the paragraph
+below is what this amendment now rests on.
+
+**THIS AMENDMENT STANDS ON THE FIVE VERDICTS AND NOT ON THE REPEATED
+CANDIDATES, AND A-P3-13 WITHDRAWS THE SECOND** (2026-08-14, owner
+ruling). Five verdicts apart is ONE report telling its reader what the
+checked file's header line spells, about a file `synthtwin profile`
+will not say a word about — and that reader may hold nothing, which is
+what the withholding is for. The person trying one candidate
+description after another is the reader the owner has put out of scope.
+Nothing in the clauses below changes; what changes is which sentence
+they rest on.
 
 1. **On a path where the producer refuses the measured file, every
    verdict whose outcome varies with what that file holds is WITHHELD,
@@ -1575,7 +1615,21 @@ V5.3 says the gate exists to stop.
    width, no string of it is printed at all (V5.4), and the file in
    question holds no cell, no value and nobody's record — a zero-row
    file identifies no one, which is what the publication floor exists to
-   do. It is not claimed to be free. **The owner may want it closed**,
+   do. It is not claimed to be free.
+
+   **HALF OF THIS RESIDUAL IS NO LONGER A RESIDUAL, AND THE OTHER HALF
+   IS** (2026-08-14, owner ruling; amendment A-P3-13). "Read off one
+   candidate description at a time" is the reader that ruling puts out
+   of scope, so against that reader nothing here is owed and nothing is
+   open. What remains open is the same fact seen by the reader who is
+   handed ONE report and holds no file: a report on a header-only file
+   states, in its verdicts, whether that file's header line spells the
+   published names, and describing that file publishes nothing at all.
+   The residual therefore stays on the register at the smaller size, for
+   the same reason it was left open — closing it costs owner decision
+   7's executable check and the four tests below.
+
+   **The owner may want it closed**,
    and closing it costs the four tests above and owner decision 7's
    executable check with them; that is the trade, and it is recorded
    here rather than argued away. A third way would keep the check and
@@ -1919,6 +1973,10 @@ of detail in one refusal and one report; clause 3 corrects amendment
 A-P3-7 clause 2's account of what it did. THIS DEFINES WHAT A RULING
 THAT PUTS A FACT OUTSIDE THE ENVELOPE OWES, AND CLAUSE 1 SAYS WHAT
 REVERSING IT COSTS** (2026-08-14, review items P3-V4-F2 and P3-V4-F3).
+**CLAUSE 1'S REPAIR IS WITHDRAWN BY AMENDMENT A-P3-13 CLAUSE 2 AND ITS
+TEETH ARE BACK AT ONE CELL; clauses 2 and 3 stand unchanged, and what
+this amendment says a ruling OWES is narrowed to the half a report's
+reader is protected by** (2026-08-14, owner ruling, later the same day).
 
 **What they have in common, stated first, because it is the reason they
 are one amendment.** V5 is not a rule the code follows; it is a
@@ -1932,7 +1990,21 @@ them by hand. Neither survived being measured. A bound nobody measures
 is a sentence, and an equivalence nobody constructs is a maintenance
 task somebody will lose.
 
-1. **The canonical ceiling reads its recount at the publication floor's
+1. **THIS CLAUSE'S REPAIR IS WITHDRAWN BY AMENDMENT A-P3-13 CLAUSE 2,
+   AND THE TEETH IT PRICED ARE BACK** (2026-08-14, owner ruling). Read
+   the clause as written for the record it makes — the exact-oracle
+   measurement stands, and so does the price — but the rounding
+   function it installs no longer exists: the owner has ruled the
+   candidate sweep out of scope, the recount is compared exactly again,
+   and a file ONE cell over its licence MISSES. Round 5 also measured
+   that the rounding never had the bound stated below, because the
+   publication floor is itself a number the submitted description
+   chooses. Everything this clause says about what a ruling of the
+   "outside the envelope" kind OWES is narrowed by A-P3-13 clause 1 to
+   the half a report's reader is protected by: it prints no measured
+   count.
+
+   **The canonical ceiling reads its recount at the publication floor's
    own resolution, so a sequence of candidate descriptions locates the
    block and not the count. THIS RAISES the bound amendment A-P3-5
    clause 3 claimed and did not have, and LOWERS that subcheck's teeth
@@ -2324,6 +2396,168 @@ published fact was ever missed.
    repair is reachable only on descriptions for which that oracle
    already refuses to state an answer, so no frozen case reaches it and
    none can be added without widening the oracle first.
+
+**Amendment A-P3-13 — the quality report stops promising that a person
+who writes the descriptions cannot narrow a withheld number by running
+the check again. THIS LOWERS A CONFIDENTIALITY GUARANTEE, on the
+owner's ruling of 2026-08-14, and prices it here rather than softening
+it. Clause 2 RAISES one subcheck by exactly the amount amendment
+A-P3-10 clause 1 priced, which is the one place the code was paying for
+the withdrawn promise and can stop** (2026-08-14, owner ruling; the
+question put to the owner was whether the validator should defend
+against someone submitting hand-crafted descriptions to extract hidden
+numbers, and the ruling was: no — say so honestly instead).
+
+**What was promised, in the words this plan and the specification used.**
+V5 says the report may state about the measured file only what
+`synthtwin profile` run on that file would publish, and P3-D3 and V5.3
+extended that to the VERDICT as well as the value on a stated ground:
+"repeated candidate profiles would otherwise binary-search a value the
+file's own profile withholds". So the guarantee had two readers in it.
+One is handed a report. The other writes descriptions, runs `validate`
+on the same file with each, and reads a hidden number off which verdicts
+flip. Rounds 3, 4 and 5 each found a route open to the second reader —
+the pooled style counts (P3-V3-F2), the header of a file the producer
+refuses (P3-V3-F3), the canonical ceiling twice (P3-V4-F2, and round 5's
+verification that A-P3-10 clause 1 had not closed it either) — and
+closing each cost checking strength that is written down in this plan.
+
+1. **The second reader is out of scope. THIS LOWERS.** No rule in this
+   plan or in the validation method is written to stop a person who
+   holds the measured file from narrowing a withheld number by
+   submitting descriptions of their own and watching the verdicts move.
+   Where such a person can do it, that is a limit of the product and not
+   a defect in it, and it is written where a reader meets it rather than
+   where a maintainer would: the specification's V5-A1, the validator
+   module's own contract, and the quality report's own page.
+
+   **On whose authority.** The owner's, ruled 2026-08-14, with the
+   consequence stated and accepted. No review verdict and no
+   implementer's judgment stands behind this clause.
+
+   **The reasoning, and exactly how far it reaches.** Running this check
+   on a file requires holding the file: `validate` answers questions
+   about a file whoever runs it already has in hand, and a question
+   they could settle by reading that file is not one this product has to
+   refuse. **What the reasoning does not reach is the report itself**,
+   which is a separate artifact that travels to people holding nothing —
+   so every rule about what a report SAYS binds exactly as before.
+
+   **What is given up, at its size.** For a numeric column, the count of
+   cells written in a form but not in that form's canonical spelling can
+   be recovered exactly by a sweep of candidate descriptions (clause 2
+   makes that sweep shorter, and it worked before clause 2 anyway). For
+   a column whose own description pools a style count, a sequence of
+   candidates can pin the sub-floor count, which is the witness A-P3-3
+   clause 1 recorded. For a file the producer refuses — one with no rows,
+   or with an unusable header — the header's names and the file's width
+   can be narrowed one candidate description at a time, which is the
+   residual A-P3-7 clause 3 recorded and priced. **In every one of them
+   the person doing it holds the file the number is about.**
+
+   **What is NOT given up, and it is the larger part.** V5.4 is
+   untouched: no measured value, no string of the measured file, and no
+   count its own description pools is ever printed — not in the report,
+   not on the screen, not in a refusal — and V9's refusals still name
+   positions rather than content. V5.1 binds on every surface for the
+   reader of ONE report, which is the reader who may hold nothing, so
+   two files `synthtwin profile` describes alike still get one report
+   wherever that fact is inside the envelope, and the equivalence
+   A-P3-10 clause 2 made hold by construction still holds. Every
+   withholding this plan records stands: A-P3-3 clause 1's style
+   windows, A-P3-5 clause 1's pooled-description verdicts, A-P3-7 clause
+   1's seven withholdings on the refused paths. **None of those was
+   bought by this defence alone** — each has a measured witness in which
+   ONE report told two files apart — so none of them is handed back
+   here, and this amendment lowers no bar that reasoning does not
+   already require.
+
+2. **The canonical ceiling reads its recount EXACTLY again, and a file
+   one cell over its licence MISSES. THIS RAISES, by exactly what
+   amendment A-P3-10 clause 1 priced.** That clause put every recount of
+   non-canonical cells through `_at_the_floors_resolution`, which rounds
+   it DOWN to a whole number of `small_cell_floor` before the comparison,
+   so that a sweep of candidate descriptions could locate the count no
+   closer than a floor-wide block. It priced what that cost in one
+   sentence: **"A file between ONE cell and one floor over its licence is
+   no longer missed at this subcheck."** With the second reader out of
+   scope the rounding buys nothing this plan promises, so the function is
+   deleted — not left unused — and the one call site compares `odd`
+   against the licence again. V5.3-A2 is withdrawn in place and says so.
+
+   **Why this one and not the others.** Whether a numeric cell's TEXT is
+   a spelling its own value licenses was already ruled OUTSIDE V5.1's
+   envelope (A-P3-5 clause 3, on the test that the producer publishes it
+   about no file at any count). So the single-report equivalence never
+   governed this subcheck, by ruling; two files described alike getting
+   different verdicts here is what that ruling authorized in as many
+   words. What A-P3-10 clause 1 added on top was a bound against the
+   candidate sweep, and the sweep is the one thing the owner has now put
+   out of scope. Every other lowering in this plan has a single-report
+   witness underneath it and therefore stays.
+
+   **And it did not even buy what it cost.** Round 5 measured the sweep
+   working straight through it: `small_cell_floor` is itself a number the
+   submitted description chooses, so varying the floor from 11 to 48
+   against a fixed file made the subcheck miss for floors 11 through 37
+   and hold from 38 up, and the largest missing floor IS the hidden
+   count. That is recorded as fact and not as the reason — the reason is
+   the ruling — but it settles that nothing measurable is being traded
+   away by the deletion.
+
+   **What this raises, counted.** Every numeric column whose description
+   NAMES a canonical form regains a verdict at one-cell resolution:
+   measured on the shipped suite's own fixture, a sixty-row column
+   licensed for 24 non-canonical decimal cells and holding 25 reports
+   MISSED where it reported HELD, and each of the eleven counts inside
+   that floor-wide block reports MISSED where all eleven reported HELD.
+   **No verdict moves in the other direction**: the comparison it
+   replaces was never more than the count, so every file that missed
+   still misses and every conforming twin still holds. The green
+   direction is asserted over the shipped generator's own output.
+
+   **What stays true of the subcheck, and it is the half that reaches a
+   report's reader.** It prints no measured count on any file: the line
+   carries the licence and the verdict and never the recount, so one
+   report says no more than it did. The pooled-form side is untouched and
+   still settles against the room the file's own description leaves,
+   because which of the six FORMS a cell wears IS published and IS
+   floored — a MISSED there would put a lower bound on a floored count in
+   a single report, which is V5.1's business and not this ruling's.
+
+3. **Nothing in the repository may still assert the wider promise.**
+   Six surfaces carried it as a live guarantee — this plan's P3-D3, the
+   specification's V5.3 and V5.3-A1, and three comment blocks in
+   `validation.py` — and each is corrected in place, keeping the rule
+   and withdrawing the reason, because a governing document asserting a
+   property the code does not have is the defect round 4 found in
+   A-P3-5. The amendments this ruling touches keep their text and gain a
+   pointer at this one: A-P3-3 clause 1 and A-P3-7 clauses 1 and 3
+   record witnesses of both kinds and stand on the single-report half;
+   A-P3-5 clause 3's bound keeps the half that is still owed; A-P3-10
+   clause 1's rule is withdrawn by clause 2 above.
+
+4. **What the reader is told, since the ruling is only honest if it is
+   readable.** The quality report's own page carries the limit in plain
+   words on every run — that the withholding rule is about what one
+   report says, that it is not a defence against somebody who has the
+   file and re-runs the check with descriptions of their own, and that
+   whoever can run the check on a file can read the file — and
+   `SECURITY.md` carries it as a named residual risk beside the other
+   controls a user can weigh. **This moves the bytes of every quality
+   report**, so `GOLDEN_QUALITY_SHA256` is re-recorded in the same
+   commit with the diff read line by line first.
+
+**How to reverse this.** Clause 1 reverses by putting the second reader
+back in scope, which is the owner's to decide and which re-opens
+P3-V3-F2, P3-V4-F2 and round 5's floor sweep as blocking defects with no
+repair in the tree; clause 2 would then have to be reversed with it.
+Clause 2 reverses on its own by restoring `_at_the_floors_resolution` and
+its one call, which costs the teeth priced above — every file inside one
+floor-wide block of its licence stops being missed — and buys a
+block-resolution bound against a person who holds the file anyway, and
+which round 5 measured to be defeatable by sweeping the floor. Either
+reversal is recorded here in the same form as this one.
 
 ## P3-D7. Repository claims, staged honestly
 
@@ -2958,6 +3192,13 @@ tests as bounded in P3-D8.3.
   (five of them, per amendment A-P3-8 clause 2); no formal
   privacy guarantee; the record claim stays qualified (P2-D11) on
   every new surface.
+- The disclosure gate governs what ONE report says, to a reader who may
+  hold no file. It is not a defence against a person who holds the
+  measured file and runs the check repeatedly with descriptions of
+  their own, watching which verdicts change; that person can narrow a
+  number a single report withholds, and the product says so on its own
+  face rather than implying otherwise (owner ruling 2026-08-14,
+  amendment A-P3-13).
 
 ## P3-D11. Residuals
 
@@ -2976,6 +3217,16 @@ tests as bounded in P3-D8.3.
   wherever the measured file's own classification would not publish
   them, so validating a mismatched file yields deliberately less than
   validating the twin the profile describes.
+- **R-P3-7.** The disclosure gate is a rule about one report, not a
+  defence against a person who chooses the descriptions. Someone
+  holding the measured file can run `validate` against descriptions
+  they wrote and narrow a number one report withholds — a sub-floor
+  count, the count of non-canonical cells in a named form, or the
+  header of a file the producer refuses. Ruled out of scope by the
+  owner on 2026-08-14 (amendment A-P3-13) on the ground that such a
+  person can read the file; stated on the quality report's own page,
+  in `SECURITY.md`, in the validation method's V5-A1 and in the
+  validator module's contract, so that nobody has to discover it.
 - **R-P3-6.** The disclosure gate classifies declaration-blind with
   the kept set derived from published spellings (owner decision 8):
   exact for twins, proven by the zero-WITHHELD green battery. For

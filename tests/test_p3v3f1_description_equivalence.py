@@ -494,14 +494,20 @@ def test_canonical_spelling_stays_checkable_on_every_file(
 def test_the_spelling_subcheck_takes_no_number_from_the_description(
     tmp_path: pathlib.Path,
 ) -> None:
-    """The BOUND the ruling carries, asserted rather than asserted-about.
+    """A property this subcheck has, kept though it is no longer owed.
 
-    A-P3-5 clause 3 rules canonicality outside V5.1's envelope, and what
-    makes that rulable rather than convenient is that no sequence of
-    candidate descriptions can binary-search anything through it -- the
-    attack V5.3 names. So: `styles.spelled` must answer the same way for
-    one file against descriptions publishing different style counts. Its
-    only profile input is the boolean `integer_valued`.
+    A-P3-5 clause 3 rules canonicality outside V5.1's envelope, and it
+    stated two bounds for the pair: that neither prints a measured
+    count, and that no sequence of candidate descriptions can
+    binary-search anything through them. The SECOND is no longer owed by
+    any ruling -- V5-A1 puts the person who writes the descriptions out
+    of scope (owner ruling 2026-08-14, plan amendment A-P3-13) -- but it
+    is TRUE of `styles.spelled`, whose only profile input is the boolean
+    `integer_valued`, and a true property that costs nothing to keep is
+    kept: it is asserted here so that a later edit which starts feeding
+    this subcheck a published count is seen for what it is. The bound
+    that is still owed -- no measured count printed -- is asserted with
+    the ceiling in `tests/test_p3v4f2_canonical_ceiling.py`.
     """
     folder = tmp_path / "unsearchable"
     folder.mkdir()
@@ -527,9 +533,9 @@ def test_the_spelling_subcheck_takes_no_number_from_the_description(
                 answers = answers + [check[3]]
     assert answers, "the subcheck did not run"
     assert len(set(answers)) == 1, (
-        "candidate descriptions publishing different style counts read "
-        "different answers off `styles.spelled`, so it is searchable "
-        "after all and the ruling's bound does not hold"
+        "descriptions publishing different style counts read different "
+        "answers off `styles.spelled`, so it has started taking a number "
+        "from the submitted description, which its docstring denies"
     )
 
 
