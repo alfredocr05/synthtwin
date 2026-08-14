@@ -17,15 +17,29 @@ beside the producer's would drift from it, and the disposition matrix's
 EXACT-OBSERVABLE means "recounted from the written CSV" by the same
 measurement the description was made with.
 
-AND WHAT DOES NOT COME FROM THE RE-DESCRIPTION (V2.4). Presence is
-BLANKNESS. `n_present`, `n_missing`, and the agreement between them and
-the re-description are taken over blank and non-blank cells, never over
-the re-description's own absence classification: a twin writes every
-absent cell empty, and a generated number can legitimately BE the text
-of a built-in missing marker (method residual R-P2-13). Where the two
-disagree the re-description is the one that yields: no gap in the
-reconstruction moves a verdict, and the worst it can do is WITHHOLD a
-measurement that could have been printed, which is the safe direction.
+AND WHY THE FILE IS DESCRIBED TWICE (V2.4). Presence is BLANKNESS: a
+twin writes every absent cell empty, so every cell holding anything at
+all holds a value -- and a generated number can legitimately BE the text
+of a built-in missing marker (method residual R-P2-13), which the
+producer's own absence machinery would read as a hole. So the file is
+described TWICE by the same producer over the same cells. The first
+description is the file's OWN -- what `synthtwin profile` would write
+about it -- and it decides how the cells read, which role the column is,
+and what the disclosure gate of V5 lets a report say. The second is
+taken over the blank/non-blank split, with absence pinned to blankness,
+and every measurement whose input is the set of present cells is read
+off it. The two never decide the same number: one owns which cells are
+counted, the other owns how they read.
+
+The version this replaces built one description and WITHHELD every
+presence-dependent obligation of a column wherever the two readings of
+presence disagreed. That let the measured file decide which of its own
+checks ran: one cell spelling `NA` turned every level, distinctness and
+suppression obligation of a column from a potential MISS into a
+withholding, and a file carrying none of its published labels passed.
+V2.4 sets the bound that broke -- no gap in the reconstruction may move
+a verdict -- and the gap is closed here by MEASURING over the split
+rather than by declining to.
 
 WHAT IS NOT CHECKED HERE, AND CANNOT BE, STATED BEFORE ANY VERDICT
 BELOW READS AS COVERAGE (V7.3, plan P2-D11 residual R-P2-3). A
@@ -287,12 +301,32 @@ _NOT_CHECKABLE_NO_LADDER = (
     "carries no shape for these values and there is no window to "
     "measure against"
 )
-_NOT_CHECKABLE_UNNAMED = (
-    "the first row of this file does not name a table's columns -- one "
-    "of its names is blank, or two of them are the same -- so no column "
-    "of the file can be told from another, nothing in it can be matched "
-    "to this column of the description, and nothing measured column by "
-    "column could be measured at all"
+_NOT_CHECKABLE_DECLARED_AXIS = (
+    "this says whether the person who owns the table declared this "
+    "column as a record number when the description was written. It is "
+    "a fact about the description and not about any file: the same "
+    "declaration is what this file was described under, so no CSV can "
+    "make the two answers differ either way"
+)
+_NOT_CHECKABLE_FIRST_COLUMN = (
+    "the description says the column names were generated, so nothing "
+    "in the file names this column and the only thing a CSV could show "
+    "about its number is that the file carries at least that many "
+    "columns -- which for the first column is true of every file that "
+    "can be read at all. How many columns the file has is checked, and "
+    "is the whole of what this fact can be evidenced by here"
+)
+_NOT_CHECKABLE_SKEW_UNBOUNDED = (
+    "the published ladder for this column is too coarse for the "
+    "generation method's own envelope to narrow: its bound falls back "
+    "to the range every column of this many values lies in whatever "
+    "they are, so a comparison against it would admit every file and "
+    "prove nothing"
+)
+_NOT_CHECKABLE_STYLE_CEILING = (
+    "the description names this form for as many cells as the file has "
+    "rows, so every cell the file can carry in it is already accounted "
+    "for and there is no unnamed cell left for this ceiling to govern"
 )
 _NOT_CHECKABLE_OFFSETS_WITHHELD = (
     "the description withholds this column's offsets, so it publishes "
@@ -324,6 +358,11 @@ _NO_ROWS_HERE = (
     "this file holds no rows at all, so this column holds no cells for "
     "this obligation to be met by"
 )
+_NO_NAMES_HERE = (
+    "the first row of this file does not name a table's columns, so "
+    "nothing in it stands for this column of the description and "
+    "nothing in it carries what this obligation asks for"
+)
 
 # -- what a withheld subcheck says, in one fixed sentence each --------
 
@@ -331,27 +370,68 @@ _GATE_CLOSED = (
     "describing this file on its own would not publish what this check "
     "measures, so neither the measurement nor its outcome is shown"
 )
-_GATE_PRESENCE = (
-    "this file holds cells the description of it reads as absent that "
-    "are not blank, so a measurement taken over its present cells is "
-    "not the measurement this check needs"
+
+# THE SECOND WAY THE GATE CLOSES, AND WHY IT NEEDED ITS OWN SENTENCE
+# (review item P3-V2-D-F2; V5.3, V5.4).
+#
+# The one above is for a check whose whole KIND the file's own
+# description does not carry -- a numeric summary of a column that file
+# describes as labels. This one is for a check whose kind it does carry
+# and whose NUMBER it pools: a form used by fewer cells than the
+# publication floor is never named in a description, and every
+# description of that file names the same single pooled total instead.
+# So two files the producer describes byte for byte alike can differ in
+# which form those pooled cells wear, and a verdict that told them apart
+# would state about the file a count the file's own description withheld
+# -- and repeated candidate descriptions would then read the count off
+# the verdicts, which is the attack V5.3 says the gate exists to stop.
+#
+# The verdict is only withheld where the file's own description leaves
+# it OPEN. Where what that description does publish settles the answer
+# either way -- a published floor no pooled count can reach, a pool with
+# nothing in it -- the verdict is shown, because stating it says nothing
+# the file's own description does not already say.
+_GATE_POOLED = (
+    "the file's own description does not publish the count this check "
+    "compares -- fewer cells are written that way than its publication "
+    "floor names, so every description of this file pools them into one "
+    "total -- and what it does publish does not settle the comparison "
+    "either way"
+)
+
+# What a column carries instead of a measurement when its cells, counted
+# the way V2.4 counts them, are not of the kind this obligation asks for
+# at all (review item P3-V2-A1). This is a MISS and not a withholding:
+# the description says this column publishes a fact of this kind, and
+# describing the file's own non-blank cells produces no fact of that kind
+# -- which is what "the file does not meet the obligation" means. It
+# names no number and no spelling.
+_NOT_OF_THAT_KIND = (
+    "nothing of the kind this obligation asks about, counting every cell "
+    "that is not blank as a value"
 )
 
 # The byte-order mark as one character, written as its code point so
 # that nobody has to trust an invisible character in this file.
 _BYTE_ORDER_MARK = "\ufeff"
 
-# WHICH SUBCHECKS THIS MODULE TAKES OVER THE BLANK SPLIT ITSELF (V2.4).
+# WHICH SUBCHECKS THIS MODULE MEASURES FROM THE WRITTEN CELLS (V2.4).
 #
-# Every other measurement in a result comes out of the re-description,
+# Every other measurement in a result is read out of a re-description,
 # which counts over ITS OWN reading of which cells are present. These
-# ones do not: `_style_checks` recounts the styles from the written
-# cells, skipping the blank ones and nothing else, so they are already
-# taken over the blank/non-blank split and stay verdicts even where the
-# two readings of presence disagree. The list is written out rather than
-# matched by prefix so that adding a style subcheck is a decision
-# somebody makes here on purpose.
-_FROM_THE_CELLS = (
+# ones are not: `_style_checks` recounts the styles from the written
+# cells, skipping the blank ones and nothing else, so they are ALREADY
+# taken over the blank/non-blank split and the second description has
+# nothing to say about them. What still governs them is the disclosure
+# gate, which is why they are gated with everything else and only their
+# MEASUREMENT is taken from the side that measured the cells.
+#
+# `styles.published.*` is deliberately not here: it compares a map the
+# re-description carries, so it is presence-dependent like the rest.
+#
+# The list is written out rather than matched by prefix so that adding a
+# style subcheck is a decision somebody makes here on purpose.
+_MEASURED_FROM_THE_CELLS = (
     f"styles.exact.{parsing.STYLE_LEADING_ZERO}",
     f"styles.exact.{parsing.STYLE_LEADING_PLUS}",
     f"styles.exact.{parsing.STYLE_EXPONENT_UPPER}",
@@ -360,8 +440,31 @@ _FROM_THE_CELLS = (
     f"styles.at-least.{parsing.STYLE_EXPONENT_LOWER}",
     "styles.spill",
     "styles.remainder",
+    "styles.spelled",
     f"styles.canonical.{parsing.STYLE_DECIMAL}",
     f"styles.canonical.{parsing.STYLE_EXPONENT_LOWER}",
+)
+
+# THE SPELLINGS THE MEASUREMENT SIDE KEEPS AS DATA (V2.4).
+#
+# Presence is BLANKNESS on the verdict side: every absent cell of a twin
+# is written empty, so a cell that holds anything at all holds a value.
+# The producer's own absence machinery disagrees on exactly two kinds of
+# cell -- a spelling in its built-in table of missing markers, and a
+# number it judges to be a stand-in for "no value" -- and both are named
+# here so that the measurement re-description keeps them as the data
+# V2.4 says they are. The blank spelling is deliberately NOT among them:
+# a blank cell is absent under both readings, and declaring it kept
+# would make every empty field a value.
+#
+# These are the producer's own first-party constants, not anything read
+# from a file, so this tuple is the same on every run and no measured
+# string reaches the settings.
+_KEPT_OVER_THE_SPLIT = tuple(
+    sorted(
+        [spelling for spelling in parsing.MISSING_TEXTS if spelling]
+        + [f"{value:g}" for value in parsing.NUMERIC_SENTINELS]
+    )
 )
 
 # The eleven ladder positions as probabilities, in ladder order.
@@ -442,17 +545,28 @@ class Census:
 
 @dataclasses.dataclass(frozen=True)
 class Outcome:
-    """Everything one validate run measured.
+    """Everything one validate run measured, and which file it measured.
 
     ``checks`` is every executable subcheck with its verdict, in a
     fixed order: the document-level obligations first, then the columns
     in the description's own order. ``listings`` is every obligation no
     CSV can evidence. ``census`` counts both.
+
+    ``measured_name`` is the NAME of the file these verdicts are about,
+    as the person spelled it on the command line -- the last component
+    of it, never the folders above. It is on the outcome rather than
+    handed separately to the report because WHICH FILE a verdict is
+    about is part of the measurement, not part of the rendering: a
+    report whose identity is optional is a report that can be written
+    without one, which is exactly what happened (review item P3-V2-G).
+    It is not read from the file and cannot be: it is a string the
+    person typed.
     """
 
     checks: "tuple[Check, ...]"
     listings: "tuple[Listing, ...]"
     census: Census
+    measured_name: str
 
 
 # -- V2.2: the settings the file is re-described under ----------------
@@ -498,6 +612,56 @@ def settings_for(description: contract.Profile) -> taxonomy.Settings:
         declaration_matching=block.declaration_matching,
         near_threshold_slack=block.near_threshold_slack,
     )
+
+
+def settings_over_the_split(
+    description: contract.Profile,
+) -> taxonomy.Settings:
+    """The same settings, with absence pinned to blankness (V2.4).
+
+    Guarantees:
+
+    - Inputs: one loaded description. Nothing else is consulted, and no
+      file is read: the extra kept spellings are the producer's own
+      first-party constants, so this tuple is the same on every run and
+      no string out of the measured file reaches the settings.
+    - Determinism: the same description always gives the same settings.
+    - Errors raised: none.
+    - Boundary: every one of the fifteen keys is `settings_for`'s, and
+      exactly one differs -- `kept_values` also carries every non-blank
+      built-in missing marker and every numeric stand-in for "no value".
+      `declared_missing_values` stays empty.
+
+    WHY THERE ARE TWO SETTINGS AND WHAT EACH ONE DECIDES. The method
+    splits the question in two and says so in terms (V2.4): the
+    re-description under `settings_for` -- the file's own description,
+    the one `synthtwin profile` would write about this file -- governs
+    HOW the cells read, which role the column is, and the disclosure
+    gate of V5; the measurement over the blank split governs WHICH
+    CELLS ARE COUNTED. "Every count that depends on [presence] is
+    recounted from blank and non-blank cells alone, with no sentinel or
+    declaration machinery anywhere in the verdict path" is the ratified
+    plan's own sentence (P3-D3, owner decision 8), and these settings
+    are how it is met: naming those spellings as kept is the producer's
+    own switch for "this is data, not a hole", so the recount is still
+    the producer's own machinery over the same cells (V2.1) and not a
+    second implementation of anything.
+
+    The two never decide the same number. What this settings object may
+    NOT be used for is the gate: a description built under it would say
+    more about the file than describing that file on its own would
+    publish, which is the one thing V5 forbids.
+    """
+    block = settings_for(description)
+    # A mapping rather than a set, for the reason `kept_spellings` gives:
+    # the offline policy accepts no method call on a value it cannot
+    # trace, and `set.add` is one. The values are never read.
+    found: dict[str, int] = {}
+    for spelling in block.kept_values:
+        found[spelling] = 1
+    for spelling in _KEPT_OVER_THE_SPLIT:
+        found[spelling] = 1
+    return dataclasses.replace(block, kept_values=tuple(sorted(found)))
 
 
 def kept_spellings(description: contract.Profile) -> "tuple[str, ...]":
@@ -1002,8 +1166,110 @@ def _without_a_mark(line: str) -> str:
     return line
 
 
+def _split_lines(text: str) -> "list[str]":
+    """The file's lines, split where the READER's own reader splits them.
+
+    The reader opens the file in text mode with ``newline=""``, so all
+    three of `\\r\\n`, `\\r` and `\\n` end a line and none of them is
+    translated: the terminator stays on the line it ends, and a
+    carriage return inside a quoted value stays the character it was.
+    This walks the same three, so a record here is a record there.
+
+    Guarantees:
+
+    - Inputs: the file's characters, in the encoding the reader settled
+      on.
+    - Determinism: a fixed function of that text.
+    - Errors raised: none.
+    """
+    # The offline audit's own type gate (plan D6.2): a method call on a
+    # value it cannot trace is refused, and this is the exact shape it
+    # accepts as proof that the value is a string.
+    if not isinstance(text, str):
+        raise TypeError("internal check: a file's text was not text")
+    # Cut on the line feeds first, then on the carriage returns inside
+    # each piece -- two passes with a literal each, which is what the
+    # audit accepts and what keeps this linear in the file's size. A
+    # carriage return at the very END of a piece is the first half of
+    # the `\r\n` that piece was cut at, and is not a line of its own.
+    lines: list[str] = []
+    pieces = text.split("\n")
+    for index in range(len(pieces)):
+        lines += _cut_at_returns(pieces[index], index < len(pieces) - 1)
+    return lines
+
+
+def _cut_at_returns(piece: str, cut_at_a_feed: bool) -> "list[str]":
+    """One line-feed piece cut again at every carriage return in it.
+
+    ``cut_at_a_feed`` says the piece was followed by a line feed, so a
+    carriage return at its very END is the first half of one `\\r\\n`
+    terminator and not a line of its own. Every other carriage return
+    ends a line, which is what universal-newline mode does.
+    """
+    # The offline audit's type gate again (plan D6.2), at the top of the
+    # function that calls a method on the value.
+    if not isinstance(piece, str):
+        raise TypeError("internal check: a file's line was not text")
+    lines: list[str] = []
+    parts = piece.split("\r")
+    last = len(parts) - 1
+    for at in range(last):
+        body = parts[at] + "\r"
+        if at == last - 1 and cut_at_a_feed and not parts[last]:
+            body = parts[at] + "\r\n"
+        lines += [body]
+    tail = parts[last]
+    if cut_at_a_feed and not (last > 0 and not tail):
+        return lines + [tail + "\n"]
+    if not cut_at_a_feed and tail:
+        return lines + [tail]
+    return lines
+
+
+def _records_of(text: str) -> "list[list[str]]":
+    """Every record the file holds, read as `reading` reads them.
+
+    WHY THIS IS A RECORD WALK AND NOT A LINE (review items P3-V2-D-F1
+    and P3-V2-E-F4). Two questions are settled before the reader is
+    called -- whether the first row can name a table's columns, and
+    whether the file holds any rows at all -- and both used to be
+    settled on the first PHYSICAL LINE and on the text's LENGTH. The
+    reader settles neither that way: it drops blank lines and it honours
+    a newline inside a quoted value. Where the two disagreed the reader
+    refused a file this module had already decided was reportable, and
+    its refusal for a repeated name QUOTES that name -- so a leading
+    blank line, or a newline inside a header name, put a string out of
+    the measured file onto the screen, and a blank line after a header
+    turned a full report into "validation could not run at all".
+
+    A csv.Error is not raised on: a file the reader cannot parse is a
+    catalogued refusal of its own, raised where the reader raises it and
+    in the position-naming form V9 asks for, so this returns what it has
+    and lets that happen.
+
+    Guarantees:
+
+    - Inputs: the file's characters, in the encoding the reader settled
+      on, with any byte-order mark already taken off the front.
+    - Determinism: a fixed function of that text.
+    - Errors raised: none.
+    """
+    records: list[list[str]] = []
+    try:
+        for row in csv.reader(_split_lines(text)):
+            if not row:
+                # A blank line carries no values, exactly as
+                # `reading._read_streamed` drops it.
+                continue
+            records += [[f"{cell}" for cell in row]]
+    except csv.Error:
+        return records
+    return records
+
+
 def _first_record(text: str) -> "list[str]":
-    """The names the file's first line holds, read as the READER reads it.
+    """The names the file's first RECORD holds, as the READER reads it.
 
     It has to reach the answer `read_table` would reach, which is why
     the caller hands over the text in the encoding the reader would
@@ -1011,9 +1277,13 @@ def _first_record(text: str) -> "list[str]":
     before the reader is called, whether the file's first row can name a
     table's columns at all, and a file that passed here and was refused
     there would be a structural mismatch turned back into a refusal
-    (V9).
+    (V9) -- with a measured name in the refusal, which is the fault
+    review item P3-V2-D-F1 was found on.
     """
-    return _header_names(_without_a_mark(_first_line(text)))
+    records = _records_of(_without_a_mark(text))
+    if not records:
+        return []
+    return records[0]
 
 
 def _unusable_header(found: "list[str]") -> str:
@@ -1396,15 +1666,22 @@ def _silent(
     subcheck: str,
     published: str,
     held: "bool | None",
+    why: str = _GATE_CLOSED,
 ) -> Check:
     """One exact obligation whose measured value may not be shown.
 
     Used where the achieved value is a STRING taken from the measured
     file. The comparison is made in full and the verdict is reported;
     the value itself never leaves this module.
+
+    ``held`` is three-valued and the third value is the point: None is
+    "the file's own description does not settle this", and ``why`` says
+    which of the two ways the gate closed -- the kind of measurement is
+    not one that description carries (`_GATE_CLOSED`), or the count it
+    compares is one that description pools (`_GATE_POOLED`).
     """
     if held is None:
-        return Check(column, fact, subcheck, WITHHELD, published, "", _GATE_CLOSED)
+        return Check(column, fact, subcheck, WITHHELD, published, "", why)
     return Check(column, fact, subcheck, HELD if held else MISSED, published)
 
 
@@ -1492,12 +1769,33 @@ def measure(description: contract.Profile, path: str) -> Outcome:
       moves, truncates or re-encodes the measured file or the
       description. It does not import the generation module, and no
       string read from the measured file appears in any field of the
-      result.
+      result. `measured_name` is the one field holding a string that
+      came from outside the description, and it came from the COMMAND
+      LINE, not from the file: it is the last component of the path as
+      the person wrote it, so that the report can say which file it is
+      about (V7.1). No folder above it is kept, so the same check on the
+      same bytes writes the same report wherever the file sits (V10).
+    - Cost, stated because it is deliberate: the measured file is
+      DESCRIBED TWICE by the producer -- once as the file's own
+      description, which governs the disclosure gate, and once over the
+      blank/non-blank split, which governs every measurement whose input
+      is the set of present cells (V2.4). Both are built on every run,
+      whatever the file turns out to hold, because nothing about a
+      measured file may decide which of its own checks run.
     """
     named = refusal_of(description)
     validated = validate_local_path(path, purpose="input")
     place = pathlib.Path(validated)
     shown = f"{place}"
+    # WHICH FILE THIS OUTCOME IS ABOUT (V7.1, review item P3-V2-G). The
+    # name is taken from the path AS THE PERSON WROTE IT, not from the
+    # resolved one: somebody who typed a link's name goes looking for
+    # that name afterwards, and printing the name the link resolves to
+    # would put a word in the report they never wrote. Only the last
+    # component is kept -- the folders above it are where the file sits,
+    # which is not what the report is about and would make the same
+    # check write different bytes in different folders (V10).
+    measured_name = pathlib.Path(path).name
     if named:
         raise errors.ProfileError(_refusal_message(named, shown))
     if not place.exists():
@@ -1528,13 +1826,17 @@ def measure(description: contract.Profile, path: str) -> Outcome:
     checks = _byte_checks(description, data, text, headed)
     if description.n_rows == 0:
         return _assembled(
-            checks + [_zero_row_form(description, data, text, headed)],
+            checks
+            + [_zero_row_form(description, data, text, headed)]
+            + _zero_row_structure(description, text, headed),
             _zero_row_listings(description, headed),
+            measured_name,
         )
     if _holds_no_data(text, headed):
         return _assembled(
             checks + _no_rows_at_all(description, as_read, headed),
             _listings(description, headed),
+            measured_name,
         )
     if headed:
         # A first row that cannot name a table's columns is a STRUCTURAL
@@ -1546,12 +1848,16 @@ def measure(description: contract.Profile, path: str) -> Outcome:
         found = _first_record(as_read)
         unusable = _unusable_header(found)
         if unusable:
+            records = len(_records_of(_without_a_mark(as_read)))
             return _assembled(
-                checks + _unnamed_column_checks(description, found, unusable),
-                _listings(description, headed)
-                + _unnamed_column_listings(description, headed),
+                checks
+                + _unnamed_column_checks(
+                    description, found, unusable, records - 1
+                )
+                + _no_column_is_named(description, unusable, headed),
+                _listings(description, headed),
+                measured_name,
             )
-    settings = settings_for(description)
     first_row = reading.FIRST_ROW_NAMES if headed else reading.FIRST_ROW_DATA
     try:
         table = reading.read_table(
@@ -1559,8 +1865,31 @@ def measure(description: contract.Profile, path: str) -> Outcome:
             first_row=first_row,
             refusals=reading.REFUSALS_NAME_POSITIONS,
         )
+        declared = _declared_here(description, table)
+        # TWO DESCRIPTIONS, ALWAYS BOTH, AND WHAT EACH ONE DECIDES
+        # (V2.1 and V2.4; review item P3-V2-A1). The first is the file's
+        # OWN description -- what `synthtwin profile` would write about
+        # this file -- and it governs how the cells read and what the
+        # disclosure gate of V5 lets a report say. The second is the
+        # same producer over the same cells with absence pinned to
+        # blankness, and it governs which cells every presence-dependent
+        # measurement is counted over.
+        #
+        # BOTH ARE BUILT ON EVERY RUN, AND THAT IS THE POINT. The
+        # version this replaces built one and then, where the two
+        # readings of presence disagreed, WITHHELD every level,
+        # distinctness, ladder and suppression obligation of the column
+        # -- so one cell spelling a missing marker turned every one of
+        # them from a potential MISS into a withholding, and a file that
+        # carried none of its published labels passed with two hundred
+        # obligations unevaluated. Nothing about the file may decide
+        # which of its own checks run, so nothing about the file decides
+        # which of these is built.
         redescribed = profile.build_document(
-            table, settings, _declared_here(description, table)
+            table, settings_for(description), declared
+        )
+        over_the_split = profile.build_document(
+            table, settings_over_the_split(description), declared
         )
     except MemoryError as error:
         raise errors.ProfileError(
@@ -1569,9 +1898,9 @@ def measure(description: contract.Profile, path: str) -> Outcome:
     checks = checks + _structure_checks(description, table, as_read, headed)
     for column in description.columns:
         checks = checks + _column_checks(
-            description, column, table, redescribed, headed
+            description, column, table, redescribed, over_the_split, headed
         )
-    return _assembled(checks, _listings(description, headed))
+    return _assembled(checks, _listings(description, headed), measured_name)
 
 
 def _declared_here(
@@ -1597,9 +1926,16 @@ def _declared_here(
 
 
 def _assembled(
-    checks: "list[Check]", listings: "list[Listing]"
+    checks: "list[Check]", listings: "list[Listing]", measured_name: str
 ) -> Outcome:
-    """One outcome, with the census counted from the verdicts alone."""
+    """One outcome, with the census counted from the verdicts alone.
+
+    ``measured_name`` is carried through every one of the four exits
+    `measure` has, which is why it is a parameter here rather than
+    stamped on afterwards: an exit that forgot it would produce an
+    anonymous report, and the shortest of those exits is the zero-row
+    one nobody looks at twice.
+    """
     counted = {verdict: 0 for verdict in VERDICTS}
     for check in checks:
         counted[check.verdict] = counted[check.verdict] + 1
@@ -1611,7 +1947,7 @@ def _assembled(
         missed=counted[MISSED],
         not_checkable=len(listings),
     )
-    return Outcome(tuple(checks), tuple(listings), census)
+    return Outcome(tuple(checks), tuple(listings), census, measured_name)
 
 
 # -- V6.2 and V6.4: the byte rules ------------------------------------
@@ -1682,6 +2018,18 @@ def _zero_row_form(
     the same nothing -- and one whose names came from the file asks for
     the header line and its terminal newline and nothing more. A
     nonempty or wrong-byte file MISSES.
+
+    AND THE HEADED FORM NO LONGER ANSWERS FOR THE NAMES (V3.6; review
+    item P3-V2-E-F5). This was a conjunction over three obligations --
+    the names read back, the file stops there, and it ends in a newline
+    -- and a subcheck whose verdict is a conjunction is only as strong
+    as the conjunct an edit can pay off separately. Worse, the two it
+    absorbed are two other facts' whole obligation, so `universal.name`
+    and `document.columns` were bound by NOTHING on that predicate while
+    a census called itself every obligation the description sets. They
+    are checks of their own there now, and this one answers for the
+    bytes it names: the file stops after its first record and ends in a
+    newline.
     """
     subcheck = "bytes.zero-row-form"
     fact = "document.n_rows"
@@ -1693,13 +2041,79 @@ def _zero_row_form(
     if text is None:
         return Check("", fact, subcheck, MISSED, published, "not UTF-8")
     line = _first_line(text)
-    names = _header_names(line)
-    holds = (
-        len(text) == len(line)
-        and line[len(line) - 1 :] == "\n"
-        and names == [column.name for column in description.columns]
-    )
+    holds = len(text) == len(line) and line[len(line) - 1 :] == "\n"
     return _silent("", fact, subcheck, published, holds)
+
+
+def _zero_row_structure(
+    description: contract.Profile, text: "str | None", headed: bool
+) -> "list[Check]":
+    """What a zero-row file still evidences about its own shape.
+
+    REVIEW ITEM P3-V2-E-F5. V6.4 makes the expected byte form the
+    executable subcheck and the structural facts ZERO BYTES cannot
+    evidence listing entries -- and a headed zero-row file is not zero
+    bytes. It carries its header line, so how many columns the schema
+    has, what they are called and what order they stand in are all
+    evidenced by it, and each is its own fact with its own obligation.
+    Leaving them inside the byte form's conjunction left two of them
+    bound by nothing at all.
+
+    The headerless form really is zero bytes and keeps its listings --
+    with one check, because "no header line was written" is exactly what
+    a file of no bytes shows, and it is the one structural fact that
+    form can miss: a file carrying the published names on its first line
+    is a file that wrote a header where the description says none was.
+
+    Guarantees:
+
+    - Inputs: the description, the file's characters (None where its
+      bytes are not text), and whether the names came from the file.
+    - Determinism: a fixed function of those three.
+    - Errors raised: none.
+    """
+    names = [column.name for column in description.columns]
+    found = _first_record(text) if text is not None else []
+    if not headed:
+        return [
+            _exact(
+                "",
+                "document.source.header_source",
+                "header.presence",
+                "no header line, the first row is a record",
+                _header_presence(text if text is not None else "", names, False),
+            )
+        ]
+    return [
+        _exact(
+            "",
+            "document.n_columns",
+            "columns.n_columns",
+            _shown_count(description.n_columns),
+            _shown_count(len(found)),
+        ),
+        _exact(
+            "",
+            "document.source.header_source",
+            "header.presence",
+            "a header line",
+            _header_presence(text if text is not None else "", names, True),
+        ),
+        _silent(
+            "",
+            "universal.name",
+            "header.names",
+            "the published names, in the published order",
+            found == names,
+        ),
+        _silent(
+            "",
+            "document.columns",
+            "columns.order",
+            "the published column order",
+            found == names,
+        ),
+    ]
 
 
 def _holds_no_data(text: "str | None", headed: bool) -> bool:
@@ -1710,18 +2124,33 @@ def _holds_no_data(text: "str | None", headed: bool) -> bool:
     The plan is explicit that a structural mismatch is a MISSED verdict
     with a plain explanation, so this is settled before the reader is
     called at all.
+
+    COUNTED IN RECORDS, NOT IN CHARACTERS (review item P3-V2-E-F4). The
+    version this replaces asked whether the text was as long as its
+    first line, and the reader does not read a file that way: it drops
+    blank lines. So `header\\n` got a full report with the row count
+    missed at exit 3 and `header\\n\\n` got a refusal at exit 1 with no
+    report at all -- two files differing by one empty line, one of them
+    told the true answer and the other handed the profiler's advice to
+    go and find a file that has the rows, when the true answer was that
+    this file misses the published row count. Headerless, the same step
+    stood between a file of no bytes and a file of one newline. Counting
+    the records the reader would read puts both sides of that step on
+    the reportable side.
     """
     if text is None:
         return False
+    records = len(_records_of(_without_a_mark(text)))
     if not headed:
-        return len(text) == 0
-    return len(text) == len(_first_line(text))
+        return records == 0
+    return records <= 1
 
 
 def _unnamed_column_checks(
     description: contract.Profile,
     found: "list[str]",
     why: str,
+    rows: int,
 ) -> "list[Check]":
     """The verdicts a file whose first row cannot name columns still gets.
 
@@ -1729,11 +2158,22 @@ def _unnamed_column_checks(
     are missed: the header line the description says was written is not
     one, the published names did not read back, and the published order
     is not there to read. The column COUNT is still a real comparison
-    and can hold, so it is measured rather than assumed missed.
+    and can hold, so it is measured rather than assumed missed. So is
+    the ROW COUNT, which is counted the way the reader counts rows --
+    records, blank lines dropped -- rather than left out of the census
+    on the ground that the reader was not called (review item
+    P3-V2-E-F2).
 
     ``why`` names the column NUMBERS at fault, never what stood in them.
     """
     return [
+        _exact(
+            "",
+            "document.n_rows",
+            "rows.n_rows",
+            _shown_count(description.n_rows),
+            _shown_count(rows),
+        ),
         _exact(
             "",
             "document.n_columns",
@@ -1768,43 +2208,48 @@ def _unnamed_column_checks(
     ]
 
 
-def _unnamed_column_listings(
-    description: contract.Profile, headed: bool
-) -> "list[Listing]":
-    """What such a file leaves unmeasurable, named rather than dropped.
+def _no_column_is_named(
+    description: contract.Profile, why: str, headed: bool
+) -> "list[Check]":
+    """Every per-column obligation of a file whose first row names none.
 
-    Every per-column obligation depends on knowing WHICH column of the
-    file is which, and this file's first row does not settle that for
-    any of them. They are listed with the reason rather than silently
-    left out of the census: an obligation that leaves the census
-    without a line is an obligation a reader cannot tell was never
-    measured. The row count goes with them, because counting the
-    records means reading the file, which is the step this path did not
-    take.
+    THEY MISS; THEY ARE NOT NOT-CHECKABLE (review item P3-V2-E-F2, and
+    disclosure F4). The version this replaces filed them as LISTINGS,
+    and a listing says something specific and false: that no written CSV
+    can evidence this obligation either way. The twin of the same
+    description evidences every one of them, three commands earlier --
+    so the same description told one reader it set three hundred and
+    fifteen checkable obligations and another that it set eight, and
+    told the second that three hundred and seventy-two of its
+    obligations were beyond any CSV. V7.2 fixes that the census names
+    the obligations the DESCRIPTION sets, not a number the file chose,
+    and V3.3 fixes what a listing means; both were broken by the same
+    line.
 
-    AND THEY ARE LISTED AT THE GRAIN THEY WOULD HAVE BEEN CHECKED AT
-    (review items P3-V1-F3 and P3-V1-F11). The version this replaces
-    listed one line per column, which said that something about the
-    column could not be measured without saying WHAT -- so a reader
-    comparing this census with the one an ordinary file gets could not
-    tell that the same obligations were in play. Every identity is
-    written out, by the same walk that would have produced the
-    verdicts, so the two censuses name the same obligations.
+    What is true of this file is that its first row does not name a
+    table's columns, so nothing in it stands for the column the
+    description is talking about, and the obligation is not met. That is
+    a MISS, with the reason on the line -- the same shape a file that
+    stops before a column gets, for the same reason.
+
+    ``why`` names the column NUMBERS at fault, never what stood in them.
     """
-    listings = [
-        Listing("", "document.n_rows", "rows.n_rows", _NOT_CHECKABLE_UNNAMED)
-    ]
+    missed: list[Check] = []
     for column in description.columns:
-        for check in _obligations(description, column, [], {}, None, headed):
-            listings = listings + [
-                Listing(
+        for check in _obligations(
+            description, column, [], {}, {}, None, headed
+        ):
+            missed = missed + [
+                Check(
                     check.column,
                     check.fact,
                     check.subcheck,
-                    _NOT_CHECKABLE_UNNAMED,
+                    MISSED,
+                    check.published,
+                    _NO_NAMES_HERE,
                 )
             ]
-    return listings
+    return missed
 
 
 def _no_rows_at_all(
@@ -1823,7 +2268,6 @@ def _no_rows_at_all(
     """
     found = _first_record(text) if headed else []
     names = [column.name for column in description.columns]
-    reads_back = headed and found == names
     checks = [
         Check(
             "",
@@ -1849,15 +2293,13 @@ def _no_rows_at_all(
                 if headed
                 else "no header line, the first row is a record"
             ),
-            (
-                "a header line"
-                if reads_back
-                else (
-                    "no header line"
-                    if headed
-                    else "no header line, the first row is a record"
-                )
-            ),
+            # ONE RULE, NOT TWO. The version this replaces wrote the
+            # header question out a second time here, and the two copies
+            # then had to be kept in step by hand. `_header_presence`
+            # carries the rule and its reasons; this path differs only
+            # in the text it is asked about, which for a headerless
+            # description is a file of no bytes at all.
+            _header_presence(text if headed else "", names, headed),
         ),
     ]
     if headed:
@@ -1924,7 +2366,7 @@ def _structure_checks(
                 if headed
                 else "no header line, the first row is a record"
             ),
-            _header_presence(text, table, names, description.n_rows, headed),
+            _header_presence(text, names, headed),
         ),
     ]
     if headed:
@@ -1949,9 +2391,7 @@ def _structure_checks(
 
 def _header_presence(
     text: str,
-    table: reading.Table,
     published: "list[str]",
-    rows_published: int,
     headed: bool,
 ) -> str:
     """What the file shows about whether a header line was written.
@@ -1974,17 +2414,30 @@ def _header_presence(
     * WHERE A HEADER WAS WRITTEN, the evidence is the first line reading
       back as the published names. A file whose first line is a record
       does not, and misses.
-    * WHERE NONE WAS, the evidence a CSV can carry is weaker and this
-      says only what it can support. A first line that reads back as the
-      published names is not by itself a header: the description's own
-      names are generated ones (`column_1`, `column_2`, ...), and a
-      column could in principle publish such a spelling as a value. What
-      a written header ALSO does is add a line the description never
-      asked for, so this calls it a header only when the file holds more
-      rows than the description publishes as well. That pair cannot
-      accuse a conforming twin, whose row count is its own, and it
-      catches a header line written into a headerless file, which is the
-      perturbation the rule exists for.
+    * WHERE NONE WAS, the evidence is the same first line NOT reading
+      back as the published names, and that alone (review item
+      P3-V2-C-F8). The version this replaces asked for a second thing
+      as well -- that the file hold more rows than the description
+      publishes -- on the reasoning that a written header ALSO adds a
+      line. A conjunction is only as strong as the conjunct an editor
+      can pay off separately: a header line written in AND one data row
+      taken out leaves the row count where it was, and this check then
+      reported "no header line, the first row is a record" about a file
+      whose first line was the published names. It reported the opposite
+      of the truth about the bytes it governs, defeated by the exact
+      perturbation class it exists for. So the row count is not a
+      conjunct here; it is `rows.n_rows`, which is its own subcheck and
+      misses on its own terms.
+
+      WHAT THE ONE-SIDED RULE COSTS, stated rather than left to be
+      found. A conforming twin whose FIRST RECORD spells every published
+      name -- `column_1` in column one, `column_2` in column two -- is
+      reported as carrying a header line it does not carry. That file is
+      one no reader could tell from a headered file, which is the
+      confusion `source.header_source` exists to settle, so the report
+      naming it is the honest answer and not a false accusation. The
+      generated names are the only names in play, because a description
+      whose names came from the file is the headed branch above.
 
     ``text`` is the file in the encoding the READER settled on, so a
     file whose bytes are not UTF-8 is asked this question about the
@@ -1996,7 +2449,7 @@ def _header_presence(
         if found == published:
             return "a header line"
         return "no header line"
-    if found == published and table.n_rows > rows_published:
+    if found == published:
         return "a header line"
     return "no header line, the first row is a record"
 
@@ -2009,6 +2462,7 @@ def _column_checks(
     column: contract.ColumnBlock,
     table: reading.Table,
     redescribed: "dict[str, object]",
+    over_the_split: "dict[str, object]",
     headed: bool,
 ) -> "list[Check]":
     """Every subcheck one published column carries, whatever the file is.
@@ -2027,11 +2481,13 @@ def _column_checks(
             description, column, table.column_names, headed
         )
     block = _column_at(redescribed, column.position)
+    split = _column_at(over_the_split, column.position)
     return _obligations(
         description,
         column,
         cells,
         block if block is not None else {},
+        split if split is not None else {},
         table.column_names,
         headed,
     )
@@ -2042,23 +2498,30 @@ def _obligations(
     column: contract.ColumnBlock,
     cells: "list[str]",
     block: "dict[str, object]",
+    split: "dict[str, object]",
     names: "list[str] | None",
     headed: bool,
 ) -> "list[Check]":
     """One column's whole obligation set, measured against what there is.
 
+    ``block`` is this column in the file's OWN description and ``split``
+    is the same column described over the blank/non-blank split (V2.4).
+    The first decides what may be said; the second says it.
+
     THE IDENTITIES THIS PRODUCES ARE A FUNCTION OF THE DESCRIPTION
-    ALONE. Which cells were read and what the re-description made of
+    ALONE. Which cells were read and what either re-description made of
     them decide the VERDICTS; they never decide which obligations exist.
-    Handed no cells and no re-description this still names every
+    Handed no cells and no re-description at all this still names every
     obligation the column carries, which is what lets the degenerate
     paths above report a full census instead of a short one.
     """
     name = column.name
     floor = description.settings.small_cell_floor
     present, missing = _presence_of(cells)
-    checks = [
-        _position_check(column, names, headed),
+    checks: list[Check] = []
+    if _position_is_evidencible(column, headed):
+        checks = checks + [_position_check(column, names, headed)]
+    checks = checks + [
         _exact(
             name,
             "universal.n_present",
@@ -2082,11 +2545,24 @@ def _obligations(
     # `quality_state` and `structural_role` in no check, no listing and
     # no input-side binding at all, while the report called its counts
     # every obligation.
+    #
+    # ...AND THREE OF THE FOUR, because the fourth is not a fact about
+    # any file (review item P3-V2-C-F3; plan amendment A-P3-2, which
+    # records the lowering in those words). `structural_role` answers
+    # whether the person who owns the table declared this column with
+    # `--identifier`; the taxonomy computes it from that declaration
+    # alone and says in its own docstring that no value of the column is
+    # consulted. The validator re-describes the measured file under the
+    # description's OWN declaration list (V2.2), so both sides read the
+    # same word for every column of every description that declares no
+    # identifier -- the zero-code default -- and every column of every
+    # ordinary report carried one HELD obligation no file could miss.
+    # It is a listing entry now: the EXACT-CONTROL remainder a CSV
+    # cannot evidence, which is V3.3's own words for it.
     for field, published in (
         ("role", column.role),
         ("statistical_type", column.statistical_type),
         ("quality_state", column.quality_state),
-        ("structural_role", column.structural_role),
     ):
         checks = checks + [
             _exact(
@@ -2098,18 +2574,52 @@ def _obligations(
             )
         ]
     mine = _corner_names(corners_of(description), name)
-    dependent = _universal_checks(column, block, mine)
-    dependent = dependent + _role_checks(column, block, cells, floor, mine)
     # V2.4. Every measurement whose input is the set of present cells is
-    # taken over the blank/non-blank split, so where the re-description
-    # read some non-blank cell as an absence its numbers are not the
-    # numbers these checks need. That gap WITHHOLDS; it never verdicts.
-    # A re-description that never happened is a different case and is
-    # not this one: it is settled by the callers above.
-    seen = _count_at(block, "n_present")
-    if seen is not None and seen != present:
-        dependent = _taken_over_the_split(dependent)
-    return checks + dependent
+    # taken over the blank/non-blank split. So the same obligations are
+    # built twice over the same cells: once against the file's own
+    # description, which decides only whether the gate lets this check
+    # say anything at all (V5), and once against the description taken
+    # over the split, which supplies the measurement. `_governed` puts
+    # the two together. A re-description that never happened is a
+    # different case and is not this one: it is settled by the callers
+    # above, which hand both sides the same empty block.
+    gated = _universal_checks(column, block, mine)
+    gated = gated + _role_checks(column, block, cells, floor, mine)
+    measured = _universal_checks(column, split, mine)
+    measured = measured + _role_checks(column, split, cells, floor, mine)
+    return checks + _governed(gated, measured)
+
+
+def _position_is_evidencible(column: contract.ColumnBlock, headed: bool) -> bool:
+    """Whether a file can show this column standing anywhere but here.
+
+    REVIEW ITEM P3-V2-C-F7, and plan amendment A-P3-2, which records the
+    lowering in those words. `_position_check` below has exactly two
+    failure branches, and where the names were GENERATED only one of
+    them is live: the file stops before this column number. The first
+    column is the one number no file that reaches a verdict can stop
+    before -- a file carrying no columns at all is refused by the reader
+    before any verdict exists -- so `position.at` on the first column of
+    a headerless description is a check whose failure set is empty,
+    which V3.4 and the charter both call a defect.
+
+    NOTHING ELSE IS NARROWED. Where a header was written the name at
+    that number is the evidence and every column carries it. Where the
+    names were generated, the second and later columns are still checked
+    and still miss on a file that stops short. This is the first column
+    of a headerless description and nothing else, and it becomes a
+    listing entry with a sentence saying what the column count already
+    states.
+
+    Guarantees:
+
+    - Inputs: one published column and whether the names came from the
+      file. No measured value is consulted, because which obligations
+      exist is a function of the description alone.
+    - Determinism: a fixed function of those two.
+    - Errors raised: none.
+    """
+    return headed or column.position > 1
 
 
 def _position_check(
@@ -2171,7 +2681,9 @@ def _nothing_stands_here(
 ) -> "list[Check]":
     """Every obligation of a column the file does not carry, MISSED."""
     missed: list[Check] = []
-    for check in _obligations(description, column, [], {}, names, headed):
+    for check in _obligations(
+        description, column, [], {}, {}, names, headed
+    ):
         missed = missed + [
             Check(
                 check.column,
@@ -2200,7 +2712,9 @@ def _nothing_left_to_measure(
     withheld, there was nothing to describe.
     """
     filled: list[Check] = []
-    for check in _obligations(description, column, [], {}, names, headed):
+    for check in _obligations(
+        description, column, [], {}, {}, names, headed
+    ):
         if check.verdict == WITHHELD and check.citation == _GATE_CLOSED:
             filled = filled + [
                 Check(
@@ -2240,62 +2754,80 @@ def _presence_of(cells: "list[str]") -> "tuple[int, int]":
     return present, len(cells) - present
 
 
-def _taken_over_the_split(checks: "list[Check]") -> "list[Check]":
-    """Every check whose input is the present set, withheld one by one.
+def _governed(
+    gated: "list[Check]", measured: "list[Check]"
+) -> "list[Check]":
+    """One verdict per obligation: the gate's say, then the split's number.
 
-    WHAT THIS REPLACES, AND WHY THE SHAPE MATTERS (V2.4; review item
-    P3-V1-F6). Where the blank/non-blank split and the re-description
-    disagree about how many cells are present, the version this
-    replaces returned ONE synthetic check -- `presence.agreement`, filed
-    under a fact `presence.n_present` already binds, and built so that
-    it could only ever be WITHHELD -- and dropped every level, variant,
-    distinctness and ladder obligation the column carries. Two things
-    were wrong with that. A check that cannot MISS is a check that
-    cannot fail, which V3.4 refuses by name; and an obligation that
-    leaves the census without a line is an obligation a reader cannot
-    tell was never measured, so an extra bad variant in such a file
-    drew no line at all.
+    THE TWO SIDES, AND WHY NEITHER ONE ALONE IS THE ANSWER (V2.4, V5.3;
+    review item P3-V2-A1). ``gated`` was built against the file's own
+    description -- what `synthtwin profile` would write about this file
+    -- and it answers one question only: may a report say anything at
+    all about this obligation? ``measured`` was built against the same
+    producer's description of the same cells with absence pinned to
+    blankness, and it answers the other: what does the file hold,
+    counted the way V2.4 counts it? The identities are the same list in
+    the same order, because which obligations exist is a function of the
+    DESCRIPTION alone and neither block is consulted for it.
 
-    So every subcheck the column carries is built as it always is, and
-    the ones whose input is the set of present cells are then WITHHELD
-    one by one, with the sentence that says why. They keep their
-    identities and their published side; what they lose is the
-    measurement and its outcome, which is exactly what V2.4 says the
-    gap may cost: "no gap in the reconstruction can move a verdict; the
-    worst it can do is withhold a measurement that could have been
-    printed".
+    Four cases, and the last is the repair.
 
-    THE ONES THIS MODULE TAKES OVER THE SPLIT ITSELF KEEP THEIR
-    VERDICTS. `_style_checks` recounts from the written cells, skipping
-    the blank ones and nothing else, so those subchecks ARE taken over
-    the blank split and there is nothing to withhold about them. They
-    are named in `_FROM_THE_CELLS`.
+    * The gate is closed -- the file's own description would not publish
+      what this check measures. WITHHELD, exactly as V5.3 requires, and
+      the split's number is not shown, because showing it is what the
+      gate exists to prevent.
+    * The gate is open and this subcheck measures the WRITTEN CELLS
+      rather than a re-description (`_MEASURED_FROM_THE_CELLS`). Either
+      side's measurement is the same one; the gated side's is taken.
+    * The gate is open and the split has the measurement. The split's
+      verdict, which is the only one taken over the right set of cells.
+    * The gate is open and the split has NO measurement of that kind:
+      counted with every non-blank cell as a value, this column is not a
+      column of the kind the obligation is about. That is a MISS. It is
+      not a withholding, and the difference is the whole of this
+      function's reason to exist: withholding is for what the file's own
+      description will not publish, never for what the validator found
+      hard to reconstruct.
 
-    WHAT IS NOT DONE, STATED RATHER THAN LEFT TO BE NOTICED. The rest
-    are not RE-MEASURED over the split. Doing that would mean writing
-    each of those recounts a second time here, beside the producer's
-    own -- a second implementation of the profiler, which is the one
-    thing V2.1 rules out, because it would drift from the measurement
-    the description was made with. Their obligations are therefore
-    carried in the census as withheld rather than met, missed, or gone.
+    WHAT THIS REPLACES. The version before this one withheld every
+    presence-dependent obligation of a column whenever the file's own
+    description and the blank split disagreed about how many cells were
+    present -- so writing ONE cell spelling a built-in missing marker
+    turned every level, distinctness and suppression obligation of that
+    column from a potential MISS into a withholding. A file could then
+    carry none of its published labels, hold counts and dates nothing
+    published, and exit 0 under "no checkable obligation was missed"
+    with two thirds of its obligations unevaluated. That is a gap in the
+    reconstruction moving a verdict, which V2.4 forbids in terms, and it
+    let any registered red case be defeated by one added cell. The gap
+    is closed by MEASURING over the split rather than by declining to,
+    which is what V2.4 asked for all along.
     """
-    kept: list[Check] = []
-    for check in checks:
-        if check.subcheck in _FROM_THE_CELLS:
-            kept = kept + [check]
+    settled: list[Check] = []
+    # Paired strictly: the two sides are the same obligations in the
+    # same order, and a build that ever made them differ would be a
+    # defect worth stopping on rather than one worth pairing past.
+    for closed, found in zip(gated, measured, strict=True):
+        if closed.verdict == WITHHELD and closed.citation == _GATE_CLOSED:
+            settled = settled + [closed]
             continue
-        kept = kept + [
-            Check(
-                check.column,
-                check.fact,
-                check.subcheck,
-                WITHHELD,
-                check.published,
-                "",
-                _GATE_PRESENCE,
-            )
-        ]
-    return kept
+        if closed.subcheck in _MEASURED_FROM_THE_CELLS:
+            settled = settled + [closed]
+            continue
+        if found.verdict == WITHHELD and found.citation == _GATE_CLOSED:
+            settled = settled + [
+                Check(
+                    closed.column,
+                    closed.fact,
+                    closed.subcheck,
+                    MISSED,
+                    closed.published,
+                    _NOT_OF_THAT_KIND,
+                )
+            ]
+            continue
+        settled = settled + [found]
+    return settled
 
 
 def _universal_checks(
@@ -2686,27 +3218,26 @@ def _rung_window(
     return (low, high)
 
 
-def _moment_checks(
-    column: contract.ColumnBlock,
-    facts: contract.NumericFacts,
-    block: "dict[str, object]",
-) -> "list[Check]":
-    """`mean`, `std` and `skew`, each against both ends of G12.3.
+def _windows_of(
+    column: contract.ColumnBlock, facts: contract.NumericFacts
+) -> "dict[str, tuple[float, float]]":
+    """The three G12.3 windows this description draws, or none at all.
 
-    A description whose ladder is null at every rung publishes no shape
-    at all, so there is no window to draw and the three are listed as
-    not checkable rather than passed.
+    Drawn from the published ladder alone, so the answer is a function
+    of the description and never of the measured file. An empty mapping
+    says the ladder is null at every rung: G12.3's "one column with no
+    bound at all", where the three moments are listing entries.
+
+    Guarantees:
+
+    - Inputs: one published column's numeric facts. No measured value.
+    - Determinism: a fixed function of the published ladder, the
+      published cell counts and the half unit G12.2 grants.
+    - Errors raised: none.
     """
-    name = column.name
     points = _ladder_points(facts.percentiles.rungs)
-    published = (
-        ("mean", facts.mean),
-        ("std", facts.std),
-        ("skew", facts.skew),
-    )
-    checks: list[Check] = []
     if not points:
-        return checks
+        return {}
     numbers = _numeric_cells(facts)
     displacement, half = _displacement(
         facts, column.n_present, column.n_distinct_folded
@@ -2723,9 +3254,94 @@ def _moment_checks(
             _ladder_at(points, min(1.0, share + displacement)) + half
         ]
         ladder = ladder + [_ladder_at(points, share)]
-    windows = _moment_windows(lows, highs, ladder, numbers)
+    return _moment_windows(lows, highs, ladder, numbers)
+
+
+def _skew_admits_every_value(
+    column: contract.ColumnBlock, facts: contract.NumericFacts
+) -> bool:
+    """Whether this description's skew window is the whole attainable range.
+
+    REVIEW ITEM P3-V2-C-F2. `moments.skew` is checked against G12.3's
+    envelope, and G12.3 ends with a FINITE FALLBACK: where the ladder's
+    own spread does not exceed the displacement the construction can
+    produce, the denominator's lower end is zero, the quotient has no
+    finite upper end, and the published bound falls back to
+
+        -(K - 2) / sqrt(K - 1)   <=   skew   <=   +(K - 2) / sqrt(K - 1)
+
+    which is the range EVERY sample of K values lies in whatever its
+    values are. G12.3 is right to print that, because a wide bound tells
+    a reader the ladder is too coarse to say anything about the shape --
+    but a CHECK against it admits every file there is, and two of the
+    six skew windows the suite's own fixtures draw are exactly it.
+    Measured: a column rewritten to 227 ones, one nine and one hundred
+    thousand achieved the endpoint itself and was reported WITHIN-BOUND.
+
+    THE VALIDATOR MAY NOT DRAW A NARROWER WINDOW OF ITS OWN. V1's
+    opening paragraph says every bound an APPROXIMATED fact is checked
+    against lives in G12 and is CITED here, never restated, so the two
+    can never drift apart. A tighter envelope is a change to the
+    generation method, made where that method is written and reviewed
+    against the construction it describes -- not invented in the thing
+    that checks it, where it would start accusing conforming twins. So
+    where G12.3's own bound is the whole range, the honest answer is
+    that this description cannot be checked on this fact, and the report
+    says that in the census instead of counting a pass.
+
+    Guarantees:
+
+    - Inputs: one published column's numeric facts. No measured value,
+      because which obligations exist is a function of the description.
+    - Determinism: a fixed function of the published ladder and counts.
+    - Errors raised: none.
+    """
+    if facts.skew is None:
+        return False
+    windows = _windows_of(column, facts)
+    if "skew" not in windows:
+        return False
+    numbers = _numeric_cells(facts)
+    if numbers < 3:
+        return False
+    reach = (numbers - 2) / math.sqrt(numbers - 1)
+    low, high = windows["skew"]
+    return low <= -reach and high >= reach
+
+
+def _moment_checks(
+    column: contract.ColumnBlock,
+    facts: contract.NumericFacts,
+    block: "dict[str, object]",
+) -> "list[Check]":
+    """`mean`, `std` and `skew`, each against both ends of G12.3.
+
+    A description whose ladder is null at every rung publishes no shape
+    at all, so there is no window to draw and the three are listed as
+    not checkable rather than passed. So is a skew whose window is the
+    statistic's whole attainable range (`_skew_admits_every_value`).
+    """
+    name = column.name
+    published = (
+        ("mean", facts.mean),
+        ("std", facts.std),
+        ("skew", facts.skew),
+    )
+    checks: list[Check] = []
+    windows = _windows_of(column, facts)
+    if not windows:
+        return checks
     for field, value in published:
         if value is None:
+            continue
+        # THE ONE MOMENT WHOSE ENVELOPE CAN SAY NOTHING (review item
+        # P3-V2-C-F2). Where G12.3's own finite fallback stands, the
+        # window IS every value the statistic can take, and a comparison
+        # against it admits every file there is. It is a listing entry
+        # on that description -- `_listings` files it with the sentence
+        # that says why -- and never a check, because a check that
+        # cannot fail is the vacuity V3.4 refuses by name.
+        if field == "skew" and _skew_admits_every_value(column, facts):
             continue
         found = _number_at(block, field)
         checks = checks + [
@@ -2804,6 +3420,148 @@ def _population_deviation(values: "list[float]", count: int) -> float:
     return math.sqrt(total / count)
 
 
+# The two forms a value's canonical text can carry a decimal point in,
+# which is the pair contract 7.5.7's spill clause is stated over. Named
+# once so the clause and the window it is settled against count over the
+# same two forms.
+_POINT_CARRYING = (parsing.STYLE_DECIMAL, parsing.STYLE_EXPONENT_LOWER)
+
+
+def _own_styles(block: "dict[str, object]") -> "dict[str, int]":
+    """The style map the file's OWN description publishes for a column.
+
+    Empty where that description carries none, which the caller has
+    already settled: `_style_checks` returns before this is reached
+    where `numeric_styles` is not in the block at all.
+    """
+    found = _map_at(block, "numeric_styles")
+    if found is None:
+        return {}
+    return found
+
+
+def _unread_cells(block: "dict[str, object]", cells: "list[str]") -> int:
+    """Non-blank cells the file's own description does not count as values.
+
+    The recount below counts every non-blank cell, because V2.4 says
+    presence on the verdict side is BLANKNESS. The file's own
+    description counts the cells IT reads as present, and a spelling in
+    the producer's built-in missing table is non-blank and read as
+    absent -- residual R-P2-13's own case. So the two denominators can
+    differ, and the difference is how many more cells the recount can
+    find in a form than that description's own map accounts for. It
+    widens the room the window below leaves and never narrows it: a
+    count the description does not carry may not be settled from it.
+
+    Guarantees:
+
+    - Inputs: one re-described block and the column's written cells.
+    - Determinism: a fixed function of the two.
+    - Errors raised: none.
+    """
+    present = 0
+    for cell in cells:
+        if parsing.trimmed(cell):
+            present = present + 1
+    counted = _count_at(block, "n_present")
+    if counted is None or counted > present:
+        return 0
+    return present - counted
+
+
+def _recount_window(
+    own: "dict[str, int]",
+    floor: int,
+    unread: int,
+    styles: "tuple[str, ...]",
+) -> "tuple[int, int]":
+    """How many cells of these forms the file's own description allows.
+
+    THE ENVELOPE V5.1 DRAWS, IN ARITHMETIC (review item P3-V2-D-F2). A
+    description names a form only where at least `floor` cells wear it;
+    everything below that goes into one pooled total and the form is
+    never named. So what `synthtwin profile` publishes about this file's
+    spellings is: an exact count for each named form, one total for all
+    the rest together, and nothing else. Every count vector consistent
+    with those numbers is a file that description could equally be
+    describing, and a report may state only what is true of all of them.
+
+    The two ends follow from that and from nothing measured:
+
+    * each named form contributes its published count exactly, and the
+      `unread` cells above can add to any form, so they widen the top;
+    * the unnamed forms share the pooled total, none of them reaching
+      the floor -- so the forms asked about here can take at most
+      `floor - 1` each of it, and at least whatever the OTHER unnamed
+      forms cannot hold.
+
+    Guarantees:
+
+    - Inputs: the file's own published style map, the publication floor
+      it was written under, how many non-blank cells that description
+      does not count as values, and the forms being asked about.
+    - Determinism: a fixed function of those four. No measured recount
+      is consulted: this says what the description allows, and the
+      caller compares it with what the file holds.
+    - Errors raised: none.
+    """
+    pooled = _counted(own, taxonomy.SUPPRESSED_LABEL)
+    room = floor - 1
+    room = max(room, 0)
+    known = 0
+    asked_unnamed = 0
+    for style in styles:
+        if style in own:
+            known = known + own[style]
+        else:
+            asked_unnamed = asked_unnamed + 1
+    other_unnamed = 0
+    for style in contract.NUMERIC_STYLES:
+        if style not in own and style not in styles:
+            other_unnamed = other_unnamed + 1
+    high = asked_unnamed * room
+    high = min(high, pooled)
+    low = pooled - other_unnamed * room
+    low = max(low, 0)
+    return known + low, known + high + unread
+
+
+def _window_equals(
+    window: "tuple[int, int]", found: int, target: int
+) -> "bool | None":
+    """Whether ``found`` is ``target``, or None where saying would tell.
+
+    The verdict is the recount's own -- the window decides only whether
+    it may be reported. Where the window holds more than one count and
+    the target is one of them, two files the producer describes alike
+    would get different verdicts, so nothing is said (V5.3).
+    """
+    low, high = window
+    if low < high and low <= target <= high:
+        return None
+    return found == target
+
+
+def _window_at_least(
+    window: "tuple[int, int]", found: int, target: int
+) -> "bool | None":
+    """Whether ``found`` reaches ``target``, or None where saying would tell."""
+    low, high = window
+    if low >= target or high < target:
+        return found >= target
+    return None
+
+
+def _window_at_most(
+    window: "tuple[int, int]", found: int, target: int
+) -> "bool | None":
+    """Whether ``found`` stays under ``target``, or None where saying tells."""
+    low, high = window
+    if high <= target or low > target:
+        return found <= target
+    return None
+
+
 def _style_checks(
     column: contract.ColumnBlock,
     facts: contract.NumericFacts,
@@ -2819,10 +3577,31 @@ def _style_checks(
     own `parsing.numeric_style`, so it is the same classification the
     description was made with.
 
-    The counts themselves are not printed: a recount below the floor is
-    a number the file's own description would pool away, and the exact
-    sub-floor number never appears beside a name. The comparison is
-    still made in full, and the verdict is reported.
+    AND EVERY CLAUSE IS READ THROUGH THE FILE'S OWN DESCRIPTION (review
+    item P3-V2-D-F2; V5.3 and V5.4). The counts were never printed --
+    that much was already true -- but nine of the ten clauses compared
+    the exact recount against a published number and reported the
+    outcome, and an outcome stated against a number the SUBMITTED
+    description chose is a number the submitted description can search
+    for. Two witnesses were run against the version this replaces. Two
+    files `synthtwin profile` describes byte for byte alike, differing
+    only in whether one pooled cell was written `1E5` or `1e5`, produced
+    different reports, different censuses and different screen output.
+    And six candidate descriptions differing only in their style map
+    pinned a sub-floor count exactly -- the plain cells at two and the
+    leading-zero cells at one, both under a floor of eleven and both
+    pooled by the producer -- by trying each and finding the one that
+    HELD. That second one is verbatim the situation V5.3 says this gate
+    exists to prevent.
+
+    So each clause is settled against a WINDOW rather than against the
+    recount: what the file's own description publishes about its own
+    style map fixes some of the six counts exactly, leaves the rest
+    inside the room its pooled total leaves them, and the clause is
+    reported only where every count in that window answers it the same
+    way. Where they do not, the verdict is WITHHELD with `_GATE_POOLED`.
+    Nothing about which subchecks exist changes, and no count is printed
+    that was not printed before.
     """
     name = column.name
     if "numeric_styles" not in block:
@@ -2837,7 +3616,7 @@ def _style_checks(
         # four against another, while the census called each of them
         # every obligation there was.
         withheld: list[Check] = []
-        for subcheck in _style_subchecks(facts):
+        for subcheck in _style_subchecks(column, facts):
             withheld = withheld + [
                 _withheld(
                     name, "numeric.numeric_styles", subcheck, _GATE_CLOSED
@@ -2847,12 +3626,20 @@ def _style_checks(
     recount, no_point_free = _recounted_styles(cells)
     published = facts.numeric_styles
     remainder = _counted(published, taxonomy.SUPPRESSED_LABEL)
+    own = _own_styles(block)
+    unread = _unread_cells(block, cells)
 
     def named(style: str) -> int:
         return _counted(published, style)
 
-    def found(style: str) -> int:
-        return _counted(recount, style)
+    def found(styles: "tuple[str, ...]") -> int:
+        total = 0
+        for style in styles:
+            total = total + _counted(recount, style)
+        return total
+
+    def window(styles: "tuple[str, ...]") -> "tuple[int, int]":
+        return _recount_window(own, floor, unread, styles)
 
     checks: list[Check] = []
     for style in (
@@ -2866,21 +3653,23 @@ def _style_checks(
                 "numeric.numeric_styles",
                 f"styles.exact.{style}",
                 _shown_count(named(style)),
-                found(style) == named(style),
+                _window_equals(
+                    window((style,)), found((style,)), named(style)
+                ),
+                _GATE_POOLED,
             )
         ]
-    for style in (
-        parsing.STYLE_PLAIN,
-        parsing.STYLE_DECIMAL,
-        parsing.STYLE_EXPONENT_LOWER,
-    ):
+    for style in _floor_styles(facts):
         checks = checks + [
             _silent(
                 name,
                 "numeric.numeric_styles",
                 f"styles.at-least.{style}",
                 _shown_count(named(style)),
-                found(style) >= named(style),
+                _window_at_least(
+                    window((style,)), found((style,)), named(style)
+                ),
+                _GATE_POOLED,
             )
         ]
     spill = max(
@@ -2896,19 +3685,53 @@ def _style_checks(
             "numeric.numeric_styles",
             "styles.spill",
             "the two canonical point-carrying forms carry the spill",
-            found(parsing.STYLE_DECIMAL) + found(parsing.STYLE_EXPONENT_LOWER)
-            == named(parsing.STYLE_DECIMAL)
-            + named(parsing.STYLE_EXPONENT_LOWER)
-            + spill,
+            _window_equals(
+                window(_POINT_CARRYING),
+                found(_POINT_CARRYING),
+                named(parsing.STYLE_DECIMAL)
+                + named(parsing.STYLE_EXPONENT_LOWER)
+                + spill,
+            ),
+            _GATE_POOLED,
         ),
         _silent(
             name,
             "numeric.numeric_styles",
             "styles.remainder",
             "the pooled cells are spelled by their own values",
-            found(parsing.STYLE_PLAIN)
-            == named(parsing.STYLE_PLAIN) + remainder - spill,
+            _window_equals(
+                window((parsing.STYLE_PLAIN,)),
+                found((parsing.STYLE_PLAIN,)),
+                named(parsing.STYLE_PLAIN) + remainder - spill,
+            ),
+            _GATE_POOLED,
         ),
+    ]
+    # EVERY CELL WEARS A SPELLING OF ITS OWN VALUE (G6.1, G6.3; review
+    # item P3-V2-C-F1). "A numeric cell is written in exactly one of six
+    # styles, and in no other form" is G6.1's own sentence, and G6.3
+    # fixes the exact text of each of the six for a value, with the
+    # leading-zero family available inside every style but `plain`. Until
+    # this subcheck existed nothing in the validator asked that question
+    # at all: the style checks counted how many cells wore each FORM and
+    # the ceiling below asked how many were not canonical, and both are
+    # arithmetic over counts. So a twin whose every decimal cell carried
+    # a trailing zero -- `66.60138701960640` where the shortest round
+    # trip of that same number is `66.6013870196064` -- met every one of
+    # them and validated with exit 0. The ceiling below could not catch
+    # it, because on that column the published decimal count is the cell
+    # count and the ceiling is every cell there is.
+    checks = checks + [
+        _silent(
+            name,
+            "numeric.numeric_styles",
+            "styles.spelled",
+            (
+                "every cell written as a number spelled in one of the "
+                "six published forms of its own value"
+            ),
+            _cells_outside_the_styles(cells, facts.integer_valued) == 0,
+        )
     ]
     # THE POOL'S SPLIT BETWEEN THE TWO CANONICAL FORMS, PER CELL (plan
     # P3-D8.1's last clause; review item P3-V1-F7). Everything above is
@@ -2924,7 +3747,46 @@ def _style_checks(
     # subcheck existed the validator did not, and a twin holding `2.50`
     # where its value's canonical text is `2.5` passed every style
     # check.
-    for style in (parsing.STYLE_DECIMAL, parsing.STYLE_EXPONENT_LOWER):
+    #
+    # AND A POOLED FORM'S CEILING IS READ THROUGH THE FILE'S OWN
+    # DESCRIPTION TOO (review item P3-V2-D-F2). A cell written in a form
+    # that description POOLS is a cell it does not name, so a verdict
+    # that counted the pooled cells of one form and reported whether
+    # they were canonical would tell two pooled files apart -- which is
+    # what the `1E5`/`1e5` witness did here, this subcheck HELD on one
+    # file and MISSED on the other for two descriptions that were byte
+    # for byte the same. Where the form is pooled the ceiling is reported
+    # only where the ROOM that description leaves the form settles it: a
+    # form the pool cannot fill past the ceiling is HELD whatever those
+    # cells wear, because a cell that is not canonical IN a form is
+    # first of all a cell in that form.
+    #
+    # WHERE THE FORM IS NAMED the verdict is shown, and that is an OPEN
+    # RESIDUAL stated here rather than papered over. It still tells two
+    # files apart that the producer describes byte for byte alike:
+    # measured, forty whole numbers beside twenty halves written `1.5`
+    # against the same twenty written `01.5` -- same form, same values,
+    # one description -- give this subcheck HELD on the first and MISSED
+    # on the second against a candidate publishing no `decimal` count.
+    #
+    # WHY IT IS NOT CLOSED HERE, as an argument and not as a preference.
+    # The odd cells of a form are a subset of that form's cells, so
+    # `odd(s) <= r(s)`, and `r(s)` is the most the file's own description
+    # settles. Settling this clause from that description alone therefore
+    # gives HELD wherever `r(s) <= p(s)` and nothing wherever it does not
+    # -- so the subcheck could never report MISSED on any file, which
+    # V3.4 and the charter both call a defect and which would make it a
+    # LISTING on every description. That reverses plan P3-D8.1's ratified
+    # ceiling and takes review item P3-V1-F7's repair with it, and it is
+    # an owner's decision to make, in the plan, not one to take inside a
+    # function. Amendment A-P3-3 clause 1 records it as open.
+    for style in _ceilinged_styles(column, facts):
+        odd = _noncanonical_cells(cells, style, facts.integer_valued)
+        settled: bool | None = odd <= named(style)
+        if style not in own:
+            settled = _window_at_most(
+                (0, window((style,))[1]), odd, named(style)
+            )
         checks = checks + [
             _silent(
                 name,
@@ -2935,8 +3797,8 @@ def _style_checks(
                     f"{style} form in any way but their own value's "
                     f"canonical spelling"
                 ),
-                _noncanonical_cells(cells, style, facts.integer_valued)
-                <= named(style),
+                settled,
+                _GATE_POOLED,
             )
         ]
     measured = _map_at(block, "numeric_styles")
@@ -2957,7 +3819,94 @@ def _style_checks(
     return checks
 
 
-def _style_subchecks(facts: contract.NumericFacts) -> "list[str]":
+def _floor_styles(facts: contract.NumericFacts) -> "list[str]":
+    """The three floor forms this description actually asks for.
+
+    Contract 7.5.7 makes the published count of these three forms a
+    FLOOR: the recount must be at least the published number. Where the
+    description publishes none of a form, "at least none" is an
+    obligation every file on earth meets -- so it is not an obligation
+    at all, and emitting it as an executable subcheck is the vacuity
+    V3.4 refuses by name (review item P3-V2-B-F10). The census counted
+    thirteen such lines as HELD across the five suite fixtures, which
+    made the held count say that something had been checked that
+    nothing could have failed.
+
+    NOTHING IS LOWERED BY LEAVING THEM OUT. The form is still governed
+    where the description says anything about it at all: its published
+    key carries `styles.published.<form>`, and both canonical forms
+    carry `styles.canonical.<form>`, whose ceiling of zero non-canonical
+    cells is exactly what a description publishing none of that form
+    asks for. What goes is a comparison against nothing.
+
+    Guarantees:
+
+    - Inputs: one column's published numeric facts. Nothing else.
+    - Determinism: a fixed function of the published style map, in the
+      contract's own order.
+    - Errors raised: none.
+    """
+    asked: list[str] = []
+    for style in (
+        parsing.STYLE_PLAIN,
+        parsing.STYLE_DECIMAL,
+        parsing.STYLE_EXPONENT_LOWER,
+    ):
+        if _counted(facts.numeric_styles, style) > 0:
+            asked = asked + [style]
+    return asked
+
+
+def _ceilinged_styles(
+    column: contract.ColumnBlock, facts: contract.NumericFacts
+) -> "list[str]":
+    """The canonical forms whose ceiling this description can be over.
+
+    REVIEW ITEM P3-V2-C-F1, and plan amendment A-P3-2, which records the
+    lowering in those words. The ceiling P3-D8.1 ratifies is the
+    PUBLISHED count of cells in the form: at most `p(s)` of the cells
+    written in form `s` may carry anything but their own value's
+    canonical text, because the pooled cells -- the ones the count does
+    not name -- are the ones that owe it. The arithmetic is right and it
+    is the ratified clause; what was wrong was filing it where it cannot
+    bite. A column of two hundred and forty cells publishing two hundred
+    and forty `decimal` ones has a ceiling of two hundred and forty and
+    admits every file that carries the rows the description publishes,
+    so every cell of it could be re-spelled and the check still HELD.
+
+    So the entry is filed where a file of the PUBLISHED LENGTH can carry
+    more cells in that form than the ceiling licenses -- `p(s)` below
+    the description's own row count -- and is a listing entry otherwise,
+    with a sentence saying the description already names that form for
+    every cell the file can hold. A longer file can exceed it, and such
+    a file misses `rows.n_rows` and every count taken over the cells;
+    what it no longer does is contribute a MISSED line here, and that is
+    the whole of what this costs.
+
+    NOTHING THIS CHANGE TOUCHES IS THE PER-CELL OBLIGATION. Every cell
+    still owes a spelling of its own value in one of the six forms, on
+    every column, and `styles.spelled` is that check.
+
+    Guarantees:
+
+    - Inputs: one published column and its numeric facts. No measured
+      value, because which obligations exist is a function of the
+      description alone.
+    - Determinism: a fixed function of the published style map and the
+      published row count, in the contract's own order.
+    - Errors raised: none.
+    """
+    rows = column.n_present + column.n_missing
+    asked: list[str] = []
+    for style in (parsing.STYLE_DECIMAL, parsing.STYLE_EXPONENT_LOWER):
+        if _counted(facts.numeric_styles, style) < rows:
+            asked = asked + [style]
+    return asked
+
+
+def _style_subchecks(
+    column: contract.ColumnBlock, facts: contract.NumericFacts
+) -> "list[str]":
     """Every style obligation this column carries, in the order they are
     built.
 
@@ -2975,17 +3924,12 @@ def _style_subchecks(facts: contract.NumericFacts) -> "list[str]":
         )
     ]
     named = named + [
-        f"styles.at-least.{style}"
-        for style in (
-            parsing.STYLE_PLAIN,
-            parsing.STYLE_DECIMAL,
-            parsing.STYLE_EXPONENT_LOWER,
-        )
+        f"styles.at-least.{style}" for style in _floor_styles(facts)
     ]
-    named = named + ["styles.spill", "styles.remainder"]
+    named = named + ["styles.spill", "styles.remainder", "styles.spelled"]
     named = named + [
         f"styles.canonical.{style}"
-        for style in (parsing.STYLE_DECIMAL, parsing.STYLE_EXPONENT_LOWER)
+        for style in _ceilinged_styles(column, facts)
     ]
     for style in sorted(facts.numeric_styles):
         if style == taxonomy.SUPPRESSED_LABEL:
@@ -3072,6 +4016,231 @@ def _noncanonical_cells(
         if body != _canonical_text(value, whole_column):
             odd = odd + 1
     return odd
+
+
+def _figures_of(value: float) -> "tuple[str, str, int]":
+    """The shortest round-trip figures of one value, and its point.
+
+    WRITTEN FROM THE DOCUMENT, NOT IMPORTED (V1.4, V4.2), exactly as
+    `_canonical_text` above is. Returns the sign, the figures and the
+    position of the decimal point relative to them, so that
+    `value = 0.figures x 10 ** point` -- the three pieces G6.2 names,
+    and the three every spelling in G6.3 is built from. The figures are
+    the shortest decimal string that reads back as exactly this number,
+    which is what `repr` of a float produces, and G6.2 says so in as
+    many words.
+
+    Guarantees:
+
+    - Inputs: one finite binary64. Sensible only for a value a written
+      cell read back as.
+    - Determinism: the answer depends only on the value.
+    - Errors raised: none for a finite value.
+    - Boundary: no I/O of any kind, and nothing measured travels out --
+      the figures come from the NUMBER a cell read back as, never from
+      the cell's own characters.
+    """
+    text = repr(value)
+    sign = ""
+    body = text
+    if text[:1] == "-":
+        sign = "-"
+        body = text[1:]
+    mantissa = body
+    exponent = 0
+    marker = -1
+    for index in range(len(body)):
+        if body[index] == "e":
+            marker = index
+    if marker >= 0:
+        mantissa = body[:marker]
+        exponent = int(body[marker + 1 :])
+    point = -1
+    for index in range(len(mantissa)):
+        if mantissa[index] == ".":
+            point = index
+    if point < 0:
+        figures = mantissa
+        place = len(mantissa) + exponent
+    else:
+        figures = f"{mantissa[:point]}{mantissa[point + 1 :]}"
+        place = point + exponent
+    lead = 0
+    while lead < len(figures) - 1 and figures[lead] == "0":
+        lead = lead + 1
+    figures = figures[lead:]
+    place = place - lead
+    end = len(figures)
+    while end > 1 and figures[end - 1] == "0":
+        end = end - 1
+    figures = figures[:end]
+    if figures == "0":
+        return sign, "0", 1
+    return sign, figures, place
+
+
+def _fixed_text(sign: str, figures: str, place: int) -> str:
+    """G6.3's `decimal` spelling: the figures in full, with a point."""
+    if place <= 0:
+        return f"{sign}0.{'0' * (-place)}{figures}"
+    if place >= len(figures):
+        return f"{sign}{figures}{'0' * (place - len(figures))}.0"
+    return f"{sign}{figures[:place]}.{figures[place:]}"
+
+
+def _exponent_text(sign: str, figures: str, place: int, marker: str) -> str:
+    """G6.3's two exponent spellings: `d[.ddd]e+XX`, sign always written."""
+    power = place - 1
+    body = figures[:1]
+    if len(figures) > 1:
+        body = f"{figures[:1]}.{figures[1:]}"
+    lead = "+"
+    if power < 0:
+        lead = "-"
+    return f"{sign}{body}{marker}{lead}{abs(power):02d}"
+
+
+def _point_free_text(value: float, canonical: str) -> "str | None":
+    """G6.2's point-free spelling, or None where the value has none.
+
+    A whole value's figures with its trailing zeros written out and no
+    point and no exponent, AT ANY WIDTH -- owner decision 10 withdrew
+    the sixteen-figure ceiling, which belongs to the canonical spelling
+    of a number inside a profile document and not to a cell of a twin.
+    Where the value is not whole no point-free spelling of it exists,
+    and this says so rather than handing back the canonical text: the
+    caller is asking which spellings the six styles can write, and
+    `plain` cannot write this one.
+    """
+    if "." not in canonical and "e" not in canonical and "E" not in canonical:
+        return canonical
+    sign, figures, place = _figures_of(value)
+    if figures == "0":
+        return "0"
+    if place >= len(figures):
+        return f"{sign}{figures}{'0' * (place - len(figures))}"
+    return None
+
+
+def _permitted_spellings(
+    value: float, whole_column: bool
+) -> "tuple[str, ...]":
+    """Every base text the six styles of G6.1 can write for one value.
+
+    THE FAMILY, WRITTEN OUT FROM THE METHOD (G6.1's table, G6.3's five
+    alternates, G6.2's canonical). `plain` writes the point-free
+    spelling; `decimal` writes the figures in fixed point; the two
+    exponent styles write them in exponent notation with their own case;
+    and the canonical spelling stands in wherever a style has nothing
+    else to write -- which is what `leading_plus` falls back to for a
+    value with no point-free spelling, so the `+` is offered in front of
+    EVERY base a non-negative value has and not only in front of the
+    point-free one. The LEADING-ZERO FAMILY is not here: it is zeros
+    written straight after the sign of any of these, at any order, and
+    `_wears` below is what admits it, because its order has no ceiling
+    and a set of texts could not hold it.
+
+    THE FAMILY IS GENEROUS ON PURPOSE where the method leaves a choice.
+    A text this holds that no style would actually have chosen costs a
+    MISS the aggregate style counts make anyway; a text this omits costs
+    a MISSED verdict against a conforming twin, which is the direction
+    nothing may drift in.
+    `test_the_spelling_family_accepts_every_spelling_the_generator_writes`
+    holds the two writings of G6.3 to agreeing over every style, every
+    leading-zero order and the values that pin G6.2's own boundaries.
+
+    Guarantees:
+
+    - Inputs: one finite binary64 and whether the column publishes that
+      every value is a whole number. No measured text.
+    - Determinism: a fixed function of those two.
+    - Errors raised: none.
+    - Boundary: every text returned is computed from the NUMBER, so
+      nothing a file spells can travel out through here.
+    """
+    canonical = _canonical_text(value, whole_column)
+    sign, figures, place = _figures_of(value)
+    spellings = [
+        canonical,
+        _fixed_text(sign, figures, place),
+        _exponent_text(sign, figures, place, "e"),
+        _exponent_text(sign, figures, place, "E"),
+    ]
+    plain = _point_free_text(value, canonical)
+    if plain is not None:
+        spellings = spellings + [plain]
+    plussed: list[str] = []
+    for spelling in spellings:
+        if spelling[:1] != "-":
+            plussed = plussed + [f"+{spelling}"]
+    return tuple(spellings + plussed)
+
+
+def _wears(text: str, spelling: str) -> bool:
+    """Whether one cell's text is one base spelling, at any zero order.
+
+    Owner decision 8's invention family is `order` zeros written
+    straight after the sign, and it is available inside every style but
+    `plain` -- where a zero in front of a plain spelling is exactly what
+    makes the cell `leading_zero`, so the same test covers both. The
+    order has no ceiling, so this strips rather than enumerates: the
+    sign, then any run of zeros, then the base spelling's own body,
+    ending exactly where the text ends.
+    """
+    lead = ""
+    body = spelling
+    if spelling[:1] == "-" or spelling[:1] == "+":
+        lead = spelling[:1]
+        body = spelling[1:]
+    if text[: len(lead)] != lead:
+        return False
+    rest = text[len(lead) :]
+    if len(rest) < len(body):
+        return False
+    cut = len(rest) - len(body)
+    if rest[cut:] != body:
+        return False
+    for character in rest[:cut]:
+        if character != "0":
+            return False
+    return True
+
+
+def _cells_outside_the_styles(
+    cells: "list[str]", whole_column: bool
+) -> int:
+    """How many written cells are in no permitted spelling of their value.
+
+    REVIEW ITEM P3-V2-C-F1. G6.1 says a numeric cell is written in
+    exactly one of six styles "and in no other form", and G6.3 fixes
+    what each of the six writes for a value. This is that sentence,
+    counted per cell from the value alone: the text is read off the
+    file, the texts it is compared against are computed from the number
+    that text reads back as, and nothing between them is a generator's
+    bookkeeping.
+
+    A cell that does not read back as a number this format holds is not
+    counted here. What it IS -- unreadable, out of range, contradictory
+    -- is its own published count and its own subcheck; asking this
+    question of it as well would report one fault twice.
+    """
+    outside = 0
+    for cell in cells:
+        body = parsing.trimmed(cell)
+        if not body:
+            continue
+        if parsing.classify_number(body) != parsing.NUMBER:
+            continue
+        value = parsing.parse_number(body)
+        if value is None:
+            continue
+        worn = False
+        for spelling in _permitted_spellings(value, whole_column):
+            if _wears(body, spelling):
+                worn = True
+        if not worn:
+            outside = outside + 1
+    return outside
 
 
 def _floor_governed(
@@ -3278,6 +4447,16 @@ def _variant_map(
     The map's KEYS are spellings; a difference is reported as a verdict
     and never by naming a spelling the measured file holds. What the
     line names is the description's own label.
+
+    A LEVEL THE FILE DOES NOT CARRY MISSES THIS, it does not withhold it
+    (review item P3-V2-A1). Where the file's own description publishes
+    levels but not this one, the file holds fewer rows of it than the
+    floor and possibly none -- so it cannot be holding the published
+    spellings of it either, and the verdict follows from what
+    `levels.<label>.count` has already said out loud on the line above.
+    Withholding it instead would have been silence bought by dropping a
+    published label altogether, and it sat oddly beside
+    `_level_spelling`, which has always MISSED on exactly this case.
     """
     published = (
         level.variants if field == "variants" else level.variants_withheld
@@ -3285,8 +4464,10 @@ def _variant_map(
     fact = f"label.{field}"
     subcheck = f"levels.{level.label}.{field}"
     shown = _shown_count(len(published))
-    if measured is None or entry is None:
+    if measured is None:
         return Check(name, fact, subcheck, WITHHELD, shown, "", _GATE_CLOSED)
+    if entry is None:
+        return _silent(name, fact, subcheck, shown, False)
     found = _map_at(entry, field)
     if found is None:
         return Check(name, fact, subcheck, WITHHELD, shown, "", _GATE_CLOSED)
@@ -3990,6 +5171,29 @@ def _listings(
                     _NOT_CHECKABLE_REPORT_ONLY,
                 )
             ]
+        # THE AXIS THAT IS A FACT ABOUT THE DESCRIPTION (review item
+        # P3-V2-C-F3; plan amendment A-P3-2). The other three axes are
+        # read back off the file's own description and a file can make
+        # each of them differ; this one is computed from the
+        # declaration list the file is described under, so it reads the
+        # same word on both sides whatever the file holds.
+        listings = listings + [
+            Listing(
+                column.name,
+                "universal.structural_role",
+                "axes.structural_role",
+                _NOT_CHECKABLE_DECLARED_AXIS,
+            )
+        ]
+        if not _position_is_evidencible(column, headed):
+            listings = listings + [
+                Listing(
+                    column.name,
+                    "universal.position",
+                    "position.at",
+                    _NOT_CHECKABLE_FIRST_COLUMN,
+                )
+            ]
         facts = column.facts
         if isinstance(facts, contract.DatetimeFacts):
             listings = listings + [
@@ -4012,9 +5216,49 @@ def _listings(
                 )
                 for field in ("mean", "std", "skew")
             ]
+        if isinstance(facts, contract.NumericFacts):
+            listings = listings + _unbounded_style_listings(column, facts)
         listings = listings + _corner_listings(
             column, _corner_names(corners, column.name)
         )
+    return listings
+
+
+def _unbounded_style_listings(
+    column: contract.ColumnBlock, facts: contract.NumericFacts
+) -> "list[Listing]":
+    """The numeric obligations this description leaves nothing to check.
+
+    Two of them, both review items of round 2 and both recorded in plan
+    amendment A-P3-2: the canonical-form ceiling a description licenses
+    every cell against (`_ceilinged_styles`), and the skew whose G12.3
+    window is the statistic's whole attainable range
+    (`_skew_admits_every_value`). Each is an obligation the description
+    states and no file of the length it publishes can be found to miss,
+    so each is a line in the NOT-CHECKABLE census with the sentence that
+    says why, and neither is counted toward a pass.
+    """
+    listings: list[Listing] = []
+    for style in (parsing.STYLE_DECIMAL, parsing.STYLE_EXPONENT_LOWER):
+        if style in _ceilinged_styles(column, facts):
+            continue
+        listings = listings + [
+            Listing(
+                column.name,
+                "numeric.numeric_styles",
+                f"styles.canonical.{style}",
+                _NOT_CHECKABLE_STYLE_CEILING,
+            )
+        ]
+    if _skew_admits_every_value(column, facts):
+        listings = listings + [
+            Listing(
+                column.name,
+                "numeric.skew",
+                "moments.skew",
+                _NOT_CHECKABLE_SKEW_UNBOUNDED,
+            )
+        ]
     return listings
 
 
@@ -4091,7 +5335,9 @@ def _zero_row_listings(
     """
     listings = _listings(description, headed)
     for column in description.columns:
-        for check in _obligations(description, column, [], {}, None, headed):
+        for check in _obligations(
+            description, column, [], {}, {}, None, headed
+        ):
             listings = listings + [
                 Listing(
                     check.column,
@@ -4101,8 +5347,16 @@ def _zero_row_listings(
                 )
             ]
     if headed:
+        # The headed form's structural facts are CHECKS, not listings:
+        # its file carries a header line and that line evidences them
+        # (`_zero_row_structure`; review item P3-V2-E-F5).
         return listings
+    # ONE LISTING, NOT TWO (review item P3-V2-E-F5). `universal.position`
+    # is bound already, once per column, by the walk above -- the same
+    # walk that binds every other per-column obligation. A second
+    # document-level line for the same fact bound it twice and counted
+    # one obligation the description does not set: V3.3 forbids a
+    # double binding in the same words it forbids an unbound one.
     return listings + [
         Listing("", "document.n_columns", "", _NOT_CHECKABLE_ZERO_ROWS),
-        Listing("", "universal.position", "", _NOT_CHECKABLE_ZERO_ROWS),
     ]

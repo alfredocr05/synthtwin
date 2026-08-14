@@ -108,7 +108,7 @@ def _outputs(folder: pathlib.Path) -> "tuple[pathlib.Path, pathlib.Path]":
 
 def _table(folder: pathlib.Path) -> pathlib.Path:
     table = folder / "clinic.csv"
-    table.write_text(TABLE_TEXT, encoding="utf-8")
+    table.write_text(TABLE_TEXT, encoding="utf-8", newline="\n")
     return table
 
 
@@ -212,7 +212,7 @@ def test_a_working_name_that_is_the_table_itself_is_passed_over(
 ) -> None:
     # The table happens to be named where a working file would go.
     table = tmp_path / f"clinic-profile.json{profile.PART_SUFFIX}-1"
-    table.write_text(TABLE_TEXT, encoding="utf-8")
+    table.write_text(TABLE_TEXT, encoding="utf-8", newline="\n")
     first, second = _outputs(tmp_path)
 
     profile.write_both_files(

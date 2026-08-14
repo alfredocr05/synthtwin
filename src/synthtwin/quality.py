@@ -8,11 +8,23 @@ split and is not: `rendering.py` imports the generation module, and the
 generation module imports a random number generator. The Phase 3 plan
 (P3-D1) makes two promises about a `validate` run -- that it never
 imports the generator, whose planning defects a second opinion may not
-inherit, and that no random source is in its closure at all. A quality
-report living in `rendering.py` would break both the moment the command
-imported it. So the twin's two artifacts are rendered there and the
-check's one artifact is rendered here, and each module imports only what
-its own command may reach.
+inherit, and that it consumes no randomness. A quality report living in
+`rendering.py` would break both the moment the command imported it. So
+the twin's two artifacts are rendered there and the check's one artifact
+is rendered here, and each module imports only what its own command may
+reach.
+
+WHAT THE SECOND PROMISE DOES AND DOES NOT SAY (amendment A-P3-4, review
+item P3-V2-F-F2). It used to be written here as "no random source is in
+its closure at all", and that sentence was false. A validate run must
+read a CSV, reading a CSV means pandas, and pandas imports numpy, which
+brings `numpy.random` into the process -- a live `default_rng` is
+reachable by attribute from this very module. What is true, and what is
+enforced, is narrower and is the property the report's bytes actually
+depend on: no module of this package on the validate path imports a
+random source, and a validate run DRAWS from none. The second half is
+not a hope; `tests/test_cli_validate.py` traps every door in the
+process and runs the whole command at them.
 
 WHAT THE SUMMARY MAY SAY, AND WHAT NO WORDING HERE CAN SAY (V7.2). The
 summary is generated FROM THE CENSUS ALONE -- five verdict counts and
@@ -25,11 +37,18 @@ BESIDE it rather than being folded into it.
 
 WHAT NEVER REACHES THIS MODULE. A string read from the measured file.
 `validation` guarantees that no field of any result holds one, so every
-name printed here is the description's own published text and every
-other word is fixed by this module or by that one. Nothing here opens a
-file, and nothing here knows what path anything was read from or will be
-written to: the report names no path, so the same check writes the same
-bytes wherever its file is put (V10).
+name printed here is either the description's own published text or the
+measured file's NAME off the command line, and every other word is fixed
+by this module or by that one. Nothing here opens a file, and nothing
+here knows a PATH: the outcome carries the last component of the name
+the person typed and no folder above it, so the report says which file
+it is about (V7.1) and the same check still writes the same bytes
+wherever its file is put (V10).
+
+The name is here because the report used to say "It is a report about
+ONE file" and never say which, while its own file name came from the
+DESCRIPTION -- so measuring `tampered.csv` wrote `clinic-twin-quality.txt`,
+beside the twin, naming the twin, about neither (review item P3-V2-G).
 
 THE DISPLAY BOUNDARY (contract 13.5). Every interpolated string passes
 `parsing.visible` ONCE, on its way into a line -- a published label out
@@ -39,8 +58,11 @@ finished text through `parsing.visible_lines` on its way to the screen
 and to disk, exactly as the twin's report is treated.
 
 Imports here stay within the allowlist (plan D6.2): this module imports
-only from this package, and only modules that reach neither the
-generator nor a random source.
+only from this package, and only modules that reach the generator
+through no route and import a random source in none of their own
+source. `validation` reaches `reading` and `reading` reaches pandas, so
+`numpy.random` is in the process by way of this module's own imports;
+what no module in that chain does is ask it for a number.
 """
 
 from synthtwin import contract, parsing, validation
@@ -57,7 +79,14 @@ _VERDICT_WORDS = {
     validation.AUTHORIZED_DEVIATION: (
         "a lesser outcome the plan authorizes here"
     ),
-    validation.WITHHELD: "measured, and not shown -- see below",
+    # NOT "measured, and not shown" (review item P3-V2-E-F6). That gloss
+    # was true of one class of withholding and false of the others, and
+    # the class it was true of is gone: the presence-split withholds it
+    # was written for are measurements now (amendment V2.4-A1). What is
+    # true of every withheld line is that nothing is shown and the line
+    # says why, so that is what the word says. The per-line citation
+    # carries the reason, and the section further down names both.
+    validation.WITHHELD: "not shown -- the line below says why",
     validation.MISSED: "set by the description, not met by this file",
 }
 
@@ -118,21 +147,42 @@ def checkable_total(census: validation.Census) -> int:
     return total
 
 
-def _opening_lines(description: contract.Profile) -> "list[str]":
-    """What this file is, before any count is stated."""
+def _opening_lines(
+    description: contract.Profile, measured_name: str
+) -> "list[str]":
+    """What this file is and which file it is about, before any count.
+
+    THE NAME COMES FIRST FOR A REASON (review item P3-V2-G). This report
+    used to say "It is a report about ONE file" and then never say
+    which. Its own file name was built from the DESCRIPTION's name, so
+    measuring `tampered.csv` against `clinic-profile.json` wrote
+    `clinic-twin-quality.txt`, whose bytes contained the word `tampered`
+    nowhere at all: a report named after the twin, sitting beside the
+    twin, about a different file, with nothing in it that let a reader
+    tell. Which file was measured is also the one fact about the run
+    that a reader cannot recover from anywhere else once the shell
+    scrollback is gone -- the description is named by the file's own
+    name, the verdicts are in the body, and the measured file existed
+    only in the command line.
+    """
     return [
         _RULE,
         "synthtwin: how one file measured up to a description",
         _RULE,
         "",
-        "synthtwin read a description and one CSV file, described that",
-        "file again with the same rules the description was made with,",
-        "and compared the two. This report is what it found.",
+        f"THE FILE MEASURED: {_shown(measured_name)}",
         "",
-        "It is a report about ONE file. synthtwin was not told, and has",
-        "no way of telling, whether the file it measured is the twin",
-        "built from this description, some other synthetic file, or a",
-        "real table: nothing in a CSV proves where its rows came from.",
+        "synthtwin read a description and that one CSV file, described",
+        "the file again with the same rules the description was made",
+        "with, and compared the two. This report is what it found.",
+        "",
+        "It is a report about THAT ONE file and no other. The name above",
+        "is the name the file was given on the command line; where it",
+        "sits is not recorded here, so this report says the same thing",
+        "wherever it is kept. synthtwin was not told, and has no way of",
+        "telling, whether the file it measured is the twin built from",
+        "this description, some other synthetic file, or a real table:",
+        "nothing in a CSV proves where its rows came from.",
         "",
         (
             f"The description publishes "
@@ -494,7 +544,11 @@ def _handling_lines() -> "list[str]":
         "",
         "This report holds counts and measurements taken from the file it",
         "checked, and the file it checked was built from -- or is -- data",
-        "derived from a real table. All four files a full run produces --",
+        "derived from a real table. It also holds the NAME of that file,",
+        "at the top, because a report that does not say what it measured",
+        "can be read as being about a file it is not -- so if you chose a",
+        "file name that says something about your study, this report",
+        "carries it wherever it goes. All four files a full run produces --",
         "the description, the twin, the twin's report and this quality report",
         "-- carry facts computed from your real data. Keep all four",
         "under the rules your institution applies to the table itself, and",
@@ -511,11 +565,27 @@ def _handling_lines() -> "list[str]":
         "this report checking that count does not change it.",
         "synthtwin offers no formal privacy guarantee.",
         "",
-        "Where a measurement in this report would have said more about the",
-        "file than describing that file on its own would publish, it was",
-        "WITHHELD: neither the number nor its outcome is shown. That is why",
-        "a withheld count stands on the verdict above rather than being",
-        "quietly dropped.",
+        "Some obligations carry no verdict at all and the report says",
+        "WITHHELD where the verdict would have stood. One rule puts them",
+        "there: this report may say about the file it checked only what",
+        "describing THAT FILE on its own would publish about it. It",
+        "happens two ways, and the line itself says which.",
+        "",
+        "  Describing the file publishes no measurement of that kind at",
+        "  all. A column the description calls numbers, holding words",
+        "  here, has no average for an average to be compared with, and",
+        "  nothing was measured.",
+        "  Describing the file publishes the kind and pools the number.",
+        "  A group fewer rows carry than the publication floor is never",
+        "  named in any description -- that is what the floor is for --",
+        "  so a count of it is not something a description of this file",
+        "  carries either. The comparison was made; what cannot be shown",
+        "  is which way it came out, because two files no description",
+        "  tells apart would come out differently.",
+        "",
+        "A withheld count therefore stands on the verdict above rather",
+        "than being quietly dropped: the obligation was set, and this",
+        "report is not able to tell you whether this file met it.",
     ]
 
 
@@ -529,20 +599,29 @@ def quality_report(
     - Inputs: the description this check was run against, loaded by
       `contract.load_profile`, and the outcome `validation.measure`
       produced from it. Nothing else: no path, no table, no file, no
-      clock. The report names no file path, so the same check writes the
-      same report wherever its file is put.
+      clock. The report names the measured file -- its NAME, carried on
+      the outcome, never a folder and never a path -- so the same check
+      writes the same report wherever its file is put, and a reader who
+      finds the file later can tell what it is about (V7.1).
     - Determinism: a fixed function of those two values, which makes the
-      report's bytes a fixed function of the description's bytes and the
-      measured file's bytes (V10). Every list it prints is in the
-      description's own order, and nothing consults the environment or a
-      random source. No random source is reachable from this module at
-      all.
+      report's bytes a fixed function of the description's bytes, the
+      measured file's name and the measured file's bytes (V10). The name
+      is an input to the bytes and is stated as one: the same file
+      renamed and measured again gives a different report, which is the
+      whole point of printing it. Every list it prints is in the
+      description's own order, and nothing here consults the environment
+      or draws from a random source. One is reachable by attribute --
+      this module imports `validation`, which imports `reading`, which
+      imports pandas -- and saying otherwise was a false guarantee
+      (amendment A-P3-4). Nothing here asks it for anything.
     - Errors raised: none, for a description the loader accepted and an
       outcome measured from it.
     - Boundary: no file is opened and no file is written. No string read
       from the measured file appears anywhere in the text -- the outcome
       carries none, by `validation`'s own guarantee -- so every name here
-      is the description's own published text.
+      is either the description's own published text or the measured
+      file's name off the command line, and both pass the display
+      boundary the same way.
     - Display: every interpolated string passes `parsing.visible` once
       on its way into a line (contract 13.5). The caller puts the
       finished text through `parsing.visible_lines` on its way to the
@@ -562,7 +641,7 @@ def quality_report(
     it and are never folded into it. No wording available to this module
     can say that every published fact was found.
     """
-    lines = _opening_lines(description) + [""]
+    lines = _opening_lines(description, outcome.measured_name) + [""]
     lines = lines + _summary_lines(outcome.census) + [""]
     lines = lines + _bounds_lines() + [""]
     lines = lines + _detail_lines(outcome)

@@ -39,9 +39,13 @@ made with. What it does NOT import is the generator: a check that called
 the planner would inherit every planning defect of the thing it is
 checking, which is the one thing a second opinion may not do, and the
 generator is where this package's only random number generator lives, so
-importing it would put a random source in the closure of a command whose
-bytes must be a fixed function of its two files. That is also why the
-quality report is rendered by `quality` rather than by `rendering`:
+importing it would put THIS PACKAGE's random source in the reach of a
+command whose bytes must be a fixed function of its two files. (Another
+one is already in the process, and it is honest to say so here: the
+reader needs pandas, pandas imports numpy, and numpy brings
+`numpy.random` with it. What the validate path does with it is nothing
+-- amendment A-P3-4.) That is also why the quality report is rendered by
+`quality` rather than by `rendering`:
 `rendering` imports the generator, so a validate run that reached it
 would cross both of those lines at once.
 
@@ -129,10 +133,28 @@ _PROFILE_MARK = "-profile"
 _TWIN_SUFFIX = "-twin.csv"
 _REPORT_SUFFIX = "-twin-report.txt"
 
-# And the one file `validate` writes, by the same construction (plan
-# P3-D1). It collides with none of the other four by construction: those
-# end '-profile.json', '-profile.txt', '-twin.csv' and '-twin-report.txt'.
-_QUALITY_SUFFIX = "-twin-quality.txt"
+# And the one file `validate` writes -- added to the name of the file it
+# MEASURED, not to the name of the description (plan P3-D1, amendment
+# A-P3-4). It collides with none of the other four by construction:
+# those end '-profile.json', '-profile.txt', '-twin.csv' and
+# '-twin-report.txt'.
+#
+# WHY THE MEASURED FILE AND NOT THE DESCRIPTION (review item P3-V2-G).
+# One description makes one twin, so naming the twin after the
+# description binds them; but one description can be measured against
+# ANY NUMBER of files, and naming the report after the description broke
+# exactly that binding. `validate clinic-profile.json --twin
+# tampered.csv` wrote `clinic-twin-quality.txt` -- a report named after
+# the twin, beside the twin, about a different file. Checking a second
+# candidate was then refused for a name clash that had nothing to do
+# with what was measured, or with `--replace` silently replaced the
+# first file's report under the first file's name.
+#
+# The ordinary run's name does not move: the default measured file is
+# `<stem>-twin.csv`, so the report is still `<stem>-twin-quality.txt`
+# and the command a finished `generate` teaches still writes the file it
+# always wrote.
+_QUALITY_SUFFIX = "-quality.txt"
 
 _STATUS = """synthtwin {version}
 
@@ -210,7 +232,10 @@ _HELP_EPILOG = """examples:
       data-twin-quality.txt beside it
 
   synthtwin validate data-profile.json --twin somewhere/other.csv
-      measure that file instead of the twin beside the description
+      measure that file instead of the twin beside the description,
+      and write other-quality.txt: the report is named after the file
+      it is about, so checking a second file never overwrites the
+      first one's report
 """
 
 
@@ -438,7 +463,10 @@ def _parse_arguments(argv: "list[str] | None") -> _Options:
             "twin beside the description, the file 'generate' wrote). "
             "synthtwin measures whatever file you name here: it has no "
             "way of telling a twin of its own from any other CSV, and "
-            "the report says so. Used by 'validate' only"
+            "the report says so. The report is named after this file "
+            "and names it in its first lines, so checking a second file "
+            "never writes over the first one's report. Used by "
+            "'validate' only"
         ),
     )
     parser.add_argument(
@@ -1110,20 +1138,33 @@ def _teaching_validate(
 
 
 def _quality_path(
-    description: pathlib.Path, out_dir: "str | None"
+    description: pathlib.Path, measured: str, out_dir: "str | None"
 ) -> pathlib.Path:
-    """Where the quality report goes (plan P3-D1).
+    """Where the quality report goes (plan P3-D1, amendment A-P3-4).
 
     Guarantees:
 
-    - Inputs: the path of the description this run was given, and the
-      folder the person asked for, or nothing for the folder the
-      description is in.
-    - Determinism: the same path for the same two inputs.
+    - Inputs: the path of the description this run was given, the path of
+      the file this run measures, and the folder the person asked for, or
+      nothing for the folder the description is in.
+    - Determinism: the same path for the same three inputs.
     - Errors raised: ProfileError, with a plain-language message, when a
       named folder does not exist; PathValidationError when the folder or
       the output name is not a plain local path.
     - Boundary: nothing is opened, created or written here.
+
+    THE NAME COMES FROM THE MEASURED FILE AND THE FOLDER FROM THE
+    DESCRIPTION, and both halves are deliberate. The name, because the
+    report is about the measured file and two measured files must not
+    collide on one report name -- the whole of review item P3-V2-G. The
+    folder, because `--out-dir` is where this command writes and the
+    description's folder is where the person is working; the measured
+    file may sit somewhere they cannot write at all, and a command that
+    put its output there would fail for a reason they did not choose.
+
+    Two files with the SAME name in two folders still collide, and that
+    is a real collision rather than a spurious one: the refusal names
+    the file, and `--out-dir` separates them.
 
     The exact target goes through the locality gate, not only the folder,
     for the reason `_twin_paths` gives: a link left at the report's name
@@ -1132,7 +1173,7 @@ def _quality_path(
     '-profile.json', '-profile.txt', '-twin.csv' and '-twin-report.txt'.
     """
     source = pathlib.Path(description)
-    stem = _twin_stem(f"{source.stem}")
+    stem = f"{pathlib.Path(measured).stem}"
     if out_dir is None:
         folder = pathlib.Path(source.parent)
     else:
@@ -1239,7 +1280,7 @@ def _run_validate(
 
     loaded = contract.load_profile(description)
     measured = _measured_path(description, twin_given)
-    quality_path = _quality_path(pathlib.Path(description), out_dir)
+    quality_path = _quality_path(pathlib.Path(description), measured, out_dir)
     writing.refuse_if_folder(quality_path, errors.QUALITY_WORDS)
 
     # The output must never be either file this run reads. A link left
@@ -1364,8 +1405,13 @@ def main(argv: "list[str] | None" = None) -> int:
       P1-D11); so do the same description, the same seed and the same
       version of synthtwin (plan P2-D8); and so does the quality report,
       whose bytes are a fixed function of the description's bytes, the
-      measured file's bytes and the version (V10). A validate run
-      consumes no randomness and reaches no random source at all.
+      measured file's name and bytes, and the version (V10). A validate
+      run consumes no randomness: it draws from no random source, and no
+      module of this package it reaches imports one. It does not follow
+      that none is in the process. The reader needs pandas and pandas
+      imports numpy, so `numpy.random` is loaded by any run that reads a
+      file; this used to be written as "reaches no random source at all",
+      which was false (amendment A-P3-4).
     - Errors raised: none that reach the user as a traceback. Every
       refusal in the catalog and every path rejection is caught here and
       printed as a message that says what happened and what to do next.
@@ -1400,10 +1446,12 @@ def main(argv: "list[str] | None" = None) -> int:
       `generate` run never opens a table and never reaches the module
       that can: the reader is not imported at all unless the person typed
       `profile` or `validate` (plan P2-D1, P3-D1). A `validate` run never
-      reaches the generator, so no random source is in its closure, and
-      it never writes, moves, truncates or re-encodes either of the two
-      files it read. No network, subprocess, native, or dynamic-code
-      operation is performed anywhere in the package.
+      reaches the generator, so this package's own random number
+      generator is out of its reach and its verdicts cannot inherit the
+      planner's defects; and it never writes, moves, truncates or
+      re-encodes either of the two files it read. No network,
+      subprocess, native, or dynamic-code operation is performed
+      anywhere in the package.
     - Display: nothing reaches the screen, the error stream, the summary
       file or the report file without passing the display boundary
       described at the top of this module. A path or a value carrying an

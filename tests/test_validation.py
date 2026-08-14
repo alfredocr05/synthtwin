@@ -23,6 +23,7 @@ Every table is built at test time by the seeded neutral builders in
 import csv
 import dataclasses
 import io
+import json
 import pathlib
 
 import pytest
@@ -375,25 +376,31 @@ def test_red_a_respelled_number_misses_its_style(
     assert found[0].verdict == validation.MISSED
 
 
-def test_red_a_respelled_pooled_cell_misses_the_canonical_split(
+def test_a_respelled_pooled_cell_is_withheld_because_nothing_can_see_it(
     tmp_path: pathlib.Path,
 ) -> None:
-    """NAMED SUBCHECK: styles.canonical.decimal, on a pooled cell.
+    """REVIEW ITEM P3-V2-D-F2, and what it costs P3-V1-F7's clause.
 
-    Review item P3-V1-F7, on the reviewer's own fixture. Ten `1`s beside
-    `1.5` and `2.5` publish `numeric_styles` as the single withheld key:
-    every cell of the column is POOLED, and no style is named at any
-    count. Plan P3-D8.1 says a pooled cell owes exactly its own value's
-    canonical text, because the published counts are the only licence
-    for a point-carrying spelling that is not that text -- so with no
-    count published, a `2.50` where the value's canonical text is `2.5`
-    is owed and not met.
+    This test used to assert MISSED here, and the assertion was outside
+    what the report may say. Ten `1`s beside `1.5` and `2.5` publish
+    `numeric_styles` as the single withheld key: every cell of the
+    column is POOLED. Re-spelling one pooled cell `1.50` where its
+    value's canonical text is `1.5` leaves the cell in the same form and
+    the same value, so `synthtwin profile` writes the SAME description
+    for the two files, byte for byte -- which this test now proves
+    rather than assumes. V5.1 says the report may state about a measured
+    file only what describing that file would publish about it, so a
+    verdict that told those two files apart would be stating what no
+    description of either carries, and repeated candidate descriptions
+    would then read it off the verdicts (V5.3).
 
-    Every count-based clause of the identity survives that edit
-    untouched: the value is the same number, the style is the same
-    style, the spill and the remainder balance exactly as before. The
-    whole column passed with exit 0 until this subcheck existed, which
-    is what makes it the case the clause was ratified for.
+    THE CLAUSE IS NOT GONE, AND THE SECOND HALF OF THIS TEST IS THE
+    PROOF. The same description still makes the subcheck MISS on a file
+    whose own description NAMES the form -- eleven decimal cells reach
+    the publication floor, so that file's own description carries a
+    `decimal` count and the ceiling is settled against it. What is lost
+    is the verdict on a file that keeps the form under the floor, and
+    plan amendment A-P3-3 records that in those words.
     """
     folder = tmp_path / "pooled"
     folder.mkdir()
@@ -409,7 +416,6 @@ def test_red_a_respelled_pooled_cell_misses_the_canonical_split(
     twin = _twin_text(described)
     good = _measure(folder, described, twin, "pooled-twin.csv")
     assert _missed(good) == []
-    assert _verdicts(good, "styles.canonical.decimal") == [validation.HELD]
     # One pooled cell re-spelled into a non-canonical text of the SAME
     # style and the SAME value.
     lines = twin.split("\n")
@@ -424,9 +430,186 @@ def test_red_a_respelled_pooled_cell_misses_the_canonical_split(
         changed = changed + 1
         break
     assert changed == 1
-    bad = _measure(folder, described, "\n".join(lines), "pooled-odd.csv")
-    assert (
-        _verdicts(bad, "styles.canonical.decimal") == [validation.MISSED]
+    respelled = "\n".join(lines)
+    # THE TWO FILES DESCRIBE IDENTICALLY. This is the whole reason the
+    # verdict may not be shown, so it is measured here and not asserted
+    # from memory.
+    assert _own_description(folder, respelled, "pooled-odd") == (
+        _own_description(folder, twin, "pooled-same")
+    )
+    bad = _measure(folder, described, respelled, "pooled-odd.csv")
+    assert _verdicts(bad, "styles.canonical.decimal") == [
+        validation.WITHHELD
+    ]
+    for check in bad.checks:
+        if check.subcheck != "styles.canonical.decimal":
+            continue
+        assert check.citation == validation._GATE_POOLED
+    # ...and the same description still has a file this subcheck misses
+    # on: eleven cells in the form reach the publication floor, so the
+    # file's own description names it and the ceiling is settled.
+    named = ["1" for _index in range(1)] + [
+        f"{index + 1}.50" for index in range(11)
+    ]
+    over = _measure(
+        folder,
+        described,
+        fixtures.single_column_table("reading", named),
+        "pooled-named.csv",
+    )
+    assert _verdicts(over, "styles.canonical.decimal") == [validation.MISSED]
+
+
+def _own_description(
+    folder: pathlib.Path, text: str, stem: str
+) -> str:
+    """What `synthtwin profile` writes about one file, as its bytes.
+
+    The disclosure envelope of V5.1 is exactly this string: a report may
+    state about a measured file only what describing that file would
+    publish. Two files this returns the same bytes for are two files
+    whose reports may not differ.
+    """
+    return _described(folder, text, None, stem, reading.FIRST_ROW_NAMES)[1]
+
+
+def test_two_files_one_description_get_one_report(
+    tmp_path: pathlib.Path,
+) -> None:
+    """REVIEW ITEM P3-V2-D-F2, as the property it violates (V5.1).
+
+    The witness the reviewer ran: forty numbers, thirty-nine of them
+    plain, differing only in whether the fortieth was written `1E5` or
+    `1e5`. Both spellings are pooled -- one cell is under any
+    publication floor -- so `synthtwin profile` writes the same
+    description for the two files, byte for byte. The version this
+    tests against gave them different verdicts on five style subchecks,
+    different censuses and different screen output, which states about
+    each file which form its pooled cell wore. Nine of the ten style
+    subchecks recounted the written cells and compared the recount with
+    a number the SUBMITTED description chose, and a verdict stated
+    against a chosen number is a number a run of candidate descriptions
+    can search for.
+
+    The property is the general one and not the witness: where the two
+    files describe identically, the two reports are identical.
+    """
+    folder = tmp_path / "twinned"
+    folder.mkdir()
+    plain = [f"{100 + index}" for index in range(39)]
+    upper = fixtures.single_column_table("amount", plain + ["1E5"])
+    lower = fixtures.single_column_table("amount", plain + ["1e5"])
+    assert _own_description(folder, upper, "upper") == _own_description(
+        folder, lower, "lower"
+    )
+    submitted = _describe(
+        folder,
+        fixtures.single_column_table(
+            "amount", [f"{100 + index}" for index in range(40)]
+        ),
+        stem="submitted",
+    )
+    first = _measure(folder, submitted, upper, "upper.csv")
+    second = _measure(folder, submitted, lower, "lower.csv")
+    assert first.checks == second.checks
+    assert first.listings == second.listings
+    assert first.census == second.census
+
+
+def test_no_candidate_description_can_pin_a_pooled_style_count(
+    tmp_path: pathlib.Path,
+) -> None:
+    """REVIEW ITEM P3-V2-D-F2, witness B: the search V5.3 names.
+
+    Two plain cells, one leading-zero cell and thirty-seven decimal ones
+    publish `{(withheld): 3, decimal: 37}`: the two-and-one split is
+    pooled and no description of that file names it. The reviewer walked
+    six candidate descriptions differing only in their style map and
+    found exactly one that held -- which pins the plain count at two and
+    the leading-zero count at one, both under a floor of eleven and both
+    withheld by the producer. That is verbatim the situation V5.3
+    (`docs/spec/validation-method-v1.md:253-256`) says the gate exists
+    to prevent.
+
+    The assertion is not that the search fails on these six candidates:
+    it is that no candidate settles a style subcheck of that column at
+    all, so there is nothing for a search to be run over.
+    """
+    folder = tmp_path / "search"
+    folder.mkdir()
+    values = ["100", "101", "007"] + [
+        f"{200 + index}.5" for index in range(37)
+    ]
+    text = fixtures.single_column_table("amount", values)
+    described, _ = _described(folder, text, None, "search")
+    facts = described.columns[0].facts
+    assert isinstance(facts, contract.NumericFacts)
+    assert facts.numeric_styles == {
+        taxonomy.SUPPRESSED_LABEL: 3,
+        parsing.STYLE_DECIMAL: 37,
+    }
+    settled: list[str] = []
+    for decimal in range(35, 40):
+        candidate = _with_styles(
+            folder,
+            _described(folder, text, None, "search")[1],
+            f"cand-{decimal}",
+            {
+                taxonomy.SUPPRESSED_LABEL: 40 - decimal,
+                parsing.STYLE_DECIMAL: decimal,
+            },
+        )
+        outcome = _measure(folder, candidate, text, f"cand-{decimal}.csv")
+        for check in outcome.checks:
+            pooled = check.subcheck in ("styles.spill", "styles.remainder")
+            if pooled and check.verdict != validation.WITHHELD:
+                settled = settled + [
+                    (
+                        f"decimal={decimal}: {check.subcheck} "
+                        f"{check.verdict}"
+                    )
+                ]
+    assert not settled, (
+        "a candidate description settled a subcheck whose count the "
+        "file's own description pools, which is the oracle V5.3 "
+        f"forbids: {settled}"
+    )
+
+
+def _with_styles(
+    folder: pathlib.Path,
+    written: str,
+    stem: str,
+    styles: "dict[str, int]",
+) -> contract.Profile:
+    """One written description with its first column's style map replaced.
+
+    The candidate is built as a FILE and reloaded through the strict
+    loader, because a description an attacker submits is a file and has
+    to survive every invariant that loader enforces -- which is what
+    keeps this search honest about what can actually be asked.
+    """
+    document = json.loads(written)
+    document["columns"][0]["numeric_styles"] = styles
+    target = fixtures.write_profile(folder, f"{stem}.json", document)
+    return contract.load_profile(str(target))
+
+
+def _mixed_numeric_column(
+    folder: pathlib.Path, stem: str
+) -> contract.Profile:
+    """A numeric column publishing BOTH point-free and decimal counts.
+
+    Forty whole values and twenty halves, so `numeric_styles` names
+    `plain` and `decimal` and neither count is the column's own cell
+    count. That is the shape the canonical ceiling can be exceeded on,
+    and the shape `test_the_canonical_split_still_licenses_the_published_counts`
+    needs to say anything at all.
+    """
+    values = [f"{index % 40 + 1}" for index in range(40)]
+    values = values + [f"{index % 20 + 1}.5" for index in range(20)]
+    return _describe(
+        folder, fixtures.single_column_table("amount", values), stem=stem
     )
 
 
@@ -441,25 +624,236 @@ def test_the_canonical_split_still_licenses_the_published_counts(
     that refused them would accuse the generator of doing what the
     description asked for. The pair matters as much as the red case
     does.
+
+    THE LICENSE IS SPENT IN FULL HERE, which is what makes this the
+    ceiling's own test rather than a second green run: every decimal
+    cell of the twin is re-spelled with a leading zero -- owner decision
+    8's invention family, which the contract's ladder still counts as
+    `decimal` and which reads back as the same number -- so the count of
+    non-canonical cells lands exactly ON the published count and the
+    check holds.
     """
     folder = tmp_path / "licensed"
+    folder.mkdir()
+    described = _mixed_numeric_column(folder, "licensed")
+    facts = described.columns[0].facts
+    assert isinstance(facts, contract.NumericFacts)
+    published = facts.numeric_styles.get(parsing.STYLE_DECIMAL, 0)
+    assert 0 < published < described.n_rows
+    twin = _twin_text(described)
+    outcome = _measure(folder, described, twin, "licensed-twin.csv")
+    assert _verdicts(outcome, "styles.canonical.decimal") == [validation.HELD]
+    assert _missed(outcome) == []
+    lines = twin.split("\n")
+    spent = 0
+    for index in range(1, len(lines)):
+        body = lines[index]
+        if not body:
+            continue
+        if parsing.numeric_style(body) != parsing.STYLE_DECIMAL:
+            continue
+        lines[index] = f"0{body}"
+        spent = spent + 1
+    assert spent == published
+    licensed = _measure(folder, described, "\n".join(lines), "licensed-odd.csv")
+    assert _verdicts(licensed, "styles.canonical.decimal") == [validation.HELD]
+    assert _verdicts(licensed, "styles.spelled") == [validation.HELD]
+
+
+def test_red_one_cell_over_the_licensed_count_breaks_the_ceiling(
+    tmp_path: pathlib.Path,
+) -> None:
+    """NAMED SUBCHECK: styles.canonical.decimal, one cell over the license.
+
+    The other side of the pair above. One more non-canonical decimal
+    cell than the description names is one the published counts do not
+    license, and the ceiling says so.
+    """
+    folder = tmp_path / "over"
+    folder.mkdir()
+    described = _mixed_numeric_column(folder, "over")
+    facts = described.columns[0].facts
+    assert isinstance(facts, contract.NumericFacts)
+    published = facts.numeric_styles.get(parsing.STYLE_DECIMAL, 0)
+    twin = _twin_text(described)
+    lines = twin.split("\n")
+    spent = 0
+    over = False
+    for index in range(1, len(lines)):
+        body = lines[index]
+        if not body:
+            continue
+        style = parsing.numeric_style(body)
+        if style == parsing.STYLE_DECIMAL:
+            lines[index] = f"0{body}"
+            spent = spent + 1
+            continue
+        if style == parsing.STYLE_PLAIN and not over:
+            # ONE point-free cell written as a non-canonical decimal:
+            # the file now carries one more cell of that form than the
+            # description bought a spelling for, and that one is the
+            # cell the ceiling refuses.
+            lines[index] = f"0{body}.0"
+            over = True
+    assert spent == published
+    assert over
+    outcome = _measure(folder, described, "\n".join(lines), "over-twin.csv")
+    assert _verdicts(outcome, "styles.canonical.decimal") == [
+        validation.MISSED
+    ]
+
+
+def test_the_canonical_ceiling_is_a_listing_where_it_licenses_every_cell(
+    tmp_path: pathlib.Path,
+) -> None:
+    """REVIEW ITEM P3-V2-C-F1: the ceiling that admitted every file.
+
+    Where the description publishes as many cells of a form as the file
+    has rows, the ceiling is every cell there is: no file of the
+    published length can be over it, and the shipped validator counted
+    the line HELD on every run. The pooled fixture's red case passed
+    because its published count is zero, so the repair of P3-V1-F7 was
+    green on a description shaped like the one it was written for and
+    vacuous on the ordinary one.
+
+    So the entry is a listing on such a description -- carried in the
+    NOT-CHECKABLE census with the sentence that says why -- and never a
+    verdict. The per-cell obligation it used to be confused with is
+    `styles.spelled`, which is checked here and on every numeric column.
+    """
+    folder = tmp_path / "ceiling"
     folder.mkdir()
     values = [f"{index % 20}.5" for index in range(60)]
     described = _describe(
         folder,
         fixtures.single_column_table("amount", values),
-        stem="licensed",
+        stem="ceiling",
     )
     facts = described.columns[0].facts
     assert isinstance(facts, contract.NumericFacts)
-    assert facts.numeric_styles.get(parsing.STYLE_DECIMAL, 0) > 0
-    outcome = _measure(
-        folder, described, _twin_text(described), "licensed-twin.csv"
+    assert (
+        facts.numeric_styles.get(parsing.STYLE_DECIMAL, 0) == described.n_rows
     )
-    assert _verdicts(outcome, "styles.canonical.decimal") == [
-        validation.HELD
+    outcome = _measure(
+        folder, described, _twin_text(described), "ceiling-twin.csv"
+    )
+    assert _verdicts(outcome, "styles.canonical.decimal") == []
+    listed = [
+        listing
+        for listing in outcome.listings
+        if listing.subcheck == "styles.canonical.decimal"
     ]
+    assert len(listed) == 1
+    assert listed[0].fact == "numeric.numeric_styles"
+    assert listed[0].reason
+    assert _verdicts(outcome, "styles.spelled") == [validation.HELD]
     assert _missed(outcome) == []
+
+
+def test_the_spelling_family_accepts_every_spelling_the_generator_writes(
+) -> None:
+    """The other half of `styles.spelled`: it may not accuse a twin.
+
+    A check counting cells "in no permitted spelling" is only honest if
+    the set of permitted spellings is the method's whole family, and the
+    validator writes that family out from method G6.1 and G6.3 rather
+    than importing the generator's copy (V1.4, V4.2). Two texts written
+    from one document drift, and the direction this one would drift in
+    is a MISSED verdict against a conforming twin.
+
+    So the two are compared HERE, where both may be imported: every one
+    of the six styles, at leading-zero orders zero to three, over values
+    that pin G6.2's own boundaries -- the fixed-point window at both
+    ends, a whole value far outside it, zero, a negative, and a value
+    whose shortest round trip is sixteen figures long. Every text the
+    generator writes must be a text the validator's family holds.
+    """
+    values = (
+        0.0,
+        -0.0,
+        5.0,
+        -2.5,
+        0.0001,
+        1e-05,
+        1e16,
+        1e20,
+        1000000000000000.0,
+        66.6013870196064,
+        -1.7976931348623157e308,
+    )
+    styles = (
+        parsing.STYLE_PLAIN,
+        parsing.STYLE_LEADING_ZERO,
+        parsing.STYLE_LEADING_PLUS,
+        parsing.STYLE_DECIMAL,
+        parsing.STYLE_EXPONENT_LOWER,
+        parsing.STYLE_EXPONENT_UPPER,
+    )
+    seen = 0
+    for whole_column in (False, True):
+        for value in values:
+            if whole_column and value != int(value):
+                continue
+            family = validation._permitted_spellings(value, whole_column)
+            for style in styles:
+                for order in range(4):
+                    written = generation._styled_number(
+                        value, style, order, whole_column
+                    )
+                    assert parsing.parse_number(written) == value, written
+                    assert any(
+                        validation._wears(written, spelling)
+                        for spelling in family
+                    ), (
+                        f"the generator writes {written!r} for {value!r} in "
+                        f"the {style} style at order {order}, and the "
+                        f"validator's spelling family does not hold it -- so "
+                        f"a conforming twin would be reported as carrying a "
+                        f"cell in no published form"
+                    )
+                    seen = seen + 1
+    assert seen > 200
+
+
+def test_red_a_trailing_zero_on_every_cell_is_in_no_published_form(
+    tmp_path: pathlib.Path,
+) -> None:
+    """NAMED SUBCHECK: styles.spelled. The witness of P3-V2-C-F1.
+
+    Two hundred and forty decimal cells, each given one trailing zero:
+    the same numbers, the same forms, the same counts, and a text that
+    is not the shortest round trip of its own value. Method G6.1 says a
+    numeric cell is written in exactly one of six styles "and in no
+    other form", and G6.3 fixes what each of the six writes. Until this
+    subcheck existed the file validated with exit 0 under "NO CHECKABLE
+    OBLIGATION WAS MISSED", because every check in the validator was
+    arithmetic over counts and the ceiling above licensed every cell.
+    """
+    folder = tmp_path / "padded"
+    folder.mkdir()
+    values = [f"{index % 20}.5" for index in range(60)]
+    described = _describe(
+        folder,
+        fixtures.single_column_table("amount", values),
+        stem="padded",
+    )
+    twin = _twin_text(described)
+    lines = twin.split("\n")
+    changed = 0
+    for index in range(1, len(lines)):
+        if not lines[index]:
+            continue
+        lines[index] = f"{lines[index]}0"
+        changed = changed + 1
+    assert changed == described.n_rows
+    outcome = _measure(folder, described, "\n".join(lines), "padded-twin.csv")
+    assert _verdicts(outcome, "styles.spelled") == [validation.MISSED]
+    # ...and the cells still read back as exactly the same numbers, so
+    # nothing about the column's shape moved: this is a spelling fault
+    # and the report says so rather than blaming the ladder.
+    assert _verdicts(outcome, "ladder.min") == [validation.HELD]
+    assert _verdicts(outcome, "ladder.max") == [validation.HELD]
+    assert _verdicts(outcome, "counts.n_numeric") == [validation.HELD]
 
 
 def test_red_a_shifted_date_misses_a_ladder_end(
@@ -633,6 +1027,238 @@ def test_red_a_header_written_into_a_headerless_file_misses_presence(
     injected = ",".join(written) + "\n" + twin
     bad = _measure(folder, described, injected, "bare-headed.csv")
     assert _verdicts(bad, "header.presence") == [validation.MISSED]
+
+
+def _headerless_pair(
+    folder: pathlib.Path,
+) -> "tuple[contract.Profile, str]":
+    """A description whose names were generated, and its twin."""
+    values = fixtures.numbers(61, 40, 1, 9)
+    described = _describe(
+        folder,
+        "\n".join(values) + "\n",
+        stem="bare",
+        first_row=reading.FIRST_ROW_DATA,
+    )
+    assert described.source.header_source == reading.HEADER_GENERATED
+    return described, _twin_text(described)
+
+
+def test_red_a_header_written_in_and_a_row_taken_out_misses_presence(
+    tmp_path: pathlib.Path,
+) -> None:
+    """NAMED SUBCHECK: header.presence. REVIEW ITEM P3-V2-C-F8.
+
+    The headerless half of this check used to ask for TWO things at
+    once: a first line reading back as the published names, AND a file
+    holding more rows than the description publishes. A conjunction is
+    only as strong as the conjunct an editor can pay off separately, and
+    this is the payment -- the header line goes in, one record comes
+    out, the row count lands exactly where the description puts it, and
+    the check reported "no header line, the first row is a record" about
+    a file whose first line was the published names. It stated the
+    opposite of the truth about the bytes it governs, defeated by the
+    exact perturbation class it exists for.
+
+    The row count is not a conjunct now; it is `rows.n_rows`, which
+    misses on its own terms and holds here, which is the point.
+    """
+    folder = tmp_path / "compensated"
+    folder.mkdir()
+    described, twin = _headerless_pair(folder)
+    written = [column.name for column in described.columns]
+    lines = [line for line in twin.split("\n") if line]
+    swapped = ",".join(written) + "\n" + "\n".join(lines[: len(lines) - 1])
+    outcome = _measure(folder, described, swapped + "\n", "compensated.csv")
+    assert _verdicts(outcome, "rows.n_rows") == [validation.HELD]
+    assert _verdicts(outcome, "columns.n_columns") == [validation.HELD]
+    assert _verdicts(outcome, "header.presence") == [validation.MISSED]
+
+
+def test_the_first_column_of_a_headerless_description_is_listed(
+    tmp_path: pathlib.Path,
+) -> None:
+    """REVIEW ITEM P3-V2-C-F7: a position no file could be wrong about.
+
+    `position.at` has two failure branches, and where the names were
+    generated only one is live -- the file stops before this column
+    number. Nothing stops before the FIRST column: a file carrying no
+    columns at all is refused by the reader before any verdict exists,
+    so on the first column of a headerless description the check had an
+    empty failure set and reported HELD on every file that reached it.
+
+    It is a listing entry there, and nowhere else: the second and later
+    columns of the same description are still checked, and a file that
+    stops short still misses them (`test_a_missing_column_...` and the
+    entry table's own registered case). Plan amendment A-P3-2 records
+    the lowering in those words.
+    """
+    folder = tmp_path / "first"
+    folder.mkdir()
+    described, twin = _headerless_pair(folder)
+    assert described.n_columns == 1
+    outcome = _measure(folder, described, twin, "bare-first.csv")
+    assert _verdicts(outcome, "position.at") == []
+    listed = [
+        listing
+        for listing in outcome.listings
+        if listing.subcheck == "position.at"
+    ]
+    assert len(listed) == 1
+    assert listed[0].column == described.columns[0].name
+    assert listed[0].fact == "universal.position"
+    assert listed[0].reason
+
+
+def test_a_later_headerless_column_still_carries_its_position(
+    tmp_path: pathlib.Path,
+) -> None:
+    """...and the narrowing is the first column and nothing else.
+
+    A two-column headerless description keeps `position.at` on its
+    second column, and a file that stops before it misses.
+    """
+    folder = tmp_path / "second"
+    folder.mkdir()
+    rows = [
+        f"{value},{fixtures.REGIONS[index % 4]}"
+        for index, value in enumerate(fixtures.numbers(41, 60, 1, 400))
+    ]
+    described = _describe(
+        folder,
+        "\n".join(rows) + "\n",
+        stem="two",
+        first_row=reading.FIRST_ROW_DATA,
+    )
+    assert described.n_columns == 2
+    second = described.columns[1].name
+    twin = _twin_text(described)
+    good = _measure(folder, described, twin, "two-twin.csv")
+    assert [
+        check.column
+        for check in good.checks
+        if check.subcheck == "position.at"
+    ] == [second]
+    narrowed = []
+    for line in twin.split("\n"):
+        if not line:
+            narrowed.append(line)
+            continue
+        narrowed.append(line.split(",")[0])
+    bad = _measure(folder, described, "\n".join(narrowed), "two-narrow.csv")
+    missed = [
+        check.column
+        for check in bad.checks
+        if check.subcheck == "position.at"
+        and check.verdict == validation.MISSED
+    ]
+    assert missed == [second]
+
+
+def test_a_skew_window_that_admits_every_value_is_listed(
+    tmp_path: pathlib.Path,
+    every_role: "tuple[contract.Profile, str]",
+) -> None:
+    """REVIEW ITEM P3-V2-C-F2: a window equal to the attainable range.
+
+    Method G12.3 ends with a finite fallback: where the published
+    ladder's own spread does not exceed the displacement the
+    construction can produce, the skew bound becomes the range EVERY
+    sample of that many values lies in whatever they are. G12.3 is right
+    to PRINT that -- a wide bound tells a reader the ladder is too
+    coarse to say anything about the shape -- but a CHECK against it
+    admits every file there is, and the shipped validator counted it
+    WITHIN-BOUND on every run. Measured by the review: a column rewritten
+    to two hundred and twenty-seven ones, one nine and one hundred
+    thousand achieved the endpoint itself and was still called inside.
+
+    The validator may not draw a narrower window of its own -- V1 says
+    every APPROXIMATED bound lives in G12 and is cited, never restated,
+    so a tighter envelope is a change to the generation method and not
+    an invention in the thing that checks it. So the entry is a listing
+    with the sentence that says why, and the two moments whose windows
+    do bite are checked exactly as before.
+    """
+    described, twin = every_role
+    outcome = _measure(tmp_path, described, twin, "skew-twin.csv")
+    # THE COLUMN THE REVIEW MEASURED IT ON. `visits` publishes a ladder
+    # of whole counts whose own spread the displacement reaches, so the
+    # quotient of G12.3 has no finite end and its finite fallback
+    # stands; `amount` publishes a ladder that describes it, so its
+    # window bites and its check is made exactly as before.
+    listed = {
+        listing.column
+        for listing in outcome.listings
+        if listing.subcheck == "moments.skew"
+    }
+    checked = {
+        check.column
+        for check in outcome.checks
+        if check.subcheck == "moments.skew"
+    }
+    assert "visits" in listed
+    assert "visits" not in checked
+    assert "amount" in checked
+    assert "amount" not in listed
+    for listing in outcome.listings:
+        if listing.subcheck != "moments.skew":
+            continue
+        assert listing.fact == "numeric.skew"
+        assert listing.reason
+    # ...and the two moments whose windows bite are checked on the very
+    # column whose skew is listed, so this narrows one bound and not the
+    # column's whole shape.
+    assert [
+        check.verdict
+        for check in outcome.checks
+        if check.subcheck == "moments.mean" and check.column == "visits"
+    ] == [validation.WITHIN_BOUND]
+    assert [
+        check.verdict
+        for check in outcome.checks
+        if check.subcheck == "moments.std" and check.column == "visits"
+    ] == [validation.WITHIN_BOUND]
+
+
+def test_a_skew_window_narrower_than_the_range_is_still_checked(
+    tmp_path: pathlib.Path,
+) -> None:
+    """...and the listing is the coarse ladder, never the fact.
+
+    A column whose ladder describes it keeps its skew check, and a file
+    whose shape leaves the window misses it. That pair is what says the
+    line above narrows one description rather than retiring an
+    obligation.
+    """
+    folder = tmp_path / "shaped"
+    folder.mkdir()
+    described = _describe(
+        folder,
+        fixtures.single_column_table(
+            "reading", fixtures.numbers(83, 200, 1, 4000)
+        ),
+        stem="shaped",
+    )
+    twin = _twin_text(described)
+    good = _measure(folder, described, twin, "shaped-twin.csv")
+    assert _verdicts(good, "moments.skew") == [validation.WITHIN_BOUND]
+    lines = twin.split("\n")
+    numbers = [
+        float(line) for line in lines[1:] if line
+    ]
+    low = min(numbers)
+    high = max(numbers)
+    crowded = [lines[0]]
+    step = 0
+    for line in lines[1:]:
+        if not line:
+            crowded.append(line)
+            continue
+        share = step / (len(numbers) - 1)
+        crowded.append(f"{low + (high - low) * share * share * share}")
+        step = step + 1
+    bad = _measure(folder, described, "\n".join(crowded), "shaped-bad.csv")
+    assert _verdicts(bad, "moments.skew") == [validation.MISSED]
 
 
 def test_red_a_dropped_column_misses_the_column_count(
@@ -979,26 +1605,33 @@ def test_presence_is_blankness_and_never_the_redescription(
     assert found[0].verdict == validation.MISSED
 
 
-def test_a_presence_gap_withholds_rather_than_discarding(
+def test_a_presence_gap_is_measured_over_the_split_not_withheld(
     tmp_path: pathlib.Path,
 ) -> None:
-    """V2.4, and review item P3-V1-F6: nothing dependent may vanish.
+    """V2.4, and review item P3-V2-A1: the gap MEASURES, it does not hide.
 
     The same file as the test above: sixty non-blank cells, thirty of
     which the profiler reads as absences, against a description
-    publishing thirty present. Presence is blankness, so the two
-    readings disagree -- and the version this replaces then returned one
+    publishing thirty present and one level. Presence is blankness, so
+    the two readings disagree.
+
+    TWO VERSIONS FAILED HERE BEFORE THIS ONE. The first returned one
     synthetic `presence.agreement` check, built so that it could only
     ever be WITHHELD, and dropped every level, variant, distinctness and
-    ladder obligation the column carries. An extra bad variant in such a
-    file drew no line at all.
+    ladder obligation the column carries, so an extra bad variant in
+    such a file drew no line at all. The second kept the lines and made
+    every one of them WITHHELD -- which read as complete and let the
+    measured file decide which of its own checks ran: one cell spelling
+    a built-in marker turned every dependent obligation of a column from
+    a potential MISS into a withholding, and files carrying none of
+    their published labels then passed.
 
-    Two things are asserted, and they are the two halves of the rule.
-    Every obligation still HAS a line: the set of subcheck identities is
-    the same one a file with no gap produces, compared against the
-    description's own twin rather than against a list written here.
-    And none of them carries a verdict taken from the wrong set of
-    cells: each is WITHHELD, with the sentence saying why.
+    So three things are asserted. Every obligation still HAS a line,
+    compared against the description's own twin rather than a list
+    written here. The two counts the blank split owns still verdict. And
+    the dependent obligations carry VERDICTS taken over the blank split
+    -- not one of them is withheld, because nothing here is a fact the
+    file's own description would refuse to publish.
     """
     folder = tmp_path / "gap"
     folder.mkdir()
@@ -1028,30 +1661,15 @@ def test_a_presence_gap_withholds_rather_than_discarding(
     # The blank split still verdicts the two counts it owns...
     assert _verdicts(gapped, "presence.n_present") == [validation.MISSED]
     assert _verdicts(gapped, "presence.n_missing") == [validation.MISSED]
-    # ...and every measurement whose input is the present set is
-    # withheld rather than taken from the re-description's own count.
-    # The obligations settled without reading a single cell are not
-    # among them: where the column stands, and the four axes the file's
-    # own description reads it as.
-    settled = (
-        "presence.n_present",
-        "presence.n_missing",
-        "position.at",
-        "axes.role",
-        "axes.statistical_type",
-        "axes.quality_state",
-        "axes.structural_role",
-    )
-    dependent = [
-        check
-        for check in gapped.checks
-        if check.column == "region" and check.subcheck not in settled
-    ]
-    assert dependent
-    for check in dependent:
-        assert check.verdict == validation.WITHHELD, check
-        assert check.citation
-    assert gapped.census.withheld == len(dependent)
+    # ...and the sixty non-blank cells are what every dependent
+    # measurement is taken over. The file holds two levels where the
+    # description publishes one, and the census says so.
+    assert _verdicts(gapped, "levels.set") == [validation.MISSED]
+    assert _verdicts(gapped, "distinct.n_distinct") == [validation.MISSED]
+    assert gapped.census.missed > 0
+    for check in gapped.checks:
+        assert check.verdict != validation.WITHHELD, check
+    assert gapped.census.withheld == 0
 
 
 # -- V4: the corners, and V4.3's refusals -----------------------------
@@ -1435,7 +2053,13 @@ def test_a_repeated_header_name_is_a_verdict_and_names_no_value(
     printed a string out of a file nobody promised was the reader's and
     turned a wrong name into a run that never happened. A wrong name is
     a MISSED verdict with a report; the columns nothing could be matched
-    to are listed rather than dropped; and the spelling appears nowhere.
+    to MISS rather than being dropped; and the spelling appears nowhere.
+
+    THEY MISS RATHER THAN BEING LISTED (review item P3-V2-E-F2). This
+    test asserted the listing, and the listing said something false: a
+    not-checkable line means no written CSV can evidence the obligation
+    either way, and the twin of this same description evidences every
+    one of them. What is true is that this file does not carry them.
     """
     folder = tmp_path / "repeated"
     folder.mkdir()
@@ -1457,15 +2081,21 @@ def test_a_repeated_header_name_is_a_verdict_and_names_no_value(
     assert _verdicts(outcome, "header.names") == [validation.MISSED]
     assert _verdicts(outcome, "header.presence") == [validation.MISSED]
     assert _verdicts(outcome, "columns.order") == [validation.MISSED]
-    # ...and no column's obligations vanish: each is listed with a
-    # reason instead of leaving the census without a line.
-    listed = [
-        listing.column
-        for listing in outcome.listings
-        if listing.fact == "universal.position"
-    ]
+    # ...and no column's obligations vanish: each carries a MISSED
+    # verdict with the reason instead of leaving the census without a
+    # line, or being called an obligation no CSV can evidence.
+    missed = {
+        check.column
+        for check in outcome.checks
+        if check.fact == "universal.position"
+        and check.verdict == validation.MISSED
+    }
     for column in described.columns:
-        assert column.name in listed
+        assert column.name in missed
+        assert column.name not in {
+            listing.column for listing in outcome.listings
+            if listing.fact == "universal.position"
+        }
     spoken = []
     for check in outcome.checks:
         spoken = spoken + [check.published, check.achieved, check.citation]
@@ -1500,6 +2130,173 @@ def test_a_blank_header_name_is_a_verdict_and_names_the_position(
     assert len(found) == 1
     assert found[0].verdict == validation.MISSED
     assert found[0].achieved == "no name at column number 2"
+
+
+def test_the_header_question_is_settled_on_the_first_RECORD(
+    tmp_path: pathlib.Path,
+) -> None:
+    """REVIEW ITEM P3-V2-D-F1: what the reader calls the first row.
+
+    Round 1 settled the two header faults before the reader is called,
+    and settled them on the first PHYSICAL LINE. The reader does not
+    read a file that way: it drops blank lines and it honours a newline
+    inside a quoted value. So a repeated name behind a leading blank
+    line, and a repeated name with a newline written into it, both got
+    past the pre-check into the reader's own refusal -- which quotes the
+    repeated name, on a file nobody promised was the reader's.
+
+    Both are structural mismatches and V9 says a structural mismatch is
+    a MISSED verdict with a report. The assertion is that both files
+    reach a report at all, and that the report says which COLUMN
+    NUMBERS are at fault.
+    """
+    folder = tmp_path / "records"
+    folder.mkdir()
+    described = _describe(
+        folder,
+        fixtures.rows_to_csv(
+            ["reading", "region"],
+            [
+                [value, fixtures.REGIONS[index % 4]]
+                for index, value in enumerate(fixtures.numbers(85, 60, 1, 9))
+            ],
+        ),
+        stem="two",
+    )
+    marker = "zzmarkerzz"
+    rows = "\n".join(f"{index},{index}" for index in range(60)) + "\n"
+    for label, hostile, said in (
+        ("blank-first-line", f"\n{marker},{marker}\n" + rows, "1 and 2"),
+        (
+            "quoted-newline",
+            f'"{marker}\nx","{marker}\nx"\n' + rows,
+            "1 and 2",
+        ),
+    ):
+        outcome = _measure(folder, described, hostile, f"{label}.csv")
+        found = [
+            check
+            for check in outcome.checks
+            if check.subcheck == "header.names"
+        ]
+        assert len(found) == 1, label
+        assert found[0].verdict == validation.MISSED, label
+        assert said in found[0].achieved, label
+        spoken = []
+        for check in outcome.checks:
+            spoken = spoken + [
+                check.published, check.achieved, check.citation
+            ]
+        for listing in outcome.listings:
+            spoken = spoken + [listing.reason, listing.column, listing.fact]
+        assert marker not in " ".join(spoken), label
+
+
+def test_the_record_walk_agrees_with_the_reader_it_stands_in_for(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The anti-drift assertion for `_records_of` (P3-V2-D-F1, E-F4).
+
+    Two questions are settled before the reader is called -- which row
+    is the first one, and whether the file holds any rows -- and both
+    have to reach the answer the reader would reach, because where they
+    do not, a file this module called reportable is one the reader
+    refuses, and its refusals quote what they found. The last
+    disagreement was a leading blank line and a newline inside a quoted
+    name. So this is not a test of a rule written twice: it drives both
+    readings of the same files and asserts they agree, which is the only
+    form that catches the NEXT disagreement.
+    """
+    folder = tmp_path / "agree"
+    folder.mkdir()
+    files = {
+        "plain": "a,b\n1,2\n3,4\n",
+        "no-terminal-newline": "a,b\n1,2\n3,4",
+        "leading-blank": "\na,b\n1,2\n",
+        "inner-blanks": "a,b\n\n1,2\n\n\n3,4\n",
+        "quoted-newline": 'a,"b\nc"\n1,2\n3,4\n',
+        "quoted-comma": 'a,b\n"1,5",2\n3,4\n',
+        "carriage-returns": "a,b\r\n1,2\r\n",
+        "carriage-only": "a,b\r1,2\r3,4\r",
+        "quoted-carriage": 'a,"b\rc"\n1,2\n3,4\n',
+        "one-line": "a,b\n",
+        "doubled-quotes": 'a,b\n"1""5",2\n3,4\n',
+        "trailing-blanks": "a,b\n1,2\n\n\n",
+    }
+    for label in sorted(files):
+        target = folder / f"{label}.csv"
+        target.write_text(files[label], encoding="utf-8", newline="")
+        table = reading.read_table(
+            str(target), first_row=reading.FIRST_ROW_DATA
+        )
+        rows = [
+            [column[at] for column in table.columns]
+            for at in range(table.n_rows)
+        ]
+        walked = validation._records_of(files[label])
+        assert walked == rows, label
+
+
+def test_a_blank_line_after_the_header_is_still_a_report(
+    tmp_path: pathlib.Path,
+) -> None:
+    """REVIEW ITEM P3-V2-E-F4: one empty line, and the report vanished.
+
+    `header\\n` gave a full census with the row count MISSED at exit 3.
+    `header\\n\\n` gave a refusal at exit 1, no report at all, carrying
+    the profiler's advice to go and find a file that has the rows in it
+    -- when the true answer is that this file misses the published row
+    count and every obligation its cells would have carried. Two files
+    two empty bytes apart, and only one of them was told the truth.
+    Headerless, the same step stood between a file of no bytes and a
+    file holding one newline.
+
+    The two sides of each step now produce the same verdict on every
+    obligation that is not a rule about the file's BYTES, which is the
+    property: an empty line carries no record, so a file that holds one
+    holds the records the file without it holds. The byte rules are
+    where the two files really do differ and are excluded by name --
+    a file of no bytes has no terminal newline and a file of two
+    newlines has one, and both statements are true.
+    """
+    folder = tmp_path / "blanks"
+    folder.mkdir()
+    made = [
+        [value, fixtures.REGIONS[index % 4]]
+        for index, value in enumerate(fixtures.numbers(87, 60, 1, 9))
+    ]
+    headed = _describe(
+        folder,
+        fixtures.rows_to_csv(["reading", "region"], made),
+        stem="headed",
+    )
+    bare = _describe(
+        folder,
+        fixtures.rows_to_csv(["1", "north"], made),
+        stem="bare",
+        first_row=reading.FIRST_ROW_DATA,
+    )
+    for described, first, second in (
+        (headed, "reading,region\n", "reading,region\n\n\n"),
+        (bare, "", "\n\n"),
+    ):
+        one = _measure(folder, described, first, "one.csv")
+        two = _measure(folder, described, second, "two.csv")
+        assert one.census.missed > 50
+        assert _apart_from_bytes(two) == _apart_from_bytes(one)
+        assert two.listings == one.listings
+        assert _verdicts(two, "rows.n_rows") == [validation.MISSED]
+
+
+def _apart_from_bytes(
+    outcome: validation.Outcome,
+) -> "list[validation.Check]":
+    """Every verdict a run filed that is not a rule about its bytes."""
+    return [
+        check
+        for check in outcome.checks
+        if not check.subcheck.startswith("bytes.")
+    ]
 
 
 def test_red_a_reshaped_text_column_misses_the_length_average(
@@ -1566,6 +2363,22 @@ def test_red_a_reshaped_text_column_misses_the_length_average(
 #    (review items P3-V1-F3 and P3-V1-F11)
 
 
+def _checked(outcome: validation.Outcome) -> "set[tuple[str, str, str]]":
+    """Every obligation one run filed a VERDICT on, as its bare identity."""
+    return {
+        (check.column, check.fact, check.subcheck)
+        for check in outcome.checks
+    }
+
+
+def _listed(outcome: validation.Outcome) -> "set[tuple[str, str, str]]":
+    """Every obligation one run called NOT CHECKABLE, as its identity."""
+    return {
+        (listing.column, listing.fact, listing.subcheck)
+        for listing in outcome.listings
+    }
+
+
 def _identities(outcome: validation.Outcome) -> "set[tuple[str, str, str]]":
     """Every obligation one run accounted for, as its bare identity.
 
@@ -1575,14 +2388,7 @@ def _identities(outcome: validation.Outcome) -> "set[tuple[str, str, str]]":
     the not-checkable census. What may never happen is for it to be in
     neither.
     """
-    found = {
-        (check.column, check.fact, check.subcheck)
-        for check in outcome.checks
-    }
-    return found | {
-        (listing.column, listing.fact, listing.subcheck)
-        for listing in outcome.listings
-    }
+    return _checked(outcome) | _listed(outcome)
 
 
 def test_the_obligation_set_is_a_function_of_the_description(
@@ -1600,9 +2406,20 @@ def test_the_obligation_set_is_a_function_of_the_description(
     file and to one invented line for a dropped column, and the report
     then called those five every measurable obligation.
 
-    So the identity sets are compared, not the counts: the same
-    (column, fact, subcheck) triples, whatever file the description is
-    pointed at.
+    AND THE PARTITION IS COMPARED, BUCKET BY BUCKET (review item
+    P3-V2-E-F2). The version of this test that shipped with the round-1
+    repair unioned the checks and the listings into ONE set and compared
+    that, so an obligation MOVING from the checkable bucket to the
+    not-checkable one was invisible to it -- and one file did move three
+    hundred and seven of them. The report then told its reader that this
+    description sets eight obligations a written file can be checked
+    against and that three hundred and seventy-two of its obligations
+    are beyond any CSV, about a description whose own twin had answered
+    three hundred and fifteen of them three commands earlier. Both
+    sentences are claims about the DESCRIPTION (V7.2) and both were
+    false. So the two buckets are asserted separately, and the union is
+    asserted as well, because a repair that moved an obligation OUT of
+    both would satisfy either half alone.
     """
     described, twin = every_role
     lines = twin.split("\n")
@@ -1624,11 +2441,18 @@ def test_the_obligation_set_is_a_function_of_the_description(
             + "\n".join(lines[1:])
         ),
     }
-    expected = _identities(_measure(tmp_path, described, twin, "base.csv"))
+    base = _measure(tmp_path, described, twin, "base.csv")
+    expected = _identities(base)
     assert len(expected) > 200
+    assert len(_checked(base)) > 200
+    assert _listed(base)
     for name in sorted(files):
         outcome = _measure(tmp_path, described, files[name], f"{name}.csv")
         assert _identities(outcome) == expected, name
+        assert _checked(outcome) == _checked(base), name
+        assert _listed(outcome) == _listed(base), name
+        assert outcome.census.not_checkable == base.census.not_checkable, name
+        assert len(outcome.checks) == len(base.checks), name
 
 
 def test_a_missing_column_misses_its_obligations_rather_than_dropping_them(
@@ -1701,6 +2525,19 @@ def test_every_column_carries_its_four_axes_and_its_position(
     every obligation. Each is bound here, per column, and the green
     direction holds: the twin re-reads as the same kind of column, which
     is what Phase 2's decisions 5, 8 and 10 bought.
+
+    AND ONE OF THE FIVE IS BOUND AS A LISTING (review item P3-V2-C-F3;
+    plan amendment A-P3-2, which records the lowering in those words).
+    `structural_role` says whether the person who owns the table
+    declared this column with `--identifier`. The taxonomy computes it
+    from that declaration and nothing else -- its own docstring says no
+    value of the column is consulted -- and the validator re-describes
+    the file under the same declaration list, so both sides read the
+    same word for every column of every description that declares no
+    identifier, which is the zero-code default. It was a HELD line on
+    every column of every ordinary report that no file could miss. What
+    this test still asserts is P3-V1-F3's own point: the fact is BOUND,
+    once per column, to an entry of one of the three kinds.
     """
     described, twin = every_role
     outcome = _measure(tmp_path, described, twin)
@@ -1709,7 +2546,6 @@ def test_every_column_carries_its_four_axes_and_its_position(
         ("axes.role", "universal.role"),
         ("axes.statistical_type", "universal.statistical_type"),
         ("axes.quality_state", "universal.quality_state"),
-        ("axes.structural_role", "universal.structural_role"),
     ):
         mine = [
             check for check in outcome.checks if check.subcheck == subcheck
@@ -1718,6 +2554,25 @@ def test_every_column_carries_its_four_axes_and_its_position(
         for check in mine:
             assert check.fact == fact
             assert check.verdict == validation.HELD
+    assert not [
+        check
+        for check in outcome.checks
+        if check.subcheck == "axes.structural_role"
+    ], (
+        "the declared-identifier axis is carrying a verdict again, and "
+        "no file can make it miss on a description that declares no "
+        "identifier -- which is every description a person who never "
+        "used --identifier writes"
+    )
+    listed = [
+        listing
+        for listing in outcome.listings
+        if listing.subcheck == "axes.structural_role"
+    ]
+    assert len(listed) == len(described.columns)
+    for listing in listed:
+        assert listing.fact == "universal.structural_role"
+        assert listing.reason
 
 
 def test_red_swapped_columns_miss_the_position_of_each(
@@ -1754,16 +2609,24 @@ def test_red_swapped_columns_miss_the_position_of_each(
     assert described.columns[1].name in missed
 
 
-def test_red_a_renamed_declared_identifier_misses_its_structural_role(
+def test_a_renamed_declared_identifier_is_caught_by_the_name_and_not_the_axis(
     tmp_path: pathlib.Path,
     every_role: "tuple[contract.Profile, str]",
 ) -> None:
-    """NAMED SUBCHECK: axes.structural_role.
+    """WHAT THE STRUCTURAL-ROLE LOWERING COST, measured (P3-V2-C-F3).
 
-    The declaration reaches the column the person NAMED, so a file whose
-    header calls that column something else holds a column the file's
-    own description reads as ordinary data. The axis is the one fact
-    that says so, and it is a fact a CSV can evidence.
+    The version this replaces registered this file as the red case for
+    `axes.structural_role` and reasoned that "the axis is the one fact
+    that says so". It was not. The declaration is matched by NAME, so
+    the only thing this file changed that the axis could see is the name
+    at that position -- which `header.names` states outright and
+    `position.at` states for that column. The axis was a third copy of
+    one piece of evidence on the one description in the suite that
+    declares an identifier, and a HELD line no file could move on every
+    description that does not.
+
+    So the axis is a listing entry now, and this test is what says the
+    file is still caught, by the two checks that can actually see it.
     """
     described, twin = every_role
     declared = described.settings.forced_identifiers[0]
@@ -1774,14 +2637,19 @@ def test_red_a_renamed_declared_identifier_misses_its_structural_role(
             names[index] = "another_name"
     lines[0] = ",".join(names)
     outcome = _measure(tmp_path, described, "\n".join(lines), "renamed.csv")
-    named = [
+    assert not [
         check
         for check in outcome.checks
         if check.subcheck == "axes.structural_role"
-        and check.column == declared
     ]
-    assert len(named) == 1
-    assert named[0].verdict == validation.MISSED
+    assert _verdicts(outcome, "header.names") == [validation.MISSED]
+    position = [
+        check
+        for check in outcome.checks
+        if check.subcheck == "position.at" and check.column == declared
+    ]
+    assert len(position) == 1
+    assert position[0].verdict == validation.MISSED
 
 
 # -- V6.4: the two degenerate zero-row forms --------------------------

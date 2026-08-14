@@ -797,11 +797,15 @@ def _read_authoritatively(
     if not found.n_rows:
         raise errors.ProfileError(errors.no_data_rows(shown))
     if found.header_source == HEADER_FROM_FILE:
-        _check_the_names_are_usable(found.column_names)
+        _check_the_names_are_usable(found.column_names, shown, refusals)
     return found
 
 
-def _check_the_names_are_usable(header: list[str]) -> None:
+def _check_the_names_are_usable(
+    header: list[str],
+    shown: str,
+    refusals: str = REFUSALS_MAY_QUOTE,
+) -> None:
     """Refuse names no table can carry: a blank one, or one used twice.
 
     These two run BEFORE the checking pass, and the WHICH-row question
@@ -811,6 +815,19 @@ def _check_the_names_are_usable(header: list[str]) -> None:
     rewrite reads as the two passes disagreeing about a name, and the
     person would be sent to look for a file that changed under them
     rather than at the duplicated name that is really there.
+
+    ``refusals`` IS WHY THIS TAKES A PATH AT ALL (review item
+    P3-V2-D-F1). Its two neighbours have taken it since round 1 and this
+    one did not, so it was the one escape left in the reader: whatever
+    the caller had asked for, the repeated-name refusal here QUOTED the
+    repeated name, and on the checking path that name is a string out of
+    a file nobody promised was the reader's (V9). Two files reached it
+    -- a leading blank line, and a newline inside a quoted name -- and
+    printed a measured name on the screen. The caller that meets those
+    files now settles them before this is reached and reports them as
+    missed obligations; this is the belt, and it is worn at the same
+    place the other two wear theirs, so a future disagreement about
+    which row is the first one cannot spend what those two saved.
     """
     for position, name in enumerate(header, start=1):
         if not parsing.trimmed(name):
@@ -822,8 +839,23 @@ def _check_the_names_are_usable(header: list[str]) -> None:
         else:
             seen[name] = 1
     repeated = sorted(name for name in seen if seen[name] > 1)
-    if repeated:
-        raise errors.ProfileError(errors.duplicate_column_names(repeated))
+    if not repeated:
+        return
+    if refusals == REFUSALS_NAME_POSITIONS:
+        first = 0
+        later = 0
+        for position in range(len(header)):
+            if header[position] != repeated[0]:
+                continue
+            if not first:
+                first = position + 1
+                continue
+            if not later:
+                later = position + 1
+        raise errors.ProfileError(
+            errors.checked_file_repeats_a_column_name(shown, first, later)
+        )
+    raise errors.ProfileError(errors.duplicate_column_names(repeated))
 
 
 def _settle_the_first_row(

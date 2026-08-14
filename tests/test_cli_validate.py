@@ -55,13 +55,14 @@ import ast
 import builtins
 import hashlib
 import pathlib
+import sys
 import typing
 
 import pytest
 
 import fixtures
 from synthtwin import errors, profile, reading, taxonomy, writing
-from synthtwin.cli import main
+from synthtwin.cli import _QUALITY_SUFFIX, main
 
 # ---------------------------------------------------------------------
 # helpers
@@ -201,7 +202,14 @@ def test_the_report_reaches_the_screen_and_the_file_as_one_text(
 def test_the_twin_can_be_named_explicitly(
     tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    """`--twin` measures the file it names, wherever that file is."""
+    """`--twin` measures the file it names, wherever that file is.
+
+    And the report it writes is named after THAT file (amendment
+    A-P3-4). It used to be named after the description, so this run
+    wrote `clinic-twin-quality.txt` -- a report named after the twin,
+    left beside the twin, about `other.csv`, with the word `other`
+    nowhere in its bytes.
+    """
     description = _built(tmp_path, capsys)
     elsewhere = tmp_path / "somewhere"
     elsewhere.mkdir()
@@ -214,7 +222,81 @@ def test_the_twin_can_be_named_explicitly(
     _twin_of(description).unlink()
     assert main(["validate", f"{description}", "--twin", f"{moved}"]) == 0
     capsys.readouterr()
-    assert _quality_of(description).is_file()
+
+    written = description.parent / "other-quality.txt"
+    assert written.is_file(), sorted(
+        path.name for path in description.parent.iterdir()
+    )
+    assert not _quality_of(description).exists(), (
+        "the report is named after the description again, so two "
+        "measured files collide on one name and the file on disk says "
+        "nothing about which of them it is about"
+    )
+    assert "other.csv" in written.read_text(encoding="utf-8")
+
+
+def test_two_measured_files_get_two_reports_that_name_themselves(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The whole of review item P3-V2-G, driven through the command.
+
+    A person checks the twin, then checks a second candidate. Before
+    the repair the second run was refused for a name collision that had
+    nothing to do with what was measured -- and with `--replace` it
+    silently replaced the twin's report, under the twin's name, with a
+    report about a different file that never said so.
+    """
+    description = _built(tmp_path, capsys)
+    twin = _twin_of(description)
+    tampered = fixtures.write(
+        tmp_path, "tampered.csv", twin.read_text(encoding="utf-8")
+    )
+
+    assert main(["validate", f"{description}"]) == 0
+    assert main(["validate", f"{description}", "--twin", f"{tampered}"]) == 0
+    capsys.readouterr()
+
+    about_the_twin = _quality_of(description).read_text(encoding="utf-8")
+    about_the_other = (tmp_path / "tampered-quality.txt").read_text(
+        encoding="utf-8"
+    )
+    assert "clinic-twin.csv" in about_the_twin
+    assert "tampered.csv" in about_the_other
+    assert "tampered" not in about_the_twin
+    # Two files, two reports, neither refused and neither replaced.
+    assert about_the_twin != about_the_other
+
+
+def test_the_report_says_which_file_it_is_about_before_any_count(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The name is in the report's own bytes, near the top (V7.1).
+
+    The output name alone is not enough: a report is copied, renamed,
+    pasted into an email and read a month later, and at that point its
+    own bytes are all there is. Its third paragraph says it is a report
+    about ONE file, so the file has to be named before a reader gets
+    that far.
+    """
+    description = _built(tmp_path, capsys)
+    assert main(["validate", f"{description}"]) == 0
+    capsys.readouterr()
+    written = _quality_of(description).read_text(encoding="utf-8")
+    lines = written.split("\n")
+
+    named = [index for index, line in enumerate(lines) if "clinic-twin.csv" in line]
+    assert named, "the report never names the file it measured"
+    about_one = [
+        index for index, line in enumerate(lines) if "THAT ONE file" in line
+    ]
+    assert about_one, "the report no longer says it is about one file"
+    assert named[0] < about_one[0], (
+        "the report claims to be about one file before it says which"
+    )
+    assert named[0] < 10, (
+        f"the name is on line {named[0] + 1}, too far down to be read as "
+        f"the report's identity"
+    )
 
 
 def test_the_report_goes_where_out_dir_says(
@@ -537,26 +619,79 @@ def test_a_report_that_would_land_on_the_measured_file_is_refused(
     assert twin.read_bytes() == before
 
 
-def test_a_report_named_as_the_measured_file_itself_is_refused(
+def test_a_report_named_as_the_description_itself_is_refused(
     tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    """The lexical route: --twin naming the file the report would be.
+    """The lexical route, at the input it is still reachable at.
 
-    No link is involved. The person points `--twin` at the name the
-    report is derived to, which is a thing somebody will eventually do
-    by accident with `--out-dir` and a tidy folder.
+    No link is involved: the derived name simply IS one of the inputs.
+    The report is `<measured stem>-quality.txt` in the description's own
+    folder (amendment A-P3-4), so somebody whose description is called
+    `clinic-quality.txt` -- a rename nobody would think twice about --
+    and whose measured file is `clinic.csv` has a run whose output name
+    is the description it is measuring against.
+
+    The same route at the MEASURED file is no longer reachable at all,
+    and the test below says so with the arithmetic rather than leaving
+    a case quietly untested.
     """
-    description = _built(tmp_path, capsys)
-    target = _quality_of(description)
-    target.write_text(_twin_of(description).read_text(encoding="utf-8"), encoding="utf-8", newline="")
-    before = target.read_bytes()
+    described = _described(tmp_path, _plain_table())
+    renamed = tmp_path / "clinic-quality.txt"
+    described.rename(renamed)
+    measured = fixtures.write(tmp_path, "clinic.csv", _plain_table())
+    before = renamed.read_bytes()
+
     assert (
-        main(["validate", f"{description}", "--twin", f"{target}", "--replace"])
+        main(
+            ["validate", f"{renamed}", "--twin", f"{measured}", "--replace"]
+        )
         == 1
     )
     told = capsys.readouterr().err
-    assert errors.INPUT_MEASURED_FILE in told
-    assert target.read_bytes() == before
+    assert errors.INPUT_DESCRIPTION in told
+    assert renamed.read_bytes() == before
+
+
+def test_the_report_name_can_never_be_the_measured_file_s_own_name() -> None:
+    """The route the naming change closed, closed by arithmetic.
+
+    Before amendment A-P3-4 the report was named after the DESCRIPTION,
+    so pointing `--twin` at `<stem>-twin-quality.txt` made the output
+    name the measured file and the guard refused it. Named after the
+    MEASURED file, the output is that file's stem plus `-quality.txt`,
+    and no name is a fixed point of that: the report's name is strictly
+    longer than the stem it is built from, and the stem is shorter than
+    the name it came from.
+
+    That is not a licence to delete the guard -- the link, hardlink,
+    alias and substitution routes to the measured file are live and
+    tested above and in `test_p3v1f12_one_target_transaction.py` -- but
+    it IS the reason no test drives the lexical one at this input any
+    more, and a reader is owed that reason rather than a missing case.
+
+    Awkward names are included on purpose, because "strictly longer" is
+    the kind of claim that fails on the empty string and the dotfile.
+    """
+    folder = pathlib.Path("/somewhere")
+    for name in (
+        "clinic-twin.csv",
+        "clinic-twin-quality.txt",
+        "quality.txt",
+        "-quality.txt",
+        "a.b.c.csv",
+        ".csv",
+        ".hidden",
+        "no-extension",
+        "UPPER.CSV",
+        "spaces in it.csv",
+    ):
+        measured = folder / name
+        derived = folder / f"{measured.stem}{_QUALITY_SUFFIX}"
+        assert derived != measured, (
+            f"the report derived from {name!r} is that same file, so the "
+            f"lexical route at the measured file is reachable again and "
+            f"needs a refusal test driving it through the command"
+        )
 
 
 def test_the_transaction_refuses_a_guarded_source_before_writing(
@@ -669,24 +804,247 @@ def test_a_validate_run_never_asks_for_the_generator(
     implementation detail and is not: it imports the generator, so a
     quality report rendered there would cross both lines at once. That is
     why the report is rendered by `quality`.
+
+    WHY `numpy` AND `numpy.random` ARE NOT IN THIS LIST (review item
+    P3-V2-F-F3). They were, and neither could fail here. This recorder
+    watches import STATEMENTS, and under pytest the package and pandas
+    are already in `sys.modules` before this test starts, so no module
+    body re-executes and pandas never re-runs its own `import numpy`.
+    Measured: adding a live `numpy.random.default_rng(0)` at module
+    level in `quality.py` left this test GREEN while the static closure
+    walk below and the offline scanner both went red. An assertion that
+    cannot fail is the defect this project's charter names, so the two
+    names are gone from here and the property they were meant to carry
+    is checked where it can fail: statically by
+    `test_no_module_a_validate_run_can_reach_holds_a_random_source`, and
+    at runtime by `test_a_validate_run_draws_from_no_random_source`,
+    which traps every reachable source and runs the command at it.
     """
     description = _built(tmp_path, capsys)
     seen = _watching_imports(monkeypatch)
     assert main(["validate", f"{description}"]) == 0
     capsys.readouterr()
-    for forbidden in (
-        "synthtwin.generation",
-        "synthtwin.rendering",
-        "numpy",
-        "numpy.random",
-    ):
+    for forbidden in ("synthtwin.generation", "synthtwin.rendering"):
         assert forbidden not in seen, (
             f"a validate run reached for {forbidden}, which puts the "
-            f"planner's own defects -- and a random source -- inside a "
-            f"second opinion that may carry neither"
+            f"planner's own defects -- and this package's own random "
+            f"number generator -- inside a second opinion that may "
+            f"carry neither"
         )
     assert "synthtwin.validation" in seen, (
         "the recorder must be seeing this run's imports at all"
+    )
+
+
+# Every door to a random value that a validate run's process has open,
+# module by module. `numpy.random` is open because the reader needs
+# pandas and pandas imports numpy; `random`, `secrets` and `os.urandom`
+# are open because the standard library is. The claim this package
+# makes is not that these doors are shut -- three of them cannot be
+# shut while pandas is a dependency -- it is that a validate run walks
+# through none of them, and that is a claim a trap can settle.
+_RANDOM_DOORS = (
+    (
+        "numpy.random",
+        (
+            "default_rng",
+            "Generator",
+            "RandomState",
+            "SeedSequence",
+            "random",
+            "random_sample",
+            "rand",
+            "randn",
+            "randint",
+            "choice",
+            "normal",
+            "uniform",
+            "shuffle",
+            "permutation",
+            "standard_normal",
+            "bytes",
+            "seed",
+        ),
+    ),
+    ("numpy.random.mtrand", ("RandomState",)),
+    (
+        "random",
+        (
+            "random",
+            "randint",
+            "randrange",
+            "choice",
+            "choices",
+            "sample",
+            "shuffle",
+            "uniform",
+            "gauss",
+            "getrandbits",
+            "randbytes",
+            "Random",
+            "SystemRandom",
+            "seed",
+        ),
+    ),
+    ("os", ("urandom",)),
+    ("secrets", ("token_bytes", "token_hex", "randbits", "choice")),
+)
+
+# How many of those doors must actually be trapped for the test below to
+# mean anything. Well under the number above, so a renamed function in a
+# future numpy does not turn the suite red -- but far enough above zero
+# that a trap installing nothing at all cannot pass in silence.
+_DOORS_FLOOR = 25
+
+
+def _trap_every_random_source(
+    monkeypatch: pytest.MonkeyPatch,
+) -> "list[str]":
+    """Make every reachable random source raise; return what was trapped."""
+    import importlib
+
+    trapped: list[str] = []
+    for module_name, attributes in _RANDOM_DOORS:
+        module = importlib.import_module(module_name)
+        for attribute in attributes:
+            if not hasattr(module, attribute):
+                continue
+            spelled = f"{module_name}.{attribute}"
+
+            def _refuse(*args: object, __named: str = spelled, **kw: object):
+                raise AssertionError(
+                    f"a validate run asked {__named} for a random value. "
+                    f"A validate run consumes no randomness: its report's "
+                    f"bytes are a fixed function of its two files, and a "
+                    f"draw from anywhere breaks that (V10)."
+                )
+
+            monkeypatch.setattr(module, attribute, _refuse)
+            trapped.append(spelled)
+    return trapped
+
+
+def test_a_validate_run_draws_from_no_random_source(
+    tmp_path: pathlib.Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The randomness claim, made at the level it is actually true.
+
+    WHAT THIS REPLACES (review item P3-V2-F-F2). Four surfaces used to
+    say that no random source is in a validate run's closure AT ALL.
+    That was false and measurable: a fresh interpreter running only
+    `validate` gains `numpy.random`, `numpy.random.mtrand`, `random`,
+    `secrets` and `uuid`, by the route `validation` -> `reading` ->
+    `pandas` -> `numpy`, and a live `default_rng` is reachable by
+    attribute from `quality` itself. The sentences were narrowed to what
+    is true, and this test is what makes the narrowed sentence a
+    guarantee rather than a description: every door in the process is
+    trapped, and the whole command is run at them.
+
+    It is the runtime half of a pair. The static walk below asserts that
+    no module of this package on the validate path IMPORTS a random
+    source; this asserts that the path DRAWS from none, which is the
+    property V10 actually needs and the one `README.md` states.
+    """
+    description = _built(tmp_path, capsys)
+    trapped = _trap_every_random_source(monkeypatch)
+    assert len(trapped) >= _DOORS_FLOOR, (
+        f"the trap installed only {len(trapped)} raisers, so passing it "
+        f"proves very little: {sorted(trapped)}"
+    )
+    assert main(["validate", f"{description}"]) == 0
+    printed = capsys.readouterr().out
+    assert "NO CHECKABLE OBLIGATION WAS MISSED." in printed, (
+        "the run has to have gone all the way through the report for "
+        "the trap to have been walked past"
+    )
+
+
+# The fresh-interpreter probe. It writes its answer to a file rather
+# than to standard output, because the run it measures prints a whole
+# quality report to standard output and the two must not be mixed.
+_CLOSURE_PROBE = """
+import json
+import sys
+
+sys.path.insert(0, sys.argv[1])
+before = set(sys.modules)
+from synthtwin.cli import main
+
+code = main(["validate", sys.argv[2], "--replace"])
+gained = sorted(set(sys.modules) - before)
+with open(sys.argv[3], "w", encoding="utf-8", newline="\\n") as answer:
+    json.dump({"code": code, "gained": gained}, answer)
+"""
+
+
+def test_the_validate_closure_of_a_fresh_interpreter_is_what_we_say_it_is(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """`sys.modules`, in a process where nothing was imported first.
+
+    Every other boundary test in this file runs inside pytest, where the
+    package, pandas and numpy are already in `sys.modules` before the
+    test starts -- so no module body re-executes and a question asked of
+    the module cache is answered by whatever earlier tests imported.
+    That is exactly how two names in the recorder above came to be
+    unfailable. This one starts a real interpreter with nothing of ours
+    in it and asks the cache afterwards.
+
+    It carries two obligations and one tripwire:
+
+    * the generator and the renderer are absent, which is P3-D1's
+      boundary asserted where the module cache cannot answer for it;
+    * `numpy.random` is PRESENT, which is the fact the old absolute
+      denied. It is asserted rather than merely commented, so that the
+      day it stops being true somebody is told: the narrowed sentences
+      in `cli.py`, `quality.py`, `README.md`, `CLAUDE.md` and V10 can
+      then be raised back to the absolute they used to claim, and this
+      test is where that news arrives.
+    """
+    import json
+    import subprocess
+
+    description = _built(tmp_path, capsys)
+    probe = tmp_path / "closure_probe.py"
+    probe.write_text(_CLOSURE_PROBE, encoding="utf-8", newline="\n")
+    answer = tmp_path / "closure.json"
+    done = subprocess.run(
+        [
+            sys.executable,
+            f"{probe}",
+            f"{_PACKAGE.parent}",
+            f"{description}",
+            f"{answer}",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert done.returncode == 0, done.stderr
+    measured = json.loads(answer.read_text(encoding="utf-8"))
+    assert measured["code"] == 0, done.stderr
+    gained = measured["gained"]
+
+    assert "synthtwin.validation" in gained, (
+        "the probe did not measure a validate run at all"
+    )
+    for forbidden in ("synthtwin.generation", "synthtwin.rendering"):
+        assert forbidden not in gained, (
+            f"a validate run put {forbidden} in the module cache of a "
+            f"fresh interpreter, so a second opinion is carrying the "
+            f"planner's own defects and this package's own generator"
+        )
+    assert "numpy.random" in gained, (
+        "a validate run no longer brings `numpy.random` into the "
+        "process. That is BETTER than what this project promises, and "
+        "it means the narrowed wording is now understating the "
+        "guarantee: `cli.py`, `quality.py`, `README.md`, `CLAUDE.md` "
+        "and V10 of the validation specification say a random source is "
+        "in the process because pandas puts one there, and if it is not "
+        "there any more they can say the absolute again. Raise them "
+        "deliberately, with an amendment, rather than deleting this line."
     )
 
 
@@ -956,6 +1314,58 @@ def test_the_summary_is_generated_from_the_census_alone(
     assert f"A further {census.not_checkable} obligation(s)" in report
 
 
+def test_the_measured_file_s_name_crosses_the_display_boundary(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The name is a string a person typed, so it is shown, never obeyed.
+
+    Printing the measured file's name (V7.1-A1) opened a surface this
+    report did not have: every other word in it is the description's
+    published text or this package's own. A file name can carry an
+    escape sequence and a carriage return, and a report is opened in a
+    terminal as often as in an editor -- so a name could paint itself
+    green, or return to the start of the line and overwrite what
+    synthtwin wrote with a verdict synthtwin did not reach.
+
+    The boundary that already governs published labels governs this
+    too, and this is where that is asserted rather than assumed.
+    """
+    import dataclasses
+
+    from synthtwin import contract, quality, validation
+
+    description = _built(tmp_path, capsys)
+    loaded = contract.load_profile(f"{description}")
+    measured = validation.measure(loaded, f"{_twin_of(description)}")
+    forged = (
+        "\x1b[31mevil\rNO CHECKABLE OBLIGATION WAS MISSED.\n"
+        "THE FILE MEASURED: innocent.csv"
+    )
+    outcome = dataclasses.replace(measured, measured_name=forged)
+
+    report = quality.quality_report(loaded, outcome)
+    assert "\x1b" not in report, "an escape sequence reached the report"
+    assert "\r" not in report, "a carriage return reached the report"
+    # A value is not layout: the whole forgery has to stay inside ONE
+    # line, the line that says what the name is. Counting the substring
+    # would find it twice and prove nothing -- the second is the forged
+    # text shown AS TEXT, which is the correct outcome. What must not
+    # exist is a second LINE that reads as one synthtwin wrote.
+    lines = report.split("\n")
+    headers = [line for line in lines if line.startswith("THE FILE MEASURED:")]
+    assert len(headers) == 1, (
+        f"a file name forged a line of its own: {headers}"
+    )
+    assert "innocent.csv" in headers[0], (
+        "the name must still be READABLE -- shown as text is not the "
+        "same as thrown away"
+    )
+    assert "NO CHECKABLE OBLIGATION WAS MISSED." in headers[0], (
+        "the forged verdict is not where the name is, so this test is "
+        "no longer exercising what it says it exercises"
+    )
+
+
 def test_no_report_says_every_published_fact_was_found(
     tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -1139,3 +1549,63 @@ def test_no_string_from_the_measured_file_reaches_any_output(
     report = _quality_of(description).read_text(encoding="utf-8")
     for surface in (report, printed.out, printed.err):
         assert marker not in surface
+
+
+def test_no_string_reaches_any_output_on_a_run_that_refuses(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The same rule on the runs the test above cannot reach (V5.4).
+
+    REVIEW ITEM P3-V2-D-F1, and the second half of why it was missed.
+    The test above asserts `code in (0, 3)` -- validation ran to
+    completion -- so a run that REFUSES fails that assertion before any
+    string is looked for, and the whole refusing half of V5.4's "not in
+    the report, not on screen, NOT IN A REFUSAL" went unexercised. Two
+    files walked past the header pre-check into the reader's own
+    repeated-name refusal, which quotes the repeated name, and printed
+    a measured string on the screen with the suite green.
+
+    So this drives a battery whose files are meant to be hostile to the
+    reader, asserts the marker reaches no surface whatever the exit
+    code, and asserts that at least one of them really did refuse --
+    without which this would be the same test as the one above.
+    """
+    description = _built(tmp_path, capsys)
+    marker = "zzmarkerzz"
+    assert marker not in description.read_text(encoding="utf-8")
+    hostile = {
+        "plain-duplicate": f"{marker},{marker}\n1,2\n3,4\n",
+        "blank-first-line": f"\n{marker},{marker}\n1,2\n3,4\n",
+        "quoted-newline": f'"{marker}\nx","{marker}\nx"\n1,2\n3,4\n',
+        "blank-name": f"\n,{marker}\n1,2\n3,4\n",
+        "unclosed-quote": f'region,visits\n{marker},"unclosed\n',
+        "ragged": f"region,visits\n{marker},1,2\n{marker},3\n",
+        "zero-byte": f"region,visits\n{marker}\x00,1\n",
+    }
+    codes: set[int] = set()
+    for label in sorted(hostile):
+        target = tmp_path / f"{label}.csv"
+        target.write_text(hostile[label], encoding="utf-8", newline="")
+        out = tmp_path / f"out-{label}"
+        out.mkdir()
+        code = main(
+            [
+                "validate",
+                f"{description}",
+                "--twin",
+                f"{target}",
+                "--out-dir",
+                f"{out}",
+            ]
+        )
+        codes.add(code)
+        printed = capsys.readouterr()
+        surfaces = [printed.out, printed.err]
+        for written in sorted(out.glob("*")):
+            surfaces = surfaces + [written.read_text(encoding="utf-8")]
+        for surface in surfaces:
+            assert marker not in surface, label
+    assert 1 in codes, (
+        "no file in this battery refused, so the refusing half of V5.4 "
+        "went unexercised again -- which is the defect this test is for"
+    )
