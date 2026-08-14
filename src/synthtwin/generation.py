@@ -4650,6 +4650,26 @@ def _identifier_cells(
       than named (review item P2-C2-F6). Method G12 grants the fallback
       of naming a folded count that could not fall below its raw count
       to columns of numbers, and to no other role;
+    - AND THE LAYOUT IS CHECKED AND REPAIRED, because whether a family
+      can supply the collisions a layout asks it for is not knowable
+      when the layout is chosen (method G9.3 step 5, plan amendment
+      A-P3-12). A family's supply is its identities' own case positions
+      plus whatever edge spacing their lengths leave over, and edge
+      spacing only LENGTHENS, so an identity pinned to the longest
+      published length supplies nothing at all. This walk laid the
+      column out once and named the shortfall; on 44 of a 1,200-column
+      battery of descriptions a real producer wrote -- every one of
+      which its own values answer exactly -- that shortfall was the
+      published folded count. The column is now laid out AGAIN where a
+      collision could not be built: a family is asked for no more
+      collisions than it was just shown to supply, a family owing one
+      takes it on the slot carrying a published length end before any
+      other, and a description whose first packing gives every group a
+      family of its own is offered a packing that does not. **The first
+      layout is tried first and is unchanged**, so a description the
+      earlier rule answered exactly is answered the same way, byte for
+      byte, and the repair can only reach a column the earlier rule
+      already missed;
     - where the published length range cannot supply as many different
       values as the column has rows, values repeat and THREE facts about
       distinctness stop being reproduced -- raw, folded, and the
@@ -4675,14 +4695,98 @@ def _identifier_cells(
     if not isinstance(facts, contract.IdentifierFacts):
         raise _wrong_facts(column.name)
     total = len(groups)
-    used: dict[str, int] = {}
-    notes: list[Deviation] = []
     folded = min(column.n_distinct_folded, total)
     partners = total - folded
+    room = len(_CLASSES) * len(_BANDS)
+    shapes = [_identifier_families(column, facts, groups, folded, partners)]
+    kept: tuple[list[str], list[Deviation]] | None = None
+    # A REPAIR MAY NOT GIVE UP A COUNT THE FIRST LAYOUT HELD. The only
+    # count a different layout of the same packing can lose is the one
+    # this walk names for itself: a layout that ran out of spellings and
+    # had to write one twice files `_repeat_notes`, giving up the raw
+    # distinctness count and the repetition pattern with it. So a layout
+    # is accepted only when it files no more of those than the first
+    # layout did -- trading raw distinctness for the folded count is the
+    # trade this module refuses, and it refuses it here by construction
+    # rather than by measurement.
+    allowance = -1
+    for tier in range(2):
+        if tier == 1:
+            wider = _identifier_packings(
+                column, facts, groups, folded, partners, _FOLD_PACKINGS
+            )
+            if len(wider) < 2:
+                break
+            shapes = wider
+        for step in range(len(shapes)):
+            if tier == 1 and step < 1:
+                continue
+            for asking in range(2):
+                asked: tuple[int, ...] = ()
+                if asking:
+                    asked = shapes[step][1]
+                caps = [-1 for _cell in range(room)]
+                for _again in range(total + 1):
+                    built, notes, short, supply = _laid_identifiers(
+                        column, facts, groups, folded, partners,
+                        shapes[step], caps, asked,
+                    )
+                    if kept is None:
+                        kept = (built, notes)
+                        allowance = len(notes)
+                    if _fully_folded(short) and len(notes) <= allowance:
+                        return built, notes
+                    moved = False
+                    for cell in range(room):
+                        if short[cell] < 1:
+                            continue
+                        if caps[cell] < 0 or caps[cell] > supply[cell]:
+                            caps[cell] = supply[cell]
+                            moved = True
+                    if not moved:
+                        break
+    if kept is None:
+        raise errors.ProfileError(
+            f"synthtwin internal check: no layout at all was built for "
+            f"the twin column '{parsing.visible(column.name)}'. This "
+            f"means a mistake in synthtwin; please report it. Nothing "
+            f"has been written."
+        )
+    return kept
+
+
+def _fully_folded(short: "list[int]") -> bool:
+    """Whether every collision this layout owed was actually built."""
+    for cell in range(len(short)):
+        if short[cell] > 0:
+            return False
+    return True
+
+
+def _laid_identifiers(
+    column: contract.ColumnBlock,
+    facts: contract.IdentifierFacts,
+    groups: "tuple[int, ...]",
+    folded: int,
+    partners: int,
+    shape: "tuple[list[int], tuple[int, int], bool]",
+    caps: "list[int]",
+    asked: "tuple[int, ...]",
+) -> "tuple[list[str], list[Deviation], list[int], list[int]]":
+    """One whole layout of a column of record numbers, and what it cost.
+
+    This is the walk of G9.6 as it has always been, taken out of
+    `_identifier_cells` so the repair above can run it more than once.
+    Beside the cells it hands back two counts per family: how many
+    collisions that family was ASKED for and could not build, and how
+    many it did build. Those two are what the repair reads; nothing
+    else about this walk changed.
+    """
+    total = len(groups)
     width = len(_BANDS)
-    packed, pinned, signed = _identifier_families(
-        column, facts, groups, folded, partners
-    )
+    used: dict[str, int] = {}
+    notes: list[Deviation] = []
+    packed, pinned, signed = shape
     order = _collision_order(
         packed,
         folded,
@@ -4695,6 +4799,8 @@ def _identifier_cells(
             )
             for cell in packed
         ],
+        caps,
+        asked,
     )
     cells = [packed[place] for place in order]
     groups = tuple([groups[place] for place in order])
@@ -4715,6 +4821,8 @@ def _identifier_cells(
     states: dict[str, list[int]] = {
         name: [facts.min_length, 0, 0] for name in families
     }
+    short = [0 for _cell in range(len(_CLASSES) * width)]
+    supply = [0 for _cell in range(len(_CLASSES) * width)]
     spellings: list[str] = []
     repeated = 0
     for index in range(total):
@@ -4735,6 +4843,11 @@ def _identifier_cells(
         partner = _partner_of(
             index, folded, spellings, families, used, windows
         )
+        if index >= folded >= 1 and index >= 1:
+            if partner is None:
+                short[cells[index]] = short[cells[index]] + 1
+            else:
+                supply[cells[index]] = supply[cells[index]] + 1
         if partner is not None:
             spellings = spellings + [_take(partner, used)]
             continue
@@ -4766,7 +4879,7 @@ def _identifier_cells(
         spellings = spellings + [spelling]
     if repeated or len(set(spellings)) < total:
         notes = notes + _repeat_notes(column)
-    return _grouped(groups, spellings), notes
+    return _grouped(groups, spellings), notes, short, supply
 
 
 def _moved_to(order: "list[int]", place: int) -> int:
@@ -4806,6 +4919,8 @@ def _collision_order(
     folded: int,
     partners: int,
     folds: "list[bool]",
+    caps: "list[int]",
+    asked: "tuple[int, ...]",
 ) -> "list[int]":
     """Lay the groups out so a collision slot sits after its own family.
 
@@ -4834,29 +4949,59 @@ def _collision_order(
     made-up value and never with a position; the packing's own margins
     are counts of cells, and every group keeps its own class, alphabet
     and size wherever it sits.
+
+    ``caps`` AND ``asked`` ARE THE REPAIR'S TWO HANDLES, and both are
+    empty on the layout every column is offered first (G9.3 step 5).
+    ``caps`` holds one number per family -- the most collisions that
+    family may be asked for, or -1 for no ceiling -- and is how a
+    shortfall a finished layout MEASURED is handed back to the choice
+    that caused it, since what a family can supply is a fact about
+    spellings that do not exist here. ``asked`` names slots to take a
+    collision before any other, and the repair puts the two carrying the
+    published length ends in it: an identity pinned to the longest
+    published length can be lengthened by nothing, so a family whose one
+    identity sits there supplies no spaced partner at all, while the
+    same family with the pin on its PARTNER instead supplies one. With
+    both empty every pass below falls through to the rule above it, so
+    the first layout is the layout this function always gave.
     """
     total = len(cells)
     if partners < 1 or partners >= total or folded < 1:
         return [place for place in range(total)]
     left = [place for place in range(total)]
     tail: list[int] = []
+    taken = [0 for _cell in range(len(caps))]
     for _step in range(partners):
         picked = -1
-        for wanted in (True, False):
-            for place in range(len(left) - 1, -1, -1):
-                if folds[left[place]] != wanted:
-                    continue
-                kept = 0
-                for other in left:
-                    if cells[other] == cells[left[place]]:
-                        kept = kept + 1
-                if kept >= 2:
-                    picked = place
+        for capped in (True, False):
+            for first in (True, False):
+                for wanted in (True, False):
+                    for place in range(len(left) - 1, -1, -1):
+                        cell = cells[left[place]]
+                        if folds[left[place]] != wanted:
+                            continue
+                        if first and left[place] not in asked:
+                            continue
+                        if capped and caps[cell] >= 0 and (
+                            taken[cell] >= caps[cell]
+                        ):
+                            continue
+                        kept = 0
+                        for other in left:
+                            if cells[other] == cell:
+                                kept = kept + 1
+                        if kept >= 2:
+                            picked = place
+                            break
+                    if picked >= 0:
+                        break
+                if picked >= 0:
                     break
             if picked >= 0:
                 break
         if picked < 0:
             picked = len(left) - 1
+        taken[cells[left[picked]]] = taken[cells[left[picked]]] + 1
         tail = [left[picked]] + tail
         left = left[:picked] + left[picked + 1:]
     return left + tail
@@ -5016,6 +5161,158 @@ def _identifier_permits(
     return mask
 
 
+# HOW MANY CANDIDATE PACKINGS THE FOLD REPAIR MAY EXAMINE on one column
+# (method G9.3 step 5). The walk below is finite on its own -- the shape
+# choices and the families are both finite -- but a column with many
+# groups has a great many of both, and a run has to end in a stated
+# number of steps rather than in however many the description happens to
+# have. Where the budget is spent the column keeps the layout it already
+# had and the shortfall is measured off the cells and named, exactly as
+# before this repair existed. Measured: over two batteries each built
+# from 1,200 producer descriptions, the deepest single column examined
+# twenty-one.
+_FOLD_PACKINGS = 256
+
+
+def _identifier_packings(
+    column: contract.ColumnBlock,
+    facts: contract.IdentifierFacts,
+    groups: "tuple[int, ...]",
+    folded: int,
+    partners: int,
+    budget: int,
+) -> "list[tuple[list[int], tuple[int, int], bool]]":
+    """Every packing of G9.6 that meets every published count, in order.
+
+    ``budget`` is how many candidates may be EXAMINED. The ordinary run
+    asks for one candidate's worth of work -- and gets the same answer,
+    from the same walk in the same order, that this rule gave before the
+    fold repair existed. More are asked for only where a laid-out column
+    could not build a collision it owes (G9.3 step 5).
+
+    Two tiers, in this order, so the first answer is never a new one:
+
+    1. **The shape search itself.** The two sign attempts of owner
+       decision 9, and within each the candidate end-carriers in the
+       fixed order of `_shape_choices`. A shape whose two carrying
+       groups are the same SIZE as a shape already tried, or whose
+       permissions come out the same, is stepped over: it can only
+       repeat an answer already offered.
+    2. **The same search with ONE group held to ONE family.** A
+       description can have several exact packings and this walk returns
+       the first; where that first gives every group a family of its
+       own, no slot has a same-family sibling and the collision the
+       description publishes can be built nowhere. Holding one group to
+       one family and packing the rest is how the others are reached.
+       THE PACKING WALK ITSELF IS UNTOUCHED -- what moves is the
+       permission mask handed to it -- so this adds answers and changes
+       none, and `_allotted_over`'s stated fill order, which four roles
+       share, is exactly where it was.
+
+    Guarantees: reads only the description; a fixed function of its
+    arguments, with no randomness and no I/O. The list may be empty,
+    which says no assignment of whole groups meets every published
+    count and the caller falls back.
+    """
+    total = len(groups)
+    width = len(_BANDS)
+    classes = [
+        column.n_numeric,
+        column.n_out_of_range,
+        column.n_contradictory,
+        column.n_not_numeric,
+    ]
+    alphabets = [
+        facts.n_all_digits,
+        facts.n_code_alphabet - facts.n_all_digits,
+        column.n_present - facts.n_code_alphabet,
+    ]
+    found: list[tuple[list[int], tuple[int, int], bool]] = []
+    spent = 0
+    # THE PACKING DECIDES WHETHER THE SIGN IS THE LAST WAY, and no
+    # predicate written by hand does (owner decision 9, 2026-08-13).
+    # Two attempts are made in order: first with the two-character code
+    # family CLOSED, so a description that can meet every published
+    # count some other way does, and only then with it OPEN. Whichever
+    # attempt succeeds is the answer, and the flag it succeeded under
+    # travels back so the walk spells its cells the same way.
+    #
+    # This replaces two predicates that both got it wrong from the
+    # published numbers alone -- one permitted a sign where three
+    # characters were available, the other refused one where the
+    # remaining bands genuinely could not carry a short cell -- because
+    # what "no other spelling" means is exactly "no other assignment of
+    # whole groups meets every published count", which is the question
+    # this packer already answers completely.
+    for signing in (False, True):
+        sized: dict[tuple[int, int], int] = {}
+        seen_permits: dict[tuple[tuple[int, int], ...], int] = {}
+        for carriers in _shape_choices(total):
+            if len(found) >= budget:
+                return found
+            shape = (groups[carriers[0]], groups[carriers[1]])
+            if shape in sized:
+                continue
+            sized[shape] = 1
+            permits = _identifier_windows(facts, total, carriers, signing)
+            seen = tuple(sorted(
+                [(groups[place], permits[place]) for place in range(total)]
+            ))
+            if seen in seen_permits:
+                continue
+            seen_permits[seen] = 1
+            spent = spent + 1
+            together = _joint_allocation(groups, classes, alphabets, permits)
+            if together is None:
+                continue
+            found = found + [(
+                _collision_slots(
+                    together,
+                    groups,
+                    folded,
+                    partners,
+                    permits,
+                    _caseless_slots(together, facts, carriers, total),
+                ),
+                carriers,
+                signing,
+            )]
+    if len(found) >= budget or not found:
+        return found
+    for signing in (False, True):
+        for carriers in _shape_choices(total):
+            permits = _identifier_windows(facts, total, carriers, signing)
+            for place in range(total):
+                for cell in range(len(_CLASSES) * width):
+                    if spent >= budget:
+                        return found
+                    if (permits[place] >> cell) & 1 == 0:
+                        continue
+                    held = [permits[each] for each in range(total)]
+                    held[place] = 1 << cell
+                    spent = spent + 1
+                    together = _joint_allocation(
+                        groups, classes, alphabets, held
+                    )
+                    if together is None:
+                        continue
+                    found = found + [(
+                        _collision_slots(
+                            together,
+                            groups,
+                            folded,
+                            partners,
+                            permits,
+                            _caseless_slots(
+                                together, facts, carriers, total
+                            ),
+                        ),
+                        carriers,
+                        signing,
+                    )]
+    return found
+
+
 def _identifier_families(
     column: contract.ColumnBlock,
     facts: contract.IdentifierFacts,
@@ -5078,51 +5375,9 @@ def _identifier_families(
         facts.n_code_alphabet - facts.n_all_digits,
         column.n_present - facts.n_code_alphabet,
     ]
-    # THE PACKING DECIDES WHETHER THE SIGN IS THE LAST WAY, and no
-    # predicate written by hand does (owner decision 9, 2026-08-13).
-    # Two attempts are made in order: first with the two-character code
-    # family CLOSED, so a description that can meet every published
-    # count some other way does, and only then with it OPEN. Whichever
-    # attempt succeeds is the answer, and the flag it succeeded under
-    # travels back so the walk spells its cells the same way.
-    #
-    # This replaces two predicates that both got it wrong from the
-    # published numbers alone -- one permitted a sign where three
-    # characters were available, the other refused one where the
-    # remaining bands genuinely could not carry a short cell -- because
-    # what "no other spelling" means is exactly "no other assignment of
-    # whole groups meets every published count", which is the question
-    # this packer already answers completely.
-    for signing in (False, True):
-        sized: dict[tuple[int, int], int] = {}
-        spent: dict[tuple[tuple[int, int], ...], int] = {}
-        for carriers in _shape_choices(total):
-            shape = (groups[carriers[0]], groups[carriers[1]])
-            if shape in sized:
-                continue
-            sized[shape] = 1
-            permits = _identifier_windows(facts, total, carriers, signing)
-            seen = tuple(sorted(
-                [(groups[place], permits[place]) for place in range(total)]
-            ))
-            if seen in spent:
-                continue
-            spent[seen] = 1
-            together = _joint_allocation(groups, classes, alphabets, permits)
-            if together is None:
-                continue
-            return (
-                _collision_slots(
-                    together,
-                    groups,
-                    folded,
-                    partners,
-                    permits,
-                    _caseless_slots(together, facts, carriers, total),
-                ),
-                carriers,
-                signing,
-            )
+    found = _identifier_packings(column, facts, groups, folded, partners, 1)
+    if found:
+        return found[0]
     # NO EXACT ALLOCATION EXISTS, SO THE SIGN SECURES NOTHING (review
     # item P3-C5-F2). Reaching this line means neither search found an
     # assignment of whole groups meeting every published count, with the
@@ -7760,6 +8015,43 @@ def generate(profile: contract.Profile, seed: int) -> Twin:
     )
 
 
+def _folded_excess_reason(column: contract.ColumnBlock) -> str:
+    """Why a twin holds MORE folded identities than the description does.
+
+    THE SENTENCE WRITTEN FOR A COLUMN OF DATES WAS REACHING A COLUMN IT
+    IS FALSE OF (plan amendment A-P3-12). A column of dates is spread
+    over its published ladder and its rule fixes no repetition at all,
+    which is what "how often a value repeats is not a fact this
+    column's rule holds on to" says. A DECLARED COLUMN OF RECORD
+    NUMBERS is the one role where that is false: the repetition pattern
+    is a published count that rule meets, and a run naming this line
+    meets it in the same breath. What went wrong there is the one thing
+    a reader has to be told in order to act -- the description asks for
+    two spellings that come down to one value once case and edge
+    spacing are ignored, and there was nowhere inside the published
+    length range to write the second (method G9.3 step 5).
+    """
+    if isinstance(column.facts, contract.IdentifierFacts):
+        return (
+            "The description records two or more spellings that come "
+            "down to the same value once upper and lower case and "
+            "spaces at the ends are ignored, and the twin could not "
+            "write them: the published length range and the kinds of "
+            "value this column holds left no second way to spell one "
+            "of them. So the twin holds MORE different values, "
+            "ignoring case and edge spacing, than the description "
+            "records. Code that groups rows by this column, or that "
+            "matches it case-insensitively, sees more groups here than "
+            "it will on your table."
+        )
+    return (
+        "The twin holds MORE different values, ignoring case and edge "
+        "spacing, than the description records, for the same reason: "
+        "how often a value repeats is not a fact this column's rule "
+        "holds on to."
+    )
+
+
 def _recount_notes(
     column: contract.ColumnBlock, counted: "tuple[int, int, int, int]"
 ) -> "list[Deviation]":
@@ -7810,12 +8102,7 @@ def _recount_notes(
             "edge spacing, than the description records."
         )
         if counted[3] > column.n_distinct_folded:
-            reason = (
-                "The twin holds MORE different values, ignoring case and "
-                "edge spacing, than the description records, for the same "
-                "reason: how often a value repeats is not a fact this "
-                "column's rule holds on to."
-            )
+            reason = _folded_excess_reason(column)
         notes = notes + [
             _deviation(
                 column.name,

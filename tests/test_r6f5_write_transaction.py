@@ -363,6 +363,18 @@ def test_an_output_that_is_a_link_is_refused_before_anything_is_written(
 def test_a_folder_that_cannot_be_written_is_a_sentence(
     tmp_path: pathlib.Path,
 ) -> None:
+    # WHERE THIS IS PROVEN AND WHERE IT IS NOT (round 5 item 10). The
+    # condition is built here and then CHECKED with a probe, so the case
+    # never asserts against a folder that is perfectly writable. Two
+    # hosts fail that check, and they are named in the skip rather than
+    # left for a reader to assume this held everywhere: a POSIX
+    # superuser, who overrides the mode bits; and Windows, where
+    # `chmod` moves the read-only attribute and nothing else, so a
+    # folder that refuses a write cannot be made from the standard
+    # library at all. Every CI cell that CAN build it does -- the
+    # hosted Linux and macOS images run as an ordinary account -- and
+    # on Windows this refusal has no driven witness. That is a stated
+    # residual, not a silence.
     folder = tmp_path / "locked"
     folder.mkdir()
     first, second = _outputs(folder)
@@ -376,7 +388,12 @@ def test_a_folder_that_cannot_be_written_is_a_sentence(
     if allowed:  # pragma: no cover -- a user who overrides permissions
         probe.unlink()
         folder.chmod(0o700)
-        pytest.skip("this user can write into a folder that forbids it")
+        pytest.skip(
+            "this host writes into a folder whose mode bits forbid it: "
+            "Windows moves only the read-only attribute, and a POSIX "
+            "superuser overrides the bits. No folder that refuses a "
+            "write can be built here from the standard library"
+        )
     try:
         with pytest.raises(errors.ProfileError) as raised:
             profile.write_both_files(first, second, PROFILE_TEXT, SUMMARY_TEXT)

@@ -68,6 +68,139 @@ exists).
   and refuses a walkthrough that runs two of the three commands and
   stops.
 
+### Changed in Phase 3: `--smallest-group` works below eleven, and every file says so
+- **A documented option no longer produces an unusable file** (owner
+  ruling 2026-08-14; plan amendment A-P3-11). `synthtwin profile
+  --smallest-group 2` wrote a description that `generate` and `validate`
+  then refused, because the contract required `small_cell_floor >= 11` --
+  and the refusal told the person to make the description again with
+  `synthtwin profile` and use it exactly as written, which is what they
+  had done. The contract's minimum is now 1, under a counted re-seal of
+  `docs/spec/profile-contract-v4.md` section 4.4, and the whole workflow
+  runs on any floor of 1 or more.
+- **THIS LOWERS a confidentiality bound, and the amendment prices it.**
+  The floor is what keeps a published group too large to point at one
+  person. At a floor of `f`, no group named in a description covers
+  fewer than `f` rows; at 1, every group is named exactly, a group of one
+  row included. Where one row of a table is one person, a low floor
+  publishes that a value exists together with how many people have it --
+  the count is the disclosure, not a route to one.
+- **Nothing else is relaxed.** Every floor-governed invariant still binds
+  at the value the document carries (B5, D3, N2, N4, P2, V1, W5); at a
+  floor of 1 nothing may be held back at all, and a description that
+  fills a held-back map is refused for breaking the invariant it always
+  broke. A floor of zero or below is still refused, and a hand-edited
+  description is still refused for every other reason it was refused
+  before.
+- **The consequence is made visible rather than softened.** A `profile`
+  run at a lowered number prints an unmissable warning before either
+  file exists -- what a group that small can reveal about a person, in
+  those words, and where those counts travel next. The plain-language
+  summary, the generation report and the quality report each state on
+  their own face that the description was made that way, so a reader
+  handed one of those files alone can tell. The twin CSV carries no
+  sentence because a CSV has nowhere to put one; its report is written
+  beside it.
+- **The quality report now names the floor it is running at, on every
+  run.** Its withholding rule read "never named in any description",
+  which was written when every description had one floor and now invites
+  a reader to supply eleven and be wrong about what the report is showing
+  them. This is the only change to the bytes of an artifact made at the
+  default floor.
+- **`_multiplicity`'s refusal at a floor of one reads as a sentence.** It
+  composed "a number of rows from 1 to 0"; it now says the block must be
+  empty, and why.
+
+### Fixed in Phase 3: a twin of a column of record numbers holds its folded count
+- **A published count the twin got wrong on 3.7 per cent of a battery
+  of real producer descriptions is now right on all of them** (owner
+  ruling of 2026-08-14, plan amendment A-P3-12, method G9.3 step 5).
+  Where a description of a column of record numbers records two
+  spellings that come down to one value once upper and lower case and
+  spaces at the ends are ignored, the twin owes that collision. Which
+  values carried the collisions was settled before any of them was
+  spelled, and whether a family of values can carry one depends on the
+  spellings: a value already at the longest published length cannot be
+  lengthened by a space, and a value with no letter cannot change case.
+  So the twin could ask one family for more collisions than it had room
+  for while another family stood idle, and wrote a fresh value instead
+  -- missing the description's own count of how many different values
+  it holds ignoring case. Measured on two independently built batteries
+  of descriptions the profiler wrote from real columns, every one of
+  which its own column answers exactly: **44 of 1,200 and 68 of 918
+  were wrong before; none is wrong now**, at four seeds.
+- **A twin that already met every published count does not move by one
+  byte.** The layout that shipped is tried first and kept the moment it
+  works, so the repair can only reach a column that was already wrong.
+  Measured: on this project's own 200-description identifier battery at
+  four seeds, 800 twins, not one byte changed and the count of cells
+  that open with a character a spreadsheet reads as a formula is the
+  same before and after. Across both hazard batteries, every run whose
+  bytes moved is a run that was missing a published count.
+- **What it costs, stated rather than left to be found.** Two of the
+  1,200 repaired columns now write 9 and 12 cells opening with such a
+  character where they wrote none; no column writes more of them than
+  it did in order to gain nothing, and every one is named in the
+  generation report as before. Generation is seven to fifteen per cent
+  slower across a battery in which every failing column is included,
+  and unchanged on a column whose first layout works.
+- **And where such a count still cannot be held, the report now says
+  something TRUE about a column of record numbers.** The line carried
+  the sentence written for a column of dates -- that how often a value
+  repeats is not a fact the column's rule holds on to -- which is false
+  of this one role, whose rule meets the repetition pattern in the same
+  run. It now says what actually happened: the description asks for two
+  spellings that come down to one value, and the published length range
+  left no second way to spell one of them.
+
+### Fixed in Phase 3: the Windows half of the matrix could not run the suite
+- **One line in one test stopped every governed Windows cell** (review
+  item P3-V4-F10, round 5 item 10). The proof added last round drives
+  the "this file could not be opened" refusal through the shipped
+  command at a real condition, and it decided whether to skip by
+  calling `os.geteuid()` -- a function Windows does not have. All ten
+  `windows-latest` cells of the CI matrix therefore ended in an
+  AttributeError before proving anything, and CI green is a merge
+  requirement, so one test's convenience blocked the branch outright.
+- **The condition is now built in the mechanism each platform HAS, and
+  the mechanism is checked before the command is run.** POSIX takes
+  every read permission off the file. Windows locks the file's whole
+  length against every other handle -- locks there are mandatory, and
+  "the file is open in another program" is how a Windows user actually
+  meets this refusal -- with a share-nothing handle as a second try.
+  Whichever mechanism ran, the file must be present and must refuse to
+  open before the case proceeds, so a mechanism that quietly does
+  nothing (`chmod` on Windows moves the read-only attribute and
+  nothing else) makes the case fail rather than pass. Guarding the old
+  call with the platform name instead would have swapped an error for
+  a skip on the one platform this refusal matters most on.
+- **Two further proofs that were skipping on Windows now run there.**
+  The refusal that stops `generate` writing a twin over the
+  description through a link is asserted on every platform, each in
+  the sentence its own rule produces -- the stricter Windows rule had
+  nothing asserted about it at all for this command. And the fixture
+  guard's process-helper mutation no longer carries a POSIX-only mark:
+  the guard refuses an import by NAME, before the interpreter goes
+  looking for the module, so the case is driven on every platform.
+- **The fixture guard learned what Windows uses to create a process.**
+  Asking that question is what the skip above had been hiding:
+  `_posixsubprocess` was in the blocked-import list and `_winapi` --
+  the module that creates a process on Windows, emitting no
+  `subprocess.*` audit event of its own -- was not. Both are blocked
+  now, as is every `_winapi.*` audit event.
+- **Where a condition genuinely cannot be built on a platform, the
+  test says so by name.** A folder that refuses to be written cannot be
+  made from the standard library on Windows, and a POSIX superuser
+  reads a file whose mode bits forbid everybody; both skips now name
+  the host and the reason rather than reading as though the check had
+  held there.
+- **And the suite now asks this question of itself.** A new guard reads
+  every test module and refuses two things: a call to an `os` member
+  Windows lacks that nothing has guarded, and a module-level import of
+  a module only one platform has -- which would fail collection for a
+  whole file rather than one test. On the state before this repair it
+  names `os.geteuid` at the line that broke the matrix.
+
 ### Fixed in Phase 3: six proofs that proved less than they claimed, and two stale sentences
 - **The non-vacuity proof no longer reads its answer off the thing it
   is testing** (review item P3-V4-F6). An entry of the shipped

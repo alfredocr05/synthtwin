@@ -859,6 +859,84 @@ def _verdict_lines() -> "list[str]":
     ]
 
 
+def _lowered_floor_lines(profile: contract.Profile) -> "list[str]":
+    """Said only where the description was made under a lowered floor.
+
+    THIS REPORT IS ONE OF THE FOUR THAT MUST SAY IT (owner ruling
+    2026-08-14, plan amendment A-P3-11). `--smallest-group` below the
+    default now runs end to end, and the ruling that let it through
+    ruled with it that the cost be made visible on the face of every
+    artifact. A reader is handed one file, not the set: somebody who
+    receives this report and the twin and never opens the description's
+    JSON has, until now, no way at all of learning that the counts in
+    front of them go down to two rows -- this report never mentioned the
+    floor in any run.
+
+    IT IS CONDITIONAL, unlike everything under "three things that are
+    true of every twin". Those are limits of the product, printed always
+    so that nobody comes to expect their absence. This is a fact about
+    ONE description which is false of an ordinary one, and a line saying
+    "the floor was not lowered" on every ordinary run is how a report
+    trains its reader to skip the paragraph that matters.
+
+    Guarantees:
+
+    - Inputs: the description this twin was built from. Nothing else.
+    - Determinism: a fixed function of one number in it.
+    - Errors raised: none.
+    - Boundary: no value of any table reaches it; it names counts.
+    """
+    floor = profile.settings.small_cell_floor
+    if floor >= contract.DEFAULT_SMALL_CELL_FLOOR:
+        return []
+    usual = contract.DEFAULT_SMALL_CELL_FLOOR
+    lines = [
+        _RULE,
+        (
+            f"THIS DESCRIPTION WAS MADE WITH THE SMALLEST GROUP SIZE "
+            f"LOWERED TO {floor}"
+        ),
+        _RULE,
+        "",
+        (
+            f"synthtwin normally publishes a value only where at least "
+            f"{usual} rows"
+        ),
+        "of the real table shared it. This description publishes values as",
+        f"few as {floor} row(s) shared, together with how many rows that",
+        "is -- and the twin beside this report was built to hold those",
+        "counts exactly, so the twin carries them and so does this page.",
+        "",
+    ]
+    # "a group of 1 is 1 people" is not English, so at a floor of one the
+    # sentence is the one that is true there rather than the general one
+    # with a bad number in it.
+    if floor < 2:
+        lines = lines + [
+            "A published group can be a single row. If one row of the real",
+            "table is one person, the description says out loud that exactly",
+            "one person -- on their own -- had that value, and the twin",
+            "writes it in exactly one row.",
+            "",
+        ]
+    else:
+        lines = lines + [
+            f"If one row of the real table is one person, a group of {floor}",
+            f"is {floor} people.",
+            "",
+        ]
+    return lines + [
+        "What that can mean for a person: somebody who already knows one",
+        "true thing about someone in the real table -- that they are in it",
+        "at all -- can find the small group that person must be in and read",
+        "off everything else the description says about that group. That is",
+        f"what the usual {usual} prevents and what this description does",
+        "not. Whoever approves data leaving your environment should be told",
+        "this before any of these files moves.",
+        "",
+    ]
+
+
 def _handling_lines() -> "list[str]":
     """Where the twin's values come from, and how the files are handled.
 
@@ -941,6 +1019,15 @@ def report(profile: contract.Profile, twin: generation.Twin) -> str:
     contract calls approximated, with the value achieved beside the
     value published, the two ends of the range this method promises for
     it, and whether the twin landed inside.
+
+    What it says only on the runs it is true of, and why that one is
+    conditional: that the description was made with the smallest group
+    size LOWERED below the default, what a group that small can reveal
+    about a person, and that the twin holds those counts too (owner
+    ruling 2026-08-14, plan amendment A-P3-11). `_lowered_floor_lines`
+    carries the reasoning. On a description made at the default floor
+    this report's bytes are exactly what they were before that section
+    existed.
     """
     lines = [
         _RULE,
@@ -961,6 +1048,15 @@ def report(profile: contract.Profile, twin: generation.Twin) -> str:
     lines = lines + _seed_lines(twin) + [""]
     lines = lines + _header_lines(profile) + [""]
     lines = lines + _encoding_lines(profile)
+    # HIGH IN THE PAGE, and before the sections a person skims for their
+    # own column. It is a fact about what the reader is holding, so it
+    # goes where a reader who stops after one screen still meets it.
+    # Nothing at all -- not even a blank line -- on an ordinary run, so
+    # that the bytes of a report made under the default floor are the
+    # bytes they were before this section existed.
+    lowered = _lowered_floor_lines(profile)
+    if lowered:
+        lines = lines + [""] + lowered
     lines = lines + [
         "",
         _RULE,

@@ -192,6 +192,102 @@ def _opening_lines(
     ]
 
 
+def _lowered_floor_lines(description: contract.Profile) -> "list[str]":
+    """Said only where the description was made under a lowered floor.
+
+    THIS REPORT IS ONE OF THE FOUR THAT MUST SAY IT, and it is the one
+    with a second duty (owner ruling 2026-08-14, plan amendment
+    A-P3-11). The other three say what the description publishes. This
+    one says what THIS FILE was measured to hold, group by group, and
+    the number it may print down to is the description's own floor -- so
+    lowering that floor turns `synthtwin validate` into a second place
+    the small counts appear, in a file whose whole purpose is to be
+    forwarded to somebody who is deciding whether to trust a twin.
+    Saying so is the difference between a consequence taken and a
+    consequence discovered.
+
+    IT IS CONDITIONAL, unlike the four bounds under "what this report
+    does not say". Those are true of every run and are printed on every
+    run so that nobody comes to expect their absence. This is a fact
+    about ONE description, false of an ordinary one, and a paragraph
+    that appears on every run saying the floor was NOT lowered is how a
+    reader is trained to skip the paragraph that matters.
+
+    Guarantees:
+
+    - Inputs: the description this check was run against. Nothing else.
+    - Determinism: a fixed function of one number in it.
+    - Errors raised: none.
+    - Boundary: no value of any table reaches it; it names counts.
+    """
+    floor = description.settings.small_cell_floor
+    if floor >= contract.DEFAULT_SMALL_CELL_FLOOR:
+        return []
+    usual = contract.DEFAULT_SMALL_CELL_FLOOR
+    lines = [
+        _RULE,
+        (
+            f"THIS DESCRIPTION WAS MADE WITH THE SMALLEST GROUP SIZE "
+            f"LOWERED TO {floor}"
+        ),
+        _RULE,
+        "",
+        (
+            f"synthtwin normally publishes a value only where at least "
+            f"{usual} rows"
+        ),
+        "of the real table shared it. This description publishes values as",
+        f"few as {floor} row(s) shared, and prints how many rows that is.",
+        "",
+    ]
+    # "a group of 1 is 1 people" is not English, so at a floor of one the
+    # sentence is the one that is true there rather than the general one
+    # with a bad number in it.
+    if floor < 2:
+        lines = lines + [
+            "A published group can be a single row. If one row of the real",
+            "table is one person, this description says out loud that exactly",
+            "one person -- on their own -- had that value.",
+            "",
+        ]
+    else:
+        lines = lines + [
+            f"If one row of the real table is one person, a group of {floor}",
+            f"is {floor} people.",
+            "",
+        ]
+    lines = lines + [
+        "READ WHAT THAT DOES TO THIS REPORT, because it is not only the",
+        "description that carries the small counts now. The rule further",
+        "down decides what may be shown by asking what a description of",
+        "the measured file would publish about it -- and under a floor of",
+        f"{floor} such a description names groups of {floor}. So the",
+        "obligation lines below print published counts and measured counts",
+        f"down to {floor} row(s), where at {usual} they would have been",
+        "withheld. This report is forwarded more often than the",
+        "description is: it goes to whoever is deciding whether to trust a",
+        "file, and it carries those counts with it.",
+        "",
+    ]
+    if floor < 2:
+        lines = lines + [
+            "At 1 nothing is withheld at all: every count this description",
+            "carries is named exactly, and every line below that would have",
+            "read WITHHELD carries its number instead.",
+            "",
+        ]
+    return lines + [
+        "What that can mean for a person: somebody who already knows one",
+        "true thing about someone in the real table -- that they are in it",
+        "at all -- can find the small group that person must be in and read",
+        "off everything else these two files say about that group. That is",
+        f"what the usual {usual} prevents and what this description does",
+        "not. Whoever approves data leaving your environment should be told",
+        "this before this report moves.",
+        "",
+    ]
+
+
 def _summary_lines(census: validation.Census) -> "list[str]":
     """The verdict summary, generated from the census and nothing else.
 
@@ -524,7 +620,35 @@ def _expectations_lines() -> "list[str]":
     ]
 
 
-def _handling_lines() -> "list[str]":
+def _floor_gate_lines(floor: int) -> "list[str]":
+    """The second way a line is withheld, said at the floor it runs at.
+
+    A FLOOR OF ONE MAKES THE GENERAL SENTENCE ABSURD, so it does not get
+    the general sentence. "A group fewer than 1 rows carry is named in no
+    description" is true and unreadable: nothing is held back at a floor
+    of one at all, and that is the thing a reader needs to be told. Every
+    other floor -- the default among them -- gets the sentence with its
+    own number in it (plan amendment A-P3-11 clause 3).
+    """
+    if floor < 2:
+        return [
+            "  This description's publication floor is 1, so nothing is",
+            "  held back this way at all: every count it carries is named",
+            "  exactly, and no line above reads WITHHELD for being a group",
+            "  too small to name. At any higher floor it would.",
+        ]
+    return [
+        f"  The publication floor of this description is {floor}: a group",
+        f"  fewer than {floor} rows carry is named in no description",
+        "  written under it -- that is what a floor is for -- so a count",
+        "  of it is not something a description of this file carries",
+        "  either. The comparison was made; what cannot be shown is which",
+        "  way it came out, because two files no description tells apart",
+        "  would come out differently.",
+    ]
+
+
+def _handling_lines(description: contract.Profile) -> "list[str]":
     """Where the numbers came from, and how the five files are handled.
 
     V7.5. This report states measured facts about a file derived from
@@ -536,7 +660,20 @@ def _handling_lines() -> "list[str]":
     The load-bearing phrases are deliberately the same ones the charter,
     `README.md`, `SECURITY.md`, the package docstring, the command's
     status screen, the profiler's summary and the twin's report use.
+
+    THE WITHHOLDING RULE NAMES ITS OWN NUMBER (owner ruling 2026-08-14,
+    plan amendment A-P3-11). It used to read "a group fewer rows carry
+    than the publication floor is never named in any description", which
+    was written when every description had the same floor. It is not one
+    number any more: the owner ruled `--smallest-group` through end to
+    end, so the floor is a property of the description in front of the
+    reader, and a sentence about "any description" now invites a reader
+    to supply the default and be wrong about what this report is showing
+    them. The number is therefore printed, on every run, at the point
+    where it decides something -- which is also the one place a reader
+    of an ordinary report is told what protects them.
     """
+    floor = description.settings.small_cell_floor
     return [
         _RULE,
         "HOW TO KEEP THIS FILE",
@@ -577,12 +714,7 @@ def _handling_lines() -> "list[str]":
         "  here, has no average for an average to be compared with, and",
         "  nothing was measured.",
         "  Describing the file publishes the kind and pools the number.",
-        "  A group fewer rows carry than the publication floor is never",
-        "  named in any description -- that is what the floor is for --",
-        "  so a count of it is not something a description of this file",
-        "  carries either. The comparison was made; what cannot be shown",
-        "  is which way it came out, because two files no description",
-        "  tells apart would come out differently.",
+    ] + _floor_gate_lines(floor) + [
         "",
         "A withheld count therefore stands on the verdict above rather",
         "than being quietly dropped: the obligation was set, and this",
@@ -633,6 +765,16 @@ def quality_report(
     of it, then the obligations no CSV can evidence, then the
     analyst-expectations section, then the handling rule.
 
+    ONE SECTION SITS ABOVE THE VERDICT AND APPEARS ONLY WHERE IT IS
+    TRUE: that the description was made with the smallest group size
+    LOWERED below the default, what that does to what the lines below
+    print, and what a group that small can reveal about a person (owner
+    ruling 2026-08-14, plan amendment A-P3-11). `_lowered_floor_lines`
+    carries the reasoning for its being conditional. On a description
+    made at the default floor this report's bytes differ from the
+    version before that ruling in one place only: the withholding rule
+    at the foot now prints the floor it is running at.
+
     THE SUMMARY IS GENERATED FROM THE CENSUS ALONE (V7.2). It states how
     many obligations were met exactly, how many landed inside a stated
     window, how many took a lesser outcome the ratified plan names for
@@ -643,12 +785,19 @@ def quality_report(
     can say that every published fact was found.
     """
     lines = _opening_lines(description, outcome.measured_name) + [""]
+    # HIGH IN THE PAGE, above the verdict a reader came for. Nothing at
+    # all -- not even a blank line -- on a description made at the
+    # default floor, so an ordinary report's bytes are unchanged by the
+    # existence of this section.
+    lowered = _lowered_floor_lines(description)
+    if lowered:
+        lines = lines + lowered + [""]
     lines = lines + _summary_lines(outcome.census) + [""]
     lines = lines + _bounds_lines() + [""]
     lines = lines + _detail_lines(outcome)
     lines = lines + _not_checkable_lines(outcome) + [""]
     lines = lines + _expectations_lines() + [""]
-    lines = lines + _handling_lines()
+    lines = lines + _handling_lines(description)
     # The lines are joined by hand: the offline policy accepts a text
     # method only with arguments it has resolved, and a list built while
     # the program runs is not one (plan D6.2).

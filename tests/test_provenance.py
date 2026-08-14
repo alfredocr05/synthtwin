@@ -152,10 +152,12 @@ with open(args.out, "w", encoding="utf-8", newline="") as handle:
 # A generator that reaches for the C helper the subprocess module is
 # built on -- a process-creation route that emits no subprocess.* audit
 # event of its own. The guard must refuse the import (review item
-# R2-B11; POSIX-only module).
-POSIX_FORK_EXEC_GENERATOR_SOURCE = """\
+# R2-B11). The helper's NAME is the parameter, because there is one per
+# platform: `_posixsubprocess` below subprocess on POSIX, `_winapi` on
+# Windows.
+PROCESS_HELPER_GENERATOR_SOURCE = """\
 import argparse
-import _posixsubprocess
+import {helper}
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--seed", type=int, required=True)
@@ -897,6 +899,10 @@ def test_guard_event_policy_covers_every_named_route() -> None:
         "os.fork",
         "os.forkpty",
         "os.startfile",
+        # What the interpreter announces when Windows creates a process
+        # or opens a file through the Windows API directly.
+        "_winapi.CreateProcess",
+        "_winapi.CreateFile",
         "pty.spawn",
         "ctypes.dlopen",
         "ctypes.dlsym",
@@ -924,7 +930,11 @@ def test_guard_import_policy_blocks_capability_modules() -> None:
         "_ctypes",
         "cffi",
         "subprocess",
+        # One process-creation helper per platform, and the guard must
+        # carry both: a list that named only the POSIX one left every
+        # Windows host a route below subprocess (round 5 item 10).
         "_posixsubprocess",
+        "_winapi",
         "multiprocessing",
         "pty",
         "fcntl",
@@ -1072,21 +1082,34 @@ def test_generator_native_socket_attempt_fails(tmp_path: Path) -> None:
     assert "forbidden import: ctypes" in result.stderr
 
 
-@pytest.mark.skipif(
-    os.name != "posix",
-    reason="the C fork-exec helper module exists only on POSIX hosts",
-)
-def test_generator_fork_exec_helper_import_fails(tmp_path: Path) -> None:
+@pytest.mark.parametrize("helper", ["_posixsubprocess", "_winapi"])
+def test_generator_process_helper_import_fails(
+    tmp_path: Path, helper: str
+) -> None:
     """Mutation: the C helper below the subprocess module is refused.
 
     Round-3 review item R2-B11: this helper performs process creation
     without emitting a subprocess.* audit event of its own, so the
     guard must make it unreachable by refusing the import.
+
+    BOTH HELPERS, ON EVERY PLATFORM (round 5 item 10). This case used
+    to name only the POSIX helper and to carry `skipif(os.name !=
+    "posix")`, which cost twice over: the Windows cells of the governed
+    matrix drove no version of this mutation at all, and the question
+    "what does Windows use instead" was never asked -- `_winapi`, the
+    module that creates a process there, was not in the guard's list.
+    Neither module has to EXIST on the host running this test: the hook
+    refuses an import by name, at the audit event the interpreter
+    raises before it goes looking for the module, so the refusal is the
+    same on a host where the import would otherwise fail with
+    ModuleNotFoundError. That is why this runs everywhere now.
     """
     seed = 7
     payload = b"placeholder\n"
     (tmp_path / "gen_fixture.py").write_text(
-        POSIX_FORK_EXEC_GENERATOR_SOURCE, encoding="utf-8", newline="\n"
+        PROCESS_HELPER_GENERATOR_SOURCE.format(helper=helper),
+        encoding="utf-8",
+        newline="\n",
     )
     fixture_dir = tmp_path / "fixtures"
     fixture_dir.mkdir()
@@ -1103,7 +1126,11 @@ def test_generator_fork_exec_helper_import_fails(tmp_path: Path) -> None:
         + result.stderr
     )
     assert "best-effort fixture guard" in result.stderr
-    assert "forbidden import: _posixsubprocess" in result.stderr
+    assert f"forbidden import: {helper}" in result.stderr, (
+        "the guard has to stop this by NAME. A run that failed because "
+        "the module is not on this platform would leave a Windows host "
+        "with no proof at all, which is what the old skip did"
+    )
 
 
 def test_guard_runner_allows_innocent_generator(tmp_path: Path) -> None:

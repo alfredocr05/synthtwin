@@ -1937,6 +1937,88 @@ The construction, in this order:
    counts and its parent's numeric class, and taking one from another
    family would meet the folded count by missing a different published
    one.
+5. **The layout is CHECKED against what the families actually supplied,
+   and repaired where a collision could not be built. THIS RAISES: a
+   published `n_distinct_folded` that revision 5 missed on descriptions
+   whose own values meet it is now met** (plan amendment A-P3-12).
+   Steps 1 to 4 settle which slots carry the collisions before any
+   spelling exists, and what a family can SUPPLY is a fact about
+   spellings: its identities' own case positions, and whatever edge
+   spacing their lengths leave inside the taking slot's window. Spacing
+   only lengthens, so an identity pinned to the LONGEST published
+   length supplies no spaced partner at all, and a family whose flips
+   are spent supplies no further one. A layout can therefore ask one
+   family for more collisions than it holds while another family of the
+   same column has room to spare. Measured over 1,200 descriptions a
+   real producer wrote, every one of whose own values is an exact
+   assignment of every count it publishes: 44 of them, 3.7 per cent,
+   lost the published folded count that way, and the feasibility check
+   of G12 never fired on one of them, because that check counts a whole
+   alphabet and knows nothing about families, slots or windows.
+
+   So the column is laid out AGAIN. The layouts are offered in the
+   fixed order below, and the FIRST one that supplies every collision
+   it owes is the answer:
+
+   1. **the layout of steps 1 to 4, unchanged and offered first.** A
+      description that layout answers is answered by it, so this step
+      can reach no column the earlier rule already met, and no twin
+      that met every published count changes by one byte;
+   2. **the same layout with every family that fell short asked for no
+      more collisions than that layout showed it supplies**, the
+      surplus passing to the next family G9.6's choice rule admits.
+      Where the repeat falls short again the ceiling is lowered again,
+      at most once per group;
+   3. **layouts 1 and 2 with the slots carrying the two published
+      length ENDS taking a collision before any other slot their family
+      admits.** The pinned slot is the one place in a family where
+      being an identity costs the family its whole spacing supply and
+      being a partner costs it nothing: pinned to the longest published
+      length an identity can be lengthened by nothing, while a PARTNER
+      pinned there is built by spacing its own family's shorter
+      identity out to that length;
+   4. **all of the above over each further packing of G9.6**, in that
+      section's own order, and then over the packings that section's
+      search reaches by holding ONE group to ONE family. A description
+      can have several exact packings; one that gives every group a
+      family of its own leaves no slot a same-family sibling, so no
+      collision can be built at all, where another packing of the very
+      same counts puts two groups together.
+
+   **A repair may not give up a count the first layout held.** The one
+   count a different layout of the same packing can lose is the one
+   this walk names for itself: a layout that ran out of spellings and
+   had to write one twice gives up the raw distinctness count and the
+   repetition pattern with it (owner decision 6). So a layout is
+   accepted only when it repeats no more than the first layout did.
+   Trading raw distinctness for the folded count is the trade this
+   section refuses, and this refuses it by construction rather than by
+   measurement.
+
+   **The walk ends in a stated number of steps.** At most two hundred
+   and fifty-six candidate packings are examined on one column, counted
+   across both of G9.6's tiers; the per-family ceiling is lowered at
+   most once per group; and every layout is a fixed function of the
+   description, so two implementations that follow this order write the
+   same bytes. Where every offered layout falls short the column KEEPS
+   THE FIRST, and the folded count it missed is recounted from the
+   finished cells and named as a deviation — which is what happened to
+   every one of them before this step existed.
+
+   **This step moves no other published fact, and the reason is
+   structural rather than measured.** Every layout it offers assigns
+   the same group sizes to the same class-and-alphabet families as some
+   exact packing of G9.6, so all four class counts and both alphabet
+   counts are met by construction; the collision choice is a
+   permutation of the groups, and the occurrence multiset pairs a size
+   with a made-up value and never with a position, so it is
+   permutation-invariant; both published length ends travel with their
+   carriers. What the step CAN move is which spelling a slot writes,
+   and so how many cells open with a character a spreadsheet reads as a
+   formula. Measured over the same 1,200 descriptions: 42 of the 44
+   repaired columns write the same number of such cells as before and
+   two write nine and twelve where they wrote none. Writing fewer of
+   them conforms, here as in G9.6.
 
 **Why edge spacing costs no other published fact.** `n_all_digits` and
 `n_code_alphabet` are read from the TRIMMED value, so a space at either
@@ -2423,7 +2505,15 @@ packing rule applying here IN FULL — both margins and the shape search
   offered in the fixed order of G9.5's own shape rule, so the
   description's own first two groups are tried first and a column the
   earlier rule already answered is answered the same way, byte for
-  byte;
+  byte. **This search can be asked for MORE than its first answer**
+  (G9.3 step 5, plan amendment A-P3-12), because a description can have
+  several exact packings and the first can be one no fold collision can
+  be built inside. The further answers are this same walk continued in
+  this same order, and then this same walk again with ONE group held to
+  ONE family — which is a narrowing of the permissions handed to the
+  packer, never a change to the packer's own fill order, so the first
+  answer stays the first answer and the rule four roles share is
+  untouched;
 - **each of the four class families is class-preserving by
   construction, and the walk CHECKS it.** A cell that reads as an
   ordinary number, one holding a well-formed number too large or too
@@ -2462,7 +2552,17 @@ packing rule applying here IN FULL — both margins and the shape search
   a notation inside accounting parentheses never does — gives the pass
   up after the ceiling G9.2 fixes, the walk is put back where that pass
   began, and the ordinary rule takes the value it would have taken
-  anyway;
+  anyway. **AND THE CHOICE IS CHECKED ONCE THE SPELLINGS EXIST** (G9.3
+  step 5, plan amendment A-P3-12): whether a family can SUPPLY the
+  collisions this choice asks it for depends on spellings that do not
+  exist while the choice is being made, so a layout that could not
+  build one is laid out again — the short family asked for no more than
+  it was shown to supply, a slot carrying a published length end
+  offered a collision before any other slot of its family, and where
+  neither helps, the further exact packings of this section, including
+  the ones its own search reaches by holding one group to one family.
+  The choice above is offered FIRST and unchanged, so a description it
+  answers is answered by it, byte for byte;
 - **when `all_whole_numbers` is true, every band writes whole numbers.**
   In the figures band the first character is a non-zero digit, so the
   spelling's length is its digit count. In the code band the value is

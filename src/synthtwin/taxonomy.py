@@ -76,11 +76,16 @@ rule says what a declaration matches (review item P1-R6-F9):
   and comparing the rounded values removed cells nobody had named and
   called two different declarations a contradiction (review item
   P1-R7-F3). Both sides are therefore compared as the numbers their
-  digits denote, by `_exact_value` and `_exact_number`. The
+  digits denote, by `exact_of_spelling` and `exact_of_number`. The
   numeric-sentinel rule asks that same exact question of those same
   records -- which cells ARE a candidate, how many rows hold it, and
   which cells are taken out -- because a later rule that rounds undoes
-  a comparison that did not (review item P1-R8-F2);
+  a comparison that did not (review item P1-R8-F2). Both names are
+  PUBLIC for that reason and not by accident: the validating side has
+  to reach the same answer about the same cells, and a module that
+  asked the question in binary64 beside this one erased eleven cells
+  this one keeps (review item P3-V4-F1). One question, one rule, one
+  name;
 * a declared value that does not read as such a number matches by
   SPELLING, after trimming and case folding: `--keep-value NA` covers
   `na` and ` NA `, and covers nothing else;
@@ -157,7 +162,7 @@ is used rather than a method call because the offline policy accepts no
 method call on a computed value (plan D6.2).
 
 `**` is used for one thing only, and it is not arithmetic on a
-measured value: `5 ** -twos` in `_exact_number`, a whole number raised
+measured value: `5 ** -twos` in `exact_of_number`, a whole number raised
 to a whole power, which Python computes exactly. It is never used for
 a square or a square root, because on floats it calls the platform's
 `pow`, which no standard requires to be correctly rounded. Every
@@ -1985,7 +1990,7 @@ def _exact_digits(text: str) -> "tuple[int, tuple[str, ...], int]":
     return (-1 if negative else 1, tuple(digits[:kept]), power)
 
 
-def _exact_value(text: str) -> "tuple[int, tuple[str, ...], int] | None":
+def exact_of_spelling(text: str) -> "tuple[int, tuple[str, ...], int] | None":
     """The exact number a spelling denotes, or None when it denotes none.
 
     The reader of record decides FIRST whether the text is a number this
@@ -1993,18 +1998,36 @@ def _exact_value(text: str) -> "tuple[int, tuple[str, ...], int] | None":
     tool refuses, and asking the question here a second way is how two
     parts of one program come to disagree about what a value is.
 
-    Guarantees: accepts text; returns the canonical triple described
-    above, or None when the text does not read as a number this format
-    can hold; raises TypeError if handed anything that is not a string
-    instance. Two texts give equal triples exactly when they denote the
-    same number. No I/O of any kind.
+    IT IS PUBLIC, AND THE NAME IS THE WHOLE POINT (review items
+    P1-R8-F2 and P3-V4-F1). This module decides which cells ARE a value
+    by the number their digits denote, and every side that has to agree
+    with this module about that question calls this rule rather than
+    writing a second one: the validator re-describes a measured file
+    with this producer, so any place it decides the same question with
+    its own arithmetic can decide it differently, and one that decided
+    it in binary64 erased eleven cells this module keeps. A rule two
+    modules have to share is a rule with one name.
+
+    Guarantees:
+
+    - Inputs: the text of one cell or one declared value, exactly as it
+      is spelled. Nothing else is consulted.
+    - Determinism: the answer depends only on the text. Two texts give
+      equal triples exactly when they denote the same number, and
+      unequal triples exactly when they denote different numbers,
+      however close the binary64 values they round to.
+    - Errors raised: TypeError if handed anything that is not a string
+      instance, through `parsing.classify_number`.
+    - Boundary: returns None for every spelling that does not read as a
+      number this format can hold, which is the reader of record's own
+      answer and never a second reading of it. No I/O of any kind.
     """
     if parsing.classify_number(text) != parsing.NUMBER:
         return None
     return _exact_digits(text)
 
 
-def _exact_number(value: float) -> "tuple[int, tuple[str, ...], int]":
+def exact_of_number(value: float) -> "tuple[int, tuple[str, ...], int]":
     """The same canonical triple, for a number already held as binary64.
 
     A finite binary64 value is a whole significand times a power of two,
@@ -2015,8 +2038,20 @@ def _exact_number(value: float) -> "tuple[int, tuple[str, ...], int]":
     hundred for every finite value this format holds, which is what
     makes writing the whole number out affordable here.
 
-    Guarantees: accepts a finite number; returns the canonical triple
-    denoting exactly that number. Raises nothing. No I/O of any kind.
+    It is public for `exact_of_spelling`'s reason: a candidate this
+    module carries as a number, compared with a cell this module carries
+    as a spelling, is one comparison, and every side that has to make it
+    makes it here.
+
+    Guarantees:
+
+    - Inputs: one finite binary64 value. Nothing else is consulted.
+    - Determinism: the answer depends only on that value, and it denotes
+      exactly that value -- no rounding happens anywhere in it.
+    - Errors raised: none.
+    - Boundary: the triple is comparable with `exact_of_spelling`'s, and
+      the two are equal exactly when the spelling denotes this number.
+      No I/O of any kind.
     """
     significand, exponent = _parts(value)
     if significand == 0:
@@ -2371,7 +2406,7 @@ def _declarations(spellings: tuple[str, ...]) -> "list[_Declaration]":
             _Declaration(
                 text=spelling,
                 folded=parsing.folded(spelling),
-                exact=_exact_value(spelling),
+                exact=exact_of_spelling(spelling),
             )
         ]
     return made
@@ -2674,7 +2709,7 @@ def _sentinel_verdicts(
     named: list[tuple[int, tuple[str, ...], int]] = []
     occurrences_of: dict[float, int] = {}
     for candidate in parsing.NUMERIC_SENTINELS:
-        exact = _exact_number(candidate)
+        exact = exact_of_number(candidate)
         held = len(
             [cell for cell in cells.classified if cell.exact == exact]
         )
@@ -2693,7 +2728,7 @@ def _sentinel_verdicts(
         others += [value]
     for candidate in candidates:
         occurrences = occurrences_of[candidate]
-        if _declared_number(_exact_number(candidate), kept):
+        if _declared_number(exact_of_number(candidate), kept):
             verdicts[candidate] = (False, REASON_KEPT_BY_USER, occurrences)
             continue
         if len(others) < 4:
@@ -4269,7 +4304,7 @@ def profile_column(
             # out cells holding a different number that rounds to the
             # candidate -- including cells the person had named with
             # `--keep-value` (review item P1-R8-F2).
-            removed = [_exact_number(candidate) for candidate in withheld]
+            removed = [exact_of_number(candidate) for candidate in withheld]
             kept: list[_Cell] = []
             for cell in classified:
                 if cell.exact in removed:

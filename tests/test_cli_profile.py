@@ -152,10 +152,42 @@ def test_no_withheld_value_is_ever_printed(
 def test_lowering_the_smallest_group_warns(
     tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
+    """The warning names the count, the person, and where the counts go.
+
+    IT CHECKS THE CONTENT, NOT THE WORD "Warning" (owner ruling
+    2026-08-14, plan amendment A-P3-11). The version this replaces
+    asserted that the string "Warning" reached the error stream, which
+    the sentence it was written for satisfied while telling a person
+    nothing they could act on -- it never said that the description
+    prints the small count itself, never said one row may be one person,
+    and never said the counts travel into the twin and the reports. The
+    owner ruled the floor through end to end KNOWING the consequence and
+    ruled that the consequence be made visible, so what this test holds
+    is that the warning states it.
+    """
     table = _table(tmp_path)
     assert main(["profile", str(table), "--smallest-group", "2"]) == 0
     captured = capsys.readouterr()
-    assert "Warning" in captured.err
+    said = captured.err
+    for owed in (
+        # the number typed, and the number it replaces
+        "2",
+        "11",
+        # what a small group is, in the terms a person thinks in
+        "one person",
+        # that the count itself is the disclosure, not a route to it
+        "the count is the disclosure",
+        # that it does not stop at the description
+        "twin",
+        "quality report",
+        # what to do instead
+        "--smallest-group",
+    ):
+        assert owed in said, (
+            f"the lowered-floor warning no longer says {owed!r}. It is the "
+            "only place a person is told what a group of two can reveal "
+            "before the files exist"
+        )
     assert "outlying" in captured.out, (
         "with the floor lowered the rare label becomes visible -- which is "
         "exactly why the warning has to be there"

@@ -115,7 +115,11 @@ table, and it never contains a value from a column you named with
 eleven rows -- but it does contain the smallest and largest values of
 your numeric and date columns, the points in between that describe their
 shape, and, for each label it names, the exact spellings your file used
-for that label wherever eleven rows or more wrote it that way. It is
+for that label wherever eleven rows or more wrote it that way. Eleven is
+the default and it is the only number in this paragraph you can change:
+`--smallest-group` moves it, the whole workflow runs on whatever you set,
+and setting it lower publishes smaller groups. What that costs is written
+out under the options below. It is
 real-derived material, and your institution's rules for such material
 apply to it. The same is true of every other file a full run produces:
 the profile, the plain-language summary beside it, the twin, the twin's
@@ -179,7 +183,28 @@ that column holds -- and it is the only way a column is ever read that
 way. Repeat it to name more than one column. A name that is not in your
 table stops the run before anything is written.
 
-`--smallest-group` changes the eleven-row rule above.
+**`--smallest-group`, and what lowering it costs.** It changes the
+eleven-row rule above, in either direction, and any whole number of 1 or
+more is accepted end to end: `profile`, `generate` and `validate` all run
+on the file it produces. Raising it publishes less. **Lowering it below
+eleven publishes small groups and their counts**, and that is worth
+reading slowly, because the count is the disclosure rather than a route
+to one. At a smallest group size of two, the profile names values that
+two rows shared and says that two rows shared them; at one, it names a
+value one row held and says that one row held it. If one row of your
+table is one person, somebody who already knows one true thing about
+someone in it -- that they are in it at all -- can find the small group
+that person must be in and read off everything else the profile says
+about that group. Eleven is the number that keeps a published group too
+big for that.
+
+The counts do not stop at the profile: the twin is built to hold them
+exactly, and the summary, the twin's report and the quality report quote
+them back, so all five files of a run carry them. synthtwin does not
+refuse the option -- it is your table and your institution's rules -- but
+a run at a lowered number prints an unmissable warning before either file
+exists, and each of the four readable files says on its own face that it
+was made that way, so that a colleague handed one of them alone can tell.
 
 `--keep-value` names a value your table means as real data even though
 synthtwin would otherwise read it as "no value" -- a region genuinely

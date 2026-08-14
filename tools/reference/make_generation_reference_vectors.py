@@ -2597,7 +2597,22 @@ def _identifier_content(column):
     which partner, but not the order in which identities and partners
     are laid into the groups; this file lays the identities down first,
     in enumeration order, and then the partners in ascending identity
-    order, and says so.
+    order, and says so.  That divergence is older than this note and is
+    recorded in the Phase 3 plan; it is repeated here so the next reader
+    meets it as a known item.
+
+    **AND THIS ORACLE DOES NOT MODEL G9.3 STEP 5** (plan amendment
+    A-P3-12), which lays a column out again where a collision it owes
+    could not be built.  It does not have to, and that is a statement
+    about reach rather than an excuse: step 5 is reachable only on a
+    description whose first layout leaves a partner unbuilt, and this
+    oracle raises rather than stating cells for exactly that
+    description -- see the two AssertionErrors below, one for a partner
+    the identities cannot carry and one for a slot the packing put in
+    another band.  So no case it can freeze reaches the step, no frozen
+    case does today, and a case that did would need this oracle widened
+    -- its naive tail replaced by G9.6's choice rule, and step 5 built
+    on top of that -- BEFORE the case could be added.
     """
     occurrences = column["n_distinct_by_occurrences"]
     groups = []

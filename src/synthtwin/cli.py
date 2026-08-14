@@ -510,7 +510,11 @@ def _parse_arguments(argv: "list[str] | None") -> _Options:
         metavar="ROWS",
         help=(
             "advanced: a value shared by fewer rows than this is left out "
-            "of the profile, so that a rare value cannot identify anybody "
+            "of the profile, so that a rare value cannot identify anybody. "
+            "A number below the default is accepted and the whole workflow "
+            "then runs on it -- the profile names groups that small, prints "
+            "how many rows each covers, and every file the run makes says on "
+            "its face that it was built that way "
             "(default: %(default)s)"
         ),
     )
@@ -651,6 +655,100 @@ def _parse_arguments(argv: "list[str] | None") -> _Options:
     )
 
 
+# The loud rule the lowered-floor warning is wrapped in. It is not the
+# `=` rule the reports use, on purpose: this is the one thing on the
+# screen a person must not skim past, so it does not look like a section
+# heading of the summary they have just read.
+_ALARM = "!" * 66
+
+# One extra line after the "Written:" confirmation on a lowered-floor
+# run, so that the warning cannot be lost off the top of a terminal. It
+# is a pointer rather than a second copy of the warning: repeating the
+# whole block would teach people to scroll past both.
+_LOWERED_FLOOR_REMINDER = (
+    "These two files were written under a lowered smallest group size, "
+    "and they name groups that small. The warning above says what that "
+    "can reveal about a person. Read it before either file goes anywhere."
+)
+
+
+def _lowered_floor_warning(given: int) -> str:
+    """The warning shown when `--smallest-group` is under the default.
+
+    Guarantees:
+
+    - Inputs: the number the person typed, already known to be below
+      `taxonomy.Settings().small_cell_floor` and at least 1.
+    - Determinism: a fixed function of that number.
+    - Errors raised: none.
+    - Boundary: no value of the table reaches it. It names a count and
+      nothing else.
+
+    WHY IT IS THIS LONG (owner ruling 2026-08-14, plan amendment
+    A-P3-11). The owner ruled that a floor below the default is let
+    through everywhere, KNOWING what it costs, and ruled that the cost
+    be made visible rather than softened. What it replaces said "values
+    shared by very few rows can point back at the people they came
+    from", which is true and tells a person nothing they can act on: it
+    never says that the description prints the count itself, never says
+    that one row may be one person, and never says the counts travel
+    into the twin and all three reports. A warning a person cannot act
+    on is the same defect as no warning.
+
+    THE DEFAULT IS NAMED FROM THIS MODULE'S OWN MIRROR. `_SMALLEST_GROUP`
+    is the value `taxonomy.Settings` holds, kept here because the command
+    line is built before any command word is read (plan P2-D1), and the
+    suite compares the two so they cannot drift.
+    """
+    # At a floor of one a published group can be a single row, which is
+    # the whole of the disclosure said in one sentence -- so it is said,
+    # rather than left inside "as few as 1 rows". It also replaces the
+    # count sentence rather than standing beside it: "a group of 1 is 1
+    # people" is not English, and a warning a person stumbles over is a
+    # warning they stop reading.
+    people = f"a group of {given} is {given} people. "
+    if given < 2:
+        people = (
+            "a group of 1 is one person on their own, and the "
+            "description says out loud that exactly one person in your "
+            "table has that value. "
+        )
+    return (
+        f"\n{_ALARM}\n"
+        f"READ THIS BEFORE ANY OF THESE FILES GOES ANYWHERE.\n"
+        f"You lowered the smallest group size to {given}. "
+        f"It is normally {_SMALLEST_GROUP}.\n"
+        f"{_ALARM}\n"
+        f"\n"
+        f"WHAT YOU CHANGED. synthtwin normally leaves a value out of "
+        f"the description unless at least {_SMALLEST_GROUP} rows share "
+        f"it. You told it {given}, so this description names values "
+        f"that as few as {given} row(s) share, and prints how many rows "
+        f"that is.\n"
+        f"\n"
+        f"WHAT A SMALL COUNT CAN REVEAL ABOUT A PERSON. If one row of "
+        f"your table is one person, {people}"
+        f"Somebody who already knows one true thing about someone in "
+        f"your table -- that they are in it at all -- can find the "
+        f"small group that person must be in and read off everything "
+        f"else the description says about that group. Nothing has to be "
+        f"broken into or decoded for that to happen: the count is the "
+        f"disclosure, and the usual {_SMALLEST_GROUP} is the number "
+        f"that keeps a published group too big to point at one person.\n"
+        f"\n"
+        f"WHERE THOSE COUNTS GO NEXT. Not into the description alone. "
+        f"The twin is built to hold the published counts exactly, and "
+        f"the plain-language summary beside the description, the twin's "
+        f"report and the quality report all quote them back. All five "
+        f"files of a full run carry them, and each of the four written "
+        f"pages says on its own face that it was made this way.\n"
+        f"\n"
+        f"IF YOU DID NOT MEAN THIS, run the command again without "
+        f"--smallest-group, or with a larger number, and delete what "
+        f"this run writes."
+    )
+
+
 def _run_profile(
     table: str,
     out_dir: "str | None",
@@ -763,13 +861,7 @@ def _run_profile(
         "read the section above before moving them anywhere."
     )
     if smallest_group < taxonomy.Settings().small_cell_floor:
-        _warn(
-            f"\nWarning: you lowered the smallest group size to "
-            f"{smallest_group}. Values shared by very few rows can point "
-            f"back at the people they came from; the default of "
-            f"{taxonomy.Settings().small_cell_floor} exists for that "
-            f"reason."
-        )
+        _warn(_lowered_floor_warning(smallest_group))
 
     # The return value is the point of the call, not an afterthought:
     # it is every working file still sitting in the output folder after
@@ -826,6 +918,8 @@ def _run_profile(
         # the one confirming what already went well.
         _warn(_left_behind_note(left_behind))
     _say(f"\nWritten:\n  {shown_profile_path}\n  {shown_summary_path}")
+    if smallest_group < taxonomy.Settings().small_cell_floor:
+        _warn(f"\n{_LOWERED_FLOOR_REMINDER}")
     return 0
 
 
