@@ -537,7 +537,7 @@ def test_a_refusal_the_transaction_composed_still_says_it_once(
     number = 1
     while number <= profile.WORKING_NAME_ATTEMPTS:
         pathlib.Path(f"{first}{profile.PART_SUFFIX}-{number}").write_text(
-            "not synthtwin's\n", encoding="utf-8"
+            "not synthtwin's\n", encoding="utf-8", newline="\n"
         )
         number = number + 1
     state = profile.DiskState()

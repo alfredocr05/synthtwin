@@ -104,10 +104,13 @@ The failure messages here name the file and say what to write, because
 whoever trips this test is mid-sentence in a document, not debugging.
 """
 
+import ast
 import contextlib
 import io
 import pathlib
 import re
+
+import pytest
 
 from synthtwin import cli
 
@@ -245,8 +248,75 @@ def _shipped_command_words() -> "tuple[str, ...]":
 _OUTPUT_ENDINGS = (".json", ".csv", ".txt")
 
 
+def _text_of(node: ast.expr) -> "str | None":
+    """The string this expression is, or None where it is not one.
+
+    Constants, implicit and explicit concatenation of them, and an
+    f-string with nothing to fill in. What this is NOT is an evaluator:
+    a name, a call, or a field of a value is not text this can read, and
+    the run-driven count below is what covers an output name arrived at
+    that way.
+    """
+    if isinstance(node, ast.Constant):
+        return node.value if isinstance(node.value, str) else None
+    if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Add):
+        left = _text_of(node.left)
+        right = _text_of(node.right)
+        return None if left is None or right is None else left + right
+    if isinstance(node, ast.JoinedStr):
+        pieces: list[str] = []
+        for part in node.values:
+            piece = _text_of(part)
+            if piece is None:
+                return None
+            pieces.append(piece)
+        return "".join(pieces)
+    return None
+
+
+def _output_endings_in(source: str) -> "list[str]":
+    """Every output-file ending one module's syntax declares.
+
+    Takes source as TEXT, so the reading can be put through each way a
+    name can be spelled rather than trusted -- which is what
+    `test_the_output_reading_sees_a_name_however_it_is_spelled` does
+    with the four spellings review item P3-V4-F7 named.
+    """
+    found: list[str] = []
+    for node in ast.walk(ast.parse(source)):
+        if isinstance(node, ast.Assign):
+            value: ast.expr | None = node.value
+        elif isinstance(node, ast.AnnAssign):
+            value = node.value
+        else:
+            continue
+        if value is None:
+            continue
+        ending = _text_of(value)
+        if ending is None:
+            continue
+        if ending.endswith(_OUTPUT_ENDINGS) and ending not in found:
+            found.append(ending)
+    return found
+
+
 def _shipped_output_suffixes() -> "tuple[str, ...]":
     """Every ending a file a full run leaves behind can carry.
+
+    HOW THE SPELLING STOPPED MATTERING (review item P3-V4-F7). This read
+    the source for `NAME_SUFFIX = "..."` in double quotes at the start
+    of a line, so a sixth output declared as `_AUDIT: str = '-audit.txt'`
+    -- a typed constant, single-quoted, under a name ending in nothing
+    in particular -- left the total at five and every stale "five files"
+    sentence in the repository green. It now reads the package's own
+    SYNTAX: every assignment whose value is a string, however it is
+    spelled, named or annotated.
+
+    A name this cannot read at all -- built by a call, or by joining a
+    stem to something -- is not covered here and is not meant to be.
+    `test_a_full_run_leaves_exactly_the_files_this_file_counts` drives
+    the three commands and counts what lands on the disk, so an output
+    arrived at by any route whatever is caught there.
 
     Guarantees:
 
@@ -260,12 +330,8 @@ def _shipped_output_suffixes() -> "tuple[str, ...]":
     """
     found: list[str] = []
     for module in sorted(PACKAGE.glob("*.py")):
-        source = module.read_text(encoding="utf-8")
-        for match in re.finditer(
-            r"^_?[A-Z][A-Z_]*_SUFFIX = \"([^\"]+)\"", source, re.MULTILINE
-        ):
-            ending = match.group(1)
-            if ending.endswith(_OUTPUT_ENDINGS) and ending not in found:
+        for ending in _output_endings_in(module.read_text(encoding="utf-8")):
+            if ending not in found:
                 found.append(ending)
     assert len(found) >= 5, (
         "Fewer output-file endings were found in the package than the "
@@ -1259,11 +1325,22 @@ _OTHER_TOOLS = ("pip", "git", "python", "python3", "shell", "install")
 #   or under the run ("four artifacts a full run produces"). Bare counts
 #   are ordinary prose about a subset -- "the twin's two artifacts" is
 #   true and says nothing about the run.
-# * "files" is checked ONLY under the run. Two commands each write a
-#   pair, so "both files", "the two files this run writes" and their
-#   kin are true sentences on nearly every page of this repository; a
-#   count of files is a claim about the whole run exactly when it says
-#   so, and then it is checked hard.
+# * "files" is checked under the run, and under HANDLING. Two commands
+#   each write a pair, so "both files", "the two files this run writes"
+#   and their kin are true sentences on nearly every page of this
+#   repository; a count of files is a claim about the whole run exactly
+#   when it says so, and then it is checked hard.
+#
+#   AND WHEN IT SAYS SO BY SAYING WHAT IS DONE WITH THEM (review item
+#   P3-V4-F7). The run was the only anchor, and the sentence that got
+#   away said instead "how the FOUR FILES are handled" -- in the
+#   docstring of the very helper that prints the five-file handling
+#   rule, in `quality.py`, a surface this file has always guarded. The
+#   handling rule is a claim about everything a run leaves behind by
+#   definition: there is no subset of the files it applies to. So a
+#   count of files inside a passage about handling real-derived
+#   material is measured against the whole, exactly as one under the
+#   run is.
 _NOUN_RULES = (
     (
         r"artifacts?",
@@ -1275,7 +1352,7 @@ _NOUN_RULES = (
         r"files?",
         FILE_TOTAL,
         "the files a full run leaves behind",
-        ("run",),
+        ("run", "handling"),
     ),
     (
         r"commands?",
@@ -1303,6 +1380,19 @@ _TOTAL_VERBS = (
 )
 _HANDLING_CONTEXT = ("real-derived", "institution")
 _CONTEXT_WINDOW = 250
+
+
+def _about_handling(text: str, found: "re.Match[str]") -> bool:
+    """Whether this count stands inside a passage about handling.
+
+    The same window and the same marks the total-verb rule uses, so
+    there is one answer in this file to "is this sentence about
+    material derived from real data" rather than two that can drift.
+    """
+    near = text[
+        max(0, found.start() - _CONTEXT_WINDOW) : found.end() + _CONTEXT_WINDOW
+    ]
+    return any(mark in near for mark in _HANDLING_CONTEXT)
 
 
 def _totals_stated(text: str) -> "list[tuple[int, int, str, str]]":
@@ -1354,6 +1444,33 @@ def _totals_stated(text: str) -> "list[tuple[int, int, str, str]]":
                     rf"(?P<noun>{noun})\b(?! line| lines| word| words)"
                 ),
             ),
+            # "how the four files are handled", inside a passage about
+            # material derived from real data (review item P3-V4-F7).
+            # The handling rule has no subset: it is about everything a
+            # run leaves behind, so a count of files stated inside it is
+            # a count of all of them.
+            #
+            # The anchor is the HANDLING ITSELF, not the neighbourhood.
+            # A count of files near the word "institution" is ordinary
+            # prose -- "both files are as they were before this run" is
+            # a true sentence about a two-file transaction -- so what is
+            # read is the count standing as the subject of being
+            # handled, or the handling of a counted set.
+            "handling": (
+                (
+                    rf"\b(?P<other>other )?(?P<count>{_COUNTS}) "
+                    rf"(?P<gap>{_GAP})(?P<noun>{noun}) (?:are|is) handled"
+                ),
+                (
+                    rf"handling of (?:the |all )?(?P<count>{_COUNTS}) "
+                    rf"(?P<gap>{_GAP})(?P<noun>{noun})\b"
+                ),
+                (
+                    rf"\b(?P<count>{_COUNTS}) (?P<gap>{_GAP})(?P<noun>{noun})"
+                    rf" (?:a |this )?(?:run |command )?"
+                    rf"(?:carry|carries|hold|holds) facts computed"
+                ),
+            ),
         }
         for reach in reaches:
             for pattern in patterns[reach]:
@@ -1361,6 +1478,8 @@ def _totals_stated(text: str) -> "list[tuple[int, int, str, str]]":
                     where = found.start("noun")
                     gap = (found.groupdict().get("gap") or "").split()
                     if where in at or any(word in _OTHER_TOOLS for word in gap):
+                        continue
+                    if reach == "handling" and not _about_handling(text, found):
                         continue
                     at.add(where)
                     said = _COUNT_WORDS[found.group("count")]
@@ -1421,6 +1540,111 @@ def test_no_surface_states_a_stale_total() -> None:
         "from the shipped parser and the shipped output names, so if a "
         "number here surprises you the surface is stale, not the count."
     )
+
+
+def test_the_output_reading_sees_a_name_however_it_is_spelled() -> None:
+    """The four evasions review item P3-V4-F7 named, put through it.
+
+    The reading this replaces matched one spelling: an unannotated,
+    double-quoted `NAME_SUFFIX` at column zero. Each source below
+    declares a sixth output file some other way, and every one of them
+    used to leave the guarded total at five -- so every "five files"
+    sentence in the repository stayed green beside a run that wrote
+    six. The reading is put through them here rather than trusted,
+    because a reading nobody questions is how the first one got its
+    shape.
+    """
+    spellings = {
+        "a typed constant": '_AUDIT_SUFFIX: str = "-audit.txt"\n',
+        "single quotes": "_AUDIT_SUFFIX = '-audit.txt'\n",
+        "a computed name": '_AUDIT_SUFFIX = "-audit" + ".txt"\n',
+        "a name ending in nothing in particular": '_AUDIT = "-audit.txt"\n',
+        "a name inside a class": 'class Names:\n    audit = "-audit.txt"\n',
+        "an f-string with nothing to fill in": '_AUDIT = f"-audit.txt"\n',
+        "a lower-case module variable": 'audit_suffix = "-audit.txt"\n',
+    }
+    missed = [
+        f"{how}: {source!r}"
+        for how, source in spellings.items()
+        if "-audit.txt" not in _output_endings_in(source)
+    ]
+    assert not missed, (
+        "these ways of declaring a sixth output file are invisible to "
+        "the reading that counts what a run leaves behind, so a "
+        "maintainer using one of them would leave every handling rule "
+        "in this repository naming five files while six were "
+        "written:\n  " + "\n  ".join(sorted(missed))
+    )
+    # ...and the reading is not simply saying yes. A module that
+    # declares no output name must yield none, or the count above would
+    # be a number with no meaning.
+    assert not _output_endings_in(
+        'HOW_LONG = 12\nWORDS = "the table you asked about"\n'
+    )
+
+
+def test_a_full_run_leaves_exactly_the_files_this_file_counts(
+    tmp_path: pathlib.Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """The count, taken off the DISK rather than off a spelling.
+
+    WHAT THIS CLOSES (review item P3-V4-F7). `_shipped_output_suffixes`
+    reads the package's source, and a reading of source can always be
+    got around by how a constant is spelled: the version this replaces
+    recognized only an unannotated, double-quoted `NAME_SUFFIX` at the
+    start of a line, so a sixth output declared any other way left the
+    guarded total at five and every "five files" sentence in the
+    repository green beside a run that wrote six. Widening the reading
+    helps and does not settle it -- a name built by a call is not text
+    any reader of source can see.
+
+    So the count is settled here, by running `profile`, then
+    `generate`, then `validate` on a table built in this folder and
+    counting what is left on the disk. A sixth output cannot hide from
+    this by any spelling, because it has to BE there. If the two
+    numbers disagree, one of them is what the product does and the
+    other is what every stale-total sentence in the repository is
+    checked against, and the message says which is which.
+    """
+    import fixtures
+
+    rows = [
+        [fixtures.REGIONS[index % 4], f"{index % 7}"] for index in range(48)
+    ]
+    table = fixtures.write(
+        tmp_path, "table.csv", fixtures.rows_to_csv(["region", "visits"], rows)
+    )
+    assert cli.main(["profile", f"{table}"]) == 0
+    description = tmp_path / "table-profile.json"
+    assert cli.main(["generate", f"{description}"]) == 0
+    assert cli.main(["validate", f"{description}"]) == 0
+    capsys.readouterr()
+    left = sorted(
+        path.name for path in tmp_path.iterdir() if path.name != table.name
+    )
+    assert len(left) == FILE_TOTAL, (
+        f"a full run left {len(left)} files on disk ({left}) and this "
+        f"file counts {FILE_TOTAL} from the package's own source "
+        f"({list(RUN_OUTPUT_SUFFIXES)}). Every handling rule and every "
+        f"stale-total check in this repository is measured against the "
+        f"second number, so an output the source reading cannot see is "
+        f"an output no rule names."
+    )
+    unnamed = [
+        name for name in left if not name.endswith(RUN_OUTPUT_SUFFIXES)
+    ]
+    assert not unnamed, (
+        f"a full run left {unnamed} on disk, and no ending this file "
+        f"counts fits them. Give the output name a module constant, so "
+        f"that what a run writes stays countable."
+    )
+    for ending in RUN_OUTPUT_SUFFIXES:
+        assert sum(1 for name in left if name.endswith(ending)) == 1, (
+            f"the ending {ending} is not the ending of exactly one file "
+            f"a full run leaves behind ({left}), so counting endings is "
+            f"no longer counting files"
+        )
 
 
 def test_every_handling_form_names_every_file_a_run_writes() -> None:

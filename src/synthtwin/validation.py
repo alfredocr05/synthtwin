@@ -527,6 +527,20 @@ _KEPT_OVER_THE_SPLIT = tuple(
 _LADDER_SHARES = tuple(
     [number / denominator for _name, number, denominator in taxonomy.LADDER]
 )
+# ...and as the WHOLE PERCENTAGES method G7.3 and G12.4 are written in.
+# Every datetime step is exact integer arithmetic in the ordinal space of
+# G7.1 -- "no float is formed anywhere in G7" is the method's own
+# sentence -- so the rung selection and the interpolation take the
+# percentage rather than the probability. The producer's ladder carries
+# each rung out of a hundred; a rung carrying any other denominator is a
+# ladder this arithmetic is not written for, and the suite says so on
+# the commit that adds one rather than letting it round away here.
+_LADDER_PERCENTS = tuple(
+    [number for _name, number, _denominator in taxonomy.LADDER]
+)
+_LADDER_DENOMINATORS = tuple(
+    [denominator for _name, _number, denominator in taxonomy.LADDER]
+)
 _LADDER_KEYS = taxonomy.LADDER_NAMES
 
 
@@ -1528,34 +1542,21 @@ def _canonical_field(cell: str, always: bool) -> str:
     return _QUOTE + body + _QUOTE
 
 
-def _unusable_header(found: "list[str]") -> str:
-    """Why the file's first row cannot name columns, by position, or "".
-
-    The two the profiler's own reader refuses -- a name that is blank,
-    and one name used for two columns -- because pandas rewrites both
-    and the two readings then disagree about a name that is really
-    there.
-
-    ON THE VALIDATE PATH NEITHER IS A REFUSAL (V9's last paragraph, and
-    review item P3-V1-F10). A wrong column count or a wrong name is a
-    MISSED verdict with a plain explanation, because the report is the
-    product even when the news is bad -- and the reader's own refusal
-    for the repeated case QUOTES the repeated name, which on this path
-    may be a string out of a table nobody promised was the reader's. So
-    this settles both before the reader is called, and says which
-    COLUMN NUMBERS are at fault and never what stood in them.
-    """
-    for position in range(len(found)):
-        if not parsing.trimmed(found[position]):
-            return f"no name at column number {position + 1}"
-    for position in range(len(found)):
-        for later in range(position + 1, len(found)):
-            if found[position] == found[later]:
-                return (
-                    f"one name shared by column numbers {position + 1} "
-                    f"and {later + 1}"
-                )
-    return ""
+# WHAT USED TO STAND HERE, and why nothing does (review item P3-V4-F3).
+# `_unusable_header` said why a file's first row cannot name columns,
+# and `_holds_no_data` said whether a file the description expects rows
+# from holds none. Both were this module's own reading of the file, made
+# BEFORE the reader was called, and the branch `measure` took was taken
+# on them. The reader answers both questions itself, in its own order,
+# with a NUL check and a ragged check standing between them -- so the
+# two readings had a precedence to agree about as well as a pair of
+# answers, and they did not. `measure` now calls the reader and reports
+# from the refusal it raises, so neither predicate has a second writing
+# to drift from. What remains of the walk is `_records_of` and its
+# callers on the degenerate zero-row path, where there is no reader
+# reading to take an answer from: the producer refuses every file that
+# path is reached with, and plan amendment A-P3-7 clause 3 rules that
+# gate open and states what it leaves open.
 
 
 # -- three lookups, written once ---------------------------------------
@@ -2004,9 +2005,13 @@ def measure(description: contract.Profile, path: str) -> Outcome:
       structural mismatch is NOT a refusal: a wrong column count, a
       wrong name or a wrong row count is a MISSED verdict with a plain
       explanation, because the report is the product even when the news
-      is bad -- and that holds for the two header faults the reader
-      itself refuses, a blank name and a repeated one, which are
-      settled here before the reader is called.
+      is bad -- and that holds for the three the reader itself refuses,
+      a file with no rows to describe and a first row leaving a name
+      blank or using one twice, which are caught FROM the reader's own
+      refusal and reported on rather than passed along (review item
+      P3-V4-F3). Every other refusal of the reader's is passed along
+      unchanged, so no report is ever built on a file no reading of it
+      finished.
     - Boundary: this reads two files and writes none. It never writes,
       moves, truncates or re-encodes the measured file or the
       description. It does not import the generation module, and no
@@ -2084,55 +2089,34 @@ def measure(description: contract.Profile, path: str) -> Outcome:
             _zero_row_listings(description, headed),
             measured_name,
         )
-    # ...AND THE TWO PATHS IT DOES. On both of these the producer refuses
-    # the measured file, so nothing describing that file publishes is
-    # available to report; on both, this description's own twin is a file
-    # the producer describes, so withholding costs no obligation any file
-    # that could hold it. `as_read` rather than `text`: a file whose bytes
-    # are not UTF-8 holds no more rows than one whose bytes are, and
-    # sending only one of the two on to the reader made a refusal out of
-    # one and a report out of the other -- which is the encoding of a
-    # file the producer describes nowhere, told by which of the two a
-    # person got back.
-    if _holds_no_data(as_read, headed):
-        return _assembled(
-            _byte_checks(description, data, text, headed, as_read, True)
-            + _no_rows_at_all(description, headed),
-            _listings(description, headed),
-            measured_name,
-        )
-    if headed:
-        # A first row that cannot name a table's columns is a STRUCTURAL
-        # MISMATCH, and V9 is explicit that a wrong name is a missed
-        # obligation with a report rather than a refusal. It is settled
-        # here because the reader refuses it -- and refuses it in words
-        # that QUOTE the repeated name, which on this path may be a
-        # string out of a file nobody promised was the reader's.
-        #
-        # The file is walked here for the one answer this decision needs
-        # -- which names the first record holds. It counted the records
-        # too until review item P3-V3-F3: a report on a file the producer
-        # refuses may not state a number nothing describing that file
-        # publishes, and its record count is such a number.
-        walked, whole = _walked(_without_a_mark(as_read))
-        found = walked[0] if walked else []
-        unusable = _unusable_header(found)
-        # AND ONLY WHERE THE WHOLE FILE WAS WALKED (review item
-        # P3-V3-F6). A walk that stopped part way is a reading of the
-        # file that did not finish, and V1.5-A1 is explicit that a file
-        # neither reading can parse is a catalogued refusal rather than a
-        # report built on the records one of them happened to reach. The
-        # reader refuses such a file outright, so a run that cannot
-        # finish the walk goes on to it and gets that refusal.
-        if unusable and whole:
-            return _assembled(
-                _byte_checks(description, data, text, headed, as_read, True)
-                + _unnamed_column_checks(description, unusable)
-                + _no_column_is_named(description, unusable, headed),
-                _listings(description, headed),
-                measured_name,
-            )
-    checks = _byte_checks(description, data, text, headed, as_read, False)
+    # ...AND THE TWO PATHS IT DOES, TAKEN FROM THE REFUSAL THE READER
+    # ACTUALLY RAISED (review item P3-V4-F3; plan amendment A-P3-10
+    # clause 2). On both of these the producer refuses the measured file,
+    # so nothing describing that file publishes is available to report;
+    # on both, this description's own twin is a file the producer
+    # describes, so withholding costs no obligation any file that could
+    # hold it.
+    #
+    # WHAT USED TO STAND HERE, and why nothing does. Two predicates of
+    # this module's own -- does this file hold any rows, and can its
+    # first row name a table's columns -- were answered by walking the
+    # file BEFORE the reader was called, and the branch was taken on
+    # them. That is the same rule written twice, and V4.2's own account
+    # of what a second writing costs applies to it: the two drifted, and
+    # every place they drifted was a place two files the producer
+    # refuses identically got different reports. Four were found in one
+    # round -- a NUL in a header stopped being a refusal when a row was
+    # taken away, a ragged file changed refusal class when a name was
+    # repeated in it, and the walk's own precedence between the two
+    # predicates was not the reader's -- and the class is not four
+    # things but one: a precedence kept in step by hand.
+    #
+    # So there is no second walk. The reader is called first, its
+    # refusal is caught, and the report is decided from WHICH refusal it
+    # is. Equivalence with the producer is then a property of the
+    # construction rather than a property somebody has to maintain: two
+    # files this reader refuses with the same shape word cannot reach
+    # different reports, because the same word chooses the report.
     first_row = reading.FIRST_ROW_NAMES if headed else reading.FIRST_ROW_DATA
     try:
         table = reading.read_table(
@@ -2166,16 +2150,98 @@ def measure(description: contract.Profile, path: str) -> Outcome:
         over_the_split = profile.build_document(
             table, settings_over_the_split(description), declared
         )
+    except errors.ShapeRefusal as refusal:
+        return _report_on_a_refused_file(
+            description, refusal, data, text, headed, as_read, measured_name
+        )
     except MemoryError as error:
         raise errors.ProfileError(
             errors.out_of_memory_while_describing(shown)
         ) from error
-    checks = checks + _structure_checks(description, table, as_read, headed)
+    checks = _byte_checks(description, data, text, headed, as_read, False)
+    checks = checks + _structure_checks(description, table, headed)
     for column in description.columns:
         checks = checks + _column_checks(
             description, column, table, redescribed, over_the_split, headed
         )
     return _assembled(checks, _listings(description, headed), measured_name)
+
+
+def _report_on_a_refused_file(
+    description: contract.Profile,
+    refusal: errors.ShapeRefusal,
+    data: bytes,
+    text: "str | None",
+    headed: bool,
+    as_read: str,
+    measured_name: str,
+) -> Outcome:
+    """The report on a file the producer refuses, chosen by the refusal.
+
+    V9 makes a structural mismatch a MISSED verdict with a plain
+    explanation rather than a refusal, and V5.1-A1 says what such a
+    report may state: what that refusal states, and nothing else. Which
+    of the two reports a file gets is therefore the reader's own
+    question, answered by the reader, and this is the whole of the
+    answering (review item P3-V4-F3).
+
+    THAT IS THE REPAIR, AND IT IS A CONSTRUCTION RATHER THAN A RULE. The
+    version this replaces asked two predicates of its own about the file
+    before the reader was called; every disagreement between those
+    predicates and the reader's own precedence was a pair of files the
+    producer refuses identically that got different reports. Here the
+    branch is the reader's shape word, so no such pair can exist: the
+    files that share a word share a report.
+
+    Guarantees:
+
+    - Inputs: the description, the reader's own shape refusal, and the
+      measured file's bytes and text for the byte rules.
+    - Determinism: a fixed function of those. Nothing measured beyond
+      what the byte rules and the refusal itself carry reaches the
+      result.
+    - Errors raised: the refusal itself, re-raised, where it names a
+      header fault about a description whose names were GENERATED. The
+      reader asks the header question only where they came from the
+      file, so nothing reaches that; re-raising rather than assuming is
+      what keeps the assumption from becoming a wrong report.
+    """
+    byte_rules = _byte_checks(description, data, text, headed, as_read, True)
+    if refusal.kind == errors.NO_DATA_TO_DESCRIBE:
+        return _assembled(
+            byte_rules + _no_rows_at_all(description, headed),
+            _listings(description, headed),
+            measured_name,
+        )
+    if not headed:
+        raise refusal
+    why = _why_no_column_is_named(refusal)
+    return _assembled(
+        byte_rules
+        + _unnamed_column_checks(description, why)
+        + _no_column_is_named(description, why, headed),
+        _listings(description, headed),
+        measured_name,
+    )
+
+
+def _why_no_column_is_named(refusal: errors.ShapeRefusal) -> str:
+    """What the reader's refusal of this first row says, and no more.
+
+    The two are not the same size and that is the whole of this
+    function (review item P3-V4-F3; plan amendment A-P3-10 clause 2).
+    The profiler's own refusal for a BLANK name names the column number,
+    so a report may state it. Its refusal for a REPEATED name quotes the
+    name and names no position -- `dup,a,dup` and `a,dup,dup` get one
+    sentence between them -- so a report that named the positions would
+    state about the measured file something no run of the producer on
+    that file publishes, and a candidate could then read the repeat's
+    place off the report. The fact itself is what that refusal carries,
+    and the fact is what this says.
+    """
+    if refusal.kind == errors.HEADER_NAME_MISSING:
+        return f"no name at column number {refusal.position}"
+    return "one name used for two of the columns"
 
 
 def _declared_here(
@@ -2411,7 +2477,7 @@ def _zero_row_structure(
                 "document.source.header_source",
                 "header.presence",
                 "no header line, the first row is a record",
-                _header_presence(text if text is not None else "", names, False),
+                _header_presence(found, names, False),
             )
         ]
     return [
@@ -2427,7 +2493,7 @@ def _zero_row_structure(
             "document.source.header_source",
             "header.presence",
             "a header line",
-            _header_presence(text if text is not None else "", names, True),
+            _header_presence(found, names, True),
         ),
         _silent(
             "",
@@ -2444,54 +2510,6 @@ def _zero_row_structure(
             found == names,
         ),
     ]
-
-
-def _holds_no_data(text: str, headed: bool) -> bool:
-    """True when a file the description expects rows from holds none.
-
-    The profiler's own reader refuses such a file, and refusing here
-    would turn a structural mismatch into a run that never happened.
-    The plan is explicit that a structural mismatch is a MISSED verdict
-    with a plain explanation, so this is settled before the reader is
-    called at all.
-
-    COUNTED IN RECORDS, NOT IN CHARACTERS (review item P3-V2-E-F4). The
-    version this replaces asked whether the text was as long as its
-    first line, and the reader does not read a file that way: it drops
-    blank lines. So `header\\n` got a full report with the row count
-    missed at exit 3 and `header\\n\\n` got a refusal at exit 1 with no
-    report at all -- two files differing by one empty line, one of them
-    told the true answer and the other handed the profiler's advice to
-    go and find a file that has the rows, when the true answer was that
-    this file misses the published row count. Headerless, the same step
-    stood between a file of no bytes and a file of one newline. Counting
-    the records the reader would read puts both sides of that step on
-    the reportable side.
-
-    AND AN UNFINISHED READING IS NOT AN EMPTY FILE (review item
-    P3-V3-F6). Where the walk stops part way -- a field longer than the
-    reader's own ceiling is the only way left -- the records it has are
-    not what the file holds, and answering True here would hand a whole
-    report of MISSED verdicts to a file nobody read. So a file that
-    cannot be walked to its end goes on to the reader, which refuses it
-    in the position-naming form V9 asks for.
-
-    AND IT IS ASKED OF THE TEXT THE READER SETTLED ON (review item
-    P3-V3-F3). The version this replaces asked it of the UTF-8 reading
-    alone and answered False where there was none, so a header-only file
-    whose bytes are not UTF-8 walked past here into the reader and came
-    back as a refusal, while the same file written in UTF-8 got a full
-    report. The producer refuses both and publishes nothing about
-    either, so which of the two answers a person got back was the file's
-    own encoding, told by the shape of the reply.
-    """
-    walked, whole = _walked(_without_a_mark(text))
-    if not whole:
-        return False
-    records = len(walked)
-    if not headed:
-        return records == 0
-    return records <= 1
 
 
 def _unnamed_column_checks(
@@ -2715,7 +2733,7 @@ def _no_rows_at_all(
                 # this path differs only in the text it is asked about,
                 # which for a headerless description reaching here is a
                 # file with no record in it at all.
-                _header_presence("", names, False),
+                _header_presence([], names, False),
             )
         ]
     for column in description.columns:
@@ -2731,16 +2749,22 @@ def _no_rows_at_all(
 def _structure_checks(
     description: contract.Profile,
     table: reading.Table,
-    text: str,
     headed: bool,
 ) -> "list[Check]":
     """Row count, column count and order, and the header read-back.
 
-    ``text`` is the file in the encoding the READER settled on, so the
-    header question is answered from the same characters the reader
-    read rather than from a UTF-8 reading a Latin-1 file never had.
+    THE FIRST RECORD IS THE READER'S OWN AND NOT A SECOND READING OF THE
+    BYTES (review item P3-V4-F3). This used to hand `_header_presence`
+    the file's characters and let it walk them again, which is the same
+    rule written twice -- and every question about which characters the
+    reader settled on, where a byte-order mark went, and which record
+    came first had then to be answered the same way in two places. The
+    reader has already answered all of them: where the names came from
+    the file they ARE its first record, and where they were generated
+    the first record is the first value of every column.
     """
     names = [column.name for column in description.columns]
+    first = table.column_names if headed else _first_values(table)
     checks = [
         _exact(
             "",
@@ -2765,7 +2789,7 @@ def _structure_checks(
                 if headed
                 else "no header line, the first row is a record"
             ),
-            _header_presence(text, names, headed),
+            _header_presence(first, names, headed),
         ),
     ]
     if headed:
@@ -2788,8 +2812,27 @@ def _structure_checks(
     return checks
 
 
+def _first_values(table: reading.Table) -> "list[str]":
+    """The first record of a table the reader read as data throughout.
+
+    The reader is asked for FIRST_ROW_DATA where the description's names
+    were generated, so the file's first record is the first value of
+    every column and the reader has already settled which record that
+    is -- blank lines dropped, a quoted line break honoured, a
+    byte-order mark taken off. A table reaching here holds at least one
+    row, because a table holding none is a refusal the caller reported
+    on before this.
+    """
+    found: list[str] = []
+    for cells in table.columns:
+        if not cells:
+            return []
+        found = found + [cells[0]]
+    return found
+
+
 def _header_presence(
-    text: str,
+    found: "list[str]",
     published: "list[str]",
     headed: bool,
 ) -> str:
@@ -2838,12 +2881,14 @@ def _header_presence(
       generated names are the only names in play, because a description
       whose names came from the file is the headed branch above.
 
-    ``text`` is the file in the encoding the READER settled on, so a
-    file whose bytes are not UTF-8 is asked this question about the
-    characters the reader read. Whether the file IS UTF-8 is a byte
-    rule of its own and is not re-asked here.
+    ``found`` is the file's FIRST RECORD, and the caller takes it from
+    the reading that governs: the reader's own where there is one, and
+    the walk's where there is none, which is the degenerate zero-row
+    path alone. Which characters that record was read from -- the UTF-8
+    reading or the fallback -- is then the reader's answer and not a
+    second one taken here. Whether the file IS UTF-8 is a byte rule of
+    its own and is not re-asked here either.
     """
-    found = _first_record(text)
     if headed:
         if found == published:
             return "a header line"
@@ -3011,7 +3056,11 @@ def _obligations(
     # becoming seventeen misses and seven withholdings. The reviewer's
     # witness named the presence counts; repairing only those would have
     # left this half of the same class open.
-    own_cells = cells if split_published else _cells_that_description_reads(cells)
+    own_cells = cells
+    if not split_published:
+        own_cells = _cells_that_description_reads(
+            block, cells, kept_spellings(description)
+        )
     gated = _universal_checks(column, block, mine)
     gated = gated + _role_checks(column, block, own_cells, floor, mine)
     measured = _universal_checks(column, split, mine)
@@ -3019,48 +3068,226 @@ def _obligations(
     return checks + _governed(gated, measured, split_published)
 
 
-def _cells_that_description_reads(cells: "list[str]") -> "list[str]":
-    """The cells with every spelling the blank split disputes taken out.
+def _cells_that_description_reads(
+    block: "dict[str, object]",
+    cells: "list[str]",
+    kept: "tuple[str, ...]",
+) -> "list[str]":
+    """The cells the file's OWN description counts as values, plus its blanks.
 
-    The disputed cells are the non-blank ones the producer's own absence
-    rules read as holes, and `_KEPT_OVER_THE_SPLIT` is the list of what
-    they can spell -- the producer's own first-party constants, the same
-    ones `settings_over_the_split` names as kept. Dropping them leaves a
-    cell list that is the same for every file the description cannot
-    tell apart, which is what makes the clauses settled from it safe to
-    report (V5.1).
+    WHAT THIS IS FOR (plan amendment A-P3-5 clause 2). The style clauses
+    recount the written cells and settle each recount against the room
+    the file's own description leaves, so the cells they recount have to
+    be the cells that description counts -- otherwise two files the
+    producer describes byte for byte alike are recounted differently and
+    the report tells them apart, which V5.1 forbids.
 
-    A NUMERIC STAND-IN IS MATCHED ON ITS VALUE, not on its text, and the
-    difference is not pedantry: the producer decides a stand-in from the
-    NUMBER, so `-9999.0` and `-9999` are one candidate to it and would be
-    two spellings to a text comparison -- which would have left the
-    second one in the recount and the leak open in exactly the corner
-    this closes. It is the profiler's own declaration-matching rule for a
-    numeric candidate, which the settings carry and V2.3 names.
+    AND A CELL THAT DESCRIPTION READS AS DATA STAYS (review item
+    P3-V4-F1). The version this replaces dropped every cell wearing a
+    built-in missing spelling and every cell whose value is one of the
+    three built-in numeric stand-ins, UNCONDITIONALLY -- and the
+    producer reads neither kind as a hole where the description names it
+    as data. A researcher who keeps `-999` as a real measurement has a
+    description publishing that candidate `kept_by_you`; the file's own
+    description then counts those cells as values, this function deleted
+    them, and the twin the shipped generator wrote from that very
+    description was reported MISSING style obligations -- 60 held, 15
+    within, 2 MISSED and exit 3 on a conforming file. The old note
+    called that "recount detail, in the safe direction". It was neither:
+    a smaller recount is a smaller count against a floor the description
+    publishes exactly, and `styles.at-least.plain` is a floor.
 
-    THE COST, STATED. A cell holding one of those spellings as GENUINE
-    data is dropped here too. That costs recount detail on a file whose
-    own description pools its missing sources and that holds such a
-    value -- residual R-P2-13's corner -- and it costs it in the safe
-    direction, since a smaller recount can only widen what a clause
-    declines to settle. It cannot happen on a file whose description
-    names its missing sources, which is where this branch is not taken.
+    SO A CELL IS DROPPED ONLY WHERE THAT DESCRIPTION READS IT AS A HOLE,
+    and which cells those are is asked of the description, three ways:
+
+    - the producer's own absence rules are applied in the producer's
+      order -- a non-blank cell wearing one of its built-in missing
+      spellings is a hole UNLESS the settings name that spelling as
+      data, which `kept` carries (V2.3, the three published routes);
+    - a cell whose VALUE is one of the three built-in numeric stand-ins
+      is a hole only where the column's own verdict on that candidate
+      says so, and the file's own description publishes that verdict per
+      candidate. A candidate it publishes as kept is data, whatever the
+      submitted description says about it;
+    - and a candidate the file's own description publishes NO verdict
+      for -- fewer than the publication floor of its cells share it, so
+      naming it would publish a count the floor exists to hide -- is
+      settled by the one number that description does publish: how many
+      of its cells are non-blank and read as holes (`_unread_cells`).
+      Where the certain holes already account for every one of them, no
+      unpublished candidate is a hole and none of its cells is dropped.
+
+    A NUMERIC STAND-IN IS MATCHED ON ITS VALUE, not on its text, on both
+    sides, and the difference is not pedantry: the producer decides a
+    stand-in from the NUMBER, so `-9999.0` and `-9999` are one candidate
+    to it and would be two spellings to a text comparison. It is the
+    profiler's own declaration-matching rule for a numeric candidate,
+    which the settings carry and V2.3 names.
+
+    WHAT IS LEFT OPEN, at its exact size. Where the description does
+    leave an unpublished candidate's verdict undecided -- it pools some
+    missing source, holds fewer than `small_cell_floor` cells of a
+    stand-in, and reads at least one OTHER non-blank cell as a hole --
+    those cells are dropped. That is fewer than `small_cell_floor` cells
+    per candidate, it can only happen on a column whose own
+    description pools its holes, and it is exactly residual R-P2-13's
+    corner, which plan amendment A-P3-5 clause 1 already records as a
+    place a generated value reading back as a hole can cost a verdict. A
+    twin whose absent cells are all written empty -- which is every
+    conforming twin but that corner -- reaches this function with
+    nothing disputed at all and loses no cell.
+
+    Guarantees:
+
+    - Inputs: one column of the file's OWN description, that column's
+      written cells, and the kept set the description publishes. No
+      submitted count decides which cells are read.
+    - Determinism: a fixed function of those three.
+    - Errors raised: none.
     """
-    kept: list[str] = []
+    holes = _holes_by_the_description(block, cells, kept)
+    read: list[str] = []
+    for index, cell in enumerate(cells):
+        if not holes[index]:
+            read = read + [cell]
+    return read
+
+
+def _holes_by_the_description(
+    block: "dict[str, object]",
+    cells: "list[str]",
+    kept: "tuple[str, ...]",
+) -> "list[bool]":
+    """Which cells the file's own description reads as non-blank holes.
+
+    The two certainties and the one budget `_cells_that_description_reads`
+    describes, in that order. Split out so the rule can be read on its
+    own and tested on its own.
+    """
+    kept_spellings_folded: dict[str, int] = {}
+    kept_numbers: list[float] = []
+    for spelling in kept:
+        number = parsing.parse_number(spelling)
+        if number is None:
+            # The producer matches a declaration that names no number by
+            # its folded spelling, and one that names a number by the
+            # number alone (`taxonomy._split_missing`, and V2.3).
+            kept_spellings_folded[parsing.folded(spelling)] = 1
+        else:
+            kept_numbers = kept_numbers + [number]
+    for candidate in _candidates_the_description_keeps(block):
+        kept_numbers = kept_numbers + [candidate]
+    missing_candidates = _candidates_the_description_drops(block)
+    certain: list[bool] = []
+    unsettled: list[bool] = []
     for cell in cells:
         body = parsing.trimmed(cell)
-        disputed = False
-        for spelling in _KEPT_OVER_THE_SPLIT:
-            if body.casefold() == spelling:
-                disputed = True
-        number = parsing.parse_number(body)
+        is_hole = False
+        undecided = False
+        if body:
+            stand_in = _stand_in_of(parsing.parse_number(body))
+            # The producer's own order: what the settings name as data
+            # beats every rule below it, the built-in table of missing
+            # spellings comes next, and a stand-in's fate is the
+            # column's own verdict on that candidate (`_split_missing`
+            # and `_sentinel_verdicts`, in that order).
+            named_as_data = _named(kept_numbers, stand_in) or (
+                parsing.folded(cell) in kept_spellings_folded
+            )
+            if named_as_data:
+                is_hole = False
+            elif parsing.is_missing_text(cell):
+                is_hole = True
+            elif stand_in is not None:
+                is_hole = _named(missing_candidates, stand_in)
+                undecided = not is_hole
+        certain = certain + [is_hole]
+        unsettled = unsettled + [undecided]
+    counted = 0
+    for is_hole in certain:
+        if is_hole:
+            counted = counted + 1
+    if _unread_cells(block, cells) <= counted:
+        return certain
+    # The description reads more non-blank cells as holes than the
+    # verdicts it publishes account for, so a candidate it does not name
+    # is one of them. Which is not published, so all of them go.
+    settled: list[bool] = []
+    for index in range(len(cells)):
+        settled = settled + [certain[index] or unsettled[index]]
+    return settled
+
+
+def _stand_in_of(number: "float | None") -> "float | None":
+    """The built-in numeric stand-in this number IS, or None.
+
+    Matched on the value, which is how the producer decides a candidate
+    (V2.3), so `-999`, `-999.0` and `-999.00` are one candidate here as
+    they are one candidate there.
+    """
+    if number is None:
+        return None
+    for candidate in parsing.NUMERIC_SENTINELS:
+        if number == candidate:
+            return candidate
+    return None
+
+
+def _named(numbers: "list[float]", value: "float | None") -> bool:
+    """Whether ``value`` is one of ``numbers``; False for no number."""
+    if value is None:
+        return False
+    for number in numbers:
+        if number == value:
+            return True
+    return False
+
+
+def _candidates_the_description_keeps(
+    block: "dict[str, object]",
+) -> "list[float]":
+    """The stand-ins the file's own description read as ordinary numbers."""
+    return _candidates_with(block, taxonomy.VERDICT_KEPT)
+
+
+def _candidates_the_description_drops(
+    block: "dict[str, object]",
+) -> "list[float]":
+    """The stand-ins the file's own description read as "no value"."""
+    return _candidates_with(block, taxonomy.VERDICT_MISSING)
+
+
+def _candidates_with(
+    block: "dict[str, object]", verdict: str
+) -> "list[float]":
+    """Every published sentinel candidate carrying one verdict, as numbers.
+
+    A candidate below the publication floor is published by no entry at
+    all, so it appears in neither list and the caller settles it from
+    the count of holes instead.
+    """
+    found: list[float] = []
+    if "sentinel_verdicts" not in block:
+        return found
+    entries = block["sentinel_verdicts"]
+    if not isinstance(entries, list):
+        return found
+    for entry in entries:
+        if not isinstance(entry, dict):
+            continue
+        inner: dict[str, object] = {}
+        for name in entry:
+            if isinstance(name, str):
+                inner[name] = entry[name]
+        if _text_at(inner, "verdict") != verdict:
+            continue
+        candidate = _text_at(inner, "candidate")
+        if candidate is None:
+            continue
+        number = parsing.parse_number(candidate)
         if number is not None:
-            for stand_in in parsing.NUMERIC_SENTINELS:
-                if number == stand_in:
-                    disputed = True
-        if not disputed:
-            kept = kept + [cell]
-    return kept
+            found = found + [number]
+    return found
 
 
 def _position_is_evidencible(column: contract.ColumnBlock, headed: bool) -> bool:
@@ -4398,31 +4625,53 @@ def _style_checks(
     # cells wear, because a cell that is not canonical IN a form is
     # first of all a cell in that form.
     #
-    # WHERE THE FORM IS NAMED the verdict is shown, and that is an OPEN
-    # RESIDUAL stated here rather than papered over. It still tells two
-    # files apart that the producer describes byte for byte alike:
-    # measured, forty whole numbers beside twenty halves written `1.5`
-    # against the same twenty written `01.5` -- same form, same values,
-    # one description -- give this subcheck HELD on the first and MISSED
-    # on the second against a candidate publishing no `decimal` count.
+    # WHERE THE FORM IS NAMED the recount is read AT THE PUBLICATION
+    # FLOOR'S OWN RESOLUTION, and that is what stops the ceiling being an
+    # exact count oracle (review item P3-V4-F2; plan amendment A-P3-10
+    # clause 1). The version this replaces compared the exact recount
+    # `odd` against the count the SUBMITTED description names, so the
+    # verdict flipped at exactly `odd` and repeated candidates read that
+    # number off one guess at a time -- measured, with a fixed file
+    # holding thirty-seven leading-zero decimal cells: candidate counts
+    # 0, 11, 20 and 36 gave MISSED and 37, 38 and 48 gave HELD, and two
+    # measured files holding thirty-six and thirty-seven of them, whose
+    # full descriptions `synthtwin profile` writes BYTE FOR BYTE ALIKE,
+    # got HELD and MISSED. Amendment A-P3-5 clause 3 ruled canonicality
+    # outside V5.1's envelope on a stated BOUND -- one bit per column,
+    # nothing a candidate search can walk -- and that bound was false.
     #
-    # WHY IT IS NOT CLOSED HERE, as an argument and not as a preference.
-    # The odd cells of a form are a subset of that form's cells, so
-    # `odd(s) <= r(s)`, and `r(s)` is the most the file's own description
-    # settles. Settling this clause from that description alone therefore
-    # gives HELD wherever `r(s) <= p(s)` and nothing wherever it does not
-    # -- so the subcheck could never report MISSED on any file, which
-    # V3.4 and the charter both call a defect and which would make it a
-    # LISTING on every description. That reverses plan P3-D8.1's ratified
-    # ceiling and takes review item P3-V1-F7's repair with it, and it is
-    # an owner's decision to make, in the plan, not one to take inside a
-    # function. Amendment A-P3-3 clause 1 records it as open.
+    # THE RECOUNT ENTERS THE VERDICT ONLY THROUGH `_at_the_floors_
+    # resolution`, which rounds it DOWN to a whole number of publication
+    # floors. Two consequences, and they are the whole of the repair:
+    # a candidate sweep can locate the count no closer than the floor the
+    # description itself was written under -- the same resolution below
+    # which that description names no count at all (V5.4) -- and the
+    # subcheck still MISSES, on any file carrying one floor's worth of
+    # cells more than its licence, so V3.4's vacuity is not traded for
+    # V5.3's silence.
+    #
+    # AND ROUNDING DOWN IS THE DIRECTION THAT CANNOT ACCUSE A FILE.
+    # `seen <= odd` always, so a MISSED here is a file genuinely over the
+    # ceiling and a conforming twin -- whose `odd` is at most its licence
+    # -- is HELD whatever the floor is.
+    #
+    # WHAT IT COSTS, and why no third way keeps both. Teeth at ONE cell
+    # over the licence and a bound better than the exact count are
+    # mutually exclusive: the licence is a number the submitted
+    # description chooses, so a verdict that separates `odd == p` from
+    # `odd == p + 1` for every `p` IS the oracle, whatever else is done
+    # to it. So a file between one and one floor over its licence is no
+    # longer missed here. Every such file still misses `styles.spelled`
+    # where its cells are not spellings of their own values at all, and
+    # the form counts above still answer for how many cells wear the
+    # form.
     for style in _ceilinged_styles(column, facts):
         odd = _noncanonical_cells(cells, style, facts.integer_valued)
-        settled: bool | None = odd <= named(style)
+        seen = _at_the_floors_resolution(odd, floor)
+        settled: bool | None = seen <= named(style)
         if style not in own:
             settled = _window_at_most(
-                (0, window((style,))[1]), odd, named(style)
+                (0, window((style,))[1]), seen, named(style)
             )
         checks = checks + [
             _silent(
@@ -4454,6 +4703,48 @@ def _style_checks(
             )
         ]
     return checks
+
+
+def _at_the_floors_resolution(count: int, floor: int) -> int:
+    """``count`` rounded DOWN to a whole number of publication floors.
+
+    THE ONE PLACE A CANONICALITY RECOUNT ENTERS A VERDICT (review item
+    P3-V4-F2). Whether a numeric cell's TEXT is a spelling its own value
+    licenses is ruled outside V5.1's envelope (plan amendment A-P3-5
+    clause 3), and a ruling of that kind carries its bound with it. The
+    bound the ruling stated was one bit per column and no candidate
+    search; `styles.canonical.<form>` compares its recount against a
+    count the SUBMITTED description names, so the exact recount was
+    recoverable by trying candidates until the verdict flipped.
+
+    Rounding to the floor is what makes the stated bound true, at the
+    only resolution this product has for "a count too small to name": a
+    description names no count below `small_cell_floor` and pools
+    everything under it (V5.4), so a report that cannot separate two
+    counts inside one such block states nothing that description would
+    not. What a candidate sweep can still learn is which block the count
+    lies in, which is written down in the amendment rather than left to
+    be found.
+
+    DOWN, not to the nearest: the result is never more than the count, so
+    a verdict taken over it can never accuse a file of holding cells it
+    does not hold.
+
+    A floor of one is the identity, and honestly so: a description
+    written under it names every count it has exactly and pools nothing,
+    so there is no block for this to round into.
+
+    Guarantees:
+
+    - Inputs: a count of cells, and the publication floor the file's own
+      description was written under. Both non-negative; a floor below
+      one is treated as one.
+    - Determinism: a fixed function of the two.
+    - Errors raised: none.
+    """
+    if floor <= 1:
+        return count
+    return floor * (count // floor)
 
 
 def _floor_styles(facts: contract.NumericFacts) -> "list[str]":
@@ -5234,11 +5525,12 @@ def _date_ladder_checks(
     """The date ladder: the two ends exact, the nine interior in windows.
 
     The window is method G12.4's, taken in the ordinal space method
-    G7.1 fixes for the resolution this column publishes (`_instant_of`).
-    The rung a description publishes is SELECTED, not interpolated --
-    there is no half-way point between two dates a calendar recognises
-    -- so the window is the band the rank's own two ends make, widened
-    by what reading a written cell back can lose.
+    G7.1 fixes for the resolution this column publishes (`_instant_of`)
+    and drawn by `_rank_windows` below, which is the method's own
+    construction written out. The rung a description publishes is
+    SELECTED, not interpolated -- there is no half-way point between two
+    dates a calendar recognises -- so the rung is read off ONE RANK, the
+    rank G12.4 names, and the window is that rank's own.
 
     EVERY RESOLUTION, INCLUDING QUARTERS (review item P3-V3-F4). These
     nine rungs used to be WITHHELD one by one on any column of quarters,
@@ -5249,6 +5541,14 @@ def _date_ladder_checks(
     of the twelve published quarters passed with these nine and both
     distinctness counts silenced. There is no branch here that a
     resolution can silence any more.
+
+    AND THE RANK IS THE METHOD'S, IN WHOLE NUMBERS (review item
+    P3-V4-F4). The version this replaces worked the rank out as
+    `((P - 1) * share * 100) // 100` over a floating-point share and
+    then read the ladder through the float reader the numeric ladder
+    uses, neither of which is the arithmetic G12.4 fixes. `_rung_rank`
+    and `_ladder_ordinal_at` are that arithmetic, and the suite compares
+    them with the generator's own writing of it at every resolution.
     """
     name = column.name
     measured = _inner_at(block, "date_percentiles")
@@ -5265,16 +5565,13 @@ def _date_ladder_checks(
                 None if found is None else found == expected,
             )
         ]
-    ordinals = _date_points(published.rungs, facts.resolution)
     dated = max(1, column.n_present - facts.n_unparsed)
-    unit = _reading_unit(facts)
+    lows, highs = _rank_windows(facts, dated)
     for index in range(1, len(_LADDER_KEYS) - 1):
         key = _LADDER_KEYS[index]
         found = None if measured is None else _text_at(measured, key)
         seen = None if found is None else _instant_of(found, facts.resolution)
-        rank = ((dated - 1) * _LADDER_SHARES[index] * 100) // 100
-        low = _ladder_at(ordinals, rank / dated) - unit
-        high = _ladder_at(ordinals, min(1.0, (rank + 1) / dated))
+        rank = _rung_rank(_LADDER_PERCENTS[index], dated)
         checks = checks + [
             _within(
                 name,
@@ -5282,7 +5579,7 @@ def _date_ladder_checks(
                 f"date-ladder.{key}",
                 published.rungs[index],
                 None if seen is None else float(seen),
-                (low, high),
+                (float(lows[rank]), float(highs[rank])),
                 ENVELOPE_DATETIME_RUNGS,
             )
         ]
@@ -5315,29 +5612,237 @@ def _datetime_distinct_window(
     published quarters was told its distinctness could not be shown. The
     ordinal space below is the method's own for each resolution, so
     there is nothing left here for a resolution to silence.
+
+    AND THE WINDOWS IT WALKS ARE G12.4'S, ENDS AND ALL (review item
+    P3-V4-F4). The version this replaces drew every rank's window from
+    the ladder alone, including the two the construction PINS -- so the
+    first rank's window ran from the published earliest back by one unit
+    and forward to the second rank's share, and swallowed ranks the
+    construction cannot put on the same instant as rank zero. Measured
+    on a twelve-rank quarterly description, the walk returned four
+    separate ranks where the pinned construction forces six, and a file
+    holding four different quarters was told it was inside the envelope.
+    The walk itself is unchanged; it now walks the right windows, which
+    is the whole of the repair.
     """
-    ordinals = _date_points(facts.date_percentiles.rungs, facts.resolution)
     dated = max(1, column.n_present - facts.n_unparsed)
-    unit = _reading_unit(facts)
-    separate = 0
-    ceiling = None
-    for rank in range(dated):
-        low = _ladder_at(ordinals, rank / dated) - unit
-        high = _ladder_at(ordinals, min(1.0, (rank + 1) / dated))
-        if ceiling is None or low > ceiling:
-            separate = separate + 1
-            ceiling = high
+    lows, highs = _rank_windows(facts, dated)
+    separate = _ranks_forced_apart(lows, highs)
     step = _precision_step(facts)
     earliest = _ordinal_of(facts.earliest, facts.resolution)
     latest = _ordinal_of(facts.latest, facts.resolution)
-    named = 0
-    for key in facts.utc_offsets:
-        if key != taxonomy.SUPPRESSED_LABEL:
-            named = named + 1
     room = (latest - earliest) // step + 1
-    upper = min(column.n_present, room * max(1, named) + facts.n_unparsed)
+    upper = min(
+        column.n_present,
+        room * _spellings_of_an_instant(facts) + facts.n_unparsed,
+    )
     lower = min(separate + facts.n_unparsed, upper)
     return (float(lower), float(upper))
+
+
+def _spellings_of_an_instant(facts: contract.DatetimeFacts) -> int:
+    """How many ways one instant can be written in this column (G7.4).
+
+    One per offset the description names BY NAME, plus one for a cell
+    that carries no offset at all -- and G7.4 gives two keys that route
+    a cell there: `(none)`, which counts the cells that carried none,
+    and `(withheld)`, which pools the offsets below the publication
+    floor and is written with no offset as well, "and this is a loss,
+    named as one". A column that names nothing gets one, because its
+    cells are all written the same way.
+
+    WHY THIS IS NOT `generation._spellings_of_a_date`, WHICH COUNTS THE
+    NAMED OFFSETS ALONE. G12.5's sentence for the upper end says "M the
+    number of named offsets", and its derivation says every cell is
+    "spelled with one of the offsets `utc_offsets` names by name" --
+    which G7.4 contradicts for exactly these two keys, since the cells
+    they cover are written with no offset and are therefore a spelling
+    of their own. Where a column mixes a named offset with either key,
+    the literal count is one short of the ways its own twin writes an
+    instant, and a bound one factor too tight is a bound a conforming
+    twin can be reported MISSED against. This reading is the wider of
+    the two on exactly those columns and identical on every other, so it
+    can turn no verdict against a file; the tighter one is method
+    G12.5's to fix, and this document may not narrow a cited envelope on
+    its own (V3.5). The suite compares the two writings and pins where
+    they may differ.
+    """
+    named = 0
+    unnamed = 0
+    for key in facts.utc_offsets:
+        if key in (contract.NO_OFFSET, taxonomy.SUPPRESSED_LABEL):
+            unnamed = 1
+        else:
+            named = named + 1
+    return max(1, named + unnamed)
+
+
+def _ranks_forced_apart(lows: "list[int]", highs: "list[int]") -> int:
+    """How many different instants the published ladder FORCES (G12.5).
+
+    Two ranks whose windows of G12.4 do not overlap cannot hold the same
+    instant, so the largest set of ranks with pairwise separate windows
+    is a lower bound on how many different values the twin holds. The
+    windows arrive in non-decreasing order of both ends, so the count is
+    taken in one walk: keep the first rank, then keep each later rank
+    whose lower end is strictly above the last kept rank's upper end.
+    """
+    count = 0
+    frontier = 0
+    for rank in range(len(lows)):
+        if count == 0 or lows[rank] > frontier:
+            count = count + 1
+            frontier = highs[rank]
+    return count
+
+
+def _rank_windows(
+    facts: contract.DatetimeFacts, dated: int
+) -> "tuple[list[int], list[int]]":
+    """The window every rank of a column of dates sits in (method G12.4).
+
+    THE CONSTRUCTION, WRITTEN FROM THE METHOD AND NOT IMPORTED (V1.4,
+    V4.2; review items P3-V4-F4 and P3-V4-F5). Rank `k` of G7.3 is its
+    own stratum: its share of the distribution is the band from `k / P`
+    to `(k + 1) / P` and no word can take it outside that band, so
+
+        Ladder(k / P) - u   <=   O[k]   <=   Ladder((k + 1) / P)
+
+    with `Ladder` read by the SAME whole-number interpolation G7.3
+    builds cells with (`_ladder_ordinal_at`) and `u` the reading unit
+    below. **The two ends are PINNED**: G7.3 writes rank `0` at the
+    published `earliest` and rank `P - 1` at the published `latest`,
+    exactly as published, so those two ranks have no room at all. The
+    profile contract's D11 makes those two instants the ladder's own two
+    ends, which is why they are read off the ladder here.
+
+    Leaving the pinning out was review item P3-V4-F4: the first and last
+    ranks got the interior band, the separateness walk of G12.5 then let
+    the first window swallow ranks that cannot share its instant, and a
+    file with four different quarters passed a bound the construction
+    puts at six.
+
+    Guarantees:
+
+    - Inputs: one column's published datetime facts, and how many of its
+      cells read back as a date. Nothing measured is consulted: this is
+      what the DESCRIPTION obliges, and the caller compares the file
+      with it.
+    - Determinism: a fixed function of those two, in whole-number
+      arithmetic throughout -- no float is formed anywhere in it, as
+      G7.1 requires of every step in this space.
+    - Errors raised: TypeError through `_ordinal_of` where a published
+      instant names no point in its own resolution's space, which is a
+      contradiction between the strict loader and this reading rather
+      than a fact about any file (V3.4-A1).
+    """
+    step = _space_unit(facts)
+    ladder = _ladder_ordinals(facts)
+    unit = _reading_unit(facts)
+    last = len(_LADDER_KEYS) - 1
+    lows: list[int] = []
+    highs: list[int] = []
+    for rank in range(dated):
+        if rank == 0:
+            lows = lows + [step * ladder[0]]
+            highs = highs + [step * ladder[0]]
+            continue
+        if rank == dated - 1 and dated >= 2:
+            lows = lows + [step * ladder[last]]
+            highs = highs + [step * ladder[last]]
+            continue
+        lows = lows + [
+            step * _ladder_ordinal_at(ladder, rank, dated) - unit
+        ]
+        highs = highs + [step * _ladder_ordinal_at(ladder, rank + 1, dated)]
+    return (lows, highs)
+
+
+def _ladder_ordinals(facts: contract.DatetimeFacts) -> "list[int]":
+    """The eleven published rungs, in the unit the METHOD counts them in.
+
+    AND THAT IS NOT ALWAYS THE UNIT THIS READING COUNTS IN, which is the
+    third divergence of review item P3-V4-F4. `_instant_of` reads a
+    whole date into the SECONDS its two neighbours already speak, and
+    the method's ordinal unit for a column of whole dates is ONE DAY --
+    so the interpolation of G7.3, which FLOORS, gives a different answer
+    in the two units: floored in seconds it lands part way through a
+    day, and floored in days it lands on the day the construction can
+    actually write. The scaling does not cancel through a floor, and a
+    window drawn the finer way sat up to a whole day above the
+    construction's own lower end.
+
+    So the arithmetic is done in the method's unit and put back into
+    this reading's afterwards (`_space_unit`). A published rung of a
+    date column names midnight, so the division is exact.
+    """
+    step = _space_unit(facts)
+    return [
+        _ordinal_of(rung, facts.resolution) // step
+        for rung in facts.date_percentiles.rungs
+    ]
+
+
+def _space_unit(facts: contract.DatetimeFacts) -> int:
+    """One ordinal unit of the resolution's own space (method G7.1).
+
+    One quarter for a column of quarters and one second for a column of
+    dates and times, both of which this reading counts in directly; one
+    DAY for a column of whole dates, which this reading counts as 86400
+    of its own units.
+    """
+    if facts.resolution == taxonomy.RESOLUTION_DATE:
+        return 86400
+    return 1
+
+
+def _rung_rank(percent: int, dated: int) -> int:
+    """Which sorted rank one published rung is read off (method G12.4).
+
+    "The ordinal at sorted position `k = floor((P - 1) * c / 100)`,
+    SELECTED and not interpolated" -- the profiler's own rung rule, in
+    the whole numbers it is written in. The last rank is the furthest
+    any percentage can reach.
+    """
+    return min(dated - 1, ((dated - 1) * percent) // 100)
+
+
+def _ladder_segment(numerator: int, denominator: int) -> int:
+    """The ladder segment one share falls in (method G7.3).
+
+    The unique step with `PCT[j] * D <= 100 * N < PCT[j+1] * D`,
+    scanning upward from zero and stopping at the first that holds. The
+    percentages strictly increase, so the answer is unique; a share at
+    or above the top of the ladder belongs to the last segment.
+    """
+    scaled = 100 * numerator
+    for step in range(len(_LADDER_PERCENTS) - 1):
+        below = _LADDER_PERCENTS[step] * denominator <= scaled
+        if below and scaled < _LADDER_PERCENTS[step + 1] * denominator:
+            return step
+    return len(_LADDER_PERCENTS) - 2
+
+
+def _ladder_ordinal_at(
+    ladder: "list[int]", numerator: int, denominator: int
+) -> int:
+    """The published date ladder read at one share (method G7.3).
+
+    The same whole-number interpolation the generator builds cells with,
+    rounding DOWNWARD always -- Python's floor division floors toward
+    negative infinity, which is the method's stated direction on both
+    sides of the epoch. The float reader the numeric ladder uses is not
+    this arithmetic and drawing a datetime window with it was review
+    item P3-V4-F4's second half.
+    """
+    step = _ladder_segment(numerator, denominator)
+    above = 100 * numerator - _LADDER_PERCENTS[step] * denominator
+    span = (
+        _LADDER_PERCENTS[step + 1] - _LADDER_PERCENTS[step]
+    ) * denominator
+    return ladder[step] + (
+        above * (ladder[step + 1] - ladder[step])
+    ) // span
 
 
 def _precision_step(facts: contract.DatetimeFacts) -> int:
@@ -5357,34 +5862,42 @@ def _precision_step(facts: contract.DatetimeFacts) -> int:
     return 1
 
 
-def _date_points(
-    rungs: "tuple[str, ...]", resolution: str
-) -> "list[tuple[float, float]]":
-    """The published date ladder as (share, ordinal) points."""
-    points: list[tuple[float, float]] = []
-    for index, moment in enumerate(rungs):
-        points = points + [
-            (_LADDER_SHARES[index], float(_ordinal_of(moment, resolution)))
-        ]
-    return points
-
-
-def _reading_unit(facts: contract.DatetimeFacts) -> float:
+def _reading_unit(facts: contract.DatetimeFacts) -> int:
     """What reading one written cell back can lose, in this column's unit.
 
-    Method G12.4's `u`: one unit for the downward rounding of the
-    whole-number interpolation itself, plus the fifty-nine seconds a
+    Method G12.4's `u`, and it is a SUM OF TWO THINGS: one unit of the
+    ordinal space G7.1 fixes, for the downward rounding of the
+    whole-number interpolation itself, PLUS the fifty-nine seconds a
     cell written to the minute carries no room for. A date, a quarter, a
     second and a subsecond cell each carry their own unit exactly and
     lose nothing further, so each of those is one unit of its own space.
+
+    ONE UNIT IS ONE UNIT OF THE SPACE, NOT ONE STEP OF THE PRECISION
+    (review item P3-V4-F5). The version this replaces read the first
+    term as the distance between two neighbouring instants at the
+    published precision and returned 60 + 59 = 119 seconds for a column
+    written to the minute. The interpolation is done in the ordinal
+    space, whose unit for a column of dates and times is ONE SECOND
+    whatever the precision, so the allowance is 1 + 59 = 60 -- the
+    number the generator computes from the same sentence. The extra
+    fifty-nine seconds admitted a rung that misses its window by most of
+    a minute, and the shipped test asserted the wrong number rather than
+    the method's.
+
+    The unit is the resolution's own (`_space_unit`), counted in what
+    this reading counts in: one quarter for a column of quarters, one
+    day -- 86400 of the seconds this reading speaks -- for a column of
+    whole dates, one second for a column of dates and times. The
+    fifty-nine are seconds either way, and only a column written to the
+    minute carries them.
     """
-    if facts.resolution == taxonomy.RESOLUTION_QUARTER:
-        return 1.0
-    if facts.resolution == taxonomy.RESOLUTION_DATE:
-        return 86400.0
-    if facts.time_precision == parsing.PRECISION_MINUTE:
-        return 119.0
-    return 1.0
+    unit = _space_unit(facts)
+    if (
+        facts.resolution == taxonomy.RESOLUTION_DATETIME
+        and facts.time_precision == parsing.PRECISION_MINUTE
+    ):
+        return unit + 59
+    return unit
 
 
 # -- method G7.1's ordinal space, one per resolution -------------------

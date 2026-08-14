@@ -84,7 +84,11 @@ def _scan_code(tmp_path, code):
     """Write one module into a fresh tree and scan that tree."""
     tree = tmp_path / "tree"
     tree.mkdir()
-    (tree / "sample.py").write_text(textwrap.dedent(code), encoding="utf-8")
+    (
+        tree / "sample.py").write_text(textwrap.dedent(code),
+        encoding="utf-8",
+        newline="\n",
+    )
     return _SCANNER.scan_tree(tree)
 
 
@@ -660,7 +664,11 @@ def _scan_package(tmp_path, modules):
     package = tree / "synthtwin"
     package.mkdir(parents=True)
     for name, text in modules.items():
-        (package / name).write_text(textwrap.dedent(text), encoding="utf-8")
+        (
+            package / name).write_text(textwrap.dedent(text),
+            encoding="utf-8",
+            newline="\n",
+        )
     return _SCANNER.scan_tree(tree)
 
 

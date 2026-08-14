@@ -343,7 +343,7 @@ def test_a_special_entry_that_is_not_an_input_still_meets_its_refusal(
     folder.mkdir()
     places = _inputs(folder)
     elsewhere = folder / "somewhere-else.txt"
-    elsewhere.write_text("not an input\n", encoding="utf-8")
+    elsewhere.write_text("not an input\n", encoding="utf-8", newline="\n")
     target = folder / "clinic-twin-quality.txt"
     target.symlink_to(elsewhere)
     with pytest.raises(errors.ProfileError) as stopped:

@@ -39,6 +39,20 @@ must be an edit aimed
 at the site it covers; the floor is counted over the registration; and
 nothing is excused at all.
 
+AND THE FOURTH ROUND FOUND THE EXPECTED SIDE READING ITSELF OFF THE
+SUBJECT (review item P3-V4-F6). A covering row named its site by column
+and subcheck and let the registration take the REGISTRY FACT off the
+shipped validator's own output, so the third term of V3.1's identity
+was not being asserted at all: production could bind `date-ladder.p05`
+to a different fact of the same disposition and the expectation moved
+with it, leaving coverage, membership and uniqueness green over a table
+whose facts were wrong. Nothing here reads that output any more. What
+governs each site is composed from two statements written out in this
+file -- `FIXTURE_ROLES`, checked against the DESCRIPTION, and
+`SUBCHECK_FACTS`, checked against the REGISTRY -- and
+`test_every_shipped_site_binds_the_fact_this_file_states` holds the
+shipped table to that composition in both directions.
+
 WHAT AN ENTRY IS, AND WHY THE ANSWER CHANGED (review item P3-V2-B-F4).
 This machinery used to reduce a run to the SET OF SUBCHECK NAMES it made
 miss, and to ask of the shipped table only whether each name appeared in
@@ -813,19 +827,49 @@ def _quartered(described: contract.Profile, text: str, index: int) -> str:
 def _ladder_crushed(
     described: contract.Profile, text: str, index: int
 ) -> str:
-    """A datetime column with its two ends kept and its middle piled low.
+    """A datetime column with its two ends kept and its middle piled low."""
+    return _ladder_piled(described, text, index, at_the_top=False)
+
+
+def _ladder_lifted(
+    described: contract.Profile, text: str, index: int
+) -> str:
+    """The same edit with the middle piled HIGH, and it is not decoration.
+
+    REVIEW ITEM P3-V4-F4. A rung's window is the band its own rank can
+    reach, and near the bottom of a coarse ladder that band starts AT
+    the published earliest: on the quarter fixture `date-ladder.p10`
+    sits in `[2018-Q1, 2018-Q3]`, so no file that piles its middle low
+    can miss it -- the lowest value a cell can hold is inside the
+    window. The rung is falsifiable upward and only upward, and while
+    the validator drew that window with a floating-point reading of the
+    ladder it was a fraction of a quarter narrower and the low pile
+    appeared to catch it. Reading the ladder in the method's own whole
+    numbers (G7.3) made the window the construction's own, and the
+    covering case had to become an edit that can actually fail it.
+    """
+    return _ladder_piled(described, text, index, at_the_top=True)
+
+
+def _ladder_piled(
+    described: contract.Profile,
+    text: str,
+    index: int,
+    at_the_top: bool,
+) -> str:
+    """A datetime column with its two ends kept and its middle piled to one side.
 
     THE PERTURBATION THE NINE INTERIOR RUNGS ANSWER FOR ON THEIR OWN,
     written for EVERY resolution rather than for the two that name an
     instant (review item P3-V3-F4). The first and last written cells are
     left exactly where they are, so `earliest`, `latest` and both ENDS
-    of the ladder still hold; every cell between them is moved into the
-    lower half of the published range, spread over as many different
-    values as that half holds, so the column keeps its role, its
-    resolution, its precision and a cardinality like its own. What is
-    left to catch the file is the nine rungs between the ends -- which
-    is the shape the quarter finding was found on, where all nine were
-    withheld whatever the file held.
+    of the ladder still hold; every cell between them is moved into one
+    half of the published range, spread over as many different values as
+    that half holds, so the column keeps its role, its resolution, its
+    precision and a cardinality like its own. What is left to catch the
+    file is the nine rungs between the ends -- which is the shape the
+    quarter finding was found on, where all nine were withheld whatever
+    the file held.
 
     The cells are built with the GENERATOR's own writer, which a test
     may import and the validator may not: a perturbation has to be a
@@ -860,12 +904,13 @@ def _ladder_crushed(
         if rows[row][index] == facts.latest and row not in keep:
             keep.add(row)
             break
+    corner = high - half if at_the_top else low
     place = 0
     for row in written:
         if row in keep:
             continue
         rows[row][index] = generation._cell_of_ordinal(
-            low + (place % half),
+            corner + (place % half),
             facts.resolution,
             facts.time_precision,
             facts.subsecond_digits,
@@ -1535,7 +1580,17 @@ def _column_perturbations(
                 f"crushed-{name}",
                 CLASS_DATE,
                 _ladder_crushed(described, twin, index),
-            )
+            ),
+            # ...AND THE SAME EDIT THE OTHER WAY UP (review item
+            # P3-V4-F4). A rung whose window starts at the published
+            # earliest cannot be missed from below by any file, so the
+            # low pile leaves it covered by nothing; the high pile is
+            # what a rung near the bottom of a coarse ladder answers to.
+            (
+                f"lifted-{name}",
+                CLASS_DATE,
+                _ladder_lifted(described, twin, index),
+            ),
         ]
         moved = (
             _quartered(described, twin, index)
@@ -2730,7 +2785,7 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("timed-when", "date-ladder.max"),
             ("moved-when", "date-ladder.p01"),
             ("moved-when", "date-ladder.p05"),
-            ("crushed-when", "date-ladder.p10"),
+            ("lifted-when", "date-ladder.p10"),
             ("crushed-when", "date-ladder.p25"),
             ("crushed-when", "date-ladder.p75"),
             ("crushed-when", "date-ladder.p90"),
@@ -2833,6 +2888,377 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
     },
 }
 
+# ---------------------------------------------------------------------
+# WHAT GOVERNS EACH SITE, WRITTEN HERE AND NOWHERE ELSE (review item
+# P3-V4-F6)
+# ---------------------------------------------------------------------
+#
+# THE DEFECT THIS CLOSES. A covering row named its site by column and
+# subcheck, and the registration then read the third term of the
+# identity -- the REGISTRY FACT -- off the shipped validator's own
+# output. So the expected side of the proof was a copy of the subject
+# of the proof: production could bind `date-ladder.p05` to
+# `datetime.n_distinct` instead of `datetime.date_percentiles`, keep
+# the disposition, and the expectation moved with it. Coverage,
+# membership and uniqueness all stayed green over a table whose facts
+# were wrong, and only the seventy-three curated rows -- which carry
+# their fact in full -- could have caught it.
+#
+# THE REPAIR IS NOT ANOTHER DERIVATION. Nothing below is read from
+# `validation.measure`. The fact governing a site is composed from two
+# statements written out in this file:
+#
+#   1. `FIXTURE_ROLES` -- the type path each fixture column is
+#      described with. Twenty-three lines, and every one of them is
+#      checked against the DESCRIPTION, which is the profile predicate
+#      of V3.1's identity and an INPUT to the validator rather than
+#      anything it says.
+#   2. `SUBCHECK_FACTS` -- for a column of that family, which registry
+#      fact each subcheck of the shipped table answers for. Two hundred
+#      and five lines, every fact of them checked against the registry
+#      itself.
+#
+# `test_every_shipped_site_binds_the_fact_this_file_states` then holds
+# the shipped table to the composition, in BOTH directions: no site may
+# bind a fact other than the one stated here, and no line here may go
+# unreached. A rebinding is therefore red twice -- once in that
+# identity, and once in `test_every_registered_red_case_misses_the_site
+# _it_names`, because the site the case names no longer exists.
+#
+# WHY A FAMILY AND A SUBCHECK RATHER THAN FIVE HUNDRED AND EIGHTY-EIGHT
+# LINES. The two are the same statement: the composition is total over
+# the shipped sites and exact, so writing each site out separately
+# would add no information and five hundred lines nobody re-reads. What
+# it must not do is lose the COLUMN, and it does not: a covering row
+# names its own column, and `FIXTURE_ROLES` gives that column its
+# family, so moving one column's subcheck to another fact is caught on
+# that column alone.
+#
+# THE VALUES WERE TAKEN OFF THE SHIPPED TABLE ONCE, at the commit that
+# wrote them, and are frozen here. That is what a stated expectation
+# is: it was true when a person wrote it down and it does not move
+# again. What is forbidden is reading it at RUN TIME, which is what
+# this replaces.
+
+# The fact GROUP each type path publishes into. The ten roles the
+# taxonomy carries, mapped onto the seven groups the registry files a
+# column's own facts under; `universal` is every column's and is not a
+# family. Written out rather than derived from a fact name, because a
+# fact name is the thing being checked.
+ROLE_FAMILIES = {
+    "binary": "label",
+    "categorical": "label",
+    "constant": "label",
+    "continuous": "numeric",
+    "count": "numeric",
+    "datetime": "datetime",
+    "empty": "empty",
+    "free_text": "free_text",
+    "identifier": "identifier",
+    "numeric_unrepresentable": "numeric_unrepresentable",
+}
+
+# The family of the DOCUMENT's own entries -- the ones filed against no
+# column, whose fact group is `document` and whose one universal fact is
+# the header names.
+DOCUMENT_FAMILY = "document"
+
+# The type path each fixture column is described with, stated here and
+# checked against the description by
+# `test_every_fixture_column_carries_the_role_this_file_states`.
+FIXTURE_ROLES: "dict[str, dict[str, str]]" = {
+    "every-role": {
+        "amount": "continuous",
+        "answer": "binary",
+        "batch": "constant",
+        "comment": "free_text",
+        "reading": "count",
+        "record_code": "identifier",
+        "recorded_on": "datetime",
+        "region": "categorical",
+        "unused": "empty",
+        "visits": "count",
+    },
+    "headerless": {
+        "column_1": "count",
+        "column_2": "categorical",
+    },
+    "pooled": {"reading": "continuous"},
+    "quarters": {
+        "region": "categorical",
+        "when": "datetime",
+    },
+    "spelled": {"reading": "continuous"},
+    "unrepresentable": {"overflow": "numeric_unrepresentable"},
+}
+
+# Which registry fact each subcheck of the shipped table answers for, on
+# a column of each family. Keyed by (family, subcheck); the value is the
+# fact, `group.field`, exactly as the registry spells it.
+SUBCHECK_FACTS: "dict[tuple[str, str], str]" = {
+    # -- datetime ----------------------------------------------------------
+    ("datetime", "axes.quality_state"): "universal.quality_state",
+    ("datetime", "axes.role"): "universal.role",
+    ("datetime", "axes.statistical_type"): "universal.statistical_type",
+    ("datetime", "counts.n_contradictory"): "universal.n_contradictory",
+    ("datetime", "counts.n_not_numeric"): "universal.n_not_numeric",
+    ("datetime", "counts.n_numeric"): "universal.n_numeric",
+    ("datetime", "counts.n_out_of_range"): "universal.n_out_of_range",
+    ("datetime", "counts.n_unparsed"): "datetime.n_unparsed",
+    ("datetime", "counts.subsecond_digits"): "datetime.subsecond_digits",
+    ("datetime", "date-ladder.max"): "datetime.date_percentiles.max",
+    ("datetime", "date-ladder.min"): "datetime.date_percentiles.min",
+    ("datetime", "date-ladder.p01"): "datetime.date_percentiles",
+    ("datetime", "date-ladder.p05"): "datetime.date_percentiles",
+    ("datetime", "date-ladder.p10"): "datetime.date_percentiles",
+    ("datetime", "date-ladder.p25"): "datetime.date_percentiles",
+    ("datetime", "date-ladder.p50"): "datetime.date_percentiles",
+    ("datetime", "date-ladder.p75"): "datetime.date_percentiles",
+    ("datetime", "date-ladder.p90"): "datetime.date_percentiles",
+    ("datetime", "date-ladder.p95"): "datetime.date_percentiles",
+    ("datetime", "date-ladder.p99"): "datetime.date_percentiles",
+    ("datetime", "distinct.n_distinct"): "datetime.n_distinct",
+    ("datetime", "distinct.n_distinct_folded"): "datetime.n_distinct_folded",
+    ("datetime", "ends.earliest"): "datetime.earliest",
+    ("datetime", "ends.latest"): "datetime.latest",
+    ("datetime", "offsets.(none)"): "datetime.utc_offsets",
+    ("datetime", "offsets.earliest"): "datetime.earliest_utc_offset",
+    ("datetime", "offsets.latest"): "datetime.latest_utc_offset",
+    ("datetime", "offsets.read-at"): "datetime.datetimes_read_at",
+    ("datetime", "position.at"): "universal.position",
+    ("datetime", "precision.resolution"): "datetime.resolution",
+    ("datetime", "precision.time_precision"): "datetime.time_precision",
+    ("datetime", "presence.n_missing"): "universal.n_missing",
+    ("datetime", "presence.n_present"): "universal.n_present",
+    # -- document ----------------------------------------------------------
+    ("document", "bytes.byte-order-mark"): "document.encoding",
+    ("document", "bytes.line-endings"): "document.line-endings",
+    ("document", "bytes.terminal-newline"): "document.line-endings",
+    ("document", "bytes.utf8"): "document.encoding",
+    ("document", "columns.n_columns"): "document.n_columns",
+    ("document", "columns.order"): "document.columns",
+    ("document", "header.names"): "universal.name",
+    ("document", "header.presence"): "document.source.header_source",
+    ("document", "rows.n_rows"): "document.n_rows",
+    # -- empty -------------------------------------------------------------
+    ("empty", "axes.quality_state"): "universal.quality_state",
+    ("empty", "axes.role"): "universal.role",
+    ("empty", "axes.statistical_type"): "universal.statistical_type",
+    ("empty", "counts.n_contradictory"): "universal.n_contradictory",
+    ("empty", "counts.n_not_numeric"): "universal.n_not_numeric",
+    ("empty", "counts.n_numeric"): "universal.n_numeric",
+    ("empty", "counts.n_out_of_range"): "universal.n_out_of_range",
+    ("empty", "distinct.n_distinct"): "empty.n_distinct",
+    ("empty", "distinct.n_distinct_folded"): "empty.n_distinct_folded",
+    ("empty", "position.at"): "universal.position",
+    ("empty", "presence.n_missing"): "universal.n_missing",
+    ("empty", "presence.n_present"): "universal.n_present",
+    # -- free_text ---------------------------------------------------------
+    ("free_text", "axes.quality_state"): "universal.quality_state",
+    ("free_text", "axes.role"): "universal.role",
+    ("free_text", "axes.statistical_type"): "universal.statistical_type",
+    ("free_text", "counts.n_all_digits"): "free_text.n_all_digits",
+    ("free_text", "counts.n_code_alphabet"): "free_text.n_code_alphabet",
+    ("free_text", "counts.n_contradictory"): "universal.n_contradictory",
+    ("free_text", "counts.n_not_numeric"): "universal.n_not_numeric",
+    ("free_text", "counts.n_numeric"): "universal.n_numeric",
+    ("free_text", "counts.n_out_of_range"): "universal.n_out_of_range",
+    ("free_text", "distinct.n_distinct"): "free_text.n_distinct",
+    ("free_text", "distinct.n_distinct_by_occurrences"): (
+        "free_text.n_distinct_by_occurrences"
+    ),
+    ("free_text", "distinct.n_distinct_folded"): "free_text.n_distinct_folded",
+    ("free_text", "length.max"): "free_text.length.max",
+    ("free_text", "length.mean"): "free_text.length.mean",
+    ("free_text", "length.min"): "free_text.length.min",
+    ("free_text", "length.p50"): "free_text.length.p50",
+    ("free_text", "position.at"): "universal.position",
+    ("free_text", "presence.n_missing"): "universal.n_missing",
+    ("free_text", "presence.n_present"): "universal.n_present",
+    ("free_text", "words.max"): "free_text.words.max",
+    ("free_text", "words.mean"): "free_text.words.mean",
+    ("free_text", "words.min"): "free_text.words.min",
+    # -- identifier --------------------------------------------------------
+    ("identifier", "axes.quality_state"): "universal.quality_state",
+    ("identifier", "axes.role"): "universal.role",
+    ("identifier", "axes.statistical_type"): "universal.statistical_type",
+    ("identifier", "counts.n_all_digits"): "identifier.n_all_digits",
+    ("identifier", "counts.n_code_alphabet"): "identifier.n_code_alphabet",
+    ("identifier", "counts.n_contradictory"): "universal.n_contradictory",
+    ("identifier", "counts.n_not_numeric"): "universal.n_not_numeric",
+    ("identifier", "counts.n_numeric"): "universal.n_numeric",
+    ("identifier", "counts.n_out_of_range"): "universal.n_out_of_range",
+    ("identifier", "distinct.n_distinct"): "identifier.n_distinct",
+    ("identifier", "distinct.n_distinct_by_occurrences"): (
+        "identifier.n_distinct_by_occurrences"
+    ),
+    ("identifier", "distinct.n_distinct_folded"): "identifier.n_distinct_folded",
+    ("identifier", "length.max"): "identifier.max_length",
+    ("identifier", "length.min"): "identifier.min_length",
+    ("identifier", "position.at"): "universal.position",
+    ("identifier", "presence.n_missing"): "universal.n_missing",
+    ("identifier", "presence.n_present"): "universal.n_present",
+    ("identifier", "type.all_whole_numbers"): "identifier.all_whole_numbers",
+    # -- label -------------------------------------------------------------
+    ("label", "axes.quality_state"): "universal.quality_state",
+    ("label", "axes.role"): "universal.role",
+    ("label", "axes.statistical_type"): "universal.statistical_type",
+    ("label", "counts.n_contradictory"): "universal.n_contradictory",
+    ("label", "counts.n_not_numeric"): "universal.n_not_numeric",
+    ("label", "counts.n_numeric"): "universal.n_numeric",
+    ("label", "counts.n_out_of_range"): "universal.n_out_of_range",
+    ("label", "distinct.n_distinct"): "label.n_distinct",
+    ("label", "distinct.n_distinct_folded"): "label.n_distinct_folded",
+    ("label", "levels.east.count"): "label.count",
+    ("label", "levels.east.label"): "label.label",
+    ("label", "levels.east.variants"): "label.variants",
+    ("label", "levels.east.variants_withheld"): "label.variants_withheld",
+    ("label", "levels.no.count"): "label.count",
+    ("label", "levels.no.label"): "label.label",
+    ("label", "levels.no.variants"): "label.variants",
+    ("label", "levels.no.variants_withheld"): "label.variants_withheld",
+    ("label", "levels.north.count"): "label.count",
+    ("label", "levels.north.label"): "label.label",
+    ("label", "levels.north.variants"): "label.variants",
+    ("label", "levels.north.variants_withheld"): "label.variants_withheld",
+    ("label", "levels.one.count"): "label.count",
+    ("label", "levels.one.label"): "label.label",
+    ("label", "levels.one.variants"): "label.variants",
+    ("label", "levels.one.variants_withheld"): "label.variants_withheld",
+    ("label", "levels.set"): "label.levels",
+    ("label", "levels.south.count"): "label.count",
+    ("label", "levels.south.label"): "label.label",
+    ("label", "levels.south.variants"): "label.variants",
+    ("label", "levels.south.variants_withheld"): "label.variants_withheld",
+    ("label", "levels.west.count"): "label.count",
+    ("label", "levels.west.label"): "label.label",
+    ("label", "levels.west.variants"): "label.variants",
+    ("label", "levels.west.variants_withheld"): "label.variants_withheld",
+    ("label", "levels.yes.count"): "label.count",
+    ("label", "levels.yes.label"): "label.label",
+    ("label", "levels.yes.variants"): "label.variants",
+    ("label", "levels.yes.variants_withheld"): "label.variants_withheld",
+    ("label", "position.at"): "universal.position",
+    ("label", "presence.n_missing"): "universal.n_missing",
+    ("label", "presence.n_present"): "universal.n_present",
+    ("label", "suppressed.counts"): "label.suppressed_level_counts",
+    ("label", "suppressed.suppressed_levels"): "label.suppressed_levels",
+    ("label", "suppressed.suppressed_rows"): "label.suppressed_rows",
+    # -- numeric -----------------------------------------------------------
+    ("numeric", "axes.quality_state"): "universal.quality_state",
+    ("numeric", "axes.role"): "universal.role",
+    ("numeric", "axes.statistical_type"): "universal.statistical_type",
+    ("numeric", "counts.n_contradictory"): "universal.n_contradictory",
+    ("numeric", "counts.n_left_out_of_statistics"): "numeric.n_left_out_of_statistics",
+    ("numeric", "counts.n_negative"): "numeric.n_negative",
+    ("numeric", "counts.n_negative_unrepresentable"): (
+        "numeric.n_negative_unrepresentable"
+    ),
+    ("numeric", "counts.n_not_numeric"): "universal.n_not_numeric",
+    ("numeric", "counts.n_numeric"): "universal.n_numeric",
+    ("numeric", "counts.n_out_of_range"): "universal.n_out_of_range",
+    ("numeric", "counts.n_used_in_statistics"): "numeric.n_used_in_statistics",
+    ("numeric", "counts.n_zero"): "numeric.n_zero",
+    ("numeric", "counts.numeric_share"): "numeric.numeric_share",
+    ("numeric", "distinct.n_distinct"): "numeric.n_distinct",
+    ("numeric", "distinct.n_distinct_folded"): "numeric.n_distinct_folded",
+    ("numeric", "ladder.max"): "numeric.percentiles.max",
+    ("numeric", "ladder.min"): "numeric.percentiles.min",
+    ("numeric", "ladder.p01"): "numeric.percentiles",
+    ("numeric", "ladder.p05"): "numeric.percentiles",
+    ("numeric", "ladder.p10"): "numeric.percentiles",
+    ("numeric", "ladder.p25"): "numeric.percentiles",
+    ("numeric", "ladder.p50"): "numeric.percentiles",
+    ("numeric", "ladder.p75"): "numeric.percentiles",
+    ("numeric", "ladder.p90"): "numeric.percentiles",
+    ("numeric", "ladder.p95"): "numeric.percentiles",
+    ("numeric", "ladder.p99"): "numeric.percentiles",
+    ("numeric", "moments.mean"): "numeric.mean",
+    ("numeric", "moments.skew"): "numeric.skew",
+    ("numeric", "moments.std"): "numeric.std",
+    ("numeric", "position.at"): "universal.position",
+    ("numeric", "presence.n_missing"): "universal.n_missing",
+    ("numeric", "presence.n_present"): "universal.n_present",
+    ("numeric", "styles.at-least.decimal"): "numeric.numeric_styles",
+    ("numeric", "styles.at-least.exponent_lower"): "numeric.numeric_styles",
+    ("numeric", "styles.at-least.plain"): "numeric.numeric_styles",
+    ("numeric", "styles.canonical.decimal"): "numeric.numeric_styles",
+    ("numeric", "styles.canonical.exponent_lower"): "numeric.numeric_styles",
+    ("numeric", "styles.exact.exponent_upper"): "numeric.numeric_styles",
+    ("numeric", "styles.exact.leading_plus"): "numeric.numeric_styles",
+    ("numeric", "styles.exact.leading_zero"): "numeric.numeric_styles",
+    ("numeric", "styles.published.decimal"): "numeric.numeric_styles",
+    ("numeric", "styles.published.exponent_lower"): "numeric.numeric_styles",
+    ("numeric", "styles.published.plain"): "numeric.numeric_styles",
+    ("numeric", "styles.remainder"): "numeric.numeric_styles",
+    ("numeric", "styles.spelled"): "numeric.numeric_styles",
+    ("numeric", "styles.spill"): "numeric.numeric_styles",
+    ("numeric", "type.integer_valued"): "numeric.integer_valued",
+    ("numeric", "type.std_unrepresentable"): "numeric.std_unrepresentable",
+    # -- numeric_unrepresentable -------------------------------------------
+    ("numeric_unrepresentable", "axes.quality_state"): "universal.quality_state",
+    ("numeric_unrepresentable", "axes.role"): "universal.role",
+    ("numeric_unrepresentable", "axes.statistical_type"): "universal.statistical_type",
+    ("numeric_unrepresentable", "counts.n_contradictory"): "universal.n_contradictory",
+    ("numeric_unrepresentable", "counts.n_fraction"): (
+        "numeric_unrepresentable.n_fraction"
+    ),
+    ("numeric_unrepresentable", "counts.n_negative"): (
+        "numeric_unrepresentable.n_negative"
+    ),
+    ("numeric_unrepresentable", "counts.n_not_numeric"): "universal.n_not_numeric",
+    ("numeric_unrepresentable", "counts.n_numeric"): "universal.n_numeric",
+    ("numeric_unrepresentable", "counts.n_out_of_range"): "universal.n_out_of_range",
+    ("numeric_unrepresentable", "counts.n_positive"): (
+        "numeric_unrepresentable.n_positive"
+    ),
+    ("numeric_unrepresentable", "counts.n_sign_unknown"): (
+        "numeric_unrepresentable.n_sign_unknown"
+    ),
+    ("numeric_unrepresentable", "counts.n_whole"): "numeric_unrepresentable.n_whole",
+    ("numeric_unrepresentable", "counts.n_whole_unknown"): (
+        "numeric_unrepresentable.n_whole_unknown"
+    ),
+    ("numeric_unrepresentable", "distinct.n_distinct"): (
+        "numeric_unrepresentable.n_distinct"
+    ),
+    ("numeric_unrepresentable", "distinct.n_distinct_by_occurrences"): (
+        "numeric_unrepresentable.n_distinct_by_occurrences"
+    ),
+    ("numeric_unrepresentable", "distinct.n_distinct_folded"): (
+        "numeric_unrepresentable.n_distinct_folded"
+    ),
+    ("numeric_unrepresentable", "position.at"): "universal.position",
+    ("numeric_unrepresentable", "presence.n_missing"): "universal.n_missing",
+    ("numeric_unrepresentable", "presence.n_present"): "universal.n_present",
+}
+
+
+def _family_of(fixture: str, column: str) -> str:
+    """The fact family of one column of one fixture, from this file alone.
+
+    No part of this consults the validator. The document's own entries
+    -- the ones filed against no column -- are their own family.
+    """
+    if not column:
+        return DOCUMENT_FAMILY
+    return ROLE_FAMILIES[FIXTURE_ROLES[fixture][column]]
+
+
+def _stated_fact(fixture: str, column: str, subcheck: str) -> str:
+    """The registry fact this file says governs one site.
+
+    Returns a sentence naming the gap where nothing is stated, rather
+    than raising: a covering row for a site this file has no statement
+    about must reach the coverage identity as a DEAD ROW and be
+    reported by name, not disappear into an error at collection time.
+    """
+    family = _family_of(fixture, column)
+    if (family, subcheck) not in SUBCHECK_FACTS:
+        return f"(this file states no fact for {family}/{subcheck})"
+    return SUBCHECK_FACTS[(family, subcheck)]
+
+
 
 @pytest.fixture(scope="module")
 def registered(
@@ -2841,21 +3267,21 @@ def registered(
 ) -> "list[RedCase]":
     """The whole registration: the curated rows, then the covering ones.
 
-    A covering row names its site by column and subcheck, and the
-    registry fact is read off the shipped table -- which
-    `test_no_two_sites_of_one_fixture_share_a_name` proves is one entry
-    and not two. A covering row that names no shipped site is kept,
-    fact and all, so that the coverage identity reports it as a dead row
-    rather than dropping it silently.
+    A covering row names its site by column and subcheck, and the third
+    term of the identity -- the registry FACT -- comes from
+    `SUBCHECK_FACTS` above, which is written out in this file.
+
+    IT USED TO COME OFF THE SHIPPED TABLE (review item P3-V4-F6), which
+    made the expected side of this proof a copy of its subject: a
+    rebinding in production moved the expectation with it and every
+    assertion here stayed green. Nothing about this fixture reads the
+    validator's output any more, and a covering row for a site this
+    file states no fact for is kept with the sentence saying so, so
+    that the coverage identity reports it as a dead row rather than
+    dropping it silently.
     """
-    folder = tmp_path_factory.mktemp("registration")
     cases = list(NAMED_RED_CASES)
-    for name, described, twin in runs:
-        outcome = _measured(folder, described, twin, f"{name}-registered.csv")
-        facts = {
-            (site.column, site.subcheck): site.fact
-            for site in _sites_of(outcome)
-        }
+    for name, _described, _twin in runs:
         for column in sorted(COVERING_RED_CASES.get(name, {})):
             for perturbation, subcheck in COVERING_RED_CASES[name][column]:
                 cases = cases + [
@@ -2863,11 +3289,128 @@ def registered(
                         name,
                         perturbation,
                         column,
-                        facts.get((column, subcheck), "(no such site)"),
+                        _stated_fact(name, column, subcheck),
                         subcheck,
                     )
                 ]
     return cases
+
+
+def test_every_fixture_column_carries_the_role_this_file_states(
+    runs: "list[tuple[str, contract.Profile, str]]",
+) -> None:
+    """`FIXTURE_ROLES` is the description's own, not a guess at it.
+
+    The family a site's fact is composed from comes from the type path
+    the DESCRIPTION gives that column -- the profile predicate of
+    V3.1's identity. It is written out in this file so that no
+    expectation is read out of the validator, and it is compared here
+    against the descriptions the fixtures actually build, in both
+    directions: a fixture column this file does not name, or a name
+    here for a column no fixture has, is as much a gap as a wrong role.
+    """
+    assert sorted(FIXTURE_ROLES) == sorted(name for name, _d, _t in runs), (
+        "this file states roles for a set of fixtures that is not the "
+        "set the table is walked over"
+    )
+    for name, described, _twin in runs:
+        stated = FIXTURE_ROLES[name]
+        published = {column.name: column.role for column in described.columns}
+        assert stated == published, (
+            f"{name}: this file states {sorted(stated.items())} and the "
+            f"description publishes {sorted(published.items())}. The "
+            f"family every site's fact is composed from comes off these "
+            f"roles, so they are stated here and checked rather than "
+            f"read out of the run"
+        )
+        for role in stated.values():
+            assert role in ROLE_FAMILIES, (
+                f"{name}: the type path {role!r} has no fact family in "
+                f"this file, so nothing here says what its columns owe"
+            )
+
+
+def test_every_fact_this_file_states_is_a_registry_fact() -> None:
+    """The stated facts are the registry's, checked against it.
+
+    A frozen expectation can go wrong in a way a derived one cannot: a
+    fact could be written here that no registry entry carries, and the
+    identity below would then hold the shipped table to a name out of
+    nowhere. So every value of `SUBCHECK_FACTS` is looked up in the
+    registry -- or in the closed list of byte rules, which no published
+    field states -- before it is used to judge anything.
+    """
+    known = {f"{fact.group}.{fact.field}" for fact in dispositions.REGISTRY}
+    unknown = sorted(
+        {
+            f"{family}/{subcheck}: {fact}"
+            for (family, subcheck), fact in SUBCHECK_FACTS.items()
+            if fact not in known and fact not in validation.BYTE_RULE_FACTS
+        }
+    )
+    assert not unknown, (
+        "these lines state a fact the registry does not carry, so they "
+        "would hold the shipped table to a name nobody registered:\n  "
+        + "\n  ".join(unknown)
+    )
+
+
+def test_every_shipped_site_binds_the_fact_this_file_states(
+    tmp_path: pathlib.Path,
+    runs: "list[tuple[str, contract.Profile, str]]",
+) -> None:
+    """V3.1's third term, stated here and compared with the shipped table.
+
+    THE PROOF THIS RESTORES (review item P3-V4-F6). The registration
+    used to take each covering row's fact off the shipped table, so
+    rebinding a subcheck to another fact of the same disposition moved
+    the expectation and nothing turned red. The binding is now written
+    out in this file and compared with the shipped table here, in both
+    directions:
+
+    * no site may bind a fact other than the one stated -- which is the
+      rebinding, caught on the column it happened to;
+    * no line of `SUBCHECK_FACTS` may go unreached -- because a
+      statement no site meets is a statement that cannot fail, and it
+      is also how a stale line survives a subcheck being removed.
+
+    The shipped table is READ here; nothing about it is copied into an
+    expectation. That is the difference between comparing two writings
+    and deriving one from the other.
+    """
+    wrong: list[str] = []
+    reached: set[tuple[str, str]] = set()
+    for name, described, twin in runs:
+        outcome = _measured(tmp_path, described, twin, f"{name}-facts.csv")
+        for site in _sites_of(outcome):
+            family = _family_of(name, site.column)
+            reached.add((family, site.subcheck))
+            stated = _stated_fact(name, site.column, site.subcheck)
+            if stated != site.fact:
+                wrong = wrong + [
+                    (
+                        f"{name}: {site.column or '(the document)'}: "
+                        f"{site.subcheck}: the shipped table binds "
+                        f"{site.fact} and this file states {stated}"
+                    )
+                ]
+    assert not wrong, (
+        "the shipped validator binds these subchecks to a registry fact "
+        "other than the one this file states, so either the table has "
+        "drifted or this file has:\n  " + "\n  ".join(sorted(wrong))
+    )
+    unreached = sorted(
+        f"{family}/{subcheck}"
+        for family, subcheck in SUBCHECK_FACTS
+        if (family, subcheck) not in reached
+    )
+    assert not unreached, (
+        "these lines state what governs a site the shipped table does "
+        "not file, so they assert nothing at all:\n  "
+        + "\n  ".join(unreached)
+    )
+
+
 
 
 def test_every_registered_red_case_misses_the_site_it_names(

@@ -660,25 +660,20 @@ def test_the_canonical_split_still_licenses_the_published_counts(
     assert _verdicts(licensed, "styles.spelled") == [validation.HELD]
 
 
-def test_red_one_cell_over_the_licensed_count_breaks_the_ceiling(
-    tmp_path: pathlib.Path,
-) -> None:
-    """NAMED SUBCHECK: styles.canonical.decimal, one cell over the license.
+def _over_the_licence(
+    described: contract.Profile, twin: str, extra: int
+) -> str:
+    """The twin with every decimal cell padded and ``extra`` more made one.
 
-    The other side of the pair above. One more non-canonical decimal
-    cell than the description names is one the published counts do not
-    license, and the ceiling says so.
+    The licence is spent in full first -- every published `decimal` cell
+    written with a leading zero, which the contract's ladder still counts
+    as `decimal` and which reads back as the same number -- and then
+    ``extra`` point-free cells are re-written as non-canonical decimals.
+    So the file's non-canonical count in that form is the published count
+    plus ``extra``, exactly.
     """
-    folder = tmp_path / "over"
-    folder.mkdir()
-    described = _mixed_numeric_column(folder, "over")
-    facts = described.columns[0].facts
-    assert isinstance(facts, contract.NumericFacts)
-    published = facts.numeric_styles.get(parsing.STYLE_DECIMAL, 0)
-    twin = _twin_text(described)
     lines = twin.split("\n")
-    spent = 0
-    over = False
+    added = 0
     for index in range(1, len(lines)):
         body = lines[index]
         if not body:
@@ -686,21 +681,72 @@ def test_red_one_cell_over_the_licensed_count_breaks_the_ceiling(
         style = parsing.numeric_style(body)
         if style == parsing.STYLE_DECIMAL:
             lines[index] = f"0{body}"
-            spent = spent + 1
             continue
-        if style == parsing.STYLE_PLAIN and not over:
-            # ONE point-free cell written as a non-canonical decimal:
-            # the file now carries one more cell of that form than the
-            # description bought a spelling for, and that one is the
-            # cell the ceiling refuses.
+        if style == parsing.STYLE_PLAIN and added < extra:
             lines[index] = f"0{body}.0"
-            over = True
-    assert spent == published
-    assert over
-    outcome = _measure(folder, described, "\n".join(lines), "over-twin.csv")
+            added = added + 1
+    assert added == extra, (added, extra)
+    return "\n".join(lines)
+
+
+def test_red_a_floor_of_cells_over_the_licence_breaks_the_ceiling(
+    tmp_path: pathlib.Path,
+) -> None:
+    """NAMED SUBCHECK: styles.canonical.decimal, over its licence.
+
+    The other side of the pair above, AND THE BAR IT IS NOW SET AT
+    (review item P3-V4-F2; plan amendment A-P3-10 clause 1). The ceiling
+    used to compare the exact recount against the published count, so it
+    missed at one cell over -- and a verdict that separates `odd == p`
+    from `odd == p + 1` for a `p` the SUBMITTED description chooses is an
+    exact oracle on `odd`, which is a number no description of this file
+    publishes at any count. The recount is now read at the publication
+    floor's own resolution, so what a candidate sweep can learn is which
+    floor-wide block the count lies in and not the count.
+
+    Both halves are pinned, because the cost is as much a part of the
+    repair as the teeth are:
+
+    * one cell over the licence is HELD, and A-P3-10 clause 1 records
+      that in those words rather than leaving it to be found;
+    * the first count that MISSES is the first whole number of floors
+      above the licence, computed here from the floor rather than
+      written out, so a change to either side is red.
+    """
+    folder = tmp_path / "over"
+    folder.mkdir()
+    described = _mixed_numeric_column(folder, "over")
+    facts = described.columns[0].facts
+    assert isinstance(facts, contract.NumericFacts)
+    published = facts.numeric_styles.get(parsing.STYLE_DECIMAL, 0)
+    floor = described.settings.small_cell_floor
+    assert floor > 1, "a floor of one is the identity and pins nothing"
+    twin = _twin_text(described)
+    # The first count over the licence the floor's own resolution can
+    # see, derived from the rule rather than written out.
+    bites = published + 1
+    while validation._at_the_floors_resolution(bites, floor) <= published:
+        bites = bites + 1
+    assert published < bites <= published + floor
+    held = _measure(
+        folder, described, _over_the_licence(described, twin, 1), "one.csv"
+    )
+    assert _verdicts(held, "styles.canonical.decimal") == [validation.HELD], (
+        "one cell over the licence is the cost A-P3-10 clause 1 records; "
+        "if this misses again the ceiling is an exact oracle once more"
+    )
+    outcome = _measure(
+        folder,
+        described,
+        _over_the_licence(described, twin, bites - published),
+        "over-twin.csv",
+    )
     assert _verdicts(outcome, "styles.canonical.decimal") == [
         validation.MISSED
     ]
+    # ...and the verdict never accuses a file that is not over: rounding
+    # DOWN is what makes a MISSED here a file genuinely over its licence.
+    assert validation._at_the_floors_resolution(bites, floor) <= bites
 
 
 def test_the_canonical_ceiling_is_a_listing_where_it_licenses_every_cell(
@@ -2147,8 +2193,14 @@ def test_the_header_question_is_settled_on_the_first_RECORD(
 
     Both are structural mismatches and V9 says a structural mismatch is
     a MISSED verdict with a report. The assertion is that both files
-    reach a report at all, and that the report says which COLUMN
-    NUMBERS are at fault.
+    reach a report at all, and that no string of either file is in it.
+
+    THE REPORT NAMES NO POSITION FOR A REPEATED NAME (review item
+    P3-V4-F3; plan amendment A-P3-10 clause 2). It used to name the two
+    column numbers, and the profiler's own refusal for such a file names
+    neither -- it quotes the repeated NAME -- so two files with the
+    repeat in different columns are one file to the producer and were
+    two to this report. What it says now is what that refusal says.
     """
     folder = tmp_path / "records"
     folder.mkdir()
@@ -2165,13 +2217,9 @@ def test_the_header_question_is_settled_on_the_first_RECORD(
     )
     marker = "zzmarkerzz"
     rows = "\n".join(f"{index},{index}" for index in range(60)) + "\n"
-    for label, hostile, said in (
-        ("blank-first-line", f"\n{marker},{marker}\n" + rows, "1 and 2"),
-        (
-            "quoted-newline",
-            f'"{marker}\nx","{marker}\nx"\n' + rows,
-            "1 and 2",
-        ),
+    for label, hostile in (
+        ("blank-first-line", f"\n{marker},{marker}\n" + rows),
+        ("quoted-newline", f'"{marker}\nx","{marker}\nx"\n' + rows),
     ):
         outcome = _measure(folder, described, hostile, f"{label}.csv")
         found = [
@@ -2181,7 +2229,7 @@ def test_the_header_question_is_settled_on_the_first_RECORD(
         ]
         assert len(found) == 1, label
         assert found[0].verdict == validation.MISSED, label
-        assert said in found[0].achieved, label
+        assert "column number" not in found[0].achieved, label
         spoken = []
         for check in outcome.checks:
             spoken = spoken + [

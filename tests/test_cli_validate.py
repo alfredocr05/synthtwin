@@ -772,7 +772,18 @@ def test_the_transaction_puts_an_earlier_report_back(
         )
     monkeypatch.undo()
     assert target.read_text(encoding="utf-8") == "last week's verdict\n"
-    assert "No new description was published" in f"{stopped.value}"
+    # AND IT SAYS WHICH FILE IT DID NOT PUBLISH (review item P3-V4-F11).
+    # This test used to assert "No new description was published" and so
+    # enshrined the defect: `validate` writes no description, and a
+    # person told that one was not published looks for a file this
+    # command never touches. The words the transaction was handed now
+    # reach the sentence.
+    said = f"{stopped.value}"
+    assert "No new quality report was published" in said
+    assert "description" not in said, (
+        "a stopped validate run may not name a description at all: it "
+        f"writes a quality report and nothing else -- {said!r}"
+    )
     left = [
         path.name
         for path in tmp_path.iterdir()
@@ -855,26 +866,51 @@ def test_a_validate_run_never_asks_for_the_generator(
 # surface is how it was built. So the trap now asks each module what it
 # offers and traps all of it.
 #
-# WHAT COUNTS AS A DOOR: every public attribute of a randomness module
-# that can be CALLED and is not itself a module. That takes in a few
-# that draw nothing -- `numpy.random.get_state`, `secrets.compare_digest`
-# -- and trapping them is the cheap side of the trade: a validate run
-# calls nothing in any of these modules, so a trap on a harmless
-# neighbour costs nothing and a missing trap costs the guarantee. Only
-# `os` is named by attribute, because `os` is not a randomness module
-# and `urandom` is its one door.
-_RANDOM_MODULES = ("numpy.random", "numpy.random.mtrand", "random", "secrets")
+# AND THE MODULES ARE READ OFF EACH OTHER (review item P3-V4-F8). The
+# list above was still handwritten at the level of the MODULE -- four
+# names, of which two were `numpy.random` and one submodule of it -- and
+# only PUBLIC attributes were taken. `numpy.random` has nine more
+# submodules, every one of them reachable by attribute from the module
+# the process already holds, and the engines live in them:
+# `numpy.random._mt19937.MT19937(1).random_raw()` returned random values
+# with the whole claimed trap installed. A trap that misses a door
+# somebody can walk through is the same defect the paragraph above
+# describes, one level down, so the level is gone: the roots below are
+# the entry points, and every module reachable from one of them by
+# attribute -- private ones included -- is walked.
+#
+# WHAT COUNTS AS A DOOR: every attribute of a module in that closure,
+# public or private, that can be CALLED and is not itself a module --
+# functions and CLASSES alike, so that constructing an engine is caught
+# where its methods cannot be patched (numpy's engine types are C types
+# and refuse attribute assignment). And every module-level INSTANCE of
+# one of those classes is replaced by a stand-in that refuses to be
+# read at all, which is what closes `numpy.random.mtrand._rand` and
+# `random._inst` -- objects a caller can reach without constructing
+# anything.
+#
+# That takes in a good many that draw nothing -- `numpy.random.
+# get_state`, `secrets.compare_digest`, every cython helper in
+# `numpy.random._common` -- and trapping them is the cheap side of the
+# trade: a validate run calls nothing in any of these modules, so a trap
+# on a harmless neighbour costs nothing and a missing trap costs the
+# guarantee. Only `os` is named by attribute, because `os` is not a
+# randomness module and `urandom` is its one door.
+_RANDOM_ROOTS = ("numpy.random", "random", "secrets")
 _NAMED_DOORS = (("os", ("urandom",)),)
 
 # Two floors, because a derivation can fail in two directions. The
 # COUNT catches a reading that returned almost nothing -- it is set well
 # under what the modules currently offer, so a library dropping a
-# deprecated alias does not turn the suite red, and far above the
-# thirty-seven the hand-written list managed. The NAMES catch a reading
-# that returned plenty of the wrong things: each is a door somebody
-# would actually reach for, and the last three are the ones the
-# hand-written list let through.
-_DOORS_FLOOR = 120
+# deprecated alias does not turn the suite red, and far above both the
+# thirty-seven the hand-written list managed and the hundred and
+# seventy-one that the public-attributes-of-four-modules reading
+# reached. The NAMES catch a reading that returned plenty of the wrong
+# things: each is a door somebody would actually reach for. The three
+# in the middle are the ones the hand-written list let through (review
+# item P3-V3-F9), and the ten at the end are the ones the module list
+# let through (review item P3-V4-F8).
+_DOORS_FLOOR = 190
 _DOORS_BY_NAME = (
     "numpy.random.default_rng",
     "numpy.random.Generator",
@@ -886,22 +922,125 @@ _DOORS_BY_NAME = (
     "random.SystemRandom",
     "secrets.token_bytes",
     "os.urandom",
+    # The submodule engines review item P3-V4-F8 walked through with
+    # the whole claimed trap installed, and the two module-level
+    # instances a caller reaches without constructing anything.
+    "numpy.random._mt19937.MT19937",
+    "numpy.random._generator.Generator",
+    "numpy.random._pcg64.PCG64",
+    "numpy.random._philox.Philox",
+    "numpy.random._sfc64.SFC64",
+    "numpy.random.bit_generator.BitGenerator",
+    "numpy.random.bit_generator.SeedSequence",
+    "numpy.random.mtrand.RandomState",
+    "numpy.random.mtrand._rand",
+    "random._inst",
 )
 
 
+def _randomness_modules() -> "list[str]":
+    """Every module reachable by attribute from one of the roots.
+
+    Private submodules are IN, and are the reason this exists: the
+    engines live in `numpy.random._mt19937` and its neighbours, which
+    the handwritten module list did not name (review item P3-V4-F8).
+    The walk stays inside the root's own name, so `random._os` -- which
+    is `os` -- is not dragged in here; `os` has one door and it is
+    named separately.
+    """
+    import importlib
+    import types
+
+    found: list[str] = []
+    for root in _RANDOM_ROOTS:
+        waiting = [root]
+        while waiting:
+            name = waiting.pop(0)
+            if name in found:
+                continue
+            module = importlib.import_module(name)
+            found.append(name)
+            for attribute in sorted(dir(module)):
+                value = getattr(module, attribute, None)
+                if not isinstance(value, types.ModuleType):
+                    continue
+                inner = getattr(value, "__name__", "")
+                if inner != root and not inner.startswith(f"{root}."):
+                    continue
+                if inner not in found:
+                    waiting.append(inner)
+    return found
+
+
 def _doors_of(module: object) -> "list[str]":
-    """Every public name of a randomness module that can be called."""
+    """Every name of a randomness module that can be called.
+
+    Private names are in. `numpy.random.mtrand._rand` is not callable
+    and is not here; it is caught by `_instances_of` below, because an
+    instance somebody already built is a door that needs no call to
+    open.
+    """
     import types
 
     found: list[str] = []
     for name in sorted(dir(module)):
-        if name.startswith("_"):
+        if name.startswith("__"):
             continue
-        value = getattr(module, name)
+        value = getattr(module, name, None)
         if isinstance(value, types.ModuleType) or not callable(value):
             continue
         found.append(name)
     return found
+
+
+def _instances_of(module: object, inside: "set[str]") -> "list[str]":
+    """Every module-level object whose own class lives in the closure.
+
+    `numpy.random.mtrand._rand` is a `RandomState` and `random._inst`
+    is a `Random`: each is a fully built generator sitting at a module
+    attribute, so a caller reaches `random_raw` or `getrandbits` on one
+    without constructing anything and without touching a name
+    `_doors_of` returns.
+    """
+    found: list[str] = []
+    for name in sorted(dir(module)):
+        if name.startswith("__"):
+            continue
+        value = getattr(module, name, None)
+        if callable(value) or isinstance(value, type):
+            continue
+        home = getattr(type(value), "__module__", "")
+        if home in inside:
+            found.append(name)
+    return found
+
+
+class _RefusesToBeRead:
+    """A stand-in for a built generator: reading anything off it stops.
+
+    The engine types numpy ships are C types and refuse attribute
+    assignment, so their methods cannot be trapped one at a time. What
+    can be trapped is the OBJECT: an instance replaced by this one
+    answers no attribute at all, so `_rand.random_raw()` stops at the
+    lookup rather than at the call.
+    """
+
+    def __init__(self, named: str) -> None:
+        object.__setattr__(self, "_named", named)
+
+    def __getattr__(self, attribute: str) -> object:
+        raise AssertionError(_DREW_FROM.format(named=f"{self._named}.{attribute}"))
+
+    def __call__(self, *args: object, **named: object) -> object:
+        raise AssertionError(_DREW_FROM.format(named=self._named))
+
+
+_DREW_FROM = (
+    "a validate run reached {named}, which lives in a module that "
+    "exists to produce random values. A validate run consumes no "
+    "randomness: its report's bytes are a fixed function of its two "
+    "files, and a draw from anywhere breaks that (V10)."
+)
 
 
 def _trap_every_random_source(
@@ -910,10 +1049,14 @@ def _trap_every_random_source(
     """Make every reachable random source raise; return what was trapped."""
     import importlib
 
+    walked = _randomness_modules()
+    inside = set(walked)
     doors: list[tuple[str, tuple[str, ...]]] = []
-    for module_name in _RANDOM_MODULES:
+    instances: list[tuple[str, tuple[str, ...]]] = []
+    for module_name in walked:
         module = importlib.import_module(module_name)
         doors.append((module_name, tuple(_doors_of(module))))
+        instances.append((module_name, tuple(_instances_of(module, inside))))
     doors = doors + [(name, tuple(named)) for name, named in _NAMED_DOORS]
 
     trapped: list[str] = []
@@ -925,15 +1068,15 @@ def _trap_every_random_source(
             spelled = f"{module_name}.{attribute}"
 
             def _refuse(*args: object, __named: str = spelled, **kw: object):
-                raise AssertionError(
-                    f"a validate run called {__named}, which lives in a "
-                    f"module that exists to produce random values. A "
-                    f"validate run consumes no randomness: its report's "
-                    f"bytes are a fixed function of its two files, and a "
-                    f"draw from anywhere breaks that (V10)."
-                )
+                raise AssertionError(_DREW_FROM.format(named=__named))
 
             monkeypatch.setattr(module, attribute, _refuse)
+            trapped.append(spelled)
+    for module_name, attributes in instances:
+        module = importlib.import_module(module_name)
+        for attribute in attributes:
+            spelled = f"{module_name}.{attribute}"
+            monkeypatch.setattr(module, attribute, _RefusesToBeRead(spelled))
             trapped.append(spelled)
     return trapped
 
@@ -981,6 +1124,45 @@ def test_a_validate_run_draws_from_no_random_source(
         "the run has to have gone all the way through the report for "
         "the trap to have been walked past"
     )
+
+
+def test_the_trap_shuts_the_doors_a_submodule_holds_open(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The trap is put through the door it used to miss.
+
+    REVIEW ITEM P3-V4-F8. The trap enumerated four modules written out
+    by hand and their PUBLIC attributes, so every engine numpy keeps in
+    a private submodule was open with the whole claimed trap installed:
+    `numpy.random._mt19937.MT19937(1).random_raw()` returned values. A
+    trap that misses a door is a check that cannot fail for whatever
+    walks through it, and the paragraph above says so about the version
+    before this one -- which is why the door is opened here rather than
+    argued about.
+
+    Three routes, because they fail in three different ways: an engine
+    CONSTRUCTED out of a private submodule, an engine already BUILT and
+    sitting at a module attribute, and a generator reached through the
+    public name. The middle one is why the instances are replaced
+    rather than patched: numpy's engine types are C types and refuse
+    attribute assignment, so `RandomState.random_raw` cannot be trapped
+    where it is defined.
+    """
+    import importlib
+
+    _trap_every_random_source(monkeypatch)
+    engines = importlib.import_module("numpy.random._mt19937")
+    with pytest.raises(AssertionError, match="consumes no randomness"):
+        engines.MT19937(1).random_raw()
+    built = importlib.import_module("numpy.random.mtrand")
+    with pytest.raises(AssertionError, match="consumes no randomness"):
+        built._rand.random_raw()
+    import random as standard
+
+    with pytest.raises(AssertionError, match="consumes no randomness"):
+        standard._inst.getrandbits(8)
+    with pytest.raises(AssertionError, match="consumes no randomness"):
+        importlib.import_module("numpy.random").default_rng(0)
 
 
 # The fresh-interpreter probe. It writes its answer to a file rather

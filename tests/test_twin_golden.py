@@ -610,8 +610,31 @@ def test_the_report_names_the_seed_the_twin_was_built_at(
 # else in the report changed -- same census, same verdicts, same
 # obligations, same order, same name line -- and the census was
 # compared entry for entry before this was re-recorded.
+#
+# AND ONCE MORE, AT ELEVEN WINDOWS OF ONE COLUMN (review items P3-V4-F4
+# and P3-V4-F5; plan amendment A-P3-9). The datetime windows of method
+# G12.4 are now drawn the way the construction draws them, and the
+# `recorded_on` column's lines move for it in two directions at once:
+#
+#   * the first and last ranks are PINNED to the published earliest and
+#     latest, which forces one more instant apart;
+#   * and the ladder is read by G7.3's whole-number interpolation IN THE
+#     METHOD'S OWN UNIT, which for a column of whole dates is one day.
+#     Read in the seconds this validator counts in, the floor landed
+#     part way through a day and drew a window no date column can hold a
+#     value in -- `between 1703980800.0 and 1704132000.0` ends at two in
+#     the afternoon. Every one of the nine rung windows now ends on a
+#     whole day, and the two distinctness lines read `84 (between 106.0
+#     and 240.0)` where they read `119.0` before.
+#
+# The second half WIDENS that column's distinctness window, and the
+# reason it is not a bar being lowered is written out in A-P3-9 clause
+# 3: G12.5 fixes that envelope and this document may not draw a
+# narrower one. The census is the same six numbers it was -- 249 held,
+# 49 within, 2 authorized, 0 withheld, 0 missed, 77 not checkable -- and
+# the two files were diffed line by line before this was re-recorded.
 GOLDEN_QUALITY_SHA256 = (
-    "4a52dabab71f155a8602cdd52c28c5538460fbef1bbf82c4f7ec091a5c9f76e4"
+    "451eb288d6f180c3609a42ccf34ad21f99dba48c22681fa526fe3f55a7841f46"
 )
 
 

@@ -251,7 +251,7 @@ def test_unrelated_working_neighbours_are_left_exactly_as_they_were(
         f"clinic-profile.json{profile.KEPT_SUFFIX}-1": "a fourth\n",
     }
     for name, text in neighbours.items():
-        (tmp_path / name).write_text(text, encoding="utf-8")
+        (tmp_path / name).write_text(text, encoding="utf-8", newline="\n")
     first.write_text("last week's profile\n", encoding="utf-8", newline="\n")
 
     profile.write_both_files(first, second, PROFILE_TEXT, SUMMARY_TEXT)
@@ -276,7 +276,7 @@ def test_every_working_name_taken_is_refused_in_words(
         neighbour = tmp_path / (
             f"clinic-profile.json{profile.PART_SUFFIX}-{number}"
         )
-        neighbour.write_text(f"leftover {number}\n", encoding="utf-8")
+        neighbour.write_text(f"leftover {number}\n", encoding="utf-8", newline="\n")
         blocked = blocked + [neighbour]
 
     with pytest.raises(errors.ProfileError) as raised:
@@ -678,7 +678,7 @@ def test_two_names_the_filesystem_folds_together_are_caught(
     decomposed = tmp_path / "cafe\u0301-profile.json"
     assert f"{composed}" != f"{decomposed}"
     probe = tmp_path / "prob\u00e9.txt"
-    probe.write_text("x", encoding="utf-8")
+    probe.write_text("x", encoding="utf-8", newline="\n")
     folds_together = (tmp_path / "probe\u0301.txt").exists()
     probe.unlink()
     if not folds_together:

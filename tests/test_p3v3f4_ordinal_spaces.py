@@ -296,13 +296,23 @@ def test_the_two_writings_of_the_ordinal_space_agree(
     same number for a whole date. The generator counts a date in DAYS
     and the validator counts it in the SECONDS its own reading of an
     instant already speaks, so the two spaces are the same space counted
-    in a different unit -- and a window is a comparison of differences,
-    so a constant positive unit cancels out of every one of them. The
-    assertion is therefore that one factor, a whole number of the
-    validator's units to the generator's one, holds for EVERY moment of
-    the resolution: same order, same proportions, no rung anywhere the
-    two put differently. A drift in either writing breaks the factor
-    at the moment it touches.
+    in a different unit. The assertion is therefore that one factor, a
+    whole number of the validator's units to the generator's one, holds
+    for EVERY moment of the resolution: same order, same proportions, no
+    rung anywhere the two put differently. A drift in either writing
+    breaks the factor at the moment it touches.
+
+    AND THE FACTOR DOES NOT MAKE THE WINDOWS AGREE BY ITSELF, which is
+    what this docstring used to say and what review item P3-V4-F4 found
+    to be false. "A window is a comparison of differences, so a constant
+    positive unit cancels out of every one of them" is true of a
+    subtraction and false of a FLOOR, and G7.3's interpolation floors:
+    taken in seconds it lands part way through a day, taken in days it
+    lands on the day the construction can write, and the two are up to a
+    whole day apart. The windows themselves are compared against the
+    generator's own, at every resolution and every precision, in
+    `tests/test_p3v4f4_datetime_windows.py`; this test is about the
+    space alone.
     """
     for resolution in sorted(by_resolution):
         described, _twin = by_resolution[resolution]
@@ -386,6 +396,17 @@ def test_a_quarter_ladder_is_read_in_quarters_and_not_in_seconds(
     admit every file there is, which is the other way an obligation goes
     quiet. One quarter is one unit and one step; a date is a whole day
     of seconds; a date and time written to the minute steps sixty.
+
+    THE MINUTE ALLOWANCE IS THE METHOD'S, AND THIS TEST USED TO ASSERT
+    THE CODE'S (review item P3-V4-F5). It read `unit == 119.0`, which is
+    one STEP of the published precision plus fifty-nine seconds; G12.4's
+    `u` is one unit of the ordinal SPACE -- one second for a column of
+    dates and times, whatever its precision -- plus those fifty-nine, so
+    the number is 60. No fixture in this file publishes minute
+    precision, so the branch asserted nothing on any run; the fixtures
+    that reach every precision, and the comparison with the generator's
+    own writing of the same number, are in
+    `tests/test_p3v4f4_datetime_windows.py`.
     """
     for resolution in sorted(by_resolution):
         described, _twin = by_resolution[resolution]
@@ -394,10 +415,10 @@ def test_a_quarter_ladder_is_read_in_quarters_and_not_in_seconds(
         unit = validation._reading_unit(facts)
         step = validation._precision_step(facts)
         if resolution == taxonomy.RESOLUTION_QUARTER:
-            assert unit == 1.0 and step == 1
+            assert unit == 1 and step == 1
         elif resolution == taxonomy.RESOLUTION_DATE:
-            assert unit == 86400.0 and step == 86400
+            assert unit == 86400 and step == 86400
         elif facts.time_precision == parsing.PRECISION_MINUTE:
-            assert unit == 119.0 and step == 60
+            assert unit == 1 + 59 and step == 60
         else:
-            assert unit == 1.0 and step == 1
+            assert unit == 1 and step == 1

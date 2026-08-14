@@ -51,7 +51,7 @@ CASES: "dict[str, tuple[object, ...]]" = {
         2,
     ),
     "checked_file_unreadable_as_csv": ("/data/checked.csv",),
-    "checked_file_repeats_a_column_name": ("/data/checked.csv", 1, 2),
+    "checked_file_repeats_a_column_name": ("/data/checked.csv",),
     "blank_line_in_one_column": ("/data/table.csv", 4),
     # The two messages about the disk take the arguments profile.py
     # actually passes: the caller has LOOKED at each name and hands over
@@ -210,11 +210,23 @@ APPENDED = {"nothing_was_written"}
 
 
 def _builders() -> "dict[str, object]":
+    """Every function in the catalog that builds a MESSAGE.
+
+    A builder is recognised by what it returns and not by a list of
+    names kept beside it: `errors` also holds `shape_refusal`, which
+    builds a refusal OBJECT carrying which of the reader's shape
+    refusals it is (review item P3-V4-F3), and a name list would have
+    had to grow by hand for it and for the next one. The rules below are
+    about the sentence a person reads, so what they govern is every
+    function that hands one back.
+    """
     found = {}
     for name, value in vars(errors).items():
         if name.startswith("_") or not inspect.isfunction(value):
             continue
         if value.__module__ != errors.__name__:
+            continue
+        if inspect.signature(value).return_annotation is not str:
             continue
         found[name] = value
     return found
@@ -300,6 +312,23 @@ def test_the_catalog_is_reachable_from_the_code_that_raises_it() -> None:
     # A message nobody raises is dead weight that reads like a promise.
     # Every builder must be named in the source of a module that raises
     # ProfileError.
+    #
+    # WHAT THIS PROVES AND WHAT IT DOES NOT (review item P3-V4-F10).
+    # This is a SOURCE SEARCH, and a source search settles a necessary
+    # condition and nothing more: a builder no module names cannot be
+    # raised, so its absence here is real news. The converse does not
+    # follow, and the plan asks for the converse (P3-D6: "each with
+    # exact-shape and reachability tests"). A regression that let a
+    # `PermissionError` escape as a traceback would leave the token
+    # `errors.file_unreadable(` sitting in `validation.py`, and this
+    # would go on passing while the person got a stack trace.
+    #
+    # So the refusals plan P3-D6 names are DRIVEN below, through the
+    # shipped command, at the condition that produces each one. This
+    # test keeps its place because it is total over the catalog and the
+    # driven battery is not: ninety-odd messages cannot each be reached
+    # by a real run in a test suite, and pretending otherwise would be a
+    # worse claim than the honest small one.
     root = pathlib.Path(errors.__file__).parent
     sources = "\n".join(
         path.read_text(encoding="utf-8")
@@ -543,3 +572,230 @@ def _recording(builder, name, fired):
         return builder(*arguments, **keywords)
 
     return wrapper
+
+
+# ---------------------------------------------------------------------
+# P3-D6's reachability half, driven (review item P3-V4-F10)
+# ---------------------------------------------------------------------
+#
+# THE DEFECT THIS CLOSES. The plan requires the validate-side additions
+# to this catalog to have "exact-shape AND reachability tests". The
+# exact-shape half is above. The reachability half was
+# `test_the_catalog_is_reachable_from_the_code_that_raises_it`, which
+# searches source text -- so a refusal whose raise site had stopped
+# being reached would pass it with the token still in the file, and the
+# person would meet a traceback instead of a sentence.
+#
+# Each case below builds the condition and runs the SHIPPED COMMAND at
+# it. Three things are asserted of every one: the named builder fired,
+# the command returned the refusal code rather than raising, and the
+# sentence reached the screen. An escaping exception fails the second;
+# a message composed but never printed fails the third.
+
+
+def _builders_recording(fired: "set[str]") -> "dict[str, object]":
+    """Wrap every builder in the catalog so that calling it is recorded."""
+    import synthtwin.errors as module
+
+    builders = _builders()
+    for name, builder in builders.items():
+        setattr(module, name, _recording(builder, name, fired))
+    return builders
+
+
+def _put_the_builders_back(builders: "dict[str, object]") -> None:
+    import synthtwin.errors as module
+
+    for name, builder in builders.items():
+        setattr(module, name, builder)
+
+
+def _a_described_table(folder: "pathlib.Path") -> "pathlib.Path":
+    """A real table, described by the real command; returns the profile."""
+    import fixtures
+    from synthtwin.cli import main
+
+    rows = [
+        [fixtures.REGIONS[index % 4], f"{index % 7}"] for index in range(48)
+    ]
+    table = fixtures.write(
+        folder, "clinic.csv", fixtures.rows_to_csv(["region", "visits"], rows)
+    )
+    assert main(["profile", f"{table}"]) == 0
+    return folder / "clinic-profile.json"
+
+
+def _with_a_twin(folder: "pathlib.Path") -> "pathlib.Path":
+    from synthtwin.cli import main
+
+    description = _a_described_table(folder)
+    assert main(["generate", f"{description}"]) == 0
+    return description
+
+
+# One entry per refusal plan P3-D6 names for the validate path: the
+# builder that must fire, a phrase of its sentence that must reach the
+# screen, and the condition, built in a folder of the case's own.
+def _missing_measured_file(folder, description):
+    return ["validate", f"{description}", "--twin", f"{folder / 'gone.csv'}"]
+
+
+def _measured_file_is_a_folder(folder, description):
+    (folder / "a-folder").mkdir()
+    return ["validate", f"{description}", "--twin", f"{folder / 'a-folder'}"]
+
+
+def _measured_file_cannot_be_read(folder, description):
+    import os
+
+    twin = folder / "clinic-twin.csv"
+    os.chmod(twin, 0)
+    return ["validate", f"{description}"]
+
+
+def _measured_file_holds_a_field_too_long(folder, description):
+    import fixtures
+
+    bad = fixtures.write(
+        folder, "wide.csv", "region,visits\n" + "a" * 20_000_000 + ",1\n"
+    )
+    return ["validate", f"{description}", "--twin", f"{bad}"]
+
+
+def _measured_file_is_not_text_a_reader_can_take(folder, description):
+    target = folder / "binary.csv"
+    target.write_bytes(b"region,visits\n\x00\x01\x02,1\n")
+    return ["validate", f"{description}", "--twin", f"{target}"]
+
+
+def _the_report_is_already_there(folder, description):
+    from synthtwin.cli import main
+
+    assert main(["validate", f"{description}"]) == 0
+    return ["validate", f"{description}"]
+
+
+def _the_report_would_land_on_the_description(folder, description):
+    report = folder / "clinic-twin-quality.txt"
+    report.unlink(missing_ok=True)
+    report.symlink_to(description)
+    return ["validate", f"{description}", "--replace"]
+
+
+def _the_report_would_land_on_the_measured_file(folder, description):
+    report = folder / "clinic-twin-quality.txt"
+    report.unlink(missing_ok=True)
+    report.symlink_to(folder / "clinic-twin.csv")
+    return ["validate", f"{description}", "--replace"]
+
+
+DRIVEN = (
+    ("file_missing", "There is no file at", False, _missing_measured_file),
+    ("path_is_a_folder", "is a folder", False, _measured_file_is_a_folder),
+    (
+        "file_unreadable",
+        "could not be opened",
+        True,
+        _measured_file_cannot_be_read,
+    ),
+    (
+        "field_too_long",
+        "more text than synthtwin will read in a single value",
+        True,
+        _measured_file_holds_a_field_too_long,
+    ),
+    (
+        "looks_like_utf16",
+        "it contains the zero bytes those formats use",
+        True,
+        _measured_file_is_not_text_a_reader_can_take,
+    ),
+    (
+        "quality_target_already_there",
+        "something is already at the name it would write",
+        True,
+        _the_report_is_already_there,
+    ),
+    (
+        "output_would_replace_an_input",
+        "would have replaced",
+        True,
+        _the_report_would_land_on_the_description,
+    ),
+    (
+        "output_would_replace_an_input",
+        "would have replaced",
+        True,
+        _the_report_would_land_on_the_measured_file,
+    ),
+)
+
+
+@pytest.mark.parametrize(
+    "name,phrase,needs_a_twin,build",
+    DRIVEN,
+    ids=[f"{name}-{build.__name__}" for name, _p, _t, build in DRIVEN],
+)
+def test_a_p3d6_refusal_is_reached_by_running_the_command(
+    name: str,
+    phrase: str,
+    needs_a_twin: bool,
+    build: object,
+    tmp_path: pathlib.Path,
+    capsys: "pytest.CaptureFixture[str]",
+) -> None:
+    """The refusal, produced by the shipped command at a real condition."""
+    import os
+
+    from synthtwin.cli import main
+
+    if name == "file_unreadable" and os.geteuid() == 0:
+        pytest.skip("a superuser can read a file with no permissions at all")
+    description = (
+        _with_a_twin(tmp_path) if needs_a_twin else _a_described_table(tmp_path)
+    )
+    capsys.readouterr()
+    fired: set[str] = set()
+    builders = _builders_recording(fired)
+    try:
+        code = main(build(tmp_path, description))  # type: ignore[operator]
+    finally:
+        _put_the_builders_back(builders)
+    printed = capsys.readouterr()
+    said = printed.out + printed.err
+    assert code == 1, (
+        f"the command returned {code} where 1 is the code for a run that "
+        f"could not be made at all. A condition that ends in a traceback "
+        f"or in a verdict is not this refusal being reached"
+    )
+    assert name in fired, (
+        f"{name} did not fire; what did was {sorted(fired)}. Either the "
+        f"condition no longer produces this refusal -- in which case the "
+        f"catalog's claim that it is reachable is what is wrong -- or "
+        f"the condition here has stopped being the one it names"
+    )
+    assert phrase in said, (
+        f"{name} was composed and no part of it reached the person: "
+        f"{said!r}"
+    )
+
+
+def test_the_driven_battery_covers_the_refusals_the_plan_names() -> None:
+    """The battery is not allowed to shrink quietly.
+
+    Every builder it drives is one the catalog carries, and the count is
+    written down: a case deleted from `DRIVEN` takes a refusal's only
+    reachability proof with it, and this is what says so.
+    """
+    driven = {name for name, _phrase, _twin, _build in DRIVEN}
+    unknown = sorted(driven - set(CASES))
+    assert not unknown, (
+        f"these driven cases name a builder the catalog does not carry: "
+        f"{unknown}"
+    )
+    assert len(DRIVEN) == 8 and len(driven) == 7, (
+        f"the driven battery is {len(DRIVEN)} case(s) over {len(driven)} "
+        f"refusal(s), and was 8 over 7. A case that leaves takes a "
+        f"refusal's only reachability proof with it, so say why in the "
+        f"same commit"
+    )

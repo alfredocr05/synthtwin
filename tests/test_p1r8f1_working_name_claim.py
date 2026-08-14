@@ -264,7 +264,7 @@ def test_a_neighbour_file_is_passed_over_and_left_exactly_as_it_was(
     # as anything of synthtwin's.
     first, second = _outputs(tmp_path)
     neighbour = pathlib.Path(f"{first}{profile.PART_SUFFIX}-1")
-    neighbour.write_text(SOMEBODY_ELSES, encoding="utf-8")
+    neighbour.write_text(SOMEBODY_ELSES, encoding="utf-8", newline="\n")
     candidate = pathlib.Path(f"{first}{profile.PART_SUFFIX}-2")
     _stop_inside_the_creation_of(monkeypatch, candidate, KeyboardInterrupt())
     state = profile.DiskState()
