@@ -170,6 +170,28 @@ Stated here so that no reader has to discover them independently:
   quality report, per the entry above. Profile version 4 widened what it
   carries in exactly two ways, and each gets its own entry below rather
   than a clause here.
+- **The quality report withholds numbers from its reader; it does not
+  hide them from whoever holds the file** (owner ruling 2026-08-14;
+  Phase 3 plan amendment A-P3-13, carried into the validation method as
+  V5-A1). `synthtwin validate` may say about the file it checked only
+  what `synthtwin profile` run on that file would publish about it, and
+  where it may not say something it prints WITHHELD rather than the
+  number. **What that protects:** the report itself, which is a file
+  that travels - to a colleague, to a review office, to whoever is
+  deciding whether to trust a twin. That reader may hold nothing, and
+  the rule binds on every surface the report reaches, including the
+  screen and every refusal. **What it does not protect against:** a
+  person who has the checked file and runs the check again and again
+  with descriptions they wrote themselves, watching which lines change.
+  That sequence can narrow a number one report withholds - a count of a
+  group smaller than the publication floor, the count of oddly written
+  cells in a numeric column, the header line of a file the profiler
+  refuses to describe. synthtwin does not try to stop it, and the owner
+  ruled it out of scope for a stated reason: running the check on a file
+  requires holding the file, and someone holding the file can read it.
+  **What follows for you:** the control that matters is who may hold the
+  checked file, not what its report withholds. The quality report says
+  this on its own face, on every run.
 - **The floor is a number the person running the tool sets, and it can be
   set below the default** (owner ruling 2026-08-14; Phase 3 plan
   amendment A-P3-11, carried into the contract's section 4.4 under a

@@ -391,8 +391,11 @@ def test_a_respelled_pooled_cell_is_withheld_because_nothing_can_see_it(
     rather than assumes. V5.1 says the report may state about a measured
     file only what describing that file would publish about it, so a
     verdict that told those two files apart would be stating what no
-    description of either carries, and repeated candidate descriptions
-    would then read it off the verdicts (V5.3).
+    description of either carries -- which is what ONE report may not
+    say, to a reader who may hold no file, and is the whole ground this
+    stands on. The sentence that used to follow it here, about repeated
+    candidate descriptions reading the count off the verdicts, is out of
+    scope from 2026-08-14 (V5-A1; plan amendment A-P3-13).
 
     THE CLAUSE IS NOT GONE, AND THE SECOND HALF OF THIS TEST IS THE
     PROOF. The same description still makes the subcheck MISS on a file
@@ -487,9 +490,8 @@ def test_two_files_one_description_get_one_report(
     different censuses and different screen output, which states about
     each file which form its pooled cell wore. Nine of the ten style
     subchecks recounted the written cells and compared the recount with
-    a number the SUBMITTED description chose, and a verdict stated
-    against a chosen number is a number a run of candidate descriptions
-    can search for.
+    a number the SUBMITTED description chose, so ONE report was enough
+    to separate two files the producer describes byte for byte alike.
 
     The property is the general one and not the witness: where the two
     files describe identically, the two reports are identical.
@@ -519,7 +521,7 @@ def test_two_files_one_description_get_one_report(
 def test_no_candidate_description_can_pin_a_pooled_style_count(
     tmp_path: pathlib.Path,
 ) -> None:
-    """REVIEW ITEM P3-V2-D-F2, witness B: the search V5.3 names.
+    """REVIEW ITEM P3-V2-D-F2, witness B, kept as a CONSEQUENCE.
 
     Two plain cells, one leading-zero cell and thirty-seven decimal ones
     publish `{(withheld): 3, decimal: 37}`: the two-and-one split is
@@ -527,9 +529,18 @@ def test_no_candidate_description_can_pin_a_pooled_style_count(
     six candidate descriptions differing only in their style map and
     found exactly one that held -- which pins the plain count at two and
     the leading-zero count at one, both under a floor of eleven and both
-    withheld by the producer. That is verbatim the situation V5.3
-    (`docs/spec/validation-method-v1.md:253-256`) says the gate exists
-    to prevent.
+    withheld by the producer.
+
+    WHY THIS IS STILL HERE AFTER V5-A1 (owner ruling 2026-08-14, plan
+    amendment A-P3-13). The ruling stops promising anything about a
+    person who submits descriptions of their own; it is not this test's
+    ground and never was the ground of the gate this exercises. The gate
+    withholds these subchecks in EVERY SINGLE REPORT, because the count
+    they compare is one the file's own description pools -- and a
+    sequence of reports that each say nothing says nothing in sequence
+    either. So the property below is a consequence of the rule that
+    still binds, and it is asserted rather than argued because the
+    consequence is the readable form of it.
 
     The assertion is not that the search fails on these six candidates:
     it is that no candidate settles a style subcheck of that column at
@@ -571,8 +582,8 @@ def test_no_candidate_description_can_pin_a_pooled_style_count(
                 ]
     assert not settled, (
         "a candidate description settled a subcheck whose count the "
-        "file's own description pools, which is the oracle V5.3 "
-        f"forbids: {settled}"
+        "file's own description pools, so one report states a count "
+        f"that description withholds (V5.1): {settled}"
     )
 
 
@@ -689,64 +700,62 @@ def _over_the_licence(
     return "\n".join(lines)
 
 
-def test_red_a_floor_of_cells_over_the_licence_breaks_the_ceiling(
+def test_red_one_cell_over_the_licence_breaks_the_ceiling(
     tmp_path: pathlib.Path,
 ) -> None:
-    """NAMED SUBCHECK: styles.canonical.decimal, over its licence.
+    """NAMED SUBCHECK: styles.canonical.decimal, one cell over its licence.
 
-    The other side of the pair above, AND THE BAR IT IS NOW SET AT
-    (review item P3-V4-F2; plan amendment A-P3-10 clause 1). The ceiling
-    used to compare the exact recount against the published count, so it
-    missed at one cell over -- and a verdict that separates `odd == p`
-    from `odd == p + 1` for a `p` the SUBMITTED description chooses is an
-    exact oracle on `odd`, which is a number no description of this file
-    publishes at any count. The recount is now read at the publication
-    floor's own resolution, so what a candidate sweep can learn is which
-    floor-wide block the count lies in and not the count.
+    The other side of the pair above, AND THE BAR IT IS BACK AT (owner
+    ruling 2026-08-14; plan amendment A-P3-13 clause 2, which withdraws
+    A-P3-10 clause 1). Between two rounds this subcheck read its recount
+    at the publication floor's own resolution, so that a person trying
+    one candidate description after another could locate the count no
+    closer than a floor-wide block -- and the price, recorded in those
+    words, was that a file between ONE cell and one floor over its
+    licence stopped being missed here. The owner ruled that person out of
+    scope, so the recount is compared exactly again and the teeth are
+    back at one cell.
 
-    Both halves are pinned, because the cost is as much a part of the
-    repair as the teeth are:
+    Both halves are pinned, because the direction matters as much as the
+    teeth:
 
-    * one cell over the licence is HELD, and A-P3-10 clause 1 records
-      that in those words rather than leaving it to be found;
-    * the first count that MISSES is the first whole number of floors
-      above the licence, computed here from the floor rather than
-      written out, so a change to either side is red.
+    * ONE cell over the licence MISSES;
+    * a whole floor over misses too, so nothing turns on where inside a
+      block the count sits;
+    * and the file that spends its licence exactly is still HELD, which
+      is the test above -- a stricter comparison may not reach a
+      conforming twin.
     """
     folder = tmp_path / "over"
     folder.mkdir()
     described = _mixed_numeric_column(folder, "over")
     facts = described.columns[0].facts
     assert isinstance(facts, contract.NumericFacts)
-    published = facts.numeric_styles.get(parsing.STYLE_DECIMAL, 0)
+    assert 0 < facts.numeric_styles.get(parsing.STYLE_DECIMAL, 0), (
+        "the description licenses no decimal cell at all, so this file "
+        "is over its licence at the first one and the pair proves nothing"
+    )
     floor = described.settings.small_cell_floor
     assert floor > 1, "a floor of one is the identity and pins nothing"
     twin = _twin_text(described)
-    # The first count over the licence the floor's own resolution can
-    # see, derived from the rule rather than written out.
-    bites = published + 1
-    while validation._at_the_floors_resolution(bites, floor) <= published:
-        bites = bites + 1
-    assert published < bites <= published + floor
-    held = _measure(
+    one = _measure(
         folder, described, _over_the_licence(described, twin, 1), "one.csv"
     )
-    assert _verdicts(held, "styles.canonical.decimal") == [validation.HELD], (
-        "one cell over the licence is the cost A-P3-10 clause 1 records; "
-        "if this misses again the ceiling is an exact oracle once more"
+    assert _verdicts(one, "styles.canonical.decimal") == [
+        validation.MISSED
+    ], (
+        "one cell over the licence is not missed, so the teeth amendment "
+        "A-P3-13 clause 2 buys back are not there"
     )
     outcome = _measure(
         folder,
         described,
-        _over_the_licence(described, twin, bites - published),
+        _over_the_licence(described, twin, floor),
         "over-twin.csv",
     )
     assert _verdicts(outcome, "styles.canonical.decimal") == [
         validation.MISSED
     ]
-    # ...and the verdict never accuses a file that is not over: rounding
-    # DOWN is what makes a MISSED here a file genuinely over its licence.
-    assert validation._at_the_floors_resolution(bites, floor) <= bites
 
 
 def test_the_canonical_ceiling_is_a_listing_where_it_licenses_every_cell(
@@ -1484,8 +1493,12 @@ def test_the_gate_withholds_where_the_file_describes_differently(
     A description of a column of numbers, measured against a file whose
     own description sends that column down a label path, must not print
     the numeric summary -- and must not print a within-bound or missed
-    line against it either, because repeated candidate descriptions
-    would binary-search a number the file's own description withholds.
+    line against it either, because a verdict stated against a published
+    value is itself something one report says about the measured file,
+    and one report is read by people who hold no file. (The second
+    ground V5.3 used to give, about repeated candidate profiles
+    binary-searching the number, is withdrawn by V5-A1 and this stands
+    on the first.)
     """
     folder = tmp_path / "gate"
     folder.mkdir()

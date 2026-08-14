@@ -68,6 +68,94 @@ exists).
   and refuses a walkthrough that runs two of the three commands and
   stops.
 
+### Changed in Phase 3: the quality report says what WITHHELD does not protect you from
+- **The validator stops promising a defence it was paying for every
+  round, and says so instead** (owner ruling 2026-08-14; plan amendment
+  A-P3-13, validation method V5-A1). The rule that the report may say
+  about the file it checked only what `synthtwin profile` run on that
+  file would publish is unchanged, and so is everything about what may
+  be PRINTED: no measured value, no string of the checked file, no count
+  its own description pools -- not in the report, not on the screen, not
+  in a refusal. What is withdrawn is the second half the rule used to
+  claim: that somebody who writes their own descriptions and runs the
+  check again and again cannot narrow a withheld number by watching
+  which verdicts change.
+- **THIS LOWERS a confidentiality guarantee, on the owner's authority,
+  and the amendment prices it.** A sweep of hand-written descriptions
+  can recover the count of oddly written cells in a numeric column
+  exactly, can pin a style count the publication floor hides, and can
+  read the header of a file the profiler refuses to describe, one guess
+  at a time. In every one of those the person doing it is holding the
+  file the number is about: running the check on a file requires having
+  the file, and someone who has it can read it.
+- **What it buys back, measured.** One subcheck was blunted for this
+  defence and nothing else. `styles.canonical.<form>` had its recount
+  rounded down to a whole number of publication floors before the
+  comparison, so a file between one cell and one whole floor over its
+  licence stopped being reported. The rounding is deleted rather than
+  left unused, and the teeth are back at ONE cell: on the suite's own
+  sixty-row fixture, a column licensed for 24 oddly written decimal
+  cells and holding 25 now MISSES, and so does every one of the eleven
+  counts inside that block, where all eleven held. No verdict moves the
+  other way -- the comparison it replaces was never more than the count
+  -- and a twin the shipped generator writes still holds every ceiling.
+  The defence was no longer working anyway: the publication floor is
+  itself a number the submitted description chooses, so sweeping it read
+  the exact count straight back off the rounded comparison.
+- **Nothing else is handed back, and the amendment says why for each.**
+  Every other withholding this project records has a witness in which
+  ONE report told two files apart -- the pooled style windows, the
+  verdicts taken off a pooling column's own description, the seven
+  withholdings on a file the producer refuses. A report travels to
+  people who hold no file, so those stand exactly as they were.
+- **The limit is written where a reader meets it.** The quality report
+  carries it on every run, at the foot of the part that says what
+  WITHHELD means; `SECURITY.md` carries it as a named residual risk; the
+  README's limits table carries a row for it; and the charter's honest
+  limits carry it for whoever writes the next sentence about
+  validation. This moves the bytes of every quality report, and
+  `GOLDEN_QUALITY_SHA256` is re-recorded with the reports diffed line by
+  line before each re-record, the census identical entry for entry
+  throughout.
+- **The report says what the withholding PROTECTS before it says what
+  it does not, and says it is not permission to move the page.** The
+  paragraph used to open on the limit alone, which reads as though
+  withholding bought nothing; it now says first that every question the
+  report answers is about the one file it was given, that a number it
+  withholds is a number it does not print anywhere, and that this is
+  what lets the page be read by somebody holding no copy of the file.
+  **And it stops there rather than at "so this page can be handed to
+  somebody who has no copy of the file", which is what stood there
+  first**: on a description made with `--smallest-group 3` that sentence
+  sat under a section saying this same page now carries counts down to
+  three rows and should not move without approval. Found by reading the
+  page, not by a test.
+- **No surface may state the withdrawn guarantee, and the suite goes
+  red on any that does** (amendment A-P3-13 clause 3). The claim
+  inventory in `tests/test_claim_inventory.py` gained a fourth family,
+  and it is not a list of sentences: the guarantee was written five
+  different ways in five different places, so a ban on any one shape
+  would catch that shape only. A statement trips it when it NAMES the
+  reader the ruling put out of scope -- a word for choosing what the
+  description says, or for running the check more than once, attached
+  to the word for a description -- and in the same breath PROMISES
+  something about them, either by saying they cannot or by giving them
+  as the reason a rule exists. A withdrawal standing near it is what
+  tells the honest paragraph from the claim. Measured rather than
+  asserted: the withdrawn promise was put back in eight wordings across
+  eight files -- the front page, the security document, the charter, the
+  validation method and four modules -- and every one of the eight
+  turned the suite red.
+- **The validation method is a surface of the claim inventory now, and
+  had never been one.** It is the normative statement of what a quality
+  report may say about a file that was measured -- the document an
+  institution's reviewer reads before deciding whether a report may
+  leave the building -- and it was the one specification no ban in that
+  file covered. Adding it cost nothing: every check there was already
+  true of it, and the fourth family then found two passages of it
+  asserting the withdrawn promise as a live bound. Both are corrected
+  in place, as are two in the plan that still said what V5.3 "says".
+
 ### Changed in Phase 3: `--smallest-group` works below eleven, and every file says so
 - **A documented option no longer produces an unusable file** (owner
   ruling 2026-08-14; plan amendment A-P3-11). `synthtwin profile
@@ -283,7 +371,10 @@ exists).
   never the number. It costs teeth, and the plan prices them: a file
   less than one floor over its licence is no longer missed there, and
   no arrangement can have both, because the licence is the submitted
-  description's own number.
+  description's own number. **This entry is superseded: the owner ruled
+  the candidate sweep out of scope on 2026-08-14, the rounding is gone
+  and the teeth are back at one cell.** See the entry above, "the
+  quality report says what WITHHELD does not protect you from".
 - **A report about a file the producer refuses says what that refusal
   says, and now it cannot say anything else.** Two of the reader's
   refusals are reported on rather than passed along, and which report a

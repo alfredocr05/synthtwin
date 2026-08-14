@@ -1,6 +1,6 @@
 """P2-D11: the repository-wide claim inventory, asserted rather than kept.
 
-THREE FAMILIES OF CLAIM LIVE HERE. The first is the RECORD claim, and it
+FOUR FAMILIES OF CLAIM LIVE HERE. The first is the RECORD claim, and it
 is what this file was written for; it is described immediately below.
 The second arrived with review item P2-C1-F7 and is described under
 "THE SECOND FAMILY" further down: what the twin CARRIES, which phase
@@ -8,10 +8,13 @@ the project is in, which commands exist, and how many libraries it
 depends on. The third arrived with review item P3-V3-F8 and is the one
 that is not a list of sentences at all: how MANY commands the tool has
 and how many files a run leaves behind, counted from the product and
-checked against every surface. They share this file because they share
-a failure mode -- true text going stale on a surface nobody re-read --
-and because a reader who trusts one of these sentences has no way to
-tell which family it came from.
+checked against every surface. The fourth arrived with the owner's
+ruling of 2026-08-14 and is described under "THE FOURTH FAMILY" at the
+foot: a confidentiality guarantee this product deliberately stopped
+making, which no surface may go on making for it. They share this file
+because they share a failure mode -- true text going stale on a surface
+nobody re-read -- and because a reader who trusts one of these
+sentences has no way to tell which family it came from.
 
 WHAT WENT WRONG, AND WHY A TEST IS THE ONLY REPAIR THAT HOLDS. synthtwin
 said, in eight places, that the twin holds no record of yours: twice in
@@ -107,6 +110,7 @@ whoever trips this test is mid-sentence in a document, not debugging.
 import ast
 import contextlib
 import io
+import os
 import pathlib
 import re
 
@@ -118,9 +122,17 @@ REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
 PACKAGE = REPO_ROOT / "src" / "synthtwin"
 
 # Every surface that speaks to a user, an auditor or a packaging index
-# in synthtwin's own voice. The two spec documents are included because
-# an institution's reviewer reads them as the normative statement of
-# what the profile and the twin carry.
+# in synthtwin's own voice. The three spec documents are included
+# because an institution's reviewer reads them as the normative
+# statement of what the profile, the twin and the quality report carry.
+#
+# THE VALIDATION METHOD JOINED LATE, and its absence was a gap of the
+# kind this file exists to close: it is the normative statement of what
+# a quality report may say about a measured file -- the document an
+# institution's reviewer reads before deciding whether a report may
+# leave the building -- and until the fourth family below was written
+# it was the one specification no ban in this file covered. Adding it
+# cost nothing: every check here was already true of it.
 SURFACES = (
     "CLAUDE.md",
     "AGENTS.md",
@@ -147,6 +159,7 @@ SURFACES = (
     "src/synthtwin/writing.py",
     "docs/spec/profile-contract-v4.md",
     "docs/spec/generation-method-v1.md",
+    "docs/spec/validation-method-v1.md",
 )
 
 # The categorical forms, retired by P2-D11. Each is the shape of a
@@ -1924,3 +1937,674 @@ def test_the_third_family_would_notice_the_wording_it_replaced() -> None:
     )
     assert _COUNT_WORDS and _PHASE_PLACEMENTS and _FUTURE_VERBS and FILE_NAMES
     assert COMMAND_TOTAL >= 3 and FILE_TOTAL >= 5 and ARTIFACT_TOTAL >= 4
+
+
+# ---------------------------------------------------------------------
+# THE FOURTH FAMILY: A GUARANTEE THIS PRODUCT STOPPED MAKING
+# (owner ruling 2026-08-14; plan amendment A-P3-13; validation method
+# V5-A1)
+# ---------------------------------------------------------------------
+#
+# WHAT WAS GIVEN UP. The quality report's disclosure rule was written to
+# hold against two different readers. One is handed a report and may
+# hold no file at all; every rule still binds exactly as written for
+# that reader. The other HOLDS the checked file, writes descriptions of
+# their own, runs `synthtwin validate` again with each, and reads a
+# number the report withholds off which verdicts moved. The owner ruled
+# the second reader out of scope -- running the check on a file requires
+# holding the file -- and required the product to say so instead of
+# quietly going on implying otherwise.
+#
+# WHY THAT NEEDS A TEST AND NOT A MEMO. The withdrawn half is the half
+# that comes naturally to anyone writing about a confidentiality rule:
+# "so the number cannot be recovered" is the sentence that makes the
+# rule sound worth having, and it is one clause away from every true
+# sentence about withholding in this repository. Three review rounds
+# found routes open to that reader while six surfaces went on promising
+# it was closed, and one of the six was a governing document. A sentence
+# is not repaired by a maintainer remembering; it is repaired by the
+# suite going red.
+#
+# HOW IT IS CAUGHT, AND WHY NOT BY A LIST OF SENTENCES. The three
+# families above ban wordings. That works where the claim has a settled
+# phrasing, and this one does not: it was written five different ways in
+# five different places, and a ban anchored on any one shape catches
+# that shape only. So this family is COMPOSITIONAL. A sentence trips it
+# when it does two things at once --
+#
+#   * it NAMES the reader the ruling put out of scope, in any of the
+#     ways English names somebody choosing what the description says and
+#     running the check more than once; and
+#   * it makes a PROMISE about them: that they cannot, are stopped, are
+#     defended against, will never, get no closer than.
+#
+# -- and neither half alone is a defect. Naming the reader is required
+# of five surfaces (the positive check at the foot of this section);
+# promising is ordinary English about the many things this product does
+# refuse. It is the pair, in one sentence, that states the guarantee
+# that was withdrawn.
+#
+# AND A SURFACE MAY STILL DISCUSS THE WITHDRAWAL, which is why the cure
+# is a WINDOW rather than an exception list. A passage that names the
+# reader and says the defence is gone -- "no longer", "out of scope",
+# "used to", "is not a defence", "does not try to stop them" -- is the
+# honest paragraph this ruling requires, not the claim it bans, and the
+# marker may stand anywhere within `_CURE_WINDOW` characters of the
+# naming rather than inside the same sentence, because a comment block
+# that spends three sentences on the history before withdrawing it in
+# the fourth is exactly how this repository writes. What a surface may
+# NOT do is state the promise with no withdrawal anywhere near it. That
+# is the one shape round 4 found in a governing document, and it is the
+# shape this catches.
+#
+# THE RED CHECKS, AND THERE ARE TWO, because this family can fail in two
+# directions and only one of them is a missing sentence.
+#
+# * `REINSTATE=A-P3-13-promised` puts the withdrawn guarantee back on
+#   every surface at once, by adding one sentence of it to what `_text`
+#   returns. `test_no_public_surface_promises_a_defence_against_re_
+#   running` goes red, which is the ban being capable of failing at all.
+# * `REINSTATE=A-P3-13-one-shape` narrows the ban to the single wording
+#   the plan and the specification happened to use -- "candidate
+#   descriptions" and nothing else, which is a ban a reviewer would call
+#   thorough. Seven of the eleven wordings the vacuity floor records
+#   then walk straight past it, and
+#   `test_the_fourth_family_would_notice_the_promise_it_replaced` goes
+#   red naming each. That is the round-4 lesson made executable: a guard
+#   anchored on one sentence shape catches one sentence shape.
+#
+# Both were measured on the commit that added this section, and the
+# withdrawn promise was additionally put back BY HAND in eight wordings
+# across eight tracked files -- the front page, the security document,
+# the charter, the validation method, and `quality.py`, `validation.py`,
+# `rendering.py` and `summary.py` -- with all eight turning the suite
+# red and none of them relying on a phrase written down here.
+
+
+@pytest.fixture(autouse=True)
+def _reinstated(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The two red checks above, driven from the environment."""
+    asked = os.environ.get("REINSTATE")
+    if asked == "A-P3-13-promised":
+        kept = _text
+
+        def _with_the_promise(relative: str) -> str:
+            return (
+                kept(relative)
+                + " no sequence of candidate descriptions can narrow a "
+                "number this report withholds."
+            )
+
+        monkeypatch.setitem(globals(), "_text", _with_the_promise)
+    if asked == "A-P3-13-one-shape":
+        monkeypatch.setitem(
+            globals(), "_CHOSEN_MARKS", (r"\bcandidate descriptions\b",)
+        )
+        monkeypatch.setitem(globals(), "_REPEAT_MARKS", ())
+        monkeypatch.setitem(globals(), "_SEARCHER_ALONE", ())
+        monkeypatch.setitem(globals(), "_REASON_MARKS", ())
+
+# NAMING THE READER IS ITSELF COMPOSED, so that a paraphrase which uses
+# none of the old nouns still counts as naming them. The reader does two
+# things -- they CHOOSE what the description says, and they run the check
+# MORE THAN ONCE -- and each of the patterns below is one of those two
+# ATTACHED to the word for a description, with up to two words allowed
+# in between. So "one profile of their own after another", "descriptions
+# they wrote themselves" and "a sweep of hand-edited profiles" are all
+# caught without any of them being written down here as a phrase.
+#
+# THE ATTACHMENT IS THE PRECISION, and it was measured rather than
+# assumed. A first version of this looked for a choosing word anywhere
+# within sixty characters of a description word, and went red on
+# twenty-eight true sentences of this repository -- "the things the
+# rules cannot settle on their own" beside the word `profile` on the
+# front page, "a candidate declared missing never reaches this function"
+# in the taxonomy, "how many values you named ... never the values
+# themselves" in the profiler's summary. `profile` and `candidate` are
+# two of the commonest words here and they usually mean something else,
+# so what identifies this reader is not the vocabulary but the grammar:
+# the choosing has to be MODIFYING the description.
+_GAP_WORDS = r"(?:[a-z0-9'-]+ ){0,2}"
+_DESCRIPTIONS = r"(?:description|profile)s?\b"
+# ...and the plural, where the singular means something else. ONE
+# hand-written description is an ordinary thing to write about: it is a
+# profile somebody edited into a state its own facts contradict, and the
+# generation method spends two paragraphs on what the walk does with it.
+# HAND-WRITTEN DESCRIPTIONS, plural, is a sweep and is nothing else.
+_DESCRIPTIONS_MANY = r"(?:description|profile)s\b"
+
+# Choosing what the description says. "submitted" is deliberately absent:
+# the submitted description is what `synthtwin validate` is always handed
+# and is the ordinary word for it throughout this repository, so banning
+# it would put this in a fight with every true sentence about the gate.
+# "its own" is absent for the same reason -- a file's own description is
+# the envelope V5.1 is drawn round, not somebody's invention.
+_CHOSEN_MARKS = (
+    rf"\bcandidate {_GAP_WORDS}{_DESCRIPTIONS}",
+    rf"\b(?:their|your|his|her) own {_GAP_WORDS}{_DESCRIPTIONS}",
+    rf"\b{_DESCRIPTIONS} of (?:their|your|his|her) own\b",
+    (
+        rf"\b{_DESCRIPTIONS} {_GAP_WORDS}"
+        r"(?:they|you|somebody|someone|anybody|anyone) "
+        r"(?:wrote|write|writes|chose|choose|chooses|made|make|makes|"
+        r"craft|crafts|crafted|invent|invents|invented|pick|picks|"
+        r"picked)\b"
+    ),
+    (
+        r"\bhand-(?:crafted|written|edited|picked|chosen|made) "
+        rf"{_GAP_WORDS}{_DESCRIPTIONS_MANY}"
+    ),
+    rf"\bmade[- ]up {_GAP_WORDS}{_DESCRIPTIONS_MANY}",
+)
+
+# Running it more than once, attached the same way.
+_REPEAT_MARKS = (
+    rf"\b{_DESCRIPTIONS} {_GAP_WORDS}after (?:an)?other\b",
+    rf"\b{_DESCRIPTIONS} {_GAP_WORDS}one by one\b",
+    (
+        rf"\brepeated {_GAP_WORDS}"
+        r"(?:description|profile|run|report|check|guess|candidate)s\b"
+    ),
+    (
+        r"\b(?:a |any |no )?(?:sequence|series|succession|sweep) of "
+        rf"{_GAP_WORDS}(?:candidate |hand-\w+ )?"
+        r"(?:description|profile|run|report|guess)s\b"
+    ),
+    (
+        rf"\b(?:many|several|eleven|six|dozens of) {_GAP_WORDS}"
+        r"(?:candidate |hand-\w+ )?(?:description|profile|guess)s\b"
+    ),
+)
+
+# ...and the terms that name this reader on their own, because in this
+# repository they mean nothing else. Each was grepped over every surface
+# before it was put here: `sweep` appears in the changelog, in
+# `validation.py` and in the validation method and is about this and
+# nothing else every time; `again and again` and `over and over` appear
+# nowhere but in the paragraphs this ruling wrote.
+_SEARCHER_ALONE = (
+    r"binary[ -]search",
+    r"one guess at a time",
+    r"count oracle",
+    r"no matter how many",
+    r"however many (?:times|runs|descriptions|profiles|reports|tries)",
+    r"which verdicts? (?:change|move|flip)",
+    r"watching which (?:verdict|line|check|number)s?",
+    r"\bsweep(?:s|ing)?\b",
+    r"\bagain and again\b",
+    r"\bover and over\b",
+    r"\btime after time\b",
+    r"\bre-?runs? (?:this|the) check\b",
+    r"\bre-?running (?:this|the) check\b",
+)
+
+# "Run the command again" is NOT here, and could not be: it is the last
+# sentence of half the refusals in `errors.py`, telling a person to fix
+# their file and try once more. Repetition on its own is not this
+# reader; repetition of a description this person chose is.
+
+# Two shapes a reader might expect above are deliberately absent, for the
+# reason the second family's list gives about bans the truth trips: a
+# bare count of runs ("two runs of the same description and seed write
+# the same cells" is the determinism guarantee) and a bare "however many"
+# ("however many figures it takes" is the number formatter) say nothing
+# about anybody searching, and banning them would earn this an exception
+# list within a week.
+
+# The promise. These are the words a guarantee is made of, and none of
+# them is a defect on its own -- this product refuses, stops and
+# protects a great many things. What they may not do is stand in a
+# sentence that names the reader above.
+_PREVENTION_MARKS = (
+    r"\bcannot\b",
+    r"\bcan not\b",
+    r"\bcan't\b",
+    r"\bcould not\b",
+    r"\bcouldn't\b",
+    r"\bunable\b",
+    r"\bimpossible\b",
+    r"\bno way\b",
+    r"\bprevent",
+    r"\bstop",
+    r"\bdefen[cs]e",
+    r"\bdefend",
+    r"\bprotect",
+    r"\bguards? against\b",
+    r"\bbarrier\b",
+    r"\bimmune\b",
+    r"\bresists?\b",
+    r"\bproof against\b",
+    r"\bnever\b",
+    (
+        r"\bno (?:sequence|number|amount|series|set|report|run|candidate|"
+        r"description|profile|guess)\b"
+    ),
+    r"\bno closer\b",
+    r"\bfoil",
+    r"\bdefeat",
+    r"\bsafe from\b",
+)
+# "block" is deliberately absent, and so are "at most" and "bounded":
+# a block is a piece of a description throughout this repository, "at
+# most N cells" is how every ceiling obligation is worded, and a bound
+# is what half the generation method states. None of the three says
+# anybody is being kept out of anything.
+
+# THE OTHER WAY THE GUARANTEE IS MADE, and the way it was actually
+# written every time it went wrong: not as "they cannot" but as the
+# REASON a rule exists. "Repeated candidate profiles would OTHERWISE
+# binary-search a value the file's own profile withholds" is P3-D3's
+# own sentence, and it promises the defence exactly as hard as the
+# negative form does -- it says this rule is here to stop them, so with
+# it they are stopped. A ban that read only the negative form would have
+# passed every one of the six surfaces the ruling had to correct.
+_REASON_MARKS = (
+    r"\botherwise\b",
+    r"would (?:then|otherwise|be able)",
+    r"\bthe attack\b",
+    r"exists to\b",
+    r"\bwhich is why\b",
+    r"\bthat is why\b",
+    r"for that reason\b",
+    r"on that ground\b",
+    r"\bthe (?:whole )?(?:reason|ground) (?:this|the|it|that)\b",
+    (
+        r"so (?:the |this |its )?(?:gate|rule|verdict|subcheck|check|"
+        r"report|line) (?:closes|close|is|are|was|were|withholds|"
+        r"stays|must)"
+    ),
+    # Naming the disclosure gate in the same breath as this reader IS
+    # the promise, whatever verb stands between them: the gate is the
+    # thing that was said to stop them.
+    r"\b(?:the|this) gate\b",
+)
+
+# What makes a passage the honest account rather than the claim. Any one
+# of these standing near the naming says the defence is not being
+# offered, which is the sentence the ruling requires rather than the one
+# it bans.
+_WITHDRAWN_MARKS = (
+    r"no longer",
+    r"out of scope",
+    r"withdraw",
+    r"used to",
+    r"stopped promising",
+    r"not a defen[cs]e",
+    r"not a barrier",
+    r"not protection",
+    r"no rule",
+    (
+        r"(?:does|do|did|is|are|was|were|would|will) not "
+        r"[a-z0-9 ,'`-]{0,24}(?:try|defend|stop|protect|promise|claim|"
+        r"prevent|bar|guard)"
+    ),
+    r"not (?:owed|promised|claimed|in scope)",
+    r"this lowers",
+    r"ruled? (?:it |that |them |the )?out",
+    r"superseded",
+)
+
+# How far from the naming a withdrawal may stand and still be read as
+# qualifying it. A paragraph of this repository's prose is about this
+# long, which is the unit a person reads; a sentence would be too tight
+# (the history is usually told before it is withdrawn) and a whole file
+# would be no rule at all.
+_CURE_WINDOW = 300
+
+# Where one statement ends and the next begins, in the collapsed text.
+# The same three enders `_SENTENCE_ENDS` uses above, for the same
+# reason, plus the exclamation and question marks no surface here uses.
+# A COLON IS NOT AN ENDER: "what is withdrawn is the half that claimed:
+# that somebody who writes their own descriptions cannot narrow a
+# withheld number" is one sentence which withdraws the claim it spells,
+# and splitting it at the colon would read the second half alone and
+# call the honest changelog entry a defect.
+_STATEMENT_END = re.compile(r"(?<=[a-z0-9)\]\"'*])[.;!?] | -- ")
+
+
+def _names_the_reader(sentence: str) -> "str | None":
+    """How this sentence names the reader the ruling put out of scope.
+
+    Either by a term that means nothing else in this repository, or by
+    attaching a word for CHOOSING a description, or for running it MORE
+    THAN ONCE, to the word for a description. Both halves are needed:
+    neither is a defect on its own, and every paraphrase of this reader
+    has to write both.
+    """
+    for mark in _SEARCHER_ALONE + _CHOSEN_MARKS + _REPEAT_MARKS:
+        if re.search(mark, sentence) is not None:
+            return mark
+    return None
+
+
+def _promises_a_defence(text: str) -> "list[tuple[str, str, str]]":
+    """Every sentence of one surface that promises the withdrawn defence.
+
+    Returns the sentence, the wording that named the out-of-scope
+    reader, and the wording that made the promise about them -- so the
+    failure message can show a maintainer which two words collided
+    rather than telling them a document is wrong somewhere.
+
+    A PROMISE IS EITHER FORM. Saying they cannot is one; giving them as
+    the reason a rule exists is the other, and it was the commoner of
+    the two in the text this replaced.
+
+    Guarantees:
+
+    - Inputs: one surface's text, lowercased and space-collapsed by
+      `_text`.
+    - Determinism: a fixed function of that text; nothing is read here.
+    - Errors raised: none.
+    - Boundary: pure text; opens nothing.
+    """
+    found: list[tuple[str, str, str]] = []
+    at = 0
+    for sentence in _STATEMENT_END.split(text):
+        start = text.find(sentence, at)
+        at = start + len(sentence)
+        named = _names_the_reader(sentence)
+        if named is None:
+            continue
+        promised = [
+            mark
+            for mark in _PREVENTION_MARKS + _REASON_MARKS
+            if re.search(mark, sentence)
+        ]
+        if not promised:
+            continue
+        near = text[max(0, start - _CURE_WINDOW) : at + _CURE_WINDOW]
+        if any(re.search(mark, near) for mark in _WITHDRAWN_MARKS):
+            continue
+        found.append((sentence, named, promised[0]))
+    return found
+
+
+def test_no_public_surface_promises_a_defence_against_re_running() -> None:
+    """No surface says a person choosing the description can be stopped.
+
+    The negative half of the fourth family. It runs over every surface,
+    including the ones with no obligation to state the limit at all: a
+    module comment need not explain the ruling, but none of them may
+    give the withdrawn defence as a live reason for a rule -- which is
+    exactly the shape the ruling found in three comment blocks of
+    `validation.py`, in two passages of the validation method, and in
+    the plan's own P3-D3.
+    """
+    offenders: list[str] = []
+    for relative in SURFACES:
+        for sentence, named, promised in _promises_a_defence(_text(relative)):
+            offenders.append(
+                f"{relative}: {named!r} promised against by {promised!r}\n"
+                f"      {sentence[:300]}"
+            )
+    assert not offenders, (
+        "These surfaces promise a defence the owner withdrew on "
+        "2026-08-14 (plan amendment A-P3-13, validation method "
+        "V5-A1):\n  "
+        + "\n  ".join(offenders)
+        + "\n\nWhat synthtwin promises is about ONE report: a number the "
+        "quality report withholds is a number it does not print, "
+        "anywhere, so the report can be handed to a person who holds no "
+        "file. It promises NOTHING about a person who holds the checked "
+        "file and runs the check again with descriptions of their own -- "
+        "that person can narrow a withheld number, and the reason it is "
+        "not defended against is that they can read the file instead. "
+        "Say what the rule does, and say what it does not; if the "
+        "sentence is about the withdrawal itself, say the defence is "
+        "gone in the same breath as naming it."
+    )
+
+
+# Where the withdrawn guarantee has to be replaced by the true statement,
+# and not merely left unsaid. Deleting the promise satisfies the ban
+# above and leaves WITHHELD reading exactly as it did -- as a bound on
+# what the tool can be made to reveal -- which is the worse of the two
+# failures, because nothing signals that a question was ever settled.
+#
+# The five are the surfaces a person meets the withholding on: the
+# charter an implementer works from, the front page's limits table, the
+# security document an institution weighs, the module that decides what
+# a report may say, and the module that writes the report a researcher
+# reads. The rendered report itself is held to the same statement by
+# `tests/test_ap313_stated_limit.py`, which reads the text a run
+# actually produces rather than the source that produces it -- both are
+# needed, because a paragraph can be present in the source and
+# unreachable in the page.
+LIMIT_BEARING = (
+    "CLAUDE.md",
+    "README.md",
+    "SECURITY.md",
+    "src/synthtwin/quality.py",
+    "src/synthtwin/validation.py",
+)
+
+# The four marks of the true statement. As with the other families, each
+# entry is a tuple of accepted phrasings so a surface may speak in its
+# own register -- the charter and the two modules in the normative one,
+# the front page and the security document in the one a person deciding
+# whether to use the tool reads.
+#
+# Why each mark and not only the last:
+#
+# 1. Without "one report", the limit reads as though the withholding
+#    were worthless, and it is not: it is what lets a report travel.
+# 2. Without the person who runs it again, the reader has no idea who is
+#    outside the promise, and will supply their own guess.
+# 3. Without the reason, the limit reads as an oversight somebody will
+#    fix, rather than as a decision with a ground -- and the ground is
+#    the actionable part: hold the file closely, because the report is
+#    not what is protecting it.
+# 4. Without the plain statement that synthtwin does not try, a reader
+#    takes the first three as a description of a weak defence rather
+#    than of no defence.
+NARROWED_MARKS = (
+    (
+        ("one report", "a single report"),
+        (
+            "the statement that the rule is about what ONE report says, "
+            "which is what the withholding still buys"
+        ),
+    ),
+    (
+        (
+            "again and again",
+            "over and over",
+            "re-runs the check",
+            "re-run the check",
+            "one after another",
+        ),
+        (
+            "the person the rule is NOT about: somebody who has the "
+            "checked file and runs the check again with descriptions of "
+            "their own"
+        ),
+    ),
+    (
+        (
+            "can read the file",
+            "can read it",
+            "requires holding",
+            "in front of them",
+            "holds the file",
+        ),
+        (
+            "the reason, which is the actionable half -- whoever can run "
+            "this check on a file can read that file"
+        ),
+    ),
+    (
+        ("does not try to stop", "do not try to stop"),
+        (
+            "the plain statement that synthtwin does not try to stop "
+            "them, so that no reader takes the limit for a weak defence "
+            "rather than none"
+        ),
+    ),
+)
+
+
+def test_the_limit_bearing_surfaces_state_the_narrowed_promise() -> None:
+    """The five deciding surfaces each carry all four marks of the limit.
+
+    The positive half of the fourth family, and the half that is easy to
+    lose: a guarantee that is quietly dropped leaves every reader who
+    learned it still believing it, and there is no wording left on the
+    page for the ban above to catch.
+    """
+    missing: list[str] = []
+    for relative in LIMIT_BEARING:
+        text = _text(relative)
+        for forms, what_it_is in NARROWED_MARKS:
+            if not any(form in text for form in forms):
+                missing.append(
+                    f"{relative} is missing {what_it_is} "
+                    f"(expected one of {list(forms)})"
+                )
+    assert not missing, (
+        "These surfaces have to state what the quality report's "
+        "withholding protects and what it does not, in full, and each "
+        "is missing part of it:\n  "
+        + "\n  ".join(missing)
+        + "\n\nAll four parts are load-bearing: the protection without "
+        "the limit is the promise the owner withdrew, and the limit "
+        "without the protection reads as though withholding did nothing "
+        "at all."
+    )
+
+
+def test_the_fourth_family_would_notice_the_promise_it_replaced() -> None:
+    """A vacuity floor, in both directions, over many wordings.
+
+    THE FIRST HALF. A compositional ban passes trivially when one of its
+    two lists is wrong, and a ban on a claim written five ways in five
+    places has to be shown against more than one of them. Every sentence
+    below is either one this repository actually carried before the
+    ruling -- taken from the plan, the validation method and
+    `validation.py` -- or a plain rewording of it of the kind somebody
+    would write next time. Each must still be caught, with no
+    withdrawal near it.
+
+    THE SECOND HALF, and it is not decoration. A ban this broad could
+    make the honest paragraph unwritable, and then the positive check
+    above and this one would be at war: whoever satisfied one would trip
+    the other, and the way that argument ends is with an exception list.
+    So the truthful statements are put through it too, and must pass.
+    """
+    promised = {
+        "the plan's P3-D3, as it stood": (
+            "a within-bound or missed line against a candidate value is "
+            "itself a measurement-derived statement, and repeated "
+            "candidate profiles would otherwise binary-search a value "
+            "the file's own profile withholds."
+        ),
+        "the validation method's V5.3, as it stood": (
+            "repeated candidate profiles would binary-search a number "
+            "the file's own description withholds, so where the gate "
+            "closes over a subcheck its verdict is withheld."
+        ),
+        "the pooled-style comment in validation.py": (
+            "a verdict that told them apart would state about the file a "
+            "count the file's own description withheld, and repeated "
+            "candidate descriptions would then read the count off the "
+            "verdicts, which is the attack V5.3 says the gate exists to "
+            "stop."
+        ),
+        "the refused-file comment in validation.py": (
+            "repeated candidate descriptions would then read the header "
+            "off the verdicts, which is the attack the gate exists to "
+            "stop."
+        ),
+        "the rounding function's own docstring": (
+            "what a candidate sweep can still learn is which block the "
+            "count lies in, and no sequence of candidate descriptions "
+            "can get closer than that."
+        ),
+        "A-P3-5 clause 3's bound": (
+            "styles.spelled takes no number from the submitted "
+            "description at all, so no sequence of candidate "
+            "descriptions can binary-search anything through it."
+        ),
+        "a rewording with none of the old nouns": (
+            "somebody feeding the tool one profile of their own after "
+            "another is stopped by this rule, whatever they try."
+        ),
+        "a rewording in the second person": (
+            "however many times you run the check with descriptions you "
+            "wrote yourself, the withheld number never appears."
+        ),
+        "a rewording as a security property": (
+            "the quality report is immune to a sweep of hand-written "
+            "descriptions."
+        ),
+        "a rewording as a bound rather than an absolute": (
+            "a person running this check again and again with their own "
+            "descriptions gets no closer than a floor-wide block."
+        ),
+        "a rewording that never says the word description": (
+            "watching which verdicts change over repeated runs reveals "
+            "nothing: the search is defeated by the gate."
+        ),
+    }
+    uncaught = [
+        f"{what}: {sentence!r}"
+        for what, sentence in promised.items()
+        if not _promises_a_defence(" ".join(sentence.lower().split()))
+    ]
+    assert not uncaught, (
+        "These statements of the withdrawn guarantee are no longer "
+        "caught by the fourth family, so the ban is vacuous for that "
+        "wording:\n  "
+        + "\n  ".join(uncaught)
+        + "\n\nFix the naming marks or the promise marks rather than "
+        "this assertion."
+    )
+    honest = {
+        "the quality report's own page": (
+            "what it is not is a barrier against somebody who has the "
+            "checked file and runs this check on it again and again, "
+            "each time with a description they wrote themselves, "
+            "watching which lines move. that person can narrow a number "
+            "withheld here, and synthtwin does not try to stop them: "
+            "whoever can run this check on a file can read the file."
+        ),
+        "the validator module's contract": (
+            "it is not a defence against somebody who holds the measured "
+            "file and runs this check over and over with descriptions "
+            "they wrote themselves, watching which verdicts change: that "
+            "person can narrow a number a single report withholds, and "
+            "this module does not try to stop them."
+        ),
+        "a comment telling the history before withdrawing it": (
+            "this line rounded the recount down to a whole number of "
+            "publication floors, so that a person trying one candidate "
+            "description after another could locate the count no closer "
+            "than a floor-wide block. that defence is no longer owed."
+        ),
+        "the changelog entry that spells what it withdraws": (
+            "what is withdrawn is the second half the rule used to "
+            "claim: that somebody who writes their own descriptions and "
+            "runs the check again and again cannot narrow a withheld "
+            "number by watching which verdicts change."
+        ),
+    }
+    wrongly_caught = [
+        f"{what}: {found[0][0]!r}"
+        for what, sentence in honest.items()
+        if (found := _promises_a_defence(" ".join(sentence.lower().split())))
+    ]
+    assert not wrongly_caught, (
+        "The fourth family now catches the truthful statement the "
+        "ruling requires, which would leave a maintainer no way to "
+        "write either one:\n  "
+        + "\n  ".join(wrongly_caught)
+        + "\n\nWiden `_WITHDRAWN_MARKS` or narrow the two lists above -- "
+        "do not add a surface to an exception list, which is how every "
+        "ban in this file would rot."
+    )
+    assert _CHOSEN_MARKS and _REPEAT_MARKS and _SEARCHER_ALONE
+    assert _PREVENTION_MARKS and _REASON_MARKS and _WITHDRAWN_MARKS
+    for relative in LIMIT_BEARING:
+        assert relative in SURFACES, (
+            f"{relative} must also be in SURFACES, so that the ban above "
+            f"covers the surface the limit is stated on"
+        )
