@@ -142,6 +142,67 @@ collision can only move a column toward MORE withholding, never toward
 printing more. The two rules therefore never decide the same number: one
 owns which cells are counted, the other owns how they read.
 
+**How the split measurement is TAKEN, added because leaving it unsaid
+cost a verdict** (amendment V2.4-A1, 2026-08-13, review item P3-V2-A1).
+This clause said which cells a measurement is counted over and did not
+say how a validator that may not re-implement a recount (V2.1) is to
+count them. The first implementation read that gap as permission to
+WITHHOLD every presence-dependent obligation of a column wherever the
+two readings of presence disagreed — so one cell spelling a built-in
+missing marker turned every level, distinctness and suppression
+obligation of that column from a potential MISS into a withholding, a
+file carrying none of its published labels exited 0 under "no checkable
+obligation was missed", and any registered red case of V8 could be
+defeated by adding one such cell to the column it targets. That is a gap
+in the reconstruction moving a verdict, which the paragraph above
+forbids in terms.
+
+**So the measured file is described TWICE, by the same producer, over
+the same cells.** The first description is the file's own — the
+settings of V2.2 exactly — and it governs V2.1's side: how the cells
+read, which role the column is, and the disclosure gate of V5. The
+second is taken with absence pinned to BLANKNESS, by naming as kept data
+every non-blank spelling the producer's own built-in tables would read
+as an absence, and every measurement whose input is the set of present
+cells is read off it. Running the shipped producer over a derived input
+is not a second implementation of a recount, so V2.1 is met exactly as
+before; and the second description governs no gate, because a
+description built under it would say more about the file than describing
+that file on its own would publish, which V5 forbids. Where the gate is
+open and the split description carries no measurement of that kind at
+all — the column, counted with every non-blank cell as a value, is not a
+column of that kind — the verdict is MISSED, with no measurement shown.
+
+**This amendment RAISES the obligation and lowers nothing.** Every
+subcheck it moves, it moves from WITHHELD to a verdict; no bar is
+weakened, no published fact stops being checked, and the only new
+withholding it can produce is none. A property test over the shipped
+fixtures and the whole registered red battery asserts the bound the
+first implementation broke: no edit to a measured file can make it stop
+missing everything, and no obligation goes silent unless the same run
+also reports MISSED a check of that column which decides whether the
+file's own description publishes such a measurement at all.
+
+**Which check that is, and why naming only the role was false**
+(amendment V2.4-A2, 2026-08-13, review item P3-V2-B-F5). A2 states the
+last clause of A1; A1 stated it as "the same run also reports that
+column's ROLE MISSED", and the widened red battery of P3-V2-B-F5 found a
+conforming file the narrow form calls a defect. A column whose written
+values reach both ends of what a number can hold is a column of numbers
+and reads back as one, so its role is HELD and its role is RIGHT; and
+the producer publishes about that column that its spread CANNOT be
+held, and publishes no spread. V5.1 then forbids the report to state a
+spread for it, so `moments.std` is withheld while the role stands. The
+run is not silent about the reason: `type.std_unrepresentable` is a
+published fact of its own and MISSES in the same report, which is the
+sentence a reader acts on. **So A2 WIDENS which published fact may
+explain a silence, from one to those that decide whether the
+measurement exists at all, and it lowers no obligation:** no check
+stops being made, no verdict changes, and every silence still stands
+beside a MISSED check of the same column that says why. The narrow form
+could not be made true of a correct validator, and stating it was the
+defect.
+
 ---
 
 ## V3. The entry table: what is checked, at what grain, in three kinds
@@ -193,6 +254,51 @@ unbound, double-bound, or bound to the wrong kind.
 unable to fail, and no listing or input-side entry may be presented as
 a check. Those are the two ways vacuity enters and both are refused by
 name.
+
+**V3.5 The kind of an entry is decided by the DESCRIPTION, and four
+entries are decided that way** (2026-08-13, review items P3-V2-C-F1,
+F2, F3 and F7; the plan's amendment A-P3-2 is the ruling and this
+follows it). V3.4 forbids an executable subcheck that cannot fail, and
+whether one can fail is sometimes a property of the description rather
+than of the subcheck: the same name against a published count of zero
+and against a published count of two hundred and forty is not the same
+obligation, and one of the two can be falsifiable while the other is
+not. So the three-way partition of V3.3 is taken per entry, and an
+entry whose failure set the description empties is a LISTING with one
+sentence saying why nothing in a CSV settles it. Four are decided this
+way, and the plan amendment states each as a lowering:
+
+- `universal.structural_role`, on every column, because the axis states
+  a declaration made when the description was written and the file is
+  re-described under that same declaration (V2.2);
+- `universal.position`, on the FIRST column of a description whose
+  names were generated, because no file that reaches a verdict carries
+  fewer than one column;
+- `numeric.skew`, where the cited G12.3 envelope is that statistic's
+  whole attainable range. This document may not draw a narrower one:
+  every APPROXIMATED bound lives in the generation method and is CITED
+  here, never restated, so a tighter envelope is that document's change
+  to make;
+- `styles.canonical.<form>`, where the published count of the form is
+  not below the description's own row count, so the ceiling licenses
+  every cell a file of that length can carry.
+
+**And the partition is total the other way too**: an entry the
+description leaves falsifiable stays an executable subcheck, and the
+same fact is a check on one column and a listing on another where the
+descriptions of the two columns differ. Which it is may never depend on
+what the measured file turned out to hold.
+
+**V3.6 A check may not be defeated by a compensating edit** (review
+item P3-V2-C-F8). A subcheck whose verdict is a conjunction is only as
+strong as the conjunct an edit can pay off separately, and a conjunct
+that is another subcheck's whole obligation is one such: the headerless
+form of `header.presence` asked for the published names on the first
+line AND a row count above the published one, so writing the header and
+dropping one record left the row count where it was and the check
+reported the opposite of the truth about the bytes it governs. Each
+subcheck answers for the obligation it names, on its own; a fact another
+subcheck already checks is that subcheck's to miss.
 
 ---
 
@@ -326,6 +432,16 @@ executable subcheck, and the structural facts that zero bytes cannot
 evidence — how many columns the schema has, their order, their
 positions — are listing entries for exactly that predicate, with one
 plain sentence in the census.
+**"That predicate" is the ZERO-BYTE one, and the headed form is not
+it** (2026-08-13, review item P3-V2-E-F5): a headed zero-row file
+carries its header line, and that line evidences the column count, the
+names and the order, so each of those is an executable subcheck there.
+Reading this clause across both forms had put all three inside the byte
+check's conjunction, which V3.6 forbids, and left two registry facts
+bound by no entry at all while the census called itself every
+obligation the description sets. The headerless form keeps the listings
+and gains one check: that no header line was written, which a file of
+no bytes evidences exactly.
 
 **V6.5 Exit status.** 0 when validation ran to completion and no
 subcheck MISSED; 3 when it ran to completion and at least one did; 1 on
@@ -343,6 +459,30 @@ handling rule. Every interpolated string passes the display boundary
 once, label variants included. The report's normative byte layout and
 its golden hashes are revision 1's, with the completed entry table; this
 revision fixes the order and the obligations, not the bytes.
+
+**V7.1-A1 The report names the file it is about, before anything else**
+(2026-08-14, review item P3-V2-G; plan amendment A-P3-4). The first
+thing under the title is the NAME of the measured file, as the person
+spelled it on the command line — the last component of the path, never
+a folder and never a whole path. The report says it is a report about
+ONE file, so it says WHICH before a reader reaches that sentence.
+
+The name is the only string in the report that came neither from the
+description nor from this method's own words, and it is safe to be
+there for a reason V5 does not have to reach: it is not a fact about
+the table the file holds, and it was typed by the person reading the
+report. It passes the display boundary exactly as a published label
+does. Nothing about where the file SITS is recorded, so a report says
+the same thing wherever it is kept, and the same check on the same
+bytes writes the same report in every folder (V10).
+
+The output file's own name is derived from the measured file too. One
+profile can be measured against any number of files; a report name
+derived from the profile therefore named one file and described
+another, refused a second candidate for a collision that had nothing to
+do with what was measured, and under `--replace` overwrote the first
+file's report with a report about a different file under the first
+file's name.
 
 **V7.2 The summary is generated from the census alone.** It states how
 many subchecks HELD, how many landed WITHIN their stated windows, how
@@ -434,9 +574,33 @@ the product even when the news is bad.
 ## V10. Determinism
 
 The quality report's bytes are a fixed function of (the profile bytes,
-the measured file's bytes, the synthtwin version) on one platform under
-the locked dependency set — the same scope D12 gives the twin.
+the measured file's NAME, the measured file's bytes, the synthtwin
+version) on one platform under the locked dependency set — the same
+scope D12 gives the twin. The name joined that list with V7.1-A1
+(2026-08-14): the report says which file it is about, so the same bytes
+under a different name give a different report, deliberately.
 Cross-platform agreement is verified empirically by golden report hashes
-on every CI cell, exactly as the twin's are. Validation consumes no
-randomness, and the offline scanner's policy asserts that the validate
-closure cannot reach one.
+on every CI cell, exactly as the twin's are.
+
+**Validation consumes no randomness, and this clause says at what level
+that is enforced** (2026-08-14, review item P3-V2-F-F2; plan amendment
+A-P3-4). It used to say that the offline scanner's policy asserts the
+validate closure cannot reach a random source. That was false, and
+measurably so: a fresh interpreter running only `validate` gains
+`numpy.random`, `numpy.random.mtrand`, `random`, `secrets` and `uuid`,
+because validation must read a CSV, reading a CSV means pandas, and
+pandas imports numpy. What is enforced, at three levels, is:
+
+- no module of the synthtwin package on the validate path imports a
+  random source — the offline scanner's policy over the source tree,
+  plus a static walk of the closure;
+- the validate path never reaches the generation module, where this
+  package's own random number generator lives — asserted in a FRESH
+  INTERPRETER against `sys.modules`, because inside a test process the
+  module cache answers for whatever an earlier test imported;
+- a validate run DRAWS from no random source — every reachable source
+  in the process is trapped and the whole command is run at them.
+
+The third is the property the determinism clause above needs. A random
+source being present in the process is not a defect; drawing from one
+would be.

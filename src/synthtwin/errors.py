@@ -351,6 +351,30 @@ def checked_file_unreadable_as_csv(path: str) -> str:
     )
 
 
+def checked_file_repeats_a_column_name(
+    path: str, first: int, later: int
+) -> str:
+    """Message for a repeated name in a checked file, by position.
+
+    The profiler's form of this QUOTES the repeated name, and on the
+    checking path that name is a string out of a file nobody promised
+    was the reader's (V9). Here the two column numbers stand in its
+    place. `synthtwin validate` settles this case before the reader is
+    called and reports it as a missed obligation instead, so this is the
+    belt the reader wears in case the two ever read a first row
+    differently again -- which is exactly how review item P3-V2-D-F1
+    happened.
+    """
+    return (
+        f"The first row of {path} gives column number {first} and "
+        f"column number {later} the same name. Every column needs its "
+        f"own name, so that the description of one column can never be "
+        f"confused with another's. Rename the repeat and run the "
+        f"command again. synthtwin does not print what it found in the "
+        f"file: this file may not be your own table."
+    )
+
+
 def duplicate_column_names(names: list[str]) -> str:
     """Message for repeated column names in the header row."""
     listed = _listed(names)

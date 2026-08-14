@@ -285,7 +285,9 @@ def test_real_tree_is_clean() -> None:
 def test_non_allowlisted_csv_fails(tmp_path: Path) -> None:
     """Mutation 1: a .csv placed in the tree, absent from the allowlist."""
     write_manifest(tmp_path, [])
-    (tmp_path / "stray.csv").write_text("a,b\n1,2\n", encoding="utf-8")
+    (tmp_path / "stray.csv").write_text(
+        "a,b\n1,2\n", encoding="utf-8", newline="\n"
+    )
 
     result = run_checker(tmp_path)
     assert result.returncode == 1, (

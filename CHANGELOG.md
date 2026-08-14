@@ -10,10 +10,14 @@ exists).
 - **The third command.** `synthtwin validate <description>` reads the
   description and one CSV file -- by default the twin beside it, or
   whatever `--twin` names -- describes that file again with the
-  profiler's own producer, and writes `<stem>-twin-quality.txt`: which
-  of the description's obligations the file meets, which it misses, and
-  which nothing written in a CSV can evidence either way. `--out-dir`
-  and `--replace` work as they do on `generate`.
+  profiler's own producer, and writes a quality report: which of the
+  description's obligations the file meets, which it misses, and which
+  nothing written in a CSV can evidence either way. The report is named
+  after the file it measured (`<measured stem>-quality.txt`, so the
+  ordinary run writes `<stem>-twin-quality.txt`) and names that file in
+  its own first lines, so two candidate files never collide on one
+  report and no report can be read as being about a file it is not.
+  `--out-dir` and `--replace` work as they do on `generate`.
 - **The exit code is the machine channel** (validation method V6.5): 0
   when the check ran and nothing was missed, 3 when it ran and something
   was, 1 when it could not run at all, 2 when the command line could not

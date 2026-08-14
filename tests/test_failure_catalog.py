@@ -51,6 +51,7 @@ CASES: "dict[str, tuple[object, ...]]" = {
         2,
     ),
     "checked_file_unreadable_as_csv": ("/data/checked.csv",),
+    "checked_file_repeats_a_column_name": ("/data/checked.csv", 1, 2),
     "blank_line_in_one_column": ("/data/table.csv", 4),
     # The two messages about the disk take the arguments profile.py
     # actually passes: the caller has LOOKED at each name and hands over
@@ -325,6 +326,7 @@ CHECKED_FILE_FORMS = (
     "checked_file_readers_disagree_about_a_name",
     "checked_file_readers_disagree_about_a_value",
     "checked_file_unreadable_as_csv",
+    "checked_file_repeats_a_column_name",
 )
 
 
@@ -392,3 +394,152 @@ def test_the_checked_file_forms_say_no_more_than_the_position() -> None:
 def test_out_of_memory_message_carries_the_size_in_megabytes() -> None:
     message = errors.out_of_memory("/t.csv", 4_000_000_000)
     assert "3814 MB" in message
+
+
+# ---------------------------------------------------------------------
+# V9: what may be RAISED from a validate run (review item P3-V2-D-F1)
+# ---------------------------------------------------------------------
+
+
+def _carries_no_text(value: object) -> bool:
+    """Whether one argument can hold a string at all, however nested.
+
+    `ragged_rows` is why this is not a flat `isinstance(int)`: it takes
+    a LIST of (row number, value count) pairs, and a list of whole
+    numbers is as incapable of carrying a spelling as a whole number is.
+    """
+    if isinstance(value, bool):
+        return False
+    if isinstance(value, int):
+        return True
+    if isinstance(value, (list, tuple)):
+        for item in value:
+            if not _carries_no_text(item):
+                return False
+        return True
+    return False
+
+
+def _names_positions_only(name: str) -> bool:
+    """Whether this builder's own arguments can carry a measured string.
+
+    THE RULE IS CHECKED AT THE SIGNATURE, which is where it can be kept:
+    a builder whose arguments are a path and whole numbers has nothing
+    out of the file to put in its sentence, whatever anybody writes into
+    it later. The path is the one the person typed on the command line
+    and is theirs already (V9's own reading). Driven from the catalog
+    above, so a builder added to `errors.py` is inside this rule the day
+    it is added and cannot be left out of a list somebody maintains by
+    hand.
+    """
+    given = CASES[name]
+    if not given:
+        return True
+    if not isinstance(given[0], str):
+        return _carries_no_text(given[0]) and all(
+            _carries_no_text(argument) for argument in given[1:]
+        )
+    for argument in given[1:]:
+        if not _carries_no_text(argument):
+            return False
+    return True
+
+
+def test_no_refusal_that_can_quote_the_file_is_reachable_from_measure(
+    tmp_path: pathlib.Path,
+) -> None:
+    """V9: every refusal reachable from validate names positions.
+
+    REVIEW ITEM P3-V2-D-F1, AND THE TEST WHOSE ABSENCE LET IT THROUGH.
+    Round 1 repaired two header faults by settling them before the
+    reader is called, and the test written for that repair checked the
+    SIGNATURES of three builders named by hand. Nothing asked the only
+    question that matters -- which builders a validate run can actually
+    reach -- so two files walked straight past the pre-check into the
+    reader's own repeated-name refusal, which QUOTES the repeated name,
+    and printed a string out of the measured file on the screen.
+
+    So this drives the whole catalog: every builder in it is wrapped,
+    `validation.measure` is run over a battery of hostile files, and
+    every builder that fired has to be one whose own arguments cannot
+    carry a spelling out of the file. The battery is not a proof of
+    absence and does not claim to be; what it is is the question being
+    asked at all, of every builder there is, in the shape that turns red
+    the day one of them starts being reachable.
+    """
+    import fixtures
+    from synthtwin import contract, profile, reading, taxonomy, validation
+
+    table = fixtures.rows_to_csv(
+        ["reading", "region"],
+        [
+            [f"{index + 1}", fixtures.REGIONS[index % 4]]
+            for index in range(40)
+        ],
+    )
+    written = fixtures.write(tmp_path, "table.csv", table)
+    read = reading.read_table(str(written))
+    document = profile.build_document(read, taxonomy.Settings(), [])
+    described = contract.load_profile(
+        str(fixtures.write_profile(tmp_path, "t-profile.json", document))
+    )
+
+    marker = "zzmarkerzz"
+    hostile = {
+        "twin": table,
+        "duplicate-names": f"{marker},{marker}\n1,2\n3,4\n",
+        "blank-first-line": f"\n{marker},{marker}\n1,2\n3,4\n",
+        "quoted-newline-name": f'"{marker}\nx","{marker}\nx"\n1,2\n3,4\n',
+        "blank-name": "\n,x\n1,2\n3,4\n",
+        "header-only": "reading,region\n",
+        "header-and-blank-lines": "reading,region\n\n\n",
+        "one-newline": "\n",
+        "no-bytes": "",
+        "spaces": "   \n",
+        "unclosed-quote": 'reading,region\n1,"unclosed\n',
+        "ragged": "reading,region\n1,north,extra\n2,south\n",
+        "one-column": "reading\n1\n2\n",
+        "extra-column": "reading,region,extra\n1,north,x\n2,south,y\n",
+        "carriage-returns": "reading,region\r\n1,north\r\n",
+        "carriage-only": "reading,region\r1,north\r",
+        "byte-order-mark": "﻿reading,region\n1,north\n",
+        "blank-line-inside": "reading\n1\n\n2\n",
+        "long-field": "reading,region\n" + "1" * 200 + ",north\n",
+    }
+
+    fired: set[str] = set()
+    builders = _builders()
+    for name in sorted(CASES):
+        setattr(errors, name, _recording(builders[name], name, fired))
+    try:
+        for label in sorted(hostile):
+            target = tmp_path / f"{label}.csv"
+            target.write_text(hostile[label], encoding="utf-8", newline="")
+            try:
+                validation.measure(described, str(target))
+            except errors.ProfileError:
+                pass
+    finally:
+        for name in sorted(CASES):
+            setattr(errors, name, builders[name])
+
+    assert fired, (
+        "no refusal fired at all, so this battery proved nothing -- a "
+        "file the reader stops on has to be in it"
+    )
+    quoting = sorted(name for name in fired if not _names_positions_only(name))
+    assert not quoting, (
+        "these refusals are reachable from a validate run and their own "
+        "arguments can carry a spelling out of the measured file, which "
+        f"V9 forbids on a file nobody promised was the reader's: {quoting}"
+    )
+
+
+def _recording(builder, name, fired):
+    """One builder, wrapped so that calling it is recorded."""
+
+    def wrapper(*arguments, **keywords):
+        fired.add(name)
+        return builder(*arguments, **keywords)
+
+    return wrapper

@@ -32,6 +32,7 @@ import os
 import pathlib
 import sys
 import types
+import unicodedata
 
 import pytest
 
@@ -52,14 +53,23 @@ INPUTS = (
 )
 
 
-def _inputs(folder: pathlib.Path) -> "dict[str, pathlib.Path]":
-    """The two files a check reads, written into ``folder``."""
-    description = folder / "clinic-profile.json"
+def _inputs(
+    folder: pathlib.Path, mark: str = ""
+) -> "dict[str, pathlib.Path]":
+    """The two files a check reads, written into ``folder``.
+
+    ``mark`` goes into both stems, and is empty for every alias class
+    but one. The normalization class needs a name that can be SPELLED
+    two ways, which no ASCII name can be; every other class is driven
+    against exactly the names it was driven against before, so adding
+    that class moved none of the cases that were already passing.
+    """
+    description = folder / f"clinic{mark}-profile.json"
     # The line ending is fixed rather than left to the platform: a file
     # named like a description has to be the same bytes everywhere, and
     # `test_description_line_endings.py` holds every test to it.
     description.write_text(DESCRIPTION_TEXT, encoding="utf-8", newline="\n")
-    measured = folder / "clinic-twin.csv"
+    measured = folder / f"clinic{mark}-twin.csv"
     measured.write_text(MEASURED_TEXT, encoding="utf-8", newline="\n")
     return {"description": description, "measured": measured}
 
@@ -135,18 +145,68 @@ def _case_folded(
     return folder / source.name.upper()
 
 
+def _normalized(
+    folder: pathlib.Path, source: pathlib.Path
+) -> "pathlib.Path | None":
+    """The input's own name spelled in the other Unicode normal form.
+
+    THIS IS THE CLASS `is_the_same_file`'S OWN DOCSTRING NAMES as the
+    one it cannot settle (review item P3-V2-F-F4), and until now it was
+    the one class in the plan's matrix nobody had crossed with either
+    input: "two names that do not exist yet and are spelled differently,
+    but that the filesystem treats as one file anyway -- two spellings
+    of the same accented letter, say, on a host that folds them
+    together."
+
+    It is not merely another spelling of the case-fold case, and the
+    difference is the whole reason it is worth a test. Of the three
+    rules `is_the_same_file` applies in order, the first (equal resolved
+    paths) is FALSE here -- `resolve()` does not normalize, so the two
+    spellings resolve to two different strings -- and the case-blind
+    comparison beside it is false too. Only the third, the filesystem's
+    own `samefile`, catches this pair, and it is reachable only because
+    both names happen to lead to something that exists. A future
+    reordering of those rules could drop this class in silence.
+
+    A host that keeps the two spellings apart -- most Linux
+    filesystems -- cannot build the alias, and says so by returning
+    None rather than passing quietly.
+    """
+    other = unicodedata.normalize("NFD", source.name)
+    if other == source.name:
+        other = unicodedata.normalize("NFC", source.name)
+    if other == source.name:
+        return None
+    candidate = folder / other
+    try:
+        if not candidate.exists():
+            return None
+    except OSError:
+        return None
+    return candidate
+
+
+# Each class, and the mark its input names need. Only the normalization
+# class needs one; see `_inputs`.
 ALIAS_CLASSES = (
-    ("lexical", _lexical),
-    ("resolved", _resolved),
-    ("link", _link),
-    ("hardlink", _hardlink),
-    ("case-fold", _case_folded),
+    ("lexical", _lexical, ""),
+    ("resolved", _resolved, ""),
+    ("link", _link, ""),
+    ("hardlink", _hardlink, ""),
+    ("case-fold", _case_folded, ""),
+    # LATIN SMALL LETTER E WITH ACUTE, written here in its composed
+    # form; the alias is the same letter written as a plain `e` and a
+    # combining accent, which is a different string and, on a folding
+    # filesystem, the same file.
+    ("normalization", _normalized, "é"),
 )
 
 
 @pytest.mark.parametrize("which,noun", INPUTS, ids=[name for name, _n in INPUTS])
 @pytest.mark.parametrize(
-    "alias,build", ALIAS_CLASSES, ids=[name for name, _b in ALIAS_CLASSES]
+    "alias,build,mark",
+    ALIAS_CLASSES,
+    ids=[name for name, _b, _m in ALIAS_CLASSES],
 )
 def test_the_report_may_not_land_on_either_input_by_any_alias(
     tmp_path: pathlib.Path,
@@ -154,6 +214,7 @@ def test_the_report_may_not_land_on_either_input_by_any_alias(
     noun: str,
     alias: str,
     build: "object",
+    mark: str,
 ) -> None:
     """Each input crossed with each alias class, as plan P3-D1 requires.
 
@@ -169,7 +230,7 @@ def test_the_report_may_not_land_on_either_input_by_any_alias(
     """
     folder = tmp_path / f"{which}-{alias}"
     folder.mkdir()
-    places = _inputs(folder)
+    places = _inputs(folder, mark)
     source = places[which]
     before = source.read_bytes()
     target = build(folder, source)  # type: ignore[operator]
@@ -189,6 +250,49 @@ def test_the_report_may_not_land_on_either_input_by_any_alias(
     )
     assert source.read_bytes() == before
     assert REPORT_TEXT not in source.read_text(encoding="utf-8")
+
+
+def test_the_normalization_alias_is_caught_by_the_rule_that_must_catch_it(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Which of the three rules answers, rather than only that one does.
+
+    The matrix case above passes for the normalization class today, and
+    it would go on passing if a future `is_the_same_file` caught the
+    pair by accident, or stopped catching it while some other guard
+    happened to refuse the run. What the class exists to protect is
+    stated in that function's own docstring: the first two rules CANNOT
+    settle this pair, and only the filesystem's own identity can. So
+    that is what is asserted -- the two spellings resolve to different
+    strings, they are still different after the case-blind comparison,
+    and the answer is nevertheless True.
+
+    On a host that keeps the two spellings apart there is no pair to
+    ask about, and the test says so by name.
+    """
+    folder = tmp_path / "normalization-rules"
+    folder.mkdir()
+    places = _inputs(folder, "é")
+    source = places["measured"]
+    other = folder / unicodedata.normalize("NFD", source.name)
+    assert other != source, "the two spellings are the same string"
+    if not other.exists():
+        pytest.skip("this host keeps the two spellings apart")
+
+    from synthtwin import parsing
+
+    assert source.resolve() != other.resolve(), (
+        "the resolved paths are equal, so rule 1 now settles this pair "
+        "and the class no longer covers what it was added to cover"
+    )
+    assert parsing.folded(f"{source.resolve()}") != parsing.folded(
+        f"{other.resolve()}"
+    ), "the case-blind comparison now settles this pair, same reason"
+    assert writing.is_the_same_file(other, source) is True, (
+        "two spellings of one name that this filesystem treats as one "
+        "file are not being recognized as one file, so a quality report "
+        "written under the second spelling would land on an input"
+    )
 
 
 def test_the_refusal_names_the_input_and_not_merely_the_special_entry(

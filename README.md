@@ -143,7 +143,9 @@ beside it, or whatever `--twin` names -- and writes one more file:
 - `my-table-twin-quality.txt` - the quality report, which lists every
   obligation the description sets, the outcome of each, and every
   obligation no CSV can evidence either way, with the reason. It is
-  also printed on the screen.
+  also printed on the screen. Its name comes from the file it measured
+  and its first lines say which file that was, so checking a second
+  candidate writes a second report rather than overwriting the first.
 
 The exit code carries the same answer for a script: `0` when nothing was
 missed, `3` when something was, `1` when the check could not run at all,
@@ -335,10 +337,16 @@ table, and a `generate` run never reaches it at any instant, from the
 moment the command starts. `validate` does reach it, and must: measuring
 a file means describing that file with the profiler's own producer. What
 `validate` never reaches is the generator, so its verdicts cannot
-inherit the planner's own defects, and no random source is in its
-closure at all. The boundary this architecture keeps is that GENERATION
-reads a description and nothing else -- not that only one command opens
-a file.
+inherit the planner's own defects and synthtwin's own random number
+generator is out of its reach. That is not the same as saying no random
+source is in the process, and it would be dishonest to write it that
+way: `validate` reads a file, reading a file means pandas, and pandas
+imports numpy, which loads `numpy.random`. What is enforced is that no
+module of synthtwin on that path imports a random source and that the
+run draws from none -- a trap over every source in the process, with the
+whole command run at it. The boundary this architecture keeps is that
+GENERATION reads a description and nothing else -- not that only one
+command opens a file.
 
 **Dependencies are governed [built].** synthtwin has exactly two direct
 runtime dependencies. pandas is justified in writing in

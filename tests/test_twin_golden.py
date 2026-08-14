@@ -462,8 +462,125 @@ def test_the_report_names_the_seed_the_twin_was_built_at(
 # * it moved on one platform, one interpreter version or one library
 #   version only -- that is not a legitimate change at all. It is a
 #   determinism defect and is release-blocking (plan D12, V10).
+#
+# IT MOVED ONCE, AND THE CENSUS GOT SMALLER, so the second case above is
+# answered here rather than left to whoever reads the diff (review item
+# P3-V2-B-F10). The description and twin digests held. Six lines left
+# the report and nothing else changed, byte for byte:
+#
+#   styles.at-least.decimal [numeric.numeric_styles]: HELD
+#       the description asks for: 0
+#
+# -- two of them on each of the three numeric columns. Contract 7.5.7
+# makes a published style count a FLOOR, so "the file writes at least
+# none of this form" is met by every file there is; the line was
+# emitted whatever the description published, counted into HELD, and no
+# file on earth could have made it miss. That is not an obligation the
+# census stopped covering. It is a comparison against nothing that the
+# census had been counting as an obligation, and V3.4 refuses an
+# executable subcheck that cannot fail by name. The summary's own
+# sentence -- these numbers are every obligation this description sets
+# that a file can be measured against -- is truer at 309 than it was at
+# 315. Every form the description says anything at all about is still
+# governed: its published key carries `styles.published.<form>`, and
+# both canonical forms carry `styles.canonical.<form>`.
+#
+# IT MOVED A SECOND TIME, and this one is worth reading line by line
+# because twelve obligations changed BUCKET and three arrived (review
+# items P3-V2-C-F1, F2, F3; plan amendment A-P3-2). The description and
+# twin digests held again. Checked obligations went 309 -> 300 and
+# not-checkable 65 -> 77, so the census as a whole went 374 -> 377:
+#
+# * ten `axes.structural_role` lines, one per column, left the checked
+#   side and appear in the NOT-CHECKABLE census. The axis says whether
+#   the person declared the column with `--identifier`; the validator
+#   re-describes the file under that same declaration, so both sides
+#   read the same word whatever the file holds. Every one of the ten was
+#   HELD on every run and no file could move any of them;
+# * one `moments.skew` line, on `visits`, for the same reason at a
+#   different bound: G12.3's own finite fallback there is the range
+#   every column of 229 values lies in whatever they are, so the window
+#   admitted every file. `amount` keeps its skew check, which is what
+#   says this narrows one description and not the fact;
+# * one `styles.canonical.decimal` line, on `amount`, whose ceiling is
+#   the published count -- 240 cells of a 240-row column, so every cell
+#   the file can carry was already licensed;
+# * and THREE NEW CHECKS arrive, one per numeric column:
+#   `styles.spelled`, which asks the question none of the style
+#   arithmetic did -- whether each cell's text is a spelling of its own
+#   value that method G6.1's six styles can write. The file the review
+#   built to show this, 240 decimal cells each given a trailing zero,
+#   validated with exit 0 before it existed.
+#
+# So the checked census got smaller and every obligation that left it is
+# named in the census beside it, with one sentence saying why nothing in
+# a CSV settles it. The summary's own claim -- these numbers are every
+# obligation this description sets that a file can be measured against
+# -- is true of 300 and was false of the twelve it used to count.
+#
+# RE-RECORDED AGAIN (2026-08-13, review item P3-V2-E-F6). The
+# description and twin digests held; the census did not move at all --
+# 300 checked, 77 not-checkable, the same verdicts on the same
+# obligations. What moved is one word and one paragraph, both about
+# WITHHELD, and both were false sentences.
+#
+# * the census line read "WITHHELD -- measured, and not shown". That
+#   was true of one class of withholding and false of the others, and
+#   the class it was true of no longer exists: the presence-split
+#   withholds it was written for became measurements under amendment
+#   V2.4-A1. Where the gate closes because the file's own description
+#   carries no fact of that kind, nothing was measured at all;
+# * the closing paragraph said a withheld line is one where a
+#   measurement "would have said more about the file than describing
+#   that file on its own would publish". That is the RULE, and it is
+#   right, but it left a reader to guess how it can happen. Both ways
+#   are now written out, including the one this round added: a count
+#   fewer cells carry than the publication floor is one no description
+#   of the file names, so the comparison was made and which way it came
+#   out is what cannot be shown.
+#
+# Both sentences are read by a person deciding what a report means, and
+# both were the report describing itself wrongly.
+#
+# RE-RECORDED AGAIN (2026-08-14, review item P3-V2-G; plan amendment
+# A-P3-4). The description and twin digests held; the census did not
+# move -- 300 checked, 77 not-checkable, the same verdicts on the same
+# obligations. What moved is the report's OPENING, and the reason is
+# that the report never said which file it was about.
+#
+# The output name came from the DESCRIPTION's stem, so
+# `validate clinic-profile.json --twin tampered.csv` wrote
+# `clinic-twin-quality.txt` -- a report named after the twin, left
+# beside the twin, about a different file -- and its bytes held the
+# word `tampered` zero times and no path of any kind. Its own third
+# paragraph said "It is a report about ONE file" and never said which.
+# That is the one fact about a run a reader cannot recover from
+# anywhere else once the shell scrollback is gone.
+#
+# So the outcome now carries the measured file's NAME, the report
+# prints it above everything else, and the output name is derived from
+# the measured file instead of the description. This digest moved
+# because the report gained the line "THE FILE MEASURED: twin.csv" and
+# the sentences around it, and because "HOW TO KEEP THIS FILE" now says
+# that the report carries that name wherever it goes -- somebody who
+# named their file after their study is emailing that name with the
+# report. The whole of the rest of the file is byte for byte what it
+# was: same census, same verdicts, same obligations, same order.
+#
+# THE GOLDEN'S OWN INPUT MOVED WITH IT, and that is worth reading
+# twice: the report's bytes are now a function of the measured file's
+# NAME as well as its bytes (V10, amended). This test measures a file
+# it writes as `twin.csv`, so renaming that fixture moves this digest
+# for a reason that is not a defect. The name is in the fixture, one
+# line above the measurement, so a reader who sees this digest move can
+# check that first.
+#
+# The ordinary run's output name did NOT move: the default measured
+# file is `<stem>-twin.csv`, so its report is still
+# `<stem>-twin-quality.txt` and the command a finished `generate` run
+# teaches still writes exactly the file it always wrote.
 GOLDEN_QUALITY_SHA256 = (
-    "d6a5583498cb28720e0aa99d35a1a3733d0f0a249bdf669bdd0d03cb3b30ccad"
+    "95fe101ec70932f06a743ee6abddd47bafb0fbf0bd50fbf40b68c372b49d4dbe"
 )
 
 
@@ -484,9 +601,21 @@ def test_golden_hash_of_the_quality_report_for_the_demonstration_twin(
     The twin is written to a file and measured through `validation`'s
     own entry point, so what is pinned is the whole path a person takes:
     describe, build, check.
+
+    THE FILE'S BYTES ARE DECIDED BY THE FIXTURE, not by the platform
+    (review item P3-V2-F-F1). `write_text` with no ``newline`` argument
+    runs in text mode, which on Windows turns every line feed the
+    renderer emitted into a carriage return and a line feed -- so this
+    test measured a CRLF twin on `windows-latest` and a LF twin
+    everywhere else, and the byte rule `bytes.line-endings` MISSED on
+    the one platform nobody runs locally. The product was never wrong:
+    `writing.write_text_file` pins the line ending, so a real
+    generate-then-validate holds that rule on Windows too. `fixtures.write`
+    pins it the same way, and `tests/test_description_line_endings.py`
+    now refuses any test that writes a file the product reads without
+    deciding its own bytes.
     """
-    target = tmp_path / "twin.csv"
-    target.write_text(rendering.twin_csv(built), encoding="utf-8")
+    target = fixtures.write(tmp_path, "twin.csv", rendering.twin_csv(built))
     outcome = validation.measure(loaded, str(target))
     written = parsing.visible_lines(quality.quality_report(loaded, outcome))
     digest = _digest(written)
@@ -514,9 +643,21 @@ def test_the_quality_report_of_the_golden_twin_misses_nothing(
     started missing half the description's obligations, so the property
     that makes it the RIGHT digest is asserted separately: the twin of
     this description, measured against it, misses nothing.
+
+    The measured file comes from `fixtures.write` for the reason the
+    test above gives at length: a `write_text` that leaves the line
+    ending to the platform made this assertion fail on Windows alone.
+    The bytes that reach `measure` are asserted here rather than
+    assumed, because a fixture that stopped pinning them would put the
+    same platform-only failure back and nothing else in this file would
+    notice.
     """
-    target = tmp_path / "twin.csv"
-    target.write_text(rendering.twin_csv(built), encoding="utf-8")
+    target = fixtures.write(tmp_path, "twin.csv", rendering.twin_csv(built))
+    assert b"\r" not in target.read_bytes(), (
+        "the file this golden measures was written with the platform's "
+        "own line ending, so what is measured here is not the twin the "
+        "product writes -- see `fixtures.write` and plan D12"
+    )
     outcome = validation.measure(loaded, str(target))
     assert outcome.census.missed == 0
     assert outcome.census.withheld == 0

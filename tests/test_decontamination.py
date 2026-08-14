@@ -129,7 +129,9 @@ def test_canary_shell_line_fails(tree: Path, tmp_path: Path) -> None:
 
 def test_canary_csv_cell_fails(tree: Path, tmp_path: Path) -> None:
     # written at runtime into tmp only; data files never enter the repo
-    (tree / "table.csv").write_text(f"col_a,col_b\n1,{CANARY}\n")
+    (tree / "table.csv").write_text(
+        f"col_a,col_b\n1,{CANARY}\n", newline="\n"
+    )
     assert run_check(tree, make_manifest(tmp_path, [CANARY])) == 1
 
 

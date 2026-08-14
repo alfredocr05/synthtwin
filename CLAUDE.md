@@ -160,9 +160,14 @@ though it existed:
   validator reads the one file it was asked to check, because measuring
   a file means describing it with the profiler's own producer. The
   validator in turn never imports the generator, so its verdicts cannot
-  inherit the planner's own defects and no random source is in its
-  closure. No debugging convenience, test helper, or one-time exception
-  crosses any of those lines, ever.
+  inherit the planner's own defects and synthtwin's own random number
+  generator is out of its reach. It does NOT follow that no random
+  source is in the process, and this brief said otherwise for a while
+  and was wrong: the validator reads a file, so it loads pandas, so it
+  loads `numpy.random`. What is enforced is that no synthtwin module on
+  the validate path imports a random source and that a validate run
+  draws from none (plan amendment A-P3-4). No debugging convenience,
+  test helper, or one-time exception crosses any of those lines, ever.
 - **Determinism.** One RNG, created once from the user's seed, threaded
   explicitly through every consumer. No module-level randomness; sorted
   iteration wherever randomness is consumed; output column order a
