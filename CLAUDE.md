@@ -141,10 +141,15 @@ though it existed:
   every public surface.
 - synthtwin is not a formal privacy mechanism, claims no
   differential-privacy property, and offers no formal privacy guarantee.
-  All four artifacts a full run produces - the profile, the twin, the
-  twin's report and the quality report - carry facts computed from real
-  data, so the institution's rules for real-derived material apply to
-  all four, never to the profile alone.
+  All five files a full run leaves behind - the profile, the
+  plain-language summary beside it, the twin, the twin's report and the
+  quality report - carry facts computed from real data, so the
+  institution's rules for real-derived material apply to all five, never
+  to the profile alone. The summary is counted in as a file of its own
+  (plan amendment A-P3-8) because that is how a person meets it: it is
+  printed on the screen and written beside the profile, it repeats the
+  real labels the profile publishes, and a rule that named four files
+  told a reader by omission that the fifth was free to travel.
 - The offline guarantee is a property of the code, verified by source
   audit and scans - it is not an OS-level sandbox. Institutions that
   require enforcement run the tool inside their own network-isolated

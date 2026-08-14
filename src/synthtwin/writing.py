@@ -11,7 +11,8 @@ neither the reader nor the taxonomy, and `profile.py` re-exports what it
 always exported.
 
 THE WORDS ARE NOW AN ARGUMENT TOO (plan P2-D10). The machinery is one
-piece of code for both commands, but the files are not the same files:
+piece of code for every command that writes, but the files are not the
+same files:
 `profile` writes a profile and a summary from a table, `generate` writes
 a twin and a report from a profile. A refusal that named the profiler's
 files whatever was running would have told somebody in a stopped
@@ -537,7 +538,7 @@ def _claim_working_name(
 
     ``words`` names this command's own files in the refusals composed
     here. `working_name_unavailable` needs none of them -- a working file
-    is synthtwin's own and is called that in both commands -- so only the
+    is synthtwin's own and is called that in every command -- so only the
     two "could not be written" refusals carry it.
     """
     place = pathlib.Path(target)

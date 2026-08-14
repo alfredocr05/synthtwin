@@ -249,7 +249,7 @@ the decision, its cost stated plainly, and what it buys.
   `--out-dir`, and `--replace`. Output: `<measured stem>-quality.txt`
   — the name derived from the file MEASURED, in the folder the
   description is in or the one `--out-dir` names — collision-free with
-  all four existing artifacts by construction. **This sentence read
+  every other file a run writes by construction. **This sentence read
   `<stem>-twin-quality.txt`, derived from the profile, until amendment
   A-P3-4** (2026-08-14, review item P3-V2-G); the ordinary run's file
   name is unchanged by the move, because the default measured file is
@@ -597,23 +597,29 @@ E-F4, E-F5 and E-F6).
    files a reader would want told apart are two files the producer
    describes identically.
 
-   **And one half of the same class is left OPEN, with the reason.**
-   Where the form IS named the canonical ceiling is still shown, and it
-   still tells apart two files the producer describes byte for byte
-   alike: forty whole numbers beside twenty halves written `1.5`,
-   against the same twenty written `01.5` — the same form, the same
-   values, one description — give it HELD on the first and MISSED on
-   the second, measured. It is not closed here because closing it
-   removes the subcheck. The odd cells of a form are a subset of that
-   form's cells, so their count is at most the form's count, which is
-   the most the file's own description settles; settling the clause
-   from that description alone therefore gives HELD wherever the form's
-   count is within the licence and nothing wherever it is not, and the
-   subcheck could never report MISSED on any file at all. V3.4 and the
-   charter call that a defect and V3.5 makes such an entry a LISTING —
-   which reverses this plan's own P3-D8.1 ceiling and takes review item
-   P3-V1-F7's repair with it. That is an owner's decision, recorded
-   here as open rather than taken quietly in either direction.
+   **And one half of the same class was left OPEN here. IT IS CLOSED BY
+   AMENDMENT A-P3-5 CLAUSE 3, in the direction that keeps the
+   subcheck.** Where the form IS named the canonical ceiling is still
+   shown, and it still tells apart two files the producer describes byte
+   for byte alike: forty whole numbers beside twenty halves written
+   `1.5`, against the same twenty written `01.5` — the same form, the
+   same values, one description — give it HELD on the first and MISSED
+   on the second, measured. It was left open because closing it removes
+   the subcheck. The odd cells of a form are a subset of that form's
+   cells, so their count is at most the form's count, which is the most
+   the file's own description settles; settling the clause from that
+   description alone therefore gives HELD wherever the form's count is
+   within the licence and nothing wherever it is not, and the subcheck
+   could never report MISSED on any file at all. V3.4 and the charter
+   call that a defect and V3.5 makes such an entry a LISTING — which
+   reverses this plan's own P3-D8.1 ceiling and takes review item
+   P3-V1-F7's repair with it. A-P3-5 clause 3 rules that canonicality is
+   a fact about the file's own form rather than about the table it
+   holds, on the test that the producer publishes it about no file at
+   any count, and states the bound on what escapes. Nothing in that
+   ruling reaches the numbers this clause governs: which of the six
+   written forms a cell wears is published and floored, and every one of
+   those counts is settled here exactly as before.
 
 2. **The header question is settled on the first RECORD, and the
    reader's own name check takes the position-naming forms. THIS
@@ -884,7 +890,9 @@ exact-shape tested.
 - **The fourth artifact.** The quality report states measured facts
   about the measured file, so it is real-derived material exactly as
   the profile, the twin and the generation report are. The handling
-  sentence extends everywhere from three artifacts to four, with the
+  sentence extends everywhere from three artifacts to every file a full
+  run leaves behind — FIVE, per amendment A-P3-8 clause 2, the
+  profiler's plain-language summary among them — with the
   claim-inventory pinned strings updated in the same commit (P3-D7),
   and the report carries the handling rule itself, as the generation
   report does.
@@ -1122,6 +1130,558 @@ F-F2, F-F3 and F-F4).
    are different after the case-blind comparison, and only the
    filesystem's own identity settles them.
 
+**Amendment A-P3-5 — the blank split is reported only where describing
+the file publishes it, and canonical SPELLING is ruled outside V5.1's
+envelope. One clause LOWERS a residual's bound, one RAISES, and one is
+a ruling that changes no obligation. THIS DEFINES WHAT THE
+CONFIDENTIALITY GUARANTEE MEANS AND THE OWNER MAY WANT IT THE OTHER
+WAY; clause 4 says exactly what reversing it costs** (2026-08-14,
+review items P3-V3-F1 and P3-V3-F2).
+
+**The conflict, stated before the ruling, because it is a real one.**
+V2.4 counts presence by BLANKNESS, so that a file cannot buy silence
+with marker cells; amendment V2.4-A1 made every presence-dependent
+measurement take its number from a second description built that way,
+after round 2 found that withholding instead let a file carrying almost
+none of its published facts exit 0. V5.1 says the report may state
+about the measured file only what describing THAT FILE would publish.
+The producer counts presence by its own absence rules, and the two
+readings differ exactly on the cells that are non-blank and read as
+holes. **So every verdict taken over the blank split is a statement the
+file's own description makes only when that description says how its
+missing cells were spelled — and that is a FLOORED fact.**
+`missing_by_source` names an exact spelling only where at least
+`small_cell_floor` cells share it and pools the rest into one unnamed
+total, because a count of two cells sharing a rare spelling is a count
+the floor exists to hide. Measured here, on the shipped code, and
+measured again after the repair: two sixty-row files, fifty-nine
+`north` and one hole, one hole written empty and the other written
+`n/a`, whose full descriptions `synthtwin profile` writes BYTE FOR BYTE
+ALIKE — **48 HELD, 0 MISSED and exit 0 against 40 HELD, 8 MISSED and
+exit 3**, the eight being both presence counts, `n_not_numeric`, both
+distinctness counts and all three suppression counts.
+
+1. **A presence-dependent verdict is taken over the blank split where
+   the file's own description names the source of every missing cell,
+   and off that description itself where it pools any of them. THIS
+   LOWERS residual R-P2-13's bound, and lowers nothing else.** Where
+   every source is named, a reader of that description knows the exact
+   multiset of spellings the holes wear, so every measurement the split
+   takes is derivable from what profiling the file publishes and
+   reporting it states nothing new — which is the ordinary case, and
+   covers every column of the every-role fixture: no missing cells at
+   all, or blanks that reach the floor and are named `(blank)`. Where
+   the description pools, the file's own description supplies the
+   verdict. That is inside the envelope by construction, because it IS
+   the description.
+
+   **It is deliberately NOT a withholding, and that is the whole of the
+   design.** A silence is something any file could buy by writing one
+   marker cell, and that is verbatim the defect amendment V2.4-A1
+   exists to close; a validator that answered this conflict by
+   withholding would have traded a confidentiality defect for the
+   vacuity V3.4 refuses and handed back A1's repair. Every obligation
+   still lands on a verdict, taken from one description or the other.
+   **Zero new withholdings are produced on any file**, and the green
+   battery's zero-WITHHELD property is untouched.
+
+   **The two presence COUNTS ask a weaker question than the rest, and
+   asking one question for both would have thrown teeth away.** They
+   need only how MANY holes are non-blank; distinctness and the rest
+   need what those holes SPELL. `missing_by_class` counts holes under
+   synthtwin's own five words, which carry nothing from the table, so it
+   is published for every role — including the three that publish no
+   value of the table at all, whose `missing_by_source` is empty by
+   policy. So where its pooled remainder is empty the two counts are
+   settled over the split even on a free-text or declared-identifier
+   column, and round 2's own witness is still caught there: thirty holes
+   spelled one way clear the floor, the class map names them
+   `(text-code): 30`, and `presence.n_present` misses again. A single
+   gate keyed on the source map alone would have passed that file.
+
+   **What it costs, stated rather than left to be found.** Below the
+   floor the report can no longer tell a hole written empty from a hole
+   written `n/a`, and it must not: those are two files the producer
+   describes identically. The bite is on residual R-P2-13, whose Phase 3
+   bound reads "verdicts are blankness-based and immune". That bound is
+   now narrower: in a column whose own description pools its missing
+   sources, a conforming twin holding a generated value that reads back
+   as a hole — a numeric sentinel at the edge of its own range — is
+   measured as the producer measures it, so the collision can cost a
+   MISSED verdict where it previously cost only report detail. The
+   residual's text is corrected to say so. The trade is deliberate and
+   arguably favours the reader: a twin that holds a value every profiler
+   reads as "no value" is a twin whose own description differs from the
+   one it was built from, which is a fidelity fault worth a line in a
+   report rather than one worth absorbing in silence.
+
+2. **The style clauses read the cells that description reads, on the
+   same branch. THIS RAISES, and it is the half of the class the review
+   item did not name.** The style clauses recount the WRITTEN cells and
+   settle each recount against the room the file's own description
+   leaves — room `_unread_cells` widens by exactly the disputed cells.
+   So the leak had a second half, measured on the shipped code with the
+   same shape of witness: fifty-nine numbers and one empty cell beside
+   fifty-nine numbers and one `n/a`, one description between them,
+   **seven style subchecks changing verdict** and the census going from
+   19 MISSED to 17 MISSED plus 7 WITHHELD. Repairing only the presence
+   counts the review named would have left it open. Where the split is
+   not published the gated side now sees the cells with every disputed
+   spelling removed, which is the same cell list for every file that
+   description cannot tell apart.
+
+3. **Whether a number's TEXT is a spelling its own value licenses is
+   outside V5.1's envelope: a ruling, and it changes no obligation. It
+   closes the residual A-P3-3 clause 1 left open, in the direction that
+   keeps the subcheck.** `styles.spelled` and `styles.canonical.<form>`
+   compare a cell's text against texts computed from the VALUE that text
+   reads back as. Two files differing only there — sixty canonical
+   decimals against the same sixty values carrying a trailing zero — are
+   described byte for byte alike and get HELD and MISSED, measured. The
+   question A-P3-3 clause 6 asks of any such fact is whether it is a
+   fact about the TABLE a file holds or about the file, and the test
+   that settles it is the destination: **the profiler publishes
+   canonicality about NO file at ANY count.** Its own form ladder
+   discards it by design — `1.5` and `01.5` are both `decimal`, by a
+   first-match-wins order the contract fixes, and `numeric_style`'s
+   docstring says no spelling and no magnitude travels out through it.
+   So there is no floor to appeal to and no window to draw: withholding
+   these two would withhold them on every file forever, which is the
+   vacuity V3.4 refuses by name and which V3.5 would then turn into a
+   LISTING whose census sentence — that no written CSV can evidence
+   this — the twin falsifies every time it is generated.
+
+   **This is a weaker ruling than A-P3-3 clause 6's and is recorded as
+   weaker.** A line ending is one fact for a whole file and carries
+   nothing per record; a spelling is per cell and CAN carry a person's
+   own data, since `1.50` beside `1.5` records the precision a
+   measurement was taken at. What makes it rulable anyway is the size
+   and shape of what escapes, which is bounded here rather than
+   asserted: neither subcheck prints a measured count, `styles.spelled`
+   takes NO number from the submitted description at all — its only
+   profile input is the boolean `integer_valued` — so no sequence of
+   candidate descriptions can binary-search anything through it, which
+   is the attack V5.3 names. What a report can carry is one bit per
+   column: this column is not written in the twin's own spelling
+   discipline.
+
+   **The FORM counts stay gated exactly as A-P3-3 clause 1 left them**,
+   and nothing here relaxes them: which of the six forms a cell wears IS
+   published and IS floored, `styles.canonical.<form>` MISSING on a
+   pooled form would put a lower bound on that form's count, and its
+   pooled-form window is what stops it. The ruling reaches only the
+   residual where the form is NAMED, where the count is published
+   exactly and only canonicality is left to leak.
+
+4. **How to reverse this, since it defines what the guarantee means.**
+   Clause 1 reverses by taking the split's verdict unconditionally —
+   restoring `_governed`'s pre-amendment form — which restores
+   R-P2-13's old bound and reopens P3-V3-F1 exactly as measured above;
+   or by WITHHOLDING where the split is not published, which is
+   V5-honest too and was measured rather than reasoned about. Both
+   alternatives were reinstated in memory against the shipped suite.
+   **The withholding one satisfies the equivalence battery and then
+   costs three things this one does not:** the witness file's census
+   becomes 46 HELD, 12 WITHIN, **18 WITHHELD**, 0 MISSED where this
+   resolution withholds nothing; V2.4-A1's own battery goes red at
+   `test_one_marker_cell_leaves_every_miss_standing` and
+   `test_silence_is_never_free_and_never_the_validator_s_own_difficulty`,
+   which is A1's repair handed back; and the green direction goes red at
+   `test_a_twin_of_its_own_description_misses_nothing`, because a
+   conforming twin whose missing cells do not reach the floor in any one
+   class loses its presence-dependent verdicts. Choosing it is a
+   lowering of this plan's own non-vacuity floor and of acceptance
+   criterion 3. Clause 3 reverses by
+   making both subchecks LISTING entries under V3.5, which is what
+   A-P3-3 clause 1 said the alternative was: it reverses this plan's
+   P3-D8.1 canonical ceiling and takes review item P3-V1-F7's repair
+   with it, so a twin holding `2.50` where its value's canonical text is
+   `2.5` passes every style check again. Either reversal is recorded
+   here in the same form as this one.
+
+**Amendment A-P3-6 — three checks that gave the WRONG ANSWER, and the
+one thing they had in common. Two clauses RAISE an obligation, one
+moves a conjunct back to the subcheck that owns it and changes no
+file's outcome, and none LOWERS anything** (2026-08-14, review items
+P3-V3-F4, P3-V3-F5 and P3-V3-F6).
+
+**What they had in common, stated first, because it is the reason they
+are one amendment.** A validator answers two different questions and
+each of these three confused them: what the DESCRIPTION says a file
+owes, and what THIS CODE happens to be able to read. Where the second
+was mistaken for the first, an obligation went quiet, a conforming
+generated file was called wrong, and a whole report was written about a
+file nobody had read. The repairs are all of the same shape: the
+validator's own reading is made total over what the METHOD defines, and
+where it cannot read a file at all it says so instead of reporting.
+
+1. **A column of quarters is measured, not silenced. THIS RAISES.**
+   Method G7.1 fixes one ordinal unit per resolution — one second for a
+   date and time, one day for a date, ONE QUARTER for a quarter — and
+   G12.4 and G12.5 draw their windows in that space, saying in as many
+   words that a quarter cell carries its own unit exactly. The shipped
+   validator read every instant through the profiler's
+   `parsing.instant_key`, which returns nothing for a quarter by design,
+   and turned that into WITHHELD. Measured here, with the shipped
+   behaviour put back in memory: a description publishing twelve
+   distinct quarters from `2018-Q1` to `2024-Q4`, against a twelve-row
+   file holding five `2018-Q1`, two `2021-Q3` and five `2024-Q4`, gives
+   **31 HELD, 11 WITHHELD, 0 MISSED and exit 0** with the pass
+   conclusion printed. (The review reported the same file as 22 HELD,
+   11 WITHHELD, 0 MISSED; the held count differs with how the twelve
+   published quarters are chosen and the eleven silences do not.) Those
+   eleven were both distinctness counts and all nine rungs between the
+   ends, and the file was wrong about every one of them. The same run
+   now gives 31 HELD, 2 WITHIN-BOUND, 0 WITHHELD, **9 MISSED** and exit
+   3, with both ends still HELD — so the nine and the two did the
+   catching on their own terms.
+
+   **What it costs: nothing any file was owed, and one branch of the
+   validator is gone.** No obligation is added; eleven per quarter
+   column move from a silence to a verdict. The branch that produced
+   the silence is removed rather than narrowed, so no resolution can
+   reach it again: the ordinal space is total, and a published instant
+   that names no point in its own resolution's space is an internal
+   contradiction the code raises on rather than withholds. The non-
+   vacuity fixtures gain a QUARTER predicate — the finding notes there
+   was none, which is why nothing saw this — and two registered red
+   cases whose whole point is that the ends hold while the interior
+   misses.
+
+2. **The degenerate zero-row form is checked against the bytes the
+   METHOD writes, and against nothing else. THIS RAISES for the
+   spelling; it moves the line-ending conjunct to the byte rule that
+   owns it; and it stops a conforming file being called wrong.** Owner
+   decision 7 above makes the expected BYTE FORM the executable check.
+   The shipped check asked instead for one physical line ending in a
+   line feed, which is neither exact nor record-aware:
+
+   - for a one-column zero-row description named `reading` the renderer
+     writes `reading\n`, and the file `"reading"\n` passed every check
+     the run filed — quoting was nobody's obligation, because reading
+     the names back is `header.names`' question and it is answered from
+     the parsed record;
+   - a published name holding a line feed is written `"alpha\nbeta"\n`,
+     which is ONE record over two physical lines, and the conforming
+     file the shipped renderer writes was reported MISSED.
+
+   The subcheck now answers for what no other one does: **the file holds
+   exactly one record, that record is written the way method G2 writes
+   it, and nothing follows it.** Which names they are stays
+   `universal.name`'s, the count stays `document.n_columns`', the order
+   stays `document.columns`', and the line ending and the terminal
+   newline stay the two byte rules' — so the terminator is taken off
+   before the comparison rather than being a fourth thing this check
+   accuses a file of. That last part is the only movement in the
+   lowering direction and it lowers no obligation: a file with no final
+   newline still MISSES, at `bytes.terminal-newline`, which is V3.6's
+   own rule that a fact another subcheck checks is that subcheck's to
+   miss. The canonical writing is derived from the METHOD in the
+   validator, because it may not import the renderer (V1.4), and the
+   suite compares the two writings character for character over every
+   class of name quoting turns on — the same arrangement V4.2 makes for
+   the corner classifier.
+
+   **And the same class reached a byte rule, which re-deriving it
+   found.** `bytes.line-endings` asked whether a carriage return was
+   among the file's bytes. The method writes one inside a quoted field
+   whenever a published name or label holds one, so that rule also told
+   a conforming twin it had broken a rule it kept; and the measured file
+   was read with the ordinary text reading, which turns every carriage
+   return into a line feed, so such a twin's names read back under a
+   name it does not carry and three more checks missed with it. The rule
+   now asks what V6.2 names — whether a carriage return ends one of the
+   file's RECORDS — and the file is read without translating anything,
+   which is also what the reader does.
+
+3. **The walk that stands in for the reader reads what the reader
+   reads. THIS RAISES nothing and lowers nothing; it stops a report
+   being written about a file nobody read.** Validation settles two
+   questions before calling the shipped reader, and settles them with a
+   CSV walk of its own. The field size limit is a setting of the whole
+   `csv` module: the reader raises it to its own published ceiling for
+   the length of its pass, and the walk ran under whatever the
+   interpreter started with. Measured: a strict-valid constant
+   description of eleven values one character past that default
+   generates a conforming twin, the reader reads every row of it, the
+   walk parsed the header and stopped, and the conforming twin got a
+   **whole report of MISSED verdicts without the reader ever being
+   asked**. The walk now sets `reading.FIELD_SIZE_LIMIT` itself — the
+   reader's own name, so the two cannot be moved apart by editing one
+   place — and puts the module-wide setting back on every exit.
+
+   **And a reading that stopped part way is no longer read as a file
+   with no rows.** Beyond the shared ceiling both readings fail, and
+   there the walk says so: the file goes on to the reader and gets the
+   catalogued refusal V9 asks for, in the position-naming form, instead
+   of a report built on the records the walk happened to reach. The
+   drift guard that compares the two readings is extended in both the
+   ways this finding shows it needed: it is driven over the FILE as
+   `measure` reads it rather than over a string the test wrote, and its
+   twelve files gain seven that cross the limit — in a value, in a name,
+   inside quotes and beside a quoted line break.
+
+**How to reverse any of the three.** Clause 1 reverses by making
+`_instant_of` the profiler's instant reading alone, which restores the
+eleven withholdings on every quarter column and the exit-0 pass above;
+it is a lowering and would be recorded here in those words. Clause 2
+reverses by comparing the first physical line again, which restores both
+witnesses at once — the quoted name that passes and the conforming twin
+that fails. Clause 3 reverses by leaving the module-wide limit alone,
+which restores the full-MISSED report on the conforming twin. Each was
+reinstated in memory against the shipped suite to check that the tests
+which assert it go red, and each does.
+
+**Amendment A-P3-7 — a report about a file the producer REFUSES says
+what that refusal says and no more. One clause LOWERS, by turning eight
+verdicts into withholdings on the two classes of file this reaches; one
+RAISES, by putting a third class back on the reportable side; and one is
+a RULING that leaves a residual open, states its size, and says what
+closing it would cost. THIS ALSO DEFINES WHAT THE CONFIDENTIALITY
+GUARANTEE MEANS WHERE THERE IS NO DESCRIPTION TO DRAW IT FROM**
+(2026-08-14, review item P3-V3-F3).
+
+**The conflict, stated before the ruling, because it is a real one and
+it is not the one A-P3-5 settled.** V5.1 draws the envelope round what
+`synthtwin profile`, run on the measured file, would publish about it,
+and A-P3-5 answered the case where that description PUBLISHES LESS than
+the validator measured. This is the case where there is no description
+at all: the profiler's reader refuses a file with no data rows, and
+refuses one whose first row leaves a name blank or uses a name twice.
+Validation reports on both rather than refusing — V9 is explicit that a
+structural mismatch is a MISSED verdict with a plain explanation — and
+it did so with an early return, before the file's own description was
+built, settling four structural obligations and every column's position
+against a header line nothing describing that file publishes. Measured
+here, on the shipped code, with a two-column description publishing two
+hundred and forty rows: the header-only files `age,site` and `foo,bar`,
+under the same name, gave **11 HELD, 1 WITHHELD, 73 MISSED** and
+**6 HELD, 1 WITHHELD, 78 MISSED** — five verdicts apart, on a file the
+profiler refuses to say one word about. Repeated candidate descriptions
+read the header off those five, one guess at a time, which is the attack
+V5.3 says the gate exists to stop.
+
+1. **On a path where the producer refuses the measured file, every
+   verdict whose outcome varies with what that file holds is WITHHELD,
+   under a sentence of its own. THIS LOWERS.** Seven subchecks in all.
+   On the no-data path: the column count, the header's presence, its
+   names, its order, and each column's position. On the unusable-header
+   path: the row count and the column count. And on both, the rule that
+   asks whether the file is written as UTF-8, because which encoding a
+   file was read under is a fact the producer PUBLISHES —
+   `source.encoding`, with `used_fallback_encoding` beside it — while
+   the other three byte rules are the ones A-P3-3 clause 6 ruled outside
+   the envelope for being published about no file at any count. The same two files
+   above now give **5 HELD, 7 WITHHELD, 73 MISSED and exit 3** — the same
+   report, byte for byte, as each other and as a header-only file four
+   columns wide, one padded with blank lines, and one whose bytes are
+   not UTF-8. On the other path, `a,a` over two data rows and `a,a` over
+   four gave reports differing in the row count they printed, and now do
+   not differ at all.
+
+   **What it costs is nothing any file was owed, and that is what makes
+   it a withholding rather than a conflict.** Both paths are reached
+   only by a file this description's own twin is not: a description that
+   publishes rows has a twin that carries them, and a description whose
+   names came from the file has a twin whose header reads them back. So
+   every one of the eight still answers on the file the description says
+   is right, and the file that reaches these paths still misses its row
+   count and every obligation of every column — an exit-3 report whatever
+   its header says, before and after. The census moves and the
+   conclusion does not.
+
+   **One of the eight is withheld for honesty rather than for
+   confidentiality, and it is named rather than folded in.** Each
+   column's `position.at` was MISSED on the no-data path under the
+   sentence that says this file holds no cells — which is the wrong
+   reason, because a position is evidenced by the header line and not by
+   a cell, and the miss asserted something about that header the report
+   may not assert. It could have stayed a miss without leaking anything:
+   every file reaching there got the same one. It is withheld because
+   MISSED there says a thing this validator does not know.
+
+2. **What the refusal ITSELF publishes is still reported, because that
+   is what a reader gets by running the profiler on the file.** The
+   no-data refusal names the file and says it holds no rows, so the row
+   count MISSES with its measured zero, and every obligation of every
+   column MISSES because a column with no cells carries none of them.
+   The unusable-header refusal names the column NUMBERS at fault, so the
+   header's presence, its names and its order all MISS, with those
+   numbers on the line — and the profiler's own form of that refusal
+   quotes the repeated NAME, so naming positions publishes strictly less
+   than describing the file would. What that refusal does not carry is a
+   count: it stops at the first row, so the file's width and its record
+   count are numbers no run of the producer on that file ever publishes,
+   and those are the two clause 1 withholds there.
+
+3. **The zero-row predicates are NOT gated, and this is a ruling with a
+   residual left open. It changes no obligation and no line of code; it
+   says why the same reasoning stops here.** A zero-row description's
+   own conforming twin IS a file the producer refuses — V1.5 says in as
+   many words that the profiler's reader refuses the degenerate forms
+   and this one accepts them, and owner decision 7 makes the expected
+   byte form the executable subcheck. So closing the gate there would
+   silence the obligation on the only file the description calls
+   conforming: `bytes.zero-row-form` could never HELD on any file at all,
+   the column count, the names and the order would answer only on files
+   with rows, and a header-only file could carry any header whatever and
+   pass. That is the vacuity V3.4-A1 named this round, and it takes
+   review item P3-V3-F5's repair with it. Measured, with that
+   alternative reinstated in memory against the shipped suite: **four
+   tests go red**, `test_the_headered_zero_row_form_is_the_check` and
+   all three of P3-V3-F5's own.
+
+   **What stays open, stated at its size rather than left to be found.**
+   Against a zero-row description, the two header-only files above still
+   receive different reports, so the header of a file with no rows can
+   still be read off one candidate description at a time. What escapes
+   is bounded: no measured number of that file is printed except its
+   width, no string of it is printed at all (V5.4), and the file in
+   question holds no cell, no value and nobody's record — a zero-row
+   file identifies no one, which is what the publication floor exists to
+   do. It is not claimed to be free. **The owner may want it closed**,
+   and closing it costs the four tests above and owner decision 7's
+   executable check with them; that is the trade, and it is recorded
+   here rather than argued away. A third way would keep the check and
+   drop the residual only by making the profiler describe a zero-row
+   table, which is a Phase 1 change to what `synthtwin profile` refuses
+   and is not this plan's to make.
+
+4. **A file with no rows is one file whether or not its bytes are
+   UTF-8. THIS RAISES.** The no-data question was asked of the UTF-8
+   reading alone and answered False where there was none, so a
+   header-only file whose bytes are not UTF-8 walked past it into the
+   reader and came back a REFUSAL at exit 1 with no report, while the
+   same file written in UTF-8 got a full report at exit 3. The producer
+   refuses both and publishes nothing about either, so which of the two
+   answers came back was that file's own encoding, told by the shape of
+   the reply rather than by a verdict. The question is now asked of the
+   text the reader settled on, both files report, and their reports are
+   identical — which is why the encoding rule is one of clause 1's
+   eight on these paths.
+
+**How to reverse any of the three.** Clause 1 reverses by settling the
+four structural obligations against the first record again and by
+printing the two counts, which restores the five-verdict gap measured
+above and the row count that moved with the file. Clause 3 reverses by
+closing the gate over the zero-row predicates too, which is V5-honest
+and was measured rather than reasoned about: it costs the four tests
+named there, and the report on a conforming zero-row twin becomes one
+with no HELD verdict about its own bytes in it. Clause 4 reverses by
+asking the no-data question of the UTF-8 reading alone, which restores
+the refusal for one of the two files. Each was reinstated in memory
+against the shipped suite to check that the tests which assert it go
+red, and each does.
+
+**Amendment A-P3-8 — the claim migration is finished, its guard COUNTS
+instead of remembering, and the handling rule reaches the fifth file.
+Two clauses RAISE — one of them widening what the institution's rules
+are stated over, which is the only direction that rule may move — and
+one is machinery that lowers nothing. THE FIFTH FILE IS A CHANGE TO A
+SENTENCE THIS PLAN ITSELF FIXED AT FOUR, and clause 2 says exactly what
+it costs** (2026-08-14, review items P3-V3-F8, F9 and F10).
+
+**What went wrong, stated before the repair, because the shape of it is
+the point.** P3-D7 requires every retired Stage-2 form removed AND
+banned, and its catch-all is the claim inventory's ban lists — "a stale
+sentence on ANY surface, in the table or not, fails the ban test the
+moment its stage lands". It did not. `synthtwin validate` shipped, and
+six surfaces went on saying the tool has two commands and that a run
+leaves three artifacts, with every test in `tests/test_claim_inventory.py`
+green: the twin's report told an auditor, in the contract of the public
+function that writes it, that all three artifacts need controlled
+handling — leaving out the one that carries measurements taken from the
+file that was checked — and the front page walked a reader from a clone
+to a twin and stopped, so a README-only reader could follow it to the
+end and never learn that the file they now hold can be checked. The
+guard could not see any of it, and the reason it could not is worth
+more than the six repairs: it was a LIST OF SENTENCES SOMEBODY HAD
+THOUGHT TO WRITE DOWN. Nobody writes down the sentence they are about
+to forget.
+
+1. **The guard counts what the product has, from the product. It
+   changes no obligation; it makes an existing one checkable.** Two
+   totals are now derived at import and every surface is held to them:
+   the commands, read from the shipped parser's own refusal of a word
+   it does not know, and the files a full run leaves behind, read from
+   the output-name constants the modules carry and filtered to the
+   endings a run's output can have. A fourth command or a sixth output
+   file therefore reddens every stale total in the repository on the
+   commit that ships it, with no list to remember. Three rules stand on
+   those totals — a count of the commands or of the run's files that
+   disagrees with them; a built capability placed in a phase, which is
+   the shape that left the front page promising that the quality report
+   of Phase 3 WILL say so plainly and the generation method telling an
+   independent implementer that fidelity measurement and the quality
+   report ARE Phase 3; and a runnable sequence that invokes two of the
+   three commands and stops. Each was reinstated in memory against the
+   shipped suite and each goes red.
+
+2. **The handling rule names the profiler's plain-language summary, so
+   it names five files rather than four. THIS RAISES, and it corrects a
+   sentence this plan wrote.** P3-D7 stage 2 says "the three-artifact
+   handling forms becoming four-artifact forms", and four was wrong the
+   moment it was counted in FILES: `synthtwin profile` writes its
+   description TWICE, once for a program and once in words, and the
+   plain-language half was named on no surface of this project — not in
+   Phase 2's three, not in this phase's four. It is not a duplicate of
+   the machine-readable half in the sense that matters here: it is the
+   one a person reads, it is printed on the screen as well as written,
+   and it repeats the published labels and the published endpoints in
+   the words a reader will quote. A rule that enumerated four files and
+   stopped told that reader, by omission, that the fifth was free to
+   travel — which is verbatim the failure P2-D11 was written to close,
+   one file further along. **What it costs, stated rather than left to
+   be found:** the sentence moves on nine surfaces including the
+   charter, both reports' bytes move with it and both goldens were
+   re-recorded, and the profile contract's own disclosure sentence gains
+   an amendment under counted re-seal. Nothing published moves and no
+   check's verdict changes: measured, the two reports differ from their
+   predecessors at the handling paragraph and nowhere else, and the
+   quality report's census is identical entry for entry, 300 for 300.
+   **To reverse it**, drop the summary from the enumeration and put the
+   totals back to four — and then say, in the same commit, where a
+   reader is told that the file the profiler prints for them is
+   real-derived material, because after the reversal no surface says it.
+
+3. **The randomness trap opens every door the module has, and the
+   line-ending guard governs a write by what it IS rather than by what
+   it is named. Both RAISE; neither changes an obligation.** The trap
+   that proves a validate run draws no randomness was a hand-written
+   list of 37 names, and `numpy.random.beta`, `poisson` and `binomial`
+   went straight through it — a check that could not fail for the calls
+   it did not list. It now takes every public callable of every
+   randomness module in the process, with a counted floor and a named
+   floor beneath it so a derivation that silently returns little cannot
+   pass. The line-ending guard governed a `write_text` whose target was
+   named `.json` or `.csv` and expressly excluded a file named anything
+   else, while the product accepts arbitrary local names: a test writing
+   `tmp_path / "measured"` and handing it to `validation.measure` was a
+   CRLF file on Windows and outside the rule. The rule now follows the
+   file to what it is HANDED TO — a write whose target reaches a
+   product entry point that reads a file is governed however it is
+   named — and keeps the name-based half beside it, because a file
+   written in one function and read in another is still a file the
+   product reads.
+
+4. **The necessity claim about hazardous invented cells is withdrawn
+   where it is false and kept where it is true. THIS LOWERS a claim,
+   which is the honest direction: the claim was not true.** The plan
+   recorded that the report "no longer claims the cells were forced".
+   It did, in the block above the one that was repaired, and so did the
+   generation method — the document an independent implementer works
+   from. Both now say it conditionally: where the published counts leave
+   no other spelling of that width the inference about the real column
+   holds and is stated in as many words; where they do not, the report
+   says the twin may carry more such cells than the counts force and
+   that it cannot tell the reader which cell is which, and the method
+   carries the measured counterexample and says that writing fewer of
+   them conforms. **What it costs:** a reader can no longer take every
+   sign-leading invented cell as evidence that their own column held
+   one. That is not a cost so much as the removal of a false permission
+   — and the generation report's bytes moved for it, with the golden
+   re-recorded.
+
 ## P3-D7. Repository claims, staged honestly
 
 **The claim-inventory migration table is a deliverable of this plan's
@@ -1145,7 +1705,10 @@ sentences true:
    wording joining the banned list; `synthtwin validate` joining the
    command words on all teaching surfaces; the front-page tags moving
    validation from planned to built; the three-artifact handling forms
-   becoming four-artifact forms on every claim-bearing surface; the
+   becoming whole-run forms on every claim-bearing surface — FIVE files
+   rather than four, per amendment A-P3-8 clause 2, because the
+   profiler's plain-language summary is a file of the run and was never
+   named; the
    new validator and quality-report modules joining the inventory's
    surfaces, claim-bearing and structure-bearing lists; the
    generation report's "Phase 3's work" sentence replaced by the
@@ -1196,8 +1759,8 @@ test the moment its stage lands.
 | README.md | "What works today" two-command walkthrough and options | 2 | three-command walkthrough; validate options documented |
 | README.md | generation-report framing: "passes no verdict", "will say so plainly" | 2 | the verdict exists; the quality report says it; sentences updated where they appear |
 | README.md | security section's profiler-only import claim | 2 | two-reader claim per owner decision 6 |
-| SECURITY.md | phase banner; profiler-only boundary text; three-artifact handling forms | 2 | Phase 3; two-reader text; four-artifact forms |
-| src/synthtwin/__init__.py | package docstring: two commands, three artifacts | 2 | three commands, four artifacts |
+| SECURITY.md | phase banner; profiler-only boundary text; three-artifact handling forms | 2 | Phase 3; two-reader text; whole-run forms naming all five files (A-P3-8 clause 2) |
+| src/synthtwin/__init__.py | package docstring: two commands, three artifacts | 2 | three commands, all five files of a full run (A-P3-8 clause 2) |
 | src/synthtwin/cli.py | status screen; module docstring; the comment-claim that the reader is imported only when `profile` was typed | 2 | three commands; reader imported for `profile` and `validate` only; teaching-chain sentences |
 | src/synthtwin/rendering.py | "a fidelity verdict … is Phase 3's work" | 2 | the sentence that teaches the validate command (report bytes change; goldens re-recorded in the same commit) |
 | src/synthtwin/summary.py | the what-generate-will-do paragraph | 2 | extends the teaching chain to validate |
@@ -1512,6 +2075,22 @@ The report no longer claims the cells were forced; it says synthtwin
 reached for that shape to meet a count, and that carrying more of them
 than the description forced is a limit of synthtwin written down here.
 
+**That sentence was written before it was true, and it is true now**
+(review round 3's standing owner item, closed by amendment A-P3-8
+clause 4, 2026-08-14). The claim was withdrawn from one paragraph of
+the report and left standing in two other places: the report's own
+made-up-cells block still told a reader that the description's counts
+"leave no other way to spell a value of that width", eighteen lines
+above the paragraph admitting the twin carries more of them than the
+counts force, and the generation method still told an INDEPENDENT
+implementer that every invented record number opening with such a
+character does so because the counts leave no other way to spell it.
+Both are now conditional -- where the counts leave no other spelling,
+the inference about the real column holds and is stated; where they do
+not, the report says so and says it cannot tell the reader which cell
+is which. The method carries the counterexample and says plainly that
+writing fewer such cells conforms.
+
 **It was designed, measured and NOT TAKEN, on 2026-08-13, and the
 reason is worth more than the change would have been.** Three
 independent passes -- a mechanism study, a measurement battery and an
@@ -1722,8 +2301,9 @@ tests as bounded in P3-D8.3.
   cross-checked; the plan claims agreement-under-test, not formal
   independence.
 - The validator will measure whatever CSV it is pointed at; the
-  disclosure gate is designed for that, and all four artifacts are
-  real-derived material under the institution's rules; no formal
+  disclosure gate is designed for that, and every file a full run
+  leaves behind is real-derived material under the institution's rules
+  (five of them, per amendment A-P3-8 clause 2); no formal
   privacy guarantee; the record claim stays qualified (P2-D11) on
   every new surface.
 
@@ -1761,11 +2341,20 @@ tests as bounded in P3-D8.3.
   ledger stopping short):
   - **R-P2-13**, the missing-marker collision: a generated numeric
     value can equal a built-in missing marker and re-read as absent
-    when the twin is re-profiled. Phase 3 inherits it, bounds its
-    validator consequence (verdicts are blankness-based and immune;
-    the disclosure gate can only over-withhold in the collision
-    corner), and does not close it — closing it is generator work
-    with its own amendment if ever taken.
+    when the twin is re-profiled. Phase 3 inherits it and does not
+    close it — closing it is generator work with its own amendment if
+    ever taken. **Its validator bound is NARROWER than this ledger
+    first stated, under amendment A-P3-5.** It read "verdicts are
+    blankness-based and immune; the disclosure gate can only
+    over-withhold in the collision corner". Blankness-based verdicts
+    are reportable only where the file's own description names the
+    source of every missing cell, because below the publication floor
+    the split is a fact that description withholds. So in a column
+    whose own description POOLS its missing sources, a conforming twin
+    holding such a value is measured as the producer measures it, and
+    the collision can cost a MISSED verdict rather than only report
+    detail. Where the description names its sources — no missing cells,
+    or blanks that reach the floor — the old bound holds exactly.
   - **R-P2-14**, the packing-walk bound: a contract-valid hand-edited
     text profile near the complete-packing search boundary can make
     generation impractically slow; validation of an existing twin is

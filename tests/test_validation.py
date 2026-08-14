@@ -2206,10 +2206,34 @@ def test_the_record_walk_agrees_with_the_reader_it_stands_in_for(
     name. So this is not a test of a rule written twice: it drives both
     readings of the same files and asserts they agree, which is the only
     form that catches the NEXT disagreement.
+
+    AND IT IS DRIVEN OVER THE FILE, NOT OVER THE STRING (review item
+    P3-V3-F6). This used to hand the walk the characters the test had
+    written and ask the reader for the file, so everything the module
+    does BETWEEN the bytes and the walk was outside the comparison --
+    and two of the three ways the two readings could differ were in
+    exactly that gap. The
+    measured file is now read exactly as `measure` reads it, so the
+    comparison covers the whole path from bytes to records.
+
+    THE BOUNDARIES ARE HERE FOR THE SAME REASON. A field one character
+    longer than the interpreter's default limit parsed here as a header
+    and nothing else while the reader read every row of it, and the
+    catalogue's own long-field file was two hundred characters, so
+    nothing crossed the line. Three lengths straddle it, quoted and
+    plain, in a value and in a name. The other two boundaries the two
+    readings meet are the encodings -- the reader tries its own two in
+    its own order, and so does the caller here -- and the byte-order
+    mark, which the reader's own codec takes off and this module takes
+    off by name.
     """
     folder = tmp_path / "agree"
     folder.mkdir()
+    default_limit = 131_072
+    long = "x" * (default_limit + 1)
     files = {
+        "byte-order-mark": "﻿a,b\n1,2\n",
+        "not-utf8": "a,b\n1,\xff\n",
         "plain": "a,b\n1,2\n3,4\n",
         "no-terminal-newline": "a,b\n1,2\n3,4",
         "leading-blank": "\na,b\n1,2\n",
@@ -2222,10 +2246,18 @@ def test_the_record_walk_agrees_with_the_reader_it_stands_in_for(
         "one-line": "a,b\n",
         "doubled-quotes": 'a,b\n"1""5",2\n3,4\n',
         "trailing-blanks": "a,b\n1,2\n\n\n",
+        "under-the-default": "a,b\n" + "x" * (default_limit - 1) + ",2\n",
+        "at-the-default": "a,b\n" + "x" * default_limit + ",2\n",
+        "over-the-default": f"a,b\n{long},2\n",
+        "over-the-default-quoted": f'a,b\n"{long}",2\n',
+        "over-the-default-in-a-name": f"{long},b\n1,2\n",
+        "over-the-default-with-a-break": f'a,b\n"{long}\ny",2\n',
+        "over-the-default-twice": f"a,b\n{long},{long}\n",
     }
     for label in sorted(files):
         target = folder / f"{label}.csv"
-        target.write_text(files[label], encoding="utf-8", newline="")
+        encoding = "latin-1" if label == "not-utf8" else "utf-8"
+        target.write_text(files[label], encoding=encoding, newline="")
         table = reading.read_table(
             str(target), first_row=reading.FIRST_ROW_DATA
         )
@@ -2233,7 +2265,19 @@ def test_the_record_walk_agrees_with_the_reader_it_stands_in_for(
             [column[at] for column in table.columns]
             for at in range(table.n_rows)
         ]
-        walked = validation._records_of(files[label])
+        # Exactly the choice `measure` makes, and the byte-order mark
+        # taken off exactly where its callers take it off.
+        text = validation._read_utf8(target)
+        as_read = (
+            text if text is not None else validation._read_fallback(target)
+        )
+        walked, whole = validation._walked(
+            validation._without_a_mark(as_read)
+        )
+        assert whole, (
+            f"{label}: the walk stopped part way on a file the reader "
+            f"read to its end"
+        )
         assert walked == rows, label
 
 
@@ -2496,6 +2540,14 @@ def test_a_file_holding_no_rows_misses_every_obligation_it_cannot_carry(
     three hundred obligations, was the census this file used to produce
     -- and the summary above it said those five were every obligation a
     file can be measured against.
+
+    WHAT THE HEADER LINE EVIDENCES HERE IS NOTHING, AND THIS TEST SAID
+    THE OPPOSITE (review item P3-V3-F3; plan amendment A-P3-7 clause 1).
+    It asserted that the names and the width read back HELD off the
+    first line of a file `synthtwin profile` refuses to describe at all,
+    which is what let two header-only files named alike be told apart by
+    their reports. The obligations the row count settles are what this
+    file misses, and they are what this test is about.
     """
     described, twin = every_role
     outcome = _measure(
@@ -2503,9 +2555,11 @@ def test_a_file_holding_no_rows_misses_every_obligation_it_cannot_carry(
     )
     assert outcome.census.missed > 200
     assert _verdicts(outcome, "rows.n_rows") == [validation.MISSED]
-    # The header line still evidences what a header line evidences.
-    assert _verdicts(outcome, "header.names") == [validation.HELD]
-    assert _verdicts(outcome, "columns.n_columns") == [validation.HELD]
+    # ...and what the header line would have to answer for is withheld,
+    # because describing this file publishes no header at all.
+    assert _verdicts(outcome, "header.names") == [validation.WITHHELD]
+    assert _verdicts(outcome, "columns.n_columns") == [validation.WITHHELD]
+    assert _verdicts(outcome, "header.presence") == [validation.WITHHELD]
     for column in described.columns:
         mine = [
             check for check in outcome.checks if check.column == column.name

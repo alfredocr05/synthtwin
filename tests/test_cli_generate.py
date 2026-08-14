@@ -593,8 +593,11 @@ def test_the_report_states_the_same_things_every_run(
         # the provenance claim, and its one qualification
         "read no",
         "It does NOT say that no row of the twin can equal a row of your",
-        # all four artifacts, and institutional handling
-        "All four files",
+        # every file a full run leaves behind, and institutional
+        # handling (plan amendment A-P3-8: the profiler's summary
+        # joined the list)
+        "All five files",
+        "the plain-language summary beside it",
         "institution",
         # the formula-context warning
         "reads a cell that begins",

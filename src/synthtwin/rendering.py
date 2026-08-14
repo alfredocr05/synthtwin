@@ -24,7 +24,7 @@ columns were built one at a time and carry no structure between them;
 that the rows were built one at a time and the description never said
 what one row of the real table is; where the twin's values come from and
 the one case in which a twin row can nonetheless equal a real one; that
-all three files of a full run carry facts computed from real data; and
+all five files of a full run carry facts computed from real data; and
 which cells common spreadsheet software will read as a formula. None of
 those is conditional on anything, because a warning that appears only
 sometimes is a warning nobody comes to expect.
@@ -503,10 +503,13 @@ def _formula_lines(
                 "Some of those cells synthtwin MADE UP, in these columns:",
                 f"  {_joined(touched)}",
                 "Those columns publish no value of your table, so every",
-                "value in them is invented. Your description's own counts",
-                "are what leave no other way to spell a value of that",
-                "width -- which is also how you know your real column",
-                "held values written the same way.",
+                "value in them is invented. Where your description's own",
+                "counts leave no other way to spell a value of that width,",
+                "that is also how you know your real column held values",
+                "written the same way. It is not so for every one of these",
+                "cells: synthtwin does not always reach for the fewest it",
+                "could, and this report cannot tell you which cell is",
+                "which. The paragraph below says what that means.",
             ]
     else:
         lines = lines + [
@@ -521,12 +524,14 @@ def _formula_lines(
         "is one your description published, it has to be written exactly",
         "as published or the counts the twin exists to reproduce stop",
         "holding. Where synthtwin invented it, it reached for that shape",
-        "to meet a count your description states -- your own table held",
-        "values written that way, which is what the count says. It does",
-        "not always reach for the fewest such cells it could: where a",
-        "twin carries more of them than the description forced, that is",
-        "a limit of synthtwin and is written down in its plan, not",
-        "something your table asked for.",
+        "to meet a count your description states. Where those counts",
+        "leave no other spelling of that width, your own table held",
+        "values written that way -- that is what the count says. But",
+        "synthtwin does not always reach for the fewest such cells it",
+        "could: where a twin carries more of them than the description",
+        "forced, that is a limit of synthtwin and is written down in its",
+        "plan, not something your table asked for.",
+        "",
         "Quotation marks around a cell are NOT protection: they belong to",
         "the file format, and a spreadsheet removes them before it decides",
         "what the cell is.",
@@ -875,16 +880,16 @@ def _handling_lines() -> "list[str]":
         "copied; there was nothing else to write. The smaller the table and",
         "the fewer its columns, the more often that happens.",
         "",
-        "HOW TO KEEP THESE FILES. All four files of a full run --",
-        "the description, this twin, this report and the quality report",
-        "'synthtwin validate' writes -- carry facts computed",
-        "from your real data: counts, ranges, published labels and the",
-        "spellings named above. Keep all four under the rules your",
-        "institution applies to the table itself, and check with whoever",
-        "approves data leaving your environment before you move any of them",
-        "anywhere. synthtwin offers no formal privacy guarantee: nothing",
-        "here bounds, mathematically, what someone could work out from the",
-        "twin.",
+        "HOW TO KEEP THESE FILES. All five files of a full run -- the",
+        "description, the plain-language summary beside it, this twin,",
+        "this report and the quality report 'synthtwin validate' writes",
+        "-- carry facts computed from your real data: counts, ranges,",
+        "published labels and the spellings named above. Keep all five",
+        "under the rules your institution applies to the table itself,",
+        "and check with whoever approves data leaving your environment",
+        "before you move any of them anywhere. synthtwin offers no formal",
+        "privacy guarantee: nothing here bounds, mathematically, what",
+        "someone could work out from the twin.",
     ]
 
 
@@ -917,7 +922,8 @@ def report(profile: contract.Profile, twin: generation.Twin) -> str:
     were built independently; that rows were built independently and the
     description never said what one row is; where the twin's values came
     from and the one case in which a twin row can equal a real one; that
-    all three artifacts carry facts computed from real data and are kept
+    all five files a full run leaves behind carry facts computed from
+    real data and are kept
     under the institution's rules; which cells a spreadsheet reads as a
     formula; every published fact the twin could not meet, with the
     value achieved beside the value published; and every fact the

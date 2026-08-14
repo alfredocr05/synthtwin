@@ -1,14 +1,17 @@
 """P2-D11: the repository-wide claim inventory, asserted rather than kept.
 
-TWO FAMILIES OF CLAIM LIVE HERE. The first is the RECORD claim, and it
+THREE FAMILIES OF CLAIM LIVE HERE. The first is the RECORD claim, and it
 is what this file was written for; it is described immediately below.
 The second arrived with review item P2-C1-F7 and is described under
 "THE SECOND FAMILY" further down: what the twin CARRIES, which phase
 the project is in, which commands exist, and how many libraries it
-depends on. They share this file because they share a failure mode --
-true text going stale on a surface nobody re-read -- and because a
-reader who trusts one of these sentences has no way to tell which
-family it came from.
+depends on. The third arrived with review item P3-V3-F8 and is the one
+that is not a list of sentences at all: how MANY commands the tool has
+and how many files a run leaves behind, counted from the product and
+checked against every surface. They share this file because they share
+a failure mode -- true text going stale on a surface nobody re-read --
+and because a reader who trusts one of these sentences has no way to
+tell which family it came from.
 
 WHAT WENT WRONG, AND WHY A TEST IS THE ONLY REPAIR THAT HOLDS. synthtwin
 said, in eight places, that the twin holds no record of yours: twice in
@@ -101,9 +104,15 @@ The failure messages here name the file and say what to write, because
 whoever trips this test is mid-sentence in a document, not debugging.
 """
 
+import contextlib
+import io
 import pathlib
+import re
+
+from synthtwin import cli
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
+PACKAGE = REPO_ROOT / "src" / "synthtwin"
 
 # Every surface that speaks to a user, an auditor or a packaging index
 # in synthtwin's own voice. The two spec documents are included because
@@ -157,43 +166,194 @@ RETIRED_CLAIMS = (
     "not one real row",
 )
 
-# The handling rule has to name every artifact a run can produce, and
-# the count moved from three to four when `synthtwin validate` shipped
-# (plan P3-D3, P3-D7 stage 2): the quality report states measurements
-# taken from the file it checked, so it is real-derived exactly as the
-# profile, the twin and the twin's report are.
+# ---------------------------------------------------------------------
+# THE THIRD FAMILY: WHAT THE PRODUCT HAS, COUNTED FROM THE PRODUCT
+# (review item P3-V3-F8)
+# ---------------------------------------------------------------------
+#
+# The two families above are lists of sentences. That is what made the
+# third one possible: `synthtwin validate` shipped, and the sentences
+# saying the tool has two commands and a run leaves three artifacts
+# stayed exactly where they were, on six surfaces, while every test in
+# this file passed. The guard could not see them because it was looking
+# for wording somebody had thought to write down, and nobody writes down
+# the sentence they are about to forget.
+#
+# So the third family is not a list. It is a COUNT, taken from the
+# product itself: how many commands the shipped command line offers, and
+# how many files a full run leaves on disk. Every surface is then held to
+# those two numbers, and a fourth command or a sixth output file makes
+# every stale total in the repository red on the commit that ships it,
+# with no list to remember to update.
+
+
+def _shipped_command_words() -> "tuple[str, ...]":
+    """`synthtwin <word>` for every word the shipped command line takes.
+
+    Read from the parser the product builds, not from a list here: the
+    parser is what a person's typing actually meets, so a command that
+    exists is one this returns and a command that does not is one it
+    cannot. The route is the parser's own refusal of a word it does not
+    know, which names the argument and then lists the choices -- the one
+    place argparse states the whole set in text.
+
+    Guarantees:
+
+    - Inputs: none.
+    - Determinism: a fixed function of the shipped parser; nothing
+      outside this repository is consulted and nothing is written.
+    - Errors raised: `AssertionError` if the refusal cannot be read, so
+      that a parser this can no longer question fails loudly rather than
+      returning a short list that would make every check below vacuous.
+    - Boundary: no file is opened and no command is run; the parser is
+      built in this process and handed one word it will reject.
+    """
+    complaint = io.StringIO()
+    with (
+        contextlib.redirect_stderr(complaint),
+        contextlib.suppress(SystemExit),
+    ):
+        cli._parse_arguments(["a-word-no-command-can-be"])
+    said = complaint.getvalue()
+    found = re.search(r"argument command:[^(]*\(choose from ([^)]*)\)", said)
+    assert found is not None, (
+        "The shipped command line no longer refuses an unknown command "
+        "in a form this test can read, so the command inventory below "
+        "would be derived from nothing. What argparse said was:\n"
+        f"{said}\n"
+        "Update this function to read the new form -- never replace it "
+        "with a hand-written list, which is the defect review item "
+        "P3-V3-F8 exists to close."
+    )
+    words = tuple(re.findall(r"'([a-z][a-z-]*)'", found.group(1)))
+    assert len(words) >= 3, (
+        "The shipped command line offers fewer than the three commands "
+        f"this project has built ({list(words)}). If a command was "
+        "removed, say so on every surface in the same commit; if this "
+        "stopped reading the parser correctly, fix the reading."
+    )
+    return tuple(f"synthtwin {word}" for word in words)
+
+
+# What a full run leaves on disk, counted the same way: by reading the
+# endings the product's own modules give the files they write. A run is
+# `profile`, then `generate`, then `validate`, and the five names below
+# are every file those three commands create. The filter is the ending
+# itself -- the transaction's working names end `.synthtwin-part` and
+# `.synthtwin-kept` and are not files a run leaves behind, so they are
+# not here and cannot be.
+_OUTPUT_ENDINGS = (".json", ".csv", ".txt")
+
+
+def _shipped_output_suffixes() -> "tuple[str, ...]":
+    """Every ending a file a full run leaves behind can carry.
+
+    Guarantees:
+
+    - Inputs: none; reads the package's own modules from this
+      repository.
+    - Determinism: sorted; a fixed function of the tracked source.
+    - Errors raised: `AssertionError` when fewer are found than the
+      three commands can write, because a derivation that quietly
+      returns a short list is worse than a hand-written one.
+    - Boundary: reads only `src/synthtwin/*.py`, and only their text.
+    """
+    found: list[str] = []
+    for module in sorted(PACKAGE.glob("*.py")):
+        source = module.read_text(encoding="utf-8")
+        for match in re.finditer(
+            r"^_?[A-Z][A-Z_]*_SUFFIX = \"([^\"]+)\"", source, re.MULTILINE
+        ):
+            ending = match.group(1)
+            if ending.endswith(_OUTPUT_ENDINGS) and ending not in found:
+                found.append(ending)
+    assert len(found) >= 5, (
+        "Fewer output-file endings were found in the package than the "
+        f"three commands write ({sorted(found)}). Either an output name "
+        "stopped being a module constant -- in which case give it one, "
+        "so that what a run writes stays countable -- or this reading "
+        "broke. Do not replace it with a list."
+    )
+    return tuple(sorted(found))
+
+
+COMMAND_WORDS = _shipped_command_words()
+COMMAND_TOTAL = len(COMMAND_WORDS)
+RUN_OUTPUT_SUFFIXES = _shipped_output_suffixes()
+FILE_TOTAL = len(RUN_OUTPUT_SUFFIXES)
+# The KINDS of thing a run produces, which is one fewer than the files
+# because the description is written twice -- once for a program and
+# once in words -- and both halves end `-profile`. The charter counts
+# artifacts; the handling rule counts files, because a person deciding
+# what may leave their machine is looking at a folder.
+ARTIFACT_TOTAL = len({name.rsplit(".", 1)[0] for name in RUN_OUTPUT_SUFFIXES})
+
+# What each of those files is CALLED in a sentence a person reads. The
+# keys are the derived endings, so an output file that ships without a
+# name here fails the floor below rather than quietly escaping the
+# handling rule -- which is exactly how the quality report escaped it
+# for a whole phase.
+#
+# Each entry is a regular expression rather than a substring because two
+# of the names contain another: "the twin's report" contains "twin", so
+# a sentence that dropped the twin itself would otherwise still look as
+# though it named it. The twin's own pattern therefore refuses the
+# possessive and refuses the word "report" following it.
+FILE_NAMES = (
+    ("-profile.json", r"\b(profile|description)\b", "the profile itself"),
+    ("-profile.txt", r"\bsummary\b", "the plain-language summary"),
+    ("-twin.csv", r"\btwin\b(?!'s)(?! report)(?!-report)", "the twin"),
+    (
+        "-twin-report.txt",
+        r"(twin's report|twin report|this report|generation report)",
+        "the twin's report",
+    ),
+    ("-quality.txt", r"quality report", "the quality report"),
+)
+
+# The handling rule has to name every file a run can leave behind, and
+# what it has to name moved twice: from the profile alone to three files
+# when P2-D11 landed, and to FIVE when `synthtwin validate` shipped
+# beside the fact -- found by this file's own count, not by a reviewer --
+# that the profiler writes its description twice and the plain-language
+# half was never named at all (plan amendment A-P3-8). The summary is the
+# half a person actually reads: it prints the real labels the profile
+# publishes, on the screen and into a file, so a rule that names four
+# files and stops tells a reader by omission that the fifth may travel.
 #
 # Several phrasings are accepted, because the surfaces are written in
 # several registers and forcing one sentence on all of them would make
-# some of them read worse: the documents a person reads use articles;
-# the normative contract lists the artifacts bare; and the files a run
-# writes for a reader call the profile "the description", which is the
-# word those files use for it throughout and the word a non-programmer
-# recognizes. Every accepted form names every artifact of the run it is
-# speaking about, which is the whole point, and none of them can be
-# satisfied by naming the profile alone.
-#
-# THE THREE-ARTIFACT FORMS ARE STILL ACCEPTED, and that is deliberate
-# rather than an unfinished migration. A surface speaking about what a
-# PROFILE-AND-GENERATE run produces names three files and is telling the
-# truth; the profile contract is such a surface, and it is a sealed
-# document that no code change may rewrite in passing. What the rule
-# keeps out is the lonely sentence -- the profile named as real-derived
-# with the other files left unmentioned -- and every form here keeps it
-# out.
-ARTIFACT_HANDLING_FORMS = (
-    "the profile, the twin, the twin's report and the quality report",
-    "the profile, the twin, this report and the quality report",
+# some of them read worse: the documents a person reads use articles,
+# and the files a run writes for a reader call the profile "the
+# description", which is the word those files use for it throughout and
+# the word a non-programmer recognizes. Every accepted form names every
+# file, and the floor below proves it of each one rather than trusting
+# the eye that wrote it.
+HANDLING_FORMS = (
     (
-        "the description, the twin, the twin's report and the quality "
-        "report"
+        "the profile, the plain-language summary beside it, the twin, "
+        "the twin's report and the quality report"
     ),
-    "the description, this twin, this report and the quality report",
-    "the profile, the twin, the twin's report and this quality report",
-    "the description, the twin, the twin's report and this quality report",
-    "the profile, the twin and the report",
-    "profile, twin and report",
-    "the description, this twin and this report",
+    (
+        "the profile, the plain-language summary beside it, the twin, "
+        "the twin's report and this quality report"
+    ),
+    (
+        "the description, the plain-language summary beside it, the "
+        "twin, the twin's report and the quality report"
+    ),
+    (
+        "the description, the plain-language summary beside it, this "
+        "twin, this report and the quality report"
+    ),
+    (
+        "the description, the plain-language summary beside it, the "
+        "twin, the twin's report and this quality report"
+    ),
+    (
+        "the profile, the plain-language summary beside it, this twin, "
+        "this report and the quality report"
+    ),
 )
 
 # The four marks of the qualified claim. Each entry is a tuple of
@@ -209,8 +369,8 @@ ARTIFACT_HANDLING_FORMS = (
 #    which is exactly the mistake being repaired.
 # 3. Without the disclaimer, a reader may take the acknowledgement as a
 #    bounded exception to a guarantee that does not exist.
-# 4. Without the three-artifact rule, naming only the profile reads as
-#    permission for the twin and the report.
+# 4. Without the whole-run rule, naming only the profile reads as
+#    permission for every other file the run left in the folder.
 QUALIFIED_MARKS = (
     (
         ("samples or copies no row",),
@@ -232,10 +392,10 @@ QUALIFIED_MARKS = (
         "the statement that synthtwin offers no formal privacy guarantee",
     ),
     (
-        ARTIFACT_HANDLING_FORMS,
+        HANDLING_FORMS,
         (
-            "the handling rule naming every artifact of the run it "
-            "describes, so that the institution's rules are not read as "
+            "the handling rule naming every file a full run leaves "
+            "behind, so that the institution's rules are not read as "
             "applying to the profile alone"
         ),
     ),
@@ -426,17 +586,18 @@ COMMAND_BEARING = (
     "src/synthtwin/__init__.py",
     "src/synthtwin/cli.py",
 )
-# All three command words are required on each. `synthtwin validate`
-# joined them when the validator shipped (plan P3-D7, stage 2): a
-# surface that teaches two thirds of the workflow leaves a zero-code
-# reader with no way to learn that the third command exists, which is
-# exactly what the front page's old "[planned]" tag amounted to for
-# `generate`.
-COMMAND_WORDS = (
-    "synthtwin profile",
-    "synthtwin generate",
-    "synthtwin validate",
-)
+# Every command word the shipped parser takes is required on each, and
+# the list is DERIVED (`_shipped_command_words`) rather than written
+# here: `synthtwin validate` joined them when the validator shipped
+# (plan P3-D7, stage 2), and a hand-written list is a list that joins
+# late. A surface that teaches two thirds of the workflow leaves a
+# zero-code reader with no way to learn that the third command exists,
+# which is exactly what the front page's old "[planned]" tag amounted to
+# for `generate`.
+#
+# Naming a command is necessary and it is not sufficient: a walkthrough
+# that runs two of them and stops has taught the reader to skip the
+# third. `test_a_taught_sequence_does_not_stop_short` is that half.
 
 # Where the phase state is stated, and the exact sentence each states
 # it in. One sentence per surface, so the ban on parenthesized currency
@@ -515,10 +676,16 @@ def _text(relative: str) -> str:
     strengthens the ban in the other direction: a categorical claim
     cannot hide by being wrapped either.
 
-    What the collapse deliberately does not do is remove quotes, commas
-    or other punctuation, so a phrase split across two adjacent string
-    literals in Python source still does not match. That is intended: a
-    surface that has to state a claim states it in one readable piece.
+    WHAT ELSE IS JOINED, AND WHY ONLY THAT. Two of these surfaces are
+    reports, and a report is written as a LIST OF LINES: a sentence a
+    person reads across two lines is two string literals in the source,
+    one per line. So a literal that ends a source line is joined to the
+    literal that begins the next -- exactly the join the report itself
+    performs when it prints them -- and the claim is then checked as it
+    is READ rather than as it happens to be laid out. Nothing else is
+    joined: two literals side by side on ONE line stay two, so a phrase
+    assembled inside a tuple or a call still does not match, and a
+    surface that has to state a claim still states it as running text.
 
     Guarantees:
 
@@ -542,7 +709,8 @@ def _text(relative: str) -> str:
         f"CLAIM_BEARING in this file in the same change -- an inventory "
         f"that silently skips a surface is not an inventory."
     )
-    return " ".join(path.read_text(encoding="utf-8").lower().split())
+    read = re.sub(r'",\s*\n\s*"', " ", path.read_text(encoding="utf-8"))
+    return " ".join(read.lower().split())
 
 
 def test_no_public_surface_makes_the_categorical_record_claim() -> None:
@@ -602,14 +770,15 @@ def test_claim_bearing_surfaces_state_the_qualified_claim() -> None:
 
 
 def test_the_handling_rule_is_never_left_at_the_profile_alone() -> None:
-    """Wherever a surface says the profile is real-derived, all three are.
+    """Wherever a surface says the profile is real-derived, all five are.
 
-    P2-D11 requires institutional handling to apply to the profile, the
-    twin and the report. The failure mode is not a wrong sentence but a
+    P2-D11 requires institutional handling to apply to every file the
+    run leaves behind, and P3-D3 with plan amendment A-P3-8 fixed which
+    files those are. The failure mode is not a wrong sentence but a
     lonely one: a surface that names the profile as real-derived
     material and stops there tells a reader, by omission, that the other
-    two files are free to move. So every surface that raises the subject
-    at all must also carry the three-artifact phrase.
+    four files are free to move. So every surface that raises the
+    subject at all must also carry the whole-run phrase.
     """
     subject = "rules for real-derived material"
     silent: list[str] = []
@@ -617,17 +786,18 @@ def test_the_handling_rule_is_never_left_at_the_profile_alone() -> None:
         text = _text(relative)
         if subject not in text:
             continue
-        if not any(form in text for form in ARTIFACT_HANDLING_FORMS):
+        if not any(form in text for form in HANDLING_FORMS):
             silent.append(relative)
     assert not silent, (
         "These surfaces state the institutional-handling rule but name "
         "only the profile:\n  "
         + "\n  ".join(silent)
-        + "\n\nEvery artifact a full run produces -- the profile, the "
-        "twin, the twin's report and the quality report -- carries facts "
-        "computed from real data. Naming one of them and stopping reads "
-        "as permission for the others. Add the sentence that names them "
-        "all beside the rule."
+        + "\n\nEvery file a full run leaves behind -- the profile, the "
+        "plain-language summary beside it, the twin, the twin's report "
+        "and the quality report -- carries facts computed from real "
+        "data. Naming one of them and stopping reads as permission for "
+        "the others. Add the sentence that names them all beside the "
+        "rule."
     )
 
 
@@ -1035,3 +1205,498 @@ def test_the_second_family_of_bans_would_notice_the_old_wording() -> None:
             f"{relative} must also be in SURFACES, so that every ban in "
             f"this file covers it too"
         )
+
+
+# ---------------------------------------------------------------------
+# the third family: what the product has, counted from the product
+# (review item P3-V3-F8)
+# ---------------------------------------------------------------------
+
+# The words a total is written in. "one" is deliberately absent: "one
+# command calls its own files" is English for "a single command" and is
+# not a claim about how many there are, so counting it would put the ban
+# in a fight with ordinary prose and earn itself an exception list.
+_COUNT_WORDS = {
+    "both": 2,
+    "two": 2,
+    "three": 3,
+    "four": 4,
+    "five": 5,
+    "six": 6,
+    "seven": 7,
+    "eight": 8,
+    "nine": 9,
+    "ten": 10,
+}
+_COUNTS = "|".join(sorted(_COUNT_WORDS, key=len, reverse=True))
+
+# Up to two words may stand between the number and its noun -- "all
+# three PHASE 2 artifacts", "all four files a full run produces" -- so
+# that a total cannot escape by qualifying its noun.
+_GAP = r"(?:[a-z0-9'-]+ ){0,2}?"
+
+# Another tool's commands are not this tool's commands, and a
+# walkthrough that installs by hash names two of pip's. The words below
+# are the only ones that may stand between a number and the noun
+# "commands" without the count being read as synthtwin's own -- which is
+# a statement about scope, not an exception: "both pip commands" is a
+# sentence about pip.
+_OTHER_TOOLS = ("pip", "git", "python", "python3", "shell", "install")
+
+# What each countable noun is counted against, and where a count of it
+# is a claim about the whole set. The totals are derived at import from
+# the shipped parser and the shipped output names, so a fourth command
+# or a sixth output file reddens every stale total in the repository on
+# the commit that ships it.
+#
+# The three nouns need three different reaches, and the reason is what
+# each word means when it is NOT talking about the whole product:
+#
+# * "commands" almost always is. `profile`, `generate` and `validate`
+#   are the set, so a bare count of them is checked, with "other"
+#   subtracting the speaker's own.
+# * "artifacts" is checked under a totality word ("all four artifacts")
+#   or under the run ("four artifacts a full run produces"). Bare counts
+#   are ordinary prose about a subset -- "the twin's two artifacts" is
+#   true and says nothing about the run.
+# * "files" is checked ONLY under the run. Two commands each write a
+#   pair, so "both files", "the two files this run writes" and their
+#   kin are true sentences on nearly every page of this repository; a
+#   count of files is a claim about the whole run exactly when it says
+#   so, and then it is checked hard.
+_NOUN_RULES = (
+    (
+        r"artifacts?",
+        ARTIFACT_TOTAL,
+        "the kinds of thing a full run produces",
+        ("totality", "run"),
+    ),
+    (
+        r"files?",
+        FILE_TOTAL,
+        "the files a full run leaves behind",
+        ("run",),
+    ),
+    (
+        r"commands?",
+        COMMAND_TOTAL,
+        "the commands the tool offers",
+        ("totality", "run", "bare"),
+    ),
+)
+
+# The verbs the handling rule uses when it states its total without
+# repeating the noun -- "keep all four under the rules your institution
+# applies". Checked only where the sentence is about real-derived
+# material, because "the previous paragraph's own words apply to all
+# three" is a true sentence about three date pairs in the generation
+# method and has nothing to do with this rule.
+_TOTAL_VERBS = (
+    "apply to all",
+    "applies to all",
+    "applying to all",
+    "keep all",
+    "keeps all",
+    "covers all",
+    "cover all",
+    "handled under the same rules, all",
+)
+_HANDLING_CONTEXT = ("real-derived", "institution")
+_CONTEXT_WINDOW = 250
+
+
+def _totals_stated(text: str) -> "list[tuple[int, int, str, str]]":
+    """Every total one surface states about a countable of the product.
+
+    Returns one entry per statement: the number said, the number that is
+    true, what was counted, and the words it was said in. A statement
+    beginning "other" is measured against one FEWER, because a command
+    speaking about "the other two commands" is right exactly when three
+    exist -- so the phrase moves with the count instead of being
+    exempted from it.
+
+    Guarantees:
+
+    - Inputs: one surface's text, lowercased and space-collapsed.
+    - Determinism: a fixed function of that text and of the totals
+      derived at import; nothing is read here.
+    - Errors raised: none.
+    - Boundary: pure text; opens nothing.
+    """
+    seen: list[tuple[int, int, str, str]] = []
+    at: set[int] = set()
+    for noun, total, what, reaches in _NOUN_RULES:
+        patterns = {
+            # "all three artifacts", "both commands"
+            "totality": (
+                (
+                    rf"\ball (?P<count>{_COUNTS}) (?P<gap>{_GAP})"
+                    rf"(?P<noun>{noun})\b"
+                ),
+                rf"\b(?P<count>both) (?P<gap>{_GAP})(?P<noun>{noun})\b",
+            ),
+            # "the other three files a full run makes"
+            "run": (
+                (
+                    rf"\b(?P<other>other )?(?P<count>{_COUNTS}) "
+                    rf"(?P<gap>{_GAP})(?P<noun>{noun}) "
+                    rf"(?:a|of a|that a|the) (?:full|whole) run"
+                ),
+            ),
+            # "the write transaction serves two commands". No gap is
+            # allowed here, because without a totality word or the run
+            # to anchor it the number has to sit against the noun to be
+            # a count of it: "the four modules this command imports"
+            # counts modules.
+            "bare": (
+                (
+                    rf"\b(?P<other>other )?(?P<count>{_COUNTS}) (?P<gap>)"
+                    rf"(?P<noun>{noun})\b(?! line| lines| word| words)"
+                ),
+            ),
+        }
+        for reach in reaches:
+            for pattern in patterns[reach]:
+                for found in re.finditer(pattern, text):
+                    where = found.start("noun")
+                    gap = (found.groupdict().get("gap") or "").split()
+                    if where in at or any(word in _OTHER_TOOLS for word in gap):
+                        continue
+                    at.add(where)
+                    said = _COUNT_WORDS[found.group("count")]
+                    other = "other" in (found.groupdict().get("other") or "")
+                    true = total - 1 if other else total
+                    if said != true:
+                        seen.append((said, true, what, found.group(0)))
+    for verb in _TOTAL_VERBS:
+        for found in re.finditer(rf"{re.escape(verb)} (?P<count>{_COUNTS})\b", text):
+            near = text[
+                max(0, found.start() - _CONTEXT_WINDOW) : found.end()
+                + _CONTEXT_WINDOW
+            ]
+            if not any(mark in near for mark in _HANDLING_CONTEXT):
+                continue
+            said = _COUNT_WORDS[found.group("count")]
+            if said != FILE_TOTAL:
+                seen.append(
+                    (
+                        said,
+                        FILE_TOTAL,
+                        "the files a full run leaves behind",
+                        found.group(0),
+                    )
+                )
+    return seen
+
+
+def test_no_surface_states_a_stale_total() -> None:
+    """No surface counts the commands or the run's files wrongly.
+
+    THE DEFECT THIS CLOSES (review item P3-V3-F8). `synthtwin validate`
+    shipped; the sentences saying the tool has two commands and that a
+    run leaves three artifacts stayed where they were, on six surfaces,
+    and every test in this file passed. The concrete harm is not a
+    stylistic one: an auditor who follows `rendering.report`'s stated
+    contract reads that all three artifacts need controlled handling and
+    leaves the quality report -- which carries measurements taken from
+    the file that was checked -- outside the institution's rules.
+
+    The totals are counted from the product, not written down here, so
+    the same sentence cannot go stale twice.
+    """
+    wrong: list[str] = []
+    for relative in SURFACES:
+        for said, true, what, words in _totals_stated(_text(relative)):
+            wrong.append(
+                f"{relative}: {words!r} says {said} where {true} is the "
+                f"count of {what}"
+            )
+    assert not wrong, (
+        "These surfaces state a total the product does not have:\n  "
+        + "\n  ".join(wrong)
+        + f"\n\nThe tool offers {COMMAND_TOTAL} commands "
+        + f"({', '.join(COMMAND_WORDS)}), and a full run leaves "
+        + f"{FILE_TOTAL} files behind, of {ARTIFACT_TOTAL} kinds "
+        + f"({', '.join(RUN_OUTPUT_SUFFIXES)}). Each total is counted "
+        "from the shipped parser and the shipped output names, so if a "
+        "number here surprises you the surface is stale, not the count."
+    )
+
+
+def test_every_handling_form_names_every_file_a_run_writes() -> None:
+    """A floor: no accepted handling form can leave a file out.
+
+    The positive check above is worth exactly as much as the forms it
+    accepts, and the forms are the part a person edits. This holds each
+    one to the derived list: every file the product writes has a name in
+    `FILE_NAMES`, every accepted form matches every one of those names,
+    and the form's own list is as long as the count -- so deleting one
+    file from a form fails here rather than quietly narrowing the rule
+    on every surface at once.
+    """
+    endings = {ending for ending, _pattern, _what in FILE_NAMES}
+    assert endings == set(RUN_OUTPUT_SUFFIXES), (
+        "The product writes files this file has no name for, or names "
+        "files it no longer writes:\n"
+        f"  written: {sorted(RUN_OUTPUT_SUFFIXES)}\n"
+        f"  named:   {sorted(endings)}\n"
+        "A new output file joins FILE_NAMES and joins every handling "
+        "form in the same commit -- a file nobody named is a file the "
+        "institution's rules were never stated about."
+    )
+    missing: list[str] = []
+    for form in HANDLING_FORMS:
+        for _ending, pattern, what in FILE_NAMES:
+            if re.search(pattern, form) is None:
+                missing.append(f"{form!r} never names {what}")
+        parts = form.count(",") + form.count(" and ")
+        if parts != FILE_TOTAL - 1:
+            missing.append(
+                f"{form!r} lists {parts + 1} names where a full run "
+                f"leaves {FILE_TOTAL} files"
+            )
+    assert not missing, (
+        "These accepted handling forms do not name every file a run "
+        "leaves behind:\n  " + "\n  ".join(missing)
+    )
+
+
+# The wording that puts a thing in a phase rather than in the product.
+# Only unambiguous placements are here. "will be" is deliberately absent:
+# "the description the twin will be built from" is a true sentence about
+# a step the reader has not taken yet, and a ban the truth trips is a ban
+# that gets an exception list. What is here is the tool speaking about
+# its own work as somebody else's later work.
+# Saying a built thing IS a phase, or arrives in one, is enough on its
+# own: it is a statement about when the thing exists.
+_PHASE_PLACEMENTS = (
+    r"\bare phase\b",
+    r"\bis phase\b",
+    r"arrives in phase",
+    r"comes in phase",
+    r"arrives with phase",
+    r"does not exist yet",
+)
+# A future verb is a defect only when it is attached to a PHASE. "The
+# profile will say so" is a true sentence about a file that has not been
+# written yet in the reader's own run; "the quality report of Phase 3
+# will say so" is the tool describing its own shipped work as somebody
+# else's later work.
+_FUTURE_VERBS = (
+    r"will say",
+    r"will name",
+    r"will report",
+    r"will tell",
+    r"will arrive",
+    r"will exist",
+    r"will check",
+    r"will measure",
+)
+_PHASE_MENTIONS = (r"phase \d", r"a later phase", r"a later version")
+_FUTURE_WINDOW = 70
+# A marker in the NEXT sentence is not a claim about this one, so the
+# window stops where the sentence does.
+_SENTENCE_ENDS = (".", ";", " -- ")
+
+
+def _built_things() -> "tuple[str, ...]":
+    """What is built, in the words a surface would name it by.
+
+    Derived: the command words come from the shipped parser and the
+    file names from the shipped output endings, so a capability that
+    ships is one no surface may go on describing as later work.
+    """
+    names = ["fidelity measurement"]
+    for _ending, _pattern, what in FILE_NAMES:
+        names.append(what.replace("plain-language ", "").replace(" itself", ""))
+    return tuple(COMMAND_WORDS) + tuple(names)
+
+
+def _rest_of_sentence(text: str, start: int) -> str:
+    """What follows a name, up to the end of the sentence it is in."""
+    tail = text[start : start + _FUTURE_WINDOW]
+    for end in _SENTENCE_ENDS:
+        if end in tail:
+            tail = tail[: tail.index(end)]
+    return tail
+
+
+def _puts_it_in_a_phase(tail: str) -> "str | None":
+    """The wording that placed this thing in a phase, or nothing."""
+    for mark in _PHASE_PLACEMENTS:
+        if re.search(mark, tail) is not None:
+            return mark
+    if not any(re.search(mark, tail) is not None for mark in _PHASE_MENTIONS):
+        return None
+    for mark in _FUTURE_VERBS:
+        if re.search(mark, tail) is not None:
+            return mark
+    return None
+
+
+def test_no_surface_puts_a_built_capability_in_a_future_phase() -> None:
+    """Nothing that ships is described as a phase's later work.
+
+    The sibling of the built-capability ban above, and the shape it
+    could not see: not "[planned]" beside a command, but a sentence
+    written while the thing was genuinely future and left standing after
+    it shipped. Two survived the validator's landing -- the front page
+    telling a reader that the quality report of Phase 3 WILL say so
+    plainly, and the generation method telling an independent
+    implementer that fidelity measurement and the quality report ARE
+    Phase 3. A reader who believes either one does not run the command
+    that would have answered their question.
+    """
+    offenders: list[str] = []
+    for relative in SURFACES:
+        text = _text(relative)
+        for thing in _built_things():
+            for found in re.finditer(re.escape(thing), text):
+                mark = _puts_it_in_a_phase(_rest_of_sentence(text, found.end()))
+                if mark is not None:
+                    tail = _rest_of_sentence(text, found.end())
+                    offenders.append(
+                        f"{relative}: {thing!r} is put in a phase by "
+                        f"{mark!r} -- {thing + tail!r}"
+                    )
+    assert not offenders, (
+        "These surfaces put something that is built into the future:\n  "
+        + "\n  ".join(offenders)
+        + "\n\nEvery command the parser takes and every file a run "
+        "writes exists today. Say what it does, in the present tense; "
+        "if the sentence is about what a LATER phase adds, name that "
+        "phase and the capability it adds rather than the built one."
+    )
+
+
+# What a reader can copy and run in order. A step is a line that starts
+# with the tool's own name or with one of the few shell words a
+# walkthrough needs to set up a machine; anything else -- prose, a blank
+# line, a description indented under an example -- ends the sequence.
+_SETUP_STEPS = ("git ", "cd ", "pip ", "python ", "python3 ")
+
+
+def _taught_sequences(relative: str) -> "list[list[str]]":
+    """Every runnable sequence one surface puts in front of a reader."""
+    sequences: list[list[str]] = []
+    running: list[str] = []
+    path = REPO_ROOT / relative
+    for line in path.read_text(encoding="utf-8").splitlines():
+        step = line.strip().lstrip("$").strip()
+        if step.startswith("synthtwin ") or step.startswith(_SETUP_STEPS):
+            running = running + [step]
+            continue
+        if running:
+            sequences = sequences + [running]
+            running = []
+    if running:
+        sequences = sequences + [running]
+    return sequences
+
+
+def test_a_taught_sequence_does_not_stop_short() -> None:
+    """A walkthrough that runs two commands runs all of them.
+
+    Naming the third command somewhere on the page is not the same as
+    teaching it, and the difference is what a person actually does. The
+    front page's install section walked a reader from a clone to a
+    profile to a twin and stopped, so a README-only reader -- exactly
+    the zero-code reader this project is for -- could follow it to the
+    end and never learn that the file they now hold can be checked.
+
+    A sequence that invokes one command is a worked example of that
+    command and is left alone. A sequence that invokes two has begun to
+    teach the workflow, and the workflow does not end at the twin.
+    """
+    short: list[str] = []
+    for relative in SURFACES:
+        for sequence in _taught_sequences(relative):
+            named = [
+                word
+                for word in COMMAND_WORDS
+                if any(step.startswith(word) for step in sequence)
+            ]
+            if len(named) < 2 or len(named) == COMMAND_TOTAL:
+                continue
+            absent = [word for word in COMMAND_WORDS if word not in named]
+            short.append(
+                f"{relative}: a sequence runs {', '.join(named)} and "
+                f"never {', '.join(absent)}:\n      "
+                + "\n      ".join(sequence)
+            )
+    assert not short, (
+        "These runnable sequences teach part of the workflow and stop:\n  "
+        + "\n  ".join(short)
+        + "\n\nA reader follows the last line and believes they are "
+        "finished. Add the missing step, or split the sequence so that "
+        "each block is a worked example of one command."
+    )
+
+
+def test_the_third_family_would_notice_the_wording_it_replaced() -> None:
+    """A vacuity floor: every rule above is checked against live text.
+
+    Same reasoning as the two floors before it. Each sentence below was
+    on a public surface of this repository at the commit review item
+    P3-V3-F8 was written against, and each must still be caught -- the
+    counts by the count rule, the future placements by the future rule,
+    and the truncated walkthrough by the sequence rule.
+    """
+    stale = {
+        "the twin's report, on all three artifacts": (
+            "that all three artifacts carry facts computed from real "
+            "data and are kept under the institution's rules"
+        ),
+        "the twin's report's module docstring": (
+            "that all three files of a full run carry facts computed "
+            "from real data"
+        ),
+        "the write transaction's own account of itself": (
+            "the write transaction serves two commands. `profile` reads "
+            "a table and writes a profile beside a summary"
+        ),
+        "the transaction module's docstring": (
+            "the machinery is one piece of code for both commands, but "
+            "the files are not the same files"
+        ),
+        "the profiler summary's count of what a run makes": (
+            "the same is true of the other three files a full run makes."
+        ),
+        "the handling rule before the summary was named": (
+            "all four files a full run produces -- the profile, the "
+            "twin, the twin's report and the quality report -- carry "
+            "facts computed from your real data"
+        ),
+    }
+    uncaught = [
+        f"{what}: {sentence!r}"
+        for what, sentence in stale.items()
+        if not _totals_stated(sentence)
+    ]
+    assert not uncaught, (
+        "These stale totals were live on public surfaces and are no "
+        "longer caught:\n  " + "\n  ".join(uncaught)
+    )
+    future = {
+        "the front page's small-table row": (
+            "the quality report of phase 3 will say so plainly"
+        ),
+        "the generation method's scope paragraph": (
+            "fidelity measurement and the quality report are phase 3."
+        ),
+    }
+    still_future = []
+    for what, sentence in future.items():
+        caught = False
+        for thing in _built_things():
+            for found in re.finditer(re.escape(thing), sentence):
+                tail = _rest_of_sentence(sentence, found.end())
+                caught = caught or _puts_it_in_a_phase(tail) is not None
+        if not caught:
+            still_future.append(f"{what}: {sentence!r}")
+    assert not still_future, (
+        "These sentences put a built capability in a future phase and "
+        "are no longer caught:\n  " + "\n  ".join(still_future)
+    )
+    assert _COUNT_WORDS and _PHASE_PLACEMENTS and _FUTURE_VERBS and FILE_NAMES
+    assert COMMAND_TOTAL >= 3 and FILE_TOTAL >= 5 and ARTIFACT_TOTAL >= 4

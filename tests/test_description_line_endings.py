@@ -47,10 +47,11 @@ around the class, not around the shape that bit first.
 
 HOW WIDE THE RULE IS DRAWN, and why wider than the two files that bit.
 "This file is a profile document" is not a question source text can be
-asked, so the rule is drawn around what it can be asked: a write whose
-text comes from the canonical serializer, and a write whose target is
-named as a `.json` or a `.csv` file -- the two extensions synthtwin's
-own readers open. That takes in a few files that are neither a
+asked, so the rule is drawn around three things it can be asked: a
+write whose text comes from the canonical serializer; a write whose
+target is named as a `.json` or a `.csv` file -- the two extensions
+synthtwin's own readers open; and a write whose target is HANDED TO the
+product afterwards. That takes in a few files that are neither a
 description nor a table -- a signed attestation, a stand-in left in the
 way of a run, a stray file placed to make a scanner refuse it -- and
 asks each of them for one keyword argument they could have done
@@ -58,22 +59,36 @@ without. It is the cheap side of the trade: what the guard asks for is
 never wrong, and the file it fails to ask turns a platform red that
 nobody can reproduce locally.
 
+THE THIRD LEG IS WHY THIS FILE WAS REOPENED (2026-08-14, review item
+P3-V3-F10). The first two read NAMES, and the product does not read
+names: `synthtwin validate` accepts whatever local path it is handed,
+so a test writing ``tmp_path / "measured"`` and giving it to
+`validation.measure` wrote a CRLF file on Windows that no rule here
+looked at -- the same defect as the golden's, under a file name with no
+extension. A rule that governs `twin.csv` and lets `measured` through
+is governing spelling, not substance. So the third leg governs by what
+the write IS: a file this suite writes and then hands to a function of
+the product is a file the product reads, whatever it is called. The
+product's module names come from the package directory rather than a
+list here, so a new module joins the rule on the commit that adds it.
+
 WHAT THIS FILE CHECKS, and it states the whole of it:
 
 1. Every ``write_text`` call in the suite that writes a file the
    product reads -- one whose text comes from the canonical serializer,
-   or whose target names a `.json` or `.csv` file -- passes an explicit
-   ``newline``.
+   whose target names a `.json` or `.csv` file, or whose target is
+   passed to the product afterwards -- passes an explicit ``newline``.
 2. The only module that composes description bytes itself, instead of
    asking the fixture for them, is the one whose whole subject is the
    refusal of bytes synthtwin would never have written.
 3. Every module that hands the loader a description asks the fixture for
    it. Without this the first two tests could go quiet by matching
    nothing at all.
-4. Each half of rule 1 recognizes at least one write that really is in
+4. Each leg of rule 1 recognizes at least one write that really is in
    the suite. Rule 3 is that floor for descriptions; this is the floor
-   for the half added in 2026-08-14, because a rule that has quietly
-   stopped seeing `.csv` targets passes rule 1 in silence and the next
+   for the legs added in 2026-08-14, because a rule that has quietly
+   stopped seeing `.csv` targets, or stopped following a file to the
+   function it is handed to, passes rule 1 in silence and the next
    golden to write its own measured file is red on Windows only.
 5. The detector is put through source carrying each defect and source
    without it, so a rule that has stopped recognizing one of them
@@ -90,10 +105,11 @@ WHAT THIS FILE CHECKS, and it states the whole of it:
 WHAT IT DOES NOT CHECK. Only ``write_text`` is read. A file written
 through ``open`` would pass unnoticed here; nothing in the suite writes
 one that way, and the fixture is the door every test now uses. And the
-rule reads NAMES, not what a file is handed to: a measured file written
-under a name ending in neither `.json` nor `.csv` is outside it. Nothing
-in the suite writes one, and rule 4's floor is what turns a shrinking
-rule red rather than quiet.
+third leg follows a file by the NAME OF THE VARIABLE it was written
+through, so a path handed to the product through a data structure --
+built into a list in one function and read out of it in another --
+is outside it. Rule 4's floor is what turns a shrinking rule red rather
+than quiet.
 """
 
 import ast
@@ -138,6 +154,23 @@ _SERIALIZER = "serialize"
 # profiler reads and the measured file `validation.measure` reads. Both
 # have now cost a Windows-only failure, one per extension.
 PRODUCT_READS = (".json", ".csv")
+
+# What "the product" is called in this suite's source, read off the
+# package rather than written out, so that a module added tomorrow is
+# inside the rule on the commit that adds it. `main` is beside them
+# because the CLI tests import it bare and it is the widest door of all:
+# `main(["validate", f"{target}"])` opens whatever it was handed.
+# What the fourth field of a `product_input_writes` entry says when the
+# file was recognized by the function it is handed to rather than by its
+# name. It is not an extension, and it deliberately is not one: this is
+# the leg that exists because names settle nothing.
+HANDED_OVER = "handed to the product"
+
+PACKAGE = TESTS.parent / "src" / "synthtwin"
+PRODUCT_NAMES = frozenset(
+    {module.stem for module in PACKAGE.glob("*.py") if module.stem != "__init__"}
+    | {"synthtwin", "main"}
+)
 
 
 def _test_modules() -> "list[pathlib.Path]":
@@ -227,6 +260,46 @@ def _read_paths(tree: ast.Module) -> "dict[str, str]":
     return named
 
 
+def _handed_to_the_product(tree: ast.Module) -> "set[str]":
+    """Every variable in ``tree`` that is passed to a function of the product.
+
+    The rule this serves governs a write by WHAT IT IS rather than by
+    what it is named (review item P3-V3-F10): the product accepts any
+    local path, so `validation.measure(described, str(measured))` makes
+    `measured` a file the product reads whether it is called
+    `twin.csv`, `measured`, or nothing at all.
+
+    Every name anywhere inside such a call is taken, not the path
+    argument alone. Which position holds the path differs between entry
+    points and can be inside an f-string inside a list -- which is how
+    the CLI tests spell it -- and over-collecting costs at worst a
+    ``newline`` argument on a write that did not need one, which is the
+    direction this whole file errs in.
+    """
+    handed: set[str] = set()
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        named = node.func
+        reaches = False
+        if isinstance(named, ast.Attribute):
+            root = named.value
+            while isinstance(root, ast.Attribute):
+                root = root.value
+            reaches = isinstance(root, ast.Name) and root.id in PRODUCT_NAMES
+        elif isinstance(named, ast.Name):
+            reaches = named.id in PRODUCT_NAMES
+        if not reaches:
+            continue
+        for argument in list(node.args) + [
+            keyword.value for keyword in node.keywords
+        ]:
+            for inner in ast.walk(argument):
+                if isinstance(inner, ast.Name):
+                    handed.add(inner.id)
+    return handed
+
+
 def _names_a_file_the_product_reads(
     call: ast.Call, paths: "dict[str, str]"
 ) -> str:
@@ -253,13 +326,15 @@ def product_input_writes(source: str) -> "list[tuple[int, bool, bool, str]]":
     Returns one entry per call: its line, whether it composed the bytes
     itself through the serializer, whether it passed an explicit
     ``newline``, and which of `PRODUCT_READS` the target's name ends in
-    (``""`` when the call was recognized by its serialized text alone,
-    because then the name settles nothing). Accepts any Python source as
-    text, which is what lets the detector be put through each defect
-    itself below rather than trusted.
+    -- ``"handed to the product"`` where the name settles nothing and
+    the file was recognized by the function it is given to, and ``""``
+    where the serialized text alone recognized it. Accepts any Python
+    source as text, which is what lets the detector be put through each
+    defect itself below rather than trusted.
     """
     tree = ast.parse(source)
     paths = _read_paths(tree)
+    handed = _handed_to_the_product(tree)
     found: list[tuple[int, bool, bool, str]] = []
     for node in ast.walk(tree):
         if not isinstance(node, ast.Call):
@@ -269,6 +344,13 @@ def product_input_writes(source: str) -> "list[tuple[int, bool, bool, str]]":
             continue
         composed = _serializes_a_description(node)
         extension = _names_a_file_the_product_reads(node, paths)
+        written_through = named.value
+        if (
+            not extension
+            and isinstance(written_through, ast.Name)
+            and written_through.id in handed
+        ):
+            extension = HANDED_OVER
         if not composed and not extension:
             continue
         keywords = {keyword.arg for keyword in node.keywords}
@@ -380,7 +462,9 @@ def test_the_rule_still_recognizes_a_write_of_each_kind_it_governs() -> None:
             if named and named not in seen:
                 seen[named] = f"{path.name} line {line}"
     unmatched = [
-        extension for extension in PRODUCT_READS if extension not in seen
+        extension
+        for extension in PRODUCT_READS + (HANDED_OVER,)
+        if extension not in seen
     ]
     assert not unmatched, (
         "the rule governs these file names and no write in the whole "
@@ -452,10 +536,40 @@ def test_golden(tmp_path, loaded, built):
     outcome = validation.measure(loaded, str(target))
 '''
 
+# The third defect, and the one no leg of the rule could see before
+# 2026-08-14 (review item P3-V3-F10): the same measured file under a
+# name with no extension at all. `synthtwin validate` takes any local
+# path, so this is a file the product reads and the platform decides its
+# bytes -- and the first two legs, which read names, report nothing.
+_THE_MEASURED_FILE_WITH_NO_EXTENSION = '''
+def test_a_check(tmp_path, described):
+    measured = tmp_path / "measured"
+    measured.write_text("age,site\\n31,north\\n", encoding="utf-8")
+    outcome = validation.measure(described, str(measured))
+'''
+
+# The same file reaching the product through the command line instead,
+# which is the wider door and the one the CLI tests use.
+_THROUGH_THE_COMMAND_LINE = '''
+def test_a_run(tmp_path, description):
+    measured = tmp_path / "candidate"
+    measured.write_text("age,site\\n31,north\\n", encoding="utf-8")
+    assert main(["validate", f"{description}", "--twin", f"{measured}"]) == 0
+'''
+
 # Not a file the product reads at all, and none of this file's business.
 _ANOTHER_FILE_ENTIRELY = '''
 def _notes(folder, text):
     (folder / "notes.md").write_text(text, encoding="utf-8")
+'''
+
+# The same file, still never handed to anything of the product's: a
+# neighbour of the third leg that it must not take in.
+_A_FILE_NOBODY_HANDS_OVER = '''
+def _notes(folder, text):
+    target = folder / "notes"
+    target.write_text(text, encoding="utf-8")
+    return target.read_text(encoding="utf-8")
 '''
 
 
@@ -465,9 +579,18 @@ def test_the_detector_recognizes_the_defect_that_reddened_windows() -> None:
 
 
 def test_the_detector_recognizes_the_defect_behind_a_variable() -> None:
-    """The path says nothing, so the serializer in the text is the mark."""
+    """The path says nothing, so two other marks have to carry it.
+
+    The serializer in the text is the first, and it is the one this
+    fragment was written for. The second arrived with the third leg
+    (review item P3-V3-F10): the file is handed to `contract.load_profile`
+    two lines further down, which makes it a file the product reads
+    whatever it is called. Either alone would catch this; the entry
+    records the second because a name that settles nothing is exactly
+    the case the third leg exists for.
+    """
     assert product_input_writes(_THE_DEFECT_THROUGH_A_VARIABLE) == [
-        (4, True, False, "")
+        (4, True, False, HANDED_OVER)
     ]
 
 
@@ -490,9 +613,27 @@ def test_the_detector_passes_the_repair_and_the_deliberate_bytes() -> None:
     assert product_input_writes(_DELIBERATE_BYTES) == [(4, False, True, ".json")]
 
 
+def test_the_detector_recognizes_a_measured_file_with_no_extension() -> None:
+    """The third defect, under both doors the product opens.
+
+    Neither fragment names a `.json` or a `.csv` and neither composes a
+    description, so before the third leg the detector read both and
+    reported nothing at all -- which is what let a test hand
+    `validation.measure` a file whose bytes the platform decided
+    (review item P3-V3-F10).
+    """
+    assert product_input_writes(_THE_MEASURED_FILE_WITH_NO_EXTENSION) == [
+        (4, False, False, HANDED_OVER)
+    ]
+    assert product_input_writes(_THROUGH_THE_COMMAND_LINE) == [
+        (4, False, False, HANDED_OVER)
+    ]
+
+
 def test_the_detector_leaves_a_file_the_product_never_reads_alone() -> None:
     """Over-reach is its own defect: prose is written by other rules."""
     assert product_input_writes(_ANOTHER_FILE_ENTIRELY) == []
+    assert product_input_writes(_A_FILE_NOBODY_HANDS_OVER) == []
 
 
 # --------------------------------------------------------------------

@@ -2516,10 +2516,20 @@ the part a person must be able to weigh:
 - addition 5 publishes counts of spelling FORMS, floor-governed, carrying
   no value, no magnitude and no spelling (section 7.5).
 
-All three Phase 2 artifacts — profile, twin and report — carry
-real-derived published facts, and all three are handled under the
+Every file a full run leaves behind — the profile, the plain-language
+summary beside it, the twin, the twin's report and the quality report —
+carries real-derived published facts, and each is handled under the
 institution's rules for real-derived material. synthtwin claims no formal
 privacy guarantee.
+
+**This amends the sentence that counted three** (Phase 3 plan P3-D7
+stage 2, amendment A-P3-8, 2026-08-14). Two files were outside it. The
+quality report `synthtwin validate` writes states measurements taken
+from the file it checked; the profiler's plain-language summary repeats
+in words the labels and endpoints this contract's section 7 publishes,
+and it was never named although it is the half a person reads. Nothing
+this contract publishes moves — the handling rule reaches further, and
+that direction is the only one it may move in.
 
 ---
 

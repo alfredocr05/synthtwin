@@ -519,9 +519,11 @@ def publication_guard_stopped(where: str) -> str:
 
 # WHAT ONE COMMAND CALLS ITS OWN FILES (plan P2-D10).
 #
-# The write transaction serves two commands. `profile` reads a table and
-# writes a profile beside a summary; `generate` reads that profile and
-# writes a twin beside a report. The machinery is one piece of code and
+# The write transaction serves every command that writes. `profile`
+# reads a table and writes a profile beside a summary; `generate` reads
+# that profile and writes a twin beside a report; `validate` reads the
+# profile and one file and writes the quality report. The machinery is
+# one piece of code and
 # has to be -- two files or neither, every name looked at, every leftover
 # named -- but the WORDS are not one set of words, and an inherited
 # wording here is not a small blemish. A `generate` run that stopped
@@ -581,9 +583,9 @@ class ArtifactWords:
 
     Two fields hold whole clauses rather than nouns, and that is the
     deliberate choice. Substituting nouns into one fixed sentence would
-    have forced both commands to say the same thing about facts that are
+    have forced every command to say the same thing about facts that are
     not the same, and a sentence that is grammatical and untrue is worse
-    than two sentences.
+    than three sentences.
     """
 
     produced: str

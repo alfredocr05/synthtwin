@@ -74,6 +74,42 @@ consumed anywhere in the validate path.
 - Every other reading refusal the profiler catalogues is reachable here,
   in the parameterized form of V9.
 
+**V1.5-A1 Two questions are settled before the reader is called, and the
+walk that settles them is bound to the reader it stands in for**
+(2026-08-14, review item P3-V3-F6; the plan's amendment A-P3-6 clause 3
+is the ruling and this follows it). Whether the file's first row can
+name a table's columns, and whether the file holds any rows at all, are
+settled ahead of the reader so that a structural mismatch stays a
+reported MISS rather than becoming a refusal that quotes what it found
+(V9). That makes the walk a SECOND READING of the same bytes, and a
+second reading that disagrees with the first is a defect wherever they
+can differ — not only where they were caught differing:
+
+- it reads under the shipped reader's own limits, taken from the
+  reader's own published names rather than copied. The reader raises
+  the `csv` module's field size limit for the length of its pass; a walk
+  running under the interpreter's default parsed a conforming twin's
+  header and stopped, and the twin was reported as a file with no rows;
+- it reads the file's characters without translating line endings,
+  because the reader translates none;
+- and where it cannot finish, it says so rather than handing back what
+  it reached. A file neither reading can parse is a catalogued refusal,
+  and a report built on a partial walk is a report about a file nobody
+  read;
+- and both questions are asked of the text the reader SETTLED ON, not
+  of the UTF-8 reading alone (2026-08-14, review item P3-V3-F3; plan
+  amendment A-P3-7 clause 4). Asking the second one of the UTF-8
+  reading and answering "this file has rows" where there was none sent
+  a header-only file whose bytes are not UTF-8 on to the reader, which
+  refused it, while the same file written in UTF-8 got a full report.
+  The producer refuses both and publishes nothing about either, so
+  which of the two answers came back was that file's own encoding, told
+  by the shape of the reply.
+
+The suite drives both readings over the same files, crossing the
+boundaries at which they can differ, rather than testing either rule
+twice.
+
 ---
 
 ## V2. The measurement: re-describe, then compare
@@ -203,6 +239,53 @@ beside a MISSED check of the same column that says why. The narrow form
 could not be made true of a correct validator, and stating it was the
 defect.
 
+**Where the split may be REPORTED, because A1 said which number to take
+and not whether it may be shown** (amendment V2.4-A3, 2026-08-14, review
+item P3-V3-F1; the plan's amendment A-P3-5 is the ruling and this
+follows it). A1 gave every presence-dependent obligation its number from
+the second description. It did not ask whether stating that number is
+inside V5.1, and it is not always: the producer counts presence by its
+own absence rules, the split counts it by blankness, and the two differ
+exactly on the cells that are non-blank and read as holes. **How many
+such cells a column has is a FLOORED fact**, published per spelling in
+`missing_by_source` and pooled into one unnamed total below
+`small_cell_floor`, because a count of two cells sharing a rare spelling
+is a count the floor exists to hide. So two files the producer describes
+BYTE FOR BYTE ALIKE — fifty-nine labels and one empty cell, fifty-nine
+labels and one `n/a` — received different verdicts, different censuses
+and different exit statuses.
+
+**So the split's number is taken where the file's own description names
+the source of every missing cell, and the file's OWN description
+supplies the verdict where it pools any of them.** Where every source is
+named, the exact multiset of spellings the holes wear is published, so
+the split is derivable from what describing the file publishes and
+stating it says nothing new. Where sources are pooled it is not
+derivable, and the description itself is the only reading inside the
+envelope — it IS the description.
+
+**The two presence COUNTS are settled on a weaker publication, because
+they need a weaker fact.** They need only how many holes are non-blank;
+every other presence-dependent measurement needs what those holes spell.
+`missing_by_class` counts holes under this package's own five words, so
+it is published for every role including the three that publish no value
+of the table, and where its pooled remainder is empty the two counts are
+inside the envelope even where the spellings are not.
+
+**It is not a withholding, deliberately.** A silence here is one any
+file could buy by writing a single marker cell, which is the defect A1
+exists to close; answering this conflict by withholding would trade a
+confidentiality defect for the vacuity V3.4 refuses by name. Every
+obligation still lands on a verdict taken from one description or the
+other, and zero new withholdings are produced on any file. **This
+amendment LOWERS one bound and no obligation:** residual R-P2-13's
+missing-marker collision can now cost a verdict rather than only report
+detail, in a column whose own description pools its missing sources, and
+that is stated in the plan rather than discovered. Every measurement
+whose input is the set of present cells is settled this way, the style
+clauses included: they recount the written cells, so where the split is
+not published they recount the cells that description reads.
+
 ---
 
 ## V3. The entry table: what is checked, at what grain, in three kinds
@@ -254,6 +337,30 @@ unbound, double-bound, or bound to the wrong kind.
 unable to fail, and no listing or input-side entry may be presented as
 a check. Those are the two ways vacuity enters and both are refused by
 name.
+
+**V3.4-A1 And a THIRD way, which the first implementation found: a
+verdict withheld because the VALIDATOR cannot take the measurement**
+(2026-08-14, review item P3-V3-F4; the plan's amendment A-P3-6 clause 1
+is the ruling and this follows it). WITHHELD says one thing and one
+thing only: describing this file on its own would not publish what this
+check measures (V5.3). It does not say that this code could not read the
+value, and using it for that turns a gap in the validator into a silence
+the reader cannot tell from a confidentiality rule. A column of quarters
+reached the shipped validator that way — the generation method defines a
+quarter's ordinal and applies both the ladder bound and the distinctness
+bound to quarters, so eleven obligations were set, and every one of them
+was WITHHELD on every file because the reading was written for the two
+resolutions that name an instant.
+
+**So every measurement this method takes in the ordinal space is taken
+in the space the generation method fixes for the resolution the
+description publishes, and that space is TOTAL over the resolutions the
+producer can publish.** A published instant that names no point in its
+own resolution's space is a contradiction between the strict loader and
+this reading, not a fact about the measured file, and it is raised
+rather than withheld. The suite walks the producer's own list of
+resolutions, so a resolution added there without a reading here is red
+on the commit that adds it.
 
 **V3.5 The kind of an entry is decided by the DESCRIPTION, and four
 entries are decided that way** (2026-08-13, review items P3-V2-C-F1,
@@ -348,6 +455,45 @@ passing report.
 only what `synthtwin profile`, run on THAT FILE under the profile's own
 settings, would publish about it.
 
+**V5.1-A1 Where the producer REFUSES the file, the envelope is the
+refusal** (2026-08-14, review item P3-V3-F3; the plan's amendment A-P3-7
+is the ruling and this follows it). Two questions are settled ahead of
+the reader (V1.5-A1) and both of them are settled about files the
+profiler's own reader refuses: a file with no data rows, and one whose
+first row leaves a name blank or uses a name twice. Validation reports
+on those rather than refusing, because V9 makes a structural mismatch a
+verdict; and reporting on them, it stated four structural obligations
+and every column's position against a header line that no run of
+`synthtwin profile` on that file publishes a word of. Two header-only
+files under one name were five verdicts apart.
+
+**So on such a path the report states what that refusal states and
+nothing else.** The no-data refusal says the file holds no rows, so the
+row count is measured and missed and every obligation of every column
+is missed with it — a column with no cells carries none of them — and
+what only its header line could answer, the width, the presence, the
+names, the order and each column's position, is WITHHELD under a
+sentence of its own. The unusable-header refusal names the column
+NUMBERS at fault, so the header's presence, its names and its order are
+missed with those numbers on the line, which is strictly less than the
+profiler's own form of that refusal publishes, while the width and the
+record count — two numbers that refusal stops before reaching — are
+withheld. On both paths the encoding rule is withheld too, because
+which reading a file was read under is a fact the producer publishes
+about the files it describes. Nothing is lost by any of it: neither
+path is reachable by a conforming twin of the description that reaches
+it, so every one of those obligations still answers on the file the
+description calls right, and the file that reaches these paths misses
+whatever its header holds.
+
+**The degenerate zero-row forms are the one place this stops, and it
+stops for V3.4's reason.** There the conforming twin ITSELF is a file
+the producer refuses — V1.5 says the profiler's reader refuses these
+forms and this one accepts them — so withholding would leave V6.4's
+byte form unable to HOLD on any file at all and would take V6.4-A1's
+repair with it. The residual that leaves open is stated at its size in
+the plan's amendment rather than left to be found.
+
 **V5.2 Why the submitted profile's floor is not the envelope.** The
 producer routes a two-valued numeric-looking column to a label role
 BEFORE it reaches the numeric path, and withholds both labels when they
@@ -367,6 +513,40 @@ count of withheld subchecks appears in the census. That the column
 classifies differently than the submitted profile expects is itself a
 fact the producer publishes about any file — the role axis — so the
 signal stays inside the envelope.
+
+**V5.3-A1 What the envelope is drawn round, and the test that settles a
+disputed fact** (2026-08-14, review item P3-V3-F2; the plan's amendment
+A-P3-5 clause 3 is the ruling and this follows it). The plan's A-P3-3
+clause 6 settled `bytes.line-endings` and `bytes.terminal-newline`
+outside this envelope on the ground that V5.1 is drawn round facts about
+the TABLE a file holds. That ground needs a test, or every awkward fact
+gets called a file fact. The test is **whether the producer publishes
+the fact about ANY file at ANY count**:
+
+- where it publishes it above a floor and pools it below one, the fact
+  is inside the envelope and the floor governs it — because the floor is
+  how the producer says the count is small enough to identify somebody.
+  The blank/non-blank split of a column's missing cells is such a fact:
+  `missing_by_source` names the exact spelling at or above the floor and
+  pools it below, so V2.4-A3 above governs it and no ruling may excuse
+  it;
+- where it publishes it about no file at any count, there is no floor to
+  appeal to and no window to draw, withholding it withholds it forever,
+  and V3.4 refuses a subcheck that can never verdict. That is the case
+  the ruling is for, and it is a ruling rather than a derivation: it
+  says the fact is one about the file's own form. Whether a numeric
+  cell's TEXT is a spelling its own value licenses is such a fact —
+  the producer's form ladder discards it by design, reading `1.5` and
+  `01.5` as one form — so `styles.spelled` and `styles.canonical.<form>`
+  state their verdicts.
+
+**A ruling of the second kind carries its bound with it.** A spelling
+can carry a person's own data where a line ending cannot, so what
+escapes is bounded rather than waved away: neither subcheck prints a
+measured count, and `styles.spelled` takes no number from the submitted
+description at all, so no sequence of candidate descriptions can
+binary-search anything through it. Which of the six FORMS a cell wears
+is published and floored, and stays gated.
 
 **V5.4 What may be printed, exactly.**
 
@@ -443,6 +623,40 @@ obligation the description sets. The headerless form keeps the listings
 and gains one check: that no header line was written, which a file of
 no bytes evidences exactly.
 
+**V6.4-A1 What the zero-row byte check answers for, now that three
+facts have been taken out of it** (2026-08-14, review item P3-V3-F5;
+the plan's amendment A-P3-6 clause 2 is the ruling and this follows
+it). The clause above says the expected byte form IS the executable
+subcheck and then takes the column count, the names and the order out of
+it, and it did not say what was left. The first implementation read
+"the expected byte form" as ONE PHYSICAL LINE ending in a line feed,
+which is neither the bytes nor a record: `"reading"` quoted passed for a
+description whose renderer writes `reading`, because how a name is
+SPELLED was nobody's obligation once reading it back became
+`universal.name`'s; and a published name holding a line feed is written
+as one record over two physical lines, so the conforming file the
+renderer writes was reported MISSED.
+
+**What is left to this subcheck is the WRITING and the STOP**: the file
+holds exactly one record, that record is written the way the generation
+method's own writing rule writes it — minimal quoting, a doubled quote
+inside a quoted field, the byte-order-mark exception — and nothing
+follows it. The record's line ending is taken off before the comparison,
+because which characters end a line is the two byte rules' obligation
+and V3.6 forbids a subcheck to answer for another's. The canonical
+writing is derived from the METHOD, never imported from the renderer
+(V1.4), and the two writings are compared in the suite where both may be
+imported, exactly as V4.2 compares the two corner classifiers.
+
+**And a byte rule is about the file's RECORDS, not about a byte**
+(same amendment). `bytes.line-endings` asks whether a carriage return
+ends one of the file's lines. A carriage return inside a quoted field is
+data the method writes on purpose, and asking whether one is present
+anywhere in the file told a conforming twin it had broken a rule it
+kept. For the same reason the measured file is read WITHOUT translating
+line endings: the reader translates none, and a validator whose text
+differs from the reader's is not standing in for the reader at all.
+
 **V6.5 Exit status.** 0 when validation ran to completion and no
 subcheck MISSED; 3 when it ran to completion and at least one did; 1 on
 a catalogued refusal, which is validation that could not run at all; 2
@@ -514,6 +728,17 @@ its own contract change. It promises no version, no slot and no date.
 **V7.5 The fourth artifact.** The report states measured facts about a
 real-derived file, so it is real-derived material exactly as the
 profile, the twin and the generation report are, and it says so.
+
+**V7.5-A2 — and it names every file a full run leaves behind, which is
+FIVE** (plan amendment A-P3-8 clause 2, 2026-08-14). The handling rule
+this report carries enumerates the description, the plain-language
+summary beside it, the twin, the twin's report and this quality report.
+The summary is on that list because the profiler writes its description
+twice — once for a program and once in words — and the half a person
+reads repeats the published labels; a rule that named four files told a
+reader by omission that the fifth was free to travel. Nothing about
+what this report MEASURES changes; what changes is what it says about
+keeping the files.
 
 ---
 

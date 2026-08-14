@@ -22,7 +22,17 @@ of a rounding, which end of a list a tie goes to.
 and assumes that contract's meanings. The command line, the output file
 names, the write transaction, the refusal catalogue's wording and the
 generation report's own bytes are P2-D10's business. Fidelity
-measurement and the quality report are Phase 3.
+measurement and the quality report are `synthtwin validate`'s, and the
+rules it measures against are `docs/spec/validation-method-v1.md`.
+
+**This amends the sentence that called fidelity measurement later work**
+(Phase 3 plan P3-D7 stage 2, amendment A-P3-8, 2026-08-14). The
+validator ships, so a reader of this document — including the
+independent implementer it is written for — is now told where the
+measuring rules live rather than which phase would eventually write
+them. Nothing this document obliges a generator to do moves: the
+validator measures a written file against the PROFILE, and it is a
+consumer of this method's output rather than a rule upon it.
 
 **Vocabulary.** "Word" always means one full-width unsigned 64-bit draw
 from the single stream of section G3. "Cell" means one value in one row
@@ -2502,8 +2512,25 @@ code family CLOSED, and reaches for it only when no assignment of whole
 groups meets every published count without it — so a column with room
 for three characters writes `1e0` and no sign at all.
 `all_whole_numbers` stays EXACT-OBSERVABLE in every case this method
-builds, and every invented record number opening with such a character
-does so because the published counts leave no other way to spell it.
+builds, and an invented record number opens with such a character only
+where the published counts leave no other way to spell a value of that
+width for its own group.
+
+**The COUNT of such cells is not minimal, and this document said
+otherwise until now** (Phase 3 plan P3-C7-F1 and its amendment A-P3-8
+clause 4, 2026-08-14). A fold-collision PARTNER carries its parent's
+spelling, and `_partner_of` searches only the family the packing
+already gave the slot, so it cannot move a collision to a family where
+it would cost nothing: the plan's measured column — `-3` twelve times,
+`-34023` twice, `8e999` three times and `8E999` twice — writes fourteen
+such cells where an allocation putting the collision on the
+out-of-range pair would write two. Every published count is met either
+way, so what is missing is a MINIMISATION rather than an obligation;
+the plan records the three passes that designed it, measured it and did
+not take it, and the generation report says the same thing to the
+person holding the twin. An independent implementer is bound by the
+counts, not by this shortfall: writing fewer such cells while meeting
+every published count conforms.
 
 In the infeasible corner of owner decision 6 the identifier repeats:
 the groups are filled from the domain in order and, when it is

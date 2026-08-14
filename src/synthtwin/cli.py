@@ -192,10 +192,10 @@ eleven rows share, publishes that label with the count eleven -- so the
 twin writes it in all eleven of its rows. synthtwin offers no formal
 privacy guarantee.
 
-All four files -- the profile, the twin, the twin's report and the
-quality report -- are computed from your real data, so your
-institution's rules for real-derived material apply to all four, not to
-the profile alone.
+All five files -- the profile, the plain-language summary beside it, the
+twin, the twin's report and the quality report -- are computed from your
+real data, so your institution's rules for real-derived material apply
+to all five, not to the profile alone.
 
 Everything runs on this computer. synthtwin never sends anything
 anywhere, and it accepts only plain paths to local files.
@@ -1322,10 +1322,16 @@ def _run_validate(
 
     _say(report_text)
     _say(f"This file will be written:\n  {shown_quality_path}")
+    # THE OTHERS ARE ALL NAMED, not the two nearest to hand (plan
+    # amendment A-P3-8 clause 2). This sentence exists to say that a
+    # verdict travels under the same rules as the thing it measured, and
+    # a list that stops partway through reads as a list of the ones that
+    # matter.
     _say(
         "\nIt carries counts and measurements taken from the file it "
-        "checked, so it is real-derived material like the description "
-        "and the twin. Keep it under the same rules your institution "
+        "checked, so it is real-derived material like the description, "
+        "the plain-language summary beside it, the twin and the twin's "
+        "report. Keep it under the same rules your institution "
         "applies to the table itself, and read the report above before "
         "moving it anywhere."
     )
