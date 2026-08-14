@@ -303,6 +303,38 @@ def test_a_structural_mismatch_is_a_verdict_and_not_a_refusal(
     assert "Traceback" not in told.err
 
 
+def test_a_repeated_header_name_writes_a_report_and_quotes_nothing(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Review item P3-V1-F10, end to end.
+
+    A file whose first row uses one name twice was refused by the
+    profiler's own reader, in a sentence that QUOTED the repeated name.
+    Reached from `validate` that did two forbidden things at once: it
+    printed a string out of a file nobody promised was the reader's, and
+    it turned a wrong name into a run that never happened. Both halves
+    are asserted here on what actually reached the disk and the screen:
+    exit 3 with the report written, and the spelling in no byte of any
+    surface.
+    """
+    description = _built(tmp_path, capsys)
+    twin = _twin_of(description)
+    marker = "zzmarkerzz"
+    rows = [f"{index % 4},{index % 7}" for index in range(48)]
+    twin.write_text(
+        f"{marker},{marker}\n" + "\n".join(rows) + "\n",
+        encoding="utf-8",
+        newline="",
+    )
+    assert main(["validate", f"{description}"]) == 3
+    told = capsys.readouterr()
+    report = _quality_of(description)
+    assert report.is_file(), "a structural mismatch is still a report"
+    for surface in (report.read_text(encoding="utf-8"), told.out, told.err):
+        assert marker not in surface
+    assert "Traceback" not in told.err
+
+
 def test_a_command_line_that_cannot_be_used_exits_two(
     capsys: pytest.CaptureFixture[str],
 ) -> None:

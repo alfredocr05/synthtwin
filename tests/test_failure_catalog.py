@@ -39,6 +39,18 @@ CASES: "dict[str, tuple[object, ...]]" = {
     "first_row_could_be_a_record": ("/data/table.csv", 3),
     "readers_disagree_about_a_name": ("/data/table.csv", 2, "age", "agee"),
     "readers_disagree_about_a_value": ("/data/table.csv", 7, "age"),
+    # The same three refusals for a file `synthtwin validate` was only
+    # pointed at (plan P3-D1, V9). Every argument is a POSITION: on that
+    # path the file may not be the reader's own table, and a refusal
+    # travels as freely as a report does. The test below walks their
+    # arguments and asserts no spelling from a file can be among them.
+    "checked_file_readers_disagree_about_a_name": ("/data/checked.csv", 2),
+    "checked_file_readers_disagree_about_a_value": (
+        "/data/checked.csv",
+        7,
+        2,
+    ),
+    "checked_file_unreadable_as_csv": ("/data/checked.csv",),
     "blank_line_in_one_column": ("/data/table.csv", 4),
     # The two messages about the disk take the arguments profile.py
     # actually passes: the caller has LOOKED at each name and hands over
@@ -307,6 +319,74 @@ def test_ragged_row_message_names_positions_as_data_rows() -> None:
         "a file line number can land in the middle of a quoted value, so "
         "the message has to say which numbering it means"
     )
+
+
+CHECKED_FILE_FORMS = (
+    "checked_file_readers_disagree_about_a_name",
+    "checked_file_readers_disagree_about_a_value",
+    "checked_file_unreadable_as_csv",
+)
+
+
+@pytest.mark.parametrize("name", CHECKED_FILE_FORMS)
+def test_a_checked_file_refusal_takes_positions_and_nothing_else(
+    name: str,
+) -> None:
+    """V9: every refusal reachable from validate names positions.
+
+    The rule is checked at the SIGNATURE, which is where it can be kept:
+    a builder that takes only a path and whole numbers has nothing out
+    of the file to put in its sentence, whatever anybody writes in it
+    later. The profiler's own forms of these three take the name and
+    the value beside the position, which is why they are three separate
+    builders rather than one with a flag.
+    """
+    given = CASES[name]
+    assert given[0] == "/data/checked.csv"
+    for argument in given[1:]:
+        assert isinstance(argument, int), (
+            f"{name} takes something that is not a position: a refusal "
+            f"about a file nobody promised was the reader's may name "
+            f"which column and which row, and nothing else"
+        )
+    message = _builders()[name](*given)
+    assert "may not be your own table" in message, (
+        f"{name} should say why it is not showing what it found"
+    )
+
+
+def test_the_checked_file_forms_say_no_more_than_the_position() -> None:
+    """The quoting forms and the position forms, side by side.
+
+    The profiler's form of each of these carries a spelling out of the
+    file; the checking form carries the column number in its place. This
+    is the assertion that the second really is the first with the
+    spelling taken out, rather than the first under a new name.
+    """
+    quoting = errors.readers_disagree_about_a_name(
+        "/data/checked.csv", 2, "age", "agee"
+    )
+    position = errors.checked_file_readers_disagree_about_a_name(
+        "/data/checked.csv", 2
+    )
+    assert "age" in quoting and "agee" in quoting
+    assert "agee" not in position
+    assert "column number 2" in position
+
+    quoting = errors.readers_disagree_about_a_value(
+        "/data/checked.csv", 7, "age"
+    )
+    position = errors.checked_file_readers_disagree_about_a_value(
+        "/data/checked.csv", 7, 2
+    )
+    assert "'age'" in quoting
+    assert "'age'" not in position
+    assert "row 7" in position and "column number 2" in position
+
+    quoting = errors.unreadable_as_csv("/data/checked.csv", "line 4, saw 9")
+    position = errors.checked_file_unreadable_as_csv("/data/checked.csv")
+    assert "line 4, saw 9" in quoting
+    assert "line 4, saw 9" not in position
 
 
 def test_out_of_memory_message_carries_the_size_in_megabytes() -> None:

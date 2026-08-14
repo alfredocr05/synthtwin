@@ -395,10 +395,37 @@ direction is red.
   never restates, each bound. Verdict WITHIN-BOUND or MISSED.
 - EXACT-CONTROL: the CSV-evidencible subset only — header names when a
   header was written, column order, header presence per
-  `source.header_source`. The remainder is a listing entry with one
+  `source.header_source`, and the five per-column facts named in
+  amendment A-P3-1 below. The remainder is a listing entry with one
   fixed census sentence.
 - REPORT-ONLY: listing entries, named and never counted toward a pass.
 - LOADER-ONLY and STRUCTURAL: input-side entries as above.
+
+**Amendment A-P3-1 — five EXACT-CONTROL facts are executable, not
+listed. This RAISES the obligation and is recorded rather than taken
+silently.** The paragraph above was written naming three CSV-evidencible
+EXACT-CONTROL facts. Implementation found five, and leaving the other
+two as listings would have been the quieter sentence, so they are named
+here instead. The five are `universal.position`, `universal.role`,
+`universal.statistical_type`, `universal.quality_state` and
+`universal.structural_role`. Each is genuinely evidencible from the
+measured file: position by which column number the published name
+stands at (headerless, by whether a column stands there at all), and the
+three axes by re-describing the file with the profiler's own producer
+and comparing the axis it assigns. Each carries a registered red case —
+swapped columns for `position`, a rewritten column for `role`, a renamed
+declared identifier for `structural_role` — so none of the five is a
+check that cannot fail. `statistical_type` was already executable in the
+shipped validator on the strength of this section's own type-read-back
+sentence; the amendment regularizes it alongside the other four.
+
+The deviation is one-directional by construction: it moves facts from
+the listing side to the checked side, so a file that would have passed
+under the literal reading cannot fail under this one for any reason
+other than actually missing an obligation the profile publishes. The
+owner may reverse it to the literal three-fact reading at any time; the
+reversal would be a lowering, and so would have to be recorded here in
+those words.
 
 **Authorized corners: an independent classifier plus an agreement
 battery — and refusals are refusals, never deviations.** Which facts

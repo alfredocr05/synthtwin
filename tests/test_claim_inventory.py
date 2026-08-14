@@ -260,6 +260,15 @@ CLAIM_BEARING = (
     "src/synthtwin/quality.py",
     "src/synthtwin/rendering.py",
     "src/synthtwin/summary.py",
+    # `validation.py` joined at the validator's landing, which plan
+    # P3-D7 stage 2 requires of BOTH new modules and which review item
+    # P3-V1-F14 found had reached only one of them. Its reason is the
+    # module's own: it decides what a person is told about a file that
+    # was measured, so a claim weakened there is a claim weakened on the
+    # surface a reader acts on, and checking it only under the narrower
+    # structure list left the record claim unpinned in the module that
+    # produces the verdict.
+    "src/synthtwin/validation.py",
 )
 
 # -- the second family: what the twin carries, and what is built ------
@@ -391,23 +400,22 @@ STRUCTURE_MARKS = (
 )
 
 # The surfaces that must carry the whole structure statement. These are
-# `CLAIM_BEARING` plus two modules, for the reason the module docstring
+# `CLAIM_BEARING` plus one module, for the reason the module docstring
 # gives: `generation.py` is the code that makes columns independently,
 # and the charter requires a module's docstring to state the guarantees
 # it upholds.
 #
-# `validation.py` joined them when the validator shipped (plan P3-D7,
-# stage 2), and its reason is the sharper one. A validator's silence is
-# read as coverage: somebody holding a quality report that missed
-# nothing will believe the file was checked for whatever they care
-# about, and this version checks not one cross-column fact -- because
-# the description publishes none. A module that measures obligations and
-# does not say which obligations do not exist has left out the largest
-# thing about itself.
-STRUCTURE_BEARING = CLAIM_BEARING + (
-    "src/synthtwin/generation.py",
-    "src/synthtwin/validation.py",
-)
+# `validation.py` is not named again here because it is in
+# `CLAIM_BEARING` now (plan P3-D7 stage 2, closed by review item
+# P3-V1-F14) and this list is built from that one. Its reason for
+# carrying the structure statement is the sharper of the two: a
+# validator's silence is read as coverage, somebody holding a quality
+# report that missed nothing will believe the file was checked for
+# whatever they care about, and this version checks not one
+# cross-column fact -- because the description publishes none. A module
+# that measures obligations and does not say which obligations do not
+# exist has left out the largest thing about itself.
+STRUCTURE_BEARING = CLAIM_BEARING + ("src/synthtwin/generation.py",)
 
 # Where a person finds out which commands exist. Both command words are
 # required on each, because naming one and not the other is how the

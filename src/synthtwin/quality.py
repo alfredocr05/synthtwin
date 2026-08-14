@@ -417,8 +417,14 @@ def _not_checkable_lines(outcome: validation.Outcome) -> "list[str]":
         where = "the file as a whole"
         if listing.column:
             where = f"'{_shown(listing.column)}'"
+        named = _shown(listing.fact)
+        if listing.subcheck:
+            # The same identity a verdict would have carried, so that a
+            # reader comparing this census with an ordinary run's sees
+            # the same obligations named the same way.
+            named = f"{_shown(listing.subcheck)} [{named}]"
         lines = lines + [
-            f"  {where} -- {_shown(listing.fact)}",
+            f"  {where} -- {named}",
             f"      {_shown(listing.reason)}",
         ]
     return lines
