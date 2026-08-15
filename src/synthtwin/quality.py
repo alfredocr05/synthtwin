@@ -86,7 +86,14 @@ _VERDICT_WORDS = {
     # true of every withheld line is that nothing is shown and the line
     # says why, so that is what the word says. The per-line citation
     # carries the reason, and the section further down names both.
-    validation.WITHHELD: "not shown -- the line below says why",
+    #
+    # IT IS A LEGEND AND IS WORDED AS ONE (review of the shipped
+    # reports, 2026-08-15). "not shown -- the line below says why"
+    # printed beside a count of 0 sends a reader down the page after
+    # lines that are not there. What the word means is a fact about the
+    # vocabulary and not about this run; the count beside it is the
+    # fact about this run.
+    validation.WITHHELD: "not shown -- such a line says why",
     validation.MISSED: "set by the description, not met by this file",
 }
 
@@ -458,7 +465,7 @@ def _detail_of(check: validation.Check) -> "list[str]":
     holds:" with nothing after it invites the reader to think something
     was lost.
 
-    THE LAST FIELD IS THREE DIFFERENT THINGS and is introduced as
+    THE CITATION FIELD IS THREE DIFFERENT THINGS and is introduced as
     whichever one it is. On an authorized deviation it is the passage
     that authorizes the lesser outcome; on a within-bound verdict it is
     the document the window was taken from; on a withheld one it is the
@@ -466,6 +473,10 @@ def _detail_of(check: validation.Check) -> "list[str]":
     shown. Calling all three "the authority" would tell a reader that a
     withholding had been authorized by somebody, which is not what
     happened.
+
+    ``note`` is the last line and is the check's own sentence about
+    what its window means -- printed under the citation because it is
+    read after the reader knows where the window came from.
     """
     lines = [
         (
@@ -488,6 +499,14 @@ def _detail_of(check: validation.Check) -> "list[str]":
         if check.verdict == validation.WITHHELD:
             opening = "why nothing is shown"
         lines = lines + [f"      {opening}: {_shown(check.citation)}"]
+    return lines + _note_lines(check)
+
+
+def _note_lines(check: validation.Check) -> "list[str]":
+    """The check's own further lines, already broken where they break."""
+    lines: list[str] = []
+    for note in check.note:
+        lines = lines + [_shown(note)]
     return lines
 
 
@@ -554,6 +573,75 @@ def _detail_lines(outcome: validation.Outcome) -> "list[str]":
     return lines
 
 
+# What each REPORT-ONLY obligation IS, in the words a report may use.
+#
+# A REPORT-ONLY fact has no finer grain to name, so its listing entry
+# carries no subcheck, and the line printed the registry identifier on
+# its own: "'seen_on' -- universal.n_sentinel_candidates_unpublished",
+# under a heading promising to name what could not be checked, in a
+# report whose every verdict line above it leads with a readable name
+# (review of the shipped reports, 2026-08-15). Charter principle 2 asks
+# every message to be written for a human, and a dotted field path out
+# of a machine-readable format is not one. The identifier stays, in
+# brackets, so a reader with the contract in front of them can still
+# look the fact up.
+#
+# The table is total over the REPORT-ONLY facts by test rather than by
+# hope: `_listing_name` returns "" for a fact it does not know, and the
+# suite asserts that no line of any battery's report prints one.
+_LISTING_WORDS = {
+    "document.source.encoding": "how your table's bytes were read",
+    "document.source.used_fallback_encoding": (
+        "whether reading your table fell back to a second encoding"
+    ),
+    "document.source.header_by_convention": (
+        "whether the first row was taken as the column names by "
+        "convention"
+    ),
+    "document.source.header_evidence": (
+        "what showed the first row of your table to be column names"
+    ),
+    "universal.missing_by_class": (
+        "why each absent cell of your column was counted absent"
+    ),
+    "universal.missing_by_source": (
+        "the spellings the absent cells of your column wore"
+    ),
+    "universal.n_sentinel_candidates_unpublished": (
+        "how many stand-in numbers were too rare for the description to "
+        "name"
+    ),
+    "universal.sentinel_verdicts": (
+        "what was decided about each stand-in number, and why"
+    ),
+    "universal.detection_evidence": (
+        "why your column was read as this kind of column"
+    ),
+    "universal.remarks": (
+        "the remarks the description records about your column"
+    ),
+    "datetime.format": (
+        "the date spelling your column was written in"
+    ),
+}
+
+
+def _listing_name(listing: validation.Listing) -> str:
+    """What one not-checkable obligation is called on the page.
+
+    The subcheck where the obligation has one -- the same identity the
+    verdict lines carry, so a reader comparing this census with an
+    ordinary run's sees one obligation named one way. Otherwise the
+    plain words above. "" where neither exists, which is what the
+    suite refuses.
+    """
+    if listing.subcheck:
+        return listing.subcheck
+    if listing.fact in _LISTING_WORDS:
+        return _LISTING_WORDS[listing.fact]
+    return ""
+
+
 def _not_checkable_lines(outcome: validation.Outcome) -> "list[str]":
     """The census of obligations no CSV can evidence, and why (V3.3).
 
@@ -561,6 +649,10 @@ def _not_checkable_lines(outcome: validation.Outcome) -> "list[str]":
     failure mode is this list: a line missing from it is an obligation
     the report quietly stopped mentioning, so the report's exact-shape
     tests hold the list to its length.
+
+    EVERY LINE NAMES ITS OBLIGATION IN WORDS, with the registry
+    identifier beside it in brackets -- the same two-part shape every
+    verdict line above carries. `_LISTING_WORDS` says why.
     """
     lines = [
         _RULE,
@@ -583,11 +675,9 @@ def _not_checkable_lines(outcome: validation.Outcome) -> "list[str]":
         if listing.column:
             where = f"'{_shown(listing.column)}'"
         named = _shown(listing.fact)
-        if listing.subcheck:
-            # The same identity a verdict would have carried, so that a
-            # reader comparing this census with an ordinary run's sees
-            # the same obligations named the same way.
-            named = f"{_shown(listing.subcheck)} [{named}]"
+        words = _listing_name(listing)
+        if words:
+            named = f"{_shown(words)} [{named}]"
         lines = lines + [
             f"  {where} -- {named}",
             f"      {_shown(listing.reason)}",
@@ -648,26 +738,71 @@ def _floor_gate_lines(floor: int) -> "list[str]":
     of one at all, and that is the thing a reader needs to be told. Every
     other floor -- the default among them -- gets the sentence with its
     own number in it (plan amendment A-P3-11 clause 3).
+
+    AND THE MOOD IS THE RULE'S, NOT THE RUN'S (review of the shipped
+    reports, 2026-08-15). "The comparison was made; what cannot be shown
+    is which way it came out" is a sentence about lines this report
+    carries, and it was printed word for word on reports carrying none.
+    What is fixed here is the rule, which holds whether or not it bit
+    today; how many times it bit is said once, by the caller, from the
+    census.
     """
     if floor < 2:
         return [
             "  This description's publication floor is 1, so nothing is",
             "  held back this way at all: every count it carries is named",
-            "  exactly, and no line above reads WITHHELD for being a group",
-            "  too small to name. At any higher floor it would.",
+            "  exactly, and no line of this report can read WITHHELD for",
+            "  being a group too small to name. At any higher floor one",
+            "  could.",
         ]
     return [
         f"  The publication floor of this description is {floor}: a group",
         f"  fewer than {floor} rows carry is named in no description",
         "  written under it -- that is what a floor is for -- so a count",
         "  of it is not something a description of this file carries",
-        "  either. The comparison was made; what cannot be shown is which",
-        "  way it came out, because two files no description tells apart",
-        "  would come out differently.",
+        "  either. Where that closes over a check, the comparison is",
+        "  still made and what cannot be shown is which way it came out,",
+        "  because two files no description tells apart would come out",
+        "  differently.",
     ]
 
 
-def _handling_lines(description: contract.Profile) -> "list[str]":
+def _withheld_census_lines(withheld: int) -> "list[str]":
+    """How many times the rule above bit on THIS run, said from the census.
+
+    THE DEFECT THIS CLOSES (review of the shipped reports,
+    2026-08-15). The paragraph explaining WITHHELD was written in the
+    present indicative about lines the report carries -- "Some
+    obligations carry no verdict at all and the report says WITHHELD
+    where the verdict would have stood ... the line itself says which"
+    -- and it printed unchanged on a report whose census read
+    `0 WITHHELD`. A reader was sent looking for lines that are not
+    there, and a page that describes itself wrongly is wrong however
+    right its arithmetic is. The rule above is now stated as a rule,
+    which is true either way; this says what happened here, and it is
+    generated from the census exactly as the verdict summary is, so it
+    cannot claim more than the count supports.
+    """
+    if not withheld:
+        return [
+            "On this file the rule closed over nothing: no line of this",
+            "report reads WITHHELD, so every obligation counted in the",
+            "verdict above carries an outcome you can read. The rule is",
+            "written out anyway, because whether it bites is a fact about",
+            "this description and this file rather than about synthtwin.",
+        ]
+    return [
+        f"On this file it closed over {withheld} obligation(s), and each",
+        "of them reads WITHHELD above. A withheld count stands on the",
+        "verdict rather than being quietly dropped: the obligation was",
+        "set, and this report is not able to tell you whether this file",
+        "met it.",
+    ]
+
+
+def _handling_lines(
+    description: contract.Profile, withheld: int
+) -> "list[str]":
     """Where the numbers came from, and how the five files are handled.
 
     V7.5. This report states measured facts about a file derived from
@@ -751,22 +886,22 @@ def _handling_lines(description: contract.Profile) -> "list[str]":
         "this report checking that count does not change it.",
         "synthtwin offers no formal privacy guarantee.",
         "",
-        "Some obligations carry no verdict at all and the report says",
-        "WITHHELD where the verdict would have stood. One rule puts them",
+        "WHEN AN OBLIGATION CARRIES NO VERDICT AT ALL, the line reads",
+        "WITHHELD where the verdict would have stood. One rule puts it",
         "there: this report may say about the file it checked only what",
-        "describing THAT FILE on its own would publish about it. It",
-        "happens two ways, and the line itself says which.",
+        "describing THAT FILE on its own would publish about it. That",
+        "can close over a check in two ways, and a line it closes over",
+        "says which of the two.",
         "",
-        "  Describing the file publishes no measurement of that kind at",
-        "  all. A column the description calls numbers, holding words",
-        "  here, has no average for an average to be compared with, and",
-        "  nothing was measured.",
-        "  Describing the file publishes the kind and pools the number.",
+        "  Describing the file would publish no measurement of that kind",
+        "  at all. A column the description calls numbers, holding words",
+        "  in the file, has no average for an average to be compared",
+        "  with, so nothing is measured.",
+        "  Describing the file would publish the kind and pool the",
+        "  number.",
     ] + _floor_gate_lines(floor) + [
         "",
-        "A withheld count therefore stands on the verdict above rather",
-        "than being quietly dropped: the obligation was set, and this",
-        "report is not able to tell you whether this file met it.",
+    ] + _withheld_census_lines(withheld) + [
         "",
         "WHAT WITHHELD PROTECTS, AND WHAT IT DOES NOT -- said here rather",
         "than left for you to assume. What it protects is this page, for a",
@@ -863,7 +998,7 @@ def quality_report(
     lines = lines + _detail_lines(outcome)
     lines = lines + _not_checkable_lines(outcome) + [""]
     lines = lines + _expectations_lines() + [""]
-    lines = lines + _handling_lines(description)
+    lines = lines + _handling_lines(description, outcome.census.withheld)
     # The lines are joined by hand: the offline policy accepts a text
     # method only with arguments it has resolved, and a list built while
     # the program runs is not one (plan D6.2).

@@ -3423,14 +3423,22 @@ WHOLE_FACT_LISTINGS: "dict[str, tuple[str, ...]]" = {
         "universal.remarks",
         "universal.sentinel_verdicts",
     ),
+    # `document.columns`, `document.n_columns` and `universal.name` are
+    # NOT here, and were until the review of the shipped reports on
+    # 2026-08-15. All three are CHECKED on a file with a header line, as
+    # `columns.order`, `columns.n_columns` and `header.names`, and the
+    # headerless and zero-row predicates listed them at the whole grain
+    # instead -- so a reader comparing that census with an ordinary
+    # run's was given no way to see that they are the same three
+    # obligations, and the report printed a registry identifier where
+    # every other line prints a name. They now carry the subcheck their
+    # check-side twin carries and are held to `SUBCHECK_FACTS`, which
+    # already binds all three.
     "document": (
-        "document.columns",
-        "document.n_columns",
         "document.source.encoding",
         "document.source.header_by_convention",
         "document.source.header_evidence",
         "document.source.used_fallback_encoding",
-        "universal.name",
     ),
     "empty": (
         "universal.detection_evidence",

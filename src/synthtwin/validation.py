@@ -643,7 +643,19 @@ class Check:
     authorizes the lesser outcome, and for WITHIN-BOUND, where it
     carries the envelope the window came from.
 
-    NEITHER TEXT FIELD EVER HOLDS A STRING READ FROM THE MEASURED FILE.
+    ``note`` is the report's further lines under this one, already
+    broken where they are to be broken, and it exists for the one thing
+    the fields above cannot say: a window is worked out from the
+    description and the size of the column, not as a margin around the
+    published value, so it can lie wholly to one side of the value it
+    stands beside. Printed without that sentence the page contradicts
+    itself -- "asks for 2023-11-23 (between two instants neither of
+    which is 2023-11-23): WITHIN-BOUND" -- and the reader has no way to
+    tell an honest bound from an arithmetic mistake (review of the
+    shipped reports, 2026-08-15). It is empty wherever there is nothing
+    further to say.
+
+    NO TEXT FIELD EVER HOLDS A STRING READ FROM THE MEASURED FILE.
     """
 
     column: str
@@ -653,6 +665,7 @@ class Check:
     published: str = ""
     achieved: str = ""
     citation: str = ""
+    note: "tuple[str, ...]" = ()
 
 
 @dataclasses.dataclass(frozen=True)
@@ -2495,12 +2508,37 @@ def _within(
     measured: "float | None",
     window: "tuple[float, float] | None",
     citation: str,
+    value: "float | None" = None,
 ) -> Check:
-    """One approximated obligation, against both ends of its envelope."""
+    """One approximated obligation, against both ends of its envelope.
+
+    ``value`` is the published number the window is printed beside, and
+    it is here so the line can say when the window does not reach it
+    (review of the shipped reports, 2026-08-15). None of these windows
+    is a margin around the published value -- each is worked out from
+    the description and the size of the column -- so a window can lie
+    wholly to one side of it, and on a column of dates the cardinality
+    envelope G12.5 draws ordinarily does: "asks for 84 (between 106.0
+    and 240.0): WITHIN-BOUND" is three true statements a reader can
+    only read as a page contradicting itself. Where ``value`` is not
+    given the line says nothing extra, which is right for a window
+    whose published number is not one of these numbers at all.
+    """
     if measured is None or window is None:
         return Check(column, fact, subcheck, WITHHELD, published, "", _GATE_CLOSED)
     low, high = window
     verdict = WITHIN_BOUND if low <= measured <= high else MISSED
+    note: tuple[str, ...] = ()
+    if value is not None and not low <= value <= high:
+        note = (
+            (
+                "      this window does NOT reach the description's own "
+                "value. It is"
+            ),
+            "      what the method allows the file here, worked out from",
+            "      the description and the size of this column; it is not",
+            "      a margin around that value.",
+        )
     return Check(
         column,
         fact,
@@ -2509,6 +2547,7 @@ def _within(
         f"{published} ({_shown_window(low, high)})",
         _shown_number(measured),
         citation,
+        note,
     )
 
 
@@ -4538,6 +4577,7 @@ def _distinctness_checks(
                     None if measured is None else float(measured),
                     _datetime_distinct_window(column, facts),
                     ENVELOPE_DATETIME_DISTINCT,
+                    float(published),
                 )
             ]
             continue
@@ -4948,6 +4988,7 @@ def _ladder_checks(
                 found,
                 _rung_window(points, _LADDER_SHARES[index], reach),
                 ENVELOPE_NUMERIC_RUNGS,
+                expected,
             )
         ]
     return checks
@@ -5132,6 +5173,7 @@ def _moment_checks(
                 found,
                 _window_named(windows, field),
                 ENVELOPE_MOMENTS,
+                value,
             )
         ]
     return checks
@@ -6165,12 +6207,22 @@ def _label_checks(
             )
         ]
     counts = _counts_at(block, "suppressed_level_counts")
+    held_back = len(facts.suppressed_level_counts)
+    asked = (
+        "no label of this column is held back, so there is no row count "
+        "of one to carry"
+    )
+    if held_back:
+        asked = (
+            f"the rows covered by each of the {_shown_count(held_back)} "
+            f"label(s) this description holds back"
+        )
     checks = checks + [
         _silent(
             name,
             "label.suppressed_level_counts",
             "suppressed.counts",
-            _shown_count(len(facts.suppressed_level_counts)),
+            asked,
             None if counts is None else counts == list(
                 facts.suppressed_level_counts
             ),
@@ -6192,10 +6244,18 @@ def _level_spelling(
     that folds to something else has met the count and not the label.
     The measured spelling is never shown -- what the line names is the
     description's own published label.
+
+    AND WHAT IT ASKS FOR IS SAID IN WORDS (review of the shipped
+    reports, 2026-08-15). This obligation is not a number, and it
+    printed as one: "levels.east.label: HELD -- the description asks
+    for: 1", with no found line under it, because the one was a
+    placeholder standing where a count goes. Withholding the found
+    value is the disclosure rule and stays; printing `1` as what a
+    LABEL obligation asks for tells a reader nothing they can check.
     """
     fact = "label.label"
     subcheck = f"levels.{level.label}.label"
-    shown = _shown_count(1)
+    shown = "cells of this file that read as this label"
     if measured is None:
         return Check(name, fact, subcheck, WITHHELD, shown, "", _GATE_CLOSED)
     return _silent(name, fact, subcheck, shown, entry is not None)
@@ -6217,7 +6277,10 @@ def _level_set(
     """
     fact = "label.levels"
     subcheck = "levels.set"
-    shown = _shown_count(len(published))
+    shown = (
+        f"the {_shown_count(len(published))} published label(s) of this "
+        f"column, and no label the description does not publish"
+    )
     if measured is None:
         return Check(name, fact, subcheck, WITHHELD, shown, "", _GATE_CLOSED)
     same = len(measured) == len(published)
@@ -6301,13 +6364,38 @@ def _variant_map(
     Withholding it instead would have been silence bought by dropping a
     published label altogether, and it sat oddly beside
     `_level_spelling`, which has always MISSED on exactly this case.
+
+    WHAT IT ASKS FOR IS A COUNT OF SPELLINGS, AND SAYS SO (review of
+    the shipped reports, 2026-08-15). The bare number printed under a
+    line named `levels.east.variants` reads as a count of rows, of
+    labels, or of anything else the reader supplies; nothing on the
+    page said the map was a map of spellings. The count is the same
+    count -- how many entries the description's map holds -- with the
+    noun it counts written beside it.
     """
     published = (
         level.variants if field == "variants" else level.variants_withheld
     )
     fact = f"label.{field}"
     subcheck = f"levels.{level.label}.{field}"
-    shown = _shown_count(len(published))
+    if field == "variants":
+        shown = (
+            f"{_shown_count(len(published))} published spelling(s) of "
+            f"this label, and the rows each covers"
+        )
+    else:
+        # The keys of `variants_withheld` are GROUP SIZES and its values
+        # are how many spellings wore each, so the number of entries is
+        # not the number of spellings and must not be printed as one.
+        spellings = 0
+        for key in published:
+            spellings = spellings + published[key]
+        shown = (
+            f"{_shown_count(spellings)} spelling(s) of this label held "
+            f"back as too rare to name, and the rows each covers"
+        )
+        if not spellings:
+            shown = "no spelling of this label held back as too rare to name"
     if measured is None:
         return Check(name, fact, subcheck, WITHHELD, shown, "", _GATE_CLOSED)
     if entry is None:
@@ -6499,17 +6587,136 @@ def _date_ladder_checks(
         seen = None if found is None else _instant_of(found, facts.resolution)
         rank = _rung_rank(_LADDER_PERCENTS[index], dated)
         checks = checks + [
-            _within(
+            _within_instant(
                 name,
-                "datetime.date_percentiles",
                 f"date-ladder.{key}",
+                facts,
                 published.rungs[index],
-                None if seen is None else float(seen),
-                (float(lows[rank]), float(highs[rank])),
-                ENVELOPE_DATETIME_RUNGS,
+                seen,
+                (lows[rank], highs[rank]),
             )
         ]
     return checks
+
+
+# -- one rung of a date ladder, written for a person -------------------
+
+_INSTANT_UNITS = {
+    taxonomy.RESOLUTION_QUARTER: "quarter",
+    taxonomy.RESOLUTION_DATE: "day",
+    taxonomy.RESOLUTION_DATETIME: "second",
+}
+
+
+def _instant_units(facts: contract.DatetimeFacts) -> str:
+    """The word for one unit of this column's own ordinal space."""
+    if facts.resolution in _INSTANT_UNITS:
+        return _INSTANT_UNITS[facts.resolution]
+    return "unit"
+
+
+def _shown_distance(
+    ordinal: int, rung: int, facts: contract.DatetimeFacts
+) -> str:
+    """One instant said as its distance from the published rung.
+
+    WHY A DISTANCE AND NOT AN INSTANT (review of the shipped reports,
+    2026-08-15). These four numbers -- the measured rung and the two
+    ends of its window -- used to print as the raw ordinals the
+    arithmetic runs in, so an ordinary quality report told a researcher
+    their column's ninetieth rung was "2023-11-23 (between 1700352000.0
+    and 1700524800.0)" and was "found to hold 1700438400.0". Charter
+    principle 2 asks every message to be written for a person, and three
+    numbers of ten figures are not: nobody can see from them that the
+    window sits four days below the value it is printed beside.
+
+    Writing them as dates instead would mean a calendar in this module,
+    and V1.4 keeps the validator's arithmetic to what the method fixes
+    and the suite compares against the generator's own writing of it --
+    a date formatter here would be new machinery with no reference
+    vectors, in the one module whose whole value is being a second
+    opinion. So each is said as a whole number of the resolution's own
+    units away from the description's published rung, which the reader
+    already has in front of them: one subtraction and one exact
+    division, in the space `_space_unit` fixes, where every window end
+    and every canonical instant is a whole multiple.
+    """
+    step = _space_unit(facts)
+    away = (ordinal - rung) // step
+    word = _instant_units(facts)
+    if away == 0:
+        return "that same value"
+    if away < 0:
+        return f"{-away} {word}(s) before that"
+    return f"{away} {word}(s) after that"
+
+
+def _within_instant(
+    column: str,
+    subcheck: str,
+    facts: contract.DatetimeFacts,
+    published: str,
+    measured: "int | None",
+    window: "tuple[int, int]",
+) -> Check:
+    """One interior rung of a date ladder, against G12.4's window.
+
+    The verdict is the same comparison `_within` makes; what differs is
+    that all three numbers are said as distances from the published
+    rung, and that a window which does not cover the published rung says
+    so. G12.4's window is the band the twin's own RANK was built in, and
+    the rank holding a named rung covers a slightly different share of
+    the column from the share that rung's name names -- so at the top of
+    an ordinary ladder the window sits wholly below the published value.
+    That is the method working, and a page that shows it without saying
+    it reads as a page that is wrong.
+    """
+    rung = _ordinal_of(published, facts.resolution)
+    low, high = window
+    allowed = (
+        f"      this rung of the file is allowed from "
+        f"{_shown_distance(low, rung, facts)}"
+    )
+    note: tuple[str, ...] = (
+        allowed,
+        (
+            f"        to {_shown_distance(high, rung, facts)}, and it "
+            f"covers the value above"
+        ),
+    )
+    if not low <= rung <= high:
+        note = (
+            allowed,
+            (
+                f"        to {_shown_distance(high, rung, facts)}, and it "
+                f"does NOT reach the"
+            ),
+            "        value above. This window is what the method allows",
+            "        the file's own rung, worked out from the description",
+            "        and the size of this column; it is not a margin",
+            "        around the description's value.",
+        )
+    if measured is None:
+        return Check(
+            column,
+            "datetime.date_percentiles",
+            subcheck,
+            WITHHELD,
+            published,
+            "",
+            _GATE_CLOSED,
+        )
+    verdict = WITHIN_BOUND if low <= measured <= high else MISSED
+    return Check(
+        column,
+        "datetime.date_percentiles",
+        subcheck,
+        verdict,
+        published,
+        _shown_distance(measured, rung, facts),
+        ENVELOPE_DATETIME_RUNGS,
+        note,
+    )
 
 
 def _datetime_distinct_window(
@@ -7183,6 +7390,7 @@ def _text_shape_checks(
                 found,
                 (low, high),
                 ENVELOPE_TEXT_SHAPE,
+                published,
             )
         ]
     return checks
@@ -7288,7 +7496,14 @@ def _occurrences(
     the check at all (review item P3-V1-F4).
     """
     subcheck = "distinct.n_distinct_by_occurrences"
-    shown = _shown_count(len(published))
+    # The map's keys are group SIZES and its values how many values wore
+    # each, so the number of entries is neither a count of values nor a
+    # count of rows and is never printed as a bare number (review of the
+    # shipped reports, 2026-08-15).
+    shown = (
+        f"the repetition pattern this description publishes, in "
+        f"{_shown_count(len(published))} group size(s)"
+    )
     found = _map_at(block, "n_distinct_by_occurrences")
     if found is None:
         return Check(name, fact, subcheck, WITHHELD, shown, "", _GATE_CLOSED)
@@ -7314,10 +7529,24 @@ def _listings(
         )
     ]
     if not headed:
+        # THE SAME IDENTITY A VERDICT CARRIES, which is what `subcheck`
+        # is for: both of these facts ARE checked on a file with a
+        # header line, as `header.names` and `columns.order`, and a
+        # listing that names neither leaves a reader comparing this
+        # census with an ordinary run's unable to see they are the same
+        # obligation (review of the shipped reports, 2026-08-15).
         listings = listings + [
-            Listing("", "universal.name", "", _NOT_CHECKABLE_HEADERLESS_ORDER),
             Listing(
-                "", "document.columns", "", _NOT_CHECKABLE_HEADERLESS_ORDER
+                "",
+                "universal.name",
+                "header.names",
+                _NOT_CHECKABLE_HEADERLESS_ORDER,
+            ),
+            Listing(
+                "",
+                "document.columns",
+                "columns.order",
+                _NOT_CHECKABLE_HEADERLESS_ORDER,
             ),
         ]
     corners = corners_of(description)
@@ -7584,5 +7813,10 @@ def _zero_row_listings(
     # one obligation the description does not set: V3.3 forbids a
     # double binding in the same words it forbids an unbound one.
     return listings + [
-        Listing("", "document.n_columns", "", _NOT_CHECKABLE_ZERO_ROWS),
+        Listing(
+            "",
+            "document.n_columns",
+            "columns.n_columns",
+            _NOT_CHECKABLE_ZERO_ROWS,
+        ),
     ]

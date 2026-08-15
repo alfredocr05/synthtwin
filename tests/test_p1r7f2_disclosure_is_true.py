@@ -215,7 +215,13 @@ def test_a_declared_missing_spelling_below_the_floor_is_pooled(
     assert column["n_missing"] == 3
     assert SENTINEL not in json.dumps(column["missing_by_source"])
     assert SENTINEL not in written
-    assert "counted as missing: (withheld) (3)" in summary_text
+    # The pooled group is counted and said to be pooled; the spelling is
+    # not named and the pooled NAME is not printed as though it were one
+    # (review of the shipped reports, 2026-08-15).
+    assert "counted as missing: 3 cell(s) whose spelling is not named" in (
+        summary_text
+    )
+    assert "(withheld)" not in summary_text
 
 
 def test_a_column_that_publishes_nothing_publishes_nothing_either_way(

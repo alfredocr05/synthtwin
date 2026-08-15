@@ -140,7 +140,13 @@ def test_the_decision_survives_without_the_spelling(
     ]
     assert column["n_missing"] == 0, "a kept value is not a missing value"
     assert "stand-ins for 'no value'" in said
-    assert f"{taxonomy.SUPPRESSED_LABEL}, in 20 row(s)" in said
+    # The row count, the decision and the reason all survive. What the
+    # line must NOT do is print the pooled name where the number goes:
+    # `(withheld)` is synthtwin's word for "not published here", and
+    # "(withheld), in 20 row(s): kept as a number" reads as a spelling
+    # this table wrote (review of the shipped reports, 2026-08-15).
+    assert "a number not named here, in 20 row(s)" in said
+    assert taxonomy.SUPPRESSED_LABEL not in said
     assert "kept as a number" in said
 
 
@@ -451,7 +457,10 @@ def test_the_summary_prints_what_the_profile_holds(
     )
     for entry in withheld["sentinel_verdicts"]:
         assert entry["candidate"] == taxonomy.SUPPRESSED_LABEL
-        assert f"{taxonomy.SUPPRESSED_LABEL}, in" in said
+        # The profile's pooled name reaches the page as what it means --
+        # "not published here" -- and never as a spelling of the table.
+        assert "a number not named here, in" in said
+    assert taxonomy.SUPPRESSED_LABEL not in said
     for entry in named["sentinel_verdicts"]:
         assert entry["candidate"] == SENTINEL
         assert f"{SENTINEL}, in" in said

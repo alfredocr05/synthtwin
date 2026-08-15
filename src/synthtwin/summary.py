@@ -221,11 +221,16 @@ def _sentinel_lines(column: dict[str, object]) -> list[str]:
     Written from the column block and nothing else, so the words and
     the machine-readable record cannot disagree -- including about the
     value itself. A column whose role publishes values carries the
-    candidate's spelling and it is printed; a column whose role
-    publishes none carries `(withheld)` in its place and that is
-    printed instead, exactly as the withheld missing spellings above
-    are printed (review item P1-R7-F2). This function never decides
-    what may be shown; it shows what the profile holds.
+    candidate's spelling; a column whose role publishes none carries
+    `(withheld)` in its place (review item P1-R7-F2). This function
+    never decides what may be shown; it shows what the profile holds.
+
+    IT SHOWS IT WITHOUT CALLING A POOLED NAME A NUMBER (review of the
+    shipped reports, 2026-08-15). `(withheld)` used to be printed where
+    the candidate goes, so the line read "(withheld), in 40 row(s):
+    kept as a number" -- a sentence naming a spelling no table wrote.
+    Where the profile withholds the candidate the line says the number
+    is not named here, which is the fact the profile carries.
 
     The candidates that appeared in too few rows to be named at all are
     NOT listed here. The column's own remark already says how many
@@ -241,9 +246,12 @@ def _sentinel_lines(column: dict[str, object]) -> list[str]:
     ]
     for item in verdicts:
         entry = _map_of(item)
+        candidate = _text_of(entry["candidate"])
+        if candidate == parsing.MISSING_WITHHELD:
+            candidate = "a number not named here"
         lines = lines + [
             (
-                f"      {_text_of(entry['candidate'])}, in "
+                f"      {candidate}, in "
                 f"{_count_of(entry['n_occurrences'])} row(s): "
                 f"{_decision_words(_text_of(entry['verdict']))} "
                 f"-- {_because_words(_text_of(entry['reason']))}"
@@ -252,7 +260,38 @@ def _sentinel_lines(column: dict[str, object]) -> list[str]:
     return lines
 
 
-def _column_lines(column: dict[str, object]) -> list[str]:
+def _missing_spelling_words(
+    sources: dict[str, object], floor: int
+) -> list[str]:
+    """The spellings the absent cells wore, and the pooled group as one.
+
+    A POOLED NAME IS NOT A SPELLING (review of the shipped reports,
+    2026-08-15). `missing_by_source` pools every spelling under the
+    publication floor into the single key `(withheld)`, which is
+    synthtwin's word for "not published here". Listed beside the real
+    spellings it read as one of them, so a column of eight EMPTY cells
+    said `counted as missing: (withheld) (8)` -- telling the person
+    their blanks wore a marker they would have to account for, which was
+    false of all eight. The pooled entry now says how many cells the
+    line does not name and why it does not name them.
+    """
+    spellings: list[str] = []
+    for spelling in sorted(sources):
+        counted = _count_of(sources[spelling])
+        if spelling == parsing.MISSING_WITHHELD:
+            spellings = spellings + [
+                (
+                    f"{counted} cell(s) whose spelling is not named "
+                    f"here, because fewer than {floor} cell(s) were "
+                    f"written that way"
+                )
+            ]
+            continue
+        spellings = spellings + [f"{spelling} ({counted})"]
+    return spellings
+
+
+def _column_lines(column: dict[str, object], floor: int) -> list[str]:
     """The block of lines describing one column."""
     role = _text_of(column["role"])
     lines = [
@@ -266,10 +305,7 @@ def _column_lines(column: dict[str, object]) -> list[str]:
     ]
     sources = _map_of(column["missing_by_source"])
     if sources:
-        spellings = [
-            f"{spelling} ({_count_of(sources[spelling])})"
-            for spelling in sorted(sources)
-        ]
+        spellings = _missing_spelling_words(sources, floor)
         lines = lines + [f"    counted as missing: {_listed(spellings)}"]
     lines = lines + _sentinel_lines(column)
     if role in _ROLES_WITH_LABELS:
@@ -813,8 +849,9 @@ def render(document: dict[str, object], encoding_note: str) -> str:
         _RULE,
         "",
     ]
+    floor = _count_of(_map_of(document["settings"])["small_cell_floor"])
     for entry in _list_of(document["columns"]):
-        lines = lines + _column_lines(_map_of(entry)) + [""]
+        lines = lines + _column_lines(_map_of(entry), floor) + [""]
     lines = lines + [_RULE] + _disclosure_lines(document)
     # The lines are joined by hand: the offline policy accepts a text
     # method only with arguments it has resolved, and a list built at
