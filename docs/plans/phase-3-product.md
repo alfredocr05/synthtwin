@@ -211,8 +211,17 @@ the decision, its cost stated plainly, and what it buys.
      contract's own rule for twins: the generator writes every absent
      cell empty, so `n_present`, `n_missing` and every count that
      depends on them are recounted from blank and non-blank cells
-     alone, with no sentinel or declaration machinery anywhere in the
-     verdict path — no reconstruction gap can move a verdict. What
+     alone, with no sentinel machinery ~~or declaration machinery~~
+     anywhere in the
+     verdict path — ~~no reconstruction gap can move a verdict~~.
+     **Two strikes, both by amendment A-P3-15 below, which states what
+     is true in their place and nothing here may be re-derived from
+     them: clause 2 strikes "or declaration machinery", because a cell
+     is also absent to these counts when it wears a spelling the
+     description ITSELF publishes as the source of its holes; clause 3
+     strikes the last clause outright, because a gap in the
+     reconstruction moved five verdicts on the table a description was
+     written from.** What
      remains is a GENERATOR-side residual this phase inherits rather
      than creates: the method's R-P2-13 records that generated
      numeric values can collide with built-in missing markers when a
@@ -883,7 +892,7 @@ exact-shape tested.
   | `sentinel_minimum_share` | same — from the profile |
   | `near_threshold_slack` | same — from the profile |
   | `kept_values` | DERIVED by owner decision 8 as amended: the user's spellings are unrecorded (`values_recorded: false`), and the gate instead treats as kept data every `variants` key (exact), every sentinel candidate carrying the kept verdict enum (exact), and every published `levels[].label` (at the folded identity, the producer's own pooling rule) — sufficient for the twin domain by the green battery |
-  | `declared_missing_values` | EMPTY by owner decision 8 — unrecorded, and genuinely absent from every twin, whose absent cells are written empty |
+  | `declared_missing_values` | DERIVED by amendment A-P3-15 clause 1: the user's spellings are unrecorded in the settings block (`values_recorded: false`), and the gate instead treats as declared-missing every `missing_by_source` key that is not one of this package's placeholder names, not a spelling the built-in missing table already reads as an absence, and not a spelling reading as one of the three numeric stand-ins — the three other ways a cell becomes a hole, so what is left can only be a declaration. Was EMPTY by owner decision 8 under "genuinely absent from every twin, whose absent cells are written empty", which is true of a twin and false of the table the description was written from (V1.2) |
   | `declaration_matching` | carried and applied to the derived kept set exactly as the profiler applies it to a declared one |
   | `declaration_publication` | carried but inert: no user-declared spelling exists to govern |
   | `forced_identifiers` | applied — the declared identifier columns are classified as declared, exactly as profiling declared them |
@@ -2054,18 +2063,31 @@ task somebody will lose.
    count, whatever else is done to it. Teeth at one cell and a bound
    better than exact cannot both be had.
 
-   **What is left open, at its exact size.** For a form the FILE's own
-   description NAMES, a candidate sweep still locates the count of
+   **What is left open, at its exact size. THIS PARAGRAPH IS SUPERSEDED
+   BY AMENDMENT A-P3-13 CLAUSE 2 and is kept only as the record of what
+   this clause bought while it stood** (correction of 2026-08-14, review
+   item P3-V6-F3; the paragraph was true when it was written and stopped
+   being true the day `_at_the_floors_resolution` was deleted, and no
+   line said so). What follows describes the floor-rounding bound. There
+   is no floor-rounding bound: the second reader is out of scope, the
+   function is gone, and the recount is compared exactly, so a sweep of
+   candidate descriptions locates the count of non-canonical cells
+   EXACTLY and this plan does not try to stop it. Read A-P3-13 clause 2
+   for what the subcheck does now.
+
+   As it stood, and it no longer stands: for a form the FILE's own
+   description NAMES, a candidate sweep located the count of
    non-canonical cells to within one publication floor — eleven by
-   default — and never the count, never which cells they are, never
-   their values and never their spellings. Where that description POOLS
-   the form nothing escapes at all: that side of the subcheck reports
-   HELD where the room the description leaves cannot reach the licence
-   and WITHHELD otherwise, and never consults the recount. And a
-   description written under a floor of ONE is the identity — such a
-   description names every count it has exactly and pools nothing — so
-   the bound degrades exactly as far as the person who set that floor
-   asked it to.
+   default — and no closer, and it reached neither which cells they are,
+   nor their values, nor their spellings.
+   Where that description POOLS the form nothing escaped at all: that
+   side of the subcheck reports HELD where the room the description
+   leaves cannot reach the licence and WITHHELD otherwise, and never
+   consults the recount — and THAT half is unchanged and still holds.
+   And a description written under a floor of ONE was the identity —
+   such a description names every count it has exactly and pools
+   nothing — so the bound degraded exactly as far as the person who set
+   that floor asked it to.
 
    **How to reverse this.** Settle the clause from the window on both
    sides, which is V5-honest and leaks nothing: HELD where the room the
@@ -2278,11 +2300,25 @@ produced an unusable file and a refusal that could not be acted on.
 the families actually supplied, and repaired where a collision could
 not be built. THIS RAISES: a published `n_distinct_folded` the twin
 missed on 3.7 per cent of a battery of descriptions a real producer
-wrote is now met on every one of them. It LOWERS nothing, and the one
+wrote is met on every one of them. It LOWERS nothing, and the one
 thing it costs is priced below** (2026-08-14, owner ruling on the
 recorded fidelity miss; the question put to the owner was repair the
 fold feasibility or authorize the miss, and the ruling was: fix the
 generator now).
+
+> **CORRECTION OF 2026-08-14, review item P3-V6-F2.** Clause 2 below
+> reads "zero, on both batteries", and clause 5 gives the one thing
+> still open as budget exhaustion. **Both were measured on two batteries
+> and neither is true of every description.** A third battery, built to
+> the shape the review's own witness has, found the miss again on 12 of
+> 4,696 runs — and the cause was not the budget being spent, it was the
+> budget being spent on questions already answered. That is repaired by
+> amendment **A-P3-17 clause 2**, which also measures what remains: **4
+> of those 4,696 runs, one column at four seeds, and its cause is
+> neither of the two named here.** Read A-P3-12 as what it measured on
+> the two batteries it built, not as a statement about every
+> description. What A-P3-17 replaces is the reach of the claim, not the
+> rule.
 
 **The defect the ruling closes, in the terms the study that found it
 left it.** A column of record numbers publishing fewer folded
@@ -2559,6 +2595,606 @@ block-resolution bound against a person who holds the file anyway, and
 which round 5 measured to be defeatable by sweeping the floor. Either
 reversal is recorded here in the same form as this one.
 
+**Amendment A-P3-14 — the identifier corner is method G9.4's capacity
+rule instead of a ceiling the validator invented. Clause 1 RAISES: a
+file whose record-number column has collapsed to one repeated value is
+MISSED where it received a passing report. Clause 2 LOWERS: a
+description whose published width genuinely runs out now reaches owner
+decision 6's lesser outcome, where the same three facts used to be
+checked and missed. Clause 3 narrows a claim this plan's specification
+made about its own test and never met** (2026-08-14, review item
+P3-V6-F1).
+
+**What the code did.** `identifier-infeasible` is the one corner that
+takes THREE checks off a column — raw `n_distinct`, `n_distinct_folded`
+and `n_distinct_by_occurrences` all become REPORT-ONLY — so it is the
+corner a wrong answer costs the most. The predicate summed
+`alphabet ** L` over the published length range and read the alphabet
+off one published count: ten characters where `n_code_alphabet` is
+zero, thirty-six otherwise. Neither is a domain synthtwin writes from.
+G9.1 fixes three alphabets of ten, sixty-four and ninety-five
+characters; G9.5 step 4 divides a column's cells between them by its
+own two published counts; G9.4 counts each band's spellings under the
+positional rules, which is where the widest band's twenty-five
+one-character values come from.
+
+1. **A description the generator answers may not be called a corner.
+   THIS RAISES.** The review's witness is a declared column of eleven
+   different one-character values outside the code alphabet: the
+   producer publishes eleven present, eleven different, eleven
+   different folded, one row each and a width of one, and the shipped
+   generator writes eleven different conforming values. The old
+   arithmetic read ten and called it infeasible, so a candidate file
+   holding ONE of those values eleven times lost all three distinctness
+   checks, kept a census of zero misses, and ended
+   `NO CHECKABLE OBLIGATION WAS MISSED.` over a column that had
+   collapsed. That file now reports three MISSED verdicts and the
+   report says obligations were missed.
+
+   **Counted, on producer-derived descriptions.** Over 500 randomly
+   built declared identifier columns spanning all three bands and one
+   to three characters of width, **43 descriptions the shipped
+   generator answers in full were called infeasible by the old
+   predicate and are not by this one** — every one of them a column
+   whose three distinctness facts came back as checks. Seven more, on
+   which the generator falls short for a reason owner decision 6 does
+   NOT authorize — a fold-collision shortfall, which is A-P3-12's
+   subject and not this one's — also had their checks restored and now
+   report MISSED, which is the true answer for them.
+
+2. **Where the published width truly runs out, the lesser outcome is
+   granted. THIS LOWERS, and here is its size.** The old predicate
+   withheld real corners while it invented false ones, and a withheld
+   corner is a conforming twin reported MISSED. Ten one-character whole
+   numbers is the smallest witness: figures alone open with a figure
+   that is not zero (G9.6), so one character spells nine values, the
+   shipped generator writes nine where ten are published, and owner
+   decision 6 says that twin is conforming. The old predicate read
+   thirty-six characters of room, claimed no corner, and reported three
+   MISSED verdicts against the product's own output. **What is given
+   up** is exactly what the plan already grants: on such a description
+   the three distinctness facts are listings with their achieved values
+   named beside the published ones, and no verdict is passed on them.
+   Over the same 500-description battery this reached **7
+   descriptions**, each one a column the generator provably cannot
+   answer. No fact outside those three moves on any of them, and the
+   corner is claimed only where every one of the three bands falls
+   short together, which is the direction that keeps checks: supply is
+   an upper bound on what the construction writes and demand a lower
+   bound on what it is asked for.
+
+3. **V4.2's account of its own test is narrowed to what runs. THIS
+   NARROWS A CLAIM.** The specification said the two writings were
+   compared "over every producer-battery description and every frozen
+   conflict case, and any disagreement is red." No test did that. The
+   green direction catches a corner the generator NEEDS and the
+   classifier withholds, because the twin then misses; the reverse — a
+   corner claimed where none is needed — is silent there, since the
+   twin passes either way while three checks vanish. That silence is
+   why this defect lived under a green suite for four review rounds,
+   and the corner test in place asserted determinism and membership
+   only. V4.2 now says which side each mechanism catches, and
+   `tests/test_p3v6f1_identifier_corner.py` asserts the reverse
+   direction directly against the shipped generator's own cells over a
+   battery reaching all three bands, both whole-number readings, widths
+   of one to three characters and four capacity boundaries taken from
+   BOTH sides. **The reverse direction is still unasserted for the
+   other three corners**, and clause 3 says so rather than implying
+   otherwise; closing them is a later item, not a claim made here.
+
+**What this does NOT close.** The corner answers whether the published
+width can SPELL the values. It does not answer whether a fold collision
+can be BUILT on the spellings that result: the battery's one remaining
+disagreement is a 93-row column of one-character codes publishing 62
+raw and 37 folded identities, where the spellings exist and the case
+flips to pair them do not. Method G9.4 grants no corner there — only a
+column whose one permitted length holds no character with a case
+reaches it — so the twin's shortfall is a shortfall and the report's
+MISSED is the honest answer. A-P3-12 owns that surface.
+
+**How to reverse this.** Clause 1 and clause 2 are one predicate and
+reverse together, by restoring the `alphabet ** L` ceiling; that
+re-opens P3-V6-F1 with a measured witness in the tree and gives back
+nothing, since the old arithmetic was wrong in both directions at once.
+Clause 3 reverses only by making its wider sentence true, which means
+asserting the reverse direction for the other three corners.
+
+**Amendment A-P3-15 — the settings the validator re-describes under are
+a RECONSTRUCTION of what the person declared, and this plan claimed the
+reconstruction could not move a verdict. It can, and it did. Clause 1
+RAISES: the person's `--missing-value` spellings are recovered from the
+description's own published hole sources, which takes seven false
+MISSED verdicts off one table and seventeen off another. Clause 2
+RAISES and narrows blankness: the two presence counts come off the
+split description that every other presence-dependent obligation is
+already read off, instead of a blank recount beside it. Clause 3
+NARROWS A CLAIM AND CLOSES NOTHING: what is left open is stated at its
+size, with the reason it cannot be closed in the validator at all**
+(2026-08-14, review items P3-V4-F1 and P3-V5-F2).
+
+**What this plan said, and what was true.** P3-D3 above: "`n_present`,
+`n_missing` and every count that depends on them are recounted from
+blank and non-blank cells alone … no reconstruction gap can move a
+verdict", and, in the settings table, `declared_missing_values` "EMPTY
+by owner decision 8 — unrecorded, and genuinely absent from every twin,
+whose absent cells are written empty". Both sentences are about a TWIN.
+The other file a person points `synthtwin validate` at is the table the
+description was written from (V1.2, and the repair of round 5 already
+turned on it), and that table is exactly where a declared spelling is
+still written in the cells. And the gap cannot only cost detail, because
+amendment A-P3-5 takes the split's number only where the FILE'S OWN
+description publishes the split — a description built under these very
+settings. A spelling the reconstruction misses is a spelling that
+description reads as a hole; the gate then closes on a conforming file
+and the file's own wrong count lands on the verdict.
+
+1. **The fourth published route. THIS RAISES.** `missing_by_source`
+   publishes the exact spelling of every hole whose count reaches
+   `small_cell_floor`, so a `--missing-value` declaration IS in the
+   description — the settings block records it as a count, the COLUMN
+   records the spelling. It is read back by the same act that reads
+   back a level's variants, and which keys are a declaration is derived
+   rather than guessed: the producer has four ways to make a cell a
+   hole and no fifth, and the other three — a blank or the package's
+   own placeholder names, a spelling the built-in missing table already
+   reads as an absence, and a spelling reading as one of the three
+   numeric stand-ins — are each recognisable from the description
+   alone. **Measured:** a table profiled `--missing-value XX`, validated
+   against its own profile, reported `presence.n_present`,
+   `presence.n_missing`, `axes.role`, `axes.statistical_type`,
+   `counts.n_not_numeric` and both distinctness counts MISSED — seven,
+   and the column re-read as free text. Declared `--missing-value -777`
+   instead, the same table missed SEVENTEEN, the ladder and the moments
+   with them. Both now miss nothing. No obligation stops being checked
+   and no new withholding is produced.
+
+2. **The two presence counts come off the SPLIT DESCRIPTION. THIS
+   RAISES, and it narrows blankness by exactly one clause.** V2.4 reads
+   every presence-dependent obligation off the split description; these
+   two were recounted separately from the cells, and while both
+   declaration tuples were empty the two answers were the same number,
+   so nothing showed. They are not the same number once a declaration
+   is recovered: one report said 211 present beside a distinctness count
+   of 199 taken over the cells that number claims are present. Two
+   numbers for one question is not a measurement. So a cell is absent to
+   these counts when it is empty, OR when it wears a spelling the
+   description ITSELF publishes as the source of its holes — which is
+   the phrase "or declaration machinery" struck from P3-D3's sentence
+   above, and the strike is the whole of the narrowing. **The reason
+   blankness exists reaches only the first:** residual R-P2-13 says a
+   generated value can BE the text of a built-in marker, and no file may
+   be failed for colliding with synthtwin's OWN vocabulary — nothing of
+   synthtwin's own vocabulary is in the recovered set, by construction.
+   **What it costs, said as a cost:** a generated value that collides
+   with a spelling the DESCRIPTION declares is now counted as a hole,
+   which is R-P2-13's shape on a declared spelling. It is bounded by
+   the cells wearing that spelling, and it is recorded here rather than
+   found.
+
+3. **What is NOT closed, at its size, and why not here. THIS CLAIMS
+   NOTHING.** Two gaps remain, and neither is recoverable from what the
+   contract publishes:
+
+   - **a `--keep-value` spelling that is one of the built-in missing
+     texts, on a column publishing no level that carries it** — a column
+     of numbers, of datetimes, of identifiers, of free text. The review's
+     own witness: two hundred readings and one kept `n/a`, published as
+     201 present, 0 missing, 1 not numeric. No field of the document
+     carries the spelling, and the suite proves it by comparing the
+     marker with every string the document holds, key and value alike.
+     The table reports `presence.n_present`, `presence.n_missing`,
+     `counts.n_not_numeric`, `counts.n_left_out_of_statistics` and
+     `counts.numeric_share` MISSED — five, against its own profile;
+   - **a declaration of either kind whose cells sit below
+     `small_cell_floor` in every column**, pooled into `(withheld)` and
+     named nowhere. Bounded by the floor per spelling per column, and
+     measured in the suite at seven subchecks on the witness that
+     reaches it.
+
+   **Reading the split anyway is not available, and that is why this is
+   a ruling and not a repair.** Two hundred readings and one `n/a`,
+   beside the same table with that cell written `NULL`: the producer
+   describes the two BYTE FOR BYTE ALIKE under every settings object the
+   validator can build from the description, the first meets every fact
+   a `--keep-value n/a` description publishes and the second does not.
+   Any rule that passes the first passes the second, and stating 201
+   present about the second states a count `synthtwin profile` run on
+   that file would not publish, which is V5.1. **What would close it is
+   a decision about what the PROFILE publishes** — the only part of the
+   declaration the validator needs is which of synthtwin's own twelve
+   built-in markers and stand-ins the person named as data, which is a
+   subset of this package's own published vocabulary rather than text
+   out of the table — and that decision is the owner's, because
+   `values_recorded: false` is a confidentiality rule of Phase 1
+   (P1-R7-F2) and this plan may not narrow it. Until it is taken, no
+   sentence in this repository may say the bound of P3-D3 is met.
+
+**How to reverse this.** Clause 1 reverses by making `declared_spellings`
+answer the empty tuple, which re-opens both measured witnesses with the
+tables in the tree. Clause 2 reverses with it and only with it: the two
+counts agree with a blank recount exactly when clause 1 finds
+nothing, so reversing clause 2 alone leaves the self-contradicting
+report this clause exists to stop. Clause 3 reverses only by closing
+what it says is open, which is the ruling above and not an edit.
+
+**Amendment A-P3-16 — amendment A-P3-11 promised a floor-of-one
+invariant that nothing enforced, and the quality report said something
+false beside it. Clause 1 RAISES: the strict loader refuses a floor-one
+description carrying any FIELD that records something held back —
+reached by walking for the format's own word for it rather than by the
+five field names a reviewer happened to list, and bounded in clause 5.
+Clause 2 RAISES:
+the profiler's own publication guard refuses to WRITE one. Clause 3
+NARROWS A SENTENCE that was not true. Clause 4 records a defect found
+while measuring the other three and repaired with them, and clause 5
+states what none of this closes** (2026-08-14, review item P3-V5-F1).
+
+**What A-P3-11 said, and what was enforced.** Its clause 1, and section
+4.4 of the contract with it, say that at a floor of one the "below the
+floor" half is the empty range, "so nothing may be held back at all and
+`suppressed_level_counts`, `variants_withheld` and every pooled
+`(withheld)` remainder must be empty; a document that fills one is
+refused for breaking the invariant it always broke". Three of those were
+refused and the sentence was right about them. Five were not, and the
+sentence's reason is why: N2, N4, D3 and P2 each hold a PUBLISHED count
+to the floor and each EXEMPTS the pooled remainder, because the
+remainder is what those counts were pooled out of. An exemption does not
+become a rule at a floor of one by itself. And V1 holds a stand-in
+number's occurrences to the floor the same way, putting the ones below
+it into `n_sentinel_candidates_unpublished` — a count no rule of the
+contract bounded at any floor. A
+producer-derived floor-one description stayed accepted after
+`(withheld)` was put into `missing_by_class`, `missing_by_source`,
+`utc_offsets` or `numeric_styles`, and after
+`n_sentinel_candidates_unpublished` — which no rule of the contract
+bounded at any floor — was made nonzero.
+
+1. **Contract invariant S13, checked over the whole document. THIS
+   RAISES.** `docs/spec/profile-contract-v4.md` section 4.4 carries it
+   under a counted re-seal, and section 5.5's V1 gains the sentence that
+   ties the unnamed tally to it. The loader runs it with the top-level
+   rules, before any column is read, because the floor is a top-level
+   setting and what the rule states is a fact about the description as a
+   whole.
+
+   **The pooled remainder is found by WALKING, not by a list of fields,
+   and that is the repair rather than a detail of it.** `(withheld)` is
+   the format's one word for "held back" (contract section 14), so every
+   pooled remainder is a count standing under that word. Four fields
+   carry one today; a fifth added later is reached by the same walk on
+   the commit that adds it, without anybody remembering. Listing the
+   four is exactly the shape of the defect: each of them WAS checked
+   where it was written, and each check exempted the remainder.
+
+   **One field is named rather than walked to, with its reason.**
+   `n_sentinel_candidates_unpublished` records what it holds back in its
+   NAME instead of under the marker word, so a walk cannot find it. It
+   is the only such field in version 4, and that is measured rather than
+   asserted: `tests/test_p3v5f1_floor_one.py` describes one table with
+   the real producer at the default floor and at a floor of one, reads
+   the floor-governed positions off the difference between the two
+   documents, and grafts each one back into the floor-one document,
+   where the loader must refuse it. Its second half derives the same
+   class leaf by leaf, without the marker: a count the producer writes
+   NONZERO at eleven and ZERO at one is a tally of what the floor held
+   back, whatever it is called, and every member of that class must
+   make the loader refuse. No field name is written down in either.
+   What it costs to hold: `fixtures.every_withholding_table` has to
+   keep exercising every way the format has of holding something back,
+   and its docstring says which column buys which.
+
+2. **The profiler refuses to WRITE one. THIS RAISES.** The publication
+   guard checks the finished document before a byte is written, and its
+   rule for a pooled entry accepted any count of one or more whatever
+   the floor was — so the two halves of the product disagreed about what
+   a floor of one means, and only the reading half was even asked. The
+   guard now has vocabulary for the floor's other half: a tally of what
+   was held back, and one group size below the floor. Nothing changes
+   for a document the producer actually writes, at any floor.
+
+3. **"At 1 nothing is withheld at all" was false on its own page. THIS
+   NARROWS A SENTENCE.** The quality report's lowered-floor section said
+   it, and added "every line below that would have read WITHHELD carries
+   its number instead". Two rules put WITHHELD on a line and only one of
+   them is the floor's: the other is the type gate, which asks whether
+   describing the CHECKED FILE would publish a measurement of that kind
+   at all. Measured: a floor-one description checked against a file
+   whose columns hold words where it publishes numbers printed that
+   sentence and then eighty-three obligation lines reading WITHHELD,
+   with "83 WITHHELD" in its own verdict summary fourteen lines below.
+   The narrower wording already existed one section down — "nothing is
+   held back this way at all" — and the head of the report now says the
+   same bounded thing and names the other rule. **This changes the bytes
+   of no artifact made at the default floor**, because the section it
+   sits in is printed only under a lowered one. The other two written
+   pages were read at the default floor and at a floor of one and carry
+   no sentence of this shape; a test now asserts that of all three.
+
+4. **A table whose times are stamped in UTC could not be described at
+   all, and this repairs it.** Found while building the fixture clause 1
+   is derived from. The producer writes `Z` as the offset of a cell
+   ending in one and the strict loader accepts `Z` wherever an offset
+   may stand, but the profiler's publication guard did not know the
+   string — so `synthtwin profile` refused every table of UTC-stamped
+   times with the message that says this is a fault in synthtwin itself
+   and there is nothing to fix in your file, leaving the person no way
+   to describe their table. The two writings of "what a UTC offset is"
+   now accept the same strings, and a test compares them string by
+   string over a built alphabet rather than trusting either. The same
+   comparison found the disagreement in the other direction — the
+   guard accepted `+99:00` and `+00:60`, which the loader refuses — and
+   that half is closed with it, though no table reaches it: an offset
+   out of range never parses as a date, so the producer never writes
+   one.
+
+5. **What none of this closes, stated at its size.**
+
+   **A remark or a note can still carry a sentence about something
+   nothing in the document holds back.** The floor moves prose as well
+   as counts — a remark saying how many stand-in numbers were too rare
+   to name, a note saying how many labels were pooled — and the loader
+   reads neither for numbers. A hand-edited floor-one description whose
+   remark says a count was held back is accepted with that sentence in
+   it. What is refused is every FIELD that records it. Closing the prose
+   half means reading sentences for numbers, which is a different kind
+   of rule and is not attempted here.
+
+   **The derivation sees only what a fixture exercises.** A
+   floor-governed field no table in the tree makes the floor move is a
+   field the measurement cannot see. Two things narrow that: the walk
+   finds a pooled remainder whether or not a fixture reaches it, and the
+   test pins the prose positions, so a new COUNT cannot arrive disguised
+   as one. A new field that records withholding in its own name, as the
+   sentinel tally does, and that no fixture exercises, is not covered.
+
+   **`sentinel_verdicts` is short at a low floor and nothing says so.**
+   The floor changes that list by leaving an entry out, and no invariant
+   ties its length to a number the document publishes — so a floor-one
+   description carrying the floor-eleven list, and nothing else from
+   that document, is accepted. The tally beside it is what records the
+   omission, and the tally is now enforced; the list on its own is not,
+   at any floor. This is measured by the derivation test rather than
+   assumed, and the test goes red if any other position joins it.
+
+**How to reverse this.** Clause 1 reverses by making
+`contract._nothing_is_held_back` return without looking, which re-opens
+all five measured witnesses. Clause 2 reverses by giving the guard's
+pooled entry back its floor-blind rule. Clause 3 reverses by restoring
+the absolute sentence, which the report test measures directly. Clause 4
+reverses by taking `Z` out of the profiler's offset rule, which stops
+the whole workflow on any UTC-stamped table.
+
+**Amendment A-P3-17 — three ceilings that did not mean what they said,
+and the claims that rested on them. THIS RAISES three bars and LOWERS
+none; what it also does, and what it exists for, is cut two claims down
+to what was measured** (2026-08-14, review round 6, items P3-V6-F2,
+P3-V4-F6 and P3-V6-F3).
+
+**The shape all three share, because it is the shape worth naming.** A
+guard states a reach — 256 candidate packings, every shipped site, every
+surface that speaks in synthtwin's voice — and then reaches less than
+that, silently, while the sentence claiming the reach goes on standing.
+None of the three was a wrong rule. Each was a right rule whose stated
+scope was wider than its walk, and in every one of the three the gap was
+invisible from inside: the suite was green, the amendment said "every
+one of them", and the thing that found it was somebody counting.
+
+1. **The withdrawn-defence ban walks the GOVERNING PLANS. THIS RAISES**
+   (review item P3-V6-F3). The ban of amendment A-P3-13 clause 1 named
+   this plan's own P3-D3 as one of the passages the ruling had to
+   correct — and `tests/test_claim_inventory.py` did not open this plan
+   at all. It now walks `DEFENCE_SURFACES`: every surface it walked
+   before, plus the two documents the disposition seal calls governing,
+   held to that set by a test rather than by a list somebody remembers
+   to extend. **The other three families of that file are unchanged and
+   still stop at the user-facing surfaces**, because they count what the
+   product HAS and a plan states what a later phase will have, on
+   purpose; only a promise about what somebody can be stopped from doing
+   is normative wherever it stands.
+
+   **What walking the plan found, on the first run.** One stale claim,
+   in A-P3-10 clause 1's "what is left open" paragraph: it states the
+   floor-rounding bound against a sweep of candidate descriptions, and
+   A-P3-13 clause 2 DELETED `_at_the_floors_resolution` the same day.
+   The paragraph is now marked superseded in place, with what it bought
+   while it stood kept as the record. **No obligation moved**: A-P3-13
+   clause 2 already made the change and priced it; what was missing was
+   a line saying so where a reader meets it.
+
+   **Two further gaps in the ban itself, both closed, and one that
+   cannot be.** The guard reads a sentence as a defect when it NAMES the
+   out-of-scope reader and PROMISES something about them. Round 6 walked
+   three sentences past it. *Promising by outcome rather than by
+   barrier* — "repeated profiles reveal nothing about a count this
+   report withholds" — is now its own family, a word for knowing paired
+   with nothing. *A withdrawal standing in FRONT of the promise* — "this
+   protection is no longer offered. No sequence of candidate
+   descriptions can narrow a number this report withholds" — no longer
+   cures it: a withdrawal reaches forward only inside its own statement,
+   and backward a paragraph, which is the direction the honest passages
+   here are actually written in. All three sentences are kept as the
+   guard's own red cases.
+
+   **AND THE THIRD IS A LIST, AND NO LIST OF THIS KIND IS SOUND.** The
+   third sentence — "a succession of custom specifications leaves a
+   suppressed tally unknowable" — named the reader with a noun the guard
+   did not carry, and that reader is out of scope. `specification` and
+   `spec` are now carried, and that is a patch and not a repair: no
+   finite list of nouns bounds an infinite set of paraphrases, and the
+   next reviewer will find another word. **What is sound, stated so somebody can build it rather than
+   left as a wish**: one canonical passage about this reader, quoted
+   verbatim wherever the subject is raised, with every OTHER mention of
+   it refused outright — the ban inverted, so that silence is the
+   default and speech has to match a fixed text. That was measured
+   before it was proposed and it is not free: inverted against the tree
+   at this commit, **thirty-four statements name that reader without
+   withdrawing in the same breath**, and most of them are about
+   something else entirely — `sweep` in the changelog, `over and over`
+   in the reader, `again and again` in the generator's own comment
+   about its packing search, `descriptions of their own` in the advice
+   telling somebody to re-run `synthtwin profile`. Several are
+   statements of this amendment. It is a change to how this repository
+   is allowed to write, not a change to a test, and it is left to the
+   owner. **Until it is taken, the reader-naming list is the
+   one place in this family where a miss is a false NEGATIVE, and that
+   is written into the file beside the list.**
+
+2. **The fold repair's ceiling is spent on questions, not on repeats,
+   and a repaired layout is held to what it WROTE. THIS RAISES twice**
+   (review item P3-V6-F2).
+
+   **What A-P3-12 claimed and what was true.** Clause 2 said "zero, on
+   both batteries, at four seeds", and clause 5 gave the one remaining
+   route as the stated budget being spent. A third battery — 1,174
+   producer-built columns publishing a fold collision, shaped like the
+   review's own witness, at four seeds, 4,696 runs — missed
+   `n_distinct_folded` on **12** of them. The review's own witness is a
+   column of that shape and is measured beside them rather than counted
+   among them: a forced identifier holding `-716`×4, `-716 `×5,
+   `^OTAL`×5, `^otal`×5, `1e999`×3 and ` 3e999 `×3, whose own values
+   answer its own description exactly, and whose twin published six raw
+   spellings and FIVE folded identities where the description publishes
+   four, at every seed tried.
+
+   **The cause, which is neither of the two A-P3-12 named.** The second
+   tier of `_identifier_packings` walks positions — a candidate
+   end-carrier pair, a group, a family — and hands the allocator a
+   permission vector that does not depend on the end-carriers except
+   through the two places carrying them. So the same question comes
+   round again and again. On the witness: **2,466 positions carrying 246
+   different questions**, nine positions in ten a repeat. The ceiling of
+   256 ran out having answered **82** of the 246 — 168 of the 250 it
+   gave the second tier bought nothing — and the first candidate that
+   tier had to offer sits at position 420, past the ceiling in
+   positions and well inside it in questions. **A ceiling counted in
+   repeats is a ceiling that reaches whatever the loop order leaves
+   over, which is a number the code never stated.** A question is now
+   asked once and remembered, the ceiling
+   counts questions PUT TO THE ALLOCATOR — so the allocator's work
+   stays exactly where clause 4 priced it — and a second stated ceiling,
+   `_FOLD_LOOKS`, bounds the positions so the walk still ends in a
+   stated number of steps.
+
+   **AND THE ACCEPTANCE TEST STOPS ARGUING. THIS RAISES.** Widening the
+   enumeration reached candidates the shipped rule never saw, and the
+   driver accepted them on an argument: that every candidate packing
+   meets every margin, so no other published count can move. It can. A
+   packing settles which class and which alphabet each group answers
+   for; whether that family holds a spelling AT THE LENGTH the slot is
+   pinned to is a different question, and where it does not the walk
+   falls back to the band's own alphabet and a class count met on paper
+   is missed on the page. `_identifier_shortfall` now RECOUNTS the
+   finished cells — the four class counts, both alphabet counts, both
+   length ends and both distinctness counts — and a repaired layout is
+   accepted only where it gives up nothing the first layout held.
+
+   **WHAT THAT GUARD IS WORTH, MEASURED, AND IT IS LESS THAN THE
+   PARAGRAPH ABOVE READS LIKE.** Emptying the recount and running both
+   batteries again changes **nothing at all**: 0 missed counts either
+   way on the A-P3-12 battery, and the same 4 on the new one. On the
+   two batteries this amendment measures, the candidates the repaired
+   enumeration actually reaches all keep every count, so the guard
+   never fires. It is kept anyway, and on stated grounds rather than on
+   a measurement it does not have. First, a wrong candidate IS
+   reachable and the witness is written down: the description of `-3`
+   ×11, `-3 `×11 and `1e0`×11 has a layout writing `0E0`, `0e0` and
+   `10`, which holds every class count, both length ends and the folded
+   count while giving up `n_all_digits` — a count none of the real
+   values has. Second, a version of this repair that widened the
+   enumeration while a second defect left the first tier handing back
+   nothing DID reach such candidates in quantity: **2,116 missed counts
+   over 3,672 runs**, `n_numeric`, `n_out_of_range`, `n_all_digits` and
+   four more. That number is what the ARGUMENT is worth when a wrong
+   candidate is reached; it is not a claim about the shipped
+   enumeration, which reaches none on these batteries. Third, clause 1
+   of A-P3-12 states the property as a property and not as a
+   measurement, and a property is enforced by checking it.
+
+   **After, measured on two batteries at four seeds, each built through
+   the real producer.** The first is A-P3-12's own hazard shape, taken
+   from the builder the shipped test file carries and run to 1,200
+   seeds: **918** columns publish a fold collision, 3,672 runs. 0 missed
+   before, **0 missed after, and not one byte moved** — the repair
+   cannot reach a column the shipped rule already answered, which is
+   A-P3-12 clause 1's licence and is measured here rather than argued.
+   Cells opening with a character a spreadsheet reads as a formula: 744
+   before, **744** after. The second is the review's own shape, also
+   1,200 seeds: **1,174** columns, 4,696 runs, **12 missed before, 4
+   after**; bytes moved on **8** runs and **every one of the 8 is a run
+   the shipped rule got wrong**; no run exact before is
+   exact-but-different after; formula-leader cells 620 before and
+   **620** after. Cost, end to end over the same runs: 26.1 seconds to
+   26.7, and 100.3 to 112.8 — two per cent and thirteen.
+
+   **THE RESIDUE, AT ITS MEASURED SIZE AND WITH ITS CAUSE.** Four runs
+   of 4,696 remain, and they are ONE column at four seeds: `' 13e999 '`,
+   `'(-89)'`, `'(-89) '`, `'-56'`, `'13E999'`, `'13e999'`, `'@N'`,
+   `'@N '` — eight spellings, four folded identities, four collisions
+   owed. Its twin writes five folded identities and the report names the
+   deviation. **The cause is not the ceiling and not the enumeration.**
+   With every ceiling removed the walk offers **2,097** candidate
+   packings for that column and **not one of them builds every collision
+   it owes**: the shortfall is in G9.3's layout rule — which slot may
+   carry a collision, and what a family can supply once its flips are
+   spent — and no packing reaches it. So the deviation path is live,
+   it is why it is still built, and this amendment does not say the
+   miss is gone.
+
+   **What this does NOT claim.** A battery is a battery, and A-P3-12
+   was rejected for reading two of them as every description. Two are
+   measured here, one of them A-P3-12's own shape and one built to the
+   shape the review found: the first misses nothing after the repair
+   and the second misses four. A third shape may find more, so the
+   claim this amendment makes is the measured one — these runs, these
+   shapes — and not "every description".
+
+3. **The non-vacuity proof is total over the PREDICATES the validator
+   ships, not over the ordinary ones. THIS RAISES** (review item
+   P3-V4-F6). V3.1 makes an entry's identity a profile predicate, a
+   column and a subcheck, and owner decision 7 ships four predicates.
+   `tests/test_p3v1f2_entry_table.py` walked six fixtures that are all
+   the one ordinary predicate, and called the result every shipped site.
+
+   **What was outside it.** The two zero-row predicates file fifteen
+   executable subchecks between them — nine on the headed form, six on
+   the headerless one — and no test in this suite bound any of their
+   facts or showed any of them able to fail. `bytes.zero-row-form` was
+   stated by no line of `SUBCHECK_FACTS` at all; `header.names` and
+   `columns.order` on the headed form could swap registry facts with
+   every assertion green; and `columns.order` there could be pinned to
+   HELD, which is the review's own witness, with nothing turning red.
+
+   **What is now enforced.** The binding walk runs over the six runs AND
+   the four predicates, and asserts that the predicates reach a subcheck
+   the ordinary runs do not, so widening it is measured and not
+   asserted. Every one of the fifteen sites carries a registered edit
+   that names it and makes THAT site report MISSED, in both directions:
+   a site with no edit is red, and an edit naming a site the predicate
+   does not file is red. Nothing is excused.
+
+   **One measurement is recorded rather than repaired**, and it is not a
+   defect in the validator. `synthtwin profile` REFUSES a zero-row table
+   in both header modes, so no producer can write a zero-row
+   description; the only way to have one is to cut an ordinary
+   description down, which leaves it carrying the line-ending fact of
+   the file it was cut from. A headerless zero-row description therefore
+   misses `bytes.terminal-newline` against a file of no bytes —
+   correctly, against a description no producer would write. That is
+   pinned as a red case rather than asserted away. The headed form's
+   conforming file, its header line, misses nothing and withholds
+   nothing, and that is asserted.
+
+**How to reverse this.** Clause 1 reverses by taking the two governing
+plans out of `DEFENCE_SURFACES`, which re-opens the stale claim it
+found and every future one; the directional cure reverses by widening
+the window back to both sides, which re-opens the withdraw-then-promise
+sentence. Clause 2 reverses by charging the ceiling for repeats again,
+which re-opens the 12 measured runs, and by making
+`_identifier_shortfall` return nothing, which re-opens no measured run
+on either battery and re-opens the property clause 1 states. Clause 3
+reverses by walking the six ordinary fixtures alone, which re-opens all
+fifteen zero-row sites.
+
 ## P3-D7. Repository claims, staged honestly
 
 **The claim-inventory migration table is a deliverable of this plan's
@@ -2629,7 +3265,7 @@ test the moment its stage lands.
 | CHANGELOG.md | — | 1 | gains the plan-landing and flip entries |
 | AGENTS.md, CLAUDE.md, README.md, SECURITY.md, CONTRIBUTING.md | every "temporarily private" repository-status sentence and every deferred-because-private control framing | 1, then 1b | stage 1 (the landing commit, immediately before the flip): reworded to name the flip being executed — the repository goes public at this phase's flip, with the controls' state recorded in SECURITY.md's activation record; stage 1b (the activation record, the first pull request after the flip): the private-mode framing replaced by the public-state facts with their API confirmations, so the public tree never asserts it is private and never claims a control before its evidence exists |
 | .github/workflows/ci.yml, tools/hooks/install.sh, tools/provenance/check_provenance.py, tools/provenance/guard_runner.py, tools/provenance/fixture-manifest.json | the operational comment-claims written for private mode — that no ruleset blocks a push, that CI is not a mechanically enforced merge barrier, and their siblings | 1, then 1b | the same two-step wording as the row above; and because the claim inventory's surfaces deliberately exclude `.github/` and `tools/`, the stage-1 enforcement for BOTH rows is a dedicated flip-migration test that walks the ENTIRE tracked tree for the retired private-mode forms — the inventory's catch-all cannot see these files, so this test, not that one, is the control |
-| docs/plans/phase-1-profiler.md | the sentence that the future validator consumes only the profile | 2 | a dated amendment recorded in the Phase 1 plan itself (the antecedent-plan mechanism of P2-R4-F7): the validator reads the profile AND the twin, per owner decision 6; plans sit outside the claim-inventory sweep, so the table, not the catch-all, carries this one |
+| docs/plans/phase-1-profiler.md | the sentence that the future validator consumes only the profile | 2 | a dated amendment recorded in the Phase 1 plan itself (the antecedent-plan mechanism of P2-R4-F7): the validator reads the profile AND the twin, per owner decision 6; the Phase 1 plan is a closed phase's plan and does not govern, so it sits outside the claim inventory altogether and the table, not the catch-all, carries this one. The two GOVERNING plans are walked by the withdrawn-defence family since 2026-08-14 (A-P3-17 clause 1) |
 | CLAUDE.md | the profiler-only boundary sentence (rules of the road) | 2 | owner decision 6's two-reader sentence; old form joins the banned list |
 | CLAUDE.md | outputs list: quality report named as not built, Phase 3 | 2 | quality report listed as built, written by `synthtwin validate` |
 | README.md | front-page tags: validation "[planned]"; two built commands | 2 | "[built] `synthtwin validate`"; pinned front-page tags updated |

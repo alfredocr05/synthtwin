@@ -1587,9 +1587,17 @@ def test_the_settings_are_rebuilt_from_the_description(
     assert settings.sentinel_minimum_share == block.sentinel_minimum_share
     assert settings.near_threshold_slack == block.near_threshold_slack
     assert settings.declaration_matching == block.declaration_matching
-    # The two declaration tuples: one derived from the description, one
-    # empty exactly, because the contract records neither spelling.
-    assert settings.declared_missing_values == ()
+    # BOTH declaration tuples are DERIVED from the description's own
+    # published text, because the SETTINGS BLOCK records neither
+    # spelling and the description publishes both anyway: what it names
+    # as data through its levels and its kept sentinel verdicts, and
+    # what it names as "no value" through the source of its holes (plan
+    # amendment A-P3-15 clause 1). The second was empty here, under
+    # "genuinely absent from every twin", and the file this command is
+    # pointed at is not always a twin.
+    assert settings.declared_missing_values == validation.declared_spellings(
+        described
+    )
     assert settings.kept_values == validation.kept_spellings(described)
     # ...and the read mode is NOT a settings key.
     assert described.source.header_source in (

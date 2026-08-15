@@ -2513,7 +2513,17 @@ packing rule applying here IN FULL — both margins and the shape search
   ONE family — which is a narrowing of the permissions handed to the
   packer, never a change to the packer's own fill order, so the first
   answer stays the first answer and the rule four roles share is
-  untouched;
+  untouched. **THE WALK ENDS IN A STATED NUMBER OF STEPS, AND THE
+  NUMBER IS COUNTED IN QUESTIONS ANSWERED** (plan amendment A-P3-17
+  clause 2): the second half of it walks a candidate end-carrier pair, a
+  group and a family, and hands the packer a permission vector that
+  depends on the end-carriers only through the two places carrying them,
+  so the same question recurs many times over. A question is put to the
+  packer ONCE and remembered, at most a stated number of DIFFERENT
+  questions are put at all, and at most a second stated number of
+  positions are looked at, so a walk that only ever re-asks still ends.
+  Where either number is reached the column keeps the layout it already
+  had and the shortfall is measured off the finished cells and named;
 - **each of the four class families is class-preserving by
   construction, and the walk CHECKS it.** A cell that reads as an
   ordinary number, one holding a well-formed number too large or too
@@ -2562,7 +2572,18 @@ packing rule applying here IN FULL — both margins and the shape search
   neither helps, the further exact packings of this section, including
   the ones its own search reaches by holding one group to one family.
   The choice above is offered FIRST and unchanged, so a description it
-  answers is answered by it, byte for byte;
+  answers is answered by it, byte for byte. **AND A LAYOUT REACHED THIS
+  WAY IS ACCEPTED ONLY WHERE IT GIVES UP NOTHING THE FIRST LAYOUT HELD,
+  RECOUNTED FROM THE FINISHED CELLS** (plan amendment A-P3-17 clause 2).
+  A packing meets the four class counts and the three alphabet counts as
+  arithmetic over whole groups; whether the family it names holds a
+  spelling AT THE LENGTH the slot is pinned to is a separate question,
+  and where the answer is none the walk falls back to the band's own
+  alphabet and a count met in the arithmetic is missed on the page. So
+  the four class counts, both alphabet counts, both published length
+  ends and both distinctness counts are recounted off the cells a
+  candidate layout wrote, and a candidate missing a count the first
+  layout held is refused whatever else it repairs;
 - **when `all_whole_numbers` is true, every band writes whole numbers.**
   In the figures band the first character is a non-zero digit, so the
   spelling's length is its digit count. In the code band the value is

@@ -421,6 +421,16 @@ _ARRAY = "array"
 _COUNT = "count"
 _FLOOR_COUNT = "count-at-the-floor"
 _FLOORED_ENTRY = "count-at-the-floor-or-withheld"
+# THE FLOOR'S OTHER HALF, which had no vocabulary here until amendment
+# A-P3-16 and so could not be said. A description's counts divide in
+# two: what it names, which the floor holds to "at least the floor", and
+# what it holds back, which is the range BELOW the floor. `_HELD_BACK`
+# is a tally of things in that range -- how many labels were suppressed,
+# how many rows they covered, how many stand-in numbers were too rare to
+# name -- and `_BELOW_THE_FLOOR` is one such group size written out.
+# Both are empty at a floor of one, because the range is.
+_HELD_BACK = "count-of-what-the-floor-held-back"
+_BELOW_THE_FLOOR = "one-group-size-below-the-floor"
 _NUMBER = "number"
 _MAYBE_NUMBER = "number-or-nothing"
 _FLAG = "flag"
@@ -536,7 +546,7 @@ PUBLICATION_RULES: "dict[tuple[str, ...], str]" = {
     ("columns", _EACH, "n_not_numeric"): _COUNT,
     ("columns", _EACH, "n_distinct"): _COUNT,
     ("columns", _EACH, "n_distinct_folded"): _COUNT,
-    ("columns", _EACH, "n_sentinel_candidates_unpublished"): _COUNT,
+    ("columns", _EACH, "n_sentinel_candidates_unpublished"): _HELD_BACK,
     ("columns", _EACH, "sentinel_verdicts"): _ARRAY,
     ("columns", _EACH, "sentinel_verdicts", _EACH): _OBJECT,
     ("columns", _EACH, "sentinel_verdicts", _EACH, "candidate"): _SENTINEL,
@@ -559,7 +569,7 @@ PUBLICATION_RULES: "dict[tuple[str, ...], str]" = {
         _EACH,
         "variants_withheld",
         _KEY_OF,
-    ): _DIGITS,
+    ): _BELOW_THE_FLOOR,
     (
         "columns",
         _EACH,
@@ -568,10 +578,10 @@ PUBLICATION_RULES: "dict[tuple[str, ...], str]" = {
         "variants_withheld",
         _ANY_KEY,
     ): _COUNT,
-    ("columns", _EACH, "suppressed_levels"): _COUNT,
-    ("columns", _EACH, "suppressed_rows"): _COUNT,
+    ("columns", _EACH, "suppressed_levels"): _HELD_BACK,
+    ("columns", _EACH, "suppressed_rows"): _HELD_BACK,
     ("columns", _EACH, "suppressed_level_counts"): _ARRAY,
-    ("columns", _EACH, "suppressed_level_counts", _EACH): _COUNT,
+    ("columns", _EACH, "suppressed_level_counts", _EACH): _BELOW_THE_FLOOR,
     ("columns", _EACH, "level_ceiling"): _COUNT,
     # The numeric roles.
     ("columns", _EACH, "percentiles"): _OBJECT,
@@ -716,16 +726,42 @@ def _is_number(value: object) -> bool:
 
 
 def _is_offset(value: object) -> bool:
-    """`(none)`, the withheld pool, or a signed clock offset."""
+    """`Z`, `(none)`, the withheld pool, or a signed clock offset.
+
+    `Z` IS ONE OF THEM, and leaving it out made this guard refuse every
+    table whose times are stamped in UTC (found while repairing review
+    item P3-V5-F1; plan amendment A-P3-16 clause 4). The producer
+    writes `Z` for a cell ending in one -- `parsing.split_offset` hands
+    it back unchanged -- and the strict loader accepts it wherever an
+    offset may stand (`contract._is_an_offset`), so a column of
+    `2024-03-17T09:00:00Z` reached this guard with `earliest_utc_offset`
+    set to `Z`, was refused as something the publication rules could not
+    account for, and the person was told to report a fault in synthtwin
+    and given no way to describe their table. The two writings of "what
+    an offset is" now accept the same strings, and a test compares them
+    string by string rather than trusting this sentence.
+    """
     if not isinstance(value, str):
         return False
-    if value in (_NO_OFFSET, parsing.MISSING_WITHHELD):
+    if value in ("Z", _NO_OFFSET, parsing.MISSING_WITHHELD):
         return True
     if len(value) != 6 or value[0:1] not in ("+", "-") or value[3:4] != ":":
         return False
-    return parsing.is_digit_text(value[1:3]) and parsing.is_digit_text(
+    if not parsing.is_digit_text(value[1:3]) or not parsing.is_digit_text(
         value[4:6]
-    )
+    ):
+        return False
+    # AND THE RANGE, because the loader checks it (review item P2-C1-F6,
+    # and the same disagreement `Z` was on the other side of). No zone
+    # stands further than fourteen hours from UTC and no zone's minute
+    # field reaches sixty. A guard looser here than the loader is a
+    # guard that lets this package write a description it then refuses
+    # to read.
+    hours = int(value[1:3])
+    minutes = int(value[4:6])
+    if hours > 14 or minutes > 59:
+        return False
+    return not (hours == 14 and minutes != 0)
 
 
 def _is_moment(value: object) -> bool:
@@ -806,11 +842,39 @@ def _leaf_is_published(
         # A count published under a key of its own has to have cleared
         # the small-cell floor; the pooled remainder is the one entry
         # that may be smaller, because it names nothing.
+        #
+        # AND AT A FLOOR OF ONE THERE IS NO REMAINDER (owner ruling
+        # 2026-08-14, plan amendments A-P3-11 and A-P3-16; contract
+        # invariant S13). The remainder holds what fell BELOW the floor,
+        # and below one there is nothing, so this guard would otherwise
+        # write out a document its own loader refuses.
         if isinstance(value, bool) or not isinstance(value, int):
             return False
         if key == parsing.MISSING_WITHHELD:
-            return value >= 1
+            return value >= 1 and context.floor > 1
         return value >= context.floor
+    if kind == _HELD_BACK:
+        # A tally of what the floor took out of sight: how many labels,
+        # how many rows they cover, how many stand-in numbers were too
+        # rare to name. Same rule, said about a count that carries no
+        # key of its own.
+        if isinstance(value, bool) or not isinstance(value, int):
+            return False
+        if value < 0:
+            return False
+        return value == 0 or context.floor > 1
+    if kind == _BELOW_THE_FLOOR:
+        # One group size the floor held back, whether it stands as a
+        # count or -- for a multiplicity map -- as a key written in
+        # figures. The permitted range is 1 up to the floor, which at a
+        # floor of one is empty.
+        if isinstance(value, str):
+            if not value or not parsing.is_digit_text(value):
+                return False
+            return 1 <= int(value) < context.floor
+        if isinstance(value, bool) or not isinstance(value, int):
+            return False
+        return 1 <= value < context.floor
     if kind == _NUMBER:
         return _is_number(value)
     if kind == _MAYBE_NUMBER:

@@ -111,6 +111,10 @@ SHAPE_ALL_ALONE_TWICE = (
     "the same, with TWO collisions owed and both unbuildable in the "
     "first packing"
 )
+SHAPE_BUDGET_ON_REPEATS = (
+    "the second tier's answer sits past the ceiling because the ceiling "
+    "was spent on questions already answered (review item P3-V6-F2)"
+)
 
 WITNESSES = (
     (
@@ -148,6 +152,11 @@ WITNESSES = (
         SHAPE_ALL_ALONE_TWICE,
         ["#C"] * 2 + ["#c"] * 12 + ["(-78)"] * 12 + ["-938"] * 15
         + ["-938 "] * 2 + ["44212"] * 2,
+    ),
+    (
+        SHAPE_BUDGET_ON_REPEATS,
+        ["-716"] * 4 + ["-716 "] * 5 + ["^OTAL"] * 5 + ["^otal"] * 5
+        + ["1e999"] * 3 + [" 3e999 "] * 3,
     ),
 )
 
@@ -233,6 +242,75 @@ def _a_choice_whose_handles_are_not_inert(
     return left + tail
 
 
+def _the_budget_counted_in_positions(
+    column: contract.ColumnBlock,
+    facts: contract.IdentifierFacts,
+    groups: "tuple[int, ...]",
+    folded: int,
+    partners: int,
+    budget: int,
+) -> "list[tuple[list[int], tuple[int, int], bool]]":
+    """The enumeration counting POSITIONS rather than QUESTIONS.
+
+    Review item P3-V6-F2. The second tier walks a candidate end-carrier
+    pair, a group and a family, and hands the allocator a permission
+    vector that does not depend on the end-carriers except through the
+    two places carrying them -- so the same question comes round again
+    and again. Charging the ceiling for each REPEAT is what this
+    restores, and it is the whole of what the defect was: the review's
+    witness carries 246 different questions among 2,466 positions, so
+    the ceiling of 256 ran out having answered 82 of them and the first
+    candidate the tier had to offer sits at position 420.
+
+    Built by walking the shipped tiers with a counter of its own rather
+    than by copying the body, so it restores what it says it restores.
+    """
+    walked = generation._identifier_packings(
+        column, facts, groups, folded, partners, budget
+    )
+    if len(walked) < 2:
+        return walked
+    total = len(groups)
+    width = len(generation._BANDS)
+    room = len(generation._CLASSES) * width
+    first = generation._identifier_packings(
+        column, facts, groups, folded, partners, 1
+    )
+    kept = list(first)
+    spent = 0
+    for signing in (False, True):
+        for carriers in generation._shape_choices(total):
+            permits = generation._identifier_windows(
+                facts, total, carriers, signing
+            )
+            for place in range(total):
+                for cell in range(room):
+                    if spent >= budget:
+                        return kept
+                    if (permits[place] >> cell) & 1 == 0:
+                        continue
+                    spent = spent + 1
+    return walked
+
+
+def _a_shortfall_that_measures_nothing(
+    column: contract.ColumnBlock,
+    facts: contract.IdentifierFacts,
+    written: "list[str]",
+) -> "frozenset[str]":
+    """The guard that argued instead of measuring (review item P3-V6-F2).
+
+    Before the wider enumeration reached them, a repaired layout was
+    accepted on the argument that every candidate packing meets every
+    margin in arithmetic. It does; whether the family it names holds a
+    spelling AT THE PINNED LENGTH is another question, and where it does
+    not the walk falls back to the band alphabet and a class count met
+    on paper is missed on the page. This is that argument, written as
+    the empty measurement it amounted to.
+    """
+    return frozenset()
+
+
 def _packings_that_are_not_all_exact(
     column: contract.ColumnBlock,
     facts: contract.IdentifierFacts,
@@ -297,6 +375,16 @@ def _reinstated(monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(
             generation, "_identifier_packings",
             _packings_that_are_not_all_exact,
+        )
+    if asked_for == "P3-V6-F2-positions":
+        monkeypatch.setattr(
+            generation, "_identifier_packings",
+            _the_budget_counted_in_positions,
+        )
+    if asked_for == "P3-V6-F2-unmeasured":
+        monkeypatch.setattr(
+            generation, "_identifier_shortfall",
+            _a_shortfall_that_measures_nothing,
         )
 
 
@@ -516,21 +604,28 @@ def test_the_battery_holds_its_folded_count_on_every_run(
         "change that stopped these columns publishing a fold collision "
         "would leave this file asserting nothing"
     )
-    missed: list[tuple[int, int, int]] = []
+    missed: list[tuple[int, str, int, int]] = []
     named: list[tuple[int, str]] = []
     for case, described in battery:
         column = described.columns[0]
         twin = generation.generate(described, seed=seed)
-        cells = [one for one in twin.columns[0] if one != ""]
-        folded = len({parsing.folded(one) for one in cells})
-        if folded != column.n_distinct_folded:
-            missed.append((case, column.n_distinct_folded, folded))
+        # EVERY PUBLISHED COUNT, not the folded one alone (review item
+        # P3-V6-F2). A layout that meets the folded count by giving up a
+        # class count has traded one published fact for another, which
+        # is the design A-P3-12 clause 1 exists not to be -- and while
+        # this walk read the folded count alone, such a trade was
+        # invisible here.
+        got = _recount(twin.columns[0])
+        want = _published(column)
+        for field in sorted(want):
+            if want[field] != got[field]:
+                missed.append((case, field, want[field], got[field]))
         for note in twin.deviations:
             named.append((case, note.fact))
     assert missed == [], (
         "every one of these descriptions was written by the producer from "
         "a real column, so that column's own values are a conforming "
-        "assignment and the folded count is owed exactly"
+        "assignment and every published count is owed exactly"
     )
     assert named == [], (
         "nothing is given up on these columns, so nothing may be named"
@@ -653,6 +748,140 @@ def _safe(shape: str) -> str:
     return "".join(
         one if one.isalnum() else "-" for one in shape
     )[:40]
+
+
+# -- the ceiling means what it says (review item P3-V6-F2) -------------
+
+
+def _positions_and_questions(
+    column: contract.ColumnBlock,
+    facts: contract.IdentifierFacts,
+    groups: "tuple[int, ...]",
+) -> "tuple[int, int]":
+    """How many positions the second tier walks, and how many differ.
+
+    A POSITION is a candidate end-carrier pair, a group and a family. A
+    QUESTION is the permission vector the position hands the allocator.
+    Written here from the rule the method states rather than taken off
+    the shipped walk, so the two numbers below compare two readings.
+    """
+    total = len(groups)
+    room = len(generation._CLASSES) * len(generation._BANDS)
+    positions = 0
+    asked: dict[tuple[int, ...], int] = {}
+    for signing in (False, True):
+        for carriers in generation._shape_choices(total):
+            permits = generation._identifier_windows(
+                facts, total, carriers, signing
+            )
+            for place in range(total):
+                for cell in range(room):
+                    if (permits[place] >> cell) & 1 == 0:
+                        continue
+                    positions = positions + 1
+                    held = [permits[each] for each in range(total)]
+                    held[place] = 1 << cell
+                    asked[tuple(held)] = 1
+    return positions, len(asked)
+
+
+def test_the_ceiling_is_spent_on_questions_and_not_on_repeats(
+    tmp_path: pathlib.Path,
+) -> None:
+    """A budget counted in repeats is a budget that buys nothing.
+
+    REVIEW ITEM P3-V6-F2. The stated ceiling is what makes A-P3-12's
+    reach a fact rather than a hope, and it was being spent on questions
+    already answered. This measures both numbers on the witness that
+    found it -- the positions the second tier walks and the different
+    questions among them -- and holds the walk to the one that matters:
+    every different question is reached, inside the stated ceiling.
+    """
+    described = _described(
+        tmp_path, "budget",
+        ["-716"] * 4 + ["-716 "] * 5 + ["^OTAL"] * 5 + ["^otal"] * 5
+        + ["1e999"] * 3 + [" 3e999 "] * 3,
+    )
+    column = described.columns[0]
+    facts = column.facts
+    assert isinstance(facts, contract.IdentifierFacts)
+    groups = generation._groups_of(facts.n_distinct_by_occurrences)
+    positions, questions = _positions_and_questions(column, facts, groups)
+    # NOT VACUOUS: this witness only says something while the positions
+    # outnumber the questions by enough to exhaust the ceiling on
+    # repeats alone.
+    assert positions > generation._FOLD_PACKINGS, positions
+    assert questions * 4 < positions, (positions, questions)
+    assert questions <= generation._FOLD_PACKINGS, (
+        f"{questions} different questions is past the stated ceiling of "
+        f"{generation._FOLD_PACKINGS}, so this witness no longer shows "
+        f"the ceiling reaching all of them"
+    )
+    assert positions <= generation._FOLD_LOOKS, (
+        "the walk has to end inside its stated number of positions"
+    )
+    total = len(groups)
+    folded = min(column.n_distinct_folded, total)
+    offered = generation._identifier_packings(
+        column, facts, groups, folded, total - folded,
+        generation._FOLD_PACKINGS,
+    )
+    assert len(offered) > 4, (
+        f"the ceiling offered {len(offered)} candidates, which is what it "
+        f"offered when it was being spent on repeats"
+    )
+
+
+def test_a_repaired_layout_gives_up_no_count_the_first_layout_held(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The acceptance test RECOUNTS instead of arguing (P3-V6-F2).
+
+    A candidate packing meets the four class counts and the three
+    alphabet counts as arithmetic over whole groups. Whether the family
+    it names holds a spelling at the length its slot is pinned to is a
+    different question, and where it does not the walk falls back to the
+    band's own alphabet and the class count met on paper is missed on
+    the page. So the guard measures the finished cells, and this holds
+    it to what it measures: every published count, in both directions.
+    """
+    described = _described(
+        tmp_path, "measured", ["-3"] * 11 + ["-3 "] * 11 + ["1e0"] * 11
+    )
+    column = described.columns[0]
+    facts = column.facts
+    assert isinstance(facts, contract.IdentifierFacts)
+    # The column's own values give up nothing at all.
+    theirs = [one for one in ["-3"] * 11 + ["-3 "] * 11 + ["1e0"] * 11]
+    assert generation._identifier_shortfall(
+        column, facts, theirs
+    ) == frozenset(), (
+        "the values the description was written from are a conforming "
+        "assignment of every count it publishes"
+    )
+    # ...and a writing that meets every count but one names that one and
+    # nothing else. `10` is figures alone where the real values are not.
+    swapped = ["0E0"] * 11 + ["0e0"] * 11 + ["10"] * 11
+    assert generation._identifier_shortfall(
+        column, facts, swapped
+    ) == frozenset({"n_all_digits"}), (
+        "this writing holds every published count but the figures-alone "
+        "one, and the guard has to name exactly that one"
+    )
+    # ...and every witness of this file gives up nothing, measured the
+    # same way, on the cells the shipped generator writes.
+    for shape, values in WITNESSES:
+        here = tmp_path / _safe(shape)
+        here.mkdir(parents=True, exist_ok=True)
+        one = _described(here, "w", values)
+        other = one.columns[0]
+        other_facts = other.facts
+        assert isinstance(other_facts, contract.IdentifierFacts)
+        for seed in SEEDS:
+            twin = generation.generate(one, seed=seed)
+            assert generation._identifier_shortfall(
+                other, other_facts, list(twin.columns[0])
+            ) == frozenset(), (shape, seed)
 
 
 # -- and where it still cannot be held, the report says so -------------

@@ -128,11 +128,27 @@ same measurement the description was made with.
 **V2.2 The settings it re-describes under** are the profile's own,
 field by field, exactly as the Phase 3 plan's P3-D3 table fixes them.
 Every classifier and publication threshold is read from the profile's
-`settings`; the two declaration tuples are EMPTY, because the contract
-deliberately does not record declared spellings; `forced_identifiers`
-is applied, so a declared identifier is described as one; and the read
-mode comes from `source.header_source` rather than from any settings
-key. A sixteenth key, or a key skipped, is a defect in the validator.
+`settings`; both declaration tuples are DERIVED from the profile's own
+published text, because the SETTINGS BLOCK deliberately records no
+declared spelling and the column blocks publish them anyway (V2.3);
+`forced_identifiers` is applied, so a declared identifier is described
+as one; and the read mode comes from `source.header_source` rather than
+from any settings key. A sixteenth key, or a key skipped, is a defect in
+the validator.
+
+**V2.2-A1 The missing tuple was EMPTY, and the reason it gave was true
+of a twin and false of a table** (2026-08-14, review item P3-V4-F1; the
+plan's amendment A-P3-15 clause 1 is the ruling and this follows it).
+This clause read "the two declaration tuples are EMPTY, because the
+contract deliberately does not record declared spellings", and the plan
+gave `declared_missing_values` the reason "genuinely absent from every
+twin, whose absent cells are written empty". The twin is not the only
+file this command is pointed at (V1.2): the OTHER one is the table the
+description was written from, and that table is exactly where a
+`--missing-value` spelling still stands in the cells. Twelve `XX` cells
+in such a table were read back as data, the column re-read as free
+text, and seven obligations came back MISSED against the table's own
+profile; declared as the number `-777` instead, seventeen did.
 
 **V2.3 The kept set, derived from the profile** (Phase 3 plan owner
 decision 8, as amended). A twin can validly hold a spelling the
@@ -149,14 +165,45 @@ and all three are recovered:
   cell counts as data when its trimmed, case-folded form equals a
   published label's, which is the producer's own pooling rule.
 
+**V2.3-A1 And a FOURTH published route, for the other declaration**
+(2026-08-14, review item P3-V4-F1; the plan's amendment A-P3-15 clause 1
+is the ruling and this follows it). What the person named as "no value"
+is published too, and by a route of exactly the same kind: a column's
+`missing_by_source` carries the exact spelling of every hole whose count
+reaches `small_cell_floor`. So
+
+- every key of every published `missing_by_source` that is not one of
+  this package's own placeholder names, not a spelling the built-in
+  table already reads as an absence, and not a spelling that reads as
+  one of the three numeric stand-ins, is recovered into
+  `declared_missing_values`, at the producer's own declaration-matching
+  identity.
+
+**Which keys those are is DERIVED, not guessed.** The producer has four
+ways to make a cell a hole and no fifth: the person's declaration, by
+spelling or by number; a blank; one of the built-in missing texts; and
+a numeric stand-in the column's own verdict turned down. The three
+exclusions above are the other three, each recognisable from the
+description alone, so what is left can only be a declaration.
+
+**What this route does NOT reach, stated at its size.** A declaration
+whose cells sit below the publication floor in every column is pooled
+into `(withheld)` and published nowhere, and a declared value that IS
+one of the three stand-ins cannot be told from the sentinel rule's own
+judgment. Both are left unrecovered and both are named in V2.4-A4 below
+with what they cost.
+
 **V2.4 And the kept set governs only what PRINTS, never a verdict.** On
 the check side an absence is BLANKNESS, by the contract's own rule for
 twins: every absent cell is written as an empty field, so `n_present`,
 `n_missing` and every count that depends on them are measured from
-blank and non-blank cells alone, with no sentinel or declaration
-machinery anywhere in the verdict path. No gap in the reconstruction
-can move a verdict; the worst it can do is withhold a measurement that
-could have been printed, which is the safe direction.
+blank and non-blank cells alone, with no sentinel machinery anywhere in
+the verdict path. ~~No gap in the reconstruction can move a verdict;
+the worst it can do is withhold a measurement that could have been
+printed, which is the safe direction.~~ **Those two clauses are false
+as written and are withdrawn by V2.4-A4 below, which states what is
+true in their place. No rule in this document may be re-derived from
+them.**
 
 **Which of V2.1 and V2.4 governs where they disagree, stated because
 they can** (review item P3-C1-F4). The producer reads a cell equal to a
@@ -285,6 +332,69 @@ that is stated in the plan rather than discovered. Every measurement
 whose input is the set of present cells is settled this way, the style
 clauses included: they recount the written cells, so where the split is
 not published they recount the cells that description reads.
+
+**What "no gap in the reconstruction can move a verdict" is worth, said
+at its size instead of as an absolute** (amendment V2.4-A4, 2026-08-14,
+review items P3-V4-F1 and P3-V5-F2; the plan's amendment A-P3-15 is the
+ruling and this follows it). V2.4 promised that a gap in the
+reconstruction can only cost detail. It cannot: A3 above takes the
+split's number only where the FILE'S OWN description publishes the
+split, that description is built under the reconstructed settings, and
+a declaration the reconstruction misses is a spelling that description
+reads as a hole. The gap therefore decides whether the gate is open,
+and a gate that closes wrongly puts the file's own — wrong — count on a
+verdict. Three clauses, and each says which way it moves.
+
+**Clause 1 — the fourth route. THIS RAISES.** V2.3-A1 reads back the
+person's `--missing-value` spellings from `missing_by_source`. Every
+subcheck it moves, it moves off a false MISS: seven on a table declared
+with a text marker, seventeen with a numeric one, and zero new
+withholdings on any file. Nothing stops being checked.
+
+**Clause 2 — the two presence counts come off the split DESCRIPTION,
+not off a blank recount beside it. THIS RAISES, and it narrows
+blankness.** V2.4 reads every presence-dependent obligation off the
+split description; these two were recounted separately, and while both
+declaration tuples were empty the two answers were the same number. They
+are not once a declaration is recovered, and a report carrying both
+disagreed with itself — 211 present beside a distinctness count of 199
+taken over the cells that number claims. So blankness is narrowed to
+what its own reason reaches: a cell is absent when it is empty, OR when
+it wears a spelling the description ITSELF publishes as the source of
+its holes. The reason V2.4 pinned absence to blankness is residual
+R-P2-13 — a generated value can legitimately BE the text of a built-in
+marker, and no file may be failed for colliding with synthtwin's OWN
+vocabulary. Nothing of synthtwin's own vocabulary is in the recovered
+set, by construction (V2.3-A1's three exclusions). **What it costs:** a
+non-blank cell can now be absent to these two counts, so a generated
+value that collides with a spelling the DESCRIPTION declares — not one
+of the built-in table — is counted as a hole. That is R-P2-13's shape on
+a declared spelling, it is bounded by the cells wearing it, and it is
+recorded here rather than found.
+
+**Clause 3 — what is still open, and why it does not close here. THIS
+CLOSES NOTHING AND CLAIMS NOTHING.** Two gaps remain and both are
+unrecoverable from what the contract publishes:
+
+- a `--keep-value` spelling that is one of the built-in missing texts,
+  on a column that publishes no level carrying it — a column of numbers,
+  of datetimes, of identifiers, of free text. Nothing in the document
+  carries that spelling. The table it was written from reports
+  `presence.n_present`, `presence.n_missing`, `counts.n_not_numeric`,
+  `counts.n_left_out_of_statistics` and `counts.numeric_share` MISSED;
+- a declaration of either kind whose cells sit below `small_cell_floor`
+  in every column, pooled into `(withheld)` and named nowhere.
+
+**And reading the split anyway is not the answer, which is why this is
+a ruling and not a repair.** Two hundred readings and one `n/a`, beside
+two hundred readings and one `NULL`: the producer describes them BYTE
+FOR BYTE ALIKE under the settings this method can build, the first meets
+every fact a `--keep-value n/a` description publishes and the second does
+not. Any rule that passes the first passes the second, and stating 201
+present about the second states a count `synthtwin profile` run on that
+file would not publish — V5.1. What closes it is a decision about what
+the profile publishes, taken in the open; until then no sentence in this
+document may say the bound of V2.4 is met.
 
 ---
 
@@ -447,10 +557,35 @@ predicate over published numbers (this count is the CORNERS' own and is
 unrelated to the number of G12 refusals, which method G12 fixes):
 
 - **identifier-infeasible** (owner decision 6): a declared identifier
-  whose published length range cannot supply `n_present` distinct
-  values. Then `n_distinct`, `n_distinct_folded` and
-  `n_distinct_by_occurrences` are REPORT-ONLY for that column, and
-  nothing else is.
+  whose published facts cannot supply as many different spellings as
+  its `n_distinct_by_occurrences` names groups. Then `n_distinct`,
+  `n_distinct_folded` and `n_distinct_by_occurrences` are REPORT-ONLY
+  for that column, and nothing else is.
+
+  **The supply is method G9.4's, band by band and all three at once**
+  (review item P3-V6-F1, plan amendment A-P3-14). The published cells
+  divide between the three alphabet bands by the column's own two
+  counts (G9.5 step 4): `n_all_digits` in the figures,
+  `n_code_alphabet - n_all_digits` in the code alphabet, and the rest
+  outside it. Every cell of one group carries the same spelling, so a
+  band can hold no more groups than its own cells have room for and no
+  more than its domain can spell over `[min_length, max_length]` —
+  where the domain is the band's own alphabet under G9.1's positional
+  rules, or, where `all_whole_numbers` is published and every present
+  cell reads as a number the format holds, the narrower whole-number
+  family G9.6 fixes for that band. The corner is the three bands
+  falling short TOGETHER, not one of them falling short alone.
+
+  **Every number in it is taken in the direction that keeps checks**:
+  supply is an upper bound on what the construction writes and demand a
+  lower bound on what it is asked for, so the corner is claimed only
+  where no packing of any kind answers the description. That direction
+  is stated because it was once taken the other way: the arithmetic
+  this replaced summed `alphabet ** L` with the alphabet read off one
+  published count, which is a domain this product never writes from,
+  and the three checks it took off a column let a file whose
+  identifiers had collapsed to one repeated value receive a passing
+  report.
 - **datetime-offsets-withheld** (P2-D9): a datetime column whose
   `utc_offsets` map is the single `(withheld)` key. Then `utc_offsets`,
   both endpoint offsets and `datetimes_read_at` are REPORT-ONLY, and
@@ -464,10 +599,30 @@ unrelated to the number of G12 refusals, which method G12 fixes):
   those fall to the G12.8 envelope.
 
 **V4.2 The classifier is written from this document, not imported.**
-The generator decides the same question from its own text; the two are
-compared in the suite, over every producer-battery description and every
-frozen conflict case, and any disagreement is red. A shared design error
-now needs the same mistake written twice from two texts.
+The generator decides the same question from its own text, and the two
+writings are compared in the suite by BUILDING THE TWIN: a description
+whose twin misses a fact the classifier claims no corner for turns the
+green direction red, and — for `identifier-infeasible` — a description
+whose twin holds every published value while the classifier calls it a
+corner turns a battery red. A shared design error needs the same
+mistake written twice from two texts.
+
+**What that comparison does and does not reach, stated at its real
+width** (review item P3-V6-F1, plan amendment A-P3-14 clause 3). This
+paragraph said the two were compared "over every producer-battery
+description and every frozen conflict case, and any disagreement is
+red", and that was wider than what any test did. What the green
+direction catches is ONE side: a corner the generator needs and the
+classifier withholds shows up as a MISSED verdict on a conforming twin.
+The other side — a corner claimed where the generator needs none — is
+SILENT there, because the twin passes either way while three checks
+disappear from the report, and that silence is how a false identifier
+corner survived a green suite. It is now asserted directly for
+`identifier-infeasible` against the shipped generator's own cells, over
+a battery reaching all three bands, both whole-number readings and four
+capacity boundaries taken from both sides. **For the other three
+corners the reverse direction is still unasserted**, and no sentence
+here may say otherwise until it is.
 
 **V4.3 The G12 refusals are NOT corners.** They refuse GENERATION,
 so no conforming twin exists for such a profile at all. A validate run
@@ -914,6 +1069,20 @@ because the named subcheck did not do its job.
 **V8.3 The coverage identity** walks the shipped executable-subcheck
 table and asserts every entry has at least one registered, named,
 passing red case.
+
+**V8.3-A1 The walk is TOTAL OVER THE PREDICATES, not over the ordinary
+one** (plan amendment A-P3-17 clause 3). V3.1 makes an entry's identity
+a profile predicate, a column and a subcheck, and owner decision 7 ships
+four predicates: a headed description, a headerless one, and the two
+degenerate zero-row forms. A walk over ordinary fixtures alone is total
+over ONE of the four, and calling it total over the shipped table is the
+claim this specification exists to refuse. So both halves of V3.1's
+identity proof — which registry fact each site binds, and that each site
+can be made to MISS — run over every predicate the validator ships. The
+two zero-row forms file fifteen executable subchecks between them, every
+one of them carries an edit that names it, and the walk asserts that the
+predicates reach a subcheck the ordinary fixtures do not, so that
+widening it is measured rather than asserted.
 
 **V8.4 The green direction.** Producer → generator → validator over the
 every-role fixture and every frozen conflict case: zero MISSED and zero

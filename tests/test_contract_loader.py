@@ -320,6 +320,22 @@ def battery() -> list[Mutation]:
                 ]
             ),
         ),
+        # THE FLOOR OF ONE, AND WHY THE MUTATION HAS TWO HALVES. At a
+        # floor of one there is no group below the floor, so nothing may
+        # be held back; the base is written at the default floor, where
+        # holding something back is ordinary. So the floor is lowered
+        # AND something is left held back -- either half on its own is a
+        # description the loader is right to accept. The tally is used
+        # rather than a pooled `(withheld)` count because it needs no
+        # arithmetic moved with it: it is a count of stand-in numbers
+        # too rare to name, and at a floor of one none can be.
+        Mutation(
+            "S13", "a floor of one that still holds something back",
+            all_of(
+                edit_in("settings", small_cell_floor=1),
+                edit("record_code", n_sentinel_candidates_unpublished=1),
+            ),
+        ),
         # -- the axes -------------------------------------------------
         Mutation(
             "A1", "a column marked declared that nobody declared",

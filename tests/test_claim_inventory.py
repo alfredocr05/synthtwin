@@ -96,12 +96,24 @@ additionally belongs in the generator itself: `generation.py` is what
 makes columns independently, and a module whose docstring states its
 guarantees (charter rule) may not leave out the largest one.
 
-WHAT IS DELIBERATELY OUT OF SCOPE. `docs/plans/` and its review record
-are the project's audit trail: they record what was claimed, reviewed,
-rejected and repaired at each date, and rewriting them to match today's
-wording would destroy the very thing they exist to preserve. They make
-no claim to a user. `tests/` is out for the same reason, plus the
-obvious one that this file must be able to name the retired forms.
+WHAT IS DELIBERATELY OUT OF SCOPE, AND WHERE THAT LINE MOVED. The
+review record is the project's audit trail: it records what was
+claimed, reviewed, rejected and repaired at each date, and rewriting it
+to match today's wording would destroy the very thing it exists to
+preserve. It makes no claim to a user. `tests/` is out for the same
+reason, plus the obvious one that this file must be able to name the
+retired forms.
+
+`docs/plans/` was out on that same reasoning and it was too wide by one
+family (review item P3-V6-F3). A plan that GOVERNS is not a record of
+what was once thought: it is edited by amendment, it fixes what the code
+owes, and an institution's reviewer reads it. So the two GOVERNING plans
+are walked by the withdrawn-defence ban -- `DEFENCE_SURFACES` -- because
+a promise about what somebody can be stopped from doing is normative
+wherever it stands. The other three families still stop at the surfaces
+above, because they count what the product HAS today and a roadmap says
+what it will have, in as many words, on purpose. The plans of closed
+phases and every review stay out entirely.
 
 The failure messages here name the file and say what to write, because
 whoever trips this test is mid-sentence in a document, not debugging.
@@ -116,6 +128,7 @@ import re
 
 import pytest
 
+import dispositions
 from synthtwin import cli
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -160,6 +173,31 @@ SURFACES = (
     "docs/spec/profile-contract-v4.md",
     "docs/spec/generation-method-v1.md",
     "docs/spec/validation-method-v1.md",
+)
+
+# THE SURFACES THE WITHDRAWN-DEFENCE BAN WALKS, which is every one of
+# the above and the GOVERNING PLANS besides (review item P3-V6-F3).
+#
+# The ban named the plan's own P3-D3 as one of the passages the
+# 2026-08-14 ruling had to correct, and the plan was not walked -- so
+# the guard claimed a reach it did not have, which is the shape this
+# whole file exists to refuse. A plan that GOVERNS is not audit trail:
+# it is edited by amendment, it decides what the code owes, and an
+# institution's reviewer reads it as normative.
+#
+# WHY THIS FAMILY AND NOT THE OTHER THREE. The other families count what
+# the product HAS -- how many commands, how many files, which capability
+# is built -- and a plan states those about phases that do not exist
+# yet, in as many words, on purpose. Holding a roadmap to a count of
+# today's commands would be holding it to the one thing it is not for.
+# A PROMISE about what somebody can be stopped from doing is different:
+# it is normative wherever it is written, and a plan that makes it makes
+# it. `test_every_governing_document_is_a_surface` holds this list to
+# the disposition seal's own governing set, so the next governing
+# document cannot be left out by being forgotten.
+DEFENCE_SURFACES = SURFACES + (
+    "docs/plans/phase-2-generator.md",
+    "docs/plans/phase-3-product.md",
 )
 
 # The categorical forms, retired by P2-D11. Each is the shape of a
@@ -2065,13 +2103,32 @@ def _reinstated(monkeypatch: pytest.MonkeyPatch) -> None:
 # so what identifies this reader is not the vocabulary but the grammar:
 # the choosing has to be MODIFYING the description.
 _GAP_WORDS = r"(?:[a-z0-9'-]+ ){0,2}"
-_DESCRIPTIONS = r"(?:description|profile)s?\b"
+# THE NOUNS FOR A DESCRIPTION. `specification` and `spec` joined on
+# review item P3-V6-F3, whose second probe -- "a succession of custom
+# specifications leaves a suppressed tally unknowable" -- named this
+# reader in a word this list did not hold and went undetected.
+#
+# THIS LIST IS THE ONE PLACE IN THIS FAMILY WHERE A MISS IS A FALSE
+# NEGATIVE, and that is said here rather than discovered later. A
+# missing WITHDRAWAL word makes the guard shout at a true sentence,
+# which a maintainer fixes in a minute; a missing word for the READER
+# makes the guard silent about a false one. No finite list of nouns
+# bounds an infinite set of paraphrases, so this is a guard and not a
+# proof, and what would be a proof is written in plan amendment
+# A-P3-17: one canonical passage, quoted, with every other mention of
+# this reader refused outright.
+_DESCRIPTIONS = r"(?:description|profile|specification|spec)s?\b"
 # ...and the plural, where the singular means something else. ONE
 # hand-written description is an ordinary thing to write about: it is a
 # profile somebody edited into a state its own facts contradict, and the
 # generation method spends two paragraphs on what the walk does with it.
 # HAND-WRITTEN DESCRIPTIONS, plural, is a sweep and is nothing else.
-_DESCRIPTIONS_MANY = r"(?:description|profile)s\b"
+_DESCRIPTIONS_MANY = r"(?:description|profile|specification|spec)s\b"
+# The same nouns, plus the words for one RUN of the check, wherever a
+# pattern below counts things rather than naming what they say.
+_RUN_NOUNS = (
+    r"(?:description|profile|specification|spec|run|report|guess)s\b"
+)
 
 # Choosing what the description says. "submitted" is deliberately absent:
 # the submitted description is what `synthtwin validate` is always handed
@@ -2103,16 +2160,17 @@ _REPEAT_MARKS = (
     rf"\b{_DESCRIPTIONS} {_GAP_WORDS}one by one\b",
     (
         rf"\brepeated {_GAP_WORDS}"
-        r"(?:description|profile|run|report|check|guess|candidate)s\b"
+        r"(?:description|profile|specification|spec|run|report|check|"
+        r"guess|candidate)s\b"
     ),
     (
         r"\b(?:a |any |no )?(?:sequence|series|succession|sweep) of "
-        rf"{_GAP_WORDS}(?:candidate |hand-\w+ )?"
-        r"(?:description|profile|run|report|guess)s\b"
+        rf"{_GAP_WORDS}(?:candidate |custom |hand-\w+ )?{_RUN_NOUNS}"
     ),
     (
         rf"\b(?:many|several|eleven|six|dozens of) {_GAP_WORDS}"
-        r"(?:candidate |hand-\w+ )?(?:description|profile|guess)s\b"
+        r"(?:candidate |custom |hand-\w+ )?"
+        r"(?:description|profile|specification|spec|guess)s\b"
     ),
 )
 
@@ -2219,6 +2277,36 @@ _REASON_MARKS = (
     r"\b(?:the|this) gate\b",
 )
 
+# A THIRD WAY THE GUARANTEE IS MADE, and the one the review walked
+# straight through (review item P3-V6-F3). Not "they cannot" and not
+# "the rule is here to stop them", but "they end up knowing nothing":
+# "repeated profiles reveal nothing about a count this report withholds"
+# promises the defence exactly as hard as the other two and used none of
+# their words. What identifies this shape is a word for KNOWING NOTHING
+# standing in a sentence that names the reader -- the promise is in the
+# outcome rather than in the barrier.
+#
+# "nothing" BARE is deliberately absent, and the reason is the reason
+# every other list here gives for what it leaves out. The naming half
+# has false matches of its own -- "a battery of eleven producer
+# descriptions" in the changelog is a test fixture and not a sweep --
+# and a bare "nothing" beside one of those turns a true sentence red
+# for no reason at all. What identifies this shape is nothing paired
+# with KNOWING: nothing ABOUT something, or a verb of learning with
+# nothing after it.
+_KNOWING = (
+    r"learn|reveal|tell|show|say|give|leak|yield|betray|disclose|"
+    r"narrow|recover|deduce|infer|locate|expose|pin down|work out"
+)
+_KNOWLEDGE_MARKS = (
+    rf"\b(?:{_KNOWING})[a-z]* (?:nothing|no more)\b",
+    r"\bnothing (?:about|of|more|at all)\b",
+    rf"\bnothing (?:{_KNOWING})",
+    r"\bunknowable\b",
+    r"\bno more than\b",
+    rf"\bnot [a-z0-9 ,'`-]{{0,24}}(?:{_KNOWING})",
+)
+
 # What makes a passage the honest account rather than the claim. Any one
 # of these standing near the naming says the defence is not being
 # offered, which is the sentence the ruling requires rather than the one
@@ -2242,13 +2330,35 @@ _WITHDRAWN_MARKS = (
     r"this lowers",
     r"ruled? (?:it |that |them |the )?out",
     r"superseded",
+    # ...and the forms the governing plans use when they report a
+    # question and its answer, or quote what a passage USED to say.
+    # A missing entry here costs a false red on a true sentence, which
+    # is the safe direction and is why this list may grow freely.
+    r"the ruling was: no",
+    r"what was promised",
+    r"is what stood here",
+    r"is withdrawn",
+    r"put (?:it |them |that )?out of scope",
+    r"reverses? (?:on its own|by)",
+    r"no longer (?:true|promised|claimed|offered|says|stands)",
 )
 
-# How far from the naming a withdrawal may stand and still be read as
-# qualifying it. A paragraph of this repository's prose is about this
-# long, which is the unit a person reads; a sentence would be too tight
-# (the history is usually told before it is withdrawn) and a whole file
-# would be no rule at all.
+# HOW FAR A WITHDRAWAL REACHES, AND IN WHICH DIRECTION (review item
+# P3-V6-F3). It used to reach three hundred characters either way, and
+# the review walked through the half that reached FORWARD: "this
+# protection is no longer offered. no sequence of candidate descriptions
+# can narrow a number this report withholds" passed, because the
+# withdrawal in the first sentence cured the promise restored in the
+# second. A withdrawal followed by the promise is not an honest account;
+# it is the promise, with a disclaimer in front of it.
+#
+# So the reach is asymmetric, and it follows how the prose is actually
+# written. Naming the old promise and THEN withdrawing it is the shape
+# every honest passage here takes -- the history is told, then the
+# ruling -- so a withdrawal that stands AFTER the naming still cures it
+# within a paragraph. A withdrawal that stands BEFORE it cures only what
+# is in its own statement, because anything further on is a new
+# assertion and reads as one.
 _CURE_WINDOW = 300
 
 # Where one statement ends and the next begins, in the collapsed text.
@@ -2285,9 +2395,16 @@ def _promises_a_defence(text: str) -> "list[tuple[str, str, str]]":
     failure message can show a maintainer which two words collided
     rather than telling them a document is wrong somewhere.
 
-    A PROMISE IS EITHER FORM. Saying they cannot is one; giving them as
-    the reason a rule exists is the other, and it was the commoner of
-    the two in the text this replaced.
+    A PROMISE IS ANY OF THREE FORMS. Saying they cannot is one; giving
+    them as the reason a rule exists is the second, and it was the
+    commoner of the two in the text this replaced; saying they end up
+    knowing nothing is the third, and it is the one review item
+    P3-V6-F3 walked through.
+
+    AND THE CURE IS DIRECTIONAL. A withdrawal after the naming cures it
+    within a paragraph, which is how every honest passage here is
+    written. A withdrawal BEFORE it cures only its own statement: a
+    promise that follows a disclaimer is a promise.
 
     Guarantees:
 
@@ -2307,16 +2424,25 @@ def _promises_a_defence(text: str) -> "list[tuple[str, str, str]]":
             continue
         promised = [
             mark
-            for mark in _PREVENTION_MARKS + _REASON_MARKS
+            for mark in _PREVENTION_MARKS + _REASON_MARKS + _KNOWLEDGE_MARKS
             if re.search(mark, sentence)
         ]
         if not promised:
             continue
-        near = text[max(0, start - _CURE_WINDOW) : at + _CURE_WINDOW]
-        if any(re.search(mark, near) for mark in _WITHDRAWN_MARKS):
+        if _withdrawn_in(sentence):
+            continue
+        if _withdrawn_in(text[at : at + _CURE_WINDOW]):
             continue
         found.append((sentence, named, promised[0]))
     return found
+
+
+def _withdrawn_in(passage: str) -> bool:
+    """Whether this passage says the defence is not being offered."""
+    for mark in _WITHDRAWN_MARKS:
+        if re.search(mark, passage) is not None:
+            return True
+    return False
 
 
 def test_no_public_surface_promises_a_defence_against_re_running() -> None:
@@ -2331,7 +2457,7 @@ def test_no_public_surface_promises_a_defence_against_re_running() -> None:
     the plan's own P3-D3.
     """
     offenders: list[str] = []
-    for relative in SURFACES:
+    for relative in DEFENCE_SURFACES:
         for sentence, named, promised in _promises_a_defence(_text(relative)):
             offenders.append(
                 f"{relative}: {named!r} promised against by {promised!r}\n"
@@ -2352,6 +2478,98 @@ def test_no_public_surface_promises_a_defence_against_re_running() -> None:
         "Say what the rule does, and say what it does not; if the "
         "sentence is about the withdrawal itself, say the defence is "
         "gone in the same breath as naming it."
+    )
+
+
+def test_every_governing_document_is_a_surface() -> None:
+    """The surface list cannot omit a document that GOVERNS.
+
+    REVIEW ITEM P3-V6-F3. Three of the five governing documents were
+    walked and two were not, and the ban above named a passage of one of
+    the two as a place the 2026-08-14 ruling had to correct -- so the
+    guard claimed a reach it did not have. The governing set is the
+    disposition seal's own, which is where the question "does this
+    document decide what the code owes" is already answered, so this
+    cannot drift with a list somebody forgot to extend.
+    """
+    missing = [
+        relative
+        for relative in dispositions.GOVERNING
+        if relative not in DEFENCE_SURFACES
+    ]
+    assert not missing, (
+        "these documents govern what synthtwin owes and no claim in "
+        "this file is checked against them:\n  " + "\n  ".join(missing)
+        + "\n\nA governing document is not audit trail: it is edited by "
+        "amendment and a reviewer reads it as the normative statement. "
+        "Add it to SURFACES."
+    )
+    assert len(dispositions.GOVERNING) >= 5, dispositions.GOVERNING
+
+
+# The three sentences review round 6 wrote to walk through this guard,
+# kept as the guard's own red cases. Each promises the withdrawn defence
+# in a shape the lists did not hold: the outcome rather than the barrier,
+# a word for a description the nouns did not carry, and a withdrawal
+# standing in FRONT of the promise it was read as curing.
+WALKED_THROUGH = (
+    (
+        "the outcome instead of the barrier",
+        (
+            "Repeated profiles reveal nothing about a count this report "
+            "withholds."
+        ),
+    ),
+    (
+        "a word for a description the nouns did not carry",
+        (
+            "A succession of custom specifications leaves a suppressed "
+            "tally unknowable."
+        ),
+    ),
+    (
+        "a withdrawal in front of the promise it was read as curing",
+        (
+            "This protection is no longer offered. No sequence of "
+            "candidate descriptions can narrow a number this report "
+            "withholds."
+        ),
+    ),
+)
+
+
+@pytest.mark.parametrize("shape,passage", WALKED_THROUGH)
+def test_the_guard_catches_the_sentences_that_walked_through_it(
+    shape: str, passage: str
+) -> None:
+    """Each probe the review wrote is a defect this guard now reports.
+
+    Run against `_promises_a_defence` directly rather than against a
+    file, because what is being held here is the RULE and not any
+    surface's current wording.
+    """
+    found = _promises_a_defence(" ".join(passage.lower().split()))
+    assert found, (
+        f"this sentence promises the withdrawn defence -- {shape} -- and "
+        f"the guard reported nothing:\n  {passage}"
+    )
+
+
+def test_a_withdrawal_after_the_promise_still_cures_it() -> None:
+    """The cure did not become no cure, which would be the other defect.
+
+    A guard that reported every honest passage would be turned off
+    within a week, so the direction the prose is actually written in --
+    name the old promise, then withdraw it -- has to keep passing.
+    """
+    honest = (
+        "no sequence of candidate descriptions can narrow a number this "
+        "report withholds. that is what this repository used to say, and "
+        "the owner ruled it out on 2026-08-14."
+    )
+    assert not _promises_a_defence(honest), (
+        "a passage that states the old promise and withdraws it in the "
+        "next breath is the sentence the ruling asks for"
     )
 
 

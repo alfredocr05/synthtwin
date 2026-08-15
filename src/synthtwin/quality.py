@@ -213,6 +213,21 @@ def _lowered_floor_lines(description: contract.Profile) -> "list[str]":
     that appears on every run saying the floor was NOT lowered is how a
     reader is trained to skip the paragraph that matters.
 
+    AND THE FLOOR-OF-ONE PARAGRAPH SAYS WHICH KIND OF WITHHOLDING IT IS
+    TALKING ABOUT (review item P3-V5-F1, plan amendment A-P3-16 clause
+    3). It read "At 1 nothing is withheld at all: every count this
+    description carries is named exactly, and every line below that
+    would have read WITHHELD carries its number instead." Both halves
+    are false, and measurably: a floor-of-one
+    description checked against a file whose columns hold words where it
+    publishes numbers printed that sentence and then eighty-three
+    obligation lines reading WITHHELD, with "83 WITHHELD" in the verdict
+    summary fourteen lines further down. Two rules put a line there and
+    only one of them is the floor's -- `_floor_gate_lines` below has
+    said so correctly all along, in the words "nothing is held back this
+    way" -- so this paragraph now says the same bounded thing and names
+    the other rule rather than promising it away.
+
     Guarantees:
 
     - Inputs: the description this check was run against. Nothing else.
@@ -271,9 +286,13 @@ def _lowered_floor_lines(description: contract.Profile) -> "list[str]":
     ]
     if floor < 2:
         lines = lines + [
-            "At 1 nothing is withheld at all: every count this description",
-            "carries is named exactly, and every line below that would have",
-            "read WITHHELD carries its number instead.",
+            "At 1 nothing is held back FOR BEING A SMALL GROUP: every count",
+            "this description carries is named exactly, and no line below",
+            "reads WITHHELD for that reason. Lines below may still read",
+            "WITHHELD for the other reason -- that describing the checked",
+            "file publishes no measurement of that kind at all -- which is",
+            "a fact about that file and not about the floor. The count of",
+            "them stands in THE VERDICT.",
             "",
         ]
     return lines + [

@@ -4700,16 +4700,24 @@ def _identifier_cells(
     room = len(_CLASSES) * len(_BANDS)
     shapes = [_identifier_families(column, facts, groups, folded, partners)]
     kept: tuple[list[str], list[Deviation]] | None = None
-    # A REPAIR MAY NOT GIVE UP A COUNT THE FIRST LAYOUT HELD. The only
-    # count a different layout of the same packing can lose is the one
-    # this walk names for itself: a layout that ran out of spellings and
-    # had to write one twice files `_repeat_notes`, giving up the raw
-    # distinctness count and the repetition pattern with it. So a layout
-    # is accepted only when it files no more of those than the first
-    # layout did -- trading raw distinctness for the folded count is the
-    # trade this module refuses, and it refuses it here by construction
-    # rather than by measurement.
+    # A REPAIR MAY NOT GIVE UP A COUNT THE FIRST LAYOUT HELD, AND THAT
+    # IS MEASURED (review item P3-V6-F2). This read the rule off the
+    # construction instead: it counted the notes a layout files for
+    # itself -- the repeated spelling that gives up raw distinctness --
+    # and argued that no other published count could move, because every
+    # candidate packing meets every margin in ARITHMETIC. It can. A
+    # packing settles which class and which alphabet each group answers
+    # for; whether the family it names holds a spelling AT THE LENGTH the
+    # slot is pinned to is a different question, and where it does not
+    # `_pinned_identifier` falls back to the band's own alphabet and the
+    # class count the packing met on paper is lost on the page. The
+    # earlier enumeration never reached such a candidate because it
+    # spent its budget on questions it had already answered; with the
+    # budget repaired it does, so the guard stops arguing and RECOUNTS
+    # the finished cells. A candidate is accepted only when it gives up
+    # nothing the first layout held.
     allowance = -1
+    conceded: frozenset[str] = frozenset()
     for tier in range(2):
         if tier == 1:
             wider = _identifier_packings(
@@ -4734,7 +4742,13 @@ def _identifier_cells(
                     if kept is None:
                         kept = (built, notes)
                         allowance = len(notes)
-                    if _fully_folded(short) and len(notes) <= allowance:
+                        conceded = _identifier_shortfall(
+                            column, facts, built
+                        )
+                    if _fully_folded(short) and len(notes) <= allowance and (
+                        _identifier_shortfall(column, facts, built)
+                        <= conceded
+                    ):
                         return built, notes
                     moved = False
                     for cell in range(room):
@@ -4761,6 +4775,88 @@ def _fully_folded(short: "list[int]") -> bool:
         if short[cell] > 0:
             return False
     return True
+
+
+def _identifier_shortfall(
+    column: contract.ColumnBlock,
+    facts: contract.IdentifierFacts,
+    written: "list[str]",
+) -> "frozenset[str]":
+    """Every published count of THIS column the written cells do not hold.
+
+    RECOUNTED FROM THE CELLS, never restated from the packing (review
+    item P3-V6-F2). A candidate packing meets the four class counts and
+    the three alphabet counts as arithmetic over whole groups, which is
+    what `_joint_allocation` answers; what a family can actually SPELL
+    at the length its slot is pinned to is a separate question, and
+    where the answer is nothing at all the walk falls back to the band's
+    own alphabet and a count met on paper is missed on the page. So the
+    layout the fold repair reaches for is held to what it wrote.
+
+    The names are the description's own keys, so the comparison in
+    `_identifier_cells` reads as the sentence it enforces: a repaired
+    layout may give up no fact the first layout held. Counts that cannot
+    move -- how many cells are present, how many are absent, and the
+    occurrence multiset, which the groups fix before any spelling
+    exists -- are not measured here; the two distinctness counts are,
+    because they are exactly what the repair is trading in.
+
+    Guarantees: reads only its arguments; no randomness and no I/O. The
+    classifier and the two alphabet readers are the shipped ones, so
+    this measures what a person recounting the twin would measure.
+    """
+    seen: dict[str, int] = {}
+    for cell in written:
+        if cell == "":
+            continue
+        if cell not in seen:
+            seen[cell] = 0
+        seen[cell] = seen[cell] + 1
+    classes = {name: 0 for name in _CLASSES}
+    digits = 0
+    coded = 0
+    shortest = 0
+    longest = 0
+    identities: dict[str, int] = {}
+    for spelling in sorted(seen):
+        many = seen[spelling]
+        classes[parsing.classify_number(spelling)] = (
+            classes[parsing.classify_number(spelling)] + many
+        )
+        bare = parsing.trimmed(spelling)
+        if parsing.is_digit_text(bare):
+            digits = digits + many
+        if parsing.is_code_text(bare):
+            coded = coded + many
+        if shortest == 0 or len(spelling) < shortest:
+            shortest = len(spelling)
+        longest = max(longest, len(spelling))
+        identities[parsing.folded(spelling)] = 1
+    missed: list[str] = []
+    owed = [
+        ("n_numeric", classes[_CLASS_NUMBER], column.n_numeric),
+        (
+            "n_out_of_range",
+            classes[_CLASS_OUT_OF_RANGE],
+            column.n_out_of_range,
+        ),
+        (
+            "n_contradictory",
+            classes[_CLASS_CONTRADICTORY],
+            column.n_contradictory,
+        ),
+        ("n_not_numeric", classes[_CLASS_TEXT], column.n_not_numeric),
+        ("n_all_digits", digits, facts.n_all_digits),
+        ("n_code_alphabet", coded, facts.n_code_alphabet),
+        ("min_length", shortest, facts.min_length),
+        ("max_length", longest, facts.max_length),
+        ("n_distinct", len(seen), column.n_distinct),
+        ("n_distinct_folded", len(identities), column.n_distinct_folded),
+    ]
+    for name, counted, published in owed:
+        if counted != published:
+            missed = missed + [name]
+    return frozenset(missed)
 
 
 def _laid_identifiers(
@@ -5168,10 +5264,25 @@ def _identifier_permits(
 # number of steps rather than in however many the description happens to
 # have. Where the budget is spent the column keeps the layout it already
 # had and the shortfall is measured off the cells and named, exactly as
-# before this repair existed. Measured: over two batteries each built
-# from 1,200 producer descriptions, the deepest single column examined
-# twenty-one.
+# before this repair existed.
 _FOLD_PACKINGS = 256
+
+# HOW MANY POSITIONS THE SECOND TIER MAY LOOK AT (review item P3-V6-F2).
+# A budget counted in positions LOOKED AT rather than in questions
+# ANSWERED buys whatever share of itself the loop order happens to leave
+# over, because the same permission vector recurs under many candidate
+# end-carriers and the allocation is a fixed function of that vector
+# alone. Measured on the review's own witness: 2,466 positions carrying
+# 246 different questions, and the stated ceiling of 256 ran out having
+# answered 82 of them -- 168 of the 250 it gave this tier bought
+# nothing -- so the walk stopped four candidates in, before the first
+# candidate this tier had to offer. So the two are counted separately
+# and both are stated: a
+# question is answered at most `_FOLD_PACKINGS` times, and a position
+# whose question is already answered costs a dictionary lookup and is
+# not charged for it. This bounds the looking as well, since a walk that
+# only ever re-asks still has to end.
+_FOLD_LOOKS = 8192
 
 
 def _identifier_packings(
@@ -5184,11 +5295,15 @@ def _identifier_packings(
 ) -> "list[tuple[list[int], tuple[int, int], bool]]":
     """Every packing of G9.6 that meets every published count, in order.
 
-    ``budget`` is how many candidates may be EXAMINED. The ordinary run
-    asks for one candidate's worth of work -- and gets the same answer,
-    from the same walk in the same order, that this rule gave before the
-    fold repair existed. More are asked for only where a laid-out column
-    could not build a collision it owes (G9.3 step 5).
+    ``budget`` is how many DIFFERENT questions may be answered. A
+    question here is one permission vector -- one mask per group -- and
+    the allocation is a fixed function of that vector and of the
+    published counts, so a vector already answered is answered from
+    memory and is not charged for (review item P3-V6-F2). The ordinary
+    run asks one question and gets the same answer, from the same walk
+    in the same order, that this rule gave before the fold repair
+    existed. More are asked only where a laid-out column could not build
+    a collision it owes (G9.3 step 5).
 
     Two tiers, in this order, so the first answer is never a new one:
 
@@ -5209,6 +5324,24 @@ def _identifier_packings(
        none, and `_allotted_over`'s stated fill order, which four roles
        share, is exactly where it was.
 
+    WHY THE COUNTING CHANGED, since a budget is a promise about what a
+    walk reaches. The second tier's positions are a candidate end-carrier
+    pair, a group and a family, and the permission vector it hands the
+    allocator does not depend on the end-carriers except through the two
+    places that carry them -- so the same question comes round again and
+    again under end-carriers that make no difference to it. Charging the
+    budget for a repeat spends the ceiling on nothing: the review's
+    witness carried 246 different questions among 2,466 positions, the
+    ceiling of 256 ran out having answered 82 of them, and the first
+    candidate this tier had to offer sat at position 420. Charging only
+    for a
+    question actually put to the allocator leaves the allocator's work
+    exactly where the amendment priced it -- at most `budget` packings
+    solved -- while the walk reaches every question inside `_FOLD_LOOKS`
+    positions. Both ceilings are stated, and where either is reached the
+    column keeps the layout it already had and the shortfall is measured
+    off the cells and named, exactly as before.
+
     Guarantees: reads only the description; a fixed function of its
     arguments, with no randomness and no I/O. The list may be empty,
     which says no assignment of whole groups meets every published
@@ -5228,6 +5361,11 @@ def _identifier_packings(
         column.n_present - facts.n_code_alphabet,
     ]
     found: list[tuple[list[int], tuple[int, int], bool]] = []
+    # ONE QUESTION IS ONE PERMISSION VECTOR, and its answer is a fixed
+    # function of that vector and of the counts above, so it is asked
+    # once. `spent` counts the questions PUT TO THE ALLOCATOR, which is
+    # the work the budget was always meant to bound.
+    answers: dict[tuple[int, ...], list[int] | None] = {}
     spent = 0
     # THE PACKING DECIDES WHETHER THE SIGN IS THE LAST WAY, and no
     # predicate written by hand does (owner decision 9, 2026-08-13).
@@ -5261,8 +5399,20 @@ def _identifier_packings(
             if seen in seen_permits:
                 continue
             seen_permits[seen] = 1
-            spent = spent + 1
-            together = _joint_allocation(groups, classes, alphabets, permits)
+            # THE FIRST TIER IS BOUNDED BY ITS OWN SHAPES, not by the
+            # budget, and that is load-bearing: `_identifier_families`
+            # asks for ONE candidate and the first shape it tries may
+            # meet no count at all, so a tier that stopped spending
+            # would hand back nothing and send the first layout of every
+            # such column down the fallback walk. It stops at the first
+            # candidate FOUND, exactly as it always did.
+            question = tuple(permits)
+            if question not in answers:
+                spent = spent + 1
+                answers[question] = _joint_allocation(
+                    groups, classes, alphabets, permits
+                )
+            together = answers[question]
             if together is None:
                 continue
             found = found + [(
@@ -5279,21 +5429,28 @@ def _identifier_packings(
             )]
     if len(found) >= budget or not found:
         return found
+    looked = 0
     for signing in (False, True):
         for carriers in _shape_choices(total):
             permits = _identifier_windows(facts, total, carriers, signing)
             for place in range(total):
                 for cell in range(len(_CLASSES) * width):
-                    if spent >= budget:
+                    if looked >= _FOLD_LOOKS or len(found) >= budget:
                         return found
                     if (permits[place] >> cell) & 1 == 0:
                         continue
+                    looked = looked + 1
                     held = [permits[each] for each in range(total)]
                     held[place] = 1 << cell
-                    spent = spent + 1
-                    together = _joint_allocation(
-                        groups, classes, alphabets, held
-                    )
+                    question = tuple(held)
+                    if question not in answers:
+                        if spent >= budget:
+                            return found
+                        spent = spent + 1
+                        answers[question] = _joint_allocation(
+                            groups, classes, alphabets, held
+                        )
+                    together = answers[question]
                     if together is None:
                         continue
                     found = found + [(

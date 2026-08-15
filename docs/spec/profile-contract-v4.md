@@ -338,12 +338,40 @@ consequence stated to them and accepted.
 invariant is written as "at least the floor" and "below the floor", so
 each one still binds at the value the document carries: B5, D3, N2, N4,
 P2, V1 and W5 hold at `f` exactly as they held at 11. At `f = 1` the
-"below the floor" half is the empty range, so `suppressed_level_counts`,
-`variants_withheld` and every pooled `(withheld)` remainder must be
-empty or absent, and a document that fills one is refused for breaking
-the same invariant it always broke. A hand-edited description is refused
-for every reason it was refused before; the only refusal withdrawn is
-the one against the floor's own value.
+"below the floor" half is the empty range, so nothing may be held back
+at all. A hand-edited description is refused for every reason it was
+refused before; the only refusal withdrawn is the one against the
+floor's own value.
+
+**Invariant S13 (a floor of one holds nothing back).** Where
+`small_cell_floor` is 1, the range of group sizes below the floor is
+empty, so every field that carries what the floor held back is empty or
+zero: `suppressed_levels`, `suppressed_rows`,
+`suppressed_level_counts`, every `variants_withheld` block,
+`n_sentinel_candidates_unpublished`, and every pooled `(withheld)`
+entry — in `missing_by_class`, in `missing_by_source`, in
+`utc_offsets`, in `numeric_styles`, and under that word wherever else a
+counted block may carry it. A document that fills one of them is
+refused. The rule is checked with the top-level rules, before any
+column block is read, because the floor is a top-level setting and what
+the rule states is a fact about the whole description.
+
+**Why S13 is written as a rule of its own, and not left to the seven.**
+The previous wording said this was refused "for breaking the same
+invariant it always broke", and for three fields that was true: B5 reads
+`suppressed_level_counts` against the range below the floor, the
+multiplicity rules read `variants_withheld`'s keys against it, and B4
+ties `suppressed_levels` and `suppressed_rows` to the sizes. For the
+other five it was not true and had never been true. N2, N4, D3 and P2
+each say a PUBLISHED count is at least the floor, and each exempts the
+pooled remainder — because the remainder is what the published counts
+were pooled OUT of, and at every floor above one no bound on it exists,
+since one remainder pools several groups at once. V1 says the same of a
+stand-in number's occurrences and puts the ones below the floor into
+`n_sentinel_candidates_unpublished`, which no rule of this contract
+bounded at any floor. Four exemptions and one unbounded count are what
+"below the floor" reached at a floor of one, and no rule of this
+contract reached them. This rule does (Phase 3 plan amendment A-P3-16).
 
 **Zero and below are still refused.** One is the smallest workable
 value, not a preference: "below the floor" at zero would name counts of
@@ -613,7 +641,10 @@ exactly these four keys:
 
 **Invariant V1.** Every entry has `n_occurrences` at least the floor.
 Candidates below the floor are not listed at all; they are counted,
-unnamed, in `n_sentinel_candidates_unpublished`.
+unnamed, in `n_sentinel_candidates_unpublished`. That count is the one
+field of this format that records a thing held back in its NAME rather
+than under the `(withheld)` word, and at a floor of one it is zero
+under S13, because no candidate can be below one.
 
 **Invariant V2.** `candidate` is `(withheld)` on exactly the columns
 where `missing_by_source` is empty for the reason in N3 — a column whose
