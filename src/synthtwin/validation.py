@@ -222,9 +222,16 @@ ENVELOPE_NUMERIC_DISTINCT = "docs/spec/generation-method-v1.md G12.8"
 # and never a pass. Treating one as an authorized corner would launder
 # an impossible obligation into a passing report.
 
-REFUSAL_COUNTS_CONTRADICT = "generation-counts-contradict"
-REFUSAL_WORDS_EXCEED_LENGTH = "generation-words-exceed-length"
-REFUSAL_WHOLE_NUMBERS_NEED_ROOM = "generation-whole-numbers-need-room"
+# THE FOUR NAMES ARE `errors`' OWN (amendment A-P3-23, review item
+# P3-V7-F7). The message a person reads when no twin of a description
+# exists is a refusal like every other, so it lives in the failure
+# catalog with the rest -- and the catalog's rules, its exact-shape test
+# and its driven CLI case all reach it there. These four are the names
+# that message is written for, spelled once, and `refusal_of` may answer
+# nothing else.
+REFUSAL_COUNTS_CONTRADICT = errors.REFUSAL_COUNTS_CONTRADICT
+REFUSAL_WORDS_EXCEED_LENGTH = errors.REFUSAL_WORDS_EXCEED_LENGTH
+REFUSAL_WHOLE_NUMBERS_NEED_ROOM = errors.REFUSAL_WHOLE_NUMBERS_NEED_ROOM
 
 # The fourth refusal method G12 names. It is decided here from the
 # published facts alone (review item P3-V1-F5), and WHAT IT DECIDES IS
@@ -252,7 +259,7 @@ REFUSAL_WHOLE_NUMBERS_NEED_ROOM = "generation-whole-numbers-need-room"
 #   fold-collision partner with no parent) still reaches verdicts here
 #   instead of this refusal. That residue needs the planner, and the
 #   boundary that keeps the planner out is worth more than the residue.
-REFUSAL_DOMAIN_TOO_SMALL = "generation-domain-too-small"
+REFUSAL_DOMAIN_TOO_SMALL = errors.REFUSAL_DOMAIN_TOO_SMALL
 
 # The alphabets of method G9.1 and the positional rules that narrow
 # them, restated from the specification rather than imported (V1.4).
@@ -369,6 +376,20 @@ _NOT_CHECKABLE_IDENTIFIER_CORNER = (
     "different record numbers, so the ratified plan makes this fact one "
     "the report states rather than one a file is measured against. "
     "Authorized by "
+)
+_NOT_CHECKABLE_ENDPOINT_WITHHELD = (
+    "the publication floor held this end's own offset back, so the "
+    "description names no offset for it and no file can carry one "
+    "either way. The offsets the description does name are checked, "
+    "and are the whole of what a CSV can evidence here"
+)
+_NOT_CHECKABLE_SPELLING_ENVELOPE = (
+    "the description's own permitted spellings settle nothing about how "
+    "many different values a twin of it carries: the envelope the "
+    "ratified plan authorizes here reaches from one value to every value "
+    "a column of this length can hold, so a file whose every cell "
+    "repeated one value would land inside it and a comparison against it "
+    "would prove nothing. Authorized by "
 )
 
 # -- what a file that cannot carry an obligation is told, in one --------
@@ -940,11 +961,11 @@ def declared_spellings(description: contract.Profile) -> "tuple[str, ...]":
     three (review item P3-V4-F1). V2.2 said both declaration tuples come
     back empty "because the contract deliberately does not record
     declared spellings", and that is true of the SETTINGS BLOCK and
-    false of the description: a column publishes the exact spelling of
-    every hole whose count reaches `small_cell_floor`, in
-    `missing_by_source`. So a `--missing-value` declaration IS published,
-    wherever the floor lets the column name it, and recovering it is the
-    same act as recovering a level's variants.
+    false of the description: a column publishes the spelling of every
+    hole whose count reaches `small_cell_floor`, in `missing_by_source`.
+    So a `--missing-value` declaration IS published, wherever the floor
+    lets the column name it and the display boundary leaves it alone,
+    and recovering it is the same act as recovering a level's variants.
 
     WHICH KEYS ARE A DECLARATION, DERIVED RATHER THAN GUESSED. The
     producer has exactly four ways to call a cell a hole
@@ -972,12 +993,47 @@ def declared_spellings(description: contract.Profile) -> "tuple[str, ...]":
     declaration, and a number it denotes is matched as a number by the
     producer's own rule, which is why the SPELLING is enough to recover.
 
-    WHAT IS LEFT OPEN, at its size (plan amendment A-P3-15). A
-    declaration whose cells sit below `small_cell_floor` in every column
-    is pooled into `(withheld)` and is not published anywhere, so it is
-    not recovered; the same is true of a declared numeric stand-in. Both
-    residuals are bounded by the floor per spelling per column and are
-    measured in `tests/test_p3v4f1_kept_values.py`.
+    AND A FOURTH EXCLUSION, BECAUSE THIS FIELD IS NOT THE EXACT SPELLING
+    (review item P3-V7-F1; plan amendment A-P3-19). `missing_by_source`
+    keys cross the DISPLAY BOUNDARY before publication -- the profile
+    contract says so in terms, and says `variants` deliberately does not
+    -- so the key is the spelling AS A REPORT SHOWS IT, and that map is
+    not one-to-one. This function read it as exact, and the class it
+    walked past is the round's own witness: seventy-two rows whose holes
+    are spelled ``X`` U+0001 ``Y`` publish the key ``X\\x01Y``, and so do
+    seventy-two rows whose holes are spelled with those six printable
+    characters. The two whole descriptions come out BYTE FOR BYTE ALIKE,
+    at 6,733 bytes each, so no reading of the description can tell the
+    two apart. Reading the key as exact then does BOTH wrong things: the
+    control-character table validated against its own profile reported
+    seven obligations MISSED, and -- the direction the finding did not
+    name -- a file spelled the printable way validated against the
+    control-character table's profile came back with a census of ZERO
+    MISSED and exit 0, although `synthtwin profile` under that
+    description's own declaration reads it as free text with 72 present
+    and 0 missing. That is a report that passes a file it should fail.
+
+    So a key is recovered only where the boundary provably left it
+    alone: `parsing.shows_only_itself` is true of it, which is decidable
+    from the key and is proved in that function's own docstring. What
+    that leaves unrecoverable is exactly one thing, and it is stated
+    below rather than left to be found.
+
+    WHAT IS LEFT OPEN, at its size (plan amendments A-P3-15 and
+    A-P3-19). Three kinds of declaration are not recovered here:
+
+    - one whose cells sit below `small_cell_floor` in every column,
+      pooled into `(withheld)` and published nowhere;
+    - one that reads as a numeric stand-in, which is the sentinel
+      machinery's own business;
+    - one whose spelling holds a character the display boundary shows
+      -- a line, control or bidirectional formatting character. The
+      table it was written from reads those cells back as data, exactly
+      as it did before any of this existed.
+
+    All three are measured in `tests/test_p3v4f1_kept_values.py` and
+    `tests/test_p3v7f1_escaped_declarations.py`, which turn red if any
+    of them grows.
     """
     # A mapping rather than a set, for the reason `kept_spellings` gives
     # (plan D6.2). The values are never read.
@@ -989,6 +1045,8 @@ def declared_spellings(description: contract.Profile) -> "tuple[str, ...]":
             if parsing.is_missing_text(spelling):
                 continue
             if _stand_in_of(taxonomy.exact_of_spelling(spelling)) is not None:
+                continue
+            if not parsing.shows_only_itself(spelling):
                 continue
             found[spelling] = 1
     return tuple(sorted(found))
@@ -1099,6 +1157,25 @@ def _identifier_is_infeasible(
     packing of any kind reaches the published distinctness, the twin
     repeats values, and owner decision 6's three REPORT-ONLY facts are
     what the description is owed instead.
+
+    TWO THINGS ROUND 7 ADDED, both of them the same correction -- the
+    supply was above what the construction can actually write, which is
+    the direction that reports a conforming twin MISSED (review item
+    P3-V7-F2):
+
+    - the supply of a band is the FAMILY's, not the alphabet's. Above
+      one character this section used to count every string the
+      positional rules of G9.1 leave, which is a domain no family of
+      G9.6 writes from: the widest band spells 8,460 values two
+      characters wide by that reading and 2,538 by its own family's, so
+      a producer-derived column of 2,539 two-character values was called
+      feasible while the shipped generator necessarily repeated;
+    - a band whose cells number `cells` needs at least
+      `ceil(cells / widest group)` different spellings to cover them,
+      and where its own supply is below that the description is
+      infeasible however the other two bands are packed. That is G9.4's
+      own sentence, and the summed reach below can miss it because it
+      lets the smallest published groups answer for every band at once.
     """
     low = facts.min_length
     high = facts.max_length
@@ -1124,21 +1201,52 @@ def _identifier_is_infeasible(
     # Every present cell reads as a number the format holds, so the
     # four class counts of X2 leave only the whole-number families.
     whole = facts.all_whole_numbers and column.n_numeric == column.n_present
-    reach = 0
-    for band, cells in (
+    widest = _widest_group(facts.n_distinct_by_occurrences)
+    split = (
         (_BAND_DIGITS, facts.n_all_digits),
         (_BAND_CODE, coded),
         (_BAND_WIDE, outside),
-    ):
+    )
+    supply: list[int] = []
+    for band, cells in split:
         if cells < 1:
+            supply = supply + [0]
             continue
-        reach = reach + min(
-            _identifier_capacity(band, low, high, whole),
-            _most_groups(sizes, cells),
-        )
+        room = _identifier_capacity(column, facts, band, whole)
+        if _band_falls_short(cells, widest, room):
+            return True
+        supply = supply + [room]
+    reach = 0
+    for place, pair in enumerate(split):
+        if pair[1] < 1:
+            continue
+        reach = reach + min(supply[place], _most_groups(sizes, pair[1]))
         if reach >= groups:
             return False
     return reach < groups
+
+
+def _band_falls_short(cells: int, widest: int, room: int) -> bool:
+    """Whether one band cannot cover its own cells, whatever the rest do.
+
+    METHOD G9.4'S OWN SENTENCE, and the free-text refusal reads the same
+    one: a band answering for `cells` of them needs at least
+    `ceil(cells / widest group)` different spellings, because every cell
+    of one group carries the same spelling and no group is wider than
+    the widest the description publishes. Where its own domain cannot
+    supply that many, no packing of the other two bands repairs it.
+
+    IT IS ASKED BESIDE THE SUMMED REACH AND NOT INSTEAD OF IT (review
+    item P3-V7-F2). The summed reach lets the smallest published groups
+    answer for every band at once, so it can read a supply the bands
+    cannot jointly deliver: a fifty-four-cell column of one-character
+    values whose widest group is two rows, splitting fifty-one cells
+    outside the code alphabet, is short by exactly one spelling there
+    and the summed reach reads twenty-eight against twenty-eight.
+    """
+    if cells < 1 or widest < 1:
+        return False
+    return _rounded_up(cells, widest) > room
 
 
 def _group_sizes(occurrences: "dict[str, int]") -> "tuple[tuple[int, int], ...]":
@@ -1193,29 +1301,42 @@ def _most_groups(
 
 
 def _identifier_capacity(
-    band: str, low: int, high: int, whole: bool
+    column: contract.ColumnBlock,
+    facts: contract.IdentifierFacts,
+    band: str,
+    whole: bool,
 ) -> int:
-    """How many record numbers one band can spell over a length range."""
+    """How many record numbers one band can spell over a length range.
+
+    THE CLASSES ARE PART OF THE QUESTION (method G9.6). A group of a
+    declared column belongs to one of four classes, the description
+    publishes how many cells each class holds, and a class the
+    description gives no cell to writes nothing here. Two of the four --
+    a well-formed number too large or too small to hold, and a notation
+    that conflicts with itself inside accounting parentheses -- are
+    G10.3's constructions, whose widths this section does not count, so
+    a column publishing either is given a supply nothing can exceed:
+    that keeps its three distinctness checks, which is the direction a
+    wrong answer costs least.
+    """
+    if column.n_out_of_range > 0 or column.n_contradictory > 0:
+        return _SATURATION
+    numbers = column.n_numeric > 0
     total = 0
-    for length in range(low, high + 1):
-        total = total + _identifier_capacity_at(band, length, whole)
+    for length in range(facts.min_length, facts.max_length + 1):
+        total = total + _identifier_capacity_at(band, length, whole, numbers)
         if total >= _SATURATION:
             return _SATURATION
     return total
 
 
-def _identifier_capacity_at(band: str, length: int, whole: bool) -> int:
+def _identifier_capacity_at(
+    band: str, length: int, whole: bool, numbers: bool = True
+) -> int:
     """An upper bound on one band's record numbers at one length (G9.6).
 
-    Where the description does not say every value is a whole number,
-    the band's own domain is the bound the ordinary invention walk of
-    G9.2 has, which is what `_capacity_at` counts: every numeric family
-    a declared column can carry writes its cells from that same band
-    alphabet under the same positional rules, so no family reaches past
-    it.
-
-    Where every value IS a whole number, G9.6 fixes one family per
-    band and each is far narrower than the alphabet:
+    Where every value IS a whole number, G9.6 fixes one family per band
+    and each is far narrower than the alphabet:
 
     - figures alone open with a digit that is not zero, so a value's
       length is its count of figures;
@@ -1226,20 +1347,115 @@ def _identifier_capacity_at(band: str, length: int, whole: bool) -> int:
       ten that open with a sign, which owner decision 9 permits here;
     - outside the code alphabet the form is `<digits>.`, one character
       beyond its digits and empty at one character for the same reason.
+
+    Where it does not, TWO families remain and this counts both: the
+    band's ordinary-text walk and, where the description gives the
+    numbers class a cell, the ordinary-number family of G9.5 step 3.
+    The version this replaces counted every string the positional rules
+    of G9.1 leave at that length, which is not a domain any family
+    writes from and is far above all of them together above one
+    character -- 8,460 two-character values in the widest band against
+    the 2,538 its family actually holds (review item P3-V7-F2).
     """
-    if not whole:
-        return _capacity_at(band, length)
-    if band == _BAND_DIGITS:
-        return (_DIGIT_SIZE - 1) * _to_the_power(_DIGIT_SIZE, length - 1)
-    if band == _BAND_CODE:
-        if length == 2:
-            return _DIGIT_SIZE
+    if whole:
+        if band == _BAND_DIGITS:
+            return (_DIGIT_SIZE - 1) * _to_the_power(_DIGIT_SIZE, length - 1)
+        if band == _BAND_CODE:
+            if length == 2:
+                return _DIGIT_SIZE
+            if length < 2:
+                return 0
+            return _to_the_power(_DIGIT_SIZE, length - 2)
         if length < 2:
             return 0
-        return _to_the_power(_DIGIT_SIZE, length - 2)
+        return _to_the_power(_DIGIT_SIZE, length - 1)
+    if length < 1:
+        return 0
+    if length == 1:
+        if band == _BAND_DIGITS:
+            # One figure reads as a number whatever else it is, so this
+            # band carries no cell of the ordinary-text class at all.
+            return _number_family_at(_BAND_DIGITS, 1) if numbers else 0
+        # At one character the value IS its own leading character, so
+        # G9.4's counting settles every family at once and the two
+        # spellings that already mean "no value" are counted out.
+        return _one_character_values(band)
+    total = _text_family_at(band, length)
+    if numbers:
+        total = total + _number_family_at(band, length)
+    return total
+
+
+def _text_family_at(band: str, length: int) -> int:
+    """The ordinary-text family of one band at one length (G9.2, G9.6).
+
+    The band's own alphabet counted by plain mixed-radix arithmetic,
+    with the leftmost character drawn from the smaller set that holds
+    the value inside its band -- which is what makes this a FAMILY's
+    count rather than an alphabet's. Figures alone read as a number
+    whatever else they are, so no cell of this class is ever written in
+    that band.
+
+    The widest alphabet holds the space and the two narrower ones do
+    not, and the space is refused at the last position as well as the
+    first (G9.1), so the last position of a wide spelling carries one
+    character fewer than its alphabet has.
+    """
+    if band == _BAND_DIGITS:
+        return 0
+    if band == _BAND_CODE:
+        return _head_values(_BAND_CODE) * _to_the_power(_CODE_SIZE, length - 1)
+    return (
+        _head_values(_BAND_WIDE)
+        * _to_the_power(_WIDE_SIZE, length - 2)
+        * (_WIDE_SIZE - 1)
+    )
+
+
+def _number_family_at(band: str, length: int) -> int:
+    """The ordinary-number family of one band at one length (G9.5 step 3).
+
+    In figures alone it is a plain number, so every string of figures of
+    that width is one. Inside the code alphabet it carries an exponent
+    and outside it a decimal point, each costing characters the figures
+    themselves do not need: at exactly two characters the only spellings
+    are the ten that open with a sign, and above that two characters go
+    to the notation.
+    """
+    if band == _BAND_DIGITS:
+        return _to_the_power(_DIGIT_SIZE, length)
     if length < 2:
         return 0
-    return _to_the_power(_DIGIT_SIZE, length - 1)
+    if length == 2:
+        return _DIGIT_SIZE
+    return _to_the_power(_DIGIT_SIZE, length - 2)
+
+
+def _head_values(band: str) -> int:
+    """How many characters one band permits as a value's leftmost.
+
+    The band rule of method G9.5 step 4 and the positional rules of
+    G9.1, counted through the shipped classifier exactly as
+    `_one_character_values` counts them -- less the one question that
+    belongs to a whole value rather than to its first character, since
+    a spelling two characters wide is not made to mean "no value" by
+    the character it opens with.
+    """
+    found = 0
+    for code in range(_WIDE_LOW, _WIDE_HIGH):
+        letter = chr(code)
+        if band == _BAND_CODE and not parsing.is_code_text(letter):
+            continue
+        if band == _BAND_CODE and parsing.is_digit_text(letter):
+            continue
+        if band == _BAND_WIDE and parsing.is_code_text(letter):
+            continue
+        if letter == _SPACE:
+            continue
+        if letter in _FORMULA_LEADERS:
+            continue
+        found = found + 1
+    return found
 
 
 def _offsets_are_withheld(facts: contract.DatetimeFacts) -> bool:
@@ -1262,27 +1478,38 @@ def _label_variants_are_short(
     envelope of G12.7 is what the twin owes instead.
     """
     supply = _spelling_supply(facts)
-    return supply is not None and supply < column.n_distinct
+    return supply is not None and supply != column.n_distinct
 
 
 def _numeric_spellings_are_short(
     column: contract.ColumnBlock, facts: contract.NumericFacts
 ) -> bool:
-    """True when the permitted spellings cannot reach distinctness.
+    """True when the permitted spellings do not settle distinctness.
 
-    The `supply` of method G12.8, read off the published map: a `plain`
-    group can carry one spelling of its value, and every other style
-    carries the leading-zero family, so its cells can each carry their
-    own. Where the supply reaches the published counts the two facts
-    are exact -- the ordinary case -- and where it does not, the twin
-    owes the two-sided envelope instead.
+    The `supply` of method G12.8, read off the published map: all the
+    `plain` cells together carry one spelling of one value, and every
+    other style carries the leading-zero family, so its cells can each
+    carry their own. Where the supply MEETS the published count the two
+    ends of G12.8's envelope meet on it and the fact is exact -- the
+    ordinary case. Where they differ the envelope is what the twin owes,
+    AND IT IS TWO-SIDED IN BOTH DIRECTIONS.
+
+    That last word is round 7's correction (review item P3-V7-F4). This
+    predicate used to ask only whether the supply fell SHORT, so a
+    description whose own permitted spellings force MORE identities than
+    it publishes -- a floored style map naming fifteen leading-zero
+    cells on a column publishing nine different values -- was given the
+    exact bar, and the shipped generator's twin, which G12.8 authorizes
+    at twelve, was reported MISSED against its own description.
     """
     supply = _spelling_supply(facts)
-    if supply is None:
+    ceiling = _spelling_ceiling(column, facts)
+    if supply is None or ceiling is None:
         return False
-    if supply < column.n_distinct:
-        return True
-    return supply < column.n_distinct_folded
+    for published in (column.n_distinct, column.n_distinct_folded):
+        if supply != published or ceiling != published:
+            return True
+    return False
 
 
 # -- V9 and V4.3: the refusals that mean no conforming twin exists ----
@@ -1478,49 +1705,6 @@ def _to_the_power(base: int, exponent: int) -> int:
         if total >= _SATURATION:
             return _SATURATION
     return total
-
-
-def _refusal_message(named: str, shown: str) -> str:
-    """The refusal a person reads when no twin of this profile exists.
-
-    It mirrors the generation refusal -- the description is valid, and
-    two published facts cannot both hold -- and adds the sentence this
-    path needs: whatever the measured file is, it cannot be that
-    description's twin. It names no value of the measured file, because
-    on this path that file may not be the person's own table.
-    """
-    trouble = {
-        REFUSAL_COUNTS_CONTRADICT: (
-            "one column says how many of its numbers are zero and how "
-            "many are negative, and those two counts together are more "
-            "numbers than the column has"
-        ),
-        REFUSAL_WORDS_EXCEED_LENGTH: (
-            "one column of text says its values hold more words than "
-            "their own published lengths have room for"
-        ),
-        REFUSAL_WHOLE_NUMBERS_NEED_ROOM: (
-            "one column of record numbers says its codes are whole "
-            "numbers and gives them a length that leaves no room to "
-            "write one"
-        ),
-        REFUSAL_DOMAIN_TOO_SMALL: (
-            "one column of text asks for more different values than "
-            "there are ways to write a value of its own published "
-            "lengths at all"
-        ),
-    }[named]
-    return (
-        f"synthtwin stopped because the description asks for a table "
-        f"that cannot exist: {trouble}. The description itself is "
-        f"valid -- it was written by synthtwin and it loads -- but no "
-        f"file can hold both of those facts at once, so whatever is in "
-        f"{shown}, it cannot be this description's twin and there is "
-        f"nothing to measure it against. Describe the table again to "
-        f"get a description these two facts agree in, and if you no "
-        f"longer hold the table, ask whoever wrote the description to "
-        f"do so."
-    )
 
 
 # -- reading the measured file ----------------------------------------
@@ -2419,7 +2603,9 @@ def measure(description: contract.Profile, path: str) -> Outcome:
     # check write different bytes in different folders (V10).
     measured_name = pathlib.Path(path).name
     if named:
-        raise errors.ProfileError(_refusal_message(named, shown))
+        raise errors.ProfileError(
+            errors.no_twin_of_this_description_exists(named, shown)
+        )
     if not place.exists():
         raise errors.ProfileError(errors.file_missing(shown))
     if place.is_dir():
@@ -2445,32 +2631,12 @@ def measure(description: contract.Profile, path: str) -> Outcome:
         ) from error
 
     headed = description.source.header_source == reading.HEADER_FROM_FILE
-    if description.n_rows == 0:
-        # THE ONE PREDICATE THE DISCLOSURE GATE DOES NOT CLOSE ON A FILE
-        # THE PRODUCER REFUSES (review item P3-V3-F3; V5.1 against V3.4).
-        # A zero-row description's own conforming twin IS a file the
-        # producer refuses -- the header line and nothing more, or no
-        # bytes at all (V1.5) -- so withholding here would silence the
-        # whole obligation on the only file the description says is
-        # right, and owner decision 7's byte form could never HOLD on
-        # any file at all. That is the vacuity V3.4-A1 names, and it
-        # takes review item P3-V3-F5's repair with it. What escapes is
-        # written out in plan amendment A-P3-7 clause 2 rather than left
-        # to be found.
-        return _assembled(
-            _byte_checks(description, data, text, headed, as_read, False)
-            + [_zero_row_form(description, data, text, headed)]
-            + _zero_row_structure(description, text, headed),
-            _zero_row_listings(description, headed),
-            measured_name,
-        )
-    # ...AND THE TWO PATHS IT DOES, TAKEN FROM THE REFUSAL THE READER
-    # ACTUALLY RAISED (review item P3-V4-F3; plan amendment A-P3-10
-    # clause 2). On both of these the producer refuses the measured file,
-    # so nothing describing that file publishes is available to report;
-    # on both, this description's own twin is a file the producer
-    # describes, so withholding costs no obligation any file that could
-    # hold it.
+    # THE REPORT IS CHOSEN BY THE REFUSAL THE READER ACTUALLY RAISED, ON
+    # EVERY PATH THERE IS (review item P3-V4-F3; plan amendment A-P3-10
+    # clause 2 and amendment A-P3-20). V9 makes a structural mismatch a
+    # MISSED verdict with a plain explanation, so two of the reader's own
+    # refusals are REPORTED on rather than passed along; which of them a
+    # file gets is the reader's question and the reader answers it.
     #
     # WHAT USED TO STAND HERE, and why nothing does. Two predicates of
     # this module's own -- does this file hold any rows, and can its
@@ -2486,12 +2652,18 @@ def measure(description: contract.Profile, path: str) -> Outcome:
     # predicates was not the reader's -- and the class is not four
     # things but one: a precedence kept in step by hand.
     #
-    # So there is no second walk. The reader is called first, its
-    # refusal is caught, and the report is decided from WHICH refusal it
-    # is. Equivalence with the producer is then a property of the
-    # construction rather than a property somebody has to maintain: two
-    # files this reader refuses with the same shape word cannot reach
-    # different reports, because the same word chooses the report.
+    # AND A FIFTH PREDICATE OF THIS MODULE'S OWN OUTLIVED THAT REPAIR,
+    # ON THE ONE BRANCH IT NEVER REACHED (review round 7). "Is this a
+    # zero-row description?" is not about the file and is sound; what
+    # was unsound is that answering it RETURNED, so a zero-row
+    # description never called the reader at all and its whole report
+    # was built on this module's own record walk. The same class came
+    # back with it: `column_1` over `1,2` and `other` over `1,2` are one
+    # ragged refusal to the producer and drew 8 HELD / 1 MISSED against
+    # 5 HELD / 4 MISSED, and `header.names` reported HELD on a file no
+    # reading of which finishes. So the reader is called FIRST here too,
+    # and the degenerate report is reached only through the reader's own
+    # no-data refusal or through a reading that finished.
     first_row = reading.FIRST_ROW_NAMES if headed else reading.FIRST_ROW_DATA
     try:
         table = reading.read_table(
@@ -2499,6 +2671,46 @@ def measure(description: contract.Profile, path: str) -> Outcome:
             first_row=first_row,
             refusals=reading.REFUSALS_NAME_POSITIONS,
         )
+    except errors.ShapeRefusal as refusal:
+        # THE ONE PREDICATE THE DISCLOSURE GATE DOES NOT CLOSE ON A FILE
+        # THE PRODUCER REFUSES (review item P3-V3-F3; V5.1 against V3.4).
+        # A zero-row description's own conforming twin IS a file the
+        # producer refuses for holding no rows -- the header line and
+        # nothing more, or no bytes at all (V1.5) -- so withholding here
+        # would silence the whole obligation on the only file the
+        # description says is right, and owner decision 7's byte form
+        # could never HOLD on any file at all. That is the vacuity
+        # V3.4-A1 names, and it takes review item P3-V3-F5's repair with
+        # it. What escapes is written out in plan amendment A-P3-7
+        # clause 3 rather than left to be found. It is reached by the
+        # reader's OWN no-data word and by no other, so a file refused
+        # for any other reason -- a header that cannot name columns, and
+        # every refusal that stands before the reader's two questions --
+        # gets the report that refusal chooses, exactly as it does
+        # against a description that publishes rows.
+        if description.n_rows == 0 and (
+            refusal.kind == errors.NO_DATA_TO_DESCRIBE
+        ):
+            return _degenerate_report(
+                description, data, text, headed, as_read, measured_name
+            )
+        return _report_on_a_refused_file(
+            description, refusal, data, text, headed, as_read, measured_name
+        )
+    except MemoryError as error:
+        raise errors.ProfileError(
+            errors.out_of_memory_while_describing(shown)
+        ) from error
+    if description.n_rows == 0:
+        # A READING THAT FINISHED, against a description asking for the
+        # degenerate form. The file holds rows and the description says
+        # it should hold none, so the byte form MISSES -- and it misses
+        # having been measured against a file the producer describes,
+        # rather than against a walk nobody read back.
+        return _degenerate_report(
+            description, data, text, headed, as_read, measured_name
+        )
+    try:
         declared = _declared_here(description, table)
         # TWO DESCRIPTIONS, ALWAYS BOTH, AND WHAT EACH ONE DECIDES
         # (V2.1 and V2.4; review item P3-V2-A1). The first is the file's
@@ -2525,10 +2737,6 @@ def measure(description: contract.Profile, path: str) -> Outcome:
         over_the_split = profile.build_document(
             table, settings_over_the_split(description), declared
         )
-    except errors.ShapeRefusal as refusal:
-        return _report_on_a_refused_file(
-            description, refusal, data, text, headed, as_read, measured_name
-        )
     except MemoryError as error:
         raise errors.ProfileError(
             errors.out_of_memory_while_describing(shown)
@@ -2540,6 +2748,63 @@ def measure(description: contract.Profile, path: str) -> Outcome:
             description, column, table, redescribed, over_the_split, headed
         )
     return _assembled(checks, _listings(description, headed), measured_name)
+
+
+def _degenerate_report(
+    description: contract.Profile,
+    data: bytes,
+    text: "str | None",
+    headed: bool,
+    as_read: str,
+    measured_name: str,
+) -> Outcome:
+    """The report a ZERO-ROW description gives, whatever the file holds.
+
+    Owner decision 7 makes the expected byte form the executable
+    subcheck of this predicate, and V6.4 fixes the two forms: a
+    description whose names were GENERATED asks for a file of no bytes
+    at all, and one whose names came from the file asks for the header
+    line and nothing more.
+
+    IT IS REACHED THROUGH THE READER AND NOT AROUND IT (review item
+    P3-V4-F3, carried; plan amendment A-P3-20). Two routes reach it and
+    both have had the reader speak first: the reader's own NO-DATA
+    refusal, which is what the conforming file draws, and a reading that
+    finished, which is a file holding rows against a description asking
+    for none. A file the reader refuses for anything else -- ragged, a
+    zero byte, an unusable header, a file that is not text -- reaches
+    the report that refusal chooses, exactly as it does against a
+    description that publishes rows. Before that, this branch returned
+    ahead of the reader and the header line of an unreadable file was
+    compared with the published names: two ragged files the producer
+    refuses with one sentence got 8 HELD / 1 MISSED and 5 HELD / 4
+    MISSED between them, and `header.names` reported HELD about a file
+    no reading of which finishes.
+
+    WHAT IS STILL READ HERE, and why it is not the walk that was
+    removed. The header line is read out of the file's own characters,
+    because on the no-data route the reader refuses before it hands any
+    name back and there is nowhere else to get one. That reading no
+    longer chooses anything: which report a file gets is settled before
+    it runs. The residual it leaves -- two header-only files the
+    producer refuses alike still receive different reports -- is plan
+    amendment A-P3-7 clause 3's ruling, at the size stated there.
+
+    Guarantees:
+
+    - Inputs: the description, the measured file's bytes and characters,
+      whether the names came from the file, and the text the reader
+      settled on.
+    - Determinism: a fixed function of those.
+    - Errors raised: none.
+    """
+    return _assembled(
+        _byte_checks(description, data, text, headed, as_read, False)
+        + [_zero_row_form(description, data, text, headed)]
+        + _zero_row_structure(description, text, headed),
+        _zero_row_listings(description, headed),
+        measured_name,
+    )
 
 
 def _report_on_a_refused_file(
@@ -4283,10 +4548,16 @@ def _distinctness_checks(
             # `_corner_listings` names it in the census with the
             # decision that authorizes it.
             continue
+        if corner and _envelope_admits_every_count(column, facts, published):
+            # V3.5, taken per entry: the envelope this corner authorizes
+            # licenses every count a column of this description's length
+            # can hold, so nothing written in a CSV settles it and it is
+            # a listing rather than a check that cannot fail.
+            continue
         if corner:
             checks = checks + [
                 _lesser_or_held(
-                    name, fact, subcheck, published, measured, corner, facts
+                    name, fact, subcheck, published, measured, corner, column
                 )
             ]
             continue
@@ -4309,7 +4580,7 @@ def _lesser_or_held(
     published: int,
     measured: "int | None",
     corner: str,
-    facts: contract.ColumnFacts,
+    column: contract.ColumnBlock,
 ) -> Check:
     """One distinctness count in a corner the ratified plan names.
 
@@ -4326,11 +4597,13 @@ def _lesser_or_held(
         return Check(name, fact, subcheck, WITHHELD, shown, "", _GATE_CLOSED)
     if measured == published:
         return Check(name, fact, subcheck, HELD, shown, _shown_count(measured))
+    facts = column.facts
     supply = _spelling_supply(facts)
-    if supply is None:
+    ceiling = _spelling_ceiling(column, facts)
+    if supply is None or ceiling is None:
         return _deviation(name, fact, subcheck, shown, corner)
     low = min(supply, published)
-    high = max(supply, published)
+    high = max(ceiling, published)
     if low <= measured <= high:
         return Check(
             name,
@@ -4356,10 +4629,29 @@ def _spelling_supply(facts: contract.ColumnFacts) -> "int | None":
 
     The `S` of method G12.7 on a column of labels and the `supply` of
     G12.8 on a column of numbers, each read off the published fields
-    alone. On a numeric column the canonical spelling has no family of
-    its own, so the whole `plain` key supplies ONE identity between all
-    its cells; every other style carries the leading-zero family, so
-    each of its cells can carry its own.
+    alone.
+
+    ON A COLUMN OF LABELS a withheld-variant key is an OCCURRENCE COUNT
+    and its value is how many spellings covered that many rows each, so
+    the rows such an entry covers are `key x value` and not `value`
+    (contract 7.4, and method G12.7 writes it `int(key) * count`). The
+    version this replaces added the value alone, so a level whose
+    withheld variants covered it exactly looked short, an extra spelling
+    was invented for it, and a description whose own twin the shipped
+    generator writes with three spellings was told four were available
+    and reported MISSED against that twin (review item P3-V7-F3).
+
+    ON A COLUMN OF NUMBERS the canonical spelling has no family of its
+    own, so all the `plain` cells together supply ONE identity; every
+    other style carries the leading-zero family, so each of its cells
+    can carry its own. A WITHHELD style count is not a style: the floor
+    pooled cells whose styles this description does not name, and the
+    generator writes them in whatever style its own construction
+    reaches -- `plain` among them. Counting them as leading-zero cells
+    read a supply of twenty off a column whose twin could carry sixteen
+    (review item P3-V7-F4), so they are counted with the plain cells
+    here, which is the side that cannot claim more than the
+    construction has.
     """
     if isinstance(facts, contract.LabelFacts):
         supply = 0
@@ -4369,20 +4661,123 @@ def _spelling_supply(facts: contract.ColumnFacts) -> "int | None":
                 supply = supply + 1
                 named = named + level.variants[spelling]
             for spelling in level.variants_withheld:
-                supply = supply + level.variants_withheld[spelling]
-                named = named + level.variants_withheld[spelling]
+                held = level.variants_withheld[spelling]
+                supply = supply + held
+                named = named + _occurrence_key(spelling) * held
             if named < level.count:
                 supply = supply + 1
         return supply + facts.suppressed_levels
     if isinstance(facts, contract.NumericFacts):
         supply = 0
+        pooled = 0
         for style in facts.numeric_styles:
-            if style == parsing.STYLE_PLAIN:
-                supply = supply + 1
+            if style in (parsing.STYLE_PLAIN, taxonomy.SUPPRESSED_LABEL):
+                pooled = pooled + facts.numeric_styles[style]
             else:
                 supply = supply + facts.numeric_styles[style]
+        if pooled > 0:
+            supply = supply + 1
         return supply
     return None
+
+
+def _spelling_ceiling(
+    column: contract.ColumnBlock, facts: contract.ColumnFacts
+) -> "int | None":
+    """The OTHER end of G12.8's supply, and why the two are not one number.
+
+    G12.8's supply is a property of the twin's FINISHED CELLS: each
+    (value, style) group of the numbers class supplies one spelling where
+    the style is `plain` and its own cell count otherwise. The published
+    style map fixes the second half exactly and says nothing at all
+    about the first -- how many different VALUES the plain cells carry
+    is decided by the value construction of G5 and G7, which this module
+    may not import and does not rewrite. So the description settles two
+    numbers rather than one: a FLOOR, where all the plain cells carry
+    one value between them, and this CEILING, where each carries its
+    own.
+
+    Reading the floor at both ends is what reported a conforming twin
+    MISSED (review item P3-V7-F4): a twenty-two-cell column whose two
+    plain cells carried two values holds twenty-two identities where the
+    floor reads twenty-one, and the generation report calls that inside
+    its own bound. On a column of labels there is no second number --
+    G12.7's `S` is settled by the published level blocks alone -- so the
+    ceiling IS the floor there and both ends are exact.
+    """
+    if isinstance(facts, contract.LabelFacts):
+        return _spelling_supply(facts)
+    if not isinstance(facts, contract.NumericFacts):
+        return None
+    plain = 0
+    others = 0
+    for style in facts.numeric_styles:
+        if style == parsing.STYLE_PLAIN:
+            plain = plain + facts.numeric_styles[style]
+        else:
+            others = others + facts.numeric_styles[style]
+    # A PLAIN GROUP IS KEYED BY ITS VALUE, so the plain cells supply one
+    # spelling for each different value among them and no more -- and
+    # the value construction of G5 and G7 is built to the published
+    # count of different values, so there are no more of those than the
+    # description publishes. A withheld style count is not a style and
+    # is counted here at its own cell count, which is the side that
+    # claims MORE room: those cells may each be wearing a style with a
+    # leading-zero family of its own.
+    room = others + min(plain, column.n_distinct)
+    # Cells outside the numbers class carry their own share of the G6.5
+    # budget, never more than one identity per cell.
+    return room + max(column.n_present - plain - others, 0)
+
+
+def _occurrence_key(key: str) -> int:
+    """A multiplicity map's key read as the row count it names (G9.5).
+
+    Leading zeros are padding that does not change the number. A key
+    that is not a row count cannot come through the strict loader, and
+    one that did is read as covering nothing, which leaves the level
+    looking short and invents one more spelling for it -- the side that
+    claims MORE supply, and so the side that keeps the exact bar rather
+    than lowering it onto a description nobody can state.
+    """
+    size = parsing.parse_number(key)
+    if size is None:
+        return 0
+    return int(size)
+
+
+def _envelope_admits_every_count(
+    column: contract.ColumnBlock,
+    facts: contract.ColumnFacts,
+    published: int,
+) -> bool:
+    """Whether this corner's envelope licenses every count a file can hold.
+
+    V3.4 FORBIDS A SUBCHECK THAT CANNOT FAIL AND V3.5 DECIDES IT PER
+    ENTRY, and the two distinctness counts of a column in a spelling
+    corner are exactly that case (review item P3-V7-F4). The envelope
+    G12.8 fixes runs between the published count and the supply, and a
+    supply of one is what the published map leaves on the ordinary
+    column whose cells are all written one way: the bar then runs from
+    one value to every value the column's own cells can hold, a file
+    whose whole column collapsed onto one repeated value lands inside
+    it, and the only files it can refuse are ones that carry more
+    present cells than the description publishes -- which
+    `universal.n_present` already refuses, and V3.6 gives a fact
+    another subcheck checks to that subcheck.
+
+    So the entry is a LISTING with the sentence saying why. This is not
+    a lesser bar quietly taken: a bar admitting every answer is not a
+    bar, and the census counts this where it counts every obligation
+    nothing in a CSV settles.
+    """
+    supply = _spelling_supply(facts)
+    ceiling = _spelling_ceiling(column, facts)
+    if supply is None or ceiling is None:
+        return False
+    return min(supply, published) <= 1 and (
+        max(ceiling, published) >= column.n_present
+    )
 
 
 def _distinct_corner(
@@ -5205,6 +5600,16 @@ def _style_checks(
             )
         ]
     measured = _map_at(block, "numeric_styles")
+    # HOW MANY CELLS THIS DESCRIPTION DOES NOT NAME A FORM FOR. The
+    # publication floor pools every form fewer cells wear than the floor
+    # into one key and publishes no count for any of them, so a cell in
+    # that pool has no published form at all -- and whatever form a twin
+    # of this description gives it is a form the description permitted.
+    # Where the pool is empty the named counts are exact, which is the
+    # ordinary case and the one every earlier round measured.
+    pooled = 0
+    if taxonomy.SUPPRESSED_LABEL in published:
+        pooled = published[taxonomy.SUPPRESSED_LABEL]
     for style in sorted(published):
         if style == taxonomy.SUPPRESSED_LABEL:
             continue
@@ -5217,6 +5622,7 @@ def _style_checks(
                 measured,
                 style,
                 floor,
+                pooled,
             )
         ]
     return checks
@@ -5666,6 +6072,7 @@ def _floor_governed(
     measured: "dict[str, int] | None",
     key: str,
     floor: int,
+    pooled: int = 0,
 ) -> Check:
     """One named count, printed exactly only when it clears the floor.
 
@@ -5675,10 +6082,32 @@ def _floor_governed(
     that and no more, the exact sub-floor number never appears beside
     the name, and the MISSED verdict follows from the two statements
     already made -- published at or above the floor, measured below it.
+
+    ``pooled`` IS HOW MANY CELLS THE DESCRIPTION NAMES NO IDENTITY FOR
+    at all -- the count under its own withheld key -- and where there
+    are any, the bar is a window and not a point (review item P3-V7-F2's
+    battery). A pooled cell has no published identity, so a file may
+    give it this one: the count owed is at least the published number
+    and at most that number plus the pool. The exact comparison refused
+    the shipped generator's own twin on every description whose style
+    map the floor had pooled -- eleven plain cells published, forty-five
+    written, and MISSED against the product's own output.
     """
     if measured is None:
         return Check(
             name, fact, subcheck, WITHHELD, _shown_count(published), "", _GATE_CLOSED
+        )
+    if key in measured and pooled > 0:
+        found = measured[key]
+        inside = published <= found <= published + pooled
+        return Check(
+            name,
+            fact,
+            subcheck,
+            HELD if inside else MISSED,
+            f"{_shown_count(published)} "
+            f"({_shown_window(float(published), float(published + pooled))})",
+            _shown_count(found),
         )
     if key in measured:
         return _exact(
@@ -5981,6 +6410,16 @@ def _offset_checks(
         ("earliest_utc_offset", facts.earliest_utc_offset, "offsets.earliest"),
         ("latest_utc_offset", facts.latest_utc_offset, "offsets.latest"),
     ):
+        if published == taxonomy.SUPPRESSED_LABEL:
+            # THE ENDPOINT ITSELF IS WITHHELD, so the description names
+            # no offset for this end at all and there is nothing for a
+            # file to carry. `_endpoint_listings` files it in the
+            # not-checkable census; checking it compared a file's own
+            # floor against the source's, which is a fact about how many
+            # rows shared an offset and not about the file's dates, and
+            # reported MISSED against the shipped generator's own twin
+            # (review item P3-V7-F2's battery).
+            continue
         found = _text_at(block, field)
         checks = checks + [
             _silent(
@@ -6932,6 +7371,7 @@ def _listings(
                     _NOT_CHECKABLE_REPORT_ONLY,
                 )
             ]
+            listings = listings + _endpoint_listings(column, facts, corners)
         if isinstance(facts, contract.NumericFacts) and not _ladder_points(
             facts.percentiles.rungs
         ):
@@ -6949,6 +7389,46 @@ def _listings(
         listings = listings + _corner_listings(
             column, _corner_names(corners, column.name)
         )
+    return listings
+
+
+def _endpoint_listings(
+    column: contract.ColumnBlock,
+    facts: contract.DatetimeFacts,
+    corners: "dict[str, tuple[str, ...]]",
+) -> "list[Listing]":
+    """An endpoint offset the publication floor held back on its own.
+
+    P2-D9's corner is the map that is NOTHING BUT the withheld key, and
+    `_corner_listings` files all four obligations there. This is the
+    other shape: a map naming real offsets whose own earliest or latest
+    END fell below the floor and was published as the withheld label.
+    The description then names no offset for that end, so no file
+    carries one either way -- and the comparison that stood here asked
+    whether the file's OWN floor had suppressed the same end, which is a
+    fact about how many rows shared an offset rather than about the
+    file's dates, and reported MISSED against the shipped generator's
+    own twin.
+    """
+    if CORNER_DATETIME_OFFSETS_WITHHELD in _corner_names(
+        corners, column.name
+    ):
+        return []
+    listings: list[Listing] = []
+    for field, published, subcheck in (
+        ("earliest_utc_offset", facts.earliest_utc_offset, "offsets.earliest"),
+        ("latest_utc_offset", facts.latest_utc_offset, "offsets.latest"),
+    ):
+        if published != taxonomy.SUPPRESSED_LABEL:
+            continue
+        listings = listings + [
+            Listing(
+                column.name,
+                f"datetime.{field}",
+                subcheck,
+                _NOT_CHECKABLE_ENDPOINT_WITHHELD,
+            )
+        ]
     return listings
 
 
@@ -7043,6 +7523,24 @@ def _corner_listings(
                 Listing(
                     column.name,
                     f"identifier.{field}",
+                    f"distinct.{field}",
+                    why,
+                )
+            ]
+    corner = _distinct_corner(facts, mine)
+    if corner and corner != CORNER_IDENTIFIER_INFEASIBLE:
+        why = _NOT_CHECKABLE_SPELLING_ENVELOPE + CORNER_CITATIONS[corner]
+        group = _group_of(facts)
+        for field, published in (
+            ("n_distinct", column.n_distinct),
+            ("n_distinct_folded", column.n_distinct_folded),
+        ):
+            if not _envelope_admits_every_count(column, facts, published):
+                continue
+            listings = listings + [
+                Listing(
+                    column.name,
+                    f"{group}.{field}",
                     f"distinct.{field}",
                     why,
                 )

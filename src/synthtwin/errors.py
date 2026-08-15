@@ -1559,6 +1559,75 @@ def quality_target_already_there(target: str) -> str:
     )
 
 
+# WHY THE FOUR REFUSALS OF METHOD G12 ARE NAMED HERE (amendment
+# A-P3-23, review item P3-V7-F7). The message a person reads when no
+# twin of their description can exist was built by a private helper of
+# `validation.py`, so it stood outside the failure catalog: none of the
+# catalog's rules about the shape of a sentence reached it, no test
+# pinned it, and nothing drove it through the shipped command. Plan
+# P3-D6 asks for exact-shape AND reachability tests on it by name.
+#
+# The names live beside the message rather than in `validation`, because
+# `errors` may not import the module that raises its messages and one
+# spelling of these four strings is what keeps the message and the
+# decision in step. `validation.refusal_of` answers one of these or the
+# empty text, and a test asserts it can answer nothing else.
+REFUSAL_COUNTS_CONTRADICT = "generation-counts-contradict"
+REFUSAL_WORDS_EXCEED_LENGTH = "generation-words-exceed-length"
+REFUSAL_WHOLE_NUMBERS_NEED_ROOM = "generation-whole-numbers-need-room"
+REFUSAL_DOMAIN_TOO_SMALL = "generation-domain-too-small"
+
+# What is wrong with the description, in the person's own words, one
+# clause per refusal. Each names the TWO published facts that cannot
+# both hold, because that is what the reader has to go and change.
+NO_TWIN_TROUBLE = {
+    REFUSAL_COUNTS_CONTRADICT: (
+        "one column says how many of its numbers are zero and how many "
+        "are negative, and those two counts together are more numbers "
+        "than the column has"
+    ),
+    REFUSAL_WORDS_EXCEED_LENGTH: (
+        "one column of text says its values hold more words than their "
+        "own published lengths have room for"
+    ),
+    REFUSAL_WHOLE_NUMBERS_NEED_ROOM: (
+        "one column of record numbers says its codes are whole numbers "
+        "and gives them a length that leaves no room to write one"
+    ),
+    REFUSAL_DOMAIN_TOO_SMALL: (
+        "one column of text asks for more different values than there "
+        "are ways to write a value of its own published lengths at all"
+    ),
+}
+
+
+def no_twin_of_this_description_exists(named: str, shown: str) -> str:
+    """Message for a description no file on earth can be the twin of.
+
+    It mirrors the generation refusal -- the description is valid, and
+    two published facts cannot both hold -- and adds the sentence this
+    path needs: whatever the measured file is, it cannot be that
+    description's twin. It names no value of the measured file, because
+    on this path that file may not be the person's own table.
+
+    Both instructions are load-bearing and are why this is not one
+    sentence: the person holding the table describes it again, and the
+    person who was handed the description has to ask whoever wrote it,
+    because there is nothing they can do to the FILE that would help.
+    """
+    return (
+        f"synthtwin stopped because the description asks for a table "
+        f"that cannot exist: {NO_TWIN_TROUBLE[named]}. The description "
+        f"itself is valid -- it was written by synthtwin and it loads -- "
+        f"but no file can hold both of those facts at once, so whatever "
+        f"is in {shown}, it cannot be this description's twin and there "
+        f"is nothing to measure it against. Describe the table again to "
+        f"get a description these two facts agree in, and if you no "
+        f"longer hold the table, ask whoever wrote the description to "
+        f"do so."
+    )
+
+
 def twin_out_of_memory(path: str) -> str:
     """Message for a machine that ran out of memory building the twin.
 

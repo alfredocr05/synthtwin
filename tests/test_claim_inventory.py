@@ -2371,6 +2371,73 @@ _CURE_WINDOW = 300
 # call the honest changelog entry a defect.
 _STATEMENT_END = re.compile(r"(?<=[a-z0-9)\]\"'*])[.;!?] | -- ")
 
+# WHEN THE PROMISE IS IN THE NEXT STATEMENT (review item P3-V7-F8).
+# "A person can re-run the check with descriptions they wrote
+# themselves; the withheld number remains unknowable" promises the
+# withdrawn defence exactly as hard as any one-statement wording of it,
+# and every word of it was already in the lists. It walked past because
+# the rule read ONE STATEMENT AT A TIME: the first half named the reader
+# and promised nothing, the second half promised and named nobody, and
+# `_STATEMENT_END` split them at the semicolon.
+#
+# SO THE PROMISE MAY BE CARRIED FORWARD, AND THE PRICE OF THAT IS
+# MEASURED RATHER THAN HOPED FOR. Carrying a bare promise mark forward
+# reports honest prose: "...is normally the person holding the table.
+# A newer description means this synthtwin is behind, and the advice is
+# to update synthtwin and never to re-run a profiler" collides `never`
+# with a naming that was about something else, and there are between
+# four and ten such collisions on this tree depending on how far the
+# carry reaches. So a carried promise has to be ABOUT THE WITHHELD
+# THING, in the format's own words for it. With that requirement the
+# carry reports NOTHING on this tree at any reach up to four hundred
+# characters, and reports the sentence above.
+#
+# WHAT THIS DOES NOT CLOSE, said here rather than left to the next
+# round. A promise carried further than `_CURE_WINDOW`, and a promise
+# about the withheld number that uses none of these words for it, are
+# both still missed. The naming half is unchanged and keeps the standing
+# bound written beside `_DESCRIPTIONS`: it is a finite list of nouns,
+# no such list is sound, and the sound alternative -- one canonical
+# passage, every other mention refused -- was measured at thirty-four
+# statements to rewrite and is an owner decision (plan amendment
+# A-P3-17 clause 1).
+_THE_WITHHELD_THING = (
+    r"\b(?:withheld|withholds|withhold|withholding|suppressed|held back)\b"
+)
+
+
+def _promise_marks_in(statement: str) -> "list[str]":
+    """Every wording in one statement that makes the withdrawn promise."""
+    return [
+        mark
+        for mark in _PREVENTION_MARKS + _REASON_MARKS + _KNOWLEDGE_MARKS
+        if re.search(mark, statement)
+    ]
+
+
+def _carried_promise(after: "list[str]") -> "tuple[str, str] | None":
+    """The promise a following statement makes about the withheld thing.
+
+    ``after`` is the statements that follow the naming one, in order.
+    They are read while they stay within `_CURE_WINDOW` of it, which is
+    the same reach the cure is allowed and is inside the four hundred
+    characters measured clean above.
+    """
+    reached = 0
+    for statement in after:
+        reached = reached + len(statement)
+        if reached > _CURE_WINDOW:
+            return None
+        if re.search(_THE_WITHHELD_THING, statement) is None:
+            continue
+        promised = _promise_marks_in(statement)
+        if not promised:
+            continue
+        if _withdrawn_in(statement):
+            return None
+        return (statement, promised[0])
+    return None
+
 
 def _names_the_reader(sentence: str) -> "str | None":
     """How this sentence names the reader the ruling put out of scope.
@@ -2401,6 +2468,13 @@ def _promises_a_defence(text: str) -> "list[tuple[str, str, str]]":
     knowing nothing is the third, and it is the one review item
     P3-V6-F3 walked through.
 
+    AND IT NEED NOT BE IN THE SAME STATEMENT AS THE NAMING (review item
+    P3-V7-F8). A statement that names the reader and promises nothing,
+    followed by one that promises something about the WITHHELD THING and
+    names nobody, is the promise written across a semicolon. The reach
+    and the price of carrying it are measured beside
+    `_THE_WITHHELD_THING`, with what it still does not close.
+
     AND THE CURE IS DIRECTIONAL. A withdrawal after the naming cures it
     within a paragraph, which is how every honest passage here is
     written. A withdrawal BEFORE it cures only its own statement: a
@@ -2416,24 +2490,26 @@ def _promises_a_defence(text: str) -> "list[tuple[str, str, str]]":
     """
     found: list[tuple[str, str, str]] = []
     at = 0
-    for sentence in _STATEMENT_END.split(text):
+    statements = _STATEMENT_END.split(text)
+    for index, sentence in enumerate(statements):
         start = text.find(sentence, at)
         at = start + len(sentence)
         named = _names_the_reader(sentence)
         if named is None:
             continue
-        promised = [
-            mark
-            for mark in _PREVENTION_MARKS + _REASON_MARKS + _KNOWLEDGE_MARKS
-            if re.search(mark, sentence)
-        ]
-        if not promised:
-            continue
         if _withdrawn_in(sentence):
             continue
+        promised = _promise_marks_in(sentence)
+        said = sentence
+        if not promised:
+            carried = _carried_promise(statements[index + 1 :])
+            if carried is None:
+                continue
+            said = f"{sentence}; {carried[0]}"
+            promised = [carried[1]]
         if _withdrawn_in(text[at : at + _CURE_WINDOW]):
             continue
-        found.append((sentence, named, promised[0]))
+        found.append((said, named, promised[0]))
     return found
 
 
@@ -2532,6 +2608,24 @@ WALKED_THROUGH = (
         (
             "This protection is no longer offered. No sequence of "
             "candidate descriptions can narrow a number this report "
+            "withholds."
+        ),
+    ),
+    # ...and round 7's, which used no new vocabulary at all: every word
+    # of it was already in the lists, and it walked past because the
+    # rule read one statement at a time (review item P3-V7-F8).
+    (
+        "the promise split across two statements",
+        (
+            "A person can re-run the check with descriptions they wrote "
+            "themselves; the withheld number remains unknowable."
+        ),
+    ),
+    (
+        "the naming and the promise in two full stops",
+        (
+            "Somebody can hand synthtwin one profile of their own after "
+            "another. Not one of them will narrow a number this report "
             "withholds."
         ),
     ),
@@ -2762,6 +2856,10 @@ def test_the_fourth_family_would_notice_the_promise_it_replaced() -> None:
             "watching which verdicts change over repeated runs reveals "
             "nothing: the search is defeated by the gate."
         ),
+        "a rewording that puts the promise in the next statement": (
+            "a person can re-run the check with descriptions they wrote "
+            "themselves. the suppressed count cannot be narrowed."
+        ),
     }
     uncaught = [
         f"{what}: {sentence!r}"
@@ -2803,6 +2901,23 @@ def test_the_fourth_family_would_notice_the_promise_it_replaced() -> None:
             "claim: that somebody who writes their own descriptions and "
             "runs the check again and again cannot narrow a withheld "
             "number by watching which verdicts change."
+        ),
+        # The two halves of the widening the other way (review item
+        # P3-V7-F8): the carry may not turn an honest naming into a
+        # defect because a later statement happens to hold one of the
+        # promise words, and the honest statement of the limit is
+        # written across statements more often than not.
+        "the true account, written across two statements": (
+            "a person can re-run the check with descriptions they wrote "
+            "themselves. the number this report withholds can be "
+            "narrowed that way, and synthtwin does not try to stop them."
+        ),
+        "a naming beside a promise word about something else": (
+            "the advice is to describe the table again with descriptions "
+            "of their own, which is safe because whoever holds an old "
+            "description of a table normally holds the table. a newer "
+            "description means this synthtwin is behind, and the advice "
+            "is never to re-run a profiler."
         ),
     }
     wrongly_caught = [

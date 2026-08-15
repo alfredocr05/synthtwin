@@ -203,6 +203,87 @@ def _written_out(code: int) -> str:
     return "\\U" + format(code, "08x")
 
 
+# The three widths `_written_out` writes a display control at, and the
+# mark each one starts with. Read back here so that the question "could
+# this text have come OUT of the boundary?" is answered from the same
+# two functions that put text through it, and cannot drift from them.
+_ESCAPE_FORMS = (("\\x", 2), ("\\u", 4), ("\\U", 8))
+
+
+def _lower_hex(text: str) -> bool:
+    """True when ``text`` is one or more lower-case ASCII hex digits."""
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT)
+    if not text:
+        return False
+    for character in text:
+        if "0" <= character <= "9":
+            continue
+        if "a" <= character <= "f":
+            continue
+        return False
+    return True
+
+
+def _boundary_wrote_this_at(text: str, index: int) -> bool:
+    """True when a display control's own written form starts at ``index``."""
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT)
+    for mark, digits in _ESCAPE_FORMS:
+        head = text[index : index + len(mark)]
+        if head != mark:
+            continue
+        body = text[index + len(mark) : index + len(mark) + digits]
+        if len(body) != digits:
+            continue
+        if not _lower_hex(body):
+            continue
+        code = int(body, 16)
+        if not _commands_a_display(code):
+            continue
+        if _written_out(code) == mark + body:
+            return True
+    return False
+
+
+def shows_only_itself(text: str) -> bool:
+    """True when ``text`` is the ONLY text the boundary shows as ``text``.
+
+    The display boundary is not reversible, and a caller that reads a
+    published spelling back out of a report field has to know where it
+    may and may not do so (review item P3-V7-F1). `visible` replaces
+    each display control with its own written form, so two different
+    texts can leave it identical: the three characters ``X``, U+0001,
+    ``Y`` and the six printable characters ``X\\x01Y`` both come out
+    ``X\\x01Y``, and no reading of that result can tell which one it
+    was.
+
+    THIS IS THE DECIDABLE HALF, and the proof is short. Every character
+    `visible` does not pass through is replaced by `_written_out`'s form
+    for it. So if no such form STARTS anywhere in ``text``, no text
+    holding a display control can show as ``text``, which leaves
+    ``text`` itself -- which the boundary passes through unchanged -- as
+    the only text that does. Where such a form does start, at least two
+    texts show as ``text`` and this returns False; it never claims the
+    two are distinguishable.
+
+    It is deliberately conservative in one direction and exact in the
+    other: a form the boundary could not have written, such as
+    ``\\x41`` for an ordinary letter or ``\\u0001`` for a character
+    written ``\\x01``, is not treated as ambiguous, because
+    `_written_out` would not have produced it.
+
+    Guarantees: accepts text; returns a truth value; raises TypeError if
+    handed anything that is not a string instance. No I/O of any kind.
+    """
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT)
+    for index in range(len(text)):
+        if _boundary_wrote_this_at(text, index):
+            return False
+    return True
+
+
 def _made_visible(text: str, keep_line_feed: bool) -> str:
     """Show every display control in ``text``; the shared implementation."""
     if not isinstance(text, str):

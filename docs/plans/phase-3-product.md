@@ -2728,9 +2728,16 @@ settings. A spelling the reconstruction misses is a spelling that
 description reads as a hole; the gate then closes on a conforming file
 and the file's own wrong count lands on the verdict.
 
-1. **The fourth published route. THIS RAISES.** `missing_by_source`
+1. **The fourth published route. THIS RAISES.** ~~`missing_by_source`
    publishes the exact spelling of every hole whose count reaches
-   `small_cell_floor`, so a `--missing-value` declaration IS in the
+   `small_cell_floor`~~ — **that half-sentence is false and amendment
+   A-P3-19 below corrects it: the field is DISPLAY-ESCAPED and
+   REPORT-ONLY by the profile contract's own section 13.5, so it
+   publishes the spelling AS A REPORT SHOWS IT and not byte for byte.
+   What this clause bought stands where the boundary changes nothing,
+   which is where both of its measured witnesses sit; where the boundary
+   does change something the route is withdrawn, and A-P3-19 states both
+   directions.** So a `--missing-value` declaration IS in the
    description — the settings block records it as a count, the COLUMN
    records the spelling. It is read back by the same act that reads
    back a level's variants, and which keys are a declaration is derived
@@ -3002,9 +3009,20 @@ one of them", and the thing that found it was somebody counting.
    a line saying so where a reader meets it.
 
    **Two further gaps in the ban itself, both closed, and one that
-   cannot be.** The guard reads a sentence as a defect when it NAMES the
-   out-of-scope reader and PROMISES something about them. Round 6 walked
-   three sentences past it. *Promising by outcome rather than by
+   cannot be.** *[NARROWED by amendment A-P3-24 clause 3, 2026-08-15:
+   there was a THIRD gap, and it was not the one this paragraph calls
+   unclosable. The guard read ONE STATEMENT AT A TIME, so a promise
+   split across two — "a person can re-run the check with descriptions
+   they wrote themselves; the withheld number remains unknowable" —
+   walked past it using no vocabulary the lists did not already hold
+   (review item P3-V7-F8). That promise is withdrawn on every surface of
+   this repository; what round 7 showed is that the guard could not see
+   it. It is read there now, at a stated reach. What this paragraph says
+   about the two gaps below, and about the list being unsound, stands
+   exactly as written.]* The guard reads a
+   sentence as a defect when it NAMES the out-of-scope reader and
+   PROMISES something about them. Round 6 walked three sentences past
+   it. *Promising by outcome rather than by
    barrier* — "repeated profiles reveal nothing about a count this
    report withholds" — is now its own family, a word for knowing paired
    with nothing. *A withdrawal standing in FRONT of the promise* — "this
@@ -3194,6 +3212,598 @@ which re-opens the 12 measured runs, and by making
 on either battery and re-opens the property clause 1 states. Clause 3
 reverses by walking the six ordinary fixtures alone, which re-opens all
 fifteen zero-row sites.
+
+**Amendment A-P3-18 — the comparison V4.2 always specified, built at
+last, and the five divergences it found. Clause 1 RAISES two bars.
+Clauses 2, 3 and 4 LOWER four, each with its size measured. Clause 5
+states the boundary this validator cannot cross and what it costs**
+(2026-08-15, review round 7, items P3-V7-F2, F3 and F4).
+
+**The shape all five share, and why they were repaired together.**
+Specification V4.2 says the corner classifier is written from the
+validation method and compared against the generator's own in the suite,
+where both may be imported. Round 6 found that no test had ever done
+that, and A-P3-14 clause 3 narrowed V4.2's claim to the one corner and
+the one direction that ran. Round 7 then found three more divergences of
+a single shape — the validator's independent arithmetic disagrees with
+the generator's, and the validator REJECTS OR MIS-CLASSIFIES FILES THE
+SHIPPED GENERATOR ITSELF WRITES — and two of the three were introduced
+by round 6's own repair. So this amendment does not patch
+them one at a time. It builds the comparison, in
+`tests/test_p3v7f2_corner_parity.py`, over EVERY corner the validator
+classifies and a producer-built space of 219 descriptions -- 13 of them
+reaching the identifier corner, 9 the label corner, 47 the numeric one
+and 5 the withheld-offset one -- and repairs what that comparison found.
+
+**What the comparison asks, in four questions.** (i) The shipped
+generator writes a twin for each description, the shipped validator
+measures it, and no corner-governed fact may be MISSED where the
+GENERATION REPORT's own account says the twin holds it. (ii) Where the
+classifier claims no corner it is asserting that the description pins
+the count, and the generation report must say the same thing in its own
+words: the two ends of the bound it prints for that fact must meet.
+(iii) The identifier corner's supply is method G9.4's FAMILY capacity,
+and the shipped family maps are WALKED, index by index, and counted.
+(iv) Every distinctness bar the space prints must be one some file can
+miss, and where it would license every count a column of that
+description can hold it is a listing instead. Six `REINSTATE` values put
+one piece of the pre-repair behaviour back, so each guarantee has a
+demonstrated red.
+
+1. **The identifier supply is the FAMILY's above one character too, and
+   a band that cannot cover its own cells is short whatever the others
+   hold. THIS RAISES twice** (review item P3-V7-F2).
+
+   A-P3-14 replaced the `alphabet ** L` ceiling with G9.4's band rule
+   and counted the one-character families out exactly. Above one
+   character it still counted every string the positional rules of G9.1
+   leave, which is not a domain any family of G9.6 writes from: the
+   widest band spells **8,460** values two characters wide by that
+   reading and **2,538** by its own family's, twenty-seven permitted
+   leading characters against ninety-four for the second. A
+   producer-derived declared column of 2,539 two-character values
+   outside the code alphabet was therefore called feasible, the shipped
+   generator necessarily repeated, and validation reported all three
+   identifier cardinality obligations MISSED against the product's own
+   output. The supply is now the two families that write those cells —
+   the band's ordinary-text walk, and the ordinary-number family of
+   G9.5 step 3 where the description gives the numbers class a cell —
+   and the boundary is asserted from both sides at 2,538 and 2,539.
+
+   **And the summed reach is not the whole question.** It lets the
+   smallest published groups answer for every band at once, so it can
+   read a supply the three bands cannot jointly deliver. G9.4's own
+   sentence is asked beside it now: a band answering for `cells` of them
+   needs at least `ceil(cells / widest group)` different spellings.
+   The witness is producer-built and 54 cells long — one repeated
+   figure, one code value, and twenty-six values outside the code
+   alphabet of which twenty-five stand in two rows each — where the
+   widest band needs twenty-six spellings and holds twenty-five while
+   the summed reach reads twenty-eight against twenty-eight. Its twin
+   holds 27 of the 28 published record numbers, and the three checks it
+   used to miss are now the listings owner decision 6 grants.
+
+2. **The two spelling corners are G12.8's envelope in BOTH directions,
+   and the label supply counts withheld multiplicity the way the method
+   writes it. THIS RAISES one bar and LOWERS one** (review items
+   P3-V7-F3 and P3-V7-F4).
+
+   *The label arithmetic was simply wrong.* A withheld-variant key is an
+   OCCURRENCE COUNT and its value is how many spellings covered that
+   many rows each, so the rows such an entry covers are `key x value`.
+   The validator added the value alone, so a level its withheld variants
+   covered exactly looked short, one more spelling was invented for it,
+   no corner was claimed, and the exact bar was put on a count the
+   shipped generator cannot meet. The review's witness — `alpha`x6,
+   `Alpha`x6, `beta`x5, `Beta`x5 under the floor of eleven — publishes
+   raw distinctness four; G12.7 supplies three; the generator writes
+   three; the report said MISSED. **THIS RAISES**: the validator's `S`
+   is now the generator's, and the suite asserts the two are equal on
+   every label description in the space.
+
+   *The numeric corner was asked in one direction only.* V4.1 named it
+   as a supply that "cannot reach" the published count, and G12.8's
+   envelope is two-sided: `min(supply, n_distinct) <= n_distinct(twin)
+   <= max(supply, n_distinct)`. A floored style map naming fifteen
+   leading-zero cells on a column publishing nine different values has a
+   supply ABOVE its published count, the shipped generator writes twelve
+   identities, its own report calls that inside the bound, and the exact
+   bar called it MISSED. The corner is now claimed wherever the
+   description does not pin the count.
+
+   **THIS LOWERS, and here is its size.** On a column whose own
+   permitted spellings can carry more identities than it publishes, a
+   file holding more different values than the description names is now
+   an AUTHORIZED DEVIATION rather than a miss. Two registered red cases
+   moved because of it and both are recorded in
+   `tests/test_p3v1f2_entry_table.py` beside the rows: `spread-amount`,
+   whose column publishes 240 decimal cells and 238 different values, so
+   the even spread's 240 sits inside an envelope the generation report
+   itself prints; and `pooled/fractioned-reading`, whose style map the
+   floor has pooled. Both sites keep a red case — the narrowest edit
+   that still makes them miss, by this plan's own rule — and the ladder
+   rungs catch the even spread as they did before.
+
+3. **A bar that licenses every count is a listing, not a check. THIS
+   LOWERS, and it is the charter's own rule** (review item P3-V7-F4,
+   second half). Forced integers 1 to 200 publish two hundred present
+   cells, two hundred different values and the single style `plain`.
+   All the plain cells together supply ONE identity, so the envelope
+   runs from one value to two hundred — every count a file of that
+   length can hold. The check could not fail. V3.4 forbids a subcheck
+   that cannot fail and V3.5 decides it per entry, so the entry is a
+   listing carrying the passage that authorizes the lesser outcome, and
+   the census counts it where it counts an obligation nothing settles.
+   **What is given up** is a comparison that was already empty; what is
+   gained is a report that says so. The rule bites only where the
+   envelope's low end reaches one AND its high end reaches every present
+   cell, so the ordinary plain column — ten different values in
+   two hundred and twenty-nine cells — keeps its check.
+
+4. **Two obligations no CSV can evidence, found by the same battery and
+   named here rather than left because the review did not name them.
+   THIS LOWERS two bars.**
+
+   *A withheld endpoint offset.* A datetime column whose offset map
+   names real offsets can still have its own earliest or latest END
+   below the publication floor, published as the withheld label. The
+   description then names no offset for that end, and the comparison
+   that stood asked whether the measured file's OWN floor had suppressed
+   the same end — a fact about how many rows shared an offset, not about
+   the file's dates — and reported MISSED against the shipped
+   generator's twin. It is a listing now. P2-D9's corner, where the
+   WHOLE map is withheld, is unchanged.
+
+   *A pooled style count.* The floor pools every numeric form fewer
+   cells wear than the floor into one withheld key and publishes no
+   count for any of them, so a cell in that pool has no published form
+   and a twin may give it any form the description permits. The exact
+   bar compared a NAMED form's recount as though the pool were not
+   there: eleven plain cells published against forty-five written came
+   back MISSED, on every one of the twelve descriptions in the committed
+   space whose style map the floor had pooled. The bar is a window now — at least the published count and at
+   most that count plus the pool — and it keeps its teeth in the
+   direction that matters, since the published cells are still owed.
+
+5. **What this does NOT close, and it is a boundary and not an
+   oversight.** G12.8's supply is a property of the twin's FINISHED
+   CELLS: each (value, style) group of the numbers class supplies one
+   spelling where the style is `plain` and its own cell count otherwise.
+   How many different VALUES the plain cells carry is decided by the
+   value construction of G5 and G7, which V1.4 keeps out of this module
+   and which this repair does not rewrite. So the description settles
+   two numbers rather than one — a FLOOR, where all the plain cells
+   carry one value between them, and a CEILING, where each carries its
+   own, bounded by the published count of different values — and the
+   validator's envelope is the pair. On a column of labels there is no
+   second number and the two writings print the SAME envelope; on a
+   column of numbers the validator's is wider than the generation
+   report's, and the suite asserts containment rather than equality and
+   says which it is asserting. Narrowing it means writing the value
+   construction out from G5 and G7 here, as V3.4-A2 did for the
+   datetime windows. That is a later item, and no sentence in this
+   repository may say the two numeric envelopes agree until it is taken.
+
+**How to reverse this.** Clause 1 reverses in two pieces: restoring the
+alphabet reading above one character re-opens the 2,539-value witness,
+and making `_band_falls_short` answer False re-opens the 54-cell one.
+Clause 2 reverses by restoring the withheld-count-as-coverage
+arithmetic and by asking the numeric corner in the short direction only,
+which re-opens both witnesses and gives back the two red cases. Clause 3
+reverses by making `_envelope_admits_every_count` answer False, which
+puts a bar that admits every count back on the report. Clause 4 reverses
+by checking a withheld endpoint against the file's own floor and by
+passing the pooled count as zero. Clause 5 reverses only by being made
+untrue, which means writing the value construction out.
+
+**Amendment A-P3-19 — amendment A-P3-15 clause 1 called a
+DISPLAY-ESCAPED field the exact spelling, and the profile contract says
+in terms that it is not. Clause 1 CORRECTS that sentence. Clause 2
+RAISES, by taking a passing report off a file the description's own
+declaration rejects. Clause 3 LOWERS, at the size measured beside it.
+Clause 4 states the boundary and why it is not this module's to cross**
+(2026-08-15, review round 7, item P3-V7-F1).
+
+**What was claimed, and what the contract says.** A-P3-15 clause 1 and
+validation method V2.3-A1 both read that `missing_by_source` carries
+"the exact spelling" of every hole whose count reaches the floor. The
+profile contract's section 5.4 says its keys are the spelling "after
+passing through the display boundary that escapes line, control and
+bidirectional formatting characters", and its own decision 13.5 draws
+the difference deliberately: `variants` is stored EXACTLY because a twin
+writes it back into a cell, and `missing_by_source` is REPORT-ONLY and
+escaped because nothing ever writes it back. An amendment that claims
+more than the format carries is a defect, and this is one.
+
+1. **The correction, made in place. THIS CLAIMS NOTHING NEW.** The
+   half-sentence in A-P3-15 clause 1 is struck above and V2.3-A1 is
+   corrected in the method. What that route bought stands wherever the
+   boundary changes nothing, and both of its measured witnesses — `XX`
+   and `-777` — sit there: neither holds a character the boundary
+   shows, both are still recovered, and both tables still miss nothing
+   against their own profile.
+
+2. **A passing report on a file the declaration rejects. THIS RAISES,
+   and it is the direction the review did not name.** Seventy-two rows
+   whose holes are spelled `X`, U+0001, `Y` publish the key `X\x01Y`.
+   So do seventy-two rows whose holes are spelled with those six
+   PRINTABLE characters. **The two whole descriptions come out BYTE FOR
+   BYTE ALIKE, 6,733 bytes each**, so nothing a validator can read tells
+   the two apart. Round 6 read the key as exact, which meant reading it
+   as the printable spelling — and a file wearing that printable
+   spelling, checked against the CONTROL-CHARACTER table's description,
+   came back with a census of ZERO MISSED and exit 0. `synthtwin
+   profile` under that description's own declaration reads that file as
+   free text with 72 present cells and no holes, against a description
+   publishing a numeric role with 60 and 12. A passing report must mean
+   what it says; that one did not. Seven obligations are reported MISSED
+   about it now.
+
+3. **A declaration the boundary shows is not recovered at all. THIS
+   LOWERS.** Recovery is restricted to keys the boundary provably left
+   alone — decidable from the key, proved in `parsing.shows_only_itself`
+   — so a declaration holding a line, control or bidirectional
+   formatting character is not recovered. **Measured:** the
+   control-character table validated against its own profile reports
+   `presence.n_present`, `presence.n_missing`, `axes.role`,
+   `axes.statistical_type`, `counts.n_not_numeric` and both distinctness
+   counts MISSED — the same seven A-P3-15 clause 1 took off the `XX`
+   table, given back on this class alone. And the printable table, which
+   round 6 did pass, now misses the same seven: the two are one report
+   again, which is the only honest answer while one description
+   describes both.
+
+   **Why the wider match is not the repair, since it is the obvious
+   one.** Matching a cell as a hole when its DISPLAYED form equals the
+   key passes both tables — and it is exactly what manufactures clause
+   2's false pass, because it re-describes the other file as the one the
+   description asks for. Any rule that passes the first passes the
+   second, which is amendment A-P3-15 clause 3's own reasoning about the
+   kept-`n/a` gap, reached again from the other declaration. A false
+   MISS is a defect the report states; a false PASS is a defect the
+   report hides, and where the format forces a choice this plan takes
+   the stated one.
+
+4. **What is left open, and where it can be closed. THIS CLOSES
+   NOTHING.** The class is not closable inside `validation.py` under the
+   current format, and the byte-identity above is the proof rather than
+   the argument. What would close it is a decision about what the
+   PROFILE publishes — a second, unescaped key beside the shown one, or
+   a declaration recorded in the settings block — and both are changes
+   to the profile contract, taken in the open, not edits to the
+   validator. Until one is taken, the third gap joins the two amendment
+   A-P3-15 clause 3 already records, and no sentence in this repository
+   may call `missing_by_source` exact.
+
+**How to reverse this.** Make `parsing.shows_only_itself` answer True
+for every key, which restores round 6's unrestricted recovery, gives
+back the seven misses on the escaped class, and puts the passing report
+of clause 2 back on the file its own declaration rejects.
+`tests/test_p3v7f1_escaped_declarations.py` is what goes red, and it
+carries that reinstatement as `REINSTATE=P3-V7-F1`.
+
+**Amendment A-P3-20 — the report a ZERO-ROW description gives was built
+without calling the reader, so amendment A-P3-10 clause 2's construction
+had one branch outside it. THIS RAISES; what it costs is two files
+becoming refusals that used to be reports, and one registered red case
+changing shape** (2026-08-15, review round 7 carrying review item
+P3-V4-F3).
+
+**What A-P3-10 clause 2 fixed and where it stopped.** That clause
+removed this module's own walk of the measured file and made the
+reader's refusal choose the report, so two files `synthtwin profile`
+refuses with one sentence cannot reach two reports. It repaired the
+paths a description that publishes rows takes. A zero-row description
+never reached them: the branch on `n_rows == 0` RETURNED before the
+reader was called at all, and the whole report was built on this
+module's own record walk of the file's characters.
+
+**What that cost, measured.** Against a headed zero-row description, the
+file `column_1` over `1,2` and the file `other` over `1,2` are one
+ragged refusal to the producer and drew **8 HELD / 1 MISSED** against
+**5 HELD / 4 MISSED**. `header.names` reported HELD about a file no
+reading of which finishes, which is a verdict on an obligation nothing
+measured. The same held for a file with an unclosed quotation mark and
+for a header repeating a name.
+
+**What is enforced now.** The reader is called first on this path too,
+and the degenerate report is reached by two routes, both of which have
+had the reader speak: its own NO-DATA refusal, which is what the
+conforming file draws, and a reading that finished, which is a file
+holding rows against a description asking for none. Every other refusal
+— ragged, a zero byte, a file that is not text, a first row that cannot
+name columns — reaches the report or the refusal that word chooses,
+exactly as it does against a description that publishes rows.
+
+**What it costs, and it is two things.** A file the reader refuses for
+something OTHER than no-data now comes back as that refusal where it
+used to come back as a zero-row report; nothing is lost by it beyond a
+report, because the refusal is the one `synthtwin profile` gives for the
+same file and every obligation that report stated about it was stated
+about a file nobody read. And the zero-row red battery's encoding edit
+was a UTF-16 byte-order mark, which is a file the reader refuses
+outright; it is now the single Latin-1 byte the ordinary battery already
+uses — a file that is not UTF-8, that the reader accepts through its
+documented fallback, and that leaves `bytes.utf8` a verdict to reach.
+
+**What does NOT move.** Amendment A-P3-7 clause 3's ruling and its
+residual are untouched: the disclosure gate still does not close on this
+predicate, owner decision 7's byte form can still HOLD on the file its
+description asks for, and two header-only files the producer refuses
+alike still receive different reports. That residual is reached through
+the reader's own no-data word now instead of around it, and it is still
+pinned by `test_the_zero_row_residual_is_where_the_amendment_left_it`.
+
+**How to reverse this.** Return the degenerate report on `n_rows == 0`
+before calling the reader, which restores the 8-against-5 gap on the two
+ragged files and `header.names` HELD on a file that is not a readable
+table. `tests/test_p3v4f3_refusal_equivalence.py` is what goes red, and
+it carries that reinstatement as `REINSTATE=P3-V4-F3-zero-rows`.
+
+**Amendment A-P3-21 — the entry table's binding proof walked CHECKS and
+called itself total over the shipped sites; a LISTING is the other half
+of that table and its registry fact was compared with nothing. THIS
+RAISES** (2026-08-15, review round 7 carrying review item P3-V4-F6).
+
+**What A-P3-17 clause 3 said, and what was true.** That clause widened
+the proof from six ordinary fixtures to the four profile predicates and
+recorded it as total. It was total over CHECKS. V3.1 makes an entry's
+identity (registry fact, profile predicate, subcheck) and V3.3 makes a
+not-checkable obligation an entry of the same table, so half the table's
+third term was asserted nowhere: `Listing.fact` was read by no test in
+the suite.
+
+**What was outside it.** Nine entries exist only where a corner sends a
+fact to REPORT-ONLY — four offset facts, three identifier cardinalities
+and two distinctness bars — and no fixture the proof walked reached a
+corner at all. Rebinding `offsets.map` to another registry fact of the
+same column left every assertion in
+`tests/test_p3v1f2_entry_table.py` green while the report duplicated
+one offset fact and omitted another. Beside them, fifty whole-grain
+listings across eight fact families, and the seven
+`axes.structural_role` listings amendment A-P3-2 made listings, were
+bound by nothing.
+
+**What is enforced now.** The walk collects checks AND listings, over
+the six ordinary runs, the four predicates, and three corner
+descriptions built here by the real producer — a datetime column whose
+whole offset map the floor withholds, a declared identifier column
+whose one-character family is one spelling short, and a numeric column
+whose single style supplies one spelling for two hundred different
+values. A listing carrying a subcheck is held to the same statement its
+check-side twin is held to; a listing at the whole grain is held to a
+set per family, because one family lists several such facts and they are
+different facts. Both directions, as everywhere else in that file: no
+entry may bind a fact outside the statement, and no line of the
+statement may go unreached. The corner fixtures are held to the corner
+each is for, so the proof cannot go green over a set the classifier
+quietly emptied.
+
+**What this does NOT claim.** The corner descriptions are three, not
+every description that reaches a corner; what is asserted is that the
+nine corner entries are filed and bound, not that no other corner exists.
+They are outside `runs` on purpose: `runs` drives the red battery, where
+every executable subcheck owes a perturbation that makes it MISS, and a
+listing owes none because a listing has no verdict to make miss.
+
+**How to reverse this.** Walk checks alone, or drop the corner runs from
+the walk, either of which lets `offsets.map` bind whatever it likes.
+`tests/test_p3v1f2_entry_table.py` is what goes red, and it carries the
+rebinding as `REINSTATE=P3-V4-F6-listings`.
+
+**Amendment A-P3-22 — amendment A-P3-16 clause 1 found the pooled
+remainder by WALKING and clause 2 wrote the other half of the same rule
+as a list of leaves, so the field whose kind was not on the list stayed
+open. Clause 1 RAISES: the profiler's publication guard finds a pooled
+remainder by the word it stands under, wherever it stands. Clause 2
+RAISES: the floor-one derivation is run against BOTH halves of the
+product, which is what would have found this. Clause 3 states what
+neither closes** (2026-08-15, review round 7, item P3-V7-F6).
+
+**What A-P3-16 clause 2 claimed, and what was enforced.** It said the
+guard "now has vocabulary for the floor's other half: a tally of what
+was held back, and one group size below the floor". That is true of the
+three fields whose leaves carry the `count-at-the-floor-or-withheld`
+kind and of the two that carry the held-back kinds. A `missing_by_class`
+count carries the ordinary `count` kind, which accepts any whole number
+of zero or more at any floor — so the real floor-eleven map, carrying
+`(withheld): 2`, was grafted into a floor-one document and
+`profile.check_publication` accepted it, while the strict loader refuses
+it under S13. The two halves of the product disagreed about what a floor
+of one means, in exactly the shape clause 1 of that amendment was
+written to stop: each field WAS checked where it was written, and one
+check did not know about the remainder.
+
+1. **The guard reads the marker word before it reads the field's kind.
+   THIS RAISES.** `profile._remainder_is_published` refuses a positive
+   count standing under `(withheld)` at a floor of one, whatever field
+   it sits in and whatever rule that field's leaf carries, and it runs
+   before the kind is consulted. This is the loader's own reach, on the
+   writing side: `(withheld)` is the format's one word for "held back"
+   (contract section 14), so a fifth field putting a count under it is
+   covered on the commit that adds it. Nothing changes for a document
+   the producer actually writes, at any floor.
+
+2. **The derivation asks both halves. THIS RAISES.** The floor-one
+   derivation describes one table at the default floor and at one, reads
+   the floor-governed positions off the difference, and grafts each back
+   into the floor-one document. It was run against the strict loader
+   alone, so a position the loader refused and the guard would have
+   written sat inside the derived class and outside its reach. Two of
+   the three walks it makes now put the same graft to
+   `profile.check_publication` as well: every positive count standing
+   under the marker word, and every tally the floor writes nonzero at
+   eleven and zero at one. No field is named in either.
+
+   **Why the graft had to be built twice, said because it is the reason
+   this was never asked.** The loader reads BYTES, so its graft goes
+   through JSON. The publication guard runs before serialization, on a
+   document whose sentences are still enumerated note objects, and a
+   JSON round trip turns every one of them into text the guard refuses
+   for a reason that has nothing to do with the floor. A derivation that
+   handed the guard the loader's graft would have reported every field
+   refused and the invariant enforced everywhere, which is worse than
+   not asking.
+
+3. **What this does not close.** The THIRD derivation — the one that
+   grafts a whole field rather than a leaf — is still put to the loader
+   alone, and that is deliberate rather than pending: a floor-eleven
+   `levels` array and a floor-eleven `sentinel_verdicts` block are both
+   things the publication guard accepts at a floor of one, because
+   nothing in them is a record of something held back; what the loader
+   refuses them for is a total, which is a different invariant. Making
+   the guard refuse them would mean teaching it arithmetic the loader
+   already does. The prose exemption of A-P3-16 clause 5 is unchanged
+   and still carries its residual: a hand-edited remark can say a group
+   was suppressed at a floor that suppressed nothing, and no rule here
+   reads it.
+
+**How to reverse this.** Put the `missing_by_class` entry back under the
+ordinary count kind and take the marker rule out of
+`_leaf_is_published`. `tests/test_p3v5f1_floor_one.py` is what goes red,
+in both of the walks that derive the class, and it carries the change as
+`REINSTATE=P3-V7-F6`.
+
+**Amendment A-P3-23 — plan section P3-D6 lists the G12-infeasible
+refusal among the messages owed exact-shape and reachability tests, and
+it had neither, because it was built by a private helper of
+`validation.py` and the failure catalog walks `errors.py`. Clause 1
+RAISES: the message joins the catalog. Clause 2 RAISES: its exact shape
+is pinned for all four refusals. Clause 3 RAISES: it is reached by
+running the shipped command. Clause 4 records the one wording rule that
+moved and what it cost** (2026-08-15, review round 7, item P3-V7-F7).
+
+**What was open.** Every rule the catalog keeps — that a message opens
+as a sentence, ends as one, speaks no programmer's language, and tells
+the reader something to DO — reached ninety-odd messages and not this
+one. What tested it were two fragment assertions, `"cannot be this
+description's twin"` and `"is valid"`. Replacing the whole message with
+"The description is valid, but it cannot be this description's twin."
+left both green and left the reader with no idea which two facts
+collide, that the description is not corrupt, which file was being
+checked, or what to do next.
+
+1. **The message is a catalog entry. THIS RAISES.**
+   `errors.no_twin_of_this_description_exists` holds the sentence and
+   the four trouble clauses, and `validation.measure` calls it. The four
+   refusal names method G12 fixes are spelled once, in `errors`, and
+   `validation` re-exports them under the names it already published, so
+   no caller and no test outside this repository sees a change. A test
+   compares the names `refusal_of` can answer with the names the message
+   is written for, so a fifth refusal added on one side without the
+   other is red rather than an error on the way to the screen.
+
+2. **The exact shape is pinned, per refusal. THIS RAISES.** For each of
+   the four names the message must say which two published facts
+   collide, that the description is valid, that it was written by
+   synthtwin and loads, that no file can be its twin, that there is
+   nothing to measure against, which file was checked, and BOTH
+   instructions — describe the table again, and ask whoever wrote the
+   description. The review's own vague replacement fails all four cases.
+
+3. **It is driven through the shipped command. THIS RAISES.** The
+   driven battery gains a ninth case: a table of twenty-six
+   one-character values outside the code alphabet is written, `synthtwin
+   profile` describes it, and `synthtwin validate` on that description
+   must stop with this refusal at exit code 1. Every part of it is the
+   real product; no document is edited by the test.
+
+4. **What it cost, stated.** The catalog's list of what counts as an
+   instruction gains "Describe the table again". That is not a
+   loosening: it is the instruction this refusal gives, and it is the
+   only sound one — nothing done to the measured file helps, because the
+   trouble is in the description. **What this does not close:** the
+   driven case reaches ONE of the four refusals through the command.
+   The other three are pinned in shape here and reached from
+   `validation.measure` by their own tests, which is a weaker claim than
+   the plan's word "reachability" carries for the one, and it is said
+   rather than counted.
+
+**How to reverse this.** Build the message inside `validation.py` again.
+`tests/test_failure_catalog.py` is what goes red — the reachability case
+alone, which is the exact hole round 7 found — and it carries both
+routes as `REINSTATE=P3-V7-F7` and `REINSTATE=P3-V7-F7-vague`.
+
+**Amendment A-P3-24 — two guards whose stated reach was wider than
+their walk, and the amendment sentence that said so about one of them.
+Clause 1 RAISES: the exact-identity closure guard is total over the ways
+a call can be spelled. Clause 2 RAISES: the withdrawn-defence ban reads
+a promise the next statement makes. Clause 3 NARROWS A SENTENCE of
+amendment A-P3-17 that claimed more than was true** (2026-08-15, review
+round 7, items P3-V7-F5 and P3-V7-F8).
+
+1. **Every spelling of a call is now judged. THIS RAISES** (item
+   P3-V7-F5). The guard that walks the closure of the rule deciding
+   which cells a file's own description reads reduced a call target to a
+   dotted path, and answered NOTHING for a target that was not a name or
+   an attribute — so `readers = (float,); readers[0]("1")` put a reader
+   that answers in binary64 inside the closure and the walk reported it
+   clean. The reduction is now total: a target is a path of plain names,
+   or it carries a mark saying the walk lost sight of it, and each mark
+   is refused where the thing being CALLED is what the mark stands for.
+   **The ways covered**, each with a probe of its own: a subscript; what
+   another call handed back, which is also how a name written out as
+   text is reached; a conditional, a walrus and anything else the reader
+   cannot read; a call spelled as a double-underscore attribute; and a
+   bare name this scope binds by an assignment, an annotated assignment,
+   an augmented assignment, a walrus, a loop, a comprehension, a `with`,
+   a caught error, or a PARAMETER — which is how a reader arrives from
+   outside. A second rule refuses a rounding reader NAMED where a value
+   belongs even when nothing here calls it, because `map(float, cells)`
+   hands it every cell and spells no call on it; a reader named where a
+   TYPE belongs is left alone, and three functions of the closure carry
+   one.
+
+   **What this does not close, measured rather than promised.** A
+   rounding reader reached as an ordinarily-named method of a value the
+   walk cannot name — `_chosen().reads(cell)` — has the same shape as
+   the honest method calls the closure really makes on text, and telling
+   them apart needs the types this walk does not have. Reaching it means
+   adding a function whose whole purpose is to hand back a reader under
+   a name that is not one of the four. The three marks are refused at
+   the CALLED position only, and that is measured: refusing a mark
+   anywhere in the path reports `text[0].strip()` and
+   `text.strip().casefold()`, which are the ordinary way this package
+   handles text.
+
+2. **A promise may be carried to the next statement. THIS RAISES** (item
+   P3-V7-F8). The ban reads a defect as one statement that names the
+   out-of-scope reader AND promises something about them. "A person can
+   re-run the check with descriptions they wrote themselves; the
+   withheld number remains unknowable" is that promise written across a
+   semicolon. It is withdrawn everywhere here, and every word of it was
+   already in the lists. A statement that names the reader and promises
+   nothing is now read together with the statements following it, within
+   the same reach the cure is allowed.
+
+   **The price was measured before the rule was written.** Carrying a
+   bare promise mark forward reports honest prose — between four and ten
+   statements of this tree, depending on the reach, where a naming about
+   one subject sits beside `never` or `cannot` about another. So a
+   carried promise has to be ABOUT THE WITHHELD THING, in the format's
+   own words for it. With that requirement the carry reports nothing at
+   all on this tree at any reach up to four hundred characters, and
+   reports the review's sentence. **What it does not close:** a promise
+   carried further than that reach, and a promise about a withheld
+   number that uses none of those words for it. The naming half is
+   unchanged and keeps the bound A-P3-17 clause 1 states.
+
+3. **A-P3-17 clause 1 said "two further gaps in the ban itself, both
+   closed, and one that cannot be". THIS NARROWS THAT SENTENCE.** There
+   was a third gap, it was neither of the two, and it was not the one
+   the clause called unclosable: the ban read one statement at a time.
+   The sentence is corrected where it stands rather than deleted,
+   because what it recorded about the other two is true and is the
+   history. Nothing about the finite reader-noun list moves: it is still
+   the one place in this family where a miss is a false negative, the
+   sound alternative is still one canonical passage with every other
+   mention refused, and it was still measured at thirty-four statements
+   to rewrite. That decision is still the owner's and is still open.
+
+**How to reverse this.** Read a call target as a dotted path again, or
+read one statement at a time again. `tests/test_p3v4f1_kept_values.py`
+and `tests/test_claim_inventory.py` are what go red, and they carry the
+two as `REINSTATE=P3-V7-F5` and `REINSTATE=P3-V7-F8`.
 
 ## P3-D7. Repository claims, staged honestly
 

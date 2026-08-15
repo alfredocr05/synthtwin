@@ -111,6 +111,7 @@ Every table is built at test time by the seeded neutral builders in
 import csv
 import dataclasses
 import io
+import os
 import pathlib
 import typing
 
@@ -130,6 +131,50 @@ from synthtwin import (
 )
 
 SEED = 20260813
+
+# The shipped corner listings, taken before anything here can replace
+# them, so the reinstatement below stands in for exactly one binding.
+_SHIPPED_CORNER_LISTINGS = validation._corner_listings
+
+
+def _one_offset_fact_rebound(
+    column: contract.ColumnBlock, mine: "tuple[str, ...]"
+) -> "list[validation.Listing]":
+    """The corner listings with `offsets.map` bound to another fact.
+
+    THE MUTATION THE REVIEW NAMED, written out. `datetime.n_distinct` is
+    a registry fact of the same column, so the resulting report is
+    well-formed: it simply duplicates one fact and omits another. Every
+    assertion in this file was green against it until the binding proof
+    started reading `Listing.fact`.
+    """
+    built: list[validation.Listing] = []
+    for listing in _SHIPPED_CORNER_LISTINGS(column, mine):
+        if listing.subcheck == "offsets.map":
+            built = built + [
+                dataclasses.replace(listing, fact="datetime.n_distinct")
+            ]
+        else:
+            built = built + [listing]
+    return built
+
+
+@pytest.fixture(scope="module", autouse=True)
+def _reinstated() -> "typing.Iterator[None]":
+    """Rebind one corner listing's registry fact on request.
+
+    MODULE-SCOPED, because every run this file compares is built in a
+    module-scoped fixture: a function-scoped `monkeypatch` would be
+    applied after the runs it was meant to change, and the red check
+    would be a green run against a patch nobody used.
+    """
+    monkeypatch = pytest.MonkeyPatch()
+    if os.environ.get("REINSTATE") == "P3-V4-F6-listings":
+        monkeypatch.setattr(
+            validation, "_corner_listings", _one_offset_fact_rebound
+        )
+    yield
+    monkeypatch.undo()
 
 
 # -- the fixtures the table is walked over ----------------------------
@@ -1742,10 +1787,35 @@ def _missed_by(
 
 
 def _sites_of(outcome: validation.Outcome) -> "list[Site]":
-    """Every executable subcheck one run filed, as sites."""
+    """Every executable subcheck one run filed, as sites.
+
+    CHECKS ONLY, and deliberately: this feeds the red battery, where a
+    site owes a perturbation that makes it MISS. A listing has no
+    verdict and can miss nothing, so a walk that folded listings in here
+    would demand red cases for entries that have none. What a listing
+    DOES owe -- the registry fact it binds -- is asserted by
+    `_listed_sites_of` below and the binding proof that reads it.
+    """
     return [
         Site(check.column, check.fact, check.subcheck)
         for check in outcome.checks
+    ]
+
+
+def _listed_sites_of(outcome: validation.Outcome) -> "list[Site]":
+    """Every not-checkable obligation one run filed, as sites.
+
+    REVIEW ITEM P3-V4-F6, the half that outlived round 6. V3.1 makes an
+    entry's identity (registry fact, profile predicate, subcheck) and
+    V3.3 makes a listing an entry of that table; the binding proof read
+    `Check.fact` and never `Listing.fact`, so half the table's third
+    term was asserted by nothing. A listing carries the same identity a
+    check carries -- the `Listing` docstring says so in terms -- so the
+    same Site names it.
+    """
+    return [
+        Site(listing.column, listing.fact, listing.subcheck)
+        for listing in outcome.listings
     ]
 
 
@@ -2364,8 +2434,19 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("one-overflowed-amount", "counts.n_out_of_range"),
             ("one-contradicted-amount", "counts.n_used_in_statistics"),
             ("one-zeroed-amount", "counts.n_zero"),
-            ("spread-amount", "distinct.n_distinct"),
-            ("spread-amount", "distinct.n_distinct_folded"),
+            # WHY THIS ROW MOVED OFF `spread-amount` (plan amendment
+            # A-P3-18 clause 2). This column publishes 240 present cells
+            # all written in the decimal form and 238 different values,
+            # so its own permitted spellings can carry 240 identities and
+            # method G12.8's envelope authorizes any count between the
+            # two. The even spread writes 240 different values, which
+            # that envelope holds, so the check now answers
+            # AUTHORIZED-DEVIATION there and the site needs the narrowest
+            # edit that still makes it MISS. Both `rewritten-amount` and
+            # `worded-amount` make six subchecks miss; the rule above
+            # takes the first by name.
+            ("rewritten-amount", "distinct.n_distinct"),
+            ("rewritten-amount", "distinct.n_distinct_folded"),
             ("one-negated-amount", "ladder.min"),
             ("negated-amount", "ladder.p01"),
             ("fractioned-amount", "ladder.p05"),
@@ -2681,8 +2762,17 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("blanked-reading", "counts.n_used_in_statistics"),
             ("one-zeroed-reading", "counts.n_zero"),
             ("marked-reading", "counts.numeric_share"),
-            ("fractioned-reading", "distinct.n_distinct"),
-            ("fractioned-reading", "distinct.n_distinct_folded"),
+            # WHY THESE TWO ROWS MOVED OFF `fractioned-reading` (plan
+            # amendment A-P3-18 clause 2). This column's style map is
+            # partly pooled -- two cells whose form the floor held back
+            # -- so its own permitted spellings settle the count of
+            # different values no closer than a range, and G12.8's
+            # envelope is what the two facts owe. Writing fractions into
+            # some cells lands inside that range; the even spread and
+            # the compression do not, and the rule above takes the
+            # narrower of the two.
+            ("spread-reading", "distinct.n_distinct"),
+            ("spread-reading", "distinct.n_distinct_folded"),
             ("raised-reading", "ladder.max"),
             ("one-negated-reading", "ladder.min"),
             ("one-negated-reading", "ladder.p01"),
@@ -3064,6 +3154,7 @@ SUBCHECK_FACTS: "dict[tuple[str, str], str]" = {
     ("datetime", "axes.quality_state"): "universal.quality_state",
     ("datetime", "axes.role"): "universal.role",
     ("datetime", "axes.statistical_type"): "universal.statistical_type",
+    ("datetime", "axes.structural_role"): "universal.structural_role",
     ("datetime", "counts.n_contradictory"): "universal.n_contradictory",
     ("datetime", "counts.n_not_numeric"): "universal.n_not_numeric",
     ("datetime", "counts.n_numeric"): "universal.n_numeric",
@@ -3088,6 +3179,7 @@ SUBCHECK_FACTS: "dict[tuple[str, str], str]" = {
     ("datetime", "offsets.(none)"): "datetime.utc_offsets",
     ("datetime", "offsets.earliest"): "datetime.earliest_utc_offset",
     ("datetime", "offsets.latest"): "datetime.latest_utc_offset",
+    ("datetime", "offsets.map"): "datetime.utc_offsets",
     ("datetime", "offsets.read-at"): "datetime.datetimes_read_at",
     ("datetime", "position.at"): "universal.position",
     ("datetime", "precision.resolution"): "datetime.resolution",
@@ -3114,6 +3206,7 @@ SUBCHECK_FACTS: "dict[tuple[str, str], str]" = {
     ("empty", "axes.quality_state"): "universal.quality_state",
     ("empty", "axes.role"): "universal.role",
     ("empty", "axes.statistical_type"): "universal.statistical_type",
+    ("empty", "axes.structural_role"): "universal.structural_role",
     ("empty", "counts.n_contradictory"): "universal.n_contradictory",
     ("empty", "counts.n_not_numeric"): "universal.n_not_numeric",
     ("empty", "counts.n_numeric"): "universal.n_numeric",
@@ -3127,6 +3220,7 @@ SUBCHECK_FACTS: "dict[tuple[str, str], str]" = {
     ("free_text", "axes.quality_state"): "universal.quality_state",
     ("free_text", "axes.role"): "universal.role",
     ("free_text", "axes.statistical_type"): "universal.statistical_type",
+    ("free_text", "axes.structural_role"): "universal.structural_role",
     ("free_text", "counts.n_all_digits"): "free_text.n_all_digits",
     ("free_text", "counts.n_code_alphabet"): "free_text.n_code_alphabet",
     ("free_text", "counts.n_contradictory"): "universal.n_contradictory",
@@ -3152,6 +3246,7 @@ SUBCHECK_FACTS: "dict[tuple[str, str], str]" = {
     ("identifier", "axes.quality_state"): "universal.quality_state",
     ("identifier", "axes.role"): "universal.role",
     ("identifier", "axes.statistical_type"): "universal.statistical_type",
+    ("identifier", "axes.structural_role"): "universal.structural_role",
     ("identifier", "counts.n_all_digits"): "identifier.n_all_digits",
     ("identifier", "counts.n_code_alphabet"): "identifier.n_code_alphabet",
     ("identifier", "counts.n_contradictory"): "universal.n_contradictory",
@@ -3173,6 +3268,7 @@ SUBCHECK_FACTS: "dict[tuple[str, str], str]" = {
     ("label", "axes.quality_state"): "universal.quality_state",
     ("label", "axes.role"): "universal.role",
     ("label", "axes.statistical_type"): "universal.statistical_type",
+    ("label", "axes.structural_role"): "universal.structural_role",
     ("label", "counts.n_contradictory"): "universal.n_contradictory",
     ("label", "counts.n_not_numeric"): "universal.n_not_numeric",
     ("label", "counts.n_numeric"): "universal.n_numeric",
@@ -3218,6 +3314,7 @@ SUBCHECK_FACTS: "dict[tuple[str, str], str]" = {
     ("numeric", "axes.quality_state"): "universal.quality_state",
     ("numeric", "axes.role"): "universal.role",
     ("numeric", "axes.statistical_type"): "universal.statistical_type",
+    ("numeric", "axes.structural_role"): "universal.structural_role",
     ("numeric", "counts.n_contradictory"): "universal.n_contradictory",
     ("numeric", "counts.n_left_out_of_statistics"): "numeric.n_left_out_of_statistics",
     ("numeric", "counts.n_negative"): "numeric.n_negative",
@@ -3269,6 +3366,7 @@ SUBCHECK_FACTS: "dict[tuple[str, str], str]" = {
     ("numeric_unrepresentable", "axes.quality_state"): "universal.quality_state",
     ("numeric_unrepresentable", "axes.role"): "universal.role",
     ("numeric_unrepresentable", "axes.statistical_type"): "universal.statistical_type",
+    ("numeric_unrepresentable", "axes.structural_role"): "universal.structural_role",
     ("numeric_unrepresentable", "counts.n_contradictory"): "universal.n_contradictory",
     ("numeric_unrepresentable", "counts.n_fraction"): (
         "numeric_unrepresentable.n_fraction"
@@ -3303,6 +3401,177 @@ SUBCHECK_FACTS: "dict[tuple[str, str], str]" = {
     ("numeric_unrepresentable", "presence.n_present"): "universal.n_present",
 }
 
+# WHICH FACTS EACH FAMILY MAY STATE AT THE WHOLE GRAIN. A listing whose
+# subcheck is "" says "this fact, entire, and no CSV can evidence it"
+# (V3.3), so its identity carries no subcheck name to key on and the map
+# above cannot hold it: one family lists several such facts and they are
+# different facts, not one fact under different names.
+#
+# REVIEW ITEM P3-V4-F6, the half round 7 found still open. The binding
+# proof walked CHECKS alone, so a listing's `fact` was asserted nowhere
+# at all -- and a listing is half of V3.1's entry table. Rebinding
+# `offsets.map` to another registry fact of the same column left every
+# assertion in this file green while the report duplicated one offset
+# fact and omitted another.
+WHOLE_FACT_LISTINGS: "dict[str, tuple[str, ...]]" = {
+    "datetime": (
+        "datetime.format",
+        "universal.detection_evidence",
+        "universal.missing_by_class",
+        "universal.missing_by_source",
+        "universal.n_sentinel_candidates_unpublished",
+        "universal.remarks",
+        "universal.sentinel_verdicts",
+    ),
+    "document": (
+        "document.columns",
+        "document.n_columns",
+        "document.source.encoding",
+        "document.source.header_by_convention",
+        "document.source.header_evidence",
+        "document.source.used_fallback_encoding",
+        "universal.name",
+    ),
+    "empty": (
+        "universal.detection_evidence",
+        "universal.missing_by_class",
+        "universal.missing_by_source",
+        "universal.n_sentinel_candidates_unpublished",
+        "universal.remarks",
+        "universal.sentinel_verdicts",
+    ),
+    "free_text": (
+        "universal.detection_evidence",
+        "universal.missing_by_class",
+        "universal.missing_by_source",
+        "universal.n_sentinel_candidates_unpublished",
+        "universal.remarks",
+        "universal.sentinel_verdicts",
+    ),
+    "identifier": (
+        "universal.detection_evidence",
+        "universal.missing_by_class",
+        "universal.missing_by_source",
+        "universal.n_sentinel_candidates_unpublished",
+        "universal.remarks",
+        "universal.sentinel_verdicts",
+    ),
+    "label": (
+        "universal.detection_evidence",
+        "universal.missing_by_class",
+        "universal.missing_by_source",
+        "universal.n_sentinel_candidates_unpublished",
+        "universal.remarks",
+        "universal.sentinel_verdicts",
+    ),
+    "numeric": (
+        "universal.detection_evidence",
+        "universal.missing_by_class",
+        "universal.missing_by_source",
+        "universal.n_sentinel_candidates_unpublished",
+        "universal.remarks",
+        "universal.sentinel_verdicts",
+    ),
+    "numeric_unrepresentable": (
+        "universal.detection_evidence",
+        "universal.missing_by_class",
+        "universal.missing_by_source",
+        "universal.n_sentinel_candidates_unpublished",
+        "universal.remarks",
+        "universal.sentinel_verdicts",
+    ),
+}
+
+# THE THREE DESCRIPTIONS WHOSE LISTINGS ONLY A CORNER FILES, and the
+# type path of the one column each carries. They are walked by the
+# listing half of the binding proof and by nothing else: a corner sends
+# a fact to REPORT-ONLY, so these columns file entries the six ordinary
+# fixtures cannot, and every one of them was outside the proof.
+#
+# They are NOT in `runs`, and that is deliberate rather than convenient.
+# `runs` drives the red battery, where every executable subcheck owes a
+# registered perturbation; a listing owes none, because a listing has no
+# verdict to make miss. Adding these there would demand a red case for
+# every ordinary check of three more columns and would prove nothing
+# about the entries they are here for.
+CORNER_FIXTURE_ROLES = {
+    "withheld-offsets": {"recorded_on": "datetime"},
+    "exhausted-identifier": {"record_code": "identifier"},
+    "spent-spellings": {"reading": "count"},
+}
+
+# Which corner each of them must reach, checked by
+# `test_every_corner_fixture_reaches_the_corner_it_is_for` so that the
+# listing walk cannot go green because a fixture stopped reaching its
+# corner and stopped filing the entries it is here for.
+CORNER_FIXTURE_CORNERS = {
+    "withheld-offsets": "datetime-offsets-withheld",
+    "exhausted-identifier": "identifier-infeasible",
+    "spent-spellings": "numeric-spellings-short",
+}
+
+
+def _corner_tables() -> "list[tuple[str, str, list[str] | None]]":
+    """The bytes of each corner fixture: name, table, forced identifiers.
+
+    Every one is built here from the seeded neutral builders and passed
+    through the real producer, so what makes it a corner is the
+    producer's own arithmetic and not a hand-written description.
+
+    * WITHHELD OFFSETS -- six zones over sixty rows, ten rows each. Ten
+      is under the publication floor, so the whole map is pooled into
+      the single withheld key, which IS the corner (V4.1).
+    * EXHAUSTED IDENTIFIER -- twenty-six one-character values outside
+      every code alphabet, declared an identifier. The widest band's
+      one-character family holds twenty-five spellings, so the twenty-
+      sixth cannot be written and the three cardinality facts go
+      REPORT-ONLY.
+    * SPENT SPELLINGS -- two hundred whole numbers, all different, in
+      one style. The supply is one spelling and the envelope G12.8
+      authorizes runs from one value to two hundred, which every file of
+      that length is inside, so both distinctness bars are listings
+      rather than checks that cannot fail (V3.5).
+    """
+    zones = ("+00:00", "+01:00", "+02:00", "-03:00", "-04:00", "+05:30")
+    stamps = [
+        f"2024-01-{(index % 28) + 1:02d}T00:00:00{zones[index // 10]}"
+        for index in range(60)
+    ]
+    wides = [chr(0x100 + 2 * index) for index in range(26)]
+    return [
+        (
+            "withheld-offsets",
+            fixtures.single_column_table("recorded_on", stamps),
+            None,
+        ),
+        (
+            "exhausted-identifier",
+            fixtures.single_column_table("record_code", wides),
+            ["record_code"],
+        ),
+        (
+            "spent-spellings",
+            fixtures.single_column_table(
+                "reading", [f"{number}" for number in range(1, 201)]
+            ),
+            None,
+        ),
+    ]
+
+
+@pytest.fixture(scope="module")
+def corner_runs(
+    tmp_path_factory: pytest.TempPathFactory,
+) -> "list[tuple[str, contract.Profile, str]]":
+    """The three corner descriptions and each one's own twin."""
+    folder = tmp_path_factory.mktemp("corner-entries")
+    built: list[tuple[str, contract.Profile, str]] = []
+    for name, text, declared in _corner_tables():
+        described = _described(folder, text, declared, stem=name)
+        twin = rendering.twin_csv(generation.generate(described, SEED))
+        built = built + [(name, described, twin)]
+    return built
+
 
 def _family_of(fixture: str, column: str) -> str:
     """The fact family of one column of one fixture, from this file alone.
@@ -3312,6 +3581,8 @@ def _family_of(fixture: str, column: str) -> str:
     """
     if not column:
         return DOCUMENT_FAMILY
+    if fixture in CORNER_FIXTURE_ROLES:
+        return ROLE_FAMILIES[CORNER_FIXTURE_ROLES[fixture][column]]
     return ROLE_FAMILIES[FIXTURE_ROLES[fixture][column]]
 
 
@@ -3428,6 +3699,7 @@ def test_every_fact_this_file_states_is_a_registry_fact() -> None:
 def test_every_shipped_site_binds_the_fact_this_file_states(
     tmp_path: pathlib.Path,
     runs: "list[tuple[str, contract.Profile, str]]",
+    corner_runs: "list[tuple[str, contract.Profile, str]]",
 ) -> None:
     """V3.1's third term, stated here and compared with the shipped table.
 
@@ -3459,18 +3731,23 @@ def test_every_shipped_site_binds_the_fact_this_file_states(
     whole suite still green. Both directions now run over the ordinary
     runs AND the four predicates, so a rebinding on a predicate is as
     red as a rebinding on a column.
+
+    AND IT WALKS LISTINGS AS WELL AS CHECKS, over the corner runs too
+    (review item P3-V4-F6, the half round 7 found still open). The same
+    subcheck can be a check under one predicate and a listing under
+    another, and only the check side was ever compared. `offsets.map` is
+    a listing on every file there is: no line here stated what it binds,
+    and rebinding it to another registry fact of the same column turned
+    nothing in this suite red.
     """
     wrong: list[str] = []
     reached: set[tuple[str, str]] = set()
-    walked: list[tuple[str, str, list[Site]]] = []
-    for name, described, twin in runs:
-        outcome = _measured(tmp_path, described, twin, f"{name}-facts.csv")
-        walked = walked + [(name, name, _sites_of(outcome))]
-    for label, _described, _text, sites in _predicate_sites(tmp_path, runs):
-        walked = walked + [(label, PREDICATE_FIXTURES[label], sites)]
+    walked = _every_entry_walked(tmp_path, runs, corner_runs)
     for name, fixture, sites in walked:
         for site in sites:
             family = _family_of(fixture, site.column)
+            if not site.subcheck:
+                continue
             reached.add((family, site.subcheck))
             stated = _stated_fact(fixture, site.column, site.subcheck)
             if stated != site.fact:
@@ -3502,14 +3779,253 @@ def test_every_shipped_site_binds_the_fact_this_file_states(
     # line above would go on being true for the wrong reason.
     ordinary = set()
     for name, fixture, sites in walked:
-        if name not in PREDICATE_FIXTURES:
-            for site in sites:
-                ordinary.add((_family_of(fixture, site.column), site.subcheck))
+        if name in PREDICATE_FIXTURES or name in CORNER_FIXTURE_ROLES:
+            continue
+        for site in sites:
+            ordinary.add((_family_of(fixture, site.column), site.subcheck))
     only_here = {pair for pair in reached if pair not in ordinary}
     assert only_here, (
         "the four predicates file no subcheck the six ordinary runs do "
         "not, so walking them adds nothing and this test is total over "
         "the same set it always was"
+    )
+
+
+def _every_entry_walked(
+    folder: pathlib.Path,
+    runs: "list[tuple[str, contract.Profile, str]]",
+    corners: "list[tuple[str, contract.Profile, str]] | None",
+) -> "list[tuple[str, str, list[Site]]]":
+    """Every ENTRY the shipped table files, over every predicate here.
+
+    Each element is (the run's own name, the fixture whose roles give
+    its columns their family, the entries it filed). An entry is a
+    check or a listing: V3.1 makes both rows of one table and V3.3 says
+    which kind a fact takes under which predicate, so a walk that
+    collected one kind was a walk over half the table (review item
+    P3-V4-F6).
+
+    The corner runs are walked only when they are handed in, because
+    they are the one thing here whose whole reason is a listing: the
+    six ordinary fixtures reach no corner, so four offset facts, three
+    identifier cardinalities and two distinctness bars are entries no
+    other run in this file files.
+    """
+    walked: list[tuple[str, str, list[Site]]] = []
+    for name, described, twin in runs:
+        outcome = _measured(folder, described, twin, f"{name}-facts.csv")
+        walked = walked + [
+            (name, name, _sites_of(outcome) + _listed_sites_of(outcome))
+        ]
+    for label, described, twin, _ordinary in _predicate_runs(folder, runs):
+        text = _conforming_text(described, twin)
+        outcome = _measured(folder, described, text, f"{label}-facts.csv")
+        walked = walked + [
+            (
+                label,
+                PREDICATE_FIXTURES[label],
+                _sites_of(outcome) + _listed_sites_of(outcome),
+            )
+        ]
+    for name, described, twin in corners if corners else []:
+        outcome = _measured(folder, described, twin, f"{name}-facts.csv")
+        walked = walked + [
+            (name, name, _sites_of(outcome) + _listed_sites_of(outcome))
+        ]
+    return walked
+
+
+def test_every_corner_fixture_reaches_the_corner_it_is_for(
+    corner_runs: "list[tuple[str, contract.Profile, str]]",
+) -> None:
+    """The three corner descriptions carry the corner they are named for.
+
+    The listing proof below is only about corner entries while these
+    descriptions still reach a corner. A change to the classifier that
+    stopped claiming one here would leave that proof green over a set
+    with the corner entries taken out of it -- which is the shape of
+    every widening-on-paper this file has had to repair -- so the corner
+    each fixture reaches is stated in `CORNER_FIXTURE_CORNERS` and
+    checked, in both directions: the named corner must be claimed, and
+    the roles this file states for those columns must be the roles the
+    producer gave them.
+    """
+    assert sorted(CORNER_FIXTURE_ROLES) == sorted(CORNER_FIXTURE_CORNERS)
+    assert sorted(CORNER_FIXTURE_ROLES) == sorted(
+        name for name, _d, _t in corner_runs
+    )
+    for name, described, _twin in corner_runs:
+        published = {column.name: column.role for column in described.columns}
+        assert published == CORNER_FIXTURE_ROLES[name], (
+            f"{name}: this file states {sorted(CORNER_FIXTURE_ROLES[name].items())} "
+            f"and the producer published {sorted(published.items())}"
+        )
+        claimed: set[str] = set()
+        for corners in validation.corners_of(described).values():
+            for corner in corners:
+                claimed.add(corner)
+        assert CORNER_FIXTURE_CORNERS[name] in claimed, (
+            f"{name}: this description no longer reaches "
+            f"{CORNER_FIXTURE_CORNERS[name]!r} -- it claims {sorted(claimed)} "
+            f"-- so the entries it is here to bind are not being filed"
+        )
+
+
+def test_every_shipped_listing_binds_the_fact_this_file_states(
+    tmp_path: pathlib.Path,
+    runs: "list[tuple[str, contract.Profile, str]]",
+    corner_runs: "list[tuple[str, contract.Profile, str]]",
+) -> None:
+    """V3.1's third term on the OTHER half of the entry table.
+
+    REVIEW ITEM P3-V4-F6, the part round 7 found still open. Round 6
+    widened the binding proof from the ordinary fixtures to the four
+    profile predicates and called it total. It was total over CHECKS.
+    `Listing.fact` was compared with nothing anywhere in this suite, and
+    the corner listings -- the entries whose whole existence IS a
+    listing -- were filed by no run the proof walked. Rebinding
+    `offsets.map` to another registry fact of the same column left every
+    assertion in this file green while the report duplicated one offset
+    fact and omitted another.
+
+    So every listing of every run here is held to a statement written
+    out in this file, at both grains a listing has:
+
+    * a listing with a SUBCHECK is held to `SUBCHECK_FACTS`, the same
+      statement its check-side twin is held to, because the same
+      obligation under a different predicate is the same obligation;
+    * a listing at the WHOLE grain -- "this fact, entire" -- is held to
+      `WHOLE_FACT_LISTINGS`, which is a set per family rather than a
+      function, because one family lists several such facts and they are
+      different facts and not one fact under several names.
+
+    Both directions, as everywhere else here: no listing may bind a fact
+    outside the statement, and no line of the statement may go
+    unreached.
+    """
+    wrong: list[str] = []
+    reached: set[tuple[str, str]] = set()
+    for name, fixture, sites in _every_entry_walked(
+        tmp_path, runs, corner_runs
+    ):
+        for site in sites:
+            if site.subcheck:
+                continue
+            family = _family_of(fixture, site.column)
+            reached.add((family, site.fact))
+            if site.fact not in WHOLE_FACT_LISTINGS.get(family, ()):
+                wrong = wrong + [
+                    (
+                        f"{name}: {site.column or '(the document)'}: this "
+                        f"file states no whole-grain listing of "
+                        f"{site.fact} for the {family} family"
+                    )
+                ]
+    assert not wrong, (
+        "the shipped validator lists these facts whole and this file "
+        "states none of them:\n  " + "\n  ".join(sorted(wrong))
+    )
+    unreached = sorted(
+        f"{family}/{fact}"
+        for family in WHOLE_FACT_LISTINGS
+        for fact in WHOLE_FACT_LISTINGS[family]
+        if (family, fact) not in reached
+    )
+    assert not unreached, (
+        "these lines state a whole-grain listing the shipped table does "
+        "not file, so they assert nothing at all:\n  "
+        + "\n  ".join(unreached)
+    )
+
+
+def test_the_corner_listings_are_reached_by_this_walk_and_nowhere_else(
+    tmp_path: pathlib.Path,
+    runs: "list[tuple[str, contract.Profile, str]]",
+    corner_runs: "list[tuple[str, contract.Profile, str]]",
+) -> None:
+    """The corner entries are IN the binding proof, and were not.
+
+    REVIEW ITEM P3-V4-F6's named witness. Nine entries exist only where
+    a corner sends a fact to REPORT-ONLY -- four offset facts, three
+    identifier cardinalities and two distinctness bars -- and no fixture
+    the proof walked filed one of them. This asserts two things at once:
+    that the corner runs file every one of the nine, and that the six
+    ordinary fixtures and the four predicates file none of the four
+    offset ones, so the walk cannot be narrowed back to them and stay
+    green.
+    """
+    ordinary = _every_entry_walked(tmp_path, runs, None)
+    with_corners = _every_entry_walked(tmp_path, runs, corner_runs)
+    owed = {
+        ("withheld-offsets", "recorded_on", "datetime.utc_offsets", "offsets.map"),
+        (
+            "withheld-offsets",
+            "recorded_on",
+            "datetime.earliest_utc_offset",
+            "offsets.earliest",
+        ),
+        (
+            "withheld-offsets",
+            "recorded_on",
+            "datetime.latest_utc_offset",
+            "offsets.latest",
+        ),
+        (
+            "withheld-offsets",
+            "recorded_on",
+            "datetime.datetimes_read_at",
+            "offsets.read-at",
+        ),
+        (
+            "exhausted-identifier",
+            "record_code",
+            "identifier.n_distinct",
+            "distinct.n_distinct",
+        ),
+        (
+            "exhausted-identifier",
+            "record_code",
+            "identifier.n_distinct_folded",
+            "distinct.n_distinct_folded",
+        ),
+        (
+            "exhausted-identifier",
+            "record_code",
+            "identifier.n_distinct_by_occurrences",
+            "distinct.n_distinct_by_occurrences",
+        ),
+        (
+            "spent-spellings",
+            "reading",
+            "numeric.n_distinct",
+            "distinct.n_distinct",
+        ),
+        (
+            "spent-spellings",
+            "reading",
+            "numeric.n_distinct_folded",
+            "distinct.n_distinct_folded",
+        ),
+    }
+    filed = {
+        (name, site.column, site.fact, site.subcheck)
+        for name, _fixture, sites in with_corners
+        for site in sites
+    }
+    missing = sorted(entry for entry in owed if entry not in filed)
+    assert not missing, (
+        "the corner runs no longer file these entries, so the proof "
+        "that binds them is asserting nothing:\n  "
+        + "\n  ".join(f"{entry}" for entry in missing)
+    )
+    without = {
+        site.subcheck
+        for _name, _fixture, sites in ordinary
+        for site in sites
+    }
+    assert "offsets.map" not in without, (
+        "an ordinary fixture now files the withheld-offset corner, so "
+        "this walk no longer shows that the corner runs add anything"
     )
 
 
@@ -3541,7 +4057,18 @@ def _zero_row_edits(text: str, names: "list[str]") -> "list[tuple[str, str, str 
             "bytes.line-endings",
             text.replace("\n", "\r\n") if text else "\r\n",
         ),
-        ("zero-not-utf8", "bytes.utf8", b"\xff\xfe" + text.encode("utf-8")),
+        # THE SAME ENCODING EDIT THE ORDINARY BATTERY MAKES, and it is
+        # the same edit for a reason (review item P3-V4-F3, carried;
+        # plan amendment A-P3-20). It used to be a UTF-16 byte-order
+        # mark, which is a file the shipped READER refuses outright --
+        # and now that a zero-row description reaches its report through
+        # the reader like every other description, a file the reader
+        # refuses comes back as that refusal rather than as a report,
+        # exactly as it does on the ordinary path. So the edit is a
+        # single Latin-1 byte: a file that is not UTF-8, that the reader
+        # accepts through its documented fallback, and that leaves
+        # `bytes.utf8` a verdict to reach.
+        ("zero-not-utf8", "bytes.utf8", b"\xff" + text.encode("utf-8")[1:]),
         (
             "zero-nonempty",
             "bytes.zero-row-form",

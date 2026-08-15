@@ -1318,7 +1318,13 @@ def _functions_of(tree: ast.AST) -> "dict[str, ast.AST]":
 
 
 def _dotted(node: ast.AST) -> "tuple[str, ...]":
-    """The dotted path a call target spells, head first, or ()."""
+    """The dotted path a call target spells, head first, or ().
+
+    PLAIN NAMES ONLY, and that is what this one is for now: it says
+    whether an expression is something an alias may stand FOR. An alias
+    to a thing the walk cannot name is not an alias -- it is the hole
+    `_shape_of` reports below.
+    """
     if isinstance(node, ast.Name):
         return (node.id,)
     if isinstance(node, ast.Attribute):
@@ -1329,14 +1335,75 @@ def _dotted(node: ast.AST) -> "tuple[str, ...]":
     return ()
 
 
+# WHAT A CALL TARGET REDUCES TO WHEN IT IS NOT A DOTTED PATH (review
+# item P3-V7-F5). Each mark stands for one step the walk cannot see the
+# far side of, and `_complaint_about` below says what each one costs.
+# They are spelled so that no Python name can equal one, which is why a
+# mark can stand in the same tuple as a name without being mistaken for
+# one.
+_INDEXED = "[]"
+_RETURNED = "()"
+_UNREADABLE = "?"
+
+_MARKS = (_INDEXED, _RETURNED, _UNREADABLE)
+
+
+def _shape_of(node: ast.AST) -> "tuple[str, ...]":
+    """Every way a call target can be spelled, reduced to one shape.
+
+    TOTAL BY CONSTRUCTION, and that is round 7's repair (review item
+    P3-V7-F5). The version this replaces answered the empty tuple for
+    anything that was not a `Name` or an `Attribute`, and `_calls_in`
+    then DROPPED such a call -- so `readers = (float,); readers[0]("1")`
+    put a rounding reader inside the closure and the guard reported
+    nothing. A guard that exists because one finding came back three
+    times may not have a shape of call it cannot see.
+
+    So every expression answers something. A name answers itself, an
+    attribute answers its base plus its own name, and the three ways a
+    call target can stop being a name at all answer a MARK:
+
+    * `_INDEXED` -- the target was taken out of a container:
+      `readers[0]`, `{"r": float}["r"]`, `[float][0]`.
+    * `_RETURNED` -- the target is what another call handed back:
+      `getattr(parsing, "parse_number")(cell)`, `_chosen()(cell)`,
+      `functools.partial(float)(cell)`.
+    * `_UNREADABLE` -- everything else, which is where a lambda, a
+      conditional expression, a walrus, a comprehension and anything
+      written after this file was closed all land. This is the arm that
+      makes the function total: there is no expression it answers
+      nothing for.
+
+    A `Starred` and an `Await` are stepped THROUGH rather than marked:
+    neither changes what is being called, and treating them as opaque
+    would report a hole where there is none.
+    """
+    if isinstance(node, ast.Name):
+        return (node.id,)
+    if isinstance(node, ast.Attribute):
+        return _shape_of(node.value) + (node.attr,)
+    if isinstance(node, ast.Call):
+        return _shape_of(node.func) + (_RETURNED,)
+    if isinstance(node, ast.Subscript):
+        return _shape_of(node.value) + (_INDEXED,)
+    if isinstance(node, (ast.Starred, ast.Await)):
+        return _shape_of(node.value)
+    return (_UNREADABLE,)
+
+
 def _bindings_in(node: ast.AST) -> "dict[str, tuple[str, ...]]":
     """Every name this scope binds to another name, and to what.
 
-    Three shapes, and each is one of the three routes round 6's probes
+    Four shapes, and the first three are the routes round 6's probes
     walked past: `from m import a as b`, `import m as b`, and a plain
-    `b = a` or `b = m.a`. The value is the dotted path the alias stands
-    for, so resolving an alias is following this map until it stops
-    moving.
+    `b = a` or `b = m.a`. The fourth is the annotated form of the third
+    (`b: object = a`), which round 7 added with the rest of the
+    spellings. The value is the dotted path the alias stands for, so
+    resolving an alias is following this map until it stops moving.
+
+    A binding to something that is NOT a dotted path is not here: it is
+    in `_bound_to_nothing_readable` instead, which is where the walk
+    keeps the names it cannot follow.
     """
     bound: dict[str, tuple[str, ...]] = {}
     for inner in ast.walk(node):
@@ -1358,7 +1425,126 @@ def _bindings_in(node: ast.AST) -> "dict[str, tuple[str, ...]]":
             for target in inner.targets:
                 if isinstance(target, ast.Name):
                     bound[target.id] = path
+        elif isinstance(inner, ast.AnnAssign):
+            if inner.value is None or not isinstance(inner.target, ast.Name):
+                continue
+            path = _dotted(inner.value)
+            if path:
+                bound[inner.target.id] = path
     return bound
+
+
+def _names_bound_by(target: ast.AST) -> "list[str]":
+    """The names one assignment target binds, unpacking included.
+
+    Only names the statement REALLY binds: `holes[key] = 1` binds
+    nothing, and reading `key` out of it as though it did was the first
+    thing this rule got wrong.
+    """
+    if isinstance(target, ast.Name):
+        return [target.id]
+    if isinstance(target, (ast.Tuple, ast.List)):
+        found: list[str] = []
+        for item in target.elts:
+            found = found + _names_bound_by(item)
+        return found
+    if isinstance(target, ast.Starred):
+        return _names_bound_by(target.value)
+    return []
+
+
+def _bound_to_nothing_readable(
+    node: ast.AST, deep: bool
+) -> "dict[str, str]":
+    """Every name this scope binds to a thing the walk cannot name.
+
+    The other half of the totality (review item P3-V7-F5). A shape can
+    be a plain name and still be opaque: `reader = readers[0]` then
+    `reader(cell)` spells a bare name at the call, and the walk has no
+    idea what it holds. Every way of binding a name is collected here --
+    assignment, annotated assignment, augmented assignment, the walrus,
+    a loop variable, a comprehension variable, a `with ... as`, an
+    `except ... as`, and a PARAMETER, which is how a reader gets handed
+    in from outside -- and a name is left out only where what it is
+    bound to is a dotted path the walk can follow instead.
+
+    ``deep`` says whether to look inside nested statements. The walked
+    function is read deeply, because a name it binds anywhere is a name
+    it may call. Its module is read at the TOP LEVEL ONLY: reading a
+    module deeply would collect every local of every other function in
+    it, and `text = text.strip()` in one function would then be read as
+    a fact about the module's own `text`.
+    """
+    opaque: dict[str, str] = {}
+
+    def _record(names: "list[str]", how: str) -> None:
+        for name in names:
+            if name not in opaque:
+                opaque[name] = how
+
+    statements = ast.walk(node) if deep else _top_level_of(node)
+    for inner in statements:
+        if isinstance(inner, ast.Assign):
+            for target in inner.targets:
+                # A SINGLE NAME taking a dotted path is the one shape
+                # `_bindings_in` records as an alias, so it is the one
+                # shape left out here. `reader, other = _READERS` binds
+                # nothing there and is opaque, which is the correction
+                # this comment exists for.
+                if isinstance(target, ast.Name) and _dotted(inner.value):
+                    continue
+                _record(_names_bound_by(target), "an assignment")
+        elif isinstance(inner, ast.AnnAssign):
+            if (
+                isinstance(inner.target, ast.Name)
+                and inner.value is not None
+                and _dotted(inner.value)
+            ):
+                continue
+            _record(_names_bound_by(inner.target), "an annotated assignment")
+        elif isinstance(inner, ast.AugAssign):
+            _record(_names_bound_by(inner.target), "an augmented assignment")
+        elif isinstance(inner, ast.NamedExpr):
+            if _dotted(inner.value):
+                continue
+            _record(_names_bound_by(inner.target), "a walrus")
+        elif isinstance(inner, (ast.For, ast.AsyncFor)):
+            _record(_names_bound_by(inner.target), "a loop")
+        elif isinstance(inner, ast.comprehension):
+            _record(_names_bound_by(inner.target), "a comprehension")
+        elif isinstance(inner, ast.withitem):
+            if inner.optional_vars is not None:
+                _record(_names_bound_by(inner.optional_vars), "a with block")
+        elif isinstance(inner, ast.ExceptHandler):
+            if inner.name:
+                _record([inner.name], "a caught error")
+        elif isinstance(
+            inner, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)
+        ):
+            _record(_parameters_of(inner.args), "a parameter")
+    return opaque
+
+
+def _top_level_of(node: ast.AST) -> "list[ast.AST]":
+    """The statements of a module, without descending into any of them."""
+    if isinstance(node, ast.Module):
+        return list(node.body)
+    return []
+
+
+def _parameters_of(args: ast.arguments) -> "list[str]":
+    """Every parameter name of one signature, in every position."""
+    found = [
+        argument.arg
+        for argument in list(args.posonlyargs)
+        + list(args.args)
+        + list(args.kwonlyargs)
+    ]
+    if args.vararg is not None:
+        found = found + [args.vararg.arg]
+    if args.kwarg is not None:
+        found = found + [args.kwarg.arg]
+    return found
 
 
 def _resolved(
@@ -1375,11 +1561,13 @@ def _resolved(
 def _calls_in(
     node: ast.AST, bound: "dict[str, tuple[str, ...]]"
 ) -> "list[tuple[str, ...]]":
-    """Every call this function makes, as a resolved dotted path.
+    """Every call this function makes, as a resolved SHAPE.
 
-    The aliases of the enclosing module are handed in and the ones this
-    function binds itself are added on top, so a local `reader = float`
-    resolves the same way an imported one does.
+    EVERY call, which is round 7's repair: `_shape_of` is total, so
+    there is no longer a call this drops on the floor. The aliases of
+    the enclosing module are handed in and the ones this function binds
+    itself are added on top, so a local `reader = float` resolves the
+    same way an imported one does.
     """
     mine: dict[str, tuple[str, ...]] = {}
     for name in bound:
@@ -1389,9 +1577,7 @@ def _calls_in(
     named: list[tuple[str, ...]] = []
     for inner in ast.walk(node):
         if isinstance(inner, ast.Call):
-            path = _resolved(_dotted(inner.func), mine)
-            if path:
-                named = named + [path]
+            named = named + [_resolved(_shape_of(inner.func), mine)]
     return named
 
 
@@ -1408,6 +1594,163 @@ def _asks_a_rounding_reader(path: "tuple[str, ...]") -> str:
     for part in path:
         if part in _ROUNDING_READERS:
             return part
+    return ""
+
+
+def _is_a_dunder(part: str) -> bool:
+    """Whether this name is one of the language's own double-underscores."""
+    return part.startswith("__") and part.endswith("__") and len(part) > 4
+
+
+def _complaint_about(
+    shape: "tuple[str, ...]", opaque: "dict[str, str]", where: str
+) -> str:
+    """What is wrong with one call target, or "".
+
+    THE RULES, IN ORDER, AND WHAT EACH ONE COVERS. Together they are
+    total over the shapes `_shape_of` can answer: every shape either
+    names a rounding reader, carries a mark, ends in a dunder, is a bare
+    name the walk saw bound to something it cannot read, or is a dotted
+    path of plain names the walk goes on to follow.
+
+    1. A rounding reader ANYWHERE in the path -- round 6's rule, kept.
+    2. A target that IS a subscript. This is the round-7 witness:
+       `readers[0]("1")` calls whatever the container holds, and no
+       reading of the source says what that is.
+    3. A target the walk could not read at all -- a lambda, a
+       conditional, a walrus, anything the language grows later.
+    4. A target that is what another call HANDED BACK:
+       `getattr(parsing, "parse_number")(cell)` and `_chosen()(cell)`.
+    5. A target whose last step is a DUNDER. `reader.__call__(cell)`
+       is a call spelled as an attribute, and it is the one route
+       through a value the walk cannot name that it can still refuse by
+       shape.
+    6. A BARE NAME the walk saw bound to something it cannot read --
+       including a parameter, which is how a reader arrives from
+       outside. Only a bare name: `text.strip()` is a method on a value
+       and its head is a parameter in three shipped functions, so
+       refusing an opaque HEAD would report a hole where there is none.
+
+    WHY RULES 2, 3 AND 4 READ THE LAST STEP AND NOT THE WHOLE PATH, and
+    it is measured rather than chosen: `text[0].strip()` in
+    `parsing.classify_number` and `text.strip().casefold()` in
+    `parsing.folded` are both a METHOD ON A VALUE, which is the ordinary
+    way this package handles text, and a rule that refused a mark
+    anywhere in the path reported both. What these three refuse is a
+    call whose target is not named at all.
+
+    WHAT REMAINS OPEN, said here rather than found later: a rounding
+    reader reached as an ordinarily-named method of a value the walk
+    cannot name -- `_chosen().reads(cell)`, `readers[0].reads(cell)` --
+    is refused by none of these, because it has the shape of the honest
+    method calls just named. Telling those apart needs the types, which
+    this file does not have. Reaching it means adding a function whose
+    whole purpose is to hand a reader back under a name that is not one
+    of `_ROUNDING_READERS`, and the mention rule takes the plain
+    spellings of that.
+    """
+    reader = _asks_a_rounding_reader(shape)
+    if reader:
+        return (
+            f"{where} calls `{'.'.join(shape)}`, which asks `{reader}` -- "
+            f"a reader that answers in binary64. The producer decides "
+            f"the same question exactly, and two spellings a person can "
+            f"tell apart round to one value (review items P1-R8-F2 and "
+            f"P3-V4-F1)"
+        )
+    if shape[-1] == _INDEXED:
+        return (
+            f"{where} reaches what it calls THROUGH A SUBSCRIPT "
+            f"(`{'.'.join(shape)}`), so no reading of this source says "
+            f"which reader it is (review item P3-V7-F5)"
+        )
+    if shape[-1] == _UNREADABLE:
+        return (
+            f"{where} makes a call whose target this walk cannot read "
+            f"(`{'.'.join(shape)}`), so it cannot say the call asks no "
+            f"rounding reader (review item P3-V7-F5)"
+        )
+    if shape[-1] == _RETURNED:
+        return (
+            f"{where} calls what another call handed back "
+            f"(`{'.'.join(shape)}`), so which reader that is is decided "
+            f"where this walk cannot see it (review item P3-V7-F5)"
+        )
+    if _is_a_dunder(shape[-1]):
+        return (
+            f"{where} calls `{'.'.join(shape)}`, and a call spelled as a "
+            f"double-underscore attribute hides which reader it is "
+            f"(review item P3-V7-F5)"
+        )
+    if len(shape) == 1 and shape[0] in opaque:
+        return (
+            f"{where} calls `{shape[0]}`, which this scope binds by "
+            f"{opaque[shape[0]]} -- something the walk cannot follow to a "
+            f"reader (review item P3-V7-F5)"
+        )
+    return ""
+
+
+# The fields of the tree that hold a TYPE rather than a value. `int` is
+# the return of two shipped functions in the closure and the second
+# argument of one `isinstance`, and neither reads a number: what the
+# mention rule below is for is a reader used as a VALUE.
+_TYPE_FIELDS = ("annotation", "returns")
+_TYPE_TESTS = (("isinstance",), ("issubclass",))
+
+
+def _value_nodes(node: ast.AST) -> "list[ast.AST]":
+    """Every node of this function that stands where a VALUE stands.
+
+    Type annotations are stepped over, and so are the classes named to
+    `isinstance` and `issubclass`. Everything else is a place a rounding
+    reader would be doing something.
+    """
+    found: list[ast.AST] = []
+    frontier: list[ast.AST] = [node]
+    while frontier:
+        current = frontier[0]
+        frontier = frontier[1:]
+        found = found + [current]
+        skipped: list[int] = []
+        if (
+            isinstance(current, ast.Call)
+            and _shape_of(current.func) in _TYPE_TESTS
+        ):
+            skipped = [id(named) for named in current.args[1:]]
+        for field, value in ast.iter_fields(current):
+            if field in _TYPE_FIELDS:
+                continue
+            items = value if isinstance(value, list) else [value]
+            for item in items:
+                if isinstance(item, ast.AST) and id(item) not in skipped:
+                    frontier = frontier + [item]
+    return found
+
+
+def _mentions_a_rounding_reader(node: ast.AST) -> str:
+    """The rounding reader this function NAMES as a value, or "".
+
+    THE ROUTE THAT NEVER SPELLS A CALL AT ALL. `list(map(float, cells))`
+    reads every cell in binary64 and the only call written here is to
+    `map`; `functools.partial(float)` and `sorted(key=float)` do the
+    same. So the closure may not so much as name a rounding reader where
+    a value belongs, which is a rule about mentions rather than about
+    calls and needs no guess about what the mentioning code does with
+    it.
+
+    A reader named where a TYPE belongs is left alone -- `-> int`,
+    `code: int`, `isinstance(value, int)` -- because none of those reads
+    anything, and three shipped functions of the closure carry one.
+    """
+    for current in _value_nodes(node):
+        if isinstance(current, ast.Name) and current.id in _ROUNDING_READERS:
+            return current.id
+        if (
+            isinstance(current, ast.Attribute)
+            and current.attr in _ROUNDING_READERS
+        ):
+            return current.attr
     return ""
 
 
@@ -1440,31 +1783,37 @@ def _the_closure_of(
     reached: dict[tuple[str, str], int] = {start: 1}
     frontier = [start]
     exact_asked = 0
+    at_module: dict[str, dict[str, str]] = {}
+    for module_name in trees:
+        at_module[module_name] = _bound_to_nothing_readable(
+            trees[module_name], False
+        )
     while frontier:
         module_name, name = frontier[0]
         frontier = frontier[1:]
-        for path in _calls_in(
-            functions[module_name][name], bindings[module_name]
-        ):
-            reader = _asks_a_rounding_reader(path)
-            if reader:
-                complaint = (
-                    f"`{module_name}.{name}` is in the closure of the "
-                    f"rule that decides which cells the file's own "
-                    f"description reads, and it calls "
-                    f"`{'.'.join(path)}`, which asks `{reader}` -- a "
-                    f"reader that answers in binary64. The producer "
-                    f"decides the same question exactly, and two "
-                    f"spellings a person can tell apart round to one "
-                    f"value (review items P1-R8-F2 and P3-V4-F1)"
-                )
+        body = functions[module_name][name]
+        where = (
+            f"`{module_name}.{name}` is in the closure of the rule that "
+            f"decides which cells the file's own description reads, and it"
+        )
+        opaque: dict[str, str] = {}
+        for bound_name in at_module[module_name]:
+            opaque[bound_name] = at_module[module_name][bound_name]
+        deep = _bound_to_nothing_readable(body, True)
+        for bound_name in deep:
+            opaque[bound_name] = deep[bound_name]
+        for path in _calls_in(body, bindings[module_name]):
+            complaint = _complaint_about(path, opaque, where)
+            if complaint:
                 return (complaint, exact_asked, reached)
             if path[-1] in _THE_EXACT_IDENTITY:
                 exact_asked = exact_asked + 1
                 continue
             # Where the call lands, if it lands anywhere the walk can
             # read: a bare name in this module, or a function of another
-            # shipped module reached through its import name.
+            # shipped module reached through its import name. Every path
+            # that reaches here is plain names throughout, because every
+            # shape carrying a mark was refused above.
             landed: tuple[str, str] | None = None
             crosses = len(path) > 1 and path[-2] in functions
             if len(path) == 1 and path[0] in functions[module_name]:
@@ -1474,6 +1823,16 @@ def _the_closure_of(
             if landed is not None and landed not in reached:
                 reached[landed] = 1
                 frontier = frontier + [landed]
+        named = _mentions_a_rounding_reader(body)
+        if named:
+            mentions = (
+                f"{where} names `{named}` where a value belongs. A reader "
+                f"that answers in binary64 does not have to be CALLED "
+                f"here to read this closure's cells -- `map({named}, "
+                f"cells)` hands it every one of them (review item "
+                f"P3-V7-F5)"
+            )
+            return (mentions, exact_asked, reached)
     return ("", exact_asked, reached)
 
 
@@ -1528,10 +1887,18 @@ def test_the_hole_rule_asks_no_rounding_reader() -> None:
     )
 
 
-# The three routes round 6's probes took past the version of this guard
-# that read one module and compared terminal names. Each is a whole
-# `validation` module, so the walk starts where it really starts and the
-# probe is the only thing it finds.
+# EVERY WAY OF SPELLING THE CALL THAT THIS GUARD HAS BEEN SHOWN. Each
+# entry is a whole `validation` module, so the walk starts where it
+# really starts and the probe is the only thing it finds; each carries
+# the words its complaint has to contain, so a probe cannot be satisfied
+# by the walk complaining about something else.
+#
+# The first six are round 6's, and are the routes past the version that
+# read one module and compared terminal names. The rest are round 7's
+# (review item P3-V7-F5), and they are the ways a call can be spelled
+# that `_dotted` answered nothing for -- every one of which the walk
+# then DROPPED. The witness the review wrote is `through-a-subscript`.
+_ROUNDS = "a reader that answers in binary64"
 _PROBES = {
     "an-attribute-of-the-reader": (
         "from synthtwin.parsing import parse_number\n"
@@ -1574,27 +1941,147 @@ _PROBES = {
         "def _cells_that_description_reads(block, cells, kept, declared):\n"
         "    return _reads_it(cells[0])\n"
     ),
+    # ROUND 7's WITNESS, exactly as the review wrote it.
+    "through-a-subscript": (
+        "def _cells_that_description_reads(block, cells, kept, declared):\n"
+        "    readers = (float,)\n"
+        '    if readers[0]("1"):\n'
+        "        return []\n"
+        "    return cells\n"
+    ),
+    # ...and the same route with the container out of the closure's
+    # sight, so that the SHAPE rule is what fires and not the mention
+    # rule beside it.
+    "out-of-a-table-defined-elsewhere": (
+        "def _cells_that_description_reads(block, cells, kept, declared):\n"
+        '    return _READERS["exact"](cells[0])\n'
+    ),
+    "what-a-call-handed-back": (
+        "def _cells_that_description_reads(block, cells, kept, declared):\n"
+        "    return _chosen_reader()(cells[0])\n"
+    ),
+    "reached-by-a-written-out-name": (
+        "from synthtwin import parsing\n"
+        "\n"
+        "\n"
+        "def _cells_that_description_reads(block, cells, kept, declared):\n"
+        '    return getattr(parsing, "parse_number")(cells[0])\n'
+    ),
+    "chosen-by-a-condition": (
+        "def _cells_that_description_reads(block, cells, kept, declared):\n"
+        "    return (_exact if kept else _rounded)(cells[0])\n"
+    ),
+    "a-reader-a-walrus-named": (
+        "def _cells_that_description_reads(block, cells, kept, declared):\n"
+        "    return (reader := _rounded)(cells[0])\n"
+    ),
+    "behind-a-double-underscore": (
+        "def _cells_that_description_reads(block, cells, kept, declared):\n"
+        "    reader = _READERS[0]\n"
+        "    return reader.__call__(cells[0])\n"
+    ),
+    "handed-in-as-a-parameter": (
+        "def _reads_it(reader, cell):\n"
+        "    return reader(cell)\n"
+        "\n"
+        "\n"
+        "def _cells_that_description_reads(block, cells, kept, declared):\n"
+        "    return _reads_it(_chosen_reader, cells[0])\n"
+    ),
+    "bound-by-a-loop": (
+        "def _cells_that_description_reads(block, cells, kept, declared):\n"
+        "    for reader in _READERS:\n"
+        "        if reader(cells[0]):\n"
+        "            return []\n"
+        "    return cells\n"
+    ),
+    "bound-by-unpacking": (
+        "def _cells_that_description_reads(block, cells, kept, declared):\n"
+        "    reader, other = _READERS\n"
+        "    return reader(cells[0])\n"
+    ),
+    "bound-by-a-comprehension": (
+        "def _cells_that_description_reads(block, cells, kept, declared):\n"
+        "    return [reader(cells[0]) for reader in _READERS]\n"
+    ),
+    # ...and the two that never spell a call on the reader at all.
+    "handed-to-something-that-calls-it": (
+        "def _cells_that_description_reads(block, cells, kept, declared):\n"
+        "    return list(map(float, cells))\n"
+    ),
+    "kept-in-a-table-of-readers": (
+        "from synthtwin.parsing import parse_number\n"
+        "\n"
+        "\n"
+        "def _cells_that_description_reads(block, cells, kept, declared):\n"
+        '    readers = {"exact": parse_number}\n'
+        "    return _apply(readers, cells)\n"
+    ),
+    # An annotated alias, which is the one binding shape `_bindings_in`
+    # did not read before round 7.
+    "an-annotated-alias": (
+        "def _cells_that_description_reads(block, cells, kept, declared):\n"
+        "    reader: object = int\n"
+        "    return reader(cells[0])\n"
+    ),
+}
+
+
+# The words each probe's complaint has to contain -- kept beside the
+# probes rather than inside them, so that what a route is FOR is one
+# lookup and not a tuple position.
+_EXPECTED = {
+    "an-attribute-of-the-reader": _ROUNDS,
+    "a-helper-in-another-shipped-module": _ROUNDS,
+    "a-local-alias": _ROUNDS,
+    "a-module-level-alias": _ROUNDS,
+    "a-renamed-import": _ROUNDS,
+    "one-helper-away": _ROUNDS,
+    "through-a-subscript": "THROUGH A SUBSCRIPT",
+    "out-of-a-table-defined-elsewhere": "THROUGH A SUBSCRIPT",
+    "what-a-call-handed-back": "calls what another call handed back",
+    "reached-by-a-written-out-name": "calls what another call handed back",
+    "chosen-by-a-condition": "cannot read",
+    "a-reader-a-walrus-named": "cannot read",
+    "behind-a-double-underscore": "double-underscore attribute",
+    "handed-in-as-a-parameter": "a parameter",
+    "bound-by-a-loop": "a loop",
+    "bound-by-unpacking": "an assignment",
+    "bound-by-a-comprehension": "a comprehension",
+    "handed-to-something-that-calls-it": "names `float` where a value belongs",
+    "kept-in-a-table-of-readers": "names `parse_number` where a value belongs",
+    "an-annotated-alias": _ROUNDS,
 }
 
 
 @pytest.mark.parametrize("route", sorted(_PROBES))
 def test_the_guard_catches_each_route_that_walked_past_it(route: str) -> None:
-    """The guard's own teeth, one route per case (review round 6).
+    """The guard's own teeth, one route per case (rounds 6 and 7).
 
     A guard is a claim, and a claim nobody made fail is a claim nobody
     checked. Round 6 did not argue that the walk was imperfect; it
-    showed three writings of the defect the walk called clean. Each of
-    those, and three more of the same shape, is put through the SAME
-    machinery here with a doctored `validation` module in place of the
-    real one -- so what is asserted is that the walk complains, not that
-    somebody remembered to widen a list.
+    showed three writings of the defect the walk called clean. Round 7
+    did it again with a fourth (`through-a-subscript`). Each of those,
+    and every other spelling of a call this file has been shown, is put
+    through the SAME machinery here with a doctored `validation` module
+    in place of the real one -- so what is asserted is that the walk
+    complains, not that somebody remembered to widen a list.
 
-    SAID PLAINLY: FIVE OF THE SIX ARE NEW. The old walk called
-    `an-attribute-of-the-reader`, `a-helper-in-another-shipped-module`,
-    `a-local-alias`, `a-module-level-alias` and `a-renamed-import`
-    clean; it already caught `one-helper-away`, which is here because a
-    widening that lost the case the old walk DID hold would be a repair
-    that broke something to fix something.
+    AND THE COMPLAINT HAS TO BE THE RIGHT ONE. `_EXPECTED` carries the
+    words each route's complaint must contain. Without that, a walk that
+    complained about the first thing it saw in every doctored module
+    would pass this whole battery while covering one route.
+
+    SAID PLAINLY: FIVE OF THE FIRST SIX WERE NEW IN ROUND 6. The old
+    walk called `an-attribute-of-the-reader`,
+    `a-helper-in-another-shipped-module`, `a-local-alias`,
+    `a-module-level-alias` and `a-renamed-import` clean; it already
+    caught `one-helper-away`, which is here because a widening that lost
+    the case the old walk DID hold would be a repair that broke
+    something to fix something. THE OTHER THIRTEEN ARE ROUND 7's, and
+    every one of them was called clean by the round-6 walk: `_dotted`
+    answered the empty tuple for the target and `_calls_in` dropped the
+    call on the floor.
 
     The helper-in-another-module probe stands on a real shipped function
     (`parsing.classify_number`) rather than an invented one: crossing
@@ -1607,3 +2094,43 @@ def test_the_guard_catches_each_route_that_walked_past_it(route: str) -> None:
         f"the walk called `{route}` clean, so this guard is not the "
         f"closure it says it is"
     )
+    assert _EXPECTED[route] in complaint, (
+        f"the walk complained about `{route}`, but about something else: "
+        f"it should have said {_EXPECTED[route]!r} and said "
+        f"{complaint!r}"
+    )
+
+
+def test_every_rule_of_the_walk_is_reached_by_a_probe() -> None:
+    """No rule of the battery may be one nothing ever fires.
+
+    `_complaint_about` decides six things and the mention rule a
+    seventh, and a rule no probe reaches is a rule that could be deleted
+    without turning anything red -- which is the state round 7 found the
+    subscript arm in, except that the arm did not exist. So the
+    complaints the probes actually produce are collected and every one
+    of the seven has to be among them.
+    """
+    assert sorted(_EXPECTED) == sorted(_PROBES), (
+        "a probe has no words its complaint must contain, or a set of "
+        "words has no probe: the two tables are one table in two halves"
+    )
+    said: list[str] = []
+    for route in sorted(_PROBES):
+        trees = _shipped_trees()
+        trees["validation"] = ast.parse(_PROBES[route])
+        complaint, _asked, _reached = _the_closure_of(trees)
+        said = said + [complaint]
+    for rule in (
+        _ROUNDS,
+        "THROUGH A SUBSCRIPT",
+        "cannot read",
+        "calls what another call handed back",
+        "double-underscore attribute",
+        "which this scope binds by",
+        "where a value belongs",
+    ):
+        assert any(rule in complaint for complaint in said), (
+            f"no probe in this file makes the walk say {rule!r}, so that "
+            f"rule of the closure is asserting nothing"
+        )
