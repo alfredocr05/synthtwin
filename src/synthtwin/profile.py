@@ -817,6 +817,47 @@ def _is_sentence(value: object) -> bool:
     return f"{value}" == taxonomy.rendered(value.form, value.arguments)
 
 
+def _remainder_is_published(
+    value: object, key: str, context: _Publication
+) -> bool:
+    """Whether a pooled remainder may stand here at this floor.
+
+    THE POOLED REMAINDER IS FOUND BY THE WORD IT STANDS UNDER, NOT BY
+    THE FIELD IT SITS IN (amendment A-P3-22, review item P3-V7-F6).
+    `(withheld)` is the format's one word for "held back" (contract
+    section 14), and the range the floor holds back is empty at a floor
+    of one -- so a positive count standing under that word anywhere in
+    the document is a document the strict loader's invariant S13
+    refuses, and the guard that decides what may be WRITTEN has to say
+    the same thing at the same reach.
+
+    Amendment A-P3-16 clause 2 gave this rule to the three fields whose
+    own kind is `_FLOORED_ENTRY` and left the fourth -- a
+    `missing_by_class` count, whose kind is the generic `_COUNT` --
+    accepting any number at any floor. That is the shape of the defect
+    A-P3-16 clause 1 was written to stop: each field WAS checked where
+    it was written, and one check did not know about the remainder. This
+    runs before the leaf's own kind is consulted and independently of
+    it, so a fifth field putting a count under that word is covered on
+    the commit that adds it.
+
+    Guarantees:
+
+    - Inputs: the leaf, the mapping key it stands under (empty when it
+      stands under none), and what the guard knows about the document.
+    - Determinism: the answer depends only on those three.
+    - Errors raised: none.
+    - Boundary: nothing is opened and no value is written anywhere.
+      A leaf that is not a count under that word is left to its own
+      rule, which is why this answers True for everything else.
+    """
+    if key != parsing.MISSING_WITHHELD:
+        return True
+    if isinstance(value, bool) or not isinstance(value, int):
+        return True
+    return value <= 0 or context.floor > 1
+
+
 def _leaf_is_published(
     kind: str, value: object, key: str, context: _Publication
 ) -> bool:
@@ -832,6 +873,8 @@ def _leaf_is_published(
       taught this function refuses the leaf rather than passing it.
     - Boundary: nothing is opened and no value is written anywhere.
     """
+    if not _remainder_is_published(value, key, context):
+        return False
     if kind == _COUNT:
         return _is_count(value)
     if kind == _FLOOR_COUNT:

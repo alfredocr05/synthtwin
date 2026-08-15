@@ -168,14 +168,16 @@ and all three are recovered:
 **V2.3-A1 And a FOURTH published route, for the other declaration**
 (2026-08-14, review item P3-V4-F1; the plan's amendment A-P3-15 clause 1
 is the ruling and this follows it). What the person named as "no value"
-is published too, and by a route of exactly the same kind: a column's
-`missing_by_source` carries the exact spelling of every hole whose count
-reaches `small_cell_floor`. So
+is published too, and by a route of nearly the same kind: a column's
+`missing_by_source` carries the spelling of every hole whose count
+reaches `small_cell_floor` ~~exactly~~ **— as a report SHOWS it, which
+is not the same thing and is corrected by V2.3-A2 below**. So
 
 - every key of every published `missing_by_source` that is not one of
   this package's own placeholder names, not a spelling the built-in
-  table already reads as an absence, and not a spelling that reads as
-  one of the three numeric stand-ins, is recovered into
+  table already reads as an absence, not a spelling that reads as
+  one of the three numeric stand-ins, **and not one the display
+  boundary could have altered (V2.3-A2)**, is recovered into
   `declared_missing_values`, at the producer's own declaration-matching
   identity.
 
@@ -186,11 +188,51 @@ a numeric stand-in the column's own verdict turned down. The three
 exclusions above are the other three, each recognisable from the
 description alone, so what is left can only be a declaration.
 
+**V2.3-A2 The field is DISPLAY-ESCAPED and REPORT-ONLY, so the fourth
+route reaches only what the boundary cannot alter** (2026-08-15, review
+item P3-V7-F1; the plan's amendment A-P3-19 is the ruling and this
+follows it). V2.3-A1 called `missing_by_source` the exact spelling. The
+profile contract says the opposite in terms — section 5.4 makes its keys
+the spelling "after passing through the display boundary that escapes
+line, control and bidirectional formatting characters", and decision
+13.5 draws the difference from `variants` deliberately, because a
+variant is written back into a cell and a missing source is only ever
+read.
+
+**That boundary is not one-to-one, and the consequence is not a matter
+of detail.** Seventy-two rows whose holes are spelled `X`, U+0001, `Y`
+publish the key `X\x01Y`; so do seventy-two rows whose holes are spelled
+with those six printable characters. The two whole descriptions come out
+BYTE FOR BYTE ALIKE, so nothing this method may read tells them apart.
+Reading the key as exact cost a verdict in both directions: the
+control-character table missed seven obligations against its own
+profile, and a file wearing the printable spelling PASSED against the
+control-character table's description, with a census of zero missed,
+although `synthtwin profile` under that description's own declaration
+reads that file as free text with 72 present cells and no holes.
+
+**So a key is recovered only where the boundary provably left it
+alone.** The test is decidable from the key: no substring of it is a
+form the boundary itself writes. Every text holding a display control
+shows as a key containing such a form, so a key holding none has exactly
+one reading, which is the key. A key holding one has at least two, and
+this method does not guess between them.
+
+**And matching the DISPLAYED form instead is refused, at the reason.**
+Such a rule passes both tables above, and it is exactly what produces
+the passing report: it re-describes the other file as the one the
+description asks for. Any rule that passes the first passes the second —
+V2.4-A4 clause 3's own reasoning about the kept-`n/a` gap, reached again
+from the other declaration — and a report that hides a miss is worse
+than one that states a miss it should not.
+
 **What this route does NOT reach, stated at its size.** A declaration
 whose cells sit below the publication floor in every column is pooled
-into `(withheld)` and published nowhere, and a declared value that IS
-one of the three stand-ins cannot be told from the sentinel rule's own
-judgment. Both are left unrecovered and both are named in V2.4-A4 below
+into `(withheld)` and published nowhere; a declared value that IS one of
+the three stand-ins cannot be told from the sentinel rule's own
+judgment; and a declaration whose spelling holds a character the display
+boundary shows is published only in its shown form and is not recovered.
+All three are left unrecovered and all three are named in V2.4-A4 below
 with what they cost.
 
 **V2.4 And the kept set governs only what PRINTS, never a verdict.** On
@@ -373,8 +415,8 @@ a declared spelling, it is bounded by the cells wearing it, and it is
 recorded here rather than found.
 
 **Clause 3 — what is still open, and why it does not close here. THIS
-CLOSES NOTHING AND CLAIMS NOTHING.** Two gaps remain and both are
-unrecoverable from what the contract publishes:
+CLOSES NOTHING AND CLAIMS NOTHING.** ~~Two~~ **Three** gaps remain and
+all of them are unrecoverable from what the contract publishes:
 
 - a `--keep-value` spelling that is one of the built-in missing texts,
   on a column that publishes no level carrying it — a column of numbers,
@@ -383,7 +425,18 @@ unrecoverable from what the contract publishes:
   `presence.n_present`, `presence.n_missing`, `counts.n_not_numeric`,
   `counts.n_left_out_of_statistics` and `counts.numeric_share` MISSED;
 - a declaration of either kind whose cells sit below `small_cell_floor`
-  in every column, pooled into `(withheld)` and named nowhere.
+  in every column, pooled into `(withheld)` and named nowhere;
+- **a `--missing-value` spelling holding a character the display
+  boundary shows** (added 2026-08-15, review item P3-V7-F1; the plan's
+  amendment A-P3-19 is the ruling). `missing_by_source` publishes it in
+  its shown form, two different spellings can share that form, and the
+  two whole descriptions come out byte for byte alike. The table it was
+  written from reports `presence.n_present`, `presence.n_missing`,
+  `axes.role`, `axes.statistical_type`, `counts.n_not_numeric` and both
+  distinctness counts MISSED — seven, the same seven V2.3-A1 took off
+  the plain-marker table, given back on this class alone. What closing
+  it needs is the same kind of decision the other two need: a change to
+  what the profile publishes, not an edit to this module.
 
 **And reading the split anyway is not the answer, which is why this is
 a ruling and not a repair.** Two hundred readings and one `n/a`, beside
@@ -528,6 +581,42 @@ way, and the plan amendment states each as a lowering:
   not below the description's own row count, so the ceiling licenses
   every cell a file of that length can carry.
 
+**V3.5-A1 Two more are decided that way, and the count above is now
+six** (2026-08-15, review item P3-V7-F4; the plan's amendment A-P3-18
+clauses 3 and 4 are the ruling and this follows it). Both were found by
+the corner comparison V4.2-A1 builds, and each is the same shape as the
+four above — an obligation the description itself empties:
+
+- `distinct.n_distinct` and `distinct.n_distinct_folded`, where the
+  spelling envelope V4.1 draws reaches from ONE value up to every
+  present cell. Forced integers under a single `plain` key are the
+  case: all the plain cells together supply one identity, so a column
+  that has collapsed onto one repeated value lands inside the bar and
+  so does every count above it;
+- `offsets.earliest` and `offsets.latest`, where the publication floor
+  held that END's own offset back and the description publishes the
+  withheld label in its place. The description then names no offset for
+  that end, and the comparison that stood asked whether the measured
+  file's OWN floor had suppressed the same end — a fact about how many
+  rows shared an offset rather than about the file's dates.
+
+**V3.5-A2 And a count the description names only PART of is a window,
+not a point** (2026-08-15, review item P3-V7-F2's battery; the plan's
+amendment A-P3-18 clause 4 is the ruling and this follows it). The
+publication floor pools every numeric form fewer cells wear than the
+floor into one withheld key and publishes no count for any of them, so
+a cell in that pool has no published form at all and a twin of that
+description may give it any form the description permits — `plain`
+among them. `styles.published.<form>` therefore owes AT LEAST the
+published count and AT MOST that count plus the pool, wherever the pool
+is not empty. The exact comparison that stood here refused the shipped
+generator's own twin — eleven plain cells published, forty-five written
+— on every description of the corner battery whose style map the floor
+had pooled. Where the pool IS empty the count is exact, which is the
+ordinary case and unchanged, and the window keeps its teeth in the
+direction that matters: the published cells are owed, so a file writing
+fewer of the named form than the description names still MISSES.
+
 **And the partition is total the other way too**: an entry the
 description leaves falsifiable stays an executable subcheck, and the
 same fact is a check on one column and a listing on another where the
@@ -586,17 +675,89 @@ unrelated to the number of G12 refusals, which method G12 fixes):
   and the three checks it took off a column let a file whose
   identifiers had collapsed to one repeated value receive a passing
   report.
+
+  **The domain is the FAMILY's above one character too, and a band is
+  asked whether it can cover its own cells** (review item P3-V7-F2,
+  plan amendment A-P3-18 clause 1). The rule above was written for the
+  one-character families and left the wider ones counted as strings of
+  the band's alphabet under G9.1's positional rules alone — 8,460
+  two-character values in the widest band against the 2,538 its own
+  family holds — so a producer-derived column of 2,539 such values was
+  called feasible while the construction necessarily repeated. What is
+  counted is the families G9.6 actually writes those cells from: the
+  band's ordinary-text walk, and the ordinary-number family of G9.5
+  step 3 where the description gives the numbers class a cell. A class
+  the description gives no cell to writes nothing; a column publishing
+  cells too large to hold or notations that conflict with themselves is
+  given a supply nothing can exceed, since this document does not count
+  those widths and keeping its three checks is the cheaper error.
+  **And the three bands falling short TOGETHER is not the only way to
+  fall short**: a band answering for `cells` of them needs at least
+  `ceil(cells / widest group)` different spellings, which is G9.4's own
+  sentence and the same one the free-text refusal reads, and where its
+  own domain cannot supply that many no packing of the other two
+  repairs it. The summed reach can miss that, because it lets the
+  smallest published groups answer for every band at once.
 - **datetime-offsets-withheld** (P2-D9): a datetime column whose
   `utc_offsets` map is the single `(withheld)` key. Then `utc_offsets`,
   both endpoint offsets and `datetimes_read_at` are REPORT-ONLY, and
-  the two ends are not.
+  the two ends are not. **A map naming real offsets whose own earliest
+  or latest END is withheld is a different shape and not this corner**:
+  it is V3.5-A1's listing for that one endpoint, and every offset the
+  description does name is still checked.
 - **label-variants-short** (P2-D6): a label column whose published
-  variants and withheld-variant multiset together cannot supply the
-  published raw `n_distinct`. Then raw `n_distinct` falls to the G12.7
-  envelope.
+  variants and withheld-variant multiset do not settle the published raw
+  `n_distinct`. Then raw `n_distinct` falls to the G12.7 envelope.
+
+  **A withheld-variant KEY is an occurrence count and its VALUE is how
+  many spellings covered that many rows each** (review item P3-V7-F3,
+  plan amendment A-P3-18 clause 2), so the rows such an entry covers are
+  `key x value`, exactly as G12.7 writes it. Adding the value alone
+  makes a level its withheld variants covered exactly look short, which
+  invents one more spelling for it and puts the EXACT bar on a count the
+  construction cannot reach. `S` is settled by the published level
+  blocks alone, so both writings compute the same number and the suite
+  compares them directly.
 - **numeric-spellings-short** (P2-D6): a numeric column whose permitted
-  spellings cannot reach the published raw or folded distinctness. Then
+  spellings do not settle the published raw or folded distinctness. Then
   those fall to the G12.8 envelope.
+
+  **The envelope is two-sided and the corner is asked in both
+  directions** (review item P3-V7-F4, plan amendment A-P3-18 clause 2).
+  G12.8 fixes `min(supply, n_distinct) <= n_distinct(twin) <=
+  max(supply, n_distinct)`, so a column whose own permitted spellings
+  force MORE identities than it publishes owes the envelope exactly as
+  one that falls short does. Asking only whether the supply fell short
+  put the exact bar on a floored style map naming fifteen leading-zero
+  cells against nine published values, and reported the shipped
+  generator's own twin MISSED.
+
+  **And the supply this document can compute is a PAIR, not a number**
+  (A-P3-18 clause 5). G12.8's supply is a property of the twin's
+  finished cells: each (value, style) group of the numbers class
+  supplies one spelling where the style is `plain` and its own cell
+  count otherwise. The published style map fixes the second half exactly
+  and says nothing about the first — how many different VALUES the plain
+  cells carry is decided by the value construction of G5 and G7, which
+  V1.4 keeps out of this module and which this document does not
+  rewrite. So a FLOOR is taken, where all the plain cells carry one
+  value between them, and a CEILING, where each carries its own and no
+  more of them than the published count of different values; a withheld
+  style count is not a style and is counted with the plain cells at the
+  floor and at its own cell count at the ceiling. **The envelope this
+  method draws therefore HOLDS the generation report's and does not
+  equal it**, and no sentence here may say otherwise until that
+  construction is written out.
+
+**And a corner's envelope that admits every count is a LISTING** (V3.4,
+V3.5, and A-P3-18 clause 3). Where the floor above reaches one value and
+the ceiling reaches every present cell — forced integers under a single
+`plain` key are the case — the bar licenses a column that has collapsed
+onto one repeated value and every count between that and the whole
+column. Such an entry is not a check that happens to be generous; it is
+a check that cannot fail, which V3.4 forbids by name, so it is a listing
+with one sentence saying why and the census counts it where it counts
+every obligation nothing in a CSV settles.
 
 **V4.2 The classifier is written from this document, not imported.**
 The generator decides the same question from its own text, and the two
@@ -621,8 +782,48 @@ corner survived a green suite. It is now asserted directly for
 `identifier-infeasible` against the shipped generator's own cells, over
 a battery reaching all three bands, both whole-number readings and four
 capacity boundaries taken from both sides. **For the other three
-corners the reverse direction is still unasserted**, and no sentence
-here may say otherwise until it is.
+corners the reverse direction was still unasserted when this paragraph
+was written**, and V4.2-A1 below is what closed it; nothing above may be
+read as having claimed it earlier.
+
+**V4.2-A1 The comparison is now BUILT, over every corner, and here is
+what it asks and what it reaches** (2026-08-15, review items P3-V7-F2,
+F3 and F4; the plan's amendment A-P3-18 is the ruling and this follows
+it). Patching the corners one at a time is what failed: the repair the
+paragraph above records introduced two of the three round 7 recorded,
+all three of one shape — the validator's independent arithmetic disagrees
+with the generator's, and the validator rejects or mis-classifies files
+THE SHIPPED GENERATOR ITSELF WRITES. So the comparison is built, in
+`tests/test_p3v7f2_corner_parity.py`, over a producer-built space of 219
+descriptions reaching all four corners, and it asks four questions:
+
+- **the shipped generator's own twin is measured by the shipped
+  validator**, and no fact a corner governs may be MISSED where the
+  GENERATION REPORT's own account says the twin holds it — exactly, or
+  inside the envelope the ratified plan authorizes. An approximation
+  OVERRIDES a deviation in that reading, because the generator files
+  both for a fact it could not meet exactly but whose authorized bound
+  its own cells landed inside, and such a twin is conforming;
+- **where no corner is claimed, the two writings must agree that the
+  description PINS the count**: this method puts the exact bar there,
+  and the generation report says the same thing in the only words it
+  has — the two ends of the bound it prints for that fact meet on the
+  published number;
+- **the identifier supply is compared family by family**, by walking
+  the shipped generator's own index map and counting the spellings it
+  actually writes, at every band and both whole-number readings;
+- **and every distinctness bar the space prints must be one some file
+  can miss**, shown by BUILDING those files rather than by argument.
+
+**What it does not reach, at its real width.** The first question is
+only as strong as the generation report is honest: a fact the generator
+neither meets nor mentions is invisible to it. The third walks each
+family's index map, which is affordable at one and two characters and
+truncated above that, so wider families are compared at their published
+arithmetic and not by enumeration. And on a column of NUMBERS the two
+envelopes are compared by CONTAINMENT rather than equality, for the
+reason V4.1 gives: this method can bound G12.8's supply from both sides
+and cannot compute it without the value construction of G5 and G7.
 
 **V4.3 The G12 refusals are NOT corners.** They refuse GENERATION,
 so no conforming twin exists for such a profile at all. A validate run
@@ -743,6 +944,30 @@ forms and this one accepts them — so withholding would leave V6.4's
 byte form unable to HOLD on any file at all and would take V6.4-A1's
 repair with it. The residual that leaves open is stated at its size in
 the plan's amendment rather than left to be found.
+
+**V5.1-A1.2 And that stopping place is reached THROUGH the reader, not
+around it** (2026-08-15, review item P3-V4-F3 carried; the plan's
+amendment A-P3-20 is the ruling and this follows it). V5.1-A1.1 made the
+reader's own refusal choose the report so that two files the producer
+refuses with one sentence cannot reach two reports. A zero-row
+description reached none of that: the branch on the published row count
+RETURNED before the reader was called, and the report was built on a
+walk of the file's characters. Against a headed zero-row description,
+`column_1` over `1,2` and `other` over `1,2` are one ragged refusal to
+the producer and drew 8 HELD / 1 MISSED against 5 HELD / 4 MISSED, and
+`header.names` reported HELD about a file no reading of which finishes.
+
+**So the degenerate report has exactly two routes and the reader has
+spoken on both.** Its own NO-DATA refusal, which is what the conforming
+file draws, and a reading that finished, which is a file holding rows
+against a description asking for none. Every other refusal reaches the
+report or the refusal that word chooses, exactly as it does against a
+description publishing rows. The header line is still read out of the
+file's own characters on the no-data route, because the reader refuses
+before it hands any name back and there is nowhere else to get one —
+but that reading no longer chooses anything, and the residual it leaves
+is the one the plan's amendment A-P3-7 clause 3 already rules on, at the
+size stated there.
 
 **V5.2 Why the submitted profile's floor is not the envelope.** The
 producer routes a two-valued numeric-looking column to a label role
@@ -1111,6 +1336,15 @@ either input; and memory exhaustion.
 values** — which column, which row — wherever the profiler's own form
 would quote measured content. On this path the file may not be the
 person's own table, and refusal text travels as freely as a report does.
+
+**And every one of them is a catalog entry** (plan amendment A-P3-23,
+review item P3-V7-F7). The G12 message was built privately inside the
+validator, so the catalog's rules about what a sentence a person reads
+must contain did not reach it and no test pinned its shape. It is
+`errors.no_twin_of_this_description_exists` now, held to the same rules
+as every other refusal, pinned clause by clause for each of the four
+names method G12 fixes, and reached by running `synthtwin validate` on
+a description the shipped producer wrote.
 
 A structural mismatch is NOT a refusal: a wrong column count or a wrong
 name is a MISSED verdict with a plain explanation, because the report is

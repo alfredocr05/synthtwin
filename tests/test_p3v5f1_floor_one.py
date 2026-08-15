@@ -55,6 +55,7 @@ and the prose positions are pinned, so a new COUNT cannot arrive
 disguised as one.
 """
 
+import copy
 import json
 import pathlib
 
@@ -176,6 +177,58 @@ def _graft(strict: dict, loose: dict, where: tuple) -> dict:
     assert isinstance(target, (dict, list))
     target[where[-1]] = json.loads(json.dumps(source))  # type: ignore[index]
     return made
+
+
+def _grafted_alive(strict: dict, loose: dict, where: tuple) -> dict:
+    """The same graft, in the form the PRODUCER's own guard reads.
+
+    `_graft` sends the document through JSON, which is what the loader
+    takes and is exactly wrong for the other half: the publication guard
+    runs BEFORE serialization, on a document whose sentences are still
+    `taxonomy.Note` objects, and a JSON round trip turns each of them
+    into text the guard refuses at `columns[].detection_evidence`. Every
+    graft would then be "refused" for a reason that has nothing to do
+    with the floor, and the derivation would report the guard enforcing
+    an invariant it had never been asked about.
+
+    THAT IS WHY THE PRODUCER'S HALF WAS NEVER ASKED (review item
+    P3-V7-F6). The derivation was total over the fields the floor moves
+    and was run against the loader alone, so a field the loader refused
+    and the guard accepted -- `missing_by_class`'s pooled remainder --
+    sat inside the derived class and outside its reach.
+    """
+    made = copy.deepcopy(loose)
+    source: object = strict
+    for step in where:
+        assert isinstance(source, (dict, list))
+        source = source[step]  # type: ignore[index]
+    target: object = made
+    for step in where[:-1]:
+        assert isinstance(target, (dict, list))
+        target = target[step]  # type: ignore[index]
+    assert isinstance(target, (dict, list))
+    target[where[-1]] = copy.deepcopy(source)  # type: ignore[index]
+    return made
+
+
+def _the_guard_refuses(document: dict, where: tuple) -> None:
+    """The producer's own guard must refuse to WRITE this document."""
+    try:
+        profile.check_publication(document)
+    except errors.ProfileError as refused:
+        said = f"{refused}"
+        assert "before writing anything" in said, (
+            f"the guard refused {where} in words that do not say the run "
+            f"stopped before publishing: {said}"
+        )
+        return
+    raise AssertionError(
+        f"the profiler's own publication guard would WRITE a floor-one "
+        f"description holding something back at {where}, which its own "
+        f"strict loader refuses. The two halves of the product disagree "
+        f"about what a floor of one means (amendment A-P3-16 clause 2, "
+        f"review item P3-V7-F6)"
+    )
 
 
 def test_the_floor_governs_only_positions_the_loader_refuses(
@@ -317,6 +370,60 @@ def test_every_tally_the_floor_zeroes_is_refused_when_it_is_not_zero(
         written = fixtures.write_profile(tmp_path, "tally.json", made)
         with pytest.raises(errors.ProfileError):
             contract.load_profile(f"{written}")
+        # AND THE OTHER HALF OF THE PRODUCT (review item P3-V7-F6).
+        # A tally the reading half refuses and the writing half would
+        # publish is the disagreement amendment A-P3-16 clause 2 was
+        # written to end, and asking only the reader is how one member
+        # of this derived class stayed open through two rounds.
+        _the_guard_refuses(_grafted_alive(strict, loose, path), path)
+
+
+def test_every_pooled_remainder_is_refused_by_the_half_that_writes(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The pooled-remainder walk, run against the PRODUCER'S guard.
+
+    REVIEW ITEM P3-V7-F6, and the derivation rather than the field. The
+    class is read off the floor-eleven document by the format's own word
+    for "held back" -- every positive count standing under `(withheld)`,
+    wherever a field puts it -- and each member is grafted into the
+    floor-one document, where the guard that decides what may be WRITTEN
+    must refuse it. No field is named here, so a fifth field putting a
+    count under that word is in this derivation on the commit that adds
+    it, exactly as it is in the loader's.
+
+    WHAT WAS OPEN, AND WHY THE DERIVATION DID NOT SEE IT. Amendment
+    A-P3-16 clause 1 built this walk for the loader and clause 2 wrote
+    the producer's half as five leaf assertions naming three rule kinds.
+    A `missing_by_class` count carries the generic `_COUNT` kind, so it
+    sat under none of the three, and the derivation that would have
+    caught it was only ever asked of the reading half. The two halves
+    are now asked the same question from the same walk.
+    """
+    strict = _described(tmp_path / "strict", _DEFAULT)
+    loose = _described(tmp_path / "loose", 1)
+    profile.check_publication(loose)
+    remainders = [
+        path
+        for path, value in _walked(strict, ()).items()
+        if path
+        and path[-1] == contract.WITHHELD
+        and not isinstance(value, bool)
+        and isinstance(value, int)
+        and value > 0
+    ]
+    assert len(remainders) >= 4, (
+        f"the witness table stopped pooling a remainder anywhere, so "
+        f"this derivation is measuring nothing: {remainders}"
+    )
+    fields = {path[-2] for path in remainders}
+    assert len(fields) >= 4, (
+        f"every pooled remainder the witness makes now stands in the "
+        f"same field, so this derivation cannot show the walk reaching "
+        f"more than one: {sorted(fields)}"
+    )
+    for path in remainders:
+        _the_guard_refuses(_grafted_alive(strict, loose, path), path)
 
 
 def test_the_prose_positions_really_are_prose(

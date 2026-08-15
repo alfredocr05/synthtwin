@@ -185,6 +185,18 @@ CASES: "dict[str, tuple[object, ...]]" = {
         "description",
     ),
     "quality_out_of_memory": ("/data/clinic-profile.json",),
+    # The G12-infeasible refusal plan P3-D6 names (review item
+    # P3-V7-F7). Its first argument is one of the four names method G12
+    # fixes, and its second is a POSITION -- the path the person typed
+    # -- for the reason the three above it take positions: on this path
+    # the measured file may not be the reader's own table. Nothing out
+    # of any file can reach this sentence, and it is the same sentence
+    # whatever the file holds, because the trouble is in the
+    # description.
+    "no_twin_of_this_description_exists": (
+        errors.REFUSAL_DOMAIN_TOO_SMALL,
+        "/data/checked.csv",
+    ),
     # The publication guard's one refusal (plan P2-D2, review item
     # P2-C1-F3). Its argument is the PLACE in the description, written
     # from the guard's own path steps: no key of the document and no
@@ -284,6 +296,11 @@ def test_every_message_says_what_happened_and_what_to_do(name: str) -> None:
         "run the command again",
         "try again",
         "use that path",
+        # The instruction a refusal about the DESCRIPTION gives, which
+        # is not "fix your file": nothing done to the measured file
+        # helps, so what the reader is told to do is describe the table
+        # again (review item P3-V7-F7).
+        "Describe the table again",
     )
     if name not in APPENDED:
         assert any(hint in message for hint in actionable), (
@@ -386,6 +403,119 @@ def test_a_checked_file_refusal_takes_positions_and_nothing_else(
     message = _builders()[name](*given)
     assert "may not be your own table" in message, (
         f"{name} should say why it is not showing what it found"
+    )
+
+
+# The four refusals of method G12, and what each one's sentence has to
+# tell a person who cannot act on the measured file at all.
+NO_TWIN_SHAPE = (
+    (
+        errors.REFUSAL_COUNTS_CONTRADICT,
+        "how many of its numbers are zero and how many are negative",
+    ),
+    (
+        errors.REFUSAL_WORDS_EXCEED_LENGTH,
+        "hold more words than their own published lengths have room for",
+    ),
+    (
+        errors.REFUSAL_WHOLE_NUMBERS_NEED_ROOM,
+        "a length that leaves no room to write one",
+    ),
+    (
+        errors.REFUSAL_DOMAIN_TOO_SMALL,
+        "more different values than there are ways to write a value",
+    ),
+)
+
+
+@pytest.mark.parametrize(
+    "named,trouble", NO_TWIN_SHAPE, ids=[one[0] for one in NO_TWIN_SHAPE]
+)
+def test_the_no_twin_refusal_says_all_five_things_it_owes(
+    named: str, trouble: str
+) -> None:
+    """EXACT SHAPE, review item P3-V7-F7 and plan P3-D6.
+
+    The tests that existed asserted two fragments -- "cannot be this
+    description's twin" and "is valid" -- and the review showed what
+    that buys: replacing the whole message with "The description is
+    valid, but it cannot be this description's twin." left every one of
+    them green while the person lost all the advice. So each of the five
+    things the sentence owes is asserted here, one of them different for
+    each of the four refusals:
+
+    1. WHICH TWO FACTS collide, in the person's own words. This is the
+       only part that differs between the four, and it is the only part
+       that says what to change.
+    2. That the description is VALID, so nobody goes looking for a
+       corrupt file.
+    3. That no file can be its twin, so nobody re-runs it on a
+       different file.
+    4. WHICH file was being checked, named as the person typed it.
+    5. BOTH instructions: describe the table again, and -- for the
+       reader who was handed the description and holds no table -- ask
+       whoever wrote it.
+    """
+    message = errors.no_twin_of_this_description_exists(
+        named, "/data/checked.csv"
+    )
+    assert trouble in message, (
+        f"{named}'s message does not say which two published facts "
+        f"collide, which is the only part that tells the reader what to "
+        f"change: {message!r}"
+    )
+    for owed in (
+        "The description itself is valid",
+        "it was written by synthtwin and it loads",
+        "cannot be this description's twin",
+        "there is nothing to measure it against",
+        "/data/checked.csv",
+        "Describe the table again",
+        "ask whoever wrote the description",
+    ):
+        assert owed in message, (
+            f"{named}'s message no longer says {owed!r}, so a person who "
+            f"reads it is left without that part of what to do: "
+            f"{message!r}"
+        )
+
+
+def test_the_no_twin_refusal_is_written_for_every_name_g12_answers(
+) -> None:
+    """No refusal method G12 can name may be one this message lacks.
+
+    A key missing from the trouble table is a `KeyError` on the way to
+    the screen rather than a refusal a person can read, so the two sides
+    are compared rather than trusted: every name `validation.refusal_of`
+    can answer is a name this message is written for, and every name
+    the message is written for is one that function can answer.
+    """
+    from synthtwin import validation
+
+    answered = {
+        validation.REFUSAL_COUNTS_CONTRADICT,
+        validation.REFUSAL_WORDS_EXCEED_LENGTH,
+        validation.REFUSAL_WHOLE_NUMBERS_NEED_ROOM,
+        validation.REFUSAL_DOMAIN_TOO_SMALL,
+    }
+    assert answered == set(errors.NO_TWIN_TROUBLE), (
+        "the refusals validation can name and the refusals this message "
+        "is written for have drifted apart"
+    )
+    source = pathlib.Path(validation.__file__).read_text(encoding="utf-8")
+    returned = {
+        line.split("return ")[1].strip()
+        for line in source.splitlines()
+        if line.strip().startswith("return REFUSAL_")
+    }
+    assert returned == {
+        "REFUSAL_COUNTS_CONTRADICT",
+        "REFUSAL_WORDS_EXCEED_LENGTH",
+        "REFUSAL_WHOLE_NUMBERS_NEED_ROOM",
+        "REFUSAL_DOMAIN_TOO_SMALL",
+    }, (
+        f"a refusal name is returned that this message may not be "
+        f"written for: {sorted(returned)}"
     )
 
 
@@ -906,6 +1036,36 @@ def _the_report_would_land_on_the_measured_file(folder, description, undo):
     return ["validate", f"{description}", "--replace"]
 
 
+def _the_description_no_file_can_be_the_twin_of(folder, description, undo):
+    """A description of the shipped producer's own that G12 refuses.
+
+    REVIEW ITEM P3-V7-F7. Twenty-six values of one character each,
+    outside the code alphabet, so the column publishes twenty-six
+    different values where twenty-five such values exist to be written.
+    Every part of this is the real product: the table is written here,
+    `synthtwin profile` describes it, the description loads, and the
+    walk of method G9.4 must run out on it. So the condition is one a
+    person can reach, and not a document a test edited.
+    """
+    import fixtures
+    from synthtwin.cli import main
+
+    values = [chr(0x100 + 2 * index) for index in range(26)]
+    table = fixtures.write(
+        folder,
+        "note.csv",
+        fixtures.rows_to_csv(["note"], [[value] for value in values]),
+    )
+    assert main(["profile", f"{table}"]) == 0
+    ordinary = fixtures.write(folder, "any.csv", "note\nx\n")
+    return [
+        "validate",
+        f"{folder / 'note-profile.json'}",
+        "--twin",
+        f"{ordinary}",
+    ]
+
+
 DRIVEN = (
     ("file_missing", "There is no file at", False, _missing_measured_file),
     ("path_is_a_folder", "is a folder", False, _measured_file_is_a_folder),
@@ -944,6 +1104,12 @@ DRIVEN = (
         "would have replaced",
         True,
         _the_report_would_land_on_the_measured_file,
+    ),
+    (
+        "no_twin_of_this_description_exists",
+        "it cannot be this description's twin",
+        False,
+        _the_description_no_file_can_be_the_twin_of,
     ),
 )
 
@@ -1017,9 +1183,17 @@ def test_the_driven_battery_covers_the_refusals_the_plan_names() -> None:
         f"these driven cases name a builder the catalog does not carry: "
         f"{unknown}"
     )
-    assert len(DRIVEN) == 8 and len(driven) == 7, (
+    assert len(DRIVEN) == 9 and len(driven) == 8, (
         f"the driven battery is {len(DRIVEN)} case(s) over {len(driven)} "
-        f"refusal(s), and was 8 over 7. A case that leaves takes a "
+        f"refusal(s), and was 9 over 8. A case that leaves takes a "
         f"refusal's only reachability proof with it, so say why in the "
         f"same commit"
+    )
+    # EVERY REFUSAL PLAN P3-D6 NAMES FOR THE VALIDATE PATH IS HERE, and
+    # the one round 7 found missing is named rather than counted (review
+    # item P3-V7-F7): a battery whose only guard is a total can lose one
+    # case and gain another and go on passing.
+    assert "no_twin_of_this_description_exists" in driven, (
+        "the G12-infeasible refusal of plan P3-D2 has no reachability "
+        "proof again, which is the state review item P3-V7-F7 found"
     )

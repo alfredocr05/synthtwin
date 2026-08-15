@@ -42,7 +42,9 @@ Every table is built at test time by the seeded neutral builders in
 """
 
 import dataclasses
+import os
 import pathlib
+import typing
 
 import pytest
 
@@ -57,6 +59,57 @@ from synthtwin import (
 )
 
 SEED = 20260814
+
+# The shipped measurement, taken before anything here can replace it, so
+# that the reinstatement below stands in for exactly one branch and
+# leaves every other path running the real code.
+_SHIPPED_MEASURE = validation.measure
+
+
+def _returned_before_the_reader(
+    described: contract.Profile, path: str
+) -> validation.Outcome:
+    """`measure` as it stood: a zero-row description never called the reader.
+
+    THE DEFECT, WRITTEN OUT, so the red check exercises the branch this
+    repair removed rather than a description of it. The pieces are the
+    shipped ones -- the byte reads, the degenerate report -- and the one
+    thing put back is the ORDER: the report was returned on the
+    published row count alone, before `reading.read_table` was reached,
+    so a file no reading of which finishes still had its header line
+    compared with the published names.
+    """
+    if described.n_rows:
+        return _SHIPPED_MEASURE(described, path)
+    place = pathlib.Path(
+        validation.validate_local_path(path, purpose="input")
+    )
+    data = validation._read_bytes(place)
+    text = validation._read_utf8(place)
+    as_read = text if text is not None else validation._read_fallback(place)
+    headed = described.source.header_source == reading.HEADER_FROM_FILE
+    return validation._degenerate_report(
+        described, data, text, headed, as_read, pathlib.Path(path).name
+    )
+
+
+@pytest.fixture(scope="module", autouse=True)
+def _reinstated() -> "typing.Iterator[None]":
+    """Put the branch that returned before the reader back on request.
+
+    MODULE-SCOPED, because the description these cases are measured
+    against is built in a module-scoped fixture and a function-scoped
+    `monkeypatch` would be applied after it -- a red check run against a
+    patch nobody used.
+    """
+    monkeypatch = pytest.MonkeyPatch()
+    if os.environ.get("REINSTATE") == "P3-V4-F3-zero-rows":
+        monkeypatch.setattr(
+            validation, "measure", _returned_before_the_reader
+        )
+    yield
+    monkeypatch.undo()
+
 
 # The three byte rules amendment A-P3-3 clause 6 ruled outside V5.1's
 # envelope: no cell, no name, no count and no person is in a line
@@ -481,3 +534,144 @@ def test_the_zero_row_residual_is_where_the_amendment_left_it(
     third = _the_report_says(folder, headed, "age,site,note\n")
     fourth = _the_report_says(folder, headed, "foo,bar,baz\n")
     assert third == fourth
+
+
+# -- the branch that was outside the construction (A-P3-20) ------------
+
+
+def _the_readers_word(folder: pathlib.Path, body: "str | bytes") -> str:
+    """Which shape refusal the reader raises for this file, or "".
+
+    The refusal a file draws is asked of the READER, in the form
+    `measure` itself asks it, because the whole of amendment A-P3-10
+    clause 2 is that this word and nothing else chooses the report.
+    """
+    target = _written(folder, body)
+    try:
+        reading.read_table(
+            str(target),
+            first_row=reading.FIRST_ROW_NAMES,
+            refusals=reading.REFUSALS_NAME_POSITIONS,
+        )
+    except errors.ShapeRefusal as refusal:
+        return refusal.kind
+    except errors.ProfileError:
+        return "(refused for something else)"
+    return "(read)"
+
+
+def test_a_zero_row_description_reaches_its_report_through_the_reader(
+    tmp_path: pathlib.Path, headed: contract.Profile
+) -> None:
+    """THE PROPERTY, on the branch amendment A-P3-10 clause 2 left out.
+
+    REVIEW ITEM P3-V4-F3, carried; plan amendment A-P3-20. Two files
+    `synthtwin profile` refuses with the same sentence get the same
+    report -- and that is now true against a ZERO-ROW description as
+    well, because the reader is called first there too.
+
+    ONE EXCEPTION, AND IT IS THE ONE THE PLAN RULES ON. Where the
+    reader's word is its NO-DATA refusal, the gate does not close
+    (A-P3-7 clause 3): the conforming file of this very predicate is
+    such a file, so two header-only files still receive different
+    reports there. That residual is pinned by the case above and is
+    excluded here by the reader's own word rather than by a list of
+    files somebody keeps in step.
+    """
+    folder = tmp_path / "zero-battery"
+    folder.mkdir()
+    zero_row = dataclasses.replace(headed, n_rows=0)
+    grouped: dict[str, list[str]] = {}
+    words: dict[str, str] = {}
+    for label, body in _BATTERY.items():
+        word = _the_readers_word(folder, body)
+        words[label] = word
+        if word == errors.NO_DATA_TO_DESCRIBE:
+            continue
+        said = _the_producer_says(folder, body)
+        # Two files the producer DESCRIBES are two different files and
+        # owe each other nothing; the property is about the ones it
+        # refuses, which is what V5.1's envelope collapses.
+        if said == "described":
+            continue
+        grouped.setdefault(said, []).append(label)
+    compared = 0
+    for sentence in sorted(grouped):
+        labels = grouped[sentence]
+        first = _the_report_says(folder, zero_row, _BATTERY[labels[0]])
+        for other in labels[1:]:
+            compared = compared + 1
+            assert first == _the_report_says(
+                folder, zero_row, _BATTERY[other]
+            ), (
+                f"{labels[0]!r} and {other!r} draw one sentence out of "
+                f"`synthtwin profile` and two different reports out of a "
+                f"zero-row description"
+            )
+    assert compared >= 4, (
+        "this battery no longer holds several files the producer refuses "
+        f"alike, so the property is nearly vacuous: {compared} pairs"
+    )
+    # ...and the exception is reached, or the assertion above is being
+    # asked of a set the residual has quietly emptied.
+    assert errors.NO_DATA_TO_DESCRIBE in words.values()
+
+
+def test_the_named_zero_row_witness_is_one_refusal_and_one_answer(
+    tmp_path: pathlib.Path, headed: contract.Profile
+) -> None:
+    """The review's own pair, from the producer to the report.
+
+    A one-column headed zero-row description; a file whose header spells
+    that column's name and a file whose header spells another, each with
+    one ragged row under it. The producer refuses both with one
+    sentence. They drew 8 HELD / 1 MISSED and 5 HELD / 4 MISSED, and
+    `header.names` was HELD about a file no reading of which finishes.
+    """
+    folder = tmp_path / "witness"
+    folder.mkdir()
+    one_column = _described(
+        folder,
+        fixtures.rows_to_csv(
+            ["column_1"], [[f"{30 + index % 40}"] for index in range(60)]
+        ),
+        "one-column",
+    )
+    zero_row = dataclasses.replace(one_column, n_rows=0)
+    named = "column_1\n1,2\n"
+    other = "other\n1,2\n"
+    assert _the_producer_says(folder, named) == _the_producer_says(
+        folder, other
+    )
+    first = _the_report_says(folder, zero_row, named)
+    second = _the_report_says(folder, zero_row, other)
+    assert first == second
+    # Both are the producer's own refusal now, so nothing states a
+    # verdict about a file no reading of which finished.
+    assert first[0] == "refused", first[0]
+
+
+def test_no_verdict_is_stated_about_a_file_no_reading_finishes(
+    tmp_path: pathlib.Path, headed: contract.Profile
+) -> None:
+    """`header.names` HELD on an unreadable file was the second symptom.
+
+    Every file in the battery the reader refuses for something other
+    than its own two questions must come back as that refusal against a
+    zero-row description, exactly as it does against one that publishes
+    rows. A report there would state an obligation nothing measured.
+    """
+    folder = tmp_path / "unreadable"
+    folder.mkdir()
+    zero_row = dataclasses.replace(headed, n_rows=0)
+    reached = 0
+    for label, body in _BATTERY.items():
+        if _the_readers_word(folder, body) != "(refused for something else)":
+            continue
+        reached = reached + 1
+        said = _the_report_says(folder, zero_row, body)
+        assert said[0] == "refused", (
+            f"{label!r} is a file the reader refuses outright and a "
+            f"zero-row description still reported on it"
+        )
+    assert reached >= 4, reached

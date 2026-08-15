@@ -246,6 +246,144 @@ exists).
   the other direction: the guard accepted offsets out of range that the
   loader refuses.
 
+### Fixed in Phase 3: four guards that reached less far than they read
+- **A refusal a person can act on, held to that by the catalog like
+  every other refusal** (plan amendment A-P3-23, validation method V9).
+  When a description asks for a table that cannot exist, `synthtwin
+  validate` stops and says so. That message was built inside the
+  validator rather than in the file every other refusal lives in, so
+  none of the rules that keep those messages readable -- open as a
+  sentence, end as one, no programmer's language, and always tell the
+  reader what to do next -- reached it, and nothing had ever pinned what
+  it says. It is a catalog entry now. Its exact wording is pinned for
+  each of the four things that can be wrong with such a description:
+  which two published facts collide, that the description itself is
+  valid, that no file can be its twin, which file was being checked, and
+  both of the two instructions -- describe the table again, and, for
+  somebody who was handed the description and holds no table, ask
+  whoever wrote it. And it is now produced by running the command: a
+  table is written, `synthtwin profile` describes it, and `synthtwin
+  validate` on that description has to stop with this refusal.
+- **The profiler will not WRITE a floor-one description that holds
+  something back** (plan amendment A-P3-22). At a floor of one nothing
+  is held back, and the strict reader has refused a description that
+  says otherwise since the previous round. The half that WRITES
+  descriptions was taught the same rule field by field, and one field
+  was not on the list -- so the two halves of the product disagreed
+  about what a floor of one means, on a real map the profiler builds.
+  The writing half now looks for the format's own word for "held back"
+  wherever it stands, which is the reach the reading half already had.
+  What found this is the other half of the repair: the check that
+  derives the rule from two descriptions of one table now puts every
+  case it derives to BOTH halves instead of only to the reader.
+- **Two guards that read less than they said they did** (plan amendment
+  A-P3-24). The first walks the code that decides which cells of a
+  checked file its own description reads, and refuses any reader in
+  there that answers in the machine's own approximate arithmetic --
+  because the same defect had come back three times. It read a call
+  written as a name or as a dotted name, and dropped every other way of
+  writing one, so a reader reached out of a list was invisible to it. It
+  is now total over the ways a call can be spelled, with a probe for
+  each, and it refuses a reader NAMED where a value belongs even where
+  nothing calls it here. The second is the guard over the guarantee the
+  owner withdrew on 2026-08-14, which no page here may make again in any
+  wording: that somebody who re-runs the check with descriptions of
+  their own is kept from narrowing a withheld number. It read one
+  statement at a time, so the same promise written across two statements
+  walked past. It now carries a promise forward to a
+  following statement that is about the withheld number, which was
+  measured against every surface here before it was written and reports
+  none of them.
+
+### Fixed in Phase 3: a check that passed a file its own description rejects
+- **A "no value" spelling is read back out of the description only where
+  reading it back is safe** (plan amendment A-P3-19, validation method
+  V2.3-A2). The description publishes the spellings that made a column's
+  cells empty, and the previous round read them back so that a person
+  who profiles their own table with `--missing-value` and then checks
+  that same table is not told its declared holes are data. But that
+  field is written for a REPORT: a character that would command a
+  terminal is replaced by text showing what it was, and two different
+  spellings can come out the same. Both directions cost a verdict. A
+  table whose holes hold such a character was told seven of its
+  obligations were missed against its own description; and a DIFFERENT
+  file, wearing the printable spelling, passed that description with
+  nothing reported at all, although describing that file under the same
+  declaration reads it as free text with every cell present. A report
+  that passes a file its own description rejects is the one failure this
+  project will not ship, so the read-back now covers only the spellings
+  the report-writing cannot have altered. What that leaves is stated:
+  where the spelling holds such a character, the table it was written
+  from reads those cells back as data, and closing that needs a change
+  to what the description publishes rather than a change to the checker.
+- **The report on a description of NO rows is chosen by the reader, like
+  every other report** (plan amendment A-P3-20, validation method
+  V5.1-A1.2). An earlier round made the reader's own refusal decide
+  which report a file gets, so two files `synthtwin profile` refuses
+  with one sentence cannot draw two different reports. One branch never
+  reached that rule: a description publishing no rows was answered
+  before the file was ever read. Two files with a ragged row under
+  differently-spelled headers -- one refusal to the profiler -- drew
+  eight met obligations and one missed against five and four, and the
+  check said the header names were correct about a file no reading of
+  which finishes. The reader is asked first there too now, and a file it
+  refuses for anything but "this file has no rows" comes back as that
+  refusal, which is the more useful answer and the one the profiler
+  gives for the same file.
+
+### Fixed in Phase 3: the check now agrees with the twin the tool itself writes
+- **`synthtwin validate` no longer reports the product's own output as
+  missing an obligation** (plan amendment A-P3-18, validation method
+  V4.2-A1). The validator decides four "corner" questions from the
+  description alone, written from its own specification so its verdicts
+  cannot inherit the generator's defects. That independence is only
+  worth having if the two writings agree, and until now nothing
+  compared them: `tests/test_p3v7f2_corner_parity.py` builds 219
+  descriptions with the real profiler, asks the shipped generator for a
+  twin of each, measures each twin with the shipped validator, and puts
+  the two accounts of each governed fact beside one another. The two
+  writings parted company in five places, and at each of them the twin
+  met its description while the report said it had not.
+- **A column of record numbers is measured against the values the tool
+  can actually write** (A-P3-18 clause 1). Above one character the
+  check counted every string the alphabet allows rather than the
+  values the construction writes -- 8,460 two-character values where
+  2,538 exist -- so a column of 2,539 of them was told it should hold
+  them all and its twin was reported wrong three times over. A second
+  gap of the same kind: a group of cells that has to be covered by
+  values of its own alphabet needs at least as many different values as
+  the widest repeated group leaves room for, which the earlier
+  arithmetic could miss.
+- **Two counts of different values are measured against the range the
+  method allows, in both directions** (A-P3-18 clause 2). A column of
+  labels whose held-back spellings covered it exactly was read as
+  needing one more than it does, so the check demanded a count the tool
+  cannot write; and a column of numbers whose own spellings force MORE
+  different values than it publishes was held to the published number
+  exactly, so its twin was reported wrong for holding what its
+  description obliged it to hold. A file that now holds more different
+  values than published, on a column whose spellings can carry them, is
+  reported as an authorized deviation rather than a miss.
+- **A check that could not fail is no longer printed as a check**
+  (A-P3-18 clause 3). Where a column's own spellings leave the count of
+  different values anywhere between one and every cell -- two hundred
+  forced whole numbers written one way are the case -- the comparison
+  admitted every file and proved nothing. It is now one line in the
+  not-checkable part of the census, with the sentence saying why.
+- **Two more obligations no CSV can evidence** (A-P3-18 clause 4). A
+  datetime column whose earliest or latest offset was itself held back
+  by the publication floor names no offset for that end, so nothing in
+  a file can carry it; and a numeric column whose style map the floor
+  has partly pooled owes at least the published count of a named form
+  and at most that count plus the pool, rather than the published
+  number exactly.
+- **What is still open, said plainly** (A-P3-18 clause 5). How many
+  different values a column's plainly-written cells carry is decided by
+  the value construction, which the checker may not import and does not
+  yet rewrite, so for a column of numbers it draws a range that HOLDS
+  the generation report's rather than one equal to it. The suite
+  asserts containment and says so.
+
 ### Fixed in Phase 3: three ceilings that did not mean what they said
 - **A search allowed two hundred and fifty-six tries spent two thirds of
   them re-asking a question it had already answered** (plan amendment
@@ -410,6 +548,20 @@ exists).
   REGISTRY, and no site may bind a fact other than the one stated. Two
   hundred and thirty-eight lines of stated expectation replace five
   hundred and nineteen derived ones.
+- **And that proof walked half the table** (plan amendment A-P3-21,
+  carrying the same review item). An entry of the shipped table is
+  either a verdict or a line saying no CSV can evidence this
+  obligation, and the binding proof read the first kind only. So the
+  nine entries that exist ONLY where a corner sends a fact to the
+  second kind -- four about a datetime column's offsets, three about a
+  record-number column's counts of different values, two about a
+  numeric column's -- were bound by nothing: rebinding one of them to
+  another fact of the same column left the whole suite green while the
+  report named one fact twice and another not at all. The walk now
+  collects both kinds, over the six ordinary fixtures, the four
+  description shapes, and three descriptions built here by the real
+  profiler for the express purpose of reaching a corner, each held to
+  the corner it is for.
 - **The claim guard can no longer be evaded by how a constant is
   spelled** (review item P3-V4-F7). The reading that counts what a full
   run leaves behind recognized one spelling of an output name, so a
