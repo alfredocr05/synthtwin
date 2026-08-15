@@ -53,7 +53,7 @@ nowhere, and the split is taken only where the file's own description
 publishes the split (V2.4-A3), so a spelling the recovery misses is a
 spelling that description reads as a hole, and the gate then closes on
 a file that meets every published fact. A researcher who runs
-`--keep-value n/a` and validates their own table is told five
+`--keep-value n/a` and validates their own table is told seven
 obligations were MISSED. What is recoverable, what is not, and why the
 unrecoverable half cannot be answered by reading the split instead, are
 at `kept_spellings` and `declared_spellings` below and in plan
@@ -171,6 +171,12 @@ CORNERS = (
     CORNER_LABEL_VARIANTS_SHORT,
     CORNER_NUMERIC_SPELLINGS_SHORT,
 )
+
+# The two distinctness counts, named rather than spelled, because which
+# of them a corner reaches is part of that corner's own passage and not
+# a property of the column (V4.1; review item P3-V8-F3).
+_RAW_DISTINCT = "n_distinct"
+_FOLDED_DISTINCT = "n_distinct_folded"
 
 # What authorizes each lesser outcome, in the words of the document that
 # grants it. An AUTHORIZED-DEVIATION shown without its citation is a
@@ -916,9 +922,25 @@ def kept_spellings(description: contract.Profile) -> "tuple[str, ...]":
     it below the publication floor, and validating that table against
     its own genuine profile reports `presence.n_present`,
     `presence.n_missing`, `counts.n_not_numeric`,
-    `counts.n_left_out_of_statistics` and `counts.numeric_share` MISSED
-    -- five misses and exit 3 on the file the description was written
+    `counts.n_left_out_of_statistics`, `counts.numeric_share`,
+    `distinct.n_distinct` and `distinct.n_distinct_folded` MISSED
+    -- seven misses and exit 3 on the file the description was written
     from.
+
+    IT WAS FIVE UNTIL THE SPELLING SUPPLY WAS GIVEN ITS SECOND SUMMAND
+    (plan amendment A-P3-20 clause 3, review item P3-V8-F4), and the
+    two that joined were already misses of the same one cause. The
+    description publishes two hundred decimal cells and one cell that is
+    not a number; G12.8 supplies one spelling per decimal cell and one
+    for the class beside them, which is the published count exactly, so
+    the description PINS both distinctness counts and the exact bar is
+    theirs. While the class summand was missing the supply read two
+    hundred against a published two hundred and one, a corner was
+    claimed that the generator does not need, and the envelope it opened
+    -- from two hundred to two hundred and one -- was wide enough to
+    call this very file's two hundred an AUTHORIZED DEVIATION. The gap
+    did not grow; two obligations stopped being hidden inside a bar that
+    should never have been lowered.
 
     WHY IT IS NOT REPAIRED HERE, at the exact size of what is left
     (plan amendment A-P3-15). The spelling is unrecoverable, and that is
@@ -1272,13 +1294,19 @@ def _group_sizes(occurrences: "dict[str, int]") -> "tuple[tuple[int, int], ...]"
     first. A key that is not a row count cannot come through the strict
     loader, and one that did is skipped, which asks for no corner --
     the safe direction.
+
+    THE KEY IS READ AS THE FIGURES IT IS (review item P3-V8-F5). It
+    used to be read through the reader that answers in binary64, which
+    is exact only below nine quadrillion and silently one row out above
+    it -- and a size one row out divides a band's cells into one group
+    more than the description names.
     """
     found: list[tuple[int, int]] = []
     for key in sorted(occurrences):
-        size = parsing.parse_number(key)
+        size = contract.occurrence_size(key)
         if size is None:
             continue
-        found = found + [(int(size), occurrences[key])]
+        found = found + [(size, occurrences[key])]
     return tuple(sorted(found))
 
 
@@ -1490,7 +1518,7 @@ def _label_variants_are_short(
     fact is exact and there is no corner; where it falls short the
     envelope of G12.7 is what the twin owes instead.
     """
-    supply = _spelling_supply(facts)
+    supply = _spelling_supply(column, facts, column.n_distinct)
     return supply is not None and supply != column.n_distinct
 
 
@@ -1514,12 +1542,19 @@ def _numeric_spellings_are_short(
     cells on a column publishing nine different values -- was given the
     exact bar, and the shipped generator's twin, which G12.8 authorizes
     at twelve, was reported MISSED against its own description.
+
+    AND IT IS ASKED OF EACH COUNT WITH THAT COUNT'S OWN BUDGET (review
+    item P3-V8-F4). G6.5 allocates the spelling budget separately for
+    the raw count and for the folded one, so the two bounds are two
+    different numbers on a column whose two published counts differ, and
+    reading one of them for both would put a bar drawn from the raw
+    allocation on the folded fact.
     """
-    supply = _spelling_supply(facts)
-    ceiling = _spelling_ceiling(column, facts)
-    if supply is None or ceiling is None:
-        return False
     for published in (column.n_distinct, column.n_distinct_folded):
+        supply = _spelling_supply(column, facts, published)
+        ceiling = _spelling_ceiling(column, facts, published)
+        if supply is None or ceiling is None:
+            return False
         if supply != published or ceiling != published:
             return True
     return False
@@ -1623,13 +1658,20 @@ def _widest_group(occurrences: "dict[str, int]") -> int:
     key that is not a row count at all cannot come through the strict
     loader, and one that did would leave this at zero, which asks for no
     refusal -- the safe direction.
+
+    THE KEY IS READ AS THE FIGURES IT IS (review item P3-V8-F5). Read
+    through the binary64 reader this used to ask, the key
+    `'9007199254740993'` came back one row short, ten one-character
+    figures were told they had to cover eleven groups, and a validate
+    run refused a description a twin exists for with the sentence that
+    no file can be its twin.
     """
     widest = 0
     for key in occurrences:
-        size = parsing.parse_number(key)
+        size = contract.occurrence_size(key)
         if size is None:
             continue
-        widest = max(widest, int(size))
+        widest = max(widest, size)
     return widest
 
 
@@ -4551,14 +4593,26 @@ def _distinctness_checks(
     block: "dict[str, object]",
     mine: "tuple[str, ...]",
 ) -> "list[Check]":
-    """The two distinctness counts, at whatever bar this profile sets."""
+    """The two distinctness counts, at whatever bar this profile sets.
+
+    A CORNER IS ASKED PER FIELD, because the corners are not all
+    two-field facts (review item P3-V8-F3). Owner decision 6's
+    identifier corner names both counts and the multiset; G12.8's
+    numeric envelope is written for the raw count "and the same over
+    the folded identities"; G12.7's label envelope is raw `n_distinct`
+    and nothing else, in V4.1's words and in the registry's. Asking one
+    field-blind question for both put G12.7's authorization on a folded
+    count it does not name, and a file whose folded count the
+    description publishes EXACTLY was given an AUTHORIZED DEVIATION for
+    missing it.
+    """
     name = column.name
     facts = column.facts
     group = _group_of(facts)
     checks: list[Check] = []
     for field, published in (
-        ("n_distinct", column.n_distinct),
-        ("n_distinct_folded", column.n_distinct_folded),
+        (_RAW_DISTINCT, column.n_distinct),
+        (_FOLDED_DISTINCT, column.n_distinct_folded),
     ):
         measured = _count_at(block, field)
         fact = f"{group}.{field}"
@@ -4581,7 +4635,7 @@ def _distinctness_checks(
                 )
             ]
             continue
-        corner = _distinct_corner(facts, mine)
+        corner = _distinct_corner(facts, mine, field)
         if corner == CORNER_IDENTIFIER_INFEASIBLE:
             # REPORT-ONLY in this corner, so it is a listing entry and
             # not a check (owner decision 6; review item P3-V1-F4).
@@ -4638,8 +4692,8 @@ def _lesser_or_held(
     if measured == published:
         return Check(name, fact, subcheck, HELD, shown, _shown_count(measured))
     facts = column.facts
-    supply = _spelling_supply(facts)
-    ceiling = _spelling_ceiling(column, facts)
+    supply = _spelling_supply(column, facts, published)
+    ceiling = _spelling_ceiling(column, facts, published)
     if supply is None or ceiling is None:
         return _deviation(name, fact, subcheck, shown, corner)
     low = min(supply, published)
@@ -4664,12 +4718,18 @@ def _lesser_or_held(
     )
 
 
-def _spelling_supply(facts: contract.ColumnFacts) -> "int | None":
+def _spelling_supply(
+    column: contract.ColumnBlock,
+    facts: contract.ColumnFacts,
+    published: int,
+) -> "int | None":
     """How many different spellings this column's own rules can supply.
 
-    The `S` of method G12.7 on a column of labels and the `supply` of
-    G12.8 on a column of numbers, each read off the published fields
-    alone.
+    The `S` of method G12.7 on a column of labels and the LOW end of
+    G12.8's `supply` on a column of numbers, each read off the published
+    fields alone. `published` is the count this bar is being drawn for --
+    the raw one or the folded one -- because the budget of G6.5 is
+    allocated separately for each and the two allocations differ.
 
     ON A COLUMN OF LABELS a withheld-variant key is an OCCURRENCE COUNT
     and its value is how many spellings covered that many rows each, so
@@ -4692,6 +4752,19 @@ def _spelling_supply(facts: contract.ColumnFacts) -> "int | None":
     (review item P3-V7-F4), so they are counted with the plain cells
     here, which is the side that cannot claim more than the
     construction has.
+
+    AND THE OTHER CLASSES ARE PART OF G12.8'S SUM, which this left out
+    altogether (review item P3-V8-F4). The formula has two summands and
+    only the first was written: beside the numbers class it adds, for
+    each other class, `min(its cell count, its share of the budget in
+    G6.5)` -- and both of those are published numbers, so the term needs
+    nothing this module may not import. Leaving it out put the floor at
+    ONE on every numeric column whose cells are all `plain`, however
+    many unreadable, out-of-range or contradictory cells stood beside
+    them, and a floor of one is what makes the bar admit every count and
+    become a listing. Twenty whole numbers beside two cells that are not
+    numbers were told a twin could hold as few as one different value,
+    where the classes alone settle three.
     """
     if isinstance(facts, contract.LabelFacts):
         supply = 0
@@ -4717,25 +4790,112 @@ def _spelling_supply(facts: contract.ColumnFacts) -> "int | None":
                 supply = supply + facts.numeric_styles[style]
         if pooled > 0:
             supply = supply + 1
-        return supply
+        return supply + _other_class_spellings(column, published)
     return None
 
 
+# The four classes a numeric column's present cells divide into, in the
+# order method G6.5 offers them the budget. The numbers class is first
+# and is the one G12.8 counts by (value, style) group; the other three
+# are written as class-preserving stand-ins (G10.4), and each writes
+# exactly as many different ones as the budget hands it.
+_CLASSES_IN_BUDGET_ORDER = (
+    "n_numeric",
+    "n_out_of_range",
+    "n_contradictory",
+    "n_not_numeric",
+)
+
+
+def _class_cells(column: contract.ColumnBlock) -> "tuple[int, ...]":
+    """How many cells each class holds, in the budget order of G6.5."""
+    return (
+        column.n_numeric,
+        column.n_out_of_range,
+        column.n_contradictory,
+        column.n_not_numeric,
+    )
+
+
+def _class_budget(
+    column: contract.ColumnBlock, published: int
+) -> "tuple[int, ...]":
+    """The G6.5 budget allocation, class by class, in that method's order.
+
+    METHOD G6.5, WRITTEN OUT FROM THE PUBLISHED COUNTS AND NOTHING ELSE.
+    Every non-empty class receives one spelling; the remainder of the
+    published count is then offered to the classes in the fixed order
+    `numbers, out_of_range, contradictory, not_numeric`, each taking as
+    much as it can use and never more than its own cell count, until the
+    remainder is spent. The four cell counts and the published count are
+    all fields of the description, so this is arithmetic on published
+    numbers and imports nothing (V1.4).
+
+    WHERE THE PUBLISHED COUNT IS BELOW THE NUMBER OF NON-EMPTY CLASSES
+    the published facts do not hold together, and G6.5 says what the
+    twin does then: one spelling per class. That is what this returns,
+    which is also the number such a twin actually writes -- so the bound
+    built on it stays true in the one case the method calls impossible.
+
+    Guarantees: a pure function of the description; every entry is
+    between zero and that class's own cell count; a class with no cell
+    gets nothing.
+    """
+    cells = _class_cells(column)
+    shares = [1 if held > 0 else 0 for held in cells]
+    spent = 0
+    for share in shares:
+        spent = spent + share
+    remainder = max(published - spent, 0)
+    for place, held in enumerate(cells):
+        if held < 1 or remainder < 1:
+            continue
+        take = min(remainder, held - shares[place])
+        shares[place] = shares[place] + take
+        remainder = remainder - take
+    return tuple(shares)
+
+
+def _other_class_spellings(
+    column: contract.ColumnBlock, published: int
+) -> int:
+    """G12.8's second summand: the classes that are not the numbers class.
+
+    `min(its cell count, its share of the budget in G6.5)` for each of
+    the three, which is the share itself -- the allocation never hands a
+    class more than its own cells. It is the same number at BOTH ends of
+    this method's bracket, and that is the point of the repair (review
+    item P3-V8-F4): the classes are exactly knowable from the
+    description, so they narrow the bracket rather than widening it.
+    What stays unknowable is the numbers class alone, and only the part
+    of it written `plain`.
+    """
+    shares = _class_budget(column, published)
+    cells = _class_cells(column)
+    found = 0
+    for place in range(1, len(shares)):
+        found = found + min(cells[place], shares[place])
+    return found
+
+
 def _spelling_ceiling(
-    column: contract.ColumnBlock, facts: contract.ColumnFacts
+    column: contract.ColumnBlock,
+    facts: contract.ColumnFacts,
+    published: int,
 ) -> "int | None":
     """The OTHER end of G12.8's supply, and why the two are not one number.
 
     G12.8's supply is a property of the twin's FINISHED CELLS: each
     (value, style) group of the numbers class supplies one spelling where
-    the style is `plain` and its own cell count otherwise. The published
-    style map fixes the second half exactly and says nothing at all
-    about the first -- how many different VALUES the plain cells carry
-    is decided by the value construction of G5 and G7, which this module
-    may not import and does not rewrite. So the description settles two
-    numbers rather than one: a FLOOR, where all the plain cells carry
-    one value between them, and this CEILING, where each carries its
-    own.
+    the style is `plain` and its own cell count otherwise, and each
+    other class supplies `min(its cell count, its share of the budget in
+    G6.5)`. The second summand and the style half of the first are fixed
+    exactly by the description. ONE THING IS NOT, and it is the whole of
+    the gap: how many different VALUES the plain cells carry is decided
+    by the value construction of G5 and G7, which this module may not
+    import and does not rewrite. So the description settles two numbers
+    rather than one: a FLOOR, where all the plain cells carry one value
+    between them, and this CEILING, where each carries its own.
 
     Reading the floor at both ends is what reported a conforming twin
     MISSED (review item P3-V7-F4): a twenty-two-cell column whose two
@@ -4746,7 +4906,7 @@ def _spelling_ceiling(
     ceiling IS the floor there and both ends are exact.
     """
     if isinstance(facts, contract.LabelFacts):
-        return _spelling_supply(facts)
+        return _spelling_supply(column, facts, published)
     if not isinstance(facts, contract.NumericFacts):
         return None
     plain = 0
@@ -4766,8 +4926,13 @@ def _spelling_ceiling(
     # leading-zero family of its own.
     room = others + min(plain, column.n_distinct)
     # Cells outside the numbers class carry their own share of the G6.5
-    # budget, never more than one identity per cell.
-    return room + max(column.n_present - plain - others, 0)
+    # budget, never more than one identity per cell -- and the share is
+    # what is added, not the cell count. Adding the cell count was the
+    # ceiling saying what the comment beside it already said it did not
+    # (review item P3-V8-F4); the share is the same number this method's
+    # floor adds, so the two ends move together and the bracket narrows
+    # from both sides at once.
+    return room + _other_class_spellings(column, published)
 
 
 def _occurrence_key(key: str) -> int:
@@ -4779,11 +4944,14 @@ def _occurrence_key(key: str) -> int:
     looking short and invents one more spelling for it -- the side that
     claims MORE supply, and so the side that keeps the exact bar rather
     than lowering it onto a description nobody can state.
+
+    THE KEY IS READ AS THE FIGURES IT IS (review item P3-V8-F5), by the
+    contract's own reader and not by one that answers in binary64.
     """
-    size = parsing.parse_number(key)
+    size = contract.occurrence_size(key)
     if size is None:
         return 0
-    return int(size)
+    return size
 
 
 def _envelope_admits_every_count(
@@ -4811,8 +4979,8 @@ def _envelope_admits_every_count(
     bar, and the census counts this where it counts every obligation
     nothing in a CSV settles.
     """
-    supply = _spelling_supply(facts)
-    ceiling = _spelling_ceiling(column, facts)
+    supply = _spelling_supply(column, facts, published)
+    ceiling = _spelling_ceiling(column, facts, published)
     if supply is None or ceiling is None:
         return False
     return min(supply, published) <= 1 and (
@@ -4821,13 +4989,40 @@ def _envelope_admits_every_count(
 
 
 def _distinct_corner(
-    facts: contract.ColumnFacts, mine: "tuple[str, ...]"
+    facts: contract.ColumnFacts, mine: "tuple[str, ...]", field: str
 ) -> str:
-    """Which corner, if any, lowers this column's distinctness bar."""
+    """Which corner, if any, lowers this column's bar on THIS count.
+
+    THE FIELD IS PART OF THE QUESTION (review item P3-V8-F3). A corner
+    authorizes a lesser outcome for the facts its own passage names,
+    and the three that reach a distinctness count do not name the same
+    ones:
+
+    - owner decision 6's identifier corner names `n_distinct`,
+      `n_distinct_folded` AND `n_distinct_by_occurrences`, in V4.1's
+      words, so both counts are its;
+    - G12.8's numeric envelope is written for the raw count and, in its
+      own last sentence, "the same over the folded identities", so both
+      counts are its;
+    - G12.7's label envelope is RAW `n_distinct`. V4.1 says so -- "then
+      raw `n_distinct` falls to the G12.7 envelope" -- and so does the
+      registry. Folding is not a spelling question: however few
+      spellings the published variants supply, the folded identities a
+      label column publishes are settled by its published levels, and
+      the construction meets that count exactly.
+
+    Asking this without the field gave a label column's FOLDED count
+    G12.7's authorization. A description publishing folded 2 whose
+    supply is 3 then printed the bar `2 (from 2 to 3)`, and a file
+    holding three folded identities where the description publishes two
+    was reported an AUTHORIZED DEVIATION instead of a MISS.
+    """
     if CORNER_IDENTIFIER_INFEASIBLE in mine:
         return CORNER_IDENTIFIER_INFEASIBLE
-    if isinstance(facts, contract.LabelFacts) and (
-        CORNER_LABEL_VARIANTS_SHORT in mine
+    if (
+        isinstance(facts, contract.LabelFacts)
+        and CORNER_LABEL_VARIANTS_SHORT in mine
+        and field == _RAW_DISTINCT
     ):
         return CORNER_LABEL_VARIANTS_SHORT
     if isinstance(facts, contract.NumericFacts) and (
@@ -7189,16 +7384,16 @@ def _group_span(
     The groups of method G9.5 step 1, read straight off the published
     multiplicity map: each key is a repetition count and its value is
     how many different values repeat that many times. Nothing here reads
-    a cell.
+    a cell, and the key is read as the figures it is rather than through
+    a reader that answers in binary64 (review item P3-V8-F5).
     """
     smallest = 0
     largest = 0
     counted = 0
     for key in occurrences:
-        size = parsing.parse_number(key)
-        if size is None:
+        found = contract.occurrence_size(key)
+        if found is None:
             return None
-        found = int(size)
         counted = counted + occurrences[key]
         largest = max(largest, found)
         if smallest == 0 or found < smallest:
@@ -7756,14 +7951,18 @@ def _corner_listings(
                     why,
                 )
             ]
-    corner = _distinct_corner(facts, mine)
-    if corner and corner != CORNER_IDENTIFIER_INFEASIBLE:
-        why = _NOT_CHECKABLE_SPELLING_ENVELOPE + CORNER_CITATIONS[corner]
-        group = _group_of(facts)
-        for field, published in (
-            ("n_distinct", column.n_distinct),
-            ("n_distinct_folded", column.n_distinct_folded),
-        ):
+    group = _group_of(facts)
+    for field, published in (
+        (_RAW_DISTINCT, column.n_distinct),
+        (_FOLDED_DISTINCT, column.n_distinct_folded),
+    ):
+        # PER FIELD, exactly as `_distinctness_checks` asks it (review
+        # item P3-V8-F3): a listing here and a check there are the two
+        # halves of one decision, so they are made by one rule and the
+        # census cannot count an entry the checks never dropped.
+        corner = _distinct_corner(facts, mine, field)
+        if corner and corner != CORNER_IDENTIFIER_INFEASIBLE:
+            why = _NOT_CHECKABLE_SPELLING_ENVELOPE + CORNER_CITATIONS[corner]
             if not _envelope_admits_every_count(column, facts, published):
                 continue
             listings = listings + [

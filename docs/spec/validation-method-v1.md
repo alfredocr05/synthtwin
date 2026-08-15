@@ -709,6 +709,22 @@ unrelated to the number of G12 refusals, which method G12 fixes):
   variants and withheld-variant multiset do not settle the published raw
   `n_distinct`. Then raw `n_distinct` falls to the G12.7 envelope.
 
+  **AND THE FOLDED COUNT IS NOT ITS, WHICH IS WHY A CORNER IS ASKED PER
+  FACT** (review item P3-V8-F3, plan amendment A-P3-25 clause 2). A
+  corner authorizes the facts its own passage names, and these three do
+  not name the same ones: the identifier corner names both counts and
+  the multiset, G12.8 names the raw count and says "the same over the
+  folded identities", and this one names raw `n_distinct` and nothing
+  else. Folding is not a spelling question — however few spellings the
+  published variants supply, a label column's folded identities are
+  settled by its published levels and the construction meets that count
+  exactly — so a validator asking one field-blind question for both
+  counts hands this envelope to a fact it does not govern. It did: a
+  description publishing folded 2 against a supply of 3 printed the bar
+  `2 (between 2.0 and 3.0)`, and a file holding three folded identities
+  where the description publishes two was reported an AUTHORIZED
+  DEVIATION instead of a MISS.
+
   **A withheld-variant KEY is an occurrence count and its VALUE is how
   many spellings covered that many rows each** (review item P3-V7-F3,
   plan amendment A-P3-18 clause 2), so the rows such an entry covers are
@@ -733,21 +749,38 @@ unrelated to the number of G12 refusals, which method G12 fixes):
   generator's own twin MISSED.
 
   **And the supply this document can compute is a PAIR, not a number**
-  (A-P3-18 clause 5). G12.8's supply is a property of the twin's
-  finished cells: each (value, style) group of the numbers class
-  supplies one spelling where the style is `plain` and its own cell
-  count otherwise. The published style map fixes the second half exactly
-  and says nothing about the first — how many different VALUES the plain
-  cells carry is decided by the value construction of G5 and G7, which
-  V1.4 keeps out of this module and which this document does not
-  rewrite. So a FLOOR is taken, where all the plain cells carry one
+  (A-P3-18 clause 5 as corrected by A-P3-25 clause 3). G12.8's supply
+  has TWO summands and both are read here. The first is the numbers
+  class: each (value, style) group of it supplies one spelling where the
+  style is `plain` and its own cell count otherwise. The second is every
+  OTHER class — `min(its cell count, its share of the budget in G6.5)`,
+  where the budget is allocated from the published count over the four
+  class counts in G6.5's fixed order, one spelling to each non-empty
+  class and the remainder offered in that order. That second summand is
+  arithmetic on published numbers and needs nothing V1.4 keeps out, and
+  it is counted at BOTH ends. **Leaving it out is what made the bar
+  vacuous**: twenty whole numbers written one way beside two cells that
+  are not numbers read a floor of ONE, so the envelope reached from one
+  value to every cell of the column, both distinctness obligations
+  became listings under the rule below, and a file one different value
+  short of the published count was told nothing was missed.
+
+  The published style map fixes the style half of the first summand
+  exactly and says nothing about the other half — how many different
+  VALUES the plain cells carry is decided by the value construction of
+  G5 and G7, which V1.4 keeps out of this module and which this document
+  does not rewrite. That is the whole of what is unknowable here. So a
+  FLOOR is taken, where all the plain cells carry one
   value between them, and a CEILING, where each carries its own and no
   more of them than the published count of different values; a withheld
   style count is not a style and is counted with the plain cells at the
   floor and at its own cell count at the ceiling. **The envelope this
   method draws therefore HOLDS the generation report's and does not
   equal it**, and no sentence here may say otherwise until that
-  construction is written out.
+  construction is written out. **How far it fails to equal it is stated
+  rather than left open**: a file one different value short of a count
+  the generation report pins is inside this envelope, so it is an
+  AUTHORIZED DEVIATION here and not a MISS.
 
 **And a corner's envelope that admits every count is a LISTING** (V3.4,
 V3.5, and A-P3-18 clause 3). Where the floor above reaches one value and
@@ -817,13 +850,42 @@ descriptions reaching all four corners, and it asks four questions:
 
 **What it does not reach, at its real width.** The first question is
 only as strong as the generation report is honest: a fact the generator
-neither meets nor mentions is invisible to it. The third walks each
+neither meets nor mentions is invisible to it. **A fact that report is
+SILENT about is no longer skipped, though** (review item P3-V8-F3, plan
+amendment A-P3-25 clause 2): the report names every fact its
+construction could not meet exactly, so silence means the generator
+PINNED that fact, and the second question now asks whether this method
+pinned it too. Skipping it is what let G12.7's raw-only envelope sit on
+a label column's folded count while the comparison walked past the entry
+where the bar had been lowered. The third walks each
 family's index map, which is affordable at one and two characters and
 truncated above that, so wider families are compared at their published
 arithmetic and not by enumeration. And on a column of NUMBERS the two
 envelopes are compared by CONTAINMENT rather than equality, for the
 reason V4.1 gives: this method can bound G12.8's supply from both sides
 and cannot compute it without the value construction of G5 and G7.
+**That containment is narrower than it was** (A-P3-25 clause 3): every
+class but the numbers class is settled exactly at both ends now, and
+what remains is measured — a file one different value short of a pinned
+count is an AUTHORIZED DEVIATION here, and the battery asserts exactly
+that rather than describing it.
+
+**V4.2-A2 A number the description states in FIGURES is read as
+figures** (2026-08-15, review item P3-V8-F5; the plan's amendment
+A-P3-25 clause 1 is the ruling and this follows it). The keys of a
+multiplicity map are row counts written in base ten, and the profile
+contract admits them as digits and reads them with whole-number
+arithmetic. This method reads them the same way. A reader that answers
+in binary64 is exact only below nine quadrillion, and a key one row
+short is one group MORE when a band's cells are divided by it: ten
+groups of `9007199254740993` rows, which ten one-character figures cover
+exactly, came back needing eleven, and the refusal of V9 stopped the run
+on a description a twin exists for. This is the fourth site of that
+class, so the guard for it follows the KEY rather than any one rule —
+every field the contract annotates as a text-keyed mapping, from where
+its keys are read out through every call that carries them, refusing
+`parse_number`, `float`, `round` and `complex` and permitting `int`,
+which on decimal text is exact at every size.
 
 **V4.3 The G12 refusals are NOT corners.** They refuse GENERATION,
 so no conforming twin exists for such a profile at all. A validate run

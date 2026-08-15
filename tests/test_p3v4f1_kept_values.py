@@ -1180,12 +1180,24 @@ def test_the_kept_marker_gap_is_measured_at_its_size(
 ) -> None:
     """WHAT IS NOT CLOSED, at its exact size (plan amendment A-P3-15).
 
-    Five obligations of the table the description was written from come
+    Seven obligations of the table the description was written from come
     back MISSED, and the list is written out so that a repair which
     closes it turns this red -- and so that a change which WIDENS it
     turns this red too. The bound is stated in `kept_spellings`; a
     sentence in a docstring that nothing measures is the defect review
     item P3-V5-F2 named.
+
+    IT WAS FIVE, AND THE TWO THAT JOINED IT ARE A BAR BEING RAISED
+    RATHER THAN A GAP GROWING (plan amendment A-P3-20 clause 3, review
+    item P3-V8-F4). This description publishes two hundred decimal cells
+    and one cell that is not a number, and G12.8's supply counts both
+    classes: two hundred spellings from the decimal cells and one from
+    the class beside them meet the published two hundred and one, so the
+    description pins both distinctness counts. Until the second summand
+    was written the supply read two hundred, a corner nobody needs was
+    claimed, and the envelope it opened admitted this very file's two
+    hundred as an AUTHORIZED DEVIATION. The one cause of the gap is
+    unchanged; two of its consequences stopped being hidden.
     """
     described, table, _settings = kept_marker
     outcome = _measure(tmp_path, described, table, "kept-marker.csv")
@@ -1200,6 +1212,8 @@ def test_the_kept_marker_gap_is_measured_at_its_size(
         "counts.n_left_out_of_statistics",
         "counts.n_not_numeric",
         "counts.numeric_share",
+        "distinct.n_distinct",
+        "distinct.n_distinct_folded",
         "presence.n_missing",
         "presence.n_present",
     ], (

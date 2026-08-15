@@ -2790,8 +2790,13 @@ and the file's own wrong count lands on the verdict.
      carries the spelling, and the suite proves it by comparing the
      marker with every string the document holds, key and value alike.
      The table reports `presence.n_present`, `presence.n_missing`,
-     `counts.n_not_numeric`, `counts.n_left_out_of_statistics` and
-     `counts.numeric_share` MISSED — five, against its own profile;
+     `counts.n_not_numeric`, `counts.n_left_out_of_statistics`,
+     `counts.numeric_share`, `distinct.n_distinct` and
+     `distinct.n_distinct_folded` MISSED — ~~five~~ **seven**, against
+     its own profile. **It was five until G12.8's supply was given its
+     second summand; the two that joined are a bar going up rather than
+     this gap growing, amendment A-P3-25 clause 3 states why, and the
+     one cause of the gap is unchanged;**
    - **a declaration of either kind whose cells sit below
      `small_cell_floor` in every column**, pooled into `(withheld)` and
      named nowhere. Bounded by the floor per spelling per column, and
@@ -3369,9 +3374,17 @@ demonstrated red.
    oversight.** G12.8's supply is a property of the twin's FINISHED
    CELLS: each (value, style) group of the numbers class supplies one
    spelling where the style is `plain` and its own cell count otherwise.
-   How many different VALUES the plain cells carry is decided by the
+   ~~How many different VALUES the plain cells carry is decided by the
    value construction of G5 and G7, which V1.4 keeps out of this module
-   and which this repair does not rewrite. So the description settles
+   and which this repair does not rewrite.~~ **That sentence named the
+   right residue and then wrote a floor giving up far more than it, and
+   amendment A-P3-25 clause 3 below corrects it: G12.8's formula has a
+   SECOND summand — for each class that is not the numbers class,
+   `min(its cell count, its share of the budget in G6.5)` — which is
+   arithmetic on published counts and was left out of this validator
+   altogether. It is counted now, at both ends. The plain cells' value
+   count is what remains unknowable here, and it is the only thing.** So
+   the description settles
    two numbers rather than one — a FLOOR, where all the plain cells
    carry one value between them, and a CEILING, where each carries its
    own, bounded by the published count of different values — and the
@@ -3379,7 +3392,10 @@ demonstrated red.
    second number and the two writings print the SAME envelope; on a
    column of numbers the validator's is wider than the generation
    report's, and the suite asserts containment rather than equality and
-   says which it is asserting. Narrowing it means writing the value
+   says which it is asserting. **How much wider is measured rather than
+   described** (A-P3-25 clause 3): a file one different value short of a
+   count the generation report pins is an AUTHORIZED DEVIATION here and
+   not a MISS. Narrowing it means writing the value
    construction out from G5 and G7 here, as V3.4-A2 did for the
    datetime windows. That is a later item, and no sentence in this
    repository may say the two numeric envelopes agree until it is taken.
@@ -3804,6 +3820,167 @@ round 7, items P3-V7-F5 and P3-V7-F8).
 read one statement at a time again. `tests/test_p3v4f1_kept_values.py`
 and `tests/test_claim_inventory.py` are what go red, and they carry the
 two as `REINSTATE=P3-V7-F5` and `REINSTATE=P3-V7-F8`.
+
+**Amendment A-P3-25 — three ordinary defects of round 8, and the two
+sentences of this plan that were wider or narrower than the code.
+Clause 1 RAISES and re-roots a guard: a key the description states in
+figures is read as figures, and the guard against reading it otherwise
+now follows the KEY rather than one rule. Clause 2 RAISES: a corner
+authorizes the facts its own passage names, asked per fact. Clause 3
+RAISES and CORRECTS amendment A-P3-18 clause 5, which stated a boundary
+wider than the one that exists** (2026-08-15, review round 8, items
+P3-V8-F5, F3 and F4).
+
+1. **A published key is decimal text and is read as decimal text, and
+   the guard for that is rooted at the key. THIS RAISES, and it is the
+   fourth repair of one class** (item P3-V8-F5).
+
+   The keys of a multiplicity map are row counts written in figures; the
+   contract's loader admits them with `_all_digits` and reads them with
+   `int`, and so does the generator. The validator read them through
+   `parse_number`, which answers in binary64 and is exact only below
+   nine quadrillion. A contract-valid description publishing ten groups
+   of `9007199254740993` rows each therefore came back with a widest
+   group ONE ROW SHORT, ninety quadrillion cells divided by it needed
+   ELEVEN different spellings where ten answer exactly, and the figures
+   band at one character holds ten -- so `synthtwin validate` stopped at
+   exit code 1 with the sentence that no file can be this description's
+   twin, on a description the shipped generator builds. On a DECLARED
+   column the same arithmetic claims owner decision 6's corner instead,
+   which takes three checks off the report rather than stopping the run:
+   the quieter cost, and the one a green suite says nothing about. Four
+   sites read a key that way -- `_group_sizes`, `_widest_group`,
+   `_group_span` and `_occurrence_key` -- and all four now read it
+   through `contract.occurrence_size`, the contract's own reader. A
+   sweep of the shipped source found no fifth: `summary._number_in`,
+   `profile._within_the_floor` and the loader itself already read a key
+   with `int` after a digit check.
+
+   **WHY THE GUARD THAT EXISTS DID NOT CATCH IT, which is the part that
+   matters.** The guard round 5 built and rounds 6 and 7 widened walks
+   the CLOSURE OF ONE RULE -- the rule deciding which cells a file's own
+   description reads. These readers were never in that closure: they
+   belong to the corner classifier and the refusal classifier, reached
+   from different entry points entirely. The guard was rooted at a
+   DECISION while the class is about a KIND OF VALUE, so rooting it at
+   one more decision would leave the next site open exactly as this one
+   was. **So a second guard is added that follows the value**
+   (`tests/test_p3v8f5_published_keys.py`): every field the profile
+   contract annotates `dict[str, ...]` is a mapping whose keys are the
+   description's own text, and the walk follows those keys out of the
+   mapping, through assignments, through `sorted` and `keys` and
+   `items`, and through calls into other shipped functions, refusing
+   `parse_number`, `float`, `round` and `complex` wherever one arrives.
+   `int` is deliberately permitted: on decimal text it is exact at every
+   size and it is what the loader reads the key with. The published
+   field list is read off the contract's own dataclasses, so a field
+   added to the profile is inside the guard on the commit that adds it.
+   Eight probes drive it, one of them the shipped site exactly as the
+   review found it.
+
+   **What this does not close.** The walk reads a call whose target is a
+   path of plain names, resolving import aliases and plain assignments;
+   a key handed to a target it cannot name is refused rather than
+   followed, which is safe but is a refusal and not a reading. And it
+   judges kinds without statement order, treating a name that holds a
+   key anywhere in a function as holding one throughout -- the direction
+   that reports more, not less.
+
+2. **A corner authorizes the facts its own passage names, and the
+   question is asked per fact. THIS RAISES** (item P3-V8-F3).
+
+   The three corners that reach a distinctness count do not reach the
+   same ones. Owner decision 6's identifier corner names `n_distinct`,
+   `n_distinct_folded` and `n_distinct_by_occurrences`; G12.8's numeric
+   envelope is written for the raw count and, in its own last sentence,
+   "the same over the folded identities"; G12.7's label envelope is RAW
+   `n_distinct` and nothing else, in V4.1's words and in the disposition
+   registry's. One field-blind question was asked for both counts, so
+   G12.7's authorization landed on a folded count it does not name. The
+   witness is round 7's own label column -- `alpha`x6, `Alpha`x6,
+   `beta`x5, `Beta`x5 -- which publishes folded distinctness 2 against a
+   supply of 3: a file holding THREE folded identities was printed as
+   `2 (between 2.0 and 3.0)` and reported an AUTHORIZED DEVIATION where
+   the exact published count is 2 and it must MISS.
+
+   **AND THE TWO TESTS THAT SHOULD HAVE CAUGHT IT ARE REPAIRED, because
+   otherwise the hole stays open behind a green suite.** The corner
+   comparison skipped any fact the generation report does not name --
+   and it names only what its construction could not meet exactly, so
+   the folded count of a label column, which the generator meets
+   exactly, was never compared at all. Silence there means the generator
+   PINNED the fact, so the comparison now asserts that this validator
+   pinned it too, and it is asserted on at least four such entries. The
+   registered red case that builds files to prove every printed
+   distinctness bar can be missed asked the question of the raw count
+   alone; it asks it of both counts now, over more than two hundred
+   entries.
+
+3. **G12.8's supply has two summands and only the first was ever
+   written. THIS RAISES, and it CORRECTS amendment A-P3-18 clause 5**
+   (item P3-V8-F4).
+
+   The method's formula is the numbers class, counted by (value, style)
+   group, PLUS, for each other class, `min(its cell count, its share of
+   the budget in G6.5)`. The second summand was absent from this
+   validator entirely, and both of its inputs are published numbers: the
+   four class cell counts and the count being checked. A column of
+   twenty whole numbers written one way beside two cells that are not
+   numbers -- `0,100,...,1900,alpha,beta` under a parse-rate line of
+   .8 -- publishes twenty-two present cells and twenty-two different
+   values; the generation report prints the bound `[22,22]` for both
+   distinctness facts; this validator computed `[1,22]`, which reaches
+   from one value to every cell of the column. A bar admitting every
+   count is a bar that cannot fail, so amendment A-P3-18 clause 3 turned
+   BOTH obligations into listings, and a file holding twenty-one
+   different values against a published twenty-two was told that no
+   checkable obligation was missed, at exit code 0. With the second
+   summand the floor is three, both entries are checks again, and a
+   column collapsed onto one repeated value MISSES.
+
+   **A-P3-18 clause 5 said the plain cells' value count was the whole
+   of what this validator cannot compute, and then wrote a floor that
+   gave up far more than that.** The sentence is corrected where it
+   stands: the classes are exactly knowable and are now counted at BOTH
+   ends, the ceiling among them -- it added the other classes' CELL
+   COUNT where its own comment already said "their share of the G6.5
+   budget", and the share is what it adds now. **What is still open is
+   one thing and it is measured rather than described:** how many
+   different VALUES the plain cells carry is decided by the value
+   construction of G5, which V1.4 keeps out of this module. So on the
+   witness above the floor is three where the generation report prints
+   twenty-two, and a file ONE different value short of the published
+   count is an AUTHORIZED DEVIATION here rather than a MISS.
+   `test_the_class_witness_gets_g12_8s_second_summand` asserts that
+   residue at its size and goes red if it moves in either direction.
+   Narrowing it still means writing G5's value construction out here, as
+   V3.4-A2 did for the datetime windows; that is still a later item.
+
+   **WHAT ELSE MOVED, and it is a bar going up rather than a gap
+   growing.** Amendment A-P3-15 clause 3 records the unrecoverable
+   kept-marker gap at five subchecks. It is SEVEN now, and the two that
+   joined it are `distinct.n_distinct` and `distinct.n_distinct_folded`
+   on that same witness. The description publishes two hundred decimal
+   cells and one cell that is not a number; the two summands together
+   reach two hundred and one, which is the published count exactly, so
+   the description pins both counts and the exact bar is theirs. While
+   the class summand was missing the supply read two hundred, a corner
+   the generator does not need was claimed, and the envelope it opened
+   -- two hundred to two hundred and one -- was wide enough to call this
+   very file's two hundred an AUTHORIZED DEVIATION. The one cause of the
+   gap is unchanged; two of its consequences stopped being hidden inside
+   a bar that should never have been lowered. Clause 3 of A-P3-15 is
+   corrected where it stands.
+
+**How to reverse this.** Clause 1 reverses by reading a key through
+`parse_number` again, which re-opens the refusal and the corner;
+`tests/test_p3v8f5_published_keys.py` carries it as
+`REINSTATE=P3-V8-F5`, and its guard's own red is the eight probes it
+runs whether or not that variable is set. Clause 2 reverses by asking
+the corner without the field, and clause 3 by writing G12.8's supply
+with its first summand alone and its ceiling with the other classes'
+cell counts; `tests/test_p3v7f2_corner_parity.py` carries both as
+`REINSTATE=P3-V8-F3` and `REINSTATE=P3-V8-F4`.
 
 ## P3-D7. Repository claims, staged honestly
 
