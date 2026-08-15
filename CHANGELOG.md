@@ -246,6 +246,54 @@ exists).
   the other direction: the guard accepted offsets out of range that the
   loader refuses.
 
+### Fixed in Phase 3: a description ten spellings answer is no longer refused
+- **A repetition count is read as the figures it is written in** (plan
+  amendment A-P3-25 clause 1, validation method V4.2-A2). A description
+  says how many rows each repeated value covers, written in figures. The
+  check read those figures through the same reader it uses for a
+  measurement, which is exact only up to about nine quadrillion -- so a
+  description saying that ten values cover 9,007,199,254,740,993 rows
+  each was read as saying one row less, the division that follows came
+  out needing ELEVEN different spellings where ten are asked for and ten
+  are available, and `synthtwin validate` stopped and said that no file
+  could be that description's twin. It builds one. On a column you
+  declared to hold record numbers the same arithmetic quietly took three
+  checks off the report instead of stopping the run. The count is read
+  as a whole number now, at any size, by the same reader that admitted
+  it -- and a new guard follows every such key of the description
+  through the code and refuses any reader that would round it, wherever
+  somebody adds one.
+- **A lesser bar is only ever given to the fact it was granted for**
+  (plan amendment A-P3-25 clause 2). Where a column of labels holds back
+  spellings that are too rare to publish, the ratified plan lets the
+  twin fall short on how many different SPELLINGS it writes. That
+  permission was being handed to a second count as well -- how many
+  different values the column holds once upper and lower case are
+  ignored -- which the description states exactly and the twin meets
+  exactly. A file holding three such values where the description
+  publishes two was called an authorized difference instead of a miss.
+  Each count is now asked about on its own, and the check that compares
+  this validator against the tool's own generator no longer skips a fact
+  the generator met exactly, which is how the hole survived beside a
+  green test.
+- **A check that could not fail is a check again** (plan amendment
+  A-P3-25 clause 3). How many different spellings a column of numbers
+  can carry is worked out from two things: the numbers themselves, and
+  every cell of that column that is NOT a number. The second was left
+  out entirely, so a column of twenty whole numbers beside two cells of
+  text was told a twin might hold as few as ONE different value -- a
+  range from one value to every cell in the column, which no file can
+  fall outside. Both distinctness obligations were dropped from the
+  checks for that reason, and a file one value short of what the
+  description publishes was told that nothing was missed. Those cells
+  are counted now, at both ends of the range, and the obligations are
+  checks again. **What is still open is written down**: how many
+  different values the plainly-written numbers carry is decided by a
+  construction this check may not read, so a file one value short of a
+  count the twin's own report pins is reported as an authorized
+  difference rather than a miss, and a test holds that gap at exactly
+  that size.
+
 ### Fixed in Phase 3: four guards that reached less far than they read
 - **A refusal a person can act on, held to that by the catalog like
   every other refusal** (plan amendment A-P3-23, validation method V9).

@@ -1,6 +1,7 @@
 """V4.2's comparison, built: the two corner classifiers, side by side.
 
-REVIEW ITEMS P3-V7-F2, F3 AND F4, AND THE CLASS ALL THREE BELONG TO.
+REVIEW ITEMS P3-V7-F2, F3 AND F4 AND P3-V8-F3 AND F4, AND THE CLASS
+THEY ALL BELONG TO.
 Specification V4.2 says the corner classifier is written from the
 validation method and compared against the generator's own in the suite,
 where both may be imported. Round 6 discovered that no test had ever
@@ -60,16 +61,23 @@ listing now.
 WHAT THIS DOES NOT REACH, said at its real width. Assertion 1 compares
 the validator's verdict against the GENERATION REPORT's account of the
 same fact, so it is only as strong as that report is honest: a fact the
-generator neither meets nor mentions is invisible to it. Assertion 3
-walks each family's own index map, which is affordable at one and two
-characters and truncated above that, so the three-character families are
-compared at their published arithmetic and not by enumeration. And on a
-column of NUMBERS the two envelopes are compared by containment rather
-than equality, because how many different VALUES the plain cells carry
-is decided by a construction this module may not import (plan amendment
-A-P3-18 clause 5).
+generator neither meets nor mentions is invisible to it -- though a fact
+that report is SILENT about is no longer skipped, because silence there
+means the generator pinned it and assertion 2 now asks whether this
+validator pinned it too (review item P3-V8-F3). Assertion 3 walks each
+family's own index map, which is affordable at one and two characters
+and truncated above that, so the three-character families are compared
+at their published arithmetic and not by enumeration. And on a column of
+NUMBERS the two envelopes are compared by containment rather than
+equality. That containment is narrower than it was -- every class but
+the numbers class is now settled exactly at both ends -- and what
+remains open is one thing and is measured rather than described: how
+many different VALUES the plain cells carry is decided by a construction
+this module may not import, so a file one value short of a pinned count
+is an AUTHORIZED DEVIATION here and `test_the_class_witness_gets_g12_8s
+_second_summand` asserts exactly that (plan amendment A-P3-20 clause 3).
 
-THE RED CHECK. Six `REINSTATE` values put one piece of the pre-repair
+THE RED CHECK. Eight `REINSTATE` values put one piece of the pre-repair
 behaviour back, so every guarantee here has a demonstrated red:
 
 * `P3-V7-F2` -- the identifier supply above one character as it stood,
@@ -85,7 +93,11 @@ behaviour back, so every guarantee here has a demonstrated red:
 * `P3-V7-F4-vacuity` -- the spelling envelope kept as a check where it
   licenses every count a file of that length can hold;
 * `P3-V7-styles` -- a named style count compared exactly against a
-  description whose style map the floor has pooled.
+  description whose style map the floor has pooled;
+* `P3-V8-F3` -- the corner asked without the field, so G12.7's raw-only
+  authorization lands on a folded count as well;
+* `P3-V8-F4` -- G12.8's supply written with its first summand alone, and
+  its ceiling counting the other classes' CELLS instead of their shares.
 
 Every table is built at test time by seeded neutral builders; no
 data-format file enters the repository (plan D13).
@@ -142,9 +154,16 @@ def _the_alphabet_ceiling(
 
 
 def _the_supply_as_it_stood(
+    column: contract.ColumnBlock,
     facts: contract.ColumnFacts,
+    published: int,
 ) -> "int | None":
-    """`_spelling_supply` before round 7: two readings, both too high."""
+    """`_spelling_supply` before round 7: two readings, both too high.
+
+    The classes G12.8's second summand counts are left out here as they
+    were left out then, so this stand-in reinstates round 8's defect
+    along with round 7's; `P3-V8-F4` below puts back that summand alone.
+    """
     if isinstance(facts, contract.LabelFacts):
         supply = 0
         for level in facts.levels:
@@ -173,7 +192,7 @@ def _short_in_one_direction_only(
     column: contract.ColumnBlock, facts: contract.NumericFacts
 ) -> bool:
     """The numeric corner asked as it was: only where supply falls short."""
-    supply = validation._spelling_supply(facts)
+    supply = validation._spelling_supply(column, facts, column.n_distinct)
     if supply is None:
         return False
     if supply < column.n_distinct:
@@ -225,8 +244,89 @@ def _reinstated() -> "typing.Iterator[None]":
         monkeypatch.setattr(
             validation, "_floor_governed", _the_exact_bar_on_a_pooled_map
         )
+    if asked == "P3-V8-F3":
+        monkeypatch.setattr(
+            validation, "_distinct_corner", _the_corner_asked_without_a_field
+        )
+    if asked == "P3-V8-F4":
+        monkeypatch.setattr(
+            validation, "_spelling_supply", _the_supply_without_its_classes
+        )
+        monkeypatch.setattr(
+            validation,
+            "_spelling_ceiling",
+            _the_ceiling_counting_cells_not_shares,
+        )
     yield
     monkeypatch.undo()
+
+
+# Round 8's three, kept for the same reason as round 7's above.
+
+_THE_CORNER = validation._distinct_corner
+_THE_SUPPLY = validation._spelling_supply
+_THE_CEILING = validation._spelling_ceiling
+
+
+def _the_corner_asked_without_a_field(
+    facts: contract.ColumnFacts, mine: "tuple[str, ...]", field: str
+) -> str:
+    """`_distinct_corner` as it stood: one answer for both counts.
+
+    The raw question asked of the folded fact too, which is how G12.7's
+    raw-only authorization came to sit on a folded count (review item
+    P3-V8-F3).
+    """
+    return _THE_CORNER(facts, mine, validation._RAW_DISTINCT)
+
+
+def _the_supply_without_its_classes(
+    column: contract.ColumnBlock,
+    facts: contract.ColumnFacts,
+    published: int,
+) -> "int | None":
+    """G12.8's first summand alone, which is where the floor stood.
+
+    The formula has two, and the second -- `min(cells, budget share)`
+    for every class that is not the numbers class -- was never written
+    (review item P3-V8-F4).
+    """
+    if not isinstance(facts, contract.NumericFacts):
+        return _THE_SUPPLY(column, facts, published)
+    supply = 0
+    pooled = 0
+    for style in facts.numeric_styles:
+        if style in (parsing.STYLE_PLAIN, taxonomy.SUPPRESSED_LABEL):
+            pooled = pooled + facts.numeric_styles[style]
+        else:
+            supply = supply + facts.numeric_styles[style]
+    if pooled > 0:
+        supply = supply + 1
+    return supply
+
+
+def _the_ceiling_counting_cells_not_shares(
+    column: contract.ColumnBlock,
+    facts: contract.ColumnFacts,
+    published: int,
+) -> "int | None":
+    """The high end as it stood: every cell outside the numbers class.
+
+    The comment beside it already said "their own share of the G6.5
+    budget"; the arithmetic added their CELL COUNT, which is the same
+    number only where the budget reaches every one of them.
+    """
+    if not isinstance(facts, contract.NumericFacts):
+        return _THE_CEILING(column, facts, published)
+    plain = 0
+    others = 0
+    for style in facts.numeric_styles:
+        if style == parsing.STYLE_PLAIN:
+            plain = plain + facts.numeric_styles[style]
+        else:
+            others = others + facts.numeric_styles[style]
+    room = others + min(plain, column.n_distinct)
+    return room + max(column.n_present - plain - others, 0)
 
 
 def _the_exact_bar_on_a_pooled_map(
@@ -320,12 +420,21 @@ def _repeated(values: "list[str]", times: int) -> "list[str]":
 
 
 class Entry(typing.NamedTuple):
-    """One column of the space, before the producer has seen it."""
+    """One column of the space, before the producer has seen it.
+
+    ``parse_rate`` is the producer's own `minimum_parse_rate`, which
+    every entry but one leaves at the shipped default. The one that
+    lowers it is round 8's witness: a numeric column needs cells that
+    are NOT numbers standing beside its numbers before G12.8's second
+    summand has anything to add, and the default line puts such a column
+    in the free-text role instead (review item P3-V8-F4).
+    """
 
     stem: str
     values: "tuple[str, ...]"
     declared: bool
     floor: int
+    parse_rate: float = taxonomy.Settings().minimum_parse_rate
 
 
 def _identifier_entries(rng: random.Random, how_many: int) -> "list[Entry]":
@@ -469,7 +578,7 @@ def _datetime_entries(rng: random.Random, how_many: int) -> "list[Entry]":
 # THE NAMED WITNESSES. Each is one review finding, written out so that
 # the space cannot drift off the case that produced it.
 def _named_entries() -> "list[Entry]":
-    """The three review items' own columns, and the boundaries beside them."""
+    """The review items' own columns, and the boundaries beside them."""
     withheld = (
         ["alpha"] * 6 + ["Alpha"] * 6 + ["beta"] * 5 + ["Beta"] * 5
     )
@@ -527,6 +636,22 @@ def _named_entries() -> "list[Entry]":
         Entry(
             "boundary-code-53", tuple(_letters() + ["_"]), True, 11
         ),
+        # P3-V8-F4: twenty whole numbers written one way, beside two
+        # cells that are not numbers at all. G12.8's second summand --
+        # the classes -- settles two of the twenty-two spellings this
+        # description publishes, and the version that never wrote that
+        # summand read a floor of ONE, which made both distinctness
+        # entries bars that could not fail.
+        Entry(
+            "witness-number-classes",
+            tuple(
+                [f"{number}" for number in range(0, 2000, 100)]
+                + ["alpha", "beta"]
+            ),
+            False,
+            11,
+            0.8,
+        ),
     ]
 
 
@@ -567,7 +692,10 @@ def _describe(
     read = reading.read_table(str(table))
     document = profile.build_document(
         read,
-        taxonomy.Settings(small_cell_floor=entry.floor),
+        taxonomy.Settings(
+            small_cell_floor=entry.floor,
+            minimum_parse_rate=entry.parse_rate,
+        ),
         [NAME] if entry.declared else [],
     )
     written = fixtures.write_profile(
@@ -760,9 +888,20 @@ def test_a_claimed_envelope_holds_every_count_the_generator_authorizes(
     numbers the validator's is wider, and that is the boundary this
     module cannot cross -- how many different VALUES the plain cells
     carry is decided by a construction it may not import.
+
+    AND A FACT THE GENERATION REPORT DOES NOT NAME IS NOT SKIPPED
+    (review item P3-V8-F3). The report names every fact its construction
+    could not meet exactly, so a corner-governed fact it is SILENT about
+    is one the generator PINS -- and this validator has to pin it too.
+    Reading silence as "nothing to compare" is what let G12.7's raw-only
+    envelope sit on a label column's folded count through four green
+    rounds: the generator meets that count exactly, files no
+    approximation for it, and the comparison walked straight past the
+    entry where the bar had been lowered.
     """
     labels = 0
     numbers = 0
+    pinned = 0
     for probe in parity:
         facts = probe.column.facts
         if not probe.corners:
@@ -777,6 +916,16 @@ def test_a_claimed_envelope_holds_every_count_the_generator_authorizes(
         ):
             theirs = _generator_envelope(probe.twin, field)
             if theirs is None:
+                lowered = validation._distinct_corner(
+                    facts, probe.corners, field
+                )
+                assert not lowered, (
+                    f"{probe.stem}/{field}: the generation report names "
+                    f"no bound for this fact, so the generator meets it "
+                    f"exactly -- and this validator has lowered it to "
+                    f"the {lowered} envelope anyway"
+                )
+                pinned = pinned + 1
                 continue
             mine = _mine(probe, published)
             assert mine[0] <= theirs[0] and mine[1] >= theirs[1], (
@@ -791,13 +940,18 @@ def test_a_claimed_envelope_holds_every_count_the_generator_authorizes(
                 numbers = numbers + 1
     assert labels >= 4, labels
     assert numbers >= 40, numbers
+    assert pinned >= 4, (
+        "no corner-governed fact in this space is one the generation "
+        "report leaves unnamed, so the rule about its silence is "
+        "asserting nothing"
+    )
 
 
 def _mine(probe: Probe, published: int) -> "tuple[int, int]":
     """The two ends this validator draws for one distinctness count."""
     facts = probe.column.facts
-    supply = validation._spelling_supply(facts)
-    ceiling = validation._spelling_ceiling(probe.column, facts)
+    supply = validation._spelling_supply(probe.column, facts, published)
+    ceiling = validation._spelling_ceiling(probe.column, facts, published)
     assert supply is not None and ceiling is not None
     return (min(supply, published), max(ceiling, published))
 
@@ -1088,51 +1242,63 @@ def test_every_distinctness_bar_this_space_prints_can_be_missed(
 ) -> None:
     """V3.4 and V3.5 on the two counts a spelling corner governs.
 
-    Where raw distinctness is filed as a CHECK, some file has to be able
-    to miss it, and the file is BUILT rather than argued: one that
+    Where a distinctness count is filed as a CHECK, some file has to be
+    able to miss it, and the file is BUILT rather than argued: one that
     collapses the column onto a single repeated value, and one that
     gives every present cell its own. A bar that refuses neither refuses
     nothing a column of that description can hold, and the entry belongs
     in the not-checkable census with the sentence that says why.
+
+    BOTH COUNTS, WHICH IS ROUND 8'S CORRECTION (review item P3-V8-F3).
+    This asked the question of the raw count alone, so a folded bar the
+    description does not authorize -- one lowered onto it by a corner
+    written for raw distinctness -- was never put to a file that ought
+    to miss it, and the registered red case stayed green while the hole
+    stood open beside it.
     """
     folder = tmp_path / "teeth"
     folder.mkdir()
     toothless: list[str] = []
     checked = 0
     for probe in parity:
-        if not _files(probe.outcome, "distinct.n_distinct"):
-            continue
-        checked = checked + 1
         cells = list(probe.twin.columns[0])
         flat = [cells[0] if cell != "" else "" for cell in cells]
         wide = [
             f"{place}" if cell != "" else ""
             for place, cell in enumerate(cells)
         ]
-        refused = False
-        for tag, made in (("flat", flat), ("wide", wide)):
-            path = fixtures.write(
-                folder,
-                f"{probe.stem}-{tag}.csv",
-                fixtures.single_column_table(NAME, made),
-            )
-            outcome = validation.measure(probe.described, str(path))
-            if validation.MISSED in _verdicts(outcome, "distinct.n_distinct"):
-                refused = True
-                break
-        if not refused:
-            toothless = toothless + [
-                (
-                    f"{probe.stem}: distinct.n_distinct is filed as a "
-                    f"check and neither a collapsed column nor an "
-                    f"all-different one can miss it (published "
-                    f"{probe.column.n_distinct}, present "
-                    f"{probe.column.n_present}, corners "
-                    f"{probe.corners or 'none'})"
+        for field, published in (
+            ("n_distinct", probe.column.n_distinct),
+            ("n_distinct_folded", probe.column.n_distinct_folded),
+        ):
+            subcheck = f"distinct.{field}"
+            if not _files(probe.outcome, subcheck):
+                continue
+            checked = checked + 1
+            refused = False
+            for tag, made in (("flat", flat), ("wide", wide)):
+                path = fixtures.write(
+                    folder,
+                    f"{probe.stem}-{field}-{tag}.csv",
+                    fixtures.single_column_table(NAME, made),
                 )
-            ]
+                outcome = validation.measure(probe.described, str(path))
+                if validation.MISSED in _verdicts(outcome, subcheck):
+                    refused = True
+                    break
+            if not refused:
+                toothless = toothless + [
+                    (
+                        f"{probe.stem}: {subcheck} is filed as a "
+                        f"check and neither a collapsed column nor an "
+                        f"all-different one can miss it (published "
+                        f"{published}, present "
+                        f"{probe.column.n_present}, corners "
+                        f"{probe.corners or 'none'})"
+                    )
+                ]
     assert not toothless, "\n  ".join([""] + toothless)
-    assert checked >= 100, checked
+    assert checked >= 200, checked
 
 
 def test_a_bar_that_admits_every_count_is_a_listing_and_not_a_check(
@@ -1160,7 +1326,9 @@ def test_a_bar_that_admits_every_count_is_a_listing_and_not_a_check(
     assert probe.column.n_present == 200
     assert probe.column.n_distinct == 200
     assert dict(facts.numeric_styles) == {parsing.STYLE_PLAIN: 200}
-    assert validation._spelling_supply(facts) == 1
+    assert validation._spelling_supply(
+        probe.column, facts, probe.column.n_distinct
+    ) == 1
     assert probe.corners == (validation.CORNER_NUMERIC_SPELLINGS_SHORT,)
     for field in ("n_distinct", "n_distinct_folded"):
         assert not _files(probe.outcome, f"distinct.{field}"), field
@@ -1199,9 +1367,9 @@ def test_the_label_supply_is_the_generators_own_arithmetic(
         compared = compared + 1
         if any(level.variants_withheld for level in facts.levels):
             withheld = withheld + 1
-        assert validation._spelling_supply(facts) == (
-            generation._label_supply(facts)
-        ), probe.stem
+        assert validation._spelling_supply(
+            probe.column, facts, probe.column.n_distinct
+        ) == generation._label_supply(facts), probe.stem
     assert compared >= 30, compared
     assert withheld >= 5, withheld
 
@@ -1232,13 +1400,26 @@ def test_the_withheld_variant_witness_reaches_the_generators_own_twin(
     assert [dict(level.variants_withheld) for level in facts.levels] == [
         {"6": 2}
     ]
-    assert validation._spelling_supply(facts) == 3
+    assert validation._spelling_supply(
+        probe.column, facts, probe.column.n_distinct
+    ) == 3
     assert generation._label_supply(facts) == 3
     assert probe.corners == (validation.CORNER_LABEL_VARIANTS_SHORT,)
     assert _verdicts(probe.outcome, "distinct.n_distinct") == [
         validation.AUTHORIZED_DEVIATION
     ]
     assert probe.outcome.census.missed == 0
+    # AND THE FOLDED COUNT KEEPS THE EXACT BAR (review item P3-V8-F3).
+    # G12.7's envelope is raw `n_distinct` and nothing else, in V4.1's
+    # words and the registry's; the generator meets the folded count
+    # exactly on this very description and files no bound for it.
+    assert not validation._distinct_corner(
+        facts, probe.corners, validation._FOLDED_DISTINCT
+    )
+    assert _generator_envelope(probe.twin, "n_distinct_folded") is None
+    assert _verdicts(probe.outcome, "distinct.n_distinct_folded") == [
+        validation.HELD
+    ]
 
 
 def test_the_floored_style_witness_reaches_the_generators_own_twin(
@@ -1265,12 +1446,119 @@ def test_the_floored_style_witness_reaches_the_generators_own_twin(
     assert probe.column.n_distinct == 9
     assert facts.numeric_styles[parsing.STYLE_LEADING_ZERO] == 15
     assert taxonomy.SUPPRESSED_LABEL in facts.numeric_styles
-    assert validation._spelling_supply(facts) == 16
+    assert validation._spelling_supply(
+        probe.column, facts, probe.column.n_distinct
+    ) == 16
     assert probe.corners == (validation.CORNER_NUMERIC_SPELLINGS_SHORT,)
     for field in ("n_distinct", "n_distinct_folded"):
         assert _verdicts(probe.outcome, f"distinct.{field}") == [
             validation.AUTHORIZED_DEVIATION
         ], field
+
+
+def test_the_class_witness_gets_g12_8s_second_summand(
+    parity: "tuple[Probe, ...]",
+    tmp_path: pathlib.Path,
+) -> None:
+    """P3-V8-F4: the classes are counted, and what is still open is measured.
+
+    Twenty whole numbers written one way beside two cells that are not
+    numbers. G12.8's supply has two summands and only the first was ever
+    written, so this description's floor read ONE spelling -- one value
+    for all twenty plain cells and nothing at all for the two beside
+    them. A floor of one with a ceiling at every present cell is a bar
+    that cannot fail, so both distinctness entries left the checks
+    altogether and became listings, and a file holding twenty-one
+    different values against a published twenty-two was told that no
+    checkable obligation was missed.
+
+    The second summand is the budget of G6.5, which is arithmetic on
+    four published cell counts and the published count itself, so it
+    needs nothing this module may not import. It settles the two cells
+    beside the numbers exactly: the floor is three, the entries are
+    checks again, and the collapsed column a listing used to license
+    now MISSES.
+
+    AND THE PART THAT IS STILL OPEN IS ASSERTED HERE AT ITS SIZE rather
+    than described (plan amendment A-P3-20 clause 3). How many different
+    VALUES the twenty plain cells carry is decided by the value
+    construction of G5, which V1.4 keeps out of this module, so the
+    floor stays at three where the generation report prints twenty-two.
+    A file one different value short of the published count therefore
+    lands inside this validator's envelope and is reported an AUTHORIZED
+    DEVIATION, not a MISS. That is the residue, it is exactly the plain
+    cells' value count, and this test goes red the moment it changes in
+    either direction.
+    """
+    found = [
+        probe for probe in parity
+        if probe.stem == "witness-number-classes"
+    ]
+    assert len(found) == 1
+    probe = found[0]
+    column = probe.column
+    facts = column.facts
+    assert isinstance(facts, contract.NumericFacts)
+    assert column.n_present == 22
+    assert column.n_distinct == 22
+    assert column.n_numeric == 20
+    assert column.n_not_numeric == 2
+    assert dict(facts.numeric_styles) == {parsing.STYLE_PLAIN: 20}
+    # The budget of G6.5, class by class, in that method's own order.
+    assert validation._class_budget(column, column.n_distinct) == (
+        20,
+        0,
+        0,
+        2,
+    )
+    assert validation._other_class_spellings(column, column.n_distinct) == 2
+    assert (
+        validation._spelling_supply(column, facts, column.n_distinct) == 3
+    )
+    assert (
+        validation._spelling_ceiling(column, facts, column.n_distinct) == 22
+    )
+    # Both entries are CHECKS now, and neither is a listing.
+    for field in ("n_distinct", "n_distinct_folded"):
+        assert _files(probe.outcome, f"distinct.{field}"), field
+        assert not [
+            listing
+            for listing in probe.outcome.listings
+            if listing.subcheck == f"distinct.{field}"
+        ], field
+    # The generator pins this description at twenty-two, and this
+    # validator's envelope holds that -- containment, not equality.
+    for field in ("n_distinct", "n_distinct_folded"):
+        theirs = _generator_envelope(probe.twin, field)
+        assert theirs == (22, 22), (field, theirs)
+    assert probe.outcome.census.missed == 0
+
+    folder = tmp_path / "classes"
+    folder.mkdir()
+    cells = list(probe.twin.columns[0])
+
+    def _verdict_on(made: "list[str]", tag: str) -> str:
+        path = fixtures.write(
+            folder,
+            f"{tag}.csv",
+            fixtures.single_column_table(NAME, made),
+        )
+        outcome = validation.measure(probe.described, str(path))
+        verdicts = _verdicts(outcome, "distinct.n_distinct")
+        assert len(verdicts) == 1, (tag, verdicts)
+        return verdicts[0]
+
+    # A column collapsed onto one repeated value is below the floor of
+    # three and MISSES. Under the bar as it stood there was no check at
+    # all for it to miss.
+    assert _verdict_on([cells[0]] * len(cells), "flat") == validation.MISSED
+    # One value short of the published count is inside this validator's
+    # envelope: the residue above, measured.
+    one_short = list(cells)
+    one_short[1] = one_short[0]
+    assert _verdict_on(one_short, "one-short") == (
+        validation.AUTHORIZED_DEVIATION
+    )
 
 
 def test_the_band_witness_is_short_where_the_summed_reach_is_not(

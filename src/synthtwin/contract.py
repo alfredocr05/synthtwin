@@ -1784,6 +1784,43 @@ def _digits_at(text: str, start: int, count: int) -> bool:
 # -- the multiplicity map, one shape used in three places -------------
 
 
+def occurrence_size(key: str) -> "int | None":
+    """A multiplicity map's key, read as the row count it names (G9.5).
+
+    THE KEY IS DECIMAL TEXT AND IT IS READ AS DECIMAL TEXT. This is the
+    one reader for it, and it exists because the alternative kept coming
+    back: a key handed to a reader that answers in binary64 is a key
+    rounded to the nearest number that format holds, and a row count is
+    not a number that format holds past nine quadrillion. The key
+    `'9007199254740993'` reads back as `9007199254740992` through such a
+    reader -- one row short -- and one row short is one group more when
+    a band's cells are divided by it, which is how a description ten
+    spellings answer exactly came to be refused as needing eleven
+    (review item P3-V8-F5). Leading zeros are padding that does not
+    change the number, which `int` already knows.
+
+    Guarantees:
+
+    - Inputs: one key of a map `_multiplicity` admitted, or any text.
+    - Determinism: a pure function of the text; the answer is exact at
+      every size, because Python's whole numbers are.
+    - Errors raised: none. Text that is not a row count returns None,
+      and each caller says in its own words which way that leaves it --
+      the safe direction differs between a refusal and a corner, so it
+      is decided there and not here.
+    - Boundary: no I/O, no float, and nothing of the measured file.
+
+    This is what `_multiplicity` itself reads the key with when it
+    admits it (`rows = int(name)` above the range check), so a caller
+    reading it again here gets the same number the loader checked.
+    """
+    if not isinstance(key, str):
+        return None
+    if not _all_digits(key):
+        return None
+    return int(key)
+
+
 def _multiplicity(
     value: object,
     key: str,
