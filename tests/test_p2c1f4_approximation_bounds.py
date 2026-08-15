@@ -557,6 +557,7 @@ def test_the_report_says_plainly_when_a_bound_was_missed(
         highest="11.0",
         inside=False,
         note="this column's average",
+        covers_published=True,
     )
     edited = dataclasses.replace(twin, approximations=(missed,))
     text = rendering.report(every_role, edited)
@@ -564,6 +565,10 @@ def test_the_report_says_plainly_when_a_bound_was_missed(
     assert "the description says 10.0; the twin holds 40.0" in text
     assert "allowed anywhere from 9.0 to 11.0: OUTSIDE the range" in text
     assert "is also named in the section above" in text
+    # A bound that DOES cover the published value says nothing extra:
+    # the sentence about a range missing the description's value is
+    # printed where it is true and nowhere else.
+    assert "does not cover the description's own value" not in text
 
 
 def test_the_report_still_has_the_section_with_nothing_to_put_in_it(

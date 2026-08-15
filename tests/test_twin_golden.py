@@ -403,8 +403,47 @@ def test_the_same_description_and_seed_give_the_same_twin_twice(
 # The report says strictly MORE than it did in the first case and less
 # than it did in the second, which is the honest direction: what it
 # stopped saying was not true. No verdict, count or order moved.
+#
+# RE-RECORDED AGAIN, for four things found by reading the shipped page
+# by hand on a real table (2026-08-15). The description and twin digests
+# above held, so nothing about the twin moved: every one of these is
+# what the report SAYS.
+#
+# 1. The absent-cell block printed two groupings of one set of cells as
+#    though they were two sets. `missing_by_source` and
+#    `missing_by_class` count the same cells -- once by spelling, once
+#    by reason -- and "(blank): 11 cell(s)" sat directly above "counted
+#    absent because nothing was written there: 11", which reads as
+#    twenty-two. The two groups are now labelled as two groupings of the
+#    same cells, with the total named once above them.
+# 2. And the pooled name was printed as a fact about the table. Both
+#    maps pool everything under the floor into `(withheld)`, which is
+#    synthtwin's word for "not published here"; at the default floor a
+#    column of eight EMPTY cells printed "(withheld): 8 cell(s)" and
+#    "counted absent because a spelling held back, because too few rows
+#    wrote it that way: 8", telling a researcher their blanks carried a
+#    marker. Each map's pooled entry now says how many cells it does not
+#    name and why. (Not visible in THIS golden, whose pooled entries are
+#    all above the floor; the shape is pinned by the floor-11 tests.)
+# 3. An approximated fact's range is not a margin around the published
+#    value and the page never said so. Three facts here have a range
+#    that does not contain the description's own value at all -- the
+#    ninety-ninth date rung, and both datetime cardinalities, whose
+#    envelope G12.5's own docstring says need not contain it. Each now
+#    says so on its own lines, and the section preamble says what the
+#    range is made of.
+# 4. The stand-in decision printed the machine code. `_VERDICT_WORDS`
+#    was keyed on `missing` and `kept` where the producer publishes
+#    `read_as_missing` and `kept_as_a_number`, so every lookup missed
+#    and the line read "-999 in 13 row(s): read_as_missing, because
+#    outlier_and_frequent" -- beside a summary of the same profile
+#    saying it in English. The reason codes had no table here at all
+#    and now have the summary's own.
+#
+# The report says strictly more than it did, in words rather than in
+# codes. No verdict, count, measurement or order moved.
 GOLDEN_REPORT_SHA256 = (
-    "a8fa24c436b76c83d28a2e83dde225ddf0acd9ed7dad3ef77dfd2ba6bb11610f"
+    "66f6d44aba5e5f0a6ded639eea3751c38ece91179a89e1886307491c1ebdec14"
 )
 
 
@@ -695,8 +734,59 @@ def test_the_report_names_the_seed_the_twin_was_built_at(
 # its teeth back to holds on this description, as it must: the twin is
 # conforming, so its recount is inside its licence whichever way the
 # comparison is read.
+#
+# RE-RECORDED AGAIN, for four things found by reading the shipped page
+# by hand on a real table (2026-08-15). The census is byte for byte what
+# it was -- 249 held, 49 within, 2 authorized, 0 withheld, 0 missed, 77
+# not checkable -- and so are every verdict, every obligation and their
+# order. What moved is what four kinds of line SAY.
+#
+# 1. Nine date rungs per datetime column printed their measurement and
+#    both ends of their window as raw ordinals: "asks for 2024-11-23
+#    (between 1732060800.0 and 1732320000.0) ... found to hold
+#    1732147200.0". Three ten-figure numbers are not written for a
+#    person (charter principle 2), and worse, they hid that the window
+#    at p99 does not reach 2024-12-24 at all. All three are now said as
+#    whole units of the column's own resolution away from the published
+#    rung, and a window that does not reach the published value says so.
+#    No calendar was added here: V1.4 keeps this module's arithmetic to
+#    what the method fixes, so it is one subtraction and one exact
+#    division in the space `_space_unit` already defines. The same
+#    sentence goes on every OTHER window that misses its published
+#    value: the cardinality envelope of a column of dates ordinarily
+#    does -- "asks for 84 (between 106.0 and 240.0): WITHIN-BOUND" --
+#    and a page that flagged it for date rungs alone would have left
+#    the reader worse off than the silence it replaced.
+# 2. Four label obligations asked for a bare number with no found line
+#    under it -- `levels.west.label: HELD -- the description asks for:
+#    1`, and the same for `.variants`, `.variants_withheld`,
+#    `levels.set`, `suppressed.counts` and
+#    `distinct.n_distinct_by_occurrences`. Withholding the found value
+#    is the disclosure rule and stays; the "asks for" now says what the
+#    obligation is. Two of those numbers were also counts of the wrong
+#    thing: `variants_withheld` and `n_distinct_by_occurrences` are
+#    keyed on GROUP SIZES, so the number of entries is neither a count
+#    of spellings nor of rows.
+# 3. The not-checkable census printed registry identifiers --
+#    "'answer' -- universal.n_sentinel_candidates_unpublished" -- where
+#    every verdict line above it leads with a name, and where the
+#    `axes.structural_role` entries beside them already carried one.
+#    Every line now names its obligation in words with the identifier
+#    in brackets, the same shape a verdict line carries. Three of them
+#    ARE verdict subchecks on a file with a header line and now carry
+#    that identity: `header.names`, `columns.order`, `columns.n_columns`.
+# 4. The WITHHELD paragraph was written in the present indicative about
+#    lines this report does not carry: "Some obligations carry no
+#    verdict at all and the report says WITHHELD ... the line itself
+#    says which", under a census reading 0 WITHHELD. The rule is now
+#    stated as a rule, which is true either way, and how many times it
+#    bit is generated from the census exactly as the verdict summary is.
+#    The census legend beside it went the same way: "0 WITHHELD -- not
+#    shown -- the line below says why" sent a reader down the page after
+#    lines that are not there, and the word's meaning is a fact about
+#    the vocabulary rather than about this run.
 GOLDEN_QUALITY_SHA256 = (
-    "2ac57742dd2ddd92c964d8d16f45c80a208ae2c7bf179c068a75295fa3aef35f"
+    "d3b66c7de6095fbbf76d9b08af596ca3cae69a1bdaaba061611ee05cdc169d73"
 )
 
 

@@ -293,6 +293,25 @@ class Approximation:
 
     `note` is one plain sentence saying what the fact is and what the
     bound is made of, in the words the report uses.
+
+    `covers_published` SAYS WHETHER THE BOUND CONTAINS THE PUBLISHED
+    VALUE AT ALL, and it is carried because a report that does not say
+    so contradicts itself on the page (review of the shipped reports,
+    2026-08-15). None of these bounds is a margin around the published
+    value: each is worked out from the description and the size of the
+    column, so a bound can lie wholly to one side of the value printed
+    beside it. A column of 233 dates printed "the description says
+    2023-11-23; the twin holds 2023-11-20 / allowed anywhere from
+    2023-11-19 to 2023-11-21: inside the range" -- three true
+    statements whose only possible joint reading, for a reader told
+    that "inside the range" means the method kept its promise, is that
+    the page is wrong somewhere. It is not: G12.4 bounds the twin's
+    rung by the band its own RANK was built in, and the rank holding a
+    named rung covers a slightly different share of the column from the
+    share the rung's name names. The report now says so where it
+    happens, and this field is the answer computed where the values are
+    still numbers -- the four text fields are what the report prints
+    and nothing is ever parsed back out of them.
     """
 
     column: str
@@ -303,6 +322,7 @@ class Approximation:
     highest: str
     inside: bool
     note: str
+    covers_published: bool
 
 
 @dataclasses.dataclass(frozen=True)
@@ -9135,6 +9155,7 @@ def _numeric_cardinalities(
                     )
                 ),
                 note=note,
+                covers_published=True,
             )
         ]
     return found
@@ -9224,6 +9245,7 @@ def _numeric_approximations(
                     "the value that stands "
                     f"{percent} percent of the way up this column"
                 ),
+                covers_published=_inside(rung, lowest, highest),
             )
         ]
     mean, deviation, shape = _moments_of(values)
@@ -9240,6 +9262,7 @@ def _numeric_approximations(
                 highest=_figure(highest),
                 inside=_inside(mean, lowest, highest),
                 note="this column's average",
+                covers_published=_inside(facts.mean, lowest, highest),
             )
         ]
     # How far one rank's value can stand from the ladder's own value
@@ -9266,6 +9289,7 @@ def _numeric_approximations(
                 highest=_figure(highest),
                 inside=_inside(deviation, lowest, highest),
                 note="how far this column's values spread out",
+                covers_published=_inside(facts.std, lowest, highest),
             )
         ]
     if facts.skew is not None and shape is not None:
@@ -9280,6 +9304,7 @@ def _numeric_approximations(
                 highest=_figure(highest),
                 inside=_inside(shape, lowest, highest),
                 note="which side of this column's average is the longer tail",
+                covers_published=_inside(facts.skew, lowest, highest),
             )
         ]
     return found + _numeric_cardinalities(column, plan, written)
@@ -9518,6 +9543,9 @@ def _datetime_approximations(
                     "the date that stands "
                     f"{percent} percent of the way up this column"
                 ),
+                covers_published=(
+                    lowest <= ladder[step] <= highest
+                ),
             )
         ]
     # The number of different values, both ways of counting. A stand-in
@@ -9552,6 +9580,14 @@ def _datetime_approximations(
                     if place == 2
                     else "how many different values it holds, ignoring "
                     "case and edge spacing"
+                ),
+                # G12.5's own docstring says this envelope need not
+                # contain the published count and on an ordinary column
+                # does not: it counts what the construction FORCES, and
+                # a column of 240 rows over 84 dates publishes 84 while
+                # the construction writes a value per rank.
+                covers_published=(
+                    lowest_count <= published <= highest_count
                 ),
             )
         ]
@@ -9633,6 +9669,7 @@ def _text_approximations(
                 highest=_figure(highest / rows),
                 inside=lowest <= achieved <= highest,
                 note="how many characters a value holds on average",
+                covers_published=lowest <= wanted <= highest,
             )
         ]
     # The middle length is measured whether or not an average was
@@ -9726,6 +9763,9 @@ def _median_length(
             highest=_figure(float(highest)),
             inside=_inside(achieved, float(lowest), float(highest)),
             note="the middle length: half the values are shorter",
+            covers_published=_inside(
+                facts.length.p50, float(lowest), float(highest)
+            ),
         )
     ]
 
@@ -9781,6 +9821,7 @@ def _word_average(
             highest=_figure(highest / rows),
             inside=lowest <= achieved <= highest,
             note="how many words a value holds on average",
+            covers_published=lowest <= wanted <= highest,
         )
     ]
 
@@ -9837,6 +9878,7 @@ def _label_approximations(
             highest=f"{highest}",
             inside=lowest <= counted[2] <= highest,
             note="how many different spellings this column holds",
+            covers_published=True,
         )
     ]
 

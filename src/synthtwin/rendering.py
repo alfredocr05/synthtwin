@@ -113,9 +113,40 @@ _TYPE_WORDS = {
 # What the description's own words for a stand-in decision mean. The
 # codes are the profiler's; these are the same two decisions written for
 # a person, and neither table holds a value of anybody's table.
+#
+# THE KEYS WERE WRONG AND SO NOTHING WAS TRANSLATED (review of the
+# shipped reports, 2026-08-15). They read `missing` and `kept`, and the
+# profiler's own words are `read_as_missing` and `kept_as_a_number`, so
+# every lookup missed and an ordinary report printed the machine code:
+# "-999 in 13 row(s): read_as_missing, because outlier_and_frequent",
+# in a document whose whole promise is being written for a person, and
+# beside a summary of the same profile saying it in English. The reason
+# codes had no table here at all and now have the summary's own, word
+# for word, so the two pages describing one decision cannot describe it
+# differently. The suite holds both tables to the producer's constants,
+# because a table keyed on a code nobody publishes fails silently --
+# which is exactly how this survived.
 _VERDICT_WORDS = {
-    "missing": "counted as 'no value'",
-    "kept": "kept as a number",
+    "read_as_missing": "counted as 'no value'",
+    "kept_as_a_number": "kept as a number",
+}
+_REASON_WORDS = {
+    "outlier_and_frequent": (
+        "far outside the rest of the column, and in enough rows to be a "
+        "convention rather than a reading"
+    ),
+    "not_an_outlier": (
+        "inside the range the rest of the column covers, so it reads as "
+        "an ordinary value"
+    ),
+    "too_rare": (
+        "in too few rows to be a convention, and removing it would throw "
+        "away a real reading"
+    ),
+    "too_few_other_values": (
+        "there are too few other values in this column to judge it against"
+    ),
+    "kept_by_you": "you named it with --keep-value",
 }
 
 
@@ -608,6 +639,21 @@ def _approximation_lines(twin: generation.Twin) -> "list[str]":
     bound nobody printed is a fact a reader has to take on trust, and
     this repository treats a check whose result is not shown as a check
     that was not made (plan P2-D11, contract section 2.2).
+
+    THE RANGE IS NOT A MARGIN AROUND THE PUBLISHED VALUE, AND THE PAGE
+    NOW SAYS SO (review of the shipped reports, 2026-08-15). Every one
+    of these ranges is worked out from the description and the size of
+    the column, so a range can lie wholly above or wholly below the
+    value printed on the line above it. Three date rungs of one
+    ordinary column did: the description said 2023-11-23, the twin held
+    2023-11-20, and the range ran 2023-11-19 to 2023-11-21 -- with a
+    preamble telling the reader that "inside the range" means the twin
+    did what the method promises and never saying the range could
+    exclude the published value. Nothing was wrong with the arithmetic;
+    the page contradicted itself. So the preamble says what the range
+    is made of and that it can miss the value beside it, and any fact
+    where it does gets a line of its own saying it, because a reader
+    meets the line and not the preamble.
     """
     lines = [
         "A fact in this section is APPROXIMATE by construction: the method",
@@ -618,6 +664,18 @@ def _approximation_lines(twin: generation.Twin) -> "list[str]":
         "beside it. 'Inside the range' means the twin did what this method",
         "promises; it does not mean the two numbers are equal, and the two",
         "numbers are both printed so you can see the difference yourself.",
+        "",
+        "THE RANGE IS NOT A MARGIN AROUND THE DESCRIPTION'S VALUE. It is",
+        "what the method allows the twin's own value, worked out from the",
+        "description and the size of your column, so a range can sit",
+        "wholly above or wholly below the value printed beside it -- most",
+        "often at the top of a column of dates, where the twin's rung is",
+        "read at a slightly different share of the column from the share",
+        "the rung's name names. Where a range does not cover the",
+        "description's value, this report says so on that fact's own",
+        "lines, and 'inside the range' there means only that the method",
+        "kept the promise it made -- it does not mean the two values are",
+        "close. Compare the two values yourself; they are both printed.",
         "",
     ]
     if not twin.approximations:
@@ -648,6 +706,20 @@ def _approximation_lines(twin: generation.Twin) -> "list[str]":
             "Every one of them landed inside the range this method promises.",
             "",
         ]
+    missing = 0
+    for found in twin.approximations:
+        if not found.covers_published:
+            missing = missing + 1
+    if missing:
+        lines = lines + [
+            (
+                f"On {missing} of them the range does not cover the "
+                f"description's own"
+            ),
+            "value at all, which the paragraph above says is not a fault.",
+            "Each of those says so again on its own lines below.",
+            "",
+        ]
     shown = ""
     for found in twin.approximations:
         if found.column != shown:
@@ -667,25 +739,113 @@ def _approximation_lines(twin: generation.Twin) -> "list[str]":
                 f"{_shown(found.highest)}: {result}"
             ),
         ]
+        lines = lines + _range_miss_lines(found)
     return lines
 
 
-def _missing_lines(column: contract.ColumnBlock) -> "list[str]":
+def _range_miss_lines(found: generation.Approximation) -> "list[str]":
+    """Said where a range does not reach the value printed above it.
+
+    Printed on the fact's own lines rather than left to the preamble,
+    because a reader meets the line and not the preamble (review of the
+    shipped reports, 2026-08-15). Empty where the range covers the
+    published value, which is most of them.
+    """
+    if found.covers_published:
+        return []
+    return [
+        (
+            f"    this range does not cover the description's own "
+            f"value ({_shown(found.published)}):"
+        ),
+        "      it is the range the method allows the twin here,",
+        "      worked out from the description and the size of this",
+        "      column, and not a margin around that value. The two",
+        "      values above are what to compare.",
+    ]
+
+
+def _missing_lines(
+    column: contract.ColumnBlock, floor: int
+) -> "list[str]":
     """How the real table wrote its absent cells, which the twin does not.
 
     Every absent cell of the twin is written as an empty cell, so the
     spellings and the reasons behind them are recorded here and nowhere
     else (residual R-P2-2).
+
+    TWO GROUPINGS OF ONE SET OF CELLS, SAID TO BE THAT (review of the
+    shipped reports, 2026-08-15). `missing_by_source` and
+    `missing_by_class` count the SAME absent cells -- once by the
+    spelling the table wrote, once by the reason each was counted
+    absent -- so a column with eight empty cells printed
+    `(blank): 8 cell(s)` and `counted absent because nothing was
+    written there: 8` one under the other, and the two lines read as
+    sixteen cells. The two groupings are now introduced as two
+    groupings of the same cells, with the total named once above them.
+
+    AND A POOLED NAME IS NEVER A CLAIM ABOUT WHAT WAS WRITTEN. Both
+    maps pool everything under the publication floor into the single
+    key `(withheld)`, which is synthtwin's word for "not published
+    here" and is not a spelling any table used nor a reason any cell
+    was absent. Printed straight it said both of those things: at the
+    default floor the same eight EMPTY cells printed as
+    `(withheld): 8 cell(s)` and `counted absent because a spelling held
+    back, because too few rows wrote it that way: 8` -- a report
+    telling a researcher their blanks carried some marker they had to
+    account for, which was false of every one of them. The pooled entry
+    of each map now says what pooling is: how many cells the map does
+    not name, and why the map does not name them.
     """
     if not column.n_missing:
         return []
     lines = [
         "  The twin writes every one of them as an empty cell, so how your",
-        "  table wrote them is here rather than in the twin:",
+        "  table wrote them is here rather than in the twin. The two",
+        f"  groups below are two groupings of the same {column.n_missing} cell(s) --",
+        "  once by the spelling your table used, once by the reason each",
+        "  was counted absent -- so their numbers are not added together.",
+        "  By the spelling your table used:",
     ]
+    lines = lines + _by_spelling_lines(column, floor)
+    lines = lines + ["  By the reason each was counted absent:"]
+    return lines + _by_reason_lines(column, floor)
+
+
+def _by_spelling_lines(
+    column: contract.ColumnBlock, floor: int
+) -> "list[str]":
+    """The absent cells grouped by the spelling the table wrote."""
+    lines: list[str] = []
+    pooled = 0
     for spelling in sorted(column.missing_by_source):
         count = column.missing_by_source[spelling]
+        if spelling == contract.WITHHELD:
+            pooled = count
+            continue
         lines = lines + [f"    {_shown(spelling)}: {count} cell(s)"]
+    if pooled:
+        lines = lines + [
+            f"    {pooled} cell(s) whose spelling is not named here:",
+            (
+                f"      fewer than {floor} of this column's cells were "
+                f"written any one of"
+            ),
+            "      those ways, so the description does not publish the",
+            "      spelling and neither does this report.",
+        ]
+    if not lines:
+        lines = [
+            "    the description names no spelling for these cells, so",
+            "    this report names none either.",
+        ]
+    return lines
+
+
+def _by_reason_lines(
+    column: contract.ColumnBlock, floor: int
+) -> "list[str]":
+    """The absent cells grouped by why each was counted absent."""
     classes = column.missing_by_class
     reasons = [
         (classes.blank, "nothing was written there"),
@@ -695,14 +855,23 @@ def _missing_lines(column: contract.ColumnBlock) -> "list[str]":
             "a number this column used as a stand-in for 'no value'",
         ),
         (classes.text_code, "a code such as NA that reads as 'no value'"),
-        (
-            classes.withheld,
-            "a spelling held back, because too few rows wrote it that way",
-        ),
     ]
+    lines: list[str] = []
     for count, reason in reasons:
         if count:
-            lines = lines + [f"    counted absent because {reason}: {count}"]
+            lines = lines + [f"    {reason}: {count} cell(s)"]
+    if classes.withheld:
+        lines = lines + [
+            f"    {classes.withheld} cell(s) whose reason is not named here:",
+            (
+                f"      fewer than {floor} of this column's cells fell "
+                f"under any one of"
+            ),
+            "      those reasons, so the description does not publish the",
+            "      reason and neither does this report. This is not a",
+            "      reason of its own, and it says nothing at all about",
+            "      what those cells held.",
+        ]
     return lines
 
 
@@ -713,6 +882,13 @@ def _sentinel_lines(column: contract.ColumnBlock) -> "list[str]":
     twin value can land on one of those numbers by ordinary arithmetic,
     and describing the twin again would then count it absent -- exactly
     as the real column's own cells were counted.
+
+    A COLUMN THAT PUBLISHES NO VALUE CARRIES `(withheld)` IN PLACE OF
+    THE CANDIDATE, and that is not a number this column used. Printed
+    where the number goes it read as one -- "(withheld) in 40 row(s):
+    kept as a number" names a spelling no table wrote. The line now
+    says the number is not named here, which is what the description
+    holds.
     """
     if not column.sentinel_verdicts:
         return []
@@ -724,11 +900,17 @@ def _sentinel_lines(column: contract.ColumnBlock) -> "list[str]":
         decision = verdict.verdict
         if decision in _VERDICT_WORDS:
             decision = _VERDICT_WORDS[decision]
+        because = verdict.reason
+        if because in _REASON_WORDS:
+            because = _REASON_WORDS[because]
+        named = f"{_shown(verdict.candidate)}"
+        if verdict.candidate == contract.WITHHELD:
+            named = "a number not named here"
         lines = lines + [
             (
-                f"    {_shown(verdict.candidate)} in "
+                f"    {named} in "
                 f"{verdict.n_occurrences} row(s): {_shown(decision)}, "
-                f"because {_shown(verdict.reason)}"
+                f"because {_shown(because)}"
             )
         ]
     return lines + [
@@ -760,6 +942,7 @@ def _column_lines(
     column: contract.ColumnBlock,
     outcome: generation.ColumnOutcome,
     notes: "list[str]",
+    floor: int,
 ) -> "list[str]":
     """One column's block: what it holds, and what only the description has.
 
@@ -771,7 +954,9 @@ def _column_lines(
 
     `notes` is what the description says was held back for this column,
     already collected by the caller so that this walks the note list once
-    for the whole document rather than once per column.
+    for the whole document rather than once per column. `floor` is the
+    description's own publication floor, which the absent-cell block
+    needs to say why a pooled group is not named.
     """
     words = column.statistical_type
     if words in _TYPE_WORDS:
@@ -798,7 +983,7 @@ def _column_lines(
         lines = lines + [f"  Note from the description: {_shown(remark)}"]
     for note in notes:
         lines = lines + [f"  Held back from the description: {_shown(note)}"]
-    lines = lines + _missing_lines(column)
+    lines = lines + _missing_lines(column, floor)
     lines = lines + _sentinel_lines(column)
     lines = lines + _datetime_lines(column)
     if column.n_sentinel_candidates_unpublished:
@@ -1107,7 +1292,10 @@ def report(profile: contract.Profile, twin: generation.Twin) -> str:
     for place in range(len(profile.columns)):
         column = profile.columns[place]
         lines = lines + _column_lines(
-            column, twin.outcomes[place], _notes_for(profile, column.name)
+            column,
+            twin.outcomes[place],
+            _notes_for(profile, column.name),
+            profile.settings.small_cell_floor,
         )
     lines = lines + [
         _RULE,
