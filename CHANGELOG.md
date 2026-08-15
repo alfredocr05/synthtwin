@@ -176,10 +176,12 @@ exists).
 - **Nothing else is relaxed.** Every floor-governed invariant still binds
   at the value the document carries (B5, D3, N2, N4, P2, V1, W5); at a
   floor of 1 nothing may be held back at all, and a description that
-  fills a held-back map is refused for breaking the invariant it always
-  broke. A floor of zero or below is still refused, and a hand-edited
-  description is still refused for every other reason it was refused
-  before.
+  fills a held-back field is refused under contract invariant S13. A
+  floor of zero or below is still refused, and a hand-edited description
+  is still refused for every other reason it was refused before. (This
+  entry first said the refusal was "for breaking the invariant it always
+  broke", which was true of three fields and false of five; amendment
+  A-P3-16 below is the repair.)
 - **The consequence is made visible rather than softened.** A `profile`
   run at a lowered number prints an unmissable warning before either
   file exists -- what a group that small can reveal about a person, in
@@ -199,10 +201,112 @@ exists).
   composed "a number of rows from 1 to 0"; it now says the block must be
   empty, and why.
 
+### Fixed in Phase 3: a floor of one really holds nothing back, and the report says only that
+- **The floor-of-one invariant is enforced, not just written down**
+  (plan amendment A-P3-16; contract invariant S13). The rule above said
+  a description that holds something back at a floor of one is refused.
+  Three fields were refused and five were not: a description written by
+  the profiler itself stayed accepted after `(withheld)` was put into
+  `missing_by_class`, `missing_by_source`, `utc_offsets` or
+  `numeric_styles`, and after `n_sentinel_candidates_unpublished` was
+  made nonzero. The reason is that four of those are rules holding a
+  PUBLISHED count to the floor and EXEMPTING the pooled remainder -- an
+  exemption does not become a rule at the bottom of the range by
+  itself -- and the fifth, the count of stand-in numbers too rare to
+  name, no rule of the contract bounded at any floor. The loader now
+  checks the whole description against S13
+  before it reads a column, and finds a pooled remainder by looking for
+  the format's one word for "held back" wherever it stands rather than
+  by a list of field names -- so a field added later is covered when it
+  is added.
+- **The profiler will not WRITE one either.** Its publication guard
+  checks the finished description before a byte reaches a disk, and its
+  rule for a pooled entry ignored the floor entirely. It now has
+  vocabulary for the floor's other half. No description the profiler
+  writes at any floor changes.
+- **The quality report stops saying "At 1 nothing is withheld at all".**
+  Two rules put WITHHELD on an obligation line and only one of them is
+  the floor's; the other asks whether describing the CHECKED FILE
+  publishes a measurement of that kind at all. A floor-one report
+  printed that sentence and then eighty-three WITHHELD lines, with the
+  count of them in its own verdict summary. It now says what is true --
+  nothing is held back for being a small group -- and names the other
+  rule. No artifact made at the default floor changes.
+
+### Fixed in Phase 3: a table whose times are stamped in UTC can be described
+- **`synthtwin profile` refused every UTC-stamped table** (plan
+  amendment A-P3-16 clause 4). The profiler writes `Z` as the offset of
+  a cell ending in one, and the strict loader accepts `Z` wherever an
+  offset may stand -- but the profiler's own publication guard did not
+  know the string, so a column of `2024-03-17T09:00:00Z` stopped the
+  run with the message that says this is a fault in synthtwin itself
+  and there is nothing to fix in your file. The two writings of what a
+  UTC offset is now accept the same strings, checked against each other
+  string by string, and that comparison closed a second disagreement in
+  the other direction: the guard accepted offsets out of range that the
+  loader refuses.
+
+### Fixed in Phase 3: three ceilings that did not mean what they said
+- **A search allowed two hundred and fifty-six tries spent two thirds of
+  them re-asking a question it had already answered** (plan amendment
+  A-P3-17 clause 2, method G9.3 step 5). The rule that repairs a twin's
+  count of different record numbers once case and edge spacing are
+  ignored may try a stated number of layouts before it gives up. It was
+  counting the tries and not the questions, and on a column found by
+  review the same question came round ten times over: **2,466 tries
+  carrying 246 different questions**, and the ceiling ran out having
+  answered 82 of them -- before the first layout that would have
+  worked. A question is now asked once and remembered. Measured on a battery of 1,174 columns the profiler wrote
+  from real values, at four seeds: **12 of 4,696 twins missed that
+  count before and 4 miss it now**, every one of the twins whose bytes
+  moved is one that was wrong before, and the count of cells opening
+  with a character a spreadsheet reads as a formula is unchanged.
+- **The four that remain are one column, and the changelog says so
+  rather than rounding to none.** Its cause is neither the ceiling nor
+  the search: with every ceiling removed, 2,097 layouts are offered for
+  that column and not one of them can build every collision it owes.
+  The twin names the deviation in its report, as it always did.
+- **A repaired layout is now held to what it WROTE, not to what its
+  arithmetic promised.** A layout can name a family that has no spelling
+  at the length its slot is pinned to; the twin then falls back to
+  another alphabet and loses a count -- how many cells read as numbers,
+  how many are figures alone -- that the layout met on paper. Every
+  published count is recounted off the finished cells, and a repaired
+  layout that gives up any count the first layout held is refused.
+  **On the two batteries measured this check never fires**, and that is
+  said here rather than left to be assumed: it is kept for the witness
+  that reaches such a layout and for the property the amendment states,
+  not for a number it moves.
+- **The proof that every check the quality report ships can fail was
+  walking one of the four kinds of description it ships for** (plan
+  amendment A-P3-17 clause 3, validation method V8.3-A1). The two
+  degenerate zero-row forms file fifteen checks between them and not one
+  had a test showing it could fail, or binding it to the obligation it
+  answers for. All fifteen now do.
+- **The guard that keeps a withdrawn promise out of this repository was
+  not reading the governing plans** (plan amendment A-P3-17 clause 1).
+  It named a passage of one of them as a place the 2026-08-14 ruling had
+  to correct, and never opened it. It reads them now, and found one
+  stale claim on the first run: a paragraph still describing a bound
+  that was deleted the same day, now marked superseded where a reader
+  meets it. Three sentences that walked past the guard -- a promise made
+  as an outcome rather than as a barrier, a word for a description it
+  did not carry, and a withdrawal standing in front of the promise it
+  was read as curing -- are kept as its own tests. **What a list of
+  words cannot do is stated beside the list**: no finite list bounds an
+  infinite set of paraphrases, so this is a guard and not a proof, and
+  what would be a proof is written down in the amendment for the owner
+  to weigh.
+
 ### Fixed in Phase 3: a twin of a column of record numbers holds its folded count
 - **A published count the twin got wrong on 3.7 per cent of a battery
-  of real producer descriptions is now right on all of them** (owner
+  of real producer descriptions is right on all of them** (owner
   ruling of 2026-08-14, plan amendment A-P3-12, method G9.3 step 5).
+  **Corrected 2026-08-14**: "all of them" is all of the two batteries
+  measured below. A third battery, built later to a different shape,
+  found the miss again on 12 of 4,696 runs; that is repaired and
+  measured under A-P3-17 clause 2 above, where the four runs that still
+  miss it are counted rather than rounded away.
   Where a description of a column of record numbers records two
   spellings that come down to one value once upper and lower case and
   spaces at the ends are ignored, the twin owes that collision. Which
@@ -1233,7 +1337,7 @@ them.
   document whose facts cannot all hold is met as far as it can be; the
   method's G12 list carries four refusals instead of two; and a battery
   of eleven producer descriptions at three seeds still produces
-  thirty-three twins, so nothing a real table describes was stopped.
+  thirty-three twins, so nothing a real table describes was refused.
 - **What that repair leaves open, said plainly** (review item
   P2-C5-F4). `all_whole_numbers` on a declared identifier is still
   missed on two shapes a real table DOES produce, and the run names it

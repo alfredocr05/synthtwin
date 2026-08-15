@@ -558,6 +558,46 @@ def _predicate_runs(
     return built
 
 
+def _conforming_text(described: contract.Profile, twin: str) -> str:
+    """The file each predicate's own description asks for, byte for byte.
+
+    For the two ordinary predicates that is the twin. For the two
+    zero-row predicates owner decision 7 fixes it: a description whose
+    names were GENERATED asks for zero bytes, and one whose names came
+    from the file asks for its header line and nothing more. The header
+    line is written here from the published names rather than taken off
+    the validator, and the fixture names carry nothing method G2 would
+    quote, so the join is the whole of the writing --
+    `test_a_conforming_zero_row_file_misses_nothing_it_can_hold` is what
+    holds that construction to the shipped reader.
+    """
+    if described.n_rows:
+        return twin
+    if described.source.header_source != reading.HEADER_FROM_FILE:
+        return ""
+    return ",".join(
+        column.name for column in described.columns
+    ) + "\n"
+
+
+def _predicate_sites(
+    folder: pathlib.Path,
+    runs: "list[tuple[str, contract.Profile, str]]",
+) -> "list[tuple[str, contract.Profile, str, list[Site]]]":
+    """Every executable subcheck each of the four predicates files.
+
+    Measured against the file that predicate's own description asks
+    for, so the sites are the ones a conforming run files and not the
+    ones a refusal path happens to leave behind.
+    """
+    built: list[tuple[str, contract.Profile, str, list[Site]]] = []
+    for label, described, twin, _ordinary in _predicate_runs(folder, runs):
+        text = _conforming_text(described, twin)
+        outcome = _measured(folder, described, text, f"{label}-sites.csv")
+        built = built + [(label, described, text, _sites_of(outcome))]
+    return built
+
+
 def test_every_named_predicate_binds_every_fact_exactly_once(
     tmp_path: pathlib.Path,
     runs: "list[tuple[str, contract.Profile, str]]",
@@ -2992,6 +3032,30 @@ FIXTURE_ROLES: "dict[str, dict[str, str]]" = {
     "unrepresentable": {"overflow": "numeric_unrepresentable"},
 }
 
+# THE FOUR PROFILE PREDICATES V3.1 NAMES, and the fixture each one is
+# described from -- so `_family_of` can give a predicate's columns their
+# family exactly as it gives an ordinary run's.
+#
+# REVIEW ITEM P3-V4-F6. The binding proof below walked the six ordinary
+# runs and called itself total over the shipped table. It was total over
+# the ordinary PREDICATE. Owner decision 7 makes the two zero-row forms
+# predicates of their own, and the sites they file were outside the walk
+# altogether: `bytes.zero-row-form` was bound by nothing here, and the
+# headed form's `header.names` and `columns.order` could swap facts with
+# every assertion in this file still green. A statement about "every
+# shipped site" that skips a shipped predicate is a statement about a
+# subset, and the difference is exactly where the defect sat.
+#
+# Checked against `_predicate_runs` by
+# `test_the_predicate_walk_covers_every_predicate_that_file_names`, so
+# the two statements of what the predicates ARE cannot drift apart.
+PREDICATE_FIXTURES = {
+    "header-written": "every-role",
+    "names-generated": "headerless",
+    "zero-rows-headered": "every-role",
+    "zero-rows-headerless": "headerless",
+}
+
 # Which registry fact each subcheck of the shipped table answers for, on
 # a column of each family. Keyed by (family, subcheck); the value is the
 # fact, `group.field`, exactly as the registry spells it.
@@ -3035,6 +3099,12 @@ SUBCHECK_FACTS: "dict[tuple[str, str], str]" = {
     ("document", "bytes.line-endings"): "document.line-endings",
     ("document", "bytes.terminal-newline"): "document.line-endings",
     ("document", "bytes.utf8"): "document.encoding",
+    # REACHED BY NO ORDINARY RUN, and that is the point (review item
+    # P3-V4-F6). Owner decision 7's byte form is filed only on the two
+    # zero-row predicates, so a walk over the ordinary fixtures alone
+    # states nothing about it -- and a line stating nothing is the
+    # shape this whole file exists to refuse.
+    ("document", "bytes.zero-row-form"): "document.n_rows",
     ("document", "columns.n_columns"): "document.n_columns",
     ("document", "columns.order"): "document.columns",
     ("document", "header.names"): "universal.name",
@@ -3377,15 +3447,32 @@ def test_every_shipped_site_binds_the_fact_this_file_states(
     The shipped table is READ here; nothing about it is copied into an
     expectation. That is the difference between comparing two writings
     and deriving one from the other.
+
+    AND THE WALK IS TOTAL OVER THE PREDICATES, not over the ordinary
+    fixtures alone (review item P3-V4-F6 again, on this very test). V3.1
+    makes an entry's identity a PREDICATE, a column and a subcheck, and
+    the six runs below are all the one ordinary predicate. Owner
+    decision 7 ships two more, and every site they file -- nine on the
+    headed zero-row form, six on the headerless one -- was outside this
+    walk: `bytes.zero-row-form` was stated by no line at all, and
+    `header.names` and `columns.order` could be swapped there with the
+    whole suite still green. Both directions now run over the ordinary
+    runs AND the four predicates, so a rebinding on a predicate is as
+    red as a rebinding on a column.
     """
     wrong: list[str] = []
     reached: set[tuple[str, str]] = set()
+    walked: list[tuple[str, str, list[Site]]] = []
     for name, described, twin in runs:
         outcome = _measured(tmp_path, described, twin, f"{name}-facts.csv")
-        for site in _sites_of(outcome):
-            family = _family_of(name, site.column)
+        walked = walked + [(name, name, _sites_of(outcome))]
+    for label, _described, _text, sites in _predicate_sites(tmp_path, runs):
+        walked = walked + [(label, PREDICATE_FIXTURES[label], sites)]
+    for name, fixture, sites in walked:
+        for site in sites:
+            family = _family_of(fixture, site.column)
             reached.add((family, site.subcheck))
-            stated = _stated_fact(name, site.column, site.subcheck)
+            stated = _stated_fact(fixture, site.column, site.subcheck)
             if stated != site.fact:
                 wrong = wrong + [
                     (
@@ -3409,8 +3496,204 @@ def test_every_shipped_site_binds_the_fact_this_file_states(
         "not file, so they assert nothing at all:\n  "
         + "\n  ".join(unreached)
     )
+    # ...AND THE PREDICATE WALK REACHED SOMETHING THE ORDINARY ONE DOES
+    # NOT. A walk widened to a predicate that files only sites the
+    # ordinary runs already file would be a widening on paper, and the
+    # line above would go on being true for the wrong reason.
+    ordinary = set()
+    for name, fixture, sites in walked:
+        if name not in PREDICATE_FIXTURES:
+            for site in sites:
+                ordinary.add((_family_of(fixture, site.column), site.subcheck))
+    only_here = {pair for pair in reached if pair not in ordinary}
+    assert only_here, (
+        "the four predicates file no subcheck the six ordinary runs do "
+        "not, so walking them adds nothing and this test is total over "
+        "the same set it always was"
+    )
 
 
+# -- P3-D4's red battery, on the predicates as well as the columns -----
+
+
+ZERO_ROW_PREDICATES = ("zero-rows-headered", "zero-rows-headerless")
+
+# One perturbation per site the two zero-row predicates file, each
+# aimed at the site it covers, in the shape of `_perturbations`: the
+# name, the site's subcheck, and how the conforming file is edited.
+#
+# REVIEW ITEM P3-V4-F6. V8.1 says EVERY executable subcheck carries a
+# named red case, and the coverage identity below reads that over the
+# ordinary runs. On these two predicates nothing did, so a site there
+# could be pinned to HELD -- `columns.order` on the headed zero-row
+# form is the review's own witness -- and no test in this suite would
+# notice. Every one of the fifteen sites is covered here, none is
+# excused, and the coverage is checked in both directions: a site with
+# no case is red, and a case naming a site the predicate does not file
+# is red too.
+def _zero_row_edits(text: str, names: "list[str]") -> "list[tuple[str, str, str | bytes]]":
+    """Every registered edit of one conforming zero-row file."""
+    joined = ",".join(names)
+    built: list[tuple[str, str, str | bytes]] = [
+        ("zero-byte-order-mark", "bytes.byte-order-mark", "﻿" + text),
+        (
+            "zero-carriage-returns",
+            "bytes.line-endings",
+            text.replace("\n", "\r\n") if text else "\r\n",
+        ),
+        ("zero-not-utf8", "bytes.utf8", b"\xff\xfe" + text.encode("utf-8")),
+        (
+            "zero-nonempty",
+            "bytes.zero-row-form",
+            text + joined + "\n" if text else "1,north\n",
+        ),
+    ]
+    if not text:
+        return built + [
+            # A HEADERLESS ZERO-ROW FILE IS ZERO BYTES, so the one
+            # structural thing it can get wrong is writing the names.
+            ("zero-header-written", "header.presence", joined + "\n"),
+            # ...and its terminal newline is missed by the conforming
+            # file itself, which is recorded rather than dressed up:
+            # `dataclasses.replace` is the only way to build a zero-row
+            # description at all -- the producer refuses a zero-row
+            # table outright -- so this description carries the line
+            # ending fact of the twenty-row file it was cut down from.
+            ("zero-empty-file", "bytes.terminal-newline", ""),
+        ]
+    return built + [
+        ("zero-no-terminal-newline", "bytes.terminal-newline", text[:-1]),
+        (
+            "zero-dropped-name",
+            "columns.n_columns",
+            ",".join(names[: len(names) - 1]) + "\n",
+        ),
+        (
+            "zero-reordered",
+            "columns.order",
+            ",".join([names[1], names[0]] + names[2:]) + "\n",
+        ),
+        (
+            "zero-renamed",
+            "header.names",
+            ",".join(["zz"] + names[1:]) + "\n",
+        ),
+        (
+            "zero-no-header-at-all",
+            "header.presence",
+            ",".join("9" for _each in names) + "\n",
+        ),
+    ]
+
+
+def test_a_conforming_zero_row_file_misses_nothing_it_can_hold(
+    tmp_path: pathlib.Path,
+    runs: "list[tuple[str, contract.Profile, str]]",
+) -> None:
+    """The green direction on the headed zero-row predicate.
+
+    P3-D4: a file its own description asks for must not miss and must
+    not trip the disclosure gate. The headed zero-row form asks for the
+    header line, and that is the file this walks -- which is also what
+    holds `_conforming_text`'s construction to the shipped reader,
+    since a header line written the wrong way would miss here.
+
+    THE HEADERLESS FORM IS RECORDED RATHER THAN ASSERTED, and the
+    reason is not a defect in the validator. `synthtwin profile` refuses
+    a zero-row table outright, in both header modes, so no producer can
+    write a zero-row description and the only way to have one is to cut
+    an ordinary description down -- which leaves it carrying the line
+    ending fact of the file it was cut from. A file of no bytes then
+    misses `bytes.terminal-newline`, correctly, against a description
+    no producer would have written. That measurement is pinned as a red
+    case below rather than asserted away.
+    """
+    for label, described, text, _sites in _predicate_sites(tmp_path, runs):
+        if label != "zero-rows-headered":
+            continue
+        outcome = _measured(tmp_path, described, text, f"{label}-green.csv")
+        bad = [
+            f"{check.subcheck}: {check.verdict}"
+            for check in outcome.checks
+            if check.verdict in (validation.MISSED, validation.WITHHELD)
+        ]
+        assert not bad, (
+            "the file this description asks for missed its own "
+            f"obligations: {sorted(bad)}"
+        )
+        assert len(outcome.checks) >= 9, len(outcome.checks)
+
+
+def test_the_predicate_walk_covers_every_predicate_that_file_names(
+    tmp_path: pathlib.Path,
+    runs: "list[tuple[str, contract.Profile, str]]",
+) -> None:
+    """`PREDICATE_FIXTURES` states the same four predicates as the runs.
+
+    Two statements of what the predicates are is two things to drift.
+    """
+    labels = sorted(
+        label for label, _d, _t, _o in _predicate_runs(tmp_path, runs)
+    )
+    assert labels == sorted(PREDICATE_FIXTURES), (
+        f"this file names {sorted(PREDICATE_FIXTURES)} and the predicate "
+        f"runs are {labels}"
+    )
+    for label in ZERO_ROW_PREDICATES:
+        assert label in PREDICATE_FIXTURES, label
+
+
+def test_every_site_of_every_zero_row_predicate_can_be_made_to_miss(
+    tmp_path: pathlib.Path,
+    runs: "list[tuple[str, contract.Profile, str]]",
+) -> None:
+    """V8.1 and V8.2 on the two predicates the coverage identity skipped.
+
+    Each registered edit NAMES the site it covers and that site must
+    report MISSED -- other subchecks failing alongside is fine, a site
+    caught only by a neighbour is not. Then, in the other direction,
+    every site the predicate files must be covered by one of them, so
+    the walk cannot narrow, and no edit may name a site the predicate
+    does not file.
+
+    This is what closes the review's witness: `columns.order` on the
+    headed zero-row form pinned to HELD passes every other assertion in
+    this file and fails here, because the reordered header line no
+    longer makes it miss.
+    """
+    for label, described, text, sites in _predicate_sites(tmp_path, runs):
+        if label not in ZERO_ROW_PREDICATES:
+            continue
+        names = [column.name for column in described.columns]
+        filed = {site.subcheck for site in sites}
+        covered: set[str] = set()
+        for edit, subcheck, made in _zero_row_edits(text, names):
+            assert subcheck in filed, (
+                f"{label}: the edit {edit} names {subcheck}, which this "
+                f"predicate does not file at all"
+            )
+            outcome = _measured(
+                tmp_path, described, made, f"{label}-{edit}.csv"
+            )
+            missed = {
+                check.subcheck
+                for check in outcome.checks
+                if check.verdict == validation.MISSED
+            }
+            assert subcheck in missed, (
+                f"{label}: the edit {edit} names {subcheck} and THAT "
+                f"check did not report MISSED -- whatever else went "
+                f"red, the named check did not do its job. It reported "
+                f"{sorted(missed) or 'nothing missed at all'}"
+            )
+            covered.add(subcheck)
+        uncovered = sorted(filed - covered)
+        assert not uncovered, (
+            f"{label}: these executable subchecks have no registered "
+            f"edit, so nothing here shows they can fail at all:\n  "
+            + "\n  ".join(uncovered)
+        )
+        assert filed, f"{label} filed no executable subcheck at all"
 
 
 def test_every_registered_red_case_misses_the_site_it_names(

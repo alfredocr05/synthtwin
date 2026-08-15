@@ -38,8 +38,27 @@ checks ran: one cell spelling `NA` turned every level, distinctness and
 suppression obligation of a column from a potential MISS into a
 withholding, and a file carrying none of its published labels passed.
 V2.4 sets the bound that broke -- no gap in the reconstruction may move
-a verdict -- and the gap is closed here by MEASURING over the split
+a verdict -- and that gap is closed here by MEASURING over the split
 rather than by declining to.
+
+THAT BOUND IS NOT MET IN FULL, AND SAYING IT WAS COST FIVE VERDICTS
+(review items P3-V4-F1 and P3-V5-F2; plan amendment A-P3-15). The
+"reconstruction" is not one thing. Two of its parts are now faithful
+wherever the description publishes what they need -- which cells are
+present, taken from blankness, and the two DECLARATION tuples of V2.2,
+recovered from the description's own published text by
+`kept_spellings`' three routes and `declared_spellings`' fourth. The
+part that is NOT faithful is a declaration the description publishes
+nowhere, and the split is taken only where the file's own description
+publishes the split (V2.4-A3), so a spelling the recovery misses is a
+spelling that description reads as a hole, and the gate then closes on
+a file that meets every published fact. A researcher who runs
+`--keep-value n/a` and validates their own table is told five
+obligations were MISSED. What is recoverable, what is not, and why the
+unrecoverable half cannot be answered by reading the split instead, are
+at `kept_spellings` and `declared_spellings` below and in plan
+amendment A-P3-15. No sentence in this module may say the bound is met
+while that stands.
 
 WHAT IS NOT CHECKED HERE, AND CANNOT BE, STATED BEFORE ANY VERDICT
 BELOW READS AS COVERAGE (V7.3, plan P2-D11 residual R-P2-3). A
@@ -692,20 +711,35 @@ def settings_for(description: contract.Profile) -> taxonomy.Settings:
       command line, no default, no environment.
     - Determinism: the same description always gives the same settings.
     - Errors raised: none.
-    - Boundary: the two declaration tuples come back EMPTY of the
-      person's own spellings, because the contract deliberately does not
-      record them (`values_recorded` is false by invariant), and
-      `kept_values` instead carries the set recovered from the
-      description itself (`kept_spellings`). `declared_missing_values`
-      is empty exactly: a declared-missing spelling is genuinely absent
-      from every twin, whose absent cells are written empty. The read
-      mode is NOT a settings key and is not decided here; it comes from
-      `source.header_source`.
+    - Boundary: neither declaration tuple carries a spelling read out of
+      the settings block -- the contract records none there
+      (`values_recorded` is false by invariant) -- and both are instead
+      RECOVERED from the description's own published text:
+      `kept_values` from `kept_spellings`, `declared_missing_values`
+      from `declared_spellings`. The read mode is NOT a settings key and
+      is not decided here; it comes from `source.header_source`.
 
     Every one of the fifteen keys the settings block carries is used,
     and no sixteenth is invented: a skipped key would describe the file
     under rules the description was not written under, which is the one
     way the disclosure gate can be walked past.
+
+    WHY `declared_missing_values` IS NO LONGER EMPTY (review item
+    P3-V4-F1, the direction the finding did not name). This tuple was
+    empty exactly, under the note "a declared-missing spelling is
+    genuinely absent from every twin, whose absent cells are written
+    empty". That is true of a twin and false of the OTHER file this
+    command is pointed at -- the table itself (V1.2) -- and the file the
+    description was written from is exactly the file that still holds
+    those spellings. A researcher who runs `--missing-value XX` and then
+    validates their own table had twelve `XX` cells read back as data:
+    the column changed role, and `presence.n_present`,
+    `presence.n_missing`, `axes.role`, `axes.statistical_type`,
+    `counts.n_not_numeric` and both distinctness counts were reported
+    MISSED against the table's own profile. With `--missing-value -777`
+    the same table missed SEVENTEEN, the ladder and the moments among
+    them. The spelling is not guessed: it is the description's own
+    published text, exactly as `kept_spellings`' three routes are.
     """
     block = description.settings
     return taxonomy.Settings(
@@ -719,7 +753,7 @@ def settings_for(description: contract.Profile) -> taxonomy.Settings:
         sentinel_outlier_iqr_multiple=block.sentinel_outlier_iqr_multiple,
         sentinel_minimum_share=block.sentinel_minimum_share,
         kept_values=kept_spellings(description),
-        declared_missing_values=(),
+        declared_missing_values=declared_spellings(description),
         declaration_matching=block.declaration_matching,
         near_threshold_slack=block.near_threshold_slack,
     )
@@ -741,7 +775,8 @@ def settings_over_the_split(
     - Boundary: every one of the fifteen keys is `settings_for`'s, and
       exactly one differs -- `kept_values` also carries every non-blank
       built-in missing marker and every numeric stand-in for "no value".
-      `declared_missing_values` stays empty.
+      `declared_missing_values` is `settings_for`'s own recovered tuple,
+      unchanged.
 
     WHY THERE ARE TWO SETTINGS AND WHAT EACH ONE DECIDES. The method
     splits the question in two and says so in terms (V2.4): the
@@ -750,18 +785,37 @@ def settings_over_the_split(
     HOW the cells read, which role the column is, and the disclosure
     gate of V5; the measurement over the blank split governs WHICH
     CELLS ARE COUNTED. "Every count that depends on [presence] is
-    recounted from blank and non-blank cells alone, with no sentinel or
-    declaration machinery anywhere in the verdict path" is the ratified
-    plan's own sentence (P3-D3, owner decision 8), and these settings
-    are how it is met: naming those spellings as kept is the producer's
-    own switch for "this is data, not a hole", so the recount is still
-    the producer's own machinery over the same cells (V2.1) and not a
-    second implementation of anything.
+    recounted from blank and non-blank cells alone, with no sentinel
+    machinery anywhere in the verdict path" is the ratified plan's own
+    sentence (P3-D3, owner decision 8, as narrowed by amendment A-P3-15
+    clause 2, which struck "or declaration" from it and says why), and
+    these settings are how it is met: naming those spellings as kept is
+    the producer's own switch for "this is data, not a hole", so the
+    recount is still the producer's own machinery over the same cells
+    (V2.1) and not a second implementation of anything.
 
     The two never decide the same number. What this settings object may
     NOT be used for is the gate: a description built under it would say
     more about the file than describing that file on its own would
     publish, which is the one thing V5 forbids.
+
+    WHAT "BLANKNESS" REACHES, AND WHAT IT DOES NOT (review item
+    P3-V4-F1). V2.4 pins absence to blankness "by naming as kept data
+    every non-blank spelling THE PRODUCER'S OWN BUILT-IN TABLES would
+    read as an absence", and the scope in those words is the whole of
+    it: `_KEPT_OVER_THE_SPLIT` is that table and nothing else. A
+    spelling the PERSON declared to be "no value" is not in it and is
+    not moved here. The reason is the reason the pinning exists -- a
+    generated value can legitimately BE the text of a built-in marker
+    (residual R-P2-13), so a file may not be failed for a collision with
+    synthtwin's own vocabulary. Nothing of the kind is at stake in a
+    spelling the description itself publishes as the source of its
+    holes: the producer reads those cells as holes in every column of
+    every file it describes, so counting them as values here would
+    measure the file under a rule its description was not written under,
+    and it did: twelve `XX` cells in the table a `--missing-value XX`
+    description was written from turned that column into free text and
+    put twenty-eight subchecks on MISSED.
     """
     block = settings_for(description)
     # A mapping rather than a set, for the reason `kept_spellings` gives:
@@ -785,9 +839,8 @@ def kept_spellings(description: contract.Profile) -> "tuple[str, ...]":
       description always gives the same tuple in the same order.
     - Errors raised: none.
     - Boundary: every spelling here is the description's OWN published
-      text. Nothing is guessed, and nothing the person typed is
-      recovered, because the contract records no declared spelling at
-      all.
+      text. Nothing is guessed, and nothing is read out of the settings
+      block, because the contract records no declared spelling there.
 
     Three published routes, all of them recovered (owner decision 8 as
     amended):
@@ -807,9 +860,49 @@ def kept_spellings(description: contract.Profile) -> "tuple[str, ...]":
       without this route the gate would read the very twin it must
       validate as a column of absences.
 
-    A gap here costs detail and never a verdict: presence is measured
+    A GAP HERE MOVES VERDICTS, AND THE SENTENCE THAT STOOD HERE SAID IT
+    COULD NOT (review items P3-V4-F1 and P3-V5-F2). That sentence read
+    "a gap here costs detail and never a verdict: presence is measured
     from blank and non-blank cells (V2.4), so nothing this tuple misses
-    can move an outcome.
+    can move an outcome". Its first half names a real rule and its
+    conclusion does not follow from it: the split's number is taken only
+    where the FILE'S OWN description publishes the split (V2.4-A3, plan
+    amendment A-P3-5), that description is built under these very
+    settings, and a spelling this tuple misses is a spelling it reads as
+    a hole. So the gap decides whether the gate is open, and where it
+    closes it wrongly the file's own description supplies the number.
+
+    THE WITNESS, MEASURED. A researcher keeps a non-numeric marker as
+    real data -- `synthtwin profile --keep-value n/a` over two hundred
+    readings and one `n/a` -- and the description publishes 201 present,
+    0 missing, 1 not numeric. No route above can recover `n/a`: a
+    numeric column publishes no level and no variant, and a `kept_by_you`
+    verdict exists only for a stand-in that reads as a number. The one
+    cell is read back as a hole, the column's own description then pools
+    it below the publication floor, and validating that table against
+    its own genuine profile reports `presence.n_present`,
+    `presence.n_missing`, `counts.n_not_numeric`,
+    `counts.n_left_out_of_statistics` and `counts.numeric_share` MISSED
+    -- five misses and exit 3 on the file the description was written
+    from.
+
+    WHY IT IS NOT REPAIRED HERE, at the exact size of what is left
+    (plan amendment A-P3-15). The spelling is unrecoverable, and that is
+    a property of the contract rather than of this function: the
+    settings block records `kept_values` as a COUNT and never as text
+    (`values_recorded` false, review item P1-R7-F2), and no other field
+    of a numeric, datetime, identifier or free-text column carries the
+    spelling of a present cell. Reading the split anyway is not open
+    either. Two files -- two hundred readings and one `n/a`, two hundred
+    readings and one `NULL` -- are described BYTE FOR BYTE ALIKE by the
+    producer under these settings, the first conforms to the description
+    above and the second does not, and any rule that passes the first
+    passes the second and thereby states about the second a presence
+    count `synthtwin profile` run on it would not publish, which is
+    V5.1. So the gap stands, it is recorded rather than discovered, and
+    what closes it is a ruling about what the profile publishes, not an
+    edit to this module. The suite measures it at its stated size in
+    `tests/test_p3v4f1_kept_values.py` and turns red if it grows.
     """
     # A mapping rather than a set: the offline policy accepts no method
     # call on a value it cannot trace, and `set.add` is one, while
@@ -825,6 +918,79 @@ def kept_spellings(description: contract.Profile) -> "tuple[str, ...]":
                 found[level.label] = 1
                 for spelling in level.variants:
                     found[spelling] = 1
+    return tuple(sorted(found))
+
+
+def declared_spellings(description: contract.Profile) -> "tuple[str, ...]":
+    """The spellings the description reads as "no value" BY DECLARATION.
+
+    Guarantees:
+
+    - Inputs: one loaded description. Nothing is read from any file.
+    - Determinism: the returned tuple is sorted, so the same
+      description always gives the same tuple in the same order.
+    - Errors raised: none.
+    - Boundary: every spelling here is the description's OWN published
+      text -- a key of a column's `missing_by_source`, which is what
+      `synthtwin profile` publishes about the file it described.
+      Nothing is guessed and nothing is read out of the settings block,
+      which records this option as a count and never as text.
+
+    THE FOURTH PUBLISHED ROUTE, and it is the mirror of `kept_spellings`'
+    three (review item P3-V4-F1). V2.2 said both declaration tuples come
+    back empty "because the contract deliberately does not record
+    declared spellings", and that is true of the SETTINGS BLOCK and
+    false of the description: a column publishes the exact spelling of
+    every hole whose count reaches `small_cell_floor`, in
+    `missing_by_source`. So a `--missing-value` declaration IS published,
+    wherever the floor lets the column name it, and recovering it is the
+    same act as recovering a level's variants.
+
+    WHICH KEYS ARE A DECLARATION, DERIVED RATHER THAN GUESSED. The
+    producer has exactly four ways to call a cell a hole
+    (`taxonomy._split_missing`, `taxonomy._declared_numbers_removed` and
+    the sentinel removal): the person's declaration by spelling, the
+    person's declaration by number, a blank, one of the built-in missing
+    texts, and a numeric stand-in the column's own verdict turned down.
+    A published key is therefore a declaration unless it is one of the
+    other three, which are all recognisable without consulting a cell:
+
+    - synthtwin's own placeholder names -- `(blank)` for an empty field
+      and `(withheld)` for the pooled remainder -- are this package's
+      words rather than the file's, and are skipped;
+    - a key the built-in table already reads as an absence needs no
+      declaration to be a hole, so it is skipped: naming it would say
+      the person declared something the description does not show;
+    - a key that reads as one of the three numeric stand-ins is the
+      sentinel machinery's business, judged per column and published per
+      column in `sentinel_verdicts`, so it is skipped. A declared
+      stand-in is left unrecovered with it, and that is stated as a
+      residual rather than papered over.
+
+    Every other key reads as neither a stand-in nor a built-in marker,
+    and the producer has no remaining way to make it a hole. It is a
+    declaration, and a number it denotes is matched as a number by the
+    producer's own rule, which is why the SPELLING is enough to recover.
+
+    WHAT IS LEFT OPEN, at its size (plan amendment A-P3-15). A
+    declaration whose cells sit below `small_cell_floor` in every column
+    is pooled into `(withheld)` and is not published anywhere, so it is
+    not recovered; the same is true of a declared numeric stand-in. Both
+    residuals are bounded by the floor per spelling per column and are
+    measured in `tests/test_p3v4f1_kept_values.py`.
+    """
+    # A mapping rather than a set, for the reason `kept_spellings` gives
+    # (plan D6.2). The values are never read.
+    found: dict[str, int] = {}
+    for column in description.columns:
+        for spelling in sorted(column.missing_by_source):
+            if spelling in parsing.MISSING_CLASSES:
+                continue
+            if parsing.is_missing_text(spelling):
+                continue
+            if _stand_in_of(taxonomy.exact_of_spelling(spelling)) is not None:
+                continue
+            found[spelling] = 1
     return tuple(sorted(found))
 
 
@@ -880,32 +1046,200 @@ def corners_of(
 def _identifier_is_infeasible(
     column: contract.ColumnBlock, facts: contract.IdentifierFacts
 ) -> bool:
-    """True when the published lengths cannot supply that many codes.
+    """True when the published facts cannot supply the spellings asked for.
 
-    Owner decision 6's corner: a declared identifier whose published
-    length range cannot spell `n_present` different values. The count
-    below is a CEILING on what any construction can reach, so a column
-    it clears is never called a corner it is not in.
+    Owner decision 6's corner, and it is the FAMILY capacity rule of
+    method G9.4 rather than a ceiling of this module's own invention
+    (review item P3-V6-F1). The version this replaced summed
+    `alphabet ** length` over the published range with the alphabet
+    read off one published count -- ten characters where
+    `n_code_alphabet` is zero, thirty-six otherwise -- and neither
+    number is a domain this product writes from. A declared column of
+    eleven different one-character values outside the code alphabet
+    was called infeasible by it while the shipped generator wrote all
+    eleven, and a candidate file whose whole identifier column had
+    collapsed to one repeated value then lost its raw-distinctness,
+    folded-distinctness and occurrence-multiset checks and received a
+    passing report.
 
-    The alphabet a length can draw on is bounded by the description's
-    own two counts: a column whose cells are all digits can spell ten
-    characters per position, and one that reaches the code alphabet can
-    spell the thirty-six a digit-and-letter code has. Whichever of the
-    two the description publishes, the ceiling is taken at the wider
-    one, so the corner is claimed only where even the wide reading
-    falls short.
+    THE DIRECTION THIS ARITHMETIC IS SAFE IN, stated before the rule:
+    what is asked for is the published count of groups, taken exactly,
+    and every supply below is an UPPER bound on what the construction
+    writes, so this returns True only where no construction of the
+    method can answer the description -- which is the direction that
+    matters, because a corner claimed in error REMOVES three checks
+    from the report.
+
+    The rule, from methods G9.5 step 4 and G9.6:
+
+    - Each present cell sits in one of three alphabet bands, and the
+      description's own two counts fix how many sit in each:
+      `n_all_digits` are figures alone, a further
+      `n_code_alphabet - n_all_digits` are written in the code
+      alphabet, and the rest stand outside it.
+    - Every cell of one GROUP carries the same spelling, so a group
+      lies wholly in one band. A band whose cells number `cells` can
+      therefore hold no more groups than the smallest published groups
+      fit into that many cells, and no more than its own domain can
+      spell. The smaller of those two is all it can supply.
+    - Where `all_whole_numbers` is published and every present cell
+      reads as a number the format holds, each band writes the
+      whole-number family G9.6 fixes for it, which is a narrower domain
+      than the band's own alphabet.
+
+    THE THREE BANDS ARE ASKED TOGETHER AND NOT ONE AT A TIME, which is
+    the shape a single-band reading misses: a 115-row column of
+    one-character codes publishing 89 groups splits 16 cells into the
+    figures, 53 into the code alphabet and 46 outside it, and no ONE of
+    those bands is short on its own -- while ten, fifty-three and
+    twenty-five spellings are eighty-eight between them and the
+    description asks for eighty-nine.
+
+    Where the three together fall short of the published groups, no
+    packing of any kind reaches the published distinctness, the twin
+    repeats values, and owner decision 6's three REPORT-ONLY facts are
+    what the description is owed instead.
     """
-    if facts.max_length < 1:
-        return column.n_present > 1
-    alphabet = 10 if facts.n_code_alphabet == 0 else 36
-    room = 0
-    length = facts.min_length
-    while length <= facts.max_length:
-        room = room + alphabet**length
-        if room >= column.n_present:
+    low = facts.min_length
+    high = facts.max_length
+    if low < 1 or high < low:
+        # A range the loader cannot produce. No corner is the safe
+        # answer: it keeps every check the report would otherwise drop.
+        return False
+    sizes = _group_sizes(facts.n_distinct_by_occurrences)
+    groups = _group_total(sizes)
+    if groups < 1:
+        return False
+    coded = facts.n_code_alphabet - facts.n_all_digits
+    outside = column.n_present - facts.n_code_alphabet
+    if coded < 0 or outside < 0:
+        # The two published counts do not divide the cells the way G9.5
+        # step 4 divides them -- a value in figures alone is a value the
+        # code alphabet holds, so no document a producer writes gets
+        # here. With no band split to reason from there is no supply to
+        # compare against, and claiming the corner on a reading this
+        # section does not describe would take three checks off a column
+        # for a reason nobody could state.
+        return False
+    # Every present cell reads as a number the format holds, so the
+    # four class counts of X2 leave only the whole-number families.
+    whole = facts.all_whole_numbers and column.n_numeric == column.n_present
+    reach = 0
+    for band, cells in (
+        (_BAND_DIGITS, facts.n_all_digits),
+        (_BAND_CODE, coded),
+        (_BAND_WIDE, outside),
+    ):
+        if cells < 1:
+            continue
+        reach = reach + min(
+            _identifier_capacity(band, low, high, whole),
+            _most_groups(sizes, cells),
+        )
+        if reach >= groups:
             return False
-        length = length + 1
-    return room < column.n_present
+    return reach < groups
+
+
+def _group_sizes(occurrences: "dict[str, int]") -> "tuple[tuple[int, int], ...]":
+    """The published repetition pattern as (size, how many groups) pairs.
+
+    The map's keys are row counts written in base ten and leading zeros
+    are padding that does not change the number (G9.5 step 1), so two
+    keys can name the same size; the pairs are returned in ascending
+    size order and a caller that walks them takes the smallest groups
+    first. A key that is not a row count cannot come through the strict
+    loader, and one that did is skipped, which asks for no corner --
+    the safe direction.
+    """
+    found: list[tuple[int, int]] = []
+    for key in sorted(occurrences):
+        size = parsing.parse_number(key)
+        if size is None:
+            continue
+        found = found + [(int(size), occurrences[key])]
+    return tuple(sorted(found))
+
+
+def _group_total(sizes: "tuple[tuple[int, int], ...]") -> int:
+    """How many groups the published pattern names in all."""
+    total = 0
+    for pair in sizes:
+        total = total + pair[1]
+    return total
+
+
+def _most_groups(
+    sizes: "tuple[tuple[int, int], ...]", cells: int
+) -> int:
+    """The most groups whose sizes can fit inside ``cells`` cells.
+
+    An UPPER bound on how many groups the bands other than one can hold
+    between them, so that `groups - this` is a lower bound on the groups
+    that one band must hold. Taking the smallest groups first is what
+    maximizes the count, since every group taken costs at least as much
+    room as any group it was preferred to.
+    """
+    room = cells
+    found = 0
+    for pair in sizes:
+        size = pair[0]
+        if size < 1 or size > room:
+            continue
+        taken = min(pair[1], room // size)
+        found = found + taken
+        room = room - taken * size
+    return found
+
+
+def _identifier_capacity(
+    band: str, low: int, high: int, whole: bool
+) -> int:
+    """How many record numbers one band can spell over a length range."""
+    total = 0
+    for length in range(low, high + 1):
+        total = total + _identifier_capacity_at(band, length, whole)
+        if total >= _SATURATION:
+            return _SATURATION
+    return total
+
+
+def _identifier_capacity_at(band: str, length: int, whole: bool) -> int:
+    """An upper bound on one band's record numbers at one length (G9.6).
+
+    Where the description does not say every value is a whole number,
+    the band's own domain is the bound the ordinary invention walk of
+    G9.2 has, which is what `_capacity_at` counts: every numeric family
+    a declared column can carry writes its cells from that same band
+    alphabet under the same positional rules, so no family reaches past
+    it.
+
+    Where every value IS a whole number, G9.6 fixes one family per
+    band and each is far narrower than the alphabet:
+
+    - figures alone open with a digit that is not zero, so a value's
+      length is its count of figures;
+    - inside the code alphabet the form is `<digits>e0`, which needs
+      two characters beyond its digits and has nothing at all to write
+      at one character -- one character that reads as a whole number IS
+      a figure. At exactly two characters the only spellings are the
+      ten that open with a sign, which owner decision 9 permits here;
+    - outside the code alphabet the form is `<digits>.`, one character
+      beyond its digits and empty at one character for the same reason.
+    """
+    if not whole:
+        return _capacity_at(band, length)
+    if band == _BAND_DIGITS:
+        return (_DIGIT_SIZE - 1) * _to_the_power(_DIGIT_SIZE, length - 1)
+    if band == _BAND_CODE:
+        if length == 2:
+            return _DIGIT_SIZE
+        if length < 2:
+            return 0
+        return _to_the_power(_DIGIT_SIZE, length - 2)
+    if length < 2:
+        return 0
+    return _to_the_power(_DIGIT_SIZE, length - 1)
 
 
 def _offsets_are_withheld(facts: contract.DatetimeFacts) -> bool:
@@ -3029,7 +3363,7 @@ def _obligations(
     # whose role publishes no spelling of its own.
     split_published = _split_is_published(block)
     if _split_size_is_published(block):
-        present, missing = _presence_of(cells)
+        present, missing = _presence_over_the_split(split, cells)
     else:
         present, missing = _own_presence(block, cells)
     checks: list[Check] = []
@@ -3111,7 +3445,10 @@ def _obligations(
     own_cells = cells
     if not split_published:
         own_cells = _cells_that_description_reads(
-            block, cells, kept_spellings(description)
+            block,
+            cells,
+            kept_spellings(description),
+            declared_spellings(description),
         )
     gated = _universal_checks(column, block, mine)
     gated = gated + _role_checks(column, block, own_cells, floor, mine)
@@ -3124,6 +3461,7 @@ def _cells_that_description_reads(
     block: "dict[str, object]",
     cells: "list[str]",
     kept: "tuple[str, ...]",
+    declared: "tuple[str, ...]",
 ) -> "list[str]":
     """The cells the file's OWN description counts as values, plus its blanks.
 
@@ -3150,12 +3488,19 @@ def _cells_that_description_reads(
     publishes exactly, and `styles.at-least.plain` is a floor.
 
     SO A CELL IS DROPPED ONLY WHERE THAT DESCRIPTION READS IT AS A HOLE,
-    and which cells those are is asked of the description, three ways:
+    and which cells those are is asked of the description, four ways:
 
     - the producer's own absence rules are applied in the producer's
       order -- a non-blank cell wearing one of its built-in missing
       spellings is a hole UNLESS the settings name that spelling as
       data, which `kept` carries (V2.3, the three published routes);
+    - a cell wearing a spelling the person DECLARED to be "no value" is
+      a hole ahead of every rule below, which `declared` carries
+      (`declared_spellings`, the fourth published route). Leaving this
+      out was the other half of review item P3-V4-F1: those cells stayed
+      in a recount settled against a floor the description publishes
+      exactly, which is the same arithmetic error as dropping a kept
+      cell, in the other direction;
     - a cell whose VALUE is one of the three built-in numeric stand-ins
       is a hole only where the column's own verdict on that candidate
       says so, and the file's own description publishes that verdict per
@@ -3213,12 +3558,13 @@ def _cells_that_description_reads(
     Guarantees:
 
     - Inputs: one column of the file's OWN description, that column's
-      written cells, and the kept set the description publishes. No
-      submitted count decides which cells are read.
-    - Determinism: a fixed function of those three.
+      written cells, and the two declaration sets the description
+      publishes -- what it names as data and what it names as "no
+      value". No submitted count decides which cells are read.
+    - Determinism: a fixed function of those four.
     - Errors raised: none.
     """
-    holes = _holes_by_the_description(block, cells, kept)
+    holes = _holes_by_the_description(block, cells, kept, declared)
     read: list[str] = []
     for index, cell in enumerate(cells):
         if not holes[index]:
@@ -3230,6 +3576,7 @@ def _holes_by_the_description(
     block: "dict[str, object]",
     cells: "list[str]",
     kept: "tuple[str, ...]",
+    declared: "tuple[str, ...]",
 ) -> "list[bool]":
     """Which cells the file's own description reads as non-blank holes.
 
@@ -3244,6 +3591,16 @@ def _holes_by_the_description(
     numbers any other way, because a cell's identity decided in binary64
     beside a producer that decides it exactly is a cell the two sides can
     disagree about (review item P3-V4-F1).
+
+    AND A DECLARED SPELLING IS MATCHED THROUGH `parsing.visible` FIRST,
+    because that is the form the description publishes it in
+    (`taxonomy._missing_maps` writes every source key through it, so a
+    spelling carrying a display control is published as its escape). A
+    cell is put through the same boundary before the two are folded
+    together, so the comparison is between two texts that crossed it,
+    and a cell whose spelling carries no display control at all -- which
+    is every ordinary spelling -- is compared exactly as the producer
+    compares it.
     """
     kept_spellings_folded: dict[str, int] = {}
     kept_numbers: list[tuple[int, tuple[str, ...], int]] = []
@@ -3259,6 +3616,14 @@ def _holes_by_the_description(
             kept_spellings_folded[parsing.folded(spelling)] = 1
         else:
             kept_numbers = kept_numbers + [number]
+    declared_folded: dict[str, int] = {}
+    declared_numbers: list[tuple[int, tuple[str, ...], int]] = []
+    for spelling in declared:
+        number = taxonomy.exact_of_spelling(spelling)
+        if number is None:
+            declared_folded[parsing.folded(spelling)] = 1
+        else:
+            declared_numbers = declared_numbers + [number]
     for candidate in _candidates_the_description_keeps(block):
         kept_numbers = kept_numbers + [candidate]
     missing_candidates = _candidates_the_description_drops(block)
@@ -3269,18 +3634,28 @@ def _holes_by_the_description(
         is_hole = False
         undecided = False
         if body:
-            stand_in = _stand_in_of(taxonomy.exact_of_spelling(cell))
+            exact = taxonomy.exact_of_spelling(cell)
+            stand_in = _stand_in_of(exact)
             # The producer's own order: what the settings name as data
-            # beats every rule below it, the built-in table of missing
-            # spellings comes next, and a stand-in's fate is the
-            # column's own verdict on that candidate (`_split_missing`
-            # and `_sentinel_verdicts`, in that order).
+            # beats every rule below it, what they name as "no value"
+            # comes next, the built-in table of missing spellings after
+            # that, and a stand-in's fate is the column's own verdict on
+            # that candidate (`_split_missing`,
+            # `_declared_numbers_removed` and `_sentinel_verdicts`, in
+            # that order).
             named_as_data = _named(kept_numbers, stand_in) or (
                 parsing.folded(cell) in kept_spellings_folded
             )
+            named_as_a_hole = _named(declared_numbers, exact) or (
+                parsing.folded(parsing.visible(cell)) in declared_folded
+            )
             if named_as_data:
                 is_hole = False
-            elif parsing.is_missing_text(cell):
+            elif named_as_a_hole or parsing.is_missing_text(cell):
+                # Two rules of the producer's, in its order, and the
+                # order survives the `or`: a declaration is asked first
+                # and the built-in table second, exactly as
+                # `_split_missing` asks them.
                 is_hole = True
             elif stand_in is not None:
                 is_hole = _named(missing_candidates, stand_in)
@@ -3563,12 +3938,56 @@ def _cells_of(
     return table.columns[position - 1]
 
 
+def _presence_over_the_split(
+    split: "dict[str, object]", cells: "list[str]"
+) -> "tuple[int, int]":
+    """The two presence counts, off the SPLIT description (V2.4).
+
+    THE ONE PLACE THEY MAY COME FROM, and it was two (review item
+    P3-V4-F1, plan amendment A-P3-15 clause 3). V2.4 says every
+    measurement whose input is the set of present cells is read off the
+    split description; every other one is, and these two were recounted
+    beside it by `_presence_of`. While `declared_missing_values` was
+    empty on both sides the two answers were the same number, so nothing
+    showed. They are not the same number once a `--missing-value`
+    declaration is recovered: the split description reads those cells as
+    the holes the description publishes them as, and a raw blank count
+    reads them as values. One column then reported 199 present against a
+    recount of 211 while its own distinctness, ladder and moments -- all
+    read off the split -- agreed with the description exactly. Two
+    numbers for one question is not a measurement, and the one that
+    stands is the description's, because that is the one every other
+    presence-dependent obligation is settled from.
+
+    THE DIRECTION IT MOVES, said as a cost. A non-blank cell can now be
+    absent to this count, where before only an empty field could be, and
+    the cells that can are exactly those wearing a spelling the
+    description ITSELF publishes as the source of its holes. Nothing of
+    synthtwin's own vocabulary is in that set (`settings_over_the_split`
+    says why), so residual R-P2-13's collision cannot reach it.
+
+    Guarantees:
+
+    - Inputs: one column of the SPLIT description, and that column's
+      written cells for the degenerate case below.
+    - Determinism: a fixed function of the two.
+    - Errors raised: none.
+    - Boundary: where the split description carries neither count --
+      the degenerate paths hand both sides the same empty block -- the
+      blank split is what there is, and `_presence_of` supplies it.
+    """
+    present = _count_at(split, "n_present")
+    missing = _count_at(split, "n_missing")
+    if present is None or missing is None:
+        return _presence_of(cells)
+    return present, missing
+
+
 def _presence_of(cells: "list[str]") -> "tuple[int, int]":
     """How many cells are present and how many absent, by BLANKNESS.
 
     The contract's own rule for twins: every absent cell is written as
-    an empty field. So presence is decided here and nowhere else, with
-    no sentinel and no declaration machinery anywhere near a verdict.
+    an empty field.
 
     WHETHER THIS COUNT MAY BE REPORTED is a separate question and
     `_split_is_published` below is where it is asked (plan amendment

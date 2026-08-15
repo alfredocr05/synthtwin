@@ -515,6 +515,11 @@ INVARIANTS = {
         "the notes are grouped by column, in the order the columns come "
         "in the table"
     ),
+    "S13": (
+        "a description made with a smallest group size of one holds "
+        "nothing back, because there is no group below that size for it "
+        "to hold back"
+    ),
     "A1": (
         "a column is marked as holding record numbers exactly when its "
         "name is one of the names the person declared"
@@ -1737,6 +1742,28 @@ def _added(counted: "dict[str, int]") -> int:
     for name in sorted(counted):
         total = total + counted[name]
     return total
+
+
+def _below_the_floor(floor: int) -> range:
+    """The group sizes this floor holds back: 1 up to the floor.
+
+    THE FLOOR HAS TWO HALVES AND THIS NAMES THE SECOND ONE. Every
+    floor-governed rule of the contract is written as "at least the
+    floor" and "below the floor"; B5, N2, N4, D3, P2, V1 and W5 are the
+    first half, and everything a description pools, suppresses or counts
+    unnamed is the second. At a floor of one this range is EMPTY, which
+    is not a corner case to be handled but the whole of invariant S13:
+    there is no group below one, so a description written at that floor
+    has nothing to hold back and holds nothing back (owner ruling
+    2026-08-14, plan amendment A-P3-11 clause 1, amended by A-P3-16).
+
+    It is a `range` rather than a pair of numbers so that "is this size
+    held back" and "is anything held back at all" are the same question
+    asked two ways -- `size in _below_the_floor(floor)` and the
+    emptiness of the range itself -- and neither can drift from the
+    other.
+    """
+    return range(1, floor)
 
 
 def _all_digits(text: str) -> bool:
@@ -3046,7 +3073,11 @@ def _levels(
         found = _whole(
             size, f"suppressed_level_counts[{place}]", where, 1
         )
-        if found >= floor:
+        # B5's second half, read against the range the floor holds back
+        # rather than against the floor itself, so that this site and
+        # S13 cannot drift: at a floor of one the range is empty and no
+        # size at all may be listed here.
+        if found not in _below_the_floor(floor):
             raise _broken(
                 "B5",
                 where,
@@ -4107,6 +4138,176 @@ def _cross_checks(
         place = place + 1
 
 
+# -- S13: what a floor of one leaves no room for ----------------------
+#
+# The floor's second half is the range below it, and at a floor of one
+# that range is empty. Everything a description writes into that half
+# therefore has to be empty too. There are five ways to write into it,
+# and three of them were already refused by the rule that governs them:
+# B5 reads `suppressed_level_counts` against the range, `_multiplicity`
+# reads `variants_withheld`'s keys against it, and B4 ties
+# `suppressed_levels` and `suppressed_rows` to the sizes. The other two
+# were refused nowhere until amendment A-P3-16, and they are what this
+# section adds.
+#
+# THE POOLED REMAINDER IS FOUND BY WALKING, NOT BY A LIST OF FIELDS.
+# `(withheld)` is the format's one word for "held back" (section 14),
+# and every pooled remainder in the document is a count standing under
+# it: `missing_by_class`, `missing_by_source`, `utc_offsets` and
+# `numeric_styles` today. Listing those four would leave the fifth
+# somebody adds unchecked, in exactly the way that left this rule
+# unenforced for the first four -- each of them WAS checked where it was
+# written, and each check exempted the remainder. The walk below reaches
+# a counted entry under that word wherever a field puts it.
+#
+# THE UNNAMED TALLY IS NAMED, because the format gives it no marker to
+# be found by. `n_sentinel_candidates_unpublished` counts the stand-in
+# numbers held by fewer rows than the floor (invariant V1), and it says
+# so in a field name rather than in the pooled-remainder word. It is the
+# only such field in version 4, and that is measured rather than
+# assumed: `tests/test_p3v5f1_floor_one.py` describes one table at the
+# default floor and at one and requires every position of the document
+# that moves to be a position this rule reaches.
+
+# The one field that says "held back" in its name rather than under the
+# pooled-remainder word, and the two ways a refusal reads.
+_UNNAMED_TALLY = "n_sentinel_candidates_unpublished"
+_POOLED = "pooled"
+_TOO_RARE = "too-rare"
+
+
+def _step(path: "tuple[object, ...]", key: object) -> "tuple[object, ...]":
+    """One step further into the document."""
+    return path + (key,)
+
+
+def _is_a_row_count(value: object) -> bool:
+    """A whole number of one or more, and not a yes/no."""
+    if isinstance(value, bool):
+        return False
+    return isinstance(value, int) and value > 0
+
+
+def _held_back_in(
+    node: object, path: "tuple[object, ...]"
+) -> "list[tuple[tuple[object, ...], int, str]]":
+    """Every place this part of the document holds something back.
+
+    Guarantees:
+
+    - Inputs: any part of the parsed document, and the path of keys and
+      list places that reached it.
+    - Determinism: the answer depends only on the value; every block's
+      keys are read in sorted order and every list in its own order.
+    - Errors raised: none. It reports, and the rule above decides.
+    - Boundary: nothing is opened, and no value of the table is read --
+      the two things this finds are counts of rows and counts of
+      candidates, and a held-back thing names nothing by definition.
+
+    Returns (path, count, what kind of holding back) for each one.
+    """
+    found: list[tuple[tuple[object, ...], int, str]] = []
+    if isinstance(node, dict):
+        for key in sorted(node):
+            value = node[key]
+            here = _step(path, key)
+            if key == WITHHELD and _is_a_row_count(value):
+                found = found + [(here, value, _POOLED)]
+            if key == _UNNAMED_TALLY and _is_a_row_count(value):
+                found = found + [(here, value, _TOO_RARE)]
+            found = found + _held_back_in(value, here)
+    elif isinstance(node, list):
+        place = 0
+        for item in node:
+            found = found + _held_back_in(item, _step(path, place))
+            place = place + 1
+    return found
+
+
+def _named_place(
+    document: "dict[str, object]", path: "tuple[object, ...]"
+) -> "tuple[str, str]":
+    """Where a path sits, and what it is called, in a person's words.
+
+    A path inside a column block is read to the person as that column's
+    name, exactly as every other refusal about a block is; anything else
+    is at the top of the description. The field is then written from
+    whatever is left, in the document's own key names, because that is
+    what somebody looking at the file will be searching for.
+    """
+    rest = path
+    seat = _AT_THE_TOP
+    if len(path) > 1 and path[0] == "columns":
+        blocks = document["columns"]
+        index = path[1]
+        if isinstance(blocks, list) and isinstance(index, int):
+            block = blocks[index]
+            if isinstance(block, dict) and "name" in block:
+                name = block["name"]
+                if isinstance(name, str):
+                    seat = f"in the block for the column named '{name}'"
+                    rest = path[2:]
+    field = ""
+    for step in rest:
+        if isinstance(step, int):
+            field = f"{field}[{step + 1}]"
+        elif field:
+            field = f"{field} -> {step}"
+        else:
+            field = f"{step}"
+    return seat, field
+
+
+def _nothing_is_held_back(document: "dict[str, object]", floor: int) -> None:
+    """Invariant S13, over the whole document at once.
+
+    Guarantees:
+
+    - Inputs: the parsed document and the floor its settings carry. It
+      runs with the top-level rules, before any column is read: what it
+      reads is the floor, which is a top-level setting, and what it says
+      is a fact about the whole description rather than about one block.
+      Nothing here assumes a column block has been checked -- every step
+      of the walk asks what it has before it uses it -- because the
+      columns have not been.
+    - Determinism: a fixed function of the document and the floor. The
+      walk is ordered, so a document breaking this rule twice always
+      meets the same refusal.
+    - Errors raised: ProfileError (R17, rule S13), naming the field and
+      the count. It may say the count because a held-back thing names
+      nothing: it is the number of rows the floor took out of sight, and
+      at a floor of one no row was.
+    - Boundary: no value of the table is read or quoted.
+
+    ABOVE A FLOOR OF ONE THIS RULE SAYS NOTHING, and deliberately. A
+    remainder pools SEVERAL groups that each fell below the floor, so at
+    a floor of eleven a remainder of twelve is ordinary -- three
+    spellings of four rows each, say. The only bound the arithmetic
+    gives is the one at the bottom, where the range below the floor is
+    empty and every remainder must be nothing at all.
+    """
+    if _below_the_floor(floor):
+        return
+    for path, count, kind in _held_back_in(document, ()):
+        seat, field = _named_place(document, path)
+        raise _broken(
+            "S13",
+            seat,
+            (
+                f"'{field}' holds {count} row(s) back"
+                if kind == _POOLED
+                else (
+                    f"'{field}' counts {count} stand-in number(s) as too "
+                    f"rare to name"
+                )
+            ),
+            # The second clause is the house wording every other
+            # floor-governed refusal ends with, so that a person who has
+            # met one of them reads this one the same way.
+            f"the smallest group size is {floor}",
+        )
+
+
 def _validated(document: "dict[str, object]") -> Profile:
     """Step 7 and step 8: every rule, then the typed objects (10.1).
 
@@ -4131,6 +4332,14 @@ def _validated(document: "dict[str, object]") -> Profile:
     settings = _settings(document["settings"])
     relationships = _relationships(document["relationships"])
     notes = _notes(document["publication_notes"])
+    # S13 IS A TOP-LEVEL RULE AND RUNS WITH THE TOP LEVEL. What it reads
+    # is the floor, which lives in `settings`, and what it says is a fact
+    # about the whole description: it was made at a floor of one and it
+    # holds something back. That is outermost, and it is nearer the cause
+    # than the column rule a spliced-in field breaks on the way past --
+    # a total that does not add up, when the reason it does not is that
+    # somebody moved a field out of a description made at another floor.
+    _nothing_is_held_back(document, settings.small_cell_floor)
     columns = _columns(
         document["columns"],
         _Frame(
