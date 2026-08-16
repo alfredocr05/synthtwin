@@ -95,8 +95,16 @@ def _reinstated() -> "typing.Iterator[None]":
     nobody used.
     """
     monkeypatch = pytest.MonkeyPatch()
-    if os.environ.get("REINSTATE") == "P3-V7-F1":
+    asked = os.environ.get("REINSTATE")
+    if asked == "P3-V7-F1":
         monkeypatch.setattr(parsing, "shows_only_itself", lambda _text: True)
+    if asked == "A-P3-26":
+        # The other half of this file's red check: with no column ever
+        # unrebuildable, the seven obligations are misses again and
+        # every assertion below that says otherwise goes red.
+        monkeypatch.setattr(
+            validation, "unrebuildable_columns", lambda _described: {}
+        )
     yield
     monkeypatch.undo()
 
@@ -225,21 +233,46 @@ def test_the_escaped_declaration_is_not_recovered(
     assert settings.declared_missing_values == ()
 
 
+def _unsupported(outcome: validation.Outcome) -> "list[str]":
+    """The subchecks one run named as ones this description cannot ask."""
+    return sorted(
+        {
+            listing.subcheck
+            for listing in outcome.listings
+            if listing.reason.endswith(validation.UNREBUILDABLE_REASON_TAIL)
+        }
+    )
+
+
 def test_the_residual_is_exactly_the_seven_this_file_names(
     worlds: "tuple[World, World, pathlib.Path]",
 ) -> None:
     """What the narrow rule leaves open, measured instead of promised.
 
     A table whose declared holes are spelled with a character the
-    boundary shows reads those cells back as data against its own
-    profile. That is the cost amendment A-P3-19 records, and it is
+    boundary shows cannot be read back the way its own description was
+    written. That is the cost amendment A-P3-19 records, and it is
     pinned here at its size so that a change to it is visible.
+
+    IT IS SEVEN NOT-CHECKABLE LINES NOW, AND IT WAS SEVEN MISSES (owner
+    ruling 2026-08-16, plan amendment A-P3-26). The residual is the same
+    residual -- the spelling is exactly as unrecoverable as it was --
+    and the same seven obligations are the ones it reaches. What changed
+    is that a table which is its own description's perfect match is no
+    longer told it failed seven obligations; the report says instead
+    that this description does not record what measuring them needs.
     """
     raw, shown, _folder = worlds
     for world in (raw, shown):
         outcome = validation.measure(world.described, world.path)
-        assert _missed(outcome) == sorted(_SEVEN), world.marker
-        assert outcome.census.missed == len(_SEVEN)
+        assert _missed(outcome) == [], world.marker
+        assert outcome.census.missed == 0, world.marker
+        for subcheck in _SEVEN:
+            assert subcheck in _unsupported(outcome), (
+                f"{world.marker}: {subcheck} is neither checked nor "
+                f"named as unsupported, so the residual amendments "
+                f"A-P3-19 and A-P3-26 state has changed size"
+            )
 
 
 def test_the_two_worlds_now_get_the_same_report(
@@ -261,10 +294,10 @@ def test_the_two_worlds_now_get_the_same_report(
 # -- the direction the review did not name: the passing report ---------
 
 
-def test_a_file_the_declaration_rejects_no_longer_passes(
+def test_a_file_the_declaration_rejects_is_no_longer_reported_on(
     worlds: "tuple[World, World, pathlib.Path]",
 ) -> None:
-    """THE FALSE PASS, and it is what this repair is for.
+    """THE FALSE PASS, AND THE LOWERING THAT REPLACED THE ALARM.
 
     The description was written from the control-character table under
     the declaration that table's holes wear. The OTHER file wears the
@@ -273,12 +306,31 @@ def test_a_file_the_declaration_rejects_no_longer_passes(
     with 72 present cells and no holes -- a file the description does
     not fit. Round 6's recovery read the published key as the printable
     spelling, re-described the file as the one the description asks for,
-    and reported no miss at all.
+    and reported no miss at all: a passing report on a file the
+    description's own settings reject.
+
+    AMENDMENT A-P3-19 REPLACED THAT WITH SEVEN MISSES. IT IS SEVEN
+    NOT-CHECKABLE LINES NOW, AND THIS IS THE ONE PLACE WHERE THAT IS A
+    LOWERING (owner ruling 2026-08-16, plan amendment A-P3-26, and the
+    first of the two risks the ruling was taken against). This run is
+    the SAME construction as the two runs above -- one description, two
+    files it cannot tell apart -- and V5.1 forbids a report that tells
+    them apart. So the file that conforms and the file that does not
+    both come back at exit code 0 with the same seven obligations named
+    as ones this description cannot support asking of any file.
+
+    WHAT IS TRUE OF THE REPORT, AND WHAT IS NOT. It no longer says the
+    seven obligations were checked and held, which is what round 6's
+    false pass said; it says they could not be checked, and why. That is
+    the trade: a report that states a limit instead of a verdict it
+    cannot support, at the price of a real failure in this corner going
+    unremarked. This test asserts BOTH halves, so a change to either is
+    a change somebody chose.
     """
     raw, shown, _folder = worlds
     # What the producer says about the other file under the settings the
     # description was actually written under. This is the truth the
-    # report has to agree with.
+    # report can no longer reach.
     table = reading.read_table(
         shown.path, first_row=reading.FIRST_ROW_AUTOMATIC
     )
@@ -290,14 +342,19 @@ def test_a_file_the_declaration_rejects_no_longer_passes(
     assert column["n_present"] == 72
     assert column["n_missing"] == 0
     assert raw.described.columns[1].role == "continuous"
-    # ...and the report agrees with it rather than with the escaped key.
     outcome = validation.measure(raw.described, shown.path)
-    assert outcome.census.missed, (
-        "a file the description's own declaration reads as free text "
-        "with seventy-two present cells passed against a description "
-        "publishing sixty and a numeric role"
-    )
-    assert _missed(outcome) == sorted(_SEVEN)
+    # THE LOWERING, WRITTEN OUT: this file misses nothing now.
+    assert outcome.census.missed == 0
+    # ...and what replaced the misses is a stated limit, not a silence:
+    # each of the seven is named in the not-checkable census with the
+    # sentence saying what the description does not record.
+    for subcheck in _SEVEN:
+        assert subcheck in _unsupported(outcome), subcheck
+    # ...and the two files still get one answer, which is why the
+    # lowering cannot be repaired by looking at the file.
+    conforming = validation.measure(raw.described, raw.path)
+    assert _verdicts(conforming) == _verdicts(outcome)
+    assert _unsupported(conforming) == _unsupported(outcome)
 
 
 # -- the rule itself, and that round 6's gains are untouched -----------
