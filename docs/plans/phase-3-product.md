@@ -3982,6 +3982,173 @@ with its first summand alone and its ceiling with the other classes'
 cell counts; `tests/test_p3v7f2_corner_parity.py` carries both as
 `REINSTATE=P3-V8-F3` and `REINSTATE=P3-V8-F4`.
 
+**Amendment A-P3-26 — a description that cannot be read back says so
+per obligation, instead of printing a failure it cannot support. THIS
+LOWERS what is checked on an affected column and RAISES the report's
+truthfulness, and both are stated below with the sizes they were
+measured at** (2026-08-16, OWNER RULING of that date, taken after the
+four options were put with their costs; review items P3-V4-F1's
+remainder, P3-V7-F1's remainder, P3-V8-F1 and P3-V8-F2).
+
+**One cause, five routes, and it was found by four review rounds
+arriving at the same place by different roads.** `synthtwin validate` is
+defined as: rebuild the reading rule from the description, re-describe
+the measured file with it, compare (validation method V2.2). That
+definition needs the description to pin the reading rule. It does not.
+The settings block records a declaration as a COUNT and never as text
+(`values_recorded: false`, the Phase 1 confidentiality rule), and the
+one field where a spelling survives — a column's `missing_by_source` —
+is narrowed on the way out in four separate ways, with a fifth defect
+beside them:
+
+1. the named spellings are never written into the settings block at
+   all, so a `--keep-value` on a column publishing no level and no
+   sentinel verdict is published nowhere (P3-V4-F1's remainder);
+2. a key crosses the DISPLAY BOUNDARY, so any spelling holding an
+   invisible character is unrecoverable and two tables needing opposite
+   rules are described byte for byte alike (P3-V7-F1's remainder);
+3. a spelling whose cells sit below the publication floor is pooled,
+   unnamed, into the withheld remainder;
+4. a column whose publication class publishes no value of the table —
+   free text — publishes an EMPTY source map, on purpose (P3-V8-F1);
+5. and that map's keys are the person's own text and this package's
+   class words in one list with nothing to tell them apart, so a table
+   whose cells literally read the pooled remainder's own word publishes
+   the key the pool wears (P3-V8-F2).
+
+**Only route 4 is a conflict between publishing safely and describing
+completely.** Route 2 is a presentation rule doing a protection rule's
+work; route 5 is two alphabets in one list; route 1 is drawn at the
+wrong width. Those are not repaired here — repairing them is a change
+to what a description publishes, and the owner's ruling is that this
+amendment does not make one.
+
+**WHAT WAS HAPPENING, AND WHY IT IS THE WORST KIND OF WRONG OUTPUT.**
+On every one of the five routes, a table validated against its OWN
+genuine description came back with obligations MISSED — seven on the
+rescued-word witness, seven on the escaped-key witness, seven on the
+pooled and class-word witnesses, eleven on the free-text witness — with
+the numbers the incomplete reading produced printed beside them. The
+file was its own description's perfect match. This plan holds a passing
+report to meaning exactly what it says; this is the mirror, and a
+specific, numeric, plausible falsehood is harder to disbelieve than a
+silence.
+
+**WHAT HAPPENS NOW.** Before any file is read, the description is asked
+whether the reading rule can be rebuilt for each column. Where it
+cannot, that column's cell-counted obligations go to the NOT-CHECKABLE
+census — the bucket that already exists, is counted separately, is never
+folded into a pass, and carries a printed reason on every line — with a
+sentence saying what the description does not record. Nothing about the
+measured file decides it.
+
+**The question is decidable from the description even where the rule is
+not recoverable, and it is asked as the UNION of two tests** because
+neither alone is both sound and complete. Per column: are there cells
+the description says a declaration made absent that no brought-back
+spelling accounts for? Per document: does the settings block name more
+words, in either of the two ways, than the description carries? The
+structural test alone walks past the table where one named word is
+published and another is pooled; the head count alone reports a gap on
+a table where somebody named a word the table never held. The union
+never misses a real gap. **Where it over-fires it moves obligations to
+not-checkable on a file that would have passed anyway, and that
+direction is the safe one**; the other one prints a number about a file
+that is not true of it. The over-fire is asserted at its size in
+`tests/test_ap326_unrebuildable_reading_rule.py` so that narrowing it
+later is a change somebody chose.
+
+**The one narrowing taken, and it is a proof rather than a preference.**
+On the absence side the head count is asked only of a column whose
+`missing_by_class` publishes a declared hole or a pooled remainder. The
+producer counts every absent cell into one of five classes and pools any
+class below the publication floor into the fifth, so a cell a
+declaration made absent is in one of those two numbers; zero in both is
+a column no declared word appeared in, and a word no cell of that column
+wore cannot change how that column reads. On the kept side no such count
+exists — a rescued cell is PRESENT and no published number says how many
+present cells were rescued — so that half is asked of every column, and
+that is the wider of the two costs.
+
+**WHAT IT LOWERS, MEASURED.** Every obligation of an affected column
+whose measurement is counted over its cells becomes a listing. Only
+`position.at` stays a check, because it is measured from the file's own
+names and column count and no cell touches it.
+
+| witness | checkable before | MISSED before | moved | checks left |
+|---|---|---|---|---|
+| free text, marker declared (route 4) | 31 | 11 | 21 | 10 |
+| rescued word on a numeric column (route 1) | 53 | 7 | 43 | 10 |
+| escaped key (route 2) | 53 | 7 | 43 | 10 |
+| pooled spellings (route 3) | 53 | 7 | 43 | 10 |
+| class word as a person's own cell (route 5) | 53 | 7 | 43 | 10 |
+| one word published, one pooled | 53 | 7 | 43 | 10 |
+
+**The width is wider than the misses, deliberately.** Which obligations
+the unattributable cells reach depends on the spelling nobody recorded:
+the free-text witness's twelve three-character markers move
+`length.min`, and twelve twenty-character markers move `length.max`
+instead. A rule that moved only the obligations that missed on one
+marker would keep printing false failures for another spelling of the
+same gap, so the rule moves every obligation the cells decide.
+
+**WHAT IT RAISES.** The report stops stating about a measured file
+anything the description does not support stating. That is the whole of
+what these four review items were, and it reaches all of them at once —
+including route 4, which no change to the description's format can
+close, because publishing the marker word of a free-text column would
+publish text out of a column that exists to publish none.
+
+**WHAT IT LOWERS IN THE VERDICT ITSELF, in one construction, and this
+is the first of the two risks the ruling was taken against.** A file
+that really does violate one of the moved obligations now returns exit
+code 0 with those obligations named, because a not-checkable line is not
+a failure. The construction is amendment A-P3-19's: one description, two
+files it cannot tell apart, one of them conforming and one not. Under
+A-P3-19 both came back at exit 3 with seven misses; both come back at
+exit 0 now with the same seven obligations named as ones this
+description cannot support asking. What the report no longer does is
+claim to have measured them. Both halves are asserted in
+`tests/test_p3v7f1_escaped_declarations.py`.
+
+**AND THE TWIN CARRIES THE SAME LIMIT, which is the second risk and is
+stated because it is a real cost to the ordinary workflow.** All five
+routes vanish on the twin — it writes every absent cell as an empty
+field, so no marker word survives into it — but which obligations a run
+can check is a function of the DESCRIPTION (validation method V3.3), and
+the twin shares its description with the table. So the twin of an
+affected description passes with exit 0 and nothing missed, and its
+cell-counted obligations are named as not-checkable exactly as the
+table's are. **This is not avoidable inside the validator**: deciding it
+from the file is deciding it from something the description cannot see,
+and two files one description cannot tell apart would then get two
+reports, which is V5.1. It is avoidable in the FORMAT, and that is the
+argument for taking option B before the first release.
+
+**WHAT WOULD NARROW EITHER RISK, named rather than left implicit.**
+Three routes, none taken here: a distinct exit status for a run whose
+census is short; a bound on each moved obligation drawn from the count
+of unattributable cells the description publishes, which would turn a
+listing back into an envelope with teeth; and the format change that
+records which words were named, which closes routes 1, 2, 3 and 5 at
+the root and leaves route 4 as a stated limit. Each is an owner
+decision.
+
+**WHAT DOES NOT MOVE.** No profile format change, no version bump, no
+regenerated golden, no change to the twin's bytes, and no narrowing of
+`validate`'s promise to measure whatever file it is pointed at. The
+three gaps amendment A-P3-15 clause 3 and amendment A-P3-19 clause 4
+record are exactly as unrecoverable as they were; what changed is what
+the report does about them.
+
+**How to reverse this.** `REINSTATE=A-P3-26` makes no column
+unrebuildable, so every witness re-describes the file under an
+incomplete rule and reports the misses again.
+`tests/test_ap326_unrebuildable_reading_rule.py` carries it, and
+`tests/test_p3v4f1_kept_values.py` and
+`tests/test_p3v7f1_escaped_declarations.py` carry it too, because the
+two gaps they measure at their size are measured differently now.
+
 ## P3-D7. Repository claims, staged honestly
 
 **The claim-inventory migration table is a deliverable of this plan's
@@ -4660,6 +4827,24 @@ tests as bounded in P3-D8.3.
   role, its statistics, and therefore which outcomes print or are
   withheld — in either direction. No spelling is ever printed under
   any classification.
+- **R-P3-8.** A description written with `--missing-value` or
+  `--keep-value` does not always record the words, and where it does
+  not, the reading rule cannot be rebuilt (amendment A-P3-26, owner
+  ruling 2026-08-16). The affected column's cell-counted obligations
+  are NOT CHECKABLE and the report says so per obligation, rather than
+  printing a failure it cannot support. **Two costs stand with it and
+  neither is closable inside the validator.** A file that really does
+  violate one of the moved obligations returns exit code 0 with them
+  named, because a not-checkable line is not a failure. And the TWIN of
+  such a description carries the same limit as the table — its holes
+  are written empty and no marker survives into it, but which
+  obligations a run can check is a function of the description and both
+  runs share one, so narrowing it from the file would give two reports
+  to two files the description cannot tell apart (V5.1). What closes
+  the routes behind it is a change to what a description publishes,
+  taken in the open before the first release; route 4, a free-text
+  column's marker word, is a genuine conflict between publishing safely
+  and describing completely and stays whatever the format does.
 - **Closed here:** R3 (Phase 1), on the first release's evidence.
 - **Carried untouched:** R1, R2, R-P2-1 (still owner-flagged), and
   R-P2-2 through R-P2-14 — the ledger runs to FOURTEEN, not twelve,

@@ -60,6 +60,20 @@ at `kept_spellings` and `declared_spellings` below and in plan
 amendment A-P3-15. No sentence in this module may say the bound is met
 while that stands.
 
+AND WHERE IT IS NOT MET, THE REPORT NOW SAYS SO INSTEAD OF PRINTING A
+FAILURE IT CANNOT SUPPORT (owner ruling 2026-08-16; plan amendment
+A-P3-26; validation method V2.4-A5 and V3.5-A3). The gap above is
+unchanged -- the spellings are exactly as unrecoverable as they were --
+but the seven MISSED verdicts it put on a table that is its own
+description's perfect match were a confident falsehood with numbers
+beside it, which is the mirror of the rule this project holds a passing
+report to. `unrebuildable_columns` asks the DESCRIPTION whether the
+reading rule can be rebuilt for each column; where it cannot, that
+column's cell-counted obligations go to the NOT-CHECKABLE census with
+the sentence saying what the description does not record. It costs what
+that amendment measures, in both directions, and residual R-P3-8 carries
+the two limits it leaves standing.
+
 WHAT IS NOT CHECKED HERE, AND CANNOT BE, STATED BEFORE ANY VERDICT
 BELOW READS AS COVERAGE (V7.3, plan P2-D11 residual R-P2-3). A
 validator's silence is read as a pass: somebody holding a report that
@@ -397,6 +411,60 @@ _NOT_CHECKABLE_SPELLING_ENVELOPE = (
     "repeated one value would land inside it and a comparison against it "
     "would prove nothing. Authorized by "
 )
+
+# -- and the three a description that cannot be read back gives --------
+#
+# THE READING RULE IS THE ONE INPUT THIS COMMAND HAS NO SECOND SOURCE
+# FOR (owner ruling 2026-08-16; plan amendment A-P3-26). To describe the
+# measured file the way the description was written, `settings_for` must
+# rebuild the words the person named -- and it rebuilds them from the
+# description's own published text, which does not always carry them.
+# Where it cannot, the obligations counted over that column's cells are
+# obligations this description does not support asking, and saying so is
+# what these three sentences do. Each is BUILT rather than fixed,
+# because each states a number the description publishes; none names a
+# spelling, out of the description or out of the measured file.
+#
+# THE LAST CLAUSE IS SHARED AND IS PUBLIC, so that a reader who meets
+# two of these lines in one report sees one limit stated twice rather
+# than two limits, and so that the suite can find these entries in a
+# census without matching on prose it would then have to keep in step.
+UNREBUILDABLE_REASON_TAIL = (
+    "measuring this column the way the description was written is not "
+    "something this description supports"
+)
+
+
+def _holes_no_word_accounts_for(unnamed: int) -> str:
+    """A column with holes no recovered spelling accounts for."""
+    return (
+        f"the description records {_shown_count(unnamed)} cell(s) of "
+        f"this column made absent by a word you named, and does not "
+        f"record the word, so " + UNREBUILDABLE_REASON_TAIL
+    )
+
+
+def _absence_words_not_recorded(named: int, recovered: int) -> str:
+    """Words named as "no value" that nothing published carries."""
+    return (
+        f"the description says {_shown_count(named)} word(s) were named "
+        f"as meaning \"no value\" when it was written and records "
+        f"{_shown_count(recovered)} of them, so a cell of this column "
+        f"can be one the description read as absent and this report "
+        f"would read as a value; " + UNREBUILDABLE_REASON_TAIL
+    )
+
+
+def _kept_words_not_recorded(named: int, recovered: int) -> str:
+    """Words named as real data that nothing published carries."""
+    return (
+        f"the description says {_shown_count(named)} word(s) were named "
+        f"as meaning real data when it was written and records "
+        f"{_shown_count(recovered)} of them, so a cell of this column "
+        f"can be one the description read as a value and this report "
+        f"would read as absent; " + UNREBUILDABLE_REASON_TAIL
+    )
+
 
 # -- what a file that cannot carry an obligation is told, in one --------
 #    fixed sentence each (review item P3-V1-F11)
@@ -1085,6 +1153,194 @@ def declared_spellings(description: contract.Profile) -> "tuple[str, ...]":
                 continue
             found[spelling] = 1
     return tuple(sorted(found))
+
+
+def rescued_spellings(description: contract.Profile) -> "tuple[str, ...]":
+    """The `--keep-value` declarations this description names outright.
+
+    Guarantees:
+
+    - Inputs: one loaded description. Nothing is read from any file.
+    - Determinism: the returned tuple is sorted, so the same
+      description always gives the same tuple in the same order.
+    - Errors raised: none.
+    - Boundary: every spelling here is the description's OWN published
+      text -- the candidate of a `kept_by_you` sentinel verdict, which
+      is the one route by which a rescued value is published AS a
+      rescue.
+
+    IT IS NARROWER THAN `kept_spellings` ON PURPOSE, and the difference
+    is what makes it countable. `kept_spellings` gathers every spelling
+    a conforming twin may hold that would otherwise read as an absence,
+    and most of what it gathers -- a level's label, a level's variants
+    -- is published for reasons that have nothing to do with a
+    declaration, so its LENGTH answers no question about how many
+    declarations were recovered. This gathers the one published route
+    that exists only where somebody rescued a value, so counting it
+    against `settings.kept_values.n_declared` compares like with like.
+
+    WHAT IT UNDERCOUNTS, and the direction that error runs. A value
+    rescued on a LABEL column reaches the description as a level or a
+    variant and never as a verdict, so it is recovered by
+    `kept_spellings` and not counted here. The count is therefore a
+    LOWER bound on what was recovered, so the head count built on it
+    reports a gap on some descriptions that have none -- and never the
+    reverse. That is the safe direction and it is the direction the
+    owner's ruling of 2026-08-16 asks for.
+    """
+    # A mapping rather than a set, for the reason `kept_spellings` gives
+    # (plan D6.2). The values are never read.
+    found: dict[str, int] = {}
+    for column in description.columns:
+        for verdict in column.sentinel_verdicts:
+            if verdict.reason == taxonomy.REASON_KEPT_BY_USER:
+                found[verdict.candidate] = 1
+    return tuple(sorted(found))
+
+
+def unrebuildable_columns(
+    description: contract.Profile,
+) -> "dict[str, str]":
+    """The columns whose reading rule this description cannot rebuild.
+
+    Guarantees:
+
+    - Inputs: one loaded description, and nothing else. No file is read
+      and no cell is consulted, so which columns are named here is a
+      function of the DESCRIPTION alone -- exactly as V3.3 requires of
+      anything that decides which obligations exist.
+    - Determinism: a fixed function of the description.
+    - Errors raised: none.
+    - Boundary: the reasons are built from published counts. No
+      spelling appears in any of them, out of the description or out of
+      any file.
+
+    WHAT THIS IS FOR (owner ruling 2026-08-16, plan amendment A-P3-26).
+    `validate` is defined as: rebuild the reading rule from the
+    description, re-describe the file with it, compare (V2.2). The
+    description does not always pin the reading rule -- it records a
+    declaration as a COUNT and never as text, and the one field where a
+    spelling survives, `missing_by_source`, is narrowed four ways
+    before it is written. Where the rule cannot be rebuilt, this
+    validator used to re-describe the file under a rule the description
+    was not written under and report the difference as a MISS, which is
+    a confident false alarm on a file that is its own description's
+    perfect match. The obligations counted over that column's cells go
+    to the NOT-CHECKABLE census instead, with the sentence saying what
+    the description lacks.
+
+    IT IS DECIDABLE FROM THE DESCRIPTION EVEN WHERE THE RULE IS NOT
+    RECOVERABLE, which is the whole reason this is possible. Two tests
+    are run and the UNION is taken, because neither alone is both sound
+    and complete:
+
+    - the STRUCTURAL test, per column: the column publishes cells made
+      absent by a declaration that no recovered spelling accounts for.
+      Its inputs are `missing_by_class.declared_missing` and the
+      published counts of the spellings `declared_spellings` brings
+      back.
+    - the HEAD COUNT, per document: the settings block says how many
+      words were named, in each of the two ways, and fewer than that
+      many come back. A declaration is a document-wide rule, so a
+      column publishing nothing about it is still a column that could
+      hold it.
+
+    The head count OVER-FIRES where somebody named a word that never
+    appears in the table: a description written with `--missing-value`
+    naming two words of which the table holds one reports a gap that is
+    not there. The structural test alone would miss the case where one
+    named word is published and another is pooled below the floor. The
+    union never misses a real gap, and where it over-fires it moves
+    obligations to NOT CHECKABLE on a file that would have passed
+    anyway. That direction is the safe one: the other one prints a
+    number about a file that is not true of it.
+
+    THE ONE PLACE THE HEAD COUNT IS HELD BACK, and it is a proof rather
+    than a preference. On the ABSENCE side a column whose
+    `missing_by_class` publishes no declared holes AND no pooled
+    remainder is a column no declaration touched: the producer counts
+    every absent cell into one of five classes and pools any class
+    below the floor into the fifth, so a declared hole is either in
+    `declared_missing` or inside `withheld`, and zero in both is zero
+    of them. A word nobody's cell wore cannot change how that column
+    reads, so listing its obligations would state a limit that is not
+    this column's. On the KEPT side no such count exists -- a rescued
+    cell is PRESENT and no published number says how many present cells
+    were rescued -- so that half fires on every column of the document,
+    and that is the wider of the two costs this repair carries.
+
+    WHAT IT DOES NOT REACH. This says a column's reading rule cannot be
+    rebuilt; it does not repair the description. The words themselves
+    are still not recoverable, and a description that carried them
+    would let every one of these obligations be checked instead of
+    listed. That is a change to what the description publishes and it
+    is not this function's to make.
+    """
+    settings = description.settings
+    recovered = declared_spellings(description)
+    named_absent = settings.declared_missing_values.n_declared
+    rescued = rescued_spellings(description)
+    named_kept = settings.kept_values.n_declared
+    unrebuildable: dict[str, str] = {}
+    for column in description.columns:
+        unnamed = _holes_no_spelling_accounts_for(column, recovered)
+        if unnamed > 0:
+            unrebuildable[column.name] = _holes_no_word_accounts_for(unnamed)
+            continue
+        if len(recovered) < named_absent and _a_declaration_could_reach(
+            column
+        ):
+            unrebuildable[column.name] = _absence_words_not_recorded(
+                named_absent, len(recovered)
+            )
+            continue
+        if len(rescued) < named_kept:
+            unrebuildable[column.name] = _kept_words_not_recorded(
+                named_kept, len(rescued)
+            )
+    return unrebuildable
+
+
+def _holes_no_spelling_accounts_for(
+    column: contract.ColumnBlock, recovered: "tuple[str, ...]"
+) -> int:
+    """How many declared holes of this column no recovered word covers.
+
+    `missing_by_class.declared_missing` is how many of this column's
+    absent cells the producer made absent BY DECLARATION, and every
+    spelling `declared_spellings` recovered carries its own published
+    count in `missing_by_source`. What the recovered spellings do not
+    account for is what the validator will read back as data.
+
+    THE POOLED REMAINDER IS NOT ADDED HERE, and that is deliberate. A
+    class whose count falls below the publication floor is pooled into
+    `withheld`, so declared holes CAN hide there -- but a declaration
+    hiding there is a declaration no column published, which is exactly
+    what the head count in the caller catches. Adding the pooled
+    remainder to this side would report a gap on the ordinary
+    description that names one word and holds three blank cells, where
+    the rule is rebuilt exactly.
+    """
+    accounted = 0
+    for spelling in recovered:
+        accounted = accounted + _counted(column.missing_by_source, spelling)
+    unnamed = column.missing_by_class.declared_missing - accounted
+    return max(0, unnamed)
+
+
+def _a_declaration_could_reach(column: contract.ColumnBlock) -> bool:
+    """Whether any cell of this column was made absent by a declaration.
+
+    Not "was it", but "could it have been", which is the question the
+    description answers. The producer counts every absent cell into one
+    of five classes and pools any class whose count falls below the
+    publication floor into the fifth, so a cell a declaration made
+    absent is counted either in `declared_missing` or inside the pooled
+    `withheld` remainder. Both zero is a column no declared word
+    appeared in, whatever words the settings block says were named.
+    """
+    classes = column.missing_by_class
+    return classes.declared_missing > 0 or classes.withheld > 0
 
 
 # -- V4: the corner classifier, written from the specification --------
@@ -2669,6 +2925,13 @@ def measure(description: contract.Profile, path: str) -> Outcome:
       is the set of present cells (V2.4). Both are built on every run,
       whatever the file turns out to hold, because nothing about a
       measured file may decide which of its own checks run.
+    - And a column whose reading rule the description cannot rebuild
+      (`unrebuildable_columns`) carries ONE check -- `position.at`,
+      measured from the file's names -- with every other obligation of
+      that column in the not-checkable census, saying what the
+      description does not record (V2.4-A5; plan amendment A-P3-26).
+      That split is a function of the description, so the twin of such
+      a description carries it too.
     """
     named = refusal_of(description)
     validated = validate_local_path(path, purpose="input")
@@ -2824,11 +3087,89 @@ def measure(description: contract.Profile, path: str) -> Outcome:
         ) from error
     checks = _byte_checks(description, data, text, headed, as_read, False)
     checks = checks + _structure_checks(description, table, headed)
+    # THE COLUMNS THIS DESCRIPTION CANNOT BE READ BACK FOR (owner ruling
+    # 2026-08-16; plan amendment A-P3-26). Asked once, of the
+    # description alone, and asked HERE rather than inside the column
+    # walk so that the checks a column loses and the listings it gains
+    # are made by one decision: an obligation that fell out of both
+    # would leave the census calling itself every obligation while it
+    # was not, and one that landed in both would be counted twice.
+    #
+    # AND ASKED ON THIS PATH ONLY, which is the whole of its scope. The
+    # zero-row report already lists every per-column obligation, so
+    # there is nothing there to move and asking would bind one twice.
+    # The report on a file the reader refuses misses every obligation
+    # for a reason that holds whatever the reading rule was -- no rows,
+    # or a first row that names no columns -- so what it states is true
+    # of the file without the rule being rebuilt at all.
+    unrebuildable = unrebuildable_columns(description)
+    listings = _listings(description, headed)
     for column in description.columns:
-        checks = checks + _column_checks(
-            description, column, table, redescribed, over_the_split, headed
+        # A membership test and a subscript, never `get`: the offline
+        # policy accepts no method call on a value it cannot trace
+        # (plan D6.2), and this mapping's values are prose.
+        why = ""
+        if column.name in unrebuildable:
+            why = unrebuildable[column.name]
+        if not why:
+            checks = checks + _column_checks(
+                description, column, table, redescribed, over_the_split, headed
+            )
+            continue
+        checks = checks + _still_evidencible(column, table, headed)
+        listings = listings + _unrebuildable_listings(
+            description, column, headed, why
         )
-    return _assembled(checks, _listings(description, headed), measured_name)
+    return _assembled(checks, listings, measured_name)
+
+
+def _still_evidencible(
+    column: contract.ColumnBlock,
+    table: reading.Table,
+    headed: bool,
+) -> "list[Check]":
+    """What a column with an unrebuildable reading rule is still asked.
+
+    One obligation, and it is the one measured from the file's NAMES
+    rather than from its cells: does a column of this number stand
+    there, under this name where a header was written. Nothing about
+    how a cell reads touches it, so nothing the description failed to
+    record can move it, and it stays a check with a verdict.
+
+    Everything else this column carries is counted over its cells, and
+    the cells cannot be read the way the description was written. Those
+    go to the not-checkable census in `_unrebuildable_listings`.
+    """
+    if not _position_is_evidencible(column, headed):
+        return []
+    return [_position_check(column, table.column_names, headed)]
+
+
+def _unrebuildable_listings(
+    description: contract.Profile,
+    column: contract.ColumnBlock,
+    headed: bool,
+    why: str,
+) -> "list[Listing]":
+    """Every cell-counted obligation of one column, listed with the why.
+
+    THE IDENTITIES COME FROM THE OBLIGATION WALK ITSELF, handed no cells
+    and no re-description, which is the same construction
+    `_zero_row_listings` uses and for the same reason: an obligation
+    named here by hand would drift from the obligation the ordinary run
+    checks, and a reader comparing the two censuses would be unable to
+    see they are the same one. `position.at` is dropped because
+    `_still_evidencible` keeps it as a check, and V3.3 forbids one
+    obligation being bound twice as firmly as it forbids one bound not
+    at all.
+    """
+    return [
+        Listing(check.column, check.fact, check.subcheck, why)
+        for check in _obligations(
+            description, column, [], {}, {}, None, headed
+        )
+        if check.subcheck != "position.at"
+    ]
 
 
 def _degenerate_report(

@@ -449,6 +449,73 @@ file would not publish — V5.1. What closes it is a decision about what
 the profile publishes, taken in the open; until then no sentence in this
 document may say the bound of V2.4 is met.
 
+**V2.4-A5 Where the reconstruction cannot be completed, the obligations
+counted over that column's cells are NOT CHECKABLE and the report says
+which and why — instead of printing a failure it cannot support**
+(amendment V2.4-A5, 2026-08-16, owner ruling of that date; the plan's
+amendment A-P3-26 is the ruling and this follows it). A4 clause 3 leaves
+three gaps standing and records what each one costs: a table that is its
+own description's perfect match is told it MISSED five, six, seven or
+eleven obligations, with the numbers the incomplete reading produced
+printed beside them. **That is the mirror of the rule this project holds
+a passing report to.** A report that says a good file is bad, with
+numbers, is a specific, plausible falsehood, and a reader who cannot see
+the description's own limits has no way to disbelieve it.
+
+**The description can always tell that the rule cannot be rebuilt, even
+where it cannot rebuild it.** Two questions are asked of the description
+alone and the UNION of them is taken, because neither alone is both
+sound and complete:
+
+- **per column**: are there cells the description says a declaration
+  made absent that no brought-back spelling accounts for? Its inputs are
+  `missing_by_class.declared_missing` and the published counts, in
+  `missing_by_source`, of the spellings V2.3-A1's fourth route brings
+  back;
+- **per document**: does the settings block name more words, in either
+  of the two ways, than the description carries? On the absence side
+  this is asked only of a column whose `missing_by_class` publishes a
+  declared hole or a pooled remainder — the producer counts every
+  absent cell into one of five classes and pools any class below the
+  floor into the fifth, so zero in both is a column no declared word
+  appeared in. On the kept side no such count exists, because a rescued
+  cell is PRESENT and no published number says how many present cells
+  were rescued, so it is asked of every column.
+
+**What it costs, at its size, and both directions are stated.** THIS
+LOWERS what is checked on an affected column: every obligation of that
+column whose measurement is counted over its cells becomes a listing,
+and only `position.at` — measured from the file's names and column
+count, never from a cell — stays a check. On the free-text witness that
+is twenty-one of thirty-one checkable obligations moved, ten checks
+left, where eleven used to MISS; on the numeric witnesses forty-three of
+fifty-three, ten left, where seven used to miss. **The width is
+deliberate and it is wider than the misses:** which obligations the
+unattributable cells reach depends on the spelling nobody recorded, so a
+rule that moved only the ones that missed on one marker would keep
+printing false failures for another. THIS RAISES the report's
+truthfulness in the same act: nothing is stated about the measured file
+that the description does not support stating.
+
+**And a report may not buy this back by looking at the file.** The split
+between what is checked and what is listed is a function of the
+description alone (V3.3), so the twin of an affected description carries
+the same limit as the table — its holes are written empty and no marker
+survives into it, but no reading of the description can know that. Two
+files this description cannot tell apart therefore still get one report,
+which is V5.1, and that is why the limit cannot be narrowed here.
+
+**What is left open, named rather than found.** A file that really does
+violate one of the moved obligations now returns exit code 0 with those
+obligations named, because a not-checkable line is not a failure (V6).
+The construction is the one V2.3-A2 records: one description, two files
+it cannot tell apart, one of them conforming and one not. Both come back
+at exit 0. What the report no longer does is claim to have measured
+them. Narrowing this needs either a distinct exit status for a run whose
+census is short, or a bound on each moved obligation drawn from the
+count of unattributable cells — both are owner decisions and neither is
+taken here.
+
 ---
 
 ## V3. The entry table: what is checked, at what grain, in three kinds
@@ -616,6 +683,22 @@ had pooled. Where the pool IS empty the count is exact, which is the
 ordinary case and unchanged, and the window keeps its teeth in the
 direction that matters: the published cells are owed, so a file writing
 fewer of the named form than the description names still MISSES.
+
+**V3.5-A3 And a SEVENTH way, which is a route rather than a named
+entry** (2026-08-16, owner ruling of that date; the plan's amendment
+A-P3-26 is the ruling and this follows it). The six above are each one
+fact whose failure set the description empties. This one empties no
+failure set: the obligation could be falsified by a file, and what the
+description does not carry is the RULE for reading that file back the
+way it was read when the description was written (V2.4-A5). The entries
+it decides are therefore named by a walk and not by a list — every
+obligation of an affected column that is counted over its cells — and
+`position.at` is the only one of that column's entries left standing,
+because it is measured from the file's names and column count. The
+condition is a condition on the loaded profile, exactly as V3.1 requires
+of a predicate, and the walk that names the listings is the same walk
+that would have named the checks, so the two halves of the split cannot
+drift apart.
 
 **And the partition is total the other way too**: an entry the
 description leaves falsifiable stays an executable subcheck, and the

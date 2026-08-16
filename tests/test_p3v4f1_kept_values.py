@@ -99,8 +99,10 @@ Every table is built at test time by the seeded neutral builders in
 
 import ast
 import inspect
+import os
 import pathlib
 import types
+import typing
 
 import pytest
 
@@ -138,6 +140,24 @@ NEIGHBOURS = [
 # The round-5 witness's own two spellings.
 _NEAR = "-999.00000000000001"
 _HOLE = "-999"
+
+
+@pytest.fixture(scope="module", autouse=True)
+def _reinstated() -> "typing.Iterator[None]":
+    """Put the pre-ruling behaviour back when REINSTATE asks for it.
+
+    `REINSTATE=A-P3-26` makes no column unrebuildable, so the two gaps
+    this file measures at their size go back to being printed as
+    misses and the assertions that say otherwise go red. MODULE-SCOPED,
+    because the descriptions below are built in module-scoped fixtures.
+    """
+    monkeypatch = pytest.MonkeyPatch()
+    if os.environ.get("REINSTATE") == "A-P3-26":
+        monkeypatch.setattr(
+            validation, "unrebuildable_columns", lambda _described: {}
+        )
+    yield
+    monkeypatch.undo()
 
 
 def _described(
@@ -1053,6 +1073,17 @@ def _columns_of(
     return [parsing.trimmed(cell) for cell in table.columns[1]]
 
 
+_SUB_FLOOR_RESIDUAL = (
+    "axes.role",
+    "axes.statistical_type",
+    "counts.n_not_numeric",
+    "distinct.n_distinct",
+    "distinct.n_distinct_folded",
+    "presence.n_missing",
+    "presence.n_present",
+)
+
+
 def test_the_declaration_below_the_floor_is_left_open_at_its_size(
     tmp_path: pathlib.Path,
     declared_below_the_floor: "tuple[contract.Profile, str, str]",
@@ -1061,39 +1092,50 @@ def test_the_declaration_below_the_floor_is_left_open_at_its_size(
 
     A declaration whose cells sit below `small_cell_floor` in every
     column is pooled into `(withheld)` and published nowhere, so no
-    route can recover it and the table it was written from still misses.
-    The residual is bounded -- fewer than the floor per spelling per
-    column -- and it is asserted at that bound here, so a repair that
-    widens it turns this red instead of passing quietly.
+    route can bring it back and the table it was written from cannot be
+    read back the way it was written.
 
-    The twin is the other half: it writes its holes empty, so the twin of
-    this very description misses nothing at all, and what is open is
-    open only for the table.
+    WHAT THE SEVEN NAMES BELOW USED TO BE, AND WHAT THEY ARE NOW (owner
+    ruling 2026-08-16, plan amendment A-P3-26). They were seven MISSED
+    verdicts on a table that is its own description's perfect match --
+    a confident false alarm, printed with numbers. They are now seven
+    lines of the NOT-CHECKABLE census, each carrying the sentence that
+    says what the description does not record. The gap did not close:
+    the spelling is exactly as unrecoverable as it was. What changed is
+    that the report no longer states a failure it cannot support.
+
+    They are still written out one by one, so that a repair which closes
+    the gap turns this red and a change which WIDENS it turns this red
+    too.
+
+    The twin is the other half: it writes its holes empty, so the twin
+    of this description misses nothing -- and its obligations are moved
+    by the same rule, because which obligations a run can check is a
+    function of the DESCRIPTION and the two runs share one.
     """
     described, table, twin = declared_below_the_floor
     column = _reading_column(described)
     assert column.n_missing < _FLOOR
     open_run = _measure(tmp_path, described, table, "pooled-table.csv")
-    missed = sorted(
+    assert open_run.census.missed == 0, (
+        "the table its own description was written from is reported as "
+        "missing an obligation again"
+    )
+    unsupported = sorted(
         {
-            check.subcheck
-            for check in open_run.checks
-            if check.verdict == validation.MISSED
+            listing.subcheck
+            for listing in open_run.listings
+            if listing.reason.endswith(validation.UNREBUILDABLE_REASON_TAIL)
         }
     )
-    assert missed == [
-        "axes.role",
-        "axes.statistical_type",
-        "counts.n_not_numeric",
-        "distinct.n_distinct",
-        "distinct.n_distinct_folded",
-        "presence.n_missing",
-        "presence.n_present",
-    ], (
-        "the sub-floor residual changed size; it is stated in "
-        "`declared_spellings` and in plan amendment A-P3-15 and both "
-        "have to move with it"
-    )
+    for subcheck in _SUB_FLOOR_RESIDUAL:
+        assert subcheck in unsupported, (
+            f"the sub-floor residual changed size: {subcheck} is neither "
+            f"checked nor named as unsupported; it is stated in "
+            f"`declared_spellings`, in `unrebuildable_columns` and in "
+            f"plan amendments A-P3-15 and A-P3-26, and all of them have "
+            f"to move with it"
+        )
     closed_run = _measure(tmp_path, described, twin, "pooled-twin.csv")
     assert closed_run.census.missed == 0
 
@@ -1198,17 +1240,31 @@ def test_the_kept_marker_gap_is_measured_at_its_size(
     claimed, and the envelope it opened admitted this very file's two
     hundred as an AUTHORIZED DEVIATION. The one cause of the gap is
     unchanged; two of its consequences stopped being hidden.
+
+    AND THE SEVEN ARE NOT MISSES ANY MORE (owner ruling 2026-08-16, plan
+    amendment A-P3-26). The gap is the same gap: `n/a` is exactly as
+    unrecoverable as it was, and no route brings it back. What moved is
+    what the report does about it. Seven MISSED verdicts on a table that
+    is its own description's perfect match were seven false alarms; they
+    are seven lines of the NOT-CHECKABLE census now, each saying what
+    the description does not record. The list is still written out one by
+    one, so a repair that closes the gap and a change that widens it
+    both turn this red.
     """
     described, table, _settings = kept_marker
     outcome = _measure(tmp_path, described, table, "kept-marker.csv")
-    missed = sorted(
+    assert outcome.census.missed == 0, (
+        "the table its own description was written from is reported as "
+        "missing an obligation again"
+    )
+    unsupported = sorted(
         {
-            check.subcheck
-            for check in outcome.checks
-            if check.verdict == validation.MISSED
+            listing.subcheck
+            for listing in outcome.listings
+            if listing.reason.endswith(validation.UNREBUILDABLE_REASON_TAIL)
         }
     )
-    assert missed == [
+    for subcheck in (
         "counts.n_left_out_of_statistics",
         "counts.n_not_numeric",
         "counts.numeric_share",
@@ -1216,11 +1272,14 @@ def test_the_kept_marker_gap_is_measured_at_its_size(
         "distinct.n_distinct_folded",
         "presence.n_missing",
         "presence.n_present",
-    ], (
-        "the size of the open kept-marker gap changed; "
-        "`kept_spellings`, the module docstring and plan amendment "
-        "A-P3-15 all state it and all have to move with it"
-    )
+    ):
+        assert subcheck in unsupported, (
+            f"the size of the open kept-marker gap changed: {subcheck} "
+            f"is neither checked nor named as unsupported; "
+            f"`kept_spellings`, `unrebuildable_columns`, the module "
+            f"docstring and plan amendments A-P3-15 and A-P3-26 all "
+            f"state it and all have to move with it"
+        )
 
 
 def test_closing_it_here_would_state_what_the_producer_does_not_publish(

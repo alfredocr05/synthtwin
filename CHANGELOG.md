@@ -246,6 +246,40 @@ exists).
   the other direction: the guard accepted offsets out of range that the
   loader refuses.
 
+### Fixed in Phase 3: checking your own table no longer reports failures that are not there
+- **If you named a word with `--missing-value` or `--keep-value`, the
+  description does not always record the word -- and the check now says
+  so instead of failing your table** (owner ruling 2026-08-16, plan
+  amendment A-P3-26, validation method V2.4-A5 and V3.5-A3). To measure
+  a file, `synthtwin validate` first works out how the description read
+  its cells, from the description alone. There are five ways a word you
+  named does not survive into it: it is never written into the settings
+  block; it holds an invisible character and is rewritten before it is
+  stored; too few rows share it, so it is pooled away unnamed; the
+  column publishes no values at all, as a free-text column does on
+  purpose; or your own text happens to spell one of synthtwin's own
+  words. On every one of those, checking your table against its OWN
+  description reported obligations MISSED -- seven, or eleven on a
+  free-text column -- with numbers beside them, on a file that matched
+  its description perfectly. **The description can always tell that it
+  cannot rebuild the rule, even when it cannot rebuild it**, so those
+  obligations are now listed as ones this description does not support
+  checking, each with a sentence saying what it does not record. They
+  are counted on their own line and never folded into a pass.
+- **What that costs, said plainly** (plan residual R-P3-8). It is a real
+  lowering on an affected column: every obligation counted over that
+  column's cells moves, so a free-text column keeps ten checks where it
+  had thirty-one, and a numeric one ten where it had fifty-three. The
+  same limit applies to the twin of such a description -- the twin holds
+  no marker word and passes, and the check has no way to know that
+  without reading something the description cannot see. And a file that
+  really does miss one of the moved obligations now ends at exit code 0
+  with them named rather than at exit code 3. Closing the routes behind
+  this needs a change to what a description records, which is a decision
+  taken in the open; one of the five -- a marker word in a free-text
+  column -- cannot be closed at all without publishing text out of a
+  column that exists to publish none.
+
 ### Fixed in Phase 3: a description ten spellings answer is no longer refused
 - **A repetition count is read as the figures it is written in** (plan
   amendment A-P3-25 clause 1, validation method V4.2-A2). A description
