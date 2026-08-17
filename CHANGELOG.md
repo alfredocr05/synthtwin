@@ -4,13 +4,22 @@ All notable changes to synthtwin are documented here. The format follows
 Keep a Changelog; versions follow SemVer (0.x until the end-to-end product
 exists).
 
+## [Unreleased]
+
 ### Changed in Phase 3: the description format is version 5
 
 **A description written by an earlier synthtwin is refused, and there is
-no upgrade path.** Run `synthtwin profile` on your table again, giving
-the same `--keep-value` and `--missing-value` options you gave the first
-time, and use the file it writes exactly as it writes it. The refusal
-says all of that on its own face. There is no release before this one,
+no upgrade path.** Run `synthtwin profile` on your table again, giving it
+**every** option you gave the first time -- `--keep-value`,
+`--missing-value`, `--identifier`, `--smallest-group` and `--first-row`
+-- and use the file it writes exactly as it writes it. **Leaving one out
+can publish something your first description held back**: without the
+`--smallest-group` you gave, a value that fewer rows share can be named,
+and without the `--identifier` you gave, a column of record numbers is
+described like any other column. The refusal says all of that on its own
+face (owner ruling 2026-08-17, plan amendment A-P3-36: it named two
+options and left three out until that ruling, and calling what followed
+merely "different" was wrong). There is no release before this one,
 so every description in existence belongs to somebody who still holds
 the table it describes -- which is why the change was taken now rather
 than after a release, when the same change would cost strangers a
@@ -42,12 +51,32 @@ reported as missed, with numbers beside them.
   those two keys, computed by the same rules under the same floor.
 - **The settings block names which of synthtwin's own thirteen published
   words you typed** -- ten spellings it reads as "no value" and three
-  stand-in numbers. It still carries no spelling of your own: the
-  member's spelling is written and never yours, no count, column or row
-  goes with it, and it is written identically whether or not the word
-  occurs in your table. `SECURITY.md` states the delta and its bound,
-  and the plain-language summary says it on every run where you named a
-  value.
+  stand-in numbers. That block still carries no spelling of your own:
+  the member's spelling is written and never yours, no count, column or
+  row goes with it, and it is written identically whether or not the
+  word occurs in your table. `SECURITY.md` states the delta and its
+  bound, and the plain-language summary says it on every run where you
+  named a value.
+- **A word of your own that you name with `--missing-value` IS written
+  into the description, and synthtwin used to tell you it was not**
+  (owner ruling 2026-08-17, plan amendment A-P3-31). The column that
+  counted those cells names the spelling exactly as your table wrote
+  it, wherever at least `--smallest-group` rows share it and the column
+  publishes any values at all. That is how a description says how each
+  cell was read, it has been true of every version 5 description from
+  the day the format landed, and version 4 published the same spelling
+  in its rewritten form -- so nothing about your files changed here.
+  What changed is what synthtwin tells you: the rule about the settings
+  block was written on four pages without saying it was about the
+  settings block, so the summary printed your word under `counted as
+  missing:` and then told you, four screens lower, that it kept no such
+  word. **If you decided a description could travel on the strength of
+  that sentence, check the description.** From this release
+  `--missing-value`'s help says it before you type; a `profile` run that
+  writes one of your words prints a warning naming the word, its column
+  and its count before either file exists; the summary lists every word
+  of yours the description carries; and `SECURITY.md` states it as a
+  named risk with its bounds. No output file moved a byte.
 - **`synthtwin validate` reads all of that, so it stops declining to
   check what the description now records** (plan amendment A-P3-29). If
   you kept one of synthtwin's own words as real data -- two hundred
@@ -59,6 +88,38 @@ reported as missed, with numbers beside them.
   no longer stands down on those columns, whatever the publication floor
   did with the cells, and it no longer stands down on every column of a
   description merely because you kept a value somewhere.
+- **Four descriptions synthtwin could not read back correctly, and now
+  can** (plan amendments A-P3-32 to A-P3-35). Each was found by review,
+  each is repaired here, and none of them changes a byte of any file
+  synthtwin writes.
+  - **A table whose cells say one of synthtwin's own field names can be
+    described.** At `--smallest-group 1`, a table with cells reading
+    `n_missing_withheld` -- or a category labelled `(withheld)` -- was
+    either refused by the reader as a file "changed since it was
+    written", or stopped the `profile` run outright. Nothing was wrong
+    with the table or the description; two walks over the file read a
+    key your table decided as a name synthtwin decided.
+  - **A word you named with `--missing-value` that holds an invisible
+    character is recognised again when your table is checked.** It was
+    stored correctly and compared in its printed form, so none of those
+    cells was recognised, and seven of the checks on that column were
+    reported as "not shown" on a file that met every one of them.
+  - **A free-text column that holds a word of yours the description
+    could not record is now listed as one this description cannot
+    support checking**, instead of reporting eleven misses against your
+    own table. The limit itself is unchanged and stated as before; what
+    was wrong is that it was not being noticed when a second declared
+    word had two spellings elsewhere in the table.
+  - **A column whose absent cells hold a stand-in number like `-999` no
+    longer fails against its own description.** The description records
+    that verdict in full, and the check now uses it: a 180-row column
+    with twelve such cells reported seventeen missed obligations, with
+    numbers beside them, and reports none. **One consequence worth
+    knowing:** where a description says a stand-in number means "no
+    value" in some column, a twin that happens to generate that number
+    often enough can now have those cells counted as absent when it is
+    checked. That is the same collision synthtwin has always disclosed
+    for its own missing words, on one more kind of cell.
 - **Two limits are stated rather than closed.** On a column that
   publishes no value of your table -- free text, record numbers,
   numbers no format can hold -- the source accounting stays empty
@@ -74,8 +135,9 @@ reported as missed, with numbers beside them.
 - **No cell of any twin changed.** No generation rule reads any field
   that moved, and the twin still writes every absent cell as an empty
   field, so the frozen twin bytes are untouched.
-- **The three artifacts that DID move, diffed line by line before their
-  hashes were re-recorded.** The description gained `profile_version: 5`,
+- **The four artifacts that DID move, diffed line by line before the
+  hashes of the three that have one were re-recorded.** The description
+  gained `profile_version: 5`,
   two counts on every column block and two vocabulary lists in each
   declaration record, and nothing else -- one `(blank)` entry left the
   spellings map on each column that had one, and became the count
@@ -85,6 +147,15 @@ reported as missed, with numbers beside them.
   census did not move at all; its not-checkable census grew by exactly
   two lines per column, one for each new REPORT-ONLY count, each naming
   itself in words. No verdict changed and no obligation left any report.
+  **And the plain-language summary beside the description moved most of
+  all**, which an earlier draft of this entry left out although it is
+  the file a person actually reads: it now says which of synthtwin's own
+  thirteen words you named, it scopes its no-spelling-is-kept sentence
+  to the settings block where that sentence is true, and it closes with
+  a block naming every word of YOUR own the description carries, the
+  column that carries it and how many cells wore it. It has no frozen
+  hash of its own, which is why it was the one file the byte-for-byte
+  diffing did not force anybody to look at.
 - **The frozen reference vectors were regenerated, which this project
   treats as a changelogged event** (determinism rule D12). What moved
   in them is the profile fragments they carry as INPUT, and only where

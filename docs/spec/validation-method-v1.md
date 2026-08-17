@@ -359,6 +359,45 @@ or it reads as one of the three stand-ins. Both are still skipped there
 — and both are now ANSWERED from the settings block instead of being
 lost, which is what makes them exclusions rather than residuals.
 
+**V2.3-A5 A recovered spelling is compared RAW, because the display
+boundary is for a screen. THIS RAISES; it lowers nothing** (2026-08-17,
+owner ruling of that date; the plan's amendment A-P3-33 is the ruling
+and this follows it; review item P3-V9-F3).
+
+V2.3-A3 above withdrew the exclusion that existed because version 4
+escaped a key before storing it. It did not say what else that fact had
+been holding up, and one thing was: the rule that decides whether a CELL
+wears a recovered declaration put the cell through the display boundary
+first, so that both sides of the comparison would be in the published
+form. From version 5 the published form IS the raw form, so escaping one
+side compared a text that had crossed the boundary with one that had
+not.
+
+**What that cost, measured.** Sixty numbers, twelve holes spelled `X`
+U+0001 `Y`, five blank cells pooled below the publication floor: the
+rule recognised none of the twelve, the column's cells were recounted as
+though its own description read all of them as values, and SEVEN style
+obligations came back WITHHELD on the table the description was written
+from. A check that cannot fail is a defect by this project's own
+charter, and on a file that really did violate two of the seven, those
+two were withheld rather than MISSED.
+
+**The rule, stated so it cannot come back.** Escaping is applied where a
+spelling is SHOWN and nowhere else. No comparison in this method runs on
+escaped text, on either side; the module that states verdicts calls the
+display boundary nowhere at all, and the module that renders a report is
+where a spelling meets a screen. The suite reads this off the parsed
+source rather than off a promise.
+
+**The rule is wider than this method, and the sweep for it found a
+second site.** The profiler's summary asked "is this word one of
+synthtwin's own?" of an escaped key and answered with escaped text. It
+printed the same characters either way, because the page crosses the
+boundary once and crossing it twice changes nothing — so the cost was
+not a moved byte but a question asked about text no description holds.
+Any surface that DECIDES something about a spelling decides it on the
+spelling the description stores.
+
 **V2.4 And the kept set governs only what PRINTS, never a verdict.** On
 the check side an absence is BLANKNESS, by the contract's own rule for
 twins: every absent cell is written as an empty field, so `n_present`,
@@ -704,7 +743,11 @@ places:
   many were the person's, and the per-column walk of V2.3-A1 is what
   came back of those. A word of this package's own is written down
   whatever the floor did, so counting it in the shortfall would report
-  a deficit that is not one.
+  a deficit that is not one. *(The words "every value named" were true
+  of the field and made the subtraction an upper bound, which this
+  clause read as exact; `n_declared` counts every DIFFERENT value named
+  from 2026-08-17, and V2.4-A9 below is the correction. The walk
+  returns keys, which is V2.4-A7's correction.)*
 - **The per-column structural test is not asked where the publication
   class empties the source accounting.** On a nothing-publishing column
   `missing_by_source` is empty, `n_missing_blank` is zero and
@@ -723,13 +766,19 @@ places:
   `-999` while the file wrote `-999.0`, and a word typed `" N/A "`
   comes back as the member `n/a` while the file wrote `N/A`.
 
-**The union is still a union, and that is a soundness bound rather than
+~~**The union is still a union, and that is a soundness bound rather than
 caution.** The head count counts WORDS and the structural test counts
 CELLS. A declaration is matched by its folded spelling, so one declared
 word can be worn by several published keys — ` XX ` and `XX` are two
 keys of one word — and a head count of keys against a head count of
 words can come out level while a second declared word is pooled and
-lost. The structural test sees those cells and fires.
+lost. The structural test sees those cells and fires.~~ **The last
+sentence is FALSE and is corrected by V2.4-A7 below. The structural test
+is not asked at all on a column whose publication class empties its
+source accounting, which is the third bullet of this same amendment, so
+on exactly the description this paragraph describes NEITHER half fires.
+The union is still a union and both halves are still needed; what was
+wrong was the claim that one covers the other here.**
 
 **What it costs, measured on the same witnesses A5 was measured on.**
 
@@ -746,6 +795,19 @@ lost. The structural test sees those cells and fires.
 | one word published, one pooled (route 3) | 10 / 43 | 10 / 43 |
 | a word of the person's own that the table never held | 10 / 43 | 10 / 43 |
 
+**The arithmetic of that table, written out so that no reader has to do
+it and no later sentence can drift from it** (added 2026-08-17 by the
+plan's amendment A-P3-38 clause 2, on review item P3-V9-F9). Ten rows:
+FOUR reverse — the two rescued words, the named stand-in number and the
+built-in word on a free-text column; FOUR stand — route 4's one, route
+3's two, and the head count's own over-fire; and TWO never retreated at
+all, reading `53 / 0` on both sides, because the format change closed
+them a commit earlier. The plan's own table is these ten rows plus the
+rescued stand-in number and the two controls, all three of which also
+read alike on both sides, so its count is four, four and five. The
+plan's prose said the retreat reversed on FIVE rows and is corrected
+there.
+
 **The over-fire that stays, and it is the last line of that table.** A
 description naming two words of the person's own, of which the table
 holds one, reports a gap that is not there. It is the safe direction —
@@ -759,6 +821,140 @@ at exit 0, and the TWIN of an affected description carries the same
 limit as the table. They stand on the two limits of contract 5 section
 7 and on nothing else, because those are the only descriptions left
 that cannot be read back.
+
+**V2.4-A7 The head count counts WORDS on BOTH sides. THIS RAISES the
+report's truthfulness and lowers what is checked on one more shape of
+description, in the safe direction** (2026-08-17, owner ruling of that
+date; the plan's amendment A-P3-34 is the ruling and this follows it;
+review item P3-V9-F4).
+
+A6 narrowed the absence-side head count to words of the person's own and
+said the difference is "how many were the person's, and the per-column
+walk of V2.3-A1 is what came back of those". That walk returns KEYS. One
+declared word can be worn by several keys — the same ` XX ` and `XX`
+this amendment's own soundness paragraph names — so the comparison put a
+count of keys against a count of words.
+
+**The witness the struck paragraph got wrong.** Declare `XX` and `YY`. A
+column of numbers publishes twelve `XX` holes and twelve ` XX ` ones; a
+free-text column holds twelve `YY` holes and publishes no spelling of
+anything, because its publication class permits none. Two keys back
+against two words named is no shortfall, and the structural test is not
+asked on that column at all — so `unrebuildable_columns` named nothing
+and the free-text column reported ELEVEN obligations MISSED against the
+table its own description was written from. A6's table row for the
+person's own word on a free-text column (route 4), which records ten
+checks and twenty-one moved, is true of the witness it was measured on
+and was defeated by adding a second declared word to that witness.
+
+**So the recovered side counts DECLARATIONS**, at
+`settings.declaration_matching`'s own identity — the exact number where
+the spelling reads as one, else the trimmed and folded spelling. It is
+the sound direction and counting keys is not: what comes back is a
+subset of what was named, so equality means every named word came back,
+while a count of keys can exceed the number of words and mask a loss.
+
+~~**The over-fire that stays is now TWO shapes, and the second is this
+amendment's own cost.** Beside a description naming two words of which
+the table holds one, a description naming two SPELLINGS of one word —
+`XX` and `xx`, which the producer folds into one declaration while
+`n_declared` counts the two somebody typed — now routes a column whose
+reading rule IS rebuildable, measured at 43 obligations moved on a file
+that passes every one of them.~~ **The second shape is CLOSED as of
+2026-08-17 by V2.4-A9 below, on the condition this paragraph itself
+named.** Both were the safe direction in A6's own sense, and both were
+to close the day the description says how many DECLARATIONS were named
+rather than how many values were typed; that day came, so one over-fire
+stays and it is A6's.
+
+**V2.4-A8 A stand-in number the description's own verdict reads as a
+hole is not pinned to data. THIS RAISES; it lowers no obligation**
+(2026-08-17, owner ruling of that date; the plan's amendment A-P3-35 is
+the ruling and this follows it; review item P3-V9-F5).
+
+V2.4 pins the measurement side to blankness, and V2.4-A4 clause 2
+narrowed the pin once already: a cell is absent when it is empty, or
+when it wears a spelling the description ITSELF publishes as the source
+of its holes. The reason given there is the reason here. The producer
+read every such cell as a hole in every column of the table it
+described, so counting one as data measures the file under a rule its
+description was not written under.
+
+**That reason reaches the third way a cell becomes absent, and the pin
+did not follow it.** Contract 5 section 3.2 way 3 publishes, per column,
+a stand-in candidate with its verdict, its reason and its occurrences.
+A 180-row column of 168 ordinary decimals and twelve `-999` cells, whose
+description records `-999` as `read_as_missing`, reported SEVENTEEN
+obligations MISSED against the table it was written from — both presence
+counts, both distinctness counts, three other counts, seven ladder rungs
+and all three moments — with the numbers the wrong reading produced
+printed beside them.
+
+**Nothing is CONSULTED, which is why this is a repair and not a
+relaxation.** The pin is not applied to a stand-in number some column of
+the description reads as a hole; the producer's own per-column sentinel
+rule then answers, under the settings the description was written with.
+Same rule, same cells, so the file the description came from agrees
+exactly, and V2.1 is met as it is for every other measurement: no
+recount is re-implemented here and `sentinel_verdicts` is not read a
+second time.
+
+**Where pinning to blankness is still required, and why.** Residual
+R-P2-13 is the whole of the reason the pin exists: a generated value can
+legitimately BE the text of one of synthtwin's own markers, and no file
+may be failed for colliding with this package's vocabulary. That reason
+reaches every cell the description passes no verdict on, and those stay
+pinned: every non-blank built-in missing TEXT on every description, and
+every stand-in NUMBER on a description no column of which reads it as a
+hole. The blank spelling stays unpinned, because a blank is absent under
+both readings.
+
+**What it costs.** R-P2-13's own shape on the third class of marker: a
+twin whose generated numbers include a stand-in the description settles
+as a hole can have those cells counted as holes here. It is bounded by
+the cells wearing that number, it needs the producer's outlier and share
+rules to fire on the twin's own values, and it is the exposure the
+GATE side has always carried, because the file's own description was
+never pinned.
+
+**V2.4-A9 The head count's second over-fire is closed at the producer,
+and one of the two over-fires A6 and A7 recorded is gone. THIS RAISES
+what is checked on a class of description that was being routed away; it
+lowers nothing** (2026-08-17, owner ruling of that date; the plan's
+amendment A-P3-37 is the ruling and this follows it; review item
+P3-V9-F7).
+
+A6 reads the shortfall as "`n_declared` counts every value named; the
+two vocabulary lists name the ones that were this package's; the
+difference is how many were the person's". That subtraction was an UPPER
+BOUND and this method read it as exact. `n_declared` counted keystrokes:
+`--missing-value n/a --missing-value " N/A "` names one value twice, the
+producer folds the two spellings into one declaration on the way into
+`built_in_texts` and did not fold them on the way into the count, so the
+document said two named and one member — and the shortfall read as one
+word of the person's own that nobody typed. **Measured: ten checks left
+of fifty-three and forty-three obligations moved to NOT CHECKABLE, on a
+file that passes every one of them and whose reading rule is recovered
+exactly.**
+
+**Nothing on this side could have repaired it.** From the description
+alone, `n_declared: 2` beside one vocabulary member is the same
+description as one written by `--missing-value n/a --missing-value
+WOMBAT`. The count and the lists were answering two different questions,
+so the repair is the producer's: contract 5 C5-18 is amended to count
+DIFFERENT values, at `settings.declaration_matching`'s own identity —
+the same identity A7 made this method's recovered side count at. The
+subtraction above is now exact rather than a bound, which is what this
+clause always assumed of it.
+
+**So A7's "TWO shapes" is one shape.** The over-fire that stays is A6's:
+a description naming two DIFFERENT words of the person's own, of which
+the table holds one. Whether the second was ever in a cell is a fact
+about the table and no count taken off the command line settles it. The
+one that goes is A7's own cost — two SPELLINGS of one word — and A7's
+closing sentence named this as the condition for it: "both close the day
+the description says how many DECLARATIONS were named rather than how
+many values were typed."
 
 ---
 

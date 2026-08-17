@@ -2442,6 +2442,55 @@ def _same_declaration(one: _Declaration, other: _Declaration) -> bool:
     return False
 
 
+def declarations_named(spellings: "tuple[str, ...]") -> int:
+    """How many DIFFERENT values one option named (contract 5 C5-18).
+
+    A count of DECLARATIONS and not of keystrokes (review item
+    P3-V9-F7; plan amendment A-P3-37). `--missing-value n/a
+    --missing-value " N/A "` is two things typed and ONE declaration:
+    the rule in `declaration_matching` folds them together, they take
+    exactly the same cells of every column, and no description can tell
+    them apart afterwards.
+
+    WHY THE DIFFERENCE MATTERED. `n_declared` used to be how many words
+    were typed. A consumer subtracting the two vocabulary lists from it
+    to learn how many words of the PERSON'S own were named -- which is
+    the whole reason those lists exist -- then invented a word nobody
+    typed: two spellings of `n/a` gave `n_declared: 2` beside one
+    vocabulary member, so the difference read as one word of the
+    person's own, and the validator moved a fully rebuildable column's
+    obligations off the checked census on the strength of it. The
+    shortfall is now exact, which is what C5-18 promises about it.
+
+    THE FOLDING IS THE PRODUCER'S OWN AND NOT A SECOND RULE. Two
+    spellings are one declaration exactly when `_same_declaration` says
+    so -- the exact number where both read as one, else the trimmed and
+    case-folded spelling -- which is the rule that decided which cells
+    the declaration took in the first place.
+
+    Guarantees:
+
+    - Inputs: the spellings the person typed for ONE of the two
+      options. No cell, column or document is consulted.
+    - Determinism: a fixed function of those spellings, and of their
+      SET rather than their order: reordering a command line cannot
+      move this number.
+    - Errors raised: TypeError if handed anything that is not text,
+      through `parsing.folded`.
+    - Boundary: no I/O of any kind, and no spelling leaves this
+      function -- only how many different ones there were.
+    """
+    distinct: list[_Declaration] = []
+    for declaration in _declarations(spellings):
+        known = False
+        for already in distinct:
+            if _same_declaration(declaration, already):
+                known = True
+        if not known:
+            distinct = distinct + [declaration]
+    return len(distinct)
+
+
 def contradictory_declarations(
     kept_values: "tuple[str, ...]", declared_missing_values: "tuple[str, ...]"
 ) -> "list[str]":
@@ -2499,9 +2548,17 @@ def built_in_values_named(
     `parsing.MISSING_TEXTS` reads as "no value" and the three stand-in
     numbers `parsing.NUMERIC_SENTINELS` judges. They are synthtwin's
     vocabulary, identical in every installation, and they contain no
-    text of anybody's table. A declared value that is not one of them is
-    written NOWHERE, and the settings block keeps counting it and no
-    more, exactly as version 4 did (C5-18).
+    text of anybody's table. A declared value that is not one of them
+    reaches NEITHER LIST, and the settings block keeps counting it and
+    no more, exactly as version 4 did (C5-18).
+
+    THAT IS A STATEMENT ABOUT THE SETTINGS BLOCK (review item
+    P3-V9-F1). It is not a statement that the document withholds the
+    word: a `--missing-value` naming somebody's own word puts that word
+    into its column's `missing_by_source`, character for character,
+    under the ordinary floor (contract 5 section 3.2 way 4). This
+    function decides what the SETTINGS carry and decides nothing else,
+    and every sentence built on it says which.
 
     AND WHAT IS WRITTEN IS THE MEMBER, NEVER THE SPELLING SOMEBODY TYPED
     (C5-17). A person who types `" N/A "` gets `n/a` in the document:
@@ -2547,6 +2604,48 @@ def built_in_values_named(
             if exact == exact_of_number(candidate):
                 numbers[candidate] = 1
     return tuple(sorted(texts)), tuple(sorted(numbers))
+
+
+def is_published_vocabulary(spelling: str) -> bool:
+    """Whether this spelling is one of synthtwin's own thirteen words.
+
+    The question every surface that talks about a declared word has to
+    answer the same way: is this word OURS -- one of the ten spellings
+    `parsing.MISSING_TEXTS` reads as "no value" or one of the three
+    stand-in numbers `parsing.NUMERIC_SENTINELS` judges, all thirteen
+    printed in the contract's own appendix and identical in every
+    installation -- or is it a word out of somebody's table?
+
+    WHY IT IS ONE FUNCTION AND NOT THREE. Contract 5 section 3.3.1
+    derives, from the description alone, which keys of a column's
+    `missing_by_source` are spellings the person typed after
+    `--missing-value`: every key that is not blank and is not a member
+    of this vocabulary. The validator already asked that question to
+    rebuild a reading rule; the summary now asks it to tell a person
+    which of their own words the description carries; and the command
+    line asks it before either file exists. Three answers that could
+    drift apart would put three different sentences in front of one
+    researcher about one word.
+
+    Guarantees:
+
+    - Inputs: one spelling, exactly as some cell wrote it or as
+      somebody typed it. No cell, column or document is consulted.
+    - Determinism: a fixed function of the spelling and of this
+      package's own two lists.
+    - Errors raised: TypeError if handed anything that is not text,
+      through `parsing.folded`.
+    - Boundary: no I/O of any kind.
+    """
+    if parsing.folded(spelling) in parsing.MISSING_TEXTS:
+        return True
+    exact = exact_of_spelling(spelling)
+    if exact is None:
+        return False
+    for candidate in parsing.NUMERIC_SENTINELS:
+        if exact == exact_of_number(candidate):
+            return True
+    return False
 
 
 def _declared_spelling(

@@ -234,10 +234,13 @@ def test_the_settings_block_still_names_every_setting() -> None:
         "n_declared": 1,
         "values_recorded": False,
     }
-    # The PERSON'S spelling is still nowhere: `NA` was typed and `na`
-    # is written, `-999` was typed and `-999.0` is written, and
-    # `unknown` -- which is on no list of synthtwin's -- is written
-    # nowhere at all (contract 5 C5-17).
+    # The PERSON'S spelling is still nowhere IN THIS BLOCK, which is
+    # what `recorded` is and the whole of what this asserts: `NA` was
+    # typed and `na` is written, `-999` was typed and `-999.0` is
+    # written, and `unknown` -- which is on no list of synthtwin's --
+    # reaches neither list (contract 5 C5-17). Where `unknown` DOES go
+    # is a column's `missing_by_source`, under the floor, and saying
+    # this at document width was review item P3-V9-F1.
     assert "NA" not in json.dumps(recorded)
     assert "unknown" not in json.dumps(recorded)
 
@@ -276,8 +279,14 @@ def test_the_summary_says_what_is_and_is_not_recorded(
     )
     assert "Values you named yourself" in summary_text
     assert "named as real data: 0;   named as 'no value': 1" in summary_text
-    assert "how many values you named each way and" in summary_text
+    # DIFFERENT values, since 2026-08-17: `n_declared` counts
+    # declarations rather than keystrokes, so the page had to stop
+    # saying "how many values you named" about a number that folds two
+    # spellings of one value into one (review item P3-V9-F7, plan
+    # amendment A-P3-37).
+    assert "how many DIFFERENT values you named" in summary_text
     assert "the rule it used to match them" in summary_text
+    assert "counts once: synthtwin reads those as one value" in summary_text
     # AND THE OPENING NAMES ITS OWN EXCEPTION (plan amendment A-P3-30).
     # It said flatly that the spellings YOU typed are not written into
     # the settings, and eight lines lower the same page told the person

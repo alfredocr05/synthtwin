@@ -543,8 +543,13 @@ def test_only_a_member_of_the_published_vocabulary_is_written(
 
     The person typed `" N/A "`, `-999.00` and `wombat`. The document
     holds `n/a` and `-999.0` -- the vocabulary MEMBERS, in this
-    package's own spelling, not their spacing and not their capitals --
-    and holds `wombat` nowhere at all, because it is on no list of ours.
+    package's own spelling, not their spacing and not their capitals.
+    It holds `wombat` nowhere, and the reason is worth stating exactly,
+    because the shorter reason was a defect on four other surfaces
+    (review item P3-V9-F1): `wombat` is on no list of ours, so it
+    reaches neither vocabulary list -- AND no column of this fixture
+    names it, because none of its cells wore the word. A table that did
+    wear it, at the floor, would publish it in `missing_by_source`.
     """
     settings = declarations.loaded.settings
     assert settings.kept_values.built_in_texts == ("n/a",)
@@ -666,8 +671,15 @@ def test_a_version_four_description_is_refused_in_the_contract_s_words(
     The message has three jobs and this test holds it to all three: say
     which version each side is, say WHY the older file cannot be read,
     and say what to do in a way that can be followed -- which means
-    naming the two options, because a description made again without
-    them reads the person's table differently.
+    naming EVERY option that changes what the description says, because
+    a description made again without one of them reads the person's
+    table differently and, for two of the five, publishes more of it.
+
+    It named two options until 2026-08-17 and the two could disclose
+    (review item P3-V9-F6; plan amendment A-P3-36). The measurement is
+    in `tests/test_p3v9f6_migration_names_every_option.py`, which also
+    holds the set of options named here to the shipped parser's own, so
+    a new option cannot be forgotten by this sentence.
     """
     older = copy.deepcopy(json.loads(json.dumps(declarations.document)))
     older["profile_version"] = 4
@@ -682,9 +694,18 @@ def test_a_version_four_description_is_refused_in_the_contract_s_words(
         'for "no value" you named on the command line, and a version 4 '
         "description does not, so this file cannot be read back "
         "exactly. Please make the description again by running "
-        "'synthtwin profile' on your table, giving the same "
-        "--keep-value and --missing-value options you gave the first "
-        "time, and use the file it writes exactly as it writes it."
+        "'synthtwin profile' on your table, giving it every option you "
+        "gave the first time: --keep-value, --missing-value, "
+        "--identifier, --smallest-group and --first-row. Each of those "
+        "changes how synthtwin reads your table, and two of them change "
+        "what the description PUBLISHES about it, so an option you "
+        "leave out can put something into the new description that the "
+        "old one held back: without the --smallest-group you gave, a "
+        "value that fewer rows share can be named, and without the "
+        "--identifier you gave, a column of record numbers is described "
+        "like any other column. Read the summary page synthtwin writes "
+        "beside the new description before either file goes anywhere, "
+        "and use the description exactly as synthtwin writes it."
     )
 
 

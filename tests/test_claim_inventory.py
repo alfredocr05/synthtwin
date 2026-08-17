@@ -130,7 +130,7 @@ import pytest
 
 import dispositions
 import fixtures
-from synthtwin import cli, contract, profile, reading, taxonomy
+from synthtwin import cli, contract, profile, reading, summary, taxonomy
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
 PACKAGE = REPO_ROOT / "src" / "synthtwin"
@@ -3000,18 +3000,67 @@ _WHO_IS_SYNTHTWIN = (
     r"(?:synthtwin|producer|loader|profiler|package|tool)"
 )
 
+# HOW A VERSION IS NAMED, and this half was the bypass (review item
+# P3-V9-F8; plan amendment A-P3-38 clause 1). The pattern used to
+# require the two literal words `version 4`, so `synthtwin writes v4
+# profiles.` walked straight through a ban whose subject and verb it
+# satisfied outright -- no exotic noun, no trick, the ordinary way a
+# person writes a version number in a sentence. A guard that catches one
+# spelling of the thing it bans is a guard that reports a clean tree.
+#
+# So the naming half is the SPELLINGS, not a spelling: `version 4`,
+# `version-4`, `version4`, `profile_version 4`, `v4`, `V4`, `v. 4`.
+#
+# TWO THINGS IT DELIBERATELY DOES NOT READ AS A VERSION, because this
+# repository writes both of them constantly and a ban that fires on them
+# is a ban somebody switches off:
+#
+#   * a `v` that is part of a path or a name -- `profile-contract-v4.md`,
+#     `validation-method-v1.md` -- caught by the lookbehind, which
+#     refuses a `v` preceded by a word character, a slash, a dot or a
+#     hyphen;
+#   * a clause reference or a dotted release -- `V2.4`, `v0.1.0` --
+#     caught by the lookahead, which refuses a number followed by a dot
+#     and another digit. A sentence-ending full stop is NOT refused,
+#     because `synthtwin writes v4.` is exactly the sentence being
+#     banned.
+#
+# Both exclusions were measured against every surface in
+# `VERSION_SURFACES` before this landed: the widened pattern reports
+# nothing on the tree, and `test_the_version_ban_reads_history_...`
+# below holds it to the sentences this repository has to keep writing.
+_NAMES_A_VERSION = (
+    r"(?:(?<![A-Za-z0-9])version[ _-]*|(?<![\w/.-])v\.?[ ]?)"
+    r"(?P<number>\d+)\b(?![\w-]|\.\d)"
+)
+
+# The narrow naming half as it shipped, kept for the red check below
+# rather than described in a comment: a reinstatement that has to be
+# written out again is a reinstatement nobody trusts.
+_NAMED_THE_NARROW_WAY = r"\bversion (?P<number>\d+)\b"
+
+
+def _naming_half() -> str:
+    """How a version may be named, or the narrow way a red check asks for."""
+    if os.environ.get("REINSTATE") == "P3-V9-F8":
+        return _NAMED_THE_NARROW_WAY
+    return _NAMES_A_VERSION
+
+
 # The verb has to be present-tense and about speaking the format. The
 # window between subject and verb, and between verb and number, is
 # capped and may not cross a sentence end, so that two unrelated
 # sentences cannot be read as one claim.
-_VERSION_CLAIM = re.compile(
-    _WHO_IS_SYNTHTWIN
-    + r"[^.!?\n]{0,140}?"
-    + r"\b(?:writes?|writing|reads?|reading|emits?|produces?|accepts?)\b"
-    + r"[^.!?\n]{0,60}?"
-    + r"\bversion (?P<number>\d+)\b",
-    re.IGNORECASE,
-)
+def _version_claim() -> "re.Pattern[str]":
+    """The ban's pattern, built from whichever naming half is in force."""
+    return re.compile(
+        _WHO_IS_SYNTHTWIN
+        + r"[^.!?\n]{0,140}?"
+        + r"\b(?:writes?|writing|reads?|reading|emits?|produces?|accepts?)\b"
+        + r"[^.!?\n]{0,60}?"
+        + _naming_half(),
+        re.IGNORECASE,
+    )
 
 
 # THE RED CHECKS FOR THIS FAMILY. Each puts back exactly what stood
@@ -3028,16 +3077,21 @@ _VERSION_CLAIM = re.compile(
 #   REINSTATE=A-P3-30-wide    the ban drawn without a synthtwin subject,
 #                             which is the widening that would forbid
 #                             explaining a format change at all -- reds
-#                             `test_the_version_ban_reads_history_...`.
+#                             `test_the_version_ban_reads_history_...`;
+#   REINSTATE=P3-V9-F8        the naming half narrowed back to the two
+#                             literal words `version N`, which is the
+#                             bypass this family shipped with -- reds
+#                             `test_the_ban_catches_every_ordinary_...`.
 _THE_STALE_OPENING = (
     "**Status: written before any code, which is this repository's "
     "standing process.** The shipped producer writes version 4 today "
     "and the shipped loader reads version 4 and nothing else."
 )
 
-_SUBJECTLESS_CLAIM = re.compile(
-    r"\bversion (?P<number>\d+)\b", re.IGNORECASE
-)
+
+def _subjectless_claim() -> "re.Pattern[str]":
+    """The naming half alone, which is the ban drawn without a subject."""
+    return re.compile(_naming_half(), re.IGNORECASE)
 
 
 def _surface_text(relative: str) -> str:
@@ -3051,15 +3105,15 @@ def _surface_text(relative: str) -> str:
     if asked == "A-P3-30" and relative.endswith("profile-contract-v5.md"):
         return _THE_STALE_OPENING + "\n" + text
     if asked == "A-P3-30-silent":
-        return _VERSION_CLAIM.sub("(the wire sentence, deleted)", text)
+        return _version_claim().sub("(the wire sentence, deleted)", text)
     return text
 
 
 def _claim_pattern() -> "re.Pattern[str]":
     """The ban's pattern, or the over-wide one a red check asks for."""
     if os.environ.get("REINSTATE") == "A-P3-30-wide":
-        return _SUBJECTLESS_CLAIM
-    return _VERSION_CLAIM
+        return _subjectless_claim()
+    return _version_claim()
 
 
 def _shipped_wire_version() -> int:
@@ -3193,9 +3247,15 @@ def test_the_version_ban_reads_history_and_refusals_as_permitted() -> None:
     """What the ban must NOT catch, asserted rather than hoped.
 
     Every sentence below is one this repository needs to be able to
-    write. If a future widening of `_VERSION_CLAIM` catches one of them,
-    the widening is wrong: a format change cannot be explained without
-    naming the version it came from.
+    write. If a future widening of `_NAMES_A_VERSION` or of the claim
+    pattern catches one of them, the widening is wrong: a format change
+    cannot be explained without naming the version it came from.
+
+    THE LAST FOUR ARRIVED WITH THE WIDENING (review item P3-V9-F8). The
+    naming half now reads a bare `v4`, and this repository is full of
+    document names, clause numbers and release strings that hold a `v`
+    next to a digit. Each of those is written out here, so a future
+    narrowing of the two exclusions has to face them.
     """
     permitted = (
         (
@@ -3216,6 +3276,11 @@ def test_the_version_ban_reads_history_and_refusals_as_permitted() -> None:
         ),
         "version 5 is version 4 with the changes in sections 4, 5 and 6.",
         "no group that version 4 withheld becomes named.",
+        # The four the widened naming half has to walk past.
+        "the loader reads docs/spec/profile-contract-v4.md and refuses it.",
+        "the validator follows docs/spec/validation-method-v1.md.",
+        "the producer writes the bytes the method's V2.4 fixes.",
+        "synthtwin writes v0.1.0.dev0 into created_with.",
     )
     caught = [
         sentence
@@ -3225,5 +3290,778 @@ def test_the_version_ban_reads_history_and_refusals_as_permitted() -> None:
     assert not caught, (
         "The version ban now catches sentences this repository has to "
         "be able to write:\n  " + "\n  ".join(caught) + "\n\nNarrow "
-        "`_VERSION_CLAIM` -- never add an exception list."
+        "`_NAMES_A_VERSION` -- never add an exception list."
     )
+
+
+def test_the_ban_catches_every_ordinary_way_of_naming_a_version() -> None:
+    """The positive half of the naming rule (review item P3-V9-F8).
+
+    THE DEFECT THIS EXISTS FOR. The family shipped with a naming half
+    that required the two literal words `version 4`, so
+    `synthtwin writes v4 profiles.` passed both of its tests -- the
+    negative one found no stale claim and the positive one found the
+    true claim elsewhere, and both stayed green while a governed surface
+    said synthtwin speaks a version it does not. No exotic noun was
+    needed and none of the family's known finite lists was touched: the
+    bypass is the ordinary way a person writes a version number.
+
+    So the spellings are asserted rather than assumed. Each sentence
+    below has the subject and the verb the ban is drawn around and names
+    a version that is not the shipped one, and each must be caught.
+    """
+    shipped = _shipped_wire_version()
+    stale = shipped + 1
+    bypasses = (
+        f"synthtwin writes v{stale} profiles.",
+        f"the loader reads v{stale} and nothing else.",
+        f"this synthtwin produces V{stale} descriptions.",
+        f"the producer writes version-{stale} documents.",
+        f"the profiler emits version{stale} files.",
+        f"the tool accepts v. {stale} descriptions.",
+        f"synthtwin writes profile_version {stale} into the description.",
+        f"the shipped loader reads version {stale}.",
+    )
+    missed = []
+    for sentence in bypasses:
+        found = _claim_pattern().search(sentence)
+        if found is None or int(found.group("number")) == shipped:
+            missed.append(sentence)
+    assert not missed, (
+        "These sentences claim synthtwin speaks a version it does not, "
+        "and the ban walks past every one of them:\n  "
+        + "\n  ".join(missed)
+        + "\n\nWiden `_NAMES_A_VERSION`. A ban that catches one "
+        "spelling of what it forbids reports a clean tree."
+    )
+
+
+# ---------------------------------------------------------------------
+# THE SIXTH FAMILY: WHAT THE DESCRIPTION KEEPS OF THE WORDS YOU TYPED,
+# READ FROM THE PRODUCER'S OWN PUBLICATION RULES (review item P3-V9-F1;
+# owner ruling 2026-08-17; plan amendment A-P3-31)
+# ---------------------------------------------------------------------
+#
+# WHAT WENT WRONG, AND IT IS THE ONE THIS FILE EXISTS FOR. `synthtwin
+# profile my-table.csv --missing-value <a marker of your own>` publishes
+# that marker in the description and prints it on the summary page,
+# under the count of cells that wore it. Correctly: contract 5 section
+# 3.2 way 4 is what makes a description readable back, and it is the
+# whole reason version 5 exists. The SAME summary page told the reader,
+# four screens lower, that synthtwin would keep no record of any word
+# they typed outside its own thirteen; `SECURITY.md` said such a value
+# was written nowhere at all; the governing contract said it twice, and
+# the governing plan twice more.
+#
+# THE HARM IS THE ONE THE PROFILE'S SAFETY RESTS ON. A description is
+# safer to move than the table because of what it withholds. A
+# researcher who reads that a diagnosis code or a patient identifier is
+# absent from it, and it is not, hands the file on. A false assurance
+# about withholding is worse than no assurance, and this is the second
+# time in this repository a confidentiality sentence went false when the
+# format under it moved (the first is the fifth family, one number
+# instead of one sentence).
+#
+# WHY NOT A LIST OF SENTENCES, AGAIN. The five that shipped were written
+# five ways -- "written nowhere", "recorded nowhere", "nowhere at all",
+# "never written", "will not keep one for you" -- across a page, a
+# security document, a contract and a plan, by four separate hands. A
+# ban anchored on any one of them catches one of them. So this family
+# reads the PRODUCER, exactly as the third and fifth do:
+#
+#   * `profile.PUBLICATION_RULES` is the whole map of what may stand at
+#     each path of a finished description, and one of its kinds --
+#     `_SPELLING` -- means "text out of the person's table, character
+#     for character". Every path carrying that kind is derived here.
+#     `missing_by_source`'s KEY is one of them, and that single fact is
+#     what makes every unscoped denial in this repository false.
+#   * The regions that carry NO such text are derived from the same map
+#     by subtraction, and the settings block is one of them. That is
+#     what makes a SCOPED denial true, and it is why the cure below is
+#     not a list of allowed phrases either: if a later format put a
+#     spelling into the settings, `settings` would drop out of the
+#     derived cure set and every scoped sentence in the repository
+#     would go red on the commit that did it.
+#   * And a run-driven test writes a real description with a real
+#     declared word and reads the word back out of both files, because
+#     a rule that permits a spelling is not yet a producer that writes
+#     one.
+#
+# WHAT IS BANNED, AND WHAT IS DELIBERATELY NOT. A sentence trips this
+# when it does two things at once: it NAMES the person's own typed value
+# -- by possession, or by exclusion from synthtwin's own list -- and it
+# DENIES that the thing is written, kept, recorded or stored. Neither
+# half alone is a defect. Naming is required of six surfaces below;
+# denying is ordinary English about the settings block, about a spelling
+# the floor pooled, and about a column that publishes no value of the
+# table, all three of which are TRUE and all three of which this
+# repository has to be able to say.
+#
+# SO THE CURE IS A SCOPE, AND IT HAS TO BE ATTACHED TO THE DENIAL. This
+# is the precision the whole finding turns on, and it was measured
+# rather than assumed. The sentence that shipped on the summary page
+# said, in one breath, that a word of the reader's own is not written
+# into the settings AND that it is not written here -- the first half
+# scoped and true, the second unscoped and false, four screens under the
+# word itself. A rule that cured a whole statement would have read the
+# first half and passed the second. So the scope must stand in the
+# denial's OWN clause: from the nearest comma, semicolon, colon or
+# joining word before it, to the next joining word after it.
+#
+# AND THE DENIAL MAY BE IN THE NEXT STATEMENT, on the fourth family's
+# finding: the retired summary sentence named the reader's other words
+# before a semicolon and denied after it, and a rule reading one
+# statement at a time reported nothing.
+#
+# WHAT THIS DOES NOT CLOSE, said here rather than left for the next
+# round. A denial carried further than `_RETENTION_CARRY`, and a denial
+# built from none of the verbs below, are both still missed. The naming
+# half is a composition and not a phrase list, but the value NOUNS it
+# composes over are finite, and no finite list is sound.
+_SPELLING_KIND = profile._SPELLING
+
+
+def _paths_that_carry_your_text() -> "tuple[tuple[str, ...], ...]":
+    """Every path of a description where the table's own text is written.
+
+    Read from `profile.PUBLICATION_RULES`, which is the producer's whole
+    statement of what may stand at each path and is refusal-by-default:
+    a path missing from it cannot be written at all. The kind
+    `_SPELLING` is the one that means an authorized spelling out of the
+    person's table, so this is the derived answer to "where can a word
+    somebody typed end up".
+
+    Guarantees:
+
+    - Inputs: none; reads the shipped producer's own map.
+    - Determinism: sorted; a fixed function of that map.
+    - Errors raised: `AssertionError` when `missing_by_source`'s key is
+      not among them, because that key is what every sentence in this
+      family is checked against and a derivation that quietly lost it
+      would make the whole family vacuous.
+    - Boundary: nothing is opened and nothing is written.
+    """
+    found = [
+        path
+        for path, kind in profile.PUBLICATION_RULES.items()
+        if kind == _SPELLING_KIND
+    ]
+    keys = [path for path in found if path[-2:] == ("missing_by_source", "<key>")]
+    assert keys, (
+        "The producer's publication rules no longer say that a key of a "
+        "column's `missing_by_source` is a spelling out of the person's "
+        "table. Either the format changed -- in which case every "
+        "sentence about what a declared word leaves behind moves in the "
+        "same commit, starting with SECURITY.md and contract 5 section "
+        "3.2 -- or this derivation broke. Do not replace it with a list."
+    )
+    return tuple(sorted(found))
+
+
+def _regions_that_carry_none_of_it() -> "tuple[str, ...]":
+    """The top-level blocks of a description that hold no table text.
+
+    The same map, by subtraction. `settings` is here, which is what
+    makes "a word of your own is written nowhere in the settings" a true
+    sentence and the cure below a derived set rather than an allow-list
+    of phrasings somebody liked.
+    """
+    everything = {path[0] for path in profile.PUBLICATION_RULES if path}
+    carrying = {path[0] for path in _paths_that_carry_your_text()}
+    clean = tuple(sorted(everything - carrying))
+    assert "settings" in clean, (
+        "The settings block now carries text out of the person's table. "
+        "That is the Phase 1 rule at review item P1-R7-F2 and contract 5 "
+        "section 6.6 lowered again, and it cannot be done by editing a "
+        "publication rule: every surface that says a word of the "
+        "person's own is written nowhere in the settings is false the "
+        "moment it is, and this file holds six of them."
+    )
+    return clean
+
+
+RETENTION_SURFACES = DEFENCE_SURFACES
+
+# The NOUNS a sentence of this repository uses for the thing somebody
+# typed. Finite, and the bound is written down beside the family: what
+# makes the naming precise is not the noun but what is ATTACHED to it.
+_A_VALUE = r"(?:word|value|spelling|text|marker|characters?)s?"
+_VALUE_GAP = r"(?:[a-z0-9'`\"()-]+ ){0,3}"
+
+# NAMING BY POSSESSION: the value noun tied to whoever typed it. Both
+# orders, because this repository writes both -- "a word of your own"
+# and "your own word" -- and the third form is the verb rather than the
+# pronoun, "a value you typed".
+_YOURS = (
+    (
+        rf"\b{_A_VALUE} {_VALUE_GAP}?of (?:your|their|his|her|the person's|"
+        rf"somebody's|someone's|a person's|the user's|nobody's) own\b"
+    ),
+    (
+        rf"\b(?:your|their|the person's|somebody's|a person's) own "
+        rf"{_VALUE_GAP}?{_A_VALUE}\b"
+    ),
+    (
+        rf"\b{_A_VALUE} {_VALUE_GAP}?(?:you|somebody|someone|a person|they|"
+        rf"the person) (?:typed|named|wrote|type|name)\b"
+    ),
+    rf"\bthe {_A_VALUE} themselves\b",
+    rf"\b{_A_VALUE} that is not on (?:synthtwin's|this package's|our) list\b",
+    rf"\b{_A_VALUE} which is nobody's\b",
+)
+
+# NAMING BY EXCLUSION: the value noun tied to being outside synthtwin's
+# own list. This is how the contract and the security document named it,
+# and it is the form a reader of a specification meets first.
+_NOT_OURS = (
+    (
+        rf"\b{_A_VALUE} {_VALUE_GAP}?(?:outside|not a member of|not one of|"
+        rf"not on)\b"
+    ),
+    rf"\b{_A_VALUE} that is neither\b",
+    rf"\bany other {_A_VALUE}\b",
+    rf"\bno other {_A_VALUE}\b",
+)
+
+# THE DENIAL. Every verb this repository has used for a thing not
+# reaching a file, plus the two that are about keeping rather than
+# writing -- the retired summary sentence was about keeping.
+_NOT_KEPT = (
+    r"\b(?:written|recorded|held|kept|stored|published) nowhere\b",
+    r"\bnowhere at all\b",
+    r"\bnever (?:written|recorded|kept|stored|published)\b",
+    r"\bis not (?:written|recorded|kept|stored)\b",
+    r"\bare not (?:written|recorded|kept|stored)\b",
+    r"\bwill not keep\b",
+    r"\bdoes not keep\b",
+    r"\bnot retained\b",
+    r"\bkeeps none\b",
+    r"\brecords nothing\b",
+    r"\bno character\b[^.;]{0,60}\breaches\b",
+)
+
+# The two limits of contract 5 section 7, which are normative, measured
+# and not defects: a spelling fewer rows than the floor wrote is pooled
+# unnamed, and a column that publishes no value of the table publishes
+# an empty source map whatever made its cells absent. A denial scoped to
+# either is true and must stay sayable. `free text` alone is NOT one of
+# them, deliberately: the sentence this family was written to catch ends
+# "can never be a name, a code, a diagnosis or a free-text answer", and
+# a looser mark cured the very sentence it was hunting.
+_STATED_LIMITS = (
+    r"\bbelow the floor\b",
+    r"\bfewer than the floor\b",
+    r"\bpooled\b",
+    r"\bpublishes no value\b",
+    r"\bpublishing nothing\b",
+    r"\bnothing-publishing\b",
+    r"\bfree[- ]text column\b",
+    r"\bcolumn that publishes nothing\b",
+)
+
+
+def _clean_places() -> "tuple[str, ...]":
+    """Where a denial may be scoped to, derived plus the stated limits.
+
+    The document regions come from the publication rules, so this set
+    tracks the format. The list-level names beside them are the two
+    fields contract 5 section 6.2 adds, which are inside `settings` and
+    are how the contract itself writes the scope.
+    """
+    regions = tuple(rf"\b{name}\b" for name in _regions_that_carry_none_of_it())
+    return (
+        regions
+        + (
+            r"\bthese (?:two )?lists\b",
+            r"\beither list\b",
+            r"\bneither list\b",
+            r"\bthis block\b",
+            r"\bthat block\b",
+            r"\bthis record\b",
+            r"\bthrough these\b",
+        )
+        + _STATED_LIMITS
+    )
+
+
+# Where one clause ends and the next begins. The scope has to stand in
+# the denial's OWN clause, and the two lists differ on purpose: a comma
+# or a colon OPENS a clause that a scope may sit in, while only a
+# joining word CLOSES the reach forward, because "written nowhere in the
+# settings" and "recorded nowhere, in the settings block" are both one
+# claim and "is never written, and the settings hold counts" is two.
+_CLAUSE_OPENS = (", ", " and ", " but ", " though ", " while ", " yet ",
+                 "; ", ": ")
+_CLAUSE_CLOSES = (" and ", " but ", " though ", " while ", " yet ", "; ")
+_SCOPE_REACH = 80
+_RETENTION_CARRY = 200
+
+
+def _scope_of(sentence: str, found: "re.Match[str]") -> "str | None":
+    """The place this denial is scoped to, or None where it names none."""
+    opened = 0
+    for mark in _CLAUSE_OPENS:
+        at = sentence.rfind(mark, 0, found.start())
+        if at != -1 and at + len(mark) > opened:
+            opened = at + len(mark)
+    closed = len(sentence)
+    for mark in _CLAUSE_CLOSES:
+        at = sentence.find(mark, found.end())
+        if at != -1 and at < closed:
+            closed = at
+    clause = sentence[opened : min(closed, found.end() + _SCOPE_REACH)]
+    for mark in _clean_places():
+        if re.search(mark, clause) is not None:
+            return mark
+    return None
+
+
+def _unscoped_denials_in(sentence: str) -> "list[str]":
+    """Every denial in one statement that names no place it holds in."""
+    loose: list[str] = []
+    for mark in _NOT_KEPT:
+        for found in re.finditer(mark, sentence):
+            if _scope_of(sentence, found) is None:
+                loose.append(found.group(0))
+    return loose
+
+
+def _names_your_word(sentence: str) -> "str | None":
+    """How this sentence names the value the person typed, or None."""
+    for mark in _YOURS + _NOT_OURS:
+        if re.search(mark, sentence) is not None:
+            return mark
+    return None
+
+
+def _denies_retention(text: str) -> "list[tuple[str, str, str]]":
+    """Every sentence of one surface that denies what version 5 keeps.
+
+    Returns the sentence, the wording that named the person's own typed
+    value, and the denial left without a scope -- so a failure message
+    shows a maintainer which two collided rather than telling them a
+    document is wrong somewhere.
+
+    Guarantees:
+
+    - Inputs: one surface's text, lowercased and space-collapsed by
+      `_text`.
+    - Determinism: a fixed function of that text and of the derived
+      clean places; nothing is read here.
+    - Errors raised: none.
+    - Boundary: pure text; opens nothing.
+    """
+    found: list[tuple[str, str, str]] = []
+    statements = _STATEMENT_END.split(text)
+    for index, sentence in enumerate(statements):
+        named = _names_your_word(sentence)
+        if named is None:
+            continue
+        loose = _unscoped_denials_in(sentence)
+        said = sentence
+        if not loose:
+            # The denial may be in the next statement, on the fourth
+            # family's finding. It is carried only while no NEW naming
+            # has begun, so two unrelated claims cannot be read as one.
+            reached = 0
+            for following in statements[index + 1 :]:
+                reached = reached + len(following)
+                if reached > _RETENTION_CARRY:
+                    break
+                if _names_your_word(following) is not None:
+                    break
+                carried = _unscoped_denials_in(following)
+                if carried:
+                    loose = carried
+                    said = f"{sentence}; {following}"
+                    break
+        if loose:
+            found.append((said, named, loose[0]))
+    return found
+
+
+# THE RED CHECKS FOR THIS FAMILY, each putting back in memory exactly
+# what stood before the repair:
+#
+#   REINSTATE=A-P3-31          the summary's retired closing sentence,
+#                              word for word as it shipped, added to
+#                              every surface -- reds the ban;
+#   REINSTATE=A-P3-31-silent   every true retention sentence deleted
+#                              instead of written, which is what a ban
+#                              satisfied by silence looks like -- reds
+#                              the positive half;
+#   REINSTATE=A-P3-31-loose    the cure drawn as a whole STATEMENT
+#                              rather than the denial's own clause,
+#                              which is the rule a reviewer would call
+#                              thorough and which reads the scoped half
+#                              of the summary's own sentence and passes
+#                              the unscoped half -- reds the floor;
+#   REINSTATE=A-P3-31-withheld the derivation made to claim the
+#                              description keeps none of it -- reds the
+#                              run-driven measurement.
+_THE_RETIRED_CLOSE = (
+    " for any other word you typed, keep a note of the command you ran; "
+    "synthtwin will not keep one for you."
+)
+
+
+@pytest.fixture(autouse=True)
+def _retention_reinstated(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The red checks above, driven from the environment."""
+    asked = os.environ.get("REINSTATE")
+    if asked == "A-P3-31":
+        kept = _text
+
+        def _with_the_denial(relative: str) -> str:
+            return kept(relative) + _THE_RETIRED_CLOSE
+
+        monkeypatch.setitem(globals(), "_text", _with_the_denial)
+    if asked == "A-P3-31-silent":
+        kept_text = _text
+
+        def _without_the_truth(relative: str) -> str:
+            # Only the first mark's wordings are deleted. The second
+            # mark is the FLOOR, which four other families in this file
+            # also look for, and a red check that reds somebody else's
+            # test proves nothing about its own.
+            said = kept_text(relative)
+            for pattern in _KEPT_MARKS[0][1]:
+                said = re.sub(pattern, "(the sentence, deleted)", said)
+            return said
+
+        monkeypatch.setitem(globals(), "_text", _without_the_truth)
+    if asked == "A-P3-31-loose":
+
+        def _whole_statement(
+            sentence: str, found: "re.Match[str]"
+        ) -> "str | None":
+            for mark in _clean_places():
+                if re.search(mark, sentence) is not None:
+                    return mark
+            return None
+
+        monkeypatch.setitem(globals(), "_scope_of", _whole_statement)
+
+
+def test_no_surface_denies_what_the_description_keeps_of_your_words() -> None:
+    """No surface says a word you typed is written nowhere, unscoped.
+
+    The negative half of the sixth family. A surface may say -- and six
+    of them must say -- that the settings block carries no spelling of
+    the person's own, that a spelling the floor pooled is named nowhere,
+    and that a column publishing no value of the table publishes none of
+    it either. What no surface may do is make the denial without saying
+    where it holds, because the place it does NOT hold is the ordinary
+    one: a column of numbers, at the default floor, publishing the
+    marker somebody typed.
+    """
+    offenders: list[str] = []
+    for relative in RETENTION_SURFACES:
+        for sentence, named, denied in _denies_retention(_text(relative)):
+            offenders.append(
+                f"{relative}: {named!r} denied by {denied!r}\n"
+                f"      {sentence[:300]}"
+            )
+    assert not offenders, (
+        "These surfaces deny that synthtwin keeps a word the person "
+        "typed, without saying where the denial holds:\n  "
+        + "\n  ".join(offenders)
+        + "\n\nWhat is true: a value named with --missing-value is "
+        "counted absent, and its spelling is then written into that "
+        "column's `missing_by_source` character for character, wherever "
+        "at least `small_cell_floor` rows share it and the column "
+        "publishes any values at all (contract 5 section 3.2, way 4). "
+        "So a description can carry a diagnosis code or an identifier. "
+        "What is ALSO true, and is what these sentences were reaching "
+        "for: the settings block carries no spelling of the person's "
+        "own, a spelling the floor pooled is named nowhere, and a "
+        "column that publishes no value of the table publishes none "
+        "either way. Say which of those you mean, in the same clause as "
+        "the denial. Do not add a surface to an exception list: that is "
+        "how every ban in this file rots."
+    )
+
+
+# Where the true statement has to be MADE, and not merely left unsaid.
+# Deleting a denial satisfies the ban above and leaves a reader with no
+# idea that their own word travels, which is the worse of the two
+# failures: the summary's retired sentence was at least visible.
+#
+# The six are the surfaces a person meets the decision on: the front
+# page they read before installing, the security document an institution
+# weighs, the contract that governs the format, the command line that
+# takes the word, the page printed beside the description, and the
+# producer that writes it.
+KEPT_BEARING = (
+    "README.md",
+    "SECURITY.md",
+    "docs/spec/profile-contract-v5.md",
+    "src/synthtwin/cli.py",
+    "src/synthtwin/summary.py",
+    "src/synthtwin/profile.py",
+)
+
+# The marks of the true statement. Each entry is a tuple of accepted
+# phrasings, so a surface may speak in its own register -- the contract
+# and the producer normatively, the front page and the command line in
+# the words a researcher deciding what to type will read.
+_KEPT_MARKS = (
+    (
+        "that the word itself is written into the description",
+        (
+            r"the word itself is written into",
+            r"the word itself is then written into",
+            r"word itself is written into the description",
+            r"puts that word into a column's `missing_by_source`",
+            r"its spelling reaching\s+`missing_by_source`",
+            r"spelling goes into that column's `missing_by_source`",
+            r"is written into the description",
+            r"these words are written into it",
+            r"reaches `missing_by_source`",
+            r"reaches its column's\s+`missing_by_source`",
+            r"does reach\s+`missing_by_source`",
+        ),
+    ),
+    (
+        "the bound it is written under -- the floor and the column",
+        (
+            r"small_cell_floor",
+            r"smallest-group",
+            r"rows share (?:that spelling|it)",
+            r"rows hold it",
+            r"floor permits",
+            r"under the ordinary floor",
+        ),
+    ),
+)
+
+
+def test_the_surfaces_that_decide_say_the_word_itself_travels() -> None:
+    """The positive half, so that deleting the denial is not a pass.
+
+    A ban on a false assurance is satisfied by a repository that says
+    nothing about what a declared word leaves behind, and silence is
+    what put review item P3-V9-F1 in front of a researcher: the page
+    printed the word and explained the settings.
+    """
+    missing: list[str] = []
+    for relative in KEPT_BEARING:
+        said = _text(relative)
+        for what, patterns in _KEPT_MARKS:
+            if not any(re.search(mark, said) for mark in patterns):
+                missing.append(f"{relative}: does not say {what}")
+    assert not missing, (
+        "These surfaces decide whether a person types a word after "
+        "--missing-value, or whether a file may travel, and they do not "
+        "say what the description keeps of it:\n  " + "\n  ".join(missing)
+        + "\n\nSay that the word itself is written into the column's "
+        "description, and say the bound it is written under: at least "
+        "`small_cell_floor` rows sharing the spelling, on a column that "
+        "publishes values at all."
+    )
+
+
+def test_the_producer_writes_the_word_the_person_typed(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The measurement, because a permitted spelling is not a written one.
+
+    The derivation above reads what the publication rules ALLOW. This
+    runs the producer over a table holding a declared marker and reads
+    the marker back out of both files a `profile` run writes, so that a
+    format which permitted the spelling while the producer stopped
+    writing it could not leave the sentences above checked against a
+    permission nothing exercises.
+
+    It also measures the other half, which is what makes the scoped
+    sentences of six surfaces true: the marker is NOT in the settings
+    block.
+    """
+    floor = taxonomy.Settings().small_cell_floor
+    marker = "a-word-no-vocabulary-holds"
+    values = [str(row) for row in range(60)] + [marker] * (floor + 1)
+    path = fixtures.write(
+        tmp_path, "table.csv", fixtures.single_column_table("reading", values)
+    )
+    table = reading.read_table(str(path))
+    document = profile.build_document(
+        table,
+        taxonomy.Settings(declared_missing_values=(marker,)),
+        [],
+    )
+    written = profile.serialize(document)
+    said = summary.render(document, "read as utf-8")
+    if os.environ.get("REINSTATE") == "A-P3-31-withheld":
+        # The red check: a producer that stopped writing the spelling.
+        # Every sentence this family requires of six surfaces would then
+        # be describing a document nobody gets, and the ban would be
+        # forbidding a true denial.
+        written = written.replace(marker, "(withheld)")
+        said = said.replace(marker, "(withheld)")
+    assert marker in written, (
+        "The producer no longer writes a declared marker into the "
+        "description. If that is deliberate, it is a format change: "
+        "contract 5 section 3.2 way 4 and every sentence the sixth "
+        "family requires of `KEPT_BEARING` move in the same commit, and "
+        "the denials those six surfaces scope become sayable again."
+    )
+    assert marker in said, (
+        "The description holds the declared marker and the "
+        "plain-language summary beside it does not name it. A person is "
+        "handed one of the five files, not the set, and the one they "
+        "can read has to say which of their own words it carries."
+    )
+    settings = written[written.index('"settings"') :]
+    settings = settings[: settings.index('"source"')]
+    assert marker not in settings, (
+        "The settings block now carries a spelling of the person's own. "
+        "That is the Phase 1 rule at review item P1-R7-F2, and six "
+        "surfaces say in as many words that it does not."
+    )
+    assert summary.words_of_your_own(document) == [(marker, "reading", floor + 1)], (
+        summary.words_of_your_own(document)
+    )
+
+
+# The sentences this guard has to catch, kept as its own red cases. The
+# first five are what shipped, in the five wordings they shipped in; the
+# rest are shapes a review would write to walk through a narrower ban --
+# a paraphrase using none of those verbs, the possessive form, and the
+# denial split across a full stop.
+DENIALS_THAT_SHIPPED = (
+    (
+        "the summary's closing sentence, split across a semicolon",
+        (
+            "For any other word you typed, keep a note of the command "
+            "you ran; synthtwin will not keep one for you."
+        ),
+    ),
+    (
+        "the summary's opening claim, scoped and then unscoped in one breath",
+        (
+            "A word of YOUR OWN is not written into its settings, and it "
+            "is not written here."
+        ),
+    ),
+    (
+        "the security document's reason clause",
+        (
+            "The word guessed at can never be a name, a code, a diagnosis "
+            "or a free-text answer, because a value outside that list is "
+            "written nowhere at all."
+        ),
+    ),
+    (
+        "the security document's what-is-not-relaxed",
+        (
+            "A declared value that is not one of the thirteen is still "
+            "recorded nowhere."
+        ),
+    ),
+    (
+        "the contract's own invariant",
+        "A declared value that is neither is written nowhere.",
+    ),
+    (
+        "the contract's what-a-reader-can-infer",
+        (
+            "It can never be a name, a code, a diagnosis or a free-text "
+            "answer, because a value outside the list is never written."
+        ),
+    ),
+    (
+        "the plan's description of its own test",
+        (
+            "It checks that a word which is nobody's but the person's is "
+            "written nowhere."
+        ),
+    ),
+    (
+        "a paraphrase using none of those verbs",
+        "Any marker you type is never stored by synthtwin.",
+    ),
+    (
+        "the denial split across a full stop",
+        (
+            "You may name a word of your own after --missing-value. It is "
+            "never written."
+        ),
+    ),
+)
+
+
+@pytest.mark.parametrize("shape,passage", DENIALS_THAT_SHIPPED)
+def test_the_sixth_family_would_notice_the_assurance_it_replaced(
+    shape: str, passage: str
+) -> None:
+    """Each false sentence is one this guard now reports.
+
+    Run against `_denies_retention` directly rather than against a file,
+    because what is held here is the RULE and not any surface's current
+    wording.
+    """
+    found = _denies_retention(" ".join(passage.lower().split()))
+    assert found, (
+        f"this sentence denies what the description keeps -- {shape} -- "
+        f"and the guard reported nothing:\n  {passage}"
+    )
+
+
+def test_a_scoped_denial_is_read_as_the_true_sentence_it_is() -> None:
+    """What the ban must NOT catch, asserted rather than hoped.
+
+    Every sentence below is one this repository needs to be able to
+    write, and each is true: the settings block, the two vocabulary
+    lists inside it, the floor, and a column that publishes no value of
+    the table. A guard that reported these would be turned off within a
+    week, and turning it off is how the false sentence comes back.
+    """
+    permitted = (
+        "a word of your own is written nowhere in the settings.",
+        "a word of your own is never written into the settings block.",
+        (
+            "a declared value that is neither reaches neither list, and no "
+            "character a person typed reaches the document through these "
+            "lists."
+        ),
+        (
+            "a spelling fewer rows than the floor wrote is pooled and "
+            "recorded nowhere."
+        ),
+        (
+            "a word the person named on a nothing-publishing column is "
+            "recorded nowhere."
+        ),
+        "on a free-text column the marker a person typed is written nowhere.",
+    )
+    caught = [
+        sentence
+        for sentence in permitted
+        if _denies_retention(" ".join(sentence.lower().split()))
+    ]
+    assert not caught, (
+        "The retention ban now catches sentences this repository has to "
+        "be able to write, every one of them true:\n  "
+        + "\n  ".join(caught)
+        + "\n\nNarrow the rule -- never add an exception list."
+    )
+
+
+def test_the_derivation_reads_the_producer_and_not_a_list() -> None:
+    """The two derived sets are what the family is checked against.
+
+    Without this, a publication map that stopped naming the key -- or a
+    settings block that started carrying one -- would leave every
+    sentence in the repository checked against a rule the producer no
+    longer follows, which is the drift the third and fifth families
+    exist to refuse.
+    """
+    carrying = _paths_that_carry_your_text()
+    assert ("columns", "[]", "missing_by_source", "<key>") in carrying, carrying
+    clean = _regions_that_carry_none_of_it()
+    assert "settings" in clean and "columns" not in clean, clean
+    # The cure set is BUILT from those regions, so a region leaving the
+    # clean set takes its cure with it. Asserted rather than assumed,
+    # because the cure is what makes every scoped sentence pass.
+    assert r"\bsettings\b" in _clean_places()
+    assert r"\bcolumns\b" not in _clean_places()

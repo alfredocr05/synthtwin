@@ -109,6 +109,40 @@ _FIRST_ROW_NAMES = "names"
 _FIRST_ROW_DATA = "data"
 _SMALLEST_GROUP = 11
 
+# THE HELP FOR `--missing-value`, HELD AS A CONSTANT BECAUSE IT IS A
+# CONTROL (review item P3-V9-F1, plan amendment A-P3-31). This is the
+# screen a person reads BEFORE deciding what to type after the option,
+# and the thing they most need to know from it is that the word itself
+# is written into the description. It leads with that, ahead of every
+# rule about the settings block, because a researcher weighing whether
+# to name a diagnosis code has to meet the exposure first and the
+# bounds second. It stands out here rather than inside the parser so
+# that `tests/test_p3v9f1_declared_words_disclosed.py` can put the
+# pre-repair wording back and prove the assertion on it can fail.
+_MISSING_VALUE_HELP = (
+    "a value that means 'no value' in your table, even though "
+    "synthtwin would otherwise treat it as data -- for example a "
+    "column where 'unknown' or -1 was typed for a reading nobody "
+    "took. It is matched the same way as --keep-value, and the "
+    "rows holding it are counted as missing rather than "
+    "described. READ THIS BEFORE YOU TYPE A WORD HERE: the word "
+    "itself is written into the description, spelled exactly as "
+    "your table spells it, in the block describing each column "
+    f"where at least {_SMALLEST_GROUP} rows hold it and that "
+    "column publishes any values at all -- so a diagnosis, a "
+    "code or an identifier named here travels in the description "
+    "and in the summary beside it. Below that many rows the "
+    "cells are counted without the word being named, and a "
+    "column that publishes no values at all -- record numbers, "
+    "free text -- names no spelling either way. The profile also "
+    "records how many different values you named, the rule that "
+    "matched them, and -- where what you named is one of synthtwin's own "
+    "words for 'no value' -- which of those words it was; a word "
+    "of your own is never written into the settings block, which "
+    "is a rule about that block and not about the columns. May "
+    "be given more than once"
+)
+
 # The three commands, as the words a person types.
 _PROFILE = "profile"
 _GENERATE = "generate"
@@ -548,11 +582,12 @@ def _parse_arguments(argv: "list[str] | None") -> _Options:
             "a number is matched as a NUMBER, so -999 also covers "
             "-999.00; anything else is matched as text, ignoring "
             "surrounding spaces and upper or lower case. The profile "
-            "records how many values you named, the rule that matched "
-            "them, and -- where what you named is one of synthtwin's "
+            "records how many different values you named, the rule that "
+            "matched them, and -- where what you named is one of synthtwin's "
             "own words for 'no value', such as NA or -999 -- which of "
             "those words it was; a word of your own is never written "
-            "into the settings. And a value you name this way IS data "
+            "into the settings block, which is a rule about that block "
+            "and not about the columns. And a value you name this way IS data "
             "from then on, so it can appear wherever its column "
             "publishes values, for instance as that column's smallest "
             "number. May be given more than once"
@@ -563,20 +598,7 @@ def _parse_arguments(argv: "list[str] | None") -> _Options:
         action="append",
         default=None,
         metavar="VALUE",
-        help=(
-            "a value that means 'no value' in your table, even though "
-            "synthtwin would otherwise treat it as data -- for example a "
-            "column where 'unknown' or -1 was typed for a reading nobody "
-            "took. It is matched the same way as --keep-value, and the "
-            "rows holding it are counted as missing rather than "
-            "described. The profile records how many values you named, "
-            "the rule that matched them, and -- where what you named is "
-            "one of synthtwin's own words for 'no value' -- which of "
-            "those words it was; a word of your own is never written "
-            "into the settings, though the column still lists the "
-            "spellings it counted as missing, on the same rules as any "
-            "other missing spelling. May be given more than once"
-        ),
+        help=_MISSING_VALUE_HELP,
     )
     parser.add_argument(
         "--first-row",
@@ -675,6 +697,82 @@ _LOWERED_FLOOR_REMINDER = (
     "and they name groups that small. The warning above says what that "
     "can reveal about a person. Read it before either file goes anywhere."
 )
+
+
+def _declared_words_notice(
+    named: "list[tuple[str, str, int]]",
+) -> str:
+    """What the description kept of the words the person typed.
+
+    Shown when a word of the person's OWN, named with `--missing-value`,
+    reached the description -- which contract 5 section 3.2 way 4 makes
+    the ordinary outcome rather than the corner case, and which nothing
+    on any screen said until review item P3-V9-F1.
+
+    IT IS IN THE LOWERED FLOOR'S REGISTER AND ITS PLACE, on purpose.
+    Both are the same kind of fact: something a person did on the
+    command line put real text into files they are about to be handed,
+    and they have to weigh it BEFORE either file exists rather than
+    discover it in a document a non-programmer does not open. So it is
+    banded, it names the words and the columns, and it is printed
+    before the write.
+
+    IT IS CONDITIONAL, for the reason the lowered-floor block gives.
+    Printing "no word of yours was kept" on every ordinary run is how a
+    reader is trained to skip the paragraph that matters. The summary
+    page states the RULE on every run where anything was declared and
+    names the words on the run where there are any; this screen speaks
+    only when there are.
+
+    NOTHING NEW LEAVES THE MACHINE. Every word here is already printed
+    on the summary this run has just shown, and already stored in the
+    description beside it.
+
+    Guarantees:
+
+    - Inputs: the spellings the description names, each with its column
+      and how many cells wore it, from `summary.words_of_your_own`.
+    - Determinism: a fixed function of that list.
+    - Errors raised: none.
+    - Boundary: every spelling crosses the display boundary through
+      `_shown` before it reaches the screen, exactly as the summary's
+      own text does.
+    """
+    listed = ""
+    for spelling, column, count in named:
+        listed = (
+            f"{listed}\n  {_shown(spelling)} -- in the column "
+            f"{_shown(column)}, {count} cell(s)"
+        )
+    one = len(named) == 1
+    return (
+        f"\n{_ALARM}\n"
+        f"READ THIS BEFORE EITHER OF THESE FILES GOES ANYWHERE.\n"
+        f"{'A word' if one else 'Words'} you typed after --missing-value "
+        f"{'is' if one else 'are'} written into the description.\n"
+        f"{_ALARM}\n"
+        f"\n"
+        f"WHAT IS IN THE FILES. The description names "
+        f"{'this spelling' if one else 'these spellings'} exactly as "
+        f"your table wrote {'it' if one else 'them'}, and the "
+        f"plain-language summary beside it prints "
+        f"{'it' if one else 'them'} too:{listed}\n"
+        f"\n"
+        f"WHY IT IS THERE. A description has to say how each cell was "
+        f"read, or synthtwin cannot check your own table against it "
+        f"later without reporting failures that are not real. Naming a "
+        f"word as 'no value' does not withhold it: it moves those cells "
+        f"out of the column's values and records the word that moved "
+        f"them.\n"
+        f"\n"
+        f"WHAT TO DO. If "
+        f"{'that word' if one else 'any of those words'} is something "
+        f"you would not put in an email -- a diagnosis, a code, "
+        f"anything that names a person -- then neither file may leave "
+        f"your machine as it stands. Delete what this run writes and "
+        f"describe the table again without naming "
+        f"{'it' if one else 'them'}, or with the cells already blank."
+    )
 
 
 def _lowered_floor_warning(given: int) -> str:
@@ -865,6 +963,16 @@ def _run_profile(
         "same rules your institution applies to the table itself, and "
         "read the section above before moving them anywhere."
     )
+    # BOTH WARNINGS GO HERE, before the write, for the one reason (plan
+    # P1-D6): a person weighs what a file carries before it exists, not
+    # after they have been told where it is. The declared-word notice is
+    # printed first and the floor alarm last, because the floor alarm
+    # has a reminder line of its own after the "Written:" confirmation
+    # and reading the two in that order leaves the pointer beside the
+    # block it points at.
+    kept_of_yours = summary.words_of_your_own(document)
+    if kept_of_yours:
+        _warn(_declared_words_notice(kept_of_yours))
     if smallest_group < taxonomy.Settings().small_cell_floor:
         _warn(_lowered_floor_warning(smallest_group))
 

@@ -590,14 +590,31 @@ def test_only_the_refusal_battery_composes_a_description_of_its_own() -> None:
     )
 
 
+# The other way a module can hold a description whose bytes it did not
+# decide: it ran the PRODUCT, and the product wrote the file. That is
+# not an exemption from the rule above -- it is outside what the rule is
+# about. `synthtwin profile` writes through `writing.write_text_file`,
+# which pins the line ending itself (plan D12), so a module that loads
+# what the product just wrote has decided no byte of it and could not.
+# It is also the stronger evidence where the subject is the loader
+# accepting what the producer writes, which no composed fixture can
+# stand in for.
+#
+# It is matched on the command the module builds rather than on the call
+# it passes it to, because a module that describes tables under several
+# option sets builds that list before handing it over.
+THE_PRODUCT_WROTE_IT = '["profile"'
+
+
 def test_every_module_that_loads_a_description_asks_the_fixture_for_it() -> None:
     """The floor under the two tests above.
 
     Both of them pass trivially if nothing in the suite writes a
     description any more -- a rule that matches nothing is not a rule.
     This is the positive form: a module that hands a file to the loader
-    got that file from the fixture, unless it is the one module allowed
-    to compose bytes of its own.
+    got that file from somewhere that decided its bytes properly -- the
+    fixture, or a real `synthtwin profile` run in the same test -- unless
+    it is the one module allowed to compose bytes of its own.
     """
     missing = []
     for path in _test_modules():
@@ -606,12 +623,29 @@ def test_every_module_that_loads_a_description_asks_the_fixture_for_it() -> None
             continue
         if path.name in MAY_COMPOSE_ITS_OWN:
             continue
-        if THE_ONE_PLACE not in source:
-            missing.append(path.name)
+        if THE_ONE_PLACE in source or THE_PRODUCT_WROTE_IT in source:
+            continue
+        missing.append(path.name)
     assert not missing, (
         "these modules hand a description to the loader without asking "
-        f"{THE_ONE_PLACE} for the file: " + ", ".join(sorted(missing))
+        f"{THE_ONE_PLACE} for the file, and without running the product "
+        "to write it: " + ", ".join(sorted(missing))
     )
+    # ...and the floor is a floor: both routes are actually taken by
+    # modules of this suite, so neither branch is a clause that matches
+    # nothing.
+    asked_the_fixture = 0
+    ran_the_product = 0
+    for path in _test_modules():
+        source = path.read_text(encoding="utf-8")
+        if "contract.load_profile" not in source:
+            continue
+        if THE_ONE_PLACE in source:
+            asked_the_fixture = asked_the_fixture + 1
+        if THE_PRODUCT_WROTE_IT in source:
+            ran_the_product = ran_the_product + 1
+    assert asked_the_fixture > 0
+    assert ran_the_product > 0
 
 
 def test_the_rule_still_recognizes_a_write_of_each_kind_it_governs() -> None:
