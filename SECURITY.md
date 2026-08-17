@@ -283,26 +283,30 @@ Stated here so that no reader has to discover them independently:
   `nan`, `none`, `null`) and three stand-in numbers (`-9999`, `-999`,
   `9999`).
 
-  **What that gives up, at its size.** A reader of the description
+  **What that gives up, at its size.** A reader of the settings block
   is told which of those thirteen fixed words were typed, and nothing
   else. The field carries no count of cells, no column and no row; the
   MEMBER's spelling is written and never yours, so if you typed `" N/A "`
-  the document holds `n/a` and your spacing and capitals do not travel;
+  the settings hold `n/a` and your spacing and capitals do not travel;
   and it is written identically whether or not the word occurs in your
   table, because it is computed from the command line without reading a
   cell. What a reader can still infer is said rather than waved away:
   people usually type a word because it is in their table, so a version 5
-  description makes available a guess a version 4 description made only
-  coarsely - not "one value was rescued" but "the value rescued was one
-  of these thirteen". **The word guessed at can never be a name, a code,
-  a diagnosis or a free-text answer, because a value outside that list
-  is written nowhere at all.**
+  settings block makes available a guess a version 4 settings block made
+  only coarsely - not "one value was rescued" but "the value rescued was
+  one of these thirteen". **The word guessed at THERE can never be a
+  name, a code, a diagnosis or a free-text answer, because a value
+  outside that list is written nowhere in the settings.** That is a
+  statement about the settings block and about nothing else in the
+  document; the next bullet but one says where your own words DO go, and
+  it is not a corner case.
 
   **What is not relaxed.** A declared value that is not one of the
-  thirteen is still recorded nowhere. Every publication class is
-  unchanged: a column of record numbers, free text or unrepresentable
-  numbers still publishes no value of the table. Every floor rule is
-  unchanged. No column block publishes a fact version 4 did not.
+  thirteen is still recorded nowhere IN THE SETTINGS. Every publication
+  class is unchanged: a column of record numbers, free text or
+  unrepresentable numbers still publishes no value of the table. Every
+  floor rule is unchanged. No column block publishes a fact version 4 did
+  not.
 
   **Why it is published.** Without it, a researcher who rescues one of
   synthtwin's own words with `--keep-value` cannot check their own table
@@ -314,6 +318,51 @@ Stated here so that no reader has to discover them independently:
   is about; it says nothing on a run with no declaration, because a
   sentence printed on every ordinary run is a sentence people stop
   reading.
+- **A word you name with `--missing-value` is written into the
+  description, and this document said the opposite until 2026-08-17**
+  (review item P3-V9-F1; Phase 3 plan amendment A-P3-31). This is the
+  one bullet in this section that corrects a false assurance rather than
+  disclosing a new one, so it says the correction first: **a value
+  outside synthtwin's thirteen published words is written nowhere in the
+  SETTINGS BLOCK, and that was never a statement about the whole
+  document.** Two bullets above said it as though it were, and the
+  profile's own summary page told the reader the same thing while
+  printing the word four screens higher.
+
+  **What is actually written.** A column counts a cell absent because
+  the person named that cell's spelling, and the description has to say
+  so or nothing can read the file back the way the profiler read it. So
+  the spelling goes into that column's `missing_by_source`, character
+  for character (contract 5 section 3.2, way 4), under the same
+  `small_cell_floor` as any published label. Concretely: a column of
+  sixty numbers and twelve cells reading a declared marker, at the
+  default floor, publishes that marker with the count 12 - in the
+  description, in the plain-language summary beside it, and on the
+  screen. If the marker is a diagnosis code or a patient identifier, the
+  description carries a diagnosis code or a patient identifier.
+
+  **What bounds it.** The floor: a spelling fewer rows than the floor
+  wrote is counted into `n_missing_withheld` and named nowhere.
+  The publication class: a column that publishes no value of the table -
+  record numbers, free text, numbers no format can hold - publishes an
+  empty source map whatever made its cells absent (contract 5 C5-21).
+  And the settings block itself, which carries the policy and no
+  spelling of the person's own, exactly as the two bullets above say.
+  None of those three bounds makes the general claim true, which is why
+  they are written here as bounds and not as a denial.
+
+  **What the product does about it.** A `profile` run that names a word
+  of the person's own and writes it into the description prints an
+  unmissable warning before either file exists, in the same register and
+  the same place as the lowered-floor warning: it names the word, the
+  column and the count, says why the description holds it, and says what
+  to do if that word should not travel. The `--missing-value` help says
+  it before the person types. The summary lists, on its own face, every
+  word of theirs the description names, so a reader handed that one file
+  can tell. The claim inventory in `tests/test_claim_inventory.py` holds
+  every retention sentence in this repository to what the producer's own
+  publication rules say it writes, so the next format change turns the
+  suite red instead of leaving a false assurance standing.
 - **Version 5 stores a declared spelling exactly, and escapes it only
   when it is printed** (same ruling; contract 5 section 4). A column's
   `missing_by_source` names the spellings that made its cells absent,

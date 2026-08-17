@@ -29,7 +29,10 @@ code actually does, in both directions:
   (that contract's section 6; plan amendment A-P3-27, which states the
   size of that lowering and prices it). The tests below check both
   halves: the member is written in SYNTHTWIN's spelling, and a word
-  that is not on synthtwin's list is still written nowhere;
+  that is not on synthtwin's list is still written nowhere in the
+  settings -- which is a claim about that block and about nothing else,
+  because such a word DOES reach its column's `missing_by_source`
+  (review item P3-V9-F1, plan amendment A-P3-31);
 * a value declared MISSING is counted absent, and its spelling is listed
   by its column among the spellings counted as missing -- under the same
   small-cell floor, and only where that column publishes values at all;
@@ -486,7 +489,10 @@ def test_the_option_help_does_not_claim_a_declared_value_is_withheld(
     assert "--keep-value" in shown and "--missing-value" in shown
     assert "held back like any other" not in shown
     assert "not written into the profile" not in shown
-    assert "records how many values you named" in shown
+    # DIFFERENT values since 2026-08-17, because the count folds two
+    # spellings of one value into one declaration (review item
+    # P3-V9-F7, plan amendment A-P3-37).
+    assert "records how many different values you named" in shown
     assert "wherever its column publishes values" in shown
     # AND THE HELP STOPPED SAYING THE PROFILE RECORDS NO VALUE AT ALL
     # (plan amendment A-P3-30). Both options carried "never the values

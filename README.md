@@ -221,9 +221,18 @@ was, because a check of your own table against its own description has
 to read those cells the way the description read them. **A word of your
 own is written nowhere in the settings**, no count, column or row goes
 with the ones that are recorded, and `SECURITY.md` states the delta and
-its bound. And a value you keep is ordinary data from then on, so it can
-appear wherever its column publishes values, for instance as that
-column's smallest number.
+its bound. **That is a rule about the settings, and not about the rest
+of the description.** A word you name with `--missing-value` IS written
+into the description: the column that counted those cells names the
+spelling exactly as your table wrote it, wherever at least
+`--smallest-group` rows hold it and that column publishes any values at
+all. So do not name a diagnosis, a code or an identifier here without
+deciding first that the description may carry it - a `profile` run that
+writes one of your words says so on the screen before either file
+exists, and the plain-language summary lists every word of yours the
+description names. And a value you keep is ordinary data from then on,
+so it can appear wherever its column publishes values, for instance as
+that column's smallest number.
 
 **`--first-row`, and the assumption it takes back.** When a file settles
 the question, synthtwin follows the file. When nothing in the file

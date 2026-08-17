@@ -494,6 +494,20 @@ has a first-party meaning. A key reading `(withheld)`, `(blank)`,
 cells of the table held exactly that text. A consumer that treats any
 key as a marker is defective.
 
+**AND `missing_by_source` IS NOT THE ONLY MAP THE TABLE KEYS** (plan
+amendment A-P3-32, review item P3-V9-F2). `levels[].variants` has always
+keyed itself on the spelling rows wrote a label with, stored character
+for character (version 4 section 7.4.2, and W2 here). So the two maps
+whose keys the TABLE decides are `missing_by_source` and
+`levels[].variants`, and a consumer reading a key of either as one of
+this format's own names is defective in the same way — not only for the
+five class words, but for any name this format uses, `n_missing_withheld`
+and `n_sentinel_candidates_unpublished` among them, because a cell can
+say those too. Every other mapping in a description draws its keys from
+a vocabulary this format publishes, and there a key IS a first-party
+word. This is a statement of what the format has always been; it is
+written down because two implementations of it were short by one map.
+
 **C5-N6 (the two counts follow the publication class).** `n_missing_blank`
 and `n_missing_withheld` are zero on exactly the columns where
 `missing_by_source` is empty for the publication-class reason of version
@@ -575,7 +589,7 @@ fifteen keys; nothing is added at its top level.
 
 | key | JSON type | contents | disposition |
 |---|---|---|---|
-| `n_declared` | integer ≥ 0 | how many values were named this way, unchanged from version 4 | LOADER-ONLY |
+| `n_declared` | integer ≥ 0 | how many DIFFERENT values were named this way, at `declaration_matching`'s own identity (amended 2026-08-17, C5-18) | LOADER-ONLY |
 | `values_recorded` | boolean | exactly `false`, unchanged from version 4 | LOADER-ONLY |
 | `built_in_texts` | array of strings | which members of section 14.1's spelling list this declaration named; sorted ascending by code point; pairwise distinct; possibly empty | LOADER-ONLY |
 | `built_in_numbers` | array of numbers | which members of section 14.1's stand-in list this declaration named; sorted ascending; pairwise distinct; possibly empty | LOADER-ONLY |
@@ -612,6 +626,13 @@ required:
 - the person typed `WOMBAT`, which is their own word; the document holds
   it nowhere, and `n_declared` counts it.
 
+A fourth thing is in the same example and is easy to miss: `n_declared`
+for the kept side is `2` because `" N/A "` and `-999.00` are two
+DIFFERENT values, not because two things were typed. Adding a third
+`--keep-value n/a` to that command line leaves it at `2`, because the
+producer's own matching rule reads `n/a` and `" N/A "` as one
+declaration over exactly the same cells (C5-18).
+
 ### 6.3 The rule that makes this safe, stated as an obligation
 
 **C5-16 (the lists are a function of the command line alone).** The
@@ -622,20 +643,66 @@ of any column is recorded exactly as one that matched every cell.** Two
 runs with the same options over two different tables write the same four
 lists.
 
-**C5-17 (only a vocabulary member is ever written).** A declared value
-enters `built_in_texts` when its trimmed, case-folded form equals a
-member of section 14.1's spelling list, and what is written is that
-MEMBER. A declared value enters `built_in_numbers` when it reads as a
-number and that number is one of section 14.1's three, and what is
-written is that member's canonical form. A declared value that is
-neither is written nowhere. **No character a person typed reaches the
-document through these lists.**
+**C5-17 (only a vocabulary member is ever written INTO THESE TWO
+LISTS).** A declared value enters `built_in_texts` when its trimmed,
+case-folded form equals a member of section 14.1's spelling list, and
+what is written is that MEMBER. A declared value enters
+`built_in_numbers` when it reads as a number and that number is one of
+section 14.1's three, and what is written is that member's canonical
+form. A declared value that is neither enters neither list. **No
+character a person typed reaches the document through these lists.**
 
-**C5-18 (the counts are unchanged).** `n_declared` counts every value
-named that way, whether or not it is a vocabulary member. So
+**C5-17 IS SCOPED TO THE LISTS AND MAY NOT BE READ WIDER (review item
+P3-V9-F1).** Its first sentence used to deny, without naming a place,
+that a declared value outside the vocabulary went into the document at
+all. Read as it stood that speaks for the whole file, and it is false of
+one: a `--missing-value` naming the person's own word puts that word
+into a column's `missing_by_source`, character for character,
+by section 3.2 way 4 — which is the change this version exists to make.
+Where the declared spelling does and does not travel is section 7 and
+section 3.2, not this invariant. A consumer, an auditor or a
+user-facing page that reads C5-17 as a document-wide silence is reading
+it wrong, and until this clause was added the fault was the clause's.
+
+**C5-18 (what the count counts, amended 2026-08-17).** `n_declared`
+counts every DIFFERENT value named that way, whether or not it is a
+vocabulary member — different at `settings.declaration_matching`'s own
+identity, which is the exact number where the value reads as one and
+otherwise the trimmed, case-folded spelling. So
 `len(built_in_texts) + len(built_in_numbers) <= n_declared`, and a
 consumer reading a shortfall knows only that some values named were not
 synthtwin's own words — never what they were.
+
+**AND THE SHORTFALL IS NOW EXACT, WHICH IS THE POINT OF THE AMENDMENT**
+(review item P3-V9-F7; owner ruling of 2026-08-17, recorded as the
+plan's amendment A-P3-37). Until that ruling this field counted
+KEYSTROKES: `--missing-value n/a --missing-value " N/A "` wrote
+`n_declared: 2` beside `built_in_texts: ["n/a"]`, because the two
+spellings fold into one declaration on the way into the list and did
+not fold on the way into the count. The two are not merely inconsistent;
+the pair is unreadable. A consumer cannot tell that document from one
+written by `--missing-value n/a --missing-value WOMBAT`, so the only
+sound reading of the shortfall was "at most this many words of their
+own", and the one consumer that exists read it as "exactly", invented a
+word nobody typed, and moved a fully rebuildable column's obligations
+off the checked census (validation method V2.4-A9).
+
+Counting declarations makes the reading sound: the different values
+named split exactly into the ones this document names as vocabulary
+members and the ones it does not, so
+`n_declared - len(built_in_texts) - len(built_in_numbers)` IS how many
+different values of the person's own were named. **Two spellings of one
+value being one declaration is not a convention chosen here** — it is
+the rule that decided which cells the declaration took, so a count that
+separated them would be counting something no column of the description
+can reflect.
+
+**What this does not change.** No cell is consulted (C5-16 stands
+untouched), so the field remains a function of the command line alone
+and a value named but never held is still recorded exactly as one every
+cell held. A person who types a value twice is recorded identically to
+one who typed it once, which is strictly less than the retired field
+said about their keyboard.
 
 ### 6.4 What part three closes, proved
 
@@ -694,7 +761,14 @@ between runs.
 
 **C5-K3 (the count bounds the lists).**
 `len(built_in_texts) + len(built_in_numbers) <= n_declared`, in each of
-the two records.
+the two records. It is still `<=` after C5-18's amendment and the
+inequality is still the only thing a LOADER can check: every vocabulary
+member in a list is named by exactly one declaration — two spellings
+that fold to one member are one declaration, and no declaration can be
+in both lists, since nothing section 14.1 spells reads as a number — so
+the count separates into members and the person's own, and a shortfall
+is exactly the second of those. A producer that wrote a smaller
+`n_declared` than its own lists is refused here as before.
 
 **C5-K4 (the two records do not overlap).** No member appears in both
 `kept_values` and `declared_missing_values`: not in the two text lists,
@@ -755,15 +829,28 @@ no text of the table (C5-17), and it is written the same whether the
 named word occurs in the table or not (C5-16), so the field itself is
 not evidence that any cell wore the word.
 
-**What a reader can still infer, said rather than waved away.** A person
-usually types a word because it is in their table. A version 5
-description therefore makes a guess available that a version 4
-description made only coarser: not "one value was rescued" but "the
-value rescued was `n/a`". The word guessed at is one of ten synthtwin
-publishes in its own documentation; it can never be a name, a code, a
-diagnosis or a free-text answer, because a value outside the list is
-never written (C5-K1). The guess is about which of thirteen fixed words
-somebody typed, and nothing else.
+**What a reader can still infer FROM THE SETTINGS BLOCK, said rather
+than waved away.** A person usually types a word because it is in their
+table. A version 5 settings block therefore makes a guess available that
+a version 4 settings block made only coarser: not "one value was
+rescued" but "the value rescued was `n/a`". The word guessed at is one
+of ten synthtwin publishes in its own documentation; it can never be a
+name, a code, a diagnosis or a free-text answer, because a value outside
+the list never enters these two lists (C5-K1). The guess is about which
+of thirteen fixed words somebody typed, and nothing else.
+
+**AND THAT IS A SENTENCE ABOUT THE SETTINGS BLOCK, WHICH IS NOT THE
+DOCUMENT (review item P3-V9-F1).** The paragraph above stood without
+its scope, and read that way it says the description cannot carry a
+diagnosis code, which is false of the format this very document
+defines: on the `--missing-value` side the person's own spelling reaches
+`missing_by_source` exactly (3.2 way 4, C5-20), so a column of sixty
+numbers and twelve cells reading a declared marker publishes that marker
+with its count. What section 6 bounds is what the SETTINGS carry; what
+the columns carry is bounded by the floor and by the publication class,
+and by nothing else. Every readable surface must state the column route
+where it states the settings rule — plan amendment A-P3-31 fixes that
+obligation, and the claim inventory holds the surfaces to it.
 
 **The one place it can be combined, and its bound.** A reader holding
 the whole description can put a vocabulary member beside a column's own
@@ -786,10 +873,15 @@ implementer's; it has now been made.
 
 **What is NOT relaxed, in as many words.** `values_recorded` stays
 `false`. A declared value that is not a member of the published
-vocabulary is still recorded nowhere. Every publication class of version
-4 section 6.10 is unchanged: a nothing-publishing column publishes no
-value of the table in version 5 either. Every floor rule is unchanged.
-No column block publishes anything version 4 did not.
+vocabulary is still recorded nowhere IN THE SETTINGS BLOCK — the scope
+this whole section is written under, and the scope C5-17's added clause
+makes explicit. Every publication class of version 4 section 6.10 is
+unchanged: a nothing-publishing column publishes no value of the table
+in version 5 either. Every floor rule is unchanged. No column block
+publishes anything version 4 did not, `missing_by_source`'s exact key
+included — version 4 published the person's declared spelling there
+too, in its rewritten form, which is why this is a scope repair and not
+a new disclosure.
 
 **The obligation this carries to the readable surfaces.** The new fact
 is named in `SECURITY.md` and in the plain-language summary beside the
@@ -812,8 +904,11 @@ limits, not defects, and each is stated at the size it was measured at.**
 identifiers, record-number columns, and columns whose numbers are
 unrepresentable — `missing_by_source` is empty, `n_missing_blank` is
 zero and `n_missing_withheld` is zero, whatever made the cells absent
-(C5-N6). A word the person named with `--missing-value` on such a column
-is recorded nowhere unless it is a member of the published vocabulary.
+(C5-N6). A word the person named with `--missing-value` on such a
+nothing-publishing column is recorded nowhere unless it is a member of
+the published vocabulary — a sentence about THAT publication class, and
+about no other column of the document, where the same word does reach
+`missing_by_source` under the ordinary floor (3.2 way 4).
 
 **No change to this format can close it.** The whole of what those
 columns publish is counts and shapes; publishing the marker word would
@@ -926,6 +1021,19 @@ and the `(withheld)` entries of `missing_by_class`, `utc_offsets` and
 `numeric_styles` — stays on it unchanged. The rule is still checked
 with the top-level rules, before any column block is read.
 
+**THE LIST IS EXHAUSTIVE, AND THAT MATTERS TO A WALK** (plan amendment
+A-P3-32, review item P3-V9-F2). Every position above is a FIELD of this
+format or a key drawn from a vocabulary this format publishes. No key of
+`missing_by_source` and no key of `levels[].variants` is on the list or
+can be put on it, because the table decides those keys (C5-N5): a column
+publishing `missing_by_source: {"n_missing_withheld": 2}` says that two
+cells held exactly those eighteen characters, and a level publishing
+`variants: {"(withheld)": 12}` says that twelve rows wrote their label
+that way. A loader that finds this rule's positions by searching the
+document for names must therefore stop reading a key as a name inside
+those two maps, and a producer's own publication guard must do the same
+— both did not, and each refused a description the format requires.
+
 **The other version 4 invariants that are touched, and how.** N1 and N2
 are unchanged: `missing_by_class` did not move. V1 to V4 are unchanged:
 `sentinel_verdicts` did not move, and V2 still ties `(withheld)`
@@ -966,9 +1074,48 @@ filled in from the document and the loader:
 > description records which of synthtwin's own words for "no value" you
 > named on the command line, and a version 4 description does not, so
 > this file cannot be read back exactly. Please make the description
-> again by running 'synthtwin profile' on your table, giving the same
-> --keep-value and --missing-value options you gave the first time, and
-> use the file it writes exactly as it writes it.
+> again by running 'synthtwin profile' on your table, giving it every
+> option you gave the first time: --keep-value, --missing-value,
+> --identifier, --smallest-group and --first-row. Each of those changes
+> how synthtwin reads your table, and two of them change what the
+> description PUBLISHES about it, so an option you leave out can put
+> something into the new description that the old one held back:
+> without the --smallest-group you gave, a value that fewer rows share
+> can be named, and without the --identifier you gave, a column of
+> record numbers is described like any other column. Read the summary
+> page synthtwin writes beside the new description before either file
+> goes anywhere, and use the description exactly as synthtwin writes it.
+
+**C5-26 NAMES FIVE OPTIONS AND NAMED TWO UNTIL 2026-08-17, AND THE TWO
+COULD DISCLOSE** (review item P3-V9-F6; owner ruling of 2026-08-17,
+recorded as the plan's amendment A-P3-36). The retired wording told the
+person to re-run "giving the same --keep-value and --missing-value
+options you gave the first time". Following it to the letter is what
+this clause has to be judged on, because it is written for somebody who
+does not program and it is the only instruction they are given.
+
+**The measured consequence.** A version 4 description made with
+`--smallest-group 20`, of a table holding a declared marker in twelve
+cells, publishes nothing about that marker: twelve is under the floor
+the person set, so the spelling is pooled and unnamed. Re-running with
+only the two named options restores the DEFAULT floor of eleven, twelve
+clears it, and the new description names the marker in the counting
+column's `missing_by_source` — character for character, by section 3.2
+way 4. The old description withheld it and the new one publishes it, and
+nothing anywhere told the person that would happen. `--identifier` is
+the same shape with a wider blast radius: a column named there publishes
+no value of the table at all (section 6.10), and a re-run without it
+describes that column of record numbers like any other, publishing its
+values under its own role's rules.
+
+**So the rule for this clause is stated as a rule and not as a list.**
+R11's message names EVERY option of `synthtwin profile` that changes
+what the description says about the table, and it says which of them
+change what the description PUBLISHES. Today that is five and two; an
+option added to the profiler joins the sentence in the commit that adds
+it. The plan called the result of the old advice merely "different"; it
+can disclose, and a refusal that sends somebody to re-run has to say so
+where they will read it.
 
 **Why the advice is safe to give, and when it stops being safe.** It
 assumes the person still holds the table. That is true of every
@@ -979,11 +1126,22 @@ first release this assumption is no longer safe for every reader**, and
 the wording above is then re-examined rather than inherited — which is
 exactly the reasoning that made this the moment to change the format.
 
-**Why it names the two options.** A person who ran with no declarations
-loses nothing by re-running; a person who ran with declarations and
-forgets them gets a description that reads their table differently from
-the first one. Naming the options is the difference between advice that
-can be followed and advice that can be followed wrongly.
+**Why it names the options at all.** A person who ran with no options
+loses nothing by re-running; a person who ran with them and forgets
+them gets a description that reads their table differently from the
+first one, and — for two of the five — publishes more of it. Naming the
+options is the difference between advice that can be followed and advice
+that can be followed wrongly.
+
+**What it still does NOT do, said here rather than left to be found.**
+It does not tell the person which options THEIR description was made
+with, although the settings block in their hand records every one of
+them. C5-28 forbids quoting the document, and the version is read at
+step 5 of section 10.1 — before the settings block has been validated
+at all — so there is nothing this message may soundly read out. What is
+owed and paid is that they are told which options matter; reading their
+own settings block back to them would need a separate command, and none
+is built.
 
 **C5-27.** R12's message — a document NEWER than this loader reads — is
 version 4's, unchanged in substance: it says which version this
@@ -1039,6 +1197,19 @@ weigh.
 is published by a version 5 column block, at the same width, under the
 same floor. No role's publication class moves. No nothing-publishing
 column publishes a value. The relationship manifest is eight nulls.
+
+**And "unchanged" is not "absent", which is the reading this table
+invited and review item P3-V9-F1 found taken.** A delta table says what
+moved; a reader weighing whether a description may travel wants to know
+what it CARRIES. The largest thing it carries about a declaration is
+not in the three rows above and never was: a `--missing-value` naming
+the person's own word puts that word into `missing_by_source` — version
+4 in its rewritten form, version 5 character for character — wherever
+the floor permits the group to be named and the column publishes values
+at all. So a description can hold a diagnosis code, a site code or a
+patient identifier, if that is what somebody named. Section 3.2 way 4
+is the rule; section 7 is what still cannot be recovered; the readable
+surfaces state it under plan amendment A-P3-31.
 
 **And the handling rule is unchanged.** Every file a full run leaves
 behind — the profile, the plain-language summary beside it, the twin,

@@ -242,13 +242,16 @@ RELATIONSHIP_SLOTS = (
 # is not evidence that any cell wore the word. What a reader can still
 # infer is that somebody usually types a word because it is in their
 # table -- so the guess a version 4 description made coarsely ("one
-# value was rescued") is made at thirteen words. That word can never be
-# a name, a code, a diagnosis or a free-text answer, because a value
-# outside the list is written nowhere.
+# value was rescued") is made at thirteen words. The word guessed at
+# HERE can never be a name, a code, a diagnosis or a free-text answer,
+# because a value outside the list is written nowhere in this block.
+# That is a sentence about this block, and the paragraph below says why
+# it may not be read any wider.
 #
 # What is NOT lowered: `values_recorded` stays false, a declared value
-# that is not a member of the published vocabulary is recorded nowhere,
-# and every publication class and every floor rule is unchanged.
+# that is not a member of the published vocabulary is recorded nowhere
+# in the settings, and every publication class and every floor rule is
+# unchanged.
 #
 # THE TOKEN BELOW KEEPS ITS VALUE, and that is a decision rather than an
 # oversight. Contract 5 fixes the settings block at the same fifteen
@@ -261,9 +264,10 @@ RELATIONSHIP_SLOTS = (
 # else. Declaring a value does not withdraw that value from its own
 # column: one named with --keep-value is data from that point on and is
 # described wherever its column publishes values, and one named with
-# --missing-value is counted as absent, its spelling reaching
-# `missing_by_source` under the same small-cell floor and the same role
-# rule as any other missing spelling. The first wording of this token,
+# --missing-value is counted as absent while the word
+# itself is written into the description -- its spelling standing in
+# `missing_by_source`, character for character, under the same
+# small_cell_floor and the same role rule as any other missing spelling. The first wording of this token,
 # `counts_only_no_spellings`, read as a claim about the whole document,
 # and that claim is false: 200 readings and three cells of `-999`,
 # profiled with `--keep-value -999`, publish `"min": -999.0`. That
@@ -271,6 +275,19 @@ RELATIONSHIP_SLOTS = (
 # column and a range is made of real values -- and it is not "counts
 # only, no spellings". The token now names its own scope, so that a
 # consumer or an auditor reading it cannot draw the wider conclusion.
+#
+# THE TOKEN NAMED ITS SCOPE AND THE PROSE AROUND THE PRODUCT DID NOT
+# (review item P3-V9-F1). The paragraph above has been right since
+# Phase 1 and the settings rule has never been wider than this block --
+# and the profiler's own summary page, `SECURITY.md` and contract 5
+# section 6 all went on denying, with no scope attached, that a word
+# outside the thirteen was written anywhere at all. The one that
+# mattered was the summary: it printed `counted as missing: <the
+# person's word> (12)` and, four screens below, that synthtwin would
+# not keep any other word they typed. Both are now scoped where they
+# are said, the summary names the words the columns kept, and the
+# claim inventory holds every such sentence in this repository to the
+# publication rules below rather than to a list somebody maintains.
 DECLARATION_PUBLICATION = "settings_counts_only_columns_unchanged"
 
 
@@ -298,12 +315,23 @@ def _version() -> str:
 def _declaration_record(spellings: "tuple[str, ...]") -> dict[str, object]:
     """How many values were declared this way, and which of OUR words.
 
+    `n_declared` counts DECLARATIONS and not keystrokes (contract 5
+    C5-18 as amended; review item P3-V9-F7, plan amendment A-P3-37).
+    `--missing-value n/a --missing-value " N/A "` is two things typed
+    and one declaration: the producer's own matching rule folds them
+    together and no description can tell them apart afterwards, so a
+    consumer subtracting the two vocabulary lists from this count to
+    learn how many words of the PERSON'S own were named used to be told
+    there was one when there was none. `taxonomy.declarations_named`
+    holds the rule and its docstring holds the reason.
+
     Guarantees:
 
     - Inputs: the spellings the person typed for one of the two options.
-    - Determinism: the record depends only on those spellings. Both
-      lists are sorted and pairwise distinct, so two runs with the same
-      options write the same bytes (contract 5 C5-K2).
+    - Determinism: the record depends only on those spellings, and on
+      their set rather than their order. Both lists are sorted and
+      pairwise distinct, so two runs with the same options write the
+      same bytes (contract 5 C5-K2).
     - Errors raised: none.
     - Boundary: no spelling the person typed reaches the result, so
       nothing they typed can travel out of this machine through the
@@ -327,7 +355,7 @@ def _declaration_record(spellings: "tuple[str, ...]") -> dict[str, object]:
     return {
         "built_in_numbers": list(numbers),
         "built_in_texts": list(texts),
-        "n_declared": len(spellings),
+        "n_declared": taxonomy.declarations_named(spellings),
         "values_recorded": False,
     }
 
@@ -773,8 +801,10 @@ PUBLICATION_WORDS: "dict[tuple[str, ...], tuple[str, ...]]" = {
     ("settings", "declaration_publication"): (DECLARATION_PUBLICATION,),
     # The ten spellings this package reads as "no value", read from
     # where they are defined. A declared value that is not one of them
-    # is written nowhere, so a spelling of the table standing here is
-    # refused before anything is serialized (contract 5 C5-K1).
+    # is written nowhere IN THE SETTINGS, so a spelling of the table
+    # standing here is refused before anything is serialized (contract 5
+    # C5-K1). Where such a spelling IS written is four entries below,
+    # under `missing_by_source`, and its rule there is `_SPELLING`.
     ("settings", "kept_values", "built_in_texts", _EACH): (
         parsing.MISSING_TEXTS
     ),
@@ -947,12 +977,20 @@ def _is_sentence(value: object) -> bool:
     return f"{value}" == taxonomy.rendered(value.form, value.arguments)
 
 
-# The one mapping of this format whose keys are the table's own text
-# and carry no first-party meaning (contract 5 C5-N5). The
-# pooled-remainder walk below skips it, because in a version 5 document
-# a key reading `(withheld)` there means that cells of the table held
+# WHERE A KEY IS THE TABLE'S TEXT AND CARRIES NO FIRST-PARTY MEANING
+# (contract 5 C5-N5; plan amendment A-P3-32, review item P3-V9-F2). The
+# pooled-remainder rule below skips those mappings, because a key
+# reading `(withheld)` in one of them means that cells of the table held
 # exactly those ten characters.
-_ONE_KEY_SPACE = ("columns", _EACH, "missing_by_source", _ANY_KEY)
+#
+# The list of them is `canonical.TABLE_TEXT_KEY_SPACES` and is read from
+# there rather than written again here, so that this guard and the
+# loader's own walk cannot answer the same question two ways. The
+# version this replaces named `missing_by_source` alone and left
+# `levels[].variants` out, so a table with twelve rows whose categorical
+# label reads `(withheld)`, described at `--smallest-group 1`, stopped
+# the profiler with an internal fault -- against a table that is
+# perfectly ordinary and a label the format is required to publish.
 
 
 def _remainder_is_published(
@@ -979,15 +1017,21 @@ def _remainder_is_published(
     it, so a fifth field putting a count under that word is covered on
     the commit that adds it.
 
-    ONE PATH IS EXEMPT FROM VERSION 5, AND IT IS THE ONE THAT MADE THE
-    WORD-WALK SAFE (contract 5 C5-N5, C5-S13). The walk reads a key as
-    this package's own word, which was sound while every mapping holding
-    that key drew its other keys from a first-party vocabulary.
-    `missing_by_source` no longer does: its keys are spellings some cell
-    of the table held, and a table whose cells literally read
-    `(withheld)` publishes that key with the count those cells came to.
-    Refusing it would refuse the very description version 5 exists to
-    make writable. The remainder that used to stand there is
+    WHERE THE TABLE DECIDES THE KEY, THE WORD IS NOT A WORD (contract 5
+    C5-N5, C5-S13; plan amendment A-P3-32). The rule reads a key as this
+    package's own word, which is sound while the mapping draws its keys
+    from a first-party vocabulary. Two mappings do not: `missing_by_source`
+    keys itself on the spelling that made a cell absent, and
+    `levels[].variants` on the spelling some rows wrote a label with, so
+    a table whose cells literally read `(withheld)` publishes that key
+    with the count those cells came to. Refusing it would refuse the
+    very description version 5 exists to make writable. Which mappings
+    those are is `canonical.TABLE_TEXT_KEY_SPACES`, and reading it from
+    there is what keeps this guard and `contract._held_back_in` from
+    answering one question two ways -- which they did, both naming
+    `missing_by_source` alone, until review item P3-V9-F2.
+
+    The remainder that used to stand inside `missing_by_source` is
     `n_missing_withheld`, which this guard holds to the same rule under
     its own kind, `_HELD_BACK`.
 
@@ -1002,7 +1046,10 @@ def _remainder_is_published(
       A leaf that is not a count under that word is left to its own
       rule, which is why this answers True for everything else.
     """
-    if path == _ONE_KEY_SPACE:
+    # The path handed here is the LEAF's, so the mapping it stands in is
+    # one step up. A leaf that stands under no mapping key at all is at
+    # a path no key space names, and answers False there.
+    if canonical.keys_are_the_tables_own_text(path[: len(path) - 1]):
         return True
     if key != parsing.MISSING_WITHHELD:
         return True

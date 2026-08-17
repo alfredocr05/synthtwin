@@ -1126,13 +1126,24 @@ def test_r11_an_older_description_is_made_again(
     assert "version 4" in message
     assert "version 5" in message
     assert "synthtwin profile" in message
-    # THE THREE THINGS CONTRACT 5 SECTION 10.2 FIXES WORD FOR WORD: why
-    # the older file cannot be read, and the two options that have to
-    # come back with the person if the new description is to read their
-    # table the same way.
+    # THE THINGS CONTRACT 5 SECTION 10.2 FIXES WORD FOR WORD: why the
+    # older file cannot be read, and every option that has to come back
+    # with the person if the new description is to read their table the
+    # same way -- five of them since 2026-08-17, because two of the
+    # three that were missing change what the description PUBLISHES
+    # (review item P3-V9-F6, plan amendment A-P3-36). The set is held to
+    # the shipped parser's own in
+    # `tests/test_p3v9f6_migration_names_every_option.py`; what is
+    # asserted here is that the loader's own refusal carries them.
     assert "cannot be read back exactly" in message
-    assert "--keep-value" in message
-    assert "--missing-value" in message
+    for option in (
+        "--keep-value",
+        "--missing-value",
+        "--identifier",
+        "--smallest-group",
+        "--first-row",
+    ):
+        assert option in message, option
 
 
 def test_r12_a_newer_description_never_sends_anybody_to_a_profiler(

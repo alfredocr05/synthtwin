@@ -1364,11 +1364,29 @@ def profile_version_is_older(found: int, reads: int) -> str:
     version each side is, WHY the older file cannot simply be read --
     because it does not record which of synthtwin's own words for "no
     value" the person named -- and what to do, which is to describe the
-    table again GIVING THE SAME DECLARATIONS. Naming the two options is
-    the difference between advice that can be followed and advice that
-    can be followed wrongly: a person who re-runs without the
-    `--missing-value` they used the first time gets a description that
-    reads their table differently.
+    table again UNDER THE SAME OPTIONS.
+
+    IT NAMES FIVE OPTIONS AND NAMED TWO UNTIL 2026-08-17, AND THE TWO
+    COULD DISCLOSE (review item P3-V9-F6; plan amendment A-P3-36). The
+    retired wording named `--keep-value` and `--missing-value` only.
+    Follow it to the letter -- which is what a person who does not
+    program will do, because it is the whole of what they were told --
+    after a first run that used `--smallest-group 20` on a table holding
+    a declared marker in twelve cells, and the floor goes back to the
+    default eleven. Twelve now clears it, so the NEW description names a
+    spelling the old one pooled: the old file withheld a word of the
+    person's own and the new one publishes it, with no warning anywhere.
+    `--identifier` is the same shape and reaches further, because a
+    column named there publishes no value of the table at all, and a
+    re-run without it describes that column of record numbers like any
+    other. `--first-row` decides what the column names are and whether
+    the first row is a record.
+
+    So the message names every option of `synthtwin profile` that
+    changes what the description says about the table, says which of
+    them change what it PUBLISHES, and sends the person to the summary
+    page before either new file travels. An option added to the profiler
+    joins this sentence in the commit that adds it.
 
     WHY THE ADVICE IS SAFE TO GIVE, AND WHEN IT STOPS BEING SAFE.
     Somebody holding an old description of their own table is normally
@@ -1377,7 +1395,11 @@ def profile_version_is_older(found: int, reads: int) -> str:
     first release this assumption is no longer safe for every reader,
     and this wording is re-examined rather than inherited.
 
-    Nothing of the document is quoted here except the version it claims.
+    Nothing of the document is quoted here except the version it claims
+    (C5-28), so the message cannot tell the person which options THEIR
+    description was made with even though its settings block records
+    them: the version is read before that block is validated at all.
+    What is owed and paid is that they are told which options matter.
     """
     return (
         f"This description was written by an older version of synthtwin: "
@@ -1387,9 +1409,18 @@ def profile_version_is_older(found: int, reads: int) -> str:
         f"command line, and a version {found} description does not, so "
         f"this file cannot be read back exactly. Please make the "
         f"description again by running 'synthtwin profile' on your "
-        f"table, giving the same --keep-value and --missing-value "
-        f"options you gave the first time, and use the file it writes "
-        f"exactly as it writes it."
+        f"table, giving it every option you gave the first time: "
+        f"--keep-value, --missing-value, --identifier, --smallest-group "
+        f"and --first-row. Each of those changes how synthtwin reads "
+        f"your table, and two of them change what the description "
+        f"PUBLISHES about it, so an option you leave out can put "
+        f"something into the new description that the old one held "
+        f"back: without the --smallest-group you gave, a value that "
+        f"fewer rows share can be named, and without the --identifier "
+        f"you gave, a column of record numbers is described like any "
+        f"other column. Read the summary page synthtwin writes beside "
+        f"the new description before either file goes anywhere, and use "
+        f"the description exactly as synthtwin writes it."
     )
 
 

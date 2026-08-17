@@ -984,6 +984,52 @@ def settings_over_the_split(
     naming one value both ways is a contradiction it declines to profile
     under, and the two settings this module builds may not manufacture
     one the person never typed.
+
+    AND A STAND-IN NUMBER THE DESCRIPTION'S OWN VERDICT READS AS A HOLE
+    IS NOT PINNED TO DATA EITHER (review item P3-V9-F5; plan amendment
+    A-P3-35, validation method clause V2.4-A8). This is the same
+    sentence as the two above, said about the third way a cell becomes
+    absent. The blankness pin exists because a file may not be failed
+    for colliding with synthtwin's own vocabulary; it does not exist to
+    overrule what the description SAYS about a cell. And the description
+    says it outright: contract 5 section 3.2 way 3 publishes, per
+    column, the candidate, the verdict, the reason and the occurrences,
+    so `read_as_missing` on `-999` is that description stating that a
+    cell reading `-999` in that column is a hole. A 180-row column of
+    168 ordinary decimals and twelve `-999` cells, checked against the
+    description written from it, reported SEVENTEEN obligations MISSED
+    -- both presence counts, both distinctness counts, three other
+    counts, seven ladder rungs and all three moments -- with the
+    incomplete reading's numbers printed beside them, on a table that is
+    its own description's perfect match.
+
+    WHAT IS DROPPED IS THE PIN, NOT THE MACHINERY. A stand-in the
+    description settles as a hole is simply left out of the kept list,
+    which hands the question back to the producer's own per-column
+    sentinel rule under the settings the description was written with
+    (`settings_for`). So the split description reaches the verdict the
+    description publishes because it is the same rule over the same
+    cells, and no second reading of `sentinel_verdicts` is implemented
+    here -- V2.1 is met exactly as it is for every other measurement.
+
+    WHY THE ANSWER IS TAKEN PER DOCUMENT WHEN THE VERDICT IS PER COLUMN.
+    `taxonomy.Settings` names kept values for the whole table, so the pin
+    can be dropped for a NUMBER and not for one column's use of it. The
+    other direction was measured and is worse: pinning per document and
+    unpinning nowhere is what printed the seventeen. Where one column
+    reads `-999` as a hole and another reads it as data, both are then
+    judged by the producer's own rule on the measured file -- which is
+    what the description was written under, so the file it was written
+    from agrees on both columns exactly.
+
+    WHAT IT COSTS, and it is R-P2-13's own shape on the third class of
+    marker. A twin whose generated numbers include a stand-in the
+    description settles as a hole can now have those cells counted as
+    holes here, where they used to be counted as data. It is bounded by
+    the cells wearing that number, it needs the producer's outlier and
+    share rules to fire on the twin's own values, and it is exactly the
+    exposure the GATE side has carried all along, because `settings_for`
+    never pinned anything.
     """
     block = settings_for(description)
     # A mapping rather than a set, for the reason `kept_spellings` gives:
@@ -992,11 +1038,51 @@ def settings_over_the_split(
     found: dict[str, int] = {}
     for spelling in block.kept_values:
         found[spelling] = 1
+    settled = _stand_ins_the_description_reads_as_holes(description)
     for spelling in _KEPT_OVER_THE_SPLIT:
         if _explained_by(spelling, block.declared_missing_values):
             continue
+        if _explained_by(spelling, settled):
+            continue
         found[spelling] = 1
     return dataclasses.replace(block, kept_values=tuple(sorted(found)))
+
+
+def _stand_ins_the_description_reads_as_holes(
+    description: contract.Profile,
+) -> "tuple[str, ...]":
+    """The stand-in numbers some column of this description drops.
+
+    Guarantees:
+
+    - Inputs: one loaded description. No file is read and no cell is
+      consulted, so what comes back is a function of the DESCRIPTION
+      alone.
+    - Determinism: the returned tuple is sorted.
+    - Errors raised: none.
+    - Boundary: every spelling here is one of this package's own three
+      stand-in numbers, written the one way `_STAND_IN_SPELLINGS`
+      writes them. A candidate the loader let through that is not one of
+      the three names nothing, and no text of the description leaves
+      this function.
+
+    A published candidate is matched to the three at the EXACT number
+    both denote, which is the identity the producer decides a candidate
+    by -- so a description writing `-999.0` and one writing `-999` name
+    the same stand-in here, as they do everywhere else in this module.
+    """
+    found: dict[str, int] = {}
+    for column in description.columns:
+        for verdict in column.sentinel_verdicts:
+            if verdict.verdict != taxonomy.VERDICT_MISSING:
+                continue
+            exact = taxonomy.exact_of_spelling(verdict.candidate)
+            if exact is None:
+                continue
+            for value, spelling in _STAND_IN_SPELLINGS:
+                if exact == taxonomy.exact_of_number(value):
+                    found[spelling] = 1
+    return tuple(sorted(found))
 
 
 def kept_spellings(description: contract.Profile) -> "tuple[str, ...]":
@@ -1240,22 +1326,99 @@ def _named_in_the_columns(
     found: dict[str, int] = {}
     for column in description.columns:
         for spelling in sorted(column.missing_by_source):
-            if parsing.is_missing_text(spelling):
-                continue
-            if _stand_in_of(taxonomy.exact_of_spelling(spelling)) is not None:
+            # The membership question is asked in ONE place for the whole
+            # package (`taxonomy.is_published_vocabulary`), because the
+            # summary and the command line now ask it too: they tell a
+            # person which of their own words the description carries,
+            # and three answers that could drift apart would put three
+            # different sentences in front of one researcher about one
+            # word. What stood here was this function's own copy of it.
+            if taxonomy.is_published_vocabulary(spelling):
                 continue
             found[spelling] = 1
     return tuple(sorted(found))
 
 
+def _own_declarations_recovered(description: contract.Profile) -> int:
+    """How many DECLARATIONS of the person's own the columns bring back.
+
+    Not how many keys: how many words those keys are spellings of
+    (review item P3-V9-F3's neighbour, P3-V9-F4; plan amendment
+    A-P3-34). A declaration is matched at `settings.declaration_matching`'s
+    own identity -- the exact number where the spelling reads as one,
+    else the trimmed and folded spelling -- so `XX` and ` XX ` are two
+    published keys of ONE declared word. The head count in the caller
+    compares this against how many words the settings block says were
+    named, and a comparison between a count of keys and a count of words
+    is not a comparison at all.
+
+    WHAT COUNTING KEYS COST, measured. Declare `XX` and `YY`; let a
+    column of numbers publish twelve `XX` holes and twelve ` XX ` ones
+    while a free-text column holds twelve `YY` holes and publishes no
+    spelling of anything, because its publication class permits none.
+    Two keys came back, two words were named, the head count saw no
+    shortfall, the structural test is not asked on a column of that
+    class -- so nothing was routed anywhere and the free-text column
+    reported ELEVEN obligations MISSED against the table its own
+    description was written from. Counting words instead: one word came
+    back, two were named, the column is routed to NOT CHECKABLE, and the
+    known limit of contract 5 section 7.2 is stated instead of a false
+    failure printed.
+
+    IT IS THE SOUND DIRECTION AND THE OTHER ONE IS NOT. What comes back
+    is a subset of what was named, so a count of words that equals the
+    named count means every named word came back; a count of KEYS can
+    exceed the number of words and mask a loss.
+
+    THE COST OF THE SOUND DIRECTION WAS ONE MORE SHAPE OF OVER-FIRE AND
+    IT IS PAID OFF (review item P3-V9-F7; plan amendment A-P3-37). Both
+    sides now count declarations at ONE identity: this one because
+    A-P3-34 changed it, and the named side because `n_declared` counts
+    declarations rather than keystrokes. `--missing-value XX
+    --missing-value xx` is one word named and one word back, level, on a
+    description whose reading rule is rebuildable -- where it used to be
+    one back against two named, and 43 obligations left the checked
+    census of a file that passes every one of them.
+
+    Guarantees:
+
+    - Inputs: one loaded description. No file is read.
+    - Determinism: a fixed function of the description.
+    - Errors raised: none.
+    - Boundary: nothing is printed and no spelling leaves this function.
+    """
+    numbers: list[tuple[int, tuple[str, ...], int]] = []
+    words: dict[str, int] = {}
+    for spelling in _named_in_the_columns(description):
+        exact = taxonomy.exact_of_spelling(spelling)
+        if exact is None:
+            words[parsing.folded(spelling)] = 1
+        elif not _named(numbers, exact):
+            numbers = numbers + [exact]
+    return len(words) + len(numbers)
+
+
 def _own_words_named(record: contract.DeclarationRecord) -> int:
     """How many words of the PERSON'S own one declaration named.
 
-    `n_declared` counts every value named that way; the two vocabulary
-    lists name the ones that were this package's own. The difference is
-    how many were the person's, which is the number the description can
-    only carry through a column (contract 5 C5-18, and its C5-K3 is why
-    this cannot go below zero on a document a loader accepted).
+    `n_declared` counts every DIFFERENT value named that way; the two
+    vocabulary lists name the ones that were this package's own. The
+    difference is how many were the person's, which is the number the
+    description can only carry through a column (contract 5 C5-18, and
+    its C5-K3 is why this cannot go below zero on a document a loader
+    accepted).
+
+    THE SUBTRACTION IS EXACT, AND IT WAS AN UPPER BOUND UNTIL 2026-08-17
+    (review item P3-V9-F7; plan amendment A-P3-37). `n_declared` counted
+    KEYSTROKES, so `--missing-value n/a --missing-value " N/A "` wrote
+    two beside a list holding one member and this returned one -- a word
+    of the person's own that nobody typed. Nothing on this side could
+    have repaired it: the document that names one word of their own and
+    the document that names the same built-in word twice were the same
+    document, so the fix had to be the producer's and is (contract 5
+    C5-18 as amended). What this function does is unchanged; what
+    changed is that the number it is handed answers the question it is
+    being asked.
     """
     named = record.n_declared - len(record.built_in_texts)
     return named - len(record.built_in_numbers)
@@ -1322,10 +1485,11 @@ def unrebuildable_columns(
     - the HEAD COUNT, per document: the settings block says how many
       words were named as "no value" and how many of them were this
       package's own, so the difference is how many were the person's,
-      and `_named_in_the_columns` is what came back of those. Fewer back
-      than named means a word the reading rule needs is written nowhere.
-      A declaration is a document-wide rule, so a column publishing
-      nothing about it is still a column that could hold it.
+      and `_own_declarations_recovered` is what came back of those.
+      Fewer back than named means a word the reading rule needs is
+      written nowhere. A declaration is a document-wide rule, so a
+      column publishing nothing about it is still a column that could
+      hold it.
     - the STRUCTURAL test, per column: the column publishes cells made
       absent by a declaration that no recovered spelling accounts for.
       Its inputs are `missing_by_class.declared_missing` and the
@@ -1334,22 +1498,47 @@ def unrebuildable_columns(
 
     WHY BOTH ARE STILL NEEDED. The head count counts WORDS and the
     structural test counts CELLS, and each catches what the other
-    cannot. A declaration is matched by its folded spelling, so one
-    declared word can be worn by several different published keys --
-    ` XX ` and `XX` are two keys of one declaration -- and a head count
-    of keys against a head count of words can then come out level while
-    a second declared word is pooled and lost. The structural test sees
-    those cells directly and fires. The other way round, a word named
-    that the table never held is invisible to the structural test and is
-    exactly what the head count is for.
+    cannot. A word named that the table never held is invisible to the
+    structural test and is exactly what the head count is for; a word
+    the table held on a column that publishes its spellings is seen by
+    the structural test cell by cell, wherever the head count comes out
+    level.
 
-    THE HEAD COUNT STILL OVER-FIRES IN ONE PLACE, and it is asserted at
-    its size rather than hoped away: a description written with
+    AND BOTH SIDES COUNT WORDS NOW, WHICH THEY DID NOT (review item
+    P3-V9-F4; plan amendment A-P3-34). The head count used to compare
+    how many KEYS came back with how many WORDS were named, and one
+    declared word can be worn by several published keys -- ` XX ` and
+    `XX` are two keys of one word. Two keys of one word then made a
+    second word's loss invisible, and the structural test does not cover
+    for it, because the column that lost the second word was a
+    free-text one and the structural test is not asked there at all (the
+    paragraph on C5-N6 below). Both halves reported nothing and the
+    column reported eleven false misses. `_own_declarations_recovered`
+    is what closed it.
+
+    THE HEAD COUNT OVER-FIRES IN ONE PLACE, and it is asserted at its
+    size rather than hoped away. A description written with
     `--missing-value` naming two words of the person's own, of which the
-    table holds one, reports a gap that is not there. Where the union
-    over-fires it moves obligations to NOT CHECKABLE on a file that
-    would have passed anyway. That direction is the safe one: the other
-    one prints a number about a file that is not true of it.
+    table holds one, reports a gap that is not there. It is the safe
+    direction: where the union over-fires it moves obligations to NOT
+    CHECKABLE on a file that would have passed anyway, and the other
+    direction prints a number about a file that is not true of it.
+    Closing it needs the description to say which named words the table
+    HELD, which is a fact about the table and not about the command
+    line, so it does not close.
+
+    THERE WERE TWO UNTIL 2026-08-17 (review item P3-V9-F7; plan
+    amendment A-P3-37). The second was a description naming two
+    SPELLINGS of one word -- `XX` and `xx`, or `n/a` and `" N/A "` --
+    which the producer folds into a single declaration while
+    `n_declared` counted the two somebody typed. Measured at 43
+    obligations moved to NOT CHECKABLE on a file that passes every one
+    of them. That one is CLOSED, at the producer, because it had to be:
+    from the document alone, two spellings of one built-in word are
+    indistinguishable from one built-in word and one word of the
+    person's own. `n_declared` counts declarations now (contract 5
+    C5-18 as amended) and the subtraction in `_own_words_named` is
+    exact rather than an upper bound.
 
     THE ONE PLACE THE HEAD COUNT IS HELD BACK, and it is a proof rather
     than a preference. A column whose `missing_by_class` publishes no
@@ -1381,7 +1570,7 @@ def unrebuildable_columns(
     settings = description.settings
     recovered = declared_spellings(description)
     own_named = _own_words_named(settings.declared_missing_values)
-    own_recovered = len(_named_in_the_columns(description))
+    own_recovered = _own_declarations_recovered(description)
     short = own_recovered < own_named
     unrebuildable: dict[str, str] = {}
     for column in description.columns:
@@ -4441,15 +4630,27 @@ def _holes_by_the_description(
     beside a producer that decides it exactly is a cell the two sides can
     disagree about (review item P3-V4-F1).
 
-    AND A DECLARED SPELLING IS MATCHED THROUGH `parsing.visible` FIRST,
-    because that is the form the description publishes it in
-    (`taxonomy._missing_maps` writes every source key through it, so a
-    spelling carrying a display control is published as its escape). A
-    cell is put through the same boundary before the two are folded
-    together, so the comparison is between two texts that crossed it,
-    and a cell whose spelling carries no display control at all -- which
-    is every ordinary spelling -- is compared exactly as the producer
-    compares it.
+    AND NO COMPARISON HERE RUNS ON ESCAPED TEXT (review item P3-V9-F3;
+    plan amendment A-P3-33). The version this replaces put a cell
+    through `parsing.visible` before folding it against a declared
+    spelling, on the reasoning that the description publishes the
+    spelling in its shown form. Contract version 5 withdrew that: a
+    source spelling is stored character for character and escaped only
+    where it is PRINTED (C5-1 to C5-4), so `declared_spellings` hands
+    back the exact text and escaping the cell compared one text that had
+    crossed the display boundary with one that had not. Twelve holes
+    spelled `X`, U+0001, `Y` were then recognised as none of them, the
+    column's cells were recounted as though the description read them
+    all as values, and a file whose written numbers do not match the
+    description's published styles came back with those style
+    obligations WITHHELD and nothing missed.
+
+    The boundary is for a person reading a screen. A comparison is not a
+    screen, and the rule that keeps this true is asserted rather than
+    remembered: `tests/test_p3v9f3_escaping_is_display_only.py` walks
+    this whole module for a call to the display boundary and turns the
+    suite red on one, because this module states verdicts and prints
+    nothing -- `quality.py` is what puts a spelling on a screen.
     """
     kept_spellings_folded: dict[str, int] = {}
     kept_numbers: list[tuple[int, tuple[str, ...], int]] = []
@@ -4492,12 +4693,12 @@ def _holes_by_the_description(
             # that candidate (`_split_missing`,
             # `_declared_numbers_removed` and `_sentinel_verdicts`, in
             # that order).
-            named_as_data = _named(kept_numbers, stand_in) or (
-                parsing.folded(cell) in kept_spellings_folded
+            named_as_data = _named(kept_numbers, stand_in) or _spelled_alike(
+                cell, kept_spellings_folded
             )
-            named_as_a_hole = _named(declared_numbers, exact) or (
-                parsing.folded(parsing.visible(cell)) in declared_folded
-            )
+            named_as_a_hole = _named(
+                declared_numbers, exact
+            ) or _spelled_alike(cell, declared_folded)
             if named_as_data:
                 is_hole = False
             elif named_as_a_hole or parsing.is_missing_text(cell):
@@ -4524,6 +4725,32 @@ def _holes_by_the_description(
     for index in range(len(cells)):
         settled = settled + [certain[index] or unsettled[index]]
     return settled
+
+
+def _spelled_alike(cell: str, folded: "dict[str, int]") -> bool:
+    """Whether a declaration folded into ``folded`` takes this cell.
+
+    ONE PLACE, AND IT IS WHERE THE DISPLAY BOUNDARY IS NOT (review item
+    P3-V9-F3). The producer matches a declaration that names no number
+    by the trimmed, case-folded spelling and nothing else
+    (`settings.declaration_matching`, whose one permitted value says
+    so). Both sides of this comparison are the raw text: the keys were
+    folded from spellings `declared_spellings` read out of the
+    description exactly as it stores them, and the cell is folded here
+    exactly as the file wrote it.
+
+    The version this replaces put the CELL through `parsing.visible`
+    first, which compared an escaped text with an unescaped one and made
+    twelve holes spelled with a control character invisible to the rule.
+    Named as a function of its own so that the property has somewhere to
+    be replaced from, which is what lets the suite prove the assertion
+    can fail.
+
+    Guarantees: takes a cell and a mapping of folded spellings; returns
+    whether one of them takes the cell. Raises nothing. No I/O, nothing
+    printed, and nothing escaped.
+    """
+    return parsing.folded(cell) in folded
 
 
 def _stand_in_of(

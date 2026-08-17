@@ -1258,9 +1258,12 @@ def test_no_column_carries_the_kept_marker_and_the_settings_now_do(
     spelling, computed from the command line without reading a cell, and
     written the same whether or not the table holds it. That is the
     stated lowering of the Phase 1 settings rule, and its bound is that
-    a word outside those thirteen is still written nowhere -- which
-    `tests/test_p1r7f2_disclosure_is_true.py` checks from the other
-    side.
+    a word outside those thirteen is still written nowhere in the
+    settings block -- which `tests/test_p1r7f2_disclosure_is_true.py`
+    checks from the other side. It is a bound on THAT block: a word of
+    the person's own named with `--missing-value` reaches its column's
+    `missing_by_source` under the ordinary floor, which is review item
+    P3-V9-F1 and plan amendment A-P3-31.
 
     AND THE VALIDATOR NOW READS THAT RECORD, which is this stage's half
     of it: `kept_spellings` returns the member, out of the one place the

@@ -4452,12 +4452,14 @@ def _cross_checks(
 # THE POOLED REMAINDER IS FOUND BY WALKING, NOT BY A LIST OF FIELDS.
 # `(withheld)` is the format's one word for "held back" (section 14),
 # and every pooled remainder in the document is a count standing under
-# it: `missing_by_class`, `missing_by_source`, `utc_offsets` and
-# `numeric_styles` today. Listing those four would leave the fifth
-# somebody adds unchecked, in exactly the way that left this rule
-# unenforced for the first four -- each of them WAS checked where it was
-# written, and each check exempted the remainder. The walk below reaches
-# a counted entry under that word wherever a field puts it.
+# it: `missing_by_class`, `utc_offsets` and `numeric_styles` today, and
+# `missing_by_source` too until version 5 moved its remainder out into
+# `n_missing_withheld`. Listing those would leave the next one somebody
+# adds unchecked, in exactly the way that left this rule unenforced for
+# the first four -- each of them WAS checked where it was written, and
+# each check exempted the remainder. The walk below reaches a counted
+# entry under that word wherever a field puts it, except where the TABLE
+# rather than the format decides the key: that bound is below.
 #
 # THE UNNAMED TALLY IS NAMED, because the format gives it no marker to
 # be found by. `n_sentinel_candidates_unpublished` counts the stand-in
@@ -4469,7 +4471,9 @@ def _cross_checks(
 # that moves to be a position this rule reaches.
 
 # The two fields that say "held back" in their name rather than under
-# the pooled-remainder word, and the two ways a refusal reads.
+# the pooled-remainder word, and the two ways a refusal reads. Both are
+# FIELD names, so both are read as names only where the format decides
+# the keys -- a cell that spells one of them is a cell, not a field.
 #
 # `n_missing_withheld` joined them at contract version 5 (C5-S13): it is
 # the pooled remainder that used to stand under the word inside
@@ -4481,14 +4485,23 @@ _NAMED_REMAINDER = "n_missing_withheld"
 _POOLED = "pooled"
 _TOO_RARE = "too-rare"
 
-# The one mapping of a version 5 document whose keys are the table's own
-# text (C5-N5). The walk below reads a key as this package's own word,
-# which is sound everywhere else and wrong here: a table whose cells
-# literally read `(withheld)` publishes that key with the count those
-# cells came to, and refusing it would refuse a description version 5
-# exists to make writable. What used to be pooled there is
-# `n_missing_withheld`, which the walk finds by name instead.
-_ONE_KEY_SPACE = "missing_by_source"
+# WHERE THE WALK MAY NOT READ A KEY AS A WORD (C5-N5; plan amendment
+# A-P3-32, review item P3-V9-F2). The walk below reads a key as this
+# package's own word, which is sound wherever the format fixes the key
+# names and wrong wherever the TABLE fixes them: a cell can say
+# `(withheld)`, and a cell can just as easily say `n_missing_withheld`
+# or `n_sentinel_candidates_unpublished`. Refusing those would refuse
+# descriptions version 5 exists to make writable.
+#
+# Which mappings those are is `canonical.TABLE_TEXT_KEY_SPACES`, read
+# from there rather than named here, because the producer's guard has to
+# answer this question the same way and a second list would let the two
+# drift. The version this replaces named ONE mapping and only for the
+# word `(withheld)`, so three doors were left open: a categorical label
+# reading `n_missing_withheld` wrote a description this loader refused,
+# the same label reading `(withheld)` was refused by the producer before
+# it could be written, and both told the person their untouched file had
+# been edited.
 
 
 def _step(path: "tuple[object, ...]", key: object) -> "tuple[object, ...]":
@@ -4523,24 +4536,23 @@ def _held_back_in(
     """
     found: list[tuple[tuple[object, ...], int, str]] = []
     if isinstance(node, dict):
-        # The one place a key is the table's text rather than this
-        # package's word, so the word is not read as a word there.
-        one_key_space = False
-        if path:
-            one_key_space = path[len(path) - 1] == _ONE_KEY_SPACE
+        # Whether the TABLE decides the keys here. Where it does, no key
+        # is read as one of this package's words -- not the pooled
+        # remainder's word and not either field name -- because every
+        # one of them is something a cell can say. The walk still goes
+        # on into the values, so a block standing under such a key would
+        # have its own field names read as names again.
+        the_tables_own_text = canonical.keys_are_the_tables_own_text(path)
         for key in sorted(node):
             value = node[key]
             here = _step(path, key)
-            if (
-                key == WITHHELD
-                and not one_key_space
-                and _is_a_row_count(value)
-            ):
-                found = found + [(here, value, _POOLED)]
-            if key == _NAMED_REMAINDER and _is_a_row_count(value):
-                found = found + [(here, value, _POOLED)]
-            if key == _UNNAMED_TALLY and _is_a_row_count(value):
-                found = found + [(here, value, _TOO_RARE)]
+            if not the_tables_own_text:
+                if key == WITHHELD and _is_a_row_count(value):
+                    found = found + [(here, value, _POOLED)]
+                if key == _NAMED_REMAINDER and _is_a_row_count(value):
+                    found = found + [(here, value, _POOLED)]
+                if key == _UNNAMED_TALLY and _is_a_row_count(value):
+                    found = found + [(here, value, _TOO_RARE)]
             found = found + _held_back_in(value, here)
     elif isinstance(node, list):
         place = 0
