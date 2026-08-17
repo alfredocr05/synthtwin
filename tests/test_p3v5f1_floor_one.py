@@ -299,7 +299,7 @@ def test_the_floor_governs_only_positions_the_loader_refuses(
                 )
             continue
         silent = silent + [where]
-    assert "S13" in rules, (
+    assert "C5-S13" in rules, (
         "not one of the grafted fields was refused by the rule that says "
         "a floor of one holds nothing back, so this derivation is "
         "passing on rules that were already there"
@@ -399,6 +399,17 @@ def test_every_pooled_remainder_is_refused_by_the_half_that_writes(
     sat under none of the three, and the derivation that would have
     caught it was only ever asked of the reading half. The two halves
     are now asked the same question from the same walk.
+
+    AND FROM CONTRACT VERSION 5 THE WALK HAS A SECOND HALF, because one
+    remainder stopped standing under the word (that contract's C5-N5 and
+    C5-S13). `missing_by_source` now holds one key space -- spellings
+    the table wrote -- so a key reading `(withheld)` there is the
+    table's own text and not a pool, and the remainder that used to
+    stand there is the named field `n_missing_withheld`. The derivation
+    therefore reads BOTH: every positive count under the word, and every
+    positive count in the one field that says "held back" in its name
+    where a spelling map used to say it. Neither half names a field it
+    does not have to.
     """
     strict = _described(tmp_path / "strict", _DEFAULT)
     loose = _described(tmp_path / "loose", 1)
@@ -407,7 +418,7 @@ def test_every_pooled_remainder_is_refused_by_the_half_that_writes(
         path
         for path, value in _walked(strict, ()).items()
         if path
-        and path[-1] == contract.WITHHELD
+        and path[-1] in (contract.WITHHELD, "n_missing_withheld")
         and not isinstance(value, bool)
         and isinstance(value, int)
         and value > 0
@@ -416,7 +427,10 @@ def test_every_pooled_remainder_is_refused_by_the_half_that_writes(
         f"the witness table stopped pooling a remainder anywhere, so "
         f"this derivation is measuring nothing: {remainders}"
     )
-    fields = {path[-2] for path in remainders}
+    fields = {
+        path[-2] if path[-1] == contract.WITHHELD else path[-1]
+        for path in remainders
+    }
     assert len(fields) >= 4, (
         f"every pooled remainder the witness makes now stands in the "
         f"same field, so this derivation cannot show the walk reaching "
@@ -460,9 +474,19 @@ def _column(document: dict, name: str) -> dict:
     raise AssertionError(f"no column called {name!r}")
 
 
+# THE FIFTH ENTRY MOVED WITH THE FORMAT, and the field it moved to is
+# the field the count moved to. Round 6 measured this one on
+# `missing_by_source`, whose `(withheld)` key carried the pooled
+# remainder; contract version 5 gives that map one key space and puts
+# the remainder in `n_missing_withheld` (its C5-N5, C5-S13). The witness
+# is the same witness -- a floor-one description that still holds
+# something back where the floor pooled it -- read at the field that
+# now holds it. Grafting the old field instead would now break a total
+# and be refused by the accounting rule, which would say this one is
+# enforced when it is not.
 _WITNESSES = (
     ("missing_by_class", "visits"),
-    ("missing_by_source", "visits"),
+    ("n_missing_withheld", "visits"),
     ("n_sentinel_candidates_unpublished", "reading"),
     ("utc_offsets", "stamped_at"),
     ("numeric_styles", "amount"),
@@ -624,23 +648,39 @@ def test_the_publication_guard_refuses_a_pool_at_a_floor_of_one() -> None:
     """
     at_one = profile._Publication(floor=1, names=("a",))
     at_eleven = profile._Publication(floor=11, names=("a",))
+    somewhere = ("columns", profile._EACH, "numeric_styles", profile._ANY_KEY)
     assert not profile._leaf_is_published(
-        profile._FLOORED_ENTRY, 3, contract.WITHHELD, at_one
+        profile._FLOORED_ENTRY, 3, contract.WITHHELD, somewhere, at_one
     )
     assert profile._leaf_is_published(
-        profile._FLOORED_ENTRY, 3, contract.WITHHELD, at_eleven
+        profile._FLOORED_ENTRY, 3, contract.WITHHELD, somewhere, at_eleven
     )
     assert not profile._leaf_is_published(
-        profile._HELD_BACK, 1, "suppressed_levels", at_one
+        profile._HELD_BACK, 1, "suppressed_levels", somewhere, at_one
     )
     assert profile._leaf_is_published(
-        profile._HELD_BACK, 0, "suppressed_levels", at_one
+        profile._HELD_BACK, 0, "suppressed_levels", somewhere, at_one
     )
     assert not profile._leaf_is_published(
-        profile._BELOW_THE_FLOOR, 1, "", at_one
+        profile._BELOW_THE_FLOOR, 1, "", somewhere, at_one
     )
     assert profile._leaf_is_published(
-        profile._BELOW_THE_FLOOR, "7", "", at_eleven
+        profile._BELOW_THE_FLOOR, "7", "", somewhere, at_eleven
+    )
+    # THE ONE MAP WHOSE KEYS ARE THE TABLE'S OWN TEXT (contract 5
+    # C5-N5). A count standing under those ten characters there is a
+    # count of cells that held them, not a pool, and refusing it at a
+    # floor of one would refuse the very description version 5 exists to
+    # make writable. The remainder that used to stand there is
+    # `n_missing_withheld`, held to the rule under its own kind above.
+    one_key_space = (
+        "columns", profile._EACH, "missing_by_source", profile._ANY_KEY
+    )
+    assert profile._leaf_is_published(
+        profile._FLOOR_COUNT, 3, contract.WITHHELD, one_key_space, at_one
+    )
+    assert not profile._leaf_is_published(
+        profile._HELD_BACK, 3, "n_missing_withheld", somewhere, at_one
     )
 
 

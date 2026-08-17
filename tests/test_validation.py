@@ -1606,25 +1606,43 @@ def test_the_settings_are_rebuilt_from_the_description(
     )
 
 
-def test_the_kept_set_reaches_all_three_published_routes(
+def test_the_kept_set_is_the_settings_block_and_nothing_else(
     tmp_path: pathlib.Path,
     every_role: "tuple[contract.Profile, str]",
 ) -> None:
-    """V2.3: variants keys, kept sentinel candidates, and folded labels."""
+    """V2.3 as amended: the two vocabulary lists, and no inference.
+
+    THIS TEST NAMED THREE ROUTES UNTIL CONTRACT VERSION 5 -- a level's
+    `variants` keys, a `kept_by_you` sentinel candidate, and a level's
+    folded label -- and every one of them was an inference the format
+    forced (plan amendments A-P3-27 and A-P3-29). A label is a spelling
+    of a cell the producer read as a VALUE, so naming it as kept changes
+    nothing: the kept set is consulted only for a cell that would
+    otherwise be called absent. Contract 5 section 6.4 proves the
+    members of this package's own published vocabulary are the whole of
+    what a rescue can change, so the tuple is READ from the settings
+    block now, and this fixture -- which declares nothing -- gets an
+    empty one.
+    """
     described, _twin = every_role
     kept = validation.kept_spellings(described)
     assert kept == tuple(sorted(kept))
+    assert described.settings.kept_values.n_declared == 0
+    assert kept == ()
+    # ...and the labels that used to arrive by inference are still
+    # values of their columns, which is why losing the routes lost no
+    # cell: not one of them is a spelling the producer reads as absent.
     labels = []
     for column in described.columns:
         facts = column.facts
         if isinstance(facts, contract.LabelFacts):
             for level in facts.levels:
                 labels.append(level.label)
-                for spelling in level.variants:
-                    assert spelling in kept
+                labels.extend(level.variants)
     assert labels
     for label in labels:
-        assert label in kept
+        assert not parsing.is_missing_text(label), label
+        assert validation._stand_in_of(taxonomy.exact_of_spelling(label)) is None
 
 
 def test_presence_is_blankness_and_never_the_redescription(

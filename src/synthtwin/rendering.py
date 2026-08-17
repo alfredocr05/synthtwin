@@ -796,6 +796,17 @@ def _missing_lines(
     account for, which was false of every one of them. The pooled entry
     of each map now says what pooling is: how many cells the map does
     not name, and why the map does not name them.
+
+    AND THE FIRST GROUP IS NO LONGER CALLED A GROUPING BY SPELLING
+    (plan amendment A-P3-30). It was, while `missing_by_source` was the
+    whole of it. Contract version 5 took the blank count and the pooled
+    count out of that map and gave each a field of its own, so the
+    group now holds up to three kinds of line and only one of them is a
+    spelling -- and on a column whose absent cells are ALL blank it read
+    `By the spelling your table used: 11 cell(s) with nothing written
+    in them`, which tells a researcher their empty cells wore something.
+    The heading asks what the table WROTE in those cells, which is a
+    question "nothing" is an answer to.
     """
     if not column.n_missing:
         return []
@@ -803,9 +814,9 @@ def _missing_lines(
         "  The twin writes every one of them as an empty cell, so how your",
         "  table wrote them is here rather than in the twin. The two",
         f"  groups below are two groupings of the same {column.n_missing} cell(s) --",
-        "  once by the spelling your table used, once by the reason each",
+        "  once by what your table wrote in them, once by the reason each",
         "  was counted absent -- so their numbers are not added together.",
-        "  By the spelling your table used:",
+        "  By what your table wrote in them:",
     ]
     lines = lines + _by_spelling_lines(column, floor)
     lines = lines + ["  By the reason each was counted absent:"]
@@ -815,14 +826,31 @@ def _missing_lines(
 def _by_spelling_lines(
     column: contract.ColumnBlock, floor: int
 ) -> "list[str]":
-    """The absent cells grouped by the spelling the table wrote."""
+    """The absent cells grouped by the spelling the table wrote.
+
+    THE SPELLING IS SHOWN, NEVER PRINTED RAW (contract 5 C5-3). From
+    version 5 the description stores a key character for character, so
+    a key can hold something that instructs a terminal. `_shown` puts
+    every one of them through the display boundary here, at the moment
+    of printing, and the printed characters are the ones version 4
+    printed (C5-4). What moved is the file, not the page.
+
+    AND THE TWO COUNTS ARE NOT SPELLINGS (contract 5 section 5). The
+    blank cells and the pooled remainder are two numbers of their own
+    now, and each is printed as what it is: cells with nothing written
+    in them, and cells the floor will not let this report name.
+    """
     lines: list[str] = []
-    pooled = 0
+    pooled = column.n_missing_withheld
+    if column.n_missing_blank:
+        lines = lines + [
+            (
+                f"    {column.n_missing_blank} cell(s) with nothing "
+                f"written in them"
+            )
+        ]
     for spelling in sorted(column.missing_by_source):
         count = column.missing_by_source[spelling]
-        if spelling == contract.WITHHELD:
-            pooled = count
-            continue
         lines = lines + [f"    {_shown(spelling)}: {count} cell(s)"]
     if pooled:
         lines = lines + [

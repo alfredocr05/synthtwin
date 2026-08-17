@@ -80,6 +80,7 @@ entry can excuse a sentence that was not already in the seal.
 
 import hashlib
 import pathlib
+import re
 import typing
 
 # -- the governing documents, and how a passage of one is named --
@@ -100,6 +101,7 @@ GOVERNING = (
     "docs/plans/phase-2-generator.md",
     "docs/plans/phase-3-product.md",
     "docs/spec/profile-contract-v4.md",
+    "docs/spec/profile-contract-v5.md",
     "docs/spec/generation-method-v1.md",
     "docs/spec/validation-method-v1.md",
 )
@@ -261,6 +263,15 @@ DECISIONS = "P2-D0"
 # unrelated sentence.
 PLAN_SECTIONS = (DECISIONS, "P2-D9")
 
+# Regions of the PHASE 3 plan, for facts that plan settles. The Phase 2
+# matrix is closed and its wording is the record of what Phase 2 ruled;
+# a field added by a Phase 3 amendment is stated in that amendment, and
+# is looked for there. Each entry is (region name, the marker the
+# amendment opens with); the region runs to the next heading.
+PLAN3_REGIONS = {
+    "A-P3-28": "**Amendment A-P3-28 —",
+}
+
 
 # -- the registry ------------------------------------------------------
 #
@@ -335,6 +346,21 @@ REGISTRY += [
 REGISTRY += _facts(
     "universal", REPORT_ONLY, "missing_by_class", "missing_by_source"
 )
+# The two counts contract version 5 moved out of `missing_by_source`
+# (its section 5). The Phase 2 plan's matrix predates them, so they
+# bind to the Phase 3 amendment that landed them, which writes their
+# row and the reason in one place.
+REGISTRY += [
+    Fact(
+        "universal",
+        field,
+        REPORT_ONLY,
+        plan_region="A-P3-28",
+        plan_words="| `n_missing_blank`, `n_missing_withheld` | "
+        "REPORT-ONLY — every absent cell is written empty |",
+    )
+    for field in ("n_missing_blank", "n_missing_withheld")
+]
 REGISTRY += _facts(
     "universal",
     EXACT_OBSERVABLE,
@@ -738,6 +764,43 @@ AUTHORIZED_BY: "dict[tuple[str, str, str], tuple[str, str]]" = {
         REPORT_ONLY,
     ),
 }
+
+# The rows contract version 5's section 11 adds to the version 4 matrix,
+# and which of that matrix's tables each one belongs to. Version 5
+# carries version 4 by reference and states only its delta, so the two
+# documents are read TOGETHER wherever the matrix is read at all
+# (contract 5 C5-30). A field appearing in that delta with no entry here
+# stops the guard rather than being filed by guesswork.
+CONTRACT5_SECTIONS = {
+    "n_missing_blank": "9.2 Universal per-column fields",
+    "n_missing_withheld": "9.2 Universal per-column fields",
+}
+
+
+def contract5_delta(path: pathlib.Path) -> "list[tuple[tuple[str, ...], str]]":
+    """Section 11 of contract version 5, as rows of names and a class.
+
+    Returns one entry per table row: the backticked names in its first
+    cell, and its second cell's text. The caller decides which of the
+    version 4 tables each row belongs to, using CONTRACT5_SECTIONS
+    above, because the delta table does not repeat the version 4
+    headings.
+    """
+    text = path.read_text(encoding="utf-8")
+    start = text.index("## 11. The disposition matrix")
+    body = text[start : text.index("\n## ", start + 10)]
+    rows: list[tuple[tuple[str, ...], str]] = []
+    for line in body.split("\n"):
+        if not line.startswith("|"):
+            continue
+        cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
+        if len(cells) < 2 or set(cells[0]) <= set("-: "):
+            continue
+        names = tuple(re.findall(r"`([^`]+)`", cells[0]))
+        if names:
+            rows.append((names, cells[1]))
+    return rows
+
 
 # Which contract table states which group.
 CONTRACT_SECTIONS = {

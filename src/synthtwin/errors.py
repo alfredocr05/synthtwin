@@ -1226,7 +1226,9 @@ def floor_not_positive(given: str) -> str:
 #
 # Nineteen ways reading a profile document can fail, one message each,
 # catalogued as R1 to R19 in `docs/spec/profile-contract-v4.md` section
-# 10.7 and carried out by `contract.py`. The word "description" is used
+# 10.7, carried into version 5 unchanged except that R11 and R12 read
+# against 5 (`docs/spec/profile-contract-v5.md` section 10), and carried
+# out by `contract.py`. The word "description" is used
 # throughout rather than "profile document", because it is what the
 # person running the tool was told the file is.
 #
@@ -1356,13 +1358,38 @@ def profile_not_canonical(path: str) -> str:
 def profile_version_is_older(found: int, reads: int) -> str:
     """R11: an older description, which is safely made again.
 
-    The advice is safe to give: somebody holding an old description of
-    their own table is normally somebody who still holds the table.
+    THE WORDING IS FIXED BY THE CONTRACT, word for word (contract 5
+    section 10.2, C5-26), with only the two version numbers filled in.
+    It has to say three things and it says them in this order: which
+    version each side is, WHY the older file cannot simply be read --
+    because it does not record which of synthtwin's own words for "no
+    value" the person named -- and what to do, which is to describe the
+    table again GIVING THE SAME DECLARATIONS. Naming the two options is
+    the difference between advice that can be followed and advice that
+    can be followed wrongly: a person who re-runs without the
+    `--missing-value` they used the first time gets a description that
+    reads their table differently.
+
+    WHY THE ADVICE IS SAFE TO GIVE, AND WHEN IT STOPS BEING SAFE.
+    Somebody holding an old description of their own table is normally
+    somebody who still holds the table, and today that is true of every
+    description in existence: there is no release and no tag. After the
+    first release this assumption is no longer safe for every reader,
+    and this wording is re-examined rather than inherited.
+
+    Nothing of the document is quoted here except the version it claims.
     """
     return (
         f"This description was written by an older version of synthtwin: "
         f"it says it is version {found}, and this synthtwin reads "
-        f"version {reads}. {_MAKE_IT_AGAIN}"
+        f"version {reads}. A version {reads} description records which "
+        f"of synthtwin's own words for \"no value\" you named on the "
+        f"command line, and a version {found} description does not, so "
+        f"this file cannot be read back exactly. Please make the "
+        f"description again by running 'synthtwin profile' on your "
+        f"table, giving the same --keep-value and --missing-value "
+        f"options you gave the first time, and use the file it writes "
+        f"exactly as it writes it."
     )
 
 

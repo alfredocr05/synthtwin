@@ -6,6 +6,13 @@ is version 3 plus five additions and no removals, so every test here
 asks one of two questions: is the new fact PRESENT and closed, and does
 the floor still govern what may be named.
 
+THESE FIVE ARE STILL VERSION 5'S, and that is why this file stays.
+`docs/spec/profile-contract-v5.md` carries version 4 by reference: every
+rule it does not supersede is a rule of version 5 at its version 4
+wording. None of the five is superseded, so every assertion below is an
+assertion about the shipped format. What version 5 ADDS is
+`tests/test_profile_version_5.py`.
+
 Each addition exists because two different tables used to produce
 identical bytes, and a description that cannot tell them apart cannot
 be the only thing a twin is built from. Where that is the reason, the
@@ -341,8 +348,13 @@ def test_the_version_number_moved_with_the_additions(
     tmp_path: pathlib.Path,
 ) -> None:
     document = document_for(tmp_path, [str(index) for index in range(40)])
-    assert profile.PROFILE_VERSION == 4
-    assert document["profile_version"] == 4
+    # The number moved AGAIN with version 5's three additions, and it is
+    # asserted exactly rather than as "at least four": a version number
+    # that could drift upward without a test moving is a version number
+    # nothing pins. What this test is about is that the five additions
+    # above arrived with a number of their own, and they did.
+    assert profile.PROFILE_VERSION == 5
+    assert document["profile_version"] == 5
 
 
 def test_the_document_still_serializes_to_the_same_bytes_twice(

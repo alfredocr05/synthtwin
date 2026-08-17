@@ -46,12 +46,22 @@ anywhere, although a column publishes the exact spelling of every hole
 whose count reaches the floor. A table profiled `--missing-value XX` and
 validated against its own profile reported SEVEN obligations MISSED --
 the column re-read as free text -- and `--missing-value -777` reported
-SEVENTEEN. That is closed here, by the fourth published route. What is
-NOT closed is a `--keep-value` spelling that is one of the built-in
-missing texts on a column publishing no level that carries it: no field
-of the document holds it, and the two files that decide the question are
-described byte for byte alike (plan amendment A-P3-15 clause 3). That
-one is MEASURED here at its size instead of claimed closed.
+SEVENTEEN. That is closed here, by the fourth published route.
+
+AND THE ONE THIS FILE MEASURED AS OPEN FOR THREE ROUNDS IS CLOSED TOO,
+BY THE FORMAT AND THEN BY THE VALIDATOR (contract version 5 section 6;
+plan amendments A-P3-27, A-P3-28 and A-P3-29). It was a `--keep-value`
+spelling that is one of the built-in missing texts, on a column
+publishing no level that carries it: no field of a version 4 document
+held it, and the two files that decide the question were described byte
+for byte alike. Version 5 records which members of this package's own
+thirteen published words a declaration named -- from the command line,
+never from a cell -- and the validator now reads that record instead of
+inferring the tuple from levels and verdicts. The witness that named
+this class, two hundred readings and one `n/a` kept as data, is measured
+in full and misses nothing. What the three tests below assert is
+therefore the CLOSURE at the same width they used to assert the gap,
+including the arithmetic that used to say why it could not close here.
 
 SO THIS FILE ASSERTS THE CLASS AND NOT THE WITNESS, in nine parts:
 
@@ -82,11 +92,12 @@ SO THIS FILE ASSERTS THE CLASS AND NOT THE WITNESS, in nine parts:
 * THE TWO PRESENCE COUNTS, taken off the same split description every
   other presence-dependent obligation is read off, so one report cannot
   answer one question twice;
-* WHAT IS OPEN, MEASURED RATHER THAN DESCRIBED: the sub-floor
-  declaration and the unrecoverable kept marker, each pinned to the
-  exact list of subchecks it costs, with the marker's unrecoverability
-  proved against every string the document carries and the reason it
-  does not close in this module shown as arithmetic on two files;
+* WHAT IS OPEN AND WHAT IS NOT, MEASURED RATHER THAN DESCRIBED: the
+  sub-floor declaration, still open and pinned to the exact list of
+  subchecks it costs, and the kept marker, now closed and pinned to the
+  same list as a list of CHECKS -- with the marker still shown to be in
+  no column of the document, and the two files that used to be described
+  alike shown to be told apart;
 * AND THE CLASS AS A SHAPE, not as a case: no function that decides
   which cells the file's own description reads may ask a rounding reader
   for a number, whatever it is called and whenever it is added -- with
@@ -142,19 +153,58 @@ _NEAR = "-999.00000000000001"
 _HOLE = "-999"
 
 
+def _kept_the_version_four_way(
+    described: contract.Profile,
+) -> "tuple[str, ...]":
+    """`kept_spellings` as it stood before the settings block carried it.
+
+    The three routes of V2.3, inferred from facts a description
+    publishes for other reasons: a `kept_by_you` sentinel verdict, a
+    level's label, and a level's `variants` keys. None of them reaches a
+    rescued word on a column of numbers, which is the class this file is
+    about.
+    """
+    found: dict[str, int] = {}
+    for column in described.columns:
+        for verdict in column.sentinel_verdicts:
+            if verdict.reason == taxonomy.REASON_KEPT_BY_USER:
+                found[verdict.candidate] = 1
+        facts = column.facts
+        if isinstance(facts, contract.LabelFacts):
+            for level in facts.levels:
+                found[level.label] = 1
+                for spelling in level.variants:
+                    found[spelling] = 1
+    return tuple(sorted(found))
+
+
 @pytest.fixture(scope="module", autouse=True)
 def _reinstated() -> "typing.Iterator[None]":
     """Put the pre-ruling behaviour back when REINSTATE asks for it.
 
-    `REINSTATE=A-P3-26` makes no column unrebuildable, so the two gaps
-    this file measures at their size go back to being printed as
-    misses and the assertions that say otherwise go red. MODULE-SCOPED,
-    because the descriptions below are built in module-scoped fixtures.
+    `REINSTATE=A-P3-26` makes no column unrebuildable, so the gap this
+    file still measures at its size goes back to being printed as
+    misses and the assertions that say otherwise go red.
+
+    `REINSTATE=A-P3-29` makes the validator infer the kept side from
+    levels and verdicts again instead of reading the settings block, so
+    every assertion that the kept-marker class is CLOSED goes red: the
+    tuple comes back empty, the seven obligations of the witness table
+    are reported missed again, and the two files the description used to
+    be unable to tell apart are described alike again.
+
+    MODULE-SCOPED, because the descriptions below are built in
+    module-scoped fixtures.
     """
     monkeypatch = pytest.MonkeyPatch()
-    if os.environ.get("REINSTATE") == "A-P3-26":
+    asked = os.environ.get("REINSTATE")
+    if asked == "A-P3-26":
         monkeypatch.setattr(
             validation, "unrebuildable_columns", lambda _described: {}
+        )
+    if asked == "A-P3-29":
+        monkeypatch.setattr(
+            validation, "kept_spellings", _kept_the_version_four_way
         )
     yield
     monkeypatch.undo()
@@ -894,7 +944,13 @@ def test_each_declared_fixture_reaches_the_publication_it_is_for(
         assert column.missing_by_source.get(marker, 0) >= _FLOOR
         assert column.role == taxonomy.ROLE_CONTINUOUS
     pooled = _reading_column(declared_below_the_floor[0])
-    assert pooled.missing_by_source == {parsing.MISSING_WITHHELD: 4}
+    # THE POOLED REMAINDER IS A FIELD OF ITS OWN from contract version 5
+    # (its section 5): the spellings map names groups the floor let it
+    # name, and nothing else. Four cells is under the floor, so the map
+    # names none of them and the count says how many it does not name.
+    assert pooled.missing_by_source == {}
+    assert pooled.n_missing_withheld == 4
+    assert pooled.n_missing_blank == 0
     assert 0 < pooled.n_missing < _FLOOR
 
 
@@ -1181,37 +1237,66 @@ def _texts_in(value: object) -> "list[str]":
     return []
 
 
-def test_no_published_field_carries_the_kept_marker(
+def test_no_column_carries_the_kept_marker_and_the_settings_now_do(
     tmp_path: pathlib.Path,
     kept_marker: "tuple[contract.Profile, str, taxonomy.Settings]",
 ) -> None:
-    """The unrecoverability, proved rather than asserted.
+    """Where the rescued word is, and where it still is not.
 
-    The three routes of V2.3 recover a spelling from a level's variants,
-    a level's label, or a `kept_by_you` sentinel verdict. A column of
-    numbers publishes no level, and a verdict exists only for a
-    candidate that reads as a number, so a kept NON-NUMERIC marker has
-    no route. This does not take that on trust: every string the whole
-    document carries, key and value alike, is compared with the marker
-    at the producer's own folded identity, and none of them is it.
+    THIS TEST WAS THE OTHER WAY ROUND UNTIL CONTRACT VERSION 5, and the
+    change is that version's whole point on this side (its section 6;
+    plan amendments A-P3-27, A-P3-28 and A-P3-29). The three routes of
+    V2.3 brought a spelling back from a level's variants, a level's
+    label, or a `kept_by_you` sentinel verdict. A column of numbers
+    publishes no level, and a verdict exists only for a candidate that
+    reads as a number, so no COLUMN of this description can name a
+    rescued non-numeric marker -- and none does, which is asserted here
+    at the width the finding was about.
+
+    What changed is that `n/a` is one of synthtwin's OWN ten published
+    words for "no value", so the settings block names it: the member's
+    spelling, computed from the command line without reading a cell, and
+    written the same whether or not the table holds it. That is the
+    stated lowering of the Phase 1 settings rule, and its bound is that
+    a word outside those thirteen is still written nowhere -- which
+    `tests/test_p1r7f2_disclosure_is_true.py` checks from the other
+    side.
+
+    AND THE VALIDATOR NOW READS THAT RECORD, which is this stage's half
+    of it: `kept_spellings` returns the member, out of the one place the
+    document holds it, so the reading rule this description was written
+    under is rebuilt exactly although no column of it carries the word.
     """
     described, table, settings = kept_marker
     column = _reading_column(described)
     assert column.n_present == 201
     assert column.n_missing == 0
     assert column.n_not_numeric == 1
-    assert validation.kept_spellings(described) == ()
+    assert validation.kept_spellings(described) == (_KEPT_MARKER,)
     assert validation.declared_spellings(described) == ()
+    # ...and it came from the settings block, not from any column: the
+    # three routes this replaced bring back nothing on this description.
+    assert _kept_the_version_four_way(described) == ()
     document = _description_of(
         tmp_path, table, "kept-marker-again", settings
     )
     marker = parsing.folded(_KEPT_MARKER)
+    for block in document["columns"]:
+        assert not [
+            text
+            for text in _texts_in(block)
+            if parsing.folded(text) == marker
+        ], (
+            "a column block carries the marker, so a fourth per-column "
+            "route exists and was not taken"
+        )
+    assert described.settings.kept_values.built_in_texts == (_KEPT_MARKER,)
     carried = [
         text for text in _texts_in(document) if parsing.folded(text) == marker
     ]
-    assert not carried, (
-        "the description does carry the marker somewhere, so a fourth "
-        f"route exists and was not taken: {carried}"
+    assert carried == [_KEPT_MARKER], (
+        f"the rescued vocabulary member is named in exactly one place, "
+        f"the settings block; it is in {len(carried)}"
     )
     assert table.count(_KEPT_MARKER) == 1
 
@@ -1220,14 +1305,16 @@ def test_the_kept_marker_gap_is_measured_at_its_size(
     tmp_path: pathlib.Path,
     kept_marker: "tuple[contract.Profile, str, taxonomy.Settings]",
 ) -> None:
-    """WHAT IS NOT CLOSED, at its exact size (plan amendment A-P3-15).
+    """THE SEVEN, NOW CHECKED AND HELD (plan amendment A-P3-29).
 
-    Seven obligations of the table the description was written from come
-    back MISSED, and the list is written out so that a repair which
-    closes it turns this red -- and so that a change which WIDENS it
-    turns this red too. The bound is stated in `kept_spellings`; a
-    sentence in a docstring that nothing measures is the defect review
-    item P3-V5-F2 named.
+    The list is the same list this test has carried since round 6, and
+    what it asserts about each entry has moved twice. Under amendment
+    A-P3-15 the seven were MISSED on the table the description was
+    written from -- a confident falsehood with numbers beside it. Under
+    A-P3-26 they became seven lines of the NOT-CHECKABLE census, each
+    saying what the description did not record. Under contract version 5
+    the description records it and this validator reads it, so the seven
+    are seven CHECKS and every one of them HOLDS.
 
     IT WAS FIVE, AND THE TWO THAT JOINED IT ARE A BAR BEING RAISED
     RATHER THAN A GAP GROWING (plan amendment A-P3-20 clause 3, review
@@ -1238,18 +1325,12 @@ def test_the_kept_marker_gap_is_measured_at_its_size(
     description pins both distinctness counts. Until the second summand
     was written the supply read two hundred, a corner nobody needs was
     claimed, and the envelope it opened admitted this very file's two
-    hundred as an AUTHORIZED DEVIATION. The one cause of the gap is
-    unchanged; two of its consequences stopped being hidden.
+    hundred as an AUTHORIZED DEVIATION.
 
-    AND THE SEVEN ARE NOT MISSES ANY MORE (owner ruling 2026-08-16, plan
-    amendment A-P3-26). The gap is the same gap: `n/a` is exactly as
-    unrecoverable as it was, and no route brings it back. What moved is
-    what the report does about it. Seven MISSED verdicts on a table that
-    is its own description's perfect match were seven false alarms; they
-    are seven lines of the NOT-CHECKABLE census now, each saying what
-    the description does not record. The list is still written out one by
-    one, so a repair that closes the gap and a change that widens it
-    both turn this red.
+    THE LIST IS STILL WRITTEN OUT ONE BY ONE, and it has to be: a
+    regression that puts any of the seven back on the not-checkable
+    census, or back on MISSED, turns this red by name rather than by a
+    total that another change could hold level.
     """
     described, table, _settings = kept_marker
     outcome = _measure(tmp_path, described, table, "kept-marker.csv")
@@ -1264,6 +1345,15 @@ def test_the_kept_marker_gap_is_measured_at_its_size(
             if listing.reason.endswith(validation.UNREBUILDABLE_REASON_TAIL)
         }
     )
+    assert unsupported == [], (
+        "the kept-marker class is closed, so no obligation of this "
+        "description is named as one it cannot support asking"
+    )
+    held = {
+        check.subcheck
+        for check in outcome.checks
+        if check.verdict == validation.HELD
+    }
     for subcheck in (
         "counts.n_left_out_of_statistics",
         "counts.n_not_numeric",
@@ -1273,12 +1363,12 @@ def test_the_kept_marker_gap_is_measured_at_its_size(
         "presence.n_missing",
         "presence.n_present",
     ):
-        assert subcheck in unsupported, (
-            f"the size of the open kept-marker gap changed: {subcheck} "
-            f"is neither checked nor named as unsupported; "
-            f"`kept_spellings`, `unrebuildable_columns`, the module "
-            f"docstring and plan amendments A-P3-15 and A-P3-26 all "
-            f"state it and all have to move with it"
+        assert subcheck in held, (
+            f"the kept-marker class reopened: {subcheck} is not a check "
+            f"that holds on the table its own description was written "
+            f"from; `kept_spellings`, `unrebuildable_columns`, the "
+            f"module docstring and plan amendments A-P3-15, A-P3-26 and "
+            f"A-P3-29 all state it and all have to move with it"
         )
 
 
@@ -1286,7 +1376,7 @@ def test_closing_it_here_would_state_what_the_producer_does_not_publish(
     tmp_path: pathlib.Path,
     kept_marker: "tuple[contract.Profile, str, taxonomy.Settings]",
 ) -> None:
-    """WHY it is not closed in this module, as arithmetic.
+    """WHY it could not close here, and what the ruling changed.
 
     Two files: the witness table, and the same table with its one `n/a`
     written `NULL`. The first meets every fact the description
@@ -1294,14 +1384,21 @@ def test_closing_it_here_would_state_what_the_producer_does_not_publish(
     producer reads `NULL` as a hole and the description says the column
     has none. So a correct report passes the first and fails the second.
 
-    And the producer describes the two BYTE FOR BYTE ALIKE under the
-    settings this module can build, which is what is asserted here. Any
-    rule that reads the blank split for the first reads it for the second
-    as well, and stating 201 present about the second states a count
-    `synthtwin profile` run on that file would not publish -- V5.1. The
-    gap therefore closes on a ruling about what the profile publishes,
-    not on an edit to `validation.py`, and that is why the amendment
-    records it instead of a repair claiming it.
+    UNDER VERSION 4 THIS TEST ASSERTED THAT IT COULD NOT. The settings
+    this module could build described the two BYTE FOR BYTE ALIKE, so
+    any rule that passed the first passed the second, and stating 201
+    present about the second stated a count `synthtwin profile` run on
+    that file would not publish -- V5.1. The gap therefore closed on a
+    ruling about what the profile publishes rather than on an edit to
+    `validation.py`, and the owner took that ruling on 2026-08-17.
+
+    SO THE ARITHMETIC IS ASSERTED THE OTHER WAY ROUND NOW, at the same
+    width. The settings this module builds carry the rescued word, the
+    two descriptions differ, and each file is measured under the rule
+    its description was written under: the conforming file misses
+    nothing and the file that does not conform MISSES. Both halves are
+    here, because a change that passed both would be the same defect the
+    version-4 arithmetic was recording.
     """
     described, table, settings = kept_marker
     other = table.replace(f",{_KEPT_MARKER}\n", ",NULL\n")
@@ -1309,16 +1406,27 @@ def test_closing_it_here_would_state_what_the_producer_does_not_publish(
     reconstructed = validation.settings_for(described)
     mine = _description_of(tmp_path, table, "witness", reconstructed)
     theirs = _description_of(tmp_path, other, "sibling", reconstructed)
-    assert mine == theirs, (
-        "the two files are told apart by the settings this module can "
-        "build, so the gap is closable here after all and the amendment "
-        "is wrong"
+    assert mine != theirs, (
+        "the settings this module builds describe the two files alike "
+        "again, so the reading rule is not being rebuilt from the "
+        "description's own record of it"
     )
-    # ...while the description's OWN settings tell them apart exactly.
+    # ...and the description's OWN settings tell them apart the same way.
     was = _description_of(tmp_path, table, "witness-true", settings)
     now = _description_of(tmp_path, other, "sibling-true", settings)
     assert was["columns"][1]["n_present"] == 201
     assert now["columns"][1]["n_present"] == 200
+    assert mine["columns"][1]["n_present"] == 201
+    assert theirs["columns"][1]["n_present"] == 200
+    # The verdicts that follow from it: the file the description was
+    # written from holds, and the file it was not written from misses.
+    conforming = _measure(tmp_path, described, table, "conforming.csv")
+    assert conforming.census.missed == 0
+    other_run = _measure(tmp_path, described, other, "not-conforming.csv")
+    assert other_run.census.missed > 0, (
+        "a file the description does not describe is passed, which is "
+        "the false pass this class used to hide behind"
+    )
 
 
 def _description_of(

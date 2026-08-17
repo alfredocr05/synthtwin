@@ -129,7 +129,8 @@ import re
 import pytest
 
 import dispositions
-from synthtwin import cli
+import fixtures
+from synthtwin import cli, contract, profile, reading, taxonomy
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
 PACKAGE = REPO_ROOT / "src" / "synthtwin"
@@ -171,6 +172,7 @@ SURFACES = (
     "src/synthtwin/validation.py",
     "src/synthtwin/writing.py",
     "docs/spec/profile-contract-v4.md",
+    "docs/spec/profile-contract-v5.md",
     "docs/spec/generation-method-v1.md",
     "docs/spec/validation-method-v1.md",
 )
@@ -2941,3 +2943,287 @@ def test_the_fourth_family_would_notice_the_promise_it_replaced() -> None:
             f"{relative} must also be in SURFACES, so that the ban above "
             f"covers the surface the limit is stated on"
         )
+
+
+# ---------------------------------------------------------------------
+# THE FIFTH FAMILY: WHICH WIRE VERSION SYNTHTWIN SPEAKS, COUNTED FROM
+# THE PRODUCT (owner ruling 2026-08-17; plan amendment A-P3-30)
+# ---------------------------------------------------------------------
+#
+# WHAT WENT WRONG, ONCE MORE AND IN THE WORST PLACE. The format moved
+# from version 4 to version 5 in three stages -- the specification, then
+# the producer and the loader, then the validator. Each stage corrected
+# the sentences it could see. What no stage saw was the top of
+# `docs/spec/profile-contract-v5.md` itself, which opened by saying that
+# the shipped producer wrote version 4, that the shipped loader read
+# version 4 and nothing else, and that nothing in it might be written
+# about anywhere in this repository as though it were built. By then the
+# changelog, the security document and the plan all correctly described
+# version 5 as shipped, the producer wrote it and the loader read it --
+# so the one document that GOVERNS the format was the one document still
+# denying it, and an institution's reviewer opening the contract first
+# would have read the opposite of the truth in the first paragraph.
+#
+# This is the fourth family's failure mode wearing a number instead of a
+# sentence, and it is the third family's answer that fits it: do not keep
+# a list of wordings somebody has to remember to update. Take the number
+# from the product and hold every surface to it.
+#
+# WHAT IS BANNED, AND WHAT IS DELIBERATELY NOT. Only a PRESENT-TENSE
+# claim about what SYNTHTWIN ITSELF writes, reads, emits, produces or
+# accepts. History is not banned and must not be: "version 4 rewrote
+# each spelling before storing it" is how a format change is explained,
+# and "the version 4 document governs for a version 4 profile" is the
+# rule that keeps the older contract a record. Nor is the refusal
+# banned: "a version 4 document is refused" is the behaviour, not a
+# claim to be one. The pattern therefore needs a SUBJECT that is
+# synthtwin -- the producer, the loader, the profiler, the package, the
+# tool -- and a verb in the present, and only then does the number after
+# it have to be the number the product carries.
+#
+# WHICH SURFACES. Every surface of `SURFACES`, and BOTH GOVERNING PLANS
+# besides, for the withdrawn-defence family's reason rather than the
+# count families': the wire version is not a roadmap statement about a
+# phase that does not exist. A plan that says which version the shipped
+# producer writes is stating today's fact, and the plan said it twice.
+# `docs/spec/profile-contract-v4.md` is walked too and passes, because
+# its own text describes what a version 4 READER and a version 4
+# document do, never what this synthtwin does.
+VERSION_SURFACES = DEFENCE_SURFACES
+
+# The subject has to be synthtwin. `reader`, `consumer`, `producer of
+# another kind` and every other actor a specification reasons about are
+# deliberately absent: a contract that says what a version 3 reader does
+# with a version 4 block is doing its job.
+_WHO_IS_SYNTHTWIN = (
+    r"(?:this |the )?(?:shipped )?"
+    r"(?:synthtwin|producer|loader|profiler|package|tool)"
+)
+
+# The verb has to be present-tense and about speaking the format. The
+# window between subject and verb, and between verb and number, is
+# capped and may not cross a sentence end, so that two unrelated
+# sentences cannot be read as one claim.
+_VERSION_CLAIM = re.compile(
+    _WHO_IS_SYNTHTWIN
+    + r"[^.!?\n]{0,140}?"
+    + r"\b(?:writes?|writing|reads?|reading|emits?|produces?|accepts?)\b"
+    + r"[^.!?\n]{0,60}?"
+    + r"\bversion (?P<number>\d+)\b",
+    re.IGNORECASE,
+)
+
+
+# THE RED CHECKS FOR THIS FAMILY. Each puts back exactly what stood
+# before the repair, in memory, so that a guard which cannot fail is
+# caught here rather than trusted:
+#
+#   REINSTATE=A-P3-30         the stale opening paragraph of the
+#                             contract, word for word as it shipped --
+#                             reds `test_no_surface_says_...`;
+#   REINSTATE=A-P3-30-silent  every wire sentence deleted instead of
+#                             corrected, which is what a ban satisfied
+#                             by silence looks like -- reds
+#                             `test_the_wire_version_is_actually_...`;
+#   REINSTATE=A-P3-30-wide    the ban drawn without a synthtwin subject,
+#                             which is the widening that would forbid
+#                             explaining a format change at all -- reds
+#                             `test_the_version_ban_reads_history_...`.
+_THE_STALE_OPENING = (
+    "**Status: written before any code, which is this repository's "
+    "standing process.** The shipped producer writes version 4 today "
+    "and the shipped loader reads version 4 and nothing else."
+)
+
+_SUBJECTLESS_CLAIM = re.compile(
+    r"\bversion (?P<number>\d+)\b", re.IGNORECASE
+)
+
+
+def _surface_text(relative: str) -> str:
+    """One surface's text as the version ban reads it.
+
+    The single door every version check goes through, so that a red
+    check can put the retired wording back without touching the tree.
+    """
+    text = (REPO_ROOT / relative).read_text(encoding="utf-8")
+    asked = os.environ.get("REINSTATE")
+    if asked == "A-P3-30" and relative.endswith("profile-contract-v5.md"):
+        return _THE_STALE_OPENING + "\n" + text
+    if asked == "A-P3-30-silent":
+        return _VERSION_CLAIM.sub("(the wire sentence, deleted)", text)
+    return text
+
+
+def _claim_pattern() -> "re.Pattern[str]":
+    """The ban's pattern, or the over-wide one a red check asks for."""
+    if os.environ.get("REINSTATE") == "A-P3-30-wide":
+        return _SUBJECTLESS_CLAIM
+    return _VERSION_CLAIM
+
+
+def _shipped_wire_version() -> int:
+    """The profile version this product speaks, read from the product.
+
+    Read from BOTH module constants, because they can disagree: a bump
+    applied to one and not the other ships a loader that refuses its own
+    producer's output, and every sentence below would then be checked
+    against a number only half the product carries.
+
+    That the producer actually WRITES this number into a description is
+    checked separately by
+    `test_the_producer_writes_the_version_its_constant_names`, which
+    needs a folder to write a table into and so cannot live in here.
+
+    Guarantees:
+
+    - Inputs: none.
+    - Determinism: a fixed function of the shipped package; nothing is
+      read from disk and nothing is written.
+    - Errors raised: `AssertionError` where the two constants disagree,
+      so that a half-applied version bump fails here rather than in the
+      field.
+    - Boundary: no file of any kind is opened.
+    """
+    assert profile.PROFILE_VERSION == contract.PROFILE_VERSION, (
+        "The producer and the loader name different profile versions "
+        f"({profile.PROFILE_VERSION} and {contract.PROFILE_VERSION}). "
+        "A version bump is applied to both in one commit, or the "
+        "shipped loader refuses the shipped producer's own output."
+    )
+    return int(profile.PROFILE_VERSION)
+
+
+def test_the_producer_writes_the_version_its_constant_names(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The constant the sentences are checked against is the wire itself.
+
+    Without this, a constant that stopped reaching the document would
+    leave every version sentence in the repository checked against a
+    number no description carries -- which is the same class of quiet
+    drift the families above exist to refuse.
+    """
+    text = fixtures.single_column_table(
+        "only", [str(row) for row in range(30)]
+    )
+    path = fixtures.write(tmp_path, "table.csv", text)
+    table = reading.read_table(str(path))
+    document = profile.build_document(table, taxonomy.Settings(), [])
+    written = document["profile_version"]
+    if os.environ.get("REINSTATE") == "A-P3-30-drift":
+        # The red check: a constant that stopped reaching the wire. Both
+        # halves of this file's version family read the constant, so a
+        # drift here would leave every sentence checked against a number
+        # no description carries.
+        written = int(written) + 1  # type: ignore[arg-type]
+    assert written == _shipped_wire_version(), (
+        f"The producer writes profile_version {written} while its own "
+        f"constant says {_shipped_wire_version()}. Every version "
+        "sentence in this repository is checked against the constant, "
+        "so the two may not differ."
+    )
+
+
+def test_no_surface_says_synthtwin_speaks_a_version_it_does_not() -> None:
+    """Every present-tense wire claim names the version the product has.
+
+    The negative half of the fifth family. A surface may say anything it
+    likes ABOUT version 4 -- what it meant, what it lost, why it was
+    replaced, that it is refused -- and may not say that synthtwin
+    writes, reads, emits, produces or accepts it.
+    """
+    shipped = _shipped_wire_version()
+    pattern = _claim_pattern()
+    stale: list[str] = []
+    for relative in VERSION_SURFACES:
+        text = _surface_text(relative)
+        for found in pattern.finditer(text):
+            if int(found.group("number")) == shipped:
+                continue
+            line = text.count("\n", 0, found.start()) + 1
+            said = " ".join(found.group(0).split())
+            stale.append(f"{relative}:{line}: {said!r}")
+    assert not stale, (
+        "These sentences say synthtwin speaks a profile version it does "
+        f"not. The product writes and reads version {shipped}:\n  "
+        + "\n  ".join(stale)
+        + "\n\nIf the version bumped, correct every sentence in the same "
+        "commit. If the sentence is HISTORY -- what an older version "
+        "did, or what an older document still means -- write it in the "
+        "past tense and without a present-tense verb about synthtwin, "
+        "which is what the ban is drawn around. Do not add a surface to "
+        "an exception list: that is how every ban in this file rots."
+    )
+
+
+def test_the_wire_version_is_actually_claimed_somewhere() -> None:
+    """The positive half, so that deleting the sentences is not a pass.
+
+    A ban on saying the wrong number is satisfied by a repository that
+    says no number at all, and the document a researcher is sent to when
+    their description is refused has to say which version this synthtwin
+    speaks. So at least one surface must make the claim, and the
+    contract that governs the format must be one of them.
+    """
+    shipped = _shipped_wire_version()
+    saying = [
+        relative
+        for relative in VERSION_SURFACES
+        if any(
+            int(found.group("number")) == shipped
+            for found in _claim_pattern().finditer(_surface_text(relative))
+        )
+    ]
+    assert saying, (
+        f"No surface says synthtwin writes or reads version {shipped}. "
+        "The ban above is satisfied by silence, which is not what it is "
+        "for: state the shipped version on the contract that governs it."
+    )
+    governing = f"docs/spec/profile-contract-v{shipped}.md"
+    assert governing in saying, (
+        f"{governing} does not say that synthtwin writes or reads "
+        f"version {shipped}. That document is the first thing an "
+        "institution's reviewer opens, and it is the document that was "
+        "found still denying the version it governs."
+    )
+
+
+def test_the_version_ban_reads_history_and_refusals_as_permitted() -> None:
+    """What the ban must NOT catch, asserted rather than hoped.
+
+    Every sentence below is one this repository needs to be able to
+    write. If a future widening of `_VERSION_CLAIM` catches one of them,
+    the widening is wrong: a format change cannot be explained without
+    naming the version it came from.
+    """
+    permitted = (
+        (
+            "version 4 rewrote each spelling into a printable form "
+            "before storing it."
+        ),
+        (
+            "the version 4 document governs for a version 4 profile, "
+            "and this document governs for a version 5 profile."
+        ),
+        (
+            "a version 4 document is refused with the message section "
+            "10.2 fixes word for word."
+        ),
+        (
+            "a version 3 reader that dispatches on role reads a "
+            "version 4 column block correctly."
+        ),
+        "version 5 is version 4 with the changes in sections 4, 5 and 6.",
+        "no group that version 4 withheld becomes named.",
+    )
+    caught = [
+        sentence
+        for sentence in permitted
+        if _claim_pattern().search(sentence) is not None
+    ]
+    assert not caught, (
+        "The version ban now catches sentences this repository has to "
+        "be able to write:\n  " + "\n  ".join(caught) + "\n\nNarrow "
+        "`_VERSION_CLAIM` -- never add an exception list."
+    )

@@ -18,8 +18,20 @@ ones that look too small to matter: the order of a loop, the direction
 of a rounding, which end of a list a tie goes to.
 
 **What it does not cover.** The profile's wire shape, key by key, is
-`docs/spec/profile-contract-v4.md`; this document names published fields
-and assumes that contract's meanings. The command line, the output file
+`docs/spec/profile-contract-v5.md` together with
+`docs/spec/profile-contract-v4.md`, which version 5 carries by reference
+(version 5 section 2.2): a rule version 5 does not supersede is a rule
+of version 5 at its version 4 wording and is cited below by its version
+4 number. This document names published fields and assumes the
+meanings the two of them fix. **This pointer is amended rather than original**
+(plan amendments A-P3-28 and A-P3-30): it named the version 4 document
+alone, which was true until the producer and the loader moved to
+version 5 and false afterwards — and the reader it misdirected is the
+one this document is written for, the independent implementer working
+from this text alone. Nothing else here moves, because no generation
+rule reads any field version 5 changed; the twin's bytes at a fixed
+profile and seed are what they were, and the frozen reference vectors
+prove it. The command line, the output file
 names, the write transaction, the refusal catalogue's wording and the
 generation report's own bytes are P2-D10's business. Fidelity
 measurement and the quality report are `synthtwin validate`'s, and the

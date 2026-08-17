@@ -3647,6 +3647,13 @@ def _universal(name, role, statistical_type, structural_role, quality_state, **f
             "(withheld)": 0,
         },
         "missing_by_source": {},
+        # The two counts contract version 5 moved out of the map above,
+        # so that its keys are the table's own text and nothing else
+        # (that contract's section 5).  Neither is read by any
+        # generation rule; they are here because every column block
+        # carries them and the loader would refuse a block that did not.
+        "n_missing_blank": 0,
+        "n_missing_withheld": 0,
         "n_sentinel_candidates_unpublished": 0,
         "sentinel_verdicts": [],
         "detection_evidence": "written by hand in this method specification's "
@@ -3658,7 +3665,7 @@ def _universal(name, role, statistical_type, structural_role, quality_state, **f
         block["missing_by_class"] = dict(block["missing_by_class"])
         block["missing_by_class"]["(withheld)"] = block["n_missing"]
         if role not in ("identifier", "free_text", "numeric_unrepresentable"):
-            block["missing_by_source"] = {"(withheld)": block["n_missing"]}
+            block["n_missing_withheld"] = block["n_missing"]
     return block
 
 
@@ -4501,7 +4508,8 @@ def word_budget(column, rows):
 # a column block stops the run: the point of naming them is that a field
 # added later cannot arrive as an unproved number without being noticed.
 INTEGER_COLUMN_KEYS = frozenset({
-    "position", "n_present", "n_missing", "n_distinct", "n_distinct_folded",
+    "position", "n_present", "n_missing", "n_missing_blank",
+    "n_missing_withheld", "n_distinct", "n_distinct_folded",
     "n_numeric", "n_not_numeric", "n_out_of_range", "n_contradictory",
     "n_sentinel_candidates_unpublished", "n_zero", "n_negative",
     "n_negative_unrepresentable", "n_used_in_statistics",

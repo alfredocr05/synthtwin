@@ -1,5 +1,29 @@
 """A description that cannot be read back says so, and stops guessing.
 
+THREE OF THE FIVE ROUTES ARE CLOSED AT THE ROOT SINCE CONTRACT VERSION
+5, and this file is where that is measured (plan amendments A-P3-27,
+A-P3-28 and A-P3-29). Routes 2 and 5 -- the escaped spelling and the two
+key spaces in one map -- are gone: the description stores the spelling
+character for character and keeps this package's own two counts in
+fields of their own, so those witnesses are now measured in full, with
+every obligation checked and nothing named unsupported. Route 1 is gone
+in both halves: the description records which of this package's own
+words were named, and the validator READS that record instead of
+inferring the reading rule from levels and verdicts, so the rescued-word
+witness is measured in full too. Routes 3 and 4 are the two contract 5
+section 7 says no version of this format closes.
+
+AND THE KEPT SIDE OF THE HEAD COUNT IS GONE WITH ROUTE 1, which is the
+wider of the two costs amendment A-P3-26 wrote down. That amendment
+asked its head count of EVERY column on the kept side, because no
+published number said how many present cells were rescued. Contract 5
+section 6.4 proves the settings block's two vocabulary lists are the
+WHOLE of what a rescue can change, so the question is decided rather
+than assumed and the question is not asked.
+
+The rest of this docstring is the record of what the class was, kept as
+written, because the routes that remain are the same routes.
+
 OWNER RULING 2026-08-16, plan amendment A-P3-26. `validate` is defined
 as: rebuild the reading rule from the description, re-describe the
 measured file with it, compare (V2.2). That definition needs the
@@ -64,12 +88,19 @@ against the description of its indistinguishable twin, returns exit code
 That construction is `test_p3v7f1_escaped_declarations.py`'s, and it is
 asserted there.
 
-THE RED CHECK. `REINSTATE=A-P3-26` in the environment puts the
+THE RED CHECKS. `REINSTATE=A-P3-26` in the environment puts the
 pre-ruling behaviour back -- no column is ever unrebuildable, so every
 one of these witnesses re-describes the file under an incomplete rule
 and reports the misses again. Every assertion below that says a witness
 misses nothing goes red with it, and so does every assertion that names
 an obligation as unsupported.
+
+`REINSTATE=A-P3-29` makes the validator infer the kept side from levels
+and verdicts again instead of reading the settings block, and puts the
+kept-side head count back with it. The rescued witness stops being
+measured in full and every column of a description that names a kept
+value is flagged again, so every assertion that route 1 is closed goes
+red.
 
 Every table is built at test time by seeded neutral builders; no
 data-format file enters the repository (plan D13).
@@ -106,6 +137,64 @@ _CLASS_WORD = "(declared-missing)"
 _FLOOR = taxonomy.Settings().small_cell_floor
 
 
+def _kept_the_version_four_way(
+    described: contract.Profile,
+) -> "tuple[str, ...]":
+    """`kept_spellings` as it stood before the settings block carried it."""
+    found: dict[str, int] = {}
+    for column in described.columns:
+        for verdict in column.sentinel_verdicts:
+            if verdict.reason == taxonomy.REASON_KEPT_BY_USER:
+                found[verdict.candidate] = 1
+        facts = column.facts
+        if isinstance(facts, contract.LabelFacts):
+            for level in facts.levels:
+                found[level.label] = 1
+                for spelling in level.variants:
+                    found[spelling] = 1
+    return tuple(sorted(found))
+
+
+# The shipped rule, held before any patch replaces the name, so that the
+# reinstatement below adds to it rather than calling itself.
+_SHIPPED_UNREBUILDABLE = validation.unrebuildable_columns
+
+
+def _rescued_the_version_four_way(
+    described: contract.Profile,
+) -> "tuple[str, ...]":
+    """`rescued_spellings` as A-P3-26's kept-side head count counted it."""
+    found: dict[str, int] = {}
+    for column in described.columns:
+        for verdict in column.sentinel_verdicts:
+            if verdict.reason == taxonomy.REASON_KEPT_BY_USER:
+                found[verdict.candidate] = 1
+    return tuple(sorted(found))
+
+
+def _with_the_kept_head_count(
+    described: contract.Profile,
+) -> "dict[str, str]":
+    """`unrebuildable_columns` with amendment A-P3-26's kept-side half.
+
+    Every column of a description that names more kept values than the
+    one published route brought back, which under the version 4 settings
+    was every column of any description naming one at all.
+    """
+    found = dict(_SHIPPED_UNREBUILDABLE(described))
+    rescued = _rescued_the_version_four_way(described)
+    named = described.settings.kept_values.n_declared
+    if len(rescued) < named:
+        for column in described.columns:
+            if column.name not in found:
+                found[column.name] = (
+                    "the description says word(s) were named as meaning "
+                    "real data when it was written and records fewer of "
+                    "them, so " + validation.UNREBUILDABLE_REASON_TAIL
+                )
+    return found
+
+
 @pytest.fixture(scope="module", autouse=True)
 def _reinstated() -> "typing.Iterator[None]":
     """Put the pre-ruling behaviour back when REINSTATE asks for it.
@@ -116,9 +205,17 @@ def _reinstated() -> "typing.Iterator[None]":
     nobody used.
     """
     monkeypatch = pytest.MonkeyPatch()
-    if os.environ.get("REINSTATE") == "A-P3-26":
+    asked = os.environ.get("REINSTATE")
+    if asked == "A-P3-26":
         monkeypatch.setattr(
             validation, "unrebuildable_columns", lambda _described: {}
+        )
+    if asked == "A-P3-29":
+        monkeypatch.setattr(
+            validation, "kept_spellings", _kept_the_version_four_way
+        )
+        monkeypatch.setattr(
+            validation, "unrebuildable_columns", _with_the_kept_head_count
         )
     yield
     monkeypatch.undo()
@@ -331,15 +428,104 @@ def _checked(outcome: validation.Outcome) -> "list[str]":
 
 # -- the routes --------------------------------------------------------
 
+# The routes a description still cannot be read back on. Three left
+# this tuple at contract version 5 and are asserted closed below, which
+# is why they are named there rather than deleted: a route that stopped
+# being tested is a route nobody would notice reopening.
 _ROUTES = (
-    "rescued",
-    "escaped",
     "pooled",
     "free-text",
-    "class-word",
-    "pool-word",
     "partial",
 )
+
+# The three the format change closed, and what each one was.
+_CLOSED_BY_VERSION_5 = (
+    # Route 2: the key crossed the display boundary before it was
+    # stored, so two tables described alike (contract 5 C5-1).
+    "escaped",
+    # Route 5: the person's text and this package's class words shared
+    # one key space (contract 5 C5-11, C5-N5).
+    "class-word",
+    "pool-word",
+)
+
+# And the one the VALIDATOR stage closed, which is a route of the same
+# five and is separated only because the format closed it one commit
+# earlier than the validator read it (plan amendment A-P3-29). Route 1:
+# the settings block carries which of this package's own words were
+# named, and `kept_spellings` reads it instead of inferring the tuple
+# from levels and verdicts.
+_CLOSED_BY_THE_VALIDATOR = ("rescued",)
+
+_CLOSED = _CLOSED_BY_VERSION_5 + _CLOSED_BY_THE_VALIDATOR
+
+
+@pytest.mark.parametrize("route", _CLOSED)
+def test_the_routes_version_five_closed_are_measured_in_full(
+    witnesses: "dict[str, Witness]", route: str
+) -> None:
+    """No column is flagged, and every obligation is a check again.
+
+    These four were listed as ones the description could not support
+    asking. The description supports them now, so the not-checkable
+    census holds only the REPORT-ONLY facts every run carries and the
+    presence counts are measured against the file.
+    """
+    witness = witnesses[route]
+    assert validation.unrebuildable_columns(witness.described) == {}, route
+    outcome = validation.measure(witness.described, witness.path)
+    assert _missed(outcome) == [], route
+    assert _unsupported(outcome) == [], route
+    for subcheck in ("presence.n_present", "presence.n_missing"):
+        assert subcheck in _checked(outcome), f"{route}: {subcheck}"
+
+
+@pytest.mark.parametrize("route", _CLOSED_BY_VERSION_5)
+def test_the_spelling_those_routes_needed_is_in_the_description(
+    witnesses: "dict[str, Witness]", route: str
+) -> None:
+    """And it is there exactly, which is what made the difference.
+
+    Each of these three tables wears a marker version 4 could not write
+    down: one holds a character the display boundary shows, and two hold
+    text identical to one of this package's own class words. Version 5
+    writes each of them as the cells wore it.
+    """
+    witness = witnesses[route]
+    column = witness.described.columns[0]
+    assert column.missing_by_source == {witness.marker: 12}, route
+    assert validation.declared_spellings(witness.described) == (
+        witness.marker,
+    ), route
+
+
+@pytest.mark.parametrize("route", _CLOSED_BY_THE_VALIDATOR)
+def test_the_word_route_one_needed_is_in_the_settings_block(
+    witnesses: "dict[str, Witness]", route: str
+) -> None:
+    """And no column of the description carries it, which was the point.
+
+    Route 1's witness rescues one of this package's own ten words on a
+    column of numbers. No level, no variant and no sentinel verdict can
+    hold that word, so the three routes the validator used to infer the
+    kept side from bring back nothing at all. The settings block names
+    the vocabulary member, and the validator reads it there.
+
+    THE KEPT-SIDE HEAD COUNT IS GONE WITH IT, and that is asserted by
+    the flag list being empty rather than by the absence of a branch:
+    under amendment A-P3-26 this description flagged EVERY column,
+    because no published number said how many present cells were
+    rescued. One does now.
+    """
+    witness = witnesses[route]
+    assert _kept_the_version_four_way(witness.described) == (), route
+    assert witness.described.settings.kept_values.built_in_texts == (
+        witness.marker,
+    ), route
+    assert validation.kept_spellings(witness.described) == (
+        witness.marker,
+    ), route
+    assert validation.unrebuildable_columns(witness.described) == {}, route
 
 
 @pytest.mark.parametrize("route", _ROUTES)
@@ -495,22 +681,27 @@ def test_a_column_no_declared_word_reached_keeps_every_check(
 # -- the rule is a function of the description, and of nothing else -----
 
 
-def test_two_files_one_description_cannot_tell_apart_get_one_answer(
+def test_the_two_worlds_of_the_pool_word_now_describe_differently(
     tmp_path: pathlib.Path,
 ) -> None:
-    """V5.1, on the confidentiality form of the class-word collision.
+    """The confidentiality form of the class-word collision, closed.
 
     World A holds twelve cells that literally read this package's word
     for the pooled remainder, under one declaration. World B holds
-    twelve cells spread over four rare spellings, every one of them
-    below the floor and therefore pooled into that same word. The two
-    descriptions are byte for byte alike, and the round-8 finding is
-    that the two REPORTS were not: one printed a raw distinctness of 61
-    and the other 72, off the same description.
+    twelve cells spread over rare spellings, every one of them below the
+    floor and therefore pooled. Under version 4 both published
+    `missing_by_source = {"(withheld)": 12}`, the two descriptions came
+    out byte for byte alike, and the round-8 finding was that the two
+    REPORTS were not: one printed a raw distinctness of 61 and the other
+    72, off the same description.
 
-    Both reports are the same report now, achieved values and all,
-    because the obligations that told them apart are obligations this
-    description cannot support asking.
+    CONTRACT VERSION 5 GIVES THE MAP ONE KEY SPACE (its C5-11, C5-N5).
+    World A's key is the table's own text and means twelve cells wore
+    it; world B names no key at all and says twelve cells are pooled, in
+    `n_missing_withheld`. The two descriptions are different files, and
+    each is read under its own rule: A is measured in full, and B keeps
+    the not-checkable treatment that the floor's own limit calls for
+    (route 3, contract 5 section 7.2).
     """
     first, first_path, first_document = _described(
         tmp_path,
@@ -527,27 +718,25 @@ def test_two_files_one_description_cannot_tell_apart_get_one_answer(
         _numeric_table([" " * (index + 1) + _POOL_WORD for index in range(12)]),
         taxonomy.Settings(declared_missing_values=(_POOL_WORD,)),
     )
-    assert canonical.serialize(first_document) == canonical.serialize(
+    assert canonical.serialize(first_document) != canonical.serialize(
         second_document
     )
     assert first.columns[0].missing_by_source == {_POOL_WORD: 12}
-    assert second.columns[0].missing_by_source == {_POOL_WORD: 12}
+    assert first.columns[0].n_missing_withheld == 0
+    assert second.columns[0].missing_by_source == {}
+    assert second.columns[0].n_missing_withheld == 12
+    # World A is read back exactly, so its own table is measured in
+    # full and misses nothing.
     here = validation.measure(first, first_path)
-    there = validation.measure(first, second_path)
-    assert [
-        (check.subcheck, check.verdict, check.published, check.achieved)
-        for check in here.checks
-    ] == [
-        (check.subcheck, check.verdict, check.published, check.achieved)
-        for check in there.checks
-    ]
-    assert [
-        (listing.column, listing.fact, listing.subcheck, listing.reason)
-        for listing in here.listings
-    ] == [
-        (listing.column, listing.fact, listing.subcheck, listing.reason)
-        for listing in there.listings
-    ]
+    assert _missed(here) == []
+    assert _unsupported(here) == []
+    assert "presence.n_present" in _checked(here)
+    # World B's twelve spellings are all below the floor, which is the
+    # one thing no version of this format publishes, so its own
+    # description still cannot support asking those obligations.
+    there = validation.measure(second, second_path)
+    assert _missed(there) == []
+    assert "presence.n_present" in _unsupported(there)
 
 
 def test_the_same_description_moves_the_same_obligations_on_any_file(
@@ -637,7 +826,13 @@ def test_what_moves_on_the_free_text_witness_is_written_out(
     outcome = validation.measure(witness.described, witness.path)
     assert len(outcome.checks) == 10
     assert len(_unsupported(outcome)) == 21
-    assert outcome.census.not_checkable == 32
+    # THIRTY-FOUR, AND THE TWO THAT ARRIVED ARE NOT THIS RULING'S. The
+    # census also carries every REPORT-ONLY fact of the description, and
+    # contract version 5 added two of them to every column --
+    # `n_missing_blank` and `n_missing_withheld`, which the twin owes
+    # nothing (plan amendment A-P3-28). The numbers this ruling is
+    # measured by are the two above: ten checks left, twenty-one moved.
+    assert outcome.census.not_checkable == 34
     assert outcome.census.missed == 0
 
 
@@ -684,6 +879,11 @@ def test_the_declaration_below_the_floor_is_bounded_by_the_floor(
     witness = witnesses["pooled"]
     column = witness.described.columns[0]
     assert validation.declared_spellings(witness.described) == ()
-    assert column.missing_by_source == {_POOL_WORD: 9}
+    # THE POOLED REMAINDER IS A FIELD OF ITS OWN from contract version 5
+    # (its section 5), so the map names nothing at all here and the
+    # count says how many cells it does not name. What the floor does is
+    # unchanged: nine cells, three spellings, none of them named.
+    assert column.missing_by_source == {}
+    assert column.n_missing_withheld == 9
     assert column.missing_by_class.withheld == 9
     assert column.missing_by_class.withheld < _FLOOR

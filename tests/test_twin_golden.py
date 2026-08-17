@@ -182,8 +182,16 @@ def test_the_golden_run_is_the_shape_this_file_says_it_is(
 # difference is deliberate: this one declares `record_code` as an
 # identifier and that one declares nothing, so the two together pin the
 # producer with the identifier role reached and with it not reached.
+#
+# IT MOVED AT CONTRACT VERSION 5 and the twin's did NOT, which is worth
+# reading as one fact (plan amendment A-P3-28): the description gained
+# `profile_version: 5`, two counts on every column block and two
+# vocabulary lists in each declaration record, and no generation rule
+# reads any of them, so `GOLDEN_TWIN_SHA256` below is untouched. The
+# report and the quality report moved with the description, because
+# both are about what the description says.
 GOLDEN_DESCRIPTION_SHA256 = (
-    "ff6c704fbe94b116904899bef0dd1a7e30eb6a784c557fa6981da767db9a7593"
+    "52509e1683d353d0bcf4c2326b6ecbe707cfb66cc703c1c464e3099ae1a605f9"
 )
 
 
@@ -442,8 +450,35 @@ def test_the_same_description_and_seed_give_the_same_twin_twice(
 #
 # The report says strictly more than it did, in words rather than in
 # codes. No verdict, count, measurement or order moved.
+#
+# IT MOVED AT CONTRACT VERSION 5, in one place, and the report says
+# strictly more than it did there. Where a column's absent cells were
+# all blank the line read `(blank): 11 cell(s)` -- this package's own
+# word printed where a spelling goes -- and it now reads `11 cell(s)
+# with nothing written in them`. The count is the same count under the
+# same floor; what changed is that it is no longer dressed as a
+# spelling somebody's table wrote (contract 5 section 5).
+#
+# AND ONE HEADING MOVED WITH IT, one stage later, because the fix above
+# left the group it sits in mislabelled (plan amendment A-P3-30). The
+# first grouping was called "By the spelling your table used" when
+# `missing_by_source` was the whole of it; contract version 5 gave the
+# blank count and the pooled count fields of their own, so the group
+# holds up to three kinds of line and only one is a spelling. On a
+# column whose absent cells are all blank it therefore read `By the
+# spelling your table used: 11 cell(s) with nothing written in them`,
+# which tells a researcher their empty cells wore something. The
+# heading and the sentence introducing it now ask what the table WROTE
+# in those cells, which is a question "nothing" is an answer to.
+#
+# FOUR BLOCKS OF THIS REPORT MOVED AND NOTHING ELSE DID, diffed line by
+# line before this was re-recorded: `visits` (blank), `amount`
+# (`-999`), `comment` (nothing named) and `unused` (blank). Same
+# counts, same order, same totals, same sentences everywhere else. The
+# description, twin and quality digests all held, which is what says
+# this is the page and not the run.
 GOLDEN_REPORT_SHA256 = (
-    "66f6d44aba5e5f0a6ded639eea3751c38ece91179a89e1886307491c1ebdec14"
+    "4962fd8eb73a9b2289dd16bd1fba91cfa8173831b034d9d6e62d57cd40e0f04f"
 )
 
 
@@ -785,8 +820,14 @@ def test_the_report_names_the_seed_the_twin_was_built_at(
 #    shown -- the line below says why" sent a reader down the page after
 #    lines that are not there, and the word's meaning is a fact about
 #    the vocabulary rather than about this run.
+#
+# IT MOVED AT CONTRACT VERSION 5, and the census grew rather than
+# shrank: `n_missing_blank` and `n_missing_withheld` are REPORT-ONLY
+# facts of every column, so each column adds two lines to the
+# not-checkable census, each naming what it is in words (plan amendment
+# A-P3-28). No verdict moved and no obligation left the report.
 GOLDEN_QUALITY_SHA256 = (
-    "d3b66c7de6095fbbf76d9b08af596ca3cae69a1bdaaba061611ee05cdc169d73"
+    "7c8be43cade4cf6f70e9bcf4ed599cd2889cb5f6041bbaeac06a51fededb1d51"
 )
 
 
