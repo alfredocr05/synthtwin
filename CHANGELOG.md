@@ -4,7 +4,98 @@ All notable changes to synthtwin are documented here. The format follows
 Keep a Changelog; versions follow SemVer (0.x until the end-to-end product
 exists).
 
-## [Unreleased]
+### Changed in Phase 3: the description format is version 5
+
+**A description written by an earlier synthtwin is refused, and there is
+no upgrade path.** Run `synthtwin profile` on your table again, giving
+the same `--keep-value` and `--missing-value` options you gave the first
+time, and use the file it writes exactly as it writes it. The refusal
+says all of that on its own face. There is no release before this one,
+so every description in existence belongs to somebody who still holds
+the table it describes -- which is why the change was taken now rather
+than after a release, when the same change would cost strangers a
+migration (owner ruling 2026-08-17, plan amendments A-P3-27 and
+A-P3-28; the format is `docs/spec/profile-contract-v5.md`).
+
+**Why it changed.** A description has to carry how each cell of your
+table became "no value" -- the blanks, synthtwin's own words for
+nothing, the stand-in numbers, and the words you named yourself --
+because `synthtwin validate` rebuilds that rule from the description and
+has nothing else. A version 4 description did not carry it, and the
+consequence was not a missing feature but a wrong answer: a table
+checked against its own genuine description came back with obligations
+reported as missed, with numbers beside them.
+
+- **A declared spelling is stored exactly and escaped only when it is
+  printed.** Version 4 rewrote a spelling into its printable form before
+  storing it, so a word holding an invisible character and a word
+  holding the printable characters that stand for it produced
+  byte-identical descriptions. Every page prints the same characters it
+  printed before; what moved is the file.
+- **The blank count and the pooled count left the spellings map.** Each
+  column now carries `n_missing_blank` and `n_missing_withheld`, so
+  `missing_by_source` holds one key space -- the spellings your table
+  wrote -- and a table whose cells literally read `(withheld)` can be
+  described. **After this there is no field of the format in which a
+  value of somebody's table and one of synthtwin's own words can land in
+  the same slot.** Both counts are the numbers version 4 published under
+  those two keys, computed by the same rules under the same floor.
+- **The settings block names which of synthtwin's own thirteen published
+  words you typed** -- ten spellings it reads as "no value" and three
+  stand-in numbers. It still carries no spelling of your own: the
+  member's spelling is written and never yours, no count, column or row
+  goes with it, and it is written identically whether or not the word
+  occurs in your table. `SECURITY.md` states the delta and its bound,
+  and the plain-language summary says it on every run where you named a
+  value.
+- **`synthtwin validate` reads all of that, so it stops declining to
+  check what the description now records** (plan amendment A-P3-29). If
+  you kept one of synthtwin's own words as real data -- two hundred
+  readings and one `n/a` under `--keep-value n/a` -- checking your own
+  table against its own description used to leave fifty-three
+  obligations unchecked and ten measured. All fifty-three are measured
+  now and every one of them holds. The same is true where you named one
+  of synthtwin's words, or a stand-in number, as "no value": the check
+  no longer stands down on those columns, whatever the publication floor
+  did with the cells, and it no longer stands down on every column of a
+  description merely because you kept a value somewhere.
+- **Two limits are stated rather than closed.** On a column that
+  publishes no value of your table -- free text, record numbers,
+  numbers no format can hold -- the source accounting stays empty
+  whatever made the cells absent, because publishing the marker word
+  there would publish text out of a column that exists to publish none.
+  And a spelling fewer than `--smallest-group` cells share is still
+  pooled and unnamed. **Both now reach only a word of YOUR own**: one of
+  synthtwin's thirteen published words is recorded whatever the floor
+  and the column class did with its cells. Where either applies,
+  `synthtwin validate` lists the affected obligations as ones this
+  description cannot support asking, with a printed reason, instead of
+  reporting them as missed.
+- **No cell of any twin changed.** No generation rule reads any field
+  that moved, and the twin still writes every absent cell as an empty
+  field, so the frozen twin bytes are untouched.
+- **The three artifacts that DID move, diffed line by line before their
+  hashes were re-recorded.** The description gained `profile_version: 5`,
+  two counts on every column block and two vocabulary lists in each
+  declaration record, and nothing else -- one `(blank)` entry left the
+  spellings map on each column that had one, and became the count
+  beside it. The generation report changed in one line per such column,
+  from a blank count dressed as a spelling to a count that says it is
+  cells with nothing written in them. The quality report's checked
+  census did not move at all; its not-checkable census grew by exactly
+  two lines per column, one for each new REPORT-ONLY count, each naming
+  itself in words. No verdict changed and no obligation left any report.
+- **The frozen reference vectors were regenerated, which this project
+  treats as a changelogged event** (determinism rule D12). What moved
+  in them is the profile fragments they carry as INPUT, and only where
+  contract version 5 moved a key: `(withheld)` left `missing_by_source`
+  and became `n_missing_withheld`, and every column block gained the
+  two counts, because the loader refuses a block without them. **Not
+  one expected twin cell in either file changed**, which is the fact
+  that says the oracle still disagrees with nothing. The oracle is an
+  independent implementation written from the generation method and
+  imports no part of synthtwin; `tools/provenance/check_provenance.py`
+  re-runs it and compares the bytes on every guard run.
 
 ### Added in Phase 3: `synthtwin validate`, and the fourth artifact
 - **The third command.** `synthtwin validate <description>` reads the

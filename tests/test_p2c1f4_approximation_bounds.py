@@ -49,6 +49,7 @@ import typing
 
 import pytest
 
+import dispositions
 import fixtures
 from synthtwin import (
     contract,
@@ -265,13 +266,19 @@ APPROXIMATED = {
 
 
 def _matrix_sections() -> "dict[str, dict[str, str]]":
-    """Section 9 of the profile contract, read as fields and dispositions.
+    """The disposition matrix, read from both versions, as fields.
 
-    Returns one mapping per matrix table, keyed by the heading the
-    contract gives it, whose entries are every name in the first cell of
-    a row against the disposition text in the second. Reading the
-    contract rather than restating it is the point: a matrix that gains
-    a field, loses one, or changes a disposition moves these tests.
+    Returns one mapping per matrix table, keyed by the heading version 4
+    gives it, whose entries are every name in the first cell of a row
+    against the disposition text in the second. Reading the contract
+    rather than restating it is the point: a matrix that gains a field,
+    loses one, or changes a disposition moves these tests.
+
+    VERSION 5 IS READ WITH IT, because version 5 carries version 4 by
+    reference and states only its delta (its C5-30 requires the
+    completeness assertion to pass against the two read together).
+    `dispositions.CONTRACT5_SECTIONS` says which version 4 table each
+    delta row belongs to.
     """
     text = (SPEC / "profile-contract-v4.md").read_text(encoding="utf-8")
     start = text.index("## 9. The disposition matrix")
@@ -294,6 +301,12 @@ def _matrix_sections() -> "dict[str, dict[str, str]]":
             continue
         for name in re.findall(r"`([^`]+)`", cells[0]):
             sections[heading][name] = cells[1]
+    delta = dispositions.contract5_delta(SPEC / "profile-contract-v5.md")
+    for names, said in delta:
+        for name in names:
+            where = dispositions.CONTRACT5_SECTIONS.get(name)
+            if where is not None:
+                sections[where][name] = said
     return sections
 
 

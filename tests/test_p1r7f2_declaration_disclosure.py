@@ -90,7 +90,12 @@ def test_a_declared_value_never_reaches_the_settings_block(
     # The whole document, not the role block: this is where it escaped.
     assert RARE_TOKEN not in written
     assert RARE_TOKEN not in summary_text
+    # The rare token is the person's own word, so neither vocabulary
+    # list carries it and the count is still the whole of what the
+    # settings block says (contract 5 C5-17).
     assert document["settings"]["declared_missing_values"] == {
+        "built_in_numbers": [],
+        "built_in_texts": [],
         "n_declared": 1,
         "values_recorded": False,
     }
@@ -153,7 +158,13 @@ def test_a_kept_value_stays_out_of_the_settings_and_stays_in_its_column(
     column = document["columns"][0]
     assert column["role"] == taxonomy.ROLE_CATEGORICAL
     assert column["n_missing"] == 0
+    # `NA` IS one of synthtwin's own ten words, so version 5 records
+    # the member `na` here -- this package's spelling, never the
+    # person's capitals (contract 5 C5-17). What that gives up is
+    # written out in `profile.DECLARATION_PUBLICATION`.
     assert document["settings"]["kept_values"] == {
+        "built_in_numbers": [],
+        "built_in_texts": ["na"],
         "n_declared": 1,
         "values_recorded": False,
     }
@@ -212,11 +223,21 @@ def test_the_settings_block_still_names_every_setting() -> None:
         [],
     )
     assert recorded["kept_values"] == {
-        "n_declared": 2, "values_recorded": False,
+        "built_in_numbers": [-999.0],
+        "built_in_texts": ["na"],
+        "n_declared": 2,
+        "values_recorded": False,
     }
     assert recorded["declared_missing_values"] == {
-        "n_declared": 1, "values_recorded": False,
+        "built_in_numbers": [],
+        "built_in_texts": [],
+        "n_declared": 1,
+        "values_recorded": False,
     }
+    # The PERSON'S spelling is still nowhere: `NA` was typed and `na`
+    # is written, `-999` was typed and `-999.0` is written, and
+    # `unknown` -- which is on no list of synthtwin's -- is written
+    # nowhere at all (contract 5 C5-17).
     assert "NA" not in json.dumps(recorded)
     assert "unknown" not in json.dumps(recorded)
 
@@ -257,6 +278,20 @@ def test_the_summary_says_what_is_and_is_not_recorded(
     assert "named as real data: 0;   named as 'no value': 1" in summary_text
     assert "how many values you named each way and" in summary_text
     assert "the rule it used to match them" in summary_text
+    # AND THE OPENING NAMES ITS OWN EXCEPTION (plan amendment A-P3-30).
+    # It said flatly that the spellings YOU typed are not written into
+    # the settings, and eight lines lower the same page told the person
+    # who typed `n/a` that the description records which of synthtwin's
+    # own words they named. Both were true; the pair was unreadable, and
+    # the reader who has to act on this page is exactly the reader who
+    # typed one of the thirteen. What is pinned is that the claim keeps
+    # a word of the person's OWN as its subject and carries the
+    # exception where it is made, so the contradiction cannot come back
+    # by somebody shortening the sentence.
+    said = " ".join(summary_text.split())
+    assert "A word of YOUR OWN is not written into its settings" in said
+    assert "which of those words it was" in said
+    assert "The spellings YOU typed are not written" not in said
     # This test asserted "NOT written into the profile" until the claim
     # was checked against the code and found false: the sentence it came
     # from told the person that a value they typed is held back like

@@ -548,11 +548,14 @@ def _parse_arguments(argv: "list[str] | None") -> _Options:
             "a number is matched as a NUMBER, so -999 also covers "
             "-999.00; anything else is matched as text, ignoring "
             "surrounding spaces and upper or lower case. The profile "
-            "records how many values you named and the rule that "
-            "matched them, never the values themselves -- but a value "
-            "you name this way IS data from then on, so it can appear "
-            "wherever its column publishes values, for instance as that "
-            "column's smallest number. May be given more than once"
+            "records how many values you named, the rule that matched "
+            "them, and -- where what you named is one of synthtwin's "
+            "own words for 'no value', such as NA or -999 -- which of "
+            "those words it was; a word of your own is never written "
+            "into the settings. And a value you name this way IS data "
+            "from then on, so it can appear wherever its column "
+            "publishes values, for instance as that column's smallest "
+            "number. May be given more than once"
         ),
     )
     parser.add_argument(
@@ -566,11 +569,13 @@ def _parse_arguments(argv: "list[str] | None") -> _Options:
             "column where 'unknown' or -1 was typed for a reading nobody "
             "took. It is matched the same way as --keep-value, and the "
             "rows holding it are counted as missing rather than "
-            "described. The profile records how many values you named "
-            "and the rule that matched them, never the values "
-            "themselves -- but the column still lists the spellings it "
-            "counted as missing, on the same rules as any other missing "
-            "spelling. May be given more than once"
+            "described. The profile records how many values you named, "
+            "the rule that matched them, and -- where what you named is "
+            "one of synthtwin's own words for 'no value' -- which of "
+            "those words it was; a word of your own is never written "
+            "into the settings, though the column still lists the "
+            "spellings it counted as missing, on the same rules as any "
+            "other missing spelling. May be given more than once"
         ),
     )
     parser.add_argument(

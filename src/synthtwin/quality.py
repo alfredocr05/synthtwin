@@ -607,6 +607,14 @@ _LISTING_WORDS = {
     "universal.missing_by_source": (
         "the spellings the absent cells of your column wore"
     ),
+    "universal.n_missing_blank": (
+        "how many absent cells of your column had nothing written in "
+        "them"
+    ),
+    "universal.n_missing_withheld": (
+        "how many absent cells of your column wore a spelling too few "
+        "rows shared for the description to name"
+    ),
     "universal.n_sentinel_candidates_unpublished": (
         "how many stand-in numbers were too rare for the description to "
         "name"

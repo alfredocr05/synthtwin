@@ -38,7 +38,8 @@ Phase 0 D10 and SECURITY.md already ratified.
 (Phase 5) — the `validation_targets` slot stays `null`, and the check
 inventory derives from published per-column facts and the ratified
 disposition matrix, never from a manifest slot; **no profile WIRE
-change — `profile_version` stays 4**, the validator consumes v4
+change — `profile_version` stays 4 (AMENDED, once, by A-P3-27 — read
+the note that follows this paragraph)**, the validator consumes v4
 exactly as shipped, no new published fact, no producer change (the
 twin-side pooled-cell sentence of contract 7.5.7 may be amended under
 owner decision 1's repair, by counted re-seal — that sentence governs
@@ -51,6 +52,20 @@ chaining command (owner decision 4); no standalone build (Phase 6).
 The generator's outputs at a fixed (profile, seed, version) change
 only if the OPEN-defect repairs of owner decision 1 require it, and
 any such change is a changelogged regeneration event under D12.
+
+**The wire non-goal is amended, once, and only it** (owner ruling
+2026-08-17, amendment A-P3-27, written out in full where the
+amendments stand). The profile wire DOES change in this phase:
+`profile_version` becomes 5 and the format is
+`docs/spec/profile-contract-v5.md`. Every other non-goal above holds
+exactly as written — no cross-column validation, no relationship
+content, the `validation_targets` slot still `null`, no new roles or
+subtypes, no row-count override, no new input or output formats, no
+machine-readable verdict file, no chaining command, no standalone
+build. Why the change was taken inside this phase rather than left to
+the next one is priced at the amendment: after the first release the
+same change costs strangers a migration, and today it costs a line in
+the changelog.
 
 ## Sequencing — artifacts, in order
 
@@ -2796,12 +2811,20 @@ and the file's own wrong count lands on the verdict.
      its own profile. **It was five until G12.8's supply was given its
      second summand; the two that joined are a bar going up rather than
      this gap growing, amendment A-P3-25 clause 3 states why, and the
-     one cause of the gap is unchanged;**
+     one cause of the gap is unchanged. (CLOSED 2026-08-17 by amendments
+     A-P3-27 and A-P3-29, which are the decision this clause's last
+     paragraph says it waits on: contract version 5 records which of
+     this package's own published words a `--keep-value` named, and the
+     validator reads that record. All seven are checked and all seven
+     HOLD on the witness above.);**
    - **a declaration of either kind whose cells sit below
      `small_cell_floor` in every column**, pooled into `(withheld)` and
      named nowhere. Bounded by the floor per spelling per column, and
      measured in the suite at seven subchecks on the witness that
-     reaches it.
+     reaches it. **(AMENDED by A-P3-29: this reaches only a word of the
+     PERSON'S own now. One of this package's thirteen published words is
+     recorded in the settings block whatever the floor did with its
+     cells.)**
 
    **Reading the split anyway is not available, and that is why this is
    a ruling and not a repair.** Two hundred readings and one `n/a`,
@@ -2820,6 +2843,13 @@ and the file's own wrong count lands on the verdict.
    `values_recorded: false` is a confidentiality rule of Phase 1
    (P1-R7-F2) and this plan may not narrow it. Until it is taken, no
    sentence in this repository may say the bound of P3-D3 is met.
+   **(THE DECISION WAS TAKEN on 2026-08-17 and is amendment A-P3-27,
+   at the size and price recorded there; A-P3-29 is the validator
+   reading what it records. The bound of P3-D3 is still NOT met, and
+   this sentence still binds, because two kinds of declaration stay
+   unrecoverable — a word of the person's own that the floor pooled,
+   and a word of the person's own on a column that publishes no value
+   of the table. What changed is which descriptions they are.)**
 
 **How to reverse this.** Clause 1 reverses by making `declared_spellings`
 answer the empty tuple, which re-opens both measured witnesses with the
@@ -4068,7 +4098,12 @@ a column no declared word appeared in, and a word no cell of that column
 wore cannot change how that column reads. On the kept side no such count
 exists — a rescued cell is PRESENT and no published number says how many
 present cells were rescued — so that half is asked of every column, and
-that is the wider of the two costs.
+that is the wider of the two costs. **(AMENDED by A-P3-29: one does
+now. Contract version 5's settings block records which of this
+package's own words a `--keep-value` named, contract 5 section 6.4
+proves those are the whole of what a rescue can change, and the
+kept-side head count is deleted rather than narrowed. This paragraph's
+absence-side half is unchanged and still binds.)**
 
 **WHAT IT LOWERS, MEASURED.** Every obligation of an affected column
 whose measurement is counted over its cells becomes a listing. Only
@@ -4083,6 +4118,15 @@ names and column count and no cell touches it.
 | pooled spellings (route 3) | 53 | 7 | 43 | 10 |
 | class word as a person's own cell (route 5) | 53 | 7 | 43 | 10 |
 | one word published, one pooled | 53 | 7 | 43 | 10 |
+
+**(AMENDED by A-P3-29, and four of those six rows no longer describe
+the shipped tree.** Routes 1, 2 and 5 are closed, so their witnesses are
+measured in full — 53 checks and nothing moved — and the free-text row
+holds only where the marker is a word of the PERSON'S own. The two rows
+that stand unchanged are route 3's and route 4's, which contract 5
+section 7 says no version of the format closes. The table that binds is
+A-P3-29's; this one is the record of what the ruling of 2026-08-16
+bought and cost on the day it was taken.**)**
 
 **The width is wider than the misses, deliberately.** Which obligations
 the unattributable cells reach depends on the spelling nobody recorded:
@@ -4148,6 +4192,666 @@ incomplete rule and reports the misses again.
 `tests/test_p3v4f1_kept_values.py` and
 `tests/test_p3v7f1_escaped_declarations.py` carry it too, because the
 two gaps they measure at their size are measured differently now.
+
+**Amendment A-P3-27 — the description format is extended so that the
+reading rule survives being written down: contract version 5. THIS
+RAISES what a description carries and what a report can honestly
+check, and it LOWERS one Phase 1 confidentiality rule by a stated and
+bounded amount; both are written out below with the sizes they were
+measured at** (2026-08-17, OWNER RULING of that date, taken after four
+options were put with their costs; review items P3-V4-F1's remainder,
+P3-V7-F1's remainder, P3-V8-F1 and P3-V8-F2, and residuals R-P3-4,
+R-P3-5, R-P3-6 and R-P2-13, which are the same one cause under four
+more names).
+
+**THE RULING.** Amendment A-P3-26 stopped `synthtwin validate` from
+printing failures it could not support. It did not put back the
+information whose absence caused them: a description does not carry
+the reading rule, so a table checked against its own genuine
+description has whole columns' worth of obligations listed as not
+checkable — and so does the TWIN of that description, because which
+obligations a run can check is a function of the description and the
+twin shares its description with the table. A-P3-26 named the format
+change as the thing that would close four of the five routes at the
+root and said each of the three ways to narrow its two residual risks
+was an owner decision. The owner has now taken it: **extend the
+format.**
+
+**WHY NOW, AND THIS IS THE WHOLE OF THE TIMING ARGUMENT.** The version
+is `0.1.0.dev0`. There is no release, there are no tags, the changelog
+has one `[Unreleased]` section, and every description in existence
+belongs to somebody who still holds the table it describes. A version
+bump therefore costs one sentence and one refusal message. After the
+first PyPI release the same change costs a migration story, a
+deprecation, and other people's regenerated files, and that price
+never comes down again. The owner's reason is recorded as given: this
+is Phase 5 groundwork brought forward while it is free. A phase that
+carries cross-column structure needs a version bump anyway, and it
+needs to know which cells were absent and why in order to model which
+cells are empty together — so the fields this amendment adds are
+fields that phase would have had to add.
+
+**WHAT IS BUILT, IN THREE PARTS, EACH CLOSING ONE ROUTE.** The
+normative document is `docs/spec/profile-contract-v5.md`, written
+before any code as this plan's own process requires, and it governs
+the implementation stages that follow it.
+
+1. **The spelling is stored exactly, and escaped only when printed**
+   (contract 5 section 4). A `missing_by_source` key becomes the source
+   spelling character for character, and the display boundary is
+   applied where the key is SHOWN. This is what `variants` already
+   does, for the reason version 4 already states about it. Closes
+   route 2.
+2. **The pooled count and the blank count leave the map** (contract 5
+   section 5). `missing_by_source` keeps one key space — the table's
+   own spellings — and `(withheld)` and `(blank)` become two counts of
+   their own, `n_missing_withheld` and `n_missing_blank`. This is what
+   `variants_withheld` already does. Closes route 5, and with it the
+   last field of the format in which somebody's data and this
+   package's own word could land in the same slot.
+3. **Which of this package's own words a declaration named is
+   recorded** (contract 5 section 6). Each of the two declaration
+   records gains `built_in_texts` and `built_in_numbers`, holding
+   members of a closed thirteen-member vocabulary the contract
+   publishes. Closes route 1.
+
+**WHAT IT RAISES, item by item.**
+
+- A description that carries a declared spelling carries it exactly,
+  so two tables needing opposite readings can no longer produce
+  byte-identical descriptions. Under A-P3-19 that pair cost a verdict
+  in both directions: the control-character table missed seven
+  obligations against its own description, and a file wearing the
+  printable spelling PASSED against the other table's description with
+  a census of zero missed.
+- A table whose cells literally read `(withheld)` or `(blank)` is
+  describable. Version 4 published, for those cells, the key this
+  package's own pool wears.
+- The whole of the `--keep-value` side of the reading rule becomes
+  recoverable, and contract 5 section 6.4 proves it is the whole
+  rather than a part: the values for which a rescue can change any
+  cell's reading are exactly the members of the published vocabulary,
+  so a rescue of anything else changes nothing and recording it would
+  record a fact with no consequence.
+- A-P3-26's own wider cost narrows with it. That amendment asks its
+  head count of EVERY column on the kept side, "because no published
+  number says how many present cells were rescued", and calls that the
+  wider of its two costs. Under version 5 the kept side is answered
+  from the two lists, so the question is decided rather than assumed.
+- The published vocabulary becomes normative (contract 5 C5-15). In
+  version 4 the built-in lists are an implementation detail that can
+  change without touching any document; from version 5 they are part
+  of the wire, because a consumer decides what a key means by asking
+  whether it is one of them.
+
+**WHAT IT LOWERS, AT ITS SIZE, AND ON WHOSE AUTHORITY.** One rule, and
+it is a Phase 1 rule this plan is otherwise forbidden to narrow.
+
+Phase 1 fixed at review item P1-R7-F2 that the settings block carries
+the POLICY — how many values were named each way, and the rules that
+matched them — and **never a spelling**, because a declaration is
+compared against every cell of every column and a spelling written
+there would publish a value out of all of them at once, free-text and
+record-number columns included. **From version 5 the settings block
+names which members of this package's own published vocabulary a
+declaration named.** It still carries no spelling of the person's own.
+
+The size of the loss, stated exactly:
+
+- what is added is which members of a THIRTEEN-MEMBER list, printed in
+  the contract's own appendix, were among the values typed — ten
+  spellings and three stand-in numbers, identical in every
+  installation, the same whatever table the tool is run on;
+- it carries no count of cells, no column, no row and no text of the
+  table, and the member's own spelling is written rather than the
+  person's, so their spacing and their capitals do not travel either;
+- it is written identically whether or not the named word occurs in
+  the table (contract 5 C5-16), so the field itself is not evidence
+  that any cell wore the word;
+- what a reader can still infer is said rather than waved away: people
+  usually type a word because it is in their table, so a version 5
+  description makes available a guess a version 4 description made
+  only coarser — not "one value was rescued" but "the value rescued
+  was one of these thirteen". The word guessed at can never be a name,
+  a code, a diagnosis or a free-text answer, because a value outside
+  the list is never written;
+- and where a reader puts a vocabulary member beside a column's own
+  `missing_by_class` and `n_missing_withheld` and concludes that a
+  below-floor group wore that word, the bound is exact: the SIZE of
+  that group is a number version 4 published too, and the word is one
+  of thirteen this package publishes. What version 5 adds to that
+  combination is the thirteen-member guess, not a new count and not a
+  new group.
+
+On whose authority: the owner's, ruled on 2026-08-17 with this delta
+stated to them. The analysis put to them named this as the part that
+touches a Phase 1 rule and said the call was theirs and not the
+implementer's; it has now been made.
+
+**AND ONE SECOND-ORDER PUBLICATION, PRICED SEPARATELY.** Storing the
+spelling exactly publishes, for a group the floor already permits to
+be named, which of the spellings sharing one printable form it was. It
+is empty for every spelling made of characters that show themselves,
+which is every ordinary word. No group version 4 withheld becomes
+named, no count changes and no row is identified. **In one corner it
+runs the other way and version 5 publishes LESS**: version 4 applied
+the floor to the ESCAPED key, so two different spellings that escape
+alike were counted together and their combined count could reach the
+floor although neither alone did; version 5 applies the floor to the
+exact spelling, so each is pooled on its own.
+
+**WHAT IT DOES NOT LOWER, in as many words.** `values_recorded` stays
+`false`. A declared value that is not a member of the published
+vocabulary is recorded nowhere. Every publication class of contract
+6.10 is unchanged, so a nothing-publishing column publishes no value
+of the table in version 5 either. Every floor rule is unchanged, at
+every floor including one. No column block publishes a fact version 4
+did not publish. The relationship manifest stays eight nulls and
+`validation_targets` stays `null`.
+
+**WHAT IT DOES NOT CLOSE, and this is stated here as plainly as the
+contract states it.** Two of the five routes stay open, and neither is
+a defect this amendment is deferring.
+
+- **Route 4, and it is a genuine conflict.** On a column that
+  publishes no value of the table — free text, record numbers,
+  declared identifiers, unrepresentable numbers — the source
+  accounting is emptied on purpose. Publishing the marker word there
+  would publish text out of a column that exists to publish none. **No
+  change to this format can close it.** The eleven obligations
+  A-P3-26 moves on the free-text witness stay moved; twenty-one of
+  thirty-one move and ten checks remain, and version 5 changes none of
+  those numbers.
+- **Route 3, and it is a small one.** A spelling shared by fewer than
+  `small_cell_floor` cells is pooled and unnamed, in version 5 exactly
+  as in version 4, unless it is one of this package's own words, which
+  section 6 records anyway. Closing it would mean naming a group the
+  floor exists to keep too large to point at.
+
+**AND A-P3-26'S OWN FORWARD-LOOKING SENTENCE IS CORRECTED HERE, rather
+than left to be discovered.** That amendment named, among the three
+narrowings it did not take, "the format change that records which
+words were named, which closes routes 1, 2, 3 and 5 at the root and
+leaves route 4 as a stated limit". **Route 3 is not closed by the
+change actually taken, and counting it as closed was wrong.** Naming a
+spelling that fewer than `small_cell_floor` cells share is the one
+thing the floor exists to refuse, so no version of this format closes
+route 3 for a word of the person's own; version 5 closes it only where
+the word is one of this package's own, which section 6 records for a
+different reason. The sentence stands where it is as the record of
+what was thought at the time; the count that binds is this one — three
+routes closed, two left, and both of the two named above.
+
+Both stay covered by A-P3-26's routing, which is not withdrawn and not
+weakened: the description is still asked whether the reading rule can
+be rebuilt for each column, and where it cannot the column's
+cell-counted obligations still go to the NOT-CHECKABLE census with a
+printed reason. **What version 5 changes is how often the answer is
+yes.**
+
+**THE MEASURED COST, counted at commit `1179250` with the shipped
+tree rather than estimated.**
+
+| what moves | where | count |
+|---|---|---|
+| `missing_by_source` | product modules | 40 places in 7 modules — `profile`, `taxonomy`, `contract`, `rendering`, `summary`, `quality`, `validation` |
+| `missing_by_source` | tests | 72 places in 19 files |
+| `missing_by_source` | governing and historical documents | 42 places in 6 documents, plus 5 in the review records, which are not edited |
+| `profile_version` | everywhere | 74 places |
+| the two declaration records | product, tests, documents | `kept_values` 36 / 30 / 9; `declared_missing_values` 26 / 34 / 7; `values_recorded` 11 / 14 / 9 |
+| the frozen reference vectors | `tests/reference/` | 2 of the 3 files carry profile fragments naming the field, 15 places, regenerated as bookkeeping |
+| the specification itself | `docs/spec/profile-contract-v5.md` | 1,172 lines, 302 sealed passages, landed with this amendment |
+
+It is a bounded, mechanical change with a large blast radius — more
+tedious than difficult — and that was put to the owner before the
+ruling was taken.
+
+**AND WHAT DOES NOT MOVE, which is the reason the radius is smaller
+than it looks.** **No cell of any twin changes.** No generation rule
+reads any field this amendment moves: the generation module never
+names `missing_by_source`, and the twin still writes every absent cell
+as an empty field. So no golden twin's bytes move, no determinism
+event under D12 touches the twin, and the reference-vector
+regeneration is bookkeeping over profile fragments rather than a
+change to anything a person receives. The printed form of a key does
+not move either, because the display boundary is applied at the moment
+of printing and prints the same characters it printed before.
+
+**SEQUENCING, and it is the standing process rather than a new one.**
+The specification lands first, alone, with no product code — this
+amendment and `docs/spec/profile-contract-v5.md` in one commit with
+their seal entries and the registry guard's updated exact list, which
+grew by one line because a fourth specification appeared beside the
+three. The producer, the loader, the validator, the reports and the
+documents that quote the field follow in later stages and are held to
+what the specification says. `docs/spec/validation-method-v1.md` and
+`docs/spec/generation-method-v1.md` are NOT amended here; each is
+amended at its own stage, against the contract, by counted re-seal.
+Until those stages land, the shipped producer and the shipped loader
+stay at the wire version this phase opened with, and no sentence
+anywhere may say otherwise. **(AMENDED by A-P3-28, which landed the
+producer and the loader: the shipped producer now writes version 5, the
+shipped loader reads version 5, and it is that sentence which binds.
+The two method specifications are still not amended. AND THE STRUCK
+SENTENCE NO LONGER SPELLS THE NUMBER IT NAMED, under A-P3-30: this
+paragraph said in as many words which version the shipped producer
+wrote, that number went stale the moment the next stage landed, and a
+governing document is now walked for exactly that sentence shape by
+`tests/test_claim_inventory.py`'s fifth family. What the clause meant
+is preserved -- the wire does not move until the stage lands -- without
+a digit that only one commit makes true.)**
+
+**How to reverse this.** There is no `REINSTATE` variable, because no
+product code changed: this stage is a specification and this
+amendment. The reversal is that the implementation stages do not land
+and `docs/spec/profile-contract-v5.md` is withdrawn from the tree,
+with the registry guard's exact list, `tests/dispositions.py`'s
+governing set, the claim inventory's surface list and the seal moved
+back in the same commit — and this amendment struck rather than
+deleted, so that the ruling and its price stay readable. Once the
+producer writes version 5, reversal is a second version bump and is no
+longer free; that is exactly the property that made the owner take it
+now.
+
+**Amendment A-P3-28 — the producer writes version 5 and the loader
+reads it. THIS RAISES what every description carries and what a
+version 4 file is worth; it LOWERS nothing that A-P3-27 did not
+already price, and the two new counts are disposed here so that no
+published field of the format is left without a class** (2026-08-17,
+carrying out A-P3-27 on the owner's ruling of the same date; the
+implementation stage that amendment's own SEQUENCING paragraph names
+first).
+
+**WHAT LANDED.** `synthtwin profile` writes `profile_version: 5`, and
+the strict loader reads 5 and refuses everything else. All three parts
+of A-P3-27 are in the shipped code:
+
+1. a `missing_by_source` key is the source spelling character for
+   character, and the display boundary is applied where a key is SHOWN
+   — in the plain-language summary and in the generation report, which
+   print the same characters they printed before;
+2. `n_missing_blank` and `n_missing_withheld` are on every column
+   block of every role, and `missing_by_source` holds one key space,
+   the table's own;
+3. `settings.kept_values` and `settings.declared_missing_values` each
+   carry `built_in_texts` and `built_in_numbers`, holding members of
+   the thirteen-member vocabulary contract 5 section 14.1 fixes.
+
+**THE DISPOSITION OF THE TWO NEW COUNTS, stated here because the
+registry reads this plan and not the contract.**
+
+| field | disposition |
+|---|---|
+| `n_missing_blank`, `n_missing_withheld` | REPORT-ONLY — every absent cell is written empty |
+
+No generation rule reads any field this amendment moves: the twin
+still writes every absent cell as an empty field, so neither count is
+an obligation the twin can meet or miss, and each is evidenced by
+being named in the generation report beside the two maps that were
+already there. That is the same sentence, for the same reason, that
+disposes `missing_by_class` and `missing_by_source`.
+
+**WHAT THIS RAISES.**
+
+- A description that names a declared spelling names it exactly, so
+  two tables needing opposite readings no longer describe alike. The
+  pair that cost a verdict in both directions under A-P3-19 now
+  produces two different files.
+- A table whose cells literally read `(withheld)` or `(blank)` is
+  describable, and the description says which of the two it means.
+- The whole of the `--keep-value` side of the reading rule is
+  recoverable from the settings block.
+- `validation.declared_spellings` brings back a key that holds a
+  character the display boundary shows, and a key that reads as one of
+  this package's own class words. Both exclusions existed because
+  version 4's map could not be read as exact; version 5's can, and
+  keeping them would have walked past a spelling the table wore.
+
+**WHAT THIS LOWERS.** Nothing beyond A-P3-27's own priced lowering of
+the Phase 1 settings-block rule, which is now in force rather than
+specified: the settings block names which members of this package's
+thirteen published words were typed, in the member's own spelling,
+written identically whether or not the word occurs, and it still
+carries no spelling of the person's own. Three tests state that at its
+size rather than by assertion of good intent —
+`tests/test_p1r7f2_disclosure_is_true.py` checks that a word which is
+nobody's but the person's is written nowhere, that the member and not
+the typed form is what travels, and that a named word absent from the
+table is recorded exactly as one every cell wears.
+
+**AND ONE GUARD REACHES ONE FIELD LESS, on the contract's own
+instruction (contract 5 C5-S13, C5-N5).** The pooled-remainder walk of
+A-P3-22 finds a held-back count by the WORD it stands under, which was
+sound while every mapping carrying that word drew its other keys from
+a first-party vocabulary. `missing_by_source` no longer does, so the
+walk skips that one mapping and finds the remainder that used to live
+there by its own name, `n_missing_withheld`, instead. The reach is the
+same: both halves — the publication guard that decides what may be
+written, and the loader's invariant that decides what may be read —
+refuse a pooled count at a floor of one, and
+`tests/test_p3v5f1_floor_one.py` proves it over every position of a
+description that moves between the two floors.
+
+**A-P3-27'S OWN CLOSING SENTENCE IS AMENDED HERE, because it is now
+false.** That amendment ends by naming the wire version the shipped
+producer wrote and the shipped loader read while its own
+implementation stages were still outstanding, and by forbidding any
+sentence anywhere to say otherwise. The producer and the loader stage
+has landed. The sentence is replaced by this one: **the shipped
+producer writes version 5 and the shipped loader reads version 5, and
+no sentence anywhere may say otherwise.** The stages A-P3-27 names
+that have NOT landed are named here so the difference is readable.
+**(A-P3-30 describes the struck sentence rather than quoting it, for
+the reason `tests/test_claim_inventory.py` gives about every ban in
+that file: a quotation of a retired claim is a retired claim, and an
+exception list for the paragraph that retires it is how the ban
+rots.)**
+
+- `docs/spec/generation-method-v1.md` is NOT amended, and needs no
+  amendment: no generation rule reads any field this amendment moves.
+- `docs/spec/validation-method-v1.md` IS amended here, in one clause
+  and by counted re-seal, and the reason is that this stage changed the
+  validator rather than only the producer.
+  `validation.declared_spellings` stopped applying two exclusions that
+  version 4's format forced on it, so the document that fixes what that
+  function does had to say so or stop being true. The clause is
+  **V2.3-A3**, it says THIS RAISES, and what it raises is measured:
+  the seven obligations A-P3-19 recorded as a residual are checked and
+  held, and the file that PASSED against another table's description
+  with a census of zero missed now misses the seven it always owed.
+- **AND V2.3-A3 STATES ONE LIMIT OF THIS STAGE RATHER THAN CLOSING
+  IT.** The validator's head count still asks its question of the KEPT
+  side in the version 4 way: it counts how many `--keep-value` words
+  come back through the published routes and does not read the two
+  vocabulary lists the settings block now carries. So a description
+  that records a rescued word still moves that column's cell-counted
+  obligations to NOT CHECKABLE, on a description whose reading rule
+  version 5 does record. That over-fires in the safe direction A-P3-26
+  chose deliberately -- obligations become not-checkable on a file that
+  would have passed -- and closing it means rewriting the validator's
+  reconstruction of the settings, which is the validator stage's work
+  and not this one's. It is a stated limit until that stage lands.
+  **(AMENDED by A-P3-29: that stage has landed and the limit is
+  closed.)**
+
+**How to reverse this.** `REINSTATE=A-P3-28` is not a variable, for
+the reason A-P3-27 gives: reversing a wire version is a second wire
+version, not a switch. What reversal means here is the specific
+revert of this commit — `profile.PROFILE_VERSION` and
+`contract.PROFILE_VERSION` back to 4, the two counts and the two
+vocabulary lists removed from the producer, the loader, the publication
+guard and the reference vectors, and the goldens regenerated — and it
+costs a changelog entry saying that every description written in
+between must be made again. That is exactly the price the owner took
+this change now to avoid paying later.
+
+**Amendment A-P3-29 — the validator rebuilds the reading rule from what
+version 5 records, and what A-P3-26 put in its place is retired where it
+is no longer needed. THIS RAISES what a report checks and lowers
+nothing; it corrects A-P3-26's measured table and residual R-P3-8 to
+what is now true, and it states one bound that got WIDER** (2026-08-17,
+carrying out A-P3-27 on the owner's ruling of the same date; the
+validator stage A-P3-28's own closing paragraph names as not yet
+landed).
+
+**WHAT LANDED.** `synthtwin validate` rebuilds the reading rule from the
+two records contract version 5 added, instead of inferring it from facts
+a description publishes for other reasons.
+
+1. **`validation.kept_spellings` reads `settings.kept_values`'s two
+   vocabulary lists and consults no column.** The three inferred routes
+   of validation method V2.3 — a `kept_by_you` sentinel verdict, a
+   published level's label, a level's `variants` keys — are DELETED, not
+   kept beside. Contract 5 section 6.4 proves the two lists are the
+   whole of what a `--keep-value` can change about any cell's reading; a
+   label is a spelling of a cell the producer read as a VALUE, so naming
+   it as kept changed nothing, and the routes answered a question about
+   levels while the question asked is about the command line.
+2. **`validation.declared_spellings` reads
+   `settings.declared_missing_values`'s two lists beside its walk over
+   `missing_by_source`.** A built-in word named as "no value" moves its
+   cells from class `(text-code)` to `(declared-missing)`; a stand-in
+   number named as "no value" takes its cells out before the column's
+   own sentinel rule judges them. Both were skipped as unrecoverable
+   under version 4 and both are answered outright now.
+3. **`validation.rescued_spellings` is deleted with the kept-side head
+   count it existed for**, and `validation.settings_over_the_split` no
+   longer names as kept a built-in marker the description declares as
+   missing — because that pair is now reachable, and manufacturing a
+   contradiction the person never typed is a refusal the producer would
+   raise.
+4. **`unrebuildable_columns` is narrowed in four places**, written out
+   in validation method clause V2.4-A6: the kept-side head count is
+   deleted; the absence-side head count asks only about words of the
+   PERSON'S own; the per-column structural test is not asked where the
+   publication class empties the source accounting (contract 5 C5-N6);
+   and where it is asked, a published key is matched to a recovered
+   declaration at `settings.declaration_matching`'s own identity rather
+   than by exact key lookup.
+
+**WHAT IT RAISES, MEASURED ON A-P3-26'S OWN WITNESSES AND ITS FOUR
+CONTROLS.** Every number was produced by running the shipped code; none
+is estimated.
+
+| witness | A-P3-26: checks / moved | now: checks / moved | missed, then and now |
+|---|---|---|---|
+| rescued word on a numeric column (route 1) | 10 / 43 | **53 / 0** | 0 / 0 |
+| rescued word on a label column (route 1) | 10 / 27 | **37 / 0** | 0 / 0 |
+| rescued stand-in number (route 1) | 55 / 0 | 55 / 0 | 0 / 0 |
+| named stand-in number as "no value" | 10 / 43 | **53 / 0** | 0 / 0 |
+| a built-in word named on a free-text column | 10 / 21 | **31 / 0** | 0 / 0 |
+| invisible character in a named word (route 2) | 53 / 0 | 53 / 0 | 0 / 0 |
+| cell spelling one of this package's class words (route 5) | 53 / 0 | 53 / 0 | 0 / 0 |
+| the person's own word on a free-text column (route 4) | 10 / 21 | 10 / 21 | 0 / 0 |
+| the person's own words all below the floor (route 3) | 10 / 43 | 10 / 43 | 0 / 0 |
+| one word published, one pooled (route 3) | 10 / 43 | 10 / 43 | 0 / 0 |
+| a word of the person's own the table never held (over-fire) | 10 / 43 | 10 / 43 | 0 / 0 |
+| a named word that comes back cleanly (control) | 53 / 0 | 53 / 0 | 0 / 0 |
+| no word named at all (control) | 52 / 0 | 52 / 0 | 0 / 0 |
+
+**The 43-of-53 retreat reverses on five rows of that table and stands on
+four, and the four are named.** They are route 3's two — a word of the
+person's own that the floor pooled — route 4's one, and the head count's
+own over-fire. All four are limits somebody chose: the first three are
+groups the format exists to refuse to publish, and the last is the safe
+direction of a union that may not walk past a real gap.
+
+**WHAT IT LOWERS.** Nothing. No file loses a check, no verdict that HELD
+stops holding, no new withholding appears, no obligation moves onto the
+not-checkable census that was not already there, and no cell of any twin
+moves. `GOLDEN_TWIN_SHA256` is untouched and no golden was re-recorded.
+
+**AND ONE BOUND THAT GOT WIDER, stated rather than found.** Validation
+method V2.4-A4 clause 2 narrowed blankness to "empty, OR wearing a
+spelling the description ITSELF publishes as the source of its holes",
+and said beside it that nothing of this package's own vocabulary is in
+the recovered set. That was true of version 4 and is false now: a word
+this package publishes CAN be a recovered declaration, because the
+settings block says the person named it. So a generated cell colliding
+with that word is counted as a hole where version 4 counted it as data
+— residual R-P2-13's own shape, on the one word class it did not
+previously reach. It reaches only a word the description declares, never
+the built-in table at large; it is the reading the description was
+written under; and under version 4 it was not smaller but HIDDEN,
+because such a description had that column's cell-counted obligations
+moved to NOT CHECKABLE wholesale and no verdict could be wrong where no
+verdict was given. The clause is amended in the method document rather
+than left standing false.
+
+**WHAT IS CORRECTED IN THE RECORD, because an amendment that claims more
+or less than the code does is a defect this repository has now made
+three times.**
+
+- **A-P3-26's measured table** is marked amended above: four of its six
+  rows no longer describe the shipped tree, and the two that stand are
+  route 3's and route 4's.
+- **A-P3-26's "wider of the two costs" paragraph** is marked amended
+  above: the kept-side half is deleted, and its absence-side half still
+  binds.
+- **A-P3-28's closing limit** — "the validator's head count still asks
+  its question of the KEPT side in the version 4 way" — is marked
+  closed above.
+- **Residual R-P3-8** is rewritten below to the two routes that remain,
+  with its two costs restated at the descriptions they now stand on.
+- **Validation method V2.3's three routes** are withdrawn by V2.3-A4,
+  **V2.4-A4 clause 3's first entry** is struck as closed, and
+  **V2.4-A5's routing** is narrowed by V2.4-A6. The method document is
+  amended by counted re-seal, because this stage changed what it fixes.
+
+**ONE DEFECT WAS FOUND AND IS NOT REPAIRED HERE, because it is not this
+stage's and repairing it needs its own ruling.** `styles.spelled` asks
+every WRITTEN cell of a numeric column to wear one of the six published
+forms of its own value, including a cell the description reads as a
+HOLE. A table whose declared-missing cells are spelled non-canonically
+— sixty readings and twelve cells written `-777.00`, declared with
+`--missing-value -777.00` — therefore reports `styles.spelled` MISSED
+against its own genuine description. It is present at this plan's own
+commit `1179250` and is reachable there by the same witness, so it is
+neither introduced nor widened here; what this stage does is stop the
+not-checkable routing from masking it on a second class of description,
+the one whose declared word is a stand-in number. The repair is a
+question about which cells the per-cell style obligation is asked of,
+which is validation method V2.4-A3's own subject, and it is recorded
+here so that the next round finds it written down rather than by
+running into it.
+
+**How to reverse this.** Six variables, each putting back exactly one
+thing, and `tests/test_ap329_reading_rule_from_version_5.py` carries all
+six: `REINSTATE=A-P3-29-K` infers the kept side again and restores the
+kept-side head count; `-D` stops the absence side reading the two
+vocabulary lists; `-H` counts every declared word instead of the
+person's own; `-S` asks the structural test where the publication class
+empties the accounting; `-M` matches a key by exact lookup; `-T` removes
+the structural test. `tests/test_p3v4f1_kept_values.py` and
+`tests/test_ap326_unrebuildable_reading_rule.py` carry
+`REINSTATE=A-P3-29`, which is `-K` under one name, because the class
+each of them measures is the kept marker's.
+
+**Amendment A-P3-30 — the sweep after the version bump, and the guard
+that makes the next one cheap. THIS RAISES what a guard can see and
+what four user-facing pages say; it LOWERS nothing.** Owner ruling of
+2026-08-17, carrying out A-P3-27's third stage: A-P3-28 landed the
+producer and the loader and A-P3-29 the validator, and this is the
+sweep of every surface those two stages left describing version 4, plus
+the four sentences the version bump made false without naming a version
+at all.
+
+**THE STALE CLAIM THAT MATTERED MOST, and it was in the governing
+document itself.** `docs/spec/profile-contract-v5.md` opened by saying
+the shipped producer wrote version 4, that the shipped loader read
+version 4 and nothing else, and that nothing in it might be written
+about anywhere in this repository as though it were built. That
+paragraph is correct process — the specification is written before the
+code — and it went false on the commit that landed the code. It then
+stood for two stages while `CHANGELOG.md`, `SECURITY.md`, this plan and
+the shipped product all correctly described version 5, so the one
+document an institution's reviewer opens FIRST was the one document
+still denying the format it governs. It is replaced by a status
+paragraph that says the format shipped and records what the old one
+said, in the shape this repository's own ban requires: describing the
+retired sentence rather than spelling it.
+
+**WHAT ELSE MOVED, each because a reader acts on it.**
+
+- `docs/spec/generation-method-v1.md` pointed the INDEPENDENT
+  implementer it is written for at `profile-contract-v4.md` as the
+  profile's wire shape. It now names version 5 and states how version 4
+  is carried by reference, so a version 4 section number cited below it
+  reads as what it is. No generation rule moves and no twin byte moves;
+  A-P3-28's finding that this document needs no RULE amendment stands.
+- **The shipped command line carried the retired confidentiality
+  claim on both declaration options.** `--keep-value` and
+  `--missing-value` each said the profile records how many values you
+  named and the rule that matched them, "never the values themselves".
+  From contract 5 section 6 that is false: the settings block names
+  which of synthtwin's own thirteen published words were typed. This is
+  the screen a person reads BEFORE deciding what to type, and it
+  contradicted `SECURITY.md`, the profile's own summary page and the
+  settings block itself. Both now state the exception where they make
+  the claim, and keep the claim contract 5 holds to — a word of the
+  person's OWN is never written into the settings.
+- **The profiler's summary page contradicted itself on the one run that
+  matters.** It said the spellings YOU typed are not written into the
+  settings, and eight lines lower told the person who typed `n/a` that
+  the description records which of synthtwin's own words they named.
+  The opening now names its exception where it is made.
+- **The generation report called a blank a spelling.** Contract 5
+  section 5 took the blank count out of `missing_by_source`, and the
+  report kept printing it under the heading "By the spelling your table
+  used", so a column whose absent cells were all empty read `By the
+  spelling your table used: 11 cell(s) with nothing written in them`.
+  The heading now asks what the table WROTE in those cells, which is a
+  question "nothing" is an answer to. `GOLDEN_REPORT_SHA256` moves for
+  it; the description and twin digests do not.
+
+**THE GUARD, so that the sixth round does not find this again.**
+`tests/test_claim_inventory.py` gains a FIFTH family, built the way its
+third family is built: the wire version is read from the product — both
+module constants, checked against a description the producer actually
+writes — and every surface, plus BOTH governing plans, is held to it.
+Only a present-tense claim about what synthtwin itself writes, reads,
+emits, produces or accepts is banned; history, the refusal, and a rule
+about what an older document means are all permitted, and a test asserts
+that they stay permitted so a later widening cannot forbid explaining a
+format change. A positive half refuses a repository that satisfies the
+ban by silence, and requires the contract that governs the format to be
+one of the surfaces stating it.
+
+**WHAT THIS RAISES, MEASURED.** Four false user-facing sentences
+removed; one governing document that denied its own subject corrected;
+one cross-reference that misdirected the reader this project writes
+specifications for; and a guard that turns the suite red on the next
+half-applied version bump, on a constant that stops reaching the wire,
+and on any surface that names a version synthtwin does not speak.
+
+**WHAT THIS LOWERS.** Nothing. No obligation narrows, no bar moves, no
+verdict changes, no check is withdrawn, no count in any report moves,
+and `GOLDEN_TWIN_SHA256`, `GOLDEN_DESCRIPTION_SHA256` and
+`GOLDEN_QUALITY_SHA256` are untouched. The one golden that moves is the
+generation report's, for the one heading above.
+
+**WHAT THIS DOES NOT CLOSE, named rather than left to be found.** Two
+results of the sweep are stated and NOT repaired here, because each
+needs an owner ruling on a document that fixes its wording:
+
+1. **The migration refusal names two options and the person may have
+   used five.** Contract 5 section 10.2 fixes R11's message word for
+   word, and it tells the person to describe the table again "giving
+   the same --keep-value and --missing-value options you gave the first
+   time". A run that also used `--identifier`, `--smallest-group` or
+   `--first-row` is not covered, and following the advice literally
+   produces a DIFFERENT description of the same table with no warning.
+   The repair is a clause in contract 5 section 10.2 widening the named
+   options to every option the description's own settings record, and
+   it is an amendment to a word-for-word contract clause, which is the
+   owner's to take.
+2. **A real table whose absent cells hold a stand-in number still
+   misses obligations against its own description.** Validation method
+   V2.4 rules that on the check side an absence is BLANKNESS, on the
+   contract's own rule for twins. Contract 5 section 3.2 way 3 records
+   enough to rebuild that reading — `sentinel_verdicts` carries the
+   number, the verdict, the reason and the occurrences — and V2.4
+   forbids using it. So a 180-row table with twelve cells reading
+   `-999`, checked against its own genuine description, reports
+   eighteen missed obligations on that column with numbers beside them,
+   and A-P3-26's routing does not fire because the description looks
+   complete. This behaviour is unchanged by contract version 5 and was
+   measured identical at the commit before it, so it is not a
+   regression; it is the fifth route of the 2026-08-15 analysis, seen
+   from the sentinel side rather than the declaration side, and closing
+   it means amending V2.4.
+
+**How to reverse this.** `REINSTATE=A-P3-30` puts the contract's stale
+opening paragraph back in memory and reds the version ban;
+`-silent` deletes every wire sentence instead of correcting it and reds
+the positive half; `-wide` draws the ban without a synthtwin subject
+and reds the permitted-sentence test; `-drift` separates the producer's
+constant from the version it writes.
+`tests/test_claim_inventory.py` carries all four. The four page
+corrections reverse by reverting their commit, and
+`tests/test_p1r7f2_disclosure_is_true.py` and
+`tests/test_p1r7f2_declaration_disclosure.py` hold the two declaration
+pages to what they now say.
 
 ## P3-D7. Repository claims, staged honestly
 
@@ -4827,12 +5531,27 @@ tests as bounded in P3-D8.3.
   role, its statistics, and therefore which outcomes print or are
   withheld — in either direction. No spelling is ever printed under
   any classification.
-- **R-P3-8.** A description written with `--missing-value` or
-  `--keep-value` does not always record the words, and where it does
-  not, the reading rule cannot be rebuilt (amendment A-P3-26, owner
-  ruling 2026-08-16). The affected column's cell-counted obligations
-  are NOT CHECKABLE and the report says so per obligation, rather than
-  printing a failure it cannot support. **Two costs stand with it and
+- **R-P3-8.** A description written with `--missing-value` does not
+  always record the word, and where it does not, the reading rule
+  cannot be rebuilt (amendment A-P3-26, owner ruling 2026-08-16). The
+  affected column's cell-counted obligations are NOT CHECKABLE and the
+  report says so per obligation, rather than printing a failure it
+  cannot support. **REWRITTEN 2026-08-17 to the two routes that
+  remain** (amendments A-P3-27, A-P3-28 and A-P3-29). Contract version
+  5 records the reading rule and the validator reads it, so this
+  residual no longer reaches `--keep-value` at all — the settings block
+  carries the whole of that side, and contract 5 section 6.4 is the
+  proof — and on the `--missing-value` side it reaches only **a word of
+  the PERSON'S OWN**, never one of this package's thirteen published
+  words. Two routes are left, both of them contract 5 section 7's, and
+  neither is closable by any version of this format: a word of the
+  person's own that fewer than `small_cell_floor` cells of every column
+  share, which the floor pools unnamed; and a word of the person's own
+  on a column whose publication class permits no value of the table,
+  where publishing the marker would publish text out of a column that
+  exists to publish none. A third case is the union's own over-fire and
+  is a chosen safe direction rather than a lost fact: a word named that
+  no cell of the table wore. **Two costs stand with what remains and
   neither is closable inside the validator.** A file that really does
   violate one of the moved obligations returns exit code 0 with them
   named, because a not-checkable line is not a failure. And the TWIN of
@@ -4840,11 +5559,39 @@ tests as bounded in P3-D8.3.
   are written empty and no marker survives into it, but which
   obligations a run can check is a function of the description and both
   runs share one, so narrowing it from the file would give two reports
-  to two files the description cannot tell apart (V5.1). What closes
-  the routes behind it is a change to what a description publishes,
-  taken in the open before the first release; route 4, a free-text
-  column's marker word, is a genuine conflict between publishing safely
-  and describing completely and stays whatever the format does.
+  to two files the description cannot tell apart (V5.1). Both costs
+  now stand on those three descriptions and on no others: on every
+  description whose declared and rescued words are recoverable, the
+  twin and the table alike are measured in full.
+- **R-P3-9.** The refusal that turns away an older description names
+  two of the options a person may have used. Contract 5 section 10.2
+  fixes R11's wording word for word and tells the person to describe
+  the table again giving the same `--keep-value` and `--missing-value`
+  options; a run that also used `--identifier`, `--smallest-group` or
+  `--first-row` is not covered, and following the advice literally
+  yields a DIFFERENT description of the same table with no warning.
+  Found by the A-P3-30 sweep, stated rather than repaired because the
+  wording is a contract clause and widening it is an owner amendment.
+  Its cost is bounded: the settings block of the description in the
+  person's hand records every one of those options, so the fact is
+  recoverable — by somebody who knows to look, which is the part the
+  message owes and does not pay.
+- **R-P3-10.** A real table whose absent cells hold a STAND-IN NUMBER
+  misses obligations against its own genuine description. Validation
+  method V2.4 rules that on the check side an absence is blankness, on
+  the contract's own rule for twins; contract 5 section 3.2 way 3
+  records enough to rebuild that reading — `sentinel_verdicts` carries
+  the number, the verdict, the reason and the occurrences — and V2.4
+  forbids consulting it. Measured on a 180-row table with twelve cells
+  reading `-999`: eighteen obligations MISSED on that column against
+  its own description, with numbers printed beside them, and A-P3-26's
+  routing does not fire because nothing about the description looks
+  incomplete. **Not a regression:** the same table at the commit before
+  contract version 5 misses the same eighteen. It is the 2026-08-15
+  analysis's cause seen from the sentinel side rather than the
+  declaration side, it is the one route neither A-P3-26 nor A-P3-27
+  reaches, and closing it means amending V2.4 — which is the ruling
+  A-P3-30 declined to take on the owner's behalf.
 - **Closed here:** R3 (Phase 1), on the first release's evidence.
 - **Carried untouched:** R1, R2, R-P2-1 (still owner-flagged), and
   R-P2-2 through R-P2-14 — the ledger runs to FOURTEEN, not twelve,

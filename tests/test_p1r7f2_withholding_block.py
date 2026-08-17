@@ -104,10 +104,21 @@ def test_a_declared_identifier_publishes_no_stand_in_spelling(
     )
     column = document["columns"][0]
     assert column["role"] == taxonomy.ROLE_IDENTIFIER
-    assert SENTINEL not in written, (
-        "the person named this column to keep its values out of the "
-        "profile; a sentinel verdict must not carry one around that"
-    )
+    # THE COLUMN BLOCK, WHICH IS WHERE THE SPELLING ESCAPED. A sentinel
+    # verdict must not carry a value around the declaration that was
+    # made to keep this column's values out.
+    #
+    # It is the block rather than the whole file because contract
+    # version 5 records, in the SETTINGS, which of synthtwin's own three
+    # stand-in numbers was named on the command line -- a fact about the
+    # command line, written the same whatever table it is run on, and
+    # priced in plan amendment A-P3-27. This test is about the column,
+    # and the column is checked at the width the finding was about.
+    for block in document["columns"]:
+        assert SENTINEL not in json.dumps(block), (
+            "the person named this column to keep its values out of the "
+            "profile; a sentinel verdict must not carry one around that"
+        )
     assert SENTINEL not in said
     for value in IDENTIFIERS[:20]:
         assert value not in written
@@ -167,7 +178,16 @@ def test_the_summary_claim_about_such_a_column_is_true(
     assert "record_id" in said
     for column in document["columns"]:
         assert column["role"] in taxonomy.ROLES_PUBLISHING_NOTHING
-    assert SENTINEL not in written and SENTINEL not in said
+        assert SENTINEL not in json.dumps(column)
+    assert SENTINEL not in said
+    # And what the settings DO carry is the vocabulary member, which is
+    # synthtwin's own number and not this column's value: the sentence
+    # the summary prints is about what the COLUMNS publish, and every
+    # column of this run publishes nothing.
+    assert document["settings"]["kept_values"]["built_in_numbers"] == [
+        -999.0
+    ]
+    assert written.count("-999.0") == 1
 
 
 # -- the neighbour: the field still works where values may appear -----

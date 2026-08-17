@@ -1,9 +1,20 @@
 # Validation method v1 — measuring a written table against a description
 
-**Status:** revision 0, written before any validator code exists, under
+**Status:** revision 0, written before any validator code existed, under
 the Phase 3 plan (`docs/plans/phase-3-product.md`), which governs on
 every conflict. **Not ratified.** This is the third of the phase's
 artifacts and the fifth governing document under the disposition seal.
+
+**The validator SHIPPED, and this status line is not a claim that it did
+not** (plan amendment A-P3-30). The clause above read "written before any
+validator code exists", in the present tense, for as long as the
+validator has existed — which is the stale-claim shape this repository
+has now caught in five rounds. What is unchanged is everything the line
+was for: this is still revision 0, it is still not ratified, the two
+artifacts revision 1 owes are still owed, and the shipped tables are
+still checked against this document rather than the other way round.
+Amendments made since are numbered in place, each saying what it raises
+or lowers.
 
 **What this document fixes, and what revision 1 owes.** Revision 0
 fixes the MEASUREMENT and the OBLIGATIONS: where a verdict comes from,
@@ -153,7 +164,9 @@ profile; declared as the number `-777` instead, seventeen did.
 **V2.3 The kept set, derived from the profile** (Phase 3 plan owner
 decision 8, as amended). A twin can validly hold a spelling the
 profiler would otherwise read as an absence, by three published routes,
-and all three are recovered:
+~~and all three are recovered~~ **— and all three are WITHDRAWN by
+V2.3-A4 below, which reads the kept set out of the settings block
+instead. They stand here as the record of what version 4 forced**:
 
 - every key of every published level's `variants`, as an exact
   spelling;
@@ -230,10 +243,121 @@ than one that states a miss it should not.
 whose cells sit below the publication floor in every column is pooled
 into `(withheld)` and published nowhere; a declared value that IS one of
 the three stand-ins cannot be told from the sentinel rule's own
-judgment; and a declaration whose spelling holds a character the display
-boundary shows is published only in its shown form and is not recovered.
-All three are left unrecovered and all three are named in V2.4-A4 below
-with what they cost.
+judgment; ~~and a declaration whose spelling holds a character the
+display boundary shows is published only in its shown form and is not
+recovered~~ **— that third one is withdrawn by V2.3-A3 below, because
+the format changed under it**. All three are named in V2.4-A4 below with
+what they cost.
+
+**V2.3-A3 The field is the EXACT spelling from contract version 5, so
+the fourth route reaches every key. THIS RAISES** (2026-08-17, owner
+ruling of that date; the plan's amendments A-P3-27 and A-P3-28 are the
+ruling and this follows them; `docs/spec/profile-contract-v5.md` C5-1
+and C5-N5 are the format).
+
+V2.3-A2 above rested on two facts about version 4 of the profile
+contract, and version 5 changes both of them.
+
+- **The key crossed the display boundary before it was stored.** From
+  version 5 it does not: `missing_by_source` stores the source spelling
+  character for character and the boundary is applied where a key is
+  SHOWN, which is the rule `variants` next door has always had. So the
+  map is one-to-one again, the two tables of V2.3-A2's witness produce
+  two different descriptions, and the exclusion that read "recover a key
+  only where the boundary provably left it alone" has nothing left to
+  exclude. It is withdrawn. `parsing.shows_only_itself` remains the
+  property its own docstring claims and remains what makes the SHOWN
+  surfaces safe; it is no longer consulted here.
+- **The map mixed two key spaces.** Version 4 put `(blank)` and
+  `(withheld)` into it beside the person's spellings, so a key had to be
+  tested against this package's own class words before it could be
+  trusted. Version 5 gives the map one key space and moves those two
+  counts to `n_missing_blank` and `n_missing_withheld`, so a key reading
+  `(withheld)` means cells of the table held exactly that text. That
+  exclusion is withdrawn too, and withdrawing it is not merely a
+  simplification: keeping it would walk past a spelling the table wore.
+
+**Which exclusions remain, in full.** A key is recovered unless the
+built-in table already reads it as an absence, or it reads as one of the
+three numeric stand-ins. Both are recognisable from the description
+alone and both are other producer routes rather than declarations.
+
+**What it costs, and it costs nothing on this side.** Every subcheck it
+moves, it moves off a false MISS or off a not-checkable line: the
+control-character table's seven come back as checks and hold, and the
+file that PASSED against the other table's description with a census of
+zero missed now misses the seven it always owed. No file loses a check
+and no new withholding appears.
+
+**What it does NOT reach, and neither does any version of the format.**
+A declaration whose cells sit below the publication floor in every
+column is still pooled and named nowhere, unless the word is one of this
+package's own, which version 5's settings block records for a different
+reason. And a column whose publication class permits no value of the
+table publishes no marker word whatever made its cells absent. Both are
+stated as limits in contract 5 section 7 and both stay in V2.4-A4's list
+below.
+
+~~**What this clause does NOT change.** The reconstruction of the kept
+side is untouched: contract version 5 records which of this package's
+own words a `--keep-value` named, and this method does not yet read
+them, so the head count of V2.4-A4 still asks its kept-side question the
+version 4 way and still over-fires on every column of a description that
+names a kept value. That is the safe direction and it is a stated limit
+of this document until the clause that narrows it is written.~~
+**THAT CLAUSE IS NOW WRITTEN. It is V2.3-A4 below, and this paragraph
+is struck rather than deleted because it is the record of the limit
+between the two stages.**
+
+**V2.3-A4 The declarations are READ from the settings block, and the
+three inferred routes of V2.3 are withdrawn. THIS RAISES** (2026-08-17,
+owner ruling of that date; the plan's amendment A-P3-29 is the ruling
+and this follows it; `docs/spec/profile-contract-v5.md` section 6 and
+its C5-19, C5-20 and C5-K1 to C5-K5 are the format).
+
+V2.3 recovered the kept set by INFERENCE from three facts a description
+publishes for other reasons, because the settings block recorded a
+declaration as a count and never as text. Contract version 5 records
+which members of this package's own closed vocabulary — the ten
+spellings and the three stand-in numbers of its section 14.1 — each
+declaration named, from the command line and from no cell. So:
+
+- **the kept set is `settings.kept_values.built_in_texts` and
+  `settings.kept_values.built_in_numbers`, and nothing else.** The
+  three routes of V2.3 are withdrawn. Contract 5 section 6.4 proves
+  those two lists are the WHOLE of the kept side's effect on the
+  reading rule: a rescue can only matter for a cell that would
+  otherwise have been absent, and every way a cell becomes absent is
+  reached only by naming a member of that vocabulary. The routes
+  answered a question about a description's LEVELS, and a label is a
+  spelling of a cell the producer read as a VALUE, so naming it as kept
+  changed no cell's reading;
+- **the fourth route gains a second half.** V2.3-A1's walk over
+  `missing_by_source` stands unchanged, and beside it
+  `settings.declared_missing_values`'s two lists are read the same way.
+  A built-in word named as "no value" moves its cells from class
+  `(text-code)` to class `(declared-missing)` (contract 5 C5-20); a
+  stand-in number named as "no value" takes its cells out before the
+  column's own sentinel rule judges them. Both were unrecoverable under
+  version 4 and both were recorded as residuals; neither is now.
+
+**What it costs, and it costs nothing.** Every obligation it moves, it
+moves off a not-checkable line and onto a check. No file loses a check,
+no new withholding appears, and no verdict that HELD stops holding.
+
+**What it does NOT reach.** The two limits of contract 5 section 7, and
+they are the same two V2.3-A3 leaves: a word of the PERSON'S own pooled
+below `small_cell_floor`, and a word of the person's own on a column
+whose publication class permits no value of the table. A word of this
+package's own is now recovered in both of those cases, because the
+settings block carries it whatever the floor and the publication class
+did with its cells.
+
+**The exclusions that remain, in full.** A key of `missing_by_source`
+is recovered unless the built-in table already reads it as an absence,
+or it reads as one of the three stand-ins. Both are still skipped there
+— and both are now ANSWERED from the settings block instead of being
+lost, which is what makes them exclusions rather than residuals.
 
 **V2.4 And the kept set governs only what PRINTS, never a verdict.** On
 the check side an absence is BLANKNESS, by the contract's own rule for
@@ -338,8 +462,10 @@ own absence rules, the split counts it by blankness, and the two differ
 exactly on the cells that are non-blank and read as holes. **How many
 such cells a column has is a FLOORED fact**, published per spelling in
 `missing_by_source` and pooled into one unnamed total below
-`small_cell_floor`, because a count of two cells sharing a rare spelling
-is a count the floor exists to hide. So two files the producer describes
+`small_cell_floor` — which from contract version 5 is the field
+`n_missing_withheld` rather than a key of that map, the same number
+under a name of its own (V2.3-A3) — because a count of two cells sharing
+a rare spelling is a count the floor exists to hide. So two files the producer describes
 BYTE FOR BYTE ALIKE — fifty-nine labels and one empty cell, fifty-nine
 labels and one `n/a` — received different verdicts, different censuses
 and different exit statuses.
@@ -406,27 +532,64 @@ it wears a spelling the description ITSELF publishes as the source of
 its holes. The reason V2.4 pinned absence to blankness is residual
 R-P2-13 — a generated value can legitimately BE the text of a built-in
 marker, and no file may be failed for colliding with synthtwin's OWN
-vocabulary. Nothing of synthtwin's own vocabulary is in the recovered
-set, by construction (V2.3-A1's three exclusions). **What it costs:** a
+vocabulary. ~~Nothing of synthtwin's own vocabulary is in the recovered
+set, by construction (V2.3-A1's three exclusions).~~ **That sentence was
+true of version 4 and is false from V2.3-A4, and the correction is
+below.** **What it costs:** a
 non-blank cell can now be absent to these two counts, so a generated
 value that collides with a spelling the DESCRIPTION declares — not one
 of the built-in table — is counted as a hole. That is R-P2-13's shape on
 a declared spelling, it is bounded by the cells wearing it, and it is
 recorded here rather than found.
 
+**And the bound on that cost is WIDER from V2.3-A4, stated at its size
+rather than left inside a withdrawn sentence** (2026-08-17, the plan's
+amendment A-P3-29). The recovered set can now hold a member of this
+package's own vocabulary, because the settings block says the person
+named it as "no value". So a generated cell colliding with THAT word is
+counted as a hole here, where version 4 counted it as data. Three things
+bound it and none of them is an assumption:
+
+- it reaches only a word the description ITSELF declares as "no value",
+  never the built-in table at large — a description that declares
+  nothing is untouched, and `_KEPT_OVER_THE_SPLIT` still names every
+  built-in marker as data on it;
+- it is the reading the description was written under. The producer
+  read every cell wearing that word as a hole in every column of the
+  table it described, so counting one as data here would measure the
+  file under a rule its description was not written under, which is the
+  error V2.4-A4 clause 1 repaired for a word of the person's own;
+- and it is exactly residual R-P2-13's own shape — a generated value
+  that equals a marker and re-reads as absent — on the one word class
+  it did not previously reach. It is bounded by the cells wearing it,
+  and under version 4 it was not smaller but hidden: such a description
+  had that column's cell-counted obligations moved to NOT CHECKABLE
+  wholesale (V2.4-A5), so no verdict could be wrong because no verdict
+  was given.
+
 **Clause 3 — what is still open, and why it does not close here. THIS
 CLOSES NOTHING AND CLAIMS NOTHING.** ~~Two~~ **Three** gaps remain and
 all of them are unrecoverable from what the contract publishes:
 
-- a `--keep-value` spelling that is one of the built-in missing texts,
+- ~~a `--keep-value` spelling that is one of the built-in missing texts,
   on a column that publishes no level carrying it — a column of numbers,
   of datetimes, of identifiers, of free text. Nothing in the document
   carries that spelling. The table it was written from reports
   `presence.n_present`, `presence.n_missing`, `counts.n_not_numeric`,
-  `counts.n_left_out_of_statistics` and `counts.numeric_share` MISSED;
+  `counts.n_left_out_of_statistics` and `counts.numeric_share` MISSED~~
+  **CLOSED 2026-08-17, by the same decision the third entry asked for:
+  contract version 5 records which members of this package's own
+  vocabulary a `--keep-value` named, its section 6.4 proves those are
+  the whole of what a rescue can change, and V2.3-A4 reads them. The
+  five obligations above, and the two that joined them under the plan's
+  A-P3-20 clause 3, are checked and every one of them HOLDS. The entry
+  stands struck rather than deleted, because it is the record of what
+  the format change was bought with;**
 - a declaration of either kind whose cells sit below `small_cell_floor`
-  in every column, pooled into `(withheld)` and named nowhere;
-- **a `--missing-value` spelling holding a character the display
+  in every column, pooled into `(withheld)` and named nowhere —
+  **unless the word is one of this package's own, which version 5's
+  settings block records for a different reason (V2.3-A4)**;
+- ~~**a `--missing-value` spelling holding a character the display
   boundary shows** (added 2026-08-15, review item P3-V7-F1; the plan's
   amendment A-P3-19 is the ruling). `missing_by_source` publishes it in
   its shown form, two different spellings can share that form, and the
@@ -436,7 +599,12 @@ all of them are unrecoverable from what the contract publishes:
   distinctness counts MISSED — seven, the same seven V2.3-A1 took off
   the plain-marker table, given back on this class alone. What closing
   it needs is the same kind of decision the other two need: a change to
-  what the profile publishes, not an edit to this module.
+  what the profile publishes, not an edit to this module.~~ **CLOSED
+  2026-08-17 by the decision this entry asked for: contract version 5
+  stores the spelling exactly, the two descriptions differ, and all
+  seven are checked and held (V2.3-A3). The entry stands struck rather
+  than deleted, because it is the record of what the format change was
+  bought with.**
 
 **And reading the split anyway is not the answer, which is why this is
 a ruling and not a repair.** Two hundred readings and one `n/a`, beside
@@ -515,6 +683,82 @@ them. Narrowing this needs either a distinct exit status for a run whose
 census is short, or a bound on each moved obligation drawn from the
 count of unattributable cells — both are owner decisions and neither is
 taken here.
+
+**V2.4-A6 The question is asked of far fewer columns, and the two tests
+it is asked with are narrowed to what version 5 makes decidable. THIS
+RAISES; it lowers nothing** (2026-08-17, owner ruling of that date; the
+plan's amendment A-P3-29 is the ruling and this follows it). A5's
+routing is not withdrawn and not weakened. What changes is how often
+the answer is "the rule cannot be rebuilt", and it changes in four
+places:
+
+- **The kept-side head count is deleted, not narrowed.** A5 asks it of
+  EVERY column, "because a rescued cell is PRESENT and no published
+  number says how many present cells were rescued", and the plan's
+  A-P3-26 calls that the wider of its two costs. Contract 5 section 6.4
+  proves the settings block carries the whole of the kept side
+  (V2.3-A4), so there is no shortfall left for a head count to find.
+- **The absence-side head count asks only about words of the PERSON'S
+  own.** `n_declared` counts every value named; the two vocabulary
+  lists name the ones that were this package's; the difference is how
+  many were the person's, and the per-column walk of V2.3-A1 is what
+  came back of those. A word of this package's own is written down
+  whatever the floor did, so counting it in the shortfall would report
+  a deficit that is not one.
+- **The per-column structural test is not asked where the publication
+  class empties the source accounting.** On a nothing-publishing column
+  `missing_by_source` is empty, `n_missing_blank` is zero and
+  `n_missing_withheld` is zero because of the CLASS and not because of
+  the cells, and contract 5's C5-N6 makes the two cases tellable apart
+  from `role` and `structural_role`. A count-against-count test has
+  nothing to read there; asking it anyway called every declared hole of
+  such a column unattributable even where the word is in the settings
+  block. The head count answers for that column instead.
+- **And where it IS asked, a published key is matched to a recovered
+  declaration at `settings.declaration_matching`'s own identity** — the
+  exact number where both read as one, else the trimmed and folded
+  spelling — rather than by exact key lookup. Exact lookup asked a
+  narrower question than the producer asked and answered it wrongly
+  twice: a declared stand-in comes back from the settings block written
+  `-999` while the file wrote `-999.0`, and a word typed `" N/A "`
+  comes back as the member `n/a` while the file wrote `N/A`.
+
+**The union is still a union, and that is a soundness bound rather than
+caution.** The head count counts WORDS and the structural test counts
+CELLS. A declaration is matched by its folded spelling, so one declared
+word can be worn by several published keys — ` XX ` and `XX` are two
+keys of one word — and a head count of keys against a head count of
+words can come out level while a second declared word is pooled and
+lost. The structural test sees those cells and fires.
+
+**What it costs, measured on the same witnesses A5 was measured on.**
+
+| witness | A5's checks / moved | now |
+|---|---|---|
+| a rescued word on a column of numbers (route 1) | 10 / 43 | **53 / 0** |
+| a rescued word on a label column (route 1) | 10 / 27 | **37 / 0** |
+| an invisible character in a named word (route 2) | 53 / 0 | 53 / 0 |
+| a cell spelling one of this package's class words (route 5) | 53 / 0 | 53 / 0 |
+| a named stand-in number | 10 / 43 | **53 / 0** |
+| a built-in word named on a free-text column | 10 / 21 | **31 / 0** |
+| the person's own word on a free-text column (route 4) | 10 / 21 | 10 / 21 |
+| the person's own word below the floor (route 3) | 10 / 43 | 10 / 43 |
+| one word published, one pooled (route 3) | 10 / 43 | 10 / 43 |
+| a word of the person's own that the table never held | 10 / 43 | 10 / 43 |
+
+**The over-fire that stays, and it is the last line of that table.** A
+description naming two words of the person's own, of which the table
+holds one, reports a gap that is not there. It is the safe direction —
+obligations become not-checkable on a file that would have passed — and
+closing it needs the description to say which named words the table
+held, which is a fact about the table and not about the command line.
+
+**Both of A5's residual risks stand on what is left**, at exactly A5's
+wording: a file that really does violate a moved obligation comes back
+at exit 0, and the TWIN of an affected description carries the same
+limit as the table. They stand on the two limits of contract 5 section
+7 and on nothing else, because those are the only descriptions left
+that cannot be read back.
 
 ---
 
@@ -1152,8 +1396,8 @@ the fact about ANY file at ANY count**:
   how the producer says the count is small enough to identify somebody.
   The blank/non-blank split of a column's missing cells is such a fact:
   `missing_by_source` names the exact spelling at or above the floor and
-  pools it below, so V2.4-A3 above governs it and no ruling may excuse
-  it;
+  the pool below it is counted in `n_missing_withheld` (V2.3-A3), so
+  V2.4-A3 above governs it and no ruling may excuse it;
 - where it publishes it about no file at any count, there is no floor to
   appeal to and no window to draw, withholding it withholds it forever,
   and V3.4 refuses a subcheck that can never verdict. That is the case

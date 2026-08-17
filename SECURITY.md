@@ -271,6 +271,68 @@ Stated here so that no reader has to discover them independently:
   two - so a generator working from the description alone would silently
   change the type of a column that code developed against the twin will
   meet on the real table.
+- **Version 5 names which of synthtwin's OWN words you typed after
+  `--keep-value` or `--missing-value`** (owner ruling 2026-08-17; Phase 3
+  plan amendments A-P3-27 and A-P3-28; contract 5 section 6). Through
+  version 4 the settings block carried a declaration as a COUNT and
+  never as text, because a declared value is compared against every cell
+  of every column and could be data. **From version 5 it also names
+  which members of a thirteen-member list synthtwin publishes in its own
+  contract were among the values you typed** - ten spellings it reads as
+  "no value" (the empty spelling, `-`, `--`, `.`, `?`, `n/a`, `na`,
+  `nan`, `none`, `null`) and three stand-in numbers (`-9999`, `-999`,
+  `9999`).
+
+  **What that gives up, at its size.** A reader of the description
+  is told which of those thirteen fixed words were typed, and nothing
+  else. The field carries no count of cells, no column and no row; the
+  MEMBER's spelling is written and never yours, so if you typed `" N/A "`
+  the document holds `n/a` and your spacing and capitals do not travel;
+  and it is written identically whether or not the word occurs in your
+  table, because it is computed from the command line without reading a
+  cell. What a reader can still infer is said rather than waved away:
+  people usually type a word because it is in their table, so a version 5
+  description makes available a guess a version 4 description made only
+  coarsely - not "one value was rescued" but "the value rescued was one
+  of these thirteen". **The word guessed at can never be a name, a code,
+  a diagnosis or a free-text answer, because a value outside that list
+  is written nowhere at all.**
+
+  **What is not relaxed.** A declared value that is not one of the
+  thirteen is still recorded nowhere. Every publication class is
+  unchanged: a column of record numbers, free text or unrepresentable
+  numbers still publishes no value of the table. Every floor rule is
+  unchanged. No column block publishes a fact version 4 did not.
+
+  **Why it is published.** Without it, a researcher who rescues one of
+  synthtwin's own words with `--keep-value` cannot check their own table
+  against its own description: `synthtwin validate` re-reads the file
+  under the rule the description records, and a description that does
+  not record the rescue reads those cells as absences and reports
+  failures that are not real. The profiler's own summary states this on
+  every run where you named a value, which is every run this paragraph
+  is about; it says nothing on a run with no declaration, because a
+  sentence printed on every ordinary run is a sentence people stop
+  reading.
+- **Version 5 stores a declared spelling exactly, and escapes it only
+  when it is printed** (same ruling; contract 5 section 4). A column's
+  `missing_by_source` names the spellings that made its cells absent,
+  under the same floor as any published label. Through version 4 each
+  key was rewritten into a printable form BEFORE being stored, so a word
+  holding an invisible character and a word holding the printable
+  characters that stand for it published one key; from version 5 the key
+  is the spelling character for character, and the rewriting happens
+  where a key is SHOWN. **What that adds:** for a spelling the floor
+  already permitted to be named, which of the spellings sharing one
+  printable form it was. It is empty for every spelling made of
+  characters that show themselves, which is every ordinary word. No
+  group version 4 withheld becomes named, no count changes, and no row
+  is identified. **In one corner it publishes strictly less:** version 4
+  applied the floor to the rewritten key, so two different spellings
+  that rewrite alike were counted together and could reach the floor
+  although neither alone did; version 5 counts each on its own, so it
+  names fewer groups there. Every page a person reads prints the same
+  characters it printed before.
 - **OS-transparent network mounts.** If the operating system presents a
   network share as an ordinary local path, no portable program can
   detect that. Mount configuration is part of your environment, not

@@ -1,5 +1,26 @@
 """A published field that crossed the display boundary is not exact.
 
+CLOSED AT THE ROOT BY CONTRACT VERSION 5, and this file is now the
+proof of that as well as the record of what it cost while it was open
+(contract 5 C5-1 and C5-8; plan amendments A-P3-27 and A-P3-28). From
+version 5 a `missing_by_source` key is the source spelling CHARACTER FOR
+CHARACTER and the boundary is applied where a key is SHOWN, so the two
+tables below no longer describe alike, each is read back exactly, and
+each validates against its own description with nothing missed and
+nothing named unsupported. The false pass in the other direction is gone
+with it: the file the description's own settings reject now reports the
+seven misses it always owed.
+
+WHAT IS STILL TRUE HERE, and why the file is not deleted. The display
+boundary is still not reversible, `parsing.shows_only_itself` is still
+the property its docstring claims, and both are proved below -- they are
+what makes the SHOWN surfaces safe now that the STORED key is raw.
+`REINSTATE=A-P3-28` puts version 4's storage rule back and every
+assertion that says the class is closed goes red.
+
+WHAT THE CLASS WAS, kept as written, because a reader has to be able to
+see what the format change bought.
+
 REVIEW ITEM P3-V7-F1, and plan amendment A-P3-19. Round 6 recovered the
 person's `--missing-value` spellings from a column's `missing_by_source`
 and called them "the exact spelling". They are not: the profile contract
@@ -96,6 +117,27 @@ def _reinstated() -> "typing.Iterator[None]":
     """
     monkeypatch = pytest.MonkeyPatch()
     asked = os.environ.get("REINSTATE")
+    if asked == "A-P3-28":
+        # VERSION 4'S STORAGE RULE, PUT BACK. The producer escaped each
+        # key before storing it, which is the whole of what contract
+        # version 5 changed here, so this is the reinstatement that
+        # matters: with it, the two descriptions come out byte for byte
+        # alike again and every assertion below that says otherwise goes
+        # red.
+        original = taxonomy._missing_maps
+
+        def _escaped(missing, settings):
+            by_source, by_class, blank, withheld = original(missing, settings)
+            shown: dict = {}
+            for key in sorted(by_source):
+                seen = parsing.visible(key)
+                if seen in shown:
+                    shown[seen] = shown[seen] + by_source[key]
+                else:
+                    shown[seen] = by_source[key]
+            return shown, by_class, blank, withheld
+
+        monkeypatch.setattr(taxonomy, "_missing_maps", _escaped)
     if asked == "P3-V7-F1":
         monkeypatch.setattr(parsing, "shows_only_itself", lambda _text: True)
     if asked == "A-P3-26":
@@ -199,21 +241,23 @@ def test_the_display_boundary_maps_two_spellings_onto_one_key() -> None:
     assert RAW != SHOWN
 
 
-def test_the_two_descriptions_are_byte_for_byte_alike(
+def test_the_two_descriptions_are_no_longer_alike(
     worlds: "tuple[World, World, pathlib.Path]",
 ) -> None:
-    """No reading of a description can tell the two tables apart.
+    """The two tables describe differently, which is what version 5 bought.
 
-    This is what makes the class unclosable inside the validator under
-    the current format, and it is asserted rather than argued: if the
-    contract ever published the exact spelling somewhere, these bytes
-    would differ and this test is what says so.
+    This test asserted the OPPOSITE until contract version 5, and the
+    sentence it used to carry said why: "if the contract ever published
+    the exact spelling somewhere, these bytes would differ and this test
+    is what says so". It does now (C5-1). Each description names the
+    spelling its own table wrote, character for character, and the two
+    files are not the same bytes.
     """
     raw, shown, _folder = worlds
-    assert canonical.serialize(raw.document) == canonical.serialize(
+    assert canonical.serialize(raw.document) != canonical.serialize(
         shown.document
     )
-    assert raw.described.columns[1].missing_by_source == {SHOWN: 12}
+    assert raw.described.columns[1].missing_by_source == {RAW: 12}
     assert shown.described.columns[1].missing_by_source == {SHOWN: 12}
     assert raw.described.columns[1].n_present == 60
     assert raw.described.columns[1].n_missing == 12
@@ -222,15 +266,25 @@ def test_the_two_descriptions_are_byte_for_byte_alike(
 # -- the direction the review named ------------------------------------
 
 
-def test_the_escaped_declaration_is_not_recovered(
+def test_the_exact_declaration_is_read_back(
     worlds: "tuple[World, World, pathlib.Path]",
 ) -> None:
-    """The key crossed the boundary, so it is not read back as a spelling."""
+    """The key IS the spelling now, so it is read back as one.
+
+    The narrow rule amendment A-P3-19 wrote -- recover a key only where
+    the boundary provably left it alone -- existed because the stored
+    key was the SHOWN form. It is the raw form from contract version 5,
+    so the rule is gone and each world's own declaration comes back.
+    """
     raw, shown, _folder = worlds
-    assert validation.declared_spellings(raw.described) == ()
-    assert validation.declared_spellings(shown.described) == ()
-    settings = validation.settings_for(raw.described)
-    assert settings.declared_missing_values == ()
+    assert validation.declared_spellings(raw.described) == (RAW,)
+    assert validation.declared_spellings(shown.described) == (SHOWN,)
+    assert validation.settings_for(
+        raw.described
+    ).declared_missing_values == (RAW,)
+    assert validation.settings_for(
+        shown.described
+    ).declared_missing_values == (SHOWN,)
 
 
 def _unsupported(outcome: validation.Outcome) -> "list[str]":
@@ -254,50 +308,63 @@ def test_the_residual_is_exactly_the_seven_this_file_names(
     written. That is the cost amendment A-P3-19 records, and it is
     pinned here at its size so that a change to it is visible.
 
-    IT IS SEVEN NOT-CHECKABLE LINES NOW, AND IT WAS SEVEN MISSES (owner
-    ruling 2026-08-16, plan amendment A-P3-26). The residual is the same
-    residual -- the spelling is exactly as unrecoverable as it was --
-    and the same seven obligations are the ones it reaches. What changed
-    is that a table which is its own description's perfect match is no
-    longer told it failed seven obligations; the report says instead
-    that this description does not record what measuring them needs.
+    IT WAS SEVEN MISSES, THEN SEVEN NOT-CHECKABLE LINES, AND IT IS NOW
+    NOTHING AT ALL (owner rulings 2026-08-16 and 2026-08-17; plan
+    amendments A-P3-19, A-P3-26 and A-P3-27). Each stage is worth
+    reading in order, because the third is the only one that put the
+    information back: round 6 reported seven misses on a file that was
+    its own description's perfect match; A-P3-26 stopped the false alarm
+    by moving those seven to the not-checkable census with a reason; and
+    contract version 5 stores the spelling exactly, so the reading rule
+    is rebuilt and all seven are CHECKED and held.
     """
     raw, shown, _folder = worlds
     for world in (raw, shown):
         outcome = validation.measure(world.described, world.path)
         assert _missed(outcome) == [], world.marker
         assert outcome.census.missed == 0, world.marker
+        checked = _verdicts(outcome)
         for subcheck in _SEVEN:
-            assert subcheck in _unsupported(outcome), (
-                f"{world.marker}: {subcheck} is neither checked nor "
-                f"named as unsupported, so the residual amendments "
-                f"A-P3-19 and A-P3-26 state has changed size"
+            assert subcheck not in _unsupported(outcome), (
+                f"{world.marker}: {subcheck} is still named as one this "
+                f"description cannot support, and contract version 5 "
+                f"records what measuring it needs"
+            )
+            assert checked.get(subcheck) == validation.HELD, (
+                f"{world.marker}: {subcheck} is not checked and met "
+                f"against the very file its description was written from"
             )
 
 
-def test_the_two_worlds_now_get_the_same_report(
+def test_each_world_is_measured_under_its_own_reading_rule(
     worlds: "tuple[World, World, pathlib.Path]",
 ) -> None:
-    """Two descriptions nothing can tell apart give two files one answer.
+    """Two files, two descriptions, and each is now read as it was written.
 
-    V5.1's shape, applied to the pair the format cannot separate: the
-    tables differ only in a spelling the description does not carry, so
-    a rule that treats them differently is a rule reading something the
-    description does not publish.
+    V5.1 says a report may state only what describing the file would
+    publish. While the two descriptions were one file, that forced one
+    answer for both. They are two files now, each carrying its own
+    reading rule, so each run reads its own table the way that table was
+    described -- and both come back holding every obligation.
     """
     raw, shown, _folder = worlds
     first = _verdicts(validation.measure(raw.described, raw.path))
     second = _verdicts(validation.measure(shown.described, shown.path))
-    assert first == second
+    assert first == second, (
+        "the two runs reach the same verdicts because the two tables are "
+        "the same table under two spellings; what differs is the reading "
+        "rule each was measured under"
+    )
+    assert validation.MISSED not in set(first.values())
 
 
 # -- the direction the review did not name: the passing report ---------
 
 
-def test_a_file_the_declaration_rejects_is_no_longer_reported_on(
+def test_a_file_the_declaration_rejects_is_reported_on_again(
     worlds: "tuple[World, World, pathlib.Path]",
 ) -> None:
-    """THE FALSE PASS, AND THE LOWERING THAT REPLACED THE ALARM.
+    """THE FALSE PASS, AND THE FORMAT CHANGE THAT ENDED IT.
 
     The description was written from the control-character table under
     the declaration that table's holes wear. The OTHER file wears the
@@ -309,28 +376,24 @@ def test_a_file_the_declaration_rejects_is_no_longer_reported_on(
     and reported no miss at all: a passing report on a file the
     description's own settings reject.
 
-    AMENDMENT A-P3-19 REPLACED THAT WITH SEVEN MISSES. IT IS SEVEN
-    NOT-CHECKABLE LINES NOW, AND THIS IS THE ONE PLACE WHERE THAT IS A
-    LOWERING (owner ruling 2026-08-16, plan amendment A-P3-26, and the
-    first of the two risks the ruling was taken against). This run is
-    the SAME construction as the two runs above -- one description, two
-    files it cannot tell apart -- and V5.1 forbids a report that tells
-    them apart. So the file that conforms and the file that does not
-    both come back at exit code 0 with the same seven obligations named
-    as ones this description cannot support asking of any file.
+    AMENDMENT A-P3-19 REPLACED THAT WITH SEVEN MISSES, AMENDMENT A-P3-26
+    REPLACED THOSE WITH SEVEN NOT-CHECKABLE LINES -- the one place that
+    ruling was a lowering, taken with the risk stated -- AND CONTRACT
+    VERSION 5 ENDS THE SEQUENCE by putting the information back. The
+    description now carries the spelling its own table wrote, so the two
+    files are no longer one file to it: the conforming one is measured
+    and holds everything, and the one the declaration rejects is
+    measured and misses the seven it always owed.
 
-    WHAT IS TRUE OF THE REPORT, AND WHAT IS NOT. It no longer says the
-    seven obligations were checked and held, which is what round 6's
-    false pass said; it says they could not be checked, and why. That is
-    the trade: a report that states a limit instead of a verdict it
-    cannot support, at the price of a real failure in this corner going
-    unremarked. This test asserts BOTH halves, so a change to either is
-    a change somebody chose.
+    THAT IS THE LOWERING PAID BACK, and this test asserts both sides of
+    it, so a change to either is a change somebody chose: the
+    non-conforming file misses exactly the seven, and the conforming
+    file misses none of them.
     """
     raw, shown, _folder = worlds
     # What the producer says about the other file under the settings the
     # description was actually written under. This is the truth the
-    # report can no longer reach.
+    # report can now reach again.
     table = reading.read_table(
         shown.path, first_row=reading.FIRST_ROW_AUTOMATIC
     )
@@ -343,18 +406,14 @@ def test_a_file_the_declaration_rejects_is_no_longer_reported_on(
     assert column["n_missing"] == 0
     assert raw.described.columns[1].role == "continuous"
     outcome = validation.measure(raw.described, shown.path)
-    # THE LOWERING, WRITTEN OUT: this file misses nothing now.
-    assert outcome.census.missed == 0
-    # ...and what replaced the misses is a stated limit, not a silence:
-    # each of the seven is named in the not-checkable census with the
-    # sentence saying what the description does not record.
-    for subcheck in _SEVEN:
-        assert subcheck in _unsupported(outcome), subcheck
-    # ...and the two files still get one answer, which is why the
-    # lowering cannot be repaired by looking at the file.
+    # THE ALARM IS REAL NOW, AND IT IS EXACTLY THE SEVEN.
+    assert _missed(outcome) == sorted(_SEVEN)
+    assert outcome.census.missed == len(_SEVEN)
+    assert _unsupported(outcome) == []
+    # ...and the file that DOES conform is not told any of it.
     conforming = validation.measure(raw.described, raw.path)
-    assert _verdicts(conforming) == _verdicts(outcome)
-    assert _unsupported(conforming) == _unsupported(outcome)
+    assert _missed(conforming) == []
+    assert conforming.census.missed == 0
 
 
 # -- the rule itself, and that round 6's gains are untouched -----------
@@ -382,14 +441,16 @@ def test_a_declaration_the_boundary_leaves_alone_is_still_recovered(
         assert outcome.census.missed == 0, marker
 
 
-def test_the_recovery_skips_a_key_and_nothing_wider(
+def test_both_keys_of_a_mixed_description_are_read_back(
     tmp_path: pathlib.Path,
 ) -> None:
-    """One column's escaped key does not silence another column's plain one.
+    """One column's raw key and another's plain one both come back.
 
-    The exclusion is taken per key. Where one column publishes a key the
-    boundary could have altered and another publishes a key it could
-    not, the second is still read back; the first is what stays out.
+    Round 6's exclusion was taken per key: where one column published a
+    key the boundary could have altered and another published a key it
+    could not, only the second was read back. From contract version 5
+    neither key was ever altered, so both are read back and the
+    per-column shape of the old rule is what this test now pins.
     """
     folder = tmp_path / "mixed"
     folder.mkdir()
@@ -409,9 +470,13 @@ def test_the_recovery_skips_a_key_and_nothing_wider(
         [],
     )
     described = _loaded(folder, document, "mixed")
-    assert described.columns[1].missing_by_source == {SHOWN: 12}
+    assert described.columns[1].missing_by_source == {RAW: 12}
     assert described.columns[2].missing_by_source == {"XX": 12}
-    assert validation.declared_spellings(described) == ("XX",)
+    # BOTH KEYS COME BACK NOW. The exclusion this test was written for
+    # existed because one of the two had crossed the display boundary
+    # before it was stored; contract version 5 stores both exactly, so
+    # the narrow rule has nothing left to be narrow about.
+    assert validation.declared_spellings(described) == (RAW, "XX")
 
 
 # -- `shows_only_itself` is the property its docstring claims ----------

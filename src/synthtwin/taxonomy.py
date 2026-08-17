@@ -1206,6 +1206,16 @@ class Settings:
     # block carries their count and never their text (review item
     # P1-R7-F2, applied in `profile._declaration_record`).
     #
+    # FROM CONTRACT VERSION 5 THAT RULE HAS ONE STATED EXCEPTION, and it
+    # is not the person's text (owner ruling 2026-08-17, plan amendment
+    # A-P3-27 part 3, contract 5 section 6). The settings block also
+    # names WHICH MEMBERS of synthtwin's own thirteen published words a
+    # declaration named -- ten spellings and three stand-in numbers,
+    # written in the vocabulary's own spelling, identical in every
+    # installation, and computed from the command line without reading a
+    # cell. `built_in_values_named` below is the whole of it, and its
+    # docstring carries the reason and the bound.
+    #
     # That is a statement about the settings block and nothing else. The
     # wider reading -- that a declared spelling reaches no part of the
     # document -- is false and was retired with the token that carried
@@ -1294,12 +1304,23 @@ class ColumnProfile:
     n_present: int
     n_missing: int
     # Exact source spellings, published only for a role whose values may
-    # appear at all, and only at or above the small-cell floor.
+    # appear at all, and only at or above the small-cell floor. The key
+    # is the spelling character for character; the display boundary is
+    # applied where a key is SHOWN and never before it is stored
+    # (contract 5 C5-1). Its keys are the table's own text and nothing
+    # else: no key here carries a first-party meaning (C5-N5).
     missing_by_source: dict[str, int]
     # The named classes a missing cell fell into. These are synthtwin's
     # own words, so this mapping is safe on every role and is always
     # written in full.
     missing_by_class: dict[str, int]
+    # The two counts version 4 kept inside the spellings map, under the
+    # two of synthtwin's own words that could collide with somebody's
+    # data (contract 5 section 5). How many absent cells held nothing
+    # but space -- zero unless at least the floor did -- and how many
+    # wore a spelling, or a blankness, fewer than the floor shared.
+    n_missing_blank: int
+    n_missing_withheld: int
     details: dict[str, object]
     publication_notes: list[Note]
     remarks: list[Note]
@@ -2465,6 +2486,69 @@ def contradictory_declarations(
     return named
 
 
+def built_in_values_named(
+    spellings: "tuple[str, ...]",
+) -> "tuple[tuple[str, ...], tuple[float, ...]]":
+    """Which of synthtwin's OWN published words a declaration named.
+
+    Contract 5 section 6, invariants C5-16, C5-17 and C5-K1 to C5-K5;
+    plan amendment A-P3-27 part 3.
+
+    THE WHOLE OF WHAT THIS MAY WRITE is a member of the thirteen the
+    contract publishes in its own appendix: the ten spellings
+    `parsing.MISSING_TEXTS` reads as "no value" and the three stand-in
+    numbers `parsing.NUMERIC_SENTINELS` judges. They are synthtwin's
+    vocabulary, identical in every installation, and they contain no
+    text of anybody's table. A declared value that is not one of them is
+    written NOWHERE, and the settings block keeps counting it and no
+    more, exactly as version 4 did (C5-18).
+
+    AND WHAT IS WRITTEN IS THE MEMBER, NEVER THE SPELLING SOMEBODY TYPED
+    (C5-17). A person who types `" N/A "` gets `n/a` in the document:
+    their spacing and their capitals are not carried, because the rule
+    that matches a declaration is over the folded form and over the
+    number, so the member is the whole of what a consumer needs. Nothing
+    a person typed reaches a document through these two lists.
+
+    WHY THIS IS SAFE TO PUBLISH WHEN A SPELLING IS NOT, said here
+    because a reader of this function will ask (C5-16, and it LOWERS
+    the Phase 1 settings-block rule by exactly this much, on the owner's
+    ruling of 2026-08-17). No cell of any table is consulted: the answer
+    is a function of what was typed on the command line and of the two
+    lists below. A word named but never held by any cell is recorded
+    identically to a word every cell held, so the field is not evidence
+    about the table -- which is the property the settings block has
+    always been required to have.
+
+    Guarantees:
+
+    - Inputs: the spellings the person typed for ONE of the two options.
+      Nothing else is consulted -- not a column, not a cell, not the
+      other option's list.
+    - Determinism: both tuples are sorted -- the texts by code point,
+      the numbers by value -- and pairwise distinct, so two runs with
+      the same options write the same bytes (C5-K2).
+    - Errors raised: TypeError if handed anything that is not text,
+      through `parsing.folded`.
+    - Boundary: no I/O of any kind, and no value of any table can reach
+      the result.
+    """
+    texts: dict[str, int] = {}
+    numbers: dict[float, int] = {}
+    for spelling in spellings:
+        folded = parsing.folded(spelling)
+        for member in parsing.MISSING_TEXTS:
+            if folded == member:
+                texts[member] = 1
+        exact = exact_of_spelling(spelling)
+        if exact is None:
+            continue
+        for candidate in parsing.NUMERIC_SENTINELS:
+            if exact == exact_of_number(candidate):
+                numbers[candidate] = 1
+    return tuple(sorted(texts)), tuple(sorted(numbers))
+
+
 def _declared_spelling(
     text: str, declarations: "list[_Declaration]"
 ) -> bool:
@@ -2590,14 +2674,44 @@ def _declared_numbers_removed(
 
 def _missing_maps(
     missing: list[tuple[str, str]], settings: Settings
-) -> "tuple[dict[str, int], dict[str, int]]":
-    """Both missing mappings, under the small-cell floor.
+) -> "tuple[dict[str, int], dict[str, int], int, int]":
+    """The two missing mappings and the two counts, under the floor.
+
+    Returns, in this order: the spellings map, the class map, how many
+    absent cells held nothing but space, and how many were pooled.
 
     `missing_by_class` uses only synthtwin's own five words, so it is
-    safe on every role and is always written in full. An exact source
-    spelling reaches `missing_by_source` only when at least
-    `small_cell_floor` rows share that spelling; everything else is
-    pooled, unnamed, into `(withheld)`.
+    safe on every role and is always written in full. A source spelling
+    reaches `missing_by_source` only when at least `small_cell_floor`
+    rows share that spelling; everything else is pooled, unnamed, into
+    the count returned last.
+
+    THE SPELLING IS STORED EXACTLY, character for character, and the
+    display boundary is applied where a key is SHOWN (contract 5
+    C5-1 to C5-4, plan amendment A-P3-27 part 1). Version 4 rewrote each
+    spelling into its printable form before storing it, so a word
+    holding an invisible character and a word holding the printable
+    characters that stand for it published one key: two tables needing
+    opposite readings produced byte-identical descriptions, and a file
+    wearing one of them passed against the other's description. That
+    rewriting is a rule about not scrambling somebody's terminal, and it
+    belongs at the moment of printing -- which is what `variants` next
+    door has always done, for the reason contract 4 section 7.4.2 gives.
+    One consequence runs the OTHER way and is not a relaxation
+    (C5-8): the floor is now applied to the exact spelling, so two
+    spellings that escape alike are counted apart and pooled apart, and
+    version 5 names strictly fewer groups there than version 4 did.
+
+    THE MAP HOLDS ONE KEY SPACE (C5-11, C5-N5). Its keys are
+    spellings some cell of the table held and nothing else. Blank cells
+    and the pooled remainder -- which version 4 wrote into the same map
+    under `(blank)` and `(withheld)` -- are the two counts returned
+    beside it, so no key of this format can be both somebody's data and
+    one of synthtwin's own words. That is what `variants_withheld`
+    already does for the label roles. Both counts are floor-governed
+    exactly as the two keys they replace were: a blank group smaller
+    than the floor is pooled rather than named, so `n_missing_blank` is
+    either zero or at least the floor (C5-N4).
 
     THE ROLE IS NOT CONSULTED HERE. This function used to hold half of
     the publication rule as well -- an early return that emptied
@@ -2630,24 +2744,27 @@ def _missing_maps(
             )
     by_source: dict[str, int] = {}
     exact: dict[str, int] = {}
+    blank = 0
     for spelling, _name in missing:
-        if parsing.trimmed(spelling):
-            key = parsing.visible(spelling)
+        if not parsing.trimmed(spelling):
+            blank = blank + 1
+            continue
+        if spelling in exact:
+            exact[spelling] = exact[spelling] + 1
         else:
-            key = parsing.MISSING_BLANK
-        if key in exact:
-            exact[key] = exact[key] + 1
-        else:
-            exact[key] = 1
+            exact[spelling] = 1
     withheld = 0
     for key in sorted(exact):
         if exact[key] >= settings.small_cell_floor:
             by_source[key] = exact[key]
         else:
             withheld = withheld + exact[key]
-    if withheld:
-        by_source[parsing.MISSING_WITHHELD] = withheld
-    return by_source, pooled
+    named_blank = 0
+    if blank >= settings.small_cell_floor:
+        named_blank = blank
+    else:
+        withheld = withheld + blank
+    return by_source, pooled, named_blank, withheld
 
 
 # -- numeric sentinels ------------------------------------------------
@@ -4145,7 +4262,12 @@ def _publication_class_applied(
     details: dict[str, object],
     by_source: dict[str, int],
     entries: list[dict[str, object]],
-) -> "tuple[dict[str, object], dict[str, int], list[dict[str, object]]]":
+    n_blank: int,
+    n_withheld: int,
+) -> (
+    "tuple[dict[str, object], dict[str, int], list[dict[str, object]], "
+    "int, int]"
+):
     """Everything a column block publishes, filtered by its class.
 
     THE RULE IS A PROPERTY OF THE BLOCK, and this is the one place it
@@ -4181,15 +4303,25 @@ def _publication_class_applied(
     publishes -- occurrences, then verdict, then reason -- so that
     nothing about a value of the table decides where a line appears.
 
+    AND THE TWO COUNTS BESIDE THE MAP GO WITH IT (contract 5 C5-N6,
+    C5-21). `n_missing_blank` and `n_missing_withheld` are the source
+    accounting version 4 kept inside the map, so they follow the map's
+    own rule: they are zero on exactly the columns whose class empties
+    it. Leaving them behind would have said, of a free-text column that
+    publishes no spelling, how many of its absent cells were blank and
+    how many wore something the floor pooled -- which is the shape of
+    the defect this function exists for, one field remembering the rule
+    and the field added next to it forgetting.
+
     Guarantees: accepts whether the column may publish a value, the
     details block built for it, the missing-spelling map under the
-    small-cell floor, and the sentinel verdicts that cleared the floor;
-    returns the three of them unchanged for a column whose class permits
-    values, and filtered for a column whose class does not. Raises
-    nothing. No I/O of any kind.
+    small-cell floor, the sentinel verdicts that cleared the floor, and
+    the blank and pooled counts; returns the five of them unchanged for
+    a column whose class permits values, and filtered for a column whose
+    class does not. Raises nothing. No I/O of any kind.
     """
     if not publishes_nothing:
-        return details, by_source, entries
+        return details, by_source, entries, n_blank, n_withheld
     ranked: list[tuple[int, str, str, int]] = []
     index = 0
     for entry in entries:
@@ -4206,7 +4338,7 @@ def _publication_class_applied(
     for _occurrences, _verdict, _reason, place in sorted(ranked):
         withheld += [_counts_only(entries[place])]
     no_spellings: dict[str, int] = {}
-    return _counts_only(details), no_spellings, withheld
+    return _counts_only(details), no_spellings, withheld, 0, 0
 
 
 def profile_column(
@@ -4348,16 +4480,26 @@ def profile_column(
     else:
         verdict = _decide(cells, forced_identifier)
 
-    by_source, by_class = _missing_maps(missing, settings)
+    by_source, by_class, n_blank, n_withheld = _missing_maps(
+        missing, settings
+    )
     # ONE application of the publication class, over everything the
     # block can publish, after the role is known and before anything is
     # built. Doing it per field is what let one field be forgotten
     # (review item P1-R7-F2).
-    details, by_source, entries = _publication_class_applied(
+    (
+        details,
+        by_source,
+        entries,
+        n_blank,
+        n_withheld,
+    ) = _publication_class_applied(
         publishes_no_values(verdict.role, forced_identifier),
         verdict.details,
         by_source,
         entries,
+        n_blank,
+        n_withheld,
     )
     # ONE construction site. Every count below is a field of the class,
     # so it exists on every role by construction rather than by
@@ -4377,6 +4519,8 @@ def profile_column(
         n_missing=n_missing,
         missing_by_source=by_source,
         missing_by_class=by_class,
+        n_missing_blank=n_blank,
+        n_missing_withheld=n_withheld,
         details=details,
         publication_notes=verdict.notes,
         remarks=remarks + verdict.remarks,

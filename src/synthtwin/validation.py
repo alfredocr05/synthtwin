@@ -43,36 +43,49 @@ rather than by declining to.
 
 THAT BOUND IS NOT MET IN FULL, AND SAYING IT WAS COST FIVE VERDICTS
 (review items P3-V4-F1 and P3-V5-F2; plan amendment A-P3-15). The
-"reconstruction" is not one thing. Two of its parts are now faithful
+"reconstruction" is not one thing. Two of its parts are faithful
 wherever the description publishes what they need -- which cells are
-present, taken from blankness, and the two DECLARATION tuples of V2.2,
-recovered from the description's own published text by
-`kept_spellings`' three routes and `declared_spellings`' fourth. The
-part that is NOT faithful is a declaration the description publishes
+present, taken from blankness, and the two DECLARATION tuples of V2.2.
+The part that is NOT faithful is a declaration the description publishes
 nowhere, and the split is taken only where the file's own description
 publishes the split (V2.4-A3), so a spelling the recovery misses is a
 spelling that description reads as a hole, and the gate then closes on
-a file that meets every published fact. A researcher who runs
-`--keep-value n/a` and validates their own table is told seven
-obligations were MISSED. What is recoverable, what is not, and why the
-unrecoverable half cannot be answered by reading the split instead, are
-at `kept_spellings` and `declared_spellings` below and in plan
-amendment A-P3-15. No sentence in this module may say the bound is met
-while that stands.
+a file that meets every published fact. No sentence in this module may
+say the bound is met while that stands.
 
-AND WHERE IT IS NOT MET, THE REPORT NOW SAYS SO INSTEAD OF PRINTING A
+AND WHERE IT IS NOT MET, THE REPORT SAYS SO INSTEAD OF PRINTING A
 FAILURE IT CANNOT SUPPORT (owner ruling 2026-08-16; plan amendment
-A-P3-26; validation method V2.4-A5 and V3.5-A3). The gap above is
-unchanged -- the spellings are exactly as unrecoverable as they were --
-but the seven MISSED verdicts it put on a table that is its own
-description's perfect match were a confident falsehood with numbers
-beside it, which is the mirror of the rule this project holds a passing
-report to. `unrebuildable_columns` asks the DESCRIPTION whether the
-reading rule can be rebuilt for each column; where it cannot, that
-column's cell-counted obligations go to the NOT-CHECKABLE census with
-the sentence saying what the description does not record. It costs what
-that amendment measures, in both directions, and residual R-P3-8 carries
-the two limits it leaves standing.
+A-P3-26; validation method V2.4-A5 and V3.5-A3). The MISSED verdicts
+that used to be put on a table that is its own description's perfect
+match were a confident falsehood with numbers beside it, which is the
+mirror of the rule this project holds a passing report to.
+`unrebuildable_columns` asks the DESCRIPTION whether the reading rule
+can be rebuilt for each column; where it cannot, that column's
+cell-counted obligations go to the NOT-CHECKABLE census with the
+sentence saying what the description does not record.
+
+AND THE DESCRIPTION NOW CARRIES MOST OF WHAT IT USED TO LOSE, so that
+question answers yes far more often (owner ruling 2026-08-17; plan
+amendments A-P3-27, A-P3-28 and A-P3-29; validation method V2.3-A3,
+V2.3-A4 and V2.4-A6). Contract version 5 stores a declared spelling
+exactly, keeps this package's own two counts out of the spellings map,
+and records which members of its own published vocabulary each
+declaration named. So the two tuples are READ rather than inferred:
+`kept_spellings` from the settings block alone, which contract 5
+section 6.4 proves is the whole of the kept side, and
+`declared_spellings` from the settings block and every column's
+`missing_by_source` together. The witness that named this class -- two
+hundred readings and one `n/a` kept as data, seven obligations MISSED
+against the table's own description -- is measured in full and misses
+nothing.
+
+WHAT IS LEFT UNRECOVERABLE, and it is two things rather than five. A
+word of the PERSON'S OWN that the publication floor pooled, and a word
+of the person's own on a column whose publication class permits no
+value of the table. Both are groups the format exists to refuse to
+publish; neither is closable here or by any version of the format
+(contract 5 section 7). Residual R-P3-8 carries them and carries the
+two costs they leave standing.
 
 WHAT IS NOT CHECKED HERE, AND CANNOT BE, STATED BEFORE ANY VERDICT
 BELOW READS AS COVERAGE (V7.3, plan P2-D11 residual R-P2-3). A
@@ -445,24 +458,20 @@ def _holes_no_word_accounts_for(unnamed: int) -> str:
 
 
 def _absence_words_not_recorded(named: int, recovered: int) -> str:
-    """Words named as "no value" that nothing published carries."""
-    return (
-        f"the description says {_shown_count(named)} word(s) were named "
-        f"as meaning \"no value\" when it was written and records "
-        f"{_shown_count(recovered)} of them, so a cell of this column "
-        f"can be one the description read as absent and this report "
-        f"would read as a value; " + UNREBUILDABLE_REASON_TAIL
-    )
+    """Words of the person's own, named as "no value" and not carried.
 
-
-def _kept_words_not_recorded(named: int, recovered: int) -> str:
-    """Words named as real data that nothing published carries."""
+    The counts are of the person's OWN words, which is what changed at
+    contract version 5 (plan amendment A-P3-29): a word of synthtwin's
+    own that somebody named is written in the description whatever the
+    floor did with its cells, so counting it here would tell a reader
+    that something is missing which is not.
+    """
     return (
-        f"the description says {_shown_count(named)} word(s) were named "
-        f"as meaning real data when it was written and records "
-        f"{_shown_count(recovered)} of them, so a cell of this column "
-        f"can be one the description read as a value and this report "
-        f"would read as absent; " + UNREBUILDABLE_REASON_TAIL
+        f"the description says {_shown_count(named)} word(s) of your own "
+        f"were named as meaning \"no value\" when it was written and "
+        f"records {_shown_count(recovered)} of them, so a cell of this "
+        f"column can be one the description read as absent and this "
+        f"report would read as a value; " + UNREBUILDABLE_REASON_TAIL
     )
 
 
@@ -678,6 +687,28 @@ _STAND_IN_EXACTS = tuple(
     [taxonomy.exact_of_number(value) for value in parsing.NUMERIC_SENTINELS]
 )
 
+# And the same three, paired with a spelling that denotes each of them,
+# because contract version 5 records a declared stand-in as a NUMBER and
+# the producer's settings take a SPELLING (contract 5 section 6.2, its
+# `built_in_numbers`; plan amendment A-P3-29).
+#
+# ANY SPELLING OF THE SAME NUMBER WOULD DO, and that is the point rather
+# than a shortcut: `settings.declaration_matching` has one permitted
+# value, "the exact number when it reads as one, else the spelling", so
+# the producer compares a declared stand-in with a cell by the number
+# both denote. These are the spellings `_KEPT_OVER_THE_SPLIT` above
+# already hands the producer for the same three numbers, written the
+# same way, so this module names each stand-in one way and not two.
+#
+# A NUMBER OUTSIDE THE THREE NAMES NOTHING HERE. The loader has already
+# refused a document whose `built_in_numbers` holds anything else
+# (contract 5 C5-K1), and a table that admits only the three cannot turn
+# a fourth number into a declaration this module then applies to
+# somebody's cells.
+_STAND_IN_SPELLINGS = tuple(
+    [(value, f"{value:g}") for value in parsing.NUMERIC_SENTINELS]
+)
+
 # The eleven ladder positions as probabilities, in ladder order.
 _LADDER_SHARES = tuple(
     [number / denominator for _name, number, denominator in taxonomy.LADDER]
@@ -819,18 +850,35 @@ def settings_for(description: contract.Profile) -> taxonomy.Settings:
       command line, no default, no environment.
     - Determinism: the same description always gives the same settings.
     - Errors raised: none.
-    - Boundary: neither declaration tuple carries a spelling read out of
-      the settings block -- the contract records none there
-      (`values_recorded` is false by invariant) -- and both are instead
-      RECOVERED from the description's own published text:
-      `kept_values` from `kept_spellings`, `declared_missing_values`
-      from `declared_spellings`. The read mode is NOT a settings key and
-      is not decided here; it comes from `source.header_source`.
+    - Boundary: every spelling in either declaration tuple is either a
+      member of the closed vocabulary contract 5 section 14.1 publishes
+      -- this package's own ten words and three stand-in numbers,
+      identical in every installation and containing no text of any
+      table -- or a key of a column's `missing_by_source`, which is
+      what `synthtwin profile` publishes about the file it described.
+      Nothing is guessed. The read mode is NOT a settings key and is
+      not decided here; it comes from `source.header_source`.
 
     Every one of the fifteen keys the settings block carries is used,
     and no sixteenth is invented: a skipped key would describe the file
     under rules the description was not written under, which is the one
     way the disclosure gate can be walked past.
+
+    WHAT CONTRACT VERSION 5 CHANGED HERE, AND IT IS THE WHOLE OF THIS
+    FUNCTION'S JOB (plan amendments A-P3-27, A-P3-28 and A-P3-29;
+    validation method clauses V2.3-A3 and V2.4-A6). Until version 5 the
+    settings block recorded a declaration as a COUNT and never as text,
+    so both tuples had to be INFERRED from facts published for other
+    reasons -- a level's label, a level's variants, a sentinel verdict
+    reading `kept_by_you`. Version 5 records which members of this
+    package's own vocabulary each declaration named, and contract 5
+    section 6.4 PROVES those members are the whole of what a
+    `--keep-value` can change about any cell's reading. So the kept
+    tuple is now READ rather than inferred, and the three inference
+    routes are gone: each of them existed only because version 4 lost
+    the fact, and each of them answered a question about the
+    description's LEVELS that the settings block now answers about the
+    COMMAND LINE.
 
     WHY `declared_missing_values` IS NO LONGER EMPTY (review item
     P3-V4-F1, the direction the finding did not name). This tuple was
@@ -924,6 +972,18 @@ def settings_over_the_split(
     and it did: twelve `XX` cells in the table a `--missing-value XX`
     description was written from turned that column into free text and
     put twenty-eight subchecks on MISSED.
+
+    AND FROM CONTRACT VERSION 5 THAT SENTENCE HAS SOMETHING TO EXCLUDE
+    (plan amendment A-P3-29). A spelling the person declared to be "no
+    value" CAN now be one of this package's own words, because the
+    settings block records which of them a declaration named and
+    `declared_spellings` reads it back. So a built-in marker the
+    description declares as missing is not moved to the kept side here:
+    it stays a hole, exactly as the paragraph above says it should, and
+    the producer's own refusal is what would otherwise be raised --
+    naming one value both ways is a contradiction it declines to profile
+    under, and the two settings this module builds may not manufacture
+    one the person never typed.
     """
     block = settings_for(description)
     # A mapping rather than a set, for the reason `kept_spellings` gives:
@@ -933,12 +993,14 @@ def settings_over_the_split(
     for spelling in block.kept_values:
         found[spelling] = 1
     for spelling in _KEPT_OVER_THE_SPLIT:
+        if _explained_by(spelling, block.declared_missing_values):
+            continue
         found[spelling] = 1
     return dataclasses.replace(block, kept_values=tuple(sorted(found)))
 
 
 def kept_spellings(description: contract.Profile) -> "tuple[str, ...]":
-    """The spellings a conforming twin may hold that read as absences.
+    """Every `--keep-value` the description was written under.
 
     Guarantees:
 
@@ -946,102 +1008,85 @@ def kept_spellings(description: contract.Profile) -> "tuple[str, ...]":
     - Determinism: the returned tuple is sorted, so the same
       description always gives the same tuple in the same order.
     - Errors raised: none.
-    - Boundary: every spelling here is the description's OWN published
-      text. Nothing is guessed, and nothing is read out of the settings
-      block, because the contract records no declared spelling there.
+    - Boundary: every spelling here is a member of the closed vocabulary
+      contract 5 section 14.1 publishes -- ten words and three stand-in
+      numbers, this package's own, identical in every installation.
+      **No text of anybody's table can reach this tuple**, out of the
+      description or out of the measured file, and the tuple is the same
+      whether or not the named word occurs anywhere (contract 5 C5-16).
 
-    Three published routes, all of them recovered (owner decision 8 as
-    amended):
+    IT IS THE WHOLE OF THE KEPT SIDE, AND THAT IS A PROOF RATHER THAN A
+    HOPE (contract 5 section 6.4 and its C5-19; plan amendment A-P3-29).
+    A rescue can only matter for a cell that would otherwise have been
+    absent, and the producer has five ways to make a cell absent and no
+    sixth: a blank, one of this package's built-in words, a stand-in
+    number the column's own rule judged, and the person's own
+    declaration by spelling or by number. A `--keep-value` reaches the
+    first three only by naming a member of the vocabulary; it cannot
+    reach the last two, because a value named both ways is refused
+    before the table is opened; and a cell that would have been present
+    anyway is unaffected by being rescued. So a rescue of anything else
+    changes no cell's reading, and the two lists the settings block
+    carries are the reading rule's kept half entire.
 
-    - every key of every published level's `variants`, which is the
-      exact spelling a kept value published as a label carries;
-    - every `sentinel_verdicts` candidate whose reason is exactly
-      `kept_by_you`, which is how a kept NUMERIC value is published.
-      It is matched at the profiler's own declaration-matching identity
-      -- numeric identity for a candidate that reads as a number --
-      because the settings carry that rule and it is applied to this
-      set exactly as it is applied to a declared one;
-    - every published `levels[].label`, which a measured cell meets at
-      the FOLDED identity, the producer's own pooling rule. A level
-      whose spellings all sit below the floor publishes no variant at
-      all and the twin invents spellings that fold to the parent, so
-      without this route the gate would read the very twin it must
-      validate as a column of absences.
+    WHAT THIS REPLACED, AND WHY IT IS DELETED RATHER THAN KEPT BESIDE
+    (owner ruling 2026-08-17; plan amendments A-P3-27 and A-P3-29). Under
+    contract version 4 the settings block recorded `kept_values` as a
+    COUNT and never as text, so this function INFERRED the tuple from
+    three facts the description publishes for other reasons: every
+    `sentinel_verdicts` candidate whose reason reads `kept_by_you`,
+    every published `levels[].label`, and every key of every level's
+    `variants`. Those three routes are gone.
 
-    A GAP HERE MOVES VERDICTS, AND THE SENTENCE THAT STOOD HERE SAID IT
-    COULD NOT (review items P3-V4-F1 and P3-V5-F2). That sentence read
-    "a gap here costs detail and never a verdict: presence is measured
-    from blank and non-blank cells (V2.4), so nothing this tuple misses
-    can move an outcome". Its first half names a real rule and its
-    conclusion does not follow from it: the split's number is taken only
-    where the FILE'S OWN description publishes the split (V2.4-A3, plan
-    amendment A-P3-5), that description is built under these very
-    settings, and a spelling this tuple misses is a spelling it reads as
-    a hole. So the gap decides whether the gate is open, and where it
-    closes it wrongly the file's own description supplies the number.
+    - The `kept_by_you` route is a strict subset of what is read now: a
+      candidate exists only for one of the three stand-in numbers, and a
+      candidate is judged `kept_by_you` only where a `--keep-value`
+      named it, so every spelling it brought back is a member of
+      `built_in_numbers` today.
+    - The two LABEL routes never answered this question at all. A label
+      or a variant is a spelling of a cell the producer read as a VALUE,
+      and naming a value as kept changes nothing: `_split_missing` only
+      consults the kept set for a cell it would otherwise have called
+      absent. The one case where a label CAN be such a spelling is a
+      label that is one of this package's own words -- and that label
+      exists only because a `--keep-value` rescued it, which is exactly
+      what `built_in_texts` now records.
 
-    THE WITNESS, MEASURED. A researcher keeps a non-numeric marker as
-    real data -- `synthtwin profile --keep-value n/a` over two hundred
-    readings and one `n/a` -- and the description publishes 201 present,
-    0 missing, 1 not numeric. No route above can recover `n/a`: a
-    numeric column publishes no level and no variant, and a `kept_by_you`
-    verdict exists only for a stand-in that reads as a number. The one
-    cell is read back as a hole, the column's own description then pools
-    it below the publication floor, and validating that table against
-    its own genuine profile reports `presence.n_present`,
-    `presence.n_missing`, `counts.n_not_numeric`,
-    `counts.n_left_out_of_statistics`, `counts.numeric_share`,
-    `distinct.n_distinct` and `distinct.n_distinct_folded` MISSED
-    -- seven misses and exit 3 on the file the description was written
-    from.
+    Keeping them beside the two lists would have cost more than
+    duplication. The inference reached only what a LABEL column
+    publishes, so it answered "was this word rescued?" with "does some
+    column publish it as a level?", and the witness that made this
+    review round is the case where those two answers differ: two hundred
+    readings and one `n/a`, described with `--keep-value n/a`, publishes
+    no level and no variant and no verdict, so the inference brought
+    back nothing and the table validated against its own genuine
+    description reported seven obligations MISSED. That witness now
+    misses nothing and is measured in full.
+    """
+    return _vocabulary_spellings(description.settings.kept_values)
 
-    IT WAS FIVE UNTIL THE SPELLING SUPPLY WAS GIVEN ITS SECOND SUMMAND
-    (plan amendment A-P3-20 clause 3, review item P3-V8-F4), and the
-    two that joined were already misses of the same one cause. The
-    description publishes two hundred decimal cells and one cell that is
-    not a number; G12.8 supplies one spelling per decimal cell and one
-    for the class beside them, which is the published count exactly, so
-    the description PINS both distinctness counts and the exact bar is
-    theirs. While the class summand was missing the supply read two
-    hundred against a published two hundred and one, a corner was
-    claimed that the generator does not need, and the envelope it opened
-    -- from two hundred to two hundred and one -- was wide enough to
-    call this very file's two hundred an AUTHORIZED DEVIATION. The gap
-    did not grow; two obligations stopped being hidden inside a bar that
-    should never have been lowered.
 
-    WHY IT IS NOT REPAIRED HERE, at the exact size of what is left
-    (plan amendment A-P3-15). The spelling is unrecoverable, and that is
-    a property of the contract rather than of this function: the
-    settings block records `kept_values` as a COUNT and never as text
-    (`values_recorded` false, review item P1-R7-F2), and no other field
-    of a numeric, datetime, identifier or free-text column carries the
-    spelling of a present cell. Reading the split anyway is not open
-    either. Two files -- two hundred readings and one `n/a`, two hundred
-    readings and one `NULL` -- are described BYTE FOR BYTE ALIKE by the
-    producer under these settings, the first conforms to the description
-    above and the second does not, and any rule that passes the first
-    passes the second and thereby states about the second a presence
-    count `synthtwin profile` run on it would not publish, which is
-    V5.1. So the gap stands, it is recorded rather than discovered, and
-    what closes it is a ruling about what the profile publishes, not an
-    edit to this module. The suite measures it at its stated size in
-    `tests/test_p3v4f1_kept_values.py` and turns red if it grows.
+def _vocabulary_spellings(
+    record: contract.DeclarationRecord,
+) -> "tuple[str, ...]":
+    """One declaration record's named members, as spellings.
+
+    The texts are written into the document in the vocabulary's own
+    spelling already (contract 5 C5-17), so they are used as they
+    stand. The numbers are written as numbers, and the producer's
+    settings take spellings, so each is paired with a spelling that
+    denotes it -- which is all the producer's matching rule asks of it.
     """
     # A mapping rather than a set: the offline policy accepts no method
     # call on a value it cannot trace, and `set.add` is one, while
     # setting a key is not (plan D6.2). The values are never read.
     found: dict[str, int] = {}
-    for column in description.columns:
-        for verdict in column.sentinel_verdicts:
-            if verdict.reason == taxonomy.REASON_KEPT_BY_USER:
-                found[verdict.candidate] = 1
-        facts = column.facts
-        if isinstance(facts, contract.LabelFacts):
-            for level in facts.levels:
-                found[level.label] = 1
-                for spelling in level.variants:
-                    found[spelling] = 1
+    for member in record.built_in_texts:
+        found[member] = 1
+    for number in record.built_in_numbers:
+        for value, spelling in _STAND_IN_SPELLINGS:
+            if number == value:
+                found[spelling] = 1
     return tuple(sorted(found))
 
 
@@ -1054,24 +1099,38 @@ def declared_spellings(description: contract.Profile) -> "tuple[str, ...]":
     - Determinism: the returned tuple is sorted, so the same
       description always gives the same tuple in the same order.
     - Errors raised: none.
-    - Boundary: every spelling here is the description's OWN published
-      text -- a key of a column's `missing_by_source`, which is what
-      `synthtwin profile` publishes about the file it described.
-      Nothing is guessed and nothing is read out of the settings block,
-      which records this option as a count and never as text.
+    - Boundary: every spelling here is either the description's OWN
+      published text -- a key of a column's `missing_by_source`, which
+      is what `synthtwin profile` publishes about the file it described
+      -- or a member of the closed vocabulary of contract 5 section
+      14.1, which is this package's own and carries no text of any
+      table. Nothing is guessed.
 
-    THE FOURTH PUBLISHED ROUTE, and it is the mirror of `kept_spellings`'
-    three (review item P3-V4-F1). V2.2 said both declaration tuples come
+    TWO PUBLISHED ROUTES, AND THE SECOND IS CONTRACT VERSION 5'S (review
+    item P3-V4-F1; plan amendments A-P3-27 and A-P3-29).
+
+    **The columns.** V2.2 said both declaration tuples come
     back empty "because the contract deliberately does not record
     declared spellings", and that is true of the SETTINGS BLOCK and
     false of the description: a column publishes the spelling of every
     hole whose count reaches `small_cell_floor`, in `missing_by_source`.
     So a `--missing-value` declaration IS published, wherever the floor
-    lets the column name it and the display boundary leaves it alone,
-    and recovering it is the same act as recovering a level's variants.
+    lets the column name it, and recovering it is the same act as
+    recovering a level's variants.
+
+    **The settings block, for this package's own words.** Version 5
+    records which members of the published vocabulary each declaration
+    named, and the `--missing-value` record's two lists are read here
+    exactly as `kept_spellings` reads the `--keep-value` record's.
+    Naming a built-in word as missing does not make its cells absent --
+    they already were -- but it moves them from class `(text-code)` to
+    class `(declared-missing)`, and a report comparing class counts has
+    to know that (contract 5 C5-20). Naming a stand-in NUMBER as missing
+    does more: it takes those cells out before the column's own sentinel
+    rule ever judges them.
 
     WHICH KEYS ARE A DECLARATION, DERIVED RATHER THAN GUESSED. The
-    producer has exactly four ways to call a cell a hole
+    producer has exactly five ways to call a cell a hole
     (`taxonomy._split_missing`, `taxonomy._declared_numbers_removed` and
     the sentinel removal): the person's declaration by spelling, the
     person's declaration by number, a blank, one of the built-in missing
@@ -1079,123 +1138,127 @@ def declared_spellings(description: contract.Profile) -> "tuple[str, ...]":
     A published key is therefore a declaration unless it is one of the
     other three, which are all recognisable without consulting a cell:
 
-    - synthtwin's own placeholder names -- `(blank)` for an empty field
-      and `(withheld)` for the pooled remainder -- are this package's
-      words rather than the file's, and are skipped;
+    - a blank has no spelling to be a key of, and from contract version
+      5 it has a count of its own, `n_missing_blank`, so no key of this
+      map is ever a blank;
     - a key the built-in table already reads as an absence needs no
-      declaration to be a hole, so it is skipped: naming it would say
-      the person declared something the description does not show;
+      declaration to be a hole, so it is skipped HERE and answered from
+      the settings block instead, which says whether it was named;
     - a key that reads as one of the three numeric stand-ins is the
       sentinel machinery's business, judged per column and published per
-      column in `sentinel_verdicts`, so it is skipped. A declared
-      stand-in is left unrecovered with it, and that is stated as a
-      residual rather than papered over.
+      column in `sentinel_verdicts`, so it is skipped here and answered
+      from the settings block in the same way. **Both skips stopped
+      being losses at contract version 5**: each used to leave a
+      declaration unrecovered and was recorded as a residual, and each
+      now defers to a list that answers the same question outright.
 
     Every other key reads as neither a stand-in nor a built-in marker,
     and the producer has no remaining way to make it a hole. It is a
     declaration, and a number it denotes is matched as a number by the
     producer's own rule, which is why the SPELLING is enough to recover.
 
-    AND A FOURTH EXCLUSION, BECAUSE THIS FIELD IS NOT THE EXACT SPELLING
-    (review item P3-V7-F1; plan amendment A-P3-19). `missing_by_source`
-    keys cross the DISPLAY BOUNDARY before publication -- the profile
-    contract says so in terms, and says `variants` deliberately does not
-    -- so the key is the spelling AS A REPORT SHOWS IT, and that map is
-    not one-to-one. This function read it as exact, and the class it
-    walked past is the round's own witness: seventy-two rows whose holes
-    are spelled ``X`` U+0001 ``Y`` publish the key ``X\\x01Y``, and so do
-    seventy-two rows whose holes are spelled with those six printable
-    characters. The two whole descriptions come out BYTE FOR BYTE ALIKE,
-    at 6,733 bytes each, so no reading of the description can tell the
-    two apart. Reading the key as exact then does BOTH wrong things: the
-    control-character table validated against its own profile reported
-    seven obligations MISSED, and -- the direction the finding did not
-    name -- a file spelled the printable way validated against the
-    control-character table's profile came back with a census of ZERO
-    MISSED and exit 0, although `synthtwin profile` under that
-    description's own declaration reads it as free text with 72 present
-    and 0 missing. That is a report that passes a file it should fail.
+    TWO EXCLUSIONS OF VERSION 4 ARE GONE, AND CONTRACT VERSION 5 IS WHY
+    (its C5-1 and C5-N5; plan amendments A-P3-27 and A-P3-28, and
+    validation method clause V2.3-A3, which withdraws A-P3-19's fourth
+    exclusion and the class-word exclusion beside it).
 
-    So a key is recovered only where the boundary provably left it
-    alone: `parsing.shows_only_itself` is true of it, which is decidable
-    from the key and is proved in that function's own docstring. What
-    that leaves unrecoverable is exactly one thing, and it is stated
-    below rather than left to be found.
+    The first was that a key could be one of this package's own five
+    class words. Version 4 put `(blank)` and `(withheld)` into this map
+    beside the person's spellings, so a key had to be tested against
+    that vocabulary before it could be trusted -- and a table whose
+    cells literally read `(withheld)` published a key nothing could tell
+    from the pool. Version 5 gives the map one key space: a key is a
+    spelling some cell held and nothing else, and the two counts moved
+    to fields of their own. So the test is not merely unnecessary, it is
+    WRONG -- it would walk past a spelling the table really wore.
 
-    WHAT IS LEFT OPEN, at its size (plan amendments A-P3-15 and
-    A-P3-19). Three kinds of declaration are not recovered here:
+    The second was that a key was not the exact spelling. Version 4
+    passed each key through the DISPLAY BOUNDARY before storing it, so
+    the map was not one-to-one: seventy-two rows whose holes are spelled
+    ``X`` U+0001 ``Y`` published the same key as seventy-two rows
+    spelled with those six printable characters, the two whole
+    descriptions came out byte for byte alike, and reading the key as
+    exact did both wrong things -- seven obligations reported MISSED
+    against a file's own description, and a census of ZERO MISSED on a
+    file that file's description does not describe. Version 5 stores the
+    key character for character and escapes it where it is SHOWN, so a
+    key IS the exact spelling and the two tables no longer describe
+    alike. `parsing.shows_only_itself` is therefore no longer consulted
+    here; it remains the property `tests/test_p3v7f1_escaped_declarations.py`
+    proves about the display boundary itself.
 
-    - one whose cells sit below `small_cell_floor` in every column,
-      pooled into `(withheld)` and published nowhere;
-    - one that reads as a numeric stand-in, which is the sentinel
-      machinery's own business;
-    - one whose spelling holds a character the display boundary shows
-      -- a line, control or bidirectional formatting character. The
-      table it was written from reads those cells back as data, exactly
-      as it did before any of this existed.
+    WHAT IS LEFT OPEN, at its size (contract 5 section 7; plan
+    amendments A-P3-15, A-P3-26, A-P3-27 and A-P3-29). Exactly one kind
+    of declaration is still not recovered here, and no version of this
+    format closes it: **a word of the person's OWN** -- one that is not
+    a member of the published vocabulary -- that no column names,
+    because every cell wearing it sits below `small_cell_floor` or
+    because the column's publication class permits no value of the
+    table. Those are contract 5's two stated limits, its 7.1 and 7.2,
+    and each names a group the format exists to refuse to publish.
 
-    All three are measured in `tests/test_p3v4f1_kept_values.py` and
-    `tests/test_p3v7f1_escaped_declarations.py`, which turn red if any
-    of them grows.
+    Every OTHER declaration comes back. A word of this package's own,
+    however few cells wore it and whatever column it landed on, is in
+    the settings block. A word of the person's own that any column names
+    is in that column's map, exactly, whatever characters it holds.
+
+    Both remaining cases are measured in
+    `tests/test_p3v4f1_kept_values.py` and
+    `tests/test_p3v7f1_escaped_declarations.py`, which turn red if
+    either of them grows.
     """
     # A mapping rather than a set, for the reason `kept_spellings` gives
     # (plan D6.2). The values are never read.
     found: dict[str, int] = {}
+    for spelling in _named_in_the_columns(description):
+        found[spelling] = 1
+    for spelling in _vocabulary_spellings(
+        description.settings.declared_missing_values
+    ):
+        found[spelling] = 1
+    return tuple(sorted(found))
+
+
+def _named_in_the_columns(
+    description: contract.Profile,
+) -> "tuple[str, ...]":
+    """The person's OWN declared words, out of the published columns.
+
+    The half of `declared_spellings` that reads the table's own text: a
+    key of some column's `missing_by_source` that the built-in table
+    does not already read as an absence and that does not read as one
+    of the three stand-in numbers. Whatever this returns is a word
+    somebody typed after `--missing-value`, and whatever it does NOT
+    return is a word of theirs no column names.
+
+    It is separate from `declared_spellings` because
+    `unrebuildable_columns` has to count these on their own: the
+    settings block says how many words were named and how many of them
+    were this package's, so the difference is how many were the
+    person's, and this is what came back of them.
+    """
+    found: dict[str, int] = {}
     for column in description.columns:
         for spelling in sorted(column.missing_by_source):
-            if spelling in parsing.MISSING_CLASSES:
-                continue
             if parsing.is_missing_text(spelling):
                 continue
             if _stand_in_of(taxonomy.exact_of_spelling(spelling)) is not None:
-                continue
-            if not parsing.shows_only_itself(spelling):
                 continue
             found[spelling] = 1
     return tuple(sorted(found))
 
 
-def rescued_spellings(description: contract.Profile) -> "tuple[str, ...]":
-    """The `--keep-value` declarations this description names outright.
+def _own_words_named(record: contract.DeclarationRecord) -> int:
+    """How many words of the PERSON'S own one declaration named.
 
-    Guarantees:
-
-    - Inputs: one loaded description. Nothing is read from any file.
-    - Determinism: the returned tuple is sorted, so the same
-      description always gives the same tuple in the same order.
-    - Errors raised: none.
-    - Boundary: every spelling here is the description's OWN published
-      text -- the candidate of a `kept_by_you` sentinel verdict, which
-      is the one route by which a rescued value is published AS a
-      rescue.
-
-    IT IS NARROWER THAN `kept_spellings` ON PURPOSE, and the difference
-    is what makes it countable. `kept_spellings` gathers every spelling
-    a conforming twin may hold that would otherwise read as an absence,
-    and most of what it gathers -- a level's label, a level's variants
-    -- is published for reasons that have nothing to do with a
-    declaration, so its LENGTH answers no question about how many
-    declarations were recovered. This gathers the one published route
-    that exists only where somebody rescued a value, so counting it
-    against `settings.kept_values.n_declared` compares like with like.
-
-    WHAT IT UNDERCOUNTS, and the direction that error runs. A value
-    rescued on a LABEL column reaches the description as a level or a
-    variant and never as a verdict, so it is recovered by
-    `kept_spellings` and not counted here. The count is therefore a
-    LOWER bound on what was recovered, so the head count built on it
-    reports a gap on some descriptions that have none -- and never the
-    reverse. That is the safe direction and it is the direction the
-    owner's ruling of 2026-08-16 asks for.
+    `n_declared` counts every value named that way; the two vocabulary
+    lists name the ones that were this package's own. The difference is
+    how many were the person's, which is the number the description can
+    only carry through a column (contract 5 C5-18, and its C5-K3 is why
+    this cannot go below zero on a document a loader accepted).
     """
-    # A mapping rather than a set, for the reason `kept_spellings` gives
-    # (plan D6.2). The values are never read.
-    found: dict[str, int] = {}
-    for column in description.columns:
-        for verdict in column.sentinel_verdicts:
-            if verdict.reason == taxonomy.REASON_KEPT_BY_USER:
-                found[verdict.candidate] = 1
-    return tuple(sorted(found))
+    named = record.n_declared - len(record.built_in_texts)
+    return named - len(record.built_in_numbers)
 
 
 def unrebuildable_columns(
@@ -1218,87 +1281,138 @@ def unrebuildable_columns(
     WHAT THIS IS FOR (owner ruling 2026-08-16, plan amendment A-P3-26).
     `validate` is defined as: rebuild the reading rule from the
     description, re-describe the file with it, compare (V2.2). The
-    description does not always pin the reading rule -- it records a
-    declaration as a COUNT and never as text, and the one field where a
-    spelling survives, `missing_by_source`, is narrowed four ways
-    before it is written. Where the rule cannot be rebuilt, this
-    validator used to re-describe the file under a rule the description
-    was not written under and report the difference as a MISS, which is
-    a confident false alarm on a file that is its own description's
-    perfect match. The obligations counted over that column's cells go
-    to the NOT-CHECKABLE census instead, with the sentence saying what
-    the description lacks.
+    description does not always pin the reading rule. Where it cannot be
+    rebuilt, this validator used to re-describe the file under a rule
+    the description was not written under and report the difference as a
+    MISS, which is a confident false alarm on a file that is its own
+    description's perfect match. The obligations counted over that
+    column's cells go to the NOT-CHECKABLE census instead, with the
+    sentence saying what the description lacks.
+
+    WHAT IS LEFT FOR IT TO FIRE ON, AFTER CONTRACT VERSION 5 (owner
+    ruling 2026-08-17; plan amendments A-P3-27, A-P3-28 and A-P3-29).
+    A-P3-26 listed five routes by which the rule was lost. Three of them
+    are gone from the FORMAT and one more is gone from this function:
+
+    - the escaped key and the two key spaces in one map are closed by
+      the producer, so a published spelling is now the exact one and a
+      key reading `(withheld)` is somebody's cell rather than a pool;
+    - **the KEPT side is closed entirely, and that removes the wider of
+      A-P3-26's two costs.** That amendment asked its head count of
+      EVERY column on the kept side, "because no published number says
+      how many present cells were rescued". Version 5 publishes the
+      rescued members of this package's own vocabulary, and contract 5
+      section 6.4 proves those are the whole of what a rescue can
+      change, so the question is DECIDED rather than assumed and the
+      kept-side head count is deleted rather than narrowed;
+    - and on the absence side the head count now asks only about words
+      of the PERSON'S own, because the ones that were this package's
+      come back from the settings block whatever the floor did.
+
+    Two routes remain, they are contract 5 section 7's two, and no
+    version of this format closes either: a word of the person's own
+    pooled below `small_cell_floor`, and a word of the person's own on a
+    column whose publication class permits no value of the table.
 
     IT IS DECIDABLE FROM THE DESCRIPTION EVEN WHERE THE RULE IS NOT
     RECOVERABLE, which is the whole reason this is possible. Two tests
     are run and the UNION is taken, because neither alone is both sound
     and complete:
 
+    - the HEAD COUNT, per document: the settings block says how many
+      words were named as "no value" and how many of them were this
+      package's own, so the difference is how many were the person's,
+      and `_named_in_the_columns` is what came back of those. Fewer back
+      than named means a word the reading rule needs is written nowhere.
+      A declaration is a document-wide rule, so a column publishing
+      nothing about it is still a column that could hold it.
     - the STRUCTURAL test, per column: the column publishes cells made
       absent by a declaration that no recovered spelling accounts for.
       Its inputs are `missing_by_class.declared_missing` and the
       published counts of the spellings `declared_spellings` brings
-      back.
-    - the HEAD COUNT, per document: the settings block says how many
-      words were named, in each of the two ways, and fewer than that
-      many come back. A declaration is a document-wide rule, so a
-      column publishing nothing about it is still a column that could
-      hold it.
+      back, matched at the producer's own declaration identity.
 
-    The head count OVER-FIRES where somebody named a word that never
-    appears in the table: a description written with `--missing-value`
-    naming two words of which the table holds one reports a gap that is
-    not there. The structural test alone would miss the case where one
-    named word is published and another is pooled below the floor. The
-    union never misses a real gap, and where it over-fires it moves
-    obligations to NOT CHECKABLE on a file that would have passed
-    anyway. That direction is the safe one: the other one prints a
-    number about a file that is not true of it.
+    WHY BOTH ARE STILL NEEDED. The head count counts WORDS and the
+    structural test counts CELLS, and each catches what the other
+    cannot. A declaration is matched by its folded spelling, so one
+    declared word can be worn by several different published keys --
+    ` XX ` and `XX` are two keys of one declaration -- and a head count
+    of keys against a head count of words can then come out level while
+    a second declared word is pooled and lost. The structural test sees
+    those cells directly and fires. The other way round, a word named
+    that the table never held is invisible to the structural test and is
+    exactly what the head count is for.
+
+    THE HEAD COUNT STILL OVER-FIRES IN ONE PLACE, and it is asserted at
+    its size rather than hoped away: a description written with
+    `--missing-value` naming two words of the person's own, of which the
+    table holds one, reports a gap that is not there. Where the union
+    over-fires it moves obligations to NOT CHECKABLE on a file that
+    would have passed anyway. That direction is the safe one: the other
+    one prints a number about a file that is not true of it.
 
     THE ONE PLACE THE HEAD COUNT IS HELD BACK, and it is a proof rather
-    than a preference. On the ABSENCE side a column whose
-    `missing_by_class` publishes no declared holes AND no pooled
-    remainder is a column no declaration touched: the producer counts
-    every absent cell into one of five classes and pools any class
-    below the floor into the fifth, so a declared hole is either in
-    `declared_missing` or inside `withheld`, and zero in both is zero
-    of them. A word nobody's cell wore cannot change how that column
-    reads, so listing its obligations would state a limit that is not
-    this column's. On the KEPT side no such count exists -- a rescued
-    cell is PRESENT and no published number says how many present cells
-    were rescued -- so that half fires on every column of the document,
-    and that is the wider of the two costs this repair carries.
+    than a preference. A column whose `missing_by_class` publishes no
+    declared holes AND no pooled remainder is a column no declaration
+    touched: the producer counts every absent cell into one of five
+    classes and pools any class below the floor into the fifth, so a
+    declared hole is either in `declared_missing` or inside `withheld`,
+    and zero in both is zero of them. A word nobody's cell wore cannot
+    change how that column reads, so listing its obligations would state
+    a limit that is not this column's.
+
+    AND THE ONE PLACE THE STRUCTURAL TEST IS NOT ASKED, which is new
+    with version 5 and is the contract's own instruction (its C5-N6). A
+    column whose publication class permits no value of the table
+    publishes an EMPTY source accounting -- no key, no blank count, no
+    pooled count -- because of its class and not because of its cells.
+    The structural test has nothing to read there, and asking it anyway
+    made every declared hole of such a column look unattributable even
+    when the word that made them absent was one of this package's own
+    and is written in the settings block. C5-N6 makes the two cases
+    tellable apart from `role` and `structural_role`, which every block
+    publishes, so this asks the head count there and nothing else.
 
     WHAT IT DOES NOT REACH. This says a column's reading rule cannot be
-    rebuilt; it does not repair the description. The words themselves
-    are still not recoverable, and a description that carried them
-    would let every one of these obligations be checked instead of
-    listed. That is a change to what the description publishes and it
-    is not this function's to make.
+    rebuilt; it does not repair the description. The two remaining words
+    are not recoverable, and each is a group the format exists to refuse
+    to publish rather than an oversight.
     """
     settings = description.settings
     recovered = declared_spellings(description)
-    named_absent = settings.declared_missing_values.n_declared
-    rescued = rescued_spellings(description)
-    named_kept = settings.kept_values.n_declared
+    own_named = _own_words_named(settings.declared_missing_values)
+    own_recovered = len(_named_in_the_columns(description))
+    short = own_recovered < own_named
     unrebuildable: dict[str, str] = {}
     for column in description.columns:
-        unnamed = _holes_no_spelling_accounts_for(column, recovered)
-        if unnamed > 0:
-            unrebuildable[column.name] = _holes_no_word_accounts_for(unnamed)
-            continue
-        if len(recovered) < named_absent and _a_declaration_could_reach(
-            column
-        ):
+        if not _publishes_no_source_accounting(column):
+            unnamed = _holes_no_spelling_accounts_for(column, recovered)
+            if unnamed > 0:
+                unrebuildable[column.name] = _holes_no_word_accounts_for(
+                    unnamed
+                )
+                continue
+        if short and _a_declaration_could_reach(column):
             unrebuildable[column.name] = _absence_words_not_recorded(
-                named_absent, len(recovered)
-            )
-            continue
-        if len(rescued) < named_kept:
-            unrebuildable[column.name] = _kept_words_not_recorded(
-                named_kept, len(rescued)
+                own_named, own_recovered
             )
     return unrebuildable
+
+
+def _publishes_no_source_accounting(column: contract.ColumnBlock) -> bool:
+    """Whether this column's publication class empties its accounting.
+
+    Contract 5 section 6.10 as carried, and its C5-N6: on a column whose
+    role publishes no value of the table -- free text, declared
+    identifiers, record numbers, numbers this format cannot represent --
+    `missing_by_source` is empty and both new counts are zero, whatever
+    made the cells absent. The class is derivable from two fields every
+    block publishes, so "this column publishes no source accounting" is
+    always tellable from "this column had nothing to account for".
+    """
+    if column.structural_role == "identifier":
+        return True
+    return column.role in contract.ROLES_PUBLISHING_NOTHING
 
 
 def _holes_no_spelling_accounts_for(
@@ -1307,10 +1421,23 @@ def _holes_no_spelling_accounts_for(
     """How many declared holes of this column no recovered word covers.
 
     `missing_by_class.declared_missing` is how many of this column's
-    absent cells the producer made absent BY DECLARATION, and every
-    spelling `declared_spellings` recovered carries its own published
-    count in `missing_by_source`. What the recovered spellings do not
-    account for is what the validator will read back as data.
+    absent cells the producer made absent BY DECLARATION, and a key of
+    `missing_by_source` carries how many cells wore that spelling. What
+    the recovered declarations do not account for is what the validator
+    will read back as data.
+
+    THE KEYS ARE MATCHED AT THE PRODUCER'S OWN DECLARATION IDENTITY, not
+    by exact key lookup (plan amendment A-P3-29).
+    `settings.declaration_matching` has one permitted value -- the exact
+    number where the value reads as one, else the trimmed and folded
+    spelling -- and it is the rule that decided which cells the
+    declaration took. Looking the key up exactly asked a narrower
+    question than the producer asked and answered it wrongly twice: a
+    declared stand-in comes back from the settings block as `-999` while
+    the column's key is however the file wrote it, and a declaration
+    worn by ` XX ` as well as `XX` publishes two keys for one word.
+    Both reported cells as unattributable that the rebuilt rule
+    attributes exactly.
 
     THE POOLED REMAINDER IS NOT ADDED HERE, and that is deliberate. A
     class whose count falls below the publication floor is pooled into
@@ -1320,12 +1447,47 @@ def _holes_no_spelling_accounts_for(
     remainder to this side would report a gap on the ordinary
     description that names one word and holds three blank cells, where
     the rule is rebuilt exactly.
+
+    THE BLANK COUNT IS ADDED, on one condition. A person may name a
+    blank as "no value" -- `--missing-value " "` folds to the empty
+    spelling, which is a member of the published vocabulary -- and those
+    cells are then class `(declared-missing)` while their count is in
+    `n_missing_blank`, since a blank has no spelling to be a key of. So
+    where the empty spelling is one of the recovered declarations, that
+    count is one this rule accounts for.
     """
     accounted = 0
-    for spelling in recovered:
-        accounted = accounted + _counted(column.missing_by_source, spelling)
+    for key in sorted(column.missing_by_source):
+        if _explained_by(key, recovered):
+            accounted = accounted + column.missing_by_source[key]
+    if _explained_by("", recovered):
+        accounted = accounted + column.n_missing_blank
     unnamed = column.missing_by_class.declared_missing - accounted
     return max(0, unnamed)
+
+
+def _explained_by(spelling: str, recovered: "tuple[str, ...]") -> bool:
+    """Whether some recovered declaration takes a cell spelled this way.
+
+    The producer's own rule, written once: a declaration and a cell that
+    both read as numbers are the same when they denote the same number,
+    and otherwise they are the same when their trimmed, case-folded
+    spellings are equal (`settings.declaration_matching`, whose one
+    permitted value says exactly this).
+    """
+    exact = taxonomy.exact_of_spelling(spelling)
+    folded = parsing.folded(spelling)
+    for declared in recovered:
+        other = taxonomy.exact_of_spelling(declared)
+        if exact is not None and other is not None:
+            if exact == other:
+                return True
+            continue
+        if exact is None and other is None and folded == parsing.folded(
+            declared
+        ):
+            return True
+    return False
 
 
 def _a_declaration_could_reach(column: contract.ColumnBlock) -> bool:
@@ -4761,10 +4923,21 @@ def _split_is_published(block: "dict[str, object]") -> bool:
     by_source = _map_at(block, "missing_by_source")
     if by_source is None:
         return missing == 0
-    named = 0
+    # THE POOLED REMAINDER IS A FIELD, NOT A KEY, from contract version
+    # 5 (its section 5). It used to stand inside the map under this
+    # package's own word; it now stands beside the map, and the blank
+    # cells with it. What this asks is unchanged: is every absent cell
+    # of this column accounted for BY A NAMED SPELLING, so that a reader
+    # of the description knows the exact multiset the absent cells wore?
+    # A pooled cell is one that is not, whichever field carries it.
+    pooled = _count_at(block, "n_missing_withheld")
+    if pooled is None or pooled:
+        return False
+    blank = _count_at(block, "n_missing_blank")
+    if blank is None:
+        return False
+    named = blank
     for key in sorted(by_source):
-        if key == parsing.MISSING_WITHHELD:
-            return False
         named = named + by_source[key]
     return named == missing
 
@@ -8090,6 +8263,13 @@ def _listings(
         for field in (
             "missing_by_class",
             "missing_by_source",
+            # The two counts contract version 5 moved out of the map
+            # above (its section 5). They are REPORT-ONLY for the map's
+            # own reason -- the twin writes every absent cell empty --
+            # so they belong on this census beside it, at the same
+            # width, rather than being the two facts the census forgets.
+            "n_missing_blank",
+            "n_missing_withheld",
             "n_sentinel_candidates_unpublished",
             "sentinel_verdicts",
             "detection_evidence",

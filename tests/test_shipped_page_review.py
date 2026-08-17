@@ -498,12 +498,23 @@ def _absent_groups(block: "list[str]") -> "tuple[list[str], list[str]]":
     A group runs from its heading to the first line indented no further
     than the heading itself, so what follows the block -- the date
     spelling paragraph, the stand-in decisions -- is not read into it.
+
+    THE FIRST HEADING WAS RENAMED AT PLAN AMENDMENT A-P3-30 and this
+    reader moved with it. It read "By the spelling your table used"
+    while `missing_by_source` was the whole of that group; contract
+    version 5 gave the blank count and the pooled count fields of their
+    own, so on a column whose absent cells are all blank the heading
+    stood over the line `11 cell(s) with nothing written in them` and
+    told a researcher their empty cells wore a spelling. The heading now
+    asks what the table WROTE in those cells. Nothing this test asserts
+    changes: the property is still that each grouping accounts for the
+    column's absent cells exactly once.
     """
     by_spelling: list[str] = []
     by_reason: list[str] = []
     where = ""
     for line in block:
-        if line.strip() == "By the spelling your table used:":
+        if line.strip() == "By what your table wrote in them:":
             where = "spelling"
             continue
         if line.strip() == "By the reason each was counted absent:":

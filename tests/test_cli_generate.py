@@ -790,7 +790,11 @@ def test_the_report_says_how_the_real_table_wrote_its_empty_cells(
     capsys.readouterr()
     told = _report_of(description).read_text(encoding="utf-8")
     assert "writes every one of them as an empty cell" in told
-    assert "(blank)" in told, (
+    # THE BLANKS ARE A COUNT OF THEIR OWN from contract version 5, not a
+    # key spelled `(blank)` inside the spellings map (its section 5), so
+    # the report says what they were rather than printing one of this
+    # package's own words where a spelling goes.
+    assert "12 cell(s) with nothing written in them" in told, (
         "the spellings the description publishes are named, because the "
         "twin does not reproduce them"
     )
