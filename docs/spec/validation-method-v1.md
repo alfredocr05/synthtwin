@@ -956,6 +956,86 @@ closing sentence named this as the condition for it: "both close the day
 the description says how many DECLARATIONS were named rather than how
 many values were typed."
 
+**V2.4-A10 A built-in missing word a column publishes as the source of
+its holes is not pinned to data either, and this corrects A4's own
+sentence rather than adding to it. THIS RAISES; it lowers no
+obligation** (2026-08-17, owner ruling of that date; the plan's
+amendment A-P3-39 is the ruling and this follows it; review item
+P3-V10-F4).
+
+**THE CLAUSE CONTRADICTED ITSELF AND ONE HALF IS WRONG.** A4 clause 2
+says a cell is absent to the measurement side when it is empty "OR when
+it wears a spelling the description ITSELF publishes as the source of
+its holes", and gives the reason in terms: the producer read every such
+cell as a hole in every column of the table it described, so counting
+one as data measures the file under a rule its description was not
+written under. A8 repeats that reason and then names, among what stays
+pinned, "every non-blank built-in missing TEXT on every description".
+Both cannot stand. `missing_by_source` is where a column publishes the
+spelling its holes wore, and a built-in word can be a key of it like any
+other. **The first half is the one that stands.**
+
+**MEASURED, on the plainest run this product has.** One column of sixty
+numbers and twelve literal `n/a` cells, profiled with NO options at all.
+The description publishes `n_present: 60`, `n_missing: 12` and
+`missing_by_source: {"n/a": 12}`. Validating that exact CSV against that
+exact description re-described it with `n/a` pinned to data, measured
+seventy-two present and zero missing, and reported TWENTY-EIGHT
+obligations MISSED at exit 3 — both presence counts, both distinctness
+counts, `n_not_numeric`, eleven ladder rungs, three moments and the
+rest. It now reports none, and both presence counts are HELD rather than
+merely unreported.
+
+**THIS IS NOT R-P2-13's CORNER, and the finding's own words are why.**
+It happens on the SOURCE table, on the DEFAULT command, with nothing
+typed and nothing generated. A generated value colliding with this
+package's vocabulary is the residual the pin exists for; a spelling the
+description names as the source of twelve of its own holes is the
+description speaking.
+
+**WHERE THE PIN IS STILL REQUIRED, and this is the narrower boundary
+proved rather than asserted.** A built-in text stays pinned on a
+description no column of which publishes it as a hole source. On such a
+description the pin cannot move a verdict on the file the description
+was written from, and the argument is structural rather than empirical.
+For the pin to reach a verdict on a column, that column's own
+description must publish its split (V2.4-A3): every absent cell of it is
+blank, or is named by a key of `missing_by_source`. A cell the built-in
+table made absent is not blank, so it has to be named by a key — and a
+named key is exactly the publication this clause reads. So the two cases
+are exhaustive: either the spelling is published, and it is unpinned,
+or the column pools it and V2.4-A3 takes that column's verdicts from
+the file's own description instead. What is still pinned, and asserted
+to stay pinned: every built-in missing TEXT on a description no column
+of which names it, every stand-in NUMBER on a description no column of
+which settles it, and the blank spelling on every description, because a
+blank is absent under both readings.
+
+**WHAT IT COSTS, and it is R-P2-13's own shape on the first class of
+marker.** A twin holding a generated value that collides with a built-in
+word the description publishes as a hole source can have those cells
+counted as holes here. It needs the description to publish that word, so
+the table it was written from wore it at or above the publication floor,
+and it needs the twin's own invention to land on that spelling in some
+other column whose split is published. It is bounded by the cells
+wearing that word, and it is the same exposure A-P3-29 took for a
+built-in word the person declared and A8 took for a stand-in number,
+said now about the one route those two left standing.
+
+**WHAT IS NOT CLOSED, at its size.** The two presence COUNTS are read
+over the weaker publication of V2.4-A3's second half — `missing_by_class`
+says how many holes are non-blank without saying what they spell — so a
+column whose non-blank holes are pooled below the floor still has those
+two counts measured by blankness. Sixty numbers with six `n/a` cells and
+six `N/A` cells at the default floor is that column: neither spelling
+reaches eleven, the class map still names twelve non-blank holes, and
+the two presence counts MISS while every obligation that needs the
+spellings falls back to the file's own description. Two obligations,
+never more; the plan carries it as residual R-P3-11 and the suite pins
+its size. Closing it would reverse A-P3-5 clause 1, which bought the
+weaker question deliberately, and that is an owner decision and not a
+repair.
+
 ---
 
 ## V3. The entry table: what is checked, at what grain, in three kinds
@@ -1712,6 +1792,54 @@ owner decision that authorizes it, taken from the registry's own
 citations); WITHHELD (V5.3); MISSED (an obligation the ratified matrix
 sets that the file does not meet). Listing entries carry no verdict and
 appear only in the NOT-CHECKABLE census.
+
+**V6.1-A1 Where the first two definitions both fit, HELD is the one
+taken: a file holding the description's own value has met the exact
+obligation, whatever its window says. THIS RAISES; nothing moves to a
+worse verdict** (2026-08-17, owner ruling of that date; the plan's
+amendment A-P3-40 is the ruling and this follows it; review item
+P3-V10-F5).
+
+**THE TWO DEFINITIONS OVERLAP AND NOTHING SAID WHICH WINS.** HELD is
+"the exact obligation was met" and WITHIN-BOUND is "an APPROXIMATED fact
+inside both ends of its cited G12 envelope". A file can satisfy the
+first and fail the second, because none of these windows is a margin
+around the published value: each is worked out from the description and
+the size of the column, so a window can lie wholly to one side of the
+value it is printed beside, and G12.4 ordinarily does at the top of a
+date ladder. The implementation read the verdict off window membership
+alone.
+
+**MEASURED, on the shipped source table against its own description.**
+`date-ladder.p99` printed "the description asks for: 2024-12-24 / the
+file was found to hold: that same value" with MISSED above it, because
+that rung's window ends a day earlier. Four rungs of that one table said
+it — `recorded_on.p99` and `seen_on.p90`, `p95` and `p99` — and the
+cardinality envelope of a column of dates said the same thing in
+numbers on two more: "asks for 84 (between 106.0 and 240.0) ... found
+84.0: MISSED". Six of the seven obligations that table missed against
+its own description were this one line, printed six ways.
+
+**THE VERDICT IS WHAT IS REPAIRED, NOT THE WORDING.** A page that says a
+file holds the value and has missed the obligation to hold it is not
+strict; it is a page no reader can act on, and the earlier repair of
+2026-08-15 made it legible without making it true. So exact equality is
+tested first on every envelope this method draws — the numeric ladder,
+the moments, the date rungs, the two datetime cardinality counts and the
+text-shape facts alike — and where the measured value equals the
+published one the verdict is HELD.
+
+**WHAT THE WINDOW STILL SAYS.** Where the window does not reach the
+published value the line still says so, in the same words and under the
+same verdict line, so that a reader holding the twin's report and this
+one sees the same fact about the same window on both pages. What
+changes is what the window DECIDED, not what it is.
+
+**WHAT DOES NOT MOVE.** A file holding anything other than the published
+value is settled by its window exactly as before, inside it and outside
+it. Nothing moves to a worse verdict, no obligation leaves the census,
+and the counts that shift are HELD upward and WITHIN-BOUND downward by
+the same number.
 
 **V6.2 Byte rules, each an executable subcheck.** UTF-8; no byte-order
 mark; LF line endings; a terminal newline; the row count; the column

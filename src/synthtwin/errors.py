@@ -1379,14 +1379,46 @@ def profile_version_is_older(found: int, reads: int) -> str:
     `--identifier` is the same shape and reaches further, because a
     column named there publishes no value of the table at all, and a
     re-run without it describes that column of record numbers like any
-    other. `--first-row` decides what the column names are and whether
-    the first row is a record.
+    other.
+
+    AND ALL FIVE CHANGE WHAT IT PUBLISHES, WHERE THIS SAID TWO UNTIL
+    2026-08-17 (review item P3-V10-F2; plan amendment A-P3-42 clause 1).
+    The sentence named five options, priced two of them as
+    disclosure-changing, and said of the other three only that they
+    change how the table is READ. That was measured and it is false;
+    each of the three was run through the real producer, twice, and the
+    two descriptions compared:
+
+    * `--first-row`. A file with no header row, whose first line holds a
+      code. Described with `--first-row data` the column is called
+      `column_1` and the code is one free-text value among many, which a
+      free-text column publishes nowhere. Left out, the first line is
+      taken for the column NAMES by convention and the code IS the
+      column's name -- published in full, with no floor over it, because
+      a column name is not a value of the table and no floor applies.
+    * `--missing-value`. Sixty readings and five cells holding `-100`,
+      named as "no value". Described that way the five are absent, five
+      is under the floor and the number is published nowhere. Left out,
+      `-100` is a reading: it is the smallest one, so the description
+      publishes it as the column's minimum and as its first two
+      percentiles.
+    * `--keep-value`. Sixty readings and twelve cells holding a word,
+      named as real data. Described that way the column reads as free
+      text -- twelve of its values are not numbers -- and free text
+      publishes no value at all. Left out, the word is one of
+      synthtwin's own for "no value", the column reads as numbers, and
+      the description publishes the whole distribution of the sixty
+      readings AND the word, character for character, in
+      `missing_by_source`.
 
     So the message names every option of `synthtwin profile` that
-    changes what the description says about the table, says which of
-    them change what it PUBLISHES, and sends the person to the summary
+    changes what the description says about the table, says of every one
+    of them that it changes what the description PUBLISHES, gives the
+    consequence of leaving each out, and sends the person to the summary
     page before either new file travels. An option added to the profiler
-    joins this sentence in the commit that adds it.
+    joins this sentence in the commit that adds it -- and it joins the
+    priced list too, unless somebody can show it changes only the
+    reading, which is what nobody could show for these three.
 
     WHY THE ADVICE IS SAFE TO GIVE, AND WHEN IT STOPS BEING SAFE.
     Somebody holding an old description of their own table is normally
@@ -1411,16 +1443,23 @@ def profile_version_is_older(found: int, reads: int) -> str:
         f"description again by running 'synthtwin profile' on your "
         f"table, giving it every option you gave the first time: "
         f"--keep-value, --missing-value, --identifier, --smallest-group "
-        f"and --first-row. Each of those changes how synthtwin reads "
-        f"your table, and two of them change what the description "
-        f"PUBLISHES about it, so an option you leave out can put "
-        f"something into the new description that the old one held "
-        f"back: without the --smallest-group you gave, a value that "
-        f"fewer rows share can be named, and without the --identifier "
-        f"you gave, a column of record numbers is described like any "
-        f"other column. Read the summary page synthtwin writes beside "
-        f"the new description before either file goes anywhere, and use "
-        f"the description exactly as synthtwin writes it."
+        f"and --first-row. Every one of them changes what the "
+        f"description PUBLISHES about your table, so any option you "
+        f"leave out can put something into the new description that the "
+        f"old one held back: without the --smallest-group you gave, a "
+        f"value that fewer rows share can be named; without the "
+        f"--identifier you gave, a column of record numbers is "
+        f"described like any other column; without the --missing-value "
+        f"you gave, a stand-in is read as a real reading, and the "
+        f"stand-in itself can be published as the column's smallest "
+        f"value; without the --keep-value you gave, a word you had "
+        f"counted as an ordinary value becomes a gap, which can change "
+        f"what kind of column synthtwin sees and publish both that word "
+        f"and the column's own numbers; and without the --first-row you "
+        f"gave, the first line of your file is read as the column names "
+        f"and published as them. Read the summary page synthtwin writes "
+        f"beside the new description before either file goes anywhere, "
+        f"and use the description exactly as synthtwin writes it."
     )
 
 

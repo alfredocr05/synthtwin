@@ -826,8 +826,22 @@ def test_the_report_names_the_seed_the_twin_was_built_at(
 # facts of every column, so each column adds two lines to the
 # not-checkable census, each naming what it is in words (plan amendment
 # A-P3-28). No verdict moved and no obligation left the report.
+#
+# AND IT MOVED AGAIN WHEN EXACT EQUALITY WAS GIVEN PRECEDENCE OVER THE
+# ENVELOPE (review item P3-V10-F5; plan amendment A-P3-40, validation
+# method clause V6.1-A1). THIRTEEN checks moved from WITHIN-BOUND to
+# HELD and nothing else moved at all: the same 300 checkable
+# obligations, the same 97 not checkable, the same 2 authorized
+# deviations, 0 withheld and 0 missed, with 249/49 becoming 262/36. Each
+# of the thirteen is a line whose "asks for" and "found" were already
+# the same number -- eight numeric rungs on `visits`, one on `amount`,
+# one date rung on `recorded_on`, and the three text-shape facts of
+# `comment` -- and each now prints the published value without its
+# window, because the window is no longer what decided it. Read the diff
+# that way: a line where the two values DIFFER may not have moved, and
+# one that did would be this repair reaching further than its own rule.
 GOLDEN_QUALITY_SHA256 = (
-    "7c8be43cade4cf6f70e9bcf4ed599cd2889cb5f6041bbaeac06a51fededb1d51"
+    "9c7afaaa7222611ca607dc3fef5f167a69f3f160eb4944bee700f92ab6fa4976"
 )
 
 

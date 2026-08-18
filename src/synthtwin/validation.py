@@ -585,6 +585,27 @@ _NOT_OF_THAT_KIND = (
     "that is not blank as a value"
 )
 
+# What a line says when the file holds the description's own value and
+# the method's window for that fact does not reach it (review item
+# P3-V10-F5; plan amendment A-P3-40, validation method clause V6.1-A1).
+#
+# THE PHRASE "does NOT reach the" IS LOAD-BEARING and is the same phrase
+# the within-bound note uses. Both pages carry the same envelopes for the
+# same facts, and `tests/test_shipped_page_review.py` reads that phrase
+# off the check to decide whether the quality report agrees with the
+# twin's own report about a window that misses the published value. A
+# verdict changing from WITHIN-BOUND to HELD may not make the second
+# opinion go silent about the window; it changes what the window
+# DECIDED, not what it is.
+_MET_OUTSIDE_ITS_WINDOW = (
+    "      the file holds the description's own value exactly, so this",
+    "      obligation is met. The method's window here does NOT reach the",
+    "      description's own value -- it is what the method allows the",
+    "      file, worked out from the description and the size of this",
+    "      column, and not a margin around that value. It is printed",
+    "      here for the record; it did not settle the verdict above.",
+)
+
 # The byte-order mark as one character, written as its code point so
 # that nobody has to trust an invisible character in this file.
 _BYTE_ORDER_MARK = "\ufeff"
@@ -666,6 +687,15 @@ _KEPT_OVER_THE_SPLIT = tuple(
         [spelling for spelling in parsing.MISSING_TEXTS if spelling]
         + [f"{value:g}" for value in parsing.NUMERIC_SENTINELS]
     )
+)
+
+# The TEXT half of that table on its own, which is the half a column's
+# `missing_by_source` can name (plan amendment A-P3-39, validation
+# method clause V2.4-A10). The number half is answered from
+# `sentinel_verdicts` instead, because a stand-in is judged per column
+# and a published key alone does not say which way that judgment went.
+_BUILT_IN_TEXTS = tuple(
+    sorted([spelling for spelling in parsing.MISSING_TEXTS if spelling])
 )
 
 # The same three stand-ins, as the EXACT numbers the producer decides
@@ -930,7 +960,11 @@ def settings_over_the_split(
     - Errors raised: none.
     - Boundary: every one of the fifteen keys is `settings_for`'s, and
       exactly one differs -- `kept_values` also carries every non-blank
-      built-in missing marker and every numeric stand-in for "no value".
+      built-in missing marker and every numeric stand-in for "no value"
+      THAT THIS DESCRIPTION PASSES NO VERDICT ON. Three things take a
+      spelling back off that list and all three are the description's
+      own words: a declaration of it, a column's sentinel verdict on it,
+      and a column publishing it as the source of its holes.
       `declared_missing_values` is `settings_for`'s own recovered tuple,
       unchanged.
 
@@ -1030,6 +1064,53 @@ def settings_over_the_split(
     share rules to fire on the twin's own values, and it is exactly the
     exposure the GATE side has carried all along, because `settings_for`
     never pinned anything.
+
+    AND NEITHER IS A BUILT-IN WORD THE DESCRIPTION PUBLISHES AS THE
+    SOURCE OF ITS OWN HOLES (review item P3-V10-F4; plan amendment
+    A-P3-39, validation method clause V2.4-A10). The paragraph three
+    above says a spelling the description publishes as the source of its
+    holes has nothing of R-P2-13 at stake in it, and then said the
+    built-in table at large stays pinned anyway. Both cannot be true,
+    and the first one is the true one: `missing_by_source` is the
+    description NAMING the spelling twelve of its holes wore, and
+    reading that spelling as data here measures the file under a rule
+    its description was not written under. It did, on the plainest run
+    the product has: one column of sixty numbers and twelve `n/a` cells,
+    profiled with no options at all, checked against its own
+    description, reported TWENTY-EIGHT obligations MISSED and exited 3 --
+    both presence counts, both distinctness counts, `n_not_numeric`,
+    eleven ladder rungs, three moments and the rest, each with the
+    pinned reading's number printed beside the description's own.
+
+    WHERE THE PIN IS STILL REQUIRED, and this is the narrower boundary
+    rather than a smaller version of the old one. A built-in text stays
+    pinned on a description NO column of which publishes it as a hole
+    source. On such a description the pin cannot reach a verdict on the
+    file the description was written from, and the reason is structural:
+    for the pin to move a verdict on a column, that column's own
+    description must publish its split (`_split_is_published`), which
+    asks that every absent cell of the column be blank or named by a key
+    of `missing_by_source`. A cell the built-in table made absent is not
+    blank, so it must be named by a key -- and a named key IS the
+    publication this function now reads. So the two cases are exhaustive:
+    either the spelling is published, and it is unpinned here, or the
+    column pools it and `_governed` takes that column's verdicts from
+    the file's own description instead. The one place a pooled spelling
+    still reaches a number is the two presence COUNTS, which ask the
+    weaker publication question of A-P3-5 clause 1, and that residual is
+    stated at its size in the plan (R-P3-11) rather than papered over.
+
+    WHAT IT COSTS, and it is R-P2-13's own shape on the FIRST class of
+    marker -- the class the residual was written about. A twin holding a
+    generated value that collides with a built-in word the description
+    publishes as a hole source now has those cells counted as holes
+    here. It needs the description to publish that word (so the table it
+    was written from wore it, at or above the publication floor), and it
+    needs the twin's own invention to land on the same spelling in some
+    other column whose split is published. It is bounded by the cells
+    wearing that word, and it is the same exposure A-P3-29 took for a
+    built-in word the person declared and A-P3-35 took for a stand-in
+    number -- said now about the one route those two left.
     """
     block = settings_for(description)
     # A mapping rather than a set, for the reason `kept_spellings` gives:
@@ -1039,13 +1120,66 @@ def settings_over_the_split(
     for spelling in block.kept_values:
         found[spelling] = 1
     settled = _stand_ins_the_description_reads_as_holes(description)
+    named = _built_in_words_the_description_names_as_holes(description)
     for spelling in _KEPT_OVER_THE_SPLIT:
         if _explained_by(spelling, block.declared_missing_values):
             continue
         if _explained_by(spelling, settled):
             continue
+        if _explained_by(spelling, named):
+            continue
         found[spelling] = 1
     return dataclasses.replace(block, kept_values=tuple(sorted(found)))
+
+
+def _built_in_words_the_description_names_as_holes(
+    description: contract.Profile,
+) -> "tuple[str, ...]":
+    """The built-in missing words some column publishes as a hole source.
+
+    Guarantees:
+
+    - Inputs: one loaded description. No file is read and no cell is
+      consulted, so what comes back is a function of the DESCRIPTION
+      alone.
+    - Determinism: the returned tuple is sorted.
+    - Errors raised: none.
+    - Boundary: every spelling here is a member of this package's own
+      built-in table of missing texts, written the one way
+      `_BUILT_IN_TEXTS` writes it. **No text of anybody's table leaves
+      this function**: a published key decides only WHICH of ten
+      first-party words comes back, and the key itself never does.
+
+    WHY A PUBLISHED KEY SETTLES IT OUTRIGHT. The producer has five ways
+    to make a cell absent and it tries them in one order (`taxonomy.
+    _split_missing`): a `--keep-value` rescue first, then a declaration,
+    then a blank, then this table. A key of `missing_by_source` is a
+    spelling some absent cell of that column wore. So a key that folds
+    to one of these ten words is a cell the built-in table read as a
+    hole unless a rescue took it first -- and a rescued value is present,
+    so it is no column's hole and no key of this map. There is nothing
+    left to check and nothing to guess.
+
+    THE MATCH IS THE PRODUCER'S OWN DECLARATION IDENTITY, not an exact
+    key lookup, for the reason `_holes_no_spelling_accounts_for` gives:
+    `settings.declaration_matching` folds and trims, so a column
+    publishing `" N/A "` names the same word as one publishing `n/a`,
+    and the word that comes back is the vocabulary's own spelling
+    either way. A key that reads as a NUMBER matches none of these ten,
+    because no built-in missing text reads as one -- which is what
+    `tests/test_p1r6f9_declared_values.py` asserts of the table itself --
+    so a published `-999` is left to `_stand_ins_the_description_reads_
+    as_holes`, where the column's own verdict answers for it.
+    """
+    # A mapping rather than a set, for the reason `kept_spellings` gives
+    # (plan D6.2). The values are never read.
+    found: dict[str, int] = {}
+    for column in description.columns:
+        for key in sorted(column.missing_by_source):
+            for spelling in _BUILT_IN_TEXTS:
+                if _explained_by(key, (spelling,)):
+                    found[spelling] = 1
+    return tuple(sorted(found))
 
 
 def _stand_ins_the_description_reads_as_holes(
@@ -3172,13 +3306,38 @@ def _within(
     only read as a page contradicting itself. Where ``value`` is not
     given the line says nothing extra, which is right for a window
     whose published number is not one of these numbers at all.
+
+    AND THE FILE HOLDING THAT VALUE EXACTLY IS HELD, WHATEVER THE WINDOW
+    SAYS (review item P3-V10-F5; plan amendment A-P3-40, validation
+    method clause V6.1-A1). A window here is not a margin around the
+    published value and can lie wholly to one side of it, so a file
+    holding the description's own number can fall outside it -- and the
+    verdict was read off the window alone, so the page said "the
+    description asks for 84 ... the file was found to hold 84: MISSED".
+    That is not a strict reading of an approximated fact; it is a line
+    that contradicts itself, and no reader can act on it. V6.1's two
+    definitions overlap here rather than conflict -- HELD is "the exact
+    obligation was met" and it WAS met -- so the exact one is taken and
+    the window is left to explain itself in the note.
     """
     if measured is None or window is None:
         return Check(column, fact, subcheck, WITHHELD, published, "", _GATE_CLOSED)
     low, high = window
+    reaches = value is None or low <= value <= high
+    if value is not None and measured == value:
+        return Check(
+            column,
+            fact,
+            subcheck,
+            HELD,
+            published,
+            _shown_number(measured),
+            "",
+            () if reaches else _MET_OUTSIDE_ITS_WINDOW,
+        )
     verdict = WITHIN_BOUND if low <= measured <= high else MISSED
     note: tuple[str, ...] = ()
-    if value is not None and not low <= value <= high:
+    if not reaches:
         note = (
             (
                 "      this window does NOT reach the description's own "
@@ -5038,9 +5197,19 @@ def _presence_over_the_split(
     THE DIRECTION IT MOVES, said as a cost. A non-blank cell can now be
     absent to this count, where before only an empty field could be, and
     the cells that can are exactly those wearing a spelling the
-    description ITSELF publishes as the source of its holes. Nothing of
-    synthtwin's own vocabulary is in that set (`settings_over_the_split`
-    says why), so residual R-P2-13's collision cannot reach it.
+    description ITSELF publishes as the source of its holes.
+
+    **AND ONE OF THIS PACKAGE'S OWN WORDS CAN BE IN THAT SET, from plan
+    amendments A-P3-29, A-P3-35 and A-P3-39.** This paragraph used to end
+    "nothing of synthtwin's own vocabulary is in that set, so residual
+    R-P2-13's collision cannot reach it", and each of those three
+    amendments took one route by which it can: a built-in word the
+    description declares, a stand-in number a column of it settles, and
+    a built-in word a column publishes as the source of its holes. The
+    collision is therefore reachable and is stated at its size where
+    each of them states it, in `settings_over_the_split`. What has not
+    changed is that a spelling reaches this set only where the
+    description's own words put it there.
 
     Guarantees:
 
@@ -7606,6 +7775,18 @@ def _within_instant(
     an ordinary ladder the window sits wholly below the published value.
     That is the method working, and a page that shows it without saying
     it reads as a page that is wrong.
+
+    AND THE RUNG THE FILE HOLDS EXACTLY IS HELD (review item P3-V10-F5;
+    plan amendment A-P3-40, validation method clause V6.1-A1). The
+    verdict was window membership and nothing else, so the shipped
+    source table -- checked against its own description -- printed "the
+    description asks for: 2024-12-24 / the file was found to hold: that
+    same value" and MISSED under it, because G12.4's window for that
+    rung ends a day earlier. Four rungs of that one table said it. A
+    file holding the published value cannot be missing the obligation to
+    hold it, so the exact reading is taken first here exactly as
+    `_within` takes it, and what the window has to say is said in the
+    note rather than in the verdict.
     """
     rung = _ordinal_of(published, facts.resolution)
     low, high = window
@@ -7620,7 +7801,8 @@ def _within_instant(
             f"covers the value above"
         ),
     )
-    if not low <= rung <= high:
+    reaches = low <= rung <= high
+    if not reaches:
         note = (
             allowed,
             (
@@ -7641,6 +7823,17 @@ def _within_instant(
             published,
             "",
             _GATE_CLOSED,
+        )
+    if measured == rung:
+        return Check(
+            column,
+            "datetime.date_percentiles",
+            subcheck,
+            HELD,
+            published,
+            _shown_distance(measured, rung, facts),
+            "",
+            () if reaches else _MET_OUTSIDE_ITS_WINDOW,
         )
     verdict = WITHIN_BOUND if low <= measured <= high else MISSED
     return Check(

@@ -56,6 +56,19 @@ changed:
                           lookup instead of the producer's identity
     REINSTATE=A-P3-29-T   the structural test is not asked at all
 
+And a seventh, which is a review item rather than a stage of this
+amendment (P3-V10-F8; plan amendment A-P3-42 clause 4):
+
+    REINSTATE=P3-V10-F8   the structural CALL is taken out of
+                          `unrebuildable_columns` while the helper stays
+                          in the module answering correctly
+
+The seventh is not the sixth said another way, and the difference is
+the finding. Under A-P3-29-T a test can red on a direct call to the
+helper and never reach the outcome; under P3-V10-F8 the helper answers
+as it always did, so only a test that watches the ROUTING or the CENSUS
+can notice. The integration witness here is written to fail under both.
+
 Every table is built at test time by the seeded neutral builders in
 `fixtures.py`; no data-format file enters the repository (plan D13).
 """
@@ -214,6 +227,31 @@ def _never_asked(
     return 0
 
 
+def _the_head_count_alone(described: contract.Profile) -> "dict[str, str]":
+    """`unrebuildable_columns` with the structural CALL taken out.
+
+    The reviewer's own mutation for review item P3-V10-F8, and it is
+    deliberately not the same as `_never_asked`: the helper stays in the
+    module, answering every direct question correctly, and only the
+    routing stops asking it. So a test whose evidence for the structural
+    route is a call to the helper stays GREEN under this, and a test
+    whose evidence is the routing or the census goes red. That is the
+    difference the finding turned on, so the red check has to be able to
+    tell them apart.
+    """
+    found: dict[str, str] = {}
+    settings = described.settings
+    own_named = validation._own_words_named(settings.declared_missing_values)
+    own_recovered = validation._own_declarations_recovered(described)
+    short = own_recovered < own_named
+    for column in described.columns:
+        if short and validation._a_declaration_could_reach(column):
+            found[column.name] = validation._absence_words_not_recorded(
+                own_named, own_recovered
+            )
+    return found
+
+
 @pytest.fixture(scope="module", autouse=True)
 def _reinstated() -> "typing.Iterator[None]":
     """Put one part of the version 4 reconstruction back on request.
@@ -255,6 +293,10 @@ def _reinstated() -> "typing.Iterator[None]":
     if asked == "A-P3-29-T":
         monkeypatch.setattr(
             validation, "_holes_no_spelling_accounts_for", _never_asked
+        )
+    if asked == "P3-V10-F8":
+        monkeypatch.setattr(
+            validation, "unrebuildable_columns", _the_head_count_alone
         )
     yield
     monkeypatch.undo()
@@ -348,6 +390,38 @@ def _free_text(
     )
 
 
+def _two_numeric(
+    folder: pathlib.Path,
+    stem: str,
+    first: "list[str]",
+    second: "list[str]",
+    settings: taxonomy.Settings,
+) -> Case:
+    """Two counting columns, each sixty readings then its own markers.
+
+    Needed because the structural test and the head count are per
+    DOCUMENT and per column respectively: proving that one of them did
+    the routing takes a description where they disagree, and they cannot
+    disagree inside a single column.
+    """
+    left = _numbers(60) + first
+    right = _numbers(60) + second
+    longest = max(len(left), len(right))
+    rows = [
+        [
+            left[index] if index < len(left) else "",
+            right[index] if index < len(right) else "",
+        ]
+        for index in range(longest)
+    ]
+    return _described(
+        folder,
+        stem,
+        fixtures.rows_to_csv(["reading", "second"], rows),
+        settings,
+    )
+
+
 def _unsupported(outcome: validation.Outcome) -> "list[str]":
     """The subchecks one run named as ones this description cannot ask."""
     return sorted(
@@ -366,6 +440,64 @@ def _held(outcome: validation.Outcome) -> "set[str]":
         for check in outcome.checks
         if check.verdict == validation.HELD
     }
+
+
+def _the_head_count(described: contract.Profile) -> "tuple[int, int]":
+    """How many words of the person's own were named, and how many came back.
+
+    Both halves as `unrebuildable_columns` itself computes them, so a
+    test asserting which route fired reads the same two numbers the
+    route is decided from. What made review item P3-V10-F8 possible was
+    a test reading a THIRD number -- the count of published KEYS -- and
+    calling it the head count, which it stopped being when the head
+    started counting declarations (plan amendment A-P3-34).
+    """
+    return (
+        validation._own_words_named(
+            described.settings.declared_missing_values
+        ),
+        validation._own_declarations_recovered(described),
+    )
+
+
+class WithoutTheStructuralTest(typing.NamedTuple):
+    """What one description does when only the head count can route."""
+
+    routed: "dict[str, str]"
+    census: validation.Census
+    unsupported: "list[str]"
+
+
+def _without_the_structural_test(
+    described: contract.Profile, path: str
+) -> WithoutTheStructuralTest:
+    """Run the routing and a whole measurement with the cell rule gone.
+
+    The reviewer's own mutation, applied where a test can watch the
+    OUTCOME rather than the helper: `_holes_no_spelling_accounts_for`
+    left in the module and its call in `unrebuildable_columns` made
+    inert. A witness whose census does not move under this is a witness
+    the head count was routing all along.
+
+    It is applied here rather than in `_reinstated` because both of the
+    tests that use it must also see the shipped behaviour, in the same
+    run, to have anything to compare against. It patches the ROUTING
+    rather than the helper, for the reason `_the_head_count_alone`
+    gives: leaving the helper answering correctly is what makes the
+    difference between a unit assertion and an integration one visible.
+    """
+    monkeypatch = pytest.MonkeyPatch()
+    monkeypatch.setattr(
+        validation, "unrebuildable_columns", _the_head_count_alone
+    )
+    try:
+        routed = dict(validation.unrebuildable_columns(described))
+        outcome = validation.measure(described, path)
+        return WithoutTheStructuralTest(
+            routed, outcome.census, _unsupported(outcome)
+        )
+    finally:
+        monkeypatch.undo()
 
 
 # -- 1. the kept side is read rather than inferred ----------------------
@@ -659,17 +791,111 @@ def test_the_structural_test_is_not_asked_where_the_class_empties_it(
     assert validation.unrebuildable_columns(case.described) == {}
 
 
-def test_the_structural_test_still_catches_a_word_the_head_count_misses(
+def test_the_structural_test_is_what_routes_where_the_head_is_level(
     tmp_path: pathlib.Path,
 ) -> None:
     """Why the union is still a union, and it is a soundness bound.
 
-    A declaration is matched by its folded spelling, so ONE declared
-    word can be worn by several different published keys. Here `XX` is
-    worn by two -- with edge space and without -- so two keys come back
-    for two words named and the head count comes out level, while `YY`
-    is worn by five cells, pooled below the floor, and lost. The
-    structural test counts CELLS and sees it.
+    THIS TEST NAMED THE STRUCTURAL ROUTE AND STOPPED PROVING IT (review
+    item P3-V10-F8; plan amendment A-P3-42 clause 4). Its witness was
+    one column holding `XX` spelled two ways above the floor and `YY`
+    pooled below it, and its comment said the head count came out level
+    because two keys came back for two words named. That was true while
+    the head counted KEYS. A-P3-34 made it count DECLARATIONS, so ` XX `
+    and `XX` are one word back against two named, the head is SHORT, and
+    the head routes that column on its own. Removing the structural test
+    from `unrebuildable_columns` left the column routed, the census
+    identical to the byte and every integration assertion here green --
+    only the direct call to the helper, two lines above them, went red.
+    A test that names an integration and asserts a unit is a test that
+    reports the integration working.
+
+    SO THE WITNESS IS ONE WHERE THE HEAD CANNOT BE WHAT ROUTES, and that
+    is asserted first, before anything else is read. One word of the
+    person's own is named. One column publishes it above the floor, so
+    it comes back and the head count is LEVEL. The second column holds
+    twelve cells the same word made absent, spelled three ways, each
+    spelling under the floor -- so that column publishes no key at all,
+    and only a rule that counts CELLS can see that its twelve declared
+    holes are unaccounted for.
+
+    WHAT THE ROUTE BUYS, stated at its real size. The source table here
+    passes every obligation either way: the recovered word folds onto
+    all three spellings, so nothing is misread and the census reports no
+    miss with the structural test or without it. What the route buys is
+    that the description does not CLAIM to support a check it cannot
+    prove it supports -- the description records that twelve cells of
+    this column were made absent by a word somebody named, and does not
+    record which spelling any of them wore. Forty-three obligations
+    stand or fall on that, and the mutation moves every one of them.
+    """
+    case = _two_numeric(
+        tmp_path,
+        "level-head",
+        ["XX"] * 12,
+        ["XX"] * 4 + [" XX "] * 4 + ["xx"] * 4,
+        taxonomy.Settings(declared_missing_values=("XX",)),
+    )
+    described = case.described
+    named, back = _the_head_count(described)
+    assert named == back == 1, (
+        "the witness is wrong: this test exists to prove the STRUCTURAL "
+        "route, so the head count has to be level before anything else "
+        f"is read, and it is {back} back against {named} named"
+    )
+    publishing, pooling = described.columns[0], described.columns[1]
+    assert publishing.missing_by_source == {"XX": 12}
+    assert pooling.missing_by_source == {}
+    assert pooling.missing_by_class.declared_missing == 12
+    assert pooling.n_missing_withheld == 12
+    recovered = validation.declared_spellings(described)
+    assert validation._holes_no_spelling_accounts_for(publishing, recovered) == 0
+    assert validation._holes_no_spelling_accounts_for(pooling, recovered) == 12
+    assert sorted(validation.unrebuildable_columns(described)) == ["second"]
+
+    # THE INTEGRATION, and it is what the finding turned on. With the
+    # structural test removed the column is not routed at all, and the
+    # obligations it moved come back onto the checked census. Both
+    # numbers are asserted, in both directions, so neither a route that
+    # stopped firing nor one that fires on everything can pass here.
+    outcome = validation.measure(described, case.path)
+    assert outcome.census.missed == 0
+    assert "presence.n_present" in _unsupported(outcome)
+    without = _without_the_structural_test(described, case.path)
+    assert without.routed == {}, (
+        "Removing the structural test left this column routed anyway, "
+        "so this witness proves nothing about the structural route. Its "
+        "head count is meant to be level -- check that first."
+    )
+    assert "presence.n_present" not in without.unsupported
+    assert without.census.missed == 0
+    assert without.census.held > outcome.census.held, (
+        "the obligations the structural route moves to NOT CHECKABLE do "
+        "not come back when it is removed, so the route is moving "
+        "nothing and this assertion is measuring nothing"
+    )
+    assert (
+        without.census.held - outcome.census.held
+        == outcome.census.not_checkable - without.census.not_checkable
+    ), "the obligations moved by the route are not conserved"
+
+
+def test_the_head_count_is_what_routes_the_shipped_witness(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The old witness, kept and labelled with what actually routes it.
+
+    `XX` spelled two ways above the floor and `YY` worn by five cells
+    pooled below it. Both rules fire here, and the test above exists
+    because for a while this one claimed to be the evidence for the
+    structural half while the head half was doing the work.
+
+    What the structural test still changes on this description is the
+    SENTENCE the person is given: with it, they are told twelve cells
+    were made absent by a word the description does not record; without
+    it, that two words were named and one came back. Both are true and
+    the first is the more useful, so the difference is asserted rather
+    than left as a comment.
     """
     case = _numeric(
         tmp_path,
@@ -677,26 +903,34 @@ def test_the_structural_test_still_catches_a_word_the_head_count_misses(
         [" XX "] * 12 + ["XX"] * 12 + ["YY"] * 5,
         taxonomy.Settings(declared_missing_values=("XX", "YY")),
     )
-    column = case.described.columns[0]
+    described = case.described
+    column = described.columns[0]
     assert sorted(column.missing_by_source) == [" XX ", "XX"]
     assert column.n_missing_withheld == 5
     assert column.missing_by_class.declared_missing == 29
-    # The head count is satisfied: two words of the person's own named,
-    # two spellings back.
-    assert validation._own_words_named(
-        case.described.settings.declared_missing_values
-    ) == 2
-    assert len(validation._named_in_the_columns(case.described)) == 2
-    # ...and five cells no recovered word accounts for say otherwise.
+    # Two words of the person's own were named; ONE came back, because
+    # ` XX ` and `XX` are two spellings of one declaration.
+    named, back = _the_head_count(described)
+    assert (named, back) == (2, 1)
+    assert len(validation._named_in_the_columns(described)) == 2
+    # ...and five cells no recovered word accounts for say so as well.
     assert validation._holes_no_spelling_accounts_for(
-        column, validation.declared_spellings(case.described)
+        column, validation.declared_spellings(described)
     ) == 5
-    assert sorted(validation.unrebuildable_columns(case.described)) == [
-        "reading"
-    ]
-    outcome = validation.measure(case.described, case.path)
+    assert sorted(validation.unrebuildable_columns(described)) == ["reading"]
+    outcome = validation.measure(described, case.path)
     assert outcome.census.missed == 0
     assert "presence.n_present" in _unsupported(outcome)
+    # The head route alone reaches the same census by a different road.
+    without = _without_the_structural_test(described, case.path)
+    assert sorted(without.routed) == ["reading"]
+    assert without.census == outcome.census
+    assert without.routed["reading"] != validation.unrebuildable_columns(
+        described
+    )["reading"], (
+        "the two routes now give the person the same sentence, so this "
+        "test can no longer tell which of them fired"
+    )
 
 
 # -- 4. what did NOT change --------------------------------------------

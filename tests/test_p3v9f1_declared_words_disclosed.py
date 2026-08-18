@@ -52,6 +52,27 @@ memory, so that no assertion here is one that cannot fail:
   while the description beside it holds one, which is the shape of the
   defect with the page silent instead of wrong. Reds the agreement
   test.
+* `REINSTATE=P3-V10-F7` -- the notice moved to AFTER the write and
+  before the "Written:" confirmation, which is review item P3-V10-F7's
+  own mutation. The screen it produces is the screen this file used to
+  assert: the marker is on the error stream, "These two files will be
+  written" still precedes "Written:", and the profile exists when the
+  run returns. It reds only the check that watches the folder while the
+  notice is being said.
+* `REINSTATE=P3-V10-F9` -- the word count taken from the LENGTH of the
+  list of spellings, which is what both surfaces counted. Reds the two
+  attribution checks at the end of this file, and nothing else: the
+  defect was never about which spellings are disclosed.
+
+WHO TYPED WHICH OF THESE WORDS IS PART OF TELLING THE TRUTH ABOUT THEM
+(review item P3-V10-F9). One `--missing-value XX` over a table holding
+`XX` cells and `" xx "` cells publishes TWO spellings, because the cells
+decide the spellings and the person decides the word. Both surfaces
+counted the spellings and wrote the sentence about the person: "Words
+you typed after --missing-value are written into the description", and
+then told them to run again without naming "them". The disclosure was
+complete and the attribution was wrong, which sends a careful reader
+looking for an option they never gave.
 
 Every table here is built by the seeded neutral builders in
 `fixtures.py` (plan D13: no data-format file is ever committed), and
@@ -119,6 +140,35 @@ def _reinstated(monkeypatch: pytest.MonkeyPatch) -> None:
             "_missing_spelling_words",
             lambda _column, _floor: [],
         )
+    if asked == "P3-V10-F7":
+        # The reviewer's own mutation, built rather than described: the
+        # notice is held back at the point production composes it and
+        # said again once both files are on disk. Nothing else about the
+        # run changes -- same words, same stream, still before the
+        # "Written:" line -- which is exactly why a check that reads the
+        # finished screen cannot tell the two runs apart.
+        from synthtwin import profile as producer
+
+        held: list[str] = []
+        compose = cli._declared_words_notice
+        write = producer.write_both_files
+
+        def _hold_it_back(named: "list[tuple[str, str, int]]") -> str:
+            held.append(compose(named))
+            return ""
+
+        def _write_then_say(*given: object, **named: object) -> object:
+            left_behind = write(*given, **named)  # type: ignore[arg-type]
+            for message in held:
+                cli._warn(message)
+            return left_behind
+
+        monkeypatch.setattr(cli, "_declared_words_notice", _hold_it_back)
+        monkeypatch.setattr(producer, "write_both_files", _write_then_say)
+    if asked == "P3-V10-F9":
+        # The count as both surfaces took it: how many LINES there are,
+        # which is how many spellings the description names.
+        monkeypatch.setattr(summary, "words_behind", len)
 
 
 def _table(folder: pathlib.Path, markers: int) -> pathlib.Path:
@@ -184,27 +234,81 @@ def test_the_notice_names_the_word_its_column_and_its_count(
 
 
 def test_the_notice_comes_before_the_files_exist(
-    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+    tmp_path: pathlib.Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Plan P1-D6: a person weighs a file before it is on disk.
 
-    The notice is a warning, so it is on the error stream while the
-    confirmation is on the output stream; what is asserted is that the
-    run had not yet written anything when it was composed. The two
-    streams are ordered against each other by the one thing that is on
-    both: nothing is written until after the disclosure, and the "these
-    two files will be written" line precedes the "Written:" line.
+    THIS WATCHES THE FOLDER WHILE THE NOTICE IS BEING SAID, and review
+    item P3-V10-F7 is why. The check this replaces read the finished
+    screen: the marker was somewhere on the error stream, "These two
+    files will be written" came before "Written:", and the profile
+    existed when the run returned. Every one of those is still true of a
+    run that writes both files FIRST and warns afterwards -- the notice
+    and the confirmation are on different streams, so their order is not
+    on the transcript at all, and the two lines that are ordered are
+    both synthtwin's own words about what it is going to do. So the test
+    asserted a promise it could not see, on the one screen where the
+    promise matters: a watched or synchronised output folder has the
+    real-derived files before the person has been told what is in them.
+
+    What is observed instead is the folder itself, at the instant
+    `_warn` is handed the notice. `REINSTATE=P3-V10-F7` builds the
+    reviewer's mutation and this is the only assertion that moves.
     """
     table = _table(tmp_path, FLOOR + 1)
     profile_path = tmp_path / "reading-profile.json"
+    summary_path = tmp_path / "reading-profile.txt"
     assert not profile_path.exists()
+
+    seen: list[tuple[str, tuple[str, ...]]] = []
+    warn = cli._warn
+
+    def _watch(message: str) -> None:
+        # The whole folder, not the two names: a run that had begun
+        # writing under a working name would leave real-derived bytes in
+        # the same place, and "the file does not exist yet" is not what
+        # a person is promised. They are promised that nothing of theirs
+        # is there yet.
+        seen.append(
+            (message, tuple(sorted(item.name for item in tmp_path.iterdir())))
+        )
+        warn(message)
+
+    monkeypatch.setattr(cli, "_warn", _watch)
     assert main(["profile", f"{table}", "--missing-value", MARKER]) == 0
+
+    # EVERYTHING THE OLD CHECK ASSERTED, ASSERTED FIRST AND ON PURPOSE.
+    # All three are still true and still worth holding, and none of them
+    # orders the notice against the write -- which is the whole of
+    # P3-V10-F7. Under `REINSTATE=P3-V10-F7` these pass and the
+    # observation below is the only thing that moves, so the red run is
+    # itself the evidence that the old check could not see the defect.
     caught = capsys.readouterr()
     assert MARKER in caught.err
     will_write = caught.out.index("These two files will be written")
     written = caught.out.index("\nWritten:")
     assert will_write < written
-    assert profile_path.exists()
+    assert profile_path.exists() and summary_path.exists()
+
+    at_the_notice = [holding for message, holding in seen if MARKER in message]
+    assert len(at_the_notice) == 1, (
+        "The notice naming the declared word was said "
+        f"{len(at_the_notice)} time(s). It is said exactly once, before "
+        "the write; a run that says it never has nothing to observe and "
+        "a run that says it twice has stopped being the disclosure this "
+        f"file asserts.\n  warnings seen: {[said for said, _ in seen]}"
+    )
+    assert at_the_notice[0] == (table.name,), (
+        "When the declared-word notice was handed to the screen, the "
+        "output folder already held more than the table it was built "
+        f"from: {at_the_notice[0]}. Plan P1-D6 puts BOTH warnings before "
+        "`write_both_files` for one reason -- a person weighs what a "
+        "file carries before it exists, not after -- and a folder that "
+        "is watched, synchronised or shared has the file the moment it "
+        "is written. Move the notice back above the write."
+    )
 
 
 def test_nothing_extra_is_said_when_no_word_of_yours_was_written(
@@ -265,3 +369,131 @@ def test_the_page_and_the_description_agree_about_the_word(
     # the corrected sentences keep.
     settings = document[document.index('"settings"') :]
     assert MARKER not in settings[: settings.index('"source"')]
+
+
+# -- 4. one word, two spellings: who typed which ------------------------
+
+
+def _two_spellings(
+    folder: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> "tuple[str, str]":
+    """One declaration whose cells wore it two ways; the screen and the page.
+
+    `--missing-value` is given ONCE. The table writes the marker plainly
+    in one group of cells and with edge space and a different case in
+    another, and both groups clear the floor, so the description names
+    two spellings of one word.
+    """
+    values = (
+        [str(row) for row in range(60)]
+        + [MARKER] * FLOOR
+        + [f" {MARKER.upper()} "] * FLOOR
+    )
+    table = fixtures.write(
+        folder, "reading.csv", fixtures.single_column_table("reading", values)
+    )
+    assert main(["profile", f"{table}", "--missing-value", MARKER]) == 0
+    caught = capsys.readouterr()
+    return caught.err, (folder / "reading-profile.txt").read_text(
+        encoding="utf-8"
+    )
+
+
+def test_the_notice_counts_the_words_you_typed_not_the_spellings(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """THE FINDING (review item P3-V10-F9). One word, two lines, one sentence.
+
+    Both spellings are disclosed -- that half was never wrong and is
+    asserted here so a repair cannot quietly drop one. What changes is
+    that the notice speaks about the person in the singular, because one
+    is the number of options they gave, and says outright where the
+    second line came from.
+    """
+    warned, _page = _two_spellings(tmp_path, capsys)
+    said = " ".join(warned.split())
+    assert MARKER in said and MARKER.upper() in said, (
+        "a spelling the description carries is missing from the notice"
+    )
+    assert (
+        "a word you typed after --missing-value is written into the "
+        "description" in said.lower()
+    ), (
+        "the notice counts the spellings the table wrote as though the "
+        "person had typed each of them:\n" + warned
+    )
+    assert "You typed one word" in said, (
+        "the notice lists two spellings and never says that one of them "
+        "is the table's own"
+    )
+    assert "without naming that word" in said, (
+        "the instruction still tells the person to stop naming several "
+        "words when they named one"
+    )
+
+
+def test_the_page_counts_the_words_you_typed_not_the_spellings(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The same on the file a person is handed, which is the one they read."""
+    _warned, page = _two_spellings(tmp_path, capsys)
+    listed = [line for line in page.split("\n") if "-- in reading" in line]
+    assert listed == [
+        f"       {MARKER.upper()}  -- in reading ({FLOOR} cell(s))",
+        f"      {MARKER} -- in reading ({FLOOR} cell(s))",
+    ], (
+        "the page no longer lists both spellings with their edge space "
+        f"as the table wrote them:\n{listed}"
+    )
+    said = " ".join(page.split())
+    assert "WORDS OF YOUR OWN THAT THIS DESCRIPTION NAMES" in said
+    assert "this word of yours is written into it" in said, (
+        "the page counts the spellings as words the person named:\n" + page
+    )
+    assert "more lines there than words you named" in said, (
+        "the page lists two spellings of one word and does not say so"
+    )
+
+
+def test_two_real_declarations_are_still_counted_as_two(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The over-narrowing check: a plural sentence where it is true.
+
+    Without this, a repair that made every notice singular would pass
+    the two checks above.
+    """
+    second = "another-marker-of-my-own"
+    values = (
+        [str(row) for row in range(60)]
+        + [MARKER] * FLOOR
+        + [second] * FLOOR
+    )
+    table = fixtures.write(
+        tmp_path, "reading.csv", fixtures.single_column_table("reading", values)
+    )
+    assert (
+        main(
+            [
+                "profile",
+                f"{table}",
+                "--missing-value",
+                MARKER,
+                "--missing-value",
+                second,
+            ]
+        )
+        == 0
+    )
+    caught = capsys.readouterr()
+    said = " ".join(caught.err.split())
+    assert "2 words you typed after --missing-value are written" in said
+    assert "without naming those words" in said
+    assert "more lines than words" not in said, (
+        "two words came back under two spellings, so nothing here is "
+        "the table's own spelling of somebody else's word"
+    )
+    page = " ".join(
+        (tmp_path / "reading-profile.txt").read_text(encoding="utf-8").split()
+    )
+    assert "these 2 words of yours are written into it" in page
