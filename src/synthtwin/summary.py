@@ -390,8 +390,9 @@ def _column_lines(column: dict[str, object], floor: int) -> list[str]:
             (
                 f"    {_count_of(column['n_distinct'])} different values, "
                 f"between {_count_of(column['min_length'])} and "
-                f"{_count_of(column['max_length'])} characters long. The "
-                f"values themselves are not in the profile."
+                f"{_count_of(column['max_length'])} characters long. This "
+                f"column publishes no value of the table, so the values "
+                f"themselves are not in the profile."
             ),
         ]
         # What the profile records about REPETITION, which is a fact
@@ -666,10 +667,10 @@ def _declaration_lines(document: dict[str, object]) -> list[str]:
     directions from each other. Each statement below was checked against
     what the code does:
 
-    * the settings record counts and the matching rule, never a
-      spelling of the person's own, in both directions and on every
-      role -- and, from contract version 5, which members of
-      synthtwin's own published vocabulary were among them;
+    * the settings record counts and the matching rule; in the settings
+      block never a spelling of the person's own, in both directions
+      and on every role -- and, from contract version 5, which members
+      of synthtwin's own published vocabulary were among them;
     * a value named as 'no value' is counted absent, and its spelling is
       listed by its column as one of the spellings it counted as missing
       -- but only where that column publishes values at all and at least

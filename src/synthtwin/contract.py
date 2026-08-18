@@ -526,9 +526,10 @@ INVARIANTS = {
         "when the names came from the file at all"
     ),
     "C5-S7": (
-        "the description records how many values were declared, and "
-        "never the person's own text -- only which of synthtwin's own "
-        "published words were among them"
+        "this record says how many values were declared and which of "
+        "synthtwin's own published words were among them, and no "
+        "spelling of the person's own stands in this record -- one can "
+        "stand in a column's `missing_by_source` instead"
     ),
     "S8": (
         "every column named as holding record numbers is a column of "
@@ -1788,18 +1789,79 @@ def _keys(
             raise _missing(key, where, required_by)
 
 
+# How an entry of a table-keyed mapping is named on the screen when the
+# value under it is wrong (review item P3-V11-F2). The key itself is a
+# spelling some cell of the table held, character for character, so it
+# is named by WHAT IT IS and never quoted -- the same rule R15 already
+# follows for the value it found.
+_A_SPELLING_OF_YOURS = "(a spelling out of your own table)"
+
+# The two places the format lets the table decide a mapping's keys, in
+# the shape `canonical` writes them. They are not a second list: the
+# suite holds them to `canonical.TABLE_TEXT_KEY_SPACES` itself, and that
+# tuple is in turn derived from the producer's publication rules.
+_THE_SOURCE_KEYS = ("columns", canonical.EACH, "missing_by_source")
+_THE_VARIANT_KEYS = (
+    "columns", canonical.EACH, "levels", canonical.EACH, "variants"
+)
+
+
+def _entry_named(path: "tuple[object, ...]", key: str, name: str) -> str:
+    """How one entry of a block is named in a refusal about its value.
+
+    THE DEFECT THIS EXISTS FOR (review item P3-V11-F2). The wrong-type
+    and out-of-range refusals name the entry by its own key, which is
+    right everywhere the format keys a mapping on one of synthtwin's own
+    published words -- a percentile name, a UTC offset, a numeric style,
+    a group size in figures. In the two mappings `canonical` names it is
+    wrong: the key is a spelling out of somebody's table, and the
+    earlier repair for review item P3-V10-F3 stopped the S13 walk from
+    printing one while leaving the ORDINARY wrong-type path printing it
+    verbatim, which is the same disclosure through the other door.
+
+    The answer comes from the one key-space table both halves of the
+    product already share, so a mapping added to the format with the
+    table's text for keys is covered the moment it is named there.
+
+    Guarantees:
+
+    - Inputs: the path of the MAPPING, its field name as a person reads
+      it, and the key standing inside it.
+    - Determinism: a fixed function of the path and of `canonical`'s
+      table; the key's own characters change nothing but whether they
+      are shown.
+    - Errors raised: none.
+    - Boundary: where the table decides the keys, no character of the
+      key reaches the answer.
+    """
+    if canonical.keys_are_the_tables_own_text(path):
+        return f"{key} -> {_A_SPELLING_OF_YOURS}"
+    return f"{key} -> {name}"
+
+
 def _counts(
     value: object,
     key: str,
     where: str,
     least: int,
+    path: "tuple[object, ...]" = (),
 ) -> "dict[str, int]":
-    """A block of entries whose values are whole numbers of ``least`` up."""
+    """A block of entries whose values are whole numbers of ``least`` up.
+
+    ``path`` is where this mapping sits in the document, and it is what
+    decides whether an entry may be named by its own key: a mapping the
+    TABLE keys is named by what its keys are and never by one of them
+    (review item P3-V11-F2). The default is the empty path, which no
+    key space holds, so a caller that names no path gets the ordinary
+    naming -- and every caller whose mapping is table-keyed passes one.
+    `tests/test_p3v11f2_no_refusal_quotes_your_spelling.py` holds every
+    caller in this module to that, from `canonical`'s own table.
+    """
     mapping = _mapping(value, key, where)
     counted: dict[str, int] = {}
     for name in sorted(mapping):
         counted[name] = _whole(
-            mapping[name], f"{key} -> {name}", where, least
+            mapping[name], _entry_named(path, key, name), where, least
         )
     return counted
 
@@ -2324,7 +2386,11 @@ def _declaration(value: object, key: str, where: str) -> DeclarationRecord:
             "C5-S7",
             where,
             f"the record '{key}' says the declared values were kept",
-            "a version 5 description keeps how many, never which",
+            (
+                "in a version 5 description no text of the person's own "
+                "stands in that block, so the flag reads false in both "
+                "records"
+            ),
         )
     texts = _built_in_texts(mapping["built_in_texts"], key, where)
     numbers = _built_in_numbers(mapping["built_in_numbers"], key, where)
@@ -2809,7 +2875,9 @@ def _missing_by_source(
     narrowed, which makes the rule the one the producer already
     followed.
     """
-    counted = _counts(value, "missing_by_source", where, 1)
+    counted = _counts(
+        value, "missing_by_source", where, 1, _THE_SOURCE_KEYS
+    )
     if publishes_nothing:
         if counted:
             raise _broken(
@@ -3508,7 +3576,9 @@ def _variants(
     byte for byte -- unlike the spellings of an empty cell, which are
     for a person to read and are escaped for display.
     """
-    named = _counts(block["variants"], "variants", seat, 1)
+    named = _counts(
+        block["variants"], "variants", seat, 1, _THE_VARIANT_KEYS
+    )
     for spelling in sorted(named):
         if named[spelling] < floor:
             raise _broken(

@@ -1012,7 +1012,7 @@ producer obligations, which are true or false of a producer.
 | C5-K3 | — | `len(built_in_texts) + len(built_in_numbers) <= n_declared`, in each record |
 | C5-K4 | — | no member appears in both declaration records |
 | C5-K5 | — | *(producer)* the four lists are a function of the command line alone |
-| C5-S7 | S7 | `values_recorded` is `false` in both records, and means that the person's own typed text is not carried |
+| C5-S7 | S7 | `values_recorded` is `false` in both records, and means that neither record carries the person's own typed text; a column's `missing_by_source` can carry it, and 3.2 way 4 says when |
 | C5-S13 | S13 | at a floor of one, `n_missing_withheld` joins the fields that must be zero and `missing_by_source` leaves the list; `n_missing_blank` is not on it |
 | C5-S14 | — | each declaration record has exactly the four keys of 6.2 |
 | C5-VER | — | `profile_version` is exactly the integer `5` |

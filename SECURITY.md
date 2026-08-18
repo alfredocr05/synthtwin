@@ -346,8 +346,9 @@ Stated here so that no reader has to discover them independently:
   The publication class: a column that publishes no value of the table -
   record numbers, free text, numbers no format can hold - publishes an
   empty source map whatever made its cells absent (contract 5 C5-21).
-  And the settings block itself, which carries the policy and no
-  spelling of the person's own, exactly as the two bullets above say.
+  And the settings block itself, which carries the policy: no spelling
+  of the person's own is in that block, exactly as the two bullets
+  above say.
   None of those three bounds makes the general claim true, which is why
   they are written here as bounds and not as a denial.
 

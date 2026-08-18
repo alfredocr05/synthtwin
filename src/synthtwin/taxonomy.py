@@ -2560,8 +2560,9 @@ def built_in_values_named(
     function decides what the SETTINGS carry and decides nothing else,
     and every sentence built on it says which.
 
-    AND WHAT IS WRITTEN IS THE MEMBER, NEVER THE SPELLING SOMEBODY TYPED
-    (C5-17). A person who types `" N/A "` gets `n/a` in the document:
+    AND WHAT THESE TWO LISTS HOLD IS THE MEMBER: through these lists
+    never the spelling somebody typed (C5-17). A person who types
+    `" N/A "` gets `n/a` in the document:
     their spacing and their capitals are not carried, because the rule
     that matches a declaration is over the folded form and over the
     number, so the member is the whole of what a consumer needs. Nothing
