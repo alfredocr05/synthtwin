@@ -606,6 +606,64 @@ _MET_OUTSIDE_ITS_WINDOW = (
     "      here for the record; it did not settle the verdict above.",
 )
 
+# WHAT A MISSED LINE SAYS WHERE THE MEASURED SIDE MAY NOT BE PRINTED
+# (review item P3-V12-F2 clause (a); plan amendment A-P3-45; validation
+# method clause V5.4-A1).
+#
+# A MISSED verdict tells a person that their file does not carry a fact
+# the description publishes. Where the measurement behind it is one
+# V5.4 keeps back, the line printed the description's request and
+# stopped -- no found line, no reason, nothing. Measured on the shipped
+# tree: a one-column table of sixty readings written to two decimal
+# places, validated against its own genuine description, printed
+# `styles.spelled ... MISSED` and one line under it, so a researcher
+# was told their file failed and not what it holds. The page was worse
+# than silent, because two of its own sentences promise that every
+# missed obligation is printed with what the file was found to hold.
+#
+# So the found value is shown, or the line says why it is not. Below
+# are the two reasons there are, each written as the rule that keeps
+# the value back and what a person can do about it.
+_NOT_SHOWN_IT_IS_TEXT_OF_THE_FILE = (
+    "      what this file holds here is NOT SHOWN, and this is why: it",
+    "      is text written in the file itself, and no text read out of",
+    "      a measured file is printed in this report, under any verdict",
+    "      -- which is what lets one report be handed to a person who",
+    "      does not hold that file. The comparison above was made in",
+    "      full and the verdict is its outcome; only the measured side",
+    "      is kept back. Open the file itself to read what stands here.",
+)
+
+_NOT_SHOWN_IT_IS_A_COUNT_OF_THE_FILE = (
+    "      what this file holds here is NOT SHOWN, and this is why: it",
+    "      is a number counted in the file, and this obligation is",
+    "      reported with what the description asks for and the outcome",
+    "      alone and never with that count, on any file -- which is what",
+    "      lets one report be handed to a person who does not hold that",
+    "      file. The comparison above was made in full and the verdict",
+    "      is its outcome; only the measured side is kept back. To read",
+    "      it, describe the file itself with `synthtwin profile` and",
+    "      read the count that description publishes.",
+)
+
+# THE FLOOR UNDER BOTH, and it is a floor and not a third reason. Every
+# outcome this module assembles goes through `_readable`, so a MISSED
+# line naming neither what was found nor why it is not shown cannot
+# reach a page: it carries this sentence instead. No subcheck that
+# ships needs it -- `tests/test_p3v12f2_a_miss_says_what_it_found.py`
+# asserts that every one of them names its own reason on a file that
+# misses it -- and it is here so that a subcheck written next year
+# fails where a reader can see it rather than printing a blank.
+_NOT_SHOWN_AND_THIS_LINE_CANNOT_SAY_WHY = (
+    "      what this file holds here is NOT SHOWN, and this line cannot",
+    "      say which rule kept it back: it is either text read out of",
+    "      the file or a count this obligation is never reported with.",
+    "      The comparison above was made in full and the verdict is its",
+    "      outcome. This sentence is a defect in synthtwin and not a",
+    "      fact about your file -- every missed obligation is meant to",
+    "      name its own reason. Please report it.",
+)
+
 # The byte-order mark as one character, written as its code point so
 # that nobody has to trust an invisible character in this file.
 _BYTE_ORDER_MARK = "\ufeff"
@@ -779,11 +837,17 @@ class Check:
     carries the envelope the window came from.
 
     ``note`` is the report's further lines under this one, already
-    broken where they are to be broken, and it exists for the one thing
-    the fields above cannot say: a window is worked out from the
-    description and the size of the column, not as a margin around the
-    published value, so it can lie wholly to one side of the value it
-    stands beside. Printed without that sentence the page contradicts
+    broken where they are to be broken, and it says the two things the
+    fields above cannot. THE FIRST is why the measured side of a MISSED
+    obligation is not shown, wherever it is not: a verdict that tells a
+    person their file failed and then says nothing about what the file
+    holds is unreadable, so every MISSED check carries either
+    ``achieved`` or a note saying which rule keeps it back, and
+    `_readable` is the floor under that (review item P3-V12-F2;
+    amendment A-P3-45). THE SECOND is that a window is worked out from
+    the description and the size of the column, not as a margin around
+    the published value, so it can lie wholly to one side of the value
+    it stands beside. Printed without that sentence the page contradicts
     itself -- "asks for 2023-11-23 (between two instants neither of
     which is 2023-11-23): WITHIN-BOUND" -- and the reader has no way to
     tell an honest bound from an arithmetic mistake (review of the
@@ -3264,23 +3328,35 @@ def _silent(
     subcheck: str,
     published: str,
     held: "bool | None",
+    kept_back: "tuple[str, ...]",
     why: str = _GATE_CLOSED,
 ) -> Check:
     """One exact obligation whose measured value may not be shown.
 
     Used where the achieved value is a STRING taken from the measured
-    file. The comparison is made in full and the verdict is reported;
-    the value itself never leaves this module.
+    file, or a count this obligation is never reported with. The
+    comparison is made in full and the verdict is reported; the value
+    itself never leaves this module.
 
     ``held`` is three-valued and the third value is the point: None is
     "the file's own description does not settle this", and ``why`` says
     which of the two ways the gate closed -- the kind of measurement is
     not one that description carries (`_GATE_CLOSED`), or the count it
     compares is one that description pools (`_GATE_POOLED`).
+
+    ``kept_back`` IS WHY THE MEASURED SIDE IS NOT PRINTED, and it has
+    no default because only the caller knows which of the two rules
+    keeps it (review item P3-V12-F2; amendment A-P3-45). It is printed
+    under MISSED, where a person is told their file failed and would
+    otherwise be told nothing else at all. It is NOT printed under
+    HELD: nothing failed there, so nobody is owed an account of a value
+    they were not going to be shown either way.
     """
     if held is None:
         return Check(column, fact, subcheck, WITHHELD, published, "", why)
-    return Check(column, fact, subcheck, HELD if held else MISSED, published)
+    if held:
+        return Check(column, fact, subcheck, HELD, published)
+    return Check(column, fact, subcheck, MISSED, published, "", "", kept_back)
 
 
 def _within(
@@ -3841,6 +3917,37 @@ def _declared_here(
     ]
 
 
+def _readable(checks: "list[Check]") -> "list[Check]":
+    """No MISSED verdict leaves here saying nothing about the file.
+
+    THE FLOOR UNDER THE TWO REASONS, and it is a floor and not a third
+    one (review item P3-V12-F2 clause (a); amendment A-P3-45). Every
+    subcheck that ships names its own reason where it keeps the
+    measured side back, and the suite asserts that on a file that
+    misses each of them. This is what happens to the one somebody
+    writes next year and forgets: the line says that it cannot say,
+    and names itself a defect in synthtwin, which a reader can act on
+    and a blank line cannot.
+
+    HELD IS LEFT ALONE ON PURPOSE. Nothing failed there, so no reader
+    is waiting to be told what their file holds; the same silence that
+    is unreadable under MISSED is ordinary under HELD, and widening
+    this to every verdict would put a paragraph under every line of a
+    passing report.
+    """
+    settled: list[Check] = []
+    for check in checks:
+        if check.verdict != MISSED or check.achieved or check.note:
+            settled = settled + [check]
+            continue
+        settled = settled + [
+            dataclasses.replace(
+                check, note=_NOT_SHOWN_AND_THIS_LINE_CANNOT_SAY_WHY
+            )
+        ]
+    return settled
+
+
 def _assembled(
     checks: "list[Check]", listings: "list[Listing]", measured_name: str
 ) -> Outcome:
@@ -3851,7 +3958,11 @@ def _assembled(
     stamped on afterwards: an exit that forgot it would produce an
     anonymous report, and the shortest of those exits is the zero-row
     one nobody looks at twice.
+
+    EVERY OUTCOME IS ASSEMBLED HERE, which is why the readability floor
+    is applied here: the four exits are four places to forget it.
     """
+    checks = _readable(checks)
     counted = {verdict: 0 for verdict in VERDICTS}
     for check in checks:
         counted[check.verdict] = counted[check.verdict] + 1
@@ -4009,10 +4120,22 @@ def _zero_row_form(
     body = _without_a_mark(text)
     records = _records_of(body)
     if len(records) != 1:
-        return _silent("", fact, subcheck, published, False)
+        return _silent(
+            "",
+            fact,
+            subcheck,
+            published,
+            False,
+            _NOT_SHOWN_IT_IS_TEXT_OF_THE_FILE,
+        )
     written = _canonical_record(records[0])
     return _silent(
-        "", fact, subcheck, published, _without_the_last_break(body) == written
+        "",
+        fact,
+        subcheck,
+        published,
+        _without_the_last_break(body) == written,
+        _NOT_SHOWN_IT_IS_TEXT_OF_THE_FILE,
     )
 
 
@@ -4076,6 +4199,7 @@ def _zero_row_structure(
             "header.names",
             "the published names, in the published order",
             found == names,
+            _NOT_SHOWN_IT_IS_TEXT_OF_THE_FILE,
         ),
         _silent(
             "",
@@ -4083,6 +4207,7 @@ def _zero_row_structure(
             "columns.order",
             "the published column order",
             found == names,
+            _NOT_SHOWN_IT_IS_TEXT_OF_THE_FILE,
         ),
     ]
 
@@ -4383,6 +4508,7 @@ def _structure_checks(
                 "header.names",
                 "the published names, in the published order",
                 table.column_names == names,
+                _NOT_SHOWN_IT_IS_TEXT_OF_THE_FILE,
             ),
             _silent(
                 "",
@@ -4390,6 +4516,7 @@ def _structure_checks(
                 "columns.order",
                 "the published column order",
                 table.column_names == names,
+                _NOT_SHOWN_IT_IS_TEXT_OF_THE_FILE,
             ),
         ]
     return checks
@@ -6587,6 +6714,7 @@ def _style_checks(
                 _window_equals(
                     window((style,)), found((style,)), named(style)
                 ),
+                _NOT_SHOWN_IT_IS_A_COUNT_OF_THE_FILE,
                 _GATE_POOLED,
             )
         ]
@@ -6600,6 +6728,7 @@ def _style_checks(
                 _window_at_least(
                     window((style,)), found((style,)), named(style)
                 ),
+                _NOT_SHOWN_IT_IS_A_COUNT_OF_THE_FILE,
                 _GATE_POOLED,
             )
         ]
@@ -6623,6 +6752,7 @@ def _style_checks(
                 + named(parsing.STYLE_EXPONENT_LOWER)
                 + spill,
             ),
+            _NOT_SHOWN_IT_IS_A_COUNT_OF_THE_FILE,
             _GATE_POOLED,
         ),
         _silent(
@@ -6635,6 +6765,7 @@ def _style_checks(
                 found((parsing.STYLE_PLAIN,)),
                 named(parsing.STYLE_PLAIN) + remainder - spill,
             ),
+            _NOT_SHOWN_IT_IS_A_COUNT_OF_THE_FILE,
             _GATE_POOLED,
         ),
     ]
@@ -6662,6 +6793,7 @@ def _style_checks(
                 "six published forms of its own value"
             ),
             _cells_outside_the_styles(cells, facts.integer_valued) == 0,
+            _NOT_SHOWN_IT_IS_TEXT_OF_THE_FILE,
         )
     ]
     # THE POOL'S SPLIT BETWEEN THE TWO CANONICAL FORMS, PER CELL (plan
@@ -6743,6 +6875,7 @@ def _style_checks(
                     f"canonical spelling"
                 ),
                 settled,
+                _NOT_SHOWN_IT_IS_TEXT_OF_THE_FILE,
                 _GATE_POOLED,
             )
         ]
@@ -7331,6 +7464,7 @@ def _label_checks(
             None if counts is None else counts == list(
                 facts.suppressed_level_counts
             ),
+            _NOT_SHOWN_IT_IS_A_COUNT_OF_THE_FILE,
         )
     ]
     return checks
@@ -7363,7 +7497,14 @@ def _level_spelling(
     shown = "cells of this file that read as this label"
     if measured is None:
         return Check(name, fact, subcheck, WITHHELD, shown, "", _GATE_CLOSED)
-    return _silent(name, fact, subcheck, shown, entry is not None)
+    return _silent(
+        name,
+        fact,
+        subcheck,
+        shown,
+        entry is not None,
+        _NOT_SHOWN_IT_IS_TEXT_OF_THE_FILE,
+    )
 
 
 def _level_set(
@@ -7392,7 +7533,7 @@ def _level_set(
     for key in published:
         if key not in measured:
             same = False
-    return _silent(name, fact, subcheck, shown, same)
+    return _silent(name, fact, subcheck, shown, same, _NOT_SHOWN_IT_IS_TEXT_OF_THE_FILE)
 
 
 def _counts_at(
@@ -7483,12 +7624,14 @@ def _variant_map(
     )
     fact = f"label.{field}"
     subcheck = f"levels.{level.label}.{field}"
+    kept_back: tuple[str, ...] = _NOT_SHOWN_IT_IS_TEXT_OF_THE_FILE
     if field == "variants":
         shown = (
             f"{_shown_count(len(published))} published spelling(s) of "
             f"this label, and the rows each covers"
         )
     else:
+        kept_back = _NOT_SHOWN_IT_IS_A_COUNT_OF_THE_FILE
         # The keys of `variants_withheld` are GROUP SIZES and its values
         # are how many spellings wore each, so the number of entries is
         # not the number of spellings and must not be printed as one.
@@ -7504,11 +7647,11 @@ def _variant_map(
     if measured is None:
         return Check(name, fact, subcheck, WITHHELD, shown, "", _GATE_CLOSED)
     if entry is None:
-        return _silent(name, fact, subcheck, shown, False)
+        return _silent(name, fact, subcheck, shown, False, kept_back)
     found = _map_at(entry, field)
     if found is None:
         return Check(name, fact, subcheck, WITHHELD, shown, "", _GATE_CLOSED)
-    return _silent(name, fact, subcheck, shown, found == published)
+    return _silent(name, fact, subcheck, shown, found == published, kept_back)
 
 
 # -- the datetime role ------------------------------------------------
@@ -7536,6 +7679,7 @@ def _datetime_checks(
                 f"ends.{field}",
                 published,
                 None if found is None else found == published,
+                _NOT_SHOWN_IT_IS_TEXT_OF_THE_FILE,
             )
         ]
     for field, published in (
@@ -7621,6 +7765,7 @@ def _offset_checks(
                 subcheck,
                 published,
                 None if found is None else found == published,
+                _NOT_SHOWN_IT_IS_TEXT_OF_THE_FILE,
             )
         ]
     read_at = _text_at(block, "datetimes_read_at")
@@ -7682,6 +7827,7 @@ def _date_ladder_checks(
                 f"date-ladder.{key}",
                 expected,
                 None if found is None else found == expected,
+                _NOT_SHOWN_IT_IS_TEXT_OF_THE_FILE,
             )
         ]
     dated = max(1, column.n_present - facts.n_unparsed)
@@ -8638,7 +8784,16 @@ def _occurrences(
         return Check(name, fact, subcheck, WITHHELD, shown, "", _GATE_CLOSED)
     if found == published:
         return Check(name, fact, subcheck, HELD, shown)
-    return Check(name, fact, subcheck, MISSED, shown)
+    return Check(
+        name,
+        fact,
+        subcheck,
+        MISSED,
+        shown,
+        "",
+        "",
+        _NOT_SHOWN_IT_IS_A_COUNT_OF_THE_FILE,
+    )
 
 
 # -- V3.3: the obligations no CSV can evidence ------------------------
