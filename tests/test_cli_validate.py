@@ -54,6 +54,7 @@ every description by the REAL producer.
 import ast
 import builtins
 import hashlib
+import os
 import pathlib
 import sys
 import typing
@@ -578,6 +579,30 @@ def test_the_memory_refusal_is_reachable(
 # ---------------------------------------------------------------------
 
 
+def _a_second_name_for(target: pathlib.Path, source: pathlib.Path) -> str:
+    """Give `target` a second name for `source`, and say which kind.
+
+    A symbolic link is the ordinary route and the one a person is most
+    likely to have made by accident. On Windows it is ALSO a reparse
+    point, and the locality gate walks every component looking for one
+    before the transaction is ever asked its question -- so the run is
+    refused for being a link rather than for being an input, and the
+    refusal the test names is never reached.
+
+    That gate is stricter, not weaker: the file is still not destroyed.
+    But the obligation under test is the transaction's, so on Windows
+    this makes a HARD link instead. A hard link is a second directory
+    entry for one file, carries no reparse point, and reaches the
+    question the test is about. Caught by CI on 2026-08-18; every
+    Windows cell had failed here since the platform was added.
+    """
+    if sys.platform == "win32":
+        os.link(source, target)
+        return "hard link"
+    target.symlink_to(source)
+    return "symbolic link"
+
+
 def test_a_report_that_would_land_on_the_description_is_refused(
     tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -589,13 +614,13 @@ def test_a_report_that_would_land_on_the_description_is_refused(
     """
     description = _built(tmp_path, capsys)
     target = _quality_of(description)
-    target.symlink_to(description)
+    kind = _a_second_name_for(target, description)
     before = description.read_bytes()
     assert main(["validate", f"{description}", "--replace"]) == 1
     told = capsys.readouterr().err
     assert "description" in told
     assert description.read_bytes() == before
-    assert target.is_symlink(), "the link itself must be left alone"
+    assert target.exists(), f"the {kind} itself must be left alone"
 
 
 def test_a_report_that_would_land_on_the_measured_file_is_refused(
@@ -611,7 +636,7 @@ def test_a_report_that_would_land_on_the_measured_file_is_refused(
     description = _built(tmp_path, capsys)
     twin = _twin_of(description)
     target = _quality_of(description)
-    target.symlink_to(twin)
+    _a_second_name_for(target, twin)
     before = twin.read_bytes()
     assert main(["validate", f"{description}", "--replace"]) == 1
     told = capsys.readouterr().err

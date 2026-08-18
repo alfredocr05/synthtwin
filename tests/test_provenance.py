@@ -157,6 +157,17 @@ with open(args.out, "w", encoding="utf-8", newline="") as handle:
 # Windows.
 PROCESS_HELPER_GENERATOR_SOURCE = """\
 import argparse
+import sys
+
+# Ask for the helper as a module the interpreter has not got yet. The
+# guard refuses an import at the audit event, and CPython raises that
+# event only when it goes looking -- a name already in sys.modules is
+# returned without one. On Windows `_winapi` is loaded before any
+# generator runs, so importing it there announced NOTHING, the guard
+# saw nothing to refuse, and this mutation ran to completion and was
+# caught only as a fixture that no longer matched. Every Windows cell
+# failed here the first time CI ran them, 2026-08-18.
+sys.modules.pop("{helper}", None)
 import {helper}
 
 parser = argparse.ArgumentParser()
@@ -1103,6 +1114,13 @@ def test_generator_process_helper_import_fails(
     raises before it goes looking for the module, so the refusal is the
     same on a host where the import would otherwise fail with
     ModuleNotFoundError. That is why this runs everywhere now.
+
+    It does have to be a module the interpreter goes looking FOR. A
+    name already in `sys.modules` comes back without any audit event,
+    which is the state `_winapi` is in on Windows before a generator
+    starts, so the generator drops it first. Until CI ran the Windows
+    cells this case passed on POSIX for the wrong reason -- `_winapi`
+    is absent there, so it was always a real lookup.
     """
     seed = 7
     payload = b"placeholder\n"
