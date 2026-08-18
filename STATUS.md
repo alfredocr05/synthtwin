@@ -33,6 +33,22 @@ run the finished code on the real table, inside your safe environment.
 | **4** | every column type, rare categories, missing-data patterns | not started |
 | **5** | relationships between columns | **not started — this is the one that matters most for statistics** |
 | **6** | a hardened offline build for institutional machines | not started |
+| **7** | **a screen, so none of this needs a terminal** | not started |
+
+**On Phase 7.** Today "friendly" means three commands, sensible defaults,
+and every message written for a person rather than a programmer -- which
+is what principle 2 promises and what a lot of the Phase 3 review effort
+went into. Phase 7 is where that stops depending on a terminal.
+
+It has to stay local: the product may not make network calls, so a
+hosted page is out -- the whole point is data that cannot leave the
+machine. It wraps the three commands rather than reimplementing them,
+and every sentence it shows comes from the same place the reports do, so
+nothing can be true on one surface and false on the other.
+
+It is worth saying what it does not buy: a screen makes the twin easier
+to reach, which makes the one-column-wide limit easier to walk into. So
+it has to state that limit where a person meets the twin.
 
 ### Phase 3, in more detail
 
