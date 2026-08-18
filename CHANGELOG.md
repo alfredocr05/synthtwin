@@ -6,20 +6,154 @@ exists).
 
 ## [Unreleased]
 
+### Fixed in Phase 3: four guards and one message that covered part of what they named
+
+- **A malformed description was refused for the wrong reason, in a
+  sentence quoting your own table** (plan amendment A-P3-42 clause 2).
+  A description whose spellings map held a block where a count belongs
+  was turned away with "this file has been changed since it was
+  written", and the sentence printed the spelling out of your table
+  that it had walked past to get there. That rule is about a floor and
+  says nothing about the kind of value an entry holds. Such a file now
+  meets the refusal that fits it -- this entry holds a block and it has
+  to hold a whole number -- which names the kind of value and quotes
+  none. No description synthtwin writes was ever affected, and none is
+  accepted that was refused before.
+- **The pre-write warning said you had typed words your table had
+  spelled** (plan amendment A-P3-42 clause 5). One
+  `--missing-value XX` over a table that writes `XX` in some cells and
+  ` xx ` in others puts two spellings in the description, and both the
+  screen and the summary page counted those two as two words you named:
+  "Words you typed after --missing-value are written into the
+  description", and then told you to run again "without naming them".
+  Both spellings were disclosed and still are; what changes is that
+  the sentence counts what you typed, and says outright where the other
+  line came from.
+- **The check that forbids saying synthtwin speaks a version it does
+  not now reads the sentence written the other way round** (plan
+  amendment A-P3-42 clause 3). `Version 4 profiles are what synthtwin
+  writes.` used the ban's own subject, its own verb and its own way of
+  naming a version, and walked through, because the ban was written as
+  an order rather than as a claim. It now reads the two arrangements
+  English fronts a sentence with as well, and it stops at a clause
+  boundary so that two statements in one sentence are not read as one
+  claim. What it still cannot read is written down and measured rather
+  than left to be found.
+- **Two tests that named a thing and proved a smaller one** (plan
+  amendment A-P3-42 clause 4, and clause 1). The witness for the
+  validator's per-column routing had stopped exercising that route at
+  all -- another rule was doing the work, and removing the one under
+  test changed nothing a person would see. It is replaced by a witness
+  where only the route under test can fire, and the whole measurement
+  is compared with and without it. And the refusal that turns away an
+  older description is now held to naming AND pricing every option, by
+  the same list read from the shipped command line.
+
+### Fixed in Phase 3: the description contract stopped saying that a word it keeps is absent
+
+- **The document that governs the format told you the wrong thing about
+  your own word** (owner ruling 2026-08-17, plan amendment A-P3-41).
+  Name a marker of your own with `--missing-value` and the description
+  writes that marker down, character for character, in the block for
+  the column whose cells wore it -- which is what the previous release
+  note says and what the screen now warns you about before either file
+  exists. The worked example inside the contract said the opposite: it
+  denied, naming no place the denial held in, that the document had your
+  word at all. It is the last copy of a false assurance corrected
+  everywhere else one commit earlier, and it was in the one document an
+  institution's reviewer reads first. It now says what is true, and says where a word of yours
+  does travel.
+- **And the check that was supposed to stop that sentence was reading
+  for verbs.** It knew "written nowhere" and "never stored"; it did not
+  know "holds it nowhere", which is the same claim with the words in the
+  ordinary order, nor "omitted", "excluded", "discarded" or "left out".
+  It now reads a denial by the PLACE it names -- so any verb at all,
+  including ones nobody has written yet, is caught when the sentence
+  says the word is nowhere, in none of the files, or outside the
+  description. Denials that name no place are still recognised by a list
+  of verbs, that list is a list, and the size of what it misses is
+  written down and measured rather than left to be found.
+- **One more sentence of the contract now names its own subject.** The
+  line saying that a spelling of yours is never carried said "it" where
+  it meant the settings block, which reads as the whole document as soon
+  as the line is quoted on its own.
+
+### Fixed in Phase 3: two ways the first check you run reported failures that were not there
+
+- **A table holding `n/a` -- or any of synthtwin's own words for
+  nothing -- no longer fails against its own description** (owner ruling
+  2026-08-17, plan amendment A-P3-39, validation method V2.4-A10). Take
+  one column of sixty numbers and twelve cells reading `n/a`, describe
+  it with no options at all, and check that same file: the description
+  says sixty values and twelve holes, the check counted seventy-two
+  values and no holes, and **twenty-eight obligations came back as
+  missed** with the wrong numbers printed beside them. When the check
+  measures a file it has to decide which cells are values, and it
+  treated every one of synthtwin's own words for nothing as a value --
+  even where the description says, in as many words, that twelve of its
+  holes were spelled that way. Where your description names the spelling
+  its holes wore, the check now reads it the way your description does.
+  It reports none, and both counts are held rather than merely
+  unreported.
+  - **What that costs, said plainly.** Where a description names one of
+    synthtwin's own words as the source of some column's holes, a twin
+    that happens to invent that same word in another column can have
+    those cells counted as absent when it is checked. It is the same
+    collision synthtwin already discloses for a word you named yourself
+    and for a stand-in number, on the one kind of cell those two did
+    not reach.
+  - **And one case is stated rather than closed** (plan residual
+    R-P3-11). If a column's holes wear one word under two spellings --
+    six `n/a` and six `N/A` -- and neither spelling is shared by enough
+    rows to be named under your `--smallest-group`, the description
+    names no spelling at all, and the two counts of values and holes on
+    that column are still reported against a count that reads both
+    spellings as values. Exactly two obligations, on that column only;
+    everything else on it falls back to your own description and holds.
+- **A file holding exactly the value your description asks for is no
+  longer reported as missing it** (owner ruling 2026-08-17, plan
+  amendment A-P3-40, validation method V6.1-A1). Some facts are checked
+  against a range rather than a single number, and that range is not a
+  margin around the published value: it is worked out from the
+  description and the size of the column, so it can sit wholly to one
+  side of the value it is printed beside. The verdict was read off the
+  range alone, so a line could say **"the description asks for:
+  2024-12-24 / the file was found to hold: that same value"** and call
+  it missed. On one ordinary table checked against its own description
+  that happened on four dates and two counts. A file that holds the
+  value your description asks for now holds the obligation, and the
+  range is still printed beneath, with the sentence saying what it is.
+  Nothing else moved: a file holding anything else is judged by its
+  range exactly as before, and no check moved to a worse outcome.
+  - **One report's counts moved with it.** The quality report of the
+    demonstration twin now reads 262 held and 36 within-range where it
+    read 249 and 49, over the same 300 checks, with nothing missed
+    before or after. Thirteen lines whose two values were already the
+    same number say so.
+
 ### Changed in Phase 3: the description format is version 5
 
 **A description written by an earlier synthtwin is refused, and there is
 no upgrade path.** Run `synthtwin profile` on your table again, giving it
 **every** option you gave the first time -- `--keep-value`,
 `--missing-value`, `--identifier`, `--smallest-group` and `--first-row`
--- and use the file it writes exactly as it writes it. **Leaving one out
-can publish something your first description held back**: without the
-`--smallest-group` you gave, a value that fewer rows share can be named,
-and without the `--identifier` you gave, a column of record numbers is
-described like any other column. The refusal says all of that on its own
-face (owner ruling 2026-08-17, plan amendment A-P3-36: it named two
-options and left three out until that ruling, and calling what followed
-merely "different" was wrong). There is no release before this one,
+-- and use the file it writes exactly as it writes it. **Every one of
+those five changes what the description publishes about your table, so
+leaving any one out can publish something your first description held
+back**: without the `--smallest-group` you gave, a value that fewer rows
+share can be named; without the `--identifier` you gave, a column of
+record numbers is described like any other column; without the
+`--missing-value` you gave, a stand-in is read as a real reading and can
+be published as the column's smallest value; without the `--keep-value`
+you gave, a word you had counted as an ordinary value becomes a gap,
+which can change what kind of column synthtwin sees and publish both
+that word and the column's own numbers; and without the `--first-row`
+you gave, the first line of your file is read as the column names and
+published as them. The refusal says all of that on its own face (owner
+rulings 2026-08-17, plan amendments A-P3-36 and A-P3-42: it named two
+options and left three out until the first ruling, and until the second
+it named five and priced only two of them, which told a hurried reader
+which three were safe to forget). There is no release before this one,
 so every description in existence belongs to somebody who still holds
 the table it describes -- which is why the change was taken now rather
 than after a release, when the same change would cost strangers a

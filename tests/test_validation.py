@@ -24,11 +24,14 @@ import csv
 import dataclasses
 import io
 import json
+import os
 import pathlib
 
 import pytest
 
 import fixtures
+import test_p3v10f4_named_markers_are_holes as named_markers_are_holes
+import test_p3v10f5_exact_equality_wins as exact_equality_wins
 from synthtwin import (
     contract,
     errors,
@@ -45,6 +48,22 @@ from synthtwin import (
 # number; it is written out so a reader can reproduce a run by hand.
 SEED = 20260813
 OTHER_SEED = 20260814
+
+
+@pytest.fixture(autouse=True)
+def _reinstated(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The two P3-V10 repairs, each reversible from the command line.
+
+    `REINSTATE=P3-V10-F4` pins every built-in missing word to data
+    again; `REINSTATE=P3-V10-F5` reads every approximated verdict off
+    window membership alone. Both reimplementations live in the files
+    named after the review items, so there is one copy of each.
+    """
+    asked = os.environ.get("REINSTATE")
+    if asked == "P3-V10-F4":
+        named_markers_are_holes.reinstate(monkeypatch)
+    if asked == "P3-V10-F5":
+        exact_equality_wins.reinstate(monkeypatch)
 
 
 # -- building one whole run -------------------------------------------
@@ -114,6 +133,23 @@ def _verdicts(outcome: validation.Outcome, subcheck: str) -> "list[str]":
         check.verdict
         for check in outcome.checks
         if check.subcheck == subcheck
+    ]
+
+
+def _verdicts_in(
+    outcome: validation.Outcome, column: str, subcheck: str
+) -> "list[str]":
+    """Every verdict filed under one subcheck of ONE named column.
+
+    Every column carries `presence.n_present`, so a witness that needs a
+    second column to hold blank cells at all -- a one-column table
+    refuses a blank line, because nothing can say whether it is a record
+    or a gap -- has to say which column it means.
+    """
+    return [
+        check.verdict
+        for check in outcome.checks
+        if check.subcheck == subcheck and check.column == column
     ]
 
 
@@ -1645,44 +1681,66 @@ def test_the_kept_set_is_the_settings_block_and_nothing_else(
         assert validation._stand_in_of(taxonomy.exact_of_spelling(label)) is None
 
 
+def _region_table(hole: str) -> str:
+    """Thirty labels and thirty holes, with ``hole`` written in each.
+
+    TWO COLUMNS, and the second one is not decoration: a one-column
+    table holding a blank line is refused, because nothing can say
+    whether that line is a record whose value is missing or a stray
+    empty line. So a witness that needs the SAME table with blank holes
+    and with marker holes needs a companion column to make the blank a
+    cell, and the companion is identical in both files.
+    """
+    return fixtures.rows_to_csv(
+        ["region", "number"],
+        [
+            ["north" if index < 30 else hole, f"{100 + index}.5"]
+            for index in range(60)
+        ],
+    )
+
+
 def test_presence_is_blankness_and_never_the_redescription(
     tmp_path: pathlib.Path,
 ) -> None:
     """V2.4, proved by the one file where the two answers differ.
 
-    The column below holds thirty cells spelling a built-in marker for
-    "no value". The profiler counts those absent, so a validator that
-    took presence from the re-description would report the file HELD
-    its published count. Presence is BLANKNESS, so the sixty non-blank
-    cells are what is counted, the published thirty is not met, and the
+    The description below is written from a table whose thirty holes are
+    EMPTY cells, so it publishes thirty present and names the source of
+    every hole. The measured file writes those thirty cells as `n/a`
+    instead. The profiler reads them as absences, so a validator that
+    took presence from the re-description would report the file HELD its
+    published count. Presence is BLANKNESS, so the sixty non-blank cells
+    are what is counted, the published thirty is not met, and the
     verdict says so.
 
     This is the rule doing exactly what it exists to do: a twin writes
     every absent cell empty, so on a twin the two answers agree, and
     the one file where they part is a file that is not a twin.
+
+    THE DESCRIBED TABLE AND THE MEASURED FILE ARE NOT THE SAME BYTES,
+    AND THAT IS THE REPAIR (review item P3-V10-F4; plan amendment
+    A-P3-39). This test used to describe the marker table and then hand
+    that same table back to be measured -- so what it pinned was a table
+    reported MISSED against its own description, which is the defect
+    A-P3-39 closes rather than a property worth keeping. The rule it
+    exists for is untouched and is asserted here on a file that really
+    does differ from the one described.
     """
     folder = tmp_path / "blankness"
     folder.mkdir()
-    values = ["north" for _index in range(30)] + [
-        "n/a" for _index in range(30)
-    ]
-    described = _describe(
-        folder,
-        fixtures.single_column_table("region", values),
-        stem="kept",
-    )
+    described = _describe(folder, _region_table(""), stem="kept")
     column = described.columns[0]
+    assert column.name == "region"
     assert column.n_present == 30
-    outcome = _measure(
-        folder,
-        described,
-        fixtures.single_column_table("region", values),
-        "again.csv",
-    )
+    assert column.missing_by_source == {}
+    assert column.n_missing_blank == 30
+    outcome = _measure(folder, described, _region_table("n/a"), "again.csv")
     found = [
         check
         for check in outcome.checks
         if check.subcheck == "presence.n_present"
+        and check.column == "region"
     ]
     assert len(found) == 1
     assert found[0].published == "30"
@@ -1690,15 +1748,48 @@ def test_presence_is_blankness_and_never_the_redescription(
     assert found[0].verdict == validation.MISSED
 
 
+def test_the_table_a_description_was_written_from_meets_its_presence_counts(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The other half of the same rule (review item P3-V10-F4).
+
+    The blankness pin is not a licence to fail the file the description
+    came from. Where a column publishes the spelling its holes wore, the
+    measurement side reads that spelling the way the description does,
+    so the plainest run there is -- describe a table, check that table --
+    reports both presence counts HELD.
+    """
+    folder = tmp_path / "itself"
+    folder.mkdir()
+    values = ["north" for _index in range(30)] + [
+        "n/a" for _index in range(30)
+    ]
+    text = fixtures.single_column_table("region", values)
+    described = _describe(folder, text, stem="kept")
+    assert described.columns[0].n_present == 30
+    assert described.columns[0].missing_by_source == {"n/a": 30}
+    outcome = _measure(folder, described, text, "again.csv")
+    assert _verdicts(outcome, "presence.n_present") == [validation.HELD]
+    assert _verdicts(outcome, "presence.n_missing") == [validation.HELD]
+    assert _missed(outcome) == []
+
+
 def test_a_presence_gap_is_measured_over_the_split_not_withheld(
     tmp_path: pathlib.Path,
 ) -> None:
     """V2.4, and review item P3-V2-A1: the gap MEASURES, it does not hide.
 
-    The same file as the test above: sixty non-blank cells, thirty of
-    which the profiler reads as absences, against a description
-    publishing thirty present and one level. Presence is blankness, so
-    the two readings disagree.
+    The same pair as the test above: a description written from a table
+    whose thirty holes are empty, and a measured file that writes those
+    thirty cells as `n/a` instead. Sixty non-blank cells, thirty of which
+    the profiler reads as absences, against a description publishing
+    thirty present and one level. Presence is blankness, so the two
+    readings disagree.
+
+    THE MEASURED FILE IS NOT THE DESCRIBED TABLE, for the reason the
+    test above gives at length (review item P3-V10-F4, plan amendment
+    A-P3-39). What is asserted is unchanged; the file it is asserted on
+    is one that really differs from the one described.
 
     TWO VERSIONS FAILED HERE BEFORE THIS ONE. The first returned one
     synthetic `presence.agreement` check, built so that it could only
@@ -1720,23 +1811,14 @@ def test_a_presence_gap_is_measured_over_the_split_not_withheld(
     """
     folder = tmp_path / "gap"
     folder.mkdir()
-    values = ["north" for _index in range(30)] + [
-        "n/a" for _index in range(30)
-    ]
-    described = _describe(
-        folder,
-        fixtures.single_column_table("region", values),
-        stem="gap",
-    )
+    described = _describe(folder, _region_table(""), stem="gap")
     assert described.columns[0].n_present == 30
+    assert described.columns[0].missing_by_source == {}
     clean = _measure(
         folder, described, _twin_text(described), "gap-twin.csv"
     )
     gapped = _measure(
-        folder,
-        described,
-        fixtures.single_column_table("region", values),
-        "gap-again.csv",
+        folder, described, _region_table("n/a"), "gap-again.csv"
     )
     named = [check.subcheck for check in gapped.checks]
     assert "presence.agreement" not in named
@@ -1744,13 +1826,19 @@ def test_a_presence_gap_is_measured_over_the_split_not_withheld(
         check.subcheck for check in clean.checks
     )
     # The blank split still verdicts the two counts it owns...
-    assert _verdicts(gapped, "presence.n_present") == [validation.MISSED]
-    assert _verdicts(gapped, "presence.n_missing") == [validation.MISSED]
+    assert _verdicts_in(gapped, "region", "presence.n_present") == [
+        validation.MISSED
+    ]
+    assert _verdicts_in(gapped, "region", "presence.n_missing") == [
+        validation.MISSED
+    ]
     # ...and the sixty non-blank cells are what every dependent
     # measurement is taken over. The file holds two levels where the
     # description publishes one, and the census says so.
-    assert _verdicts(gapped, "levels.set") == [validation.MISSED]
-    assert _verdicts(gapped, "distinct.n_distinct") == [validation.MISSED]
+    assert _verdicts_in(gapped, "region", "levels.set") == [validation.MISSED]
+    assert _verdicts_in(gapped, "region", "distinct.n_distinct") == [
+        validation.MISSED
+    ]
     assert gapped.census.missed > 0
     for check in gapped.checks:
         assert check.verdict != validation.WITHHELD, check
@@ -2461,7 +2549,13 @@ def test_red_a_reshaped_text_column_misses_the_length_average(
     assert facts.length.minimum == 48
     assert facts.length.maximum == 50
     green = _measure(tmp_path, described, twin, "text-green.csv")
-    assert _verdicts(green, "length.mean") == [validation.WITHIN_BOUND]
+    # The conforming twin's walk lands on the published average EXACTLY,
+    # so its verdict is HELD rather than WITHIN-BOUND (review item
+    # P3-V10-F5, plan amendment A-P3-40): a file holding the
+    # description's own value meets the obligation whichever way the
+    # window falls. What this line is for is unchanged -- the conforming
+    # twin is not accused, and the reshaped file below still is.
+    assert _verdicts(green, "length.mean") == [validation.HELD]
     index = column.position - 1
     # Read and rewritten as CSV rather than split on commas: a free-text
     # cell can hold a comma and is then quoted, and splitting such a

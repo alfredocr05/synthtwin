@@ -4502,6 +4502,22 @@ _TOO_RARE = "too-rare"
 # the same label reading `(withheld)` was refused by the producer before
 # it could be written, and both told the person their untouched file had
 # been edited.
+#
+# AND THE WALK STOPS AT SUCH A KEY RATHER THAN READING PAST IT (review
+# item P3-V10-F3). Not reading the KEY as a word was half the answer.
+# The walk went on into the value anyway, so a document whose
+# `missing_by_source` held a BLOCK instead of a count -- which is not a
+# document this producer can write, and not one this loader may accept
+# -- had that block's own field names read as names again, one step
+# below a key the table decided. Two things then went wrong at once:
+# this rule fired where the type rule should have, so the person was
+# told their file had been edited in a place that says nothing about
+# editing; and the path it printed carried the table's spelling onto
+# the screen, which is the one thing this walk's stated boundary says
+# it never does. What stands under a key the table decides is a COUNT
+# (C5-N5), a count has nothing under it, and a value that is not one is
+# refused by the rule that reads its type -- naming the kind and never
+# the spelling (R15).
 
 
 def _step(path: "tuple[object, ...]", key: object) -> "tuple[object, ...]":
@@ -4530,29 +4546,36 @@ def _held_back_in(
     - Errors raised: none. It reports, and the rule above decides.
     - Boundary: nothing is opened, and no value of the table is read --
       the two things this finds are counts of rows and counts of
-      candidates, and a held-back thing names nothing by definition.
+      candidates, and a held-back thing names nothing by definition. NO
+      PATH THIS RETURNS EVER STEPS THROUGH A KEY THE TABLE DECIDES, so
+      the place the refusal names above can be printed whole without
+      quoting a spelling: the walk stops at such a mapping instead of
+      reading past it.
 
     Returns (path, count, what kind of holding back) for each one.
     """
     found: list[tuple[tuple[object, ...], int, str]] = []
     if isinstance(node, dict):
-        # Whether the TABLE decides the keys here. Where it does, no key
-        # is read as one of this package's words -- not the pooled
-        # remainder's word and not either field name -- because every
-        # one of them is something a cell can say. The walk still goes
-        # on into the values, so a block standing under such a key would
-        # have its own field names read as names again.
-        the_tables_own_text = canonical.keys_are_the_tables_own_text(path)
+        # Whether the TABLE decides the keys here. Where it does the
+        # walk stops: no key is read as one of this package's words --
+        # not the pooled remainder's word and not either field name,
+        # because every one of them is something a cell can say -- and
+        # nothing under such a key is read at all, because what stands
+        # there is a count and a count has nothing under it. A document
+        # that puts a block there is malformed, and the rule that reads
+        # the value's TYPE refuses it, naming the kind and not the
+        # spelling.
+        if canonical.keys_are_the_tables_own_text(path):
+            return found
         for key in sorted(node):
             value = node[key]
             here = _step(path, key)
-            if not the_tables_own_text:
-                if key == WITHHELD and _is_a_row_count(value):
-                    found = found + [(here, value, _POOLED)]
-                if key == _NAMED_REMAINDER and _is_a_row_count(value):
-                    found = found + [(here, value, _POOLED)]
-                if key == _UNNAMED_TALLY and _is_a_row_count(value):
-                    found = found + [(here, value, _TOO_RARE)]
+            if key == WITHHELD and _is_a_row_count(value):
+                found = found + [(here, value, _POOLED)]
+            if key == _NAMED_REMAINDER and _is_a_row_count(value):
+                found = found + [(here, value, _POOLED)]
+            if key == _UNNAMED_TALLY and _is_a_row_count(value):
+                found = found + [(here, value, _TOO_RARE)]
             found = found + _held_back_in(value, here)
     elif isinstance(node, list):
         place = 0
@@ -4572,6 +4595,16 @@ def _named_place(
     is at the top of the description. The field is then written from
     whatever is left, in the document's own key names, because that is
     what somebody looking at the file will be searching for.
+
+    EVERY STEP IT PRINTS IS ONE OF THE DOCUMENT'S OWN KEY NAMES, and
+    that is a property of the only walk that feeds it: `_held_back_in`
+    stops at a mapping the table keys, so no path reaching here has ever
+    stepped through a spelling out of somebody's table (review item
+    P3-V10-F3). This function does not re-check it -- it is not the
+    place where the question can be answered, because a key name and a
+    cell's text are the same kind of thing by the time they are here.
+    `tests/test_p3v10f3_the_walk_stops_at_the_tables_keys.py` measures it
+    on the walk instead.
     """
     rest = path
     seat = _AT_THE_TOP

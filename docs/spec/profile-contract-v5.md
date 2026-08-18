@@ -623,8 +623,15 @@ required:
 - the person typed `-999.00`; the document holds `-999.0`, which is the
   vocabulary member. The two denote one number, which is the identity
   `settings.declaration_matching` already fixes;
-- the person typed `WOMBAT`, which is their own word; the document holds
-  it nowhere, and `n_declared` counts it.
+- the person typed `WOMBAT`, which is their own word; **these two lists
+  hold it nowhere**, and `n_declared` counts it. That is a statement
+  about these two lists, and it is not a statement about the document
+  (review item P3-V10-F1). The spelling `WOMBAT` ITSELF is written into
+  the description, character for character, wherever a column counted at
+  least `small_cell_floor` cells wearing it and that column publishes
+  values at all: it stands there as a key of that column's
+  `missing_by_source`, by section 3.2 way 4. Section 7 says where that
+  does and does not happen.
 
 A fourth thing is in the same example and is easy to miss: `n_declared`
 for the kept side is `2` because `" N/A "` and `-999.00` are two
@@ -817,8 +824,13 @@ publish a value out of all of them at once.
 
 **What the rule says from version 5.** The settings block carries the
 policy, and it names which members of synthtwin's own published
-vocabulary a declaration named. It still never carries a spelling of the
-person's own.
+vocabulary a declaration named. **The settings block still never carries
+a spelling of the person's own.** That sentence names its subject rather
+than saying "it", and the reason is review item P3-V10-F1: a denial that
+leaves its place to the paragraph around it is read as the whole
+document the moment somebody quotes the line, and of the whole document
+this one is false — section 3.2 way 4 puts a declared spelling into a
+column's `missing_by_source`, character for character.
 
 **What that gives up, stated at its size.** A reader of a version 4
 description is told how many values were named each way. A
@@ -1076,15 +1088,22 @@ filled in from the document and the loader:
 > this file cannot be read back exactly. Please make the description
 > again by running 'synthtwin profile' on your table, giving it every
 > option you gave the first time: --keep-value, --missing-value,
-> --identifier, --smallest-group and --first-row. Each of those changes
-> how synthtwin reads your table, and two of them change what the
-> description PUBLISHES about it, so an option you leave out can put
-> something into the new description that the old one held back:
-> without the --smallest-group you gave, a value that fewer rows share
-> can be named, and without the --identifier you gave, a column of
-> record numbers is described like any other column. Read the summary
-> page synthtwin writes beside the new description before either file
-> goes anywhere, and use the description exactly as synthtwin writes it.
+> --identifier, --smallest-group and --first-row. Every one of them
+> changes what the description PUBLISHES about your table, so any
+> option you leave out can put something into the new description that
+> the old one held back: without the --smallest-group you gave, a value
+> that fewer rows share can be named; without the --identifier you
+> gave, a column of record numbers is described like any other column;
+> without the --missing-value you gave, a stand-in is read as a real
+> reading, and the stand-in itself can be published as the column's
+> smallest value; without the --keep-value you gave, a word you had
+> counted as an ordinary value becomes a gap, which can change what
+> kind of column synthtwin sees and publish both that word and the
+> column's own numbers; and without the --first-row you gave, the first
+> line of your file is read as the column names and published as them.
+> Read the summary page synthtwin writes beside the new description
+> before either file goes anywhere, and use the description exactly as
+> synthtwin writes it.
 
 **C5-26 NAMES FIVE OPTIONS AND NAMED TWO UNTIL 2026-08-17, AND THE TWO
 COULD DISCLOSE** (review item P3-V9-F6; owner ruling of 2026-08-17,
@@ -1093,6 +1112,34 @@ person to re-run "giving the same --keep-value and --missing-value
 options you gave the first time". Following it to the letter is what
 this clause has to be judged on, because it is written for somebody who
 does not program and it is the only instruction they are given.
+
+**AND IT PRICES ALL FIVE, WHERE IT PRICED TWO UNTIL 2026-08-17** (review
+item P3-V10-F2; owner ruling of 2026-08-17, recorded as the plan's
+amendment A-P3-42 clause 1). The wording that named five options said
+that two of them change what the description PUBLISHES and that the
+other three change only how the table is READ. That second half is
+false, and each of the three was measured through the real producer
+before this clause moved:
+
+- **`--first-row`.** A file with no header row whose first line holds a
+  code. Under `--first-row data` the column is `column_1` and the code
+  is one free-text value among many, which a free-text column publishes
+  nowhere (section 6.10). Left out, automatic mode takes the first line
+  for the column NAMES by convention and the code becomes the column's
+  name — published in full, and under no floor at all, because a column
+  name is not a value of the table and no floor governs it.
+- **`--missing-value`.** Sixty readings and five cells holding `-100`,
+  named as "no value". Named, the five are absent, five is below the
+  floor and the number reaches no field. Left out, `-100` is a reading
+  and it is the smallest one, so `percentiles.min` publishes it, and so
+  do `p01` and `p05`.
+- **`--keep-value`.** Sixty readings and twelve cells holding a word,
+  named as real data. Named, twelve of the column's values are not
+  numbers, the column reads as free text and publishes no value of the
+  table at all. Left out, the word is one of the thirteen, the column
+  reads as numbers, and the description publishes the whole distribution
+  of the sixty readings AND the word itself as a `missing_by_source` key
+  (section 3.2 way 4).
 
 **The measured consequence.** A version 4 description made with
 `--smallest-group 20`, of a table holding a declared marker in twelve
@@ -1110,11 +1157,14 @@ values under its own role's rules.
 
 **So the rule for this clause is stated as a rule and not as a list.**
 R11's message names EVERY option of `synthtwin profile` that changes
-what the description says about the table, and it says which of them
-change what the description PUBLISHES. Today that is five and two; an
-option added to the profiler joins the sentence in the commit that adds
-it. The plan called the result of the old advice merely "different"; it
-can disclose, and a refusal that sends somebody to re-run has to say so
+what the description says about the table, and it says of each of them
+what leaving it out can put into the new description. Today that is
+five options and five consequences; an option added to the profiler
+joins the sentence in the commit that adds it, and joins the priced
+list too unless somebody can show it changes only the reading — which
+is what nobody could show for the three this clause used to excuse. The
+plan called the result of the old advice merely "different"; it can
+disclose, and a refusal that sends somebody to re-run has to say so
 where they will read it.
 
 **Why the advice is safe to give, and when it stops being safe.** It
@@ -1129,9 +1179,9 @@ exactly the reasoning that made this the moment to change the format.
 **Why it names the options at all.** A person who ran with no options
 loses nothing by re-running; a person who ran with them and forgets
 them gets a description that reads their table differently from the
-first one, and — for two of the five — publishes more of it. Naming the
-options is the difference between advice that can be followed and advice
-that can be followed wrongly.
+first one and can publish more of it, whichever of the five they
+forget. Naming the options is the difference between advice that can be
+followed and advice that can be followed wrongly.
 
 **What it still does NOT do, said here rather than left to be found.**
 It does not tell the person which options THEIR description was made

@@ -95,7 +95,11 @@ behaviour back, so no test here has an assumed red:
 * `REINSTATE=page-decision-code` -- the twin's report's words table
   keyed on codes the producer does not publish, and no reason table;
 * `REINSTATE=page-withheld-mood` -- the WITHHELD paragraph in the
-  present indicative, whatever the census says.
+  present indicative, whatever the census says;
+* `REINSTATE=P3-V10-F5` -- both envelope functions as they shipped, with
+  every approximated verdict read off window membership alone. Reds the
+  line that said a file holding the description's own value had missed
+  the obligation to hold it.
 """
 
 import dataclasses
@@ -106,6 +110,7 @@ import typing
 import pytest
 
 import fixtures
+import test_p3v10f5_exact_equality_wins as exact_equality_wins
 from synthtwin import (
     contract,
     generation,
@@ -175,13 +180,22 @@ def _table_text() -> str:
 
 
 class Run(typing.NamedTuple):
-    """One whole workflow: describe, build, check, at one floor."""
+    """One whole workflow: describe, build, check, at one floor.
+
+    ``outcome`` is the twin measured against the description it was
+    built from. ``against_source`` is the SAME description measured
+    against the table it was written from, which is the first thing a
+    researcher does and the run that carried review item P3-V10-F5: a
+    date rung printed "the description asks for 2024-12-24 / the file
+    was found to hold that same value" and MISSED under it.
+    """
 
     floor: int
     described: contract.Profile
     document: "dict[str, object]"
     built: generation.Twin
     outcome: validation.Outcome
+    against_source: validation.Outcome
     summary_text: str
     report: str
     quality_text: str
@@ -207,6 +221,7 @@ def _run(folder: pathlib.Path, floor: int) -> Run:
         document=document,
         built=built,
         outcome=outcome,
+        against_source=validation.measure(described, f"{table}"),
         summary_text=summary.render(document, "read as UTF-8."),
         report=rendering.report(described, built),
         quality_text=quality.quality_report(described, outcome),
@@ -445,6 +460,8 @@ def _reinstated() -> "typing.Iterator[None]":
             "_withheld_census_lines",
             _the_withheld_paragraph_before_the_repair,
         )
+    if asked == "P3-V10-F5":
+        exact_equality_wins.reinstate(patch)
     yield
     patch.undo()
 
@@ -808,6 +825,17 @@ def test_the_quality_report_says_the_same_thing_about_the_same_windows(
     ordinarily misses the published count too, and a repair that spoke
     on one page and not the other would have left the reader worse off
     than the silence it replaced.
+
+    IT IS ASKED OF EVERY VERDICT THE ENVELOPE TOUCHED, and it used to be
+    asked of WITHIN-BOUND alone (review item P3-V10-F5). A window that
+    does not reach the published value is exactly the window that can
+    produce a verdict which is NOT within-bound, so filtering to
+    within-bound put the interesting half of the class outside what this
+    test asserts -- and that is where the contradiction sat: a date rung
+    reported MISSED with "that same value" printed beside it, on a
+    window this test had already stopped looking at. Both pages are
+    checked over BOTH runs now, the twin's and the source table's, since
+    the source table is where such a window is reached exactly.
     """
     for floor in (DEFAULT_FLOOR, NAMING_FLOOR):
         run = runs[floor]
@@ -818,32 +846,88 @@ def test_the_quality_report_says_the_same_thing_about_the_same_windows(
                 wanted[(found.column, subcheck)] = found.covers_published
         seen = 0
         spoken = 0
-        for check in run.outcome.checks:
-            if check.verdict != validation.WITHIN_BOUND:
-                continue
-            key = (check.column, check.subcheck)
-            if key not in wanted:
-                continue
-            seen = seen + 1
-            said = "\n".join(check.note)
-            covers = "does NOT reach the" not in said
-            assert covers == wanted[key], (
-                f"floor {floor}, '{check.column}' {check.subcheck}: the "
-                f"twin's report and the quality report disagree about "
-                f"whether this window reaches the description's value"
-            )
-            if not covers:
-                spoken = spoken + 1
-            for line in check.note:
-                assert line in run.quality_text, (
-                    f"floor {floor}, '{check.column}' {check.subcheck}: "
-                    f"the check carries this sentence and the page does "
-                    f"not print it"
+        for outcome, printed in (
+            (run.outcome, run.quality_text),
+            (run.against_source, ""),
+        ):
+            for check in outcome.checks:
+                if check.verdict not in (
+                    validation.WITHIN_BOUND,
+                    validation.HELD,
+                    validation.MISSED,
+                ):
+                    continue
+                key = (check.column, check.subcheck)
+                if key not in wanted:
+                    continue
+                seen = seen + 1
+                said = "\n".join(check.note)
+                covers = "does NOT reach the" not in said
+                assert covers == wanted[key], (
+                    f"floor {floor}, '{check.column}' {check.subcheck} "
+                    f"({check.verdict}): the twin's report and the quality "
+                    f"report disagree about whether this window reaches "
+                    f"the description's value"
                 )
+                if not covers:
+                    spoken = spoken + 1
+                # The page is the TWIN's page, so only the twin's own
+                # checks are asked to appear on it.
+                for line in check.note if printed else ():
+                    assert line in printed, (
+                        f"floor {floor}, '{check.column}' "
+                        f"{check.subcheck}: the check carries this "
+                        f"sentence and the page does not print it"
+                    )
         assert seen, f"floor {floor}: the two pages share no window at all"
         assert spoken, (
             f"floor {floor}: no shared window misses the description's "
             f"value, so the agreement this test exists for is untested"
+        )
+
+
+def test_a_file_holding_the_published_value_is_never_reported_missing(
+    runs: "dict[int, Run]",
+) -> None:
+    """Review item P3-V10-F5, as a property of every window there is.
+
+    A window here is worked out from the description and the size of the
+    column, not as a margin around the published value, so it can lie
+    wholly to one side of that value -- and where it does, a file holding
+    the published value EXACTLY falls outside it. Reading the verdict off
+    the window alone then printed "the description asks for: 2024-12-24 /
+    the file was found to hold: that same value" with MISSED above it, on
+    the table the description was written from. Four rungs of that one
+    table said it, and two cardinality counts said the same thing in
+    numbers: "asks for 84 ... found 84.0: MISSED".
+
+    So the property is asserted over both runs and every subcheck, not
+    over the date ladder: a line whose two values are the same value may
+    not carry MISSED, whatever its window says. The two values are
+    compared as the page prints them, because that is what a reader
+    compares.
+    """
+    for floor in (DEFAULT_FLOOR, NAMING_FLOOR):
+        run = runs[floor]
+        exact = 0
+        for outcome in (run.outcome, run.against_source):
+            for check in outcome.checks:
+                if not check.achieved:
+                    continue
+                same = check.achieved == "that same value" or (
+                    check.achieved == check.published
+                )
+                if not same:
+                    continue
+                exact = exact + 1
+                assert check.verdict != validation.MISSED, (
+                    f"floor {floor}, '{check.column}' {check.subcheck}: "
+                    f"the page asks for {check.published!r}, says the file "
+                    f"holds {check.achieved!r}, and calls it MISSED"
+                )
+        assert exact, (
+            f"floor {floor}: no line of either page prints one value twice, "
+            f"so this test can no longer see the defect it exists for"
         )
 
 

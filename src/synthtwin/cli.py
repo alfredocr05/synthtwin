@@ -728,6 +728,21 @@ def _declared_words_notice(
     on the summary this run has just shown, and already stored in the
     description beside it.
 
+    IT COUNTS WORDS AND LISTS SPELLINGS, AND THOSE ARE TWO NUMBERS
+    (review item P3-V10-F9; plan amendment A-P3-42 clause 5). The list
+    it is handed has one entry per spelling per column, and it used to
+    pluralise the whole notice off the LENGTH of that list -- so one
+    `--missing-value XX` over a table holding eleven `XX` cells and
+    eleven `" xx "` cells opened with "Words you typed after
+    --missing-value are written into the description" and closed by
+    telling the person to run again "without naming them". They named
+    one word. Nothing was withheld and no spelling was wrong; the
+    attribution was, and a person acting on it looks for a second option
+    they never gave. The words are counted by
+    `summary.words_behind`, which groups the spellings at the producer's
+    own declaration identity, and every clause of this notice is now
+    written from whichever of the two numbers it is actually about.
+
     Guarantees:
 
     - Inputs: the spellings the description names, each with its column
@@ -738,25 +753,39 @@ def _declared_words_notice(
       `_shown` before it reaches the screen, exactly as the summary's
       own text does.
     """
+    from synthtwin import summary
+
     listed = ""
     for spelling, column, count in named:
         listed = (
             f"{listed}\n  {_shown(spelling)} -- in the column "
             f"{_shown(column)}, {count} cell(s)"
         )
-    one = len(named) == 1
+    one_spelling = len(named) == 1
+    words = summary.words_behind(named)
+    one_word = words == 1
+    both = "" if len(named) == words else (
+        f"\n\nWHY THERE ARE MORE LINES THAN WORDS. Your table wrote "
+        f"{'the word you named' if one_word else 'some of the words you named'}"
+        f" more than one way, and the description records each way "
+        f"separately, because it has to say how each cell was spelled. "
+        f"You typed {'one word' if one_word else f'{words} words'}; the "
+        f"rest of what you see above is your table's own spelling."
+    )
     return (
         f"\n{_ALARM}\n"
         f"READ THIS BEFORE EITHER OF THESE FILES GOES ANYWHERE.\n"
-        f"{'A word' if one else 'Words'} you typed after --missing-value "
-        f"{'is' if one else 'are'} written into the description.\n"
+        f"{'A word' if one_word else f'{words} words'} you typed after "
+        f"--missing-value {'is' if one_word else 'are'} written into the "
+        f"description.\n"
         f"{_ALARM}\n"
         f"\n"
         f"WHAT IS IN THE FILES. The description names "
-        f"{'this spelling' if one else 'these spellings'} exactly as "
-        f"your table wrote {'it' if one else 'them'}, and the "
-        f"plain-language summary beside it prints "
-        f"{'it' if one else 'them'} too:{listed}\n"
+        f"{'this spelling' if one_spelling else 'these spellings'} "
+        f"exactly as your table wrote "
+        f"{'it' if one_spelling else 'them'}, and the plain-language "
+        f"summary beside it prints "
+        f"{'it' if one_spelling else 'them'} too:{listed}{both}\n"
         f"\n"
         f"WHY IT IS THERE. A description has to say how each cell was "
         f"read, or synthtwin cannot check your own table against it "
@@ -766,12 +795,13 @@ def _declared_words_notice(
         f"them.\n"
         f"\n"
         f"WHAT TO DO. If "
-        f"{'that word' if one else 'any of those words'} is something "
-        f"you would not put in an email -- a diagnosis, a code, "
-        f"anything that names a person -- then neither file may leave "
-        f"your machine as it stands. Delete what this run writes and "
-        f"describe the table again without naming "
-        f"{'it' if one else 'them'}, or with the cells already blank."
+        f"{'that spelling' if one_spelling else 'any of those spellings'}"
+        f" is something you would not put in an email -- a diagnosis, a "
+        f"code, anything that names a person -- then neither file may "
+        f"leave your machine as it stands. Delete what this run writes "
+        f"and describe the table again without naming "
+        f"{'that word' if one_word else 'those words'}, or with the "
+        f"cells already blank."
     )
 
 

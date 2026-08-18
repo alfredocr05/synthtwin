@@ -494,6 +494,48 @@ def words_of_your_own(
     return found
 
 
+def words_behind(named: "list[tuple[str, str, int]]") -> int:
+    """How many words somebody TYPED the listed spellings came from.
+
+    WHY THIS IS NOT `len(named)` (review item P3-V10-F9; plan amendment
+    A-P3-42 clause 5). `words_of_your_own` returns one entry per
+    spelling per column, because a person looking for their word wants
+    to know every place it went. That is the right list and it is the
+    wrong COUNT for a sentence about what the person did: one
+    `--missing-value XX` over a table holding eleven `XX` cells and
+    eleven `" xx "` cells publishes two spellings, and the screen said
+    "Words you typed after --missing-value are written into the
+    description" about one word they typed and one spelling their table
+    chose. Nothing was hidden and nothing was wrong about the list; the
+    attribution was wrong, and a person reading it goes looking for a
+    second option they never gave.
+
+    THE GROUPING IS THE PRODUCER'S OWN, not a second rule.
+    `settings.declaration_matching` has one permitted value -- the exact
+    number where the spelling reads as one, else the trimmed and folded
+    spelling -- and it is the rule that decided which cells each
+    declaration took. Grouping the published spellings by it therefore
+    counts declarations exactly as the producer counted them
+    (`n_declared`, contract 5 C5-18 as amended), and the same way the
+    validator's own recovery does.
+
+    Guarantees:
+
+    - Inputs: the list `words_of_your_own` returns. Nothing is read.
+    - Determinism: a fixed function of that list.
+    - Errors raised: none.
+    - Boundary: a count leaves this function and no spelling does.
+    """
+    identities: dict[object, int] = {}
+    for spelling, _column, _count in named:
+        exact = taxonomy.exact_of_spelling(spelling)
+        if exact is None:
+            identities[("word", parsing.folded(spelling))] = 1
+        else:
+            identities[("number", exact)] = 1
+    return len(identities)
+
+
 def _your_own_words_lines(document: dict[str, object]) -> list[str]:
     """Which of the reader's own words this description names, by name.
 
@@ -509,6 +551,14 @@ def _your_own_words_lines(document: dict[str, object]) -> list[str]:
     already printed in its own column's block on this page and stored
     in the description beside it; what this adds is the sentence that
     tells a reader which of them came off their command line.
+
+    IT LISTS SPELLINGS AND COUNTS WORDS (review item P3-V10-F9). A word
+    somebody typed can reach the description under several spellings,
+    because the cells decide the spellings and the person decides the
+    word. So the list below has a line per spelling and the sentence
+    over it counts what was typed, and where the two numbers differ the
+    page says which side each came from rather than leaving the reader
+    to think they gave an option they never gave.
     """
     named = words_of_your_own(document)
     if not named:
@@ -520,18 +570,43 @@ def _your_own_words_lines(document: dict[str, object]) -> list[str]:
             "    another table under the same command could name one.",
             "",
         ]
-    lines = [
-        "    WORDS OF YOUR OWN THAT THIS DESCRIPTION NAMES. The settings",
-        "    are not the whole description, and these words are written",
-        "    into it -- and printed above -- exactly as your table",
-        "    spelled them:",
-    ]
+    words = words_behind(named)
+    # The sentence is about the words THIS DESCRIPTION NAMES and not
+    # about how many were typed, because those are two numbers and the
+    # second is on the line above ("named as 'no value': 2"). A person
+    # can name two words and have one of them reach the description,
+    # which is the ordinary outcome when the other one's cells fall
+    # below the floor.
+    if words == 1:
+        lines = [
+            "    WORDS OF YOUR OWN THAT THIS DESCRIPTION NAMES. The settings",
+            "    are not the whole description, and this word of yours is",
+            "    written into it -- and printed above -- exactly as your",
+            "    table spelled it:",
+        ]
+    else:
+        lines = [
+            "    WORDS OF YOUR OWN THAT THIS DESCRIPTION NAMES. The settings",
+            f"    are not the whole description, and these {words} words of",
+            "    yours are written into it -- and printed above -- exactly",
+            "    as your table spelled them:",
+        ]
     for spelling, column, count in named:
         lines = lines + [f"      {spelling} -- in {column} ({count} cell(s))"]
+    if len(named) > words:
+        lines = lines + [
+            "    There are more lines there than words you named, because",
+            "    your table wrote "
+            + ("that word" if words == 1 else "some of those words")
+            + " more than one way and",
+            "    each way is a line of its own. What you typed decided",
+            "    which cells count as missing; your table decided how each",
+            "    of them is spelled here.",
+        ]
     return lines + [
-        "    If one of those is something you would not send in an email,",
-        "    neither this description nor this page may go anywhere until",
-        "    you have dealt with it.",
+        "    If one of those spellings is something you would not send in",
+        "    an email, neither this description nor this page may go",
+        "    anywhere until you have dealt with it.",
         "",
     ]
 

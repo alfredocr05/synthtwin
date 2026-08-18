@@ -55,12 +55,15 @@ Every table is built at test time by the seeded neutral builders in
 `fixtures.py`; no data-format file enters the repository (plan D13).
 """
 
+import os
 import pathlib
+import typing
 
 import pytest
 
 import fixtures
 import test_p3v1f2_entry_table as entry_table
+import test_p3v10f4_named_markers_are_holes as named_markers_are_holes
 from synthtwin import (
     contract,
     generation,
@@ -81,6 +84,21 @@ SEED = entry_table.SEED
 # written out here, so a spelling added to either table is covered by
 # these tests on the commit that adds it.
 MARKERS = (parsing.MISSING_TEXTS[5], f"{parsing.NUMERIC_SENTINELS[1]:g}")
+
+
+@pytest.fixture(scope="module", autouse=True)
+def _reinstated() -> "typing.Iterator[None]":
+    """`REINSTATE=P3-V10-F4` pins every built-in word to data again.
+
+    MODULE-SCOPED, because the runs this file reads are built in
+    module-scoped fixtures and a function-scoped patch would arrive
+    after them.
+    """
+    patch = pytest.MonkeyPatch()
+    if os.environ.get("REINSTATE") == "P3-V10-F4":
+        named_markers_are_holes.reinstate(patch)
+    yield
+    patch.undo()
 
 
 # -- the shipped fixtures, and the marker injection -------------------
@@ -601,13 +619,33 @@ def test_the_split_description_counts_every_non_blank_cell(
     measurement description reads them as the values V2.4 says they are.
     That is the whole mechanism, and it is asserted here on the
     producer's own output rather than through a verdict.
+
+    THE MARKER IS ONE THE DESCRIPTION PASSES NO VERDICT ON, which from
+    plan amendment A-P3-38 is where the pin lives. The description here
+    is written from a table of thirty labels and five marker cells --
+    five is below the publication floor of eleven, so no column names
+    the spelling -- and the file measured against it wears the marker
+    thirty times. Nothing in the description rules on those cells, so
+    the split reads every one of them as a value, which is what
+    residual R-P2-13 asks for.
     """
     folder = tmp_path / "split"
     folder.mkdir()
+    described = _describe(
+        folder,
+        "region",
+        ["north" for _index in range(20)]
+        + ["south" for _index in range(10)]
+        + ["n/a" for _index in range(5)],
+    )
+    # Empty because five cells sit below the publication floor, not
+    # because this column's role publishes no spelling of its own.
+    assert described.columns[0].role not in taxonomy.ROLES_PUBLISHING_NOTHING
+    assert described.columns[0].missing_by_source == {}
+    assert described.columns[0].n_missing_withheld == 5
     values = ["north" for _index in range(30)] + [
         "n/a" for _index in range(30)
     ]
-    described = _describe(folder, "region", values)
     target = fixtures.write(
         folder, "again.csv", fixtures.single_column_table("region", values)
     )
@@ -623,6 +661,46 @@ def test_the_split_description_counts_every_non_blank_cell(
     assert own["columns"][0]["n_present"] == 30
     assert split["columns"][0]["n_present"] == 60
     assert split["columns"][0]["n_missing"] == 0
+
+
+def test_a_named_marker_is_a_hole_on_both_sides(
+    tmp_path: pathlib.Path,
+) -> None:
+    """And where the description DOES rule on it, both sides agree.
+
+    Review item P3-V10-F4, plan amendment A-P3-38. `missing_by_source`
+    is the description naming the spelling its holes wore, so reading
+    that spelling as a value on the measurement side would describe the
+    file under a rule its description was not written under. The two
+    descriptions of the same file then agree cell for cell, which is
+    what stops the table a description came from being reported against
+    it.
+    """
+    folder = tmp_path / "named"
+    folder.mkdir()
+    values = ["north" for _index in range(30)] + [
+        "n/a" for _index in range(30)
+    ]
+    described = _describe(folder, "region", values)
+    assert described.columns[0].missing_by_source == {"n/a": 30}
+    assert "n/a" not in validation.settings_over_the_split(
+        described
+    ).kept_values
+    target = fixtures.write(
+        folder, "again.csv", fixtures.single_column_table("region", values)
+    )
+    table = reading.read_table(
+        str(target), first_row=reading.FIRST_ROW_NAMES
+    )
+    own = profile.build_document(
+        table, validation.settings_for(described), []
+    )
+    split = profile.build_document(
+        table, validation.settings_over_the_split(described), []
+    )
+    assert own["columns"][0]["n_present"] == 30
+    assert split["columns"][0]["n_present"] == 30
+    assert split["columns"][0]["n_missing"] == 30
 
 
 # -- one column, described and measured -------------------------------

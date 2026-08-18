@@ -45,11 +45,13 @@ Every table is built at test time by the seeded neutral builders in
 
 import dataclasses
 import json
+import os
 import pathlib
 
 import pytest
 
 import fixtures
+import test_p3v10f4_named_markers_are_holes as named_markers_are_holes
 from synthtwin import (
     contract,
     parsing,
@@ -59,6 +61,14 @@ from synthtwin import (
     taxonomy,
     validation,
 )
+
+
+@pytest.fixture(autouse=True)
+def _reinstated(monkeypatch: pytest.MonkeyPatch) -> None:
+    """`REINSTATE=P3-V10-F4` pins every built-in word to data again."""
+    if os.environ.get("REINSTATE") == "P3-V10-F4":
+        named_markers_are_holes.reinstate(monkeypatch)
+
 
 # The two shapes of cell whose presence the producer and the blank split
 # read differently, taken from the product's own constants so that a new
@@ -327,33 +337,84 @@ def test_the_blank_split_still_bites_where_the_sources_are_named(
     Amendment A-P3-5 takes the blank split's number wherever the file's
     own description NAMES the source of every missing cell -- which is
     every column with no missing cells at all, and every twin whose
-    blanks reach the publication floor. Here thirty cells spell one
-    marker, which clears the floor of eleven, so `missing_by_source`
-    names that spelling and its count exactly: the split is derivable
-    from what describing the file publishes, and V2.4's measurement
-    stands. This is round 2's own witness, and it must still miss.
+    blanks reach the publication floor. So the description here is
+    written from a table whose thirty holes are EMPTY, which is what a
+    twin writes, and the measured file spells those thirty cells `n/a`
+    instead. Describing THAT file names the source of every one of its
+    missing cells too, so the split is derivable from what describing it
+    publishes and V2.4's measurement stands. This is round 2's own
+    witness, and it must still miss.
+
+    THE MEASURED FILE IS NOT THE DESCRIBED TABLE, and that is the
+    repair rather than a weakening (review item P3-V10-F4, plan
+    amendment A-P3-39). The version this replaces described the marker
+    table and handed the same bytes back to be measured, so what it
+    pinned was a table reported MISSED against its own description --
+    twenty-eight obligations on the plainest run the product has. The
+    property it exists for is the one asserted here, and it is asserted
+    on a file that really does differ from the one described.
     """
     folder = tmp_path / "named"
     folder.mkdir()
     names = ["label", "number"]
-    rows: list[list[str]] = []
-    for index in range(60):
-        rows = rows + [
-            ["n/a" if index < 30 else "north", f"{100 + index}.5"]
-        ]
-    text = _table(rows, names)
-    described = _describe(folder, text, "submitted")
+    described = _describe(
+        folder, _holes_spelled("", names), "submitted"
+    )
     assert described.columns[0].n_present == 30
-    checks, census = _report(folder, described, text, "again.csv")
+    assert described.columns[0].n_missing_blank == 30
+    checks, census = _report(
+        folder, described, _holes_spelled("n/a", names), "again.csv"
+    )
     # Keyed by (column, subcheck): every column carries `presence.n_present`,
     # so a dict on the subcheck alone answers for whichever column came last.
     named = {(check[0], check[2]): check[3] for check in checks}
     assert named[("label", "presence.n_present")] == validation.MISSED, named
     assert named[("label", "distinct.n_distinct")] == validation.MISSED, named
     assert census.missed > 0
-    # ...and the reason it bites is the published source map, not luck.
-    own = _own_description(folder, described, text, "own")
+    # ...and the reason it bites is the measured file's own published
+    # source map, not luck.
+    own = _own_description(
+        folder, described, _holes_spelled("n/a", names), "own"
+    )
     assert '"n/a": 30' in own
+
+
+def _holes_spelled(hole: str, names: "list[str]") -> str:
+    """Thirty labels and thirty holes, each hole written as ``hole``."""
+    return _table(
+        [
+            ["north" if index < 30 else hole, f"{100 + index}.5"]
+            for index in range(60)
+        ],
+        names,
+    )
+
+
+def test_the_table_a_description_came_from_is_never_reported_against_it(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Review item P3-V10-F4: the first honest thing a researcher does.
+
+    Describe a table, then check that same table. Its own description
+    publishes the spelling its holes wore, so the measurement side reads
+    that spelling the way the description does and every obligation is
+    met. Before amendment A-P3-39 this ran the marker cells back through
+    the blankness pin and reported twenty-eight obligations MISSED at
+    exit 3 -- both presence counts, both distinctness counts, eleven
+    ladder rungs, three moments and the rest -- on a table that is its
+    own description's perfect match.
+    """
+    folder = tmp_path / "itself"
+    folder.mkdir()
+    names = ["label", "number"]
+    text = _holes_spelled("n/a", names)
+    described = _describe(folder, text, "submitted")
+    assert described.columns[0].missing_by_source == {"n/a": 30}
+    checks, census = _report(folder, described, text, "again.csv")
+    assert census.missed == 0, [check for check in checks if check[3] == "MISSED"]
+    named = {(check[0], check[2]): check[3] for check in checks}
+    assert named[("label", "presence.n_present")] == validation.HELD, named
+    assert named[("label", "presence.n_missing")] == validation.HELD, named
 
 
 def test_a_column_publishing_no_spellings_keeps_its_presence_teeth(
@@ -404,9 +465,19 @@ def test_the_named_source_threshold_is_the_publication_floor(
 ) -> None:
     """Where the line falls, asserted rather than assumed.
 
-    One below the floor the description pools the source and the split
-    may not be reported; at the floor it names it and the split governs.
-    Nothing else about the two files differs.
+    One below the floor the MEASURED FILE'S own description pools the
+    source and the split may not be reported; at the floor it names it
+    and the split governs. Nothing else about the two files differs.
+
+    THE QUESTION IS ASKED OF THE FILE'S OWN DESCRIPTION, which is what
+    the gate has always read (review item P3-V10-F4, plan amendment
+    A-P3-39). The description these files are checked against is written
+    from a table whose holes are EMPTY -- what a twin writes -- so it
+    names no marker spelling of its own, and the marker stays pinned. It
+    is the marked FILE that names or pools its own holes as it crosses
+    the floor, and that is what moves. The version this replaces
+    described the marked table itself, so at the floor it was pinning a
+    table reported against its own description.
     """
     folder = tmp_path / "edge"
     folder.mkdir()
@@ -414,18 +485,21 @@ def test_the_named_source_threshold_is_the_publication_floor(
     seen: dict[int, bool] = {}
     for count in (floor - 1, floor):
         names = ["label", "number"]
-        rows = [
-            [
-                "n/a" if index < count else "north",
-                f"{100 + index}.5",
-            ]
-            for index in range(60)
-        ]
-        text = _table(rows, names)
-        described = _describe(folder, text, f"submitted{count}")
         blank = _table(
             [
                 ["" if index < count else "north", f"{100 + index}.5"]
+                for index in range(60)
+            ],
+            names,
+        )
+        described = _describe(folder, blank, f"submitted{count}")
+        assert described.columns[0].missing_by_source == {}
+        text = _table(
+            [
+                [
+                    "n/a" if index < count else "north",
+                    f"{100 + index}.5",
+                ]
                 for index in range(60)
             ],
             names,

@@ -3051,14 +3051,120 @@ def _naming_half() -> str:
 # window between subject and verb, and between verb and number, is
 # capped and may not cross a sentence end, so that two unrelated
 # sentences cannot be read as one claim.
+_SPEAKING_IT = r"(?:writes?|writing|reads?|reading|emits?|produces?|accepts?)"
+
+# The same verbs as things DONE, for the passive shape below, and the
+# be-forms that carry it. Both are needed and neither is a widening on
+# its own: a bare participle is how this repository writes history
+# ("the spelling was written into the file"), and it is the PRESENT
+# be-form in front of it that makes the sentence a claim about today.
+# `was` and `were` are deliberately absent for exactly that reason.
+_SPOKEN = r"(?:written|read|emitted|produced|accepted)"
+_IS_BEING = r"(?:is|are|be|being|been)"
+
+# WHERE ONE CLAUSE ENDS AND THE NEXT BEGINS (review item P3-V10-F6).
+# The fronted half below reads a version NUMBER first and a subject and
+# verb after it, so it needs to know when it has left the clause the
+# number is in -- otherwise "it says it is version 4, and this synthtwin
+# reads version 5" reads as a claim about version 4, and that sentence
+# is R11's own message.
+#
+# English joins clauses with function words, which is a CLOSED class,
+# and that is why this half can be written at all. A bare `that`,
+# `which` or `where` with no comma in front of it is NOT a join: it is
+# the relative link the fronted shape is built out of ("version 4 is
+# the version that synthtwin writes"), so only the comma'd form counts.
+_A_NEW_CLAUSE = (
+    r"(?:[;:]"
+    r"|,?\s+(?:and|but|or|nor|yet|so|while|whereas)\b"
+    r"|,\s+(?:that|which|where|when)\b"
+    r"|\s+--\s+)"
+)
+
+
+def _within_the_clause(width: int) -> str:
+    """Up to `width` characters that stay inside one clause."""
+    return r"(?:(?!" + _A_NEW_CLAUSE + r")[^.!?\n]){0," + f"{width}" + r"}?"
+
+
 def _version_claim() -> "re.Pattern[str]":
-    """The ban's pattern, built from whichever naming half is in force."""
+    """The FORWARD half: subject, then verb, then the version."""
     return re.compile(
         _WHO_IS_SYNTHTWIN
         + r"[^.!?\n]{0,140}?"
-        + r"\b(?:writes?|writing|reads?|reading|emits?|produces?|accepts?)\b"
-        + r"[^.!?\n]{0,60}?"
+        + r"\b"
+        + _SPEAKING_IT
+        + r"\b[^.!?\n]{0,60}?"
         + _naming_half(),
+        re.IGNORECASE,
+    )
+
+
+def _fronted_version_claim() -> "re.Pattern[str]":
+    """The FRONTED half: the version first, and the claim after it.
+
+    THE DEFECT THIS EXISTS FOR (review item P3-V10-F6; plan amendment
+    A-P3-42 clause 3). The family read one arrangement of the three
+    marks a wire claim is made of -- synthtwin, a verb about speaking
+    the format, and a number -- and English has more than one:
+
+        Version 4 profiles are what synthtwin writes.
+        Version 4 profiles are written by synthtwin.
+        Version 4 is the version the loader reads.
+
+    Every one of those satisfies the family's own subject list, its own
+    verb list and its own naming rule, and every one walked through the
+    ban, because the ban was written as an ORDER. At the next format
+    bump a true version 6 sentence elsewhere satisfies the positive
+    half while one of these stays behind saying the opposite.
+
+    SO THE ARRANGEMENT IS THE THING THAT IS CLOSED, and this half reads
+    the other two arrangements over the same three marks:
+
+      * the cleft -- number, then the subject, then the verb, with the
+        relative link (`what`, `that`, `the version`) between them;
+      * the passive -- number, then a PRESENT be-form, then the verb as
+        a thing done, then `by` and the subject.
+
+    Both stop at a clause join, because a number in one clause and a
+    subject-verb pair in another are two statements and not one claim,
+    and both refuse to fire where the verb already carries a version of
+    its own -- that sentence is the forward half's business, and it is
+    judged there on its own number.
+
+    WHAT THIS DOES NOT CLOSE is written out and asserted in
+    `test_the_version_ban_states_its_residue`. The verb is still a list,
+    the arrangement rule cannot see across a clause join or a line
+    break, and four of the five verbs are the same word in the present
+    and the past, so a fronted HISTORY sentence built on one of them is
+    reported and has to be reworded rather than excused.
+    """
+    return re.compile(
+        _naming_half()
+        + _within_the_clause(140)
+        + r"(?:"
+        + _WHO_IS_SYNTHTWIN
+        + _within_the_clause(60)
+        + r"\b"
+        + _SPEAKING_IT
+        + r"\b"
+        + r"|\b"
+        + _IS_BEING
+        + r"\b"
+        + _within_the_clause(40)
+        + r"\b"
+        + _SPOKEN
+        + r"\b"
+        + _within_the_clause(40)
+        + r"by\s+"
+        + _WHO_IS_SYNTHTWIN
+        + r")"
+        # A verb that carries its own version right after it is the
+        # forward half's sentence, judged there against its own number.
+        + r"(?!"
+        + _within_the_clause(60)
+        + _naming_half().replace("(?P<number>", "(?:")
+        + r")",
         re.IGNORECASE,
     )
 
@@ -3081,7 +3187,11 @@ def _version_claim() -> "re.Pattern[str]":
 #   REINSTATE=P3-V9-F8        the naming half narrowed back to the two
 #                             literal words `version N`, which is the
 #                             bypass this family shipped with -- reds
-#                             `test_the_ban_catches_every_ordinary_...`.
+#                             `test_the_ban_catches_every_ordinary_...`;
+#   REINSTATE=P3-V10-F6       the FORWARD half alone, which is the
+#                             arrangement this family shipped reading --
+#                             reds `test_the_ban_catches_a_claim_...`
+#                             and the second half of the residue check.
 _THE_STALE_OPENING = (
     "**Status: written before any code, which is this repository's "
     "standing process.** The shipped producer writes version 4 today "
@@ -3092,6 +3202,29 @@ _THE_STALE_OPENING = (
 def _subjectless_claim() -> "re.Pattern[str]":
     """The naming half alone, which is the ban drawn without a subject."""
     return re.compile(_naming_half(), re.IGNORECASE)
+
+
+def _claim_patterns() -> "tuple[re.Pattern[str], ...]":
+    """Every arrangement the ban reads, or the one a red check asks for.
+
+    Two patterns rather than one alternation, because both halves need
+    the same `number` group and Python's own engine will not hold two
+    groups of one name. Every check below reads this tuple, so a half
+    added here is a half every check gains.
+    """
+    if os.environ.get("REINSTATE") == "A-P3-30-wide":
+        return (_subjectless_claim(),)
+    if os.environ.get("REINSTATE") == "P3-V10-F6":
+        return (_version_claim(),)
+    return (_version_claim(), _fronted_version_claim())
+
+
+def _claims_in(text: str) -> "list[re.Match[str]]":
+    """Every wire claim any arrangement finds, earliest first."""
+    found: list[re.Match[str]] = []
+    for pattern in _claim_patterns():
+        found = found + list(pattern.finditer(text))
+    return sorted(found, key=lambda match: match.start())
 
 
 def _surface_text(relative: str) -> str:
@@ -3105,15 +3238,10 @@ def _surface_text(relative: str) -> str:
     if asked == "A-P3-30" and relative.endswith("profile-contract-v5.md"):
         return _THE_STALE_OPENING + "\n" + text
     if asked == "A-P3-30-silent":
-        return _version_claim().sub("(the wire sentence, deleted)", text)
+        for pattern in _claim_patterns():
+            text = pattern.sub("(the wire sentence, deleted)", text)
+        return text
     return text
-
-
-def _claim_pattern() -> "re.Pattern[str]":
-    """The ban's pattern, or the over-wide one a red check asks for."""
-    if os.environ.get("REINSTATE") == "A-P3-30-wide":
-        return _subjectless_claim()
-    return _version_claim()
 
 
 def _shipped_wire_version() -> int:
@@ -3188,11 +3316,10 @@ def test_no_surface_says_synthtwin_speaks_a_version_it_does_not() -> None:
     writes, reads, emits, produces or accepts it.
     """
     shipped = _shipped_wire_version()
-    pattern = _claim_pattern()
     stale: list[str] = []
     for relative in VERSION_SURFACES:
         text = _surface_text(relative)
-        for found in pattern.finditer(text):
+        for found in _claims_in(text):
             if int(found.group("number")) == shipped:
                 continue
             line = text.count("\n", 0, found.start()) + 1
@@ -3226,7 +3353,7 @@ def test_the_wire_version_is_actually_claimed_somewhere() -> None:
         for relative in VERSION_SURFACES
         if any(
             int(found.group("number")) == shipped
-            for found in _claim_pattern().finditer(_surface_text(relative))
+            for found in _claims_in(_surface_text(relative))
         )
     ]
     assert saying, (
@@ -3251,11 +3378,26 @@ def test_the_version_ban_reads_history_and_refusals_as_permitted() -> None:
     pattern catches one of them, the widening is wrong: a format change
     cannot be explained without naming the version it came from.
 
+    A STALE number is what is checked for, not a match, because the ban
+    is a ban on the wrong number and several of these sentences make the
+    TRUE claim in passing -- R11's message says both versions in one
+    breath, and it has to.
+
     THE LAST FOUR ARRIVED WITH THE WIDENING (review item P3-V9-F8). The
     naming half now reads a bare `v4`, and this repository is full of
     document names, clause numbers and release strings that hold a `v`
     next to a digit. Each of those is written out here, so a future
     narrowing of the two exclusions has to face them.
+
+    THE FOUR AFTER THEM ARRIVED WITH THE FRONTED HALF (review item
+    P3-V10-F6). Reading the version FIRST puts a number in front of
+    every sentence in this repository that mentions one, so the half has
+    to know where a clause ends. Three of the four are real sentences of
+    this tree, measured before the half landed -- R11's own message, the
+    version 4 contract's rule about what a version 4 loader accepts, and
+    the plan's account of the stale paragraph it corrected -- and the
+    fourth is the past tense of the shape the half reads. Each is here
+    so that a future widening of the clause rule has to face them.
     """
     permitted = (
         (
@@ -3281,11 +3423,32 @@ def test_the_version_ban_reads_history_and_refusals_as_permitted() -> None:
         "the validator follows docs/spec/validation-method-v1.md.",
         "the producer writes the bytes the method's V2.4 fixes.",
         "synthtwin writes v0.1.0.dev0 into created_with.",
+        # The four the FRONTED half has to walk past. The first three
+        # are sentences of this tree.
+        (
+            "it says it is version 4, and this synthtwin reads "
+            "version 5."
+        ),
+        (
+            "a profile that exceeds the invention capacity is a valid "
+            "version 4 profile and the loader accepts it."
+        ),
+        # The shape of the plan's own account of the paragraph it
+        # corrected: a list of things a document said, joined with
+        # `, that`, which is a clause boundary and not the relative
+        # link the fronted shape is built out of.
+        "the plan records version 4, that the loader reads nothing else.",
+        "version 4 was what synthtwin wrote before the bump.",
     )
+    shipped = _shipped_wire_version()
     caught = [
         sentence
         for sentence in permitted
-        if _claim_pattern().search(sentence) is not None
+        if [
+            found
+            for found in _claims_in(sentence)
+            if int(found.group("number")) != shipped
+        ]
     ]
     assert not caught, (
         "The version ban now catches sentences this repository has to "
@@ -3322,17 +3485,172 @@ def test_the_ban_catches_every_ordinary_way_of_naming_a_version() -> None:
         f"synthtwin writes profile_version {stale} into the description.",
         f"the shipped loader reads version {stale}.",
     )
-    missed = []
-    for sentence in bypasses:
-        found = _claim_pattern().search(sentence)
-        if found is None or int(found.group("number")) == shipped:
-            missed.append(sentence)
+    missed = [
+        sentence
+        for sentence in bypasses
+        if not [
+            found
+            for found in _claims_in(sentence)
+            if int(found.group("number")) != shipped
+        ]
+    ]
     assert not missed, (
         "These sentences claim synthtwin speaks a version it does not, "
         "and the ban walks past every one of them:\n  "
         + "\n  ".join(missed)
         + "\n\nWiden `_NAMES_A_VERSION`. A ban that catches one "
         "spelling of what it forbids reports a clean tree."
+    )
+
+
+def test_the_ban_catches_a_claim_written_the_other_way_round() -> None:
+    """THE FINDING (review item P3-V10-F6), and it is an ARRANGEMENT.
+
+    The family read one order of the three marks a wire claim is made
+    of. `Version 4 profiles are what synthtwin writes.` uses the ban's
+    own subject, its own verb and its own naming rule, in the ordinary
+    English that fronts what a sentence is about -- and walked straight
+    through, because the pattern was written as subject, then verb, then
+    number and nothing else.
+
+    What that costs is not hypothetical at a format bump: the positive
+    half is satisfied by ONE true sentence anywhere in the tree, so a
+    stale sentence in this shape sits behind a green suite saying the
+    opposite of the truth on a governed surface.
+
+    Both other arrangements are asserted here, in every spelling of the
+    subject and of the verb the family holds.
+    """
+    shipped = _shipped_wire_version()
+    stale = shipped + 1
+    the_other_way_round = (
+        # the cleft: the version, then the subject, then the verb
+        f"Version {stale} profiles are what synthtwin writes.",
+        f"Version {stale} is the version the loader reads.",
+        f"v{stale} documents are what the producer emits.",
+        f"version-{stale} files are what the profiler writes.",
+        f"V{stale} is what this synthtwin reads.",
+        f"version {stale} is the format the package produces.",
+        f"v. {stale} descriptions are what the tool accepts.",
+        # the passive: the version, a present be-form, the verb as a
+        # thing done, and the subject after `by`
+        f"Version {stale} profiles are written by synthtwin.",
+        f"Version {stale} descriptions are accepted by the loader.",
+        f"Version {stale} profiles are read by the loader.",
+        f"v{stale} files are produced by the profiler.",
+    )
+    missed = [
+        sentence
+        for sentence in the_other_way_round
+        if not [
+            found
+            for found in _claims_in(sentence)
+            if int(found.group("number")) != shipped
+        ]
+    ]
+    assert not missed, (
+        "These sentences say synthtwin speaks a version it does not, "
+        "written the way English fronts what a sentence is about, and "
+        "the ban walks past them:\n  " + "\n  ".join(missed) + "\n\nThe "
+        "arrangement is what has to be widened -- the subject list, the "
+        "verb list and the naming rule already hold every one of these."
+    )
+
+
+def test_the_version_ban_states_its_residue() -> None:
+    """What this ban does NOT read, measured rather than implied.
+
+    Three things stand open, and each is asserted here as a MISS so
+    that nobody reads the two arrangements above as coverage. A later
+    rule that closes any of them reds this test, which is the point:
+    the closing is then argued in the open instead of assumed.
+
+    1. THE VERB IS A LIST, and English has no closed one for putting a
+       format on a wire. An invented verb is missed in both
+       arrangements -- and the same claim is caught the moment it is
+       written with a verb the list holds, which is what makes this a
+       statement about the list rather than about the pattern.
+    2. THE CLAUSE RULE CUTS BOTH WAYS. The fronted half stops at a
+       clause join so that a number in one clause and a subject in the
+       next are not read as one claim; the price is that a claim really
+       written across a join is missed.
+    3. A LINE BREAK HIDES A CLAIM FROM BOTH HALVES. Neither window
+       crosses a newline, deliberately -- two rows of a table and two
+       items of a list must never be read as one sentence -- so a claim
+       that happens to wrap is missed. This is the oldest of the three
+       and was never stated.
+
+    THE TENSE IS READ ONLY AS FAR AS ENGLISH MARKS IT, and that is the
+    fourth thing. `read` is the same word in the present and the past,
+    and `emitted`, `produced` and `accepted` are the same word as a past
+    tense and as a thing done. The passive shape can tell them apart,
+    because it needs a PRESENT be-form in front of the verb and
+    `was`/`were` are not in that list. Neither the forward shape nor the
+    cleft can, so a HISTORY sentence that puts a synthtwin subject
+    beside a version across one of those words is reported and has to be
+    reworded rather than excused -- which is over-catching, not
+    under-catching, and is the safe direction for a ban to fail in. One
+    sentence of the plan was in exactly that shape and was passing only
+    because of where its line happened to wrap; it now says `took`, so
+    nothing about this family rests on a line break falling where it
+    falls today.
+    """
+    shipped = _shipped_wire_version()
+    stale = shipped + 1
+
+    def stale_claims(sentence: str) -> list:
+        return [
+            found
+            for found in _claims_in(sentence)
+            if int(found.group("number")) != shipped
+        ]
+
+    # 1. A verb no list here holds, in both arrangements.
+    invented = (
+        f"synthtwin renders version {stale} profiles.",
+        f"version {stale} profiles are what synthtwin renders.",
+    )
+    for sentence in invented:
+        assert not stale_claims(sentence), (
+            "The verb half is a list, and this test says so by asserting "
+            f"that {sentence!r} is MISSED. It is now caught, which means "
+            "the verb rule has changed. That is good news and it is not "
+            "free: say in the open what closed it, and rewrite this "
+            "clause to state whatever residue is left."
+        )
+    # ... and the same claim, in a verb the list does hold, is caught in
+    # both arrangements. Without this the assertion above would pass on
+    # a ban that had stopped working altogether.
+    for sentence in (
+        f"synthtwin writes version {stale} profiles.",
+        f"version {stale} profiles are what synthtwin writes.",
+    ):
+        assert stale_claims(sentence), (
+            "The ban no longer reads its own verbs; the residue "
+            "assertions above are meaningless until that is fixed."
+        )
+
+    # 2. A claim split across a clause join.
+    across_a_join = (
+        f"Version {stale} is the old format, and it is what synthtwin "
+        "writes."
+    )
+    assert not stale_claims(across_a_join), (
+        "The fronted half now reads across a clause join. Check what it "
+        "does to R11's own message -- 'it says it is version 4, and "
+        "this synthtwin reads version 5' -- before calling this closed."
+    )
+
+    # 3. A claim broken by a line break.
+    wrapped = f"synthtwin writes\nversion {stale} profiles."
+    assert not stale_claims(wrapped), (
+        "A wire claim wrapped across a line is now read. Say so in the "
+        "open, and check the same widening against a two-row table and "
+        "a two-item list before keeping it."
+    )
+    assert stale_claims(wrapped.replace("\n", " ")), (
+        "The unwrapped form of that sentence is not caught either, so "
+        "the assertion above is measuring nothing."
     )
 
 
@@ -3414,10 +3732,14 @@ def test_the_ban_catches_every_ordinary_way_of_naming_a_version() -> None:
 # statement at a time reported nothing.
 #
 # WHAT THIS DOES NOT CLOSE, said here rather than left for the next
-# round. A denial carried further than `_RETENTION_CARRY`, and a denial
-# built from none of the verbs below, are both still missed. The naming
-# half is a composition and not a phrase list, but the value NOUNS it
-# composes over are finite, and no finite list is sound.
+# round, and amended by A-P3-41 because one of the three shrank. A
+# denial carried further than `_RETENTION_CARRY` is still missed. A
+# denial built from a verb the list below does not hold is still missed
+# WHEN IT NAMES NO PLACE -- where it names one, the place half reads it
+# whatever the verb, which is the half review item P3-V10-F1 bought and
+# `test_the_verb_half_is_a_list_and_this_is_its_residue` measures. The
+# naming half is a composition and not a phrase list, but the value
+# NOUNS it composes over are finite, and no finite list is sound.
 _SPELLING_KIND = profile._SPELLING
 
 
@@ -3523,22 +3845,106 @@ _NOT_OURS = (
     rf"\bno other {_A_VALUE}\b",
 )
 
-# THE DENIAL. Every verb this repository has used for a thing not
-# reaching a file, plus the two that are about keeping rather than
-# writing -- the retired summary sentence was about keeping.
+# THE DENIAL, AND IT HAS TWO SHAPES THAT ARE NOT ALIKE (review item
+# P3-V10-F1). A denial is one claim -- that the person's word is not
+# somewhere -- and English builds that claim two ways. Only one of the
+# two can be recognised without a list of anybody's verbs, and the
+# difference between them is where the negation sits.
+#
+# SHAPE ONE: THE NEGATION SITS ON THE PLACE, and the verb is then
+# carrying nothing. "The document holds it nowhere." "It goes nowhere."
+# "No copy of the file has it." "It is not in the summary." `nowhere` IS
+# a negation and a place in one token; `no` and `not` in the others sit
+# directly on a place a description has. Read that way the claim is
+# complete without the verb, so a rule for this shape catches EVERY
+# verb, including the ones nobody has written yet. Both halves of it are
+# closed: English negation is a handful of function words, and the
+# places are the document's own, derived below from the producer.
+#
+# THIS IS THE HALF THE SHIPPED GUARD DID NOT HAVE, and the sentence it
+# missed was in the governing contract. Version 5's worked example said
+# the person typed a word of their own and that the document held it
+# nowhere -- a plain transitive sentence, verb first, pronoun in the
+# middle. Of the eleven marks in the retired set, ten named a verb; the
+# one that also names a place spells the place AFTER the verb, so it
+# reads "written nowhere" and "recorded nowhere" and not the ordinary
+# order, and the eleventh, `nowhere at all`, needs those two extra
+# words. So the one document an institution's reviewer opens first
+# carried the exact false assurance this family exists to refuse, and
+# the family reported nothing, because it was reading for verbs.
+#
+# SHAPE TWO: THE NEGATION SITS ON THE VERB AND NO PLACE IS NAMED AT
+# ALL. "It is never written." "Any marker you type is never stored."
+# "Your own word is discarded." Here the verb is the whole claim, and
+# English has no closed list of verbs for putting a thing somewhere or
+# taking it away again -- write, record, keep, store, publish, retain,
+# save, preserve, omit, exclude, discard, drop, strip, redact, scrub,
+# purge, and as many more as somebody writing a sentence next year
+# reaches for. THE SECOND HALF IS THEREFORE A LIST, A LIST IS A SAMPLE,
+# AND THE RESIDUE IS REAL: a denial built from a verb this list does
+# not hold, naming no place at all, is missed.
+#
+# THE RESIDUE IS STATED AT ITS SIZE rather than left for the next round,
+# by `test_the_verb_half_is_a_list_and_this_is_its_residue`, which
+# misses one invented verb on purpose and then catches that same verb
+# three times over the moment a place is attached to it. That is the
+# boundary between the two shapes drawn where it actually falls, and a
+# later rule that closes any of it has to move that test, in the open.
+_A_PAGE = (
+    r"(?:files?|documents?|descriptions?|profiles?|pages?|summary|reports?)"
+)
+_THE_PAGE = r"(?:the|this|that|every|either|both|these|those)"
+
+# SHAPE ONE. No verb appears in any of these.
+_NO_PLACE_FOR_IT = (
+    r"\bnowhere\b",
+    r"\b(?:not|never|nor) anywhere\b",
+    r"\banywhere at all\b",
+    rf"\b(?:in|into|inside|within) (?:no|none of the) {_A_PAGE}\b",
+    rf"\bno (?:part|copy|trace) of {_THE_PAGE} {_A_PAGE}\b",
+    rf"\bnot (?:in|into|inside|within) {_THE_PAGE} {_A_PAGE}\b",
+    rf"\b(?:out of|outside) {_THE_PAGE} {_A_PAGE}\b",
+)
+
+# SHAPE TWO, and this tuple is the sample the paragraph above admits to
+# being. Everything this repository has actually written, the four
+# wordings review item P3-V10-F1 named as missing, and the removal verbs
+# beside them. Adding a verb here is ordinary maintenance; believing the
+# tuple is complete is the mistake it is written to prevent.
 _NOT_KEPT = (
-    r"\b(?:written|recorded|held|kept|stored|published) nowhere\b",
-    r"\bnowhere at all\b",
-    r"\bnever (?:written|recorded|kept|stored|published)\b",
-    r"\bis not (?:written|recorded|kept|stored)\b",
-    r"\bare not (?:written|recorded|kept|stored)\b",
+    (
+        r"\bnever (?:written|recorded|kept|stored|published|retained|"
+        r"carried|carries|saved|preserved)\b"
+    ),
+    (
+        r"\b(?:is|are) not (?:written|recorded|kept|stored|published|"
+        r"retained|saved|preserved)\b"
+    ),
     r"\bwill not keep\b",
     r"\bdoes not keep\b",
     r"\bnot retained\b",
     r"\bkeeps none\b",
     r"\brecords nothing\b",
     r"\bno character\b[^.;]{0,60}\breaches\b",
+    (
+        r"\b(?:omitted|excluded|discarded|redacted|scrubbed|purged|"
+        r"thrown away)\b"
+    ),
+    (
+        r"\b(?:left out of|dropped from|removed from|deleted from|"
+        r"stripped from|stripped out of)\b"
+    ),
+    rf"\b(?:absent|missing) from {_THE_PAGE} {_A_PAGE}\b",
 )
+
+# Which of the two reported a denial, carried through the report so a
+# maintainer reading a failure knows whether the guard understood the
+# sentence or merely recognised a word in it -- and so the floor below
+# can assert WHICH half catches each of its cases. A case that claims to
+# be caught structurally and is in fact caught by a verb in the list is
+# the defect P3-V10-F1 found in this file's own battery.
+_BY_THE_PLACE = "the place half, which reads no verb"
+_BY_THE_VERB = "the verb half, which is a list"
 
 # The two limits of contract 5 section 7, which are normative, measured
 # and not defects: a spelling fewer rows than the floor wrote is pooled
@@ -3616,13 +4022,19 @@ def _scope_of(sentence: str, found: "re.Match[str]") -> "str | None":
     return None
 
 
-def _unscoped_denials_in(sentence: str) -> "list[str]":
-    """Every denial in one statement that names no place it holds in."""
-    loose: list[str] = []
-    for mark in _NOT_KEPT:
-        for found in re.finditer(mark, sentence):
-            if _scope_of(sentence, found) is None:
-                loose.append(found.group(0))
+def _unscoped_denials_in(sentence: str) -> "list[tuple[str, str]]":
+    """Every denial in one statement that names no place it holds in.
+
+    Each is returned with the half that reported it, because the two
+    are not worth the same: the place half read the claim, and the verb
+    half recognised a word somebody happened to use.
+    """
+    loose: list[tuple[str, str]] = []
+    for half, marks in ((_BY_THE_PLACE, _NO_PLACE_FOR_IT), (_BY_THE_VERB, _NOT_KEPT)):
+        for mark in marks:
+            for found in re.finditer(mark, sentence):
+                if _scope_of(sentence, found) is None:
+                    loose.append((found.group(0), half))
     return loose
 
 
@@ -3634,13 +4046,15 @@ def _names_your_word(sentence: str) -> "str | None":
     return None
 
 
-def _denies_retention(text: str) -> "list[tuple[str, str, str]]":
+def _denies_retention(text: str) -> "list[tuple[str, str, str, str]]":
     """Every sentence of one surface that denies what version 5 keeps.
 
     Returns the sentence, the wording that named the person's own typed
-    value, and the denial left without a scope -- so a failure message
-    shows a maintainer which two collided rather than telling them a
-    document is wrong somewhere.
+    value, the denial left without a scope, and which of the two halves
+    above reported it -- so a failure message shows a maintainer which
+    two collided rather than telling them a document is wrong somewhere,
+    and so a check on this function can hold it to HOW it recognised a
+    sentence and not merely to whether it did.
 
     Guarantees:
 
@@ -3651,7 +4065,7 @@ def _denies_retention(text: str) -> "list[tuple[str, str, str]]":
     - Errors raised: none.
     - Boundary: pure text; opens nothing.
     """
-    found: list[tuple[str, str, str]] = []
+    found: list[tuple[str, str, str, str]] = []
     statements = _STATEMENT_END.split(text)
     for index, sentence in enumerate(statements):
         named = _names_your_word(sentence)
@@ -3676,7 +4090,8 @@ def _denies_retention(text: str) -> "list[tuple[str, str, str]]":
                     said = f"{sentence}; {following}"
                     break
         if loose:
-            found.append((said, named, loose[0]))
+            denied, half = loose[0]
+            found.append((said, named, denied, half))
     return found
 
 
@@ -3698,10 +4113,46 @@ def _denies_retention(text: str) -> "list[tuple[str, str, str]]":
 #                              the unscoped half -- reds the floor;
 #   REINSTATE=A-P3-31-withheld the derivation made to claim the
 #                              description keeps none of it -- reds the
-#                              run-driven measurement.
+#                              run-driven measurement;
+#   REINSTATE=A-P3-41          the governing contract's retired worked
+#                              example, word for word as it shipped,
+#                              added to every surface -- reds the ban on
+#                              the sentence review item P3-V10-F1 found;
+#   REINSTATE=A-P3-41-verbs    the denial set as it shipped, which is
+#                              the verb half alone -- reds every case of
+#                              the floor that the place half is what
+#                              catches, and reds the residue check's
+#                              second half, where an invented verb is
+#                              caught three ways over by its place.
 _THE_RETIRED_CLOSE = (
     " for any other word you typed, keep a note of the command you ran; "
     "synthtwin will not keep one for you."
+)
+
+# The contract's worked example as it stood at review item P3-V10-F1: a
+# researcher reading section 6.2 was told they typed their own word and
+# that the document held it nowhere, in the document an institution's
+# reviewer opens first.
+_THE_RETIRED_EXAMPLE = (
+    " - the person typed `wombat`, which is their own word; the document "
+    "holds it nowhere, and `n_declared` counts it."
+)
+
+# The denial set as it shipped -- one tuple, every entry a verb, and the
+# place spelled only after the verb. This is what let the sentence above
+# through.
+_THE_SHIPPED_DENIALS = (
+    r"\b(?:written|recorded|held|kept|stored|published) nowhere\b",
+    r"\bnowhere at all\b",
+    r"\bnever (?:written|recorded|kept|stored|published)\b",
+    r"\bis not (?:written|recorded|kept|stored)\b",
+    r"\bare not (?:written|recorded|kept|stored)\b",
+    r"\bwill not keep\b",
+    r"\bdoes not keep\b",
+    r"\bnot retained\b",
+    r"\bkeeps none\b",
+    r"\brecords nothing\b",
+    r"\bno character\b[^.;]{0,60}\breaches\b",
 )
 
 
@@ -3741,6 +4192,16 @@ def _retention_reinstated(monkeypatch: pytest.MonkeyPatch) -> None:
             return None
 
         monkeypatch.setitem(globals(), "_scope_of", _whole_statement)
+    if asked == "A-P3-41":
+        kept_example = _text
+
+        def _with_the_example(relative: str) -> str:
+            return kept_example(relative) + _THE_RETIRED_EXAMPLE
+
+        monkeypatch.setitem(globals(), "_text", _with_the_example)
+    if asked == "A-P3-41-verbs":
+        monkeypatch.setitem(globals(), "_NO_PLACE_FOR_IT", ())
+        monkeypatch.setitem(globals(), "_NOT_KEPT", _THE_SHIPPED_DENIALS)
 
 
 def test_no_surface_denies_what_the_description_keeps_of_your_words() -> None:
@@ -3757,10 +4218,10 @@ def test_no_surface_denies_what_the_description_keeps_of_your_words() -> None:
     """
     offenders: list[str] = []
     for relative in RETENTION_SURFACES:
-        for sentence, named, denied in _denies_retention(_text(relative)):
+        for sentence, named, denied, half in _denies_retention(_text(relative)):
             offenders.append(
-                f"{relative}: {named!r} denied by {denied!r}\n"
-                f"      {sentence[:300]}"
+                f"{relative}: {named!r} denied by {denied!r} -- reported by "
+                f"{half}\n      {sentence[:300]}"
             )
     assert not offenders, (
         "These surfaces deny that synthtwin keeps a word the person "
@@ -3923,11 +4384,27 @@ def test_the_producer_writes_the_word_the_person_typed(
     )
 
 
-# The sentences this guard has to catch, kept as its own red cases. The
-# first five are what shipped, in the five wordings they shipped in; the
-# rest are shapes a review would write to walk through a narrower ban --
-# a paraphrase using none of those verbs, the possessive form, and the
-# denial split across a full stop.
+# THE FLOOR: every wording of this denial that is known, with the half
+# that has to catch each. Not a sample of them (review item P3-V10-F1).
+#
+# WHAT WAS WRONG WITH THE LIST THIS REPLACES. It called one of its own
+# cases "a paraphrase using none of those verbs" and then wrote
+# `stored`, which was the fifth entry of the verb list it claimed to
+# walk around. So the one case that said it proved the guard generalises
+# proved the opposite of nothing: it exercised the list. That is why
+# every case now carries the half that must report it, and why the check
+# asserts the half and not merely that something was reported -- a case
+# that claims the place half and is caught by a verb is exactly the
+# false assurance this file exists to refuse, and it now fails.
+#
+# WHAT IS HERE. The five sentences that shipped, in their own wordings;
+# the four the plan's own text describes -- the possessive form, the
+# split across a semicolon, the split across a full stop, and a
+# paraphrase now labelled as what it is; the contract sentence review
+# item P3-V10-F1 found, verb first and place last; the four wordings
+# that review named as missed -- omitted, excluded, discarded, left out;
+# and three that carry a verb no list holds, to show the place half
+# reading a claim rather than recognising a word.
 DENIALS_THAT_SHIPPED = (
     (
         "the summary's closing sentence, split across a semicolon",
@@ -3935,6 +4412,7 @@ DENIALS_THAT_SHIPPED = (
             "For any other word you typed, keep a note of the command "
             "you ran; synthtwin will not keep one for you."
         ),
+        _BY_THE_VERB,
     ),
     (
         "the summary's opening claim, scoped and then unscoped in one breath",
@@ -3942,6 +4420,7 @@ DENIALS_THAT_SHIPPED = (
             "A word of YOUR OWN is not written into its settings, and it "
             "is not written here."
         ),
+        _BY_THE_VERB,
     ),
     (
         "the security document's reason clause",
@@ -3950,6 +4429,7 @@ DENIALS_THAT_SHIPPED = (
             "or a free-text answer, because a value outside that list is "
             "written nowhere at all."
         ),
+        _BY_THE_PLACE,
     ),
     (
         "the security document's what-is-not-relaxed",
@@ -3957,10 +4437,12 @@ DENIALS_THAT_SHIPPED = (
             "A declared value that is not one of the thirteen is still "
             "recorded nowhere."
         ),
+        _BY_THE_PLACE,
     ),
     (
         "the contract's own invariant",
         "A declared value that is neither is written nowhere.",
+        _BY_THE_PLACE,
     ),
     (
         "the contract's what-a-reader-can-infer",
@@ -3968,6 +4450,7 @@ DENIALS_THAT_SHIPPED = (
             "It can never be a name, a code, a diagnosis or a free-text "
             "answer, because a value outside the list is never written."
         ),
+        _BY_THE_VERB,
     ),
     (
         "the plan's description of its own test",
@@ -3975,10 +4458,17 @@ DENIALS_THAT_SHIPPED = (
             "It checks that a word which is nobody's but the person's is "
             "written nowhere."
         ),
+        _BY_THE_PLACE,
     ),
     (
-        "a paraphrase using none of those verbs",
+        # This case used to be labelled "a paraphrase using none of
+        # those verbs" and it uses `stored`, which the shipped list held
+        # (review item P3-V10-F1). It is kept, because it is a real
+        # wording, and it is labelled as what it is. The cases that
+        # actually walk around the list are the three at the end.
+        "a paraphrase, in a verb the list does hold",
         "Any marker you type is never stored by synthtwin.",
+        _BY_THE_VERB,
     ),
     (
         "the denial split across a full stop",
@@ -3986,24 +4476,88 @@ DENIALS_THAT_SHIPPED = (
             "You may name a word of your own after --missing-value. It is "
             "never written."
         ),
+        _BY_THE_VERB,
+    ),
+    (
+        (
+            "the governing contract's worked example, which review item "
+            "P3-V10-F1 found -- the verb first and the place last"
+        ),
+        (
+            "The person typed WOMBAT, which is their own word; the "
+            "document holds it nowhere, and n_declared counts it."
+        ),
+        _BY_THE_PLACE,
+    ),
+    (
+        "omitted, which the shipped list did not hold",
+        "A value of your own is omitted.",
+        _BY_THE_VERB,
+    ),
+    (
+        "excluded, which the shipped list did not hold",
+        "The marker you typed is excluded.",
+        _BY_THE_VERB,
+    ),
+    (
+        "discarded, which the shipped list did not hold",
+        "A word of your own is discarded once the description is built.",
+        _BY_THE_VERB,
+    ),
+    (
+        # Deliberately not "left out of the description": that names a
+        # place, so the place half reads it and this case would stop
+        # measuring the verb it is here for.
+        "left out, which the shipped list did not hold",
+        "The word you typed is left out of everything synthtwin writes.",
+        _BY_THE_VERB,
+    ),
+    (
+        "a verb no list holds, put beyond every place there is",
+        "A word of your own is jettisoned, so it ends up nowhere.",
+        _BY_THE_PLACE,
+    ),
+    (
+        "a verb no list holds, with the places named one by one",
+        "A marker you type is smuggled into none of the files.",
+        _BY_THE_PLACE,
+    ),
+    (
+        "a verb no list holds, with the place named by exclusion",
+        "The value you typed stays outside the description.",
+        _BY_THE_PLACE,
     ),
 )
 
 
-@pytest.mark.parametrize("shape,passage", DENIALS_THAT_SHIPPED)
+@pytest.mark.parametrize("shape,passage,half", DENIALS_THAT_SHIPPED)
 def test_the_sixth_family_would_notice_the_assurance_it_replaced(
-    shape: str, passage: str
+    shape: str, passage: str, half: str
 ) -> None:
-    """Each false sentence is one this guard now reports.
+    """Each false sentence is one this guard now reports, and by which half.
 
     Run against `_denies_retention` directly rather than against a file,
     because what is held here is the RULE and not any surface's current
     wording.
+
+    THE HALF IS ASSERTED, AND THAT IS THE POINT OF THIS CHECK. A case
+    written to show that the guard reads a claim rather than recognising
+    a word proves that only if the place half is what reported it. The
+    list this replaced asserted neither, and its one generalisation case
+    was being caught by the verb list all along.
     """
     found = _denies_retention(" ".join(passage.lower().split()))
     assert found, (
         f"this sentence denies what the description keeps -- {shape} -- "
         f"and the guard reported nothing:\n  {passage}"
+    )
+    reported = {caught[3] for caught in found}
+    assert half in reported, (
+        f"this sentence is reported, but not by the half that has to "
+        f"read it -- {shape}.\n  {passage}\n  expected: {half}\n  "
+        f"reported by: {sorted(reported)}\n\nA case whose whole purpose "
+        f"is to show the guard reading a CLAIM proves nothing if a verb "
+        f"in the list is what caught it."
     )
 
 
@@ -4033,6 +4587,14 @@ def test_a_scoped_denial_is_read_as_the_true_sentence_it_is() -> None:
             "recorded nowhere."
         ),
         "on a free-text column the marker a person typed is written nowhere.",
+        # The three the widened rule had to be held against: each says
+        # its place in the same clause, in one of the new wordings.
+        (
+            "a word of your own that the floor pooled is left out of the "
+            "description."
+        ),
+        "a word of your own is omitted from the settings block.",
+        "below the floor the spelling you typed is in none of the files.",
     )
     caught = [
         sentence
@@ -4044,6 +4606,97 @@ def test_a_scoped_denial_is_read_as_the_true_sentence_it_is() -> None:
         "be able to write, every one of them true:\n  "
         + "\n  ".join(caught)
         + "\n\nNarrow the rule -- never add an exception list."
+    )
+
+
+# One verb no list here holds and no sentence of this repository uses.
+# It is deliberately not a synonym anybody would reach for: a synonym
+# would be an argument about whether the list should have held it, and
+# what is being measured is that the list is a LIST.
+_A_VERB_NO_LIST_HOLDS = "a word of your own is jettisoned by the profiler"
+
+
+def test_the_verb_half_is_a_list_and_this_is_its_residue() -> None:
+    """What the guard misses, at its size, and where the miss stops.
+
+    Review item P3-V10-F1 asked whether a denial can be recognised
+    structurally rather than by enumerating verbs. Half of it can, and
+    that half is asserted everywhere above. This is the other half,
+    written down rather than left to be found by the round after next.
+
+    THE RESIDUE. A denial whose negation sits on a verb the list does
+    not hold, naming no place at all, is missed. One sentence, asserted
+    to be missed, so the residue has a size instead of a hand-wave -- if
+    a later rule closes it, this line goes red and somebody says so in
+    the open rather than discovering the guard quietly grew.
+
+    WHERE THE MISS STOPS, which is the more useful half of the
+    measurement. The same invented verb is caught three times over the
+    moment the claim says WHERE: beyond every place, into none of the
+    named ones, or outside one of them. So what is missing is not "the
+    guard cannot read this verb" but "a claim that says nothing about
+    where has only its verb to be recognised by", which is a fact about
+    English and not about this file.
+    """
+    missed = _denies_retention(f"{_A_VERB_NO_LIST_HOLDS}.")
+    assert not missed, (
+        "The verb half has stopped being a sample -- this sentence is "
+        "now caught, and the residue this test records is smaller than "
+        f"it says:\n  {_A_VERB_NO_LIST_HOLDS}\n  reported: {missed}\n\n"
+        "That is good news and it is a change to what the guard "
+        "promises. Say so where the promise is written: the family's "
+        "own comment above, amendment A-P3-41 in the plan, and this "
+        "test."
+    )
+    for said in (
+        f"{_A_VERB_NO_LIST_HOLDS}, so it ends up nowhere.",
+        f"{_A_VERB_NO_LIST_HOLDS} and goes into none of the files.",
+        f"{_A_VERB_NO_LIST_HOLDS}, which leaves it outside the description.",
+    ):
+        caught = _denies_retention(" ".join(said.lower().split()))
+        assert caught, (
+            "The place half no longer reads a claim whose verb it does "
+            f"not know:\n  {said}\n\nThat is the half review item "
+            "P3-V10-F1 was closed with, and without it the guard is the "
+            "verb list again."
+        )
+        assert caught[0][3] == _BY_THE_PLACE, (
+            f"reported, but by {caught[0][3]!r} rather than by the place "
+            f"half:\n  {said}\n\nThe verb in this sentence is one no "
+            "list here holds, so a verb-half report means a list grew "
+            "and this measurement stopped measuring anything."
+        )
+
+
+def test_the_guard_that_shipped_passed_the_governing_sentence(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The measurement that made review item P3-V10-F1 blocking.
+
+    Both halves of it are here because both are the finding: the
+    sentence was in the governing contract, AND the family written one
+    commit earlier to forbid exactly that sentence reported nothing
+    about it. A repair that only fixed the contract would leave the
+    second half true and the next such sentence unopposed, so the
+    shipped denial set is kept as a constant and run against the shipped
+    sentence, in this file, forever.
+    """
+    said = " ".join(_THE_RETIRED_EXAMPLE.lower().split())
+    caught = _denies_retention(said)
+    assert caught and caught[0][3] == _BY_THE_PLACE, (
+        "The contract's own retired worked example is no longer caught, "
+        f"or is caught by the wrong half:\n  {said}\n  reported: "
+        f"{caught}"
+    )
+    monkeypatch.setitem(globals(), "_NO_PLACE_FOR_IT", ())
+    monkeypatch.setitem(globals(), "_NOT_KEPT", _THE_SHIPPED_DENIALS)
+    assert not _denies_retention(said), (
+        "The denial set as it shipped now reports this sentence, so the "
+        "constant recording what P3-V10-F1 measured has drifted from "
+        "what actually shipped. Fix the constant, not this assertion: "
+        "it is the evidence that a guard reading for verbs passed an "
+        "ordinary transitive denial in the one document an "
+        "institution's reviewer opens first."
     )
 
 

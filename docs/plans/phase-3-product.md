@@ -4760,7 +4760,7 @@ at all.
 
 **THE STALE CLAIM THAT MATTERED MOST, and it was in the governing
 document itself.** `docs/spec/profile-contract-v5.md` opened by saying
-the shipped producer wrote version 4, that the shipped loader read
+the shipped producer wrote version 4, that the shipped loader took
 version 4 and nothing else, and that nothing in it might be written
 about anywhere in this repository as though it were built. That
 paragraph is correct process — the specification is written before the
@@ -4997,7 +4997,16 @@ catches one of them:
   denial's own clause. The clause and not the statement is the unit,
   and that precision was measured: the summary's sentence scoped its
   first denial and left its second unscoped in the same breath, and a
-  whole-statement rule reads the first and passes the second;
+  whole-statement rule reads the first and passes the second.
+  **(AMENDED by A-P3-41: naming the four verbs is what this clause got
+  wrong. A denial is a claim that the word is not SOMEWHERE, and where
+  the negation sits on the place — "the document holds it nowhere",
+  "outside the description" — no verb is doing any work and the ban now
+  reads the claim without one. The verbs are a list only for the
+  denials that name no place at all, and that list's residue is stated
+  at its size in A-P3-41. This clause as written was measured false by
+  the sentence it was supposed to forbid: contract 5 section 6.2's own
+  worked example, which it passed.)**;
 - the denial may stand in the next statement, on A-P3-13's finding;
 - a run-driven test profiles a table holding a declared marker and
   reads the marker back out of the description AND the summary, and
@@ -5010,6 +5019,14 @@ catches one of them:
   form, the split across a semicolon and the split across a full stop —
   is asserted to be caught, while six true scoped sentences are
   asserted to stay sayable.
+  **(AMENDED by A-P3-41: "a paraphrase using none of those verbs" was
+  not one. The case behind that phrase read "never stored", and
+  `stored` was the fifth mark of the very list it claimed to walk
+  around — so the one case that said it proved the guard generalises
+  exercised the list instead. The floor is now seventeen wordings and
+  nine permitted sentences, every case carries the half that must
+  report it, and the check asserts that half: three of the seventeen
+  are built on verbs no list here holds.)**
 
 **WHAT THIS RAISES, MEASURED.** Eleven false or unscoped sentences
 corrected across seven surfaces, three of them governing; one screen
@@ -5343,13 +5360,22 @@ measured beside it: a column named there publishes no value of the table
 at all (section 6.10), so a re-run without it describes a column of
 record numbers like any other column and publishes its values under its
 own role's rules. `--first-row` decides what the column names are and
-whether the first row is a record; it changes what the description SAYS
-without publishing more, and it is named for that reason.
+whether the first row is a record.
+
+**THE PRICE THIS AMENDMENT PUT ON THE OTHER THREE WAS WRONG, and
+amendment A-P3-42 clause 1 corrects it.** This amendment said of
+`--first-row` that it "changes what the description SAYS without
+publishing more", and said nothing about what `--missing-value` and
+`--keep-value` publish beyond naming them among the five. All three
+publish, each was measured through the real producer, and the
+measurements are recorded in A-P3-42. What stands here is the two
+disclosures this amendment found; what does not stand is the claim that
+they were the only two.
 
 **THE REPAIR.** Contract 5 section 10.2 fixes R11's message word for
 word, so the repair is an amendment to that clause and it is taken here.
-The new wording names all five options, says which two change what the
-description PUBLISHES, gives the consequence of leaving either out in
+The new wording names all five options, says which of them change what
+the description PUBLISHES, gives the consequence of leaving one out in
 one sentence a non-programmer can act on, and sends the person to the
 summary page before either new file travels. The rule the clause now
 states is a RULE and not a list: R11 names every option of `synthtwin
@@ -5532,6 +5558,431 @@ description carries — and is the file a person actually reads; it is the
 one artifact with no frozen hash, which is why byte-for-byte diffing
 never forced anybody to look at it. The entry now says four and
 describes the fourth.
+
+**Amendment A-P3-39 — a built-in missing word a column publishes as the
+source of its holes is read as a hole on the measurement side too, so a
+table stops failing against its own description on a run with no options
+at all. THIS RAISES: twenty-eight missed obligations on a perfect match
+become none, and it lowers no obligation and no bound.** Owner ruling of
+2026-08-17 on review item P3-V10-F4, which the round-1 record had
+carried as acknowledged-open.
+
+**WHAT THE PLAN AND THE METHOD USED TO SAY, AND WHY ONE OF THEM WAS
+WRONG.** A-P3-35 named where pinning to blankness is still required and
+its first entry was "every non-blank built-in missing TEXT, on every
+description". The same amendment gives the reason the pin exists —
+residual R-P2-13, a generated value that legitimately IS the text of one
+of this package's own markers — and states its reach in one line: "that
+reason reaches every case in which the description passes no verdict on
+the cell". Validation method clause V2.4-A4 clause 2 says the same thing
+from the other side: a cell is absent to the measurement side when it is
+empty, or when it wears a spelling the description ITSELF publishes as
+the source of its holes. **A built-in word can be a key of
+`missing_by_source` like any other spelling, so the reason and the entry
+contradict each other. The reason is the part that stands.**
+
+**MEASURED, on the plainest run this product has.** One column of sixty
+numbers and twelve literal `n/a` cells, profiled with no options typed.
+The description publishes `n_present: 60`, `n_missing: 12` and
+`missing_by_source: {"n/a": 12}`. Validating that exact CSV against that
+exact description reported TWENTY-EIGHT obligations MISSED at exit 3 —
+both presence counts, both distinctness counts, `n_not_numeric`, eleven
+ladder rungs, three moments, the numeric-share and the published decimal
+style — each with the pinned reading's number printed beside the
+description's own. It now reports none. On a table wearing twelve cells
+of EVERY one of the nine non-blank built-in words the figure is the
+same: twenty-eight, and now none.
+
+**AND IT IS NOT R-P2-13's CORNER, which is what the round-1 record got
+wrong.** That residual is about a value the GENERATOR invents. This
+happens on the source table, on the default command, with nothing typed
+and nothing generated. Recording it as the collision residual's cost
+priced an ordinary defect as a known limit.
+
+**THE NARROWER BOUNDARY, PROVED RATHER THAN ASSERTED.** A built-in text
+stays pinned on a description no column of which publishes it as a hole
+source, and on such a description the pin cannot move a verdict on the
+file the description was written from. For the pin to reach a verdict on
+a column, that column's own description must publish its split (A-P3-5):
+every absent cell of it is blank, or is named by a key of
+`missing_by_source`. A cell the built-in table made absent is not blank,
+so it must be named by a key — and a named key is exactly what this
+amendment reads. The two cases are therefore exhaustive: either the
+spelling is published and it is unpinned, or the column pools it and
+A-P3-5 takes that column's verdicts from the file's own description. So
+what stays pinned is stated and asserted: every built-in missing TEXT on
+a description no column of which names it, every stand-in NUMBER on a
+description no column of which settles it, and the blank spelling
+everywhere, because a blank is absent under both readings.
+
+**WHAT IT COSTS.** R-P2-13's own shape on the first class of marker, and
+it is the third time this plan has taken that shape knowingly — A-P3-29
+took it for a built-in word the person declared, A-P3-35 for a stand-in
+number a column settles, and this takes the one route those two left. A
+twin whose invented values collide with a built-in word the description
+publishes as a hole source can have those cells counted as holes here.
+It needs the description to publish that word, so the table it came from
+wore it at or above the publication floor, and it needs the twin's own
+invention to land on that spelling in another column whose split is
+published. It is bounded by the cells wearing that word. **Measured: the
+twin of the witness description misses nothing, and neither does the
+twin of a four-column description whose marker column sits beside record
+numbers, labels and free text.**
+
+**How to reverse this.** `REINSTATE=P3-V10-F4` reads the published keys
+as naming nothing, which is the pin as it stood, and reds the witness,
+the settings assertion and the census.
+`tests/test_p3v10f4_named_markers_are_holes.py` carries it.
+
+**Amendment A-P3-40 — a file holding the description's own value has met
+the obligation, whatever the window around that value says. THIS RAISES:
+six false misses on the shipped source table become none, thirteen
+within-bound verdicts on the golden twin become HELD, and nothing moves
+to a worse verdict.** Owner ruling of 2026-08-17 on review item
+P3-V10-F5, which the round-1 record had carried as a wording case.
+
+**WHAT WAS WRONG.** Validation method V6.1 defines HELD as "the exact
+obligation was met" and WITHIN-BOUND as "an APPROXIMATED fact inside
+both ends of its cited G12 envelope", and never said which one wins when
+both fit. None of these windows is a margin around the published value —
+each is worked out from the description and the size of the column — so
+a window can lie wholly to one side of the value it stands beside, and
+G12.4's does at the top of an ordinary date ladder. The verdict was read
+off window membership alone, so a file holding the published value
+exactly was reported as having missed the obligation to hold it.
+
+**MEASURED, on the shipped source table checked against its own
+description.** `date-ladder.p99` printed "the description asks for:
+2024-12-24 / the file was found to hold: that same value" with MISSED
+above it. Four rungs of that one table did — `recorded_on.p99`, and
+`seen_on.p90`, `p95` and `p99` — and the cardinality envelope of a
+column of dates said the same thing in numbers on two more: "asks for 84
+(between 106.0 and 240.0) ... found 84.0: MISSED". **Six of the seven
+obligations that table missed against its own description were this one
+line printed six ways; after the repair one miss remains and it is an
+honest one, a cell spelled `10.00` where the canonical decimal text of
+its value is `10.0`.**
+
+**THE VERDICT IS WHAT IS REPAIRED.** The page-review repair of
+2026-08-15 made these lines legible — it added the sentence saying a
+window can miss the published value — and a legible contradiction is
+still a contradiction. So exact equality is tested first on every
+envelope the validator draws, the numeric ladder, the moments, the date
+rungs, the two datetime cardinality counts and the text-shape facts
+alike, and where the file holds the published value the verdict is HELD
+with the window explaining itself underneath. Both pages still say the
+same thing about the same window, which is what the cross-report
+agreement test asserts.
+
+**WHAT MOVED IN THE GOLDEN.** The demonstration twin's quality report:
+249 HELD / 49 WITHIN-BOUND became 262 / 36, with the same 300 checkable
+obligations, the same 97 not checkable, the same 2 authorized
+deviations, 0 withheld and 0 missed. Thirteen lines whose two values
+were already the same number now print that value without a window.
+
+**How to reverse this.** `REINSTATE=P3-V10-F5` puts both envelope
+functions back as they shipped, with the verdict read off window
+membership alone, and reds the source-table witness and the shipped-page
+property. `tests/test_p3v10f5_exact_equality_wins.py` carries it, and
+`tests/test_shipped_page_review.py` reads the same lever.
+
+**Amendment A-P3-41 — a denial is read by its PLACE and not only by its
+verb, and the governing contract stops telling a researcher that the
+word it kept is absent. THIS RAISES: the last unscoped denial on any
+governed surface is corrected, in the document an institution's reviewer
+opens first; the ban that was written to forbid that sentence now
+catches it, along with an unbounded class of wordings it used to miss;
+and the pre-write disclosure gains a check that can see what it
+asserts.** Owner ruling of 2026-08-17 on review items P3-V10-F1
+(blocking) and P3-V10-F7.
+
+**THE DEFECT, AND IT IS TWO THINGS AT ONCE.** Profile sixty numbers and
+twelve `WOMBAT` cells with `--missing-value WOMBAT`: the description
+publishes `"WOMBAT": 12` in that column's `missing_by_source`, and
+contract 5 section 6.2's worked example, describing that very command
+line, said the person typed `WOMBAT` and "the document holds it
+nowhere". That is A-P3-31's defect, word for word, surviving in the
+governing document — **and the family A-P3-31 added one commit earlier
+to forbid it returned nothing about it.**
+
+**WHY THE GUARD MISSED IT: it was reading for verbs.** Its denial set
+was eleven marks; ten of them named a verb, and the eleventh was
+`nowhere at all`, which needs those two extra words to fire. Only one
+mark mentions a place beside a verb, and it spells the place AFTER it —
+"written nowhere", "recorded nowhere". The contract's sentence is an
+ordinary transitive one, verb first and pronoun in the middle, so it
+matched neither. The same set
+missed "omitted", "excluded", "discarded" and "left out". **And the
+battery that was supposed to prove the guard generalised had one case
+labelled "a paraphrase using none of those verbs" which read "never
+stored" — `stored` being the fifth mark in the list it claimed to walk
+around. So the guard was never shown to generalise at all.**
+
+**WHAT IS BUILT, and it is a split rather than a longer list.** A denial
+is one claim — that the person's word is not somewhere — and English
+builds it two ways.
+
+- **The place half, and it reads no verb.** Where the negation sits on
+  the PLACE, the verb between them carries nothing: `nowhere` is a
+  negation and a place in one token, and "in none of the files",
+  "outside the description", "no copy of the profile", "not in the
+  summary" put an ordinary negation directly on a place a description
+  has. Read that way the claim is complete without the verb, so this
+  half catches EVERY verb, including ones nobody has written yet. Both
+  of its halves are closed: English negation is a handful of function
+  words, and the places are the document's own.
+- **The verb half, and it is a list.** Where the negation sits on the
+  verb and no place is named at all — "it is never written", "your word
+  is discarded" — the verb is the whole claim, and English has no closed
+  list of verbs for putting a thing somewhere or taking it away again.
+
+**MEASURED, over the 29 governed surfaces.** They hold 252 sentences
+that name the person's own typed value. The place half reports exactly
+one of them, and it is the contract's worked example; the widened verb
+half reports one more, contract section 6.6's sentence about what the
+settings block carries, which said "it" where it meant that block and so
+put its place in the paragraph instead of in the claim — a line that
+reads as the whole document the moment anybody quotes it on its own.
+Both are corrected here. No other sentence in
+the repository is reported, and the nine true scoped sentences the
+family asserts to stay sayable still do.
+
+**THE FLOOR NOW ASSERTS THE HALF, AND THAT IS THE POINT.** Seventeen
+wordings, each carrying the half that must report it: the five that
+shipped; the four shapes A-P3-31 named, with the mislabelled one renamed
+to what it is; the contract's own sentence; the four wordings this
+review named as missed; and three built on verbs no list here holds,
+which only the place half can read. A case written to show the guard
+reading a claim, and caught by a verb in the list, now fails.
+
+**THE RESIDUE, AT ITS SIZE, because the verb half cannot be closed by
+any rule.** A denial whose negation sits on a verb the list does not
+hold, naming no place at all, is missed.
+`test_the_verb_half_is_a_list_and_this_is_its_residue` states it as a
+measurement: one invented verb is asserted to be missed, and the same
+verb is asserted to be caught three times over the moment the claim says
+WHERE. So what remains is not "the guard cannot read this verb" but "a
+claim that says nothing about where has only its verb to be recognised
+by", which is a fact about English. A later rule that closes any of it
+reds that test and says so in the open.
+
+**AND THE PRE-WRITE DISCLOSURE IS NOW OBSERVED (P3-V10-F7).** The check
+that claimed the declared-word notice precedes the write read the
+finished screen: the marker somewhere on the error stream, "These two
+files will be written" before "Written:", and the profile existing when
+the run returned. All three are true of a run that writes both files
+FIRST and warns afterwards — the notice and the confirmation are on
+different streams, so their order is not on the transcript, and the two
+lines that ARE ordered are both synthtwin's own words about what it is
+going to do. The check now watches the output folder at the instant
+`_warn` is handed the notice and requires it to hold nothing but the
+table, so a working file under a temporary name fails it too. Production
+order was correct throughout; what moved is the evidence.
+
+**WHAT THIS LOWERS.** Nothing. No obligation narrows, no verdict moves,
+no publication rule changes, nothing is added to the settings block, and
+`GOLDEN_TWIN_SHA256`, `GOLDEN_DESCRIPTION_SHA256`,
+`GOLDEN_REPORT_SHA256` and `GOLDEN_QUALITY_SHA256` are untouched. The
+two corrected contract sentences say what C5-17's own scoping clause
+already said; what changes is that the worked example agrees with it.
+
+**How to reverse this.** `REINSTATE=A-P3-41` puts the contract's retired
+worked example back on every surface in memory and reds the ban;
+`REINSTATE=A-P3-41-verbs` puts the shipped denial set back — the verb
+half alone — and reds every floor case the place half is what catches,
+the residue check's second half, and the standing measurement that the
+shipped guard passed the shipped sentence.
+`REINSTATE=P3-V10-F7` builds the reviewer's own mutation, moving the
+notice to after the write and before the "Written:" line, and reds the
+one assertion that watches the folder while leaving the three the old
+check made green. `tests/test_claim_inventory.py` carries the first two
+and `tests/test_p3v9f1_declared_words_disclosed.py` the third.
+
+**Amendment A-P3-42 — the five conditions of the round 2 verification,
+in one ruling because they share one failure: a guard, a message or a
+test that named a class and covered a part of it. THIS RAISES what one
+refusal tells a researcher about their own confidentiality; narrows
+where the loader's floor walk reads, so a malformed file meets the
+refusal that fits it and no spelling of anybody's table reaches that
+sentence; widens the version ban to the arrangements English actually
+uses and states what it still cannot read; makes the structural-routing
+witness prove the route it names; and corrects who is said to have
+typed each spelling on the pre-write notice. It lowers nothing, moves
+no verdict and changes no byte of any output file.** Owner ruling of
+2026-08-17 on review items P3-V10-F2, F3, F6, F8 and F9.
+
+**Clause 1 — R11 prices EVERY option, because every one of them changes
+what the description publishes (P3-V10-F2).** A-P3-36 widened R11's
+message from two options to five and then priced two of them: "Each of
+those changes how synthtwin reads your table, and two of them change
+what the description PUBLISHES about it". Naming five options and
+excusing three tells a hurried reader which three they may safely
+forget, and the excuse is false. Each of the three was run through the
+real producer, twice, and the two descriptions compared:
+
+- **`--first-row`,** and it is the widest of the five because no floor
+  governs it. A file with no header row whose first line holds a code.
+  Under `--first-row data` the column is `column_1` and the code is one
+  free-text value among sixty, which a free-text column publishes
+  nowhere. Left out, automatic mode takes the first line for the column
+  NAMES by convention and the code IS the column's name, published in
+  full. A column name is not a value of the table, so the floor never
+  looks at it: one cell is enough.
+- **`--missing-value`.** Sixty readings and five cells holding `-100`,
+  named as "no value". Named, the five are absent, five is below the
+  floor and the number reaches no field of the description. Left out,
+  `-100` is a reading and it is the smallest one, so `percentiles.min`
+  publishes it, and so do `p01` and `p05`.
+- **`--keep-value`.** Sixty readings and twelve cells holding one of
+  synthtwin's own thirteen words, named as real data. Named, twelve of
+  the column's values are not numbers, the column reads as free text
+  and the description publishes not one value of it — no smallest, no
+  largest, no percentile, not the word. Left out, the column reads as
+  numbers and the description publishes the whole distribution of the
+  sixty readings AND the word itself as a `missing_by_source` key.
+
+Contract 5 section 10.2 fixes R11 word for word, so the repair is an
+amendment to C5-26 and it is taken here: the message now says every one
+of the five changes what the description PUBLISHES and gives the
+consequence of leaving each out. The rule the clause states is
+unchanged in shape and stronger in reach — an option added to the
+profiler joins the sentence in the commit that adds it, and joins the
+priced list too unless somebody can show it changes only the reading,
+which is what nobody could show for these three. The test holds the
+PRICING sentence to the same parser-derived set the naming assertion
+uses, so an option can no longer be named in the list and excused in
+the pricing.
+
+**Clause 2 — the floor's walk stops at a key the table decides, instead
+of reading past it (P3-V10-F3).** A-P3-32 stopped the walk reading such
+a key as one of synthtwin's own words, which closed the VALID document.
+The walk went on into the value under that key, so the confusion
+returned one step lower the moment the value was not a count:
+`missing_by_source: {"<a spelling>": {"n_missing_withheld": 2}}` was
+refused at a floor of one under C5-S13 — "this file has been changed
+since it was written" — in a sentence carrying the table's own
+spelling, and `levels[].variants` did the same. Two things were wrong
+at once: the person was sent to look for an edit that was not the
+trouble, and the walk whose own docstring promises that no value of the
+table is read or quoted was quoting one. What stands under a key the
+table decides is a COUNT (C5-N5), a count has nothing under it, and a
+value that is not one belongs to the rule that reads the entry's TYPE —
+which names the kind found and the kind required and quotes no value.
+The producer cannot write this shape and the loader refused it before
+and refuses it now, so strict acceptance has not loosened; what moved
+is which refusal a person meets and what it says.
+
+**Clause 3 — the version ban reads the ARRANGEMENT, and says what it
+still cannot read (P3-V10-F6).** The fifth family required subject,
+then verb, then version, in that order, so `Version 4 profiles are what
+synthtwin writes.` walked through a ban whose subject list, verb list
+and naming rule it satisfied outright. At a format bump the positive
+half is satisfied by one true sentence anywhere in the tree, so a stale
+sentence in that shape sits behind a green suite. The arrangement is
+what is closed and it is closed the way A-P3-41 closed the denial's
+place half: English fronts what a sentence is about in two shapes — the
+cleft (`version, subject, verb`) and the passive (`version, a PRESENT
+be-form, the verb as a thing done, `by`, subject`) — and the words that
+hold both together are function words. The fronted half stops at a
+clause join, because a version in one clause and a subject-verb pair in
+the next are two statements and not one claim; it was measured over all
+29 governed surfaces at every candidate width, and the adopted rule
+reports ZERO of them while catching eleven fronted bypasses. Three real
+sentences of this tree are now in the permitted set that protects the
+clause rule, R11's own message among them.
+
+**AND THE RESIDUE IS ASSERTED RATHER THAN IMPLIED**, in
+`test_the_version_ban_states_its_residue`. The verb is still a list and
+English has no closed one, so an invented verb is missed in both
+arrangements — and the same claim is asserted to be CAUGHT the moment
+it is written with a verb the list holds, so the miss is a statement
+about the list and not about a ban that stopped working. A claim
+written across a clause join is missed, which is the price of not
+reading R11's message as a stale claim. A claim broken by a line break
+is missed by both halves, deliberately, because neither window crosses
+a newline and two rows of a table must never read as one sentence; that
+one is the oldest of the three and had never been stated. The TENSE is
+read only as far as English marks it: `read` is present and past at
+once, so a history sentence putting a synthtwin subject beside a
+version across it is REPORTED — over-catching, which is the safe
+direction — and one sentence of this plan was in that shape and passing
+only because of where its line happened to wrap. It now says `took`, so
+nothing rests on a line break falling where it falls today.
+
+**Clause 4 — the structural-routing witness proves the structural route
+(P3-V10-F8).** `test_the_structural_test_still_catches_a_word_the_head_count_misses`
+named an integration and asserted a unit. Its witness was one column
+holding `XX` spelled two ways above the floor and `YY` pooled below it,
+and its comment said the head count came out level because two keys
+came back for two words named — true while the head counted KEYS, and
+false since A-P3-34 made it count DECLARATIONS. On that witness the
+head is SHORT and routes the column on its own: taking the structural
+CALL out of `unrebuildable_columns` left the column routed, the census
+identical to the byte and every integration assertion green, and only
+the direct call to the helper went red. The witness is replaced by one
+where the head CANNOT be what routes — one word named, published above
+the floor in one column, and worn in a second column by twelve cells
+spelled three ways, each spelling under the floor — and the head being
+level is asserted FIRST, before anything else is read. The mutation now
+empties the routing and moves 43 obligations back onto the checked
+census, and both numbers are asserted in both directions. `REINSTATE=P3-V10-F8`
+is the reviewer's own mutation and not the older `A-P3-29-T`: it leaves
+the helper in the module answering correctly, so a test whose evidence
+is a call to the helper stays GREEN under it and only a test that
+watches the routing or the census can notice.
+
+**WHAT THE ROUTE BUYS IS STATED AT ITS REAL SIZE, because it is smaller
+than the finding assumed.** The source table of the new witness passes
+every obligation either way: the recovered word folds onto all three
+spellings, so nothing is misread and the census reports no miss with
+the structural test or without it. What the route buys is that the
+description does not CLAIM to support a check it cannot prove it
+supports — it records that twelve cells of that column were made absent
+by a word somebody named, and does not record which spelling any of
+them wore. The old witness is kept beside the new one, relabelled with
+what actually routes it, and asserts the one thing the structural test
+still changes there: the SENTENCE the person is given.
+
+**Clause 5 — the pre-write notice counts the words you typed and lists
+the spellings your table wrote (P3-V10-F9).** `summary.words_of_your_own`
+returns one entry per spelling per column, which is the right list for
+a person looking for where their word went and the wrong COUNT for a
+sentence about what they did. One `--missing-value XX` over a table
+holding eleven `XX` cells and eleven `" xx "` cells opened with "Words
+you typed after --missing-value are written into the description" and
+closed by telling them to run again "without naming them". They named
+one word; the second spelling is their table's. The disclosure was
+complete and the attribution was wrong, and a careful reader acts on it
+by looking for an option they never gave. `summary.words_behind` groups
+the published spellings at the producer's own declaration identity,
+which is the rule `n_declared` counts by and the rule the validator
+brings a declaration back by. Both surfaces now write each clause from
+whichever of the two numbers it is about, and where the two differ,
+both say which side each line came from.
+
+**WHAT THIS LOWERS.** Nothing. No obligation narrows, no publication
+rule changes, no verdict moves, nothing is added to the settings block,
+and `GOLDEN_TWIN_SHA256`, `GOLDEN_DESCRIPTION_SHA256`,
+`GOLDEN_REPORT_SHA256` and `GOLDEN_QUALITY_SHA256` are untouched.
+Clause 2 changes which refusal a malformed document meets and no
+document's acceptance. Clauses 3 and 4 are guards and tests.
+
+**How to reverse this.** `REINSTATE=P3-V10-F2` puts the five-option,
+two-priced wording back behind the one door that file reads through,
+and reds the pricing assertion and the contract comparison while
+leaving the naming assertion green — which is the finding.
+`REINSTATE=P3-V10-F3` puts the shipped walk back, written out rather
+than described, and reds every assertion of its file except the two
+that prove the floor's own rule still bites.
+`REINSTATE=P3-V10-F6` puts the forward arrangement back as the only one
+read, and reds the fronted battery and the second half of the residue
+check. `REINSTATE=P3-V10-F8` takes the structural call out of the
+routing. `REINSTATE=P3-V10-F9` counts the lines instead of the words.
+`tests/test_p3v9f6_migration_names_every_option.py`,
+`tests/test_p3v10f3_the_walk_stops_at_the_tables_keys.py`,
+`tests/test_claim_inventory.py`,
+`tests/test_ap329_reading_rule_from_version_5.py` and
+`tests/test_p3v9f1_declared_words_disclosed.py` carry them in order.
 
 ## P3-D7. Repository claims, staged honestly
 
@@ -6289,9 +6740,31 @@ tests as bounded in P3-D8.3.
   and the producer's own per-column rule answers under the settings the
   description was written with. The entry stands struck rather than
   deleted, because it is the record of a limit this plan asserted for
-  two days and did not have. Where pinning IS still required — a
+  two days and did not have. ~~Where pinning IS still required — a
   built-in missing text, and a stand-in number no column settles — is
-  in A-P3-35 and asserted in the suite.
+  in A-P3-35 and asserted in the suite.~~ **That last sentence was
+  wrong about half of what it named and is corrected by A-P3-39**: a
+  built-in missing text stays pinned only on a description no column of
+  which publishes it as a hole source.
+- **New, and open at its own size: R-P3-11.** The two presence COUNTS
+  are read over the weaker publication amendment A-P3-5 clause 1 chose
+  for them — `missing_by_class` says how many of a column's holes are
+  non-blank, without saying what they spell — so a column whose
+  non-blank holes are POOLED below the publication floor still has those
+  two counts measured by blankness, and a real table wearing such holes
+  misses them against its own description. **Measured:** sixty numbers
+  with six `n/a` cells and six `N/A` cells at the default floor of
+  eleven. Neither spelling reaches the floor, so the column names no
+  source at all; the class map still names twelve non-blank holes; and
+  `presence.n_present` and `presence.n_missing` MISS while every
+  obligation that needs the spellings falls back to the file's own
+  description and HOLDS. **Exactly two obligations, never more, and the
+  suite pins that number.** It is not closed here because closing it
+  reverses A-P3-5 clause 1 rather than narrowing it: that clause bought
+  the weaker question deliberately, to keep the round-2 witness caught
+  on a column whose role publishes no spelling of its own, and the two
+  files at stake are told apart only by REPORT-ONLY facts. Which of the
+  two teeth to keep is an owner decision and not a repair.
 - **Closed here:** R3 (Phase 1), on the first release's evidence.
 - **Carried untouched:** R1, R2, R-P2-1 (still owner-flagged), and
   R-P2-2 through R-P2-14 — the ledger runs to FOURTEEN, not twelve,
