@@ -248,3 +248,29 @@ running.
   this is the phase the twin's one-column-wide bound waits on.
 - **Phase 6 - standalone build:** hardened, fully offline distribution
   for institutional machines. *Not started.*
+- **Phase 7 - the interface:** a screen a researcher can use without
+  typing a command - choose a table, run the workflow, read the report.
+  *Not started* (owner decision 2026-08-18). Principle 2 has always
+  promised that somebody who has never programmed can run the whole
+  workflow, and until this phase that promise is kept by a command line
+  with no configuration files and messages written for a person. This
+  phase is where it stops depending on a terminal at all.
+
+  Three constraints it inherits rather than chooses. It must be LOCAL:
+  principle 3 forbids network I/O, subprocess execution and dynamic code
+  loading in the product, so a hosted page is out - the whole point is
+  data that cannot leave the machine. It must not become a second way to
+  say things, so every sentence it shows comes from the same place the
+  reports and refusals come from, under the same claim guards. And it
+  wraps the three commands rather than reimplementing them, so a
+  defect can never be true of one surface and false of the other.
+
+  Its ordering against Phase 6 is deliberate and reversible: if both are
+  built, the standalone build should carry the interface rather than the
+  interface being bolted onto a shipped build. Whoever starts them
+  decides which comes first, and says so.
+
+  What it does NOT do: it makes no analysis easier to trust. A screen
+  makes the twin easier to reach, which makes the one-column-wide bound
+  easier to walk into - so it must state that bound where a person
+  meets the twin, not only in a document they may never open.
