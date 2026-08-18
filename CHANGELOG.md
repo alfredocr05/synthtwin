@@ -6,6 +6,49 @@ exists).
 
 ## [Unreleased]
 
+### Fixed in Phase 3: a description was said to keep a count where it keeps your word
+
+- **Two sentences the product shows said a description records how
+  MANY values you named, and denied the values** (plan amendment
+  A-P3-43 clauses 1 and 2). The rule the loader prints when it refuses
+  a description said the description records how many values were
+  declared and then denied your own text, naming no place; the refusal
+  that prints that rule said a version 5 description holds the count
+  and denied the identity, naming none either. Neither is true of the
+  description: a word you name with `--missing-value` is written
+  into the column's own description, character for character, wherever
+  at least the smallest group size of rows share it and that column
+  publishes values at all. Both sentences now say which block they are
+  about, and say where your own spelling does stand. The two option
+  helps on `--keep-value` and `--missing-value` said the same thing the
+  same way and now name the settings block as the place they are
+  talking about.
+- **The check that forbids those sentences could not see this one**
+  (plan amendment A-P3-43 clauses 1 to 3). It read a denial as "the
+  thing is not somewhere" and this is the other shape -- what is kept
+  is a REDUCTION of what was given -- so the sentence carried no denial
+  for it to find. Half of that shape can be read and now is. The other
+  half carries no negative word at all, cannot be read by any rule that
+  reads words, and is said so in as many words rather than implied: it
+  is refused instead by a rule that reads no verb, no negation and no
+  limiter and asks only whether a sentence about a value you typed says
+  WHERE.
+- **A refusal about a malformed description still printed a spelling
+  out of your table** (plan amendment A-P3-43 clause 5). The earlier
+  repair sent such a file to the refusal that fits it and left that
+  refusal naming the entry by its own key -- and in the two places the
+  format lets your table decide a key, the key is a spelling some cell
+  held. The entry is now named by what its keys are. No description
+  synthtwin writes was ever affected, and none is accepted that was
+  refused before.
+- **The version check now reads a claim whose number arrives after
+  "is"** (plan amendment A-P3-43 clause 4). A sentence of the shape
+  *the profile version synthtwin writes IS <an old number>* used the
+  ban's own version word, its own
+  subject and its own verb, and walked through because both
+  arrangements it read needed the version word and the number side by
+  side. What it still cannot read is written down and measured.
+
 ### Fixed in Phase 3: four guards and one message that covered part of what they named
 
 - **A malformed description was refused for the wrong reason, in a

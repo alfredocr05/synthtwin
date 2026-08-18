@@ -4312,8 +4312,9 @@ def _label_content(
                 f"{made_up} spellings that were held back",
                 f"{made_up} neutral spellings made up in their place",
                 "Those spellings were written by too few rows to publish, "
-                "so the twin keeps the count and the values distinct but "
-                "not the spellings themselves.",
+                "so the twin keeps the count and the values distinct; "
+                "below the floor the spellings themselves are in no "
+                "file synthtwin writes.",
             )
         ]
     number = 0

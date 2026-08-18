@@ -2037,7 +2037,8 @@ task somebody will lose.
    measured count", and "what a report can carry is one bit per column".
    The first half is true. The second is not, and `styles.canonical.
    <form>` is where it fails: it compares the exact number of cells of a
-   form that are not their own value's canonical text — a number the
+   form written in any way but the canonical text of the value in
+   them — a number the
    producer publishes about no file at any count, which is the very
    ground the ruling stands on — against the count the SUBMITTED
    description names. So the verdict flips at exactly that number.
@@ -4520,8 +4521,9 @@ disposes `missing_by_class` and `missing_by_source`.
 the Phase 1 settings-block rule, which is now in force rather than
 specified: the settings block names which members of this package's
 thirteen published words were typed, in the member's own spelling,
-written identically whether or not the word occurs, and it still
-carries no spelling of the person's own. Three tests state that at its
+written identically whether or not the word occurs, and the settings
+block still carries no spelling of the person's own. Three tests state
+that at its
 size rather than by assertion of good intent —
 `tests/test_p1r7f2_disclosure_is_true.py` checks that a word which is
 nobody's but the person's is written nowhere in that block, that the
@@ -4784,7 +4786,9 @@ retired sentence rather than spelling it.
 - **The shipped command line carried the retired confidentiality
   claim on both declaration options.** `--keep-value` and
   `--missing-value` each said the profile records how many values you
-  named and the rule that matched them, "never the values themselves".
+  named and the rule that matched them, and then denied the values
+  themselves in the settings block and everywhere else at once, without
+  naming either.
   From contract 5 section 6 that is false: the settings block names
   which of synthtwin's own thirteen published words were typed. This is
   the screen a person reads BEFORE deciding what to type, and it
@@ -5983,6 +5987,167 @@ routing. `REINSTATE=P3-V10-F9` counts the lines instead of the words.
 `tests/test_claim_inventory.py`,
 `tests/test_ap329_reading_rule_from_version_5.py` and
 `tests/test_p3v9f1_declared_words_disclosed.py` carry them in order.
+
+**Amendment A-P3-43 — a denial of retention is also written as a
+REDUCTION, and half of that shape cannot be read by any rule that reads
+words. THIS RAISES: the loader's own rule table and the two option helps
+stop telling a researcher that a description holds a count where it
+holds their spelling; the wording guard is re-derived on a model of the
+claim rather than extended with a fourth list; and the half that cannot
+be read lexically is refused by a census that reads no words at all,
+with its reach and its cost measured rather than asserted. It also adds
+a third arrangement to the version ban and closes the last door the
+wrong-type refusal used to put a spelling of somebody's table on the
+screen. It lowers nothing, moves no verdict and changes no byte of any
+output file.** Owner ruling of 2026-08-18 on review items P3-V11-F1
+(blocking), P3-V11-F2 and P3-V11-F3.
+
+**Clause 1 — THE HEADLINE, and it is a negative result. "We keep only Y
+of X" cannot be recognised soundly by reading words.** Three rounds
+running, a false retention claim reached a governed surface and the
+guard written to catch such claims reported nothing about it. This
+round's two sentences were in the loader's own rule table and in the
+refusal that prints it. The first said the description records how many
+values were declared and then denied the person's own text, naming no
+place at all; the second said a version 5 description holds the count
+and denied the identity, again naming none. Both are kept word for word
+in `_THE_SENTENCES_THAT_SHIPPED` in `tests/test_claim_inventory.py`,
+which is where a retired false sentence belongs — a governed surface
+that reproduces one is making it again. Neither says a thing is
+nowhere. Each says the description holds a QUANTITY where the person
+gave a VALUE, and the falsity is the reader's own inference. The first
+uses the guard's own listed verb, in one statement, with an existing
+value noun, so it was none of the four residues the guard had stated:
+the model of a denial was wrong, not short.
+
+The shape SPLITS, and both halves are now stated at their size:
+
+- **The half that can be read.** Where the sentence points at the
+  identity and negates it — a negator standing directly in front of
+  `which value it was`, of `the word itself`, or of the person's own
+  value named by possession — the negation is a function word and the
+  identity is named with the value nouns the family already composes
+  over. Closed on both halves, and now read.
+- **The half that cannot.** Strip the contrast and nothing in the
+  sentence is negative at all — a value the person typed, a retention
+  verb, a restrictive limiter and a quantity, and no negator anywhere;
+  the sentence itself is `_A_REDUCTION_WITH_NO_NEGATION` in
+  `tests/test_claim_inventory.py`, kept there for the same reason the
+  retired ones are. What makes it false is a judgement that a count is
+  a REDUCTION of what was given, and the words for a reduction are as
+  open a class as the verbs. The only other lexical handle is the
+  LIMITER, and that was measured before it was rejected: a rule
+  reporting a restrictive limiter in a statement naming the person's
+  own value fires on 28 statements of this tree and every one of them
+  is TRUE, because a limiter is what careful writing about a bound is
+  made of. A guard reporting two dozen true sentences is a guard
+  somebody switches off.
+
+**Clause 2 — the guard is re-derived on the claim's CONSTITUENTS, not
+extended with a fourth list.** A retention claim has three: the PLACE
+the thing would stand in, the ACT of putting it there or taking it
+away, and the OBJECT — the value, and its identity. A denial is a
+negation reaching one of the three, and English marks negation with a
+closed class of function words, so the closedness of each half is
+decided by its constituent and not by anybody's diligence. Negation on
+the place is closed and was A-P3-41's. Negation on the object is closed
+and is new. Negation on the act is a list, and stays one. Every floor
+case in `tests/test_claim_inventory.py` now carries the half that must
+report it, the new half included, and five reduction wordings are in
+that floor — two of them carrying a verb and a word for a quantity that
+no list in the file holds, which is what makes the half a claim about
+the object rather than a fourth list.
+
+The naming half gains one route for the same reason: a sentence
+contrasting `how many` with a negated `which` names the person's value
+with no value noun in it at all, and that pair IS the naming, which is
+why the loader's own refusal was invisible to the family for the
+NAMING's reason and not the denial's. That route is bound to
+a sentence that also says a DECLARATION is what is counted, because
+every other reduction this format publishes — pooled numeric styles,
+repeat counts — is written the same way and is true.
+
+**Clause 3 — the half that cannot be read lexically is refused
+STRUCTURALLY, by a census that reads no verb, no negation and no
+limiter.** Every sentence the product SHOWS that names the person's own
+value must name a place out of the producer's publication table: either
+a region the table says carries none of their text, or the path it says
+carries it. What the sentence then says about that place is the wording
+guard's business; a sentence that names no place has spoken for the
+whole description, and the whole description is the one thing about
+which no denial is true. It refuses by default, so a phrasing nobody has
+written yet is covered on the day somebody writes it.
+
+**ITS REACH IS ITS CORPUS, and the corpus is stated rather than
+implied.** Refusing by default is affordable exactly where the product's
+sentences are written down as DATA — one entry, one sentence, no
+assembly — and two tables are: `contract.INVARIANTS`, whose sentences a
+refusal prints, and the command line's own option help, which is the
+screen a person reads BEFORE deciding what to type after
+`--missing-value`. Both alternatives were measured and rejected in the
+open: over all of `RETENTION_SURFACES` the same rule reports 109 of the
+266 statements that name the person's value, most of them saying
+nothing about where anything goes; over the package's message literals
+it reports fragments rather than sentences, because a message is built
+from pieces at run time and half a sentence names no place by
+construction. The census found three sentences on landing — the C5-S7
+rule and both option helps — and every one of them was a reduction
+claim.
+
+**Clause 4 — the version ban reads a third arrangement (P3-V11-F3).**
+A-P3-42 clause 3 closed the cleft and the passive, and both were built
+out of `_NAMES_A_VERSION`, which is a rule about a NUMBER with the
+version word in front of it. So both required the two to stand
+together, and a sentence of the shape *the profile version synthtwin
+writes IS <a stale number>* walked through on the family's own version
+noun, its own subject and its own verb — the bypasses are written out
+in `test_the_ban_catches_a_claim_whose_number_arrives_after_a_copula`,
+which is where a sentence naming a stale version belongs. The
+predicative half reads the version as a NOUN and takes the
+number from a present copula, in the two orders the relative clause
+takes. The residue gains a fourth clause and it is the same fact about
+English as the first: the copula is a list too, so a number handed over
+by another verb — "comes to 4" — is missed, and the claim is caught the
+moment it is written with the copula everybody actually writes.
+
+**Clause 5 — the ordinary wrong-type refusal names no spelling of
+anybody's table (P3-V11-F2).** A-P3-42 clause 2 stopped the floor's walk
+descending through a key the table decides and stated its own boundary
+as "naming the kind and never the spelling", and did not deliver it:
+the refusal a person then met said `missing_by_source ->
+PRIVATE_DIAGNOSIS`, and `levels[].variants` did the same. Naming an
+entry by its own key is right everywhere the format keys a mapping on
+one of synthtwin's own published words — a percentile name, a UTC
+offset, a numeric style, a group size in figures — and wrong in the two
+mappings `canonical.TABLE_TEXT_KEY_SPACES` names, which is the one
+answer both halves of the product already share. `contract._entry_named`
+asks it, and where the table decides the keys the entry is named by what
+its keys are. The R16 out-of-range refusal goes through the same door,
+because it names the entry the same way. The producer cannot write this
+shape and the loader refused it before and refuses it now.
+
+**WHAT THIS LOWERS.** Nothing. No obligation narrows, no publication
+rule changes, no verdict moves, nothing is added to the settings block,
+and `GOLDEN_TWIN_SHA256`, `GOLDEN_DESCRIPTION_SHA256`,
+`GOLDEN_REPORT_SHA256` and `GOLDEN_QUALITY_SHA256` are untouched. The
+corrected sentences say what C5-17's own scoping clause and section
+3.2 way 4 already said. Clause 5 changes which words a refusal prints
+and no document's acceptance.
+
+**How to reverse this.** `REINSTATE=P3-V11-F1` puts the guard's model
+back as it stood — a negation may reach the place or the act, and the
+object is not a seat it can sit in — and reds the five reduction floor
+cases and the split the residue test states. `REINSTATE=P3-V11-F1-census`
+puts the three sentences the census was built to refuse back into its
+corpus, word for word as they shipped, and reds the census.
+`REINSTATE=P3-V11-F3` puts the two arrangements back that need the
+version word and the number side by side, and reds the predicative
+battery and the fourth residue clause. `REINSTATE=P3-V11-F2` puts back
+the naming that shipped — the key spelled out whatever mapping it
+stands in — and reds every assertion of its file except the two that
+hold the ordinary naming in place. `tests/test_claim_inventory.py`
+carries the first three and
+`tests/test_p3v11f2_no_refusal_quotes_your_spelling.py` the last.
 
 ## P3-D7. Repository claims, staged honestly
 

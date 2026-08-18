@@ -213,8 +213,11 @@ RELATIONSHIP_SLOTS = (
 # THE RULE: the settings block carries the POLICY -- how many values
 # were named each way, and the rule that matched them -- and never a
 # spelling of the person's own. That is what the settings block was
-# always for: a reader has to be able to tell WHICH RULES produced a
-# profile, never which values the table held. No per-column exemption is
+# always for: it tells a reader WHICH RULES produced a profile, and in
+# the settings block never which values the table held. A column's own
+# description is another matter and is section 3.2's, not this rule's:
+# a declared spelling stands there, which is why the denial above names
+# the block it holds in. No per-column exemption is
 # made, and the reasons are that a declaration is table-wide (one
 # spelling is compared against every cell of every column, so it could
 # only be published if it were publishable in all of them, free-text and
@@ -334,8 +337,8 @@ def _declaration_record(spellings: "tuple[str, ...]") -> dict[str, object]:
       same bytes (contract 5 C5-K2).
     - Errors raised: none.
     - Boundary: no spelling the person typed reaches the result, so
-      nothing they typed can travel out of this machine through the
-      settings block (review item P1-R7-F2). The two lists carry
+      nothing in the settings block can carry one out of this machine
+      (review item P1-R7-F2). The two lists carry
       MEMBERS of synthtwin's own published vocabulary and nothing else
       (contract 5 C5-17); `taxonomy.built_in_values_named` is the whole
       of the rule, and it reads no cell of any table, so the record is
@@ -607,8 +610,9 @@ PUBLICATION_RULES: "dict[tuple[str, ...], str]" = {
     ("n_rows",): _COUNT,
     ("n_columns",): _COUNT,
     # The settings: thresholds, counts and two tokens naming the rules
-    # in force. No spelling the person typed is here at all, which is
-    # what `DECLARATION_PUBLICATION` above says and this table checks.
+    # in force. No spelling the person typed is anywhere in the settings
+    # block, which is what `DECLARATION_PUBLICATION` above says and this
+    # table checks.
     ("settings",): _OBJECT,
     ("settings", "small_cell_floor"): _COUNT,
     ("settings", "identifier_uniqueness"): _NUMBER,

@@ -3199,6 +3199,95 @@ _THE_STALE_OPENING = (
 )
 
 
+# THE VERSION AS A NOUN, with no number attached to it. This is what the
+# third arrangement below needs and neither of the other two has: a
+# sentence can name the version, say whose it is, and only then give the
+# number, and the two words are then nowhere near each other.
+_A_VERSION_NOUN = (
+    r"(?:profile |description |document |format |wire |on-disk )?"
+    r"versions?\b"
+)
+
+# The present copula that hands the number over. `was` and `were` are
+# deliberately absent for the same reason they are absent from the
+# passive shape: "the version synthtwin wrote was 4" is history, and
+# history is not what this ban is drawn around.
+_AMOUNTS_TO = r"(?:is|are)\b"
+
+
+def _predicative_version_claim() -> "re.Pattern[str]":
+    """The PREDICATIVE half: the version named, the number supplied later.
+
+    THE DEFECT THIS EXISTS FOR (review item P3-V11-F3). The family read
+    two arrangements and both of them require the version WORD and the
+    version NUMBER to stand together, because both were built out of
+    `_NAMES_A_VERSION`, which is a rule about a number with `version` or
+    `v` in front of it. English does not require that:
+
+        The profile version synthtwin writes is 4.
+        The version this synthtwin reads is 4.
+        The description version the loader accepts is 4.
+
+    Each uses this family's own version noun, its own subject and its
+    own verb, in the ordinary arrangement that names a thing, says whose
+    it is and then says what it amounts to -- and each walked straight
+    through, because the number arrives after a copula with nothing in
+    front of it. At the next format bump one true sentence elsewhere
+    satisfies the positive half while one of these sits behind a green
+    suite saying the opposite on a governed surface.
+
+    So this half reads the version as a NOUN and takes the number from
+    the copula, in the two orders the relative clause can take:
+
+      * the zero relative or `that`/`which` -- the version noun, then
+        the subject, then the verb, then `is` and the number;
+      * the reduced passive -- the version noun, the verb as a thing
+        done, `by` and the subject, then `is` and the number.
+
+    Everything between stays inside one clause, on the fronted half's
+    own rule, so a version noun in one clause and a number in another
+    are two statements rather than one claim.
+
+    WHAT IT DOES NOT CLOSE is asserted in
+    `test_the_version_ban_states_its_residue`: the verb is still a list,
+    neither window crosses a clause join or a line break, and a claim
+    whose number arrives through a verb other than `is`/`are` -- "comes
+    to 4", "stands at 4" -- is a copula list and is missed.
+    """
+    number = (
+        r"(?:still |now |currently )?"
+        r"(?:version[ _-]*|v\.?[ ]?)?(?P<number>\d+)\b(?![\w-]|\.\d)"
+    )
+    return re.compile(
+        r"\b"
+        + _A_VERSION_NOUN
+        + r"(?:"
+        + _within_the_clause(40)
+        + r"\b"
+        + _WHO_IS_SYNTHTWIN
+        + r"\b"
+        + _within_the_clause(30)
+        + r"\b"
+        + _SPEAKING_IT
+        + r"\b"
+        + r"|"
+        + _within_the_clause(20)
+        + r"\b"
+        + _SPOKEN
+        + r"\b"
+        + _within_the_clause(20)
+        + r"by\s+"
+        + _WHO_IS_SYNTHTWIN
+        + r"\b"
+        + r")"
+        + r"\s+"
+        + _AMOUNTS_TO
+        + r"\s+"
+        + number,
+        re.IGNORECASE,
+    )
+
+
 def _subjectless_claim() -> "re.Pattern[str]":
     """The naming half alone, which is the ban drawn without a subject."""
     return re.compile(_naming_half(), re.IGNORECASE)
@@ -3216,7 +3305,15 @@ def _claim_patterns() -> "tuple[re.Pattern[str], ...]":
         return (_subjectless_claim(),)
     if os.environ.get("REINSTATE") == "P3-V10-F6":
         return (_version_claim(),)
-    return (_version_claim(), _fronted_version_claim())
+    if os.environ.get("REINSTATE") == "P3-V11-F3":
+        # The two arrangements this family shipped reading, which are the
+        # two that need the version word and the number side by side.
+        return (_version_claim(), _fronted_version_claim())
+    return (
+        _version_claim(),
+        _fronted_version_claim(),
+        _predicative_version_claim(),
+    )
 
 
 def _claims_in(text: str) -> "list[re.Match[str]]":
@@ -3439,6 +3536,15 @@ def test_the_version_ban_reads_history_and_refusals_as_permitted() -> None:
         # link the fronted shape is built out of.
         "the plan records version 4, that the loader reads nothing else.",
         "version 4 was what synthtwin wrote before the bump.",
+        # The three the PREDICATIVE half has to walk past (review item
+        # P3-V11-F3). The first is history, carried by a past copula the
+        # half does not read; the second is a sentence about a reader,
+        # which is deliberately not a synthtwin subject; the third names
+        # the version the older CONTRACT governs for, which is the rule
+        # that keeps that document a record.
+        "the version synthtwin wrote before the bump was 4.",
+        "the version a version 4 reader accepts is 4.",
+        "the version the version 4 document governs for is 4.",
     )
     shipped = _shipped_wire_version()
     caught = [
@@ -3557,28 +3663,94 @@ def test_the_ban_catches_a_claim_written_the_other_way_round() -> None:
     )
 
 
+def test_the_ban_catches_a_claim_whose_number_arrives_after_a_copula() -> None:
+    """THE FINDING (review item P3-V11-F3), and it is an ARRANGEMENT again.
+
+    Both arrangements the family read were built out of `_NAMES_A_VERSION`,
+    which is a rule about a NUMBER with the version word in front of it.
+    So both required the two to stand together, and
+
+        The profile version synthtwin writes is 4.
+
+    walked through on the family's own version noun, its own subject and
+    its own verb, in the ordinary English that names a thing and then
+    says what it amounts to. The cost is the same as last time and is not
+    hypothetical: one true sentence anywhere satisfies the positive half
+    while this one sits on a governed surface saying the opposite.
+
+    Every spelling of the subject and of the verb is asserted, in both
+    orders the relative clause takes.
+    """
+    shipped = _shipped_wire_version()
+    stale = shipped + 1
+    after_the_copula = (
+        f"The profile version synthtwin writes is {stale}.",
+        f"The version this synthtwin reads is {stale}.",
+        f"The description version the loader accepts is {stale}.",
+        f"The format version the producer emits is {stale}.",
+        f"The version the profiler produces is {stale}.",
+        f"The wire version the package writes is {stale}.",
+        f"The version the tool accepts is {stale}.",
+        # The same claim with the number spelled the other ways the
+        # naming half already reads.
+        f"The profile version synthtwin writes is v{stale}.",
+        f"The profile version synthtwin writes is version {stale}.",
+        f"The profile version synthtwin writes is still {stale}.",
+        # ... and the reduced passive, where the subject arrives last.
+        f"The version written by synthtwin is {stale}.",
+        f"The document version accepted by the loader is {stale}.",
+        f"The versions produced by the profiler are {stale}.",
+    )
+    missed = [
+        sentence
+        for sentence in after_the_copula
+        if not [
+            found
+            for found in _claims_in(sentence)
+            if int(found.group("number")) != shipped
+        ]
+    ]
+    assert not missed, (
+        "These sentences say synthtwin speaks a profile version it does "
+        "not, with the number handed over by a copula rather than "
+        "written against the version word, and the ban walks past "
+        "them:\n  " + "\n  ".join(missed) + "\n\nThe arrangement is what "
+        "has to be widened -- the subject list, the verb list and the "
+        "version noun already hold every one of these."
+    )
+
+
 def test_the_version_ban_states_its_residue() -> None:
     """What this ban does NOT read, measured rather than implied.
 
-    Three things stand open, and each is asserted here as a MISS so
-    that nobody reads the two arrangements above as coverage. A later
+    Four things stand open, and each is asserted here as a MISS so
+    that nobody reads the three arrangements above as coverage. A later
     rule that closes any of them reds this test, which is the point:
     the closing is then argued in the open instead of assumed.
 
     1. THE VERB IS A LIST, and English has no closed one for putting a
-       format on a wire. An invented verb is missed in both
-       arrangements -- and the same claim is caught the moment it is
+       format on a wire. An invented verb is missed in every
+       arrangement -- and the same claim is caught the moment it is
        written with a verb the list holds, which is what makes this a
        statement about the list rather than about the pattern.
     2. THE CLAUSE RULE CUTS BOTH WAYS. The fronted half stops at a
        clause join so that a number in one clause and a subject in the
        next are not read as one claim; the price is that a claim really
        written across a join is missed.
-    3. A LINE BREAK HIDES A CLAIM FROM BOTH HALVES. Neither window
-       crosses a newline, deliberately -- two rows of a table and two
-       items of a list must never be read as one sentence -- so a claim
-       that happens to wrap is missed. This is the oldest of the three
-       and was never stated.
+    3. A LINE BREAK HIDES A CLAIM FROM EVERY HALF. No window crosses a
+       newline, deliberately -- two rows of a table and two items of a
+       list must never be read as one sentence -- so a claim that
+       happens to wrap is missed. This is the oldest of the three and
+       was never stated.
+    4. THE COPULA IS A LIST TOO, and it arrived with the predicative
+       half (review item P3-V11-F3). That half takes the number from
+       `is` or `are`, because those are what a claim about today is
+       written with; a number handed over by any other verb -- "the
+       version synthtwin writes comes to 4", "stands at 4" -- is
+       missed. It is the same fact about English as the first: a list of
+       verbs is a sample. The half is not thereby worthless, because
+       the claim is caught the moment it is written with the copula
+       everybody actually writes, and that is asserted beside the miss.
 
     THE TENSE IS READ ONLY AS FAR AS ENGLISH MARKS IT, and that is the
     fourth thing. `read` is the same word in the present and the past,
@@ -3652,6 +3824,24 @@ def test_the_version_ban_states_its_residue() -> None:
         "The unwrapped form of that sentence is not caught either, so "
         "the assertion above is measuring nothing."
     )
+
+    # 4. The predicative half's copula, and where the miss stops.
+    another_copula = f"The profile version synthtwin writes comes to {stale}."
+    assert not stale_claims(another_copula), (
+        "The predicative half now takes its number from a verb other "
+        f"than `is` or `are`:\n  {another_copula}\n\nThat is good news "
+        "and it is a change to what this ban promises. Say so where the "
+        "promise is written: the half's own docstring, amendment "
+        "A-P3-43 in the plan, and this clause."
+    )
+    for sentence in (
+        f"The profile version synthtwin writes is {stale}.",
+        f"The version written by synthtwin is {stale}.",
+    ):
+        assert stale_claims(sentence), (
+            "The predicative half no longer reads its own copula, so "
+            "the miss asserted above is measuring nothing."
+        )
 
 
 # ---------------------------------------------------------------------
@@ -3732,14 +3922,79 @@ def test_the_version_ban_states_its_residue() -> None:
 # statement at a time reported nothing.
 #
 # WHAT THIS DOES NOT CLOSE, said here rather than left for the next
-# round, and amended by A-P3-41 because one of the three shrank. A
-# denial carried further than `_RETENTION_CARRY` is still missed. A
-# denial built from a verb the list below does not hold is still missed
-# WHEN IT NAMES NO PLACE -- where it names one, the place half reads it
-# whatever the verb, which is the half review item P3-V10-F1 bought and
+# round, and amended by A-P3-41 because one of the three shrank, and by
+# A-P3-43 because the model under it was wrong. A denial carried further
+# than `_RETENTION_CARRY` is still missed. A denial built from a verb the
+# list below does not hold is still missed WHEN IT NAMES NO PLACE --
+# where it names one, the place half reads it whatever the verb, which is
+# the half review item P3-V10-F1 bought and
 # `test_the_verb_half_is_a_list_and_this_is_its_residue` measures. The
 # naming half is a composition and not a phrase list, but the value
 # NOUNS it composes over are finite, and no finite list is sound.
+#
+# AND THE THIRD SHAPE, WHICH IS WHY THIS FAMILY WAS WRONG TWICE MORE
+# (review item P3-V11-F1; plan amendment A-P3-43). Everything above
+# models a denial as "the thing is not somewhere". A denial of retention
+# is also written the other way round -- AS A REDUCTION, saying what IS
+# kept and letting the reader work out what is not:
+#
+#     A value you typed is kept only as a count, not which value it was.
+#     The description records how many values were declared, and never
+#       the person's own text.
+#     A version 5 description keeps how many, never which.
+#
+# Not one of those says a thing is nowhere. Each says the description
+# holds a QUANTITY where the person gave a VALUE, and the false part is
+# the reader's own inference: that the identity went. The first of them
+# uses this family's own listed verb, in one statement, with an existing
+# value noun -- so it is none of the four residues stated above, and the
+# guard reported nothing about it. The model was wrong, not short.
+#
+# THE MODEL THAT REPLACES IT. A retention claim has three constituents:
+# the PLACE the thing would stand in, the ACT of putting it there or
+# taking it away, and the OBJECT -- the value, and its IDENTITY, which is
+# what a description publishes and what a count does not. A denial is a
+# NEGATION reaching one of the three, and English marks negation with a
+# closed class of function words. So the closedness of each half is
+# decided by its constituent and not by anybody's diligence:
+#
+#   * negation on the PLACE     -- closed on both halves. The negators
+#                                  are function words and the places are
+#                                  the document's own, derived below.
+#   * negation on the IDENTITY  -- closed on both halves. The negators
+#                                  are the same function words, and the
+#                                  identity of a value is named with the
+#                                  value nouns this family already
+#                                  composes over and with the four
+#                                  pro-forms English has for "which one
+#                                  it was". This is the reduction shape's
+#                                  recognisable half, and it is new.
+#   * negation on the ACT       -- a LIST, because the verbs are open.
+#
+# AND THE HALF OF THE REDUCTION SHAPE THAT CANNOT BE READ AT ALL, stated
+# as the headline of this repair rather than buried. Strip the contrast
+# and the sentence carries no negation whatever:
+#
+#     A value you typed is kept only as a count.
+#
+# What makes that false is a judgement that "a count" is a REDUCTION of
+# what was given, and the words for a reduction are as open a class as
+# the verbs: a count, a tally, how many, the number, the total, the
+# arithmetic, a summary. Reading the limiter instead of the complement
+# does not work either, and that was measured before it was rejected: a
+# rule reporting an unscoped `only`, `just`, `merely`, `solely` or
+# `alone` in any statement that names the person's own value fires on 29
+# statements of this tree today and every one of them is TRUE, because
+# a restrictive limiter is what careful writing about a bound is made
+# of. So this shape is refused STRUCTURALLY instead, by
+# `test_the_sentences_the_product_shows_say_where_your_word_stands`,
+# which reads no verb, no negation and no limiter at all: every sentence
+# the product SHOWS that names the person's own value must name a place
+# out of the producer's publication table. That census is default-deny
+# and it is affordable because its corpus is written down as DATA --
+# `contract.INVARIANTS` and the command line's own option help -- rather
+# than assembled from fragments at run time. Its reach and the reason it
+# stops where it does are asserted in that test.
 _SPELLING_KIND = profile._SPELLING
 
 
@@ -3810,6 +4065,16 @@ RETENTION_SURFACES = DEFENCE_SURFACES
 _A_VALUE = r"(?:word|value|spelling|text|marker|characters?)s?"
 _VALUE_GAP = r"(?:[a-z0-9'`\"()-]+ ){0,3}"
 
+# HOW ENGLISH MARKS A NEGATION, which is the one class in this whole
+# family that is closed by the language rather than by anybody's care.
+# Every half below composes over it: what differs between the halves is
+# WHICH constituent of the claim the negation is reaching, and that is
+# what decides whether the half is closed or is a sample.
+_A_NEGATOR = (
+    r"(?:not|never|nor|no|none of|nothing of|rather than|instead of)"
+)
+_JUST_THE_ONE = r"(?:the |a |any |its |their |your |which )?"
+
 # NAMING BY POSSESSION: the value noun tied to whoever typed it. Both
 # orders, because this repository writes both -- "a word of your own"
 # and "your own word" -- and the third form is the verb rather than the
@@ -3843,6 +4108,37 @@ _NOT_OURS = (
     rf"\b{_A_VALUE} that is neither\b",
     rf"\bany other {_A_VALUE}\b",
     rf"\bno other {_A_VALUE}\b",
+)
+
+# NAMING BY THE CONTRAST ITSELF (review item P3-V11-F1). "A version 5
+# description keeps how many, never which" names the person's value with
+# no value noun at all: the pair `how many` / `which` IS the naming,
+# because a quantity contrasted with an identity has nothing else it can
+# be about here. This is the naming half's answer to the reduction shape,
+# and it is written as a composition over the same closed negator class
+# rather than as a phrase somebody liked -- the second sentence review
+# item P3-V11-F1 found was invisible to the family for this reason and
+# not for the denial's.
+#
+# IT IS TIED TO A DECLARATION, and that bound is the whole of its
+# soundness. A quantity contrasted with an identity is an ordinary and
+# TRUE thing to say about the other reductions this format publishes --
+# "how often things repeat, never which things", "how many cells the
+# pooled style covered and never which form they took" -- and a naming
+# rule that read those would be reporting sentences about numeric styles
+# and repeat counts in a family about declared values. So the contrast
+# names the person's value only where the sentence also says that a
+# DECLARATION is what is being counted, in the words the product itself
+# uses for one.
+_HOW_MANY = r"\bhow (?:many|often|much)\b"
+_A_DECLARATION = (
+    r"(?:\bdeclar(?:ed|ation|ations)\b|--missing-value|--keep-value"
+    r"|\b(?:you|somebody|someone|a person|they|the person) "
+    r"(?:typed|named|wrote)\b)"
+)
+_NAMED_BY_THE_CONTRAST = (
+    rf"{_HOW_MANY}[^.;]{{0,80}}\b{_A_NEGATOR} {_JUST_THE_ONE}which\b",
+    rf"\b{_A_NEGATOR} {_JUST_THE_ONE}which\b[^.;]{{0,80}}{_HOW_MANY}",
 )
 
 # THE DENIAL, AND IT HAS TWO SHAPES THAT ARE NOT ALIKE (review item
@@ -3937,6 +4233,50 @@ _NOT_KEPT = (
     rf"\b(?:absent|missing) from {_THE_PAGE} {_A_PAGE}\b",
 )
 
+# SHAPE THREE: THE NEGATION SITS ON THE OBJECT'S IDENTITY, and the claim
+# is a REDUCTION -- what is kept is a quantity, and which value it was is
+# denied (review item P3-V11-F1). Both halves are closed.
+#
+# The negators are the same function words English builds every other
+# negation out of. The identity of a value is named two ways and no
+# more: with one of the value nouns this family already composes over,
+# marked as the thing ITSELF; or with the pro-form English uses when the
+# identity is the question -- `which`, `which value`, `what value`, `what
+# it was`. A count answers "how many"; these answer "which", and a
+# sentence that negates one of them is denying exactly the thing a
+# `missing_by_source` key carries.
+#
+# NO VERB IS READ HERE, and no word for a reduction either. "Kept only
+# as a count, not which value it was" is caught by `not which value`,
+# and would be caught the same way if it said hoarded, banked or
+# jettisoned, and if it said a tally, a headcount or the arithmetic.
+_THE_IDENTITY = (
+    r"which(?: one)?\b",
+    rf"which {_A_VALUE}\b",
+    rf"what {_A_VALUE}\b",
+    r"what it was\b",
+    r"what they were\b",
+    rf"{_A_VALUE} (?:itself|themselves)\b",
+)
+
+# AND THE VALUE ITSELF, negated in the same seat. "…and never the
+# person's own text" is the same claim as "…and never which value it
+# was", written with the value named instead of pointed at, and it is
+# the sentence review item P3-V11-F1 found in the loader's own rule
+# table. The naming used here is POSSESSION only -- `_YOURS`, not
+# `_NOT_OURS` -- and that is a measured bound, not a preference: naming
+# by exclusion reads "no word can take it outside that band", which is
+# a sentence about a random draw in three modules of this tree and
+# about nothing this family governs.
+_KEPT_ONLY_AS = tuple(
+    rf"\b{_A_NEGATOR} {_JUST_THE_ONE}{mark}" for mark in _THE_IDENTITY
+) + tuple(
+    rf"\b{_A_NEGATOR} {_JUST_THE_ONE}(?:{mark[2:]})"
+    if mark.startswith(r"\b")
+    else rf"\b{_A_NEGATOR} {_JUST_THE_ONE}(?:{mark})"
+    for mark in _YOURS
+)
+
 # Which of the two reported a denial, carried through the report so a
 # maintainer reading a failure knows whether the guard understood the
 # sentence or merely recognised a word in it -- and so the floor below
@@ -3945,6 +4285,7 @@ _NOT_KEPT = (
 # the defect P3-V10-F1 found in this file's own battery.
 _BY_THE_PLACE = "the place half, which reads no verb"
 _BY_THE_VERB = "the verb half, which is a list"
+_BY_THE_REDUCTION = "the identity half, which reads no verb and no limiter"
 
 # The two limits of contract 5 section 7, which are normative, measured
 # and not defects: a spelling fewer rows than the floor wrote is pooled
@@ -4022,6 +4363,21 @@ def _scope_of(sentence: str, found: "re.Match[str]") -> "str | None":
     return None
 
 
+def _the_three_halves() -> "tuple[tuple[str, tuple[str, ...]], ...]":
+    """The three constituents a negation can reach, and their marks.
+
+    One place, so that a half added here is a half every check in this
+    family gains and a red check can take one away. The order is the
+    order a maintainer should read them in: the two that are closed
+    first, and the list last.
+    """
+    return (
+        (_BY_THE_PLACE, _NO_PLACE_FOR_IT),
+        (_BY_THE_REDUCTION, _KEPT_ONLY_AS),
+        (_BY_THE_VERB, _NOT_KEPT),
+    )
+
+
 def _unscoped_denials_in(sentence: str) -> "list[tuple[str, str]]":
     """Every denial in one statement that names no place it holds in.
 
@@ -4030,7 +4386,7 @@ def _unscoped_denials_in(sentence: str) -> "list[tuple[str, str]]":
     half recognised a word somebody happened to use.
     """
     loose: list[tuple[str, str]] = []
-    for half, marks in ((_BY_THE_PLACE, _NO_PLACE_FOR_IT), (_BY_THE_VERB, _NOT_KEPT)):
+    for half, marks in _the_three_halves():
         for mark in marks:
             for found in re.finditer(mark, sentence):
                 if _scope_of(sentence, found) is None:
@@ -4039,8 +4395,22 @@ def _unscoped_denials_in(sentence: str) -> "list[tuple[str, str]]":
 
 
 def _names_your_word(sentence: str) -> "str | None":
-    """How this sentence names the value the person typed, or None."""
+    """How this sentence names the value the person typed, or None.
+
+    Three routes, and the third carries a bound the other two do not:
+    a quantity contrasted with an identity names the person's value only
+    where the sentence also says a DECLARATION is what is counted. Every
+    other reduction this format publishes -- pooled numeric styles,
+    repeat counts -- is written the same way and is true, so the bound
+    is what keeps this route from reporting them (review item
+    P3-V11-F1).
+    """
     for mark in _YOURS + _NOT_OURS:
+        if re.search(mark, sentence) is not None:
+            return mark
+    if re.search(_A_DECLARATION, sentence) is None:
+        return None
+    for mark in _NAMED_BY_THE_CONTRAST:
         if re.search(mark, sentence) is not None:
             return mark
     return None
@@ -4141,6 +4511,41 @@ _THE_RETIRED_EXAMPLE = (
 # The denial set as it shipped -- one tuple, every entry a verb, and the
 # place spelled only after the verb. This is what let the sentence above
 # through.
+# The three sentences the census was built to refuse, in the wordings
+# that shipped at review item P3-V11-F1 -- the loader's own rule for
+# `values_recorded`, and the two option helps that a person reads before
+# deciding what to type. Every one of them speaks about a declared value
+# and names no place, and not one of them contains a denial the wording
+# guard of that day could see.
+_THE_SENTENCES_THAT_SHIPPED = (
+    (
+        "contract invariant C5-S7, as it shipped",
+        (
+            "the description records how many values were declared, and "
+            "never the person's own text -- only which of synthtwin's "
+            "own published words were among them"
+        ),
+    ),
+    (
+        "the help for --keep-value, as it shipped",
+        (
+            "The profile records how many different values you named, "
+            "the rule that matched them, and -- where what you named is "
+            "one of synthtwin's own words for 'no value', such as NA or "
+            "-999 -- which of those words it was."
+        ),
+    ),
+    (
+        "the help for --missing-value, as it shipped",
+        (
+            "The profile also records how many different values you "
+            "named, the rule that matched them, and -- where what you "
+            "named is one of synthtwin's own words for 'no value' -- "
+            "which of those words it was."
+        ),
+    ),
+)
+
 _THE_SHIPPED_DENIALS = (
     r"\b(?:written|recorded|held|kept|stored|published) nowhere\b",
     r"\bnowhere at all\b",
@@ -4201,7 +4606,31 @@ def _retention_reinstated(monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setitem(globals(), "_text", _with_the_example)
     if asked == "A-P3-41-verbs":
         monkeypatch.setitem(globals(), "_NO_PLACE_FOR_IT", ())
+        monkeypatch.setitem(globals(), "_KEPT_ONLY_AS", ())
         monkeypatch.setitem(globals(), "_NOT_KEPT", _THE_SHIPPED_DENIALS)
+    if asked == "P3-V11-F1":
+        # The guard's model as it stood at review item P3-V11-F1: a
+        # denial is a negation reaching the PLACE or the ACT, and the
+        # OBJECT is not a seat a negation can sit in. Both halves of
+        # that model are put back -- the third set of marks and the
+        # naming route that reads a quantity against an identity.
+        monkeypatch.setitem(globals(), "_KEPT_ONLY_AS", ())
+        monkeypatch.setitem(globals(), "_NAMED_BY_THE_CONTRAST", ())
+    if asked == "P3-V11-F1-census":
+        # The corpus as it stood at the finding: the loader's rule table
+        # and the two option helps in the wordings that shipped, word
+        # for word. Written out rather than described, so the census is
+        # run against the sentences it was built to refuse rather than
+        # against an empty corpus -- a red check that empties a
+        # default-deny rule proves nothing about it.
+        kept = _the_products_own_sentences
+
+        def _as_they_shipped() -> "list[tuple[str, str]]":
+            return list(kept()) + list(_THE_SENTENCES_THAT_SHIPPED)
+
+        monkeypatch.setitem(
+            globals(), "_the_products_own_sentences", _as_they_shipped
+        )
 
 
 def test_no_surface_denies_what_the_description_keeps_of_your_words() -> None:
@@ -4527,6 +4956,44 @@ DENIALS_THAT_SHIPPED = (
         "The value you typed stays outside the description.",
         _BY_THE_PLACE,
     ),
+    # THE REDUCTION SHAPE (review item P3-V11-F1). The first is the
+    # sentence review wrote to show the model was wrong -- a listed
+    # verb, one statement, an existing value noun, and nothing the
+    # stated residues covered. The next two are the two sentences of the
+    # loader's own module. The last two carry a verb and a word for a
+    # quantity that no list here holds, which is what makes this half a
+    # claim about the OBJECT rather than a fourth list.
+    (
+        "the reduction, contrasted -- what review wrote to show the model",
+        "A value you typed is kept only as a count, not which value it was.",
+        _BY_THE_REDUCTION,
+    ),
+    (
+        "the loader's own rule table, as it shipped",
+        (
+            "The description records how many values were declared, and "
+            "never the person's own text."
+        ),
+        _BY_THE_REDUCTION,
+    ),
+    (
+        "the loader's own refusal, as it shipped",
+        "A version 5 description keeps how many values were declared, never which.",
+        _BY_THE_REDUCTION,
+    ),
+    (
+        "a reduction in a verb no list holds",
+        "A word of your own is jettisoned, and never the word itself.",
+        _BY_THE_REDUCTION,
+    ),
+    (
+        "a reduction to a quantity no list here names",
+        (
+            "The description banks a tally of the markers you typed, not "
+            "which marker it was."
+        ),
+        _BY_THE_REDUCTION,
+    ),
 )
 
 
@@ -4698,6 +5165,344 @@ def test_the_guard_that_shipped_passed_the_governing_sentence(
         "ordinary transitive denial in the one document an "
         "institution's reviewer opens first."
     )
+
+
+# THE HALF OF THE REDUCTION SHAPE THAT NO RULE READING WORDS CAN SEE,
+# and it is the headline of this repair rather than a footnote to it
+# (review item P3-V11-F1; plan amendment A-P3-43).
+_A_REDUCTION_WITH_NO_NEGATION = (
+    "a value you typed is kept only as a count"
+)
+
+# The limiters a rule for that shape would have to fire on, and the
+# measurement that killed the idea. Each of these is what precise
+# writing about a bound is MADE of, which is why the count below is what
+# it is.
+_RESTRICTIVE = (
+    r"\bonly\b", r"\bjust\b", r"\bmerely\b", r"\bsolely\b", r"\balone\b",
+    r"\bnothing but\b", r"\bno more than\b",
+)
+
+# Measured on this tree at the commit that wrote this line, over the
+# statements of `RETENTION_SURFACES` that name the person's own value.
+# It is asserted rather than quoted, so a tree that drifts away from it
+# fails here instead of leaving a number in a comment nobody rechecks.
+#
+# IT IS A FLOOR AND NOT AN EQUALITY, on purpose. The claim it carries is
+# that the count is LARGE -- that a limiter rule would have to speak
+# about this repository's ordinary careful prose -- and an equality
+# would red on every unrelated paragraph anybody writes, which is how a
+# measurement becomes a nuisance and then gets deleted. What has to red
+# is the count COLLAPSING, because that is the day the limiter rule
+# becomes worth having and this residue can close.
+_TRUE_SENTENCES_A_LIMITER_RULE_WOULD_REPORT = 28
+
+
+def test_the_reduction_that_carries_no_negation_cannot_be_read() -> None:
+    """THE HEADLINE. A reduction with no contrast is not lexically visible.
+
+    Review item P3-V11-F1 asked whether "we keep only Y of X" can be
+    recognised soundly. It SPLITS, and both halves are asserted here so
+    that neither is read as the other.
+
+    THE HALF THAT CAN. Where the sentence says which value it was and
+    negates that, the negation is a function word and the identity is
+    named with the value nouns this family already composes over. That
+    half is closed, it is `_KEPT_ONLY_AS`, and every wording of it is in
+    the floor above.
+
+    THE HALF THAT CANNOT, asserted as a MISS. Strip the contrast and
+    nothing in the sentence is negative at all:
+
+        A value you typed is kept only as a count.
+
+    What makes it false is a judgement that a count is a REDUCTION of
+    what was given, and the words for a reduction are as open a class as
+    the verbs -- a count, a tally, how many, the total, the arithmetic,
+    a summary, and whatever somebody reaches for next year. There is no
+    seat for a negation to sit in, so there is nothing for a rule about
+    negation to read.
+
+    AND THE ONE ALTERNATIVE IS MEASURED RATHER THAN WAVED AWAY. The only
+    other lexical handle is the LIMITER, and a rule reporting an
+    unscoped limiter in any statement that names the person's own value
+    fires on this tree's own true sentences at the size asserted below.
+    A guard that reports two dozen true sentences is a guard somebody
+    turns off, and turning it off is how the false sentence comes back.
+
+    SO THE SHAPE IS REFUSED STRUCTURALLY INSTEAD, by
+    `test_the_sentences_the_product_shows_say_where_your_word_stands`,
+    which reads no verb, no negation and no limiter and would report
+    this exact sentence.
+    """
+    said = f"{_A_REDUCTION_WITH_NO_NEGATION}."
+    missed = _denies_retention(said)
+    assert not missed, (
+        "A reduction carrying no negation is now caught by the wording "
+        f"guard:\n  {said}\n  reported: {missed}\n\nThat is a change to "
+        "what this family promises and it has to be argued in the open: "
+        "say what closed it, and say what it costs on the sentences "
+        "`test_a_scoped_denial_is_read_as_the_true_sentence_it_is` "
+        "requires this repository to be able to write."
+    )
+    # ... and the same claim IS caught the moment it says which value,
+    # which is what makes the miss a statement about the shape and not
+    # about the guard having stopped working.
+    contrasted = f"{_A_REDUCTION_WITH_NO_NEGATION}, not which value it was."
+    caught = _denies_retention(contrasted)
+    assert caught and caught[0][3] == _BY_THE_REDUCTION, (
+        "The contrasted half of the reduction shape is no longer read, "
+        f"or is read by the wrong half:\n  {contrasted}\n  {caught}"
+    )
+    # ... and the measurement that rules the limiter out. It counts
+    # STATEMENTS and reads no scope, so it measures the same thing under
+    # every red check in this file: how much of this tree a rule for the
+    # bare reduction would have to speak about.
+    would_report = 0
+    for relative in RETENTION_SURFACES:
+        for sentence in _STATEMENT_END.split(_text(relative)):
+            if _names_your_word(sentence) is None:
+                continue
+            if any(re.search(mark, sentence) for mark in _RESTRICTIVE):
+                would_report = would_report + 1
+    assert would_report >= _TRUE_SENTENCES_A_LIMITER_RULE_WOULD_REPORT, (
+        "The measurement this residue rests on has collapsed: a rule "
+        "reporting a restrictive limiter in a statement that names the "
+        f"person's own value now fires on {would_report} statements of "
+        "this tree, and the floor beside this test says "
+        f"{_TRUE_SENTENCES_A_LIMITER_RULE_WOULD_REPORT}. READ them "
+        "before touching the floor. If they have genuinely become few, "
+        "and each of them is a claim about what a description keeps, "
+        "the limiter rule is worth having, this residue can close and "
+        "the argument for closing it belongs in the plan. If the "
+        "statement splitter or the naming half moved instead, the "
+        "measurement is the thing that broke."
+    )
+
+
+# THE STRUCTURAL CENSUS, which is the answer to the half above. Every
+# sentence the PRODUCT SHOWS that names the person's own value must name
+# a place out of the producer's publication table -- a region the table
+# says carries none of their text, or the path it says carries it. It
+# reads no verb, no negation and no limiter, so no wording walks around
+# it; what it costs is that its corpus has to be enumerable, and that is
+# what fixes its reach.
+#
+# WHY THIS CORPUS AND NOT THE WHOLE TREE. Default-deny is affordable
+# exactly where the product's sentences are written down as DATA -- one
+# entry, one sentence, no assembly. Over the whole of
+# `RETENTION_SURFACES` the same rule would report 109 of the 266
+# statements that name the person's value, most of them saying nothing
+# about where anything goes, and over the package's message literals it
+# would report fragments rather than sentences, because a message is
+# built from pieces at run time and half a sentence names no place by
+# construction. Both were measured before this corpus was chosen.
+#
+# The two tables here are the two a researcher actually meets a
+# declaration through: the loader's own rule sentences, which are what a
+# refusal prints, and the command line's own option help, which is the
+# screen somebody reads BEFORE deciding what to type after
+# `--missing-value`.
+_THE_PRODUCTS_OWN_TABLES = ("the loader's rule table", "the option help")
+
+# A sentence ends at a full stop, a semicolon, a question or an
+# exclamation -- and NOT at an em-dash aside, unlike the wording guard
+# above. An aside is inside one sentence, and a census that cut there
+# would be reading half-claims (`the profile records how many values you
+# named -- where one is synthtwin's own word -- which of those it was`
+# is one claim, and the reader meets it as one).
+_SENTENCE_END = re.compile(r"(?<=[a-z0-9)\]\"'*`])[.;!?] ")
+
+
+def _carrying_places() -> "tuple[str, ...]":
+    """The names of the paths that DO carry the person's text.
+
+    Derived from the same publication rules the clean regions are
+    derived from, by taking the steps of every `_SPELLING` path rather
+    than the top-level blocks that hold none. So a sentence may answer
+    the census either way -- by naming a place that carries none of it,
+    or by naming the place it stands in -- and both answers move on the
+    commit that moves the format.
+    """
+    names: set[str] = set()
+    for path in _paths_that_carry_your_text():
+        for step in path:
+            if step in ("[]", "<key>"):
+                continue
+            names.add(step)
+            if step.endswith("s"):
+                names.add(step[:-1])
+    return tuple(rf"\b{name}\b" for name in sorted(names))
+
+
+def _the_products_own_sentences() -> "list[tuple[str, str]]":
+    """Every sentence written down as data that the product can show.
+
+    Guarantees:
+
+    - Inputs: none; reads the shipped loader's rule table and the
+      shipped command line's own option help.
+    - Determinism: sorted by table and then by the order each table
+      itself has.
+    - Errors raised: `AssertionError` from the check below where the
+      corpus comes back empty, because a census over an empty corpus
+      passes everything.
+    - Boundary: only this repository's own source is read, and no
+      command line is parsed and no argument acted on.
+    """
+    found: list[tuple[str, str]] = []
+    if "the loader's rule table" in _THE_PRODUCTS_OWN_TABLES:
+        for rule in sorted(contract.INVARIANTS):
+            found.append((f"contract invariant {rule}", contract.INVARIANTS[rule]))
+    if "the option help" in _THE_PRODUCTS_OWN_TABLES:
+        for option, said in _the_option_help():
+            found.append((f"the help for {option}", said))
+    return found
+
+
+def _the_option_help() -> "list[tuple[str, str]]":
+    """Each command-line option's own help, read off the shipped parser.
+
+    Read out of the module's own syntax rather than by building the
+    parser, because building it means running the function that reads a
+    command line, and this file may not do that to learn what a screen
+    says. A help written as a constant is followed to the constant, so
+    `--missing-value`'s -- which is held apart on purpose -- is read
+    whole.
+    """
+    said: list[tuple[str, str]] = []
+    source = ast.parse((PACKAGE / "cli.py").read_text(encoding="utf-8"))
+    for node in ast.walk(source):
+        if not isinstance(node, ast.Call):
+            continue
+        func = node.func
+        if not (isinstance(func, ast.Attribute) and func.attr == "add_argument"):
+            continue
+        named = "an option"
+        if node.args and isinstance(node.args[0], ast.Constant):
+            named = f"{node.args[0].value}"
+        for keyword in node.keywords:
+            if keyword.arg != "help":
+                continue
+            if isinstance(keyword.value, ast.Constant):
+                said.append((named, f"{keyword.value.value}"))
+            elif isinstance(keyword.value, ast.Name):
+                said.append((named, f"{getattr(cli, keyword.value.id)}"))
+    return said
+
+
+def test_the_sentences_the_product_shows_say_where_your_word_stands() -> None:
+    """THE STRUCTURAL HALF, and it reads no word list of any kind.
+
+    THE DEFECT THIS EXISTS FOR (review item P3-V11-F1). Three rounds
+    running, a false retention claim reached a governed surface and the
+    wording guard built to catch it missed the one that landed. Each
+    time the miss was a new SHAPE, and each time the repair was a better
+    model of denial. The third one -- a claim that what is kept is a
+    reduction of what was given -- has a half no model of denial can
+    reach, because the sentence carries no denial: it says what is kept
+    and stops.
+
+    SO THIS DOES NOT TRY TO RECOGNISE A DENIAL. It asks one question of
+    every sentence the product shows that mentions the person's own
+    value: does it say WHERE? A sentence that names a place out of the
+    producer's publication table -- either a region that carries none of
+    the person's text, or the path that carries it -- has answered, and
+    what it then says about that place is the wording guard's business.
+    A sentence that names no place has spoken for the whole description,
+    and the whole description is the one thing about which no denial is
+    true.
+
+    It refuses by default, so a phrasing nobody has written yet is
+    covered on the day somebody writes it, and no invented verb,
+    invented limiter or invented name for a quantity gets past it,
+    because it reads none of the three.
+
+    ITS REACH IS ITS CORPUS, and the corpus is stated rather than
+    implied: two tables that hold one sentence per entry. Why not more
+    is measured in the comment above this test and in
+    `test_the_reduction_that_carries_no_negation_cannot_be_read`.
+
+    THE RED CHECK. `REINSTATE=P3-V11-F1-census` empties the corpus,
+    which is what this guard's absence looked like, and reds this.
+    """
+    corpus = _the_products_own_sentences()
+    if _THE_PRODUCTS_OWN_TABLES:
+        assert corpus, (
+            "The census has no corpus, so it passes everything. Either "
+            "the loader's rule table or the command line's options have "
+            "moved out from under it."
+        )
+    places = _clean_places() + _carrying_places()
+    silent: list[str] = []
+    for seat, said in corpus:
+        for sentence in _SENTENCE_END.split(" ".join(said.lower().split())):
+            if _names_your_word(sentence) is None:
+                continue
+            if any(re.search(mark, sentence) is not None for mark in places):
+                continue
+            silent.append(f"{seat}: {sentence.strip()[:220]}")
+    assert not silent, (
+        "These sentences the product SHOWS speak about a value the "
+        "person typed and never say where it stands:\n  "
+        + "\n  ".join(silent)
+        + "\n\nA sentence about a declared value that names no place "
+        "speaks for the whole description, and the whole description is "
+        "the one thing about which no denial is true: the spelling goes "
+        "into a column's `missing_by_source`, character for character, "
+        "wherever at least `small_cell_floor` rows share it and the "
+        "column publishes values at all. Name a place in the sentence "
+        "-- the settings block, the two vocabulary lists, the floor, a "
+        "column that publishes nothing, or the column's own description "
+        "where the spelling really does stand. This check reads no verb "
+        "and no negation, so rewording will not satisfy it and is not "
+        "meant to."
+    )
+
+
+def test_the_census_reads_no_verb_and_no_word_for_a_quantity() -> None:
+    """What the census is, asserted against what a word list would be.
+
+    Three sentences, each a reduction, each written with a different
+    verb and a different word for the quantity, and none of them
+    carrying a negation at all. A word list catches none; this rule
+    catches all three, because it is not reading any of that.
+
+    The fourth is the same claim WITH its place, and it must pass --
+    otherwise the rule would be a ban on mentioning a declared value,
+    which is a ban this repository could not live under.
+    """
+    places = _clean_places() + _carrying_places()
+
+    def says_where(sentence: str) -> bool:
+        said = " ".join(sentence.lower().split())
+        if _names_your_word(said) is None:
+            return True
+        return any(re.search(mark, said) is not None for mark in places)
+
+    for silent in (
+        "A value you typed is kept only as a count.",
+        "The words you typed are banked as a tally and no more.",
+        "Synthtwin hoards the arithmetic of the markers you named.",
+    ):
+        assert not says_where(silent), (
+            f"the census stopped reporting a placeless claim:\n  {silent}"
+        )
+    for answered in (
+        (
+            "A value you typed is kept only as a count in the settings "
+            "block."
+        ),
+        (
+            "The word you typed stands in that column's "
+            "`missing_by_source`, character for character."
+        ),
+        "Below the floor the word you typed is pooled and named nowhere.",
+    ):
+        assert says_where(answered), (
+            "the census now reports a sentence that says where:\n  "
+            f"{answered}"
+        )
 
 
 def test_the_derivation_reads_the_producer_and_not_a_list() -> None:
