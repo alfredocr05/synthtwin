@@ -589,9 +589,9 @@ def _parse_arguments(argv: "list[str] | None") -> _Options:
             "those words it was; a word of your own is never written "
             "into the settings block, which is a rule about that block "
             "and not about the columns. And a value you name this way IS data "
-            "from then on, so it can appear wherever its column "
-            "publishes values, for instance as that column's smallest "
-            "number. May be given more than once"
+            "from then on, so the word itself can appear wherever its "
+            "column publishes values, for instance as that column's "
+            "smallest number. May be given more than once"
         ),
     )
     parser.add_argument(

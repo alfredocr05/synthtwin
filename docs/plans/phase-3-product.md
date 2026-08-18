@@ -6069,11 +6069,18 @@ repeat counts — is written the same way and is true.
 
 **Clause 3 — the half that cannot be read lexically is refused
 STRUCTURALLY, by a census that reads no verb, no negation and no
-limiter.** Every sentence the product SHOWS that names the person's own
-value must name a place out of the producer's publication table: either
-a region the table says carries none of their text, or the path it says
-carries it. What the sentence then says about that place is the wording
-guard's business; a sentence that names no place has spoken for the
+limiter.** **(AMENDED by A-P3-44: naming a place is not making a true
+claim about one, and leaving what the sentence then says to the wording
+guard left the census open on both sides — a claim naming the carrying
+place itself, and a claim answered by a place standing in a different
+claim of the same sentence. The census now checks the claim against
+what the table says stands in the place it ENTERS, and its corpus grew
+to the refusals the loader assembles. What stands below is what this
+clause said when it landed.)** Every sentence the product SHOWS that
+names the person's own value must name a place out of the producer's
+publication table: either a region the table says carries none of their
+text, or the path it says carries it. What the sentence then says about
+that place is the wording guard's business; a sentence that names no place has spoken for the
 whole description, and the whole description is the one thing about
 which no denial is true. It refuses by default, so a phrasing nobody has
 written yet is covered on the day somebody writes it.
@@ -6148,6 +6155,167 @@ stands in — and reds every assertion of its file except the two that
 hold the ordinary naming in place. `tests/test_claim_inventory.py`
 carries the first three and
 `tests/test_p3v11f2_no_refusal_quotes_your_spelling.py` the last.
+
+**Amendment A-P3-44 — naming a place is not making a true claim about
+it. THIS RAISES: the census reads the claim AGAINST what the producer's
+publication table says stands in the place that claim enters; the
+refusals the loader assembles come into its corpus, so a false
+reduction written into a clause is reported where a person would meet
+it; and three of the product's own sentences now say the spelling
+itself stands in the place they name. It lowers nothing, moves no
+verdict and changes no byte of any output file.** Owner ruling of
+2026-08-17 on review item P3-V12-F1 (blocking).
+
+**Clause 1 — the finding, and it is the fourth of its class.**
+A-P3-43 clause 3 refused the unreadable half of the reduction shape
+STRUCTURALLY: every sentence the product shows that names the person's
+own value had to NAME a place out of the publication table, and what
+the sentence then said about that place was left to the wording guard.
+That division does not hold, because the wording guard cannot read a
+reduction carrying no negation — which is the whole reason the census
+exists. So "names a place" was the entire check, and the reviewer
+walked through it twice against the shipped tree:
+
+- *the direct carrying place.* One sentence named the very path the
+  producer writes the spelling into, character for character, and said
+  a count stands there instead. The structural rule passed it because
+  that path is a recognised place; the wording guard reported nothing
+  because there is no negation in it.
+- *the unrelated clean place.* The other bounded what the description
+  keeps of a declared value, and answered with a clean place standing
+  in a different claim of the same sentence, about a different thing.
+
+Both are kept word for word in
+`_THE_SENTENCES_THAT_ANSWERED_WITH_A_PLACE` in
+`tests/test_claim_inventory.py`, which is where a retired false
+sentence belongs — a governed surface that reproduces one is making it
+again — with three more the same rule admits —
+the second bypass joined by a bare comma, the same claim with its
+subject dropped after a joining word, and a reduction at the carrying
+place carrying no limiter at all — and each is filed with the question
+it must fail by, so a case reported for the wrong reason fails there.
+The predicate as it shipped is kept as a function beside them and run
+against the first two, because the finding has two halves and a repair
+that only corrected the sentences would leave the second half true.
+
+**Clause 2 — the predicate is re-derived on the claim and the place
+together, and it is not a fifth pattern.** It asks three questions of
+every CLAIM — not of the sentence, because a sentence carries several
+and a place standing in one says nothing about the next — and answers
+all three out of the same publication table the first census was
+derived from:
+
+1. **Where.** A claim that ENTERS no place speaks for the whole
+   description, and the whole description is the one thing about which
+   no denial is true. Entering is not mentioning: `the settings block
+   records the rule` names the settings and puts nothing in them. The
+   difference is marked by a closed class of function words — the
+   prepositions that put a thing somewhere, and the two relative
+   adverbs that say where something happens — on the same footing as
+   the negators the denial halves are built from.
+2. **What stands there.** Where the claim enters a place the table says
+   CARRIES the person's text, the table has already said what stands
+   there: the spelling itself. So the claim has to say that, and a
+   claim that enters `missing_by_source` and says anything less is
+   refused without the rule reading what the less is. That is what
+   makes the repair a model of the claim rather than a fourth list: "a
+   count", "a tally", "the arithmetic" stay an open class and stay
+   unread.
+3. **Whether it bounds.** A restrictive limiter is English's own mark
+   that what follows is ALL there is, and it is closed. It may stand in
+   a claim bounded to a place carrying none of the person's text —
+   there the bound is true and this repository must be able to write it
+   — and not in a claim that bounds what is kept with no such place to
+   hold the bound. This question is asked of every claim of a sentence
+   that names the person's value anywhere in it, because English drops
+   the subject across a joining word.
+
+**Where a claim enters several places the answer is not guessed.** The
+claim is checked against every place it enters and the carrying place's
+question is the strict one, so a claim that enters both a clean room
+and a carrying place must satisfy the carrying place's question: what
+cannot be settled is refused rather than read charitably.
+
+**The two sets it reads are still derived, and the one list it gains is
+a CURE.** The rooms and the carrying places come from
+`profile.PUBLICATION_RULES` as before. Saying the spelling itself
+stands somewhere is marked by the intensive pronoun and one idiom this
+repository already writes, and that set can only refuse a true sentence
+until it says the plain thing — it can never pass a false one, because
+the census stays default-deny. The measured cost of the whole predicate
+over every governed surface is 266 claims, held as a floor of 250 in
+`test_the_census_would_report_this_tree_and_that_is_its_bound`, which is
+why the corpus is the corpus.
+
+**Clause 3 — the refusals the loader assembles come into the corpus.**
+A-P3-43 stopped at two tables on the reasoning that a message built
+from pieces at run time names no place by construction. That was the
+wrong reason: the PIECES are written down as data, one call site at a
+time, and the template that joins them is written down in `errors.py`,
+so the sentence a person reads is enumerable. Every refusal the loader
+can build — the invariant route and the five others, 130 call sites —
+is now assembled from the shipped pieces by the shipped template and
+censused whole. A piece filled in at run time is stood in for by a
+marker naming no place and no value, so a clause whose place is only
+ever supplied at run time must say the place in words; one did, and now
+does. The vacuity floor under it is in
+`test_the_census_reads_the_refusals_the_loader_assembles`: every route
+reaches the census, the call sites the syntax walk found are counted a
+second time by a plain text search of the same file, and one refusal a
+person meets is asserted present whole, its rule's words and its own
+clause joined.
+
+**What is still outside, stated rather than implied.** The corpus is
+the loader's. The messages `generate` and `validate` refuse with, and
+the pages the product writes, are assembled the same way and are not in
+it yet; the sixth family's wording guard walks all of them as text, and
+the census does not. That is the next corpus and not a claim that it
+cannot be one.
+
+**Clause 4 — three of the product's own sentences now say where.**
+C5-S7's rule text named the carrying place and left what stands there
+to a pronoun; it now says the spelling itself stands in a column's
+`missing_by_source`, which is the fact the whole family exists to keep
+visible. `--keep-value`'s help said a declared value can appear
+wherever its column publishes values, with the same pronoun; it now
+says the word itself can. The C5-K1 refusal's two clauses named the
+place only through a path filled in at run time; they now name the
+settings and either list. No rule changed, no document's acceptance changed, and
+each sentence says what contract 5 section 3.2 way 4 and section 6
+already said.
+
+**WHAT THIS LOWERS.** Nothing. No obligation narrows, no publication
+rule changes, no verdict moves, nothing is added to the settings block,
+and `GOLDEN_TWIN_SHA256`, `GOLDEN_DESCRIPTION_SHA256`,
+`GOLDEN_REPORT_SHA256` and `GOLDEN_QUALITY_SHA256` are untouched. The
+census reports strictly more than it did: every claim the old rule
+reported is still reported, and the two the reviewer walked through are
+now among them.
+
+**WHAT IT STILL MISSES, at its size.** A reduction carrying no limiter
+in a claim that DOES say the spelling itself stands in the carrying
+place is missed: both closed classes are satisfied and the falsity is
+again the reader's own inference. One sentence, held in
+`test_the_census_states_what_it_still_cannot_read` and asserted to be
+missed, with the two neighbouring wordings that ARE reported beside it,
+so the residue has a size and a boundary. A sentence that never names
+the person's value in this family's words is not examined at all, which
+is the naming half's own bound and is stated with the naming half. And
+a place entered and then taken back inside the same claim — "in the
+settings block or not" — answers, which is not new here: every scope
+mark in this family is cured by naming the scope, and only the
+withdrawn-defence family reads a withdrawal at all.
+
+**How to reverse this.** `REINSTATE=P3-V12-F1` puts the shipped
+predicate back — a place mentioned anywhere in the sentence answers —
+and reds the bypass battery, the residue measurement and the tree-wide
+bound. `REINSTATE=P3-V12-F1-census` puts the five sentences that walked
+through into the corpus, where a person would meet them, and reds the
+census. `REINSTATE=P3-V12-F1-corpus` takes the assembled refusals back
+out of the corpus and reds the floor under them.
+`REINSTATE=P3-V12-F1-clause` writes a reduction into one clause of one
+assembled refusal — the route the corpus gained this round — and reds
+the census. All four are in `tests/test_claim_inventory.py`.
 
 ## P3-D7. Repository claims, staged honestly
 

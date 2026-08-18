@@ -130,7 +130,15 @@ import pytest
 
 import dispositions
 import fixtures
-from synthtwin import cli, contract, profile, reading, summary, taxonomy
+from synthtwin import (
+    cli,
+    contract,
+    errors,
+    profile,
+    reading,
+    summary,
+    taxonomy,
+)
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
 PACKAGE = REPO_ROOT / "src" / "synthtwin"
@@ -4631,6 +4639,67 @@ def _retention_reinstated(monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setitem(
             globals(), "_the_products_own_sentences", _as_they_shipped
         )
+    if asked == "P3-V12-F1":
+        # The census's own predicate as it stood at review item
+        # P3-V12-F1: a place MENTIONED anywhere in the sentence
+        # answered, whatever the sentence then said about it.
+        monkeypatch.setitem(
+            globals(), "_speaks_falsely_of_the_place", _a_place_was_mentioned
+        )
+    if asked == "P3-V12-F1-census":
+        # The two sentences the reviewer walked the shipped rule through,
+        # put where a person would meet them: in the corpus itself.
+        kept_corpus = _the_products_own_sentences
+
+        def _with_the_bypasses() -> "list[tuple[str, str]]":
+            walked = [
+                (what, said)
+                for what, said, _why in _THE_SENTENCES_THAT_ANSWERED_WITH_A_PLACE
+            ]
+            return list(kept_corpus()) + walked
+
+        monkeypatch.setitem(
+            globals(), "_the_products_own_sentences", _with_the_bypasses
+        )
+    if asked == "P3-V12-F1-corpus":
+        # The corpus as it stood: two tables, and the refusals the
+        # loader assembles left outside it.
+
+        def _two_tables_only() -> "list[tuple[str, str]]":
+            return []
+
+        monkeypatch.setitem(
+            globals(),
+            "_THE_PRODUCTS_OWN_TABLES",
+            ("the loader's rule table", "the option help"),
+        )
+        monkeypatch.setitem(
+            globals(), "_the_refusals_the_loader_assembles", _two_tables_only
+        )
+    if asked == "P3-V12-F1-clause":
+        # A reduction written into one clause of one refusal, which is
+        # the route the corpus gained this round: the clause is written
+        # down at a call site, the sentence a person reads is assembled
+        # from it, and nothing else in this file would report it.
+        kept_refusals = _the_refusals_the_loader_assembles
+
+        def _with_a_reduction_in_a_clause() -> "list[tuple[str, str]]":
+            written = errors.profile_invariant_broken(
+                "C5-S7",
+                contract.INVARIANTS["C5-S7"],
+                "in the block of rules that produced the description",
+                "the record says the declared values were kept",
+                _A_REDUCTION_WITH_NO_NEGATION,
+            )
+            return list(kept_refusals()) + [
+                ("the refusal a maintainer would have written", written)
+            ]
+
+        monkeypatch.setitem(
+            globals(),
+            "_the_refusals_the_loader_assembles",
+            _with_a_reduction_in_a_clause,
+        )
 
 
 def test_no_surface_denies_what_the_description_keeps_of_your_words() -> None:
@@ -5281,29 +5350,126 @@ def test_the_reduction_that_carries_no_negation_cannot_be_read() -> None:
 
 
 # THE STRUCTURAL CENSUS, which is the answer to the half above. Every
-# sentence the PRODUCT SHOWS that names the person's own value must name
-# a place out of the producer's publication table -- a region the table
-# says carries none of their text, or the path it says carries it. It
-# reads no verb, no negation and no limiter, so no wording walks around
-# it; what it costs is that its corpus has to be enumerable, and that is
-# what fixes its reach.
+# sentence the PRODUCT SHOWS that names the person's own value is
+# checked against what the producer's publication table says stands in
+# the place that sentence puts it in. It reads no verb, no denial and
+# no word for a quantity, so no wording walks around it; what it costs
+# is that its corpus has to be enumerable, and that is what fixes its
+# reach.
+#
+# WHAT IT ASKED FIRST, AND WHY THAT WAS NOT A CHECK (review item
+# P3-V12-F1). The first census asked whether a sentence NAMED a place
+# out of the publication table -- a region carrying none of the
+# person's text, or a path carrying it -- and stopped there, on the
+# reasoning that what the sentence then said about that place was the
+# wording guard's business. But the wording guard cannot read a
+# reduction that carries no negation; that is the finding above and it
+# has not changed. So "names a place" was the whole of the check, and
+# naming a place is not making a true claim about one. Two sentences
+# walked straight through, both reproduced against the shipped tree and
+# both kept in `_THE_SENTENCES_THAT_ANSWERED_WITH_A_PLACE` below:
+#
+#     In `missing_by_source`, a value you typed is kept only as a count.
+#
+# which enters the one place the producer's table says the spelling
+# stands in, character for character, and says a count stands there
+# instead; and
+#
+#     The settings block records the rule, and the description keeps
+#     only a tally of a value you typed.
+#
+# which answers with a place standing in a different claim of the same
+# sentence, about a different thing.
+#
+# SO THE PREDICATE IS RE-DERIVED ON THE CLAIM AND THE PLACE TOGETHER,
+# and it is derived from the same publication table as before rather
+# than from a fourth list of wordings. Three questions, asked of every
+# CLAIM -- not of the sentence, because a sentence carries several and
+# a place standing in one of them says nothing about the next:
+#
+#   1. WHERE. A claim that ENTERS no place speaks for the whole
+#      description, and the whole description is the one thing about
+#      which no denial is true. Entering is not mentioning: `the
+#      settings block records the rule` names the settings and puts
+#      nothing in them, which is exactly how the second bypass answered
+#      for a claim it had nothing to do with. English marks entering
+#      with a closed class of function words, the same way it marks
+#      negation, and that class is `_WHERE_IT_GOES` below.
+#
+#   2. WHAT STANDS THERE. Where the claim enters a place the table
+#      says CARRIES the person's text, the table has already said what
+#      stands there: the spelling itself, character for character. So
+#      the claim has to say that. A claim that enters `missing_by_source`
+#      and says anything less is refused without the rule reading what
+#      the less is -- which is the whole point, because "a count", "a
+#      tally", "the arithmetic" and whatever somebody reaches for next
+#      year are an open class and the reason the wording guard cannot
+#      close this shape.
+#
+#   3. WHETHER IT BOUNDS. A restrictive limiter -- `only`, `just`,
+#      `merely`, `solely`, `alone` -- is English's own mark that what
+#      follows is ALL there is, and it is closed. It may stand in a
+#      claim bounded to a place that carries none of the person's text,
+#      because there the bound is true and this repository has to be
+#      able to write it. It may not stand in a claim that bounds what
+#      is kept with no such place to hold the bound. This question is
+#      asked of every claim of a sentence that names the person's value
+#      anywhere in it, because English drops the subject across a
+#      joining word -- `never written into the settings block and
+#      counted only as a tally` is two claims about one value.
+#
+# WHICH PLACE A CLAIM IS ABOUT, WHERE IT ENTERS SEVERAL, is not
+# guessed. The claim is checked against every place it enters, and the
+# carrying places' question is the strict one, so a claim that enters
+# both a clean room and a carrying place must satisfy the carrying
+# place's question: a sentence whose subject cannot be settled is
+# refused rather than read charitably.
+#
+# WHAT THIS STILL MISSES, at its size and written down rather than
+# waited for:
+#
+#   * A reduction carrying no limiter in a claim that DOES say the
+#     spelling itself stands there -- "the word itself is kept in
+#     `missing_by_source` as a count" -- is missed. Both closed classes
+#     are satisfied and the falsity is again the reader's inference.
+#     The measurement in
+#     `test_the_census_states_what_it_still_cannot_read` holds that
+#     residue at one sentence.
+#   * A sentence that never names the person's value in this family's
+#     words is not examined at all, which is the naming half's own
+#     bound and is stated with the naming half.
+#   * A place entered and then taken back inside the same claim -- "in
+#     the settings block or not" -- answers, because reading the taking
+#     back means reading a negation the claim never puts on the place.
+#     That is not new here: every scope mark in this family, including
+#     the wording guard's, is cured by naming the scope, and the fourth
+#     family's `_withdrawn_in` is the only place a withdrawal is read
+#     at all.
 #
 # WHY THIS CORPUS AND NOT THE WHOLE TREE. Default-deny is affordable
-# exactly where the product's sentences are written down as DATA -- one
-# entry, one sentence, no assembly. Over the whole of
-# `RETENTION_SURFACES` the same rule would report 109 of the 266
+# exactly where the product's sentences are enumerable. Over the whole
+# of `RETENTION_SURFACES` the same rule would report scores of the
 # statements that name the person's value, most of them saying nothing
-# about where anything goes, and over the package's message literals it
-# would report fragments rather than sentences, because a message is
-# built from pieces at run time and half a sentence names no place by
-# construction. Both were measured before this corpus was chosen.
+# about where anything goes; that measurement is in
+# `test_the_census_would_report_this_tree_and_that_is_its_bound`.
 #
-# The two tables here are the two a researcher actually meets a
-# declaration through: the loader's own rule sentences, which are what a
-# refusal prints, and the command line's own option help, which is the
-# screen somebody reads BEFORE deciding what to type after
-# `--missing-value`.
-_THE_PRODUCTS_OWN_TABLES = ("the loader's rule table", "the option help")
+# THE THIRD TABLE, WHICH THE FINDING ASKED FOR. A refusal a person
+# reads is not written down anywhere as a sentence: the loader hands a
+# rule and two clauses to a template in `errors.py`, and the sentence
+# exists only on the screen. That was the reason the first census
+# stopped at two tables -- and it was the wrong reason, because the
+# PIECES are written down as data, one call site at a time, and the
+# template that joins them is written down too. So the refusals are
+# assembled here from the shipped pieces by the shipped template and
+# censused whole. A run-time piece -- a count, a key out of the file --
+# is stood in for by `_FILLED_IN_LATER`, which names no place and no
+# value, so a clause whose place is only ever supplied at run time must
+# say the place in words. One did, and now does.
+_THE_PRODUCTS_OWN_TABLES = (
+    "the loader's rule table",
+    "the option help",
+    "the refusals the loader assembles",
+)
 
 # A sentence ends at a full stop, a semicolon, a question or an
 # exclamation -- and NOT at an em-dash aside, unlike the wording guard
@@ -5313,6 +5479,160 @@ _THE_PRODUCTS_OWN_TABLES = ("the loader's rule table", "the option help")
 # is one claim, and the reader meets it as one).
 _SENTENCE_END = re.compile(r"(?<=[a-z0-9)\]\"'*`])[.;!?] ")
 
+# WHERE ONE CLAIM ENDS AND THE NEXT BEGINS, and it is the file's own
+# notion of a joining word rather than a second one: `_CLAUSE_CLOSES`
+# is what stops the wording guard's scope reaching forward, for the
+# same reason it stops a place here. A comma is deliberately NOT a
+# claim boundary -- `In the settings block, a value you typed is kept
+# only as a count` is one claim and its place stands in front of it --
+# and the comma splice that a boundary would have caught is caught by
+# the entering rule instead, which is where it belongs.
+def _the_claims_in(sentence: str) -> "list[str]":
+    """One sentence, cut into the claims a joining word separates."""
+    claims = [sentence]
+    for join in _CLAUSE_CLOSES:
+        cut: list[str] = []
+        for claim in claims:
+            cut = cut + claim.split(join)
+        claims = cut
+    return [claim for claim in claims if claim.strip()]
+
+
+# HOW ENGLISH SAYS A THING IS IN A PLACE. A closed class of function
+# words: the prepositions that put something somewhere, and the two
+# relative adverbs that say where something happens. This is the same
+# kind of set as `_A_NEGATOR` -- closed by the language and not by
+# anybody's diligence -- and it is what makes the difference between a
+# place a claim ENTERS and a place a sentence merely mentions.
+_WHERE_IT_GOES = (
+    r"(?:in|into|inside|within|under|onto|through|out of|outside|at|"
+    r"from|beside|where|wherever)"
+)
+
+# What may stand between the preposition and the place: determiners,
+# possessives, and the marks this repository quotes a field name with.
+_ON_THE_WAY_THERE = r"(?:[a-z0-9'`_-]+ ){0,3}[`'\"(\[]*"
+
+# WHAT THE TABLE SAYS STANDS IN A CARRYING PLACE, said. The rule kind
+# at every carrying path is `_SPELLING` -- an authorized spelling out
+# of the person's table -- so a true claim about one of those places
+# says the value ITSELF stands there. English marks that with the
+# intensive pronoun, which is a function word, and this repository
+# writes one idiom beside it.
+#
+# THIS IS A CURE AND NOT AN ACCUSATION, and the difference is the whole
+# argument for having it. An accusation list misses a wording and a
+# false sentence lands green; a cure list misses a wording and a TRUE
+# sentence is refused until it says the plain thing. The census stays
+# default-deny either way, so nothing here is got round with an
+# invented verb, an invented limiter or an invented word for a quantity.
+_THE_SPELLING_ITSELF = (
+    rf"\b{_A_VALUE} (?:itself|themselves)\b",
+    r"\bcharacter for character\b",
+    (
+        r"\bas (?:you|they|somebody|someone|the person) "
+        r"(?:typed|named|wrote) it\b"
+    ),
+)
+
+# The three answers, as constants, so a red check can hold this rule to
+# WHICH question reported a sentence and not merely to whether one did.
+# A case that claims to be caught for entering the spelling's own place
+# and is in fact caught for entering none is a case that would keep
+# passing once the first question moved.
+_ENTERS_NO_PLACE = "it enters no place, so it speaks for the whole description"
+_NOT_WHAT_STANDS_THERE = (
+    "it enters a place the person's spelling stands in and does not say "
+    "the spelling stands there"
+)
+_A_BOUND_WITH_NOWHERE_TO_HOLD = (
+    "it bounds what is kept, and enters no place that carries none of "
+    "the person's text"
+)
+
+
+def _clean_rooms() -> "tuple[str, ...]":
+    """The clean places a claim can put something IN.
+
+    `_clean_places()` holds two kinds of answer and the census needs
+    them apart. The document's own regions are rooms: a claim enters
+    one, or does not. The stated limits of contract 5 section 7 --
+    below the floor, pooled, a column publishing nothing -- are
+    CONDITIONS rather than rooms, and a claim carrying one is bounded
+    to a case where nothing of the person's text is published at all,
+    whatever place it names. Derived by subtraction so a limit added to
+    one set cannot fall out of both.
+    """
+    return tuple(mark for mark in _clean_places() if mark not in _STATED_LIMITS)
+
+
+def _entered_in(claim: str, places: "tuple[str, ...]") -> "list[str]":
+    """Every one of those places this claim puts something into."""
+    found: list[str] = []
+    for mark in places:
+        for where in re.finditer(mark, claim):
+            before = claim[: where.start()]
+            if re.search(rf"\b{_WHERE_IT_GOES} {_ON_THE_WAY_THERE}$", before):
+                found.append(mark)
+                break
+    return found
+
+
+def _says_the_spelling_itself_stands(claim: str) -> bool:
+    """Whether this claim says the person's own value itself is there.
+
+    A mark with a negator in front of it is the opposite claim and does
+    not answer: "not the word itself" denies the identity, which is the
+    wording guard's business and never a cure here.
+    """
+    for mark in _THE_SPELLING_ITSELF:
+        for said in re.finditer(mark, claim):
+            before = claim[: said.start()]
+            if re.search(rf"\b{_A_NEGATOR} {_JUST_THE_ONE}$", before):
+                continue
+            return True
+    return False
+
+
+def _speaks_falsely_of_the_place(said: str) -> "list[tuple[str, str]]":
+    """Every claim of one shown text that fails one of the three questions.
+
+    Guarantees:
+
+    - Inputs: one text the product can show, in any casing.
+    - Determinism: a fixed function of that text, of the producer's
+      publication table and of the two closed function-word classes;
+      nothing is read here and nothing is run.
+    - Errors raised: none. A caller reports; this counts.
+    - Boundary: pure text; opens nothing.
+    """
+    found: list[tuple[str, str]] = []
+    for sentence in _SENTENCE_END.split(" ".join(said.lower().split())):
+        claims = _the_claims_in(sentence)
+        theirs = [
+            claim for claim in claims if _names_your_word(claim) is not None
+        ]
+        if not theirs:
+            continue
+        for claim in theirs:
+            if any(re.search(mark, claim) for mark in _STATED_LIMITS):
+                continue
+            if _entered_in(claim, _carrying_places()):
+                if not _says_the_spelling_itself_stands(claim):
+                    found.append((_NOT_WHAT_STANDS_THERE, claim.strip()))
+                continue
+            if not _entered_in(claim, _clean_rooms()):
+                found.append((_ENTERS_NO_PLACE, claim.strip()))
+        for claim in claims:
+            if not any(re.search(mark, claim) for mark in _RESTRICTIVE):
+                continue
+            if any(re.search(mark, claim) for mark in _STATED_LIMITS):
+                continue
+            if _entered_in(claim, _clean_rooms()):
+                continue
+            found.append((_A_BOUND_WITH_NOWHERE_TO_HOLD, claim.strip()))
+    return found
+
 
 def _carrying_places() -> "tuple[str, ...]":
     """The names of the paths that DO carry the person's text.
@@ -5320,9 +5640,9 @@ def _carrying_places() -> "tuple[str, ...]":
     Derived from the same publication rules the clean regions are
     derived from, by taking the steps of every `_SPELLING` path rather
     than the top-level blocks that hold none. So a sentence may answer
-    the census either way -- by naming a place that carries none of it,
-    or by naming the place it stands in -- and both answers move on the
-    commit that moves the format.
+    the census either way -- by entering a place that carries none of
+    it, or by entering the place it stands in and saying it stands
+    there -- and both answers move on the commit that moves the format.
     """
     names: set[str] = set()
     for path in _paths_that_carry_your_text():
@@ -5335,20 +5655,157 @@ def _carrying_places() -> "tuple[str, ...]":
     return tuple(rf"\b{name}\b" for name in sorted(names))
 
 
-def _the_products_own_sentences() -> "list[tuple[str, str]]":
-    """Every sentence written down as data that the product can show.
+# WHAT A RUN-TIME PIECE BECOMES when a refusal is assembled here. It
+# names no place, no value and no quantity, so it can neither cure a
+# clause nor accuse one, and a maintainer reading a failure sees
+# exactly where the message would have filled something in.
+_FILLED_IN_LATER = "(...)"
+
+
+def _every_text_of(node: "ast.expr") -> "list[str]":
+    """Every text this argument can be, run-time pieces stood in for.
+
+    A constant is itself; a formatted text is its literal parts with
+    `_FILLED_IN_LATER` where a value goes; a choice between two texts
+    is BOTH, because a person meets one of them. Anything else is a
+    piece this file cannot read, and it is stood in for rather than
+    guessed at.
+    """
+    if isinstance(node, ast.Constant) and isinstance(node.value, str):
+        return [node.value]
+    if isinstance(node, ast.JoinedStr):
+        said = [""]
+        for part in node.values:
+            if isinstance(part, ast.Constant) and isinstance(part.value, str):
+                said = [start + part.value for start in said]
+            else:
+                said = [start + _FILLED_IN_LATER for start in said]
+        return said
+    if isinstance(node, ast.IfExp):
+        return _every_text_of(node.body) + _every_text_of(node.orelse)
+    return [_FILLED_IN_LATER]
+
+
+def _every_filling(pieces: "list[list[str]]") -> "list[tuple[str, ...]]":
+    """Every way one call site's arguments can read, in a fixed order."""
+    ways: list[tuple[str, ...]] = [()]
+    for piece in pieces:
+        ways = [way + (said,) for way in ways for said in piece]
+    return ways
+
+
+def _an_invariant_broken(filling: "tuple[str, ...]") -> str:
+    """R17, assembled: the rule's own words and the two clauses."""
+    rule, where, first, second = filling
+    words = contract.INVARIANTS.get(rule, _FILLED_IN_LATER)
+    return errors.profile_invariant_broken(rule, words, where, first, second)
+
+
+def _a_wrong_kind(filling: "tuple[str, ...]") -> str:
+    """R15, assembled. What was found is a KIND and is never quoted."""
+    key, where, _found, required = filling
+    return errors.profile_wrong_type(key, where, _FILLED_IN_LATER, required)
+
+
+def _out_of_its_range(filling: "tuple[str, ...]") -> str:
+    """R16, assembled: what stood there and what is allowed there."""
+    key, where, shown, permitted = filling
+    return errors.profile_out_of_range(key, where, shown, permitted)
+
+
+def _out_of_range_unquoted(filling: "tuple[str, ...]") -> str:
+    """R16 for a count no message may quote."""
+    key, where, permitted = filling
+    return errors.profile_out_of_range_unquoted(key, where, permitted)
+
+
+def _a_key_that_is_missing(filling: "tuple[str, ...]") -> str:
+    """R14, assembled: the entry, where it belongs, and what has one."""
+    key, where, required_by = filling
+    return errors.profile_missing_key(key, where, required_by)
+
+
+def _a_key_nobody_knows(filling: "tuple[str, ...]") -> str:
+    """R13, assembled."""
+    key, where = filling
+    return errors.profile_unknown_key(key, where)
+
+
+# EVERY WAY THE LOADER BUILDS A REFUSAL, with the number of pieces each
+# takes. The arity is written down so that a wrapper gaining an
+# argument fails this file loudly instead of quietly dropping its call
+# sites out of the corpus -- a census over a corpus that shrank is a
+# census that passes everything it stopped reading.
+_THE_LOADERS_TEMPLATES = {
+    "_broken": (4, _an_invariant_broken),
+    "_wrong_type": (4, _a_wrong_kind),
+    "_out_of_range": (4, _out_of_its_range),
+    "_row_count_out_of_range": (3, _out_of_range_unquoted),
+    "_missing": (3, _a_key_that_is_missing),
+    "_unknown": (2, _a_key_nobody_knows),
+}
+
+
+def _the_refusals_the_loader_assembles() -> "list[tuple[str, str]]":
+    """Every refusal the loader can build, assembled from its own pieces.
+
+    Read out of the loader's own syntax rather than by running it: the
+    clauses are written down at the call sites, the templates are
+    written down in `errors.py`, and the sentence a person reads is the
+    two joined. That join is done here with the shipped template, so
+    the census reads the sentence rather than the fragments.
 
     Guarantees:
 
-    - Inputs: none; reads the shipped loader's rule table and the
-      shipped command line's own option help.
+    - Inputs: none; reads the shipped loader's source and the shipped
+      message templates.
+    - Determinism: the order of the loader's own syntax tree, and a
+      fixed function of it.
+    - Errors raised: `AssertionError` where a template's call site does
+      not carry the number of pieces the template takes.
+    - Boundary: no description is loaded, no file of anybody's is read,
+      and no refusal is raised.
+    """
+    found: list[tuple[str, str]] = []
+    source = ast.parse((PACKAGE / "contract.py").read_text(encoding="utf-8"))
+    for node in ast.walk(source):
+        if not (isinstance(node, ast.Call) and isinstance(node.func, ast.Name)):
+            continue
+        if node.func.id not in _THE_LOADERS_TEMPLATES:
+            continue
+        pieces, template = _THE_LOADERS_TEMPLATES[node.func.id]
+        assert len(node.args) == pieces, (
+            f"{node.func.id} at contract.py:{node.lineno} is called with "
+            f"{len(node.args)} pieces and this file assembles {pieces}. "
+            "The loader's refusal changed shape: move the arity here, in "
+            "the same commit, or the census stops reading this route."
+        )
+        seat = (
+            f"the refusal {node.func.id} builds at "
+            f"contract.py:{node.lineno}"
+        )
+        for filling in _every_filling(
+            [_every_text_of(argument) for argument in node.args]
+        ):
+            found.append((seat, template(filling)))
+    return found
+
+
+def _the_products_own_sentences() -> "list[tuple[str, str]]":
+    """Every sentence the product can show that is written down as data.
+
+    Guarantees:
+
+    - Inputs: none; reads the shipped loader's rule table, the shipped
+      command line's own option help, and the refusals the loader
+      assembles out of its own clauses.
     - Determinism: sorted by table and then by the order each table
       itself has.
     - Errors raised: `AssertionError` from the check below where the
       corpus comes back empty, because a census over an empty corpus
       passes everything.
-    - Boundary: only this repository's own source is read, and no
-      command line is parsed and no argument acted on.
+    - Boundary: only this repository's own source is read, no command
+      line is parsed, no argument acted on and no description loaded.
     """
     found: list[tuple[str, str]] = []
     if "the loader's rule table" in _THE_PRODUCTS_OWN_TABLES:
@@ -5357,6 +5814,8 @@ def _the_products_own_sentences() -> "list[tuple[str, str]]":
     if "the option help" in _THE_PRODUCTS_OWN_TABLES:
         for option, said in _the_option_help():
             found.append((f"the help for {option}", said))
+    if "the refusals the loader assembles" in _THE_PRODUCTS_OWN_TABLES:
+        found = found + _the_refusals_the_loader_assembles()
     return found
 
 
@@ -5394,68 +5853,61 @@ def _the_option_help() -> "list[tuple[str, str]]":
 def test_the_sentences_the_product_shows_say_where_your_word_stands() -> None:
     """THE STRUCTURAL HALF, and it reads no word list of any kind.
 
-    THE DEFECT THIS EXISTS FOR (review item P3-V11-F1). Three rounds
-    running, a false retention claim reached a governed surface and the
-    wording guard built to catch it missed the one that landed. Each
-    time the miss was a new SHAPE, and each time the repair was a better
-    model of denial. The third one -- a claim that what is kept is a
-    reduction of what was given -- has a half no model of denial can
-    reach, because the sentence carries no denial: it says what is kept
-    and stops.
+    THE DEFECT THIS EXISTS FOR (review items P3-V11-F1, P3-V12-F1).
+    Four rounds running, a false retention claim reached a governed
+    surface and the wording guard built to catch it missed the one that
+    landed. Each time the miss was a new SHAPE. The third one -- a
+    claim that what is kept is a reduction of what was given -- has a
+    half no model of denial can reach, because the sentence carries no
+    denial: it says what is kept and stops. The fourth was this
+    census's own first predicate, which asked only whether a place was
+    NAMED and passed a sentence that named the very place the spelling
+    stands in.
 
-    SO THIS DOES NOT TRY TO RECOGNISE A DENIAL. It asks one question of
-    every sentence the product shows that mentions the person's own
-    value: does it say WHERE? A sentence that names a place out of the
-    producer's publication table -- either a region that carries none of
-    the person's text, or the path that carries it -- has answered, and
-    what it then says about that place is the wording guard's business.
-    A sentence that names no place has spoken for the whole description,
-    and the whole description is the one thing about which no denial is
-    true.
+    SO THIS DOES NOT TRY TO RECOGNISE A DENIAL, AND IT DOES NOT ACCEPT
+    A MENTION. It asks three questions of every claim the product shows
+    that names the person's own value, and answers all three out of the
+    producer's publication table: does the claim enter a place; where
+    that place carries the person's spelling, does the claim say the
+    spelling itself stands there; and where the claim bounds what is
+    kept, is the bound held by a place that carries none of their text.
+    The comment above this test states each question, why its class is
+    closed, and what the three together still miss.
 
-    It refuses by default, so a phrasing nobody has written yet is
-    covered on the day somebody writes it, and no invented verb,
-    invented limiter or invented name for a quantity gets past it,
-    because it reads none of the three.
-
-    ITS REACH IS ITS CORPUS, and the corpus is stated rather than
-    implied: two tables that hold one sentence per entry. Why not more
-    is measured in the comment above this test and in
-    `test_the_reduction_that_carries_no_negation_cannot_be_read`.
-
-    THE RED CHECK. `REINSTATE=P3-V11-F1-census` empties the corpus,
-    which is what this guard's absence looked like, and reds this.
+    THE RED CHECKS. `REINSTATE=P3-V12-F1` puts the shipped predicate
+    back -- a place mentioned anywhere in the sentence answers -- and
+    `REINSTATE=P3-V12-F1-clause` writes a reduction into a clause of a
+    refusal the loader assembles, which is the route the corpus gained
+    this round. Either reds this.
     """
     corpus = _the_products_own_sentences()
     if _THE_PRODUCTS_OWN_TABLES:
         assert corpus, (
-            "The census has no corpus, so it passes everything. Either "
-            "the loader's rule table or the command line's options have "
-            "moved out from under it."
+            "The census has no corpus, so it passes everything. The "
+            "loader's rule table, the command line's options or the "
+            "loader's own refusals have moved out from under it."
         )
-    places = _clean_places() + _carrying_places()
     silent: list[str] = []
     for seat, said in corpus:
-        for sentence in _SENTENCE_END.split(" ".join(said.lower().split())):
-            if _names_your_word(sentence) is None:
-                continue
-            if any(re.search(mark, sentence) is not None for mark in places):
-                continue
-            silent.append(f"{seat}: {sentence.strip()[:220]}")
+        for why, claim in _speaks_falsely_of_the_place(said):
+            silent.append(f"{seat}: {claim[:200]}\n      -- {why}")
     assert not silent, (
-        "These sentences the product SHOWS speak about a value the "
-        "person typed and never say where it stands:\n  "
+        "These claims the product SHOWS speak about a value the person "
+        "typed, and what they say is not what the producer's own "
+        "publication table says stands in the place they put it in:\n  "
         + "\n  ".join(silent)
-        + "\n\nA sentence about a declared value that names no place "
-        "speaks for the whole description, and the whole description is "
-        "the one thing about which no denial is true: the spelling goes "
-        "into a column's `missing_by_source`, character for character, "
-        "wherever at least `small_cell_floor` rows share it and the "
-        "column publishes values at all. Name a place in the sentence "
-        "-- the settings block, the two vocabulary lists, the floor, a "
-        "column that publishes nothing, or the column's own description "
-        "where the spelling really does stand. This check reads no verb "
-        "and no negation, so rewording will not satisfy it and is not "
+        + "\n\nWhat the table says: the spelling goes into a column's "
+        "`missing_by_source`, character for character, wherever at "
+        "least `small_cell_floor` rows share it and the column "
+        "publishes values at all. So a claim that enters that place "
+        "has to say the spelling itself stands there; a claim that "
+        "enters no place at all has spoken for the whole description, "
+        "and the whole description is the one thing about which no "
+        "denial is true; and a claim that bounds what is kept has to "
+        "bound it to a place that carries none of their text -- the "
+        "settings block, the two vocabulary lists, below the floor, a "
+        "column that publishes nothing. This check reads no verb and "
+        "no negation, so rewording will not satisfy it and is not "
         "meant to."
     )
 
@@ -5468,45 +5920,289 @@ def test_the_census_reads_no_verb_and_no_word_for_a_quantity() -> None:
     carrying a negation at all. A word list catches none; this rule
     catches all three, because it is not reading any of that.
 
-    The fourth is the same claim WITH its place, and it must pass --
-    otherwise the rule would be a ban on mentioning a declared value,
-    which is a ban this repository could not live under.
+    The three beside them are the same claims WITH their place, and
+    they must pass -- otherwise the rule would be a ban on mentioning a
+    declared value, which is a ban this repository could not live
+    under.
     """
-    places = _clean_places() + _carrying_places()
-
-    def says_where(sentence: str) -> bool:
-        said = " ".join(sentence.lower().split())
-        if _names_your_word(said) is None:
-            return True
-        return any(re.search(mark, said) is not None for mark in places)
-
     for silent in (
         "A value you typed is kept only as a count.",
         "The words you typed are banked as a tally and no more.",
         "Synthtwin hoards the arithmetic of the markers you named.",
     ):
-        assert not says_where(silent), (
+        assert _speaks_falsely_of_the_place(silent), (
             f"the census stopped reporting a placeless claim:\n  {silent}"
         )
     for answered in (
-        (
-            "A value you typed is kept only as a count in the settings "
-            "block."
-        ),
+        "A value you typed is kept only as a count in the settings block.",
         (
             "The word you typed stands in that column's "
             "`missing_by_source`, character for character."
         ),
         "Below the floor the word you typed is pooled and named nowhere.",
     ):
-        assert says_where(answered), (
+        assert not _speaks_falsely_of_the_place(answered), (
             "the census now reports a sentence that says where:\n  "
-            f"{answered}"
+            f"{answered} -- {_speaks_falsely_of_the_place(answered)}"
         )
 
 
+# THE TWO SENTENCES THAT ANSWERED WITH A PLACE, word for word as review
+# item P3-V12-F1 wrote them, each with the question it must now fail.
+# They are kept here for the reason every retired false sentence in
+# this file is kept: a surface that reproduces one is making it again,
+# and a rule that stops reporting one has stopped being the repair it
+# was written as.
+_THE_SENTENCES_THAT_ANSWERED_WITH_A_PLACE = (
+    (
+        "the direct carrying-place bypass",
+        "In `missing_by_source`, a value you typed is kept only as a count.",
+        _NOT_WHAT_STANDS_THERE,
+    ),
+    (
+        "the unrelated clean-place bypass",
+        (
+            "The settings block records the rule, and the description "
+            "keeps only a tally of a value you typed."
+        ),
+        _ENTERS_NO_PLACE,
+    ),
+    (
+        "the same bypass joined by a comma rather than a word",
+        (
+            "The settings block records the rule, the description keeps "
+            "only a tally of a value you typed."
+        ),
+        _ENTERS_NO_PLACE,
+    ),
+    (
+        "the bypass with the subject dropped after the joining word",
+        (
+            "A word of your own is never written into the settings block "
+            "and is counted only as a tally."
+        ),
+        _A_BOUND_WITH_NOWHERE_TO_HOLD,
+    ),
+    (
+        "a reduction at the carrying place with no limiter to read",
+        "In `missing_by_source`, what a value you typed leaves is a tally.",
+        _NOT_WHAT_STANDS_THERE,
+    ),
+)
+
+# The predicate as it shipped at review item P3-V12-F1: any clean or
+# carrying place, mentioned anywhere in the sentence, answered. Kept as
+# a constant and run against the sentences above, so the finding is
+# evidence in this file forever rather than a paragraph in a review
+# nobody reads again.
+def _a_place_was_mentioned(said: str) -> "list[tuple[str, str]]":
+    """The shipped census, exactly: mention a place and the claim passes."""
+    places = _clean_places() + _carrying_places()
+    found: list[tuple[str, str]] = []
+    for sentence in _SENTENCE_END.split(" ".join(said.lower().split())):
+        if _names_your_word(sentence) is None:
+            continue
+        if any(re.search(mark, sentence) is not None for mark in places):
+            continue
+        found.append((_ENTERS_NO_PLACE, sentence.strip()))
+    return found
+
+
+def test_the_census_reads_the_claim_against_the_place_it_names() -> None:
+    """The two bypasses, and why each of them is now reported.
+
+    THE MEASUREMENT THAT MADE THIS BLOCKING. Both halves are here
+    because both are the finding: the sentences passed, AND the rule
+    written one round earlier to refuse exactly this class reported
+    nothing about them. A repair that only reported the two sentences
+    would leave the second half true, so the shipped predicate is kept
+    as a function in this file and run against them.
+
+    Each case names the question it must fail by, so a case that starts
+    being reported for entering no place when it was written to test
+    what stands in the place it enters fails here rather than passing
+    for the wrong reason.
+    """
+    for what, said, why in _THE_SENTENCES_THAT_ANSWERED_WITH_A_PLACE:
+        reported = _speaks_falsely_of_the_place(said)
+        assert reported, (
+            f"The census no longer reports {what}:\n  {said}\n\nThis is "
+            "one of the sentences review item P3-V12-F1 walked through "
+            "the shipped rule with. If a later repair genuinely makes "
+            "this sentence true, the publication table moved and every "
+            "sentence about what a declared word leaves behind moves "
+            "with it."
+        )
+        assert reported[0][0] == why, (
+            f"{what} is reported, but for the wrong reason:\n  {said}\n  "
+            f"expected: {why}\n  reported: {reported}"
+        )
+    for what, said, _why in _THE_SENTENCES_THAT_ANSWERED_WITH_A_PLACE[:2]:
+        assert not _a_place_was_mentioned(said), (
+            "The predicate as it shipped now reports this sentence, so "
+            "the constant recording what P3-V12-F1 measured has drifted "
+            f"from what actually shipped:\n  {what}: {said}\n\nFix the "
+            "constant, not this assertion: it is the evidence that a "
+            "rule asking only whether a place was NAMED passed a claim "
+            "that named the one place the spelling stands in."
+        )
+
+
+def test_the_census_states_what_it_still_cannot_read() -> None:
+    """The residue, at its size, and where it stops.
+
+    A reduction that carries no limiter AND says the spelling itself
+    stands in the place is missed: both closed classes are satisfied
+    and what makes it false is again a judgement that a count is less
+    than what was given. One sentence, asserted to be missed, so the
+    residue has a size instead of a hand-wave.
+
+    WHERE THE MISS STOPS, which is the more useful half. The same
+    sentence is reported the moment it bounds what it says -- and the
+    same claim without the cure is reported whatever verb or word for a
+    quantity it reaches for. So what is missing is not "the census
+    cannot read this wording" but "a claim that says the spelling is
+    there and then says something else is there too has said two true
+    things in one sentence", which is a fact about English and not
+    about this file.
+    """
+    missed = (
+        "In `missing_by_source` the word itself is kept as a count of a "
+        "value you typed."
+    )
+    assert not _speaks_falsely_of_the_place(missed), (
+        "The census now reports the sentence this residue is measured "
+        f"by:\n  {missed}\n\nThat is good news and it is a change to "
+        "what this family promises. Say so where the promise is "
+        "written: the comment above the census, amendment A-P3-44 in "
+        "the plan, and this test."
+    )
+    for reported in (
+        (
+            "In `missing_by_source` the word itself is kept only as a "
+            "count of a value you typed."
+        ),
+        "In `missing_by_source` a value you typed is kept as a count.",
+    ):
+        assert _speaks_falsely_of_the_place(reported), (
+            "The census stopped reporting a claim about the place the "
+            f"spelling stands in:\n  {reported}\n\nWithout this the "
+            "residue above is not a residue, it is the rule."
+        )
+
+
+# Measured on this tree at the commit that wrote this line, over every
+# governed surface rather than over the corpus. It is a FLOOR and not an
+# equality, for the reason the limiter measurement above is one: an
+# equality reds on every unrelated paragraph anybody writes, and what
+# has to red is the count COLLAPSING, because that is the day the census
+# becomes affordable tree-wide and this bound can close.
+_CLAIMS_A_TREE_WIDE_CENSUS_WOULD_REPORT = 250
+
+
+def test_the_census_would_report_this_tree_and_that_is_its_bound() -> None:
+    """Why the corpus is the corpus: the same rule over every surface.
+
+    Default-deny is affordable where the sentences are enumerable. This
+    measures what it would cost everywhere else, so the bound is a
+    number this suite recomputes rather than a sentence somebody wrote
+    once. If it ever collapses, the corpus can grow and the argument
+    for growing it belongs in the plan.
+    """
+    would_report = 0
+    for relative in RETENTION_SURFACES:
+        would_report = would_report + len(
+            _speaks_falsely_of_the_place(_text(relative))
+        )
+    assert would_report >= _CLAIMS_A_TREE_WIDE_CENSUS_WOULD_REPORT, (
+        "A census over every governed surface now reports "
+        f"{would_report} claims, and the floor beside this test says "
+        f"{_CLAIMS_A_TREE_WIDE_CENSUS_WOULD_REPORT}. READ them before "
+        "touching the floor: if they have genuinely become few, and "
+        "each is a claim about what a description keeps, the corpus is "
+        "affordable at that width and this bound can close."
+    )
+
+
+# One clause of one refusal a person actually meets, word for word as
+# the loader writes it. The anchor is a CLAUSE and not a whole message:
+# what has to be proved is that the clause and its rule's own words are
+# joined into one sentence by the shipped template, which is the thing
+# the first census could not read.
+_A_CLAUSE_OF_A_REFUSAL_A_PERSON_MEETS = (
+    "in a version 5 description no text of the person's own stands in "
+    "that block"
+)
+
+
+def test_the_census_reads_the_refusals_the_loader_assembles() -> None:
+    """The third table, and the vacuity floor under it.
+
+    Review item P3-V12-F1 held that the run-time-assembly limitation
+    was real but not irreducible: a refusal is a template plus the
+    clauses written at each call site, and both are written down, so
+    the whole is enumerable and a false reduction in one of those
+    clauses is user-facing. It is in the corpus now, and this is what
+    keeps that from becoming a claim nobody rechecks.
+
+    THREE THINGS ARE ASSERTED. That the corpus is not empty. That every
+    way the loader builds a refusal reaches the census, counted a
+    second time by a plain text search of the same file, so a syntax
+    walk that quietly stopped walking fails here rather than shrinking
+    the corpus under a rule that would still pass. And that one refusal
+    a person actually meets is present whole -- its rule's own words
+    and the clause written beside them, joined -- so the assembly is
+    checked against a sentence and not only against a count.
+
+    THE RED CHECK. `REINSTATE=P3-V12-F1-corpus` takes the assembled
+    refusals back out of the corpus, which is what this round's absence
+    looked like, and reds this.
+    """
+    assembled = _the_refusals_the_loader_assembles()
+    assert assembled, (
+        "The loader assembles no refusals this file can read. Either "
+        "the wrapper names in `_THE_LOADERS_TEMPLATES` moved, or the "
+        "census lost the whole route review item P3-V12-F1 asked for."
+    )
+    source = (PACKAGE / "contract.py").read_text(encoding="utf-8")
+    for name in sorted(_THE_LOADERS_TEMPLATES):
+        counted = len(re.findall(rf"raise {name}\(", source))
+        assert counted, (
+            f"This file assembles refusals through {name} and the "
+            "loader raises none. A route the loader stopped using is a "
+            "route that leaves this map in the same commit -- leaving "
+            "it here makes the count below pass on nothing."
+        )
+        reached = {
+            seat
+            for seat, _said in assembled
+            if seat.startswith(f"the refusal {name} builds")
+        }
+        assert len(reached) == counted, (
+            f"The loader raises {name} at {counted} places and "
+            f"{len(reached)} of them reached the census. A refusal "
+            "route that leaves the corpus is a route this rule stops "
+            "reading, which is how a default-deny census comes to pass "
+            "everything."
+        )
+    whole = [" ".join(said.lower().split()) for _seat, said in assembled]
+    anchored = [
+        said
+        for said in whole
+        if _A_CLAUSE_OF_A_REFUSAL_A_PERSON_MEETS in said
+        and " ".join(contract.INVARIANTS["C5-S7"].lower().split()) in said
+    ]
+    assert anchored, (
+        "The refusal this test anchors on is no longer assembled out of "
+        "its rule's words and its own clause. If the message changed, "
+        "move the constant in the same commit: it is what proves the "
+        "census reads the sentence a person meets rather than the "
+        "fragments it is built from."
+    )
+
+
 def test_the_derivation_reads_the_producer_and_not_a_list() -> None:
-    """The two derived sets are what the family is checked against.
+    """The three derived sets are what the family is checked against.
 
     Without this, a publication map that stopped naming the key -- or a
     settings block that started carrying one -- would leave every
@@ -5523,3 +6219,9 @@ def test_the_derivation_reads_the_producer_and_not_a_list() -> None:
     # because the cure is what makes every scoped sentence pass.
     assert r"\bsettings\b" in _clean_places()
     assert r"\bcolumns\b" not in _clean_places()
+    # And the census's two halves of that set are a partition of it:
+    # the rooms a claim can enter, and the stated limits that bound a
+    # claim wherever it stands. A limit that fell into both would let a
+    # claim enter a place by naming a condition.
+    assert set(_clean_rooms()) | set(_STATED_LIMITS) == set(_clean_places())
+    assert not set(_clean_rooms()) & set(_STATED_LIMITS)

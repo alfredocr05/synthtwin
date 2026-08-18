@@ -6,6 +6,37 @@ exists).
 
 ## [Unreleased]
 
+### Fixed in Phase 3: saying where your word stands is now checked against what stands there
+
+- **The check that reads where a sentence puts your word accepted a
+  sentence that named the wrong place, or the right place and the wrong
+  fact** (plan amendment A-P3-44 clauses 1 and 2). It asked whether a
+  sentence about a value you typed NAMED a place in the description,
+  and stopped there. So a sentence could name the very place your
+  spelling is written into, character for character, and say a count
+  stands there instead; or bound what the description keeps of your
+  value in one breath and name an unrelated block in the next. The
+  check now reads the claim and the place together, against what
+  synthtwin's own table of what-goes-where says stands in that place: a
+  sentence that puts your value in the column's own description has to
+  say your spelling itself is what stands there, a sentence that puts
+  it nowhere is refused, and a sentence that bounds what is kept has to
+  say which place the bound holds in.
+- **The refusals a description's reader prints are now checked too**
+  (plan amendment A-P3-44 clause 3). A refusal is built while the
+  command runs, out of a rule and two clauses written down in the
+  source, so no whole sentence of one was ever checked. All 130 of them
+  are now assembled from those pieces and read, which means a sentence
+  written into a clause is held to the same rule as every other
+  sentence the product shows you.
+- **Three sentences the product shows now say your word itself is what
+  stands there** (plan amendment A-P3-44 clause 4). The rule about the
+  block that records your declarations, the help for `--keep-value`,
+  and the refusal about a word that is not one of synthtwin's each
+  named a place and left what stands in it to a pronoun or to a path
+  filled in while the command runs. Each now says it in words. No rule
+  changed and no file synthtwin writes changed.
+
 ### Fixed in Phase 3: a description was said to keep a count where it keeps your word
 
 - **Two sentences the product shows said a description records how
