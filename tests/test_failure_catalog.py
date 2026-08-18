@@ -12,6 +12,7 @@ import inspect
 import os
 import pathlib
 import stat
+import sys
 
 import pytest
 
@@ -1022,17 +1023,38 @@ def _the_report_is_already_there(folder, description, undo):
     return ["validate", f"{description}"]
 
 
+def _a_second_name_for(target, source):
+    """Give `target` a second name for `source`, and return `target`.
+
+    A symbolic link is the ordinary route. On Windows it is also a
+    reparse point, so the locality gate refuses the run for holding a
+    link before the transaction is ever asked whether the output would
+    replace an input -- and this refusal, which the catalog claims is
+    reachable, is not reached by that route there.
+
+    A hard link is a second directory entry for one file and carries no
+    reparse point, so it reaches the question on every platform. The
+    catalog's reachability claim is therefore true on Windows too, which
+    it was not until CI first ran these cells on 2026-08-18.
+    """
+    if sys.platform == "win32":
+        os.link(source, target)
+    else:
+        target.symlink_to(source)
+    return target
+
+
 def _the_report_would_land_on_the_description(folder, description, undo):
     report = folder / "clinic-twin-quality.txt"
     report.unlink(missing_ok=True)
-    report.symlink_to(description)
+    _a_second_name_for(report, description)
     return ["validate", f"{description}", "--replace"]
 
 
 def _the_report_would_land_on_the_measured_file(folder, description, undo):
     report = folder / "clinic-twin-quality.txt"
     report.unlink(missing_ok=True)
-    report.symlink_to(folder / "clinic-twin.csv")
+    _a_second_name_for(report, folder / "clinic-twin.csv")
     return ["validate", f"{description}", "--replace"]
 
 

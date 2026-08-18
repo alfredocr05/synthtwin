@@ -289,7 +289,20 @@ def _shipped_command_words() -> "tuple[str, ...]":
         "with a hand-written list, which is the defect review item "
         "P3-V3-F8 exists to close."
     )
-    words = tuple(re.findall(r"'([a-z][a-z-]*)'", found.group(1)))
+    # Both spellings argparse has used, because the words are read out
+    # of a sentence it writes and it has rewritten that sentence: 3.10,
+    # 3.11, 3.13 and 3.14 quote each choice, and 3.12 does not. Reading
+    # only the quoted form returned NOTHING on 3.12 and turned every
+    # check below vacuous -- caught by CI, which is the only place 3.12
+    # runs, and only after the version check above it stopped skipping
+    # the whole job.
+    words = tuple(
+        word
+        for word in (
+            piece.strip().strip("'\"") for piece in found.group(1).split(",")
+        )
+        if word and all(c.islower() or c == "-" for c in word)
+    )
     assert len(words) >= 3, (
         "The shipped command line offers fewer than the three commands "
         f"this project has built ({list(words)}). If a command was "
