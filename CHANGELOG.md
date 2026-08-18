@@ -6,6 +6,52 @@ exists).
 
 ## [Unreleased]
 
+### Fixed in Phase 3: a failed check now tells you what your file holds, or why it cannot
+
+- **A missed obligation could print your description's request and
+  nothing else** (plan amendment A-P3-45). Where the thing your file
+  was found to hold is something the report may not print -- a
+  spelling written in the file, or a count these checks are never
+  reported with -- the line said what the description asked for and
+  stopped. So `synthtwin validate` could tell you that your file failed
+  a check and not tell you a single thing about your file. Every missed
+  check now prints either what was found or a sentence saying which
+  rule keeps it back, what that rule buys you -- the report can be
+  handed to somebody who does not hold your file -- and what to do
+  instead, which is to open the file, or to describe it with `synthtwin
+  profile` and read the count that comes back. Nothing measured is
+  printed that was not printed before.
+- **The report promised something it did not deliver, twice on the same
+  page** (plan amendment A-P3-45 clause 5). The verdict section said
+  every missed obligation was named with what the description asks for
+  "and what the file was found to hold", and the detail section's
+  heading said the same, above lines that printed one of the two. Both
+  sentences now say what the page actually carries.
+- **A check written in future that forgets to say why cannot print a
+  blank line** (plan amendment A-P3-45 clause 4). Every report goes
+  through one floor: a missed check naming neither what was found nor
+  why gets a sentence saying so, and naming itself a defect in
+  synthtwin rather than a fact about your file.
+
+### Known, open, and waiting on a decision: numbers written to a fixed two or more decimal places
+
+- **Checking a real table against its own description reports one
+  obligation missed, and exits 3, when a numeric column is written to a
+  fixed two or more decimal places** (plan amendment A-P3-46, residual
+  R-P3-12). `1.20` and `3.00` are not the shortest text that reads back
+  as those values, and one check asks every numeric cell to be written
+  as one of the six published forms of its own value. Nothing is wrong
+  with your table, and nothing is wrong with the description; the
+  column is formatted, which is what a currency column, an instrument
+  export and a spreadsheet all do. One decimal place, whole numbers
+  written `12.0`, plain whole numbers and shortest-form numbers are all
+  unaffected. The check is not idle: a file whose every decimal cell
+  has been re-spelled with a trailing zero is caught by this check and
+  by nothing else -- measured on a sixty-row column, where it is the
+  one obligation of fifty-two that moves -- so what to do about it is
+  a decision with a real cost either way, and it is recorded, measured
+  and put to the owner rather than taken quietly.
+
 ### Fixed in Phase 3: saying where your word stands is now checked against what stands there
 
 - **The check that reads where a sentence puts your word accepted a

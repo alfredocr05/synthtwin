@@ -389,10 +389,11 @@ def _summary_lines(census: validation.Census) -> "list[str]":
             f"{census.missed} CHECKABLE OBLIGATION(S) WERE MISSED.",
             "",
             "Each one is named first in the section below, with what the",
-            "description asks for and what the file was found to hold. A",
-            "missed obligation is a fact the description publishes that",
-            "this file does not carry; it is not a judgement about whether",
-            "the file is useful for anything.",
+            "description asks for, and with what the file was found to",
+            "hold or the reason that may not be printed here. A missed",
+            "obligation is a fact the description publishes that this",
+            "file does not carry; it is not a judgement about whether the",
+            "file is useful for anything.",
         ]
     return lines
 
@@ -465,6 +466,17 @@ def _detail_of(check: validation.Check) -> "list[str]":
     holds:" with nothing after it invites the reader to think something
     was lost.
 
+    THAT IS RIGHT FOR EVERY VERDICT BUT ONE (review item P3-V12-F2
+    clause (a); amendment A-P3-45). Under MISSED an absent found line
+    is not restraint, it is a page telling a researcher that their file
+    failed and refusing to say what it holds -- measured on a table of
+    sixty readings written to two decimal places, checked against its
+    own genuine description, which printed `styles.spelled ... MISSED`
+    and one line under it. So a MISSED check carries either the found
+    value or a note saying which rule keeps it back, `validation` fills
+    that note and floors it, and the two sentences above this section
+    promise exactly that and no longer more.
+
     THE CITATION FIELD IS THREE DIFFERENT THINGS and is introduced as
     whichever one it is. On an authorized deviation it is the passage
     that authorizes the lesser outcome; on a within-bound verdict it is
@@ -523,7 +535,8 @@ def _missed_lines(outcome: validation.Outcome) -> "list[str]":
         ]
     lines = [
         "WHAT THIS FILE DOES NOT CARRY. Each line names one obligation the",
-        "description sets, what it asks for, and what the file holds.",
+        "description sets, what it asks for, and what the file holds --",
+        "or, where what the file holds may not be printed here, why.",
         "",
     ]
     for check in missed:

@@ -4739,6 +4739,20 @@ which is validation method V2.4-A3's own subject, and it is recorded
 here so that the next round finds it written down rather than by
 running into it.
 
+**THIS PARAGRAPH DESCRIBES ONE WAY IN AND READS AS THOUGH IT WERE THE
+WAY IN. IT IS WIDENED BY A-P3-46** (2026-08-18, review item P3-V12-F2
+clause (b)). Everything above is true of the declared-marker route and
+stands. What it does not say is that the ORDINARY route needs no
+declared marker, no missing cell and no option at all: PRESENT cells on
+a plain numeric column, checked against the description the profiler
+wrote from that same file, miss this obligation whenever the column is
+written to a fixed two or more decimal places — measured at twenty of
+twenty columns of sixty rows, and on this repository's own every-role
+fixture. A reader of this paragraph would take the defect to be about
+declared markers and would be wrong about which tables it reaches.
+A-P3-46 states that route, measures how common it is and puts the
+decision to the owner; this paragraph is not the account of it.
+
 **How to reverse this.** Six variables, each putting back exactly one
 thing, and `tests/test_ap329_reading_rule_from_version_5.py` carries all
 six: `REINSTATE=A-P3-29-K` infers the kept side again and restores the
@@ -6317,6 +6331,276 @@ out of the corpus and reds the floor under them.
 assembled refusal — the route the corpus gained this round — and reds
 the census. All four are in `tests/test_claim_inventory.py`.
 
+**Amendment A-P3-45 — a missed obligation says what the file holds, or
+says why it may not say. THIS RAISES: every MISSED verdict now carries
+either the measured value or the rule that keeps it back, and two
+sentences the report made about itself become true. It lowers nothing,
+prints no measurement that was not printed before, moves no verdict and
+changes no byte of any output file.** Owner ruling of 2026-08-18 on
+review item P3-V12-F2 clause (a).
+
+**Clause 1 — the finding, and it is the round-7 family.** Profile a
+one-column table of sixty readings written to two decimal places —
+`1.20` through `60.20` — and validate that same file against its own
+genuine description. The page printed one line and stopped:
+
+    styles.spelled [numeric.numeric_styles]: MISSED
+        the description asks for: every cell written as a number
+        spelled in one of the six published forms of its own value
+
+No found line. No reason. A researcher is told that their file failed
+and is not told what it holds, on the one page the product writes for
+exactly that purpose. The renderer suppressed the found line wherever
+the measured side is empty, which is right for a WITHHELD verdict —
+that line says why nothing is shown — and is a page nobody can act on
+under MISSED. **And the report said worse than nothing about it**: the
+verdict section promised that every missed obligation was named "with
+what the description asks for and what the file was found to hold", and
+the detail section's own heading promised "what the file holds", above
+a section printing one of the two. That is the family round 7 of the
+earlier series closed — the report saying something not true of the run
+that printed it — reopened at a new place.
+
+**Clause 2 — the sweep, and it was taken at the funnel rather than by
+reading.** Every outcome this product assembles passes one function,
+`_assembled`, so the whole suite was run with that function watched and
+every MISSED check with an empty measured side recorded. **Sixty-two
+subcheck identities, in eighteen obligation families, 9,592 verdicts**:
+the header names and the column order; the zero-row byte form; the
+numeric styles, `styles.spelled` among them; five label facts; six
+datetime facts; and the repetition-pattern map of the three roles that
+publish one. The static reading agrees with the run — they are the
+twenty calls of `_silent` and the one MISSED branch of `_occurrences`,
+and nothing else — which is why the guard below is written at both
+ends: the corpus proves the sentences true of files, and a walk over
+the module's own syntax proves no call site was missed.
+
+**Clause 3 — the repair is not "print it", and the two rules say
+themselves.** What the suppressed side holds is either a string written
+in the measured file — a header name, a date, a label's spelling, a
+cell's own text — which V5.4's first rule forbids this report to print
+on any verdict; or a count measured in the file, which these
+obligations are reported without on any file (V5.3-A1). Both rules are
+kept. What changes is that the line now NAMES the one that applies, in
+the words a person can act on: what is not shown, which rule keeps it,
+what the rule buys — that one report can be handed to a person who does
+not hold the file — and what to do instead, which is to open the file
+for a string and to describe the file with `synthtwin profile` for a
+count. The reason is chosen at the call site, because only the caller
+knows which of the two it is; `_silent` takes it as a parameter with no
+default, so a new subcheck of this kind cannot be written without
+answering the question.
+
+**Clause 4 — the floor, so that the next subcheck cannot reopen this.**
+`_readable` runs over every assembled outcome and gives any MISSED
+check that names neither what was found nor why a sentence saying that
+it cannot say, and naming itself a defect in synthtwin rather than a
+fact about the reader's file. No subcheck that ships needs it — the
+suite asserts that every one of them names its own rule on a file that
+misses it — and it exists so that the failure mode of forgetting is a
+visible sentence rather than a blank line. HELD is deliberately left
+silent: nothing failed there, so nobody is waiting to be told, and a
+paragraph under every line of a passing report teaches a reader to skip
+all of them.
+
+**Clause 5 — the report's two sentences are made true.** The verdict
+section now promises what the detail delivers — what the description
+asks for, and what the file was found to hold or the reason that may
+not be printed here — and the detail section's heading says the same.
+Neither sentence claims a found value the page does not carry.
+
+**WHAT THIS LOWERS.** Nothing. No obligation changes, no verdict moves,
+no census count shifts, nothing enters the report that was measured in
+the file, and `GOLDEN_TWIN_SHA256`, `GOLDEN_DESCRIPTION_SHA256`,
+`GOLDEN_REPORT_SHA256` and `GOLDEN_QUALITY_SHA256` are untouched — the
+golden quality run misses nothing, so no golden page carries one of
+these lines. The full suite was green before this amendment and is
+green after it: 3,330 tests before, 3,338 after, none changed and eight
+added.
+
+**WHAT IT STILL DOES NOT SAY, at its size.** The reason names the rule
+and never the measurement. Somebody who holds this page and no file is
+told exactly what such a reader was told before, which is the point of
+the rule rather than a residue of the repair. A reader who wants the
+measurement must open their own file or describe it, and where the fact
+is one no description of any file publishes — canonicality is the one,
+by A-P3-3 clause 3 — describing it will not show them either, so on
+those two subchecks the line says to open the file and offers no second
+route. And
+this is a rule about MISSED alone: a HELD obligation whose measured
+side is kept back still prints nothing, by clause 4.
+
+**How to reverse this.** `REINSTATE=P3-V12-F2` puts `_silent` back as
+it shipped, a MISSED verdict carrying no measured side and no account
+of where it went. `REINSTATE=P3-V12-F2-map` does the same for the
+repetition-pattern map, the one such verdict `_silent` does not build.
+`REINSTATE=P3-V12-F2-floor` makes `_readable` return what it was given.
+`REINSTATE=P3-V12-F2-promise` puts the summary's sentence back to the
+one that promised what the page did not deliver. All four are in
+`tests/test_p3v12f2_a_miss_says_what_it_found.py`, with the count each
+reds recorded in its docstring.
+
+**Amendment A-P3-46 — `styles.spelled` on an ordinary table checked
+against its own description: the route, its report, and how common it
+is. NO DECISION IS TAKEN HERE. This amendment states a route the record
+did not state, measures it, and puts two options in front of the owner
+with what each costs. THE OWNER RULES; until then the tree behaves as
+described under "What stands until the ruling".** Prepared 2026-08-18
+on review item P3-V12-F2 clause (b), which is a condition of that
+review and not a blocking item.
+
+**Clause 1 — what the record said, and the sentence it did not have.**
+Two passages of this plan already touch this. A-P3-3 clause 3 rules
+that whether a number's TEXT is a spelling its own value licenses is
+outside V5.1's envelope, and records the fact this route turns on in as
+many words: *"Two files differing only there — sixty canonical decimals
+against the same sixty values carrying a trailing zero — are described
+byte for byte alike and get HELD and MISSED, measured."* A-P3-29's
+closing paragraph then records the defect as OPEN, and describes ONE
+way in: a table whose **declared-missing** cells are spelled
+non-canonically, `-777.00` declared with `--missing-value -777.00`, so
+that the per-cell obligation is asked of a cell the description reads
+as a hole. **What no passage said is that the ordinary way in needs no
+declared marker, no missing cells and no options at all**: PRESENT
+cells, on a plain numeric column, checked against the description
+`synthtwin profile` wrote from that same file. A reader of the OPEN
+paragraph would take the defect to be about declared markers, and would
+be wrong about which tables it reaches. That is what this amendment
+corrects, and A-P3-29's paragraph is marked accordingly.
+
+**Clause 2 — the route, in the words a person meets it in.** A
+researcher runs the two commands the product teaches, in order, on one
+real table:
+
+    synthtwin profile my-table.csv
+    synthtwin validate my-table-profile.json --twin my-table.csv
+
+The second is the thing a careful person does first: check the
+description against the table it was written from, before trusting a
+twin built from it. On a table whose numbers are written to two or more
+decimal places it prints, measured on the shipped tree at commit
+`af8bd06`:
+
+- `styles.spelled [numeric.numeric_styles]: MISSED` on that column;
+- census **51 HELD, 0 within-bound, 0 authorized-deviation, 0 withheld,
+  1 MISSED, 14 not checkable** for the reviewer's one-column table;
+- **exit code 3**, which is the code for a checkable obligation missed;
+- and, before amendment A-P3-45, no line under the verdict saying what
+  the file was found to hold. A-P3-45 repairs that half: the line now
+  says which rule keeps the measured side back. **The verdict itself is
+  untouched by A-P3-45 and is what this amendment is about.**
+
+**The cell it fires on is a PRESENT cell holding a value.** Nothing is
+missing, nothing is declared, no option was given, and the column is
+the most ordinary numeric column there is.
+
+**Clause 3 — how common it is. MEASURED, not estimated.** A cell fails
+this obligation when its text is not one of the six spellings its own
+value licenses, and on a fixed-decimal column the licensed one is the
+SHORTEST text that reads back as that value. A shortest text always
+keeps at least one decimal digit, so **one decimal place can never
+fail** — `12.0` is the shortest text for that value — and **at two or
+more places a cell fails exactly when its last written digit is `0`**,
+because then a shorter text reads back the same. So the question "how
+many ordinary tables?" has an arithmetic answer and a measured one,
+and they agree.
+
+- **One decimal place is safe**, and this is worth stating first
+  because it bounds the claim. Sixty lab values at one decimal place:
+  **HELD**.
+- **Whole numbers written `12.0` are safe** for the same reason:
+  **HELD**. So is a column of plain integers, and so is a column
+  written at shortest round trip.
+- **Two decimal places is where it starts.** Sixty amounts at two
+  decimal places, drawn at random: **MISSED**. Three decimal places:
+  **MISSED**. Percentages to two places: **MISSED**. A column written
+  as each value was measured, some `1.5` and some `1.50`: **MISSED**.
+- **How many rows it takes.** At two or more decimal places the chance
+  that a given cell ends in `0` is one in ten, so a column of n cells
+  escapes with probability 0.9^n. Twenty columns measured at each size,
+  at the default floor: **5 rows 8/20 miss, 10 rows 14/20, 20 rows
+  18/20, 30 rows 19/20, 60 rows 20/20, 120 rows 20/20, 240 rows
+  20/20.** The arithmetic for those first five sizes is 41%, 65%, 88%,
+  96% and 99.8%, and past them it is indistinguishable from certain.
+  The measurement agrees.
+- **This repository's own idea of an ordinary table hits it.** The
+  fixture every role-covering test in this suite is built from,
+  `fixtures.every_role_table`, carries a ten-column table with three
+  numeric columns. Checked against its own description: 304 subchecks,
+  **1 MISSED**, and it is `styles.spelled` on `amount`, the column
+  written to two decimal places. Nobody wrote that fixture to
+  demonstrate anything of the kind.
+
+**So the honest statement of frequency is this:** every numeric column
+written to a FIXED number of two or more decimal places — currency,
+instrument output, a spreadsheet export, anything formatted for a
+reader — misses this obligation against its own description with near
+certainty past about thirty rows. It is not a corner. It is the common
+case for one of the commonest kinds of column.
+
+**Clause 4 — what the subcheck buys, measured, because that is the
+price of removing it.** `styles.spelled` exists because of review item
+P3-V2-C-F1: every other style check is arithmetic over COUNTS, so a
+twin whose every decimal cell carried a trailing zero met all of them
+and validated at exit 0. Measured on the shipped tree, the padded file
+against the canonical file's description: **exactly one subcheck
+misses, and it is this one** — 51 HELD, 1 MISSED. Take it away and that
+file passes with exit 0 against a description of a file it does not
+resemble cell for cell. The shipped generator's own twin of that same
+description holds it, so the check costs a conforming twin nothing.
+
+**Clause 5 — the two options, and what each costs. THE OWNER RULES.**
+
+**Option A — accept it, and say so where the person meets it.** Keep
+the obligation exactly as it is: it is a true statement about the file,
+the description does publish the forms, and the file really does not
+carry the spelling the description's own producer would write. The cost
+is paid by the researcher checking a REAL table against its own genuine
+description, which is the first thing the product teaches them to do:
+they get exit 3 and a MISSED line about a table that is not wrong in
+any way they can act on, and nothing on the page tells them that
+formatting is what happened. **What acceptance would owe**, if this is
+the ruling: a sentence on the quality report itself naming this outcome
+where it can be met, in the same plain words the other bounds use, so
+that the person reading exit 3 is not left to work it out. Nothing else
+in the product moves.
+
+**Option B — narrow the obligation to what it was written to catch, and
+pay for it in what it stops catching.** The subcheck was added to stop
+a twin re-spelling its pooled cells wholesale; the file it is being
+asked of here is not a twin. Any narrowing must be a fact about the
+DESCRIPTION or the file, never about a guess as to provenance (see
+below), so the shapes available are: ask the obligation only where the
+description's own style map leaves the spelling unlicensed, or ask it
+as a bounded count rather than as "no cell at all". The cost is the
+measurement in clause 4: the narrower the question, the more of that
+one hole reopens, and this plan's own record of why the check exists
+has to be amended to say what the narrowed version does and does not
+catch. **This is not a wording change and it is not free.**
+
+**What is NOT an option, and it has to be said because it is the first
+thing anybody proposes.** Asking the question only of twins is not
+available: `synthtwin validate` cannot tell a twin from a real table
+and says so on every page it writes — "nothing in a CSV proves where
+its rows came from" — and that sentence is a load-bearing claim held by
+`tests/test_claim_inventory.py`. A route that behaved differently by
+guessing provenance would make that sentence false. Nor is "describe
+the source table's formatting and check against that" available inside
+this decision: the profiler publishes canonicality about no file at any
+count (A-P3-3 clause 3), so there is nothing in a description to check
+against, and giving it one is a contract change and a different phase's
+work.
+
+**What stands until the ruling.** The verdict is unchanged: an ordinary
+fixed-decimal table checked against its own description reports
+`styles.spelled` MISSED and exits 3. What A-P3-45 changed is that the
+line now says why it cannot show the measured side, so the page is
+readable while the question is open. Nothing here is a claim that the
+current behaviour is right; it is the record of what it is.
+
+**Residual R-P3-12 carries this** in the residuals ledger, and is
+closed by whichever option the owner takes.
+
 ## P3-D7. Repository claims, staged honestly
 
 **The claim-inventory migration table is a deliverable of this plan's
@@ -7098,6 +7382,26 @@ tests as bounded in P3-D8.3.
   on a column whose role publishes no spelling of its own, and the two
   files at stake are told apart only by REPORT-ONLY facts. Which of the
   two teeth to keep is an owner decision and not a repair.
+- **New, open, and awaiting an owner ruling: R-P3-12.** An ordinary
+  numeric column written to a FIXED two or more decimal places misses
+  `styles.spelled` against its own genuine description, on PRESENT
+  cells, with no declared marker and no option given — so the first
+  thing the product teaches a researcher to do, check the description
+  against the table it was written from, returns exit 3 on a table
+  nothing is wrong with. **Measured:** twenty of twenty two-decimal
+  columns of sixty rows; nineteen of twenty at thirty rows; eighteen of
+  twenty at twenty rows; and this repository's own every-role fixture,
+  where it is the single MISSED verdict out of 304 subchecks. One
+  decimal place, whole numbers written `12.0`, plain integers and
+  shortest-round-trip text are all HELD, which is the bound on the
+  claim. The subcheck is not idle: it is the ONLY one of the fifty-two
+  that a wholesale trailing-zero re-spelling misses, measured, so
+  removing it reopens review item P3-V2-C-F1's hole. **Amendment
+  A-P3-46 states the route, measures it and lays out the owner's two
+  options with their costs; it takes no decision, and this entry closes
+  when the owner rules.** The report consequence's other half — a
+  MISSED verdict that printed no found value and no reason — was a
+  defect in its own right and is repaired by A-P3-45.
 - **Closed here:** R3 (Phase 1), on the first release's evidence.
 - **Carried untouched:** R1, R2, R-P2-1 (still owner-flagged), and
   R-P2-2 through R-P2-14 — the ledger runs to FOURTEEN, not twelve,

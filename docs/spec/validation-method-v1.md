@@ -1768,6 +1768,36 @@ person who holds the file anyway.
   description does not publish, in N rows, with N floor-governed the
   same way, and never says what they are.
 
+**V5.4-A1 What a MISSED verdict prints when this clause keeps its
+measured side back: the rule that keeps it, in words a person can act
+on. THIS ADDS AN OBLIGATION ON THE REPORT AND CHANGES NOTHING ABOUT
+WHAT MAY BE PRINTED** (2026-08-18, owner ruling of that date carried by
+plan amendment A-P3-45; review item P3-V12-F2 clause (a)).
+
+This clause says what may be printed and was read as saying what must
+be printed instead, which is nothing. So a MISSED verdict whose
+measurement is a string of the measured file, or a count its obligation
+is never reported with, printed the description's request and stopped —
+measured on a one-column table of sixty readings written to two decimal
+places, checked against its own genuine description, which printed
+`styles.spelled ... MISSED` and no line under it. A person is told
+their file failed and not what it holds, on the page written to tell
+them; and the report's own summary promised a found value under every
+missed obligation, which made the page untrue about itself as well as
+unreadable.
+
+**The obligation.** Every MISSED verdict carries either the measured
+value, where this clause lets it, or a sentence naming which rule keeps
+the measured value back, what that rule buys — that one report may be
+handed to a person holding no file — and what the person may do
+instead. Two rules can keep it: the first bullet above, for a string of
+the measured file, and V5.3-A1, for a count these obligations are
+reported without. The sentence names one of them; it names no
+measurement, and it is the same words on every file. **WHAT IS NOT
+CHANGED:** every bullet above stands exactly, and nothing measured
+enters a report that could not enter it before. HELD is left silent,
+because nothing failed there and no reader is waiting to be told.
+
 **V5.5 On the ordinary case the gate does not close.** When the measured
 file IS the twin built from this profile, Phase 2's owner decisions 5, 8
 and 10 give it back the same types, the two descriptions agree on every
