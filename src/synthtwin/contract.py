@@ -528,8 +528,9 @@ INVARIANTS = {
     "C5-S7": (
         "this record says how many values were declared and which of "
         "synthtwin's own published words were among them, and no "
-        "spelling of the person's own stands in this record -- one can "
-        "stand in a column's `missing_by_source` instead"
+        "spelling of the person's own stands in this record -- the "
+        "spelling itself can stand in a column's `missing_by_source` "
+        "instead"
     ),
     "S8": (
         "every column named as holding record numbers is a column of "
@@ -2433,10 +2434,13 @@ def _built_in_texts(
             raise _broken(
                 "C5-K1",
                 where,
-                f"'{field}' names a word that is not one of synthtwin's",
                 (
-                    "only synthtwin's own spellings for 'no value' may "
-                    "be written there"
+                    f"'{field}' in the settings names a word that is "
+                    f"not one of synthtwin's"
+                ),
+                (
+                    "only synthtwin's own published words for 'no "
+                    "value' may be written in either list"
                 ),
             )
         if found and member <= found[len(found) - 1]:
