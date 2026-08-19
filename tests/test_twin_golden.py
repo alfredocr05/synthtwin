@@ -506,11 +506,15 @@ def test_the_same_description_and_seed_give_the_same_twin_twice(
 # publishes values and false where it publishes none.
 #
 # NOTHING ELSE MOVED, diffed line by line before this was re-recorded:
-# every other block, count, order, verdict and sentence is unchanged,
-# and the additions are additions -- no line was reworded or removed.
-# The description and twin digests both held, which is what says this is
-# the page and not the run: stage 2 changes no wire, no generation rule
-# and no twin byte.
+# outside the four blocks named above -- the three column sentences,
+# the page-foot count, and the column-section preamble those two
+# paragraphs record as reworded -- every block, count, order, verdict
+# and sentence of this page is unchanged. (An earlier draft of this
+# comment closed with "no line was reworded or removed", which
+# contradicted the paragraph above it and was wrong about the preamble:
+# review item P4-C2-F5.) The description and twin digests both held,
+# which is what says this is the page and not the run: stage 2 changes
+# no wire, no generation rule and no twin byte.
 GOLDEN_REPORT_SHA256 = (
     "a56b2dd6f6878e0d3270eab1f855b90ba8a5d2758ae31f4aa6467e36f0d0250b"
 )

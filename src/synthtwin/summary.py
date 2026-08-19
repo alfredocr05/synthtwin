@@ -953,11 +953,46 @@ def _lowered_floor_lines(floor: int) -> list[str]:
     ]
 
 
+def _all_labels_held_back(column: dict[str, object]) -> bool:
+    """Whether a twin of this label column would invent its every cell.
+
+    Two shapes reach it. The floor held every one of this column's
+    levels back; or the floor held back every spelling of the levels it
+    did publish, which is reachable with no suppressed level at all. In
+    both the generator writes neutral stand-ins for every present cell,
+    so plan amendment A-P4-2 calls such a column fully invented however
+    its role publishes.
+
+    THIS ARITHMETIC IS WRITTEN TWICE, HERE AND IN `rendering`, and the
+    duplication is deliberate rather than tidy: this side reads the
+    document the producer is about to write, that side reads the typed
+    profile a loader handed back, and neither representation is
+    available where the other is. `test_p4d2_loud_decline` holds the
+    two to the same answer on one table, so a change to one that is not
+    a change to the other turns the suite red.
+    """
+    present = _count_of(column["n_present"])
+    if not present:
+        return False
+    invented = _count_of(column["suppressed_rows"])
+    for entry in _list_of(column["levels"]):
+        level = _map_of(entry)
+        withheld = _map_of(level["variants_withheld"])
+        for key in sorted(withheld):
+            rows = _count_of(withheld[key])
+            # The keys are row counts written as text, zero-padded so
+            # they sort as text; `int` reads one because this side of
+            # the format has no loader to ask.
+            invented = invented + int(key) * rows
+    return invented >= present
+
+
 def _disclosure_lines(document: dict[str, object]) -> list[str]:
     """What of the real table this profile carries, and what it does not."""
     with_labels: list[str] = []
     without_values: list[str] = []
     with_ranges: list[str] = []
+    all_invented: list[str] = []
     for entry in _list_of(document["columns"]):
         column = _map_of(entry)
         name = _text_of(column["name"])
@@ -966,8 +1001,18 @@ def _disclosure_lines(document: dict[str, object]) -> list[str]:
             with_labels = with_labels + [name]
         if role in _ROLES_WITHOUT_VALUES:
             without_values = without_values + [name]
+            all_invented = all_invented + [name]
         if role in _ROLES_WITH_RANGES:
             with_ranges = with_ranges + [name]
+        # A LABEL COLUMN CAN BE FULLY INVENTED WITHOUT PUBLISHING
+        # NOTHING (plan amendment A-P4-2, review item P4-C2-F1). It
+        # keeps its place in the disclosure lists above -- a published
+        # folded label IS something of the table's, and moving it out
+        # of them would misstate what this profile carries -- but the
+        # forward sentence below is about what a TWIN of it would hold,
+        # which is a different question with a different answer.
+        if role in _ROLES_WITH_LABELS and _all_labels_held_back(column):
+            all_invented = all_invented + [name]
     floor = _count_of(_map_of(document["settings"])["small_cell_floor"])
     lines = [
         "WHAT THIS PROFILE CARRIES FROM YOUR TABLE",
@@ -1056,16 +1101,24 @@ def _disclosure_lines(document: dict[str, object]) -> list[str]:
             "  synthtwin decided about the column:",
             f"    {_listed(without_values)}",
             "",
-            # WHAT THIS MEANS FOR THE TWIN, said where a person meets the
-            # withholding rather than only in the twin's own report (plan
-            # P4-D2 item 4). It is true of the generator this version
-            # ships: a column that publishes no value of the table gives
-            # the generator nothing to write but its counts and shapes,
-            # so every cell of that column's twin is synthtwin's own.
+        ]
+    # WHAT THIS MEANS FOR THE TWIN, said where a person meets the
+    # withholding rather than only in the twin's own report (plan P4-D2
+    # item 4). It is true of the generator this version ships: a column
+    # this description carries no writable value of gives the generator
+    # nothing but counts and shapes, so every present cell of that
+    # column's twin is synthtwin's own. The list is NOT the one above:
+    # a label column whose every level or every spelling the floor held
+    # back is fully invented too, and saying so only for the three
+    # publishing-nothing roles left the person unwarned about it
+    # (amendment A-P4-2, review item P4-C2-F1).
+    if all_invented:
+        lines = lines + [
             "  If you build a twin from this description, every value in",
-            "  those columns will be one synthtwin made up: there is",
-            "  nothing of yours in this description for it to write. The",
-            "  twin's own report says so again, column by column.",
+            "  these columns will be one synthtwin made up: there is",
+            "  nothing of yours in this description for it to write --",
+            f"    {_listed(all_invented)}",
+            "  The twin's own report says so again, column by column.",
             "",
         ]
     lines = lines + _declaration_lines(document)

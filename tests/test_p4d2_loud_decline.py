@@ -101,6 +101,22 @@ def _described(
     return contract.load_profile(str(written))
 
 
+def _cased(word: str, which: int) -> str:
+    """One of the case spellings of ``word``, chosen by ``which``.
+
+    Eleven of them fit in a four-letter word, which is what the
+    variant-only fixtures need: spellings that all fold together while
+    each is worn by too few rows to publish.
+    """
+    letters = ""
+    for place in range(len(word)):
+        letter = word[place]
+        if (which >> place) % 2:
+            letter = letter.upper()
+        letters = letters + letter
+    return letters
+
+
 def _column(loaded: contract.Profile, name: str) -> contract.ColumnBlock:
     for column in loaded.columns:
         if column.name == name:
@@ -392,9 +408,10 @@ def test_the_summary_tells_a_person_before_they_generate_anything(
     # this sentence deleted -- measured (review item P4-C1-F6).
     assert (
         "  If you build a twin from this description, every value in\n"
-        "  those columns will be one synthtwin made up: there is\n"
-        "  nothing of yours in this description for it to write. The\n"
-        "  twin's own report says so again, column by column."
+        "  these columns will be one synthtwin made up: there is\n"
+        "  nothing of yours in this description for it to write --\n"
+        "    note\n"
+        "  The twin's own report says so again, column by column."
     ) in page
 
 
@@ -514,3 +531,122 @@ def test_a_numeric_column_counts_every_kind_of_uncarried_cell(
     assert rendering._made_up_class(column) == UNCARRIED
     page = rendering.report(loaded, generation.generate(loaded, SEED))
     assert "MADE UP 3 of this column's 400 present value(s)" in page
+
+
+# -- the screen sentence, pinned whole ---------------------------------
+
+
+def test_the_screen_sentence_is_pinned_whole(
+    every_class: contract.Profile,
+) -> None:
+    """Every word of the one line a person reads before the twin.
+
+    P4-D2 asks for exact-shape tests, and the screen is the one surface
+    with no golden behind it: the report, the description and the
+    quality report all have their bytes pinned, the screen has only
+    this. A substring assertion left the rest of the sentence free to
+    say anything at all (review item P4-C2-F2), so the whole of it is
+    written out here and a change to any word of it turns this red.
+    """
+    assert rendering.made_up_warning(every_class) == (
+        "2 of this twin's 7 column(s) hold nothing but values synthtwin "
+        "made up, and 3 more column(s) hold some made-up cells beside "
+        "values your description publishes. The report says which, and "
+        "how many, column by column."
+    )
+
+
+# -- the variant-only invention path -----------------------------------
+
+
+def test_a_label_whose_every_spelling_is_below_the_floor_is_all_invented(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The second route amendment A-P4-2 names, and the one no test had.
+
+    No level is suppressed here: one folded label covers every present
+    row, so it is published. What the floor holds back is every
+    SPELLING of it -- each written by too few rows to name -- so
+    `variants` is empty, `variants_withheld` carries them all, and the
+    generator invents every cell. Deleting the withheld-variant loop
+    from `_held_back_cells` reds this test and nothing else in the
+    file (measured, review item P4-C2-F4).
+    """
+    header = ["sort_of"]
+    rows: list[list[str]] = []
+    # Twenty-two rows over eleven CASE spellings of one word: every
+    # spelling folds to the same label, so one level is published, and
+    # each spelling is worn by two rows -- far below the floor of
+    # eleven -- so every spelling of it is held back.
+    for place in range(22):
+        rows = rows + [[_cased("kind", place // 2)]]
+    loaded = _described(tmp_path, fixtures.rows_to_csv(header, rows))
+    column = _column(loaded, "sort_of")
+    facts = column.facts
+    assert isinstance(facts, contract.LabelFacts)
+    assert facts.suppressed_rows == 0, "no level is held back, only spellings"
+    assert len(facts.levels) == 1
+    assert facts.levels[0].variants == {}
+    assert facts.levels[0].variants_withheld != {}
+    assert rendering._held_back_cells(facts) == column.n_present == 22
+    assert rendering._made_up_class(column) == EVERYTHING
+    page = rendering.report(loaded, generation.generate(loaded, SEED))
+    assert "MADE UP all 22 of this column's present value(s)" in page
+
+
+# -- the two representations must agree --------------------------------
+
+
+def test_the_producers_page_and_the_twins_page_agree_on_what_is_invented(
+    tmp_path: pathlib.Path,
+) -> None:
+    """One rule, two representations, held to the same answer.
+
+    `summary._all_labels_held_back` reads the document the producer is
+    about to write; `rendering._held_back_cells` reads the typed
+    profile a loader handed back. Neither representation is available
+    where the other is, so the arithmetic is written twice -- and a
+    change to one that is not a change to the other is caught here
+    rather than by a person noticing two pages disagreeing.
+    """
+    header = ["all_held", "some_held", "none_held"]
+    rows: list[list[str]] = []
+    for place in range(44):
+        rows = rows + [
+            [
+                # Every spelling below the floor, all folding to one
+                # published label: fully invented.
+                _cased("kind", place % 11),
+                # One rare label beside two published ones: partly.
+                (
+                    "rare"
+                    if place < 7
+                    else ("north" if place % 2 else "south")
+                ),
+                # Two labels, both published: nothing invented.
+                "yes" if place % 2 else "no",
+            ]
+        ]
+    text = fixtures.rows_to_csv(header, rows)
+    table_path = fixtures.write(tmp_path, "table.csv", text)
+    table = reading.read_table(str(table_path))
+    document = profile.build_document(table, taxonomy.Settings(), [])
+    written = fixtures.write_profile(tmp_path, "table-profile.json", document)
+    loaded = contract.load_profile(str(written))
+    for entry in document["columns"]:
+        name = entry["name"]
+        column = _column(loaded, name)
+        facts = column.facts
+        assert isinstance(facts, contract.LabelFacts)
+        producer_says = summary._all_labels_held_back(entry)
+        twin_says = rendering._made_up_class(column) == EVERYTHING
+        assert producer_says == twin_says, (
+            f"the producer's page and the twin's page disagree about "
+            f"{name}: {producer_says} against {twin_says}"
+        )
+    # And the fixture is not vacuous: it reaches both answers.
+    answers = {
+        summary._all_labels_held_back(entry)
+        for entry in document["columns"]
+    }
+    assert answers == {True, False}
