@@ -68,11 +68,13 @@ import pytest
 
 import fixtures
 from synthtwin import (
+    cli,
     contract,
     generation,
     profile,
     reading,
     rendering,
+    summary,
     taxonomy,
 )
 
@@ -262,11 +264,20 @@ def test_the_sentence_carries_the_descriptions_own_counts(
 ) -> None:
     """Every count printed is one the description publishes."""
     note = _block(page, "note")
-    assert any("MADE UP all 240 of this column's values" in one for one in note)
+    assert any(
+        "MADE UP all 240 of this column's present value(s)" in one
+        for one in note
+    )
     region = _block(page, "region")
-    assert any("MADE UP 7 of this column's 240 value(s)" in one for one in region)
+    assert any(
+        "MADE UP 7 of this column's 240 present value(s)" in one
+        for one in region
+    )
     measure = _block(page, "measure")
-    assert any("MADE UP 1 of this column's 240 value(s)" in one for one in measure)
+    assert any(
+        "MADE UP 1 of this column's 240 present value(s)" in one
+        for one in measure
+    )
 
 
 def test_the_sentence_does_not_wait_for_a_formula_character(
@@ -280,7 +291,7 @@ def test_the_sentence_does_not_wait_for_a_formula_character(
     twin with no hazardous cell at all still says what it made up.
     """
     assert "no cell of this twin begins with one of those" in page.lower()
-    assert "MADE UP all 240 of this column's values" in page
+    assert "MADE UP all 240 of this column's present value(s)" in page
 
 
 # -- the two counts ---------------------------------------------------
@@ -333,3 +344,173 @@ def test_the_counts_agree_with_the_per_column_sentences(page: str) -> None:
             partly = partly + 1
     assert f"{outright} of the 7 column(s) hold nothing but values" in page
     assert f"{partly} more column(s) hold some made-up cells beside" in page
+
+
+# -- the surfaces, reached the way a person reaches them ---------------
+#
+# Every assertion above this line calls a rendering function directly,
+# so deleting the CLI's one call or the summary's four lines would leave
+# the file green while the person met neither (review item P4-C1-F6).
+# These reach the surfaces through the command and the producer.
+
+
+def test_the_screen_line_reaches_a_person_running_the_command(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """`synthtwin generate` says it on the screen, not only in the file."""
+    header = ["note"]
+    rows = [[f"free words {place}"] for place in range(60)]
+    table = fixtures.write(
+        tmp_path, "table.csv", fixtures.rows_to_csv(header, rows)
+    )
+    assert cli.main(["profile", f"{table}", "--out-dir", f"{tmp_path}"]) == 0
+    capsys.readouterr()
+    description = tmp_path / "table-profile.json"
+    assert cli.main(["generate", f"{description}"]) == 0
+    told = capsys.readouterr()
+    # The warning channel, because a person who reads one line before
+    # opening the twin should read this one.
+    assert "hold nothing but values synthtwin made up" in told.err
+    assert "1 of this twin's 1 column(s)" in told.err
+
+
+def test_the_summary_tells_a_person_before_they_generate_anything(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The producer's own page says what a twin of it would hold."""
+    header = ["note"]
+    rows = [[f"free words {place}"] for place in range(60)]
+    table = fixtures.write(
+        tmp_path, "table.csv", fixtures.rows_to_csv(header, rows)
+    )
+    document = profile.build_document(
+        reading.read_table(str(table)), taxonomy.Settings(), []
+    )
+    page = summary.render(document, "")
+    # The whole sentence, line for line: "every value in" alone appears
+    # elsewhere on this page, so asserting it would have passed with
+    # this sentence deleted -- measured (review item P4-C1-F6).
+    assert (
+        "  If you build a twin from this description, every value in\n"
+        "  those columns will be one synthtwin made up: there is\n"
+        "  nothing of yours in this description for it to write. The\n"
+        "  twin's own report says so again, column by column."
+    ) in page
+
+
+# -- exact shapes, not substrings --------------------------------------
+
+
+def test_each_class_prints_exactly_the_lines_it_owes(
+    every_class: contract.Profile,
+) -> None:
+    """The whole sentence, line for line, for all three classes.
+
+    Substring assertions let a continuation line be reworded or dropped
+    without a test noticing; these pin every line the class emits.
+    """
+    assert rendering._made_up_lines(_column(every_class, "note"), 11) == [
+        "  synthtwin MADE UP all 240 of this column's present value(s).",
+        "  They were built to meet the facts your description",
+        "  publishes and nothing else; the sections above name every",
+        "  such fact the twin could not meet. A number you compute",
+        "  from these cells describes synthtwin's invention and says",
+        "  nothing about your table.",
+    ]
+    assert rendering._made_up_lines(_column(every_class, "region"), 11) == [
+        "  synthtwin MADE UP 7 of this column's 240 present value(s):",
+        "  the labels and spellings fewer than 11 rows share are not in",
+        "  your description, so the twin carries neutral stand-ins at",
+        "  their counts instead. The other 233 are value(s) your",
+        "  description publishes. A number you compute from the",
+        "  made-up cells describes synthtwin's invention and says",
+        "  nothing about your table.",
+    ]
+    assert rendering._made_up_lines(_column(every_class, "measure"), 11) == [
+        "  synthtwin MADE UP 1 of this column's 240 present value(s):",
+        "  your description counts those cells but carries no value",
+        "  for them, so the twin writes counted stand-ins in their",
+        "  place. The other 239 were built from the facts your",
+        "  description publishes. A number you compute from the",
+        "  made-up cells describes synthtwin's invention and says",
+        "  nothing about your table.",
+    ]
+
+
+def test_no_class_sentence_claims_the_twin_met_what_it_published(
+    every_class: contract.Profile, page: str
+) -> None:
+    """The claim this page cannot make about itself (item P4-C1-F1).
+
+    A twin does not always meet every published fact -- the deviation
+    list two sections up is where it says which -- so a sentence
+    asserting that the invented cells MEET the counts can contradict
+    the same page. Every class sentence says what the cells were built
+    to meet and points at the section that answers the other question.
+    """
+    for name in ("code", "note", "region", "measure", "seen"):
+        said = _block(page, name)
+        for line in said:
+            assert "meets its counts" not in line
+            assert "carry the counts" not in line
+    assert "were built to meet the facts your" in page
+    assert "the sections above name every" in page
+
+
+# -- the shapes the first fixture did not reach ------------------------
+
+
+def test_a_label_column_the_floor_withheld_entirely_is_all_invented(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Every level held back means no published spelling at all.
+
+    The edge amendment A-P4-2 settles: reading the role alone put this
+    column in the partly-invented class, and the page then told the
+    reader some of its cells were values their description publishes.
+    There are none -- the description publishes no label for it.
+    """
+    header = ["one"]
+    rows = [["only"] for _place in range(4)] + [[""] for _place in range(40)]
+    loaded = _described(tmp_path, fixtures.rows_to_csv(header, rows))
+    column = _column(loaded, "one")
+    facts = column.facts
+    assert isinstance(facts, contract.LabelFacts)
+    # The producer published no level and held the four rows back.
+    assert facts.levels == ()
+    assert facts.suppressed_rows == column.n_present == 4
+    assert rendering._made_up_class(column) == EVERYTHING
+    page = rendering.report(loaded, generation.generate(loaded, SEED))
+    assert "MADE UP all 4 of this column's present value(s)" in page
+    assert "1 of the 1 column(s) hold nothing but values" in page
+    assert "0 more column(s) hold some made-up cells beside" in page
+
+
+def test_a_numeric_column_counts_every_kind_of_uncarried_cell(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Out of range and contradictory count beside not-a-number.
+
+    The first fixture reached only the last of the three, so the other
+    two arms of `_uncarried_cells` were asserted by nobody.
+    """
+    header = ["measure"]
+    rows: list[list[str]] = []
+    for place in range(400):
+        if place == 1:
+            rows = rows + [["1e999"]]
+        elif place == 2:
+            rows = rows + [["(-7)"]]
+        elif place == 3:
+            rows = rows + [["not recorded"]]
+        else:
+            rows = rows + [[str(10 + place % 50)]]
+    loaded = _described(tmp_path, fixtures.rows_to_csv(header, rows))
+    column = _column(loaded, "measure")
+    assert column.n_out_of_range == 1
+    assert column.n_contradictory == 1
+    assert column.n_not_numeric == 1
+    assert rendering._uncarried_cells(column) == 3
+    assert rendering._made_up_class(column) == UNCARRIED
+    page = rendering.report(loaded, generation.generate(loaded, SEED))
+    assert "MADE UP 3 of this column's 400 present value(s)" in page

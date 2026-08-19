@@ -405,7 +405,9 @@ false at the edges:
   identifiers, unrepresentable numbers. Every present twin cell is
   synthtwin's own construction. (An `empty` column is excluded: its
   twin holds no present values, so an invention sentence about it would
-  be false.)
+  be false.) **(AMENDED by A-P4-2: a column of either class below whose
+  invented cells are ALL of its present cells is in this class too —
+  the role opens a class and the cells settle it.)**
 - **Partially invented labels**: a label-class column with suppressed
   levels or withheld variants — the twin carries its published
   spellings byte-for-byte plus counted neutral stand-ins (`group-N`,
@@ -464,10 +466,13 @@ stand-ins decide the third. No new wire fact is needed.
    checks for success. The loudness is in the artifacts and the one
    screen line.
 
-Every new sentence is built through the enumerated grammar (a new note
-form plus a rendered branch per sentence — no free-form text can be
-published), passes the display boundary, and lands with exact-shape
-tests. Report and quality-report bytes move at their stages, so the
+Every new sentence passes the display boundary and lands with
+exact-shape tests. **(AMENDED by A-P4-3: this paragraph also required
+every new sentence to be built through the profile's enumerated note
+grammar. That rule governs sentences of the PROFILE DOCUMENT, where it
+already governed; the report, screen, summary and quality-report
+sentences are governed by the four controls the amendment names, and
+its residual R-P4-14 carries what the scoping costs.)** Report and quality-report bytes move at their stages, so the
 golden hashes are re-recorded in the same commits with cause-naming
 comments. THIS RAISES reporting obligations and lowers nothing.
 
@@ -1529,6 +1534,18 @@ Opened by this plan, each a limit accepted rather than work forgotten:
   reproduced. Reproducing it would need a per-form construction with
   its own packing, feasibility rule and window family, priced out of
   proportion in P4-D4.3.
+- **R-P4-14** (opened by amendment A-P4-3). Sentences of the twin
+  report, the generation screen, the profiler summary and the quality
+  report are held by the display boundary, exact-shape tests, the claim
+  inventory and the golden hashes — four controls, where the profile
+  document has a fifth: an enumerated grammar whose guard rebuilds
+  every published sentence from parts and refuses one it cannot. A
+  future edit to those surfaces can therefore add a sentence nobody
+  enumerated. The four controls catch it if it overclaims or carries a
+  value; they do not catch one that is merely useless. Priced and
+  accepted in A-P4-3 rather than closed, because closing it means
+  moving several hundred lines of existing prose behind an enumeration
+  that buys them nothing.
 - **R-P4-13** (opened by amendment A-P4-1's audit). A column mixing
   numeric results with qualitative text in ONE cell space — the
   long-format panel export, where `7.2` sits beside `POSITIVE` in the
@@ -1677,6 +1694,80 @@ unpadded enumeration, this pricing paragraph, the raw-exact matching
 of decision 7's member, and the truth-preserving advice trigger — are
 applied in this text, and the record is
 `docs/plans/reviews/phase-4-amendment-a-p4-1-verification.md`.
+
+## Amendment A-P4-2 — the invention class is settled by cells, not by the role alone
+
+**THIS RAISES the accuracy of a sentence and lowers nothing** (stage 2
+code review round 1, item P4-C1-F3). P4-D2 draws its three classes by
+role and by published suppression facts, and at one edge that reading
+prints a falsehood: a label column every level of which the floor held
+back publishes no spelling at all, so every present cell of its twin is
+a neutral stand-in — yet the role-based reading files it under
+partly-invented, and item 2's count then tells the reader that some of
+that column's cells are values their description publishes. There are
+none. The same edge is reachable a second way, with no suppressed level
+at all: a published label whose every spelling sits below the floor
+carries `variants` empty and `variants_withheld` covering its rows, and
+the generator invents every spelling of it.
+
+The class is therefore settled in two steps, and this is the ratified
+rule: the ROLE opens a class — publishing-nothing roles and declared
+columns open the everything class, label roles open the held-back
+class, and the counted-stand-in roles open the uncarried class — and
+the CELLS settle it, because item 2's count is a count of cells: where
+the invented cells of a column are all of its present cells, the column
+is in the everything class however its role publishes; where there are
+none, it is in no class. The empty-column carve-out is unchanged and
+still tested first. Cost: one comparison per column and one more shape
+in the batteries. What it buys: the count means what it says on every
+description a producer can write, not only on the ones whose edges
+nobody reached.
+
+## Amendment A-P4-3 — the enumerated-sentence rule is the profile document's
+
+**THIS LOWERS an obligation this plan wrote wider than it can hold, on
+the owner's authority, and prices it** (stage 2 code review round 1,
+item P4-C1-F5). P4-D2's closing paragraph says every new sentence is
+"built through the enumerated grammar (a new note form plus a rendered
+branch per sentence — no free-form text can be published)". Read
+literally that governs the twin report, the screen and the profiler
+summary as well as the profile, and stage 2's sentences are ordinary
+first-party prose assembled where the surrounding prose is assembled.
+The reviewer is right that the sentence as written does not
+distinguish them.
+
+**What the grammar is for, which is why it does not reach here.** The
+note grammar exists so that no VALUE of somebody's table can be
+interpolated into a sentence of the PROFILE — a document that travels,
+whose every leaf the publication guard rebuilds from enumerated parts
+and refuses if it cannot. Its arguments are whole numbers and this
+package's own words for exactly that reason. The twin report and the
+summary are not that document: they already print column names,
+counts, labels and recorded sentences by design, each through the
+display boundary, and the guard that rebuilds a profile leaf has
+nothing to rebuild here. Putting report prose through the grammar
+would not close a leak — there is none to close — and would move
+several hundred lines of existing sentences behind an enumeration that
+buys them nothing.
+
+**So the rule is scoped, and the scoping is the lowering.** The
+enumerated-sentence obligation governs sentences of the PROFILE
+DOCUMENT, where it already governed before this plan. Sentences of the
+twin report, the generation screen, the profiler summary and the
+quality report are governed instead by the four controls that already
+hold them, named here so the scoping is not a gap: the display
+boundary, through which every value on those surfaces passes; the
+exact-shape tests each new sentence lands with; the claim inventory,
+which walks those files as running text and reds on a sentence that
+overclaims; and the golden hashes, which move on any change to the
+bytes a person reads. **What it costs, stated rather than left to be
+found:** a future edit to report or summary prose can introduce a
+sentence nobody enumerated, and the four controls above catch an
+overclaiming or value-bearing one but not a merely useless one — the
+profile has a fifth control for that and these surfaces do not. That
+residual is R-P4-14. What it buys: the plan stops requiring an
+architecture the product does not have and would not benefit from, and
+says instead what actually holds these sentences to the truth.
 
 ## Acceptance criteria
 
