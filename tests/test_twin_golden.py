@@ -477,8 +477,29 @@ def test_the_same_description_and_seed_give_the_same_twin_twice(
 # counts, same order, same totals, same sentences everywhere else. The
 # description, twin and quality digests all held, which is what says
 # this is the page and not the run.
+#
+# AND IT MOVED AT PHASE 4 STAGE 2, in four places, and again the report
+# says strictly more than it did (plan P4-D2, the loud decline). Until
+# now the only place this page called a cell invented was inside the
+# spreadsheet warning, and only when such a cell began with a formula
+# character -- so a reader of an ordinary free-text column met a twin
+# full of made-up text with no sentence anywhere saying so. Three
+# column blocks gained the sentence their CLASS owes them: `record_code`
+# and `comment` (free text -- every present value made up, 240 and 80 of
+# them) and `region` (a set of categories -- 7 of 240 cells are neutral
+# stand-ins for the label the floor held back). A fourth block is new at
+# the foot of the page: the count of columns invented outright and in
+# part, printed whatever the count is, for the reason the spreadsheet
+# count is printed whatever it is.
+#
+# NOTHING ELSE MOVED, diffed line by line before this was re-recorded:
+# every other block, count, order, verdict and sentence is unchanged,
+# and the additions are additions -- no line was reworded or removed.
+# The description and twin digests both held, which is what says this is
+# the page and not the run: stage 2 changes no wire, no generation rule
+# and no twin byte.
 GOLDEN_REPORT_SHA256 = (
-    "4962fd8eb73a9b2289dd16bd1fba91cfa8173831b034d9d6e62d57cd40e0f04f"
+    "fdc15c9d8ad6537b06594483ba2da06a964d1a35ed054f0e322edfdf679dec9a"
 )
 
 

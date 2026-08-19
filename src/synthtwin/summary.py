@@ -1056,6 +1056,17 @@ def _disclosure_lines(document: dict[str, object]) -> list[str]:
             "  synthtwin decided about the column:",
             f"    {_listed(without_values)}",
             "",
+            # WHAT THIS MEANS FOR THE TWIN, said where a person meets the
+            # withholding rather than only in the twin's own report (plan
+            # P4-D2 item 4). It is true of the generator this version
+            # ships: a column that publishes no value of the table gives
+            # the generator nothing to write but its counts and shapes,
+            # so every cell of that column's twin is synthtwin's own.
+            "  If you build a twin from this description, every value in",
+            "  those columns will be one synthtwin made up: there is",
+            "  nothing of yours in this description for it to write. The",
+            "  twin's own report says so again, column by column.",
+            "",
         ]
     lines = lines + _declaration_lines(document)
     notes = _list_of(document["publication_notes"])

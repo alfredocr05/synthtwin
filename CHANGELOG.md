@@ -6,6 +6,41 @@ exists).
 
 ## [Unreleased]
 
+### Added in Phase 4: the twin now tells you which of its cells synthtwin made up
+
+- **Every column whose cells synthtwin invented says so, in its own
+  block, on every run** (plan P4-D2, the loud decline). Until now the
+  only place the report called a cell invented was the spreadsheet
+  warning, and only when such a cell happened to begin with `=`, `+`,
+  `-` or `@`. So a column synthtwin could not read -- a column of
+  prices, of clock times, of anything it has no reading for -- became
+  free text, the twin filled it with made-up characters, and you could
+  read the whole report without meeting one sentence saying so. Now the
+  sentence is a property of the column, not of what its cells happen to
+  look like. Three of them, because one would be false somewhere:
+  a column that publishes no value of your table is told that **every**
+  present value in its twin is invented; a column of categories is told
+  how many of its cells are neutral stand-ins for the labels the
+  smallest-group floor held back; and a column whose description counts
+  cells it carries no value for -- the ones that were not numbers, or
+  did not read as dates -- is told how many stand-ins it holds. A
+  column that invented nothing is told nothing, and a column with no
+  values at all is not told its zero values were invented.
+- **The count is on the screen and at the foot of the report**, whatever
+  it is: how many columns hold nothing but made-up values, and how many
+  more hold some beside values your description publishes. Both halves
+  are counted, because a line counting only the first would have read
+  "0 of 1" over a twin whose one column carries invented labels.
+- **The description's own summary now says it too**: if a description
+  publishes no value of a column, a twin built from it will hold
+  invented values there. You see that before you generate anything.
+- **What did not move:** no wire format, no generation rule, no twin
+  byte, and no exit code. A declined column is not a failure and
+  `synthtwin generate` still exits 0 on it -- the loudness is in what
+  you read, not in what a script checks. The report's golden hash was
+  re-recorded in the same commit, with the four blocks that moved named
+  in the comment beside it.
+
 ### Fixed in Phase 3: a failed check now tells you what your file holds, or why it cannot
 
 - **A missed obligation could print your description's request and
