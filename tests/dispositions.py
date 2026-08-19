@@ -80,6 +80,7 @@ entry can excuse a sentence that was not already in the seal.
 
 import hashlib
 import pathlib
+import re
 import typing
 
 # -- the governing documents, and how a passage of one is named --
@@ -100,7 +101,9 @@ GOVERNING = (
     "docs/plans/phase-2-generator.md",
     "docs/plans/phase-3-product.md",
     "docs/spec/profile-contract-v4.md",
+    "docs/spec/profile-contract-v5.md",
     "docs/spec/generation-method-v1.md",
+    "docs/spec/validation-method-v1.md",
 )
 
 
@@ -260,6 +263,15 @@ DECISIONS = "P2-D0"
 # unrelated sentence.
 PLAN_SECTIONS = (DECISIONS, "P2-D9")
 
+# Regions of the PHASE 3 plan, for facts that plan settles. The Phase 2
+# matrix is closed and its wording is the record of what Phase 2 ruled;
+# a field added by a Phase 3 amendment is stated in that amendment, and
+# is looked for there. Each entry is (region name, the marker the
+# amendment opens with); the region runs to the next heading.
+PLAN3_REGIONS = {
+    "A-P3-28": "**Amendment A-P3-28 —",
+}
+
 
 # -- the registry ------------------------------------------------------
 #
@@ -334,6 +346,21 @@ REGISTRY += [
 REGISTRY += _facts(
     "universal", REPORT_ONLY, "missing_by_class", "missing_by_source"
 )
+# The two counts contract version 5 moved out of `missing_by_source`
+# (its section 5). The Phase 2 plan's matrix predates them, so they
+# bind to the Phase 3 amendment that landed them, which writes their
+# row and the reason in one place.
+REGISTRY += [
+    Fact(
+        "universal",
+        field,
+        REPORT_ONLY,
+        plan_region="A-P3-28",
+        plan_words="| `n_missing_blank`, `n_missing_withheld` | "
+        "REPORT-ONLY — every absent cell is written empty |",
+    )
+    for field in ("n_missing_blank", "n_missing_withheld")
+]
 REGISTRY += _facts(
     "universal",
     EXACT_OBSERVABLE,
@@ -738,6 +765,43 @@ AUTHORIZED_BY: "dict[tuple[str, str, str], tuple[str, str]]" = {
     ),
 }
 
+# The rows contract version 5's section 11 adds to the version 4 matrix,
+# and which of that matrix's tables each one belongs to. Version 5
+# carries version 4 by reference and states only its delta, so the two
+# documents are read TOGETHER wherever the matrix is read at all
+# (contract 5 C5-30). A field appearing in that delta with no entry here
+# stops the guard rather than being filed by guesswork.
+CONTRACT5_SECTIONS = {
+    "n_missing_blank": "9.2 Universal per-column fields",
+    "n_missing_withheld": "9.2 Universal per-column fields",
+}
+
+
+def contract5_delta(path: pathlib.Path) -> "list[tuple[tuple[str, ...], str]]":
+    """Section 11 of contract version 5, as rows of names and a class.
+
+    Returns one entry per table row: the backticked names in its first
+    cell, and its second cell's text. The caller decides which of the
+    version 4 tables each row belongs to, using CONTRACT5_SECTIONS
+    above, because the delta table does not repeat the version 4
+    headings.
+    """
+    text = path.read_text(encoding="utf-8")
+    start = text.index("## 11. The disposition matrix")
+    body = text[start : text.index("\n## ", start + 10)]
+    rows: list[tuple[tuple[str, ...], str]] = []
+    for line in body.split("\n"):
+        if not line.startswith("|"):
+            continue
+        cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
+        if len(cells) < 2 or set(cells[0]) <= set("-: "):
+            continue
+        names = tuple(re.findall(r"`([^`]+)`", cells[0]))
+        if names:
+            rows.append((names, cells[1]))
+    return rows
+
+
 # Which contract table states which group.
 CONTRACT_SECTIONS = {
     "document": "9.1 Top level",
@@ -842,8 +906,8 @@ OPEN: "dict[tuple[str, str], str]" = {
     # packing meets every count is gone: the walk is complete, the four
     # class counts are packed with the two alphabet counts on declared
     # identifiers as they already were on free text, and a producer
-    # battery of 400 declared-identifier descriptions at six seeds --
-    # 2,400 runs -- writes every one of the six counts exactly (review
+    # battery of 200 declared-identifier descriptions at four seeds --
+    # 800 runs -- writes every one of the six counts exactly (review
     # item P2-C5-F2, `tests/test_p2c5f2_identifier_classes.py`).
     #
     # G6.4 still names two shapes on which a style map is missed. The
@@ -856,38 +920,32 @@ OPEN: "dict[tuple[str, str], str]" = {
     # every NAMED published style count exactly
     # (`tests/test_p2c5f3_style_reach.py`).
     #
-    # What is left is NARROWER than the entry it replaces and touches no
-    # count a description names. It is not nothing, and it stays here
-    # until it is nothing: the pooled remainder is written `plain` by
-    # contract 7.5.7, and a column whose published `min` or `max`
-    # carries a point has a cell that cannot be, so the remainder can
-    # come out short by that cell. Measured on the producer battery
-    # above, 8 of its 240 columns file such a line and every one of them
-    # is the pool. The plan authorizes neither disposition -- its
-    # feasibility rule 4 gives a published count precedence over the
-    # LADDER, which is the opposite trade to the one an endpoint forces
-    # -- so the residue needs an owner amendment naming it, or a
-    # pooled-cell rule the two ends cannot contradict. Left standing
-    # rather than written quieter, because a repair may not close an
-    # obligation by deleting the record that it is open.
-    ("numeric", "numeric_styles"): "P2-C5-F3",
-    # What is LEFT of P2-C5-F4 after the two refusals landed. The blanket
-    # "only jointly satisfiable" qualification is gone from the head of
-    # the contract's section 9, and with it the entries `words.min`,
-    # `words.max` and `n_present` carried: a description whose word
-    # extreme its own lengths cannot hold, and a one-character declared
-    # identifier published as whole numbers, are REFUSED before a cell is
-    # built rather than written and named.
+    # P2-C5-F3 IS CLOSED (Phase 3 plan P3-D8.1, owner decision 1,
+    # 2026-08-12). What was left of it was the pooled remainder: contract
+    # 7.5.7 wrote every pooled cell `plain`, and a column whose published
+    # `min` or `max` carries a point has a cell that cannot be, so the
+    # remainder came out short by that cell on 8 of the producer
+    # battery's 240 columns. The owner directed a repair rather than an
+    # amendment that names the miss, and the repair is that a pooled cell
+    # -- which names no form at all, that being what pooling MEANS -- is
+    # spelled by its own value: plainly where the value has a point-free
+    # spelling, canonically where it has none. Contract 7.5.7 and method
+    # G6.4 carry the amended rule and its recount identity, both sealed;
+    # the eight columns file no line; and `_style_notes` checks the
+    # identity clause by clause, with the published counts as floors so
+    # no form can be substituted away.
     #
-    # This one stays, because two shapes a real table DOES produce still
-    # cost it and neither is settled by a refusal: a two-character code
-    # value, whose only whole-number spellings begin with a sign G9.1
-    # bars, and a length end pinned onto a group whose band cannot spell
-    # a whole number at that length, which the source's own values prove
-    # another pairing would have held. Closing the second means packing
-    # length and band together as G9.5 does; the first needs an owner
-    # decision. Left standing rather than written quieter.
-    ("identifier", "all_whole_numbers"): "P2-C5-F4",
+    # P2-C5-F4 IS CLOSED (same decision). Its second shape -- a length
+    # end pinned onto a group whose band cannot spell a whole number at
+    # that length -- was already closed by the joint packing of
+    # `_identifier_families`, which settles length and band together over
+    # every carrier pair, and only the contract's prose still asserted
+    # it. Its first shape, the two-character code value whose only
+    # whole-number spellings open with a sign G9.1 bars, is settled the
+    # way the owner directed: the family is withdrawn, and the
+    # descriptions it leaves with no answer meet the FIFTH refusal of
+    # method G12 by name rather than being written with a leading `-`.
+    #
 }
 
 
@@ -1046,6 +1104,14 @@ ANCHORS: "tuple[tuple[str, str], ...]" = (
         ),
     ),
     (
+        # THE COUNT MOVED FROM FOUR TO FIVE, and the anchor moved with
+        # it (Phase 3 plan P3-D8.1, owner decision 1). What this anchor
+        # holds is the SENTENCE that reserves refusal for descriptions
+        # no rule can satisfy, not the number after it: the number is
+        # what the method's own next paragraph says a change to this
+        # document may move, and moving it is how the fifth refusal
+        # landed. Deleting the sentence would still lower the bar, and
+        # that is what stays asserted.
         "docs/spec/generation-method-v1.md",
         (
             "**Refusal is reserved for documents no rule above can "

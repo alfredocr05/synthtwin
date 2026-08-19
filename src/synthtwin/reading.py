@@ -294,6 +294,23 @@ FIRST_ROW_DATA = "data"
 HEADER_FROM_FILE = "file"
 HEADER_GENERATED = "generated"
 
+# WHAT A REFUSAL ABOUT THIS FILE MAY SAY (plan P3-D1, V9).
+#
+# `synthtwin profile` reads the table the person handed it and asked it
+# to describe, so a refusal about that file may quote what the reader
+# found: the name it read back, the column a disputed value sits in.
+# Naming it is how the person finds the place.
+#
+# `synthtwin validate` is pointed at a file NOBODY promised was theirs.
+# It may be a twin, it may be somebody else's table, it may be the wrong
+# table entirely -- and a refusal travels as freely as a report does. So
+# on that path every refusal names POSITIONS and never values, and the
+# caller says which path it is on. The default is the profiler's, so
+# every message the profiler produces is the same byte for byte as it
+# was before this argument existed.
+REFUSALS_MAY_QUOTE = "quote"
+REFUSALS_NAME_POSITIONS = "positions"
+
 # The complete byte-order marks, written as the Latin-1 characters that
 # ARE those bytes (see the module docstring). The four-byte UTF-32 marks
 # come first so that a UTF-32 file is never reported by its two-byte
@@ -693,7 +710,15 @@ def _read_streamed(
     except UnicodeDecodeError:
         return None
     if header is None:
-        raise errors.ProfileError(errors.file_is_empty(shown))
+        # A file with no record in it at all has no rows to describe,
+        # which is what `no_data_rows` below says of a file with only a
+        # header. The two sentences differ because the advice does; the
+        # SHAPE word is the same, so a caller reporting on a file the
+        # producer refuses does not have to tell them apart to know that
+        # nothing in this file was described (review item P3-V4-F3).
+        raise errors.shape_refusal(
+            errors.file_is_empty(shown), errors.NO_DATA_TO_DESCRIBE
+        )
     if ragged:
         raise errors.ProfileError(
             errors.ragged_rows(shown, width, offenders, ragged)
@@ -726,7 +751,10 @@ def _read_streamed(
 
 
 def _read_authoritatively(
-    table_path: pathlib.Path, shown: str, first_row: str
+    table_path: pathlib.Path,
+    shown: str,
+    first_row: str,
+    refusals: str = REFUSALS_MAY_QUOTE,
 ) -> _Reading:
     """Run the authoritative pass; raise ProfileError with a plain message."""
     previous_limit = csv.field_size_limit()
@@ -757,6 +785,13 @@ def _read_authoritatively(
                 raise errors.ProfileError(
                     errors.looks_like_utf16(shown)
                 ) from error
+            if refusals == REFUSALS_NAME_POSITIONS:
+                # The reader's own account of the trouble can carry a
+                # piece of the file with it, and this file may not be
+                # the person's own table (V9).
+                raise errors.ProfileError(
+                    errors.checked_file_unreadable_as_csv(shown)
+                ) from error
             raise errors.ProfileError(
                 errors.unreadable_as_csv(shown, detail)
             ) from error
@@ -768,13 +803,19 @@ def _read_authoritatively(
         csv.field_size_limit(previous_limit)
 
     if not found.n_rows:
-        raise errors.ProfileError(errors.no_data_rows(shown))
+        raise errors.shape_refusal(
+            errors.no_data_rows(shown), errors.NO_DATA_TO_DESCRIBE
+        )
     if found.header_source == HEADER_FROM_FILE:
-        _check_the_names_are_usable(found.column_names)
+        _check_the_names_are_usable(found.column_names, shown, refusals)
     return found
 
 
-def _check_the_names_are_usable(header: list[str]) -> None:
+def _check_the_names_are_usable(
+    header: list[str],
+    shown: str,
+    refusals: str = REFUSALS_MAY_QUOTE,
+) -> None:
     """Refuse names no table can carry: a blank one, or one used twice.
 
     These two run BEFORE the checking pass, and the WHICH-row question
@@ -784,10 +825,49 @@ def _check_the_names_are_usable(header: list[str]) -> None:
     rewrite reads as the two passes disagreeing about a name, and the
     person would be sent to look for a file that changed under them
     rather than at the duplicated name that is really there.
+
+    ``refusals`` IS WHY THIS TAKES A PATH AT ALL (review item
+    P3-V2-D-F1). Its two neighbours have taken it since round 1 and this
+    one did not, so it was the one escape left in the reader: whatever
+    the caller had asked for, the repeated-name refusal here QUOTED the
+    repeated name, and on the checking path that name is a string out of
+    a file nobody promised was the reader's (V9).
+
+    AND BOTH REFUSALS ARE RAISED AS SHAPE REFUSALS, WHICH IS WHAT MAKES
+    THE CHECKING CALLER'S REPORT EQUIVALENT TO THIS ONE BY CONSTRUCTION
+    (review item P3-V4-F3). `synthtwin validate` reports on these two
+    rather than passing them on, and it used to decide which report a
+    file gets by walking the file itself before ever calling this
+    reader. Those two readings drifted: a ragged file with a repeated
+    name reached the reader's ragged refusal here and the header report
+    there, and a NUL-bearing header reached the zero-byte refusal here
+    and a report there as soon as a row was added. Now the caller
+    catches what this raises and reports on THAT, so this function is
+    the one place the precedence lives.
+
+    The blank-name refusal names the column NUMBER on both paths,
+    because the profiler's own form of it does and a report may state
+    what that refusal states. The repeated-name refusal names neither
+    the name nor a position on the checking path: the profiler's form
+    quotes the NAME, which two files with the repeat in different
+    columns share, so a position is a fact that refusal does not carry.
+
+    THE CHECKING FORM'S SENTENCE IS THE BELT AND IS MEANT TO BE ONE. The
+    caller that asks for it reports on this refusal instead of showing
+    it, so a person reaches these words only where that caller hands one
+    back -- which today it does only for an internal contradiction, a
+    header fault raised about a reading whose names it never took from
+    the file. The sentence is written for that reader anyway, and it now
+    carries neither the name nor the place, so escaping costs nothing
+    either way.
     """
     for position, name in enumerate(header, start=1):
         if not parsing.trimmed(name):
-            raise errors.ProfileError(errors.empty_column_name(position))
+            raise errors.shape_refusal(
+                errors.empty_column_name(position),
+                errors.HEADER_NAME_MISSING,
+                position,
+            )
     seen: dict[str, int] = {}
     for name in header:
         if name in seen:
@@ -795,8 +875,16 @@ def _check_the_names_are_usable(header: list[str]) -> None:
         else:
             seen[name] = 1
     repeated = sorted(name for name in seen if seen[name] > 1)
-    if repeated:
-        raise errors.ProfileError(errors.duplicate_column_names(repeated))
+    if not repeated:
+        return
+    if refusals == REFUSALS_NAME_POSITIONS:
+        raise errors.shape_refusal(
+            errors.checked_file_repeats_a_column_name(shown),
+            errors.HEADER_NAME_REPEATED,
+        )
+    raise errors.shape_refusal(
+        errors.duplicate_column_names(repeated), errors.HEADER_NAME_REPEATED
+    )
 
 
 def _settle_the_first_row(
@@ -911,7 +999,11 @@ def _file_size(table_path: pathlib.Path) -> int:
         return 0
 
 
-def read_table(raw_path: str, first_row: str = FIRST_ROW_AUTOMATIC) -> Table:
+def read_table(
+    raw_path: str,
+    first_row: str = FIRST_ROW_AUTOMATIC,
+    refusals: str = REFUSALS_MAY_QUOTE,
+) -> Table:
     """Read a CSV table from a local path; return it as text.
 
     Guarantees:
@@ -924,7 +1016,11 @@ def read_table(raw_path: str, first_row: str = FIRST_ROW_AUTOMATIC) -> Table:
       docstring), FIRST_ROW_NAMES (the first row holds the column
       names), or FIRST_ROW_DATA (the first row is a record; the columns
       are named ``column_1``, ``column_2``, ... and every record is
-      kept).
+      kept). ``refusals`` is REFUSALS_MAY_QUOTE (this is the person's
+      own table, so a refusal may name what was read back) or
+      REFUSALS_NAME_POSITIONS (this file was only pointed at, so every
+      refusal names which column and which row and never a value -- the
+      validate path, plan P3-D1 and V9).
     - Agreement: the returned values are the standard library reader's,
       and every one of them has been compared against a second,
       independent read by pandas, together with the column names and
@@ -1002,6 +1098,16 @@ def read_table(raw_path: str, first_row: str = FIRST_ROW_AUTOMATIC) -> Table:
             "synthtwin internal check: first_row must be 'auto', 'names' "
             "or 'data'."
         )
+    if refusals not in (REFUSALS_MAY_QUOTE, REFUSALS_NAME_POSITIONS):
+        # Not a refusal in the catalog either: nobody types this word.
+        # Defaulting a misspelt one to the quoting form would let a
+        # refusal on the validate path print a string out of a file
+        # nobody promised was the reader's, which is the whole point of
+        # the argument.
+        raise ValueError(
+            "synthtwin internal check: refusals must be 'quote' or "
+            "'positions'."
+        )
     validated = validate_local_path(raw_path, purpose="input")
     table_path = pathlib.Path(validated)
     shown = f"{table_path}"
@@ -1010,7 +1116,7 @@ def read_table(raw_path: str, first_row: str = FIRST_ROW_AUTOMATIC) -> Table:
     if table_path.is_dir():
         raise errors.ProfileError(errors.path_is_a_folder(shown))
     try:
-        found = _read_authoritatively(table_path, shown, first_row)
+        found = _read_authoritatively(table_path, shown, first_row, refusals)
     except PermissionError as error:
         raise errors.ProfileError(
             errors.file_unreadable(shown, f"{error}")
@@ -1021,7 +1127,7 @@ def read_table(raw_path: str, first_row: str = FIRST_ROW_AUTOMATIC) -> Table:
         ) from error
 
     try:
-        _check_against_pandas(raw_path, found, shown)
+        _check_against_pandas(raw_path, found, shown, refusals)
     except MemoryError as error:
         # The checking pass holds the second reading beside the first,
         # which is the moment this reader uses the most memory. Running
@@ -1051,7 +1157,10 @@ def read_table(raw_path: str, first_row: str = FIRST_ROW_AUTOMATIC) -> Table:
 
 
 def _check_against_pandas(
-    raw_path: str, found: _Reading, shown: str
+    raw_path: str,
+    found: _Reading,
+    shown: str,
+    refusals: str = REFUSALS_MAY_QUOTE,
 ) -> None:
     """Read the file again with pandas and compare EVERYTHING.
 
@@ -1102,6 +1211,10 @@ def _check_against_pandas(
         # policy (plan D6.2) permits only pandas.read_csv from pandas,
         # so the library's own exception classes cannot be named here,
         # and nothing is swallowed -- the original is chained on.
+        if refusals == REFUSALS_NAME_POSITIONS:
+            raise errors.ProfileError(
+                errors.checked_file_unreadable_as_csv(shown)
+            ) from error
         raise errors.ProfileError(
             errors.unreadable_as_csv(shown, f"{error}")
         ) from error
@@ -1120,6 +1233,12 @@ def _check_against_pandas(
         for index in range(len(keys)):
             second = f"{keys[index]}"
             if second != found.column_names[index]:
+                if refusals == REFUSALS_NAME_POSITIONS:
+                    raise errors.ProfileError(
+                        errors.checked_file_readers_disagree_about_a_name(
+                            shown, index + 1
+                        )
+                    )
                 raise errors.ProfileError(
                     errors.readers_disagree_about_a_name(
                         shown, index + 1, found.column_names[index], second
@@ -1134,6 +1253,15 @@ def _check_against_pandas(
         theirs = [f"{cell}" for cell in list(frame[keys[index]])]
         for position in range(found_rows):
             if theirs[position] != mine[position]:
+                if refusals == REFUSALS_NAME_POSITIONS:
+                    # The column's NAME is a string out of this file,
+                    # and this file may not be the person's own table,
+                    # so the column is named by its position instead.
+                    raise errors.ProfileError(
+                        errors.checked_file_readers_disagree_about_a_value(
+                            shown, position + 1, index + 1
+                        )
+                    )
                 raise errors.ProfileError(
                     errors.readers_disagree_about_a_value(
                         shown, position + 1, found.column_names[index]

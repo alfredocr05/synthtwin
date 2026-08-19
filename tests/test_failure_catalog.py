@@ -7,8 +7,12 @@ here -- that every message has the shape a person can act on, and that
 every message in the catalog is actually raised by some code path.
 """
 
+import contextlib
 import inspect
+import os
 import pathlib
+import stat
+import sys
 
 import pytest
 
@@ -39,6 +43,19 @@ CASES: "dict[str, tuple[object, ...]]" = {
     "first_row_could_be_a_record": ("/data/table.csv", 3),
     "readers_disagree_about_a_name": ("/data/table.csv", 2, "age", "agee"),
     "readers_disagree_about_a_value": ("/data/table.csv", 7, "age"),
+    # The same three refusals for a file `synthtwin validate` was only
+    # pointed at (plan P3-D1, V9). Every argument is a POSITION: on that
+    # path the file may not be the reader's own table, and a refusal
+    # travels as freely as a report does. The test below walks their
+    # arguments and asserts no spelling from a file can be among them.
+    "checked_file_readers_disagree_about_a_name": ("/data/checked.csv", 2),
+    "checked_file_readers_disagree_about_a_value": (
+        "/data/checked.csv",
+        7,
+        2,
+    ),
+    "checked_file_unreadable_as_csv": ("/data/checked.csv",),
+    "checked_file_repeats_a_column_name": ("/data/checked.csv",),
     "blank_line_in_one_column": ("/data/table.csv", 4),
     # The two messages about the disk take the arguments profile.py
     # actually passes: the caller has LOOKED at each name and hands over
@@ -157,6 +174,30 @@ CASES: "dict[str, tuple[object, ...]]" = {
         ["/data/clinic-twin.csv"],
     ),
     "twin_out_of_memory": ("/data/clinic-profile.json",),
+    # Checking a written file against a description (plan P3-D1). The
+    # first two belong to the command, the third to the machine. The
+    # source noun in the second is one of the two written out in
+    # errors.py beside `QUALITY_WORDS`, never a value out of a file: on
+    # this path the measured file may not be the reader's own table and
+    # a refusal travels as freely as a report does.
+    "quality_target_already_there": ("/data/clinic-twin-quality.txt",),
+    "output_would_replace_an_input": (
+        "/data/clinic-profile.json",
+        "description",
+    ),
+    "quality_out_of_memory": ("/data/clinic-profile.json",),
+    # The G12-infeasible refusal plan P3-D6 names (review item
+    # P3-V7-F7). Its first argument is one of the four names method G12
+    # fixes, and its second is a POSITION -- the path the person typed
+    # -- for the reason the three above it take positions: on this path
+    # the measured file may not be the reader's own table. Nothing out
+    # of any file can reach this sentence, and it is the same sentence
+    # whatever the file holds, because the trouble is in the
+    # description.
+    "no_twin_of_this_description_exists": (
+        errors.REFUSAL_DOMAIN_TOO_SMALL,
+        "/data/checked.csv",
+    ),
     # The publication guard's one refusal (plan P2-D2, review item
     # P2-C1-F3). Its argument is the PLACE in the description, written
     # from the guard's own path steps: no key of the document and no
@@ -185,11 +226,23 @@ APPENDED = {"nothing_was_written"}
 
 
 def _builders() -> "dict[str, object]":
+    """Every function in the catalog that builds a MESSAGE.
+
+    A builder is recognised by what it returns and not by a list of
+    names kept beside it: `errors` also holds `shape_refusal`, which
+    builds a refusal OBJECT carrying which of the reader's shape
+    refusals it is (review item P3-V4-F3), and a name list would have
+    had to grow by hand for it and for the next one. The rules below are
+    about the sentence a person reads, so what they govern is every
+    function that hands one back.
+    """
     found = {}
     for name, value in vars(errors).items():
         if name.startswith("_") or not inspect.isfunction(value):
             continue
         if value.__module__ != errors.__name__:
+            continue
+        if inspect.signature(value).return_annotation is not str:
             continue
         found[name] = value
     return found
@@ -244,6 +297,11 @@ def test_every_message_says_what_happened_and_what_to_do(name: str) -> None:
         "run the command again",
         "try again",
         "use that path",
+        # The instruction a refusal about the DESCRIPTION gives, which
+        # is not "fix your file": nothing done to the measured file
+        # helps, so what the reader is told to do is describe the table
+        # again (review item P3-V7-F7).
+        "Describe the table again",
     )
     if name not in APPENDED:
         assert any(hint in message for hint in actionable), (
@@ -275,6 +333,23 @@ def test_the_catalog_is_reachable_from_the_code_that_raises_it() -> None:
     # A message nobody raises is dead weight that reads like a promise.
     # Every builder must be named in the source of a module that raises
     # ProfileError.
+    #
+    # WHAT THIS PROVES AND WHAT IT DOES NOT (review item P3-V4-F10).
+    # This is a SOURCE SEARCH, and a source search settles a necessary
+    # condition and nothing more: a builder no module names cannot be
+    # raised, so its absence here is real news. The converse does not
+    # follow, and the plan asks for the converse (P3-D6: "each with
+    # exact-shape and reachability tests"). A regression that let a
+    # `PermissionError` escape as a traceback would leave the token
+    # `errors.file_unreadable(` sitting in `validation.py`, and this
+    # would go on passing while the person got a stack trace.
+    #
+    # So the refusals plan P3-D6 names are DRIVEN below, through the
+    # shipped command, at the condition that produces each one. This
+    # test keeps its place because it is total over the catalog and the
+    # driven battery is not: ninety-odd messages cannot each be reached
+    # by a real run in a test suite, and pretending otherwise would be a
+    # worse claim than the honest small one.
     root = pathlib.Path(errors.__file__).parent
     sources = "\n".join(
         path.read_text(encoding="utf-8")
@@ -297,6 +372,850 @@ def test_ragged_row_message_names_positions_as_data_rows() -> None:
     )
 
 
+CHECKED_FILE_FORMS = (
+    "checked_file_readers_disagree_about_a_name",
+    "checked_file_readers_disagree_about_a_value",
+    "checked_file_unreadable_as_csv",
+    "checked_file_repeats_a_column_name",
+)
+
+
+@pytest.mark.parametrize("name", CHECKED_FILE_FORMS)
+def test_a_checked_file_refusal_takes_positions_and_nothing_else(
+    name: str,
+) -> None:
+    """V9: every refusal reachable from validate names positions.
+
+    The rule is checked at the SIGNATURE, which is where it can be kept:
+    a builder that takes only a path and whole numbers has nothing out
+    of the file to put in its sentence, whatever anybody writes in it
+    later. The profiler's own forms of these three take the name and
+    the value beside the position, which is why they are three separate
+    builders rather than one with a flag.
+    """
+    given = CASES[name]
+    assert given[0] == "/data/checked.csv"
+    for argument in given[1:]:
+        assert isinstance(argument, int), (
+            f"{name} takes something that is not a position: a refusal "
+            f"about a file nobody promised was the reader's may name "
+            f"which column and which row, and nothing else"
+        )
+    message = _builders()[name](*given)
+    assert "may not be your own table" in message, (
+        f"{name} should say why it is not showing what it found"
+    )
+
+
+# The four refusals of method G12, and what each one's sentence has to
+# tell a person who cannot act on the measured file at all.
+NO_TWIN_SHAPE = (
+    (
+        errors.REFUSAL_COUNTS_CONTRADICT,
+        "how many of its numbers are zero and how many are negative",
+    ),
+    (
+        errors.REFUSAL_WORDS_EXCEED_LENGTH,
+        "hold more words than their own published lengths have room for",
+    ),
+    (
+        errors.REFUSAL_WHOLE_NUMBERS_NEED_ROOM,
+        "a length that leaves no room to write one",
+    ),
+    (
+        errors.REFUSAL_DOMAIN_TOO_SMALL,
+        "more different values than there are ways to write a value",
+    ),
+)
+
+
+@pytest.mark.parametrize(
+    "named,trouble", NO_TWIN_SHAPE, ids=[one[0] for one in NO_TWIN_SHAPE]
+)
+def test_the_no_twin_refusal_says_all_five_things_it_owes(
+    named: str, trouble: str
+) -> None:
+    """EXACT SHAPE, review item P3-V7-F7 and plan P3-D6.
+
+    The tests that existed asserted two fragments -- "cannot be this
+    description's twin" and "is valid" -- and the review showed what
+    that buys: replacing the whole message with "The description is
+    valid, but it cannot be this description's twin." left every one of
+    them green while the person lost all the advice. So each of the five
+    things the sentence owes is asserted here, one of them different for
+    each of the four refusals:
+
+    1. WHICH TWO FACTS collide, in the person's own words. This is the
+       only part that differs between the four, and it is the only part
+       that says what to change.
+    2. That the description is VALID, so nobody goes looking for a
+       corrupt file.
+    3. That no file can be its twin, so nobody re-runs it on a
+       different file.
+    4. WHICH file was being checked, named as the person typed it.
+    5. BOTH instructions: describe the table again, and -- for the
+       reader who was handed the description and holds no table -- ask
+       whoever wrote it.
+    """
+    message = errors.no_twin_of_this_description_exists(
+        named, "/data/checked.csv"
+    )
+    assert trouble in message, (
+        f"{named}'s message does not say which two published facts "
+        f"collide, which is the only part that tells the reader what to "
+        f"change: {message!r}"
+    )
+    for owed in (
+        "The description itself is valid",
+        "it was written by synthtwin and it loads",
+        "cannot be this description's twin",
+        "there is nothing to measure it against",
+        "/data/checked.csv",
+        "Describe the table again",
+        "ask whoever wrote the description",
+    ):
+        assert owed in message, (
+            f"{named}'s message no longer says {owed!r}, so a person who "
+            f"reads it is left without that part of what to do: "
+            f"{message!r}"
+        )
+
+
+def test_the_no_twin_refusal_is_written_for_every_name_g12_answers(
+) -> None:
+    """No refusal method G12 can name may be one this message lacks.
+
+    A key missing from the trouble table is a `KeyError` on the way to
+    the screen rather than a refusal a person can read, so the two sides
+    are compared rather than trusted: every name `validation.refusal_of`
+    can answer is a name this message is written for, and every name
+    the message is written for is one that function can answer.
+    """
+    from synthtwin import validation
+
+    answered = {
+        validation.REFUSAL_COUNTS_CONTRADICT,
+        validation.REFUSAL_WORDS_EXCEED_LENGTH,
+        validation.REFUSAL_WHOLE_NUMBERS_NEED_ROOM,
+        validation.REFUSAL_DOMAIN_TOO_SMALL,
+    }
+    assert answered == set(errors.NO_TWIN_TROUBLE), (
+        "the refusals validation can name and the refusals this message "
+        "is written for have drifted apart"
+    )
+    source = pathlib.Path(validation.__file__).read_text(encoding="utf-8")
+    returned = {
+        line.split("return ")[1].strip()
+        for line in source.splitlines()
+        if line.strip().startswith("return REFUSAL_")
+    }
+    assert returned == {
+        "REFUSAL_COUNTS_CONTRADICT",
+        "REFUSAL_WORDS_EXCEED_LENGTH",
+        "REFUSAL_WHOLE_NUMBERS_NEED_ROOM",
+        "REFUSAL_DOMAIN_TOO_SMALL",
+    }, (
+        f"a refusal name is returned that this message may not be "
+        f"written for: {sorted(returned)}"
+    )
+
+
+def test_the_checked_file_forms_say_no_more_than_the_position() -> None:
+    """The quoting forms and the position forms, side by side.
+
+    The profiler's form of each of these carries a spelling out of the
+    file; the checking form carries the column number in its place. This
+    is the assertion that the second really is the first with the
+    spelling taken out, rather than the first under a new name.
+    """
+    quoting = errors.readers_disagree_about_a_name(
+        "/data/checked.csv", 2, "age", "agee"
+    )
+    position = errors.checked_file_readers_disagree_about_a_name(
+        "/data/checked.csv", 2
+    )
+    assert "age" in quoting and "agee" in quoting
+    assert "agee" not in position
+    assert "column number 2" in position
+
+    quoting = errors.readers_disagree_about_a_value(
+        "/data/checked.csv", 7, "age"
+    )
+    position = errors.checked_file_readers_disagree_about_a_value(
+        "/data/checked.csv", 7, 2
+    )
+    assert "'age'" in quoting
+    assert "'age'" not in position
+    assert "row 7" in position and "column number 2" in position
+
+    quoting = errors.unreadable_as_csv("/data/checked.csv", "line 4, saw 9")
+    position = errors.checked_file_unreadable_as_csv("/data/checked.csv")
+    assert "line 4, saw 9" in quoting
+    assert "line 4, saw 9" not in position
+
+
 def test_out_of_memory_message_carries_the_size_in_megabytes() -> None:
     message = errors.out_of_memory("/t.csv", 4_000_000_000)
     assert "3814 MB" in message
+
+
+# ---------------------------------------------------------------------
+# V9: what may be RAISED from a validate run (review item P3-V2-D-F1)
+# ---------------------------------------------------------------------
+
+
+def _carries_no_text(value: object) -> bool:
+    """Whether one argument can hold a string at all, however nested.
+
+    `ragged_rows` is why this is not a flat `isinstance(int)`: it takes
+    a LIST of (row number, value count) pairs, and a list of whole
+    numbers is as incapable of carrying a spelling as a whole number is.
+    """
+    if isinstance(value, bool):
+        return False
+    if isinstance(value, int):
+        return True
+    if isinstance(value, (list, tuple)):
+        for item in value:
+            if not _carries_no_text(item):
+                return False
+        return True
+    return False
+
+
+def _names_positions_only(name: str) -> bool:
+    """Whether this builder's own arguments can carry a measured string.
+
+    THE RULE IS CHECKED AT THE SIGNATURE, which is where it can be kept:
+    a builder whose arguments are a path and whole numbers has nothing
+    out of the file to put in its sentence, whatever anybody writes into
+    it later. The path is the one the person typed on the command line
+    and is theirs already (V9's own reading). Driven from the catalog
+    above, so a builder added to `errors.py` is inside this rule the day
+    it is added and cannot be left out of a list somebody maintains by
+    hand.
+    """
+    given = CASES[name]
+    if not given:
+        return True
+    if not isinstance(given[0], str):
+        return _carries_no_text(given[0]) and all(
+            _carries_no_text(argument) for argument in given[1:]
+        )
+    for argument in given[1:]:
+        if not _carries_no_text(argument):
+            return False
+    return True
+
+
+def test_no_refusal_that_can_quote_the_file_is_reachable_from_measure(
+    tmp_path: pathlib.Path,
+) -> None:
+    """V9: every refusal reachable from validate names positions.
+
+    REVIEW ITEM P3-V2-D-F1, AND THE TEST WHOSE ABSENCE LET IT THROUGH.
+    Round 1 repaired two header faults by settling them before the
+    reader is called, and the test written for that repair checked the
+    SIGNATURES of three builders named by hand. Nothing asked the only
+    question that matters -- which builders a validate run can actually
+    reach -- so two files walked straight past the pre-check into the
+    reader's own repeated-name refusal, which QUOTES the repeated name,
+    and printed a string out of the measured file on the screen.
+
+    So this drives the whole catalog: every builder in it is wrapped,
+    `validation.measure` is run over a battery of hostile files, and
+    every builder that fired has to be one whose own arguments cannot
+    carry a spelling out of the file. The battery is not a proof of
+    absence and does not claim to be; what it is is the question being
+    asked at all, of every builder there is, in the shape that turns red
+    the day one of them starts being reachable.
+    """
+    import fixtures
+    from synthtwin import contract, profile, reading, taxonomy, validation
+
+    table = fixtures.rows_to_csv(
+        ["reading", "region"],
+        [
+            [f"{index + 1}", fixtures.REGIONS[index % 4]]
+            for index in range(40)
+        ],
+    )
+    written = fixtures.write(tmp_path, "table.csv", table)
+    read = reading.read_table(str(written))
+    document = profile.build_document(read, taxonomy.Settings(), [])
+    described = contract.load_profile(
+        str(fixtures.write_profile(tmp_path, "t-profile.json", document))
+    )
+
+    marker = "zzmarkerzz"
+    hostile = {
+        "twin": table,
+        "duplicate-names": f"{marker},{marker}\n1,2\n3,4\n",
+        "blank-first-line": f"\n{marker},{marker}\n1,2\n3,4\n",
+        "quoted-newline-name": f'"{marker}\nx","{marker}\nx"\n1,2\n3,4\n',
+        "blank-name": "\n,x\n1,2\n3,4\n",
+        "header-only": "reading,region\n",
+        "header-and-blank-lines": "reading,region\n\n\n",
+        "one-newline": "\n",
+        "no-bytes": "",
+        "spaces": "   \n",
+        "unclosed-quote": 'reading,region\n1,"unclosed\n',
+        "ragged": "reading,region\n1,north,extra\n2,south\n",
+        "one-column": "reading\n1\n2\n",
+        "extra-column": "reading,region,extra\n1,north,x\n2,south,y\n",
+        "carriage-returns": "reading,region\r\n1,north\r\n",
+        "carriage-only": "reading,region\r1,north\r",
+        "byte-order-mark": "﻿reading,region\n1,north\n",
+        "blank-line-inside": "reading\n1\n\n2\n",
+        "long-field": "reading,region\n" + "1" * 200 + ",north\n",
+    }
+
+    fired: set[str] = set()
+    builders = _builders()
+    for name in sorted(CASES):
+        setattr(errors, name, _recording(builders[name], name, fired))
+    try:
+        for label in sorted(hostile):
+            target = tmp_path / f"{label}.csv"
+            target.write_text(hostile[label], encoding="utf-8", newline="")
+            try:
+                validation.measure(described, str(target))
+            except errors.ProfileError:
+                pass
+    finally:
+        for name in sorted(CASES):
+            setattr(errors, name, builders[name])
+
+    assert fired, (
+        "no refusal fired at all, so this battery proved nothing -- a "
+        "file the reader stops on has to be in it"
+    )
+    quoting = sorted(name for name in fired if not _names_positions_only(name))
+    assert not quoting, (
+        "these refusals are reachable from a validate run and their own "
+        "arguments can carry a spelling out of the measured file, which "
+        f"V9 forbids on a file nobody promised was the reader's: {quoting}"
+    )
+
+
+def _recording(builder, name, fired):
+    """One builder, wrapped so that calling it is recorded."""
+
+    def wrapper(*arguments, **keywords):
+        fired.add(name)
+        return builder(*arguments, **keywords)
+
+    return wrapper
+
+
+# ---------------------------------------------------------------------
+# P3-D6's reachability half, driven (review item P3-V4-F10)
+# ---------------------------------------------------------------------
+#
+# THE DEFECT THIS CLOSES. The plan requires the validate-side additions
+# to this catalog to have "exact-shape AND reachability tests". The
+# exact-shape half is above. The reachability half was
+# `test_the_catalog_is_reachable_from_the_code_that_raises_it`, which
+# searches source text -- so a refusal whose raise site had stopped
+# being reached would pass it with the token still in the file, and the
+# person would meet a traceback instead of a sentence.
+#
+# Each case below builds the condition and runs the SHIPPED COMMAND at
+# it. Three things are asserted of every one: the named builder fired,
+# the command returned the refusal code rather than raising, and the
+# sentence reached the screen. An escaping exception fails the second;
+# a message composed but never printed fails the third.
+
+
+def _builders_recording(fired: "set[str]") -> "dict[str, object]":
+    """Wrap every builder in the catalog so that calling it is recorded."""
+    import synthtwin.errors as module
+
+    builders = _builders()
+    for name, builder in builders.items():
+        setattr(module, name, _recording(builder, name, fired))
+    return builders
+
+
+def _put_the_builders_back(builders: "dict[str, object]") -> None:
+    import synthtwin.errors as module
+
+    for name, builder in builders.items():
+        setattr(module, name, builder)
+
+
+def _a_described_table(folder: "pathlib.Path") -> "pathlib.Path":
+    """A real table, described by the real command; returns the profile."""
+    import fixtures
+    from synthtwin.cli import main
+
+    rows = [
+        [fixtures.REGIONS[index % 4], f"{index % 7}"] for index in range(48)
+    ]
+    table = fixtures.write(
+        folder, "clinic.csv", fixtures.rows_to_csv(["region", "visits"], rows)
+    )
+    assert main(["profile", f"{table}"]) == 0
+    return folder / "clinic-profile.json"
+
+
+def _with_a_twin(folder: "pathlib.Path") -> "pathlib.Path":
+    from synthtwin.cli import main
+
+    description = _a_described_table(folder)
+    assert main(["generate", f"{description}"]) == 0
+    return description
+
+
+# ---------------------------------------------------------------------
+# A FILE THIS HOST WILL NOT LET SYNTHTWIN READ (review item P3-V4-F10,
+# round 5 item 10)
+# ---------------------------------------------------------------------
+#
+# WHY THIS IS NOT ONE LINE OF CODE. `os.chmod(path, 0)` is the POSIX
+# spelling of "nobody may read this", and for one round it was the whole
+# of this condition, guarded by `os.geteuid() == 0` -- a function
+# Windows does not have. Every Windows cell of the governed matrix (the
+# `tests` job of `.github/workflows/ci.yml`) therefore ended in an
+# AttributeError before it proved anything, and the charter requires CI
+# green before a merge. Guarding the guard with `sys.platform` would
+# have swapped the error for a skip, which is the same defect wearing a
+# different coat: this refusal exists for the person whose file cannot
+# be read, and Windows is where that most often happens -- the file is
+# open in another program. A proof that steps aside on the platform it
+# is most needed on proves nothing there.
+#
+# So the condition is written once per platform, in the mechanism that
+# platform actually has, and EVERY mechanism IS CHECKED before the
+# command is run: the file has to still be there and has to refuse to
+# open. A mechanism that fails that check is undone and not used; if no
+# mechanism on this host achieves it, the case fails and names the host,
+# rather than passing or skipping. The one configuration in which no
+# mechanism can exist is named in `_a_file_that_will_not_open`.
+
+
+def _present_but_will_not_open(place: pathlib.Path) -> bool:
+    """Whether ``place`` is still there and still refuses to be read.
+
+    BOTH HALVES MATTER. `validation.measure` asks three questions in
+    order -- is anything there, is it a folder, do its bytes come back
+    -- and only the third produces `file_unreadable`. A mechanism that
+    makes the file disappear, or that stops the filesystem answering
+    about it at all (which is what `Path.exists` reports), would drive
+    the command to `file_missing` instead: a different refusal, reached
+    for a different reason, with this case none the wiser. So the
+    witness is checked against the same two questions the product asks
+    before the one it is here to prove.
+    """
+    if not place.exists():
+        return False
+    try:
+        place.read_bytes()
+    except OSError:
+        return True
+    return False
+
+
+def _mode_bits_forbid_everybody(place: pathlib.Path) -> "object | None":
+    """POSIX: take every read permission off the file.
+
+    This is the mechanism the person meets as "permission denied", and
+    it is the one the ordinary CI accounts (`runner` on the hosted
+    Linux and macOS images) can produce. It does nothing for a
+    superuser, who reads a file whose mode bits forbid everybody; the
+    caller checks, so that configuration is named rather than passed.
+    """
+    was = stat.S_IMODE(place.stat().st_mode)
+    os.chmod(place, 0)
+
+    def undo() -> None:
+        os.chmod(place, was)
+
+    return undo
+
+
+def _a_lock_over_every_byte(place: pathlib.Path) -> "object | None":
+    """Windows: lock the whole file against every other handle.
+
+    THE REAL WINDOWS CONDITION, not a translation of the POSIX one.
+    `chmod` on Windows moves the read-only attribute and nothing else,
+    so the file stays perfectly readable and the POSIX mechanism proves
+    nothing there. What actually stops a Windows user reading their own
+    file is another program holding it: locks on Windows are mandatory,
+    and a read of a locked region through any other handle fails with a
+    permission error -- which is the exception `validation.measure`
+    turns into this refusal.
+
+    The lock is taken through the C runtime's own call (`msvcrt`, a
+    standard-library module that exists only on Windows), over the
+    file's whole length from byte zero, and it is released and the
+    handle closed by the undo -- both because the case must leave the
+    folder as it found it and because Windows will not delete a file
+    with an open handle on it, which would strand the temporary folder.
+
+    The handle is opened in BINARY read-write mode: `msvcrt.locking`
+    needs a descriptor that may write, and a binary handle translates
+    no byte on its way anywhere, which is what the suite's own
+    line-ending rule asks of every handle it opens.
+    """
+    try:
+        import msvcrt
+    except ImportError:  # pragma: no cover -- not a Windows host
+        return None
+
+    size = place.stat().st_size
+    if size == 0:
+        return None
+    # A context manager is exactly what this must not be: the lock has
+    # to outlive this call, because it is held while the command runs,
+    # and the undo below is what closes the handle.
+    handle = open(place, "r+b")  # noqa: SIM115 -- outlives this call
+    try:
+        os.lseek(handle.fileno(), 0, os.SEEK_SET)
+        msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, size)
+    except OSError:
+        handle.close()
+        return None
+
+    def undo() -> None:
+        try:
+            os.lseek(handle.fileno(), 0, os.SEEK_SET)
+            msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, size)
+        except OSError:
+            pass
+        finally:
+            handle.close()
+
+    return undo
+
+
+def _an_open_handle_that_shares_nothing(
+    place: pathlib.Path,
+) -> "object | None":
+    """Windows, second mechanism: hold the file open sharing nothing.
+
+    A file opened with no sharing cannot be opened again by anybody,
+    which is the sharing violation a Windows user meets as "the file is
+    in use by another program". It is second rather than first because
+    it is the more invasive of the two: a handle that shares nothing
+    also refuses the open that `stat` would like to make, and the
+    product asks `Path.exists` before it reads. Modern CPython answers
+    `stat` from the directory entry when the file cannot be opened, so
+    this should still leave a file that is present and unreadable -- and
+    `_present_but_will_not_open` is what settles whether it does on the
+    host in front of us, rather than this comment.
+    """
+    try:
+        import _winapi
+    except ImportError:  # pragma: no cover -- not a Windows host
+        return None
+
+    generic_read = 0x80000000
+    share_nothing = 0
+    open_existing = 3
+    try:
+        handle = _winapi.CreateFile(
+            f"{place}", generic_read, share_nothing, 0, open_existing, 0, 0
+        )
+    except OSError:
+        return None
+
+    def undo() -> None:
+        _winapi.CloseHandle(handle)
+
+    return undo
+
+
+def _mechanisms_on_this_host() -> "tuple[object, ...]":
+    """Every way THIS platform has of taking a read away.
+
+    Windows gets both of its own, in the order that disturbs the file
+    least first. POSIX gets the one it has. A platform nobody has
+    written a mechanism for gets none, and the caller says so by name.
+    """
+    if os.name == "nt":
+        return (_a_lock_over_every_byte, _an_open_handle_that_shares_nothing)
+    return (_mode_bits_forbid_everybody,)
+
+
+def _a_file_that_will_not_open(place: pathlib.Path) -> "object":
+    """Make ``place`` refuse to be read here, and hand back the undo.
+
+    Guarantees:
+
+    - The file is present and refuses to open when this returns; that
+      is checked, not assumed, whatever mechanism achieved it.
+    - The returned callable puts the file back exactly as it was.
+    - It SKIPS in exactly one configuration -- a POSIX superuser, who
+      reads a file whose mode bits forbid everybody, and for whom this
+      platform's other mechanisms (advisory locks) do not stop a read
+      either. No governed CI cell is one: the hosted Linux and macOS
+      images run the suite as an ordinary account, and the Windows
+      cells do not take this branch at all.
+    - On every other host it either produces the condition or FAILS.
+      A file nobody can read is what this refusal is for, so a host
+      where the case cannot be built is news about the case, and news
+      is not something to skip past.
+    """
+    for mechanism in _mechanisms_on_this_host():
+        undo = mechanism(place)
+        if undo is None:
+            continue
+        if _present_but_will_not_open(place):
+            return undo
+        undo()  # type: ignore[operator]
+    if os.name != "nt" and os.geteuid() == 0:
+        pytest.skip(
+            "this account is a POSIX superuser, which reads a file whose "
+            "mode bits forbid everybody; no CI cell runs as one"
+        )
+    pytest.fail(
+        f"no mechanism this file knows about made {place.name} refuse to "
+        f"be read on this host (os.name={os.name!r}), so the refusal for "
+        f"a file that cannot be read has no reachability proof here. "
+        f"Write the mechanism this platform has and add it to "
+        f"_mechanisms_on_this_host; do not skip the case, because the "
+        f"person whose file will not open is on this platform too"
+    )
+
+
+# One entry per refusal plan P3-D6 names for the validate path: the
+# builder that must fire, a phrase of its sentence that must reach the
+# screen, and the condition, built in a folder of the case's own. Each
+# builder is handed an `undo` stack for whatever it has to put back
+# afterwards -- a locked file has to be unlocked and a mode restored
+# before the temporary folder can be swept up, and on Windows a file
+# with a handle still on it cannot be deleted at all.
+def _missing_measured_file(folder, description, undo):
+    return ["validate", f"{description}", "--twin", f"{folder / 'gone.csv'}"]
+
+
+def _measured_file_is_a_folder(folder, description, undo):
+    (folder / "a-folder").mkdir()
+    return ["validate", f"{description}", "--twin", f"{folder / 'a-folder'}"]
+
+
+def _measured_file_cannot_be_read(folder, description, undo):
+    twin = folder / "clinic-twin.csv"
+    undo.callback(_a_file_that_will_not_open(twin))
+    return ["validate", f"{description}"]
+
+
+def _measured_file_holds_a_field_too_long(folder, description, undo):
+    import fixtures
+
+    bad = fixtures.write(
+        folder, "wide.csv", "region,visits\n" + "a" * 20_000_000 + ",1\n"
+    )
+    return ["validate", f"{description}", "--twin", f"{bad}"]
+
+
+def _measured_file_is_not_text_a_reader_can_take(folder, description, undo):
+    target = folder / "binary.csv"
+    target.write_bytes(b"region,visits\n\x00\x01\x02,1\n")
+    return ["validate", f"{description}", "--twin", f"{target}"]
+
+
+def _the_report_is_already_there(folder, description, undo):
+    from synthtwin.cli import main
+
+    assert main(["validate", f"{description}"]) == 0
+    return ["validate", f"{description}"]
+
+
+def _a_second_name_for(target, source):
+    """Give `target` a second name for `source`, and return `target`.
+
+    A symbolic link is the ordinary route. On Windows it is also a
+    reparse point, so the locality gate refuses the run for holding a
+    link before the transaction is ever asked whether the output would
+    replace an input -- and this refusal, which the catalog claims is
+    reachable, is not reached by that route there.
+
+    A hard link is a second directory entry for one file and carries no
+    reparse point, so it reaches the question on every platform. The
+    catalog's reachability claim is therefore true on Windows too, which
+    it was not until CI first ran these cells on 2026-08-18.
+    """
+    if sys.platform == "win32":
+        os.link(source, target)
+    else:
+        target.symlink_to(source)
+    return target
+
+
+def _the_report_would_land_on_the_description(folder, description, undo):
+    report = folder / "clinic-twin-quality.txt"
+    report.unlink(missing_ok=True)
+    _a_second_name_for(report, description)
+    return ["validate", f"{description}", "--replace"]
+
+
+def _the_report_would_land_on_the_measured_file(folder, description, undo):
+    report = folder / "clinic-twin-quality.txt"
+    report.unlink(missing_ok=True)
+    _a_second_name_for(report, folder / "clinic-twin.csv")
+    return ["validate", f"{description}", "--replace"]
+
+
+def _the_description_no_file_can_be_the_twin_of(folder, description, undo):
+    """A description of the shipped producer's own that G12 refuses.
+
+    REVIEW ITEM P3-V7-F7. Twenty-six values of one character each,
+    outside the code alphabet, so the column publishes twenty-six
+    different values where twenty-five such values exist to be written.
+    Every part of this is the real product: the table is written here,
+    `synthtwin profile` describes it, the description loads, and the
+    walk of method G9.4 must run out on it. So the condition is one a
+    person can reach, and not a document a test edited.
+    """
+    import fixtures
+    from synthtwin.cli import main
+
+    values = [chr(0x100 + 2 * index) for index in range(26)]
+    table = fixtures.write(
+        folder,
+        "note.csv",
+        fixtures.rows_to_csv(["note"], [[value] for value in values]),
+    )
+    assert main(["profile", f"{table}"]) == 0
+    ordinary = fixtures.write(folder, "any.csv", "note\nx\n")
+    return [
+        "validate",
+        f"{folder / 'note-profile.json'}",
+        "--twin",
+        f"{ordinary}",
+    ]
+
+
+DRIVEN = (
+    ("file_missing", "There is no file at", False, _missing_measured_file),
+    ("path_is_a_folder", "is a folder", False, _measured_file_is_a_folder),
+    (
+        "file_unreadable",
+        "could not be opened",
+        True,
+        _measured_file_cannot_be_read,
+    ),
+    (
+        "field_too_long",
+        "more text than synthtwin will read in a single value",
+        True,
+        _measured_file_holds_a_field_too_long,
+    ),
+    (
+        "looks_like_utf16",
+        "it contains the zero bytes those formats use",
+        True,
+        _measured_file_is_not_text_a_reader_can_take,
+    ),
+    (
+        "quality_target_already_there",
+        "something is already at the name it would write",
+        True,
+        _the_report_is_already_there,
+    ),
+    (
+        "output_would_replace_an_input",
+        "would have replaced",
+        True,
+        _the_report_would_land_on_the_description,
+    ),
+    (
+        "output_would_replace_an_input",
+        "would have replaced",
+        True,
+        _the_report_would_land_on_the_measured_file,
+    ),
+    (
+        "no_twin_of_this_description_exists",
+        "it cannot be this description's twin",
+        False,
+        _the_description_no_file_can_be_the_twin_of,
+    ),
+)
+
+
+@pytest.mark.parametrize(
+    "name,phrase,needs_a_twin,build",
+    DRIVEN,
+    ids=[f"{name}-{build.__name__}" for name, _p, _t, build in DRIVEN],
+)
+def test_a_p3d6_refusal_is_reached_by_running_the_command(
+    name: str,
+    phrase: str,
+    needs_a_twin: bool,
+    build: object,
+    tmp_path: pathlib.Path,
+    capsys: "pytest.CaptureFixture[str]",
+) -> None:
+    """The refusal, produced by the shipped command at a real condition.
+
+    NOTHING HERE ASKS WHAT PLATFORM IT IS ON. Each condition builds
+    itself in the mechanism its host has, and says so if it cannot; a
+    test body that reached for a POSIX-only call to decide whether to
+    run was what stopped the whole Windows matrix executing (round 5
+    item 10).
+    """
+    from synthtwin.cli import main
+
+    with contextlib.ExitStack() as undo:
+        description = (
+            _with_a_twin(tmp_path)
+            if needs_a_twin
+            else _a_described_table(tmp_path)
+        )
+        capsys.readouterr()
+        fired: set[str] = set()
+        builders = _builders_recording(fired)
+        try:
+            argv = build(tmp_path, description, undo)  # type: ignore[operator]
+            code = main(argv)
+        finally:
+            _put_the_builders_back(builders)
+        printed = capsys.readouterr()
+    said = printed.out + printed.err
+    assert code == 1, (
+        f"the command returned {code} where 1 is the code for a run that "
+        f"could not be made at all. A condition that ends in a traceback "
+        f"or in a verdict is not this refusal being reached"
+    )
+    assert name in fired, (
+        f"{name} did not fire; what did was {sorted(fired)}. Either the "
+        f"condition no longer produces this refusal -- in which case the "
+        f"catalog's claim that it is reachable is what is wrong -- or "
+        f"the condition here has stopped being the one it names"
+    )
+    assert phrase in said, (
+        f"{name} was composed and no part of it reached the person: "
+        f"{said!r}"
+    )
+
+
+def test_the_driven_battery_covers_the_refusals_the_plan_names() -> None:
+    """The battery is not allowed to shrink quietly.
+
+    Every builder it drives is one the catalog carries, and the count is
+    written down: a case deleted from `DRIVEN` takes a refusal's only
+    reachability proof with it, and this is what says so.
+    """
+    driven = {name for name, _phrase, _twin, _build in DRIVEN}
+    unknown = sorted(driven - set(CASES))
+    assert not unknown, (
+        f"these driven cases name a builder the catalog does not carry: "
+        f"{unknown}"
+    )
+    assert len(DRIVEN) == 9 and len(driven) == 8, (
+        f"the driven battery is {len(DRIVEN)} case(s) over {len(driven)} "
+        f"refusal(s), and was 9 over 8. A case that leaves takes a "
+        f"refusal's only reachability proof with it, so say why in the "
+        f"same commit"
+    )
+    # EVERY REFUSAL PLAN P3-D6 NAMES FOR THE VALIDATE PATH IS HERE, and
+    # the one round 7 found missing is named rather than counted (review
+    # item P3-V7-F7): a battery whose only guard is a total can lose one
+    # case and gain another and go on passing.
+    assert "no_twin_of_this_description_exists" in driven, (
+        "the G12-infeasible refusal of plan P3-D2 has no reachability "
+        "proof again, which is the state review item P3-V7-F7 found"
+    )

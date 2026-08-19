@@ -23,7 +23,16 @@ What was wrong was the CLAIM, so the claim is what changed. Each test
 below pins one statement of the replacement paragraph against what the
 code actually does, in both directions:
 
-* the settings record counts and the matching rule, never a spelling;
+* the settings record counts and the matching rule, never a spelling
+  OF THE PERSON'S OWN -- and, from contract version 5, which members of
+  synthtwin's own thirteen published words were among the values typed
+  (that contract's section 6; plan amendment A-P3-27, which states the
+  size of that lowering and prices it). The tests below check both
+  halves: the member is written in SYNTHTWIN's spelling, and a word
+  that is not on synthtwin's list is still written nowhere in the
+  settings -- which is a claim about that block and about nothing else,
+  because such a word DOES reach its column's `missing_by_source`
+  (review item P3-V9-F1, plan amendment A-P3-31);
 * a value declared MISSING is counted absent, and its spelling is listed
   by its column among the spellings counted as missing -- under the same
   small-cell floor, and only where that column publishes values at all;
@@ -79,6 +88,87 @@ def _declaration_paragraph(summary_text: str) -> str:
     """
     start = summary_text.index("Values you named yourself")
     return " ".join(summary_text[start:].split())
+
+
+# -- what version 5 added, and the bound on it -------------------------
+
+
+def test_a_named_word_is_recorded_the_same_whether_or_not_it_occurs(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Contract 5 C5-16: the lists are a function of the command line.
+
+    This is the property that keeps the two lists from being evidence
+    ABOUT THE TABLE. A word somebody names but no cell wears is recorded
+    exactly as one every cell wears, so a reader of the field sees what
+    rule the run applied and nothing about the rows it ran over.
+    """
+    readings = [f"{index}" for index in range(1, 201)]
+    (tmp_path / "held").mkdir()
+    (tmp_path / "absent").mkdir()
+    held, _written, _summary = _run(
+        tmp_path / "held",
+        "reading",
+        readings + [SENTINEL] * 20,
+        ["--missing-value", SENTINEL],
+    )
+    capsys.readouterr()
+    absent, _written_two, _summary_two = _run(
+        tmp_path / "absent",
+        "reading",
+        readings,
+        ["--missing-value", SENTINEL],
+    )
+    capsys.readouterr()
+    assert held["settings"]["declared_missing_values"] == (
+        absent["settings"]["declared_missing_values"]
+    )
+    assert absent["settings"]["declared_missing_values"][
+        "built_in_numbers"
+    ] == [-999.0]
+
+
+def test_only_a_member_of_synthtwins_own_list_is_ever_written(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Contract 5 C5-17 and C5-K1, from the other side.
+
+    Three values are named: one of synthtwin's spellings typed with the
+    person's own capitals and spacing, one of synthtwin's stand-in
+    numbers typed with trailing zeros, and a word that is nobody's but
+    the person's. The document holds the two MEMBERS, in synthtwin's
+    spelling, and nothing at all of the third.
+    """
+    readings = [f"{index}" for index in range(1, 201)]
+    document, written, _summary = _run(
+        tmp_path,
+        "reading",
+        readings,
+        [
+            "--keep-value",
+            " N/A ",
+            "--keep-value",
+            "-999.00",
+            "--missing-value",
+            "wombat",
+        ],
+    )
+    capsys.readouterr()
+    assert document["settings"]["kept_values"] == {
+        "built_in_numbers": [-999.0],
+        "built_in_texts": ["n/a"],
+        "n_declared": 2,
+        "values_recorded": False,
+    }
+    assert document["settings"]["declared_missing_values"] == {
+        "built_in_numbers": [],
+        "built_in_texts": [],
+        "n_declared": 1,
+        "values_recorded": False,
+    }
+    assert " N/A " not in written
+    assert "-999.00" not in written
+    assert "wombat" not in written
 
 
 # -- the retired claim -------------------------------------------------
@@ -204,7 +294,7 @@ def test_a_declared_missing_spelling_below_the_floor_is_pooled(
     tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     readings = [f"{index}" for index in range(1, 201)]
-    document, written, summary_text = _run(
+    document, _written, summary_text = _run(
         tmp_path,
         "reading",
         readings + [SENTINEL] * 3,
@@ -214,8 +304,25 @@ def test_a_declared_missing_spelling_below_the_floor_is_pooled(
     column = document["columns"][0]
     assert column["n_missing"] == 3
     assert SENTINEL not in json.dumps(column["missing_by_source"])
-    assert SENTINEL not in written
-    assert "counted as missing: (withheld) (3)" in summary_text
+    assert column["n_missing_withheld"] == 3
+    # THE COLUMN NAMES IT NOWHERE, which is the floor doing its work and
+    # is what this test is about. The settings block DOES record that
+    # one of synthtwin's own three stand-in numbers was named, and that
+    # is the stated lowering of contract version 5 rather than a leak:
+    # it says which of thirteen fixed words was typed, and nothing about
+    # this column, this count or these three rows.
+    assert document["settings"]["declared_missing_values"][
+        "built_in_numbers"
+    ] == [-999.0]
+    for block in document["columns"]:
+        assert SENTINEL not in json.dumps(block)
+    # The pooled group is counted and said to be pooled; the spelling is
+    # not named and the pooled NAME is not printed as though it were one
+    # (review of the shipped reports, 2026-08-15).
+    assert "counted as missing: 3 cell(s) whose spelling is not named" in (
+        summary_text
+    )
+    assert "(withheld)" not in summary_text
 
 
 def test_a_column_that_publishes_nothing_publishes_nothing_either_way(
@@ -268,8 +375,18 @@ def test_the_settings_carry_counts_and_never_a_spelling(
     assert "values_recorded" in json.dumps(recorded["kept_values"])
     assert recorded["kept_values"]["values_recorded"] is False
     assert recorded["declared_missing_values"]["values_recorded"] is False
+    # THE PERSON'S OWN WORD IS STILL NOWHERE. `unknown` is on no list of
+    # synthtwin's, so no count, no list and no key carries it -- which
+    # is the half of the Phase 1 rule contract version 5 does not touch.
     assert "unknown" not in json.dumps(recorded)
-    assert SENTINEL not in json.dumps(recorded)
+    # AND WHAT IS CARRIED IS ONE OF SYNTHTWIN'S OWN THIRTEEN, written in
+    # synthtwin's own form. The person typed `-999`; the document holds
+    # the number `-999.0`, which is the vocabulary member.
+    named = (
+        recorded["kept_values"]["built_in_numbers"]
+        + recorded["declared_missing_values"]["built_in_numbers"]
+    )
+    assert named == [-999.0]
 
 
 def test_the_recorded_policy_names_its_own_scope(
@@ -372,5 +489,20 @@ def test_the_option_help_does_not_claim_a_declared_value_is_withheld(
     assert "--keep-value" in shown and "--missing-value" in shown
     assert "held back like any other" not in shown
     assert "not written into the profile" not in shown
-    assert "records how many values you named" in shown
+    # DIFFERENT values since 2026-08-17, because the count folds two
+    # spellings of one value into one declaration (review item
+    # P3-V9-F7, plan amendment A-P3-37).
+    assert "records how many different values you named" in shown
     assert "wherever its column publishes values" in shown
+    # AND THE HELP STOPPED SAYING THE PROFILE RECORDS NO VALUE AT ALL
+    # (plan amendment A-P3-30). Both options carried "never the values
+    # themselves" for three stages after contract version 5 began
+    # recording which of synthtwin's own thirteen words were typed --
+    # so the screen a person reads BEFORE deciding what to type
+    # contradicted `SECURITY.md`, the profile's own summary and the
+    # settings block itself. The claim that survives is the one
+    # contract 5 section 6 holds to: a word of the person's own is
+    # never written into the settings.
+    assert "never the values themselves" not in shown
+    assert shown.count("a word of your own is never written") == 2
+    assert shown.count("one of synthtwin's own words for 'no value'") == 2

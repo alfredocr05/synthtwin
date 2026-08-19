@@ -49,6 +49,7 @@ import typing
 
 import pytest
 
+import dispositions
 import fixtures
 from synthtwin import (
     contract,
@@ -265,13 +266,19 @@ APPROXIMATED = {
 
 
 def _matrix_sections() -> "dict[str, dict[str, str]]":
-    """Section 9 of the profile contract, read as fields and dispositions.
+    """The disposition matrix, read from both versions, as fields.
 
-    Returns one mapping per matrix table, keyed by the heading the
-    contract gives it, whose entries are every name in the first cell of
-    a row against the disposition text in the second. Reading the
-    contract rather than restating it is the point: a matrix that gains
-    a field, loses one, or changes a disposition moves these tests.
+    Returns one mapping per matrix table, keyed by the heading version 4
+    gives it, whose entries are every name in the first cell of a row
+    against the disposition text in the second. Reading the contract
+    rather than restating it is the point: a matrix that gains a field,
+    loses one, or changes a disposition moves these tests.
+
+    VERSION 5 IS READ WITH IT, because version 5 carries version 4 by
+    reference and states only its delta (its C5-30 requires the
+    completeness assertion to pass against the two read together).
+    `dispositions.CONTRACT5_SECTIONS` says which version 4 table each
+    delta row belongs to.
     """
     text = (SPEC / "profile-contract-v4.md").read_text(encoding="utf-8")
     start = text.index("## 9. The disposition matrix")
@@ -294,6 +301,12 @@ def _matrix_sections() -> "dict[str, dict[str, str]]":
             continue
         for name in re.findall(r"`([^`]+)`", cells[0]):
             sections[heading][name] = cells[1]
+    delta = dispositions.contract5_delta(SPEC / "profile-contract-v5.md")
+    for names, said in delta:
+        for name in names:
+            where = dispositions.CONTRACT5_SECTIONS.get(name)
+            if where is not None:
+                sections[where][name] = said
     return sections
 
 
@@ -557,6 +570,7 @@ def test_the_report_says_plainly_when_a_bound_was_missed(
         highest="11.0",
         inside=False,
         note="this column's average",
+        covers_published=True,
     )
     edited = dataclasses.replace(twin, approximations=(missed,))
     text = rendering.report(every_role, edited)
@@ -564,6 +578,10 @@ def test_the_report_says_plainly_when_a_bound_was_missed(
     assert "the description says 10.0; the twin holds 40.0" in text
     assert "allowed anywhere from 9.0 to 11.0: OUTSIDE the range" in text
     assert "is also named in the section above" in text
+    # A bound that DOES cover the published value says nothing extra:
+    # the sentence about a range missing the description's value is
+    # printed where it is true and nowhere else.
+    assert "does not cover the description's own value" not in text
 
 
 def test_the_report_still_has_the_section_with_nothing_to_put_in_it(

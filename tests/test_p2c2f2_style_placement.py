@@ -91,14 +91,22 @@ def test_a_whole_value_has_a_point_free_spelling_that_reads_back() -> None:
 def test_a_value_with_no_point_free_spelling_is_not_offered_one() -> None:
     """The other half of point 1: the rule refuses what it cannot write.
 
-    `12.5` is not whole and `1e+16` stands outside the window in which
-    the shortest round trip is written in fixed-point notation, so
-    neither has a point-free spelling and neither may wear one of the
-    three styles that need one.
+    A value that is not whole has no spelling without a point, so it may
+    wear none of the three styles that need one. `12.5`, `1e-05` and
+    `-2.5` are those values.
+
+    A WHOLE VALUE HAS ONE AT ANY WIDTH (owner decision 10, 2026-08-13).
+    This test used to put `1e+16` on the refusing side, because the
+    contract's fixed-point window stops there -- but that window governs
+    the canonical spelling of a number in the profile document, not the
+    spelling of a plain cell in the twin, and a whole value's full digit
+    expansion reads back exactly however wide it is. So the wide whole
+    numbers move to the side that CAN be written plainly, which is what
+    stops a column of them from coming back as a decimal one.
     """
-    for value in (12.5, 1e16, 1e-05, -2.5):
+    for value in (12.5, 1e-05, -2.5):
         assert not generation._carries_plainly(value, False)
-    for value in (0.0, 5.0, 1e15):
+    for value in (0.0, 5.0, 1e15, 1e16, 1e20):
         assert generation._carries_plainly(value, False)
 
 
@@ -211,14 +219,19 @@ def test_a_style_with_nowhere_to_go_is_still_named(
     generator chose. It is now placed exactly, and this test's fixture
     is a column where the arithmetic really does run out.
 
-    A pooled remainder is written `plain` (contract 7.5.7), so this
-    column's forty named `plain` cells and its six pooled ones ask for
-    all forty-six of its cells to carry no point. Two of them cannot:
-    one cell must read back as the published `min` of `0.5` and one as
-    the published `max` of `9.25`, and neither number has a point-free
-    spelling. Forty-four is therefore the most any conforming generator
-    can write. The twin writes forty-four and the report names the
-    remainder.
+    AND THE FIXTURE MOVED AGAIN, because the Phase 3 plan repaired the
+    shape it had been moved to (P3-D8.1, closing the registry's open
+    P2-C5-F3). That shape was a producer column of forty named `plain`
+    cells and six pooled ones whose published ends carry points: under
+    the withdrawn rule every pooled cell was owed the plain form, which
+    the two end cells have no spelling for, so the twin was required to
+    miss a total no generator could reach. A pooled cell has no
+    published form, so it is now spelled by its own value and nothing
+    is missed there. What is left for this test is a NAMED count with
+    nowhere to go, which a producer cannot emit and a hand-written
+    description can: forty-six `leading_plus` cells on a column two of
+    whose cells must read back as numbers with no point-free spelling
+    at all. That miss is the twin's to name, and it names it.
     """
     values = ["0.5"] * 3 + ["7"] * 40 + ["9.25"] * 3
     document, loaded = _described(tmp_path, values)
@@ -230,9 +243,19 @@ def test_a_style_with_nowhere_to_go_is_still_named(
     written = _styles(twin)
     assert written == {"plain": 44, "decimal": 2}
     named = [note for note in twin.deviations if note.fact == "numeric_styles"]
-    assert {note.achieved for note in named} == {
-        str(written.get("plain", 0)), str(written.get("decimal", 0)),
-    }
+    assert named == [], [note.published for note in named]
+
+    document["columns"][0]["numeric_styles"] = {"leading_plus": 46}
+    target = fixtures.write_profile(tmp_path, "edited-profile.json", document)
+    edited = contract.load_profile(str(target))
+    twin = generation.generate(edited, 0)
+    written = _styles(twin)
+    assert written.get("leading_plus", 0) == 44
+    named = [note for note in twin.deviations if note.fact == "numeric_styles"]
+    assert named, "a named count with nowhere to go must be spoken"
+    assert any("leading_plus" in note.published for note in named), [
+        note.published for note in named
+    ]
 
 
 def test_the_placement_rule_refuses_a_style_the_cell_cannot_wear() -> None:

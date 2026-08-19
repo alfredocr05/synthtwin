@@ -24,7 +24,7 @@ columns were built one at a time and carry no structure between them;
 that the rows were built one at a time and the description never said
 what one row of the real table is; where the twin's values come from and
 the one case in which a twin row can nonetheless equal a real one; that
-all three files of a full run carry facts computed from real data; and
+all five files of a full run carry facts computed from real data; and
 which cells common spreadsheet software will read as a formula. None of
 those is conditional on anything, because a warning that appears only
 sometimes is a warning nobody comes to expect.
@@ -42,8 +42,12 @@ are printed in full, so no fact is approximate and unchecked.
 
 What is still NOT here is a fidelity verdict: no claim that the twin is
 good enough for a purpose, and no measure of anything the description
-never published. That is Phase 3's work, and this report says so rather
-than implying the silence is a pass.
+never published. A verdict of the second kind now exists and is a
+different command's: `synthtwin validate` measures a written file
+against the description and writes the quality report. This report
+teaches that command rather than letting its own silence read as a pass,
+and it passes no verdict of its own even so -- what it prints is what
+the generator measured while writing the cells.
 
 THE BOUNDARY THIS MODULE UPHOLDS (plan P2-D1). It reads the loaded
 description and the built twin, and nothing else. It opens no file,
@@ -109,9 +113,40 @@ _TYPE_WORDS = {
 # What the description's own words for a stand-in decision mean. The
 # codes are the profiler's; these are the same two decisions written for
 # a person, and neither table holds a value of anybody's table.
+#
+# THE KEYS WERE WRONG AND SO NOTHING WAS TRANSLATED (review of the
+# shipped reports, 2026-08-15). They read `missing` and `kept`, and the
+# profiler's own words are `read_as_missing` and `kept_as_a_number`, so
+# every lookup missed and an ordinary report printed the machine code:
+# "-999 in 13 row(s): read_as_missing, because outlier_and_frequent",
+# in a document whose whole promise is being written for a person, and
+# beside a summary of the same profile saying it in English. The reason
+# codes had no table here at all and now have the summary's own, word
+# for word, so the two pages describing one decision cannot describe it
+# differently. The suite holds both tables to the producer's constants,
+# because a table keyed on a code nobody publishes fails silently --
+# which is exactly how this survived.
 _VERDICT_WORDS = {
-    "missing": "counted as 'no value'",
-    "kept": "kept as a number",
+    "read_as_missing": "counted as 'no value'",
+    "kept_as_a_number": "kept as a number",
+}
+_REASON_WORDS = {
+    "outlier_and_frequent": (
+        "far outside the rest of the column, and in enough rows to be a "
+        "convention rather than a reading"
+    ),
+    "not_an_outlier": (
+        "inside the range the rest of the column covers, so it reads as "
+        "an ordinary value"
+    ),
+    "too_rare": (
+        "in too few rows to be a convention, and removing it would throw "
+        "away a real reading"
+    ),
+    "too_few_other_values": (
+        "there are too few other values in this column to judge it against"
+    ),
+    "kept_by_you": "you named it with --keep-value",
 }
 
 
@@ -417,7 +452,31 @@ def _independence_lines() -> "list[str]":
     ]
 
 
-def _formula_lines(twin: generation.Twin) -> "list[str]":
+def _invented_columns(profile: contract.Profile) -> "frozenset[str]":
+    """The columns whose every value the twin made up (contract 6.10).
+
+    Three roles publish no value of the table anywhere in their block --
+    record numbers, free text, and numbers too large to hold -- and so
+    does any column declared a record number, whatever its role. A cell
+    of one of those columns was invented by synthtwin; a cell of any
+    other MAY be a value the description published. The report needs
+    the difference because it tells the reader two different things
+    about a spreadsheet hazard, and saying the wrong one is a lie about
+    where the cell came from.
+    """
+    made_up: list[str] = []
+    for column in profile.columns:
+        if column.structural_role == "identifier" or column.role in (
+            "free_text",
+            "numeric_unrepresentable",
+        ):
+            made_up = made_up + [column.name]
+    return frozenset(made_up)
+
+
+def _formula_lines(
+    profile: contract.Profile, twin: generation.Twin
+) -> "list[str]":
     """The spreadsheet warning, which appears whatever the count is.
 
     The hazard is counted and the columns are named, and the twin is
@@ -427,8 +486,45 @@ def _formula_lines(twin: generation.Twin) -> "list[str]":
     protection, because it is not protection: the quoting belongs to the
     file format and the spreadsheet strips it before it decides what the
     cell is.
+
+    AND IT SAYS WHICH KIND OF CELL EACH COLUMN HOLDS (owner decision 9,
+    2026-08-13). This paragraph used to tell every reader that a
+    hazardous cell was a value their description published, which is
+    false for a column that publishes no values at all: there the cell
+    was INVENTED. Both facts are worth a sentence, and neither is worth
+    a sentence that says the other.
+
+    AND THE NECESSITY IS NOT CLAIMED OF EVERY SUCH CELL, in this
+    docstring any more than in the paragraph it describes (review round
+    4's standing owner item). This said the invented cell "opens with a
+    sign because the description's own counts leave no other spelling
+    of that width -- which is itself the proof that the real column held
+    such values", flatly, of every one of them. That holds only WHERE
+    the counts leave no other spelling, and synthtwin does not always
+    reach for the fewest such cells it could: where a twin carries more
+    of them than the description forced, the extra ones are a limit of
+    synthtwin and prove nothing about the real column. The lines below
+    say exactly that to the reader, and a private docstring that says
+    otherwise is the same false sentence with a smaller audience.
     """
     total, named = _formula_hazard(twin)
+    made_up = _invented_columns(profile)
+    # A HAZARDOUS HEADER IS NOT AN INVENTED CELL (review item P3-C5-F8).
+    # The count above takes the header row's names beside the data,
+    # because a name is a cell of the file like any other -- but a name
+    # came from the description, and calling it made-up would be the
+    # same class of false sentence this paragraph was rewritten to
+    # remove. So the invented list is built from DATA cells only, and a
+    # column whose only hazard is its name is left out of it.
+    invented: list[str] = []
+    for place in range(len(twin.columns)):
+        name = twin.names[place]
+        if name not in made_up:
+            continue
+        for cell in twin.columns[place]:
+            if _first_character(cell) in _FORMULA_LEADERS:
+                invented = invented + [f"'{_shown(name)}'"]
+                break
     lines = [
         "Common spreadsheet software reads a cell that begins with  =  +  -",
         "@  a tab or a carriage return as a formula rather than as text,",
@@ -442,6 +538,21 @@ def _formula_lines(twin: generation.Twin) -> "list[str]":
             f"This twin has {total} such cell(s), in these columns:",
             f"  {_joined(named)}",
         ]
+        touched = [one for one in named if one in invented]
+        if touched:
+            lines = lines + [
+                "",
+                "Some of those cells synthtwin MADE UP, in these columns:",
+                f"  {_joined(touched)}",
+                "Those columns publish no value of your table, so every",
+                "value in them is invented. Where your description's own",
+                "counts leave no other way to spell a value of that width,",
+                "that is also how you know your real column held values",
+                "written the same way. It is not so for every one of these",
+                "cells: synthtwin does not always reach for the fewest it",
+                "could, and this report cannot tell you which cell is",
+                "which. The paragraph below says what that means.",
+            ]
     else:
         lines = lines + [
             "No cell of this twin begins with one of those characters, and",
@@ -450,14 +561,30 @@ def _formula_lines(twin: generation.Twin) -> "list[str]":
         ]
     return lines + [
         "",
-        "synthtwin does not change those cells. A value the description",
-        "publishes has to be written exactly as it was published, or the",
-        "counts the twin exists to reproduce stop holding. Quotation marks",
-        "around a cell are NOT protection: they belong to the file format,",
-        "and a spreadsheet removes them before it decides what the cell is.",
-        "What to do instead: open the twin with the program that will use",
-        "it -- your analysis code -- or with a spreadsheet's 'import as",
-        "text' route, rather than by double-clicking the file.",
+        "synthtwin does not change those cells, and there is no spelling",
+        "that would make a spreadsheet read them as text. Where the value",
+        "is one your description published, it has to be written exactly",
+        "as published or the counts the twin exists to reproduce stop",
+        "holding. Where synthtwin invented it, it reached for that shape",
+        "to meet a count your description states. Where those counts",
+        "leave no other spelling of that width, your own table held",
+        "values written that way -- that is what the count says. But",
+        "synthtwin does not always reach for the fewest such cells it",
+        "could: where a twin carries more of them than the description",
+        "forced, that is a limit of synthtwin and is written down in its",
+        "plan, not something your table asked for.",
+        "",
+        "Quotation marks around a cell are NOT protection: they belong to",
+        "the file format, and a spreadsheet removes them before it decides",
+        "what the cell is.",
+        "",
+        "What to do: open the twin with the program that will use it --",
+        "your analysis code -- or with a spreadsheet's 'import as text'",
+        "route, rather than by double-clicking the file. And if this",
+        "matters to your work, it is worth settling in your real table",
+        "rather than working around it here: values written that way",
+        "behave the same way there, which is why the twin has them at",
+        "all.",
     ]
 
 
@@ -512,6 +639,21 @@ def _approximation_lines(twin: generation.Twin) -> "list[str]":
     bound nobody printed is a fact a reader has to take on trust, and
     this repository treats a check whose result is not shown as a check
     that was not made (plan P2-D11, contract section 2.2).
+
+    THE RANGE IS NOT A MARGIN AROUND THE PUBLISHED VALUE, AND THE PAGE
+    NOW SAYS SO (review of the shipped reports, 2026-08-15). Every one
+    of these ranges is worked out from the description and the size of
+    the column, so a range can lie wholly above or wholly below the
+    value printed on the line above it. Three date rungs of one
+    ordinary column did: the description said 2023-11-23, the twin held
+    2023-11-20, and the range ran 2023-11-19 to 2023-11-21 -- with a
+    preamble telling the reader that "inside the range" means the twin
+    did what the method promises and never saying the range could
+    exclude the published value. Nothing was wrong with the arithmetic;
+    the page contradicted itself. So the preamble says what the range
+    is made of and that it can miss the value beside it, and any fact
+    where it does gets a line of its own saying it, because a reader
+    meets the line and not the preamble.
     """
     lines = [
         "A fact in this section is APPROXIMATE by construction: the method",
@@ -522,6 +664,18 @@ def _approximation_lines(twin: generation.Twin) -> "list[str]":
         "beside it. 'Inside the range' means the twin did what this method",
         "promises; it does not mean the two numbers are equal, and the two",
         "numbers are both printed so you can see the difference yourself.",
+        "",
+        "THE RANGE IS NOT A MARGIN AROUND THE DESCRIPTION'S VALUE. It is",
+        "what the method allows the twin's own value, worked out from the",
+        "description and the size of your column, so a range can sit",
+        "wholly above or wholly below the value printed beside it -- most",
+        "often at the top of a column of dates, where the twin's rung is",
+        "read at a slightly different share of the column from the share",
+        "the rung's name names. Where a range does not cover the",
+        "description's value, this report says so on that fact's own",
+        "lines, and 'inside the range' there means only that the method",
+        "kept the promise it made -- it does not mean the two values are",
+        "close. Compare the two values yourself; they are both printed.",
         "",
     ]
     if not twin.approximations:
@@ -552,6 +706,20 @@ def _approximation_lines(twin: generation.Twin) -> "list[str]":
             "Every one of them landed inside the range this method promises.",
             "",
         ]
+    missing = 0
+    for found in twin.approximations:
+        if not found.covers_published:
+            missing = missing + 1
+    if missing:
+        lines = lines + [
+            (
+                f"On {missing} of them the range does not cover the "
+                f"description's own"
+            ),
+            "value at all, which the paragraph above says is not a fault.",
+            "Each of those says so again on its own lines below.",
+            "",
+        ]
     shown = ""
     for found in twin.approximations:
         if found.column != shown:
@@ -571,25 +739,141 @@ def _approximation_lines(twin: generation.Twin) -> "list[str]":
                 f"{_shown(found.highest)}: {result}"
             ),
         ]
+        lines = lines + _range_miss_lines(found)
     return lines
 
 
-def _missing_lines(column: contract.ColumnBlock) -> "list[str]":
+def _range_miss_lines(found: generation.Approximation) -> "list[str]":
+    """Said where a range does not reach the value printed above it.
+
+    Printed on the fact's own lines rather than left to the preamble,
+    because a reader meets the line and not the preamble (review of the
+    shipped reports, 2026-08-15). Empty where the range covers the
+    published value, which is most of them.
+    """
+    if found.covers_published:
+        return []
+    return [
+        (
+            f"    this range does not cover the description's own "
+            f"value ({_shown(found.published)}):"
+        ),
+        "      it is the range the method allows the twin here,",
+        "      worked out from the description and the size of this",
+        "      column, and not a margin around that value. The two",
+        "      values above are what to compare.",
+    ]
+
+
+def _missing_lines(
+    column: contract.ColumnBlock, floor: int
+) -> "list[str]":
     """How the real table wrote its absent cells, which the twin does not.
 
     Every absent cell of the twin is written as an empty cell, so the
     spellings and the reasons behind them are recorded here and nowhere
     else (residual R-P2-2).
+
+    TWO GROUPINGS OF ONE SET OF CELLS, SAID TO BE THAT (review of the
+    shipped reports, 2026-08-15). `missing_by_source` and
+    `missing_by_class` count the SAME absent cells -- once by the
+    spelling the table wrote, once by the reason each was counted
+    absent -- so a column with eight empty cells printed
+    `(blank): 8 cell(s)` and `counted absent because nothing was
+    written there: 8` one under the other, and the two lines read as
+    sixteen cells. The two groupings are now introduced as two
+    groupings of the same cells, with the total named once above them.
+
+    AND A POOLED NAME IS NEVER A CLAIM ABOUT WHAT WAS WRITTEN. Both
+    maps pool everything under the publication floor into the single
+    key `(withheld)`, which is synthtwin's word for "not published
+    here" and is not a spelling any table used nor a reason any cell
+    was absent. Printed straight it said both of those things: at the
+    default floor the same eight EMPTY cells printed as
+    `(withheld): 8 cell(s)` and `counted absent because a spelling held
+    back, because too few rows wrote it that way: 8` -- a report
+    telling a researcher their blanks carried some marker they had to
+    account for, which was false of every one of them. The pooled entry
+    of each map now says what pooling is: how many cells the map does
+    not name, and why the map does not name them.
+
+    AND THE FIRST GROUP IS NO LONGER CALLED A GROUPING BY SPELLING
+    (plan amendment A-P3-30). It was, while `missing_by_source` was the
+    whole of it. Contract version 5 took the blank count and the pooled
+    count out of that map and gave each a field of its own, so the
+    group now holds up to three kinds of line and only one of them is a
+    spelling -- and on a column whose absent cells are ALL blank it read
+    `By the spelling your table used: 11 cell(s) with nothing written
+    in them`, which tells a researcher their empty cells wore something.
+    The heading asks what the table WROTE in those cells, which is a
+    question "nothing" is an answer to.
     """
     if not column.n_missing:
         return []
     lines = [
         "  The twin writes every one of them as an empty cell, so how your",
-        "  table wrote them is here rather than in the twin:",
+        "  table wrote them is here rather than in the twin. The two",
+        f"  groups below are two groupings of the same {column.n_missing} cell(s) --",
+        "  once by what your table wrote in them, once by the reason each",
+        "  was counted absent -- so their numbers are not added together.",
+        "  By what your table wrote in them:",
     ]
+    lines = lines + _by_spelling_lines(column, floor)
+    lines = lines + ["  By the reason each was counted absent:"]
+    return lines + _by_reason_lines(column, floor)
+
+
+def _by_spelling_lines(
+    column: contract.ColumnBlock, floor: int
+) -> "list[str]":
+    """The absent cells grouped by the spelling the table wrote.
+
+    THE SPELLING IS SHOWN, NEVER PRINTED RAW (contract 5 C5-3). From
+    version 5 the description stores a key character for character, so
+    a key can hold something that instructs a terminal. `_shown` puts
+    every one of them through the display boundary here, at the moment
+    of printing, and the printed characters are the ones version 4
+    printed (C5-4). What moved is the file, not the page.
+
+    AND THE TWO COUNTS ARE NOT SPELLINGS (contract 5 section 5). The
+    blank cells and the pooled remainder are two numbers of their own
+    now, and each is printed as what it is: cells with nothing written
+    in them, and cells the floor will not let this report name.
+    """
+    lines: list[str] = []
+    pooled = column.n_missing_withheld
+    if column.n_missing_blank:
+        lines = lines + [
+            (
+                f"    {column.n_missing_blank} cell(s) with nothing "
+                f"written in them"
+            )
+        ]
     for spelling in sorted(column.missing_by_source):
         count = column.missing_by_source[spelling]
         lines = lines + [f"    {_shown(spelling)}: {count} cell(s)"]
+    if pooled:
+        lines = lines + [
+            f"    {pooled} cell(s) whose spelling is not named here:",
+            (
+                f"      fewer than {floor} of this column's cells were "
+                f"written any one of"
+            ),
+            "      those ways, so the description does not publish the",
+            "      spelling and neither does this report.",
+        ]
+    if not lines:
+        lines = [
+            "    the description names no spelling for these cells, so",
+            "    this report names none either.",
+        ]
+    return lines
+
+
+def _by_reason_lines(
+    column: contract.ColumnBlock, floor: int
+) -> "list[str]":
+    """The absent cells grouped by why each was counted absent."""
     classes = column.missing_by_class
     reasons = [
         (classes.blank, "nothing was written there"),
@@ -599,14 +883,23 @@ def _missing_lines(column: contract.ColumnBlock) -> "list[str]":
             "a number this column used as a stand-in for 'no value'",
         ),
         (classes.text_code, "a code such as NA that reads as 'no value'"),
-        (
-            classes.withheld,
-            "a spelling held back, because too few rows wrote it that way",
-        ),
     ]
+    lines: list[str] = []
     for count, reason in reasons:
         if count:
-            lines = lines + [f"    counted absent because {reason}: {count}"]
+            lines = lines + [f"    {reason}: {count} cell(s)"]
+    if classes.withheld:
+        lines = lines + [
+            f"    {classes.withheld} cell(s) whose reason is not named here:",
+            (
+                f"      fewer than {floor} of this column's cells fell "
+                f"under any one of"
+            ),
+            "      those reasons, so the description does not publish the",
+            "      reason and neither does this report. This is not a",
+            "      reason of its own, and it says nothing at all about",
+            "      what those cells held.",
+        ]
     return lines
 
 
@@ -617,6 +910,13 @@ def _sentinel_lines(column: contract.ColumnBlock) -> "list[str]":
     twin value can land on one of those numbers by ordinary arithmetic,
     and describing the twin again would then count it absent -- exactly
     as the real column's own cells were counted.
+
+    A COLUMN THAT PUBLISHES NO VALUE CARRIES `(withheld)` IN PLACE OF
+    THE CANDIDATE, and that is not a number this column used. Printed
+    where the number goes it read as one -- "(withheld) in 40 row(s):
+    kept as a number" names a spelling no table wrote. The line now
+    says the number is not named here, which is what the description
+    holds.
     """
     if not column.sentinel_verdicts:
         return []
@@ -628,11 +928,17 @@ def _sentinel_lines(column: contract.ColumnBlock) -> "list[str]":
         decision = verdict.verdict
         if decision in _VERDICT_WORDS:
             decision = _VERDICT_WORDS[decision]
+        because = verdict.reason
+        if because in _REASON_WORDS:
+            because = _REASON_WORDS[because]
+        named = f"{_shown(verdict.candidate)}"
+        if verdict.candidate == contract.WITHHELD:
+            named = "a number not named here"
         lines = lines + [
             (
-                f"    {_shown(verdict.candidate)} in "
+                f"    {named} in "
                 f"{verdict.n_occurrences} row(s): {_shown(decision)}, "
-                f"because {_shown(verdict.reason)}"
+                f"because {_shown(because)}"
             )
         ]
     return lines + [
@@ -664,6 +970,7 @@ def _column_lines(
     column: contract.ColumnBlock,
     outcome: generation.ColumnOutcome,
     notes: "list[str]",
+    floor: int,
 ) -> "list[str]":
     """One column's block: what it holds, and what only the description has.
 
@@ -675,7 +982,9 @@ def _column_lines(
 
     `notes` is what the description says was held back for this column,
     already collected by the caller so that this walks the note list once
-    for the whole document rather than once per column.
+    for the whole document rather than once per column. `floor` is the
+    description's own publication floor, which the absent-cell block
+    needs to say why a pooled group is not named.
     """
     words = column.statistical_type
     if words in _TYPE_WORDS:
@@ -702,7 +1011,7 @@ def _column_lines(
         lines = lines + [f"  Note from the description: {_shown(remark)}"]
     for note in notes:
         lines = lines + [f"  Held back from the description: {_shown(note)}"]
-    lines = lines + _missing_lines(column)
+    lines = lines + _missing_lines(column, floor)
     lines = lines + _sentinel_lines(column)
     lines = lines + _datetime_lines(column)
     if column.n_sentinel_candidates_unpublished:
@@ -724,6 +1033,121 @@ def _notes_for(profile: contract.Profile, name: str) -> "list[str]":
         if note.column == name:
             found = found + [note.note]
     return found
+
+
+def _verdict_lines() -> "list[str]":
+    """What this report is not, and which command produces the other thing.
+
+    The teaching chain's middle link, in the file rather than only on the
+    screen (plan P3-D6, P3-D7 stage 2). Everything above is a MEASUREMENT
+    the generator took on the cells it had just written; none of it is a
+    verdict, and the sentence that used to sit here said a verdict was
+    later work. It is not later work any more, so the report names the
+    command instead -- and states in the same breath what that command's
+    verdict does and does not mean, because a reader who runs it on the
+    strength of this paragraph will read its answer through this one.
+
+    No path is named, here or anywhere in this report: the same run
+    writes the same bytes wherever its files are put. The command line
+    with this twin's own paths in it is printed by the command when the
+    run finishes.
+    """
+    return [
+        "This report passes NO verdict on how good the twin is. Every",
+        "number above is one the generator measured on the cells it had",
+        "just written, with the published value beside it; none of it is a",
+        "judgement about whether the twin is good enough for anything.",
+        "",
+        "There is a command that measures a written file against this",
+        "description and writes a verdict: `synthtwin validate`, run on",
+        "the description with --twin and the path of the file to check.",
+        "The command that wrote this twin printed that line with the paths",
+        "already filled in. What it produces is a quality report saying",
+        "which of the description's obligations the file meets, which it",
+        "misses, and which nothing written in a CSV can evidence either",
+        "way -- and a passing one means exactly that no checkable",
+        "obligation was missed. It is not a verdict that the twin is fit",
+        "for an analysis, it checks nothing this description does not",
+        "publish, and it cannot tell a synthetic file from a real one.",
+    ]
+
+
+def _lowered_floor_lines(profile: contract.Profile) -> "list[str]":
+    """Said only where the description was made under a lowered floor.
+
+    THIS REPORT IS ONE OF THE FOUR THAT MUST SAY IT (owner ruling
+    2026-08-14, plan amendment A-P3-11). `--smallest-group` below the
+    default now runs end to end, and the ruling that let it through
+    ruled with it that the cost be made visible on the face of every
+    artifact. A reader is handed one file, not the set: somebody who
+    receives this report and the twin and never opens the description's
+    JSON has, until now, no way at all of learning that the counts in
+    front of them go down to two rows -- this report never mentioned the
+    floor in any run.
+
+    IT IS CONDITIONAL, unlike everything under "three things that are
+    true of every twin". Those are limits of the product, printed always
+    so that nobody comes to expect their absence. This is a fact about
+    ONE description which is false of an ordinary one, and a line saying
+    "the floor was not lowered" on every ordinary run is how a report
+    trains its reader to skip the paragraph that matters.
+
+    Guarantees:
+
+    - Inputs: the description this twin was built from. Nothing else.
+    - Determinism: a fixed function of one number in it.
+    - Errors raised: none.
+    - Boundary: no value of any table reaches it; it names counts.
+    """
+    floor = profile.settings.small_cell_floor
+    if floor >= contract.DEFAULT_SMALL_CELL_FLOOR:
+        return []
+    usual = contract.DEFAULT_SMALL_CELL_FLOOR
+    lines = [
+        _RULE,
+        (
+            f"THIS DESCRIPTION WAS MADE WITH THE SMALLEST GROUP SIZE "
+            f"LOWERED TO {floor}"
+        ),
+        _RULE,
+        "",
+        (
+            f"synthtwin normally publishes a value only where at least "
+            f"{usual} rows"
+        ),
+        "of the real table shared it. This description publishes values as",
+        f"few as {floor} row(s) shared, together with how many rows that",
+        "is -- and the twin beside this report was built to hold those",
+        "counts exactly, so the twin carries them and so does this page.",
+        "",
+    ]
+    # "a group of 1 is 1 people" is not English, so at a floor of one the
+    # sentence is the one that is true there rather than the general one
+    # with a bad number in it.
+    if floor < 2:
+        lines = lines + [
+            "A published group can be a single row. If one row of the real",
+            "table is one person, the description says out loud that exactly",
+            "one person -- on their own -- had that value, and the twin",
+            "writes it in exactly one row.",
+            "",
+        ]
+    else:
+        lines = lines + [
+            f"If one row of the real table is one person, a group of {floor}",
+            f"is {floor} people.",
+            "",
+        ]
+    return lines + [
+        "What that can mean for a person: somebody who already knows one",
+        "true thing about someone in the real table -- that they are in it",
+        "at all -- can find the small group that person must be in and read",
+        "off everything else the description says about that group. That is",
+        f"what the usual {usual} prevents and what this description does",
+        "not. Whoever approves data leaving your environment should be told",
+        "this before any of these files moves.",
+        "",
+    ]
 
 
 def _handling_lines() -> "list[str]":
@@ -758,15 +1182,16 @@ def _handling_lines() -> "list[str]":
         "copied; there was nothing else to write. The smaller the table and",
         "the fewer its columns, the more often that happens.",
         "",
-        "HOW TO KEEP THESE FILES. All three files of a full run --",
-        "the description, this twin and this report -- carry facts computed",
-        "from your real data: counts, ranges, published labels and the",
-        "spellings named above. Keep all three under the rules your",
-        "institution applies to the table itself, and check with whoever",
-        "approves data leaving your environment before you move any of them",
-        "anywhere. synthtwin offers no formal privacy guarantee: nothing",
-        "here bounds, mathematically, what someone could work out from the",
-        "twin.",
+        "HOW TO KEEP THESE FILES. All five files of a full run -- the",
+        "description, the plain-language summary beside it, this twin,",
+        "this report and the quality report 'synthtwin validate' writes",
+        "-- carry facts computed from your real data: counts, ranges,",
+        "published labels and the spellings named above. Keep all five",
+        "under the rules your institution applies to the table itself,",
+        "and check with whoever approves data leaving your environment",
+        "before you move any of them anywhere. synthtwin offers no formal",
+        "privacy guarantee: nothing here bounds, mathematically, what",
+        "someone could work out from the twin.",
     ]
 
 
@@ -799,13 +1224,23 @@ def report(profile: contract.Profile, twin: generation.Twin) -> str:
     were built independently; that rows were built independently and the
     description never said what one row is; where the twin's values came
     from and the one case in which a twin row can equal a real one; that
-    all three artifacts carry facts computed from real data and are kept
+    all five files a full run leaves behind carry facts computed from
+    real data and are kept
     under the institution's rules; which cells a spreadsheet reads as a
     formula; every published fact the twin could not meet, with the
     value achieved beside the value published; and every fact the
     contract calls approximated, with the value achieved beside the
     value published, the two ends of the range this method promises for
     it, and whether the twin landed inside.
+
+    What it says only on the runs it is true of, and why that one is
+    conditional: that the description was made with the smallest group
+    size LOWERED below the default, what a group that small can reveal
+    about a person, and that the twin holds those counts too (owner
+    ruling 2026-08-14, plan amendment A-P3-11). `_lowered_floor_lines`
+    carries the reasoning. On a description made at the default floor
+    this report's bytes are exactly what they were before that section
+    existed.
     """
     lines = [
         _RULE,
@@ -826,6 +1261,15 @@ def report(profile: contract.Profile, twin: generation.Twin) -> str:
     lines = lines + _seed_lines(twin) + [""]
     lines = lines + _header_lines(profile) + [""]
     lines = lines + _encoding_lines(profile)
+    # HIGH IN THE PAGE, and before the sections a person skims for their
+    # own column. It is a fact about what the reader is holding, so it
+    # goes where a reader who stops after one screen still meets it.
+    # Nothing at all -- not even a blank line -- on an ordinary run, so
+    # that the bytes of a report made under the default floor are the
+    # bytes they were before this section existed.
+    lowered = _lowered_floor_lines(profile)
+    if lowered:
+        lines = lines + [""] + lowered
     lines = lines + [
         "",
         _RULE,
@@ -841,7 +1285,7 @@ def report(profile: contract.Profile, twin: generation.Twin) -> str:
         _RULE,
         "",
     ]
-    lines = lines + _formula_lines(twin)
+    lines = lines + _formula_lines(profile, twin)
     lines = lines + [
         "",
         _RULE,
@@ -876,9 +1320,19 @@ def report(profile: contract.Profile, twin: generation.Twin) -> str:
     for place in range(len(profile.columns)):
         column = profile.columns[place]
         lines = lines + _column_lines(
-            column, twin.outcomes[place], _notes_for(profile, column.name)
+            column,
+            twin.outcomes[place],
+            _notes_for(profile, column.name),
+            profile.settings.small_cell_floor,
         )
-    lines = lines + [_RULE, ""] + _handling_lines()
+    lines = lines + [
+        _RULE,
+        "WHAT THIS REPORT IS NOT, AND WHAT TO RUN FOR THE OTHER THING",
+        _RULE,
+        "",
+    ]
+    lines = lines + _verdict_lines()
+    lines = lines + ["", _RULE, ""] + _handling_lines()
     # The lines are joined by hand: the offline policy accepts a text
     # method only with arguments it has resolved, and a list built while
     # the program runs is not one (plan D6.2).

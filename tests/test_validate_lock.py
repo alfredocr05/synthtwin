@@ -48,7 +48,7 @@ def run_validator(*args: str) -> subprocess.CompletedProcess[str]:
 
 def write_reqs(tmp_path: Path, body: str) -> Path:
     path = tmp_path / "requirements.txt"
-    path.write_text(body, encoding="utf-8")
+    path.write_text(body, encoding="utf-8", newline="\n")
     return path
 
 

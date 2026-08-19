@@ -265,6 +265,171 @@ def test_the_battery_is_the_size_this_file_claims(
         assert document["columns"][0]["role"] == "identifier"
 
 
+def test_a_sign_leads_an_invented_value_only_to_meet_a_published_count(
+    tmp_path_factory: pytest.TempPathFactory,
+) -> None:
+    """G9.1's bar, and the one carve-out owner decision 9 grants it.
+
+    The bar is real and this is the first test to assert it on this
+    path: an invented record number opening with a character a
+    spreadsheet reads as a formula is a hazard synthtwin created. The
+    carve-out is real too, and it is bounded by WORK RATHER THAN BY A
+    PREDICATE: the packing runs first with the two-character code
+    family closed and reaches for it only when no assignment of whole
+    groups meets every published count without it. So the property to
+    assert is not which columns are allowed a sign -- that is the
+    packer's finding, and a second guess at it here would just be a
+    second implementation to disagree with -- but that no column ever
+    takes the hazard for nothing.
+
+    Two directions, and both matter. A column that writes a sign must
+    meet every one of the six published counts, which is the proof the
+    sign was doing the work it was permitted for. And most columns must
+    write none at all, which is the proof the carve-out stayed a corner
+    rather than becoming the ordinary path.
+    """
+    signing = quiet = 0
+    for name, document, loaded in _battery(tmp_path_factory):
+        column = document["columns"][0]
+        for seed in SEEDS:
+            twin = generation.generate(loaded, seed)
+            leading = [
+                cell
+                for cell in twin.columns[0]
+                if cell and cell[0] in ("=", "+", "-", "@")
+            ]
+            if not leading:
+                quiet = quiet + 1
+                continue
+            signing = signing + 1
+            # AND EVERY SIGNED CELL IS THE ONE SHAPE THAT HAS NO OTHER
+            # SPELLING (review item P3-C5-F1). Counting runs said
+            # nothing about the cells inside them, and the defect that
+            # item found was exactly there: a column where one group
+            # had to sign and every group did. A fraction of the column
+            # is the wrong bound -- a column of one group may legitimately
+            # be signed throughout -- so what is asserted is the shape
+            # itself. The carve-out covers exactly the two-character
+            # value that is code-alphabet, not figures alone, and reads
+            # back as a whole number; nothing else has no other
+            # spelling, so nothing else may carry a sign.
+            for cell in leading:
+                assert len(cell) == 2, (name, seed, cell, "not two wide")
+                assert parsing.is_code_text(cell), (name, seed, cell)
+                assert not parsing.is_digit_text(cell), (name, seed, cell)
+                assert parsing.classify_number(cell) == parsing.NUMBER, (
+                    name,
+                    seed,
+                    cell,
+                    "a signed cell that is not even a number",
+                )
+            counted = _classes(twin)
+            for field, reading_back in CLASS_FACTS:
+                assert counted.get(reading_back, 0) == column[field], (
+                    name,
+                    seed,
+                    "a sign was written and a published count still missed",
+                    field,
+                )
+            present = [
+                parsing.trimmed(cell)
+                for cell in twin.columns[0]
+                if cell != ""
+            ]
+            digits = len(
+                [one for one in present if one and parsing.is_digit_text(one)]
+            )
+            code = len(
+                [one for one in present if one and parsing.is_code_text(one)]
+            )
+            assert digits == column["n_all_digits"], (name, seed)
+            assert code == column["n_code_alphabet"], (name, seed)
+            # AND THE TWO THINGS THIS BATTERY DID NOT WATCH. It asserted
+            # eleven published facts and neither the folded count nor
+            # the report, so a change that met every count it named
+            # while filing a deviation for one it did not would have
+            # landed green -- which a design review of the collision
+            # placement demonstrated on this very battery, twelve runs
+            # of eight hundred, every one of them `n_distinct_folded`.
+            # The fold count is what a collision is FOR, so a battery
+            # about the class packing that moves collisions has to
+            # watch it; and an empty deviation list is the shortest
+            # statement that nothing was traded for anything.
+            folded: dict[str, int] = {}
+            for cell in twin.columns[0]:
+                if cell == "":
+                    continue
+                key = parsing.folded(cell)
+                folded[key] = folded.get(key, 0) + 1
+            assert len(folded) == column["n_distinct_folded"], (
+                name,
+                seed,
+                "folded identities: twin differs from description",
+            )
+            assert list(twin.deviations) == [], (
+                name,
+                seed,
+                [note.fact for note in twin.deviations],
+            )
+    assert quiet > 0, "no column was checked for the bar itself"
+    assert signing > 0, (
+        "the battery no longer reaches the corner decision 9 carves out, "
+        "so the carve-out is asserted of nothing"
+    )
+    assert signing * 4 < quiet, (
+        "the carve-out has stopped being a corner: it now covers a "
+        f"quarter or more of the battery ({signing} of {signing + quiet}). "
+        "The threshold is a smoke alarm rather than a derived bound -- "
+        "what bounds each run is the per-run assertion above, and what "
+        "bounds the mechanism is that the packing reaches for the "
+        "family only when nothing else meets every published count."
+    )
+
+
+def test_a_fold_partner_does_not_double_the_signed_cells(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Review item P3-C6-F1: the collision lands where it costs nothing.
+
+    A fold-collision partner carries its parent's spelling, and the
+    partner that keeps the length exactly where it was is a CASE FLIP,
+    which needs a letter. Where the parent is the two-character signed
+    family owner decision 9 permits, `-0` holds none, so the partner
+    came out `-0 ` and this column wrote twenty-two cells a spreadsheet
+    reads as a formula where eleven would do -- every count exact, and
+    twice the hazard the description required.
+
+    The parent is now chosen with that in mind: one that can be
+    case-flipped is taken first, so the collision lands on `0e0` and
+    `0E0`, the signed group keeps its eleven cells, and the published
+    counts are where the packing put them. This is the allocation the
+    review said existed, asserted here so it cannot be lost again.
+    """
+    document, loaded = _described(
+        tmp_path, ["-3"] * 11 + ["-3 "] * 11 + ["1e0"] * 11
+    )
+    column = document["columns"][0]
+    assert column["n_distinct"] == 3
+    assert column["n_distinct_folded"] == 2, "the fixture must fold"
+
+    for seed in SEEDS:
+        twin = generation.generate(loaded, seed)
+        cells = [cell for cell in twin.columns[0] if cell]
+        hazardous = [cell for cell in cells if cell[0] in ("=", "+", "-", "@")]
+        assert len(hazardous) == 11, (seed, sorted(set(cells)))
+        assert len(set(cells)) == 3, (seed, sorted(set(cells)))
+        counted = _classes(twin)
+        for field, reading_back in CLASS_FACTS:
+            assert counted.get(reading_back, 0) == column[field], (seed, field)
+        present = [parsing.trimmed(cell) for cell in cells]
+        assert len(
+            [one for one in present if parsing.is_code_text(one)]
+        ) == column["n_code_alphabet"], seed
+        assert [
+            note for note in twin.deviations
+        ] == [], [note.fact for note in twin.deviations]
+
+
 def test_every_class_and_alphabet_count_is_written_exactly(
     tmp_path_factory: pytest.TempPathFactory,
 ) -> None:
@@ -297,6 +462,33 @@ def test_every_class_and_alphabet_count_is_written_exactly(
             )
             assert digits == column["n_all_digits"], (name, seed)
             assert code == column["n_code_alphabet"], (name, seed)
+            # AND THE TWO THINGS THIS BATTERY DID NOT WATCH. It asserted
+            # eleven published facts and neither the folded count nor
+            # the report, so a change that met every count it named
+            # while filing a deviation for one it did not would have
+            # landed green -- which a design review of the collision
+            # placement demonstrated on this very battery, twelve runs
+            # of eight hundred, every one of them `n_distinct_folded`.
+            # The fold count is what a collision is FOR, so a battery
+            # about the class packing that moves collisions has to
+            # watch it; and an empty deviation list is the shortest
+            # statement that nothing was traded for anything.
+            folded: dict[str, int] = {}
+            for cell in twin.columns[0]:
+                if cell == "":
+                    continue
+                key = parsing.folded(cell)
+                folded[key] = folded.get(key, 0) + 1
+            assert len(folded) == column["n_distinct_folded"], (
+                name,
+                seed,
+                "folded identities: twin differs from description",
+            )
+            assert list(twin.deviations) == [], (
+                name,
+                seed,
+                [note.fact for note in twin.deviations],
+            )
 
 
 def test_the_class_counts_are_not_bought_with_another_exact_fact(
@@ -356,7 +548,7 @@ def test_the_alphabet_only_walk_puts_the_reviewed_column_back(
         parsing.NUMBER, 0
     ) == 23
 
-    def alphabets_alone(column, facts, groups, folded, partners):
+    def alphabets_alone(column, facts, groups, folded, partners, signed=False):
         """The band packing of revision 2, and its class-free reading."""
         quotas = [
             facts.n_all_digits,
@@ -373,6 +565,7 @@ def test_the_alphabet_only_walk_puts_the_reviewed_column_back(
         return (
             [text * width + place for place in chosen],
             generation._FIRST_TWO,
+            False,
         )
 
     monkeypatch.setattr(

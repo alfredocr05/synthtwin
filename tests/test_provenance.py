@@ -152,10 +152,23 @@ with open(args.out, "w", encoding="utf-8", newline="") as handle:
 # A generator that reaches for the C helper the subprocess module is
 # built on -- a process-creation route that emits no subprocess.* audit
 # event of its own. The guard must refuse the import (review item
-# R2-B11; POSIX-only module).
-POSIX_FORK_EXEC_GENERATOR_SOURCE = """\
+# R2-B11). The helper's NAME is the parameter, because there is one per
+# platform: `_posixsubprocess` below subprocess on POSIX, `_winapi` on
+# Windows.
+PROCESS_HELPER_GENERATOR_SOURCE = """\
 import argparse
-import _posixsubprocess
+import sys
+
+# Ask for the helper as a module the interpreter has not got yet. The
+# guard refuses an import at the audit event, and CPython raises that
+# event only when it goes looking -- a name already in sys.modules is
+# returned without one. On Windows `_winapi` is loaded before any
+# generator runs, so importing it there announced NOTHING, the guard
+# saw nothing to refuse, and this mutation ran to completion and was
+# caught only as a fixture that no longer matched. Every Windows cell
+# failed here the first time CI ran them, 2026-08-18.
+sys.modules.pop("{helper}", None)
+import {helper}
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--seed", type=int, required=True)
@@ -285,7 +298,9 @@ def test_real_tree_is_clean() -> None:
 def test_non_allowlisted_csv_fails(tmp_path: Path) -> None:
     """Mutation 1: a .csv placed in the tree, absent from the allowlist."""
     write_manifest(tmp_path, [])
-    (tmp_path / "stray.csv").write_text("a,b\n1,2\n", encoding="utf-8")
+    (tmp_path / "stray.csv").write_text(
+        "a,b\n1,2\n", encoding="utf-8", newline="\n"
+    )
 
     result = run_checker(tmp_path)
     assert result.returncode == 1, (
@@ -304,7 +319,11 @@ def test_forged_fixture_content_fails(tmp_path: Path) -> None:
     isolates the generator byte-compare: only the re-run catches it.
     """
     seed = 7
-    (tmp_path / "gen_fixture.py").write_text(GENERATOR_SOURCE, encoding="utf-8")
+    (
+        tmp_path / "gen_fixture.py").write_text(GENERATOR_SOURCE,
+        encoding="utf-8",
+        newline="\n",
+    )
     fixture_dir = tmp_path / "fixtures"
     fixture_dir.mkdir()
     forged = b"this content was substituted and never came from the script\n"
@@ -328,7 +347,11 @@ def test_correct_fixture_passes(tmp_path: Path) -> None:
     """A listed fixture whose bytes equal its generator output is accepted."""
     seed = 7
     payload = expected_generator_bytes(seed)
-    (tmp_path / "gen_fixture.py").write_text(GENERATOR_SOURCE, encoding="utf-8")
+    (
+        tmp_path / "gen_fixture.py").write_text(GENERATOR_SOURCE,
+        encoding="utf-8",
+        newline="\n",
+    )
     fixture_dir = tmp_path / "fixtures"
     fixture_dir.mkdir()
     (fixture_dir / "sample.txt").write_bytes(payload)
@@ -348,7 +371,11 @@ def test_stale_manifest_sha256_fails(tmp_path: Path) -> None:
     """A manifest digest that no longer matches the committed bytes fails."""
     seed = 7
     payload = expected_generator_bytes(seed)
-    (tmp_path / "gen_fixture.py").write_text(GENERATOR_SOURCE, encoding="utf-8")
+    (
+        tmp_path / "gen_fixture.py").write_text(GENERATOR_SOURCE,
+        encoding="utf-8",
+        newline="\n",
+    )
     fixture_dir = tmp_path / "fixtures"
     fixture_dir.mkdir()
     (fixture_dir / "sample.txt").write_bytes(payload)
@@ -365,7 +392,11 @@ def test_listed_fixture_missing_from_disk_fails(tmp_path: Path) -> None:
     """A manifest entry whose fixture file is absent fails the check."""
     seed = 7
     payload = expected_generator_bytes(seed)
-    (tmp_path / "gen_fixture.py").write_text(GENERATOR_SOURCE, encoding="utf-8")
+    (
+        tmp_path / "gen_fixture.py").write_text(GENERATOR_SOURCE,
+        encoding="utf-8",
+        newline="\n",
+    )
     write_manifest(
         tmp_path,
         [make_entry("fixtures/sample.txt", "gen_fixture.py", seed, payload)],
@@ -407,7 +438,7 @@ def test_stray_jsonl_fails(tmp_path: Path) -> None:
     """Mutation: a .jsonl table placed in the tree with no allowlist entry."""
     write_manifest(tmp_path, [])
     (tmp_path / "rows.jsonl").write_text(
-        '{"a": 1, "b": 2}\n{"a": 3, "b": 4}\n', encoding="utf-8"
+        '{"a": 1, "b": 2}\n{"a": 3, "b": 4}\n', encoding="utf-8", newline="\n"
     )
 
     result = run_checker(tmp_path)
@@ -460,7 +491,11 @@ def test_every_extended_data_suffix_fails(tmp_path: Path) -> None:
     """Mutation: one stray file per newly covered suffix, all reported."""
     write_manifest(tmp_path, [])
     for suffix in EXTENDED_DATA_SUFFIXES:
-        (tmp_path / ("stray" + suffix)).write_text("payload\n", encoding="utf-8")
+        (
+            tmp_path / ("stray" + suffix)).write_text("payload\n",
+            encoding="utf-8",
+            newline="\n",
+        )
 
     result = run_checker(tmp_path)
     assert result.returncode == 1
@@ -512,10 +547,10 @@ def test_stray_yaml_outside_github_fails(tmp_path: Path) -> None:
     """Mutation: .yaml and .yml files at the tree root, both reported."""
     write_manifest(tmp_path, [])
     (tmp_path / "schema.yaml").write_text(
-        "columns:\n  - a\n  - b\n", encoding="utf-8"
+        "columns:\n  - a\n  - b\n", encoding="utf-8", newline="\n"
     )
     (tmp_path / "profile.yml").write_text(
-        "count: 12\nmean: 3.5\n", encoding="utf-8"
+        "count: 12\nmean: 3.5\n", encoding="utf-8", newline="\n"
     )
 
     result = run_checker(tmp_path)
@@ -541,12 +576,12 @@ def test_yaml_elsewhere_under_github_fails(tmp_path: Path) -> None:
     github_dir = tmp_path / ".github"
     github_dir.mkdir()
     (github_dir / "nonworkflow.yaml").write_text(
-        "rows:\n  - [3, 9, 27]\n  - [4, 16, 64]\n", encoding="utf-8"
+        "rows:\n  - [3, 9, 27]\n  - [4, 16, 64]\n", encoding="utf-8", newline="\n"
     )
     nested = github_dir / "workflows" / "nested"
     nested.mkdir(parents=True)
     (nested / "deep.yml").write_text(
-        "count: 12\nmean: 3.5\n", encoding="utf-8"
+        "count: 12\nmean: 3.5\n", encoding="utf-8", newline="\n"
     )
 
     result = run_checker(tmp_path)
@@ -573,10 +608,10 @@ def test_new_yaml_in_workflow_directory_fails(tmp_path: Path) -> None:
     workflows = tmp_path / ".github" / "workflows"
     workflows.mkdir(parents=True)
     (workflows / "ci.yml").write_text(
-        "name: neutral workflow stand-in\n", encoding="utf-8"
+        "name: neutral workflow stand-in\n", encoding="utf-8", newline="\n"
     )
     (workflows / "added-later.yaml").write_text(
-        "rows:\n  - [3, 9, 27]\n  - [4, 16, 64]\n", encoding="utf-8"
+        "rows:\n  - [3, 9, 27]\n  - [4, 16, 64]\n", encoding="utf-8", newline="\n"
     )
 
     result = run_checker(tmp_path)
@@ -597,7 +632,7 @@ def test_reviewed_yaml_configuration_path_passes(tmp_path: Path) -> None:
     workflows = tmp_path / ".github" / "workflows"
     workflows.mkdir(parents=True)
     (workflows / "ci.yml").write_text(
-        "name: neutral workflow stand-in\n", encoding="utf-8"
+        "name: neutral workflow stand-in\n", encoding="utf-8", newline="\n"
     )
 
     result = run_checker(tmp_path)
@@ -611,7 +646,7 @@ def test_stray_sql_dump_fails(tmp_path: Path) -> None:
     """Mutation: an SQL dump placed in the tree with no allowlist entry."""
     write_manifest(tmp_path, [])
     (tmp_path / "dump.sql").write_text(
-        "CREATE TABLE t (a INTEGER);\n", encoding="utf-8"
+        "CREATE TABLE t (a INTEGER);\n", encoding="utf-8", newline="\n"
     )
 
     result = run_checker(tmp_path)
@@ -670,7 +705,7 @@ def test_absolute_generator_path_rejected(tmp_path: Path) -> None:
     seed = 7
     payload = b"placeholder\n"
     generator = tmp_path / "gen_sentinel.py"
-    generator.write_text(SENTINEL_GENERATOR_SOURCE, encoding="utf-8")
+    generator.write_text(SENTINEL_GENERATOR_SOURCE, encoding="utf-8", newline="\n")
     fixture_dir = tmp_path / "fixtures"
     fixture_dir.mkdir()
     (fixture_dir / "sample.txt").write_bytes(payload)
@@ -696,13 +731,17 @@ def test_dotdot_paths_rejected(tmp_path: Path) -> None:
     root = tmp_path / "repo"
     root.mkdir()
     outside = tmp_path / "outside_gen.py"
-    outside.write_text(SENTINEL_GENERATOR_SOURCE, encoding="utf-8")
+    outside.write_text(SENTINEL_GENERATOR_SOURCE, encoding="utf-8", newline="\n")
     seed = 7
     payload = b"placeholder\n"
     fixture_dir = root / "fixtures"
     fixture_dir.mkdir()
     (fixture_dir / "sample.txt").write_bytes(payload)
-    (root / "gen_fixture.py").write_text(GENERATOR_SOURCE, encoding="utf-8")
+    (
+        root / "gen_fixture.py").write_text(GENERATOR_SOURCE,
+        encoding="utf-8",
+        newline="\n",
+    )
     write_manifest(
         root,
         [
@@ -732,7 +771,7 @@ def test_generator_socket_attempt_fails_with_guard_message(
     seed = 7
     payload = b"placeholder\n"
     (tmp_path / "gen_fixture.py").write_text(
-        SOCKET_GENERATOR_SOURCE, encoding="utf-8"
+        SOCKET_GENERATOR_SOURCE, encoding="utf-8", newline="\n"
     )
     fixture_dir = tmp_path / "fixtures"
     fixture_dir.mkdir()
@@ -756,7 +795,11 @@ def test_untracked_generator_in_git_tree_fails(tmp_path: Path) -> None:
     """Mutation: in a committed tree, an untracked generator is refused."""
     seed = 7
     payload = expected_generator_bytes(seed)
-    (tmp_path / "gen_fixture.py").write_text(GENERATOR_SOURCE, encoding="utf-8")
+    (
+        tmp_path / "gen_fixture.py").write_text(GENERATOR_SOURCE,
+        encoding="utf-8",
+        newline="\n",
+    )
     fixture_dir = tmp_path / "fixtures"
     fixture_dir.mkdir()
     (fixture_dir / "sample.txt").write_bytes(payload)
@@ -796,7 +839,11 @@ def test_fully_tracked_git_tree_passes(tmp_path: Path) -> None:
     """A committed tree whose entry paths are all tracked stays green."""
     seed = 7
     payload = expected_generator_bytes(seed)
-    (tmp_path / "gen_fixture.py").write_text(GENERATOR_SOURCE, encoding="utf-8")
+    (
+        tmp_path / "gen_fixture.py").write_text(GENERATOR_SOURCE,
+        encoding="utf-8",
+        newline="\n",
+    )
     fixture_dir = tmp_path / "fixtures"
     fixture_dir.mkdir()
     (fixture_dir / "sample.txt").write_bytes(payload)
@@ -863,6 +910,10 @@ def test_guard_event_policy_covers_every_named_route() -> None:
         "os.fork",
         "os.forkpty",
         "os.startfile",
+        # What the interpreter announces when Windows creates a process
+        # or opens a file through the Windows API directly.
+        "_winapi.CreateProcess",
+        "_winapi.CreateFile",
         "pty.spawn",
         "ctypes.dlopen",
         "ctypes.dlsym",
@@ -890,7 +941,11 @@ def test_guard_import_policy_blocks_capability_modules() -> None:
         "_ctypes",
         "cffi",
         "subprocess",
+        # One process-creation helper per platform, and the guard must
+        # carry both: a list that named only the POSIX one left every
+        # Windows host a route below subprocess (round 5 item 10).
         "_posixsubprocess",
+        "_winapi",
         "multiprocessing",
         "pty",
         "fcntl",
@@ -927,7 +982,7 @@ def test_generator_low_level_socket_attempt_fails(tmp_path: Path) -> None:
     seed = 7
     payload = b"placeholder\n"
     (tmp_path / "gen_fixture.py").write_text(
-        LOW_LEVEL_SOCKET_GENERATOR_SOURCE, encoding="utf-8"
+        LOW_LEVEL_SOCKET_GENERATOR_SOURCE, encoding="utf-8", newline="\n"
     )
     fixture_dir = tmp_path / "fixtures"
     fixture_dir.mkdir()
@@ -955,7 +1010,7 @@ def test_generator_subprocess_attempt_fails(tmp_path: Path) -> None:
     seed = 7
     payload = b"placeholder\n"
     (tmp_path / "gen_fixture.py").write_text(
-        SUBPROCESS_GENERATOR_SOURCE, encoding="utf-8"
+        SUBPROCESS_GENERATOR_SOURCE, encoding="utf-8", newline="\n"
     )
     fixture_dir = tmp_path / "fixtures"
     fixture_dir.mkdir()
@@ -986,7 +1041,7 @@ def test_generator_spawn_primitive_attempt_fails(tmp_path: Path) -> None:
     seed = 7
     payload = b"placeholder\n"
     (tmp_path / "gen_fixture.py").write_text(
-        SPAWN_PRIMITIVE_GENERATOR_SOURCE, encoding="utf-8"
+        SPAWN_PRIMITIVE_GENERATOR_SOURCE, encoding="utf-8", newline="\n"
     )
     fixture_dir = tmp_path / "fixtures"
     fixture_dir.mkdir()
@@ -1018,7 +1073,7 @@ def test_generator_native_socket_attempt_fails(tmp_path: Path) -> None:
     seed = 7
     payload = b"placeholder\n"
     (tmp_path / "gen_fixture.py").write_text(
-        NATIVE_SOCKET_GENERATOR_SOURCE, encoding="utf-8"
+        NATIVE_SOCKET_GENERATOR_SOURCE, encoding="utf-8", newline="\n"
     )
     fixture_dir = tmp_path / "fixtures"
     fixture_dir.mkdir()
@@ -1038,21 +1093,41 @@ def test_generator_native_socket_attempt_fails(tmp_path: Path) -> None:
     assert "forbidden import: ctypes" in result.stderr
 
 
-@pytest.mark.skipif(
-    os.name != "posix",
-    reason="the C fork-exec helper module exists only on POSIX hosts",
-)
-def test_generator_fork_exec_helper_import_fails(tmp_path: Path) -> None:
+@pytest.mark.parametrize("helper", ["_posixsubprocess", "_winapi"])
+def test_generator_process_helper_import_fails(
+    tmp_path: Path, helper: str
+) -> None:
     """Mutation: the C helper below the subprocess module is refused.
 
     Round-3 review item R2-B11: this helper performs process creation
     without emitting a subprocess.* audit event of its own, so the
     guard must make it unreachable by refusing the import.
+
+    BOTH HELPERS, ON EVERY PLATFORM (round 5 item 10). This case used
+    to name only the POSIX helper and to carry `skipif(os.name !=
+    "posix")`, which cost twice over: the Windows cells of the governed
+    matrix drove no version of this mutation at all, and the question
+    "what does Windows use instead" was never asked -- `_winapi`, the
+    module that creates a process there, was not in the guard's list.
+    Neither module has to EXIST on the host running this test: the hook
+    refuses an import by name, at the audit event the interpreter
+    raises before it goes looking for the module, so the refusal is the
+    same on a host where the import would otherwise fail with
+    ModuleNotFoundError. That is why this runs everywhere now.
+
+    It does have to be a module the interpreter goes looking FOR. A
+    name already in `sys.modules` comes back without any audit event,
+    which is the state `_winapi` is in on Windows before a generator
+    starts, so the generator drops it first. Until CI ran the Windows
+    cells this case passed on POSIX for the wrong reason -- `_winapi`
+    is absent there, so it was always a real lookup.
     """
     seed = 7
     payload = b"placeholder\n"
     (tmp_path / "gen_fixture.py").write_text(
-        POSIX_FORK_EXEC_GENERATOR_SOURCE, encoding="utf-8"
+        PROCESS_HELPER_GENERATOR_SOURCE.format(helper=helper),
+        encoding="utf-8",
+        newline="\n",
     )
     fixture_dir = tmp_path / "fixtures"
     fixture_dir.mkdir()
@@ -1069,13 +1144,17 @@ def test_generator_fork_exec_helper_import_fails(tmp_path: Path) -> None:
         + result.stderr
     )
     assert "best-effort fixture guard" in result.stderr
-    assert "forbidden import: _posixsubprocess" in result.stderr
+    assert f"forbidden import: {helper}" in result.stderr, (
+        "the guard has to stop this by NAME. A run that failed because "
+        "the module is not on this platform would leave a Windows host "
+        "with no proof at all, which is what the old skip did"
+    )
 
 
 def test_guard_runner_allows_innocent_generator(tmp_path: Path) -> None:
     """The audit-hook guard does not disturb an ordinary file-writing run."""
     generator = tmp_path / "gen_fixture.py"
-    generator.write_text(GENERATOR_SOURCE, encoding="utf-8")
+    generator.write_text(GENERATOR_SOURCE, encoding="utf-8", newline="\n")
     out_path = tmp_path / "out.txt"
 
     proc = subprocess.run(
@@ -1151,7 +1230,7 @@ def test_installer_refuses_to_overwrite_foreign_hook(tmp_path: Path) -> None:
     hooks_dir.mkdir(parents=True, exist_ok=True)
     hook = hooks_dir / "pre-push"
     foreign = "#!/bin/sh\necho organizational security hook\n"
-    hook.write_text(foreign, encoding="utf-8")
+    hook.write_text(foreign, encoding="utf-8", newline="\n")
     hook.chmod(0o755)
 
     result = run_installer(tmp_path)
@@ -1215,7 +1294,11 @@ def test_installer_resolves_linked_worktree_hook_path(tmp_path: Path) -> None:
     main = tmp_path / "main"
     main.mkdir()
     git_in_tree(main, "init")
-    (main / "README.txt").write_text("neutral placeholder\n", encoding="utf-8")
+    (
+        main / "README.txt").write_text("neutral placeholder\n",
+        encoding="utf-8",
+        newline="\n",
+    )
     git_in_tree(main, "add", "README.txt")
     git_in_tree(
         main,

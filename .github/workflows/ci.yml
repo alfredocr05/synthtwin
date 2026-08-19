@@ -620,10 +620,12 @@ jobs:
           wheel required synthtwin/parsing.py
           wheel required synthtwin/paths.py
           wheel required synthtwin/profile.py
+          wheel required synthtwin/quality.py
           wheel required synthtwin/reading.py
           wheel required synthtwin/rendering.py
           wheel required synthtwin/summary.py
           wheel required synthtwin/taxonomy.py
+          wheel required synthtwin/validation.py
           wheel required synthtwin/writing.py
           wheel required DIST-INFO/METADATA
           wheel required DIST-INFO/WHEEL
@@ -646,10 +648,12 @@ jobs:
           sdist required ROOT/src/synthtwin/parsing.py
           sdist required ROOT/src/synthtwin/paths.py
           sdist required ROOT/src/synthtwin/profile.py
+          sdist required ROOT/src/synthtwin/quality.py
           sdist required ROOT/src/synthtwin/reading.py
           sdist required ROOT/src/synthtwin/rendering.py
           sdist required ROOT/src/synthtwin/summary.py
           sdist required ROOT/src/synthtwin/taxonomy.py
+          sdist required ROOT/src/synthtwin/validation.py
           sdist required ROOT/src/synthtwin/writing.py
           sdist optional ROOT/src/synthtwin/py.typed
           sdist optional ROOT/.gitignore
@@ -838,6 +842,8 @@ jobs:
           import pathlib
           import sys
 
+          from synthtwin import contract
+
           demo = pathlib.Path(os.environ["RUNNER_TEMP"]) / "demo"
           document = json.loads(
               (demo / "table-profile.json").read_text(encoding="utf-8")
@@ -878,11 +884,18 @@ jobs:
                   problems.append("the repetition shape does not sum to n_distinct")
               if sum(int(k) * v for k, v in shape.items()) != codes["n_present"]:
                   problems.append("the repetition shape does not sum to n_present")
-          if document.get("profile_version") != 4:
+          # The version the shipped loader accepts, read from the
+          # package rather than written here. This check ran for five
+          # days asserting 4 while the product wrote 5, and the whole
+          # branch was red on it -- a number copied into CI is a number
+          # nobody updates, and the v5 sweep reached the code, the
+          # tests, the specifications and the independent oracle but
+          # not this file.
+          if document.get("profile_version") != contract.PROFILE_VERSION:
               problems.append(
                   f"unexpected contract version: {document.get('profile_version')}"
               )
-          # Version 4's three axes are what a consumer dispatches on
+          # The three axes are what a consumer dispatches on
           # (plan P2-D3), so they are checked on a clean machine on
           # EVERY column rather than on the ones this block already
           # names: an axis that is present on nine columns and absent on

@@ -133,7 +133,38 @@ CLAIM_REACHED = writing.CLAIM_REACHED
 # profile already names, held to the same line. `SECURITY.md`, the
 # summary and the taxonomy's own `_variants` say so where a reader will
 # meet it.
-PROFILE_VERSION = 4
+#
+# Version 5: three changes, no removals, and every version 4 key keeps
+# its name and its type. `docs/spec/profile-contract-v5.md` is the
+# normative statement, carrying version 4 by reference; plan amendment
+# A-P3-27 is the ruling behind it. In one line each:
+#
+# 1. a `missing_by_source` key is the source spelling CHARACTER FOR
+#    CHARACTER, and the display boundary is applied where a key is shown
+#    rather than before it is stored -- which is what `variants` next
+#    door has always done (contract 5 C5-1);
+# 2. the two counts version 4 kept inside that map under synthtwin's own
+#    words move out to `n_missing_blank` and `n_missing_withheld`, so
+#    the map holds one key space, the table's own (contract 5 C5-11);
+# 3. each of the two declaration records gains `built_in_texts` and
+#    `built_in_numbers`, naming which members of synthtwin's own
+#    thirteen published words were typed -- and never the person's text
+#    (contract 5 section 6).
+#
+# WHAT THAT COSTS AND WHAT IT BUYS. It buys a description a reader can
+# rebuild the reading rule from: version 4 described two tables needing
+# opposite readings with byte-identical files, so a table checked
+# against its own genuine description came back with obligations
+# reported as missed. It costs a version bump with no upgrade path -- a
+# version 4 description is refused and the person is told to describe
+# their table again with the same declarations -- and one bounded
+# lowering of the Phase 1 settings-block rule, priced in
+# `DECLARATION_PUBLICATION` below. Change 1 publishes, for a group the
+# floor already permitted to be named, which of the spellings sharing
+# one printable form it was; it is empty for every ordinary word, and in
+# one corner it publishes strictly LESS, because the floor now falls on
+# the exact spelling rather than on the escaped one.
+PROFILE_VERSION = 5
 
 # The two files a run writes, as suffixes added to the table's name.
 PROFILE_SUFFIX = "-profile.json"
@@ -146,7 +177,7 @@ SUMMARY_SUFFIX = "-profile.txt"
 # see that stated rather than infer it from an absence. A block reserved
 # in the shape it will eventually take is what lets a later phase fill
 # one slot without moving any other key, and filling any of them
-# advances PROFILE_VERSION: version 4 is defined as the version in which
+# advances PROFILE_VERSION; versions 4 and 5 are both versions in which
 # all eight are null.
 #
 # The names are written out here, sorted, rather than assembled
@@ -181,24 +212,65 @@ RELATIONSHIP_SLOTS = (
 #
 # THE RULE: the settings block carries the POLICY -- how many values
 # were named each way, and the rule that matched them -- and never a
-# spelling. That is what the settings block was always for: a reader has
-# to be able to tell WHICH RULES produced a profile, never which values
-# the table held. No per-column exemption is made, and the reasons are
-# that a declaration is table-wide (one spelling is compared against
-# every cell of every column, so it could only be published if it were
-# publishable in all of them, free-text and record-number columns
-# included), that the typing of it is itself evidence about the source
-# table whether or not any one cell matches, and that an exemption would
-# have to be re-derived for every role and every publication rule added
-# later -- which is a rule that will one day be missed.
+# spelling of the person's own. That is what the settings block was
+# always for: it tells a reader WHICH RULES produced a profile, and in
+# the settings block never which values the table held. A column's own
+# description is another matter and is section 3.2's, not this rule's:
+# a declared spelling stands there, which is why the denial above names
+# the block it holds in. No per-column exemption is
+# made, and the reasons are that a declaration is table-wide (one
+# spelling is compared against every cell of every column, so it could
+# only be published if it were publishable in all of them, free-text and
+# record-number columns included), that the typing of it is itself
+# evidence about the source table whether or not any one cell matches,
+# and that an exemption would have to be re-derived for every role and
+# every publication rule added later -- which is a rule that will one
+# day be missed.
+#
+# FROM CONTRACT VERSION 5 THE RULE HAS ONE EXCEPTION, AND THIS LOWERS
+# THE PHASE 1 BAR BY EXACTLY THAT MUCH (owner ruling 2026-08-17, plan
+# amendment A-P3-27, contract 5 section 6.6). The two declaration
+# records also name WHICH MEMBERS of synthtwin's own thirteen published
+# words were typed: the ten spellings this package reads as "no value"
+# and the three stand-in numbers it judges, listed in the contract's own
+# appendix and identical in every installation.
+#
+# The size of the loss, because a lowering is stated at its size or it
+# is not stated: what is added is which members of a THIRTEEN-MEMBER
+# first-party list were among the values typed. It carries no count of
+# cells, no column and no row; the MEMBER's spelling is written and
+# never the person's, so their spacing and their capitals do not travel;
+# and it is written identically whether or not the word occurs in the
+# table (`taxonomy.built_in_values_named` reads no cell), so the field
+# is not evidence that any cell wore the word. What a reader can still
+# infer is that somebody usually types a word because it is in their
+# table -- so the guess a version 4 description made coarsely ("one
+# value was rescued") is made at thirteen words. The word guessed at
+# HERE can never be a name, a code, a diagnosis or a free-text answer,
+# because a value outside the list is written nowhere in this block.
+# That is a sentence about this block, and the paragraph below says why
+# it may not be read any wider.
+#
+# What is NOT lowered: `values_recorded` stays false, a declared value
+# that is not a member of the published vocabulary is recorded nowhere
+# in the settings, and every publication class and every floor rule is
+# unchanged.
+#
+# THE TOKEN BELOW KEEPS ITS VALUE, and that is a decision rather than an
+# oversight. Contract 5 fixes the settings block at the same fifteen
+# keys and names every key whose meaning moves; this one is not among
+# them, and the loader admits exactly one word here. What the token says
+# is still true of the block: what it carries about a declaration is
+# counts and this package's own words, and the columns are unchanged.
 #
 # WHAT THIS RULE DOES NOT SAY. It governs the settings block and nothing
 # else. Declaring a value does not withdraw that value from its own
 # column: one named with --keep-value is data from that point on and is
 # described wherever its column publishes values, and one named with
-# --missing-value is counted as absent, its spelling reaching
-# `missing_by_source` under the same small-cell floor and the same role
-# rule as any other missing spelling. The first wording of this token,
+# --missing-value is counted as absent while the word
+# itself is written into the description -- its spelling standing in
+# `missing_by_source`, character for character, under the same
+# small_cell_floor and the same role rule as any other missing spelling. The first wording of this token,
 # `counts_only_no_spellings`, read as a claim about the whole document,
 # and that claim is false: 200 readings and three cells of `-999`,
 # profiled with `--keep-value -999`, publish `"min": -999.0`. That
@@ -206,6 +278,19 @@ RELATIONSHIP_SLOTS = (
 # column and a range is made of real values -- and it is not "counts
 # only, no spellings". The token now names its own scope, so that a
 # consumer or an auditor reading it cannot draw the wider conclusion.
+#
+# THE TOKEN NAMED ITS SCOPE AND THE PROSE AROUND THE PRODUCT DID NOT
+# (review item P3-V9-F1). The paragraph above has been right since
+# Phase 1 and the settings rule has never been wider than this block --
+# and the profiler's own summary page, `SECURITY.md` and contract 5
+# section 6 all went on denying, with no scope attached, that a word
+# outside the thirteen was written anywhere at all. The one that
+# mattered was the summary: it printed `counted as missing: <the
+# person's word> (12)` and, four screens below, that synthtwin would
+# not keep any other word they typed. Both are now scoped where they
+# are said, the summary names the words the columns kept, and the
+# claim inventory holds every such sentence in this repository to the
+# publication rules below rather than to a list somebody maintains.
 DECLARATION_PUBLICATION = "settings_counts_only_columns_unchanged"
 
 
@@ -231,26 +316,49 @@ def _version() -> str:
 
 
 def _declaration_record(spellings: "tuple[str, ...]") -> dict[str, object]:
-    """How many values were declared this way -- and never which ones.
+    """How many values were declared this way, and which of OUR words.
+
+    `n_declared` counts DECLARATIONS and not keystrokes (contract 5
+    C5-18 as amended; review item P3-V9-F7, plan amendment A-P3-37).
+    `--missing-value n/a --missing-value " N/A "` is two things typed
+    and one declaration: the producer's own matching rule folds them
+    together and no description can tell them apart afterwards, so a
+    consumer subtracting the two vocabulary lists from this count to
+    learn how many words of the PERSON'S own were named used to be told
+    there was one when there was none. `taxonomy.declarations_named`
+    holds the rule and its docstring holds the reason.
 
     Guarantees:
 
     - Inputs: the spellings the person typed for one of the two options.
-    - Determinism: the record depends only on how many there are.
+    - Determinism: the record depends only on those spellings, and on
+      their set rather than their order. Both lists are sorted and
+      pairwise distinct, so two runs with the same options write the
+      same bytes (contract 5 C5-K2).
     - Errors raised: none.
-    - Boundary: no spelling reaches the result, so nothing a person
-      typed can travel out of this machine through the settings block
-      (review item P1-R7-F2). The reason it may not is in
-      DECLARATION_PUBLICATION above.
+    - Boundary: no spelling the person typed reaches the result, so
+      nothing in the settings block can carry one out of this machine
+      (review item P1-R7-F2). The two lists carry
+      MEMBERS of synthtwin's own published vocabulary and nothing else
+      (contract 5 C5-17); `taxonomy.built_in_values_named` is the whole
+      of the rule, and it reads no cell of any table, so the record is
+      the same whether or not the named word occurs (C5-16). What that
+      gives up, at its size, is in DECLARATION_PUBLICATION above.
 
-    The shape is deliberately NOT a list. A consumer holding a profile
-    written before this rule finds a list of spellings under the same
+    The shape is deliberately NOT a list of spellings. A consumer
+    holding a profile written before this rule finds one under the same
     key; one written after it finds this record, and can tell the two
     apart without guessing. Dropping the key instead would have made the
-    two indistinguishable, which is the failure this shape avoids.
+    two indistinguishable, which is the failure this shape avoids --
+    which is also why `values_recorded` keeps its name and its value
+    beside the two new lists rather than being retired (contract 5
+    C5-S7, decision 13.9).
     """
+    texts, numbers = taxonomy.built_in_values_named(spellings)
     return {
-        "n_declared": len(spellings),
+        "built_in_numbers": list(numbers),
+        "built_in_texts": list(texts),
+        "n_declared": taxonomy.declarations_named(spellings),
         "values_recorded": False,
     }
 
@@ -323,6 +431,12 @@ def _column_block(column: taxonomy.ColumnProfile) -> dict[str, object]:
         "n_missing": column.n_missing,
         "missing_by_source": missing,
         "missing_by_class": classes,
+        # The two counts the spellings map carried in version 4 under
+        # this package's own two words, moved out so that the map holds
+        # one key space (contract 5 section 5). They are fields of
+        # ColumnProfile, so every role carries them.
+        "n_missing_blank": column.n_missing_blank,
+        "n_missing_withheld": column.n_missing_withheld,
         "remarks": column.remarks,
         # Always present, on every role: a count that appears only where
         # someone remembered it goes missing exactly when it matters
@@ -421,6 +535,29 @@ _ARRAY = "array"
 _COUNT = "count"
 _FLOOR_COUNT = "count-at-the-floor"
 _FLOORED_ENTRY = "count-at-the-floor-or-withheld"
+# THE FLOOR'S OTHER HALF, which had no vocabulary here until amendment
+# A-P3-16 and so could not be said. A description's counts divide in
+# two: what it names, which the floor holds to "at least the floor", and
+# what it holds back, which is the range BELOW the floor. `_HELD_BACK`
+# is a tally of things in that range -- how many labels were suppressed,
+# how many rows they covered, how many stand-in numbers were too rare to
+# name -- and `_BELOW_THE_FLOOR` is one such group size written out.
+# Both are empty at a floor of one, because the range is.
+_HELD_BACK = "count-of-what-the-floor-held-back"
+_BELOW_THE_FLOOR = "one-group-size-below-the-floor"
+# A count that is either nothing at all or a named group at the floor.
+# `n_missing_blank` is the one field of this kind: a blank group smaller
+# than the floor is not named at all, it is pooled into
+# `n_missing_withheld` with every other group the floor held back
+# (contract 5 C5-N4). It is deliberately NOT `_HELD_BACK`: at a floor of
+# one every blank group reaches the floor, so this count is written
+# there rather than emptied (contract 5 C5-S13).
+_ZERO_OR_AT_THE_FLOOR = "count-zero-or-at-the-floor"
+# One of the three stand-in numbers this package judges, written as
+# itself. The only path is the declaration records' `built_in_numbers`,
+# which carries members of this package's own published vocabulary and
+# no number of anybody's table (contract 5 C5-K1).
+_STAND_IN_NUMBER = "numeric-sentinel-number"
 _NUMBER = "number"
 _MAYBE_NUMBER = "number-or-nothing"
 _FLAG = "flag"
@@ -473,8 +610,9 @@ PUBLICATION_RULES: "dict[tuple[str, ...], str]" = {
     ("n_rows",): _COUNT,
     ("n_columns",): _COUNT,
     # The settings: thresholds, counts and two tokens naming the rules
-    # in force. No spelling the person typed is here at all, which is
-    # what `DECLARATION_PUBLICATION` above says and this table checks.
+    # in force. No spelling the person typed is anywhere in the settings
+    # block, which is what `DECLARATION_PUBLICATION` above says and this
+    # table checks.
     ("settings",): _OBJECT,
     ("settings", "small_cell_floor"): _COUNT,
     ("settings", "identifier_uniqueness"): _NUMBER,
@@ -488,9 +626,25 @@ PUBLICATION_RULES: "dict[tuple[str, ...], str]" = {
     ("settings", "kept_values"): _OBJECT,
     ("settings", "kept_values", "n_declared"): _COUNT,
     ("settings", "kept_values", "values_recorded"): _FLAG,
+    # The two vocabulary lists (contract 5 section 6). Each element is
+    # checked against this package's OWN published list, so a spelling
+    # of the table standing here is refused before the file is written.
+    ("settings", "kept_values", "built_in_texts"): _ARRAY,
+    ("settings", "kept_values", "built_in_texts", _EACH): _WORD,
+    ("settings", "kept_values", "built_in_numbers"): _ARRAY,
+    ("settings", "kept_values", "built_in_numbers", _EACH): _STAND_IN_NUMBER,
     ("settings", "declared_missing_values"): _OBJECT,
     ("settings", "declared_missing_values", "n_declared"): _COUNT,
     ("settings", "declared_missing_values", "values_recorded"): _FLAG,
+    ("settings", "declared_missing_values", "built_in_texts"): _ARRAY,
+    ("settings", "declared_missing_values", "built_in_texts", _EACH): _WORD,
+    ("settings", "declared_missing_values", "built_in_numbers"): _ARRAY,
+    (
+        "settings",
+        "declared_missing_values",
+        "built_in_numbers",
+        _EACH,
+    ): _STAND_IN_NUMBER,
     ("settings", "declaration_matching"): _WORD,
     ("settings", "declaration_publication"): _WORD,
     ("settings", "near_threshold_slack"): _COUNT,
@@ -522,9 +676,17 @@ PUBLICATION_RULES: "dict[tuple[str, ...], str]" = {
     ("columns", _EACH, "detection_evidence"): _SENTENCE,
     ("columns", _EACH, "n_present"): _COUNT,
     ("columns", _EACH, "n_missing"): _COUNT,
+    # ONE KEY SPACE, AND EVERY ENTRY AT THE FLOOR (contract 5 C5-N4,
+    # C5-N5). Version 4's kind here was `_FLOORED_ENTRY`, which exists
+    # to let the pooled remainder stand under this package's own word
+    # beside the table's spellings. There is no such entry any more --
+    # the remainder is `n_missing_withheld` below -- so every count here
+    # names a group and every group is at the floor.
     ("columns", _EACH, "missing_by_source"): _OBJECT,
     ("columns", _EACH, "missing_by_source", _KEY_OF): _SPELLING,
-    ("columns", _EACH, "missing_by_source", _ANY_KEY): _FLOORED_ENTRY,
+    ("columns", _EACH, "missing_by_source", _ANY_KEY): _FLOOR_COUNT,
+    ("columns", _EACH, "n_missing_blank"): _ZERO_OR_AT_THE_FLOOR,
+    ("columns", _EACH, "n_missing_withheld"): _HELD_BACK,
     ("columns", _EACH, "missing_by_class"): _OBJECT,
     ("columns", _EACH, "missing_by_class", _KEY_OF): _WORD,
     ("columns", _EACH, "missing_by_class", _ANY_KEY): _COUNT,
@@ -536,7 +698,7 @@ PUBLICATION_RULES: "dict[tuple[str, ...], str]" = {
     ("columns", _EACH, "n_not_numeric"): _COUNT,
     ("columns", _EACH, "n_distinct"): _COUNT,
     ("columns", _EACH, "n_distinct_folded"): _COUNT,
-    ("columns", _EACH, "n_sentinel_candidates_unpublished"): _COUNT,
+    ("columns", _EACH, "n_sentinel_candidates_unpublished"): _HELD_BACK,
     ("columns", _EACH, "sentinel_verdicts"): _ARRAY,
     ("columns", _EACH, "sentinel_verdicts", _EACH): _OBJECT,
     ("columns", _EACH, "sentinel_verdicts", _EACH, "candidate"): _SENTINEL,
@@ -559,7 +721,7 @@ PUBLICATION_RULES: "dict[tuple[str, ...], str]" = {
         _EACH,
         "variants_withheld",
         _KEY_OF,
-    ): _DIGITS,
+    ): _BELOW_THE_FLOOR,
     (
         "columns",
         _EACH,
@@ -568,10 +730,10 @@ PUBLICATION_RULES: "dict[tuple[str, ...], str]" = {
         "variants_withheld",
         _ANY_KEY,
     ): _COUNT,
-    ("columns", _EACH, "suppressed_levels"): _COUNT,
-    ("columns", _EACH, "suppressed_rows"): _COUNT,
+    ("columns", _EACH, "suppressed_levels"): _HELD_BACK,
+    ("columns", _EACH, "suppressed_rows"): _HELD_BACK,
     ("columns", _EACH, "suppressed_level_counts"): _ARRAY,
-    ("columns", _EACH, "suppressed_level_counts", _EACH): _COUNT,
+    ("columns", _EACH, "suppressed_level_counts", _EACH): _BELOW_THE_FLOOR,
     ("columns", _EACH, "level_ceiling"): _COUNT,
     # The numeric roles.
     ("columns", _EACH, "percentiles"): _OBJECT,
@@ -641,6 +803,18 @@ PUBLICATION_RULES: "dict[tuple[str, ...], str]" = {
 PUBLICATION_WORDS: "dict[tuple[str, ...], tuple[str, ...]]" = {
     ("settings", "declaration_matching"): (taxonomy.DECLARATION_MATCHING,),
     ("settings", "declaration_publication"): (DECLARATION_PUBLICATION,),
+    # The ten spellings this package reads as "no value", read from
+    # where they are defined. A declared value that is not one of them
+    # is written nowhere IN THE SETTINGS, so a spelling of the table
+    # standing here is refused before anything is serialized (contract 5
+    # C5-K1). Where such a spelling IS written is four entries below,
+    # under `missing_by_source`, and its rule there is `_SPELLING`.
+    ("settings", "kept_values", "built_in_texts", _EACH): (
+        parsing.MISSING_TEXTS
+    ),
+    ("settings", "declared_missing_values", "built_in_texts", _EACH): (
+        parsing.MISSING_TEXTS
+    ),
     ("source", "encoding"): reading.ENCODINGS,
     ("source", "header_source"): (
         reading.HEADER_FROM_FILE,
@@ -716,16 +890,42 @@ def _is_number(value: object) -> bool:
 
 
 def _is_offset(value: object) -> bool:
-    """`(none)`, the withheld pool, or a signed clock offset."""
+    """`Z`, `(none)`, the withheld pool, or a signed clock offset.
+
+    `Z` IS ONE OF THEM, and leaving it out made this guard refuse every
+    table whose times are stamped in UTC (found while repairing review
+    item P3-V5-F1; plan amendment A-P3-16 clause 4). The producer
+    writes `Z` for a cell ending in one -- `parsing.split_offset` hands
+    it back unchanged -- and the strict loader accepts it wherever an
+    offset may stand (`contract._is_an_offset`), so a column of
+    `2024-03-17T09:00:00Z` reached this guard with `earliest_utc_offset`
+    set to `Z`, was refused as something the publication rules could not
+    account for, and the person was told to report a fault in synthtwin
+    and given no way to describe their table. The two writings of "what
+    an offset is" now accept the same strings, and a test compares them
+    string by string rather than trusting this sentence.
+    """
     if not isinstance(value, str):
         return False
-    if value in (_NO_OFFSET, parsing.MISSING_WITHHELD):
+    if value in ("Z", _NO_OFFSET, parsing.MISSING_WITHHELD):
         return True
     if len(value) != 6 or value[0:1] not in ("+", "-") or value[3:4] != ":":
         return False
-    return parsing.is_digit_text(value[1:3]) and parsing.is_digit_text(
+    if not parsing.is_digit_text(value[1:3]) or not parsing.is_digit_text(
         value[4:6]
-    )
+    ):
+        return False
+    # AND THE RANGE, because the loader checks it (review item P2-C1-F6,
+    # and the same disagreement `Z` was on the other side of). No zone
+    # stands further than fourteen hours from UTC and no zone's minute
+    # field reaches sixty. A guard looser here than the loader is a
+    # guard that lets this package write a description it then refuses
+    # to read.
+    hours = int(value[1:3])
+    minutes = int(value[4:6])
+    if hours > 14 or minutes > 59:
+        return False
+    return not (hours == 14 and minutes != 0)
 
 
 def _is_moment(value: object) -> bool:
@@ -781,21 +981,108 @@ def _is_sentence(value: object) -> bool:
     return f"{value}" == taxonomy.rendered(value.form, value.arguments)
 
 
+# WHERE A KEY IS THE TABLE'S TEXT AND CARRIES NO FIRST-PARTY MEANING
+# (contract 5 C5-N5; plan amendment A-P3-32, review item P3-V9-F2). The
+# pooled-remainder rule below skips those mappings, because a key
+# reading `(withheld)` in one of them means that cells of the table held
+# exactly those ten characters.
+#
+# The list of them is `canonical.TABLE_TEXT_KEY_SPACES` and is read from
+# there rather than written again here, so that this guard and the
+# loader's own walk cannot answer the same question two ways. The
+# version this replaces named `missing_by_source` alone and left
+# `levels[].variants` out, so a table with twelve rows whose categorical
+# label reads `(withheld)`, described at `--smallest-group 1`, stopped
+# the profiler with an internal fault -- against a table that is
+# perfectly ordinary and a label the format is required to publish.
+
+
+def _remainder_is_published(
+    value: object, key: str, path: "tuple[str, ...]", context: _Publication
+) -> bool:
+    """Whether a pooled remainder may stand here at this floor.
+
+    THE POOLED REMAINDER IS FOUND BY THE WORD IT STANDS UNDER, NOT BY
+    THE FIELD IT SITS IN (amendment A-P3-22, review item P3-V7-F6).
+    `(withheld)` is the format's one word for "held back" (contract
+    section 14), and the range the floor holds back is empty at a floor
+    of one -- so a positive count standing under that word anywhere in
+    the document is a document the strict loader's invariant S13
+    refuses, and the guard that decides what may be WRITTEN has to say
+    the same thing at the same reach.
+
+    Amendment A-P3-16 clause 2 gave this rule to the three fields whose
+    own kind is `_FLOORED_ENTRY` and left the fourth -- a
+    `missing_by_class` count, whose kind is the generic `_COUNT` --
+    accepting any number at any floor. That is the shape of the defect
+    A-P3-16 clause 1 was written to stop: each field WAS checked where
+    it was written, and one check did not know about the remainder. This
+    runs before the leaf's own kind is consulted and independently of
+    it, so a fifth field putting a count under that word is covered on
+    the commit that adds it.
+
+    WHERE THE TABLE DECIDES THE KEY, THE WORD IS NOT A WORD (contract 5
+    C5-N5, C5-S13; plan amendment A-P3-32). The rule reads a key as this
+    package's own word, which is sound while the mapping draws its keys
+    from a first-party vocabulary. Two mappings do not: `missing_by_source`
+    keys itself on the spelling that made a cell absent, and
+    `levels[].variants` on the spelling some rows wrote a label with, so
+    a table whose cells literally read `(withheld)` publishes that key
+    with the count those cells came to. Refusing it would refuse the
+    very description version 5 exists to make writable. Which mappings
+    those are is `canonical.TABLE_TEXT_KEY_SPACES`, and reading it from
+    there is what keeps this guard and `contract._held_back_in` from
+    answering one question two ways -- which they did, both naming
+    `missing_by_source` alone, until review item P3-V9-F2.
+
+    The remainder that used to stand inside `missing_by_source` is
+    `n_missing_withheld`, which this guard holds to the same rule under
+    its own kind, `_HELD_BACK`.
+
+    Guarantees:
+
+    - Inputs: the leaf, the mapping key it stands under (empty when it
+      stands under none), the path the leaf stands at, and what the
+      guard knows about the document.
+    - Determinism: the answer depends only on those four.
+    - Errors raised: none.
+    - Boundary: nothing is opened and no value is written anywhere.
+      A leaf that is not a count under that word is left to its own
+      rule, which is why this answers True for everything else.
+    """
+    # The path handed here is the LEAF's, so the mapping it stands in is
+    # one step up. A leaf that stands under no mapping key at all is at
+    # a path no key space names, and answers False there.
+    if canonical.keys_are_the_tables_own_text(path[: len(path) - 1]):
+        return True
+    if key != parsing.MISSING_WITHHELD:
+        return True
+    if isinstance(value, bool) or not isinstance(value, int):
+        return True
+    return value <= 0 or context.floor > 1
+
+
 def _leaf_is_published(
-    kind: str, value: object, key: str, context: _Publication
+    kind: str,
+    value: object,
+    key: str,
+    path: "tuple[str, ...]",
+    context: _Publication,
 ) -> bool:
     """Whether one leaf is something this profile may publish.
 
     Guarantees:
 
     - Inputs: the rule for the leaf's own path, the leaf, the mapping
-      key it stands under (empty when it does not stand under one), and
-      what the guard knows about the document.
-    - Determinism: the answer depends only on those four.
+      key it stands under (empty when it does not stand under one), the
+      path itself, and what the guard knows about the document.
+    - Determinism: the answer depends only on those five.
     - Errors raised: none. An unknown kind is False, so a rule nobody
       taught this function refuses the leaf rather than passing it.
     - Boundary: nothing is opened and no value is written anywhere.
     """
+    if not _remainder_is_published(value, key, path, context):
+        return False
     if kind == _COUNT:
         return _is_count(value)
     if kind == _FLOOR_COUNT:
@@ -806,11 +1093,56 @@ def _leaf_is_published(
         # A count published under a key of its own has to have cleared
         # the small-cell floor; the pooled remainder is the one entry
         # that may be smaller, because it names nothing.
+        #
+        # AND AT A FLOOR OF ONE THERE IS NO REMAINDER (owner ruling
+        # 2026-08-14, plan amendments A-P3-11 and A-P3-16; contract
+        # invariant S13). The remainder holds what fell BELOW the floor,
+        # and below one there is nothing, so this guard would otherwise
+        # write out a document its own loader refuses.
         if isinstance(value, bool) or not isinstance(value, int):
             return False
         if key == parsing.MISSING_WITHHELD:
-            return value >= 1
+            return value >= 1 and context.floor > 1
         return value >= context.floor
+    if kind == _HELD_BACK:
+        # A tally of what the floor took out of sight: how many labels,
+        # how many rows they cover, how many stand-in numbers were too
+        # rare to name, how many absent cells wore a spelling too few
+        # rows shared. Same rule, said about a count that carries no key
+        # of its own.
+        if isinstance(value, bool) or not isinstance(value, int):
+            return False
+        if value < 0:
+            return False
+        return value == 0 or context.floor > 1
+    if kind == _ZERO_OR_AT_THE_FLOOR:
+        # A named group, or nothing at all. There is no third answer:
+        # a group the floor held back is not written here, it is added
+        # to the pooled remainder beside it (contract 5 C5-N4).
+        if isinstance(value, bool) or not isinstance(value, int):
+            return False
+        return value == 0 or value >= context.floor
+    if kind == _STAND_IN_NUMBER:
+        # One of the three stand-in numbers this package publishes, and
+        # no other number. A number of the table cannot stand here.
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            return False
+        for candidate in parsing.NUMERIC_SENTINELS:
+            if value == candidate:
+                return True
+        return False
+    if kind == _BELOW_THE_FLOOR:
+        # One group size the floor held back, whether it stands as a
+        # count or -- for a multiplicity map -- as a key written in
+        # figures. The permitted range is 1 up to the floor, which at a
+        # floor of one is empty.
+        if isinstance(value, str):
+            if not value or not parsing.is_digit_text(value):
+                return False
+            return 1 <= int(value) < context.floor
+        if isinstance(value, bool) or not isinstance(value, int):
+            return False
+        return 1 <= value < context.floor
     if kind == _NUMBER:
         return _is_number(value)
     if kind == _MAYBE_NUMBER:
@@ -902,7 +1234,7 @@ def _check_published(
                 if PUBLICATION_RULES[where] == _WORD:
                     _check_word(name, where)
                 elif not _leaf_is_published(
-                    PUBLICATION_RULES[where], name, name, context
+                    PUBLICATION_RULES[where], name, name, where, context
                 ):
                     raise _refuse(where)
                 _check_published(node[name], free, name, context)
@@ -921,7 +1253,7 @@ def _check_published(
     if kind == _WORD:
         _check_word(node, path)
         return
-    if not _leaf_is_published(kind, node, key, context):
+    if not _leaf_is_published(kind, node, key, path, context):
         raise _refuse(path)
 
 

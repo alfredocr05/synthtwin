@@ -141,14 +141,16 @@ REQUIRED_CASES = (
     "quarter",
 )
 
-# The five that section adds for the branches those nine leave
-# unexercised (review items P2-C3-F3 and P2-C4-C3), which are the second
-# committed file of the same oracle.
+# The six that section adds for the branches those nine leave
+# unexercised (review items P2-C3-F3 and P2-C4-C3, and owner decision
+# 11's pooled-spelling case), which are the second committed file of the
+# same oracle.
 BRANCH_CASES = (
     "free_text_joint",
     "identifier_edge_spacing",
     "leap_second_endpoint",
     "numeric_point_free_styles",
+    "numeric_pooled_spelling",
     "unrepresentable_joint",
 )
 
@@ -172,6 +174,7 @@ SEEDS = {
     "free_text_joint": 112,
     "identifier_edge_spacing": 113,
     "leap_second_endpoint": 114,
+    "numeric_pooled_spelling": 115,
 }
 
 # The cases whose column was declared with --identifier, which the
@@ -217,8 +220,18 @@ def _settings(declared: list) -> dict:
         "categorical_floor": 1,
         "sentinel_outlier_iqr_multiple": 1.5,
         "sentinel_minimum_share": 0.02,
-        "kept_values": {"n_declared": 0, "values_recorded": False},
-        "declared_missing_values": {"n_declared": 0, "values_recorded": False},
+        "kept_values": {
+            "n_declared": 0,
+            "values_recorded": False,
+            "built_in_texts": [],
+            "built_in_numbers": [],
+        },
+        "declared_missing_values": {
+            "n_declared": 0,
+            "values_recorded": False,
+            "built_in_texts": [],
+            "built_in_numbers": [],
+        },
         "declaration_matching": "exact_number_when_it_reads_as_one_else_spelling",
         "declaration_publication": "settings_counts_only_columns_unchanged",
         "near_threshold_slack": 0,
@@ -253,7 +266,7 @@ def _profile_document(case: dict, name: str) -> dict:
         "created_with": "0+unknown",
         "n_columns": 1,
         "n_rows": len(case["cells"]),
-        "profile_version": 4,
+        "profile_version": 5,
         "publication_notes": [],
         "relationships": _relationships(),
         "settings": _settings(declared),
@@ -1026,6 +1039,24 @@ def _one_margin_after_another(groups, margins, demanded=True):
     return answers
 
 
+def _point_free_within_the_old_window(value, integer_valued):
+    """The sixteen-figure ceiling owner decision 10 lifted, put back.
+
+    The mutant for the pooled-spelling case, and it reverts exactly one
+    sentence: a whole value wider than the canonical spelling's
+    fixed-point window is told it has no point-free spelling, which is
+    what used to send a column of very wide whole numbers back with a
+    decimal point on cells its source had written in figures.
+    """
+    if integer_valued:
+        return gen.canonical_spelling(value, True)
+    digits, decpt = gen.shortest_round_trip(value)
+    if not (-4 < decpt <= 16) or decpt < len(digits):
+        return None
+    sign = "-" if value < 0 else ""
+    return sign + digits + "0" * (decpt - len(digits))
+
+
 def _one_style_for_the_whole_map(published):
     """G6.4's placement withdrawn: every published form written as `plain`."""
     return {
@@ -1117,6 +1148,15 @@ CASE_MUTANTS = {
         "sitting on exactly 2.5 write 2 instead of 3",
         attribute="integer_rule",
         replacement=_ties_toward_zero,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "numeric_pooled_spelling": Mutant(
+        branch="owner decision 10's point-free spelling at any width, and "
+        "the pooled cell spelled by its own value beside it; the mutant "
+        "puts the sixteen-figure ceiling back, so a whole value wider than "
+        "the canonical window is told it has no point-free spelling",
+        attribute="point_free_spelling",
+        replacement=_point_free_within_the_old_window,
         outcome=CHANGES_THE_CELLS,
     ),
     "numeric_point_free_styles": Mutant(
