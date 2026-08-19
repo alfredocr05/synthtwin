@@ -100,6 +100,12 @@ REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
 GOVERNING = (
     "docs/plans/phase-2-generator.md",
     "docs/plans/phase-3-product.md",
+    # The Phase 4 plan joined at its ratification (2026-08-19, plan
+    # review round 5): it fixes the column-handling obligations of the
+    # next phase — new roles, the reproduction rule, the version 6
+    # delta — and a quieter sentence written into it would be the same
+    # defect this seal exists to catch.
+    "docs/plans/phase-4-columns.md",
     "docs/spec/profile-contract-v4.md",
     "docs/spec/profile-contract-v5.md",
     "docs/spec/generation-method-v1.md",

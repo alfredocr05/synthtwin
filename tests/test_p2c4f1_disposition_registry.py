@@ -117,6 +117,7 @@ DOCUMENTS = (("contract", CONTRACT), ("method", METHOD), ("plan", PLAN))
 # registry's obligation-parsing walks the three Phase 2 documents
 # above, and the seal covers all four.
 PLAN3 = REPO_ROOT / "docs" / "plans" / "phase-3-product.md"
+PLAN4 = REPO_ROOT / "docs" / "plans" / "phase-4-columns.md"
 VALIDATION = REPO_ROOT / "docs" / "spec" / "validation-method-v1.md"
 CONTRACT5 = REPO_ROOT / "docs" / "spec" / "profile-contract-v5.md"
 RELATIVE = {
@@ -126,6 +127,7 @@ RELATIVE = {
     "docs/spec/validation-method-v1.md": VALIDATION,
     "docs/plans/phase-2-generator.md": PLAN,
     "docs/plans/phase-3-product.md": PLAN3,
+    "docs/plans/phase-4-columns.md": PLAN4,
 }
 
 
@@ -375,6 +377,13 @@ def test_no_fourth_governing_document_can_appear_unsealed() -> None:
         "phase-1-profiler.md",
         "phase-2-generator.md",
         "phase-3-product.md",
+        # The Phase 4 plan, DRAFT under adversarial review: listed here
+        # so the tree stays green while the rounds run, on the phase-0/1
+        # precedent of listed-but-not-governing plans. It joins
+        # dispositions.GOVERNING (and the seal, and the claim
+        # inventory's surfaces) at its ratification, per its own
+        # sequencing item 1.
+        "phase-4-columns.md",
     ], plans
     for relative in dispositions.GOVERNING:
         assert (REPO_ROOT / relative).exists(), relative

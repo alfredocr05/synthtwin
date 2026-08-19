@@ -208,6 +208,7 @@ SURFACES = (
 DEFENCE_SURFACES = SURFACES + (
     "docs/plans/phase-2-generator.md",
     "docs/plans/phase-3-product.md",
+    "docs/plans/phase-4-columns.md",
 )
 
 # The categorical forms, retired by P2-D11. Each is the shape of a
