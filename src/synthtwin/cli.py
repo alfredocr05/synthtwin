@@ -1293,6 +1293,12 @@ def _run_generate(
     report_text = parsing.visible_lines(rendering.report(loaded, twin))
 
     _say(report_text)
+    # ONE LINE ON THE SCREEN NAMING WHAT THE TWIN INVENTED (plan P4-D2
+    # item 2). It is a warning rather than an ordinary line because a
+    # person who reads one thing before opening the twin should read
+    # this one; the exit code does not move for it, because a decline is
+    # not a failure and a run that warned still succeeded.
+    _warn(rendering.made_up_warning(loaded))
     _say(
         f"These two files will be written:\n"
         f"  {shown_twin_path}\n  {shown_report_path}"

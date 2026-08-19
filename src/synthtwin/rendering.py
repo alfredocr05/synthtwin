@@ -474,6 +474,179 @@ def _invented_columns(profile: contract.Profile) -> "frozenset[str]":
     return frozenset(made_up)
 
 
+# THE THREE INVENTION CLASSES (plan P4-D2). A column belongs to at most
+# one of them, and the class decides which sentence its block carries.
+#
+# WHY THREE AND NOT ONE. A single sentence would be false at both edges.
+# "Every value here is invented" is false of a category column that
+# carries its published labels and made up only the withheld tail; and
+# an invention sentence about an EMPTY column is false of a twin that
+# holds no present cell of it at all. So the classes are drawn where the
+# truth changes, and a column that belongs to none of them gets no
+# sentence rather than a hedged one.
+_MADE_UP_NOTHING = ""
+_MADE_UP_EVERYTHING = "everything"
+_MADE_UP_HELD_BACK = "held-back"
+_MADE_UP_UNCARRIED = "uncarried"
+
+
+def _held_back_cells(facts: contract.LabelFacts) -> int:
+    """How many cells of a label column's twin are neutral stand-ins.
+
+    Two kinds, counted together because a reader meets them as one
+    thing: the rows of every level the floor held back entirely, and
+    the rows inside a published level whose SPELLING the floor held
+    back. The second reads its counts through `contract.occurrence_size`
+    because a repetition map's keys are row counts written as text, and
+    that function is the one reader of them.
+    """
+    total = facts.suppressed_rows
+    for level in facts.levels:
+        for key in sorted(level.variants_withheld):
+            size = contract.occurrence_size(key)
+            if size is None:
+                continue
+            total = total + size * level.variants_withheld[key]
+    return total
+
+
+def _made_up_class(column: contract.ColumnBlock) -> str:
+    """Which invention class this column is in (plan P4-D2)."""
+    # A column with no present cell has no invented cell either, so it
+    # is in no class whatever its role says -- the empty-column carve-out
+    # the plan states, and the reason this test comes first.
+    if not column.n_present:
+        return _MADE_UP_NOTHING
+    if column.structural_role == "identifier" or column.role in (
+        "free_text",
+        "numeric_unrepresentable",
+    ):
+        return _MADE_UP_EVERYTHING
+    facts = column.facts
+    if isinstance(facts, contract.LabelFacts):
+        if _held_back_cells(facts):
+            return _MADE_UP_HELD_BACK
+        return _MADE_UP_NOTHING
+    if _uncarried_cells(column):
+        return _MADE_UP_UNCARRIED
+    return _MADE_UP_NOTHING
+
+
+def _uncarried_cells(column: contract.ColumnBlock) -> int:
+    """How many cells the description counts but carries no value for.
+
+    On a numeric column these are the three classes beside the numbers
+    themselves -- out of range, contradictory, and not a number at all --
+    which the twin writes as counted stand-ins. On a datetime column it
+    is the cells that did not read as dates. It is deliberately NOT the
+    four universal counts on a datetime column: a written date is not a
+    number, so those counts describe every cell of it and would name the
+    whole column invented.
+    """
+    facts = column.facts
+    if isinstance(facts, contract.DatetimeFacts):
+        return facts.n_unparsed
+    if isinstance(facts, contract.NumericFacts):
+        return (
+            column.n_out_of_range
+            + column.n_contradictory
+            + column.n_not_numeric
+        )
+    return 0
+
+
+def _made_up_lines(column: contract.ColumnBlock, floor: int) -> "list[str]":
+    """What this column's twin cells are, said once and unconditionally.
+
+    Plan P4-D2 item 1. Before this section existed the only place a
+    report said a cell was invented was inside the spreadsheet warning,
+    and only when a cell there began with a formula character -- so a
+    reader of an ordinary free-text column met a twin full of made-up
+    text and no sentence anywhere saying so. The sentence is now a
+    property of the CLASS, not of what the cells happen to look like.
+    """
+    made_up = _made_up_class(column)
+    if made_up == _MADE_UP_EVERYTHING:
+        return [
+            (
+                f"  synthtwin MADE UP all {column.n_present} of this "
+                f"column's values. Your"
+            ),
+            "  description publishes no value of this column, so the twin",
+            "  meets its counts, lengths and shapes and nothing else. Any",
+            "  number you compute from these cells describes synthtwin's",
+            "  invention and says nothing about your table.",
+        ]
+    if made_up == _MADE_UP_HELD_BACK:
+        facts = column.facts
+        if not isinstance(facts, contract.LabelFacts):
+            return []
+        return [
+            (
+                f"  synthtwin MADE UP {_held_back_cells(facts)} of this "
+                f"column's {column.n_present} value(s):"
+            ),
+            (
+                f"  the labels and spellings fewer than {floor} rows share "
+                f"are not in"
+            ),
+            "  your description, so the twin carries neutral stand-ins at",
+            "  their counts instead. Every other cell of this column is a",
+            "  value your description publishes.",
+        ]
+    if made_up == _MADE_UP_UNCARRIED:
+        return [
+            (
+                f"  synthtwin MADE UP {_uncarried_cells(column)} of this "
+                f"column's {column.n_present} value(s):"
+            ),
+            "  your description counts those cells but carries no value",
+            "  for them, so the twin writes counted stand-ins in their",
+            "  place. Every other cell of this column was built from the",
+            "  facts your description publishes.",
+        ]
+    return []
+
+
+def _made_up_totals(profile: contract.Profile) -> "tuple[int, int]":
+    """How many columns are invented outright, and how many in part."""
+    whole = 0
+    part = 0
+    for column in profile.columns:
+        made_up = _made_up_class(column)
+        if made_up == _MADE_UP_EVERYTHING:
+            whole = whole + 1
+        elif made_up in (_MADE_UP_HELD_BACK, _MADE_UP_UNCARRIED):
+            part = part + 1
+    return whole, part
+
+
+def made_up_warning(profile: contract.Profile) -> str:
+    """The one screen line naming what this twin invented (P4-D2 item 2).
+
+    Guarantees:
+
+    - Inputs: a loaded description; no file, no table, no clock.
+    - Determinism: a fixed function of the description.
+    - Errors raised: none.
+    - Boundary: names counts and no value of any column, so it is safe
+      on every surface the report itself is safe on.
+
+    It counts BOTH kinds. A line that counted only the columns invented
+    outright would read "0 of 1" over a twin whose one column carries
+    invented labels, which is the shape of sentence this phase exists to
+    remove.
+    """
+    whole, part = _made_up_totals(profile)
+    total = len(profile.columns)
+    return (
+        f"{whole} of this twin's {total} column(s) hold nothing but values "
+        f"synthtwin made up, and {part} more column(s) hold some made-up "
+        f"cells beside values your description publishes. The report says "
+        f"which, and how many, column by column."
+    )
+
+
 def _formula_lines(
     profile: contract.Profile, twin: generation.Twin
 ) -> "list[str]":
@@ -1000,6 +1173,10 @@ def _column_lines(
             f"{column.n_missing}."
         ),
     ]
+    # WHAT THE CELLS ARE comes before how the column was read, because a
+    # reader who stops after three lines has met the one fact that
+    # decides whether anything below is worth computing on (plan P4-D2).
+    lines = lines + _made_up_lines(column, floor)
     if column.detection_evidence:
         lines = lines + [
             (
@@ -1325,7 +1502,33 @@ def report(profile: contract.Profile, twin: generation.Twin) -> str:
             _notes_for(profile, column.name),
             profile.settings.small_cell_floor,
         )
+    # The count of what this twin invented, after the blocks that name it
+    # column by column and before the page turns to what the report is
+    # not (plan P4-D2 item 2). It prints on every run, whatever the
+    # count is, for the reason the spreadsheet count prints on every run:
+    # a number nobody sees until somebody suspects it is a number nobody
+    # sees.
+    whole, part = _made_up_totals(profile)
     lines = lines + [
+        _RULE,
+        "HOW MUCH OF THIS TWIN SYNTHTWIN MADE UP",
+        _RULE,
+        "",
+        (
+            f"{whole} of the {len(profile.columns)} column(s) hold nothing "
+            f"but values"
+        ),
+        (
+            f"synthtwin made up. {part} more column(s) hold some made-up "
+            f"cells beside"
+        ),
+        "values your description publishes. The column blocks above say which",
+        "columns those are and how many cells each one holds.",
+        "",
+        "Values synthtwin made up carry the counts and shapes your",
+        "description publishes and nothing else. They are not your data,",
+        "and a number computed from them is a number about synthtwin.",
+        "",
         _RULE,
         "WHAT THIS REPORT IS NOT, AND WHAT TO RUN FOR THE OTHER THING",
         _RULE,
