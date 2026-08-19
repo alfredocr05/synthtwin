@@ -1124,9 +1124,9 @@ def _disclosure_lines(document: dict[str, object]) -> list[str]:
         lines = lines + [
             "  If you build a twin from this description, every value in",
             "  these columns will be one synthtwin made up. Either the",
-            "  column publishes no value at all, or the spellings it",
-            "  publishes are below the floor, and either way the twin",
-            "  has to invent what it writes --",
+            "  column publishes no value at all, or its spellings were",
+            "  each worn by too few rows to publish, and either way the",
+            "  twin has to invent what it writes --",
             f"    {_listed(all_invented)}",
             "  The twin's own report says so again, column by column.",
             "",

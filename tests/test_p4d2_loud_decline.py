@@ -409,9 +409,9 @@ def test_the_summary_tells_a_person_before_they_generate_anything(
     assert (
         "  If you build a twin from this description, every value in\n"
         "  these columns will be one synthtwin made up. Either the\n"
-        "  column publishes no value at all, or the spellings it\n"
-        "  publishes are below the floor, and either way the twin\n"
-        "  has to invent what it writes --\n"
+        "  column publishes no value at all, or its spellings were\n"
+        "  each worn by too few rows to publish, and either way the\n"
+        "  twin has to invent what it writes --\n"
         "    note\n"
         "  The twin's own report says so again, column by column."
     ) in page
