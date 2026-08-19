@@ -17,10 +17,11 @@ spelling, a detail quoted from a library -- passes through
 escape sequence, and a refusal is a human-facing sink like any other
 (review item P1-R3-F9).
 
-A HANDFUL OF THESE MESSAGES SERVE TWO COMMANDS, and the words they use
-for the files differ between them. `ArtifactWords` below holds exactly
-those words, the two sets are written out beside it, and the builders
-that need one take it as an argument (plan P2-D10).
+A HANDFUL OF THESE MESSAGES SERVE THREE COMMANDS, and the words they
+use for the files differ between them. `ArtifactWords` below holds
+exactly those words, the three sets are written out beside it, and the
+builders that need one take it as an argument (plan P2-D10, extended to
+the quality report by P3-D1).
 
 Imports here stay within the allowlist (plan D6.2): `dataclasses`, for
 that one record, and `parsing`, for `visible`.
@@ -72,6 +73,106 @@ class TransactionRefusal(ProfileError):
     including the command -- catches it unchanged, and nothing about
     what the person reads depends on which of the two it is.
     """
+
+
+# WHICH OF THE READER'S REFUSALS ABOUT A FILE'S OWN SHAPE THIS IS.
+#
+# Three words of this module's own vocabulary, so a caller can ask which
+# refusal it caught without reading the sentence a person reads (review
+# item P3-V4-F3). `synthtwin validate` reports on two of the reader's
+# refusals rather than passing them on -- V9 makes a structural mismatch
+# a MISSED verdict with a plain explanation -- and it used to decide
+# which of them a file was going to get by walking the file itself,
+# BEFORE the reader was called. A walk that has to be kept in step with
+# the reader by hand is a walk that drifts: four ways were found in one
+# review round where the two disagreed about which refusal a file gets,
+# and on each of them two files the producer refuses identically got
+# different reports. So the decision is taken from the refusal the
+# reader ACTUALLY raised, and these are what it is taken on.
+NO_DATA_TO_DESCRIBE = "no-data-to-describe"
+HEADER_NAME_MISSING = "header-name-missing"
+HEADER_NAME_REPEATED = "header-name-repeated"
+
+_SHAPE_REFUSALS = (
+    NO_DATA_TO_DESCRIBE,
+    HEADER_NAME_MISSING,
+    HEADER_NAME_REPEATED,
+)
+
+
+class ShapeRefusal(ProfileError):
+    """A reader refusal about a file's SHAPE, carrying which one it is.
+
+    The reader refuses a file with no rows to describe, and one whose
+    first row leaves a name blank or uses a name twice. Both are
+    refusals of the profiler and both are things `synthtwin validate`
+    REPORTS on instead, so the caller that reports has to know which one
+    it caught -- and knowing it from the message would mean matching on
+    prose, which is a rule written twice again.
+
+    ``position`` is the column number of a blank name and is zero for the
+    other two. It is here because the profiler's own refusal for a blank
+    name NAMES that number, so a report may state it (V5.1); the
+    profiler's refusal for a REPEATED name quotes the name instead and
+    names no position at all, so nothing carries one here.
+
+    Guarantees:
+
+    - Inputs: an already-built message from this module's builders, one
+      of this module's three shape words, and a column number for the
+      blank-name case.
+    - Determinism: nothing here reads a clock, an environment variable,
+      or a random source.
+    - Errors raised: ValueError for a word that is not one of the three,
+      because a caller reaching that has mistyped a constant and a
+      refusal nobody can classify would be reported as the wrong kind of
+      file.
+    - Boundary: no value out of any file is placed in ``kind`` or
+      ``position``; both are this module's own vocabulary and a count.
+
+    It is a subclass, so every caller that catches `ProfileError` --
+    including the command -- catches it unchanged, and nothing about
+    what a person reads depends on which of the two it is.
+
+    IT IS BUILT BY `shape_refusal` BELOW AND NOT BY A CONSTRUCTOR OF ITS
+    OWN. Phase 0's offline audit accepts no double-underscore name and
+    no `super` in this package's source (plan D6.2), so the two fields
+    are class attributes with a stated default and the builder sets
+    them. The default is what a caller who raised the class directly
+    would see, and it names no refusal, which is why `shape_refusal` is
+    the only thing that builds one.
+    """
+
+    kind = ""
+    position = 0
+
+
+def shape_refusal(
+    message: str, kind: str, position: int = 0
+) -> ShapeRefusal:
+    """One shape refusal, with the word that says which one it is.
+
+    Guarantees:
+
+    - Inputs: an already-built message from this module's builders, one
+      of this module's three shape words, and the column number of a
+      blank name where there is one.
+    - Determinism: a fixed function of the three.
+    - Errors raised: ValueError for a word that is not one of the three.
+      A refusal nobody can classify would be reported as the wrong kind
+      of file, so it stops here rather than travelling.
+    - Boundary: no value out of any file reaches ``kind`` or
+      ``position``.
+    """
+    if kind not in _SHAPE_REFUSALS:
+        raise ValueError(
+            "synthtwin internal check: a shape refusal must name which "
+            "of the reader's shape refusals it is."
+        )
+    refusal = ShapeRefusal(message)
+    refusal.kind = kind
+    refusal.position = position
+    return refusal
 
 
 _CHECK_AND_RETRY = "Fix that in the file and run the command again."
@@ -269,6 +370,114 @@ def readers_disagree_about_a_value(path: str, row: int, column: str) -> str:
     )
 
 
+# THE SAME THREE REFUSALS, FOR A FILE NOBODY PROMISED WAS THEIRS
+# (plan P3-D1, V9; review item P3-V1-F10).
+#
+# The three messages above quote what the reader found -- the name it
+# read back, the column a value sits in -- and on the profiler's path
+# that is right: the person handed synthtwin their own table and asked
+# it to describe it, so naming what is in it tells them where to look.
+#
+# `synthtwin validate` is pointed at a file nobody promised was theirs.
+# It may be a twin, somebody else's table, or the wrong table entirely,
+# and a refusal travels as freely as a report does: it is printed, it is
+# copied into a ticket, it is pasted into a message. So on that path
+# every refusal names POSITIONS -- which column, which row -- and never
+# a value. These are those forms. They are separate builders rather than
+# a flag inside the ones above because a message a reader can act on is
+# written, not assembled, and because the profiler's own wording then
+# stays byte for byte what it was.
+
+
+def checked_file_readers_disagree_about_a_name(
+    path: str, position: int
+) -> str:
+    """Message for the two passes finding different names, by position."""
+    return (
+        f"synthtwin read {path} twice and the two readings do not agree "
+        f"about the name of column number {position}. There are two "
+        f"usual causes. Either something else was writing to the file "
+        f"while synthtwin was reading it -- make sure nothing else is "
+        f"using the file and run the command again -- or that name is "
+        f"written in a way the two readers read differently, which a "
+        f"stray carriage return, a zero byte, or a quotation mark that "
+        f"was never closed will do. Open the file in your spreadsheet "
+        f"program, save it again choosing 'CSV UTF-8', and run the "
+        f"command again. synthtwin refuses to check a file it could not "
+        f"read the same way twice, and it does not print what it found "
+        f"in the file: this file may not be your own table."
+    )
+
+
+def checked_file_readers_disagree_about_a_value(
+    path: str, row: int, position: int
+) -> str:
+    """Message for the two passes finding different values, by position."""
+    return (
+        f"synthtwin read {path} with two separate readers and they do "
+        f"not agree about the value in row {row}, column number "
+        f"{position}. Rows are counted after the first row, leaving out "
+        f"blank lines. There are two usual causes. Either something else "
+        f"was writing to the file while synthtwin was reading it -- make "
+        f"sure nothing else is using the file and run the command again "
+        f"-- or that part of the file is written in a way the two "
+        f"readers read differently, which a stray carriage return, a "
+        f"zero byte, or a quotation mark that was never closed will do. "
+        f"Open the file in your spreadsheet program, save it again "
+        f"choosing 'CSV UTF-8', and run the command again. synthtwin "
+        f"refuses to check a file it could not read the same way twice, "
+        f"and it does not print what it found in the file: this file may "
+        f"not be your own table."
+    )
+
+
+def checked_file_unreadable_as_csv(path: str) -> str:
+    """Message for a checked file the CSV reader could not make sense of.
+
+    The profiler's form of this quotes the reader's own account of what
+    went wrong, and that account can carry a piece of the file with it --
+    a byte it stopped at, a fragment of a line. Here it is left out and
+    the shape of the trouble is stated instead.
+    """
+    return (
+        f"The file {path} could not be read as a CSV table. synthtwin "
+        f"reads comma-separated files with one row per line and "
+        f"quotation marks around any value that contains a comma. A "
+        f"quotation mark that was never closed is the usual cause. Open "
+        f"the file in your spreadsheet program, save it again choosing "
+        f"'CSV UTF-8', and run the command again. synthtwin does not "
+        f"print what it found in the file: this file may not be your "
+        f"own table."
+    )
+
+
+def checked_file_repeats_a_column_name(path: str) -> str:
+    """Message for a repeated name in a checked file, naming neither.
+
+    The profiler's form of this QUOTES the repeated name, and on the
+    checking path that name is a string out of a file nobody promised
+    was the reader's (V9).
+
+    AND IT NAMES NO POSITION EITHER (review item P3-V4-F3; plan
+    amendment A-P3-10 clause 2). The version this replaces put the two
+    column numbers in the name's place, on the reasoning that a number
+    publishes strictly less than a string. That reasoning was wrong, and
+    the way it was wrong is the point: `dup,a,dup` and `a,dup,dup` are
+    two files `synthtwin profile` refuses with the SAME sentence, and
+    the positions tell them apart. What the profiler's refusal
+    publishes about such a file is that one of its names is used twice,
+    so that is what this says.
+    """
+    return (
+        f"The first row of {path} uses one column name twice. Every "
+        f"column needs its own name, so that the description of one "
+        f"column can never be confused with another's. Rename the "
+        f"repeat and run the command again. synthtwin does not print "
+        f"what it found in the file, or where: this file may not be "
+        f"your own table."
+    )
+
+
 def duplicate_column_names(names: list[str]) -> str:
     """Message for repeated column names in the header row."""
     listed = _listed(names)
@@ -413,9 +622,11 @@ def publication_guard_stopped(where: str) -> str:
 
 # WHAT ONE COMMAND CALLS ITS OWN FILES (plan P2-D10).
 #
-# The write transaction serves two commands. `profile` reads a table and
-# writes a profile beside a summary; `generate` reads that profile and
-# writes a twin beside a report. The machinery is one piece of code and
+# The write transaction serves every command that writes. `profile`
+# reads a table and writes a profile beside a summary; `generate` reads
+# that profile and writes a twin beside a report; `validate` reads the
+# profile and one file and writes the quality report. The machinery is
+# one piece of code and
 # has to be -- two files or neither, every name looked at, every leftover
 # named -- but the WORDS are not one set of words, and an inherited
 # wording here is not a small blemish. A `generate` run that stopped
@@ -471,13 +682,33 @@ class ArtifactWords:
       lost differs in kind: a table is data nobody can rebuild, while a
       profile is the description a twin is built from;
     * ``mismatch`` -- one clause saying why this command's two files must
-      never be left standing side by side from two different runs.
+      never be left standing side by side from two different runs;
+    * ``published`` -- the same output as the noun a sentence about what
+      is on disk uses: "No new {published} was published", "... holds
+      the new {published} this run produced", "... holds the
+      {published} from before this run". It is a fourth spelling of the
+      same file rather than a reuse of ``new_file`` because these
+      sentences take no article, and folding them together would have
+      moved a message no review asked to change;
+    * ``working_holds`` -- one clause saying what a working file this
+      command could not clear away is holding.
 
-    Two fields hold whole clauses rather than nouns, and that is the
-    deliberate choice. Substituting nouns into one fixed sentence would
-    have forced both commands to say the same thing about facts that are
-    not the same, and a sentence that is grammatical and untrue is worse
-    than two sentences.
+    THE LAST TWO ARRIVED WITH REVIEW ITEM P3-V4-F11, and the defect they
+    close is the one this whole record exists for, found in the place it
+    had not reached. A stopped `validate` run -- one that had installed
+    a quality report and put the earlier one back -- told the person "No
+    new description was published", about a command that writes no
+    description and had just written a report. The words describing what
+    is at each name were the same: a twin's own rollback said its twin
+    file "holds the new description this run produced". Both sentences
+    were composed here, from constants, with no way for the running
+    command to say what it was actually writing.
+
+    Four fields hold whole clauses or article-less nouns rather than one
+    noun, and that is the deliberate choice. Substituting nouns into one
+    fixed sentence would have forced every command to say the same thing
+    about facts that are not the same, and a sentence that is
+    grammatical and untrue is worse than three sentences.
     """
 
     produced: str
@@ -485,6 +716,8 @@ class ArtifactWords:
     new_file: str
     loss: str
     mismatch: str
+    published: str
+    working_holds: str
 
 
 # The profiler's set: the words every one of these messages used before
@@ -498,6 +731,8 @@ PROFILE_WORDS = ArtifactWords(
         "a profile and a summary from two different runs do not describe "
         "the same table"
     ),
+    published="description",
+    working_holds="text taken from your table",
 )
 
 # The generator's set. `mismatch` says what actually goes wrong there:
@@ -511,7 +746,54 @@ TWIN_WORDS = ArtifactWords(
     new_file="the twin",
     loss="That would have destroyed the description your twin is built from.",
     mismatch="a report from one run does not describe the twin from another",
+    published="twin",
+    # `generate` opens no table, so a working file of its own holds text
+    # derived from the description it was handed and from nothing else.
+    working_holds="text taken from the description your twin is built from",
 )
+
+# The validator's set (plan P3-D1). `validate` writes ONE file, so the
+# transaction it uses is the one-target form and `mismatch` reads
+# differently here from the two sets above: there is no second file this
+# one has to match, and what a stale quality report contradicts is the
+# FILE IT MEASURED. A report left standing from an earlier run states
+# verdicts about bytes that are no longer at that name, which is the
+# same failure -- a reader trusting a sentence about a file that is not
+# there -- reached by a different route.
+#
+# `given` is the description rather than the measured file because that
+# is the file the command is HANDED, exactly as `generate` is handed a
+# description; the measured file is named by its own noun wherever a
+# message needs to tell the two apart (`INPUT_MEASURED_FILE` below).
+QUALITY_WORDS = ArtifactWords(
+    produced="quality report",
+    given="description",
+    new_file="the quality report",
+    loss=(
+        "That would have destroyed the description the verdicts are "
+        "measured against."
+    ),
+    mismatch=(
+        "a quality report from one run does not describe the file "
+        "another run measured"
+    ),
+    published="quality report",
+    # A validate working file holds the report, which is counts and
+    # measurements taken from the file that was checked -- and that file
+    # may be the person's own table or may be a twin of it, which is why
+    # this names what was measured rather than guessing which it was.
+    working_holds=(
+        "counts and measurements taken from the file synthtwin checked"
+    ),
+)
+
+# The two files a `validate` run reads, as the nouns a refusal uses to
+# say WHICH of them an output name would have landed on (plan P3-D1).
+# One `ArtifactWords` carries one `given`, and this command is handed
+# two files, so the second one is named here rather than by bending a
+# record that exists to name one.
+INPUT_DESCRIPTION = "description"
+INPUT_MEASURED_FILE = "file you asked synthtwin to check"
 
 
 COULD_NOT_CHECK = (
@@ -566,67 +848,98 @@ ON_DISK_UNCHECKED = "unchecked"
 # would be a guess presented as a fact (review item P1-R7-F1).
 ON_DISK_UNSETTLED = "unsettled"
 
-_ON_DISK_WORDS = {
-    ON_DISK_BEFORE: "the file that was there before this run, unchanged",
-    ON_DISK_RESTORED: "the file that was there before this run, put back",
-    ON_DISK_ABSENT: (
-        "nothing -- there is no file of that name, just as before "
-        "this run"
-    ),
-    ON_DISK_TAKEN_AWAY: (
-        "nothing -- the file that was there before this run was moved "
-        "aside and could not be put back"
-    ),
-    ON_DISK_NEW: "the new description this run produced",
-    ON_DISK_SET_ASIDE: (
-        "the description from before this run, which synthtwin moved "
-        "here and could not move back"
-    ),
-    ON_DISK_WORKING: (
-        "a working file synthtwin could not clear away; it holds text "
-        "taken from your table"
-    ),
-    ON_DISK_EMPTY_WORKING: (
-        "an empty working file synthtwin could not clear away; it holds "
-        "nothing"
-    ),
-    ON_DISK_UNCERTAIN_WORKING: (
-        "something synthtwin made for its own use, wrote nothing into, "
-        "and could not clear away or examine afterwards"
-    ),
-    ON_DISK_CLAIMED_WORKING: (
-        "something at a working name synthtwin had claimed and was still "
-        "creating when the run stopped. synthtwin wrote nothing into it "
-        "and did not remove it, because it cannot tell whether it made "
-        "this file or whether the name was already taken by something "
-        "else; please look at it before you delete it"
-    ),
-    ON_DISK_UNCHECKED: "not known: synthtwin could not check this name",
-    ON_DISK_UNSETTLED: (
-        "a file -- but synthtwin stopped while it was moving these "
-        "names into place, so it cannot say which of this run's files "
-        "ended up here; look at every name in this message before you "
-        "use or delete any of them"
-    ),
-}
+
+def _on_disk_words(words: "ArtifactWords") -> "dict[str, str]":
+    """What each on-disk code says, for the command that is running.
+
+    Three of these name the file the RUNNING COMMAND writes and one
+    says what a working file holds, so the table is built from that
+    command's own nouns rather than written out once with the
+    profiler's (review item P3-V4-F11).
+
+    Guarantees:
+
+    - Inputs: one `ArtifactWords`, whose fields are module constants of
+      this file; nothing here comes from a table, a profile, or
+      anything else a run reads.
+    - Determinism: a fixed function of that record.
+    - Errors raised: none.
+    - Boundary: no value out of a user's file can reach one of these.
+    """
+    return {
+        ON_DISK_BEFORE: "the file that was there before this run, unchanged",
+        ON_DISK_RESTORED: "the file that was there before this run, put back",
+        ON_DISK_ABSENT: (
+            "nothing -- there is no file of that name, just as before "
+            "this run"
+        ),
+        ON_DISK_TAKEN_AWAY: (
+            "nothing -- the file that was there before this run was moved "
+            "aside and could not be put back"
+        ),
+        # THESE THREE NAME THE FILE THIS COMMAND WRITES, and used to
+        # name a description whichever command was running (review item
+        # P3-V4-F11). The profiler's set fills them with exactly the
+        # words that stood here before, so nothing a `profile` run
+        # prints moved.
+        ON_DISK_NEW: f"the new {words.published} this run produced",
+        ON_DISK_SET_ASIDE: (
+            f"the {words.published} from before this run, which synthtwin "
+            f"moved here and could not move back"
+        ),
+        ON_DISK_WORKING: (
+            f"a working file synthtwin could not clear away; it holds "
+            f"{words.working_holds}"
+        ),
+        ON_DISK_EMPTY_WORKING: (
+            "an empty working file synthtwin could not clear away; it holds "
+            "nothing"
+        ),
+        ON_DISK_UNCERTAIN_WORKING: (
+            "something synthtwin made for its own use, wrote nothing into, "
+            "and could not clear away or examine afterwards"
+        ),
+        ON_DISK_CLAIMED_WORKING: (
+            "something at a working name synthtwin had claimed and was still "
+            "creating when the run stopped. synthtwin wrote nothing into it "
+            "and did not remove it, because it cannot tell whether it made "
+            "this file or whether the name was already taken by something "
+            "else; please look at it before you delete it"
+        ),
+        ON_DISK_UNCHECKED: "not known: synthtwin could not check this name",
+        ON_DISK_UNSETTLED: (
+            "a file -- but synthtwin stopped while it was moving these "
+            "names into place, so it cannot say which of this run's files "
+            "ended up here; look at every name in this message before you "
+            "use or delete any of them"
+        ),
+    }
+
 
 _UNKNOWN_STATE = "not known: synthtwin could not say what is there"
 
 
-def _stated(on_disk: "list[tuple[str, str]]") -> str:
+def _stated(
+    on_disk: "list[tuple[str, str]]", words: "ArtifactWords"
+) -> str:
     """One clause per name: the path, then what is at it now.
 
     Each pair is a path and one of the ON_DISK_ codes above. A code
     this module does not recognize is reported as unknown rather than
     dropped: a message about what is on disk must never quietly leave a
     file out.
+
+    ``words`` names the file the running command writes, because three
+    of those codes are about that file and used to say "description"
+    whichever command was running (review item P3-V4-F11).
     """
+    table = _on_disk_words(words)
     text = ""
     for path, code in on_disk:
-        words = _UNKNOWN_STATE
-        if code in _ON_DISK_WORDS:
-            words = _ON_DISK_WORDS[code]
-        piece = f"{_shown(path)} holds {words}"
+        said = _UNKNOWN_STATE
+        if code in table:
+            said = table[code]
+        piece = f"{_shown(path)} holds {said}"
         if not text:
             text = piece
         else:
@@ -646,8 +959,18 @@ def _anything_is_there(on_disk: "list[tuple[str, str]]") -> bool:
 def nothing_was_written(
     stubborn: list[str],
     on_disk: "list[tuple[str, str]] | None" = None,
+    words: ArtifactWords = PROFILE_WORDS,
 ) -> str:
-    """Say what is on disk after a run that published no new description.
+    """Say what is on disk after a run that published no new output.
+
+    ``words`` names the file THIS command writes (review item
+    P3-V4-F11). It used to say "description" whichever command was
+    running, so a stopped `validate` run that had put an earlier
+    quality report back told the person no new description was
+    published -- naming a file that command never writes, about a run
+    that had just written a report. The default is the profiler's set,
+    so every sentence a stopped `profile` run prints is the same byte
+    for byte as it was before this argument existed.
 
     ``on_disk`` carries one (path, code) pair for every name the run
     could have changed -- the two output names first, then any working
@@ -668,21 +991,21 @@ def nothing_was_written(
         if not _anything_is_there(on_disk):
             tail = "There is nothing left to clear up."
         return (
-            f"No new description was published. This is what is at each "
-            f"name now: {_stated(on_disk)}. {tail}"
+            f"No new {words.published} was published. This is what is at "
+            f"each name now: {_stated(on_disk, words)}. {tail}"
         )
     if stubborn:
         listed = _listed(stubborn)
         return (
-            f"No new description was published, and synthtwin could not "
-            f"clear away its own working file(s): {listed}. Check each "
-            f"one -- a working file can hold text taken from your table "
+            f"No new {words.published} was published, and synthtwin could "
+            f"not clear away its own working file(s): {listed}. Check "
+            f"each one -- a working file can hold {words.working_holds} "
             f"-- and delete it when you have."
         )
     return (
-        "No new description was published. synthtwin did not check the "
-        "two output names afterwards, so please look at each one before "
-        "you use it."
+        f"No new {words.published} was published. synthtwin did not check "
+        f"the output name(s) afterwards, so please look at each one "
+        f"before you use it."
     )
 
 
@@ -699,25 +1022,29 @@ def rollback_failed(
     synthtwin could not put them back -- so it names each one and says
     which run its contents came from.
 
-    ``words`` names the two files for the command that is running, and
-    only its ``mismatch`` clause is used here: the closing instruction
-    has to say why the two files must not be left as they are, and that
-    reason is not the same for a profile beside a summary as it is for a
-    twin beside a report. Left out, the profiler's clause is used, which
-    is the wording this message has always had.
+    ``words`` names the files for the command that is running. Its
+    ``mismatch`` clause closes the message -- the instruction has to say
+    why the files must not be left as they are, and that reason is not
+    the same for a profile beside a summary as it is for a twin beside a
+    report -- and its ``published`` noun names what each name is holding
+    (review item P3-V4-F11): a rollback of a `generate` run used to say
+    that the twin's own name "holds the new description this run
+    produced". Left out, the profiler's set is used, which is the
+    wording this message has always had.
     """
     if on_disk:
         return (
             f"synthtwin could not put things back as they were. This is "
-            f"what is at each name now: {_stated(on_disk)}. Check each "
-            f"one before you use it, and finish by hand what synthtwin "
-            f"could not: {words.mismatch}."
+            f"what is at each name now: {_stated(on_disk, words)}. Check "
+            f"each one before you use it, and finish by hand what "
+            f"synthtwin could not: {words.mismatch}."
         )
     listed = _listed(left)
     return (
         f"synthtwin could not put things back as they were, so these "
         f"files are left: {listed}. Check each one before using it: it "
-        f"may hold the description from this run or from an earlier one."
+        f"may hold the {words.published} from this run or from an "
+        f"earlier one."
     )
 
 
@@ -818,6 +1145,36 @@ def output_would_replace_the_table(
     )
 
 
+def output_would_replace_an_input(
+    path: str, source: str, words: ArtifactWords = PROFILE_WORDS
+) -> str:
+    """Message for an output name that leads back to one of two inputs.
+
+    `output_would_replace_the_table` above protects the ONE file its
+    command was handed. `validate` is handed two -- the description and
+    the file it measures -- and a report written over either of them is
+    the same accident with two different costs, so the refusal has to
+    say which one it caught (plan P3-D1). ``source`` is one of the two
+    nouns written out beside `QUALITY_WORDS`, never a value out of a
+    file: on this path the measured file may not be the reader's own
+    table, and a refusal travels as freely as a report does.
+
+    ``words`` supplies what would have been written. The remaining
+    fields of the record are not used here on purpose: `loss` and
+    `given` speak about one handed-in file, and this message's whole
+    job is that there are two.
+    """
+    return (
+        f"synthtwin stopped because writing {words.new_file} would have "
+        f"replaced the {source} at {path}. Both files a check reads have "
+        f"to still be there when it finishes, so synthtwin wrote nothing. "
+        f"This usually means a file of the {words.produced}'s name is a "
+        f"link pointing back at one of them. Remove that link, or use "
+        f"the option for a different output folder, then run the command "
+        f"again. Nothing was written."
+    )
+
+
 def output_is_not_a_plain_file(path: str) -> str:
     """Message for an output target that is not an ordinary file."""
     return (
@@ -869,7 +1226,9 @@ def floor_not_positive(given: str) -> str:
 #
 # Nineteen ways reading a profile document can fail, one message each,
 # catalogued as R1 to R19 in `docs/spec/profile-contract-v4.md` section
-# 10.7 and carried out by `contract.py`. The word "description" is used
+# 10.7, carried into version 5 unchanged except that R11 and R12 read
+# against 5 (`docs/spec/profile-contract-v5.md` section 10), and carried
+# out by `contract.py`. The word "description" is used
 # throughout rather than "profile document", because it is what the
 # person running the tool was told the file is.
 #
@@ -999,13 +1358,108 @@ def profile_not_canonical(path: str) -> str:
 def profile_version_is_older(found: int, reads: int) -> str:
     """R11: an older description, which is safely made again.
 
-    The advice is safe to give: somebody holding an old description of
-    their own table is normally somebody who still holds the table.
+    THE WORDING IS FIXED BY THE CONTRACT, word for word (contract 5
+    section 10.2, C5-26), with only the two version numbers filled in.
+    It has to say three things and it says them in this order: which
+    version each side is, WHY the older file cannot simply be read --
+    because it does not record which of synthtwin's own words for "no
+    value" the person named -- and what to do, which is to describe the
+    table again UNDER THE SAME OPTIONS.
+
+    IT NAMES FIVE OPTIONS AND NAMED TWO UNTIL 2026-08-17, AND THE TWO
+    COULD DISCLOSE (review item P3-V9-F6; plan amendment A-P3-36). The
+    retired wording named `--keep-value` and `--missing-value` only.
+    Follow it to the letter -- which is what a person who does not
+    program will do, because it is the whole of what they were told --
+    after a first run that used `--smallest-group 20` on a table holding
+    a declared marker in twelve cells, and the floor goes back to the
+    default eleven. Twelve now clears it, so the NEW description names a
+    spelling the old one pooled: the old file withheld a word of the
+    person's own and the new one publishes it, with no warning anywhere.
+    `--identifier` is the same shape and reaches further, because a
+    column named there publishes no value of the table at all, and a
+    re-run without it describes that column of record numbers like any
+    other.
+
+    AND ALL FIVE CHANGE WHAT IT PUBLISHES, WHERE THIS SAID TWO UNTIL
+    2026-08-17 (review item P3-V10-F2; plan amendment A-P3-42 clause 1).
+    The sentence named five options, priced two of them as
+    disclosure-changing, and said of the other three only that they
+    change how the table is READ. That was measured and it is false;
+    each of the three was run through the real producer, twice, and the
+    two descriptions compared:
+
+    * `--first-row`. A file with no header row, whose first line holds a
+      code. Described with `--first-row data` the column is called
+      `column_1` and the code is one free-text value among many, which a
+      free-text column publishes nowhere. Left out, the first line is
+      taken for the column NAMES by convention and the code IS the
+      column's name -- published in full, with no floor over it, because
+      a column name is not a value of the table and no floor applies.
+    * `--missing-value`. Sixty readings and five cells holding `-100`,
+      named as "no value". Described that way the five are absent, five
+      is under the floor and the number is published nowhere. Left out,
+      `-100` is a reading: it is the smallest one, so the description
+      publishes it as the column's minimum and as its first two
+      percentiles.
+    * `--keep-value`. Sixty readings and twelve cells holding a word,
+      named as real data. Described that way the column reads as free
+      text -- twelve of its values are not numbers -- and free text
+      publishes no value at all. Left out, the word is one of
+      synthtwin's own for "no value", the column reads as numbers, and
+      the description publishes the whole distribution of the sixty
+      readings AND the word, character for character, in
+      `missing_by_source`.
+
+    So the message names every option of `synthtwin profile` that
+    changes what the description says about the table, says of every one
+    of them that it changes what the description PUBLISHES, gives the
+    consequence of leaving each out, and sends the person to the summary
+    page before either new file travels. An option added to the profiler
+    joins this sentence in the commit that adds it -- and it joins the
+    priced list too, unless somebody can show it changes only the
+    reading, which is what nobody could show for these three.
+
+    WHY THE ADVICE IS SAFE TO GIVE, AND WHEN IT STOPS BEING SAFE.
+    Somebody holding an old description of their own table is normally
+    somebody who still holds the table, and today that is true of every
+    description in existence: there is no release and no tag. After the
+    first release this assumption is no longer safe for every reader,
+    and this wording is re-examined rather than inherited.
+
+    Nothing of the document is quoted here except the version it claims
+    (C5-28), so the message cannot tell the person which options THEIR
+    description was made with even though its settings block records
+    them: the version is read before that block is validated at all.
+    What is owed and paid is that they are told which options matter.
     """
     return (
         f"This description was written by an older version of synthtwin: "
         f"it says it is version {found}, and this synthtwin reads "
-        f"version {reads}. {_MAKE_IT_AGAIN}"
+        f"version {reads}. A version {reads} description records which "
+        f"of synthtwin's own words for \"no value\" you named on the "
+        f"command line, and a version {found} description does not, so "
+        f"this file cannot be read back exactly. Please make the "
+        f"description again by running 'synthtwin profile' on your "
+        f"table, giving it every option you gave the first time: "
+        f"--keep-value, --missing-value, --identifier, --smallest-group "
+        f"and --first-row. Every one of them changes what the "
+        f"description PUBLISHES about your table, so any option you "
+        f"leave out can put something into the new description that the "
+        f"old one held back: without the --smallest-group you gave, a "
+        f"value that fewer rows share can be named; without the "
+        f"--identifier you gave, a column of record numbers is "
+        f"described like any other column; without the --missing-value "
+        f"you gave, a stand-in is read as a real reading, and the "
+        f"stand-in itself can be published as the column's smallest "
+        f"value; without the --keep-value you gave, a word you had "
+        f"counted as an ordinary value becomes a gap, which can change "
+        f"what kind of column synthtwin sees and publish both that word "
+        f"and the column's own numbers; and without the --first-row you "
+        f"gave, the first line of your file is read as the column names "
+        f"and published as them. Read the summary page synthtwin writes "
+        f"beside the new description before either file goes anywhere, "
+        f"and use the description exactly as synthtwin writes it."
     )
 
 
@@ -1155,6 +1609,120 @@ def profile_out_of_memory(path: str) -> str:
 # library underneath accepts a wider set than synthtwin does and refuses
 # a negative one in its own words, which name a bit width and a data
 # type; neither message below lets that reach a person (plan P2-D8).
+
+
+def quality_out_of_memory(path: str) -> str:
+    """Message for a machine that ran out of memory checking a file.
+
+    It names the DESCRIPTION, which is the file the person typed. A
+    failure inside the measurement itself is composed where the file
+    being read is known, and names that file instead; this one covers
+    the rest of the run, where the honest answer is that synthtwin
+    cannot say which of the two files it was holding at the time.
+    """
+    return (
+        f"There was not enough memory to finish checking a file against "
+        f"the description at {path}. Checking holds a whole description "
+        f"of the measured file in memory at once, beside the description "
+        f"it is being compared with, so it needs several times the space "
+        f"the files themselves take. Please close other programs and run "
+        f"the command again, or use a computer with more memory. Nothing "
+        f"was written."
+    )
+
+
+def quality_target_already_there(target: str) -> str:
+    """Message for a `validate` run whose one output name is taken.
+
+    The generate refusal's reasoning, at one file (plan P3-D1, R-P2-12
+    parity). synthtwin cannot tell an earlier quality report of its own
+    from a file of the person's that happens to sit at that name, and
+    reading it to find out would open a third file on a path that is
+    allowed exactly two. So it refuses, names the file, and teaches
+    `--replace`.
+
+    It is one paragraph, like every other message here: a refusal is
+    shown as a VALUE on its way to the screen, so a line feed inside one
+    reaches the reader as text rather than as layout.
+    """
+    return (
+        f"synthtwin stopped because something is already at the name it "
+        f"would write. This run writes one file, {target}, and it is "
+        f"already there. Nothing was written and nothing was changed. If "
+        f"that file can be replaced -- the usual reason is checking the "
+        f"same twin again -- add --replace to the command. If not, move "
+        f"or rename what is there, or give --out-dir a different folder "
+        f"to write into, then run the command again."
+    )
+
+
+# WHY THE FOUR REFUSALS OF METHOD G12 ARE NAMED HERE (amendment
+# A-P3-23, review item P3-V7-F7). The message a person reads when no
+# twin of their description can exist was built by a private helper of
+# `validation.py`, so it stood outside the failure catalog: none of the
+# catalog's rules about the shape of a sentence reached it, no test
+# pinned it, and nothing drove it through the shipped command. Plan
+# P3-D6 asks for exact-shape AND reachability tests on it by name.
+#
+# The names live beside the message rather than in `validation`, because
+# `errors` may not import the module that raises its messages and one
+# spelling of these four strings is what keeps the message and the
+# decision in step. `validation.refusal_of` answers one of these or the
+# empty text, and a test asserts it can answer nothing else.
+REFUSAL_COUNTS_CONTRADICT = "generation-counts-contradict"
+REFUSAL_WORDS_EXCEED_LENGTH = "generation-words-exceed-length"
+REFUSAL_WHOLE_NUMBERS_NEED_ROOM = "generation-whole-numbers-need-room"
+REFUSAL_DOMAIN_TOO_SMALL = "generation-domain-too-small"
+
+# What is wrong with the description, in the person's own words, one
+# clause per refusal. Each names the TWO published facts that cannot
+# both hold, because that is what the reader has to go and change.
+NO_TWIN_TROUBLE = {
+    REFUSAL_COUNTS_CONTRADICT: (
+        "one column says how many of its numbers are zero and how many "
+        "are negative, and those two counts together are more numbers "
+        "than the column has"
+    ),
+    REFUSAL_WORDS_EXCEED_LENGTH: (
+        "one column of text says its values hold more words than their "
+        "own published lengths have room for"
+    ),
+    REFUSAL_WHOLE_NUMBERS_NEED_ROOM: (
+        "one column of record numbers says its codes are whole numbers "
+        "and gives them a length that leaves no room to write one"
+    ),
+    REFUSAL_DOMAIN_TOO_SMALL: (
+        "one column of text asks for more different values than there "
+        "are ways to write a value of its own published lengths at all"
+    ),
+}
+
+
+def no_twin_of_this_description_exists(named: str, shown: str) -> str:
+    """Message for a description no file on earth can be the twin of.
+
+    It mirrors the generation refusal -- the description is valid, and
+    two published facts cannot both hold -- and adds the sentence this
+    path needs: whatever the measured file is, it cannot be that
+    description's twin. It names no value of the measured file, because
+    on this path that file may not be the person's own table.
+
+    Both instructions are load-bearing and are why this is not one
+    sentence: the person holding the table describes it again, and the
+    person who was handed the description has to ask whoever wrote it,
+    because there is nothing they can do to the FILE that would help.
+    """
+    return (
+        f"synthtwin stopped because the description asks for a table "
+        f"that cannot exist: {NO_TWIN_TROUBLE[named]}. The description "
+        f"itself is valid -- it was written by synthtwin and it loads -- "
+        f"but no file can hold both of those facts at once, so whatever "
+        f"is in {shown}, it cannot be this description's twin and there "
+        f"is nothing to measure it against. Describe the table again to "
+        f"get a description these two facts agree in, and if you no "
+        f"longer hold the table, ask whoever wrote the description to "
+        f"do so."
+    )
 
 
 def twin_out_of_memory(path: str) -> str:

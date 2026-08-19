@@ -1,6 +1,7 @@
 """The strict loader, one refused document per rule (P2-D2).
 
-The contract is `docs/spec/profile-contract-v4.md`. A loader that only
+The contract is `docs/spec/profile-contract-v5.md`, which carries
+version 4 by reference. A loader that only
 ever ACCEPTS good documents proves nothing: the whole of its value is
 what it refuses, so this file is written the other way round. One
 conforming description is built by the real producer, and every rule the
@@ -290,7 +291,7 @@ def battery() -> list[Mutation]:
             ),
         ),
         Mutation(
-            "S7", "a description claiming to hold the declared values",
+            "C5-S7", "a description claiming to hold the declared values",
             lambda document: document["settings"]["kept_values"].update(
                 {"values_recorded": True}
             ),
@@ -318,6 +319,22 @@ def battery() -> list[Mutation]:
                     {"column": "batch", "note": "a note"},
                     {"column": "region", "note": "another note"},
                 ]
+            ),
+        ),
+        # THE FLOOR OF ONE, AND WHY THE MUTATION HAS TWO HALVES. At a
+        # floor of one there is no group below the floor, so nothing may
+        # be held back; the base is written at the default floor, where
+        # holding something back is ordinary. So the floor is lowered
+        # AND something is left held back -- either half on its own is a
+        # description the loader is right to accept. The tally is used
+        # rather than a pooled `(withheld)` count because it needs no
+        # arithmetic moved with it: it is a count of stand-in numbers
+        # too rare to name, and at a floor of one none can be.
+        Mutation(
+            "C5-S13", "a floor of one that still holds something back",
+            all_of(
+                edit_in("settings", small_cell_floor=1),
+                edit("record_code", n_sentinel_candidates_unpublished=1),
             ),
         ),
         # -- the axes -------------------------------------------------
@@ -372,16 +389,64 @@ def battery() -> list[Mutation]:
             ),
         ),
         Mutation(
-            "N3", "spellings of an empty cell that do not add up",
-            edit("visits", missing_by_source={"(blank)": 12}),
+            "C5-N3", "spellings of an empty cell that do not add up",
+            edit("visits", missing_by_source={"zz": 12}),
         ),
         Mutation(
-            "N3", "a spelling published by a column that publishes none",
-            edit("comment", missing_by_source={"(blank)": 160}),
+            "C5-N3", "a spelling published by a column that publishes none",
+            edit("comment", missing_by_source={"zz": 160}),
+        ),
+        # THE TWO COUNTS ARE THE SAME ACCOUNTING, so each of them
+        # breaks the same rule on its own (contract 5 C5-N3). Version 4
+        # kept both inside the map above and could not be damaged
+        # separately.
+        Mutation(
+            "C5-N3", "a blank count larger than the empty cells there are",
+            edit("visits", n_missing_blank=12),
         ),
         Mutation(
-            "N4", "a spelling written by too few rows to name",
-            edit("visits", missing_by_source={"(blank)": 10, "zz": 1}),
+            "C5-N3", "cells held back on a column that accounts for none",
+            edit("comment", n_missing_withheld=3),
+        ),
+        Mutation(
+            "C5-N4", "a spelling written by too few rows to name",
+            edit(
+                "visits",
+                missing_by_source={"zz": 1},
+                n_missing_blank=0,
+                n_missing_withheld=10,
+            ),
+        ),
+        # AND THE BLANK COUNT IS UNDER THE SAME FLOOR (C5-N4). Version 4
+        # exempted its `(blank)` key in the invariant although the
+        # producer floored it anyway; version 5 has no exemption left.
+        Mutation(
+            "C5-N4", "a blank group too small for the floor to name",
+            edit("visits", n_missing_blank=1, n_missing_withheld=10),
+        ),
+        # -- the two vocabulary lists ---------------------------------
+        Mutation(
+            "C5-K1", "a word in the settings that is nobody's but ours",
+            lambda document: document["settings"]["kept_values"].update(
+                {"built_in_texts": ["zz"], "n_declared": 1}
+            ),
+        ),
+        Mutation(
+            "C5-K3", "more of our own words named than values declared",
+            lambda document: document["settings"]["kept_values"].update(
+                {"built_in_texts": ["na"]}
+            ),
+        ),
+        Mutation(
+            "C5-K4", "one word both kept and read as 'no value'",
+            all_of(
+                lambda document: document["settings"]["kept_values"].update(
+                    {"built_in_texts": ["na"], "n_declared": 1}
+                ),
+                lambda document: document["settings"][
+                    "declared_missing_values"
+                ].update({"built_in_texts": ["na"], "n_declared": 1}),
+            ),
         ),
         # -- the decisions about stand-in numbers ---------------------
         Mutation(
@@ -715,9 +780,19 @@ def battery() -> list[Mutation]:
             edit("visits", integer_valued=1),
             names="a yes or no value",
         ),
+        # THE SMALLEST FLOOR ALLOWED IS ONE, NOT ELEVEN (owner ruling
+        # 2026-08-14, plan amendment A-P3-11). This mutation used to set
+        # the floor to 3 and expect a refusal. Three is now a floor a
+        # person can ask for with `--smallest-group`, and the whole
+        # workflow runs on it, so a description carrying 3 is refused by
+        # nothing here -- it trips B5 further down only because THIS
+        # document's held-back labels were sized for a floor of eleven.
+        # Zero is what R16 still has to refuse, and it is the honest
+        # replacement: "below the floor" would then reach counts of
+        # nothing at all, which no count is.
         Mutation(
             "R16", "a floor below the smallest one allowed",
-            edit_in("settings", small_cell_floor=3),
+            edit_in("settings", small_cell_floor=0),
             names="small_cell_floor",
         ),
         Mutation(
@@ -944,7 +1019,7 @@ def test_r5_text_that_is_not_the_written_form(
     tmp_path: pathlib.Path
 ) -> None:
     """R5 says where the reading stopped and what usually causes it."""
-    message = refusal_of_text(tmp_path, '{\n  "profile_version": 4,\n')
+    message = refusal_of_text(tmp_path, '{\n  "profile_version": 5,\n')
     assert "line 3" in message
     assert "character" in message
     assert "edited" in message or "copied" in message
@@ -955,7 +1030,7 @@ def test_r6_a_character_that_cannot_be_written(
 ) -> None:
     """R6 says the file holds a character that is not writable text."""
     message = refusal_of_text(
-        tmp_path, '{\n  "note": "\\ud800",\n  "profile_version": 4\n}\n'
+        tmp_path, '{\n  "note": "\\ud800",\n  "profile_version": 5\n}\n'
     )
     assert "cannot be written as text" in message
 
@@ -963,7 +1038,7 @@ def test_r6_a_character_that_cannot_be_written(
 def test_r7_a_number_that_is_not_one(tmp_path: pathlib.Path) -> None:
     """R7 says the file holds a number that is not a number."""
     message = refusal_of_text(
-        tmp_path, '{\n  "note": NaN,\n  "profile_version": 4\n}\n'
+        tmp_path, '{\n  "note": NaN,\n  "profile_version": 5\n}\n'
     )
     assert "is not a number" in message
 
@@ -1003,24 +1078,24 @@ def test_the_number_bound_accepts_the_token_at_the_limit() -> None:
 
 def test_the_pre_scan_counts_nothing_inside_a_string() -> None:
     """A brace or a long figure inside a value is a character of it."""
-    braces = '{"note": "' + "{" * 100 + '", "profile_version": 4}'
+    braces = '{"note": "' + "{" * 100 + '", "profile_version": 5}'
     contract._scanned(braces, "somewhere")
-    figures = '{"note": "' + "1" * 500 + '", "profile_version": 4}'
+    figures = '{"note": "' + "1" * 500 + '", "profile_version": 5}'
     contract._scanned(figures, "somewhere")
     escaped = '{"note": "a quotation mark \\" and ' + "{" * 100 + '"}'
     contract._scanned(escaped, "somewhere")
 
 
 NOT_CANONICAL = (
-    ("a repeated entry", '{\n  "a": 1,\n  "a": 2,\n  "profile_version": 4\n}\n'),
-    ("entries out of order", '{\n  "b": 1,\n  "a": 2,\n  "profile_version": 4\n}\n'),
-    ("a number written the long way", '{\n  "a": 1.0e2,\n  "profile_version": 4\n}\n'),
-    ("no final newline", '{\n  "a": 1,\n  "profile_version": 4\n}'),
-    ("two final newlines", '{\n  "a": 1,\n  "profile_version": 4\n}\n\n'),
-    ("an indent of its own", '{\n    "a": 1,\n    "profile_version": 4\n}\n'),
+    ("a repeated entry", '{\n  "a": 1,\n  "a": 2,\n  "profile_version": 5\n}\n'),
+    ("entries out of order", '{\n  "b": 1,\n  "a": 2,\n  "profile_version": 5\n}\n'),
+    ("a number written the long way", '{\n  "a": 1.0e2,\n  "profile_version": 5\n}\n'),
+    ("no final newline", '{\n  "a": 1,\n  "profile_version": 5\n}'),
+    ("two final newlines", '{\n  "a": 1,\n  "profile_version": 5\n}\n\n'),
+    ("an indent of its own", '{\n    "a": 1,\n    "profile_version": 5\n}\n'),
     (
         "line endings from another system",
-        '{\r\n  "a": 1,\r\n  "profile_version": 4\r\n}\r\n',
+        '{\r\n  "a": 1,\r\n  "profile_version": 5\r\n}\r\n',
     ),
 )
 
@@ -1046,11 +1121,29 @@ def test_r11_an_older_description_is_made_again(
 ) -> None:
     """R11 gives both versions and says to run 'synthtwin profile'."""
     document = copy.deepcopy(base)
-    document["profile_version"] = 3
+    document["profile_version"] = 4
     message = refusal(tmp_path, document)
-    assert "version 3" in message
     assert "version 4" in message
+    assert "version 5" in message
     assert "synthtwin profile" in message
+    # THE THINGS CONTRACT 5 SECTION 10.2 FIXES WORD FOR WORD: why the
+    # older file cannot be read, and every option that has to come back
+    # with the person if the new description is to read their table the
+    # same way -- five of them since 2026-08-17, because two of the
+    # three that were missing change what the description PUBLISHES
+    # (review item P3-V9-F6, plan amendment A-P3-36). The set is held to
+    # the shipped parser's own in
+    # `tests/test_p3v9f6_migration_names_every_option.py`; what is
+    # asserted here is that the loader's own refusal carries them.
+    assert "cannot be read back exactly" in message
+    for option in (
+        "--keep-value",
+        "--missing-value",
+        "--identifier",
+        "--smallest-group",
+        "--first-row",
+    ):
+        assert option in message, option
 
 
 def test_r12_a_newer_description_never_sends_anybody_to_a_profiler(
@@ -1064,10 +1157,10 @@ def test_r12_a_newer_description_never_sends_anybody_to_a_profiler(
     acted on anyway.
     """
     document = copy.deepcopy(base)
-    document["profile_version"] = 5
+    document["profile_version"] = 6
     message = refusal(tmp_path, document)
+    assert "version 6" in message
     assert "version 5" in message
-    assert "version 4" in message
     assert "update synthtwin" in message
     assert "synthtwin profile" not in message
 
@@ -1082,7 +1175,7 @@ def test_the_version_is_read_before_the_canonical_form(
     another version is very likely canonical under its own rules.
     """
     document = copy.deepcopy(base)
-    document["profile_version"] = 5
+    document["profile_version"] = 6
     target = tmp_path / "table-profile.json"
     target.write_text(
         canonical.serialize(document) + "\n", encoding="utf-8", newline="\n"

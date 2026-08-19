@@ -14,15 +14,19 @@ The hook applies two layers:
    every module whose top-level name carries network, process,
    native-call, or terminal-control capability (BLOCKED_IMPORT_MODULES:
    socket, _socket, ssl, ctypes, _ctypes, cffi, subprocess,
-   _posixsubprocess, multiprocessing, pty, fcntl). Blocking the import
-   makes the whole capability family unreachable by name, including
-   low-level helpers that perform their work without emitting further
-   audit events.
+   _posixsubprocess, _winapi, multiprocessing, pty, fcntl). Blocking the
+   import makes the whole capability family unreachable by name,
+   including low-level helpers that perform their work without emitting
+   further audit events. The list names the helper BOTH platforms use:
+   ``_posixsubprocess`` is the C fork-exec helper below subprocess on
+   POSIX and ``_winapi`` is the module that creates a process on
+   Windows, and a list that had only the first left every Windows host
+   a route that emitted no ``subprocess.*`` event.
 2. Event blocking. Independently of imports, the hook stops the named
-   dangerous audit events: every ``socket.*`` and ``subprocess.*``
-   event, the ``os.exec*``/``os.spawn*``/``os.posix_spawn*``/
-   ``os.fork*`` families, ``os.system``, ``os.startfile``,
-   ``pty.spawn``, and every ``ctypes.*`` event.
+   dangerous audit events: every ``socket.*``, ``subprocess.*`` and
+   ``_winapi.*`` event, the ``os.exec*``/``os.spawn*``/
+   ``os.posix_spawn*``/``os.fork*`` families, ``os.system``,
+   ``os.startfile``, ``pty.spawn``, and every ``ctypes.*`` event.
 
 Scope, stated plainly: this is a best-effort in-process guard aligned
 with the project's documented offline posture -- a guard, not a
@@ -61,7 +65,14 @@ BLOCKED_IMPORT_MODULES = frozenset(
         "_ctypes",
         "cffi",
         "subprocess",
+        # The C helper below subprocess on each platform. Neither is
+        # reached through `subprocess`, so neither emits a
+        # `subprocess.*` audit event of its own; both are refused by
+        # name instead. `_winapi` is the Windows one, and it was
+        # missing while `_posixsubprocess` was here -- a list written
+        # by asking what THIS host uses (review round 5, item 10).
         "_posixsubprocess",
+        "_winapi",
         "multiprocessing",
         "pty",
         "fcntl",
@@ -78,12 +89,14 @@ _BLOCKED_EVENTS = frozenset(
 )
 
 # Audit-event prefixes covering whole forbidden families: every socket
-# operation, every subprocess entry point, the os.exec*/os.spawn*/
-# os.posix_spawn*/os.fork* process-creation groups, and every ctypes
-# native-call event.
+# operation, every subprocess entry point, every Windows-API call the
+# interpreter announces (`_winapi.CreateProcess`, `_winapi.CreateFile`,
+# `_winapi.OpenProcess`, ...), the os.exec*/os.spawn*/os.posix_spawn*/
+# os.fork* process-creation groups, and every ctypes native-call event.
 _BLOCKED_EVENT_PREFIXES = (
     "socket.",
     "subprocess.",
+    "_winapi.",
     "os.exec",
     "os.spawn",
     "os.posix_spawn",

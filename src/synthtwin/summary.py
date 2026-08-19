@@ -95,6 +95,19 @@ def _text_of(value: object) -> str:
     return parsing.visible(f"{value}")
 
 
+def _raw_text_of(value: object) -> str:
+    """Any value as text, EXACTLY, for anything that is not a message.
+
+    The display boundary belongs where text meets a screen, and this
+    module's own page crosses it once, in `cli`, over the whole text.
+    Anything this module ASKS a question about -- is this word one of
+    synthtwin's own? -- has to be asked about the text the description
+    stores, or the question is put to something the description does not
+    hold (review item P3-V9-F3).
+    """
+    return f"{value}"
+
+
 def _list_of(value: object) -> list[object]:
     """``value`` when it is a list, an empty list otherwise."""
     if isinstance(value, list):
@@ -221,11 +234,16 @@ def _sentinel_lines(column: dict[str, object]) -> list[str]:
     Written from the column block and nothing else, so the words and
     the machine-readable record cannot disagree -- including about the
     value itself. A column whose role publishes values carries the
-    candidate's spelling and it is printed; a column whose role
-    publishes none carries `(withheld)` in its place and that is
-    printed instead, exactly as the withheld missing spellings above
-    are printed (review item P1-R7-F2). This function never decides
-    what may be shown; it shows what the profile holds.
+    candidate's spelling; a column whose role publishes none carries
+    `(withheld)` in its place (review item P1-R7-F2). This function
+    never decides what may be shown; it shows what the profile holds.
+
+    IT SHOWS IT WITHOUT CALLING A POOLED NAME A NUMBER (review of the
+    shipped reports, 2026-08-15). `(withheld)` used to be printed where
+    the candidate goes, so the line read "(withheld), in 40 row(s):
+    kept as a number" -- a sentence naming a spelling no table wrote.
+    Where the profile withholds the candidate the line says the number
+    is not named here, which is the fact the profile carries.
 
     The candidates that appeared in too few rows to be named at all are
     NOT listed here. The column's own remark already says how many
@@ -241,9 +259,12 @@ def _sentinel_lines(column: dict[str, object]) -> list[str]:
     ]
     for item in verdicts:
         entry = _map_of(item)
+        candidate = _text_of(entry["candidate"])
+        if candidate == parsing.MISSING_WITHHELD:
+            candidate = "a number not named here"
         lines = lines + [
             (
-                f"      {_text_of(entry['candidate'])}, in "
+                f"      {candidate}, in "
                 f"{_count_of(entry['n_occurrences'])} row(s): "
                 f"{_decision_words(_text_of(entry['verdict']))} "
                 f"-- {_because_words(_text_of(entry['reason']))}"
@@ -252,7 +273,53 @@ def _sentinel_lines(column: dict[str, object]) -> list[str]:
     return lines
 
 
-def _column_lines(column: dict[str, object]) -> list[str]:
+def _missing_spelling_words(
+    column: dict[str, object], floor: int
+) -> list[str]:
+    """The spellings the absent cells wore, and the two counts beside them.
+
+    A POOLED NAME IS NOT A SPELLING (review of the shipped reports,
+    2026-08-15). Version 4's `missing_by_source` pooled every spelling
+    under the publication floor into the single key `(withheld)`, which
+    is synthtwin's word for "not published here". Listed beside the real
+    spellings it read as one of them, so a column of eight EMPTY cells
+    said `counted as missing: (withheld) (8)` -- telling the person
+    their blanks wore a marker they would have to account for, which was
+    false of all eight.
+
+    FROM CONTRACT VERSION 5 THE TWO ARE NOT EVEN IN THE SAME FIELD
+    (section 5). The map holds spellings the table wrote and nothing
+    else; the blank cells and the pooled remainder are two counts of
+    their own, and each is said here as what it is.
+
+    AND EVERY SPELLING CROSSES THE DISPLAY BOUNDARY HERE (C5-3). The
+    description now stores a key character for character, so this is
+    the surface that has to show it safely -- version 4 stored a key
+    that had already crossed, and this line printed it as it stood.
+    """
+    sources = _map_of(column["missing_by_source"])
+    spellings: list[str] = []
+    blank = _count_of(column["n_missing_blank"])
+    if blank:
+        spellings = spellings + [
+            f"{blank} cell(s) with nothing written in them"
+        ]
+    for spelling in sorted(sources):
+        counted = _count_of(sources[spelling])
+        spellings = spellings + [f"{_text_of(spelling)} ({counted})"]
+    pooled = _count_of(column["n_missing_withheld"])
+    if pooled:
+        spellings = spellings + [
+            (
+                f"{pooled} cell(s) whose spelling is not named "
+                f"here, because fewer than {floor} cell(s) were "
+                f"written that way"
+            )
+        ]
+    return spellings
+
+
+def _column_lines(column: dict[str, object], floor: int) -> list[str]:
     """The block of lines describing one column."""
     role = _text_of(column["role"])
     lines = [
@@ -264,12 +331,8 @@ def _column_lines(column: dict[str, object]) -> list[str]:
             f"missing: {_count_of(column['n_missing'])}"
         ),
     ]
-    sources = _map_of(column["missing_by_source"])
-    if sources:
-        spellings = [
-            f"{spelling} ({_count_of(sources[spelling])})"
-            for spelling in sorted(sources)
-        ]
+    spellings = _missing_spelling_words(column, floor)
+    if spellings:
         lines = lines + [f"    counted as missing: {_listed(spellings)}"]
     lines = lines + _sentinel_lines(column)
     if role in _ROLES_WITH_LABELS:
@@ -327,8 +390,9 @@ def _column_lines(column: dict[str, object]) -> list[str]:
             (
                 f"    {_count_of(column['n_distinct'])} different values, "
                 f"between {_count_of(column['min_length'])} and "
-                f"{_count_of(column['max_length'])} characters long. The "
-                f"values themselves are not in the profile."
+                f"{_count_of(column['max_length'])} characters long. This "
+                f"column publishes no value of the table, so the values "
+                f"themselves are not in the profile."
             ),
         ]
         # What the profile records about REPETITION, which is a fact
@@ -365,6 +429,189 @@ def _column_lines(column: dict[str, object]) -> list[str]:
     return lines
 
 
+def words_of_your_own(
+    document: dict[str, object],
+) -> "list[tuple[str, str, int]]":
+    """The person's OWN spellings this description names, and where.
+
+    Each entry is one spelling, the column that names it, and how many
+    of that column's cells wore it. A spelling named by two columns is
+    two entries, because a person deciding whether to move this file is
+    looking for where their word went and not for how many words there
+    were.
+
+    WHAT THIS IS FOR, AND IT IS THE WHOLE OF REVIEW ITEM P3-V9-F1.
+    Contract 5 section 3.3.1 fixes the derivation: every key of a
+    published `missing_by_source` that is not blank and is not a member
+    of synthtwin's own thirteen published words is a spelling somebody
+    typed after `--missing-value`. So a version 5 description CARRIES
+    the person's own declared word, character for character, wherever
+    the floor permits the group to be named and the column publishes
+    values at all -- and until this function existed, no page said so.
+    The summary told the reader the opposite: that synthtwin would not
+    keep a record of any word outside those thirteen, printed four
+    screens under `counted as missing: <their word> (12)`.
+
+    A FALSE ASSURANCE ABOUT WITHHOLDING IS WORSE THAN NO ASSURANCE.
+    The profile is safer to move than the table because of what it
+    holds back; a researcher who reads that their diagnosis code is
+    absent, and it is not, shares the file on the strength of the
+    sentence.
+
+    Guarantees:
+
+    - Inputs: a profile document as built by `profile.build_document`.
+      No table and no file is consulted.
+    - Determinism: sorted by column position, then by spelling, so two
+      runs over one document produce one list.
+    - Errors raised: none for a document this package built.
+    - Boundary: the spellings are returned RAW, as the document stores
+      them from contract version 5 (C5-3). Every caller prints them
+      through the display boundary -- the summary through
+      `parsing.visible_lines` over the whole page, the command line
+      through its own `_shown` -- which is where a key is made safe to
+      show and is the same rule `_missing_spelling_words` follows.
+
+    THE QUESTION IS ASKED OF THE RAW SPELLING, and the answer is the raw
+    spelling (review item P3-V9-F3's sweep). The first version of this
+    function escaped a key before asking whether it is one of
+    synthtwin's own words and returned the escaped text -- which made
+    the sentence above false, and put a comparison on the wrong side of
+    a boundary that exists for screens. No page moves a byte either way,
+    because the whole summary crosses the boundary once in `cli` and
+    crossing it twice changes nothing; what would have moved is a
+    consumer comparing what this returns with the description's own key.
+    """
+    found: list[tuple[str, str, int]] = []
+    for entry in _list_of(document["columns"]):
+        column = _map_of(entry)
+        name = _raw_text_of(column["name"])
+        sources = _map_of(column["missing_by_source"])
+        for spelling in sorted(sources):
+            raw = _raw_text_of(spelling)
+            if taxonomy.is_published_vocabulary(raw):
+                continue
+            found = found + [(raw, name, _count_of(sources[spelling]))]
+    return found
+
+
+def words_behind(named: "list[tuple[str, str, int]]") -> int:
+    """How many words somebody TYPED the listed spellings came from.
+
+    WHY THIS IS NOT `len(named)` (review item P3-V10-F9; plan amendment
+    A-P3-42 clause 5). `words_of_your_own` returns one entry per
+    spelling per column, because a person looking for their word wants
+    to know every place it went. That is the right list and it is the
+    wrong COUNT for a sentence about what the person did: one
+    `--missing-value XX` over a table holding eleven `XX` cells and
+    eleven `" xx "` cells publishes two spellings, and the screen said
+    "Words you typed after --missing-value are written into the
+    description" about one word they typed and one spelling their table
+    chose. Nothing was hidden and nothing was wrong about the list; the
+    attribution was wrong, and a person reading it goes looking for a
+    second option they never gave.
+
+    THE GROUPING IS THE PRODUCER'S OWN, not a second rule.
+    `settings.declaration_matching` has one permitted value -- the exact
+    number where the spelling reads as one, else the trimmed and folded
+    spelling -- and it is the rule that decided which cells each
+    declaration took. Grouping the published spellings by it therefore
+    counts declarations exactly as the producer counted them
+    (`n_declared`, contract 5 C5-18 as amended), and the same way the
+    validator's own recovery does.
+
+    Guarantees:
+
+    - Inputs: the list `words_of_your_own` returns. Nothing is read.
+    - Determinism: a fixed function of that list.
+    - Errors raised: none.
+    - Boundary: a count leaves this function and no spelling does.
+    """
+    identities: dict[object, int] = {}
+    for spelling, _column, _count in named:
+        exact = taxonomy.exact_of_spelling(spelling)
+        if exact is None:
+            identities[("word", parsing.folded(spelling))] = 1
+        else:
+            identities[("number", exact)] = 1
+    return len(identities)
+
+
+def _your_own_words_lines(document: dict[str, object]) -> list[str]:
+    """Which of the reader's own words this description names, by name.
+
+    THIS PAGE HAS TO SAY IT ON ITS OWN FACE (review item P3-V9-F1). A
+    person is handed one of the five files, not the set, and the one
+    they can read is this one. The column blocks above already print
+    every spelling among `counted as missing:`, but nothing there tells
+    the reader which of those spellings is a word THEY typed rather
+    than a word their table happened to hold -- and the word they typed
+    is the one they chose, so it is the one they can be wrong about.
+
+    Nothing new leaves the machine here. Every spelling listed is
+    already printed in its own column's block on this page and stored
+    in the description beside it; what this adds is the sentence that
+    tells a reader which of them came off their command line.
+
+    IT LISTS SPELLINGS AND COUNTS WORDS (review item P3-V10-F9). A word
+    somebody typed can reach the description under several spellings,
+    because the cells decide the spellings and the person decides the
+    word. So the list below has a line per spelling and the sentence
+    over it counts what was typed, and where the two numbers differ the
+    page says which side each came from rather than leaving the reader
+    to think they gave an option they never gave.
+    """
+    named = words_of_your_own(document)
+    if not named:
+        return [
+            "    The settings are not the whole description, though, and",
+            "    no column of this one names a word of your own. That is",
+            "    this run and not a rule: it is what the floor, the roles",
+            "    of your columns and your table's own cells came to, and",
+            "    another table under the same command could name one.",
+            "",
+        ]
+    words = words_behind(named)
+    # The sentence is about the words THIS DESCRIPTION NAMES and not
+    # about how many were typed, because those are two numbers and the
+    # second is on the line above ("named as 'no value': 2"). A person
+    # can name two words and have one of them reach the description,
+    # which is the ordinary outcome when the other one's cells fall
+    # below the floor.
+    if words == 1:
+        lines = [
+            "    WORDS OF YOUR OWN THAT THIS DESCRIPTION NAMES. The settings",
+            "    are not the whole description, and this word of yours is",
+            "    written into it -- and printed above -- exactly as your",
+            "    table spelled it:",
+        ]
+    else:
+        lines = [
+            "    WORDS OF YOUR OWN THAT THIS DESCRIPTION NAMES. The settings",
+            f"    are not the whole description, and these {words} words of",
+            "    yours are written into it -- and printed above -- exactly",
+            "    as your table spelled them:",
+        ]
+    for spelling, column, count in named:
+        lines = lines + [f"      {spelling} -- in {column} ({count} cell(s))"]
+    if len(named) > words:
+        lines = lines + [
+            "    There are more lines there than words you named, because",
+            "    your table wrote "
+            + ("that word" if words == 1 else "some of those words")
+            + " more than one way and",
+            "    each way is a line of its own. What you typed decided",
+            "    which cells count as missing; your table decided how each",
+            "    of them is spelled here.",
+        ]
+    return lines + [
+        "    If one of those spellings is something you would not send in",
+        "    an email, neither this description nor this page may go",
+        "    anywhere until you have dealt with it.",
+        "",
+    ]
+
+
 def _declared_count(settings: dict[str, object], key: str) -> int:
     """How many values were declared under ``key``, or zero.
 
@@ -389,15 +636,24 @@ def _declaration_lines(document: dict[str, object]) -> list[str]:
     - Inputs: a profile document as built by `profile.build_document`.
     - Determinism: the text depends only on the document.
     - Errors raised: none for a document this package built.
-    - Boundary: counts only. No spelling reaches these lines, because
-      none reaches the settings block they are rendered from (review
-      item P1-R7-F2).
+    - Boundary: no spelling of the PERSON'S reaches the lines rendered
+      from the SETTINGS BLOCK, because none reaches that block (review
+      item P1-R7-F2). From contract version 5 the block also names
+      which members of synthtwin's own thirteen published words were
+      typed; these lines say that it does and print how many, and they
+      do not repeat the members -- saying the fact is what the contract
+      asks of this page (its section 6.6), and a page that travels says
+      no more than it must. The block CLOSES with
+      `_your_own_words_lines`, which does print the person's own
+      spellings, out of the columns that named them and off this same
+      page; the boundary that governs those is the display boundary
+      every spelling on this page crosses, not silence.
 
     WHAT THESE LINES MAY NOT CLAIM. The first version of them told the
-    person "the values themselves are NOT written into the profile or
-    into this summary ... a value you typed is a value of your table --
-    that is why you typed it -- so it is held back like every other
-    value." That was false, and provably so: a column of 200 readings
+    person that a value they typed was in neither file, on the reasoning
+    that they typed it because it was a value of their table and it was
+    therefore held back like any other. That was false, and provably so:
+    a column of 200 readings
     with three cells of `-999`, profiled with `--keep-value -999`,
     prints `smallest: -999.0` four lines above. The publication is
     right -- declaring a value KEPT says it is real data, so it is an
@@ -411,8 +667,10 @@ def _declaration_lines(document: dict[str, object]) -> list[str]:
     directions from each other. Each statement below was checked against
     what the code does:
 
-    * the settings record counts and the matching rule, never a
-      spelling, in both directions and on every role;
+    * the settings record counts and the matching rule; in the settings
+      block never a spelling of the person's own, in both directions
+      and on every role -- and, from contract version 5, which members
+      of synthtwin's own published vocabulary were among them;
     * a value named as 'no value' is counted absent, and its spelling is
       listed by its column as one of the spellings it counted as missing
       -- but only where that column publishes values at all and at least
@@ -433,6 +691,44 @@ def _declaration_lines(document: dict[str, object]) -> list[str]:
       the rows it accounted for are still published; the spelling reads
       `(withheld)`.
 
+    THE CLOSING SENTENCE WAS RETIRED TWICE, and only the second time
+    was it retired for the right reason. It began by telling the person
+    to keep a note of their own command line because synthtwin would
+    keep no record of which values they had named. Contract version 5
+    made that false of synthtwin's own thirteen words, since the
+    settings now name which of them were typed -- so the sentence was
+    narrowed to the words that are NOT synthtwin's, which carried the
+    defect forward whole rather than repairing it.
+
+    IT WAS FALSE OF THE VERY RUN IT WAS WRITTEN FOR (review item
+    P3-V9-F1). Sixty numbers and twelve cells reading a declared
+    marker, at the ordinary floor, publish that marker in
+    `missing_by_source` -- correctly, because contract 5 section 3.2
+    way 4 is what makes the description readable back -- and this page
+    prints it four screens above as `counted as missing: <the marker>
+    (12)`. So the page told a researcher their word was not kept while
+    showing them the word it had kept. A person who believed it could
+    hand on a description carrying a diagnosis code they had been told
+    was absent, and the profile is only safer to move than the table
+    because of what it withholds: a false assurance about what it
+    withholds is worse than no assurance.
+
+    Both halves now say WHERE they hold. The settings-block half keeps
+    the claim contract 5 section 6 actually holds to and names its
+    scope; `_your_own_words_lines` closes the block by naming the words
+    the columns kept, so the page states the exposure rather than
+    denying it.
+
+    AND THE OPENING SENTENCE WAS CORRECTED IN THE SAME FAMILY, one
+    stage earlier, because the page contradicted itself on the run that
+    matters most (plan amendment A-P3-30). It said "the spellings YOU
+    typed are not written into its settings" and then, eight lines
+    lower, told the person who typed `n/a` that the description records
+    which of synthtwin's own words they named. Both halves were true and
+    the pair was not readable: the reader who has to act on this page is
+    exactly the reader who typed one of the thirteen. The opening now
+    names the exception where it makes the claim.
+
     Nothing is said on a run where nothing was declared. A sentence
     printed on every ordinary run is a sentence people stop reading, and
     the person who has to see this is the person who typed a value.
@@ -450,26 +746,38 @@ def _declaration_lines(document: dict[str, object]) -> list[str]:
             f"    named as real data: {kept};   named as 'no value': "
             f"{declared_missing}"
         ),
-        "    The profile records how many values you named each way and",
-        "    the rule it used to match them. The spellings you typed are",
-        "    not written into its settings, and they are not written",
-        "    here. Naming a value does not hide it from the description",
+        "    The profile records how many DIFFERENT values you named",
+        "    each way, and the rule it used to match them. Naming one",
+        "    value twice, or naming it again with other spacing or",
+        "    capitals, counts once: synthtwin reads those as one value.",
+        "    For a value that is one of synthtwin's own words --",
+        "    the ones described lower down -- it also records which of",
+        "    those words it was. A word of YOUR OWN is not written",
+        "    into its settings. That is a rule about the settings and",
+        "    nothing else, so read the next lines before you decide",
+        "    this file may travel: naming a value does not hide it",
+        "    from the description of the column it is in,",
     ]
     if kept and declared_missing:
         # Both options were used, so the reader is about to be given two
         # rules and has to be told they are not one rule said twice.
         lines = lines + [
-            "    of the column it is in, though, and the two directions",
-            "    do not work the same way:",
+            "    and the two directions do not work the same way:",
         ]
     else:
-        lines = lines + ["    of the column it is in, though:"]
+        lines = lines + [
+            "    and here is what that means:",
+        ]
     if declared_missing:
         lines = lines + [
-            "      a value you named as 'no value' is counted as absent.",
-            "      Its column lists it among the spellings it counted as",
-            f"      missing, if at least {floor} rows share that spelling",
-            "      and that column publishes any values at all;",
+            "      a value you named as 'no value' is counted as absent,",
+            "      and THE WORD ITSELF is then written into that column's",
+            "      description and printed on this page, spelled character",
+            "      for character as your table spelled it, if at least",
+            f"      {floor} rows share that spelling and that column",
+            "      publishes any values at all. Below that many rows it is",
+            "      counted without being named, and a column that publishes",
+            "      no values names no spelling at all;",
         ]
     if kept:
         lines = lines + [
@@ -480,11 +788,167 @@ def _declaration_lines(document: dict[str, object]) -> list[str]:
             "      labels of a column of categories if at least",
             f"      {floor} rows share it.",
         ]
-    return lines + [
+    lines = lines + [
         "    A column that publishes nothing -- record numbers, free",
-        "    text -- still publishes nothing either way. If you need a",
-        "    record of which values you named, keep a note of the",
-        "    command you ran; synthtwin will not keep one for you.",
+        "    text -- still publishes nothing either way.",
+    ]
+    return (
+        lines
+        + _own_words_lines(settings)
+        + _your_own_words_lines(document)
+    )
+
+
+# The thirteen words of the published vocabulary, counted rather than
+# repeated. The contract fixes the list in its own appendix; this page
+# says that the description records WHICH of them were typed, and how
+# many, because a person deciding whether to move this file has to know
+# what it carries about what they typed (contract 5 section 6.6).
+_OWN_WORD_KEYS = ("built_in_texts", "built_in_numbers")
+
+
+def _own_words_named(settings: dict[str, object], key: str) -> int:
+    """How many of synthtwin's own published words one option named."""
+    record = _map_of(settings[key])
+    found = 0
+    for name in _OWN_WORD_KEYS:
+        if name in record:
+            found = found + len(_list_of(record[name]))
+    return found
+
+
+def _own_words_lines(settings: dict[str, object]) -> list[str]:
+    """Which of SYNTHTWIN'S OWN words the settings record you named.
+
+    Two sentences, and which of them is printed depends on the run
+    rather than on a rule somebody has to remember: a person who named
+    only words of their own is told the settings record none of them,
+    and a person who named one of synthtwin's is told they record that.
+
+    THE SCOPE OF EVERY SENTENCE HERE IS THE SETTINGS BLOCK, and saying
+    so is the repair of review item P3-V9-F1. These lines used to close
+    by sending the person away to their own shell history for a record
+    of any word outside the thirteen, on the ground that synthtwin
+    would keep none. Read as it stood, that spoke for the whole
+    document, and it was false of one from the moment contract version
+    5 landed: a word of the person's own reaches its column's
+    `missing_by_source` under the ordinary floor, and this same page
+    prints it four screens above beside the count of cells that wore
+    it. What the settings block does not carry is still worth saying --
+    it is the one field a declaration is compared against every column
+    through -- but it is said with its scope attached, and
+    `_your_own_words_lines` below names the words the columns DID keep.
+    """
+    kept = _own_words_named(settings, "kept_values")
+    absent = _own_words_named(settings, "declared_missing_values")
+    named = kept + absent
+    # THE THIRTEEN ARE NOT SPELLED OUT HERE, and that is deliberate.
+    # Three of them are numbers, and a page that travels printing a
+    # number beside a column's own facts is a page a reader can mistake
+    # for a statement about that column. The list is synthtwin's own and
+    # is published in its description contract; what this page owes is
+    # the FACT that the description records which of them were typed.
+    lines = [
+        "    synthtwin has thirteen words of its own that it already",
+        "    reads as 'no value' -- an empty cell, NA, n/a, none, null",
+        "    and a few more, and three numbers often used as stand-ins.",
+        "    They are listed in synthtwin's description contract, and",
+        "    the description records which of them you named.",
+    ]
+    if named:
+        lines = lines + [
+            (
+                f"    {named} of the values you named "
+                + ("is" if named == 1 else "are")
+                + " one of those, and the"
+            ),
+            "    description says which. It has to: without that, a check",
+            "    of your own table against its own description would read",
+            "    those cells the wrong way and report failures that are",
+            "    not real. No other word you typed is in the settings, and",
+            "    no count, column or row goes with the ones that are.",
+        ]
+    else:
+        lines = lines + [
+            "    You named none of them, so the settings record nothing",
+            "    there.",
+        ]
+    return lines + [""]
+
+
+def _lowered_floor_lines(floor: int) -> list[str]:
+    """Said only where this profile was made under a lowered floor.
+
+    THIS PAGE IS ONE OF THE FOUR THAT MUST SAY IT (owner ruling
+    2026-08-14, plan amendment A-P3-11). The owner ruled that
+    `--smallest-group` below the default is let through end to end, and
+    ruled with it that every artifact made from such a description
+    carries the fact on its own face -- because a person is handed one
+    of these files, not the set, and the JSON's `small_cell_floor` is a
+    number in a document a non-programmer does not open. So this page
+    says it, the generation report says it and the quality report says
+    it, each without reference to the others.
+
+    IT IS CONDITIONAL, and that is the opposite of the rule the honest
+    limits are written under. A limit true of every run is printed on
+    every run so that nobody comes to expect its absence. This is not a
+    limit of synthtwin; it is a fact about THIS description that is
+    false of an ordinary one, and printing it on every run -- "your
+    floor was not lowered" -- is how a reader is trained to skip
+    the paragraph that matters.
+
+    Guarantees:
+
+    - Inputs: the floor this description was made with.
+    - Determinism: a fixed function of that number.
+    - Errors raised: none.
+    - Boundary: no value of the table reaches it.
+    """
+    if floor >= taxonomy.Settings().small_cell_floor:
+        return []
+    usual = taxonomy.Settings().small_cell_floor
+    lines = [
+        (
+            "  THE SMALLEST GROUP SIZE WAS LOWERED FOR THIS PROFILE, TO "
+            f"{floor}."
+        ),
+        "",
+        f"  synthtwin normally leaves a value out unless at least {usual}",
+        "  rows share it. This profile names values that as few as",
+        f"  {floor} row(s) share, and says how many rows that is.",
+        "",
+    ]
+    # "a group of 1 is 1 people" is not English, so at a floor of one the
+    # sentence is the one that is true there rather than the general one
+    # with a bad number in it.
+    if floor < 2:
+        lines = lines + [
+            "  A named group can be a single row. If one row of your table",
+            "  is one person, this profile says out loud that exactly one",
+            "  person -- on their own -- has that value.",
+            "",
+        ]
+    else:
+        lines = lines + [
+            (
+                "  If one row of your table is one person, a group of "
+                f"{floor} is"
+            ),
+            f"  {floor} people.",
+            "",
+        ]
+    return lines + [
+        "  What that can mean for a person. Somebody who already knows",
+        "  one true thing about someone in your table -- that they are in",
+        "  it at all -- can find the small group that person must be in",
+        "  and read off everything else this profile says about that",
+        f"  group. That is what the usual {usual} prevents and what this",
+        "  profile does not.",
+        "",
+        "  It does not stop with this file. The twin is built to hold",
+        "  these counts exactly, and the twin's report and the quality",
+        "  report quote them back, so all five files of a full run carry",
+        "  them.",
         "",
     ]
 
@@ -513,19 +977,26 @@ def _disclosure_lines(document: dict[str, object]) -> list[str]:
         "  It contains no rows of your table, but it is not anonymous",
         "  either. Here is exactly what is in it.",
         "",
-        # THE HANDLING RULE COVERS THREE FILES, NOT ONE (plan P2-D11).
-        # Saying it of the profile alone reads as permission for the
-        # other two, and it is not: the twin reproduces published counts
-        # exactly and the report quotes published facts back, so both
-        # are real-derived as well. The person deciding what may leave
-        # their machine has to be told about all three in the one place
-        # they are reading about it.
-        "  The same is true of the other two files a full run makes.",
-        "  The profile, the twin and the report all carry facts",
+        # THE HANDLING RULE COVERS FIVE FILES, NOT ONE (plan P2-D11,
+        # widened by P3-D3 and again by amendment A-P3-8). Saying it of
+        # the profile alone reads as permission for the others, and it
+        # is not: the twin reproduces published counts exactly, the
+        # report quotes published facts back, the quality report states
+        # measurements taken from the file it checked, and THIS FILE --
+        # the one being read right now -- repeats the published labels
+        # in words. The person deciding what may leave their machine has
+        # to be told about all five in the one place they are reading
+        # about it, and the file they are holding is one of the five.
+        "  The same is true of the other four files a full run makes,",
+        "  this page among them: it repeats in words what the profile",
+        "  carries, the real labels listed below included.",
+        "  The profile, the plain-language summary beside it, the twin,",
+        "  the twin's report and the quality report all carry facts",
         "  computed from your real data, so those rules apply to all",
-        "  three of them, not to the profile alone.",
+        "  five of them, not to the profile alone.",
         "",
     ]
+    lines = lines + _lowered_floor_lines(floor)
     if with_labels:
         # THE SPELLINGS ARE PART OF THIS CLAIM, and saying only "labels"
         # would now be a promise the profile no longer keeps. A label is
@@ -678,6 +1149,13 @@ def render(document: dict[str, object], encoding_note: str) -> str:
         "analysis on the twin, then run the finished analysis on your real",
         "table.",
         "",
+        "After that, 'synthtwin validate' measures the twin against this",
+        "description and writes the quality report: which of the",
+        "obligations recorded below the file meets, which it misses, and",
+        "which nothing written in a CSV can evidence either way. Each",
+        "command prints the next one for you when it finishes, so you",
+        "never have to work out a command line from this page.",
+        "",
         # WHAT THE DESCRIPTION DOES NOT DESCRIBE (plan P2-D11, residual
         # R-P2-3). This page is where a person first meets the idea of a
         # twin of their table, and every column below is described on
@@ -722,8 +1200,9 @@ def render(document: dict[str, object], encoding_note: str) -> str:
         _RULE,
         "",
     ]
+    floor = _count_of(_map_of(document["settings"])["small_cell_floor"])
     for entry in _list_of(document["columns"]):
-        lines = lines + _column_lines(_map_of(entry)) + [""]
+        lines = lines + _column_lines(_map_of(entry), floor) + [""]
     lines = lines + [_RULE] + _disclosure_lines(document)
     # The lines are joined by hand: the offline policy accepts a text
     # method only with arguments it has resolved, and a list built at

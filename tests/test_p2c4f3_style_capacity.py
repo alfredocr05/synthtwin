@@ -199,11 +199,21 @@ def _point_free_number(value: float) -> bool:
 
     Stated here from the number rather than read from the generator, so
     the expectation below is not the implementation's own opinion: a
-    value can be written in digits alone exactly when it is whole and
-    its digits are the shortest round trip's, which the contract's
-    fixed-point window holds up to `1e+16`.
+    value can be written in digits alone exactly when it is WHOLE, at
+    any width.
+
+    THE SIXTEEN-FIGURE CEILING IS GONE (owner decision 10, 2026-08-13).
+    It was the contract's fixed-point window, which governs the
+    canonical spelling of a number in the profile DOCUMENT and not the
+    spelling of a plain cell in the twin. A plain cell owes two things
+    -- it reads back as the same number and it classifies as plain --
+    and the full digit expansion of a whole value does both however
+    many figures it takes. While the ceiling stood, a column whose
+    source wrote very wide whole numbers in figures published them
+    `plain` and got `100000000000000000000.0` back, which a reader
+    takes for a decimal column.
     """
-    return float(value).is_integer() and abs(value) < 1e16
+    return float(value).is_integer()
 
 
 def _ceiling(document: dict) -> int:
@@ -375,18 +385,21 @@ def test_every_cell_that_can_be_written_point_free_is(
             )
 
 
-def test_a_map_the_ends_cannot_hold_is_named_in_the_report(
+def test_a_pooled_cell_the_ends_cannot_hold_is_spelled_by_its_value(
     tmp_path: pathlib.Path,
 ) -> None:
-    """The floor under point 3: the ceiling is not a licence to be quiet.
+    """The open defect of P2-C5-F3, repaired: no miss is left to name.
 
-    Forty named `plain` cells and six pooled ones over forty-six cells
-    ask for every cell to carry no point, while one must read back as
-    `0.5` and one as `9.25`. The twin writes the forty-four it can, and
-    the report names each published count beside the achieved one --
-    saying which part of the forty-six the description names and which
-    part it held back, because forty-six appears nowhere in the profile
-    and a reader checking the report against it must be able to.
+    Forty named `plain` cells and six pooled ones over forty-six cells,
+    while one cell must read back as `0.5` and one as `9.25`. Under the
+    withdrawn rule every pooled cell was owed the `plain` form, which
+    those two cells have no spelling for, so the twin missed a total it
+    could not have met and the report named it. The amended rule of the
+    Phase 3 plan (P3-D8.1) spells a pooled cell by its OWN value: the
+    four pooled cells with a point-free spelling are written plainly,
+    the two without are written in their values' canonical text, and
+    NOTHING IS MISSED. The bytes are the same bytes; what changed is
+    that the obligation is now one the twin can meet.
     """
     document, loaded = _described(
         tmp_path, ["0.5"] * 3 + ["7"] * 40 + ["9.25"] * 3
@@ -398,13 +411,82 @@ def test_a_map_the_ends_cannot_hold_is_named_in_the_report(
     twin = generation.generate(loaded, 0)
     assert _styles(twin) == {"plain": 44, "decimal": 2}
     named = [note for note in twin.deviations if note.fact == "numeric_styles"]
-    assert {note.achieved for note in named} == {"44", "2"}
-    spoken = sorted(note.published for note in named)
-    assert spoken[0] == "0 cell(s) written in the decimal form"
-    assert spoken[1].startswith(
-        "46 cell(s) written in the plain form -- 40 the description "
-        "names and 6 it held back"
+    assert named == [], [note.published for note in named]
+
+
+def test_a_re_spelled_whole_cell_cannot_buy_its_own_spill(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The regression for the circular recount (review item P3-C1-F2).
+
+    THIS IS THE ATTACK THE FIRST REPAIR LET THROUGH, and the reason it
+    has a test of its own: the recount counted the cells WRITTEN with a
+    point rather than the cells whose VALUE has no point-free spelling,
+    so a column that spelled a whole value `7.0` instead of `7` raised
+    its own spill by one and the arithmetic balanced against itself.
+    Every published count still looked met and the twin was wrong.
+
+    Re-spelling three whole cells as decimals must therefore be named,
+    and it must be named on the two clauses it actually breaks: the
+    plain total falls short, and the two canonical point-carrying forms
+    carry more between them than the published counts and the spill
+    allow. Reinstating the old written-style count turns this red,
+    which is what the earlier tamper test could not do -- it moved a
+    cell to `leading_zero`, which the exact leading-zero count catches
+    whichever way the spill is computed.
+    """
+    _unused, loaded = _described(
+        tmp_path, ["0.5"] * 3 + ["7"] * 40 + ["9.25"] * 3
     )
+    twin = generation.generate(loaded, 0)
+    written = list(twin.columns[0])
+    assert generation._style_notes(loaded.columns[0], written) == []
+
+    tampered: list[str] = []
+    moved = 0
+    for cell in written:
+        if cell and "." not in cell and "e" not in cell and moved < 3:
+            tampered = tampered + [f"{cell}.0"]
+            moved = moved + 1
+            continue
+        tampered = tampered + [cell]
+    assert moved == 3, "the fixture no longer holds three whole cells"
+    notes = generation._style_notes(loaded.columns[0], tampered)
+    assert notes, "a whole cell re-spelled with a point must be named"
+    spoken = " ".join(note.published for note in notes)
+    assert "plain form" in spoken, spoken
+    assert "decimal point or a lower-case exponent" in spoken, spoken
+
+
+def test_the_repaired_style_identity_still_names_a_broken_column(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The vacuity floor under the repair above.
+
+    A rule that cannot be broken is not a rule. The same description is
+    measured against a column whose cells were re-spelled after the
+    fact -- every plain cell given a leading zero, which is a form the
+    description publishes zero of -- and the recount must name it. This
+    is the clause that stops the amended identity from being satisfied
+    by substituting one published form for another.
+    """
+    document, loaded = _described(
+        tmp_path, ["0.5"] * 3 + ["7"] * 40 + ["9.25"] * 3
+    )
+    assert document["columns"][0]["numeric_styles"] == {
+        "plain": 40,
+        "(withheld)": 6,
+    }
+    twin = generation.generate(loaded, 0)
+    written = list(twin.columns[0])
+    tampered = [
+        f"0{cell}" if cell and "." not in cell else cell for cell in written
+    ]
+    notes = generation._style_notes(loaded.columns[0], tampered)
+    assert notes, "a re-spelled column must be named"
+    broken = sorted(note.published for note in notes)
+    assert any("leading_zero" in line for line in broken), broken
+    assert any("plain" in line for line in broken), broken
 
 
 def test_the_crowded_ladder_of_p2c5f3_writes_its_published_map(

@@ -117,9 +117,13 @@ DOCUMENTS = (("contract", CONTRACT), ("method", METHOD), ("plan", PLAN))
 # registry's obligation-parsing walks the three Phase 2 documents
 # above, and the seal covers all four.
 PLAN3 = REPO_ROOT / "docs" / "plans" / "phase-3-product.md"
+VALIDATION = REPO_ROOT / "docs" / "spec" / "validation-method-v1.md"
+CONTRACT5 = REPO_ROOT / "docs" / "spec" / "profile-contract-v5.md"
 RELATIVE = {
     "docs/spec/profile-contract-v4.md": CONTRACT,
+    "docs/spec/profile-contract-v5.md": CONTRACT5,
     "docs/spec/generation-method-v1.md": METHOD,
+    "docs/spec/validation-method-v1.md": VALIDATION,
     "docs/plans/phase-2-generator.md": PLAN,
     "docs/plans/phase-3-product.md": PLAN3,
 }
@@ -161,6 +165,15 @@ def _plan_regions() -> "dict[str, str]":
     `n_distinct` above all -- so a group is looked for only in its own
     paragraph. The two owner decisions that settle a fact outside the
     matrix are regions too.
+
+    AND THE PHASE 3 AMENDMENTS THAT DISPOSE A FIELD ARE REGIONS OF THEIR
+    OWN. The Phase 2 matrix is the record of what Phase 2 ruled and is
+    not edited to carry a field Phase 2 never had; a field a later
+    amendment adds is disposed in that amendment, and is looked for
+    there. Each such region runs from the amendment's own opening mark
+    to the next heading, so a disposition written into the amendment
+    after it and a disposition written into the section after that
+    cannot prop this one up.
     """
     flat = _flat(PLAN)
     matrix = flat[flat.index("## P2-D6.") : flat.index("## P2-D7.")]
@@ -179,6 +192,11 @@ def _plan_regions() -> "dict[str, str]":
         at = flat.index(f"## {name}.")
         rest = flat.find("## P2-D", at + 8)
         regions[name] = flat[at : rest if rest > 0 else len(flat)]
+    later = _flat(PLAN3)
+    for name, mark in dispositions.PLAN3_REGIONS.items():
+        at = later.index(mark)
+        rest = later.find("## ", at + len(mark))
+        regions[name] = later[at : rest if rest > 0 else len(later)]
     return regions
 
 
@@ -301,12 +319,12 @@ def test_no_passage_of_a_governing_document_is_unsealed() -> None:
     )
 
 
-def test_the_seal_covers_the_three_documents_and_is_not_empty() -> None:
+def test_the_seal_covers_every_governing_document_and_is_not_empty() -> None:
     """The vacuity floor for the seal.
 
     A seal holding no digests, or naming a document the guard never
     opens, would pass the check above by having nothing to compare. Both
-    directions are asserted: the seal names exactly the three governing
+    directions are asserted: the seal names exactly the governing
     documents, each document really is opened and split, and each one
     has a serious number of passages behind it.
     """
@@ -315,24 +333,30 @@ def test_the_seal_covers_the_three_documents_and_is_not_empty() -> None:
     for name, path in sorted(RELATIVE.items()):
         assert path.exists(), name
         # The floor is a vacuity check -- a seal over a handful of
-        # passages would be a seal in name only. The three Phase 2
-        # documents each split into many hundreds; the Phase 3 plan
-        # splits into about 150.
-        assert len(dispositions.passages(path)) > 100, name
-        assert len(disposition_seal.SEALED[name]) > 100, name
+        # passages would be a seal in name only. It is not a length
+        # requirement on a specification: the three Phase 2 documents
+        # each split into many hundreds, the Phase 3 plan into about
+        # 150, and the validation method into about 70, which is a
+        # document rather than a handful. What the floor exists to
+        # catch is a seal built over nothing at all.
+        assert len(dispositions.passages(path)) > 50, name
+        assert len(disposition_seal.SEALED[name]) > 50, name
 
 
 def test_no_fourth_governing_document_can_appear_unsealed() -> None:
     """A seal over three documents is a seal a fourth walks around.
 
-    The guard reads the ratified plan and the two specifications, and
+    The guard reads the ratified plans and the specifications, and
     every check in this file is bounded by that list. So the list itself
-    is asserted against the tree: `docs/spec/` holds exactly the two
-    specifications, and `docs/plans/` holds exactly this phase's plan
-    beside the earlier phases' plans and the review records. A new
-    normative document added beside them -- the obvious way to state a
-    lesser outcome somewhere nobody sealed -- turns this red on the day
-    it lands, and the answer is to seal it too.
+    is asserted against the tree: `docs/spec/` holds exactly the
+    specifications named here, and `docs/plans/` holds exactly this
+    phase's plan beside the earlier phases' plans and the review
+    records. A new normative document added beside them -- the obvious
+    way to state a lesser outcome somewhere nobody sealed -- turns this
+    red on the day it lands, and the answer is to seal it too. That is
+    what happened when `profile-contract-v5.md` landed under plan
+    amendment A-P3-27: the list below grew by one line, in the same
+    commit as the document and its seal entry.
     """
     specifications = sorted(
         path.name for path in (REPO_ROOT / "docs" / "spec").glob("*.md")
@@ -340,6 +364,8 @@ def test_no_fourth_governing_document_can_appear_unsealed() -> None:
     assert specifications == [
         "generation-method-v1.md",
         "profile-contract-v4.md",
+        "profile-contract-v5.md",
+        "validation-method-v1.md",
     ], specifications
     plans = sorted(
         path.name for path in (REPO_ROOT / "docs" / "plans").glob("*.md")
@@ -372,7 +398,7 @@ def test_the_seal_reddens_on_any_new_or_reworded_passage(
             + "\n\nThe generated form is permitted to differ from the "
             "described one where the ladder is crowded, and the "
             "generated form then governs.\n",
-            encoding="utf-8",
+            encoding="utf-8", newline="\n",
         )
         substituted = dict(RELATIVE)
         substituted[name] = copy
@@ -662,7 +688,16 @@ def test_the_raising_sentences_are_a_real_inventory() -> None:
 
 
 def _matrix() -> "dict[str, list[tuple[tuple[str, ...], str]]]":
-    """Section 9 of the contract, as rows of names against a disposition."""
+    """The disposition matrix, read from both versions together.
+
+    Version 4's section 9 is the whole matrix; version 5 carries it by
+    reference and states only the rows it changes or adds, in its
+    section 11 (its C5-30). Reading version 4 alone would leave every
+    version 5 field undisposed, and reading version 5 alone would leave
+    the other nine tables empty. `dispositions.CONTRACT5_SECTIONS` says
+    which version 4 table each delta row belongs to, and a delta row it
+    does not name stops this reader rather than being filed by guess.
+    """
     text = CONTRACT.read_text(encoding="utf-8")
     start = text.index("## 9. The disposition matrix")
     body = text[start : text.index("\n## ", start + 10)]
@@ -689,6 +724,15 @@ def _matrix() -> "dict[str, list[tuple[tuple[str, ...], str]]]":
         )
         if names:
             sections[heading].append((names, cells[1]))
+    for names, said in dispositions.contract5_delta(CONTRACT5):
+        for name in names:
+            where = dispositions.CONTRACT5_SECTIONS.get(name)
+            if where is None:
+                continue
+            rows = sections[where]
+            sections[where] = [
+                (kept, text) for kept, text in rows if name not in kept
+            ] + [((name,), said)]
     return sections
 
 
@@ -1452,7 +1496,7 @@ def test_the_guard_reddens_on_every_lowering_this_repository_has_made(
         mutated = tmp_path / f"{path.stem}-{place}.md"
         mutated.write_text(
             "\n\n".join(blocks[:place] + [added] + blocks[place:]),
-            encoding="utf-8",
+            encoding="utf-8", newline="\n",
         )
         # The whole guard, not one helper: the mutated copy replaces its
         # own document in the scan, and the sentence has to come back as
@@ -1503,8 +1547,15 @@ def test_the_guard_reddens_when_the_plan_itself_is_softened(
         assert before in " ".join(original.split()), before
         softened = " ".join(original.split()).replace(before, after)
 
-        def _softened(path: pathlib.Path, _body: str = softened) -> str:
-            return _body if path == PLAN else _flat(path)
+        # The real reader is captured before the patch: `_plan_regions`
+        # now reads the Phase 3 plan as well, and a replacement that
+        # reached for the patched name would call itself.
+        def _softened(
+            path: pathlib.Path,
+            _body: str = softened,
+            _real: "typing.Callable[[pathlib.Path], str]" = _flat,
+        ) -> str:
+            return _body if path == PLAN else _real(path)
 
         monkeypatch.setattr("test_p2c4f1_disposition_registry._flat", _softened)
         assert _plan_violations(dispositions.REGISTRY) != []
@@ -1531,7 +1582,7 @@ def _with_document(
 ) -> "dict[str, pathlib.Path]":
     """The three documents, with one of them replaced by a scratch copy."""
     copy = tmp_path / pathlib.Path(relative).name
-    copy.write_text(body, encoding="utf-8")
+    copy.write_text(body, encoding="utf-8", newline="\n")
     substituted = dict(RELATIVE)
     substituted[relative] = copy
     return substituted

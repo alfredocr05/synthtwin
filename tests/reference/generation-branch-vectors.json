@@ -1,5 +1,5 @@
 {
-  "case_set": "The five cases method section G14.3 adds for the branches its first nine leave unexercised (review items P2-C3-F3 and P2-C4-C3): the joint class-and-sign packing of an unrepresentable column, the joint class-and-alphabet packing of free text, a fold collision no case change can build, the literal decimal, leading-zero and leading-plus style placements, and the published end whose seconds field is 60, which the ordinal space cannot hold and the endpoint-fields route writes exactly. They are computed by the same oracle and the same proof layer as tests/reference/generation-reference-vectors.json, and live in their own file only because a committed fixture must stay under the provenance manifest's byte cap.",
+  "case_set": "The six cases method section G14.3 adds for the branches its first nine leave unexercised (review items P2-C3-F3 and P2-C4-C3): the joint class-and-sign packing of an unrepresentable column, the joint class-and-alphabet packing of free text, a fold collision no case change can build, the literal decimal, leading-zero and leading-plus style placements, and the published end whose seconds field is 60, which the ordinal space cannot hold and the endpoint-fields route writes exactly. They are computed by the same oracle and the same proof layer as tests/reference/generation-reference-vectors.json, and live in their own file only because a committed fixture must stay under the provenance manifest's byte cap.",
   "cases": {
     "free_text_joint": {
       "cells": [
@@ -44,6 +44,8 @@
         },
         "n_distinct_folded": 3,
         "n_missing": 0,
+        "n_missing_blank": 0,
+        "n_missing_withheld": 0,
         "n_not_numeric": 2,
         "n_numeric": 2,
         "n_out_of_range": 0,
@@ -116,6 +118,8 @@
         },
         "n_distinct_folded": 1,
         "n_missing": 0,
+        "n_missing_blank": 0,
+        "n_missing_withheld": 0,
         "n_not_numeric": 0,
         "n_numeric": 4,
         "n_out_of_range": 0,
@@ -197,6 +201,8 @@
         "n_distinct": 12,
         "n_distinct_folded": 12,
         "n_missing": 0,
+        "n_missing_blank": 0,
+        "n_missing_withheld": 0,
         "n_not_numeric": 12,
         "n_numeric": 0,
         "n_out_of_range": 0,
@@ -321,6 +327,8 @@
         "n_distinct_folded": 3,
         "n_left_out_of_statistics": 0,
         "n_missing": 0,
+        "n_missing_blank": 0,
+        "n_missing_withheld": 0,
         "n_negative": 0,
         "n_negative_unrepresentable": 0,
         "n_not_numeric": 0,
@@ -541,6 +549,227 @@
         "936435099686866448"
       ]
     },
+    "numeric_pooled_spelling": {
+      "cells": [
+        "4",
+        "100000000000000000000",
+        "100000000000000000000",
+        "100000000000000000000",
+        "4",
+        "4",
+        "4",
+        "100000000000000000000",
+        "0.5",
+        "100000000000000000000",
+        "4",
+        "100000000000000000000"
+      ],
+      "column": {
+        "detection_evidence": "written by hand in this method specification's own neutral vocabulary; no value here comes from any table.",
+        "integer_valued": false,
+        "mean": {
+          "decimal": "1e+19",
+          "exact": "10000000000000000000",
+          "float64": 1e+19,
+          "proof": "nearest"
+        },
+        "missing_by_class": {
+          "(blank)": 0,
+          "(declared-missing)": 0,
+          "(numeric-sentinel)": 0,
+          "(text-code)": 0,
+          "(withheld)": 0
+        },
+        "missing_by_source": {},
+        "n_contradictory": 0,
+        "n_distinct": 3,
+        "n_distinct_folded": 3,
+        "n_left_out_of_statistics": 0,
+        "n_missing": 0,
+        "n_missing_blank": 0,
+        "n_missing_withheld": 0,
+        "n_negative": 0,
+        "n_negative_unrepresentable": 0,
+        "n_not_numeric": 0,
+        "n_numeric": 12,
+        "n_out_of_range": 0,
+        "n_present": 12,
+        "n_rows": 12,
+        "n_sentinel_candidates_unpublished": 0,
+        "n_used_in_statistics": 12,
+        "n_zero": 0,
+        "name": "column_1",
+        "numeric_share": {
+          "decimal": "1",
+          "exact": "1",
+          "float64": 1.0,
+          "proof": "nearest"
+        },
+        "numeric_styles": {
+          "(withheld)": 1,
+          "plain": 11
+        },
+        "percentiles": {
+          "max": {
+            "decimal": "1e+20",
+            "exact": "100000000000000000000",
+            "float64": 1e+20,
+            "proof": "nearest"
+          },
+          "min": {
+            "decimal": "0.5",
+            "exact": "1/2",
+            "float64": 0.5,
+            "proof": "nearest"
+          },
+          "p01": {
+            "decimal": "4",
+            "exact": "4",
+            "float64": 4.0,
+            "proof": "nearest"
+          },
+          "p05": {
+            "decimal": "4",
+            "exact": "4",
+            "float64": 4.0,
+            "proof": "nearest"
+          },
+          "p10": {
+            "decimal": "4",
+            "exact": "4",
+            "float64": 4.0,
+            "proof": "nearest"
+          },
+          "p25": {
+            "decimal": "4",
+            "exact": "4",
+            "float64": 4.0,
+            "proof": "nearest"
+          },
+          "p50": {
+            "decimal": "4",
+            "exact": "4",
+            "float64": 4.0,
+            "proof": "nearest"
+          },
+          "p75": {
+            "decimal": "4",
+            "exact": "4",
+            "float64": 4.0,
+            "proof": "nearest"
+          },
+          "p90": {
+            "decimal": "4",
+            "exact": "4",
+            "float64": 4.0,
+            "proof": "nearest"
+          },
+          "p95": {
+            "decimal": "4",
+            "exact": "4",
+            "float64": 4.0,
+            "proof": "nearest"
+          },
+          "p99": {
+            "decimal": "4",
+            "exact": "4",
+            "float64": 4.0,
+            "proof": "nearest"
+          }
+        },
+        "position": 1,
+        "quality_state": "ok",
+        "remarks": [],
+        "role": "continuous",
+        "sentinel_verdicts": [],
+        "skew": {
+          "decimal": "3",
+          "exact": "3",
+          "float64": 3.0,
+          "proof": "nearest"
+        },
+        "statistical_type": "continuous",
+        "std": {
+          "decimal": "3e+19",
+          "exact": "30000000000000000000",
+          "float64": 3e+19,
+          "proof": "nearest"
+        },
+        "std_unrepresentable": false,
+        "structural_role": "data"
+      },
+      "content": [
+        "0.5",
+        "4",
+        "4",
+        "4",
+        "4",
+        "4",
+        "100000000000000000000",
+        "100000000000000000000",
+        "100000000000000000000",
+        "100000000000000000000",
+        "100000000000000000000",
+        "100000000000000000000"
+      ],
+      "csv_bytes": "4\n100000000000000000000\n100000000000000000000\n100000000000000000000\n4\n4\n4\n100000000000000000000\n0.5\n100000000000000000000\n4\n100000000000000000000\n",
+      "float64": [
+        {
+          "interpolated": {
+            "exact": "4",
+            "float64": 4.0,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 4,
+          "stratum": 1,
+          "t": {
+            "exact": "4538698043588409/9007199254740992",
+            "float64": 0.5038967069813004,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "4468501211152583/9007199254740992",
+            "float64": 0.4961032930186996,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "4",
+            "float64": 4.0,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "4468501211152583/2251799813685248",
+            "float64": 1.9844131720747984,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "4538698043588409/2251799813685248",
+            "float64": 2.0155868279252016,
+            "proof": "nearest"
+          }
+        }
+      ],
+      "why": "the pooled remainder written by its own value, and a whole value wider than the fixed-point window written in figures. Eleven cells are published plain and one is held back below the smallest group size; the cell that must read back as the published smallest value carries a decimal point and can wear no point-free form at all, so the held-back cell is the one that lands there and is written canonically. The published largest value is whole and wider than the window the canonical spelling switches at, and is written in its digits rather than with a point. Neither branch had a frozen case until owner decision 11 asked for one.",
+      "word_budget": {
+        "content": 1,
+        "placement": 11
+      },
+      "words": [
+        "12955849785445258386",
+        "11136466736298123742",
+        "10038147400135452611",
+        "15147492697428057229",
+        "14236867650031288",
+        "2173290989802069806",
+        "11540999283663690755",
+        "7558342730909420832",
+        "4008536478337168684",
+        "7977734629748327352",
+        "2774262970987807365",
+        "3332551472928899385"
+      ]
+    },
     "unrepresentable_joint": {
       "cells": [
         "(-2)",
@@ -569,6 +798,8 @@
         "n_distinct_folded": 4,
         "n_fraction": 1,
         "n_missing": 0,
+        "n_missing_blank": 0,
+        "n_missing_withheld": 0,
         "n_negative": 3,
         "n_not_numeric": 0,
         "n_numeric": 2,
@@ -615,7 +846,7 @@
   "column_shape": "Each case's 'column' is one column block in the profile's own wire shape, with one departure stated rather than left to be discovered: every published binary64 in it is written inside a 'float64' wrapper carrying the exact decimal it was read from, that decimal as an exact rational, and the proof shape. The wire value is the wrapper's 'float64' field. Writing those numbers bare would put a number in this file that nothing proved.",
   "definitions": {
     "bounded": "bounded(w, m) = (w * m) >> 64, the whole part of (w / 2**64) * m and a value in 0..m-1. One word every call, so a run's word count is a fixed function of the published facts (G3.4b).",
-    "canonical_spelling": "a whole-number column writes the base-ten digits of the value, 0 never -0. Otherwise the shortest digit string that reads back as exactly the value (shortest first, then nearest, ties to the even significand), in fixed-point notation when -4 < decpt <= 16 with .0 appended where no fractional digit would otherwise be written, and in d[.ddd]e+/-XX otherwise with the sign always written and the exponent at least two digits. Beside it, and not always the same text, the POINT-FREE spelling the three styles carrying neither a point nor an exponent are written from: where decpt >= len(D) and -4 < decpt <= 16 it is the sign, D and decpt - len(D) trailing zeros, and where those conditions do not hold the value has no point-free spelling at all (G6.2).",
+    "canonical_spelling": "a whole-number column writes the base-ten digits of the value, 0 never -0. Otherwise the shortest digit string that reads back as exactly the value (shortest first, then nearest, ties to the even significand), in fixed-point notation when -4 < decpt <= 16 with .0 appended where no fractional digit would otherwise be written, and in d[.ddd]e+/-XX otherwise with the sign always written and the exponent at least two digits. Beside it, and not always the same text, the POINT-FREE spelling the three styles carrying neither a point nor an exponent are written from: where decpt >= len(D) -- that is, where the value is whole, at any width -- it is the sign, D and decpt - len(D) trailing zeros, and where it is not whole the value has no point-free spelling at all (G6.2, as owner decision 10 amended it; the -4 < decpt <= 16 window this sentence used to carry belongs to the canonical spelling above and not to this one).",
     "class_repair": "a stratum in the negative band whose value is at or above zero takes max(min, -1); a stratum in the positive band whose value is at or below zero takes min(max, 1); the zero stratum needs none. Where the ladder and the sign counts disagree, the counts win (G5.5).",
     "convex_interpolation": "T = (A << 53) // B and t = ldexp(T, -53); then u = 1 - t, x1 = u * L[j], x2 = t * L[j+1], v = x1 + x2 -- four IEEE-754 binary64 operations in that order and no others -- then the clamp, v = L[j] when below and v = L[j+1] when above. The difference form L[j] + t*(L[j+1]-L[j]) is not used: it overflows to an infinity when the rungs sit at opposite ends of the range and loses the interpolation between neighbouring subnormals (G5.3).",
     "endpoint_fields": "the two endpoint cells are built from the published endpoint's OWN four fields and never from an ordinal: take the date with HH:MM and a seconds field of 00, move THAT to the clock this cell is allocated -- unchanged on the local clock, shifted by offset_in_seconds on the shared one -- cut the result to the recorded time_precision, and write the published seconds field back unchanged. Every offset is a whole number of minutes, so the move never touches the seconds field and a seconds field of 60 survives it; for every other seconds field this produces the bytes the ordinal route produces (G7.5).",

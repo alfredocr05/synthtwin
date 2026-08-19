@@ -75,7 +75,7 @@ from, not a promise that no twin row can equal a real one.
 
 ## The outputs, and which of them exist today
 
-Built now, by the two commands that exist:
+Built now, by the three commands that exist:
 
 1. **The synthetic twin table** - same shape and the same published
    behaviour column by column, every cell derived from the profile and
@@ -87,21 +87,30 @@ Built now, by the two commands that exist:
 3. **The generation report** - written beside every twin, saying which
    published facts the twin holds exactly, which it holds only
    approximately with the achieved value printed beside the published
-   one, and which it does not hold at all.
+   one, and which it does not hold at all. It passes no verdict of its
+   own and says so, and it ends by teaching the command that produces
+   one.
+4. **The plain-language quality report** - written by `synthtwin
+   validate`, which reads the profile and one CSV file, describes that
+   file again with the profiler's own producer, and reports which of
+   the profile's obligations the file meets, which it misses, and which
+   nothing written in a CSV can evidence either way. A passing report
+   means exactly one thing - no checkable obligation was missed - with
+   the within-window, authorized-deviation, withheld and not-checkable
+   counts standing beside it and never folded into it. It is not a
+   fitness verdict for any analysis, it validates nothing the profile
+   does not publish, and it cannot tell a synthetic file from a real
+   one.
 
-Not built. These are named here as roadmap and are never written about
-as though they existed:
+Not built. This is named here as roadmap and is never written about as
+though it existed:
 
-4. **The relationship summary** - which columns move together, and what
+5. **The relationship summary** - which columns move together, and what
    a twin would then have to do about it. None of it exists: the
    profile's relationship manifest is eight reserved slots, every one
    empty, and the loader refuses a profile that fills any of them. It
-   arrives with Phase 5.
-5. **The plain-language quality report** - how well the twin matches,
-   stated honestly, in words a non-statistician can read. Phase 3. The
-   generation report of item 3 measures published facts and passes no
-   verdict on fidelity; it says so in as many words rather than letting
-   its silence read as a pass.
+   arrives with Phase 5. Nothing the quality report checks is a
+   cross-column fact, because the profile publishes none.
 
 ## Honest limits
 
@@ -132,21 +141,54 @@ as though they existed:
   every public surface.
 - synthtwin is not a formal privacy mechanism, claims no
   differential-privacy property, and offers no formal privacy guarantee.
-  All three artifacts a full run produces - the profile, the twin and
-  the report - carry facts computed from real data, so the institution's
-  rules for real-derived material apply to all three, never to the
-  profile alone.
+  All five files a full run leaves behind - the profile, the
+  plain-language summary beside it, the twin, the twin's report and the
+  quality report - carry facts computed from real data, so the
+  institution's rules for real-derived material apply to all five, never
+  to the profile alone. The summary is counted in as a file of its own
+  (plan amendment A-P3-8) because that is how a person meets it: it is
+  printed on the screen and written beside the profile, it repeats the
+  real labels the profile publishes, and a rule that named four files
+  told a reader by omission that the fifth was free to travel.
 - The offline guarantee is a property of the code, verified by source
   audit and scans - it is not an OS-level sandbox. Institutions that
   require enforcement run the tool inside their own network-isolated
   environment.
+- **What the quality report withholds is a rule about ONE report, and
+  it is not a barrier against somebody who re-runs the check** (owner
+  ruling 2026-08-14, plan amendment A-P3-13, validation method V5-A1).
+  A number `synthtwin validate` withholds is a number it does not
+  print - not in the report, not on the screen, not in a message that
+  stops the command - so one report can be handed to a person holding
+  no file at all, and that is what the rule buys. It is not a defence
+  against a person who HAS the checked file and runs the check again
+  and again with descriptions of their own, watching which verdicts
+  move: such a person can narrow a number one report withholds, and
+  synthtwin does not try to stop them, because running this check on a
+  file requires holding that file. Claiming the wider guarantee - in
+  any wording, on any surface here, including a comment that gives it
+  as a reason for a rule that has another one - is a defect and not a
+  nuance, and the claim inventory in `tests/test_claim_inventory.py`
+  turns the suite red on it.
 
 ## Rules of the road
 
-- **The profile/generator boundary.** The profiler is the only code
-  path that reads the real table. The generator never reads the real
-  table - it consumes only the profile file. No debugging convenience,
-  test helper, or one-time exception crosses that line, ever.
+- **The profile/generator boundary.** The generator never reads a
+  table at all - it consumes only the profile file, and the module that
+  opens a CSV is not in its import graph at any instant. Two code paths
+  DO open a CSV, and stating it at that width is owner decision 6 of
+  the Phase 3 plan: the profiler reads the user's real table, and the
+  validator reads the one file it was asked to check, because measuring
+  a file means describing it with the profiler's own producer. The
+  validator in turn never imports the generator, so its verdicts cannot
+  inherit the planner's own defects and synthtwin's own random number
+  generator is out of its reach. It does NOT follow that no random
+  source is in the process, and this brief said otherwise for a while
+  and was wrong: the validator reads a file, so it loads pandas, so it
+  loads `numpy.random`. What is enforced is that no synthtwin module on
+  the validate path imports a random source and that a validate run
+  draws from none (plan amendment A-P3-4). No debugging convenience,
+  test helper, or one-time exception crosses any of those lines, ever.
 - **Determinism.** One RNG, created once from the user's seed, threaded
   explicitly through every consumer. No module-level randomness; sorted
   iteration wherever randomness is consumed; output column order a
@@ -206,3 +248,29 @@ running.
   this is the phase the twin's one-column-wide bound waits on.
 - **Phase 6 - standalone build:** hardened, fully offline distribution
   for institutional machines. *Not started.*
+- **Phase 7 - the interface:** a screen a researcher can use without
+  typing a command - choose a table, run the workflow, read the report.
+  *Not started* (owner decision 2026-08-18). Principle 2 has always
+  promised that somebody who has never programmed can run the whole
+  workflow, and until this phase that promise is kept by a command line
+  with no configuration files and messages written for a person. This
+  phase is where it stops depending on a terminal at all.
+
+  Three constraints it inherits rather than chooses. It must be LOCAL:
+  principle 3 forbids network I/O, subprocess execution and dynamic code
+  loading in the product, so a hosted page is out - the whole point is
+  data that cannot leave the machine. It must not become a second way to
+  say things, so every sentence it shows comes from the same place the
+  reports and refusals come from, under the same claim guards. And it
+  wraps the three commands rather than reimplementing them, so a
+  defect can never be true of one surface and false of the other.
+
+  Its ordering against Phase 6 is deliberate and reversible: if both are
+  built, the standalone build should carry the interface rather than the
+  interface being bolted onto a shipped build. Whoever starts them
+  decides which comes first, and says so.
+
+  What it does NOT do: it makes no analysis easier to trust. A screen
+  makes the twin easier to reach, which makes the one-column-wide bound
+  easier to walk into - so it must state that bound where a person
+  meets the twin, not only in a document they may never open.

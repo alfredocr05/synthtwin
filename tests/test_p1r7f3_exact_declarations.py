@@ -316,7 +316,7 @@ def test_the_exact_form_denotes_what_the_reader_read(text: str) -> None:
     # If these ever part company, the profile's statistics and its
     # declaration matching are describing two different tables.
     assert parsing.classify_number(text) == parsing.NUMBER
-    triple = taxonomy._exact_value(text)
+    triple = taxonomy.exact_of_spelling(text)
     assert triple is not None
     assert float(_exactly(triple)) == parsing.parse_number(text)
 
@@ -328,7 +328,7 @@ def test_a_spelling_that_is_not_a_number_has_no_exact_form(
     text: str,
 ) -> None:
     assert parsing.classify_number(text) != parsing.NUMBER
-    assert taxonomy._exact_value(text) is None
+    assert taxonomy.exact_of_spelling(text) is None
 
 
 def test_the_exact_form_is_canonical() -> None:
@@ -336,13 +336,13 @@ def test_the_exact_form_is_canonical() -> None:
     # different ones. That is the whole of the comparison, so it is
     # checked directly and not only through its consequences.
     for text in ONE_NUMBER_MANY_SPELLINGS:
-        assert taxonomy._exact_value(text) == taxonomy._exact_value("-999")
+        assert taxonomy.exact_of_spelling(text) == taxonomy.exact_of_spelling("-999")
     for zero in ["0", "-0", "0.0", "-0.000", "0e00", "(0)"]:
-        assert taxonomy._exact_value(zero) == taxonomy._exact_value("0")
+        assert taxonomy.exact_of_spelling(zero) == taxonomy.exact_of_spelling("0")
     for lower, upper in COLLAPSING_PAIRS:
-        assert taxonomy._exact_value(lower) != taxonomy._exact_value(upper)
-        assert _exactly(taxonomy._exact_value(lower)) != _exactly(
-            taxonomy._exact_value(upper)
+        assert taxonomy.exact_of_spelling(lower) != taxonomy.exact_of_spelling(upper)
+        assert _exactly(taxonomy.exact_of_spelling(lower)) != _exactly(
+            taxonomy.exact_of_spelling(upper)
         )
 
 
@@ -354,7 +354,7 @@ def test_a_number_already_held_gets_the_same_exact_form(value: float) -> None:
     # The numeric sentinels reach the declaration comparison as numbers
     # rather than as text, so the two ways into the canonical form have
     # to agree about what a number is.
-    assert _exactly(taxonomy._exact_number(value)) == fractions.Fraction(value)
+    assert _exactly(taxonomy.exact_of_number(value)) == fractions.Fraction(value)
 
 
 def test_a_kept_sentinel_is_recognised_through_the_number_it_is(

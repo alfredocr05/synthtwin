@@ -1,10 +1,14 @@
 """The strict profile loader: the only way generation gets a profile.
 
-The normative text is `docs/spec/profile-contract-v4.md`, and this
-module carries it out rule for rule. Nothing here decides anything the
-contract left open; where the contract states a fact, the check below
-cites it by its own identifier so a reader can hold the two side by
-side.
+The normative text is `docs/spec/profile-contract-v5.md`, which carries
+`docs/spec/profile-contract-v4.md` by reference: every rule version 5
+does not supersede is a rule of version 5 at its version 4 wording, and
+a superseding clause is written into version 5 with the version 4 rule
+it names. This module carries both out rule for rule. Nothing here
+decides anything either contract left open; where a contract states a
+fact, the check below cites it by its own identifier so a reader can
+hold the two side by side -- an identifier beginning `C5-` is version
+5's, and every other is version 4's, carried.
 
 WHAT THIS MODULE IS FOR. A twin is built from a profile and a seed, and
 from nothing else (plan P2-D1). That makes the profile the whole of what
@@ -31,7 +35,7 @@ one way, and the most useful message is the one nearest the cause:
   2. read the bytes and decode them as UTF-8       R4, R19
   3. the bounded structural pre-scan over the TEXT R8, R9
   4. parse with a plain JSON parse                 R5
-  5. read `profile_version`, which must be 4       R11, R12
+  5. read `profile_version`, which must be 5       R11, R12
   6. the canonical round trip                      R6, R7, R10
   7. schema and invariant validation               R13 - R18
   8. build and return typed objects                --
@@ -90,7 +94,19 @@ from synthtwin.paths import validate_local_path
 # this integer: an older document gets advice to make the description
 # again, a newer one gets advice to update synthtwin and NEVER to re-run
 # a profiler on a machine that may not hold the table (contract 10.6).
-PROFILE_VERSION = 4
+#
+# IT IS FIVE FROM AMENDMENT A-P3-27, AND THERE IS NO UPGRADE PATH
+# (contract 5 sections 10.1 and 10.2, owner ruling 2026-08-17). A
+# version 4 document is refused, not converted: it records a declaration
+# only as a count, so converting it would mean making up the facts the
+# older rules did not record, which is the whole reason this version
+# exists. The refusal names both versions, says WHY the older file
+# cannot be read back, and tells the person to describe their table
+# again WITH THE SAME `--keep-value` AND `--missing-value` OPTIONS --
+# advice that is safe today because there is no release and every
+# description belongs to somebody who still holds the table, and that
+# is re-examined rather than inherited after the first one.
+PROFILE_VERSION = 5
 
 # THE TWO PARSER BOUNDS, AND THERE ARE EXACTLY TWO (contract 10.3).
 # Neither is reachable by any producible profile, because neither scales
@@ -148,7 +164,30 @@ SETTINGS_KEYS = (
     "small_cell_floor",
 )
 
-DECLARATION_KEYS = ("n_declared", "values_recorded")
+# The four keys of each declaration record (contract 5 section 6.2,
+# invariant C5-S14). Version 4 had the first two; version 5 adds the two
+# lists that say which members of this package's OWN published
+# vocabulary a declaration named, and never a spelling of the person's.
+DECLARATION_KEYS = (
+    "built_in_numbers",
+    "built_in_texts",
+    "n_declared",
+    "values_recorded",
+)
+
+# THE FLOOR `synthtwin profile` WRITES WHEN NOBODY ASKS FOR ANOTHER
+# (contract 4.4). The loader accepts any whole number of 1 or more --
+# the owner's ruling of 2026-08-14, plan amendment A-P3-11 -- so this is
+# not a bound and no refusal is taken against it. It is the number the
+# reports compare a description's own floor against, so that a
+# description made with a LOWER one can be recognized and said out loud
+# on the face of every file built from it.
+#
+# It is the same number `taxonomy.Settings` defaults to. The two are
+# written in two modules because the generation and validation paths may
+# not import the profiler's taxonomy at all, and the suite compares them
+# so a change in one cannot pass unnoticed in the other.
+DEFAULT_SMALL_CELL_FLOOR = 11
 
 # The eight reserved cross-column names. This version of synthtwin
 # carries no structure between columns and says so in eight named
@@ -177,6 +216,8 @@ UNIVERSAL_COLUMN_KEYS = (
     "n_distinct",
     "n_distinct_folded",
     "n_missing",
+    "n_missing_blank",
+    "n_missing_withheld",
     "n_not_numeric",
     "n_numeric",
     "n_out_of_range",
@@ -484,9 +525,12 @@ INVARIANTS = {
         "the first row can only have been taken as names by convention "
         "when the names came from the file at all"
     ),
-    "S7": (
-        "the description records how many values were declared, and "
-        "never the values themselves"
+    "C5-S7": (
+        "this record says how many values were declared and which of "
+        "synthtwin's own published words were among them, and no "
+        "spelling of the person's own stands in this record -- the "
+        "spelling itself can stand in a column's `missing_by_source` "
+        "instead"
     ),
     "S8": (
         "every column named as holding record numbers is a column of "
@@ -500,6 +544,11 @@ INVARIANTS = {
     "S11": (
         "the notes are grouped by column, in the order the columns come "
         "in the table"
+    ),
+    "C5-S13": (
+        "a description made with a smallest group size of one holds "
+        "nothing back, because there is no group below that size for it "
+        "to hold back"
     ),
     "A1": (
         "a column is marked as holding record numbers exactly when its "
@@ -541,14 +590,26 @@ INVARIANTS = {
         "a reason for an empty cell is either not used at all or used "
         "by at least the smallest group size"
     ),
-    "N3": (
-        "the empty spellings come to the number of empty cells, and a "
-        "column that publishes no value of the table publishes none of "
-        "them either"
+    "C5-N3": (
+        "the empty spellings, the blank cells and the cells held back "
+        "come to the number of empty cells, and a column that publishes "
+        "no value of the table accounts for none of them"
     ),
-    "N4": (
+    "C5-N4": (
         "an empty spelling is named only when at least the smallest "
-        "group size of rows wrote it"
+        "group size of rows wrote it, and so is the blank count"
+    ),
+    "C5-K1": (
+        "a declaration record names only synthtwin's own published "
+        "words for 'no value', never a value out of the table"
+    ),
+    "C5-K3": (
+        "a declaration record never names more of synthtwin's own words "
+        "than the number of values it says were declared"
+    ),
+    "C5-K4": (
+        "no word is named both as a value to keep and as a value to "
+        "read as 'no value'"
     ),
     "V1": (
         "a stand-in number is named only when at least the smallest "
@@ -770,10 +831,27 @@ class SourceBlock:
 
 @dataclasses.dataclass(frozen=True)
 class DeclarationRecord:
-    """How many values were declared one way, and never which ones."""
+    """How many values were declared one way, and which of OUR words.
+
+    `n_declared` and `values_recorded` are version 4's, unchanged: how
+    many values were named this way, and the standing statement that the
+    person's own text is not carried here.
+
+    The two lists are version 5's (contract 5 section 6). They hold
+    members of the published vocabulary of that contract's section 14.1
+    -- the ten spellings this package reads as "no value" and the three
+    stand-in numbers it judges -- and nothing else, so a consumer can
+    tell a word this package supplied from a word somebody typed. They
+    are a function of the command line alone: a word named but held by
+    no cell is recorded exactly as one held by every cell (C5-16), so
+    neither list is evidence about the table.
+    """
 
     n_declared: int
     values_recorded: bool
+    built_in_texts: "tuple[str, ...]"
+    built_in_numbers: "tuple[float, ...]"
+
 
 
 @dataclasses.dataclass(frozen=True)
@@ -1082,6 +1160,13 @@ class ColumnBlock:
     n_missing: int
     missing_by_class: MissingByClass
     missing_by_source: "dict[str, int]"
+    # The two counts version 4 kept inside `missing_by_source` under
+    # this package's own two words (contract 5 section 5). How many
+    # absent cells held nothing but space -- zero unless at least the
+    # floor did -- and how many wore a spelling, or a blankness, that
+    # fewer than the floor shared.
+    n_missing_blank: int
+    n_missing_withheld: int
     n_distinct: int
     n_distinct_folded: int
     n_numeric: int
@@ -1097,7 +1182,7 @@ class ColumnBlock:
 
 @dataclasses.dataclass(frozen=True)
 class Profile:
-    """A whole conforming version 4 description (contract 10.8).
+    """A whole conforming version 5 description (contract 10.8).
 
     `columns` is in the document's own list order, which IS the schema
     order, the order the twin's columns are written in, and the order
@@ -1347,7 +1432,7 @@ def _parsed(text: str, shown: str) -> object:
 
 
 def _versioned(parsed: object, shown: str) -> "dict[str, object]":
-    """Check `profile_version` is exactly 4, before anything else (10.6).
+    """Check `profile_version` is exactly 5, before anything else (10.6).
 
     Guarantees:
 
@@ -1363,7 +1448,11 @@ def _versioned(parsed: object, shown: str) -> "dict[str, object]":
     whole point. An older description is made again by re-running
     `synthtwin profile`, which is safe advice because the person holding
     an old description of their own table is normally the person holding
-    the table. A NEWER description means this synthtwin is behind, and
+    the table -- and from version 5 that message also says WHY the older
+    file cannot be read and asks for the same declarations back, because
+    a description re-made without them reads the table differently
+    (contract 5 C5-26). A NEWER description means this synthtwin is
+    behind, and
     the advice is to update synthtwin and never to re-run a profiler:
     that advice would be given to somebody who may not hold the table at
     all, and cannot be followed while looking as though it can.
@@ -1701,18 +1790,79 @@ def _keys(
             raise _missing(key, where, required_by)
 
 
+# How an entry of a table-keyed mapping is named on the screen when the
+# value under it is wrong (review item P3-V11-F2). The key itself is a
+# spelling some cell of the table held, character for character, so it
+# is named by WHAT IT IS and never quoted -- the same rule R15 already
+# follows for the value it found.
+_A_SPELLING_OF_YOURS = "(a spelling out of your own table)"
+
+# The two places the format lets the table decide a mapping's keys, in
+# the shape `canonical` writes them. They are not a second list: the
+# suite holds them to `canonical.TABLE_TEXT_KEY_SPACES` itself, and that
+# tuple is in turn derived from the producer's publication rules.
+_THE_SOURCE_KEYS = ("columns", canonical.EACH, "missing_by_source")
+_THE_VARIANT_KEYS = (
+    "columns", canonical.EACH, "levels", canonical.EACH, "variants"
+)
+
+
+def _entry_named(path: "tuple[object, ...]", key: str, name: str) -> str:
+    """How one entry of a block is named in a refusal about its value.
+
+    THE DEFECT THIS EXISTS FOR (review item P3-V11-F2). The wrong-type
+    and out-of-range refusals name the entry by its own key, which is
+    right everywhere the format keys a mapping on one of synthtwin's own
+    published words -- a percentile name, a UTC offset, a numeric style,
+    a group size in figures. In the two mappings `canonical` names it is
+    wrong: the key is a spelling out of somebody's table, and the
+    earlier repair for review item P3-V10-F3 stopped the S13 walk from
+    printing one while leaving the ORDINARY wrong-type path printing it
+    verbatim, which is the same disclosure through the other door.
+
+    The answer comes from the one key-space table both halves of the
+    product already share, so a mapping added to the format with the
+    table's text for keys is covered the moment it is named there.
+
+    Guarantees:
+
+    - Inputs: the path of the MAPPING, its field name as a person reads
+      it, and the key standing inside it.
+    - Determinism: a fixed function of the path and of `canonical`'s
+      table; the key's own characters change nothing but whether they
+      are shown.
+    - Errors raised: none.
+    - Boundary: where the table decides the keys, no character of the
+      key reaches the answer.
+    """
+    if canonical.keys_are_the_tables_own_text(path):
+        return f"{key} -> {_A_SPELLING_OF_YOURS}"
+    return f"{key} -> {name}"
+
+
 def _counts(
     value: object,
     key: str,
     where: str,
     least: int,
+    path: "tuple[object, ...]" = (),
 ) -> "dict[str, int]":
-    """A block of entries whose values are whole numbers of ``least`` up."""
+    """A block of entries whose values are whole numbers of ``least`` up.
+
+    ``path`` is where this mapping sits in the document, and it is what
+    decides whether an entry may be named by its own key: a mapping the
+    TABLE keys is named by what its keys are and never by one of them
+    (review item P3-V11-F2). The default is the empty path, which no
+    key space holds, so a caller that names no path gets the ordinary
+    naming -- and every caller whose mapping is table-keyed passes one.
+    `tests/test_p3v11f2_no_refusal_quotes_your_spelling.py` holds every
+    caller in this module to that, from `canonical`'s own table.
+    """
     mapping = _mapping(value, key, where)
     counted: dict[str, int] = {}
     for name in sorted(mapping):
         counted[name] = _whole(
-            mapping[name], f"{key} -> {name}", where, least
+            mapping[name], _entry_named(path, key, name), where, least
         )
     return counted
 
@@ -1723,6 +1873,28 @@ def _added(counted: "dict[str, int]") -> int:
     for name in sorted(counted):
         total = total + counted[name]
     return total
+
+
+def _below_the_floor(floor: int) -> range:
+    """The group sizes this floor holds back: 1 up to the floor.
+
+    THE FLOOR HAS TWO HALVES AND THIS NAMES THE SECOND ONE. Every
+    floor-governed rule of the contract is written as "at least the
+    floor" and "below the floor"; B5, N2, N4, D3, P2, V1 and W5 are the
+    first half, and everything a description pools, suppresses or counts
+    unnamed is the second. At a floor of one this range is EMPTY, which
+    is not a corner case to be handled but the whole of invariant S13:
+    there is no group below one, so a description written at that floor
+    has nothing to hold back and holds nothing back (owner ruling
+    2026-08-14, plan amendment A-P3-11 clause 1, amended by A-P3-16).
+
+    It is a `range` rather than a pair of numbers so that "is this size
+    held back" and "is anything held back at all" are the same question
+    asked two ways -- `size in _below_the_floor(floor)` and the
+    emptiness of the range itself -- and neither can drift from the
+    other.
+    """
+    return range(1, floor)
 
 
 def _all_digits(text: str) -> bool:
@@ -1743,6 +1915,43 @@ def _digits_at(text: str, start: int, count: int) -> bool:
 # -- the multiplicity map, one shape used in three places -------------
 
 
+def occurrence_size(key: str) -> "int | None":
+    """A multiplicity map's key, read as the row count it names (G9.5).
+
+    THE KEY IS DECIMAL TEXT AND IT IS READ AS DECIMAL TEXT. This is the
+    one reader for it, and it exists because the alternative kept coming
+    back: a key handed to a reader that answers in binary64 is a key
+    rounded to the nearest number that format holds, and a row count is
+    not a number that format holds past nine quadrillion. The key
+    `'9007199254740993'` reads back as `9007199254740992` through such a
+    reader -- one row short -- and one row short is one group more when
+    a band's cells are divided by it, which is how a description ten
+    spellings answer exactly came to be refused as needing eleven
+    (review item P3-V8-F5). Leading zeros are padding that does not
+    change the number, which `int` already knows.
+
+    Guarantees:
+
+    - Inputs: one key of a map `_multiplicity` admitted, or any text.
+    - Determinism: a pure function of the text; the answer is exact at
+      every size, because Python's whole numbers are.
+    - Errors raised: none. Text that is not a row count returns None,
+      and each caller says in its own words which way that leaves it --
+      the safe direction differs between a refusal and a corner, so it
+      is decided there and not here.
+    - Boundary: no I/O, no float, and nothing of the measured file.
+
+    This is what `_multiplicity` itself reads the key with when it
+    admits it (`rows = int(name)` above the range check), so a caller
+    reading it again here gets the same number the loader checked.
+    """
+    if not isinstance(key, str):
+        return None
+    if not _all_digits(key):
+        return None
+    return int(key)
+
+
 def _multiplicity(
     value: object,
     key: str,
@@ -1757,6 +1966,13 @@ def _multiplicity(
       the permitted key range -- `floor - 1` where the floor governs the
       pattern (a held-back spelling, W5), or None where nothing bounds
       it (a column's own repetition pattern).
+
+      A TOP OF ZERO IS A REAL CASE AND IT MEANS "EMPTY" (owner ruling
+      2026-08-14, plan amendment A-P3-11). A description made with a
+      smallest group size of one holds nothing back, so a floor-governed
+      pattern under it has no permitted key at all. The refusal says
+      that in those words: "a number of rows from 1 to 0" would send a
+      person looking for a number that cannot exist.
     - Determinism: the answer depends only on the value.
     - Errors raised: ProfileError when it is not a block of entries
       (R15), when a key is not a row count written in base ten or is
@@ -1790,6 +2006,12 @@ def _multiplicity(
         top = "a number of rows of 1 or more"
         if floor is not None:
             top = f"a number of rows from 1 to {floor}"
+        if floor is not None and floor < 1:
+            top = (
+                "no entry at all -- this description was made with a "
+                "smallest group size of 1, so nothing was held back and "
+                "this block is empty"
+            )
         if rows < 1 or (floor is not None and rows > floor):
             raise _out_of_range(f"{key} -> {name}", where, f"{rows}", top)
         if width and len(name) != width:
@@ -2136,13 +2358,23 @@ def _source(value: object) -> SourceBlock:
 
 
 def _declaration(value: object, key: str, where: str) -> DeclarationRecord:
-    """How many values were declared one way, and never which (S7).
+    """One declaration record: the count, the flag, the two lists.
+
+    Contract 5 section 6.2 and invariants C5-S7, C5-S14, C5-K1 to C5-K3.
 
     `values_recorded` is a discriminator and not a switch: a description
     written before this rule carried an array of spellings under the
     same key, and a consumer must be able to tell the two apart without
-    guessing. A description claiming to record the declared spellings is
-    not a version 4 description, whatever else it says.
+    guessing. A description claiming to record the person's own declared
+    spellings is not a version 5 description, whatever else it says.
+
+    THE TWO LISTS ARE NOT THAT TEXT, and C5-S7 fixes the wording so the
+    flag beside them cannot be read as contradicting them: each holds
+    MEMBERS of the closed vocabulary the contract prints in its own
+    appendix, which is this package's and identical in every
+    installation. A value outside those lists is a value from somebody's
+    table, so it is refused here by name rather than accepted and
+    ignored (C5-K1).
     """
     mapping = _mapping(value, key, where)
     _keys(mapping, where, DECLARATION_KEYS, f"the '{key}' record")
@@ -2152,12 +2384,157 @@ def _declaration(value: object, key: str, where: str) -> DeclarationRecord:
     )
     if recorded:
         raise _broken(
-            "S7",
+            "C5-S7",
             where,
             f"the record '{key}' says the declared values were kept",
-            "a version 4 description keeps how many, never which",
+            (
+                "in a version 5 description no text of the person's own "
+                "stands in that block, so the flag reads false in both "
+                "records"
+            ),
         )
-    return DeclarationRecord(n_declared=declared, values_recorded=recorded)
+    texts = _built_in_texts(mapping["built_in_texts"], key, where)
+    numbers = _built_in_numbers(mapping["built_in_numbers"], key, where)
+    if len(texts) + len(numbers) > declared:
+        raise _broken(
+            "C5-K3",
+            where,
+            (
+                f"the record '{key}' names "
+                f"{len(texts) + len(numbers)} of synthtwin's own words"
+            ),
+            f"it says {declared} value(s) were named that way",
+        )
+    return DeclarationRecord(
+        n_declared=declared,
+        values_recorded=recorded,
+        built_in_texts=texts,
+        built_in_numbers=numbers,
+    )
+
+
+def _built_in_texts(
+    value: object, key: str, where: str
+) -> "tuple[str, ...]":
+    """Which of the ten spellings this declaration named (C5-K1, C5-K2).
+
+    Every element must be a member of `parsing.MISSING_TEXTS`, the list
+    the contract prints in its section 14.1, and the elements must rise
+    with no repeat. A value outside the list is a value out of somebody's
+    table, and it is refused rather than read -- so the refusal names the
+    FIELD and never quotes what stood there.
+    """
+    field = f"{key} -> built_in_texts"
+    listed = _listing(value, field, where)
+    found: list[str] = []
+    place = 0
+    for item in listed:
+        member = _text(item, f"{field}[{place + 1}]", where)
+        if member not in parsing.MISSING_TEXTS:
+            raise _broken(
+                "C5-K1",
+                where,
+                (
+                    f"'{field}' in the settings names a word that is "
+                    f"not one of synthtwin's"
+                ),
+                (
+                    "only synthtwin's own published words for 'no "
+                    "value' may be written in either list"
+                ),
+            )
+        if found and member <= found[len(found) - 1]:
+            raise _out_of_range(
+                field,
+                where,
+                "the words out of order, or one of them twice",
+                "synthtwin's own words in rising order, each of them once",
+            )
+        found = found + [member]
+        place = place + 1
+    return tuple(found)
+
+
+def _built_in_numbers(
+    value: object, key: str, where: str
+) -> "tuple[float, ...]":
+    """Which of the three stand-ins this declaration named (C5-K1, C5-K2).
+
+    The same rule as the spellings, over `parsing.NUMERIC_SENTINELS`.
+    The comparison is by number, which is what the whole format's
+    declaration rule compares by, so a document writing `-999` where the
+    producer writes `-999.0` fails the canonical round trip long before
+    it reaches here and never has to be judged twice.
+    """
+    field = f"{key} -> built_in_numbers"
+    listed = _listing(value, field, where)
+    found: list[float] = []
+    place = 0
+    for item in listed:
+        member = _figure(item, f"{field}[{place + 1}]", where)
+        named = False
+        for candidate in parsing.NUMERIC_SENTINELS:
+            if member == candidate:
+                named = True
+        if not named:
+            raise _broken(
+                "C5-K1",
+                where,
+                f"'{field}' names a number that is not one of synthtwin's",
+                (
+                    "only synthtwin's own three stand-in numbers may be "
+                    "written there"
+                ),
+            )
+        if found and member <= found[len(found) - 1]:
+            raise _out_of_range(
+                field,
+                where,
+                "the numbers out of order, or one of them twice",
+                (
+                    "synthtwin's own stand-in numbers in rising order, "
+                    "each of them once"
+                ),
+            )
+        found = found + [member]
+        place = place + 1
+    return tuple(found)
+
+
+def _no_word_is_named_both_ways(
+    kept: DeclarationRecord, absent: DeclarationRecord, where: str
+) -> None:
+    """Invariant C5-K4: the two records never name one of our words twice.
+
+    A value named with `--keep-value` and with `--missing-value` at once
+    is refused before the table is opened, and the refusal names the two
+    words -- so a description carrying one member in both records is a
+    description its own settings contradict. The refusal says which
+    record pair clashed and never quotes the member: it is one of
+    synthtwin's own thirteen words, but naming it here would put the
+    loader in the business of quoting a settings value, which nothing
+    else on this path does.
+
+    Guarantees: accepts the two parsed records and the place a refusal
+    reads at; returns nothing when they are disjoint. Raises
+    ProfileError (R17, rule C5-K4). No I/O of any kind.
+    """
+    for member in kept.built_in_texts:
+        if member in absent.built_in_texts:
+            raise _broken(
+                "C5-K4",
+                where,
+                "one of synthtwin's own spellings is named in both records",
+                "a value can be kept or read as 'no value', never both",
+            )
+    for number in kept.built_in_numbers:
+        if number in absent.built_in_numbers:
+            raise _broken(
+                "C5-K4",
+                where,
+                "one of synthtwin's own stand-in numbers is in both records",
+                "a value can be kept or read as 'no value', never both",
+            )
 
 
 def _settings(value: object) -> SettingsBlock:
@@ -2173,11 +2550,31 @@ def _settings(value: object) -> SettingsBlock:
     S8 -- that every declared name is a column of this table -- is not
     checked here, because it needs the columns. It is checked once they
     have been read.
+
+    THE FLOOR'S MINIMUM IS ONE, NOT ELEVEN (owner ruling 2026-08-14,
+    plan amendment A-P3-11). `--smallest-group` is a documented option
+    and it accepted any positive number, so `synthtwin profile
+    t.csv --smallest-group 2` wrote a description that this loader then
+    refused -- and the refusal told the person to run `synthtwin
+    profile` and use the file exactly as written, which is what they
+    had done. One is the smallest number the rest of the format can
+    carry: every floor-governed rule is stated as "at least the floor"
+    and "below the floor", and at a floor of one the second half is the
+    empty range, so nothing is ever held back and every invariant above
+    still holds. Zero is refused here as it always was -- a floor of
+    zero would make "below the floor" reach counts of nothing at all,
+    which no count is.
+
+    WHAT LOWERING IT GIVES UP is not this loader's to soften: the
+    description then names groups as small as the floor, and the twin,
+    both reports and the plain-language summary carry those counts too.
+    Every one of those four says so on its face when the floor is under
+    the default, which is the other half of the ruling.
     """
     where = "in the block of rules that produced the description"
     mapping = _mapping(value, "settings", _AT_THE_TOP)
     _keys(mapping, where, SETTINGS_KEYS, "that block")
-    floor = _whole(mapping["small_cell_floor"], "small_cell_floor", where, 11)
+    floor = _whole(mapping["small_cell_floor"], "small_cell_floor", where, 1)
     ceiling = _whole(
         mapping["categorical_ceiling"], "categorical_ceiling", where, 1
     )
@@ -2207,7 +2604,7 @@ def _settings(value: object) -> SettingsBlock:
             )
         declared = declared + [found]
         place = place + 1
-    return SettingsBlock(
+    block = SettingsBlock(
         small_cell_floor=floor,
         identifier_uniqueness=_share(
             mapping["identifier_uniqueness"], "identifier_uniqueness", where
@@ -2259,6 +2656,13 @@ def _settings(value: object) -> SettingsBlock:
         ),
         forced_identifiers=tuple(declared),
     )
+    # C5-K4 LAST, because it is the one rule here that needs BOTH
+    # records: every other check is about one entry and is raised where
+    # that entry is read, which is what keeps a refusal near its cause.
+    _no_word_is_named_both_ways(
+        block.kept_values, block.declared_missing_values, where
+    )
+    return block
 
 
 def _relationships(value: object) -> RelationshipManifest:
@@ -2451,44 +2855,75 @@ def _missing_by_source(
     n_missing: int,
     floor: int,
     publishes_nothing: bool,
+    n_blank: int,
+    n_withheld: int,
 ) -> "dict[str, int]":
     """Absent cells by the exact spelling that made them absent (5.4).
 
-    Raises ProfileError for a value that is not a count, for N3 and for
-    N4. N3 is checked in the two directions the document supports: a
-    column whose class permits no value of the table names no spelling
-    at all, and on every other column the spellings come to the number
-    of empty cells -- which forces the empty mapping when there are no
-    empty cells, and forbids it when there are.
+    Contract 5 invariants C5-N3, C5-N4 and C5-N5.
+
+    Raises ProfileError for a value that is not a count, for C5-N3 and
+    for C5-N4. C5-N3 is checked in the two directions the document
+    supports: a column whose class permits no value of the table names
+    no spelling and accounts for no absent cell at all, and on every
+    other column the spellings, the blank cells and the cells held back
+    come to the number of empty cells -- which forces the empty mapping
+    when there are no empty cells, and forbids it when there are.
+
+    NO KEY HERE IS ONE OF THIS PACKAGE'S OWN WORDS (C5-N5). Version 4
+    exempted `(blank)` and `(withheld)` from the floor because it kept
+    two of its own counts in this map; version 5 keeps them in two
+    fields of their own, so a key reading `(withheld)` means that cells
+    of the table held exactly those ten characters and is held to the
+    floor like every other spelling. The exemption is gone rather than
+    narrowed, which makes the rule the one the producer already
+    followed.
     """
-    counted = _counts(value, "missing_by_source", where, 1)
+    counted = _counts(
+        value, "missing_by_source", where, 1, _THE_SOURCE_KEYS
+    )
     if publishes_nothing:
         if counted:
             raise _broken(
-                "N3",
+                "C5-N3",
                 where,
                 "this column publishes no value of the table",
                 f"it names {len(counted)} spelling(s) of an empty cell",
             )
+        if n_blank or n_withheld:
+            raise _broken(
+                "C5-N3",
+                where,
+                "this column publishes no value of the table",
+                (
+                    f"it accounts for {n_blank + n_withheld} of its empty "
+                    f"cells anyway"
+                ),
+            )
         return counted
-    total = _added(counted)
+    total = _added(counted) + n_blank + n_withheld
     if total != n_missing:
         raise _broken(
-            "N3",
+            "C5-N3",
             where,
-            f"the spellings of an empty cell come to {total}",
+            f"the empty cells accounted for come to {total}",
             f"the column counts {n_missing} empty cells",
         )
     for name in sorted(counted):
-        if name == BLANK or name == WITHHELD:
-            continue
         if counted[name] < floor:
             raise _broken(
-                "N4",
+                "C5-N4",
                 where,
                 f"the spelling named there was written by {counted[name]} rows",
                 f"the smallest group size is {floor}",
             )
+    if n_blank and n_blank < floor:
+        raise _broken(
+            "C5-N4",
+            where,
+            f"{n_blank} cell(s) of the column held nothing but space",
+            f"the smallest group size is {floor}",
+        )
     return counted
 
 
@@ -2712,12 +3147,20 @@ def _column(
     by_class = _missing_by_class(
         mapping["missing_by_class"], where, n_missing, frame.floor
     )
+    n_blank = _whole(
+        mapping["n_missing_blank"], "n_missing_blank", where, 0
+    )
+    n_withheld = _whole(
+        mapping["n_missing_withheld"], "n_missing_withheld", where, 0
+    )
     by_source = _missing_by_source(
         mapping["missing_by_source"],
         where,
         n_missing,
         frame.floor,
         publishes_nothing,
+        n_blank,
+        n_withheld,
     )
     verdicts = _sentinel_verdicts(
         mapping["sentinel_verdicts"], where, frame.floor, publishes_nothing
@@ -2759,6 +3202,8 @@ def _column(
         n_missing=n_missing,
         missing_by_class=by_class,
         missing_by_source=by_source,
+        n_missing_blank=n_blank,
+        n_missing_withheld=n_withheld,
         n_distinct=n_distinct,
         n_distinct_folded=n_folded,
         n_numeric=n_numeric,
@@ -2999,7 +3444,11 @@ def _levels(
         found = _whole(
             size, f"suppressed_level_counts[{place}]", where, 1
         )
-        if found >= floor:
+        # B5's second half, read against the range the floor holds back
+        # rather than against the floor itself, so that this site and
+        # S13 cannot drift: at a floor of one the range is empty and no
+        # size at all may be listed here.
+        if found not in _below_the_floor(floor):
             raise _broken(
                 "B5",
                 where,
@@ -3131,7 +3580,9 @@ def _variants(
     byte for byte -- unlike the spellings of an empty cell, which are
     for a person to read and are escaped for display.
     """
-    named = _counts(block["variants"], "variants", seat, 1)
+    named = _counts(
+        block["variants"], "variants", seat, 1, _THE_VARIANT_KEYS
+    )
     for spelling in sorted(named):
         if named[spelling] < floor:
             raise _broken(
@@ -4060,6 +4511,248 @@ def _cross_checks(
         place = place + 1
 
 
+# -- S13: what a floor of one leaves no room for ----------------------
+#
+# The floor's second half is the range below it, and at a floor of one
+# that range is empty. Everything a description writes into that half
+# therefore has to be empty too. There are five ways to write into it,
+# and three of them were already refused by the rule that governs them:
+# B5 reads `suppressed_level_counts` against the range, `_multiplicity`
+# reads `variants_withheld`'s keys against it, and B4 ties
+# `suppressed_levels` and `suppressed_rows` to the sizes. The other two
+# were refused nowhere until amendment A-P3-16, and they are what this
+# section adds.
+#
+# THE POOLED REMAINDER IS FOUND BY WALKING, NOT BY A LIST OF FIELDS.
+# `(withheld)` is the format's one word for "held back" (section 14),
+# and every pooled remainder in the document is a count standing under
+# it: `missing_by_class`, `utc_offsets` and `numeric_styles` today, and
+# `missing_by_source` too until version 5 moved its remainder out into
+# `n_missing_withheld`. Listing those would leave the next one somebody
+# adds unchecked, in exactly the way that left this rule unenforced for
+# the first four -- each of them WAS checked where it was written, and
+# each check exempted the remainder. The walk below reaches a counted
+# entry under that word wherever a field puts it, except where the TABLE
+# rather than the format decides the key: that bound is below.
+#
+# THE UNNAMED TALLY IS NAMED, because the format gives it no marker to
+# be found by. `n_sentinel_candidates_unpublished` counts the stand-in
+# numbers held by fewer rows than the floor (invariant V1), and it says
+# so in a field name rather than in the pooled-remainder word. It is the
+# only such field in version 4, and that is measured rather than
+# assumed: `tests/test_p3v5f1_floor_one.py` describes one table at the
+# default floor and at one and requires every position of the document
+# that moves to be a position this rule reaches.
+
+# The two fields that say "held back" in their name rather than under
+# the pooled-remainder word, and the two ways a refusal reads. Both are
+# FIELD names, so both are read as names only where the format decides
+# the keys -- a cell that spells one of them is a cell, not a field.
+#
+# `n_missing_withheld` joined them at contract version 5 (C5-S13): it is
+# the pooled remainder that used to stand under the word inside
+# `missing_by_source`, moved out so that the map holds one key space.
+# The rule it is held to is unchanged -- at a floor of one nothing may
+# be pooled, because the range below one is empty.
+_UNNAMED_TALLY = "n_sentinel_candidates_unpublished"
+_NAMED_REMAINDER = "n_missing_withheld"
+_POOLED = "pooled"
+_TOO_RARE = "too-rare"
+
+# WHERE THE WALK MAY NOT READ A KEY AS A WORD (C5-N5; plan amendment
+# A-P3-32, review item P3-V9-F2). The walk below reads a key as this
+# package's own word, which is sound wherever the format fixes the key
+# names and wrong wherever the TABLE fixes them: a cell can say
+# `(withheld)`, and a cell can just as easily say `n_missing_withheld`
+# or `n_sentinel_candidates_unpublished`. Refusing those would refuse
+# descriptions version 5 exists to make writable.
+#
+# Which mappings those are is `canonical.TABLE_TEXT_KEY_SPACES`, read
+# from there rather than named here, because the producer's guard has to
+# answer this question the same way and a second list would let the two
+# drift. The version this replaces named ONE mapping and only for the
+# word `(withheld)`, so three doors were left open: a categorical label
+# reading `n_missing_withheld` wrote a description this loader refused,
+# the same label reading `(withheld)` was refused by the producer before
+# it could be written, and both told the person their untouched file had
+# been edited.
+#
+# AND THE WALK STOPS AT SUCH A KEY RATHER THAN READING PAST IT (review
+# item P3-V10-F3). Not reading the KEY as a word was half the answer.
+# The walk went on into the value anyway, so a document whose
+# `missing_by_source` held a BLOCK instead of a count -- which is not a
+# document this producer can write, and not one this loader may accept
+# -- had that block's own field names read as names again, one step
+# below a key the table decided. Two things then went wrong at once:
+# this rule fired where the type rule should have, so the person was
+# told their file had been edited in a place that says nothing about
+# editing; and the path it printed carried the table's spelling onto
+# the screen, which is the one thing this walk's stated boundary says
+# it never does. What stands under a key the table decides is a COUNT
+# (C5-N5), a count has nothing under it, and a value that is not one is
+# refused by the rule that reads its type -- naming the kind and never
+# the spelling (R15).
+
+
+def _step(path: "tuple[object, ...]", key: object) -> "tuple[object, ...]":
+    """One step further into the document."""
+    return path + (key,)
+
+
+def _is_a_row_count(value: object) -> bool:
+    """A whole number of one or more, and not a yes/no."""
+    if isinstance(value, bool):
+        return False
+    return isinstance(value, int) and value > 0
+
+
+def _held_back_in(
+    node: object, path: "tuple[object, ...]"
+) -> "list[tuple[tuple[object, ...], int, str]]":
+    """Every place this part of the document holds something back.
+
+    Guarantees:
+
+    - Inputs: any part of the parsed document, and the path of keys and
+      list places that reached it.
+    - Determinism: the answer depends only on the value; every block's
+      keys are read in sorted order and every list in its own order.
+    - Errors raised: none. It reports, and the rule above decides.
+    - Boundary: nothing is opened, and no value of the table is read --
+      the two things this finds are counts of rows and counts of
+      candidates, and a held-back thing names nothing by definition. NO
+      PATH THIS RETURNS EVER STEPS THROUGH A KEY THE TABLE DECIDES, so
+      the place the refusal names above can be printed whole without
+      quoting a spelling: the walk stops at such a mapping instead of
+      reading past it.
+
+    Returns (path, count, what kind of holding back) for each one.
+    """
+    found: list[tuple[tuple[object, ...], int, str]] = []
+    if isinstance(node, dict):
+        # Whether the TABLE decides the keys here. Where it does the
+        # walk stops: no key is read as one of this package's words --
+        # not the pooled remainder's word and not either field name,
+        # because every one of them is something a cell can say -- and
+        # nothing under such a key is read at all, because what stands
+        # there is a count and a count has nothing under it. A document
+        # that puts a block there is malformed, and the rule that reads
+        # the value's TYPE refuses it, naming the kind and not the
+        # spelling.
+        if canonical.keys_are_the_tables_own_text(path):
+            return found
+        for key in sorted(node):
+            value = node[key]
+            here = _step(path, key)
+            if key == WITHHELD and _is_a_row_count(value):
+                found = found + [(here, value, _POOLED)]
+            if key == _NAMED_REMAINDER and _is_a_row_count(value):
+                found = found + [(here, value, _POOLED)]
+            if key == _UNNAMED_TALLY and _is_a_row_count(value):
+                found = found + [(here, value, _TOO_RARE)]
+            found = found + _held_back_in(value, here)
+    elif isinstance(node, list):
+        place = 0
+        for item in node:
+            found = found + _held_back_in(item, _step(path, place))
+            place = place + 1
+    return found
+
+
+def _named_place(
+    document: "dict[str, object]", path: "tuple[object, ...]"
+) -> "tuple[str, str]":
+    """Where a path sits, and what it is called, in a person's words.
+
+    A path inside a column block is read to the person as that column's
+    name, exactly as every other refusal about a block is; anything else
+    is at the top of the description. The field is then written from
+    whatever is left, in the document's own key names, because that is
+    what somebody looking at the file will be searching for.
+
+    EVERY STEP IT PRINTS IS ONE OF THE DOCUMENT'S OWN KEY NAMES, and
+    that is a property of the only walk that feeds it: `_held_back_in`
+    stops at a mapping the table keys, so no path reaching here has ever
+    stepped through a spelling out of somebody's table (review item
+    P3-V10-F3). This function does not re-check it -- it is not the
+    place where the question can be answered, because a key name and a
+    cell's text are the same kind of thing by the time they are here.
+    `tests/test_p3v10f3_the_walk_stops_at_the_tables_keys.py` measures it
+    on the walk instead.
+    """
+    rest = path
+    seat = _AT_THE_TOP
+    if len(path) > 1 and path[0] == "columns":
+        blocks = document["columns"]
+        index = path[1]
+        if isinstance(blocks, list) and isinstance(index, int):
+            block = blocks[index]
+            if isinstance(block, dict) and "name" in block:
+                name = block["name"]
+                if isinstance(name, str):
+                    seat = f"in the block for the column named '{name}'"
+                    rest = path[2:]
+    field = ""
+    for step in rest:
+        if isinstance(step, int):
+            field = f"{field}[{step + 1}]"
+        elif field:
+            field = f"{field} -> {step}"
+        else:
+            field = f"{step}"
+    return seat, field
+
+
+def _nothing_is_held_back(document: "dict[str, object]", floor: int) -> None:
+    """Invariant S13, over the whole document at once.
+
+    Guarantees:
+
+    - Inputs: the parsed document and the floor its settings carry. It
+      runs with the top-level rules, before any column is read: what it
+      reads is the floor, which is a top-level setting, and what it says
+      is a fact about the whole description rather than about one block.
+      Nothing here assumes a column block has been checked -- every step
+      of the walk asks what it has before it uses it -- because the
+      columns have not been.
+    - Determinism: a fixed function of the document and the floor. The
+      walk is ordered, so a document breaking this rule twice always
+      meets the same refusal.
+    - Errors raised: ProfileError (R17, rule S13), naming the field and
+      the count. It may say the count because a held-back thing names
+      nothing: it is the number of rows the floor took out of sight, and
+      at a floor of one no row was.
+    - Boundary: no value of the table is read or quoted.
+
+    ABOVE A FLOOR OF ONE THIS RULE SAYS NOTHING, and deliberately. A
+    remainder pools SEVERAL groups that each fell below the floor, so at
+    a floor of eleven a remainder of twelve is ordinary -- three
+    spellings of four rows each, say. The only bound the arithmetic
+    gives is the one at the bottom, where the range below the floor is
+    empty and every remainder must be nothing at all.
+    """
+    if _below_the_floor(floor):
+        return
+    for path, count, kind in _held_back_in(document, ()):
+        seat, field = _named_place(document, path)
+        raise _broken(
+            "C5-S13",
+            seat,
+            (
+                f"'{field}' holds {count} row(s) back"
+                if kind == _POOLED
+                else (
+                    f"'{field}' counts {count} stand-in number(s) as too "
+                    f"rare to name"
+                )
+            ),
+            # The second clause is the house wording every other
+            # floor-governed refusal ends with, so that a person who has
+            # met one of them reads this one the same way.
+            f"the smallest group size is {floor}",
+        )
+
+
 def _validated(document: "dict[str, object]") -> Profile:
     """Step 7 and step 8: every rule, then the typed objects (10.1).
 
@@ -4084,6 +4777,14 @@ def _validated(document: "dict[str, object]") -> Profile:
     settings = _settings(document["settings"])
     relationships = _relationships(document["relationships"])
     notes = _notes(document["publication_notes"])
+    # S13 IS A TOP-LEVEL RULE AND RUNS WITH THE TOP LEVEL. What it reads
+    # is the floor, which lives in `settings`, and what it says is a fact
+    # about the whole description: it was made at a floor of one and it
+    # holds something back. That is outermost, and it is nearer the cause
+    # than the column rule a spliced-in field breaks on the way past --
+    # a total that does not add up, when the reason it does not is that
+    # somebody moved a field out of a description made at another floor.
+    _nothing_is_held_back(document, settings.small_cell_floor)
     columns = _columns(
         document["columns"],
         _Frame(

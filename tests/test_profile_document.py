@@ -179,8 +179,24 @@ def test_nothing_that_varies_between_runs_is_written(
 #   repeat", because the block it describes now carries that.
 #
 # No count, no statistic, no label and no role of any column moved.
+#
+# AND IT MOVED AGAIN AT CONTRACT VERSION 5 (plan amendments A-P3-27 and
+# A-P3-28). Four things changed in these bytes and no fifth:
+#
+# * `profile_version` reads 5;
+# * every column block carries `n_missing_blank` and
+#   `n_missing_withheld`, which are the two counts version 4 kept inside
+#   `missing_by_source` under this package's own two words;
+# * `missing_by_source` therefore holds one key space -- spellings the
+#   table wrote -- and no `(blank)` or `(withheld)` key;
+# * both declaration records carry `built_in_texts` and
+#   `built_in_numbers`, empty here because this run declares nothing.
+#
+# No count, no statistic, no label, no role and no spelling of any
+# column moved, and no cell of any twin moved with them: the twin's own
+# golden is unchanged.
 GOLDEN_SHA256 = (
-    "bc8be88e74b3b69a307e5b402d6a73d11198a7c486bca6da2f42e99722ef1939"
+    "c8e45bca6877060091d58f94ba463acb8f37e08f4eb7877b727f83bf1d03df86"
 )
 
 

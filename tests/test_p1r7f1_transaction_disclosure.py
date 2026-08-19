@@ -196,8 +196,8 @@ def test_an_earlier_profile_is_still_there_after_the_refusal(
     # The neighbouring promise: a refusal inside the transaction leaves
     # the files that were there before it exactly as they were.
     first, second = _outputs(tmp_path)
-    first.write_text("last week's profile\n", encoding="utf-8")
-    second.write_text("last week's summary\n", encoding="utf-8")
+    first.write_text("last week's profile\n", encoding="utf-8", newline="")
+    second.write_text("last week's summary\n", encoding="utf-8", newline="")
     _refuse_the_write_of(
         monkeypatch, pathlib.Path(f"{second}{profile.PART_SUFFIX}-1")
     )

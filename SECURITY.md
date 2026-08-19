@@ -3,9 +3,9 @@
 This document states what synthtwin defends against, how each defense is
 built, what it deliberately does not defend against, and how an outside
 auditor can check every claim. It commits only to what the built phases
-can demonstrate - Phase 0's security baseline, Phase 1's profiler and
-Phase 2's generator; anything that arrives in a later phase is tagged
-**[planned]**.
+can demonstrate - Phase 0's security baseline, Phase 1's profiler,
+Phase 2's generator and Phase 3's validator; anything that arrives in a
+later phase is tagged **[planned]**.
 
 ## Threat model, in plain language
 
@@ -133,10 +133,19 @@ Stated here so that no reader has to discover them independently:
   consequences follow and are stated rather than left to be worked out.
   synthtwin offers **no formal privacy guarantee** and claims no
   differential-privacy property; statistical disclosure is out of scope,
-  as the threat model above says. And all three artifacts a full run
-  produces - the profile, the twin and the report - carry facts computed
+  as the threat model above says. And all five files a full run
+  produces - the profile, the plain-language summary beside it, the
+  twin, the twin's report and the quality report - carry facts computed
   from real data, so the institution's rules for real-derived material
-  apply to all three, never to the profile alone.
+  apply to all five, never to the profile alone. Two of the five are
+  easy to overlook, and they are named rather than left to be worked
+  out. The quality report states counts and measurements taken from the
+  file it checked, so a verdict travels under the same rules as the
+  thing it measured. And the plain-language summary is a file of its
+  own, printed on the screen and written beside the profile: it repeats
+  the published labels and the published endpoints in words, so it
+  carries what the profile carries and is handled the same way (plan
+  amendment A-P3-8).
 - **What the twin carries, stated so that neither its risk nor its
   usefulness is overstated.** The twin reproduces the facts the profile
   publishes about each column ON ITS OWN. It carries no cross-column
@@ -156,10 +165,58 @@ Stated here so that no reader has to discover them independently:
   `small_cell_floor` rows share (11 by default), the smallest and
   largest values of numeric columns and the points between them, and
   counts about groups nobody is named in. Handle it under your
-  institution's rules for real-derived material - together with the twin
-  and the report, per the entry above. Profile version 4 widened what it
+  institution's rules for real-derived material - together with the
+  plain-language summary beside it, the twin, the twin's report and the
+  quality report, per the entry above. Profile version 4 widened what it
   carries in exactly two ways, and each gets its own entry below rather
   than a clause here.
+- **The quality report withholds numbers from its reader; it does not
+  hide them from whoever holds the file** (owner ruling 2026-08-14;
+  Phase 3 plan amendment A-P3-13, carried into the validation method as
+  V5-A1). `synthtwin validate` may say about the file it checked only
+  what `synthtwin profile` run on that file would publish about it, and
+  where it may not say something it prints WITHHELD rather than the
+  number. **What that protects:** the report itself, which is a file
+  that travels - to a colleague, to a review office, to whoever is
+  deciding whether to trust a twin. That reader may hold nothing, and
+  the rule binds on every surface the report reaches, including the
+  screen and every refusal. **What it does not protect against:** a
+  person who has the checked file and runs the check again and again
+  with descriptions they wrote themselves, watching which lines change.
+  That sequence can narrow a number one report withholds - a count of a
+  group smaller than the publication floor, the count of oddly written
+  cells in a numeric column, the header line of a file the profiler
+  refuses to describe. synthtwin does not try to stop it, and the owner
+  ruled it out of scope for a stated reason: running the check on a file
+  requires holding the file, and someone holding the file can read it.
+  **What follows for you:** the control that matters is who may hold the
+  checked file, not what its report withholds. The quality report says
+  this on its own face, on every run.
+- **The floor is a number the person running the tool sets, and it can be
+  set below the default** (owner ruling 2026-08-14; Phase 3 plan
+  amendment A-P3-11, carried into the contract's section 4.4 under a
+  counted re-seal). `--smallest-group` accepts any whole number of 1 or
+  more, and the whole workflow - profile, generate, validate - runs on
+  the description it produces. This is the one control in this document
+  that a user can lower, so it is stated as a control rather than as an
+  option. **What lowering it gives up:** at a floor of `f`, no group
+  named in the description covers fewer than `f` rows, and at `f = 1`
+  every group is named exactly, a group of one row included. Where one
+  row of the real table is one person, the description then publishes
+  that a value exists together with how many people have it - the count
+  is the disclosure, not a route to one - and the twin holds those counts
+  exactly, so all five files carry them. **What it does not give up:**
+  every floor-governed invariant of the contract still binds at the value
+  the document carries, a floor of zero or below is still refused, and a
+  hand-edited description is still refused for every other reason it was
+  refused before. **What the product does about it:** a `profile` run at
+  a lowered number prints an unmissable warning before either file
+  exists, saying what a group that small can reveal about a person; and
+  the plain-language summary, the generation report and the quality
+  report each state on their own face that the description was made that
+  way, so that a reader handed one file alone can tell. synthtwin does
+  not refuse the setting: it is the table owner's decision, taken with
+  the consequence in front of them.
 - **Version 4 publishes the exact spellings of the labels the profile
   already names** (plan P2-D0 owner decisions 9 and 11). Through version
   3 a label left the machine in one settled form only: the producer
@@ -214,6 +271,118 @@ Stated here so that no reader has to discover them independently:
   two - so a generator working from the description alone would silently
   change the type of a column that code developed against the twin will
   meet on the real table.
+- **Version 5 names which of synthtwin's OWN words you typed after
+  `--keep-value` or `--missing-value`** (owner ruling 2026-08-17; Phase 3
+  plan amendments A-P3-27 and A-P3-28; contract 5 section 6). Through
+  version 4 the settings block carried a declaration as a COUNT and
+  never as text, because a declared value is compared against every cell
+  of every column and could be data. **From version 5 it also names
+  which members of a thirteen-member list synthtwin publishes in its own
+  contract were among the values you typed** - ten spellings it reads as
+  "no value" (the empty spelling, `-`, `--`, `.`, `?`, `n/a`, `na`,
+  `nan`, `none`, `null`) and three stand-in numbers (`-9999`, `-999`,
+  `9999`).
+
+  **What that gives up, at its size.** A reader of the settings block
+  is told which of those thirteen fixed words were typed, and nothing
+  else. The field carries no count of cells, no column and no row; the
+  MEMBER's spelling is written and never yours, so if you typed `" N/A "`
+  the settings hold `n/a` and your spacing and capitals do not travel;
+  and it is written identically whether or not the word occurs in your
+  table, because it is computed from the command line without reading a
+  cell. What a reader can still infer is said rather than waved away:
+  people usually type a word because it is in their table, so a version 5
+  settings block makes available a guess a version 4 settings block made
+  only coarsely - not "one value was rescued" but "the value rescued was
+  one of these thirteen". **The word guessed at THERE can never be a
+  name, a code, a diagnosis or a free-text answer, because a value
+  outside that list is written nowhere in the settings.** That is a
+  statement about the settings block and about nothing else in the
+  document; the next bullet but one says where your own words DO go, and
+  it is not a corner case.
+
+  **What is not relaxed.** A declared value that is not one of the
+  thirteen is still recorded nowhere IN THE SETTINGS. Every publication
+  class is unchanged: a column of record numbers, free text or
+  unrepresentable numbers still publishes no value of the table. Every
+  floor rule is unchanged. No column block publishes a fact version 4 did
+  not.
+
+  **Why it is published.** Without it, a researcher who rescues one of
+  synthtwin's own words with `--keep-value` cannot check their own table
+  against its own description: `synthtwin validate` re-reads the file
+  under the rule the description records, and a description that does
+  not record the rescue reads those cells as absences and reports
+  failures that are not real. The profiler's own summary states this on
+  every run where you named a value, which is every run this paragraph
+  is about; it says nothing on a run with no declaration, because a
+  sentence printed on every ordinary run is a sentence people stop
+  reading.
+- **A word you name with `--missing-value` is written into the
+  description, and this document said the opposite until 2026-08-17**
+  (review item P3-V9-F1; Phase 3 plan amendment A-P3-31). This is the
+  one bullet in this section that corrects a false assurance rather than
+  disclosing a new one, so it says the correction first: **a value
+  outside synthtwin's thirteen published words is written nowhere in the
+  SETTINGS BLOCK, and that was never a statement about the whole
+  document.** Two bullets above said it as though it were, and the
+  profile's own summary page told the reader the same thing while
+  printing the word four screens higher.
+
+  **What is actually written.** A column counts a cell absent because
+  the person named that cell's spelling, and the description has to say
+  so or nothing can read the file back the way the profiler read it. So
+  the spelling goes into that column's `missing_by_source`, character
+  for character (contract 5 section 3.2, way 4), under the same
+  `small_cell_floor` as any published label. Concretely: a column of
+  sixty numbers and twelve cells reading a declared marker, at the
+  default floor, publishes that marker with the count 12 - in the
+  description, in the plain-language summary beside it, and on the
+  screen. If the marker is a diagnosis code or a patient identifier, the
+  description carries a diagnosis code or a patient identifier.
+
+  **What bounds it.** The floor: a spelling fewer rows than the floor
+  wrote is counted into `n_missing_withheld` and named nowhere.
+  The publication class: a column that publishes no value of the table -
+  record numbers, free text, numbers no format can hold - publishes an
+  empty source map whatever made its cells absent (contract 5 C5-21).
+  And the settings block itself, which carries the policy: no spelling
+  of the person's own is in that block, exactly as the two bullets
+  above say.
+  None of those three bounds makes the general claim true, which is why
+  they are written here as bounds and not as a denial.
+
+  **What the product does about it.** A `profile` run that names a word
+  of the person's own and writes it into the description prints an
+  unmissable warning before either file exists, in the same register and
+  the same place as the lowered-floor warning: it names the word, the
+  column and the count, says why the description holds it, and says what
+  to do if that word should not travel. The `--missing-value` help says
+  it before the person types. The summary lists, on its own face, every
+  word of theirs the description names, so a reader handed that one file
+  can tell. The claim inventory in `tests/test_claim_inventory.py` holds
+  every retention sentence in this repository to what the producer's own
+  publication rules say it writes, so the next format change turns the
+  suite red instead of leaving a false assurance standing.
+- **Version 5 stores a declared spelling exactly, and escapes it only
+  when it is printed** (same ruling; contract 5 section 4). A column's
+  `missing_by_source` names the spellings that made its cells absent,
+  under the same floor as any published label. Through version 4 each
+  key was rewritten into a printable form BEFORE being stored, so a word
+  holding an invisible character and a word holding the printable
+  characters that stand for it published one key; from version 5 the key
+  is the spelling character for character, and the rewriting happens
+  where a key is SHOWN. **What that adds:** for a spelling the floor
+  already permitted to be named, which of the spellings sharing one
+  printable form it was. It is empty for every spelling made of
+  characters that show themselves, which is every ordinary word. No
+  group version 4 withheld becomes named, no count changes, and no row
+  is identified. **In one corner it publishes strictly less:** version 4
+  applied the floor to the rewritten key, so two different spellings
+  that rewrite alike were counted together and could reach the floor
+  although neither alone did; version 5 counts each on its own, so it
+  names fewer groups there. Every page a person reads prints the same
+  characters it printed before.
 - **OS-transparent network mounts.** If the operating system presents a
   network share as an ordinary local path, no portable program can
   detect that. Mount configuration is part of your environment, not

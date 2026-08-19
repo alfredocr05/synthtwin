@@ -141,6 +141,110 @@ def every_role_table(seed: int = 20260807, n_rows: int = 240) -> str:
     return rows_to_csv(header, rows)
 
 
+def every_withholding_table(seed: int = 20260814, n_rows: int = 240) -> str:
+    """A table that makes the floor hold something back in every way.
+
+    THIS IS THE FIXTURE A DERIVATION STANDS ON. Described twice -- once
+    at the default floor and once at a floor of one -- the two documents
+    differ at exactly the positions the small-cell floor governs, and
+    `tests/test_p3v5f1_floor_one.py` reads that difference off rather
+    than trusting a list of field names somebody wrote down. A field the
+    floor governs that this table does not exercise is a field that
+    derivation cannot see, so every way the format has of holding
+    something back is given a column here:
+
+    * `region` -- one label that about seven rows share, so the floor
+      suppresses a LEVEL and fills `suppressed_levels`,
+      `suppressed_rows` and `suppressed_level_counts`;
+    * `visits` -- blank cells plus three rare spellings of "no value",
+      so `missing_by_source` pools a REMAINDER and `missing_by_class`
+      pools the class those spellings fell into;
+    * `reading` -- a common stand-in number and a rare one, so
+      `n_sentinel_candidates_unpublished` counts a candidate too rare to
+      name;
+    * `amount` -- mostly plain decimals with one exponent and one signed
+      value, so `numeric_styles` pools a FORM;
+    * `stamped_at` -- times stamped in UTC with two rare offsets, so
+      `utc_offsets` pools an OFFSET;
+    * `answer` -- a two-value column where one row shouts its label, so
+      one level's `variants_withheld` holds a SPELLING back;
+    * `comment`, `unused`, `batch`, `record_code` -- free text, an empty
+      column, a constant and an all-distinct column, so the roles that
+      publish nothing are in the walk too.
+
+    Every value is made up here with a fixed seed, exactly as the other
+    builders in this file are (plan D13).
+    """
+    rng = random.Random(seed)
+    header = [
+        "record_code",
+        "region",
+        "visits",
+        "reading",
+        "amount",
+        "stamped_at",
+        "answer",
+        "comment",
+        "unused",
+        "batch",
+    ]
+    rows = []
+    for index in range(n_rows):
+        if index % 23 == 0:
+            visits = ""
+        elif index == 5:
+            visits = "n/a"
+        elif index == 9:
+            visits = "N/A"
+        elif index == 11:
+            visits = "unknown"
+        else:
+            visits = str(rng.randint(0, 9))
+        if index % 19 == 0:
+            reading = "-999"
+        elif index in (3, 7):
+            reading = "9999"
+        else:
+            reading = str(rng.randint(1, 400))
+        if index == 13:
+            amount = "1.5e3"
+        elif index == 17:
+            amount = "+12.25"
+        else:
+            amount = f"{rng.uniform(0.5, 99.5):.2f}"
+        if index == 21:
+            offset = "+02:00"
+        elif index == 29:
+            offset = "-05:00"
+        else:
+            offset = "Z"
+        answer = "yes" if rng.random() < 0.3 else "no"
+        if answer == "yes" and index % 31 == 0:
+            answer = "YES"
+        rows.append(
+            [
+                f"R{index:05d}",
+                "outlying" if index % 37 == 0 else REGIONS[index % 4],
+                visits,
+                reading,
+                amount,
+                (
+                    f"2024-{(index % 12) + 1:02d}-{(index % 28) + 1:02d}"
+                    f"T{index % 10:02d}:15:00{offset}"
+                ),
+                answer,
+                (
+                    ""
+                    if index % 3
+                    else f"observation {index} written out in plain words"
+                ),
+                "",
+                "one",
+            ]
+        )
+    return rows_to_csv(header, rows)
+
+
 def single_column_table(name: str, values: list[str]) -> str:
     """A one-column table holding exactly ``values``."""
     return rows_to_csv([name], [[value] for value in values])

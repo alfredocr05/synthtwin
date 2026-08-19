@@ -138,9 +138,14 @@ _TWIN_DISK = [
     ("/d/t-twin-report.txt", errors.ON_DISK_BEFORE),
 ]
 
+# AND IT SAYS THE TWIN (review item P3-V4-F11). This read "holds the
+# new DESCRIPTION this run produced" about `/d/t-twin.csv`, which is a
+# sentence about a file `generate` never writes, printed beside the
+# name of the file it does. The words a command carries now reach the
+# clause that says what is at each name.
 _TWIN_ROLLBACK = (
     "synthtwin could not put things back as they were. This is what is "
-    "at each name now: /d/t-twin.csv holds the new description this run "
+    "at each name now: /d/t-twin.csv holds the new twin this run "
     "produced; /d/t-twin-report.txt holds the file that was there before "
     "this run, unchanged. Check each one before you use it, and finish "
     "by hand what synthtwin could not: a report from one run does not "
@@ -275,16 +280,32 @@ def test_every_field_of_the_record_reaches_a_message() -> None:
         new_file="NEW-FILE-MARK",
         loss="LOSS-MARK.",
         mismatch="MISMATCH-MARK",
+        published="PUBLISHED-MARK",
+        working_holds="WORKING-HOLDS-MARK",
     )
+    left_behind = [
+        ("/d/t-twin.csv", errors.ON_DISK_NEW),
+        ("/d/t-twin.csv.synthtwin-part-1", errors.ON_DISK_WORKING),
+    ]
     composed = " ".join(
         [
             errors.rollback_failed([], _TWIN_DISK, marked),
+            errors.rollback_failed([], left_behind, marked),
+            errors.nothing_was_written([], left_behind, marked),
             errors.output_folder_missing("/reports", marked),
             errors.output_not_writable("/reports/out.csv", "why", marked),
             errors.output_would_replace_the_table("/d/p.json", marked),
         ]
     )
-    for field in ("PRODUCED", "GIVEN", "NEW-FILE", "LOSS", "MISMATCH"):
+    for field in (
+        "PRODUCED",
+        "GIVEN",
+        "NEW-FILE",
+        "LOSS",
+        "MISMATCH",
+        "PUBLISHED",
+        "WORKING-HOLDS",
+    ):
         assert f"{field}-MARK" in composed, (
             f"nothing a person reads uses the {field} field, so changing "
             f"it would change nothing"
@@ -300,9 +321,23 @@ def test_every_field_of_the_record_reaches_a_message() -> None:
 # message in one command's voice composed inside the other's run.
 _WORD_TAKING = {
     "rollback_failed",
+    # The sentence a stopped run ends with, which said "No new
+    # DESCRIPTION was published" out of a `validate` run that had just
+    # written a quality report and put an earlier one back (review item
+    # P3-V4-F11). It is here for the same reason the four below are:
+    # composed without the words, it names a file the running command
+    # does not write.
+    "nothing_was_written",
     "output_folder_missing",
     "output_not_writable",
     "output_would_replace_the_table",
+    # The one-target transaction's own guarded-source refusal (plan
+    # P3-D1). It takes the words for the same reason the four above do:
+    # composed without them it would tell somebody in a stopped
+    # `validate` run that writing THE DESCRIPTION would have replaced
+    # one of its inputs, when the description is a file that command
+    # never writes.
+    "output_would_replace_an_input",
 }
 
 _TRANSACTION = ast.parse(

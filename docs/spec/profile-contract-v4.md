@@ -100,7 +100,7 @@ individually (section 9).
 | **absent** | a cell counted as holding no value, for any of the five recorded reasons; `n_missing` counts them |
 | **raw identity** | a present cell's text exactly as the file spells it. `n_distinct` counts raw identities |
 | **folded identity** | a present cell's text after trimming and a Unicode `casefold()`. `n_distinct_folded` counts folded identities, and every published label is a folded identity |
-| **the floor** | `settings.small_cell_floor`, the smallest number of rows a published group may cover. Its value is in the document; it is never below 11 |
+| **the floor** | `settings.small_cell_floor`, the smallest number of rows a published group may cover. Its value is in the document and the document is the only place it is fixed: it is at least 1, and 11 is what `synthtwin profile` writes when nobody asks for another (section 4.4's amendment) |
 | **withheld** | held back by the floor and pooled into a counted remainder, never named |
 | **the ladder** | the fixed eleven rungs `min`, `p01`, `p05`, `p10`, `p25`, `p50`, `p75`, `p90`, `p95`, `p99`, `max`, in that order |
 
@@ -280,7 +280,7 @@ document.
 
 | key | JSON type | range / permitted values |
 |---|---|---|
-| `small_cell_floor` | integer | ≥ 11 |
+| `small_cell_floor` | integer | ≥ 1 |
 | `identifier_uniqueness` | number | 0.0 ≤ x ≤ 1.0 |
 | `identifier_minimum_rows` | integer | ≥ 0 |
 | `minimum_parse_rate` | number | 0.0 ≤ x ≤ 1.0 |
@@ -308,6 +308,87 @@ some column block. A name that matches no column is a refusal: it means
 the profile and the schema disagree about which columns were declared.
 
 **Invariant S9.** `categorical_floor <= categorical_ceiling`.
+
+**This amends the floor's minimum from eleven to one. THIS LOWERS**
+(owner ruling 2026-08-14; Phase 3 plan amendment A-P3-11). Through the
+previous wording this row read `≥ 11` and a loader refused anything
+below it, while `synthtwin profile --smallest-group 2` accepted the
+number, wrote the description, and told the person to hand that file to
+`synthtwin generate` — which then refused it and advised them to make
+the description again and use it exactly as written, which is what they
+had done. A documented option produced a file the product would not
+read.
+
+**What is given up, stated at its size.** The floor is the whole of what
+keeps a published group too large to point at one person. At 11 no group
+named anywhere in a description covers fewer than eleven rows; at `f` no
+group covers fewer than `f`, and at 1 every group is named exactly,
+including a group of one row. Where one row of the real table is one
+person, a description written at a low floor publishes the existence of
+that person's value together with how many people share it. That is not
+a route to a disclosure; it is the disclosure. The producer publishes
+the same facts it always did, and the floor decides which of them are
+named — so the loss is exactly the pooling that `(withheld)`,
+`suppressed_levels`, `suppressed_level_counts`, `variants_withheld` and
+the pooled remainders of sections 5.4, 6.3, 7.4 and 7.5 exist to
+perform. On whose authority: the owner's, ruled on 2026-08-14 with the
+consequence stated to them and accepted.
+
+**No other rule of this contract is relaxed by it.** Every floor-governed
+invariant is written as "at least the floor" and "below the floor", so
+each one still binds at the value the document carries: B5, D3, N2, N4,
+P2, V1 and W5 hold at `f` exactly as they held at 11. At `f = 1` the
+"below the floor" half is the empty range, so nothing may be held back
+at all. A hand-edited description is refused for every reason it was
+refused before; the only refusal withdrawn is the one against the
+floor's own value.
+
+**Invariant S13 (a floor of one holds nothing back).** Where
+`small_cell_floor` is 1, the range of group sizes below the floor is
+empty, so every field that carries what the floor held back is empty or
+zero: `suppressed_levels`, `suppressed_rows`,
+`suppressed_level_counts`, every `variants_withheld` block,
+`n_sentinel_candidates_unpublished`, and every pooled `(withheld)`
+entry — in `missing_by_class`, in `missing_by_source`, in
+`utc_offsets`, in `numeric_styles`, and under that word wherever else a
+counted block may carry it. A document that fills one of them is
+refused. The rule is checked with the top-level rules, before any
+column block is read, because the floor is a top-level setting and what
+the rule states is a fact about the whole description.
+
+**Why S13 is written as a rule of its own, and not left to the seven.**
+The previous wording said this was refused "for breaking the same
+invariant it always broke", and for three fields that was true: B5 reads
+`suppressed_level_counts` against the range below the floor, the
+multiplicity rules read `variants_withheld`'s keys against it, and B4
+ties `suppressed_levels` and `suppressed_rows` to the sizes. For the
+other five it was not true and had never been true. N2, N4, D3 and P2
+each say a PUBLISHED count is at least the floor, and each exempts the
+pooled remainder — because the remainder is what the published counts
+were pooled OUT of, and at every floor above one no bound on it exists,
+since one remainder pools several groups at once. V1 says the same of a
+stand-in number's occurrences and puts the ones below the floor into
+`n_sentinel_candidates_unpublished`, which no rule of this contract
+bounded at any floor. Four exemptions and one unbounded count are what
+"below the floor" reached at a floor of one, and no rule of this
+contract reached them. This rule does (Phase 3 plan amendment A-P3-16).
+
+**Zero and below are still refused.** One is the smallest workable
+value, not a preference: "below the floor" at zero would name counts of
+nothing at all, and no count is. The refusal for a floor of zero is R16,
+unchanged.
+
+**What the artifacts owe when the floor is under the default.** This
+contract governs the profile document, which carries the floor as a
+number under `settings` and needs no further wording. Of the five files
+a full run leaves behind, the readable ones — the plain-language
+summary, the twin's report and the quality report — each state on their
+own face that the description was made under a lowered floor and what
+that can mean for a person, and the screen a `profile` run prints says
+it before either of its files exists. That
+obligation is the plan's (amendment A-P3-11), not this contract's, and
+is recorded here because a reader of this section will ask where the
+disclosure went.
 
 ### 4.5 `publication_notes`
 
@@ -560,7 +641,10 @@ exactly these four keys:
 
 **Invariant V1.** Every entry has `n_occurrences` at least the floor.
 Candidates below the floor are not listed at all; they are counted,
-unnamed, in `n_sentinel_candidates_unpublished`.
+unnamed, in `n_sentinel_candidates_unpublished`. That count is the one
+field of this format that records a thing held back in its NAME rather
+than under the `(withheld)` word, and at a floor of one it is zero
+under S13, because no candidate can be below one.
 
 **Invariant V2.** `candidate` is `(withheld)` on exactly the columns
 where `missing_by_source` is empty for the reason in N3 — a column whose
@@ -1671,20 +1755,70 @@ spelling that carries case, so it is the only construction that can put
 a numeric column's folded count below its raw one
 (`docs/spec/generation-method-v1.md` G6.5).
 
-**The cells pooled into `(withheld)` are written in the `plain` style**
-(`docs/spec/generation-method-v1.md` G6.4), because `plain` changes
-nothing a reader infers. That fixes what the recount from the written
-CSV is measured against. The earlier wording — which counted the pooled
-cells as the written cells belonging to none of the published styles —
-is withdrawn as unmeetable, and is described rather than repeated so
-that a test can ban it: every numeric cell text falls in one of the six
-styles by the total rule of 7.5.4, so where `plain` is itself a
-published style the pooled cells land inside it and no cell is left
-outside. **The EXACT-OBSERVABLE obligation is therefore the published
-map with the `(withheld)` remainder added to `plain`**: recounted from
-the twin, every style but `plain` matches its own published count
-exactly, and `plain` matches its published count plus the remainder. The
-report names the remainder and how many cells it covered.
+**A cell pooled into `(withheld)` is written by its own value**
+(`docs/spec/generation-method-v1.md` G6.4): plainly where the value has
+a point-free spelling, because `plain` changes nothing a reader infers,
+and in the value's own canonical text (3.2.1) where it has none.
+
+**This amends the rule that wrote EVERY pooled cell plainly** (Phase 3
+plan P3-D8.1, closing the open defect the disposition registry held
+under P2-C5-F3, 2026-08-12). That rule and this section's own
+`min`/`max` exactness cannot both be met: a published end carrying a
+decimal point has no point-free spelling at all, so a column whose
+remainder covered such a cell owed a form no conforming generator could
+write, and the twin was required to miss a total it could have met. The
+obligation is not lowered by the amendment — no published count moves,
+and the two earlier wordings are withdrawn rather than weakened. The
+first, which counted the pooled cells as the written cells belonging to
+none of the published styles, is unmeetable because every numeric cell
+text falls in one of the six styles by the total rule of 7.5.4. The
+second, which added the whole remainder to `plain`, is unmeetable on the
+shape above. Both are described rather than repeated so that a test can
+ban them.
+
+**The EXACT-OBSERVABLE obligation is therefore an identity over the
+recount**, every clause of it computable from the written cells and the
+published map alone. Writing `r(s)` for the cells the recount finds in
+style `s`, `p(s)` for the count the map publishes for it, `R` for the
+`(withheld)` remainder, and `NW` for the written numeric cells whose
+values have no point-free spelling:
+
+- `r(leading_zero) = p(leading_zero)`, `r(leading_plus) =
+  p(leading_plus)` and `r(exponent_upper) = p(exponent_upper)` — the
+  remainder never reaches these three: the first two are the invention
+  family of owner decision 8, and canonical text never carries an
+  upper-case exponent;
+- `r(plain) >= p(plain)`, `r(decimal) >= p(decimal)` and
+  `r(exponent_lower) >= p(exponent_lower)` — **a published form is
+  never substituted away**, whatever the remainder does above it;
+- the spill `D = max(0, NW - p(decimal) - p(exponent_lower) -
+  p(exponent_upper))` is exactly the pooled cells with no point-free
+  spelling, because the published point-carrying counts are spent on
+  such cells first;
+- `r(decimal) + r(exponent_lower) = p(decimal) + p(exponent_lower) + D`,
+  the two canonical forms carrying the spill between them, which of the
+  two being each value's own canonical text;
+- `r(plain) = p(plain) + R - D`, the remainder's other cells;
+- **and no cell is spelled non-canonically without a published count
+  entitling it**: in each of `decimal` and `exponent_lower`, the cells
+  whose text is NOT the canonical text (3.2.1) of their own value are
+  at most that style's published count. The published counts are the
+  only licence for a non-canonical point-carrying spelling, so every
+  pooled cell carries exactly its value's canonical text and a pool
+  cannot be re-spelled into a form the description never named.
+
+`NW` is read off the VALUES, never off the spellings: it is the count of
+written numeric cells whose value has no point-free spelling at all.
+Counting the cells that were WRITTEN with a point would make the
+identity circular — a twin spelling a whole value `1000.0` instead of
+`1000` would inflate its own `D` and balance the arithmetic against
+itself — and `NW` is fixed by the numbers the cells read back as, which
+no choice of spelling can move.
+
+An ordinary column publishes no remainder, `D` is zero, and the identity
+is the plain reading: every style matches its published count exactly.
+The report names the remainder, how many cells it covered, and how many
+of them had no point-free spelling of their own.
 
 **An alternate spelling is used ONLY where the published counts require
 it**, so an ordinary all-canonical whole-number column publishes
@@ -1931,7 +2065,7 @@ for exactly that reason.
 | `integer_valued` | EXACT-OBSERVABLE, routed by the published FACT and not by role |
 | `mean`, `std`, `skew` | APPROXIMATED, fixed formula and two-sided bound — both fixed by `docs/spec/generation-method-v1.md` G12.3 |
 | `n_distinct`, `n_distinct_folded` | EXACT-OBSERVABLE using the spellings owner decisions 7, 8 and 10 permit — the ordinary case; APPROXIMATED under the two-sided envelope only where even those cannot supply the count, with the report naming the profile's count beside the twin's. The envelope is fixed by `docs/spec/generation-method-v1.md` G12.8, and BOTH of its ends are measured and printed on every run, because a fallback whose range is never shown is a fallback a reader cannot check (review item P2-C2-F4) |
-| `numeric_styles` | EXACT-OBSERVABLE against the published map with the `(withheld)` remainder added to `plain`, which is the form section 7.5.7 fixes for the pooled cells |
+| `numeric_styles` | EXACT-OBSERVABLE against the recount identity of section 7.5.7: every published count is met or exceeded, the three forms the remainder cannot reach are exact, and the remainder is spelled by its own cells' values |
 | `n_rows` (echo) | LOADER-ONLY |
 
 A mutant that collapses the nine interior rungs onto the endpoints must
@@ -2055,23 +2189,42 @@ its disposition says.
 | `all_whole_numbers` | EXACT-OBSERVABLE in every case, since owner decision 6 keeps the length. A published length range in which a value that must stand outside the figures can be no whole number at all — one character cannot be both — is a document whose own facts cannot all hold, and generation is refused before any cell is built (`docs/spec/generation-method-v1.md` G12, `generation-whole-numbers-need-room`). No producer-written profile carries that pair |
 | `n_distinct`, `n_distinct_folded`, `n_distinct_by_occurrences` | EXACT-OBSERVABLE outside owner decision 6's infeasible corner; all THREE REPORT-ONLY inside it, with the report naming the achieved value beside the published one |
 
-**What the whole-number row does not yet hold, left standing rather than
-written quieter** (review item P2-C5-F4). Two shapes a real table DOES
-produce still cost `all_whole_numbers`: a published length range whose
-longest value is two characters, where some value has to stand in the
-code alphabet — the only two-character whole numbers outside the figures
-begin with a sign, and plan P2-D10 keeps a made-up value from beginning
-with one; and a length end that G9.6 pins onto a group whose band has no
-whole-number spelling at that one length, where the source's own values
-show another pairing that holds every published count. In both the
-ordinary walk takes the value and the fact is recounted from the
-finished cells and named, with its achieved value beside the published
-one. That is an OPEN DEFECT against the ratified plan, which holds this
-fact exact in every case, and not a disposition this contract grants:
-the second shape closes when the length ends and the bands are settled
-in ONE packing rather than pinned first, as G9.5 already does for free
-text, and the first needs an owner decision about the leading character.
-The obligation stands until then.
+**What the whole-number row cost, and how both shapes were settled**
+(review item P2-C5-F4; closed by Phase 3 plan P3-D8.1, owner decision 1,
+2026-08-12). Two shapes a real table produces used to cost
+`all_whole_numbers`, and neither does now.
+
+The first was a length end that G9.6 pinned onto a group whose band has
+no whole-number spelling at that one length, where the source's own
+values show another pairing that holds every published count. It closed
+when the length ends and the bands were settled in ONE packing rather
+than pinned first, as G9.5 already does for free text: the packing walks
+every carrier pair and finds the pairing the source's values prove
+exists.
+
+The second was a published length range whose longest value is two
+characters, where some value has to stand in the code alphabet — the
+only two-character whole numbers outside the figures begin with a sign,
+and G9.1 keeps a made-up value from beginning with one, because that is
+the character common spreadsheet software reads as the start of a
+formula. The implementation met the count by writing the sign anyway,
+which is a ratified rule traded for a published count, and left the
+report's formula paragraph telling the reader that an invented cell was
+a value the description had published. **The owner settled it as a
+bounded carve-out to G9.1, not as a refusal and not as a lesser
+outcome** (decision 9, 2026-08-13): the twin writes the sign, and the
+report counts those cells and names their column. A description
+carrying those counts proves the real column held such values, since no
+other spelling of that width exists, so the twin inherits a hazard the
+table already had. Where the sign is needed is decided by the packing,
+which reaches for it only when no assignment of whole groups meets
+every published count without it. A fifth generation refusal stood here
+for one day and was withdrawn by the same decision; method G12 has
+four.
+
+`all_whole_numbers` is therefore EXACT-OBSERVABLE in every case a twin
+is written at all, which is what the ratified plan holds it to, and this
+contract grants no lesser outcome for it.
 
 **`numeric_unrepresentable`**
 
@@ -2447,10 +2600,20 @@ the part a person must be able to weigh:
 - addition 5 publishes counts of spelling FORMS, floor-governed, carrying
   no value, no magnitude and no spelling (section 7.5).
 
-All three Phase 2 artifacts — profile, twin and report — carry
-real-derived published facts, and all three are handled under the
+Every file a full run leaves behind — the profile, the plain-language
+summary beside it, the twin, the twin's report and the quality report —
+carries real-derived published facts, and each is handled under the
 institution's rules for real-derived material. synthtwin claims no formal
 privacy guarantee.
+
+**This amends the sentence that counted three** (Phase 3 plan P3-D7
+stage 2, amendment A-P3-8, 2026-08-14). Two files were outside it. The
+quality report `synthtwin validate` writes states measurements taken
+from the file it checked; the profiler's plain-language summary repeats
+in words the labels and endpoints this contract's section 7 publishes,
+and it was never named although it is the half a person reads. Nothing
+this contract publishes moves — the handling rule reaches further, and
+that direction is the only one it may move in.
 
 ---
 

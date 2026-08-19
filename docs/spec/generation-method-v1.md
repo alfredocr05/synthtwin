@@ -18,11 +18,33 @@ ones that look too small to matter: the order of a loop, the direction
 of a rounding, which end of a list a tie goes to.
 
 **What it does not cover.** The profile's wire shape, key by key, is
-`docs/spec/profile-contract-v4.md`; this document names published fields
-and assumes that contract's meanings. The command line, the output file
+`docs/spec/profile-contract-v5.md` together with
+`docs/spec/profile-contract-v4.md`, which version 5 carries by reference
+(version 5 section 2.2): a rule version 5 does not supersede is a rule
+of version 5 at its version 4 wording and is cited below by its version
+4 number. This document names published fields and assumes the
+meanings the two of them fix. **This pointer is amended rather than original**
+(plan amendments A-P3-28 and A-P3-30): it named the version 4 document
+alone, which was true until the producer and the loader moved to
+version 5 and false afterwards — and the reader it misdirected is the
+one this document is written for, the independent implementer working
+from this text alone. Nothing else here moves, because no generation
+rule reads any field version 5 changed; the twin's bytes at a fixed
+profile and seed are what they were, and the frozen reference vectors
+prove it. The command line, the output file
 names, the write transaction, the refusal catalogue's wording and the
 generation report's own bytes are P2-D10's business. Fidelity
-measurement and the quality report are Phase 3.
+measurement and the quality report are `synthtwin validate`'s, and the
+rules it measures against are `docs/spec/validation-method-v1.md`.
+
+**This amends the sentence that called fidelity measurement later work**
+(Phase 3 plan P3-D7 stage 2, amendment A-P3-8, 2026-08-14). The
+validator ships, so a reader of this document — including the
+independent implementer it is written for — is now told where the
+measuring rules live rather than which phase would eventually write
+them. Nothing this document obliges a generator to do moves: the
+validator measures a written file against the PROFILE, and it is a
+consumer of this method's output rather than a rule upon it.
 
 **Vocabulary.** "Word" always means one full-width unsigned 64-bit draw
 from the single stream of section G3. "Cell" means one value in one row
@@ -847,12 +869,19 @@ happened: a real column holding `1.5` beside `100` publishes eleven
 
 So the point-free spelling of a value `v` is defined for its own sake:
 let `D` and `decpt` be the shortest round-trip digits and decimal point
-of G6.2. Where `decpt >= len(D)` and `-4 < decpt <= 16` — that is, `v`
-is a whole number the fixed-point window holds — the point-free
-spelling is the sign, `D`, and `decpt - len(D)` trailing zeros, and it
-reads back through `parsing.parse_number` as exactly `v`. Zero is
-written `0`, never `-0`. Where those conditions do not hold, no
-point-free spelling of `v` exists; the canonical spelling stands in its
+of G6.2. Where `decpt >= len(D)` — that is, `v` is a whole number — the
+point-free spelling is the sign, `D`, and `decpt - len(D)` trailing
+zeros, and it reads back through `parsing.parse_number` as exactly `v`.
+Zero is written `0`, never `-0`. **There is no width ceiling** (owner
+decision 10, 2026-08-13): an earlier revision stopped at
+`-4 < decpt <= 16`, which is the fixed-point window of the CANONICAL
+spelling, and that window governs the numbers inside a profile document
+rather than the spelling of a cell in the twin. A plain cell owes that
+it reads back as the same number and that it classifies as plain, and
+the digits of a whole value do both however many there are; while the
+ceiling stood, a column whose source wrote `100000000000000000000` in
+figures was published `plain` and written back with a point. Where `v`
+is not whole, no point-free spelling of it exists; the canonical spelling stands in its
 place and G6.4 does not offer the three styles to such a cell unless
 every other quota is already spent.
 
@@ -913,15 +942,39 @@ carry it (G12.8).
 
 `numeric_styles` publishes a count per style, plus a withheld remainder
 (a style used by fewer rows than the small-cell floor is pooled, exactly
-as a rare label is). The withheld remainder is written in the `plain`
-style, because that is the style that changes nothing a reader infers,
-and the report names how many cells it covered. **The recount is
-therefore taken against the published map with the remainder added to
-`plain`** — every other style matches its own published count exactly —
-which is what the contract's EXACT-OBSERVABLE means for this field
-(contract 7.5.7 and 9.4). No cell text falls outside the six styles, so
-there is no "outside the published styles" bucket for the remainder to
-be counted in.
+as a rare label is). **A pooled cell is written by its own value**: in
+the `plain` style where the value has a point-free spelling, because
+that is the style that changes nothing a reader infers, and in the
+value's own canonical text (contract 3.2.1) where it has none. The
+report names how many cells the remainder covered and how many of them
+had no point-free spelling.
+
+**This amends the rule that wrote every pooled cell plainly** (Phase 3
+plan P3-D8.1, 2026-08-12, closing the registry's open P2-C5-F3). A
+published `min` or `max` carrying a decimal point has no point-free
+spelling, and both ends are EXACT-OBSERVABLE, so a column whose
+remainder covered such a cell owed a form no conforming generator could
+write. Nothing published moves: the amendment gives the anonymous
+remainder — which names no form at all, that being what pooling MEANS —
+a spelling its own cells can carry.
+
+**The recount is therefore the identity contract 7.5.7 states**, whose
+clauses are these, with `r(s)` the recount, `p(s)` the published count,
+`R` the remainder and `NW` the written numeric cells with no point-free
+spelling: `leading_zero`, `leading_plus` and `exponent_upper` exact;
+`plain`, `decimal` and `exponent_lower` never below their published
+counts; the spill `D = max(0, NW - p(decimal) - p(exponent_lower) -
+p(exponent_upper))`; `r(decimal) + r(exponent_lower) = p(decimal) +
+p(exponent_lower) + D`; `r(plain) = p(plain) + R - D`; and, in each of
+`decimal` and `exponent_lower`, at most `p` of its cells carry a text
+that is not the canonical text of their own value, so a pooled cell can
+never be re-spelled into a form the description never named. `NW` is
+read off the VALUES and never off the spellings — the count of written
+numeric cells whose value has no point-free spelling — because counting
+the cells WRITTEN with a point would let a twin inflate its own `D` and
+balance the arithmetic against itself. No cell text falls outside the
+six styles, so there is no "outside the published styles" bucket for the
+remainder to be counted in.
 
 Styles are assigned over the K numeric cells in the fixed **stratum
 order** of G5.2 (which is the sorted order of the values), by
@@ -938,7 +991,12 @@ carriers[i]  = how many cells from i onward can wear a point-free
 for each cell, in stratum order, and within a stratum in ascending
 cell index:
     consider only the styles this cell's value can wear (below) whose
-        remaining count is above zero, and among them only those whose
+        remaining count is above zero -- and, where the point-free
+        claims still standing outnumber carriers[i + 1], `plain` is
+        offered to a cell that can wear no point-free style too,
+        while the pool is still standing, spending one pooled cell
+        and writing it in the value's own canonical text.  Among
+        the styles offered, consider only those whose
         choice leaves
             remaining[leading_plus]        <=  plus_carriers[i + 1]
         after the choice is taken.  Write
@@ -965,15 +1023,18 @@ cell index:
 
 **Why the second answer exists** (P2-C4-F3). The pool is the count of
 cells whose form the description WITHHELD: it says how many there were
-and never which of the six they were, and G6.4 writes them `plain`
-because plain changes nothing a reader infers. Where the point-free
-cells cannot carry every quota, something has to give, and it is the
-anonymous claim that gives — never a count the description names. A
-column publishing twenty-five `leading_zero` cells and a pooled
-remainder of ten, on a ladder whose two ends carry points, has
-thirty-three point-free cells for thirty-five claims: it writes all
-twenty-five named `leading_zero` cells and eight of the ten pooled
-ones. Answer 1 alone spent the shortfall on both claims at once and
+and never which of the six they were, so a pooled cell is written
+plainly wherever its value has a point-free spelling, because plain
+changes nothing a reader infers, and in the value's own canonical text
+where it has none (P3-D8.1). Where the point-free cells cannot carry
+every quota, something has to give, and it is the anonymous claim that
+gives — never a count the description names. A column publishing
+twenty-five `leading_zero` cells and a pooled remainder of ten, on a
+ladder whose two ends carry points, has thirty-three point-free cells
+for thirty-five claims: it writes all twenty-five named `leading_zero`
+cells, eight pooled cells plainly, and the remaining two in their own
+values' canonical text — every cell has a spelling and no named count
+moves. Answer 1 alone spent the shortfall on both claims at once and
 missed the named count by one.
 
 **Why the third answer exists.** Reaching it means the point-free
@@ -998,10 +1059,13 @@ back as that style:
 
 - **`leading_plus`** needs a value that is not negative.
 - **`plain`, `leading_zero` and `leading_plus`** need a value with a
-  POINT-FREE spelling (G6.2) — a whole value the fixed-point window
-  holds. `1e+16` has none, and neither has `12.5`; inserting zeros or a
-  plus in front of either leaves the point or the exponent exactly where
-  it was, so `012.5` classifies as `decimal`, not as `leading_zero`.
+  POINT-FREE spelling (G6.2) — a WHOLE value, at any width (owner
+  decision 10; the fixed-point window this clause used to name governs
+  the canonical spelling and not this one). `12.5` has none; inserting
+  zeros or a plus in front of it leaves the point exactly where it was,
+  so `012.5` classifies as `decimal`, not as `leading_zero`. `1e+16` and
+  `1e+20` DO have one — their digits — which is what keeps a column of
+  wide whole numbers reading as whole numbers.
 - **`decimal`, `exponent_lower` and `exponent_upper`** can spell any
   finite value.
 
@@ -1082,25 +1146,46 @@ implementation that fails to put them there is defective, not
 approximate. G5.2's carrier step and the two answers above are what
 make the cells exist: the split gives way before a published count
 does, and the anonymous pool gives way before a named count does.
-Exactly three shapes are left, every one of them recounted from the
-finished cells (G12) and named in the report with each published count
-beside the achieved one:
+**The remainder leaves no shape a producer writes** (Phase 3 plan
+P3-D8.1): what a producer could once cost THROUGH THE POOL is placed
+exactly now, because a remainder names no form and is spelled by its own
+cells' values. **One producer-reachable shape survives, and it is not
+the pool's** (review item P3-C2-F1): a column whose values are whole but
+lie outside the fixed-point window of G6.2 is published `plain` by a
+source that wrote it in figures, while the twin writes it with a
+decimal point, so the plain count is missed and the spelling is named
+beside it. That is the
+window's own cost, it predates this repair, and the Phase 3 plan carries
+it as a defect for the owner rather than as a disposition this method
+grants. This method grants
+`numeric_styles` no lesser outcome anywhere, and the shapes listed
+below are reached only by a hand-written description whose own facts
+contradict each other — the same class of document G12's refusals
+settle, listed here because the walk answers them rather than stopping:
 
 - a `leading_plus` quota larger than the column's own count of
   non-negative cells. No producer emits one — a cell it read as
   `leading_plus` was not negative — so this shape needs a hand-edited
   description whose own facts disagree.
-- a point-free demand larger than `K` minus the cells the published
-  ends force to carry a point. At least one cell must read back as
-  `min` and one as `max`, both EXACT-OBSERVABLE, so an end that has no
-  point-free spelling costs one cell of the demand. A producer reaches
-  this only through the anonymous pool — the named counts alone can
-  never exceed that ceiling, because the source's own end cells were
-  not written point-free either — and it is exactly the conflict
-  between `min`/`max` exactness and contract 7.5.7's rule that the
-  pooled cells are written `plain`. The twin writes the largest number
-  of point-free cells the published ends leave, which is the most any
-  conforming generator can write, and names the remainder.
+- a NAMED point-free demand larger than `K` minus the cells the
+  published ends force to carry a point. At least one cell must read
+  back as `min` and one as `max`, both EXACT-OBSERVABLE, so an end that
+  has no point-free spelling costs one cell of the demand. **No producer
+  reaches this shape**: the named counts alone can never exceed that
+  ceiling, because the source's own end cells were not written
+  point-free either, so it takes a hand-written description whose facts
+  disagree with each other. The twin writes the largest number of
+  point-free cells the published ends leave, which is the most any
+  conforming generator can write, and names the miss.
+
+  **The producer-reachable half of this shape is CLOSED** (Phase 3 plan
+  P3-D8.1, closing the registry's open P2-C5-F3). A producer reached it
+  only through the anonymous pool, where it was the conflict between
+  `min`/`max` exactness and the withdrawn rule that every pooled cell is
+  written `plain`. A pooled cell names no form, so it is now spelled by
+  its own value and there is nothing left to miss: measured over the
+  producer battery of 240 descriptions at eight seeds, the eight columns
+  that filed such a line file none.
 The third shape revision 2 listed here — a stratum whose own share
 holds no whole number free for it — **is no longer one of them**
 (P2-C5-F3). Where a band's strata all sit on fractions the strata
@@ -1593,7 +1678,14 @@ of G9.2 produces:**
   can be changed by trimming or read as blank;
 - the first character is never `=`, `+`, `-` or `@`, so no invented
   value creates a spreadsheet formula hazard the report would have to
-  count (published labels are a different matter: they are written
+  count — **with one carve-out, bounded by the packing** (owner
+  decision 9): a two-character value of the code alphabet that is not
+  figures alone and reads back as a whole number has no other spelling,
+  and a description publishing those counts proves the real column held
+  one, so the twin reproduces the character rather than refusing to
+  build. It is reached only where no assignment of whole groups meets
+  every published count without it, and the report counts it and names
+  its column (published labels are a different matter: they are written
   unchanged, counted and warned);
 - a comma or a quote character inside an invented value is permitted;
   the writer quotes the field and the reader reads it back unchanged,
@@ -1857,6 +1949,88 @@ The construction, in this order:
    counts and its parent's numeric class, and taking one from another
    family would meet the folded count by missing a different published
    one.
+5. **The layout is CHECKED against what the families actually supplied,
+   and repaired where a collision could not be built. THIS RAISES: a
+   published `n_distinct_folded` that revision 5 missed on descriptions
+   whose own values meet it is now met** (plan amendment A-P3-12).
+   Steps 1 to 4 settle which slots carry the collisions before any
+   spelling exists, and what a family can SUPPLY is a fact about
+   spellings: its identities' own case positions, and whatever edge
+   spacing their lengths leave inside the taking slot's window. Spacing
+   only lengthens, so an identity pinned to the LONGEST published
+   length supplies no spaced partner at all, and a family whose flips
+   are spent supplies no further one. A layout can therefore ask one
+   family for more collisions than it holds while another family of the
+   same column has room to spare. Measured over 1,200 descriptions a
+   real producer wrote, every one of whose own values is an exact
+   assignment of every count it publishes: 44 of them, 3.7 per cent,
+   lost the published folded count that way, and the feasibility check
+   of G12 never fired on one of them, because that check counts a whole
+   alphabet and knows nothing about families, slots or windows.
+
+   So the column is laid out AGAIN. The layouts are offered in the
+   fixed order below, and the FIRST one that supplies every collision
+   it owes is the answer:
+
+   1. **the layout of steps 1 to 4, unchanged and offered first.** A
+      description that layout answers is answered by it, so this step
+      can reach no column the earlier rule already met, and no twin
+      that met every published count changes by one byte;
+   2. **the same layout with every family that fell short asked for no
+      more collisions than that layout showed it supplies**, the
+      surplus passing to the next family G9.6's choice rule admits.
+      Where the repeat falls short again the ceiling is lowered again,
+      at most once per group;
+   3. **layouts 1 and 2 with the slots carrying the two published
+      length ENDS taking a collision before any other slot their family
+      admits.** The pinned slot is the one place in a family where
+      being an identity costs the family its whole spacing supply and
+      being a partner costs it nothing: pinned to the longest published
+      length an identity can be lengthened by nothing, while a PARTNER
+      pinned there is built by spacing its own family's shorter
+      identity out to that length;
+   4. **all of the above over each further packing of G9.6**, in that
+      section's own order, and then over the packings that section's
+      search reaches by holding ONE group to ONE family. A description
+      can have several exact packings; one that gives every group a
+      family of its own leaves no slot a same-family sibling, so no
+      collision can be built at all, where another packing of the very
+      same counts puts two groups together.
+
+   **A repair may not give up a count the first layout held.** The one
+   count a different layout of the same packing can lose is the one
+   this walk names for itself: a layout that ran out of spellings and
+   had to write one twice gives up the raw distinctness count and the
+   repetition pattern with it (owner decision 6). So a layout is
+   accepted only when it repeats no more than the first layout did.
+   Trading raw distinctness for the folded count is the trade this
+   section refuses, and this refuses it by construction rather than by
+   measurement.
+
+   **The walk ends in a stated number of steps.** At most two hundred
+   and fifty-six candidate packings are examined on one column, counted
+   across both of G9.6's tiers; the per-family ceiling is lowered at
+   most once per group; and every layout is a fixed function of the
+   description, so two implementations that follow this order write the
+   same bytes. Where every offered layout falls short the column KEEPS
+   THE FIRST, and the folded count it missed is recounted from the
+   finished cells and named as a deviation — which is what happened to
+   every one of them before this step existed.
+
+   **This step moves no other published fact, and the reason is
+   structural rather than measured.** Every layout it offers assigns
+   the same group sizes to the same class-and-alphabet families as some
+   exact packing of G9.6, so all four class counts and both alphabet
+   counts are met by construction; the collision choice is a
+   permutation of the groups, and the occurrence multiset pairs a size
+   with a made-up value and never with a position, so it is
+   permutation-invariant; both published length ends travel with their
+   carriers. What the step CAN move is which spelling a slot writes,
+   and so how many cells open with a character a spreadsheet reads as a
+   formula. Measured over the same 1,200 descriptions: 42 of the 44
+   repaired columns write the same number of such cells as before and
+   two write nine and twelve where they wrote none. Writing fewer of
+   them conforms, here as in G9.6.
 
 **Why edge spacing costs no other published fact.** `n_all_digits` and
 `n_code_alphabet` are read from the TRIMMED value, so a space at either
@@ -2343,7 +2517,25 @@ packing rule applying here IN FULL — both margins and the shape search
   offered in the fixed order of G9.5's own shape rule, so the
   description's own first two groups are tried first and a column the
   earlier rule already answered is answered the same way, byte for
-  byte;
+  byte. **This search can be asked for MORE than its first answer**
+  (G9.3 step 5, plan amendment A-P3-12), because a description can have
+  several exact packings and the first can be one no fold collision can
+  be built inside. The further answers are this same walk continued in
+  this same order, and then this same walk again with ONE group held to
+  ONE family — which is a narrowing of the permissions handed to the
+  packer, never a change to the packer's own fill order, so the first
+  answer stays the first answer and the rule four roles share is
+  untouched. **THE WALK ENDS IN A STATED NUMBER OF STEPS, AND THE
+  NUMBER IS COUNTED IN QUESTIONS ANSWERED** (plan amendment A-P3-17
+  clause 2): the second half of it walks a candidate end-carrier pair, a
+  group and a family, and hands the packer a permission vector that
+  depends on the end-carriers only through the two places carrying them,
+  so the same question recurs many times over. A question is put to the
+  packer ONCE and remembered, at most a stated number of DIFFERENT
+  questions are put at all, and at most a second stated number of
+  positions are looked at, so a walk that only ever re-asks still ends.
+  Where either number is reached the column keeps the layout it already
+  had and the shortfall is measured off the finished cells and named;
 - **each of the four class families is class-preserving by
   construction, and the walk CHECKS it.** A cell that reads as an
   ordinary number, one holding a well-formed number too large or too
@@ -2382,7 +2574,28 @@ packing rule applying here IN FULL — both margins and the shape search
   a notation inside accounting parentheses never does — gives the pass
   up after the ceiling G9.2 fixes, the walk is put back where that pass
   began, and the ordinary rule takes the value it would have taken
-  anyway;
+  anyway. **AND THE CHOICE IS CHECKED ONCE THE SPELLINGS EXIST** (G9.3
+  step 5, plan amendment A-P3-12): whether a family can SUPPLY the
+  collisions this choice asks it for depends on spellings that do not
+  exist while the choice is being made, so a layout that could not
+  build one is laid out again — the short family asked for no more than
+  it was shown to supply, a slot carrying a published length end
+  offered a collision before any other slot of its family, and where
+  neither helps, the further exact packings of this section, including
+  the ones its own search reaches by holding one group to one family.
+  The choice above is offered FIRST and unchanged, so a description it
+  answers is answered by it, byte for byte. **AND A LAYOUT REACHED THIS
+  WAY IS ACCEPTED ONLY WHERE IT GIVES UP NOTHING THE FIRST LAYOUT HELD,
+  RECOUNTED FROM THE FINISHED CELLS** (plan amendment A-P3-17 clause 2).
+  A packing meets the four class counts and the three alphabet counts as
+  arithmetic over whole groups; whether the family it names holds a
+  spelling AT THE LENGTH the slot is pinned to is a separate question,
+  and where the answer is none the walk falls back to the band's own
+  alphabet and a count met in the arithmetic is missed on the page. So
+  the four class counts, both alphabet counts, both published length
+  ends and both distinctness counts are recounted off the cells a
+  candidate layout wrote, and a candidate missing a count the first
+  layout held is refused whatever else it repairs;
 - **when `all_whole_numbers` is true, every band writes whole numbers.**
   In the figures band the first character is a non-zero digit, so the
   spelling's length is its digit count. In the code band the value is
@@ -2397,24 +2610,60 @@ packing rule applying here IN FULL — both margins and the shape search
 - no word statistics exist, so G9.5 step 6 does not apply and no space
   is ever written into an identifier.
 
-**What the length ends and the bands still cost, left standing rather
-than written quieter** (review items P2-C5-F4 and P2-C5-F2). A whole
-number standing outside the figures needs two characters in the wide
-band and three in the code band, so once `all_whole_numbers` is true a
-band's permitted LENGTHS are part of the question. The first bullet
-above now settles length and band together, which closes the shape a
-length end pinned onto a group whose band has no whole-number spelling
-at that one length used to leave — a source of `1.`, `2e0` and `3` is
-its own proof that an answer exists, and the packing finds it. **One
-shape is left, and it is an open defect rather than a disposition this
-method grants**: a published longest length of two characters carrying
-a value that must stand in the code alphabet, whose only two-character
-whole numbers begin with a sign G9.1 keeps a made-up value from
-beginning with. There the ordinary walk takes the value and
-`all_whole_numbers` is recounted from the finished cells and named,
-with its achieved value beside the published one. The ratified plan
-holds the fact exact in every case, so closing it needs an owner
-decision about the leading character.
+**What the length ends and the bands cost, and how both were settled**
+(review items P2-C5-F4 and P2-C5-F2; closed by Phase 3 plan P3-D8.1,
+owner decision 1, 2026-08-12). A whole number standing outside the
+figures needs two characters in the wide band and three in the code
+band, so once `all_whole_numbers` is true a band's permitted LENGTHS
+are part of the question. The first bullet above settles length and
+band together, which closed the shape a length end pinned onto a group
+whose band has no whole-number spelling at that one length used to
+leave — a source of `1.`, `2e0` and `3` is its own proof that an answer
+exists, and the packing finds it.
+
+The other shape was a published longest length of two characters
+carrying a value that must stand in the code alphabet. Its only
+two-character whole numbers begin with a sign, which G9.1 keeps a
+made-up value from beginning with, and the implementation wrote one
+anyway — meeting the count by breaking the bar, and leaving the
+report's formula paragraph telling the reader that an invented cell was
+a value the description published.
+
+**The owner settled it as a bounded carve-out, not a refusal** (owner
+decision 9, 2026-08-13). A description carrying those counts PROVES the
+real column held sign-leading values, since no other spelling of that
+width exists, so the twin inherits a hazard the table already had
+rather than manufacturing one — which is the distinction G9.1's bar was
+written to draw. Refusing instead would deny a person a twin over a
+character their own file used. The family is written where it is
+needed, and the report's formula paragraph names those columns, says
+the cells were invented, and says why.
+
+**"Where it is needed" is decided by the packing and by nothing else.**
+The class-and-alphabet search above runs first with the two-character
+code family CLOSED, and reaches for it only when no assignment of whole
+groups meets every published count without it — so a column with room
+for three characters writes `1e0` and no sign at all.
+`all_whole_numbers` stays EXACT-OBSERVABLE in every case this method
+builds, and an invented record number opens with such a character only
+where the published counts leave no other way to spell a value of that
+width for its own group.
+
+**The COUNT of such cells is not minimal, and this document said
+otherwise until now** (Phase 3 plan P3-C7-F1 and its amendment A-P3-8
+clause 4, 2026-08-14). A fold-collision PARTNER carries its parent's
+spelling, and `_partner_of` searches only the family the packing
+already gave the slot, so it cannot move a collision to a family where
+it would cost nothing: the plan's measured column — `-3` twelve times,
+`-34023` twice, `8e999` three times and `8E999` twice — writes fourteen
+such cells where an allocation putting the collision on the
+out-of-range pair would write two. Every published count is met either
+way, so what is missing is a MINIMISATION rather than an obligation;
+the plan records the three passes that designed it, measured it and did
+not take it, and the generation report says the same thing to the
+person holding the twin. An independent implementer is bound by the
+counts, not by this shortfall: writing fewer such cells while meeting
+every published count conforms.
 
 In the infeasible corner of owner decision 6 the identifier repeats:
 the groups are filled from the domain in order and, when it is
@@ -2702,7 +2951,17 @@ generation, and every outcome is fixed (P2-D6):
      whole number IS a figure, so a longest length of one character
      with `n_all_digits` below `n_present`, and a shortest length of one
      character with `n_all_digits` of zero, are both descriptions no
-     table can hold.
+     table can hold;
+   A FIFTH REFUSAL WAS ADDED HERE ON 2026-08-12 AND WITHDRAWN ON
+   2026-08-13, both by amendment, and the round trip is recorded rather
+   than erased. `generation-whole-numbers-need-code-room` stopped a
+   declared identifier published as whole numbers whose values must
+   stand in the code alphabet with no room for a third character. The
+   owner withdrew it under decision 9: a description carrying those
+   counts proves the real column held sign-leading values, so refusing
+   denied a person a twin over a character their own file used. G9.1's
+   bar carries the bounded carve-out instead, and the report counts and
+   names the cells.
 
    The last two were written as twins with the exact fact named as
    missed until review item P2-C5-F4; the ratified plan reserves the
@@ -3225,8 +3484,9 @@ fail.
 **Two committed JSON files, and ONE oracle** (review item P2-C3-F3).
 `tests/reference/generation-reference-vectors.json` carries the nine
 cases G14.3 names first and
-`tests/reference/generation-branch-vectors.json` carries the five it
-names after them. Both are written by
+`tests/reference/generation-branch-vectors.json` carries the six it
+names after them (five, until owner decision 11 added the
+pooled-spelling case). Both are written by
 `tools/reference/make_generation_reference_vectors.py` — the second
 through the entry point `tools/reference/make_generation_branch_vectors.py`,
 which runs that oracle and asks it for the second case set — so there is
@@ -3304,9 +3564,12 @@ proved" cannot quietly stop being true when a field is added.
 ### G14.3 The required cases
 
 The four the plan names (P2-D7), five more this method's own mechanisms
-need, four more for the branches those nine leave unexercised (review
+need, five more for the branches those nine leave unexercised (four at
+review item P2-C4-C3 and one at owner decision 11, review
 item P2-C3-F3), and one more for the published end the ordinal space
-cannot hold (review item P2-C4-C3). **All fourteen are required.** The
+cannot hold (review item P2-C4-C3), and the pooled remainder written by
+its own value beside a whole number wider than the fixed-point window
+(owner decision 11). **All fifteen are required.** The
 first nine are the first committed file and the last five the second
 (G14.2):
 
@@ -3394,6 +3657,22 @@ G9.3. Each of the four reaches exactly one of those branches:
   that G5.3's clamp is not decoration: the four IEEE-754 operations of
   the convex form can land one unit in the last place away from a value
   both rungs agree on, and the clamp is what brings it back.
+
+**Why the fifteenth exists** (2026-08-13; owner decision 11). The
+independent oracle still implemented the pooled-plain rule the Phase 3
+repair retired, and no committed case reached the branch, so both files
+stayed byte-identical while the check they exist to be proved nothing
+there. `numeric_pooled_spelling` reaches it, and reaches owner decision
+10's point-free spelling at any width in the same twelve cells: its
+published smallest value carries a decimal point, so the cell that must
+read back as it can wear no point-free form and the held-back cell is
+the one that lands there; its published largest is ten to the twentieth,
+whole, and written in figures. **What the case freezes is the CELLS**,
+and the pooled rule's own difference is in the recount rather than in
+them -- the retired rule wrote the same canonical text for that cell and
+differed only in what it then owed -- so the recount identity of 7.5.7
+is guarded by the style batteries and the report's golden bytes, and
+this case guards the width.
 
 **Why the fourteenth exists** (2026-08-12; review item P2-C4-C3). The
 obligation G7.5's endpoint route carries had been lowered twice and

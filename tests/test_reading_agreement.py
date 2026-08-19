@@ -51,8 +51,8 @@ def test_a_file_rewritten_between_the_passes_is_refused(
     target = _write(tmp_path, b"old_name,value\nold_a,1\nold_b,2\n")
     real = reading._read_authoritatively
 
-    def rewrite_after_reading(table_path, shown, first_row):
-        found = real(table_path, shown, first_row)
+    def rewrite_after_reading(table_path, shown, first_row, refusals):
+        found = real(table_path, shown, first_row, refusals)
         pathlib.Path(table_path).write_bytes(
             b"new_name,value\nnew_a,8\nnew_b,9\n"
         )
@@ -74,8 +74,8 @@ def test_values_rewritten_between_the_passes_are_refused(
     target = _write(tmp_path, b"name,value\nold_a,1\nold_b,2\n")
     real = reading._read_authoritatively
 
-    def rewrite_after_reading(table_path, shown, first_row):
-        found = real(table_path, shown, first_row)
+    def rewrite_after_reading(table_path, shown, first_row, refusals):
+        found = real(table_path, shown, first_row, refusals)
         pathlib.Path(table_path).write_bytes(b"name,value\nnew_a,8\nnew_b,9\n")
         return found
 

@@ -1250,18 +1250,26 @@ def point_free_spelling(value, integer_valued):
     else (G6.2's first clause), so it IS the point-free spelling and is
     returned unchanged.  Otherwise, with ``D`` and ``decpt`` the
     shortest round-trip digits and decimal point: where
-    ``decpt >= len(D)`` and ``-4 < decpt <= 16`` -- a whole value the
-    fixed-point window holds -- the spelling is the sign, ``D`` and
-    ``decpt - len(D)`` trailing zeros, and zero is written ``0`` and
-    never ``-0``.  Where those conditions do not hold the value has no
-    point-free spelling at all: ``1e+16`` has none and neither has
-    ``12.5``, because inserting zeros in front of either leaves the
-    point or the exponent exactly where it was.
+    ``decpt >= len(D)`` -- a whole value -- the spelling is the sign,
+    ``D`` and ``decpt - len(D)`` trailing zeros, and zero is written
+    ``0`` and never ``-0``.  Where that does not hold the value has no
+    point-free spelling at all: ``12.5`` has none, because inserting
+    zeros in front of it leaves the point exactly where it was.
+
+    THERE IS NO WIDTH CEILING (owner decision 10, 2026-08-13).  An
+    earlier revision stopped at ``decpt <= 16``, the fixed-point window
+    of the contract's CANONICAL spelling -- which governs the numbers
+    inside a profile document and not the spelling of a cell in the
+    twin.  A plain cell owes that it reads back as the same number and
+    that it classifies as plain, and the full digit expansion of a whole
+    value does both however many figures it takes.  While the ceiling
+    stood, a column whose source wrote ``100000000000000000000`` in
+    figures was published ``plain`` and written back with a point.
     """
     if integer_valued:
         return canonical_spelling(value, True)
     digits, decpt = shortest_round_trip(value)
-    if not (-4 < decpt <= 16) or decpt < len(digits):
+    if decpt < len(digits):
         return None
     sign = "-" if value < 0 else ""
     return sign + digits + "0" * (decpt - len(digits))
@@ -1524,7 +1532,22 @@ def style_allocation(published, values, integer_valued):
     def wearable(style, index):
         if style == "leading_plus" and values[index] < 0:
             return False
-        return point_free[index] or style not in POINT_FREE_STYLES
+        if point_free[index] or style not in POINT_FREE_STYLES:
+            return True
+        # THE POOL IS OFFERED TO A CELL THAT CANNOT BE WRITTEN PLAINLY,
+        # where it is spelled canonically instead (Phase 3 plan
+        # P3-D8.1).  Contract 7.5.7 used to write every pooled cell
+        # `plain`, which a column whose published `min` or `max` carries
+        # a point can never do, so the remainder came out short by that
+        # cell.  A pooled cell has no published form, so nothing is owed
+        # by writing it in its own value's canonical text.  The offer
+        # opens only while the pool is still standing AND the point-free
+        # claims outnumber the carriers left, which is what keeps every
+        # other column placed exactly as before.
+        if style != "plain" or pool <= 0:
+            return False
+        demand = sum(remaining[name] for name in POINT_FREE_STYLES)
+        return demand > carriers[index + 1]
 
     chosen = []
     missed = {}
@@ -2574,7 +2597,22 @@ def _identifier_content(column):
     which partner, but not the order in which identities and partners
     are laid into the groups; this file lays the identities down first,
     in enumeration order, and then the partners in ascending identity
-    order, and says so.
+    order, and says so.  That divergence is older than this note and is
+    recorded in the Phase 3 plan; it is repeated here so the next reader
+    meets it as a known item.
+
+    **AND THIS ORACLE DOES NOT MODEL G9.3 STEP 5** (plan amendment
+    A-P3-12), which lays a column out again where a collision it owes
+    could not be built.  It does not have to, and that is a statement
+    about reach rather than an excuse: step 5 is reachable only on a
+    description whose first layout leaves a partner unbuilt, and this
+    oracle raises rather than stating cells for exactly that
+    description -- see the two AssertionErrors below, one for a partner
+    the identities cannot carry and one for a slot the packing put in
+    another band.  So no case it can freeze reaches the step, no frozen
+    case does today, and a case that did would need this oracle widened
+    -- its naive tail replaced by G9.6's choice rule, and step 5 built
+    on top of that -- BEFORE the case could be added.
     """
     occurrences = column["n_distinct_by_occurrences"]
     groups = []
@@ -3609,6 +3647,13 @@ def _universal(name, role, statistical_type, structural_role, quality_state, **f
             "(withheld)": 0,
         },
         "missing_by_source": {},
+        # The two counts contract version 5 moved out of the map above,
+        # so that its keys are the table's own text and nothing else
+        # (that contract's section 5).  Neither is read by any
+        # generation rule; they are here because every column block
+        # carries them and the loader would refuse a block that did not.
+        "n_missing_blank": 0,
+        "n_missing_withheld": 0,
         "n_sentinel_candidates_unpublished": 0,
         "sentinel_verdicts": [],
         "detection_evidence": "written by hand in this method specification's "
@@ -3620,7 +3665,7 @@ def _universal(name, role, statistical_type, structural_role, quality_state, **f
         block["missing_by_class"] = dict(block["missing_by_class"])
         block["missing_by_class"]["(withheld)"] = block["n_missing"]
         if role not in ("identifier", "free_text", "numeric_unrepresentable"):
-            block["missing_by_source"] = {"(withheld)": block["n_missing"]}
+            block["n_missing_withheld"] = block["n_missing"]
     return block
 
 
@@ -3812,6 +3857,74 @@ def _numeric_integer():
         "either.",
         "column": column,
         "rows": 22,
+        "identifier_declared": False,
+        "rungs": rungs,
+        "claims": claims,
+    }
+
+
+def _numeric_pooled_spelling():
+    """The two branches owner decisions 9 to 11 left without a witness.
+
+    THIS CASE EXISTS BECAUSE A REVIEW FOUND THE ORACLE AND THE SHIPPED
+    CODE DISAGREEING WHERE NOTHING LOOKED (review item P3-C4-F2, owner
+    decision 11). The pooled-spelling rule changed and no frozen case
+    reached it, so both files stayed green while the independent check
+    they exist to be was, on that branch, checking nothing. Two branches
+    meet in this one column:
+
+    - **a pooled cell with no point-free spelling.** The published
+      smallest value carries a decimal point, so the cell that must read
+      back as it cannot be written plainly -- and the map's held-back
+      remainder used to be owed exactly that. A pooled cell names no
+      form, so it is written in its own value's canonical text, and the
+      recount identity of contract 7.5.7 is what the twin owes instead.
+    - **a whole value wider than the fixed-point window.** The published
+      largest value is ten to the twentieth, whole, and published
+      `plain` because a source that wrote it wrote its digits. Owner
+      decision 10 lifted the sixteen-figure ceiling that used to send it
+      back with a decimal point, so it is written in figures here.
+    """
+    ladder, ladder_claims, rungs = _ladder_fields({
+        "min": "0.5", "p01": "4", "p05": "4", "p10": "4",
+        "p25": "4", "p50": "4", "p75": "4",
+        "p90": "4", "p95": "4", "p99": "4",
+        "max": "1e+20",
+    })
+    claims = {
+        ("column", "percentiles") + key: value
+        for key, value in ladder_claims.items()
+    }
+    moments = {}
+    for name, text in (("mean", "1e+19"), ("std", "3e+19"),
+                       ("skew", "3"), ("numeric_share", "1")):
+        field, claim = nearest_field(text)
+        moments[name] = field
+        claims[("column", name)] = claim
+    column = _universal(
+        "column_1", "continuous", "continuous", "data", "ok",
+        n_present=12, n_missing=0, n_distinct=3, n_distinct_folded=3,
+        n_numeric=12, n_not_numeric=0, n_out_of_range=0, n_contradictory=0,
+        percentiles=ladder, std_unrepresentable=False,
+        n_zero=0, n_negative=0, n_negative_unrepresentable=0,
+        n_used_in_statistics=12, n_left_out_of_statistics=0,
+        integer_valued=False, n_rows=12,
+        numeric_styles={"plain": 11, "(withheld)": 1},
+        **moments,
+    )
+    return {
+        "why": "the pooled remainder written by its own value, and a whole "
+        "value wider than the fixed-point window written in figures. Eleven "
+        "cells are published plain and one is held back below the smallest "
+        "group size; the cell that must read back as the published smallest "
+        "value carries a decimal point and can wear no point-free form at "
+        "all, so the held-back cell is the one that lands there and is "
+        "written canonically. The published largest value is whole and wider "
+        "than the window the canonical spelling switches at, and is written "
+        "in its digits rather than with a point. Neither branch had a frozen "
+        "case until owner decision 11 asked for one.",
+        "column": column,
+        "rows": 12,
         "identifier_declared": False,
         "rungs": rungs,
         "claims": claims,
@@ -4159,6 +4272,7 @@ NAMED_CASE_BUILDERS = {
 
 BRANCH_CASE_BUILDERS = {
     "free_text_joint": _free_text_joint,
+    "numeric_pooled_spelling": _numeric_pooled_spelling,
     "identifier_edge_spacing": _identifier_edge_spacing,
     "leap_second_endpoint": _leap_second_endpoint,
     "numeric_point_free_styles": _numeric_point_free_styles,
@@ -4182,7 +4296,7 @@ CASE_SET_ACCOUNTS = {
     "tests/reference/generation-branch-vectors.json: one transform, one proof "
     "layer, two files, because a committed fixture must stay under the "
     "provenance manifest's byte cap and these nine already spend most of it.",
-    BRANCH_PART: "The five cases method section G14.3 adds for the branches "
+    BRANCH_PART: "The six cases method section G14.3 adds for the branches "
     "its first nine leave unexercised (review items P2-C3-F3 and P2-C4-C3): "
     "the joint class-and-sign packing of an unrepresentable column, the joint "
     "class-and-alphabet packing of free text, a fold collision no case change "
@@ -4318,6 +4432,16 @@ GIVEN_WORDS = {
         18384416552906420653, 15259945026574340491, 1508198782665164068,
         17439788078174870154, 7339215063107649377, 9204310222248724882,
     ),
+    # The twelve words of the pooled-spelling case (owner decision
+    # 11): one content word and eleven placement words, drawn in
+    # the one form G3.2 permits so the shipped generator reaches
+    # the same cells from the same stream.
+    "numeric_pooled_spelling": (
+        12955849785445258386, 11136466736298123742, 10038147400135452611,
+        15147492697428057229, 14236867650031288, 2173290989802069806,
+        11540999283663690755, 7558342730909420832, 4008536478337168684,
+        7977734629748327352, 2774262970987807365, 3332551472928899385,
+    ),
     "numeric_point_free_styles": (
         17164562756356967436, 9452808604124318311, 13143735524693854369,
         9264394462213188003, 4424453555071538545, 16165890503801172771,
@@ -4384,7 +4508,8 @@ def word_budget(column, rows):
 # a column block stops the run: the point of naming them is that a field
 # added later cannot arrive as an unproved number without being noticed.
 INTEGER_COLUMN_KEYS = frozenset({
-    "position", "n_present", "n_missing", "n_distinct", "n_distinct_folded",
+    "position", "n_present", "n_missing", "n_missing_blank",
+    "n_missing_withheld", "n_distinct", "n_distinct_folded",
     "n_numeric", "n_not_numeric", "n_out_of_range", "n_contradictory",
     "n_sentinel_candidates_unpublished", "n_zero", "n_negative",
     "n_negative_unrepresentable", "n_used_in_statistics",
@@ -4610,10 +4735,12 @@ DEFINITIONS = {
     "and in d[.ddd]e+/-XX otherwise with the sign always written and the "
     "exponent at least two digits. Beside it, and not always the same text, "
     "the POINT-FREE spelling the three styles carrying neither a point nor "
-    "an exponent are written from: where decpt >= len(D) and -4 < decpt <= "
-    "16 it is the sign, D and decpt - len(D) trailing zeros, and where those "
-    "conditions do not hold the value has no point-free spelling at all "
-    "(G6.2).",
+    "an exponent are written from: where decpt >= len(D) -- that is, where "
+    "the value is whole, at any width -- it is the sign, D and "
+    "decpt - len(D) trailing zeros, and where it is not whole the value has "
+    "no point-free spelling at all (G6.2, as owner decision 10 amended it; "
+    "the -4 < decpt <= 16 window this sentence used to carry belongs to the "
+    "canonical spelling above and not to this one).",
     "style_allocation": "the VALUES step first: W is the point-free quota of "
     "the effective map, and while fewer cells than that hold a value with a "
     "point-free spelling the strata are walked in ascending order and the "

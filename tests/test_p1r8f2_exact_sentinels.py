@@ -367,10 +367,10 @@ def test_the_premise_of_every_case_above(
     assert held in parsing.NUMERIC_SENTINELS
     assert parsing.classify_number(neighbour) == parsing.NUMBER
     assert parsing.parse_number(neighbour) == held
-    assert taxonomy._exact_value(neighbour) != taxonomy._exact_value(sentinel)
-    assert taxonomy._exact_value(again) == taxonomy._exact_value(sentinel)
+    assert taxonomy.exact_of_spelling(neighbour) != taxonomy.exact_of_spelling(sentinel)
+    assert taxonomy.exact_of_spelling(again) == taxonomy.exact_of_spelling(sentinel)
     assert held is not None
-    assert taxonomy._exact_number(held) == taxonomy._exact_value(sentinel)
+    assert taxonomy.exact_of_number(held) == taxonomy.exact_of_spelling(sentinel)
 
 
 def test_every_numeric_sentinel_has_a_case_here() -> None:

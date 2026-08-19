@@ -35,7 +35,11 @@ def _scan_code(tmp_path, code):
     """Write one module into a fresh tree and scan that tree."""
     tree = tmp_path / "tree"
     tree.mkdir()
-    (tree / "sample.py").write_text(textwrap.dedent(code), encoding="utf-8")
+    (
+        tree / "sample.py").write_text(textwrap.dedent(code),
+        encoding="utf-8",
+        newline="\n",
+    )
     return _SCANNER.scan_tree(tree)
 
 
@@ -45,7 +49,7 @@ def _scan_package(tmp_path, modules):
     for relative, code in modules.items():
         path = tree / relative
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(textwrap.dedent(code), encoding="utf-8")
+        path.write_text(textwrap.dedent(code), encoding="utf-8", newline="\n")
     return _SCANNER.scan_tree(tree)
 
 
@@ -147,7 +151,7 @@ def test_cli_exit_codes_and_line_format(tmp_path):
     """Exit 0 on a clean tree; exit 1 plus file:line lines on a red one."""
     clean = tmp_path / "clean"
     clean.mkdir()
-    (clean / "ok.py").write_text("import json\n", encoding="utf-8")
+    (clean / "ok.py").write_text("import json\n", encoding="utf-8", newline="\n")
     done = subprocess.run(
         [sys.executable, str(SCANNER_PATH), str(clean)],
         capture_output=True,
@@ -158,7 +162,7 @@ def test_cli_exit_codes_and_line_format(tmp_path):
 
     red = tmp_path / "red"
     red.mkdir()
-    (red / "bad.py").write_text("import subprocess\n", encoding="utf-8")
+    (red / "bad.py").write_text("import subprocess\n", encoding="utf-8", newline="\n")
     done = subprocess.run(
         [sys.executable, str(SCANNER_PATH), str(red)],
         capture_output=True,

@@ -205,8 +205,8 @@ def test_an_earlier_profile_is_untouched_by_a_failure_in_the_writes(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     first, second = _outputs(tmp_path)
-    first.write_text("last week's profile\n", encoding="utf-8")
-    second.write_text("last week's summary\n", encoding="utf-8")
+    first.write_text("last week's profile\n", encoding="utf-8", newline="")
+    second.write_text("last week's summary\n", encoding="utf-8", newline="")
     _break_the_write_of(
         monkeypatch,
         pathlib.Path(f"{second}{profile.PART_SUFFIX}-1"),
@@ -287,7 +287,7 @@ def test_a_failure_while_installing_the_profile_names_every_file(
     # foresee. The old profile is now under a working name and the
     # profile's own name is empty: both facts must be in the sentence.
     first, second = _outputs(tmp_path)
-    first.write_text("last week's profile\n", encoding="utf-8")
+    first.write_text("last week's profile\n", encoding="utf-8", newline="")
     first_part = pathlib.Path(f"{first}{profile.PART_SUFFIX}-1")
     kept = pathlib.Path(f"{first}{profile.KEPT_SUFFIX}-1")
     _break_the_rename_of(monkeypatch, first_part, MemoryError("simulated"))
@@ -316,7 +316,7 @@ def test_a_failure_while_moving_the_earlier_profile_aside_guesses_nothing(
     # description from before this run" would be a guess, and removing
     # it would be a guess with the reader's only earlier profile.
     first, second = _outputs(tmp_path)
-    first.write_text("last week's profile\n", encoding="utf-8")
+    first.write_text("last week's profile\n", encoding="utf-8", newline="")
     kept = pathlib.Path(f"{first}{profile.KEPT_SUFFIX}-1")
     _break_the_rename_of(monkeypatch, first, MemoryError("simulated"))
     state = profile.DiskState()

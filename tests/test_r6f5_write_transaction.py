@@ -108,7 +108,7 @@ def _outputs(folder: pathlib.Path) -> "tuple[pathlib.Path, pathlib.Path]":
 
 def _table(folder: pathlib.Path) -> pathlib.Path:
     table = folder / "clinic.csv"
-    table.write_text(TABLE_TEXT, encoding="utf-8")
+    table.write_text(TABLE_TEXT, encoding="utf-8", newline="\n")
     return table
 
 
@@ -212,7 +212,7 @@ def test_a_working_name_that_is_the_table_itself_is_passed_over(
 ) -> None:
     # The table happens to be named where a working file would go.
     table = tmp_path / f"clinic-profile.json{profile.PART_SUFFIX}-1"
-    table.write_text(TABLE_TEXT, encoding="utf-8")
+    table.write_text(TABLE_TEXT, encoding="utf-8", newline="\n")
     first, second = _outputs(tmp_path)
 
     profile.write_both_files(
@@ -251,7 +251,7 @@ def test_unrelated_working_neighbours_are_left_exactly_as_they_were(
         f"clinic-profile.json{profile.KEPT_SUFFIX}-1": "a fourth\n",
     }
     for name, text in neighbours.items():
-        (tmp_path / name).write_text(text, encoding="utf-8")
+        (tmp_path / name).write_text(text, encoding="utf-8", newline="\n")
     first.write_text("last week's profile\n", encoding="utf-8", newline="\n")
 
     profile.write_both_files(first, second, PROFILE_TEXT, SUMMARY_TEXT)
@@ -276,7 +276,7 @@ def test_every_working_name_taken_is_refused_in_words(
         neighbour = tmp_path / (
             f"clinic-profile.json{profile.PART_SUFFIX}-{number}"
         )
-        neighbour.write_text(f"leftover {number}\n", encoding="utf-8")
+        neighbour.write_text(f"leftover {number}\n", encoding="utf-8", newline="\n")
         blocked = blocked + [neighbour]
 
     with pytest.raises(errors.ProfileError) as raised:
@@ -363,6 +363,18 @@ def test_an_output_that_is_a_link_is_refused_before_anything_is_written(
 def test_a_folder_that_cannot_be_written_is_a_sentence(
     tmp_path: pathlib.Path,
 ) -> None:
+    # WHERE THIS IS PROVEN AND WHERE IT IS NOT (round 5 item 10). The
+    # condition is built here and then CHECKED with a probe, so the case
+    # never asserts against a folder that is perfectly writable. Two
+    # hosts fail that check, and they are named in the skip rather than
+    # left for a reader to assume this held everywhere: a POSIX
+    # superuser, who overrides the mode bits; and Windows, where
+    # `chmod` moves the read-only attribute and nothing else, so a
+    # folder that refuses a write cannot be made from the standard
+    # library at all. Every CI cell that CAN build it does -- the
+    # hosted Linux and macOS images run as an ordinary account -- and
+    # on Windows this refusal has no driven witness. That is a stated
+    # residual, not a silence.
     folder = tmp_path / "locked"
     folder.mkdir()
     first, second = _outputs(folder)
@@ -376,7 +388,12 @@ def test_a_folder_that_cannot_be_written_is_a_sentence(
     if allowed:  # pragma: no cover -- a user who overrides permissions
         probe.unlink()
         folder.chmod(0o700)
-        pytest.skip("this user can write into a folder that forbids it")
+        pytest.skip(
+            "this host writes into a folder whose mode bits forbid it: "
+            "Windows moves only the read-only attribute, and a POSIX "
+            "superuser overrides the bits. No folder that refuses a "
+            "write can be built here from the standard library"
+        )
     try:
         with pytest.raises(errors.ProfileError) as raised:
             profile.write_both_files(first, second, PROFILE_TEXT, SUMMARY_TEXT)
@@ -450,7 +467,7 @@ def test_the_second_rename_failing_puts_the_earlier_profile_back(
 ) -> None:
     first, second = _outputs(tmp_path)
     first.write_text("last week's profile\n", encoding="utf-8", newline="\n")
-    second.write_text("last week's summary\n", encoding="utf-8")
+    second.write_text("last week's summary\n", encoding="utf-8", newline="")
     _fail_replace_onto(monkeypatch, [second])
 
     with pytest.raises(errors.ProfileError) as raised:
@@ -473,7 +490,7 @@ def test_a_rollback_that_itself_fails_names_the_new_and_the_old_file(
     # and must be told so in as many words.
     first, second = _outputs(tmp_path)
     first.write_text("last week's profile\n", encoding="utf-8", newline="\n")
-    second.write_text("last week's summary\n", encoding="utf-8")
+    second.write_text("last week's summary\n", encoding="utf-8", newline="")
     kept = tmp_path / f"clinic-profile.json{profile.KEPT_SUFFIX}-1"
     real = pathlib.Path.replace
 
@@ -678,7 +695,7 @@ def test_two_names_the_filesystem_folds_together_are_caught(
     decomposed = tmp_path / "cafe\u0301-profile.json"
     assert f"{composed}" != f"{decomposed}"
     probe = tmp_path / "prob\u00e9.txt"
-    probe.write_text("x", encoding="utf-8")
+    probe.write_text("x", encoding="utf-8", newline="\n")
     folds_together = (tmp_path / "probe\u0301.txt").exists()
     probe.unlink()
     if not folds_together:

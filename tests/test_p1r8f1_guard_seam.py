@@ -193,8 +193,8 @@ def _run_with_a_stop(
     """One whole transaction with one injected stop; report what happened."""
     first, second = _outputs(folder)
     if earlier:
-        first.write_text(OLD_PROFILE, encoding="utf-8")
-        second.write_text(OLD_SUMMARY, encoding="utf-8")
+        first.write_text(OLD_PROFILE, encoding="utf-8", newline="")
+        second.write_text(OLD_SUMMARY, encoding="utf-8", newline="")
     state = profile.DiskState()
     stop = _Stop(nth, failure, frames)
     caught: BaseException | None = None
@@ -537,7 +537,7 @@ def test_a_refusal_the_transaction_composed_still_says_it_once(
     number = 1
     while number <= profile.WORKING_NAME_ATTEMPTS:
         pathlib.Path(f"{first}{profile.PART_SUFFIX}-{number}").write_text(
-            "not synthtwin's\n", encoding="utf-8"
+            "not synthtwin's\n", encoding="utf-8", newline="\n"
         )
         number = number + 1
     state = profile.DiskState()
@@ -617,7 +617,7 @@ def test_a_stop_after_both_renames_reports_a_finished_write(
     # rollback that failed would send the reader looking for damage that
     # is not there.
     first, second = _outputs(tmp_path)
-    first.write_text(OLD_PROFILE, encoding="utf-8")
+    first.write_text(OLD_PROFILE, encoding="utf-8", newline="")
     kept = pathlib.Path(f"{first}{profile.KEPT_SUFFIX}-1")
 
     _interrupt_the_unlink_under(monkeypatch, tmp_path)
@@ -656,7 +656,7 @@ def test_the_command_says_both_files_were_written_and_names_the_leftover(
         fixtures.single_column_table("age", ["41"] * 30),
     )
     first, _second = _outputs(tmp_path)
-    first.write_text(OLD_PROFILE, encoding="utf-8")
+    first.write_text(OLD_PROFILE, encoding="utf-8", newline="")
     kept = pathlib.Path(f"{first}{profile.KEPT_SUFFIX}-1")
 
     _interrupt_the_unlink_under(monkeypatch, tmp_path)

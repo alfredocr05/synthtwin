@@ -49,6 +49,7 @@ from synthtwin import (
     parsing,
     profile,
     reading,
+    rendering,
     taxonomy,
 )
 from synthtwin.cli import main
@@ -106,8 +107,20 @@ def _column(document: Document, name: str) -> Document:
 # -- what the plan requires every one of these messages to say --------
 
 
-def _speaks_the_plan(message: str, column: str, facts: "tuple[str, ...]") -> None:
-    """P2-D6 rule 5, checked clause by clause on the message itself."""
+def _speaks_the_plan(
+    message: str,
+    column: str,
+    facts: "tuple[str, ...]",
+) -> None:
+    """P2-D6 rule 5, checked clause by clause on the message itself.
+
+    Every refusal this file covers is reached only by a description
+    whose facts no table produces, so describing the table again
+    settles it and the message says so. The one refusal that was NOT
+    like that -- a pair a producer writes from a real table -- was
+    withdrawn by owner decision 9 rather than given a second dialect of
+    this check.
+    """
     assert "is valid" in message, message
     assert f"'{parsing.visible(column)}'" in message, message
     assert "cannot build a twin column from it" in message, message
@@ -187,27 +200,144 @@ def test_a_one_character_shortest_value_with_no_figures_refuses(
     )
 
 
-def test_the_whole_number_refusal_is_narrow(tmp_path: pathlib.Path) -> None:
-    """A description one character wider is BUILT, not refused.
+# -- case 1b: the pair a real table holds, BUILT and flagged ----------
 
-    Two characters carry `1.` and three carry `1e0`, so the moment the
-    published range leaves a whole-number spelling outside the figures
-    the description is one a rule can meet -- and a refusal there would
-    be a stop nobody asked for. The unedited description is built too.
+
+def test_two_character_code_whole_numbers_are_built_and_flagged(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Owner decision 9 (2026-08-13): a flag, not a stop.
+
+    A value in the code alphabet that is not figures alone and reads
+    back as a whole number is at least three characters long -- unless
+    it puts a sign in front of a figure, which is what a two-character
+    one must do. A refusal stood here for one day. The owner withdrew
+    it: a description carrying these counts PROVES the real column held
+    sign-leading values, since no other spelling of that width exists,
+    so refusing would deny someone a twin over a character their own
+    table used, and would leave them without the column they need to
+    develop against.
+
+    What the twin does instead is write the cells and SAY SO. This
+    asserts both halves: the description builds, and the report's
+    formula paragraph names the column and tells the reader the cells
+    were invented rather than published -- which is the sentence that
+    used to be false.
+    """
+    document = _document(
+        tmp_path,
+        fixtures.single_column_table("code", ["-3"] * 9 + ["-45"] * 9),
+        ["code"],
+    )
+    block = _column(document, "code")
+    assert block["role"] == "identifier"
+    assert block["min_length"] == 2
+    assert block["n_all_digits"] == 0
+    assert block["all_whole_numbers"] is True
+    described = _loaded(tmp_path, document)
+
+    twin = generation.generate(described, 0)
+    assert twin.columns, "the description must build"
+    assert [
+        note for note in twin.deviations if note.fact == "all_whole_numbers"
+    ] == []
+
+    hazardous = [
+        cell for cell in twin.columns[0] if cell and cell[0] in "=+-@"
+    ]
+    assert hazardous, "the fixture no longer reaches the corner"
+    text = rendering.report(described, twin)
+    assert "synthtwin MADE UP" in text, text
+    assert "'code'" in text
+    _the_inference_is_conditional(text)
+
+
+def _the_inference_is_conditional(text: str) -> None:
+    """The report's necessity claim is WHERE-claused, on both paragraphs.
+
+    Review round 3's standing owner item, closed by plan amendment
+    A-P3-8 clause 4. The claim that the description's counts leave no
+    other way to spell a value of that width is TRUE of the cells the
+    counts force and FALSE of the rest: a fold-collision partner carries
+    its parent's spelling, so a twin can hold more such cells than any
+    count required, which the plan measured at fourteen where two would
+    do. The report said both things eighteen lines apart -- the flat
+    claim first, the admission second -- and a person reads the first
+    one.
+
+    So this asserts the SHAPE of the sentence rather than its wording:
+    wherever the report says the counts leave no other spelling, the
+    clause is conditional, and the report says in as many words that it
+    cannot tell the reader which cell is which.
+    """
+    said = " ".join(text.split())
+    for flat in (
+        "counts are what leave no other way",
+        "your own table held values written that way, which is what",
+    ):
+        assert flat not in said, (
+            f"the report states the necessity claim flatly ({flat!r}). "
+            f"It is false for a fold-collision partner, which carries "
+            f"its parent's spelling and is not forced by any count "
+            f"(plan P3-C7-F1). Say it under a 'where' clause, or the "
+            f"reader takes every one of these cells as proof about "
+            f"their own column."
+        )
+    for conditional in (
+        (
+            "Where your description's own counts leave no other way to "
+            "spell a value of that width"
+        ),
+        "Where those counts leave no other spelling of that width",
+        "this report cannot tell you which cell is which",
+        "does not always reach for the fewest",
+    ):
+        assert conditional in said, (
+            f"the report no longer says {conditional!r}, which is half "
+            f"of what makes the necessity claim honest"
+        )
+
+
+def test_the_whole_number_refusal_is_narrow(tmp_path: pathlib.Path) -> None:
+    """A description with a spelling left is BUILT, not refused.
+
+    Two characters carry `1.` outside the code alphabet and three carry
+    `1e0` inside it, so the moment the published range leaves a
+    whole-number spelling the description is one a rule can meet -- and
+    a refusal there would be a stop nobody asked for. The unedited
+    description is built too.
+
+    Two characters carry `1.` outside the code alphabet and a sign in
+    front of a figure inside it, so both cases below have an answer and
+    neither may be refused. They were briefly split by a fifth refusal,
+    which owner decision 9 withdrew.
     """
     document = _document(tmp_path, _identifier_table(), ["code"])
     plain = _loaded(tmp_path, document, "plain")
     assert generation.generate(plain, 0).columns
 
-    widened = _document(
+    outside = _document(
+        tmp_path,
+        fixtures.single_column_table("code", ["1."] * 11 + ["70"] * 11),
+        ["code"],
+    )
+    block = _column(outside, "code")
+    assert block["max_length"] == 2
+    assert block["n_code_alphabet"] - block["n_all_digits"] == 0
+    block["all_whole_numbers"] = True
+    built = generation.generate(_loaded(tmp_path, outside, "wide"), 0)
+    assert built.columns
+
+    coded = _document(
         tmp_path,
         fixtures.single_column_table("code", ["ab"] * 11 + ["70"] * 11),
         ["code"],
     )
-    block = _column(widened, "code")
+    block = _column(coded, "code")
     assert block["max_length"] == 2
+    assert block["n_code_alphabet"] - block["n_all_digits"] > 0
     block["all_whole_numbers"] = True
-    built = generation.generate(_loaded(tmp_path, widened, "wide"), 0)
+    built = generation.generate(_loaded(tmp_path, coded, "coded"), 0)
     assert built.columns
 
 

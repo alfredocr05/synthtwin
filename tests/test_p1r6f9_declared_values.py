@@ -101,7 +101,15 @@ def test_keep_value_makes_a_genuine_na_data_again(
     # typed BECAUSE the value is in the table, so republishing it in the
     # settings block carried a real source value around every per-column
     # suppression rule (review item P1-R7-F2).
+    #
+    # AND, FROM CONTRACT VERSION 5, WHICH OF SYNTHTWIN'S OWN WORDS WAS
+    # NAMED (its section 6; plan amendment A-P3-27). `NA` is one of the
+    # ten spellings this package publishes as meaning "no value", so the
+    # record names the MEMBER `na` -- not the person's capitals, and not
+    # any word of theirs that is not on that list.
     assert document["settings"]["kept_values"] == {
+        "built_in_numbers": [],
+        "built_in_texts": ["na"],
         "n_declared": 1,
         "values_recorded": False,
     }
@@ -130,7 +138,12 @@ def test_missing_value_makes_ordinary_text_a_hole(
     assert column["n_missing"] == 40
     assert column["missing_by_class"]["(declared-missing)"] == 40
     assert column["role"] == taxonomy.ROLE_BINARY
+    # `unknown` is the person's own word, not one of synthtwin's ten,
+    # so both lists stay empty and the count is the whole of what the
+    # settings block says about it (contract 5 C5-17, C5-18).
     assert document["settings"]["declared_missing_values"] == {
+        "built_in_numbers": [],
+        "built_in_texts": [],
         "n_declared": 1,
         "values_recorded": False,
     }
@@ -267,6 +280,8 @@ def test_both_candidates_can_be_kept_at_once(
     assert column["percentiles"]["min"] == -999.0
     assert column["percentiles"]["max"] == 9999.0
     assert document["settings"]["kept_values"] == {
+        "built_in_numbers": [-999.0, 9999.0],
+        "built_in_texts": [],
         "n_declared": 2,
         "values_recorded": False,
     }
