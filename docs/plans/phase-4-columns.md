@@ -1534,18 +1534,24 @@ Opened by this plan, each a limit accepted rather than work forgotten:
   reproduced. Reproducing it would need a per-form construction with
   its own packing, feasibility rule and window family, priced out of
   proportion in P4-D4.3.
-- **R-P4-14** (opened by amendment A-P4-3). Sentences of the twin
-  report, the generation screen, the profiler summary and the quality
-  report are held by the display boundary, exact-shape tests, the claim
-  inventory and the golden hashes — four controls, where the profile
-  document has a fifth: an enumerated grammar whose guard rebuilds
-  every published sentence from parts and refuses one it cannot. A
-  future edit to those surfaces can therefore add a sentence nobody
-  enumerated. The four controls catch it if it overclaims or carries a
-  value; they do not catch one that is merely useless. Priced and
-  accepted in A-P4-3 rather than closed, because closing it means
-  moving several hundred lines of existing prose behind an enumeration
-  that buys them nothing.
+- **R-P4-14** (opened by amendment A-P4-3, restated at its real size on
+  review item P4-C2-F2). Sentences of the twin report, the generation
+  screen, the profiler summary and the quality report are held by the
+  display boundary, exact-shape tests, the claim inventory and the
+  golden hashes — four controls, where the profile document has a
+  fifth: an enumerated grammar whose guard rebuilds every published
+  sentence from parts and refuses one it cannot. A future edit to those
+  surfaces can therefore add a sentence nobody enumerated, and **the
+  four do not between them guarantee such a sentence is true**: a novel
+  false claim in plain words, or one carrying a published label into
+  prose, passes the display boundary (which makes it safe, not
+  refused), passes the claim inventory (a list of known-bad shapes,
+  not a reader), and moves no golden where no golden pins the surface —
+  the screen and the summary have none. What narrows it in practice is
+  clause 2: every sentence THIS phase adds is pinned whole, screen line
+  included. Priced and accepted in A-P4-3 rather than closed, because
+  closing it means moving several hundred lines of existing prose
+  behind an enumeration that buys them nothing.
 - **R-P4-13** (opened by amendment A-P4-1's audit). A column mixing
   numeric results with qualitative text in ONE cell space — the
   long-format panel export, where `7.2` sits beside `POSITIVE` in the
@@ -1754,20 +1760,38 @@ buys them nothing.
 enumerated-sentence obligation governs sentences of the PROFILE
 DOCUMENT, where it already governed before this plan. Sentences of the
 twin report, the generation screen, the profiler summary and the
-quality report are governed instead by the four controls that already
-hold them, named here so the scoping is not a gap: the display
-boundary, through which every value on those surfaces passes; the
-exact-shape tests each new sentence lands with; the claim inventory,
-which walks those files as running text and reds on a sentence that
-overclaims; and the golden hashes, which move on any change to the
-bytes a person reads. **What it costs, stated rather than left to be
-found:** a future edit to report or summary prose can introduce a
-sentence nobody enumerated, and the four controls above catch an
-overclaiming or value-bearing one but not a merely useless one — the
-profile has a fifth control for that and these surfaces do not. That
-residual is R-P4-14. What it buys: the plan stops requiring an
-architecture the product does not have and would not benefit from, and
-says instead what actually holds these sentences to the truth.
+quality report are governed instead by four controls, named here with
+what each one actually does — **stated at their real strength, because
+the first draft of this amendment claimed they catch "an overclaiming
+or value-bearing sentence" and they do not** (review item P4-C2-F2):
+
+1. **The display boundary** makes every value on those surfaces safe to
+   print. It does not decide whether a value belongs there: a published
+   label interpolated into a new sentence would be rendered safely, not
+   refused.
+2. **Exact-shape tests** pin the sentences that have them, whole. Every
+   sentence this phase adds is pinned that way, the screen line
+   included; a sentence a later phase adds is pinned only if its author
+   writes the test.
+3. **The claim inventory** walks those files as running text and reds
+   on the claim shapes it enumerates — the retired provenance forms,
+   the stale wire version, the unscoped retention denial, the phase
+   promises. It is a list of known-bad shapes, not a reader: a novel
+   false sentence in plain words is not on any list.
+4. **The golden hashes** move on any change to the report, description
+   or quality-report bytes, which forces a person to re-record and say
+   why. No golden pins the screen or the summary.
+
+**What it costs, stated rather than left to be found:** a future edit
+to these surfaces can introduce a sentence nobody enumerated, and the
+four controls do not between them guarantee it is true. A novel false
+claim in plain words, or one carrying a published label into prose,
+passes every one of them unless it happens to match an inventory shape
+or move a pinned byte. That is a real gap and it is wider than the
+"merely useless sentence" the first draft admitted to. It is residual
+R-P4-14. What it buys: the plan stops requiring an architecture the
+product does not have and would not benefit from, and says instead
+what actually holds these sentences — and what does not.
 
 ## Acceptance criteria
 
