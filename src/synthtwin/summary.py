@@ -1113,10 +1113,20 @@ def _disclosure_lines(document: dict[str, object]) -> list[str]:
     # publishing-nothing roles left the person unwarned about it
     # (amendment A-P4-2, review item P4-C2-F1).
     if all_invented:
+        # THE REASON HAS TO BE TRUE OF BOTH ROUTES INTO THIS LIST
+        # (review item P4-C3-F1). "There is nothing of yours in this
+        # description for it to write" is true of a column that
+        # publishes no value at all -- and false of a label column
+        # whose folded label IS published while every spelling of it
+        # sits below the floor. Both end with a twin whose every cell
+        # is invented, for two different reasons, so the sentence
+        # names both rather than the first one twice.
         lines = lines + [
             "  If you build a twin from this description, every value in",
-            "  these columns will be one synthtwin made up: there is",
-            "  nothing of yours in this description for it to write --",
+            "  these columns will be one synthtwin made up. Either the",
+            "  column publishes no value at all, or the spellings it",
+            "  publishes are below the floor, and either way the twin",
+            "  has to invent what it writes --",
             f"    {_listed(all_invented)}",
             "  The twin's own report says so again, column by column.",
             "",
