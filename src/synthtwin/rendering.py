@@ -511,7 +511,18 @@ def _held_back_cells(facts: contract.LabelFacts) -> int:
 
 
 def _made_up_class(column: contract.ColumnBlock) -> str:
-    """Which invention class this column is in (plan P4-D2)."""
+    """Which invention class this column is in (plan P4-D2, A-P4-2).
+
+    THE ROLE OPENS A CLASS; THE CELLS SETTLE IT (plan amendment A-P4-2,
+    review item P4-C1-F3). Reading the role alone put a label column
+    whose every level the floor held back into the partly-invented
+    class -- and such a column has no published spelling at all, so
+    every present cell of its twin is a neutral stand-in and the page
+    told the reader there were values of theirs beside them when there
+    were none. The count the plan asks for is a count of CELLS, so the
+    edge is decided by cells: a column all of whose present cells are
+    invented is in the everything class however its role publishes.
+    """
     # A column with no present cell has no invented cell either, so it
     # is in no class whatever its role says -- the empty-column carve-out
     # the plan states, and the reason this test comes first.
@@ -524,12 +535,19 @@ def _made_up_class(column: contract.ColumnBlock) -> str:
         return _MADE_UP_EVERYTHING
     facts = column.facts
     if isinstance(facts, contract.LabelFacts):
-        if _held_back_cells(facts):
-            return _MADE_UP_HELD_BACK
+        return _how_much(column, _held_back_cells(facts), _MADE_UP_HELD_BACK)
+    return _how_much(column, _uncarried_cells(column), _MADE_UP_UNCARRIED)
+
+
+def _how_much(
+    column: contract.ColumnBlock, invented: int, partly: str
+) -> str:
+    """No invented cell, some of them, or the whole column (A-P4-2)."""
+    if not invented:
         return _MADE_UP_NOTHING
-    if _uncarried_cells(column):
-        return _MADE_UP_UNCARRIED
-    return _MADE_UP_NOTHING
+    if invented >= column.n_present:
+        return _MADE_UP_EVERYTHING
+    return partly
 
 
 def _uncarried_cells(column: contract.ColumnBlock) -> int:
@@ -566,44 +584,68 @@ def _made_up_lines(column: contract.ColumnBlock, floor: int) -> "list[str]":
     property of the CLASS, not of what the cells happen to look like.
     """
     made_up = _made_up_class(column)
+    # WHAT THESE SENTENCES MAY NOT SAY (review item P4-C1-F1). An
+    # earlier wording had the invented cells "meet its counts, lengths
+    # and shapes" -- an achievement claim, and one this same page can
+    # contradict two sections higher up, because a twin does not always
+    # meet every published fact and the deviation list is where it says
+    # so. A column of record numbers whose length range cannot supply
+    # the distinct values it owes is the standing example: three
+    # distinctness facts are reported missed there, by the owner's own
+    # ruling. So the sentences below say what the cells were built to
+    # meet, never what they met, and send the reader to the section that
+    # answers the second question.
     if made_up == _MADE_UP_EVERYTHING:
         return [
             (
                 f"  synthtwin MADE UP all {column.n_present} of this "
-                f"column's values. Your"
+                f"column's present value(s)."
             ),
-            "  description publishes no value of this column, so the twin",
-            "  meets its counts, lengths and shapes and nothing else. Any",
-            "  number you compute from these cells describes synthtwin's",
-            "  invention and says nothing about your table.",
+            "  They were built to meet the facts your description",
+            "  publishes and nothing else; the sections above name every",
+            "  such fact the twin could not meet. A number you compute",
+            "  from these cells describes synthtwin's invention and says",
+            "  nothing about your table.",
         ]
     if made_up == _MADE_UP_HELD_BACK:
         facts = column.facts
         if not isinstance(facts, contract.LabelFacts):
             return []
+        held = _held_back_cells(facts)
         return [
             (
-                f"  synthtwin MADE UP {_held_back_cells(facts)} of this "
-                f"column's {column.n_present} value(s):"
+                f"  synthtwin MADE UP {held} of this column's "
+                f"{column.n_present} present value(s):"
             ),
             (
                 f"  the labels and spellings fewer than {floor} rows share "
                 f"are not in"
             ),
             "  your description, so the twin carries neutral stand-ins at",
-            "  their counts instead. Every other cell of this column is a",
-            "  value your description publishes.",
+            (
+                f"  their counts instead. The other "
+                f"{column.n_present - held} are value(s) your"
+            ),
+            "  description publishes. A number you compute from the",
+            "  made-up cells describes synthtwin's invention and says",
+            "  nothing about your table.",
         ]
     if made_up == _MADE_UP_UNCARRIED:
+        uncarried = _uncarried_cells(column)
         return [
             (
-                f"  synthtwin MADE UP {_uncarried_cells(column)} of this "
-                f"column's {column.n_present} value(s):"
+                f"  synthtwin MADE UP {uncarried} of this column's "
+                f"{column.n_present} present value(s):"
             ),
             "  your description counts those cells but carries no value",
             "  for them, so the twin writes counted stand-ins in their",
-            "  place. Every other cell of this column was built from the",
-            "  facts your description publishes.",
+            (
+                f"  place. The other {column.n_present - uncarried} were "
+                f"built from the facts your"
+            ),
+            "  description publishes. A number you compute from the",
+            "  made-up cells describes synthtwin's invention and says",
+            "  nothing about your table.",
         ]
     return []
 
@@ -1485,10 +1527,17 @@ def report(profile: contract.Profile, twin: generation.Twin) -> str:
         "COLUMN BY COLUMN: WHAT ONLY THE DESCRIPTION HOLDS",
         _RULE,
         "",
-        "The twin reproduces the values and the counts. What it cannot",
-        "carry -- how your table wrote the cells it left empty, what was",
-        "held back as too rare to publish, how synthtwin read each column --",
-        "is recorded here, once per column.",
+        # THIS PREAMBLE USED TO SAY, FLATLY, THAT THE TWIN REPRODUCES THE
+        # VALUES (review item P4-C1-F2). It does where your description
+        # publishes values; where it publishes none the cells are
+        # synthtwin's own, and a page that says both without saying which
+        # is which hands the reader two answers to one question.
+        "Where your description publishes values, the twin writes them and",
+        "reproduces the counts. Where it publishes none, the cells are",
+        "synthtwin's own -- each block below says which of its cells are",
+        "which. What no twin can carry -- how your table wrote the cells it",
+        "left empty, what was held back as too rare to publish, how",
+        "synthtwin read each column -- is recorded here, once per column.",
         "",
     ]
     # The description's columns and the twin's outcomes are the same
@@ -1525,9 +1574,10 @@ def report(profile: contract.Profile, twin: generation.Twin) -> str:
         "values your description publishes. The column blocks above say which",
         "columns those are and how many cells each one holds.",
         "",
-        "Values synthtwin made up carry the counts and shapes your",
-        "description publishes and nothing else. They are not your data,",
-        "and a number computed from them is a number about synthtwin.",
+        "Values synthtwin made up were built to meet the facts your",
+        "description publishes and nothing else; where the twin could not",
+        "meet one, the sections above name it. They are not your data, and",
+        "a number computed from them is a number about synthtwin.",
         "",
         _RULE,
         "WHAT THIS REPORT IS NOT, AND WHAT TO RUN FOR THE OTHER THING",

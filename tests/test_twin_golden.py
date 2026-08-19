@@ -485,12 +485,25 @@ def test_the_same_description_and_seed_give_the_same_twin_twice(
 # character -- so a reader of an ordinary free-text column met a twin
 # full of made-up text with no sentence anywhere saying so. Three
 # column blocks gained the sentence their CLASS owes them: `record_code`
-# and `comment` (free text -- every present value made up, 240 and 80 of
-# them) and `region` (a set of categories -- 7 of 240 cells are neutral
-# stand-ins for the label the floor held back). A fourth block is new at
+# (DECLARED, so it carries the record-number role -- declaring it is the
+# only route there) and `comment` (free text), each with every one of
+# its present values made up, 240 and 80 of them; and `region` (a set of
+# categories -- 7 of 240 cells are neutral stand-ins for the label the
+# floor held back). A fourth block is new at
 # the foot of the page: the count of columns invented outright and in
 # part, printed whatever the count is, for the reason the spreadsheet
 # count is printed whatever it is.
+#
+# AND THOSE SENTENCES WERE REWORDED AT ROUND 1 OF THE STAGE'S OWN CODE
+# REVIEW, before anything shipped (items P4-C1-F1 and P4-C1-F2). The
+# first wording said the invented cells "meet its counts, lengths and
+# shapes" -- an achievement claim, which this same page can contradict
+# two sections higher, because a twin does not always meet every
+# published fact and the deviation list is where it says so. It now
+# says what the cells were built to meet and sends the reader there.
+# The column-section preamble moved with it: it said flatly that the
+# twin reproduces the values, which is true where the description
+# publishes values and false where it publishes none.
 #
 # NOTHING ELSE MOVED, diffed line by line before this was re-recorded:
 # every other block, count, order, verdict and sentence is unchanged,
@@ -499,7 +512,7 @@ def test_the_same_description_and_seed_give_the_same_twin_twice(
 # the page and not the run: stage 2 changes no wire, no generation rule
 # and no twin byte.
 GOLDEN_REPORT_SHA256 = (
-    "fdc15c9d8ad6537b06594483ba2da06a964d1a35ed054f0e322edfdf679dec9a"
+    "a56b2dd6f6878e0d3270eab1f855b90ba8a5d2758ae31f4aa6467e36f0d0250b"
 )
 
 
