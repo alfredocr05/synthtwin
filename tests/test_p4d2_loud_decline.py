@@ -408,8 +408,10 @@ def test_the_summary_tells_a_person_before_they_generate_anything(
     # this sentence deleted -- measured (review item P4-C1-F6).
     assert (
         "  If you build a twin from this description, every value in\n"
-        "  these columns will be one synthtwin made up: there is\n"
-        "  nothing of yours in this description for it to write --\n"
+        "  these columns will be one synthtwin made up. Either the\n"
+        "  column publishes no value at all, or the spellings it\n"
+        "  publishes are below the floor, and either way the twin\n"
+        "  has to invent what it writes --\n"
         "    note\n"
         "  The twin's own report says so again, column by column."
     ) in page
@@ -569,8 +571,11 @@ def test_a_label_whose_every_spelling_is_below_the_floor_is_all_invented(
     SPELLING of it -- each written by too few rows to name -- so
     `variants` is empty, `variants_withheld` carries them all, and the
     generator invents every cell. Deleting the withheld-variant loop
-    from `_held_back_cells` reds this test and nothing else in the
-    file (measured, review item P4-C2-F4).
+    from `_held_back_cells` reds this test AND the producer/loaded
+    agreement test below it -- two, not one: the summary's own helper
+    keeps the right answer while the renderer's loses it, which is
+    exactly the disagreement that test exists to catch (measured;
+    review items P4-C2-F4 and P4-C3-F4).
     """
     header = ["sort_of"]
     rows: list[list[str]] = []
@@ -650,3 +655,49 @@ def test_the_producers_page_and_the_twins_page_agree_on_what_is_invented(
         for entry in document["columns"]
     }
     assert answers == {True, False}
+
+
+def test_the_summary_names_the_label_columns_a_twin_would_wholly_invent(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The rendered page, not the helper behind it (review item P4-C3-F2).
+
+    `test_the_producers_page_and_the_twins_page_agree_on_what_is_invented`
+    calls the summary's helper directly, so deleting the one line that
+    puts a label column into the rendered list left every Stage 2 test
+    green while the page went back to naming none of them -- the exact
+    defect P4-C2-F1 reported. This asks the page.
+
+    Three columns, three answers: a label column whose every spelling
+    the floor held back IS named; one with a rare label beside two
+    published ones is NOT, because its twin carries real labels too;
+    and a declared column with no present cell is NOT, because its twin
+    holds nothing to invent.
+    """
+    header = ["all_held", "some_held", "blank"]
+    rows: list[list[str]] = []
+    for place in range(44):
+        rows = rows + [
+            [
+                _cased("kind", place % 11),
+                (
+                    "rare"
+                    if place < 7
+                    else ("north" if place % 2 else "south")
+                ),
+                "",
+            ]
+        ]
+    table_path = fixtures.write(
+        tmp_path, "table.csv", fixtures.rows_to_csv(header, rows)
+    )
+    document = profile.build_document(
+        reading.read_table(str(table_path)), taxonomy.Settings(), ["blank"]
+    )
+    page = summary.render(document, "")
+    opened = page.find("If you build a twin from this description")
+    assert opened >= 0, "the forward sentence is missing from the page"
+    named = page[opened : page.find("column by column.", opened)]
+    assert "all_held" in named
+    assert "some_held" not in named
+    assert "blank" not in named
