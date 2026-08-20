@@ -1255,9 +1255,12 @@ this plan fixes the set):
    counts on every surface plus the R-P3-8 re-seal (stage 6); the
    R-P2-1 and R-P2-2 residual ledger entries (closed/retired at stage
    6 if decisions 5 and 2 are taken); the phase statements in
-   CLAUDE.md, README.md and the claim inventory (stage 2's first
-   commit, after the Phase 3 closing precondition); STATUS.md's phase
-   table (same commit); and the loud-decline sentences (stages 2 and
+   CLAUDE.md, README.md and the claim inventory (**AMENDED by A-P4-4:
+   the commit carrying that amendment, together with Phase 3's closing
+   record, rather than stage 2's first commit — the row is corrected
+   here rather than left describing a commit that did not carry
+   them**); STATUS.md's phase table (same commit); and the
+   loud-decline sentences (stages 2 and
    5). A surface sentence not in the table does not move; a table row
    without its stage's commit is red by the migration battery.
 
@@ -1862,7 +1865,14 @@ process gate that stood beside it.
    governing set and every guard list grew by this plan at its
    ratification; the phase-close audit confirms each introducing commit
    carried its seal; the Phase 3 closing precondition was met before
-   stage 2 and the phase statements moved with it.
+   stage 2 and the phase statements moved with it **(AMENDED by
+   A-P4-4: for stage 2 that is not what happened, and the criterion
+   would otherwise assert the opposite of the plan's own amendment.
+   What is asked of stage 2 is what A-P4-4 authorizes — Phase 3's
+   closing state settled and all four phase-status surfaces moved into
+   agreement in the commit carrying that amendment. The criterion
+   stands unamended for stages 3 through 7, where the precondition
+   keeps its full force.)**
 3. The loud decline is total over its three classes: every
    fully-invented column, every label column with invented cells, and
    every column with counted stand-in cells carries its class's

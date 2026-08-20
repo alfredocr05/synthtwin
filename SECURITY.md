@@ -4,8 +4,8 @@ This document states what synthtwin defends against, how each defense is
 built, what it deliberately does not defend against, and how an outside
 auditor can check every claim. It commits only to what the built phases
 can demonstrate - Phase 0's security baseline, Phase 1's profiler,
-Phase 2's generator and Phase 3's validator; anything that arrives in a
-later phase is tagged **[planned]**.
+Phase 2's generator, Phase 3's validator, and what Phase 4 has built so
+far; anything that arrives in a later phase is tagged **[planned]**.
 
 ## Threat model, in plain language
 

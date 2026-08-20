@@ -182,10 +182,13 @@ release is still owed, still has the same preconditions, and no surface
 here says otherwise. What closing settled is which phase is current, so
 the project stops describing itself as being in a phase it has left.
 
-1. **Push the branch and let CI run.** Commits on this branch and the
-   one before it have never been through CI. The Windows fix in
-   particular was only ever *emulated* locally — real Windows is the
-   one thing that cannot be checked here.
+1. **Push this branch and let CI run.** The Phase 4 commits on
+   `phase-4-plan` have never been pushed, so they have never been
+   through CI. (The Phase 3 branch before them was pushed and merged,
+   so its commits did go through it — an earlier version of this list
+   said otherwise and was wrong about which branch.) The Windows fix
+   Phase 3 made was only ever *emulated* locally, and real Windows is
+   the one thing that cannot be checked here.
 2. Merge, once CI is green.
 3. The release steps in `docs/plans/phase-3-product.md` (P3-D8.2–8.4),
    which need the owner's go decision naming the commit they approve.
