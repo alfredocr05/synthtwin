@@ -2264,6 +2264,15 @@ class _Cells:
     n_whole: int
     n_fraction: int
     n_whole_unknown: int
+    # Cells whose writer MEANT a number and whose text still settles no
+    # sign -- notation that conflicts with itself, and nothing else.
+    # This is deliberately narrower than `n_sign_unknown`, which counts
+    # every present cell the text leaves unsettled, ordinary text
+    # included, because U2 is a margin over `n_present`. The role rule
+    # below wants the narrow one: a straggler of ordinary text is a
+    # cell the parse line already tolerates, and it says nothing about
+    # whether this column counts things.
+    n_sign_unsettled_numeric: int
     n_negative_unrepresentable: int
     raw_distinct: int
     folded_counts: dict[str, int]
@@ -2305,6 +2314,7 @@ def _tally(
     negative = 0
     positive = 0
     sign_unknown = 0
+    sign_unsettled_numeric = 0
     whole = 0
     fraction = 0
     whole_unknown = 0
@@ -2324,24 +2334,47 @@ def _tally(
             contradictory = contradictory + 1
         else:
             not_a_number = not_a_number + 1
-        if cell.kind != parsing.NOT_A_NUMBER:
-            if cell.sign == parsing.SIGN_NEGATIVE:
-                negative = negative + 1
-                if cell.kind != parsing.NUMBER:
-                    negative_unrepresentable = negative_unrepresentable + 1
-            elif (
-                cell.sign == parsing.SIGN_POSITIVE
-                or cell.sign == parsing.SIGN_ZERO
-            ):
-                positive = positive + 1
-            else:
-                sign_unknown = sign_unknown + 1
-            if cell.whole == parsing.WHOLE_YES:
-                whole = whole + 1
-            elif cell.whole == parsing.WHOLE_NO:
-                fraction = fraction + 1
-            else:
-                whole_unknown = whole_unknown + 1
+        # EVERY present cell is counted here, ordinary text included.
+        # The sign and whole-number families are two MARGINS over the
+        # present cells, and the contract states them that way: U1 and
+        # U2 both sum to `n_present`, and the three key meanings all
+        # read "present cells whose notation settles ..." (contract v4
+        # section 6.2). A cell of ordinary text settles neither
+        # question, so it answers for `n_whole_unknown` and
+        # `n_sign_unknown` -- which is exactly what the generation
+        # method's construction table ties it to (generation method
+        # G10.5 step 1, the "ordinary text" row), and exactly what
+        # `_classify` already gives it: SIGN_UNKNOWN and WHOLE_UNKNOWN.
+        #
+        # This line used to read `if cell.kind != parsing.NOT_A_NUMBER`,
+        # which left a text cell out of both families while `n_present`
+        # counted it. The producer then wrote a description its own
+        # loader refused, and the refusal told the reader their file had
+        # been changed since it was written -- blaming a person who had
+        # done nothing. Found while transcribing this rule for the
+        # version 6 contract, reproduced end to end, and fixed here
+        # rather than in the invariant, because the contract, the sealed
+        # generation method and the shipped loader all three agree with
+        # each other and against this line.
+        if cell.sign == parsing.SIGN_NEGATIVE:
+            negative = negative + 1
+            if cell.kind != parsing.NUMBER:
+                negative_unrepresentable = negative_unrepresentable + 1
+        elif (
+            cell.sign == parsing.SIGN_POSITIVE
+            or cell.sign == parsing.SIGN_ZERO
+        ):
+            positive = positive + 1
+        else:
+            sign_unknown = sign_unknown + 1
+            if cell.kind != parsing.NOT_A_NUMBER:
+                sign_unsettled_numeric = sign_unsettled_numeric + 1
+        if cell.whole == parsing.WHOLE_YES:
+            whole = whole + 1
+        elif cell.whole == parsing.WHOLE_NO:
+            fraction = fraction + 1
+        else:
+            whole_unknown = whole_unknown + 1
         if cell.all_digits:
             all_digits = all_digits + 1
         if cell.code_alphabet:
@@ -2371,6 +2404,7 @@ def _tally(
         n_whole=whole,
         n_fraction=fraction,
         n_whole_unknown=whole_unknown,
+        n_sign_unsettled_numeric=sign_unsettled_numeric,
         n_negative_unrepresentable=negative_unrepresentable,
         raw_distinct=len(set(present)),
         folded_counts=folded_counts,
@@ -4264,7 +4298,9 @@ def _numeric_verdict(
         cells.n_whole == numeric_looking and numeric_looking > 0
     )
     counts_things = (
-        whole_everywhere and cells.n_negative == 0 and cells.n_sign_unknown == 0
+        whole_everywhere
+        and cells.n_negative == 0
+        and cells.n_sign_unsettled_numeric == 0
     )
     role = ROLE_COUNT if counts_things else ROLE_CONTINUOUS
     if role == ROLE_COUNT:
