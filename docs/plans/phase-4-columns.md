@@ -817,8 +817,10 @@ RAISES fidelity for these columns and closes residual R-P2-1.
 
 ### P4-D4.5 The fixed-fraction spelling fact (closes R-P3-12's route)
 
-The numeric styles machinery gains one fact: among a column's `decimal`
-cells, the count sharing each fraction width (digits after the point),
+The numeric styles machinery gains one fact, carried BESIDE the styles
+block rather than inside it **(AMENDED by A-P4-5, with the reason)**:
+among a column's `decimal` cells, the count sharing each fraction width
+(digits after the point),
 floor-governed with a pooled remainder like every styles fact. How the
 twin meets it is fixed here at the level the method needs, because a
 width is a property of the VALUE as well as the spelling: a value can
@@ -1181,7 +1183,8 @@ this plan fixes the set):
    column, exactly the two members `iso-date` and `iso-datetime`; no
    other key set conforms; `min_length` and
    `max_length` on `numeric_unrepresentable`; and the fraction-width
-   fact inside the numeric styles block.
+   fact **(AMENDED by A-P4-5: beside the numeric styles block, not
+   inside it — version 4's P1 makes inside impossible)**.
 3. The missing-text vocabulary extension of P4-D6.2, with the
    declaration-record consequences enumerated and every
    vocabulary-count surface moved.
@@ -1852,6 +1855,39 @@ by the same commit that carries this text. And it does not make stage
 2 review-ratified by owner act: stage 2 earned its own RATIFY from the
 implementation review at round 5, and this amendment settles only the
 process gate that stood beside it.
+
+## Amendment A-P4-5 — the fraction-width fact sits beside the styles block, not inside it
+
+**THIS CHANGES a placement and lowers nothing** (contract v6 review
+rounds 1 to 3, items P4-X1-F9, P4-X2-F6, P4-X3-F4). P4-D4.5 and P4-D7
+item 2 both place the fixed-fraction fact "inside the numeric styles
+block". That is where it reads as belonging and it is impossible:
+version 4's invariant P1 requires every value of `numeric_styles` to
+be an integer and requires those values to sum to the numeric count,
+so an object placed among them breaks both. A document obeying the
+plan cannot be loaded; a document that can be loaded disobeys the
+plan. The reviewer found it three times because the contract kept
+trying to satisfy both.
+
+**The placement, ratified here:** `fraction_widths` is a key of the
+COLUMN BLOCK, a sibling of `numeric_styles`. Everything else about the
+fact is unchanged — the same widths, the same floor, the same pooled
+`(withheld)` remainder, the same recount obligation, the same closure
+of residual R-P3-12.
+
+**And its sum is stated over a number that always exists.** The
+values of `fraction_widths` sum to the count of decimal-styled cells.
+Where the floor named that count, it is `numeric_styles`' own
+`decimal` value; where the floor pooled it, no published number holds
+it, and the fact's own `(withheld)` entry carries the whole of it —
+the sum obligation then binds nothing, exactly as it binds nothing for
+any other pooled style. An invariant stated over a key that may not
+exist is not an invariant, and the earlier wording was one.
+
+**What it costs:** one more key on the column block rather than one
+more entry in a map, and a sentence of explanation in the contract for
+a reader who expects it inside. What it buys: a fact a loader can
+actually check, on a wire a producer can actually write.
 
 ## Acceptance criteria
 
