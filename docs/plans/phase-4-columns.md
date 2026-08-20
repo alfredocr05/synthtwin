@@ -1563,6 +1563,20 @@ Opened by this plan, each a limit accepted rather than work forgotten:
   included. Priced and accepted in A-P4-3 rather than closed, because
   closing it means moving several hundred lines of existing prose
   behind an enumeration that buys them nothing.
+- **R-P4-15** (opened by amendment A-P4-7). The note grammar's argument
+  classes are closed at FOUR — a whole number, one of this package's
+  own words, a nested form, and an affix string bound by identity to
+  the block the note names. A fifth class is a change to the contract
+  and never a producer's choice, and the exact-shape test over the
+  form table is what turns a fifth red. What stays open is narrower
+  than the class rule: the bound affix argument is the first argument
+  a guard cannot check from the enumeration alone, since checking it
+  means resolving a reference to another part of the document and
+  comparing. A future form taking a string argument that no key of the
+  document publishes would not be caught by the widened rule itself —
+  only by the exact-shape test noticing the form table changed. Priced
+  and accepted rather than closed, because closing it means a general
+  provenance rule for arguments that this phase does not need.
 - **R-P4-13** (opened by amendment A-P4-1's audit). A column mixing
   numeric results with qualitative text in ONE cell space — the
   long-format panel export, where `7.2` sits beside `POSITIVE` in the
@@ -1884,10 +1898,112 @@ the sum obligation then binds nothing, exactly as it binds nothing for
 any other pooled style. An invariant stated over a key that may not
 exist is not an invariant, and the earlier wording was one.
 
+**The sentence above is superseded in its last clause by A-P4-6, which
+should be read with it.** "Binds nothing" was a step too far: the
+pooled case still has published numbers of its own, and three real
+bounds can be stated over them. This amendment's placement ruling
+stands entire; only its conclusion about the pooled sum moves.
+
 **What it costs:** one more key on the column block rather than one
 more entry in a map, and a sentence of explanation in the contract for
 a reader who expects it inside. What it buys: a fact a loader can
 actually check, on a wire a producer can actually write.
+
+## Amendment A-P4-6 — the pooled fraction census is bounded, not free
+
+**THIS RAISES an obligation A-P4-5 had left at nothing** (contract v6
+review round 4, item P4-X4-F3). A-P4-5 ruled correctly that the
+fraction census cannot be tied by equality to a `decimal` key that the
+floor may have pooled away, and then concluded that in the pooled case
+"the sum obligation binds nothing." The reviewer's counterexample is
+decisive: a hundred-cell column publishing `numeric_styles` as
+`plain: 90, (withheld): 10` would have admitted
+`fraction_widths: {"(withheld)": 1000}` — a census of decimal cells an
+order of magnitude larger than the column — with no rule anywhere to
+refuse it. A loader would have accepted a document asserting something
+arithmetically impossible about the table it describes, and every
+number a consumer derived from that census would have been wrong with
+nothing complaining. That is precisely the silent statistical
+wrongness this phase exists to end.
+
+**What is raised.** In the pooled case the census is bounded by three
+conditions, all stated over numbers that are published and therefore
+checkable:
+
+1. its total is at least 1 wherever the census is non-empty;
+2. its total is strictly BELOW `small_cell_floor`, because a style is
+   pooled only when its own count falls below the floor;
+3. its total is at most `numeric_styles["(withheld)"]`, because the
+   pooled decimal cells are a subset of that pool.
+
+The census may also be empty in that case, which is what a column with
+no decimal cell at all writes. The contract states this as C6-30's
+case P5.c, beside the equality case P5.a and the empty case P5.b, so
+the invariant is total over the shapes `numeric_styles` can take
+rather than stated for one shape and abandoned for another.
+
+**What it costs.** Three more conditions for a loader to check and
+three more for a producer to satisfy, plus the reference vectors that
+have to exercise the pooled case rather than only the named one — a
+case the frozen vectors of stage 4 must now carry, which A-P4-5's
+costing did not name. It also costs a correction in the plan rather
+than a quiet repair in the contract, which is the point of writing it
+here: A-P4-5 is ratified, its conclusion was reached in good faith and
+was wrong, and a document that simply stopped saying "binds nothing"
+would have lowered a ratified sentence without telling anyone.
+
+**What it buys.** A fraction census a loader can refuse when it is
+impossible. Without it the fact is unfalsifiable in exactly the case
+the floor makes most likely on small tables, which are the tables this
+project's users most often hold.
+
+## Amendment A-P4-7 — the affix pair may be a sentence argument, bound by identity
+
+**THIS LOWERS the argument-vocabulary rule A-P4-3 stated, and RAISES a
+binding check to pay for it** (contract v6 review round 4, item
+P4-X4-F2). The plan holds two ratified sentences that cannot both be
+obeyed as written. P4-D4.1 requires the affixed-column remark to NAME
+the column's affix pair, because a remark saying "this column has a
+prefix and a suffix" without saying which teaches its reader nothing
+they can act on. A-P4-3, explaining why the enumerated note grammar is
+safe, says its arguments are whole numbers and this package's own
+words. An affix pair is neither: it is two strings read off the
+person's table. The contract cannot satisfy both sentences, and the
+reviewer was right that the plan, not the contract, has to rule.
+
+**The ruling: P4-D4.1 governs and the argument class widens by one.**
+A form argument may be a whole number, one of this package's own
+words, a nested form, OR an affix string — the last admitted under a
+binding, never as a free string.
+
+**The binding, which is the compensating control.** An affix argument
+conforms only when it is character-for-character identical to the
+`affix_prefix` or `affix_suffix` of the column block named by the
+note's own sibling `column` field. Not "is a string"; not "looks like
+an affix"; identical to a value the same document already publishes.
+The guard checks that identity and refuses the note otherwise.
+
+**What the lowering costs, stated without softening.** The grammar's
+original property was that no value of anybody's table could reach a
+sentence of the profile document at all. That property is gone and no
+wording brings it back. What replaces it is narrower and still worth
+stating: no value reaches a sentence that the SAME DOCUMENT does not
+already publish in the same column's block, under the one exception
+C6-9 carves for the affix pair and the forbidden-key matrix confines.
+The remark discloses nothing the block beside it does not, and a
+reader who may not see the affix pair may not see the remark either,
+because one publication class governs both.
+
+**The residual, because a lowering with no residual is a lowering
+being hidden.** The guard now has a class of argument it cannot check
+from the enumeration alone — it must resolve a reference and compare.
+R-P4-15 records what that leaves open.
+
+**What it buys.** A remark that names the pair, which is the whole
+point of it: somebody holding a column of codes has to recognize their
+own column before `--identifier` means anything to them. A remark that
+could not name the pair would be a sentence nobody can match to their
+table.
 
 ## Acceptance criteria
 
