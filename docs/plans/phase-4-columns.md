@@ -143,9 +143,9 @@ report, and nothing in this plan claims more for it.
    comments. The quality report is NOT touched here.
 3. **`docs/spec/profile-contract-v6.md`** (P4-D7), ratified before any
    version 6 code: the complete normative shape of every new role and
-   fact, carrying version 5 by reference exactly as version 5 carries
-   version 4, including the clause that supersedes C5-9 for the
-   reproduction rule and the dispositions table for every moved fact.
+   fact, COMPLETE AND SELF-CONTAINED (amendment A-P4-11) rather than
+   carried by reference, including the reproduction rule that replaces
+   C5-9's and the dispositions table for every moved fact.
 4. **Generation-method amendments** (P4-D8) under counted re-seal, with
    frozen reference vectors and committed failing mutants for every new
    branch, reviewed before the implementation they anchor exists.
@@ -1149,11 +1149,14 @@ P4-D13.
 
 One version bump carries every wire change of this phase, landed whole
 at stage 6. `docs/spec/profile-contract-v6.md` is written and ratified
-at stage 3, before any version 6 code, carrying version 5 by reference
-under the same rules version 5 carries version 4: a superseding clause
-names the rule it replaces, the older documents are never edited to
-change what they require, `C6-` prefixes, and a profile is governed by
-exactly one version's documents.
+at stage 3, before any version 6 code.
+
+**(AMENDED by A-P4-11, owner decision 2026-08-20. The sentence this
+replaces required version 6 to carry version 5 BY REFERENCE under the
+same rules version 5 carries version 4. It no longer does: version 6
+is a COMPLETE, SELF-CONTAINED contract. What survives unchanged: the
+older documents are never edited to change what they require, and a
+profile is governed by exactly one version's documents.)**
 
 **The delta, complete** (the contract document states each normatively;
 this plan fixes the set):
@@ -2196,6 +2199,73 @@ role, no byte moves, and no stage gains work.
 membership the shipped tuples refuse, so the contract can state the
 `empty` carve-out plainly instead of standing red against its own
 governing plan on a fact neither document intends to change.
+
+## Amendment A-P4-11 — version 6 is a complete contract, not a delta
+
+**THIS RAISES the stage 3 deliverable, on the owner's decision of
+2026-08-20**, taken on the evidence of the round 6 record and the
+maintainer-internal sweep beside it.
+
+**What the sweep established.** Version 6 was written as a DELTA
+against a base that requires TOTAL restatement. Version 5 carries
+version 4 by reference, version 6 carries version 5 the same way, and
+the carrying rule is "total except superseded BY NAME". Under that
+rule a superseding clause must restate everything its predecessor
+stated, and each superseded rule is in fact stated in two to four
+places — a defining section, version 4's universal-key table, version
+4's appendix, and a shipped constant. Six review rounds each found
+another missed site. Eight of the twenty-five registered supersessions
+were partial; twelve more supersessions had no row at all; four
+version 4 invariants were left quantifying over vocabularies version 6
+had destroyed. Worst of all, version 4's universal-key table pins
+`role` at ten names and the absence map at five keys, no row named it,
+and one version 6 clause re-imported it — so three of the thirteen
+roles and one of the six absence classes were unwritable in the very
+document that introduces them.
+
+**None of that is a review failure.** A reviewer reads what the
+contract says; a site the contract never mentions is invisible to
+them. That is why six rounds did not converge and why a seventh of the
+same kind would not have either.
+
+**The decision: version 6 states every rule in force, itself.** No
+carrying by reference, no supersession table, no `C6-` supersession
+prefixes, no "carried unchanged" register — because there is nothing
+left to carry. Every role, key, enumeration, invariant, disposition
+and loader rule that governs a version 6 description is written in the
+version 6 document, at its own wording, once.
+
+**What survives from the superseded sentence, named so it is not lost
+with the mechanism:** the older documents are still never edited to
+change what they require, and a profile is still governed by exactly
+one version's documents. Versions 4 and 5 keep their sealed text and
+keep governing the descriptions written under them.
+
+**What it costs, stated at full size.** Version 4 is 2,822 lines and
+version 5 is 1,404; the self-contained version 6 will be larger than
+either, and writing it means transcribing every rule of both that
+still stands. That is the single largest artifact of this phase and it
+is more work than the six review rounds it replaces. It also means the
+version 6 document can DISAGREE with version 4 by transcription error
+in a way a delta could not, so every transcribed rule is checked
+against its source and the batteries that pin exact lists — the
+disposition registry and the claim inventory — gain the version 6
+enumerations.
+
+**What it buys.** The defect class ends, and it ends for version 7 and
+version 8 as well: there is no under-restatement possible in a
+document that restates nothing. An implementer working from the text
+alone — which is what the whole specification discipline exists for —
+reads one document instead of three and reaches a rule without
+resolving a chain of supersessions. And the question that consumed six
+rounds, "is this replacement total", stops being a question anybody
+can get wrong.
+
+**Scope is unchanged** (owner, same decision): all three new roles,
+the widened date readings and the missing-data work stay in Phase 4.
+The contract's size is the cost of the phase's scope, and the owner
+took it deliberately rather than trimming the phase to shrink the
+document.
 
 ## Acceptance criteria
 
