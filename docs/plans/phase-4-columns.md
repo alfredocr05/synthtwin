@@ -172,7 +172,12 @@ Phase 3's closing state — the release executed, or closure recorded as
 an owner act on the Phase 0 and Phase 2 precedent — because the phase
 ledger, the README status line and the claim inventory's pinned phase
 statements move in stage 2's first commit and must write a true
-sentence about Phase 3 when they do. Second: every owner decision of
+sentence about Phase 3 when they do. **(AMENDED by A-P4-4 for stage 2
+ALONE, after the fact and on the owner's authority: stage 2 was built
+on a branch before Phase 3's closing state was settled, the settlement
+and the statement moves land together in the commit carrying that
+amendment, and the amendment prices what the interval cost. This
+precondition keeps its full force for stages 3 through 7.)** Second: every owner decision of
 P4-D0 is taken before the ARTIFACT that encodes it is ratified — and
 the stage 3 contract encodes ALL EIGHT (decision 8's `day_first` is one
 of its seventeen settings keys), so all eight decisions precede
@@ -1792,6 +1797,58 @@ or move a pinned byte. That is a real gap and it is wider than the
 R-P4-14. What it buys: the plan stops requiring an architecture the
 product does not have and would not benefit from, and says instead
 what actually holds these sentences — and what does not.
+
+## Amendment A-P4-4 — the branch-first history, authorized and priced
+
+**THIS LOWERS a sequencing obligation, on the owner's authority, and
+prices what it cost** (owner ruling 2026-08-19; stage 2 code review
+items P4-C1-F7, P4-C2-F3, P4-C3-F3, raised at every round and correctly
+declined by the implementer because closure is an owner act).
+
+**What the plan required.** The sequencing preconditions say Phase 4
+implementation begins only after the owner settles Phase 3's closing
+state, and that the phase ledger, the README status line and the
+pinned claim statements move in stage 2's FIRST commit — so that the
+ledger writes something true about Phase 3 at the moment it writes
+Phase 4 into the present tense.
+
+**What happened instead.** Stage 2 was built and committed first, on
+the branch `phase-4-plan`, while every phase-status surface still said
+Phase 3 was current and Phase 4 had not started. Phase 3's closing
+state was settled afterwards, on 2026-08-19, by the owner act recorded
+in that plan's own closure section. The reviewer's point stands and is
+why this amendment exists rather than a quiet correction: a closure
+taken today cannot make a commit already written have carried the
+statements, so the history cannot be brought into line with the
+sentence — the sentence has to be amended, in the open, or the phase
+proceeds on a rule it visibly broke.
+
+**What is authorized.** The build-then-settle order for stage 2 only,
+as it actually happened, with the phase statements moving in the
+commit that lands this amendment rather than in stage 2's first. The
+precondition stands unchanged for every later stage: stages 3 through
+7 begin only with the phase state already true on every surface.
+
+**What it cost, stated rather than left to be found.** For the length
+of one branch — from stage 2's first commit to this one — the
+repository's own surfaces misdescribed which phase it was in, while
+its changelog described Phase 4 work as done. The exposure is bounded
+by three facts, each checkable: nothing was merged to the default
+branch in that window, so no reader outside this branch could meet the
+contradiction; nothing was released, so no user could; and the
+contradiction was found by review rather than by a person relying on
+it. What it would have cost had any of those three been false is
+exactly what the precondition exists to prevent, and the precondition
+keeps its full force for every remaining stage.
+
+**What this amendment does NOT do.** It does not close Phase 3's
+release, reassign it to this phase, or license any surface to say
+synthtwin has been released. It does not weaken the requirement that
+the four phase-status surfaces agree — they are moved into agreement
+by the same commit that carries this text. And it does not make stage
+2 review-ratified by owner act: stage 2 earned its own RATIFY from the
+implementation review at round 5, and this amendment settles only the
+process gate that stood beside it.
 
 ## Acceptance criteria
 

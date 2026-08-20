@@ -222,7 +222,7 @@ private prototype only behind a ratified public method specification
 with frozen neutral reference vectors, checked by the reviewer before
 the implementation they anchor exists.
 
-**The current phase is Phase 3.** Each entry below carries its own
+**The current phase is Phase 4.** Each entry below carries its own
 state, so no reader has to work out from a date which of them is
 running.
 
@@ -240,9 +240,19 @@ running.
   review verdict, and nothing describes Phase 2 as review-ratified.
 - **Phase 3 - the end-to-end product:** profile, generate, and validate
   through one zero-code CLI; earliest possible first PyPI release.
-  *Current*; the ratified plan is `docs/plans/phase-3-product.md`.
+  *Product work complete; closed by owner decision 2026-08-19 with its
+  release NOT executed*; the ratified plan is
+  `docs/plans/phase-3-product.md`. Closure is an owner act, not a
+  review verdict, and nothing describes Phase 3 as review-ratified.
+  What closed is the product: the three commands, the quality report,
+  and the repository's move to public. What did not happen is the
+  release this phase's charter named - there is no tag and nothing is
+  published - so the acceptance criteria resting on release evidence
+  are unmet, Phase 1's residual R3 stays open with them, and the plan's
+  own register says so rather than counting them done.
 - **Phase 4 - comprehensive column handling:** the full range of column
-  types, rare categories, and missing-data patterns. *Not started.*
+  types, rare categories, and missing-data patterns. *Current*; the
+  ratified plan is `docs/plans/phase-4-columns.md`.
 - **Phase 5 - relationships and fidelity depth:** cross-column
   structure and the quality report at full strength. *Not started* -
   this is the phase the twin's one-column-wide bound waits on.

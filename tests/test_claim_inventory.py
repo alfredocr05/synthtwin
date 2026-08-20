@@ -744,8 +744,8 @@ COMMAND_BEARING = (
 # it in. One sentence per surface, so the ban on parenthesized currency
 # markers above leaves exactly one place per file that can be stale.
 PHASE_STATEMENTS = (
-    ("CLAUDE.md", "the current phase is phase 3"),
-    ("README.md", "status: early (phase 3"),
+    ("CLAUDE.md", "the current phase is phase 4"),
+    ("README.md", "status: early (phase 4"),
 )
 
 # Where the dependency count is stated, and what it must name. The
