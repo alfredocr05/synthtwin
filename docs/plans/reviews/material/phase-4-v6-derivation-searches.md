@@ -381,7 +381,7 @@ MANIFEST — the closed enumerations, quoted:
     docs/spec/profile-contract-v6.md:1620-1623 the section 14 `format` (11)
       enumeration (six distinct old members inside one ten-line window)
 
-  The per-member dispatch ladders, which are total over the six today and gain
+  The per-member dispatch chains, which are total over the six today and gain
   a branch per new member (they enumerate but do not count):
   src/synthtwin/parsing.py:864, :876, :897, :904, :912, :919; :1299; :1326
     -- :1299 is `if format_name != "iso-datetime":` in `_clock_of`
@@ -425,7 +425,7 @@ TWO FACTS THE ROW MUST RECORD:
        -> six members, docs/spec/profile-contract-v6.md:1627-1628
      src/synthtwin/taxonomy.py:452-455  the constants and the second
        RESOLUTIONS tuple built from them
-     Their gates move with them: src/synthtwin/contract.py:3708-3710
+     Their guards move with them: src/synthtwin/contract.py:3708-3710
        (`resolution`) and :3711-3713 (`time_precision`).
 
 ================================================================================

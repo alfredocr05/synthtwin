@@ -36,7 +36,7 @@ is that the reviewer is right, for a reason neither of us had named.
 Six agents derived, from the artifacts rather than from reasoning, the
 material revision 6 would need; a second agent adversarially checked
 each derivation against source. The verifiers found **83 errors across
-the six derivations**, which is the first thing worth recording: the
+the six derived answers**, which is the first thing worth recording: the
 derive-then-verify shape was not ceremony.
 
 The sweep then judged **every one of the twenty-five registered
