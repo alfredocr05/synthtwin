@@ -10,7 +10,7 @@ branch `phase-4-plan`, with the complete `f50fcce..e23ffaa` diff.
 re-reported as fixed. Verdict text at
 `scratchpad/codex/verdict-v6-round-4.md`.
 
-## The lesson of this round, written first because it explains the rest
+## The lesson of this round, written first because the rest follows from it
 
 Round 3's repairs were too literal. Each fixed the instance the
 reviewer named and left the class of defect alive, so the same defect

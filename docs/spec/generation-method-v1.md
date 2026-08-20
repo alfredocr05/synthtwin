@@ -1,12 +1,30 @@
 # Generation method v1 — the exact transform from (profile, seed) to twin bytes
 
-**Status:** revision 1, written before any Phase 2 code exists, under the
-owner sequencing override recorded in `docs/plans/phase-2-generator.md`
-(revision 5). **Not ratified.** This is artifact 3 of that plan's four,
-and it carries out decisions the plan makes; it introduces no mechanism
-the plan left open, except the one the plan explicitly delegated here —
-the invention domain and its capacity rule, with a named refusal
-(P2-R5-F4), which section G9 fixes.
+**Status:** written before any Phase 2 code existed, under the owner
+sequencing override recorded in `docs/plans/phase-2-generator.md`
+(revision 5), and revised repeatedly since — clauses below cite their
+own revisions 2, 4 and 5, each raised by a code-review round or an
+owner ruling against the implementation this document anchors. This
+header said "revision 1, written before any Phase 2 code exists" until
+2026-08-20, which had stopped being true at the first of those
+revisions and was plainly false once the generator shipped. It carries
+no revision number now rather than a guessed one; the next amendment
+to this document sets one and states what it counts.
+
+**Not ratified, and that is a statement about process rather than a
+doubt about the text.** No review round returned a ratifying verdict
+on this document. Phase 2 was closed by owner act on 2026-08-12 with
+its review record standing exactly as written, and nothing in this
+repository describes Phase 2 or its artifacts as review-ratified. This
+document is sealed and governing regardless: it is one of the
+documents `tools/dispositions/seal.py` counts, and the generator is
+held to it.
+
+This is artifact 3 of that plan's four, and it carries out decisions
+the plan makes; it introduces no mechanism the plan left open, except
+the one the plan explicitly delegated here — the invention domain and
+its capacity rule, with a named refusal (P2-R5-F4), which section G9
+fixes.
 
 **Who this is for.** Two readers, and the document fails if either is
 left guessing. The first is the implementer of `synthtwin generate`. The
