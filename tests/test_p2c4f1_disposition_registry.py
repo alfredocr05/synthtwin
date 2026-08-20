@@ -367,6 +367,11 @@ def test_no_fourth_governing_document_can_appear_unsealed() -> None:
         "generation-method-v1.md",
         "profile-contract-v4.md",
         "profile-contract-v5.md",
+        # The version 6 contract, DRAFT under adversarial review. Listed
+        # here so the tree stays green while the rounds run, on the
+        # precedent of the Phase 4 plan; it joins GOVERNING and the seal
+        # at its ratification.
+        "profile-contract-v6.md",
         "validation-method-v1.md",
     ], specifications
     plans = sorted(
