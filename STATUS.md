@@ -193,6 +193,18 @@ the project stops describing itself as being in a phase it has left.
 3. The release steps in `docs/plans/phase-3-product.md` (P3-D8.2–8.4),
    which need the owner's go decision naming the commit they approve.
 
+**Owner decision 2026-08-20: the release is PARKED until Phase 4 is
+finished and the tool has been used on real tables.** Nothing is lost
+by waiting and something is lost by hurrying: a version number
+published to the package index can never be reused, and this tool is
+about to change substantially. There is also a piece that was never
+built — the release workflow itself, which P3-D8.3 specifies as a
+tag-triggered pipeline with signed-tag verification, reproducible
+builds and the owner's approval before upload. Only `ci.yml` exists,
+and it checks package metadata without ever publishing. Building that
+pipeline is the first release step, not the last, and it happens when
+a release is actually imminent.
+
 Until that runs, Phase 1's residual R3 stays open with it: the wheel's
 own digest is not verified in the documented institutional install, and
 it is a release that closes it.
