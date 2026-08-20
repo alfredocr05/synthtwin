@@ -1598,6 +1598,28 @@ Opened by this plan, each a limit accepted rather than work forgotten:
   general shape of it: a bound argument's binding is written per form,
   by hand, and a form whose binding is written incompletely is caught
   by review rather than by a rule.
+- **R-P4-16** (opened during the version 6 rewrite, 2026-08-20, and it
+  is an OWNER question inside the governing text rather than a defect
+  of the contract). A-P4-1 item 4 gives the recoverable-distribution
+  advice a trigger and calls that trigger "the arithmetic that makes
+  the advice TRUE rather than hopeful". The transcription found that
+  the arithmetic as worded does not deliver the clause's own promise.
+  The advice tells its reader that declaring the floor-clearing
+  non-numeric spellings missing will get "this column's distribution
+  described". The trigger fires when removing those spellings lifts
+  the survivors past the parse line — but survivors that clear the
+  line on numeric-LOOKING cells without clearing it on holdable ones
+  take `numeric_unrepresentable` and publish no statistic at all, and
+  survivors carrying only one or two distinct values are claimed by
+  the constant and binary rules ahead of the numeric one. In both
+  cases the remark promises a distribution the run will not describe.
+  The truth-preserving trigger adds survivor distinctness of at least
+  three, which a producer can compute and **a loader cannot**, so it
+  cannot become a wire invariant. The plan's trigger is transcribed as
+  written and NOT silently repaired. The owner's options are to accept
+  a remark that is occasionally hopeful, to soften its promise to
+  something always true, or to make the extra condition a producer
+  obligation. Nothing else waits on this.
 - **R-P4-13** (opened by amendment A-P4-1's audit). A column mixing
   numeric results with qualitative text in ONE cell space — the
   long-format panel export, where `7.2` sits beside `POSITIVE` in the
