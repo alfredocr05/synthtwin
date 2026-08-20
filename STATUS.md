@@ -1,6 +1,6 @@
 # synthtwin — where the project stands
 
-*Written 2026-08-18; updated 2026-08-19, on branch `phase-4-plan`.*
+*Written 2026-08-18; updated 2026-08-20, on branch `phase-4-plan` (pull request #4, CI green).*
 *Version `0.1.0.dev0` — not yet released.*
 
 This is a plain-language status document. It says what synthtwin is, what
@@ -182,14 +182,14 @@ release is still owed, still has the same preconditions, and no surface
 here says otherwise. What closing settled is which phase is current, so
 the project stops describing itself as being in a phase it has left.
 
-1. **Push this branch and let CI run.** The Phase 4 commits on
-   `phase-4-plan` have never been pushed, so they have never been
-   through CI. (The Phase 3 branch before them was pushed and merged,
-   so its commits did go through it — an earlier version of this list
-   said otherwise and was wrong about which branch.) The Windows fix
-   Phase 3 made was only ever *emulated* locally, and real Windows is
-   the one thing that cannot be checked here.
-2. Merge, once CI is green.
+1. ~~**Push this branch and let CI run.**~~ **Done 2026-08-20.** The
+   Phase 4 commits are pushed as pull request #4 and CI is **green on
+   all twenty jobs** — every test cell on Linux, macOS and Windows for
+   Python 3.10 through 3.14, plus the eight guard jobs. That includes
+   the first real check of the Windows fix Phase 3 made, which until
+   now had only ever been *emulated* locally: five Windows cells, all
+   passing.
+2. Merge, once reviewed. CI is green and the gate passed.
 3. The release steps in `docs/plans/phase-3-product.md` (P3-D8.2–8.4),
    which need the owner's go decision naming the commit they approve.
 
