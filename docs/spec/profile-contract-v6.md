@@ -1,6 +1,6 @@
 # Profile contract, version 6 — the normative specification
 
-**Status:** revision 0, 2026-08-20 — written before any version 6 code
+**Status:** revision 3, 2026-08-20 — written before any version 6 code
 exists, under the ratified plan `docs/plans/phase-4-columns.md`, which
 governs on every conflict. **Not ratified.** It is reviewed
 adversarially before the implementation it anchors is written, under
@@ -140,7 +140,7 @@ superseded ENTIRE and replaced by this document's own statement of it:
 | the `format` enumeration and its resolution bindings | version 4 §6.6.2, invariant D1 | C6-21, C6-22 and §14 |
 | the `resolution` enumeration | version 4 §6.6.2 | C6-24 and §14 |
 | the `time_precision` enumeration | version 4 §6.6.2 | C6-24 and §14 |
-| the publication-class tuples | version 4 §6.10 | C6-9, C6-14, C6-18 |
+| the publication-class tuples | version 4 §6.10 | C6-PUB, which restates all thirteen |
 | the forbidden-key matrix | version 4 §6.11 | §7A entire |
 | the settings key enumeration (the fifteen keys) | version 4 §4.4 | C6-20 |
 | the absence-class enumeration and its two invariants | version 5 C5-12, version 4 N1 and N2 | C6-N3 |
@@ -151,6 +151,10 @@ superseded ENTIRE and replaced by this document's own statement of it:
 | the twin-writes-every-absent-cell-empty rule | version 5 C5-9 | C6-37 |
 | the version integer, and the loader's single-version rule | version 5 C5-24 and C5-VER | C6-44 |
 | the refusal message's holder assumption | version 5 C5-26 | C6-46 and C6-47 |
+| the "five ways and no sixth" absence enumeration, and the consumer derivation over it | version 5 §3.1 and §3.3 | C6-N3 and C6-33 through C6-35, which make it six |
+| the exhaustive floor-of-one list | version 5 C5-S13 | C6-S13, which adds `fraction_widths` and excepts `resolution_mix` as floor-free |
+| the sentinel-ordering rule | version 4 V4 | C6-V4 |
+| the declaration-matching rule, for the one exact-spelling member only | version 5 C5-17 | C6-32, which trims and folds every other member exactly as C5-17 does |
 
 Nothing else of version 5 or version 4 is superseded, and a rule not
 in this table is in force at its own wording however much a clause
@@ -352,7 +356,7 @@ empty rule settles. The table stays total over the role vocabulary and
 a loader refuses any triple that is not a row of it.
 
 **C6-20 (settings; supersedes version 4's settings key enumeration in
-its section 4.3, and version 5's sentence in 6.2 fixing that block at
+its section 4.4, and version 5's sentence in 6.2 fixing that block at
 fifteen keys).** The settings block holds EXACTLY seventeen keys:
 version 5's fifteen, unchanged in name, type and meaning, plus
 `day_first` (a yes/no, default no, recording that slashed dates were
@@ -433,8 +437,11 @@ and NOT a key inside it. Inside is where it reads as belonging, and
 inside is impossible: version 4's P1 requires every value of
 `numeric_styles` to be an integer and requires them to sum to the
 numeric count, so an object placed among them breaks both, and this
-document does not supersede P1. There is exactly one location, and it
-is the sibling one.
+document does not supersede P1. The ratified plan said inside; the
+plan governs, so the plan was amended rather than this document
+deviating from it — **plan amendment A-P4-5**, which fixes the sibling
+placement and states this reason. There is exactly one location, and
+it is the sibling one.
 
 **C6-28 (what it holds).** A mapping from a fraction width — the count
 of digits after the point — to the number of `decimal`-styled cells
@@ -449,7 +456,12 @@ loader refuses a document carrying one. The pooled key is exactly
 `(withheld)` and is the only non-numeric key permitted.
 
 **C6-30 (invariants).** P5: the values of `fraction_widths` sum to the
-`decimal` value of `numeric_styles`. P6: every named width's count is
+count of decimal-styled cells — which is `numeric_styles`' own
+`decimal` value WHERE THE FLOOR NAMED IT, and where the floor pooled
+that count instead, no published number holds it, `fraction_widths`
+carries the whole of it under `(withheld)`, and this sum binds
+nothing. An invariant stated over a key that may not exist is not an
+invariant (plan amendment A-P4-5). P6: every named width's count is
 at or above `small_cell_floor`, and the `(withheld)` value is 0 or at
 least 1. P7: a width key is present only if its count is nonzero. This
 closes the route residual R-P3-12 records.
@@ -614,6 +626,27 @@ which is a reporting obligation and not a fidelity one.
 and a loader still refuses a document that fills any of them. No
 cross-column fact enters this version.
 
+## 6A. The publication classes, restated over all thirteen roles
+
+**C6-PUB (supersedes version 4's §6.10 entire).** That section names
+its classes over ten roles. Superseding it for three new ones and
+leaving the ten unstated would leave the block-level privacy control
+with no normative membership for most of the format, so it is restated
+whole:
+
+| class | roles | what the class means |
+|---|---|---|
+| labels | `constant`, `binary`, `categorical`, `long_tail_labels` | the values themselves appear, folded, with counts, and only at or above the floor |
+| ranges | `count`, `continuous`, `datetime`, `time_of_day`, `affixed_number` | no spelling appears — except the two affix keys of `affixed_number`, the one exception C6-9 names and the forbidden-key matrix confines |
+| nothing | `numeric_unrepresentable`, `identifier`, `free_text`, and any column whose `structural_role` is `identifier` | no value, no spelling, no fragment of one, anywhere in the block |
+| — | `empty` | in no class: it has nothing to publish |
+
+Every role is in exactly one row, the membership is a property of the
+BLOCK and not of any single field, and on the nothing class
+`missing_by_source` is empty, both absence counts are zero, and every
+sentinel candidate reads `(withheld)` — all exactly as version 4 has
+it.
+
 ## 7A. The forbidden-key matrix, superseded in full
 
 **C6-FKM (supersedes version 4's section 6.11 matrix entire).** That
@@ -646,7 +679,7 @@ enforced.
 
 ## 7B. The two sentences a version 6 producer must be able to write
 
-**C6-GRAMMAR.** Two sentences of the profile document are new, and
+**C6-GRAMMAR.** Three sentences of the profile document are new, and
 because every sentence of this document's artifact is built from an
 enumerated form rather than assembled as text, each needs a form of
 its own. A producer that cannot build them cannot conform:
@@ -677,14 +710,42 @@ two ways and no guard can rebuild:
 | `remark_a_declaration_would_restore_the_distribution` | 2 | how many present cells read as numbers, how many cells the floor-clearing non-numeric spellings cover |
 | `remark_slashed_dates_read_against_your_declaration` | 4 | cells the day-first reading parsed, cells the month-first reading parsed, cells only day-first parsed, cells only month-first parsed |
 
-Each form renders one fixed text from its arguments and nothing else,
-and the publication guard rebuilds the rendered sentence from the form
-and its arguments and refuses any sentence it cannot. The third form is
+**Each form has ONE rendering, written out here, because a form
+without a rendering is a sentence two producers spell two ways:**
+
+- `remark_affixed_numbers_may_be_codes` renders: *"every value in this
+  column is written as PREFIX, a number, then SUFFIX, and synthtwin
+  described the numbers as quantities: their average, their spread and
+  their ends are in this profile. If these are codes rather than
+  measurements, run the command again with --identifier NAME and no
+  value of this column will be published at all."* — with PREFIX and
+  SUFFIX standing for the two arguments.
+- `remark_a_declaration_would_restore_the_distribution` renders: *"N
+  of this column's values are written as numbers, and M more are
+  written one of a few ways that repeat often enough to name. If those
+  M mean 'no value', run the command again with --missing-value and
+  this column's distribution will be described."*
+- `remark_slashed_dates_read_against_your_declaration` renders two
+  clauses, each on its own trigger: the first names which reading was
+  used and why — *"read day first, which parses D of these values
+  against the month-first reading's M"* or *"read month first, though
+  you asked for day first, because it parses M against D"*; the second
+  appears only when both only-counts are nonzero — *"this column
+  contradicts itself: X values only a day-first reading accepts and Y
+  only a month-first one."*
+
+The publication guard rebuilds the rendered sentence from the form and
+its arguments and refuses any sentence it cannot. The third form is
 the slashed-date remark C6-DF requires, carried whenever the option was
-given and a slashed reading was in play. Every argument above is a
-whole number or one of this document's own published affix spellings —
-authorized by its floor — so no other value of the table can enter a
-sentence by this route.
+given and a slashed reading was in play. Every argument above is a whole number EXCEPT the two of the first
+form, and those two are bound rather than merely permitted: **an affix
+argument conforms only when it is character-for-character the
+`affix_prefix` or `affix_suffix` of the very column block the sentence
+sits in.** The guard checks that identity, not merely that the
+argument is a string, because widening the guard to accept arbitrary
+strings would be exactly the hole that lets a source-derived value
+into a sentence and be rebuilt successfully. No other value of the
+table can enter a sentence by this route.
 
 ## 8. Every new and changed key, in one table
 
@@ -765,6 +826,7 @@ for the same reason.
 | C6-N3 | C5-12, N1, N2 | six absence classes, always all six, summing to `n_missing`, each non-withheld value 0 or ≥ floor |
 | C6-V4 | V4 | mixed candidates are ordered by candidate text |
 | C6-K3 | C5-K3 | the three declaration lists sum to at most `n_declared` |
+| C6-K4 | C5-K4 | no member appears in both declaration records, across all THREE lists |
 | C6-S13 | C5-S13 | at a floor of one nothing is held back: the floor-one list gains `fraction_widths`, `resolution_mix` excepted as floor-free |
 | G1L | — | `long_tail_labels` carries no `level_ceiling` |
 | A5 | — | the axes table is total over the thirteen roles |
