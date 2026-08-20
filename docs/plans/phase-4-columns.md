@@ -542,7 +542,13 @@ stopped-and-asked instead of having its first record eaten as a
 presumed header — the exact loss the reader's own rules exist to
 prevent.
 
-Publication classes — every role in exactly one, the invariant kept:
+Publication classes — every role in exactly one, the invariant kept
+**(AMENDED by A-P4-10: exactly one of FOUR buckets — the three
+value-publishing classes, plus `empty`, which is in none of them. The
+four-bucket shape is how the shipped battery has written this
+invariant since Phase 1; after the three roles this phase adds, the
+three value-publishing classes carry the twelve non-`empty` roles,
+each in exactly one)**:
 `time_of_day` joins the ranges class. `long_tail_labels` joins the
 labels class — its published spellings are whole values of the table
 under the same floor as every label. `affixed_number` joins the RANGES
@@ -2121,6 +2127,75 @@ rounds do not reach a stopping verdict, the artifact is reported to
 the owner as not converging, with the standing items named, and the
 owner decides whether to split it, reduce its scope, or accept it with
 conditions. The raise buys rounds, not an indefinite loop.
+
+## Amendment A-P4-10 — the exactly-one invariant counts `empty` as its own bucket
+
+**THIS CORRECTS a sentence of this plan that was never true of the
+shipped code, and lowers no obligation** (contract v6 review round 6,
+item P4-X5-F18). P4-D3's publication-class paragraph opens
+"Publication classes — every role in exactly one, the invariant kept".
+Read over the three value-publishing classes that sentence is false,
+and has been false since Phase 1 shipped: `ROLES_PUBLISHING_LABELS`,
+`ROLES_PUBLISHING_RANGES` and `ROLES_PUBLISHING_NOTHING`
+(`src/synthtwin/taxonomy.py:258-264`) name three roles each — nine of
+the ten in `ROLES` — and `empty` is deliberately in none of them.
+
+**The invariant, as the code has always written it.** The shipped
+battery states it over FOUR buckets:
+`test_every_role_belongs_to_exactly_one_publication_class`
+(`tests/test_column_analysis.py:573-583`) tests membership in the
+three tuples AND `role == taxonomy.ROLE_EMPTY`, and asserts exactly
+one of the four is true, over a fixture set that includes `empty`.
+That is the invariant. This plan compressed it to three and dropped
+the bucket that has no value to publish.
+
+**And the four-bucket form was put in front of this plan in writing.**
+Round 1 of the plan review raised P4-P1-F12, and its evidence line
+states the invariant correctly: "The executable invariant requires
+every role to belong to exactly one of labels, ranges, nothing, or
+empty: `tests/test_column_analysis.py:573-583`"
+(`docs/plans/reviews/phase-4-plan-review-round-1.md:108`). F12 was a
+ruling about `affixed_number` and never about `empty`; the repaired
+sentence dropped the fourth bucket anyway. This amendment restores the
+form the reviewer supplied.
+
+**Nor does the contract state a three-class partition.** Version 4
+section 6.10 (`docs/spec/profile-contract-v4.md:1304-1312`) names the
+nothing-publishing membership and nothing else, and version 5's C5-N3
+is binary on exactly that term, over a closed definition that does not
+contain `empty`. The labels/ranges/nothing doctrine lives in code
+comments and in this plan — never in the contract.
+
+**Why the plan moves and not the contract.** Putting `empty` into the
+nothing class changes what a shipped run writes. An UNDECLARED
+all-absent column publishes its hole spellings under the floor: forty
+cells alternating a blank and `NA`, at `small_cell_floor: 11`, yield
+`missing_by_source: {"NA": 20}`, `n_missing_blank: 20`,
+`n_missing_withheld: 0` — confirmed by running the shipped profiler.
+Moving `empty` into the nothing class would force that map empty and
+both counts to zero, break C5-N3's closing sum for the column, and —
+after the C6-37 flip this phase lands — write twenty blank fields
+where the twin should write `NA`. Deliverable 4 of this plan is that
+the twin reproduces the recorded hole spellings the description
+already publishes; this change would delete the record on every
+`empty` column instead, pushing a fact the description holds today
+into the permanently-open route P4-D6.1 names, with no rule saying it
+moved. Bought for one word in a plan sentence.
+
+**The structural override is where the exactly-one question actually
+bites, and it does not move.** A column whose `structural_role` is
+`identifier` is nothing-publishing whatever its role, so a DECLARED
+all-absent column carries `role: empty` with an empty source map and
+both counts zero, while the undeclared one publishes. Those two
+columns differ, they are meant to, and neither reading changes here.
+
+**Cost.** One clause in P4-D3 and this section. No rule, no key, no
+role, no byte moves, and no stage gains work.
+
+**What it buys.** The plan stops requiring of the contract a
+membership the shipped tuples refuse, so the contract can state the
+`empty` carve-out plainly instead of standing red against its own
+governing plan on a fact neither document intends to change.
 
 ## Acceptance criteria
 
