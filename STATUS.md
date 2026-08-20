@@ -1,6 +1,6 @@
 # synthtwin — where the project stands
 
-*Written 2026-08-18, at commit `95136aa` on branch `phase-3-open-defect-repairs`.*
+*Written 2026-08-18; updated 2026-08-19, on branch `phase-4-plan`.*
 *Version `0.1.0.dev0` — not yet released.*
 
 This is a plain-language status document. It says what synthtwin is, what
@@ -29,8 +29,8 @@ run the finished code on the real table, inside your safe environment.
 | **0** | the repository, licence, CI, and the security baseline | **done** |
 | **1** | the profiler — read a table, write the description | **done** |
 | **2** | the generator — build the twin from the description alone | **done** |
-| **3** | the whole product through one command, plus the checker | **essentially done**, see below |
-| **4** | every column type, rare categories, missing-data patterns | not started |
+| **3** | the whole product through one command, plus the checker | **product done; closed 2026-08-19 without its release** |
+| **4** | every column type, rare categories, missing-data patterns | **current** — the plan is ratified, the first piece is built |
 | **5** | relationships between columns | **not started — this is the one that matters most for statistics** |
 | **6** | a hardened offline build for institutional machines | not started |
 | **7** | **a screen, so none of this needs a terminal** | not started |
@@ -55,6 +55,9 @@ it has to state that limit where a person meets the twin.
 Phase 3 made the three commands work together and added the **quality
 report** — the checker that measures a written file against a
 description and says which of its published obligations the file meets.
+It was closed by owner decision on 2026-08-19 **without the release its
+charter asked for**; the section further down says what that leaves
+owed.
 
 It also went through **thirteen rounds of adversarial review**. Those
 rounds were not cosmetic. Early ones found that the checker would tell
@@ -173,11 +176,46 @@ results.
 
 ## Before this can be released
 
-1. **Push the branch and let CI run.** Seventeen commits have never been
-   through CI. The Windows fix in particular was only ever *emulated*
-   locally — real Windows is the one thing that cannot be checked here.
+Phase 3 was closed on 2026-08-19 **without its release**. That was an
+owner decision, and it changes nothing about the list below: the
+release is still owed, still has the same preconditions, and no surface
+here says otherwise. What closing settled is which phase is current, so
+the project stops describing itself as being in a phase it has left.
+
+1. **Push the branch and let CI run.** Commits on this branch and the
+   one before it have never been through CI. The Windows fix in
+   particular was only ever *emulated* locally — real Windows is the
+   one thing that cannot be checked here.
 2. Merge, once CI is green.
-3. The release steps in `docs/plans/phase-3-product.md` (P3-D8.2–8.4).
+3. The release steps in `docs/plans/phase-3-product.md` (P3-D8.2–8.4),
+   which need the owner's go decision naming the commit they approve.
+
+Until that runs, Phase 1's residual R3 stays open with it: the wheel's
+own digest is not verified in the documented institutional install, and
+it is a release that closes it.
+
+---
+
+## What Phase 4 has built so far
+
+The twin now **tells you which of its cells synthtwin made up**. Before
+this, a column synthtwin could not read became free text, the twin
+filled it with invented characters, and nothing on any surface said so
+unless one of those cells happened to start with a spreadsheet formula
+character.
+
+Now every affected column says it in its own block of the twin's
+report, once, whatever the cells look like: a column whose description
+publishes no value of it says every present value is invented; a column
+of categories says how many of its cells stand in for labels the
+smallest-group floor held back; a numeric or date column says how many
+cells are counted stand-ins. The generate command prints the count on
+screen, the report repeats it at the foot, and the description's own
+summary warns you before you generate anything.
+
+The rest of Phase 4 — the new column types, the long-tail categories,
+the missing-value reproduction — is planned and ratified but not
+built.
 
 ---
 

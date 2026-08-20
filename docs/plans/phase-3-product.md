@@ -7402,7 +7402,16 @@ tests as bounded in P3-D8.3.
   when the owner rules.** The report consequence's other half — a
   MISSED verdict that printed no found value and no reason — was a
   defect in its own right and is repaired by A-P3-45.
-- **Closed here:** R3 (Phase 1), on the first release's evidence.
+- ~~**Closed here:** R3 (Phase 1), on the first release's evidence.~~
+  **NOT CLOSED, and this line was written in the future tense of a
+  release that did not happen** (owner closure 2026-08-19). R3 is
+  Phase 1's residual that the project wheel's own digest is not
+  verified in the documented institutional install, and it closes when
+  a release publishes one. No release was executed in this phase: there
+  is no tag and nothing is published. R3 therefore stays OPEN and is
+  carried, with the acceptance criteria that rest on the same evidence.
+  The entry stands struck rather than deleted, as the record of a
+  closure this plan claimed before its condition was met.
 - **Carried untouched:** R1, R2, R-P2-1 (still owner-flagged), and
   R-P2-2 through R-P2-14 — the ledger runs to FOURTEEN, not twelve,
   because the method's own residual list does (round 4 caught the
@@ -7467,6 +7476,52 @@ tests as bounded in P3-D8.3.
    recorded.
 9. Every artifact scans clean as a tracked file; the seal is current;
    CI green on every cell including Windows.
+
+## Phase closure (owner act, 2026-08-19)
+
+**Phase 3 is CLOSED by owner decision, with its release NOT executed.**
+Closure is an owner act and not a review verdict, on the precedent of
+Phases 0 and 2; nothing here describes Phase 3 as review-ratified.
+
+**What closed.** The product this phase set out to build: `profile`,
+`generate` and `validate` through one zero-code CLI, the plain-language
+quality report, the two OPEN-defect repairs of owner decision 1, the
+repository's move to public with its deferred controls applied, and
+thirteen rounds of adversarial review on the validator with their
+records standing exactly as written.
+
+**What did not happen, named rather than counted done.** The first
+PyPI release. This phase's charter called it the earliest possible
+one, P3-D8.2 through P3-D8.4 wrote the checklist, and it was never
+run: there is no tag on this repository and nothing is published under
+the project's name. Everything that rests on release evidence is
+therefore unmet and stays unmet:
+
+- **Acceptance criterion 8** in full — the per-release decontamination
+  steps, the digest-bound reproduction and SBOM, the verified package
+  attestations, the reviewed-digest binding, the tool inventory, the
+  post-publish verification. None of it has evidence because none of it
+  ran.
+- **Phase 1's residual R3**, which this plan's register claimed closed
+  "on the first release's evidence". That evidence does not exist; the
+  register entry is struck above and R3 is carried open.
+- **Acceptance criterion 1's release-gated half** and any sentence of
+  P3-D8 written in the expectation that the release followed.
+
+**Where the release goes.** It is not abandoned and it is not
+reassigned to Phase 4, whose scope is column handling and which must
+not silently acquire another phase's charter deliverable. It is
+release engineering that can be executed against this plan's own
+checklist whenever the owner gives the go decision P3-D8.2 requires,
+and the preconditions STATUS.md records still stand in front of it:
+commits that have never been through CI, and a Windows fix that was
+only ever emulated locally.
+
+**What this closure does NOT license.** It does not let any surface say
+synthtwin has been released, is on PyPI, or has a version people can
+install. Every such sentence remains false and remains banned by the
+claim inventory. What the closure settles is which phase is current, so
+that the ledger can say something true about both.
 
 ## Review protocol for this phase
 

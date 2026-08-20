@@ -6,6 +6,31 @@ exists).
 
 ## [Unreleased]
 
+### Changed: Phase 3 is closed, without the release it asked for
+
+- **Phase 3 was closed by owner decision on 2026-08-19, and the release
+  it named as its own earliest-possible deliverable did not happen.**
+  The product it set out to build is done and in your hands -- the
+  three commands, the quality report, the repository going public. The
+  release is not: there is no tag and nothing is published. Everything
+  that rests on release evidence stays unmet and is named as unmet,
+  including Phase 1's residual about verifying the wheel's own digest,
+  which this project had recorded as closed "on the first release's
+  evidence" before that evidence existed. That line is struck rather
+  than deleted, in the plan, where a reader of the register meets it.
+- **What changes for you: nothing about the tool, and one thing about
+  what it says of itself.** The project now describes itself as being
+  in Phase 4, because it is. It does not describe itself as released,
+  because it is not, and no wording anywhere says otherwise.
+- **The order this was done in is recorded rather than tidied away**
+  (plan amendment A-P4-4). Phase 4's first piece was built on a branch
+  before Phase 3's closing state was settled, which is not the order
+  the plan required. Nothing was merged and nothing was published in
+  that window, so the contradiction reached no reader outside the
+  branch -- but it was real, an adversarial review raised it at every
+  round, and the amendment authorizes that one interval, prices it, and
+  leaves the rule at full strength for every stage that follows.
+
 ### Added in Phase 4: the twin now tells you which of its cells synthtwin made up
 
 - **Every column whose cells synthtwin invented says so, in its own

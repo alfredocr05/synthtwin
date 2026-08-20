@@ -1,6 +1,6 @@
 # synthtwin
 
-> **Status: early (Phase 3).** synthtwin is **not on PyPI**. What
+> **Status: early (Phase 4).** synthtwin is **not on PyPI**. What
 > exists today is the whole workflow -- the profiler, which reads a CSV
 > table on your computer and describes it; the generator, which builds
 > the synthetic twin from that description and nothing else; and the
@@ -351,8 +351,11 @@ run, whether or not anything else went wrong.
   describes each column on its own, and the twin therefore carries no
   cross-column structure at all; how columns move together arrives in a
   later phase (Phase 5).
-- **[planned]** PyPI publication - earliest at the end of Phase 3, with
-  signed, reproducible, attested releases.
+- **[planned]** PyPI publication - with signed, reproducible, attested
+  releases. Phase 3 named it that phase's earliest-possible deliverable
+  and Phase 3 closed on 2026-08-19 without it, so no phase carries it
+  now: it is release engineering, waiting on its own checklist in
+  `docs/plans/phase-3-product.md` and on the owner's go decision.
 
 ## The security architecture, in plain language
 
