@@ -1577,6 +1577,18 @@ Opened by this plan, each a limit accepted rather than work forgotten:
   only by the exact-shape test noticing the form table changed. Priced
   and accepted rather than closed, because closing it means a general
   provenance rule for arguments that this phase does not need.
+  **Restated at its real size on review item P4-X5-F8:** as first
+  written this residual described only a FUTURE fifth argument class,
+  and the reviewer showed the binding was incomplete for the form that
+  exists. "Character-for-character the `affix_prefix` or
+  `affix_suffix`" is satisfied by the pair SWAPPED — a block
+  publishing prefix `$` and suffix `kg` admitting arguments
+  `("kg", "$")`, rendering a sentence that misdescribes the column
+  while passing the guard. The contract now binds the two arguments
+  POSITIONALLY, which closes that instance. What stays open is the
+  general shape of it: a bound argument's binding is written per form,
+  by hand, and a form whose binding is written incompletely is caught
+  by review rather than by a rule.
 - **R-P4-13** (opened by amendment A-P4-1's audit). A column mixing
   numeric results with qualitative text in ONE cell space — the
   long-format panel export, where `7.2` sits beside `POSITIVE` in the
@@ -2004,6 +2016,111 @@ point of it: somebody holding a column of codes has to recognize their
 own column before `--identifier` means anything to them. A remark that
 could not name the pair would be a sentence nobody can match to their
 table.
+
+## Amendment A-P4-8 — the pooled fraction census has a LOWER bound too
+
+**THIS RAISES again, on the same obligation A-P4-6 raised** (contract
+v6 review round 5, item P4-X5-F4). A-P4-6 bounded the pooled fraction
+census from ABOVE — at least 1, below the floor, at most the pool —
+and the reviewer showed those three still admit an impossible
+document. Take `small_cell_floor: 11`, `n_numeric: 60`,
+`numeric_styles: {"(withheld)": 60}` and `fraction_widths:
+{"(withheld)": 1}`. Every A-P4-6 bound holds: 1 is at least 1, below
+11, and at most 60. The document is nevertheless impossible. There are
+exactly SIX numeric styles. If decimal accounts for one of the sixty
+pooled cells, the other five styles must account for fifty-nine
+between them, so at least one holds twelve — and a style holding
+twelve at a floor of eleven would have been PUBLISHED BY NAME, not
+pooled. No table produces that pair of censuses.
+
+**What is raised: a fourth condition, from the pool's finite
+capacity.** Let *W* be `numeric_styles["(withheld)"]` and *F* the
+total of `fraction_widths`. Every pooled style holds at most
+`small_cell_floor − 1` cells, and if decimal is pooled then at most
+FIVE other styles share the pool with it, so `W − F ≤ 5 × (floor − 1)`
+and therefore:
+
+> **F ≥ W − 5 × (small_cell_floor − 1)**
+
+On the reviewer's document that reads F ≥ 60 − 50 = 10, and the
+published 1 is refused. Where the right-hand side is zero or negative
+the condition is vacuous and the census may be empty, which is the
+ordinary case on a column with no decimal cell at all.
+
+**What it costs.** One more condition on both sides, and a reference
+vector exercising a pool large enough for the bound to bite — a case
+neither A-P4-5's nor A-P4-6's costing named, and the second time this
+one fact has cost a stage-4 vector. It also costs the admission that
+A-P4-6's own costing was incomplete one round after it was written.
+
+**What it buys.** The pooled case stops being the case where an
+impossible census survives. Two rounds of review have now found a
+document that satisfied every stated bound and describes no table;
+this condition is what closes the last one the reviewer could
+construct.
+
+**A note on how this fact keeps going wrong.** Three amendments have
+now touched one key. A-P4-5 moved it and concluded the pooled sum
+bound nothing; A-P4-6 gave it three bounds; A-P4-8 gives it a fourth.
+Each was a correct step and each was reached by reasoning about the
+key ALONE rather than about the census it partitions. The pattern is
+worth carrying into stage 4: a count drawn from a partition inherits
+every constraint the partition has, and stating the constraints one at
+a time as a reviewer finds them is slower than deriving them from the
+partition once.
+
+## Amendment A-P4-9 — the version 6 contract gets review rounds beyond five
+
+**THIS RAISES the review obligation on one artifact, and it is written
+because the alternative was to exceed a ratified limit quietly.** The
+review protocol of this plan says "up to five rounds per artifact,
+stopping early when remaining items are wording rather than control
+gaps." The version 6 contract has had five. Round 5 returned REJECT
+with ten items, every one classified a control gap and none a wording
+item, so neither exit the protocol provides is available: the artifact
+did not ratify, and the early-stop condition is not met. Running a
+sixth round without saying so would break the limit silently, and
+declaring the contract ratified on a rejecting verdict would be worse.
+
+**What is raised.** The version 6 profile contract, and only it, is
+reviewed until a round returns RATIFY or RATIFY-WITH-CONDITIONS, or
+until a round's remaining items are wording rather than control gaps.
+Every other artifact of this phase keeps the five-round limit.
+
+**Why more rounds rather than a different answer.** The counts across
+five rounds are 17, 13, 10, 13, 10 items — flat rather than falling,
+which on its own would argue the artifact is not converging. The KIND
+of item is falling sharply, and that is the better signal. Rounds 1
+and 2 found structural defects: whole enumerations superseded and
+lost, a role with no publication class, a clause that made its own
+role unsatisfiable. Round 5 found an arithmetic identity missing from
+a four-count census, a two-argument binding that permitted the pair
+swapped, and a lower bound derivable from a partition's capacity.
+Those are defects of a document that is nearly right, and they are
+exactly the defects that survive to become wrong twin bytes if nobody
+looks for them. Six of round 4's thirteen items came back FIXED, which
+is the first round that happened.
+
+**What it costs.** Review rounds are not free and the honest cost is
+not only the running of them: each round has also raised amendments to
+this plan — seven of the nine amendments this plan now carries came
+out of contract review, three of them touching one key. The stage-3
+artifact has cost substantially more than its sequencing entry
+implies, and stages 4 through 7 have not started. The owner is told
+that here rather than discovering it from the commit log.
+
+**What it buys.** A wire specification that two independent
+implementations cannot satisfy differently. That is the whole purpose
+of the document, and a version of it carrying ten known control gaps
+would hand every one of them to stage 6 as a defect in shipped code,
+where they are found by a person's wrong analysis rather than by a
+reviewer.
+
+**A bound on this, so the raise is not open-ended.** If three further
+rounds do not reach a stopping verdict, the artifact is reported to
+the owner as not converging, with the standing items named, and the
+owner decides whether to split it, reduce its scope, or accept it with
+conditions. The raise buys rounds, not an indefinite loop.
 
 ## Acceptance criteria
 

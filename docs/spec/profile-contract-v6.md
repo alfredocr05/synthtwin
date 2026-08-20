@@ -1,6 +1,6 @@
 # Profile contract, version 6 — the normative specification
 
-**Status:** revision 4, 2026-08-20 — written before any version 6 code
+**Status:** revision 5, 2026-08-20 — written before any version 6 code
 exists, under the ratified plan `docs/plans/phase-4-columns.md`, which
 governs on every conflict. **Not ratified.** It is reviewed
 adversarially before the implementation it anchors is written, under
@@ -12,13 +12,16 @@ the governing set eight documents.
 here; this document is the normative statement of what a version 6
 description may contain. Where the two disagree the plan governs and
 this document is defective. The eight owner decisions of P4-D0 were
-all taken on 2026-08-19, and amendments A-P4-1 through **A-P4-7** are
-part of the ratified text this document transcribes. Three of those
-seven were raised BY this document's own review and amend the plan
+all taken on 2026-08-19, and amendments A-P4-1 through **A-P4-9** are
+part of the ratified text this document transcribes. FIVE of those
+nine were raised BY this document's own review and amend the plan
 rather than letting this document deviate from it: A-P4-5 (the
 fraction fact sits beside the styles block, not inside it), A-P4-6
-(the pooled fraction census is bounded, not free) and A-P4-7 (the
-affix pair may be a sentence argument, bound by identity).
+(the pooled fraction census is bounded, not free), A-P4-7 (the affix
+pair may be a sentence argument, bound by identity), A-P4-8 (that
+census has a lower bound too) and A-P4-9 (this document is reviewed
+past the five-round limit, because round 5 rejected it with ten
+control gaps and neither protocol exit was available).
 
 **What this document is for.** A version 6 description is a file some
 person may hold, hand to a colleague, or keep for a year. This
@@ -158,8 +161,12 @@ superseded ENTIRE and replaced by this document's own statement of it:
 | the version integer, and the loader's single-version rule | version 5 C5-24 and C5-VER | C6-44 |
 | the refusal message's holder assumption | version 5 C5-26 | C6-46 and C6-47 |
 | the "five ways and no sixth" absence enumeration, and the consumer derivation over it | version 5 §3.1 and §3.3 | C6-N3 and C6-33 through C6-35, which make it six |
-| the exhaustive floor-of-one list | version 5 C5-S13 | C6-S13, which adds `fraction_widths` and excepts `resolution_mix` as floor-free |
+| the exhaustive floor-of-one list | version 5 C5-S13 | C6-S13, which restates the list ENTIRE and adds one position to it |
 | the sentinel-ordering rule | version 4 V4 | C6-V4 |
+| the role restriction on the per-column `n_rows` echo | version 4 invariant Q1 | C6-Q1, which adds `affixed_number` to the roles it appears on |
+| the role restriction on `numeric_styles` | version 4 §7.5.2 | C6-NS, which adds `affixed_number` to the roles it is required on |
+| the permitted `sentinel_verdicts[].candidate` values | version 4 §5.5 | C6-CAND, which adds the calendar-placeholder day spellings |
+| the `publication_notes` note grammar — its forms, their arities and their argument classes | version 4 §4.5 | C6-GRAMMAR and C6-ARG |
 | the declaration-matching rule, for the one exact-spelling member only | version 5 C5-17 | C6-32, which trims and folds every other member exactly as C5-17 does |
 
 Nothing else of version 5 or version 4 is superseded, and a rule not
@@ -376,6 +383,42 @@ rule, the clock rule or the calendar-placeholder pass: they reuse
 `minimum_parse_rate`, `small_cell_floor`,
 `sentinel_outlier_iqr_multiple` and `sentinel_minimum_share`.
 
+### 3.6 Three inherited restrictions this version widens
+
+Round 5's finding P4-X5-F1: a role added to this format inherits every
+rule quantified over the OLD roles, and three of those rules forbid on
+every role but a named few exactly the keys `affixed_number` is
+required to carry. Left alone they make the role unsatisfiable — the
+producer must write a key and the loader must refuse it. Each is
+superseded by name and restated whole.
+
+**C6-Q1 (supersedes version 4's invariant Q1).** The per-column
+`n_rows` equals the document's `n_rows`. It appears ONLY inside
+`count`, `continuous` and **`affixed_number`** blocks, and is
+FORBIDDEN on every other role. It is LOADER-ONLY, and the
+document-level `n_rows` is still the one carrying the row-count
+obligation. Only the role list moves; every other word is Q1's.
+
+**C6-NS (supersedes version 4's §7.5.2).** `numeric_styles` is
+REQUIRED on `count`, `continuous` and **`affixed_number`**, and
+FORBIDDEN on every other role including `numeric_unrepresentable`.
+Version 4's reason carries and reaches the new role for the same
+reason it reached the first two: an `affixed_number` twin cell is
+written as a parsed number from the ladder inside its affix pair, so
+the reader's inferred type is at stake and a style map is something
+the generator can settle. `fraction_widths` sits beside it under
+C6-27, on the same three roles, by the same argument.
+
+**C6-CAND (supersedes version 4's §5.5's `candidate` domain, and
+nothing else in that section).** A `sentinel_verdicts` entry's
+`candidate` is the stand-in number as text, **the canonical ISO day
+spelling of a calendar placeholder C6-33 admits**, or exactly
+`(withheld)`. The other three keys of the entry — `verdict`, `reason`
+and `n_occurrences` — keep §5.5's own permitted values and are not
+touched here; C6-35 already says the placeholder reuses the standing
+`verdict` and `reason` enumerations, and this clause is what makes the
+`candidate` it writes conform.
+
 ## 4. New facts on the readings version 5 already had
 
 ### 4.1 The calendar vocabulary
@@ -514,12 +557,26 @@ something (plan amendments A-P4-5 and A-P4-6).
   pooled, and no published number holds it. `fraction_widths` is
   EITHER the empty object — the column has no decimal cell and the
   pool holds other styles — OR it carries the pooled decimal cells
-  under its own `(withheld)`, in which case all three of these bind:
-  *F* is at least 1; *F* is strictly BELOW `small_cell_floor`, because
-  a style is pooled only when its own count falls below the floor; and
-  *F* is at most `numeric_styles["(withheld)"]`, because the pooled
-  decimal cells are a subset of the pool. A document whose *F* breaks
-  any of the three does not conform and a loader refuses it.
+  under its own `(withheld)`. Write *W* for
+  `numeric_styles["(withheld)"]`. FOUR conditions bind, and a document
+  breaking any of them does not conform:
+
+  1. *F* is at least 1;
+  2. *F* is strictly BELOW `small_cell_floor`, because a style is
+     pooled only when its own count falls below the floor;
+  3. *F* is at most *W*, because the pooled decimal cells are a subset
+     of the pool;
+  4. **F ≥ W − 5 × (small_cell_floor − 1)** (plan amendment A-P4-8).
+     There are exactly six numeric styles, so at most five share the
+     pool with decimal, and each of those holds at most
+     `small_cell_floor − 1` cells. Where the right-hand side is zero
+     or negative this condition is vacuous. Without it, `n_numeric:
+     60` with `numeric_styles: {"(withheld)": 60}` and
+     `fraction_widths: {"(withheld)": 1}` at a floor of 11 satisfies
+     conditions 1 through 3 and still describes no table: the other
+     five styles would have to hold fifty-nine cells between them, so
+     one of them holds twelve, and a style holding twelve at a floor
+     of eleven is published by name rather than pooled.
 
 Revision 3 said of case P5.c that the sum "binds nothing," and that
 was wrong in a way worth naming rather than quietly fixing: it would
@@ -527,14 +584,56 @@ have admitted `fraction_widths: {"(withheld)": 1000}` on a hundred-cell
 column, a fraction census larger than the table, with no rule to
 refuse it. What A-P4-5 correctly established is that an invariant
 cannot be stated over a key that may not exist; what it wrongly
-concluded is that nothing else can be stated. The three bounds above
+concluded is that nothing else can be stated. The four bounds above
 are stated over keys that DO exist in case P5.c, so they cost the
-amendment's reasoning nothing and close the hole it left open.
+amendment's reasoning nothing and close the hole it left open. Three
+of them were revision 4's; the fourth came from round 5, which found a
+document satisfying all three and describing no table.
 
 **P6.** Every named width's count is at or above `small_cell_floor`,
 and the `(withheld)` value is 0 or at least 1. **P7.** A width key is
 present only if its count is nonzero. This closes the route residual
 R-P3-12 records.
+
+**C6-S13 (supersedes C5-S13, restating its list ENTIRE).** C5-S13
+fixes which fields must be empty or zero where `small_cell_floor` is
+1, and says of itself that THE LIST IS EXHAUSTIVE. Version 6 adds a
+field with a `(withheld)` entry, so the list must gain a position —
+and a clause that says only "the list gains `fraction_widths`" has
+superseded an exhaustive list with a fragment, which is the exact
+defect revision 4 was written to end. The list is therefore restated
+whole. Where `small_cell_floor` is 1, every one of these is empty or
+zero:
+
+`suppressed_levels`; `suppressed_rows`; `suppressed_level_counts`;
+every `variants_withheld` block; `n_sentinel_candidates_unpublished`;
+`n_missing_withheld`; the `(withheld)` entries of `missing_by_class`,
+`utc_offsets` and `numeric_styles`; **and the `(withheld)` ENTRY of
+`fraction_widths`** — the one position version 6 adds.
+
+**The added position is the ENTRY, not the field, and the difference
+is the whole of round 5's finding P4-X5-F2.** At a floor of 1 a
+decimal column of two cells written at width 2 publishes
+`fraction_widths: {"2": 2}`, which is correct and must not be refused:
+at a floor of one every named width reaches the floor, so widths are
+NAMED rather than pooled, and the field is nonempty precisely because
+nothing is held back. What must be zero or absent there is the
+`(withheld)` entry alone, for S13's own reason — at a floor of one the
+range of group sizes below the floor is empty, so there is nothing to
+pool. This is the treatment `numeric_styles` already has on the list,
+and `fraction_widths` joins beside its sibling under the same reading.
+
+**What does NOT join, named so no reader adds it.** `missing_by_source`
+is not on the list and version 6 does not put it there — C5-S13 struck
+it and its reason is unchanged. `n_missing_blank` is not on the list
+and must not be added, for C5-S13's own stated reason. And
+`resolution_mix` is not on the list because it is FLOOR-FREE by C6-25:
+it never withholds at any floor, so a rule about what a floor of one
+holds back has nothing to say about it. The list above is exhaustive
+in version 6 exactly as C5-S13's was in version 5, it is still checked
+with the top-level rules before any column block is read, and C5-S13's
+paragraph about which keys a searching loader must not read as names
+stands entire and unrepeated here.
 
 ## 5. Absent cells: the vocabulary, the classes, the placeholders
 
@@ -564,8 +663,11 @@ it under the folded rule would silently read name cells as absent. It
 therefore joins as the vocabulary's one exact-spelling member, and
 that one operation — raw byte equality — is applied identically
 wherever the vocabulary is consulted: missing recognition, declaration
-recording, the published-vocabulary tests, and the validator's
-reconstruction. The criterion that keeps `unknown` and `missing` out —
+recording, **the test of whether a declaration names a vocabulary
+member and so rescues a cell absent by one**, the published-vocabulary
+tests, and the validator's reconstruction. The rescue test is named
+explicitly because leaving it to be inferred is what let revision 4
+carry C5-19's second way unproved (C6-48). The criterion that keeps `unknown` and `missing` out —
 a human word carries meaning somewhere — stands unweakened for every
 folded member.
 
@@ -680,12 +782,35 @@ the whole of the kept side's effect on the reading rule, and the kept
 half of the loss closes completely over three lists as version 5's
 closed over two.
 
-**The proof, re-walked over all six ways, because a proof over five
-does not carry to six.** Ways 1 through 5 are version 5's own walk,
-unchanged and not restated here beyond naming that they are unchanged:
-blank, built-in word, stand-in number, and the two declaration ways
-that are refused before the table is opened. The sixth way is new and
-is the only one this clause must prove:
+**The proof, re-walked over all six ways.** Revision 4 said ways 1
+through 5 were version 5's walk unchanged and proved only the sixth.
+That was false of way 2, and round 5's finding P4-X5-F5 is right:
+version 6 puts a member into the vocabulary that is matched
+differently from every other, so the way that quantifies over
+vocabulary members cannot be inherited without re-proving. Ways 1, 3,
+4 and 5 ARE unchanged and are not restated — blank, stand-in number,
+and the two declaration ways refused before the table is opened. Ways
+2 and 6 are proved here:
+
+- way 2, a BUILT-IN WORD, re-proved for the exact-spelling member. A
+  cell absent this way is absent because it matched a vocabulary
+  member, and it is rescued by a declaration that matches the same
+  cell. **The matching operation is the vocabulary's own, on both
+  sides**: folded for the seventeen folded members, raw byte equality
+  for `NaT`, exactly as C6-32 says of every place the vocabulary is
+  consulted. So `--keep-value NaT` rescues a `NaT` cell and is
+  recorded in `built_in_texts`; `--keep-value nat` matches no
+  vocabulary member at all, so it rescues no cell of this way and has
+  nothing to record. Both outcomes leave the lists complete. What
+  would break the claim is the mixed reading — folding the rescue test
+  while recording exactly — under which `--keep-value nat` rescues a
+  cell and records nothing, and that reading is not conforming.
+  **`declaration_matching` is unchanged and this is not a change to
+  it**: that setting says how a declaration matches a VALUE of the
+  table, and it still trims and folds. This is the separate question
+  of whether a declaration names a member of synthtwin's own
+  vocabulary, which C6-32 already answers, and the answer applies
+  wherever the question is asked.
 
 - way 6, a CALENDAR PLACEHOLDER judged by C6-33 through C6-35: the two
   placeholder spellings are members of C6-31's vocabulary by
@@ -780,40 +905,63 @@ whole:
 |---|---|---|
 | labels | `constant`, `binary`, `categorical`, `long_tail_labels` | the values themselves appear, folded, with counts, and only at or above the floor |
 | ranges | `count`, `continuous`, `datetime`, `time_of_day`, `affixed_number` | no spelling appears — except the two affix keys of `affixed_number`, the one exception C6-9 names and the forbidden-key matrix confines |
-| nothing | `empty`, `numeric_unrepresentable`, `identifier`, `free_text` | no value, no spelling, no fragment of one, anywhere in the block |
+| nothing | `numeric_unrepresentable`, `identifier`, `free_text` | no value, no spelling, no fragment of one, anywhere in the block |
+| **no value-publishing class** | `empty` | it holds no value to publish — and it is NOT a nothing-publishing column; see C6-PUB-A |
 
-Every role is in exactly one row and the membership is a property of
-the BLOCK and not of any single field. On the nothing class
+The three value-publishing classes carry exactly twelve of the thirteen
+roles, each in exactly one row, and the membership is a property of the
+BLOCK rather than of any single field. On the nothing class
 `missing_by_source` is empty, both absence counts are zero, and every
 sentinel candidate reads `(withheld)` — all exactly as version 4 has
 it.
 
-**`empty` is IN the nothing class, and this document puts it there on
-purpose.** Revision 3 wrote it into no class at all, reasoning that a
-column with no values cannot disclose one. That reasoning is sound and
-the placement was still wrong, because the class is a property of the
-block rather than of the values, and a block with no class has no
-answer to the questions the class settles. It also collided with the
-rule below: a declared all-absent column conformingly carries `role:
-empty` AND `structural_role: identifier`, so one reading gave it no
-class and another gave it the nothing class, and an exact-one-class
-privacy control with two answers is not a control. In the nothing
-class the two readings agree, and every obligation the class carries —
-empty `missing_by_source`, both absence counts zero, every candidate
-`(withheld)` — is one an `empty` block already meets, so the placement
-adds no obligation it can fail.
+**C6-PUB-A (`empty` is in no value-publishing class, and that is NOT
+the same as being nothing-publishing).** This distinction is the whole
+of the clause and revision 4 collapsed it, wrongly and expensively.
+Revision 4 put `empty` into the nothing class, reasoning that a column
+with no values discloses none. The reasoning is fine and the
+conclusion broke a shipped fact: the three publication tuples in
+`src/synthtwin/taxonomy.py` and `src/synthtwin/contract.py` list
+exactly `numeric_unrepresentable`, `identifier` and `free_text`, and
+`empty` is deliberately absent from all three. An `empty` column is
+therefore NOT a nothing-publishing column, so C5-N3's source
+accounting applies to it: `missing_by_source` carries the absent
+SPELLINGS its cells wore, under the floor, with their counts.
 
-**C6-PUB-B (the structural override, stated as a rule and not as a
-table row).** A column whose `structural_role` is `identifier` is in
-the nothing class WHATEVER its `role`, and this rule wins over the
-table above wherever the two could differ. It is written as an
-override rather than as a fourth row because a row would put such a
-column in two rows at once and break the exactly-one property the
-class depends on. The only roles a structurally declared column may
-carry are `empty` and `identifier` (version 4's axis rule, carried),
-both of which the table already places in the nothing class, so the
-override changes no outcome today; it is stated so that a later role
-reaching the declared axis cannot silently leave the class.
+Profile eleven cells that all hold one built-in absent word and the
+column publishes that word and the count 11 — and under C6-37 the twin
+reproduces the recorded spelling in all eleven rows. Had `empty`
+joined the nothing class, `missing_by_source` would have been forced
+empty, both absence counts to zero, the published fact would have
+vanished with no rule saying it had, and the twin would have written
+eleven blank fields instead. That is the reproduction deliverable of
+section 6 failing silently, produced by a wrong table row.
+
+So: `empty` is in no value-publishing class because it has no value to
+publish, and it publishes its source accounting exactly as version 5
+has it. Nothing about `empty` moves in version 6.
+
+**C6-PUB-B (the structural override, which is where the exactly-one
+question is actually settled).** A column whose `structural_role` is
+`identifier` is a NOTHING-PUBLISHING column whatever its `role`, and
+this rule wins wherever it and the table above could differ. Version 4
+states it in exactly this shape — the shipped constant's own comment
+says the nothing-publishing set is the three roles "to which is added
+any column the person declared with `--identifier` whatever role it
+reached" — so this clause carries version 4 rather than adding to it.
+
+It is written as an override rather than as a table row because a row
+would put such a column in two rows at once. It also answers round 4's
+finding P4-X4-F1 properly: a DECLARED all-absent column carries `role:
+empty` and `structural_role: identifier`, and the two readings now
+agree because the override settles it — declared, it is
+nothing-publishing and its `missing_by_source` is empty; UNDECLARED,
+it is not, and its `missing_by_source` is published under the floor.
+The difference between those two columns is exactly the difference the
+person made by typing `--identifier`, which is what that option is
+for.
+
+
 
 ## 7A. The forbidden-key matrix, superseded in full
 
@@ -874,20 +1022,30 @@ two ways and no guard can rebuild:
 
 | form | arity | arguments, in order |
 |---|---|---|
-| `remark_affixed_numbers_may_be_codes` | 2 | the affix prefix, the affix suffix |
+| `remark_affixed_numbers_may_be_codes` | 3 | the affix prefix (argument 1), the affix suffix (argument 2), and `n_affixed` — how many present cells actually wore the pair (argument 3) |
 | `remark_a_declaration_would_restore_the_distribution` | 2 | how many present cells read as numbers, how many cells the floor-clearing non-numeric spellings cover |
 | `remark_slashed_dates_read_against_your_declaration` | 5 | cells the day-first reading parsed (*D*), cells the month-first reading parsed (*M*), cells only day-first parsed (*X*), cells only month-first parsed (*Y*), and the reading USED — one of this package's two words `day-first` and `month-first` |
 
 **Each form has ONE rendering, written out here, because a form
 without a rendering is a sentence two producers spell two ways:**
 
-- `remark_affixed_numbers_may_be_codes` renders: *"every value in this
-  column is written as PREFIX, a number, then SUFFIX, and synthtwin
-  described the numbers as quantities: their average, their spread and
-  their ends are in this profile. If these are codes rather than
+- `remark_affixed_numbers_may_be_codes` renders: *"N of this column's
+  values are written as PREFIX, a number, then SUFFIX, and synthtwin
+  described those numbers as quantities: their average, their spread
+  and their ends are in this profile. If these are codes rather than
   measurements, run the command again with --identifier NAME and no
   value of this column will be published at all."* — with PREFIX and
-  SUFFIX standing for the two arguments.
+  SUFFIX standing for arguments 1 and 2 and N for argument 3.
+
+  **The count is in the sentence because the sentence was false
+  without it** (round 5, P4-X5-F6's sibling P4-X5-F7). Revision 4
+  rendered "EVERY value in this column is written as PREFIX…", and the
+  role does not require that: C6-5 admits stragglers up to the parse
+  line, so a hundred-cell column with ninety-nine affixed values and
+  one plain number conforms and the remark was false of the hundredth.
+  A remark whose whole job is to let somebody recognize their own
+  column must not misdescribe it. Rendering the counted cells says
+  what is true and tells the reader more than the universal claim did.
 - `remark_a_declaration_would_restore_the_distribution` renders: *"N
   of this column's values are written as numbers, and M more are
   written one of a few ways that repeat often enough to name. If those
@@ -926,10 +1084,28 @@ without a rendering is a sentence two producers spell two ways:**
 
 **Argument-consistency checks the guard performs**, because an
 argument that can disagree with another argument is a way to write a
-false sentence with a true form. For the slashed-date form: the
-reading-used argument must equal `day-first` where *D* ≥ *M* and
-`month-first` where *M* > *D*; *X* is at most *D* and *Y* is at most
-*M*. A form whose arguments fail either check is refused.
+false sentence with a true form. A form whose arguments fail any check
+below is refused.
+
+**For the slashed-date form**, over the column the note names:
+
+1. the reading-used argument equals `day-first` where *D* ≥ *M*, and
+   `month-first` where *M* > *D*;
+2. *X* ≤ *D* and *Y* ≤ *M*;
+3. **the both-readings identity: *D* − *X* = *M* − *Y*.** The cells
+   BOTH readings parse are countable two ways — the day-first total
+   less the day-first-only cells, and the month-first total less the
+   month-first-only cells — and the two must agree. Revision 4 omitted
+   it, and the reviewer's counterexample passes every other check:
+   *D*=90, *M*=80, *X*=10, *Y*=20 gives 80 and 60 for the same
+   quantity, a census no table can produce, rendered into a sentence a
+   guard would have rebuilt and accepted;
+4. *D* and *M* are each at most the named column's `n_present`, so the
+   sentence cannot count more cells than the column has.
+
+**For the affixed form:** argument 3 equals the named column's own
+`n_affixed`, and the two affix arguments are bound POSITIONALLY —
+see below.
 
 The publication guard rebuilds the rendered sentence from the form and
 its arguments and refuses any sentence it cannot. The third form is
@@ -938,11 +1114,31 @@ it, carried whenever the option was given and a slashed reading was in
 play. (Revision 3 cited a clause `C6-DF` here, which does not exist
 and never did.)
 
-**Every argument above is a whole number or one of this package's own
-words EXCEPT the two of the first form, and those two are bound rather
-than merely permitted.** An affix argument conforms only when it is
-character-for-character the `affix_prefix` or `affix_suffix` of the
-column block NAMED BY THE NOTE'S OWN SIBLING `column` FIELD. That
+**C6-ARG (supersedes version 4's §4.5 note grammar for its forms,
+arities and argument classes, and nothing else in that section).**
+Version 4's §4.5 fixes `publication_notes` as objects of exactly two
+keys, `column` and `note`, with invariant S10 binding `column` to a
+real column name. Both stand entire and are not touched here. What
+this clause supersedes is the enumeration of what a note may SAY: the
+forms, their arities and the classes their arguments may be drawn
+from. A version adding forms to a closed grammar must name that
+grammar as superseded, and revision 4 added three without doing so.
+
+The argument classes are closed at FOUR: a whole number; one of this
+package's own words; a nested form; and a bound affix string. Every
+argument of every form above is one of the four, and a fifth class is
+a change to this contract.
+
+**The affix arguments are bound POSITIONALLY, not merely by
+membership.** Argument 1 conforms only when it is character-for-
+character the `affix_prefix`, and argument 2 only when it is
+character-for-character the `affix_suffix`, of the column block NAMED
+BY THE NOTE'S OWN SIBLING `column` FIELD. Revision 4 said an affix
+argument must equal "the `affix_prefix` or `affix_suffix`", which a
+guard can satisfy with the pair SWAPPED: a block publishing prefix
+`$` and suffix `kg` would admit arguments `("kg", "$")`, each equal to
+one of the two, rendering a sentence that tells its reader the cells
+read `kg`, a number, then `$`. Position is part of the binding. That
 wording matters and revision 3 got it wrong: it said "the very column
 block the sentence sits in", and a publication note does not sit in a
 column block at all — notes live in the top-level `publication_notes`
@@ -1050,7 +1246,7 @@ these three are not.
 | C6-S14 | C5-S14 | each declaration record has exactly five keys |
 | FKM | v4 6.11 | every key not listed for a role is forbidden on it, under the superseded matrix of 7A |
 | U5 | — | `min_length ≤ max_length` on `numeric_unrepresentable` |
-| P5 | — | `fraction_widths` values sum by the three cases of C6-30: equality where `decimal` is published, empty where no style is pooled, and bounded below the floor and by the pool where it is |
+| P5 | — | `fraction_widths` values sum by the three cases of C6-30: equality where `decimal` is published, empty where no style is pooled, and bounded FOUR ways where it is — at least 1, below the floor, at most the pool, and at least the pool less the capacity of the other five styles |
 | P6 | — | every named fraction width is at or above the floor |
 | RM1 | — | `resolution_mix` keys are exactly the set C6-25 permits |
 | RM2 | — | `resolution_mix` values sum to `n_present − n_unparsed` |
@@ -1058,7 +1254,7 @@ these three are not.
 | C6-V4 | V4 | the ordering restated total over numeric, calendar and withheld candidates |
 | C6-K3 | C5-K3 | the three declaration lists sum to at most `n_declared` |
 | C6-K4 | C5-K4 | no member appears in both declaration records, across all THREE lists |
-| C6-S13 | C5-S13 | at a floor of one nothing is held back: the floor-one list gains `fraction_widths`, `resolution_mix` excepted as floor-free |
+| C6-S13 | C5-S13 | at a floor of one nothing is held back: the list restated entire, gaining the `(withheld)` ENTRY of `fraction_widths` and nothing else |
 | G1L | — | `long_tail_labels` carries no `level_ceiling` |
 | A5 | — | the axes table is total over the thirteen roles |
 
@@ -1249,13 +1445,30 @@ What version 6 publishes that version 5 withheld, each row priced.
     reviewer approving the profile on the belief that nothing below
     the floor changed would be approving something this document does
     not do.
-12. **The eight new text members of the published vocabulary**, where
-    a declaration names one: `built_in_texts` may now record any of
-    the seven spreadsheet error literals or the exact-spelling `NaT`.
-    Like the other declaration lists this is a function of the command
-    line alone and carries no cell, but the list is longer than it was
-    and the row exists so the count of what a declaration can reveal
-    about somebody's command line is stated rather than inferred.
+12. **The eight new text members of the published vocabulary**, in
+    BOTH the ways they reach a document — and the second is much the
+    larger of the two.
+    - **By declaration:** `built_in_texts` may now record any of the
+      seven spreadsheet error literals or the exact-spelling `NaT`.
+      Like the other declaration lists this is a function of the
+      command line alone and carries no cell.
+    - **AUTOMATICALLY, with no declaration at all, which is the row
+      revision 4 was missing** (round 5, P4-X5-F9). These eight
+      spellings are read as absent BY DEFAULT from the flip onward.
+      A column of ninety numbers and ten cells holding one error
+      literal is free text under version 5, publishing no number of
+      the table; under version 6 the ten read as absent, the ninety
+      clear the parse line, and the column becomes numeric. What
+      newly appears is therefore not one fact but four: the error
+      SPELLING and its COUNT in `missing_by_source` where the floor
+      admits them, the column's whole numeric distribution — mean,
+      spread, endpoints, ladder rungs — and the role transition
+      itself. None of it required anybody to type anything.
+    - This is the largest single widening in this table and it is a
+      direct consequence of owner decision 7. It is priced here rather
+      than left to be discovered because a privacy reviewer reading
+      row 12 as "one more thing a declaration can record" would be
+      reading the smaller half.
 13. **The time-of-day form facts.** `clock_form` says which of the two
     written clock forms the column's cells wore, and `n_unparsed`
     counts the cells no clock reading accepted — both new, both about
@@ -1282,29 +1495,64 @@ document without a row here is red against the delta battery.
 that moves one row without the others is red against the migration
 battery.
 
-**C6-MIG-B (the search, because a hand-written list of surfaces is a
-list that goes stale).** Revision 3 said a sentence not in this table
-does not move, and named three surfaces for the vocabulary count while
-the repository states that count in at least eight. The battery would
-have passed with README and four source modules still saying thirteen
-beside a wire carrying twenty-three. An exhaustive-by-assertion table
-is worth less than a search, so the table is no longer the whole
-control:
+**C6-MIG-B (the search, specified so that two batteries cannot
+disagree).** Revision 3 claimed a hand-written table was exhaustive
+while missing five surfaces. Revision 4 replaced the claim with "a
+search … in a short window … and the like", which round 5 was right to
+call indeterminate: two implementations choosing different windows and
+different phrases both conform and find different things. The search
+is therefore specified exactly.
 
-- The migration battery SEARCHES the tracked tree for each superseded
-  count and enumeration in the shapes a sentence states them: the word
-  or numeral for the old count within a short window of the phrase
-  naming what it counts — "published words", "published vocabulary",
-  "format members", and the like. A hit outside the rows below is a
-  FAILURE of the battery, not an omission from this table.
-- The search is written to be narrow enough to run clean: "thirteen"
-  beside a count of characters, of held lines, or of anything that is
-  not the published vocabulary is not a hit, because the phrase must
-  co-occur. Widening a search until it is noisy and then ignoring it
-  is the failure mode this clause exists to avoid.
-- The rows below therefore say WHERE the writing is expected and WHEN
-  it moves. They no longer claim to be the only places it can be,
-  because that claim was false when it was written.
+**Where it looks.** Tracked files whose path is under `src/` or
+`tests/`, or is one of `README.md`, `SECURITY.md`, `STATUS.md`,
+`CLAUDE.md`, `AGENTS.md`, `docs/spec/profile-contract-v6.md`. Nothing
+else.
+
+**What it excludes, by name and with the reason.** `docs/spec/
+profile-contract-v4.md` and `docs/spec/profile-contract-v5.md`, whose
+thirteen-member statements are TRUE of the versions they specify and
+which §2.2.3 requires to stay exactly as written; everything under
+`docs/plans/`, which records what was decided when it was decided;
+`CHANGELOG.md`, whose released entries describe the state at their own
+release; and §12A of this document — the table below — which quotes
+the old count precisely because it is the thing being migrated. A
+battery that rewrites any of those has falsified a historical record,
+which is a worse failure than the one this search prevents.
+
+**What it matches.** The literal word `thirteen`, case-insensitively,
+where a window of EIGHTY characters either side of it on the same line
+also matches one of exactly these three phrases, case-insensitively:
+`published words`, `published vocabulary`, or `words of its own that`.
+The window is a count of characters on one line, not a count of lines,
+and eighty is the number — not "short".
+
+**Why the phrase test rather than the bare word.** The tree states
+"thirteen" about other things — a count of characters in
+`parsing.py`, a count of held lines in `validation.py`, a count of
+bound expectations in a changelog entry — and a search that flagged
+those would be noisy, and a noisy battery gets ignored, which is how
+the surfaces got missed in the first place.
+
+**The expected-hit manifest.** At the writing of this clause the
+search finds exactly TWELVE lines across NINE files: `README.md:217`;
+`SECURITY.md:326`; `src/synthtwin/profile.py:151`;
+`src/synthtwin/summary.py` at 446, 642, 802 and 852;
+`src/synthtwin/taxonomy.py:1212`;
+`tests/test_p1r7f2_disclosure_is_true.py:28`;
+`tests/test_p3v4f1_kept_values.py:58`;
+`tests/test_p3v9f4_declarations_not_keys.py:67`; and
+`tests/test_profile_version_5.py:24`. The battery asserts the hit SET,
+not merely a count: before the flip it equals this manifest, and a new
+hit that is not in it is a surface somebody wrote after this clause
+and is red immediately rather than at the flip. After the flip the set
+is EMPTY, and any remaining hit names a surface the landing missed.
+
+**The same shape applies to every other superseded count** this table
+carries — the `format` members, the wire version integer — each with
+its own phrase list and its own manifest, written into the battery
+when its row is worked. The rows below say where the writing is
+expected and when it moves; they no longer claim to be the only places
+it can be, because that claim was false when it was written.
 
 | what moves | where it lives | when |
 |---|---|---|
