@@ -132,7 +132,7 @@ named with `--missing-value` or `--keep-value` is matched under
 `declaration_matching` (section 4.4) against the whole trimmed cell,
 never against a core, and nothing about declarations changes on this
 role: a person protecting `-999 mg` names that spelling and not `-999`.
-C6-39 binds this pass with the rest — a value named with `--keep-value`
+C6-117 binds this pass with the rest — a value named with `--keep-value`
 is data, and no judged pass may read it as a hole.
 
 #### C6-6. Added keys: twenty-two
@@ -229,12 +229,12 @@ inference:
 
 | invariant | as read on this role |
 |---|---|
-| Q2 (statistics population) | `n_used_in_statistics == n_core_numeric`, `n_left_out_of_statistics == n_present - n_core_numeric` |
-| Q3 (numbers exist) | `n_core_numeric >= 1`, which is AF5 |
-| Q9 (`numeric_share`) | `(n_core_numeric + n_core_out_of_range + n_core_contradictory) / n_present` |
-| Q10 (`n_negative_unrepresentable`) | `<= n_core_out_of_range` and `<= n_negative` |
-| Q11 (`n_zero`) | `n_zero <= n_core_numeric` |
-| P1 (the style population) | the values of `numeric_styles` sum to `n_core_numeric` |
+| invariant Q2 (statistics population) | `n_used_in_statistics == n_core_numeric`, `n_left_out_of_statistics == n_present - n_core_numeric` |
+| invariant Q3 (numbers exist) | `n_core_numeric >= 1`, which is AF5 |
+| invariant Q9 (`numeric_share`) | `(n_core_numeric + n_core_out_of_range + n_core_contradictory) / n_present` |
+| invariant Q10 (`n_negative_unrepresentable`) | `<= n_core_out_of_range` and `<= n_negative` |
+| invariant Q11 (`n_zero`) | `n_zero <= n_core_numeric` |
+| invariant P1 (the style population) | the values of `numeric_styles` sum to `n_core_numeric` |
 
 **The substitution reaches all three numeric-looking counts and not
 `n_numeric` alone, because Q9 and Q10 name the other two and Q10
@@ -250,7 +250,7 @@ carries a numeric-looking core. Q4 through Q8 name no census count and
 are read exactly as section 6.7 states them; L1, L2 and L3 bind
 `percentiles` here as on `count`.
 
-**Q1 (the echo), on this role.** The per-column `n_rows` equals the
+**The echo, invariant Q1, read on this role.** The per-column `n_rows` equals the
 document's `n_rows`. It appears only inside `count`, `continuous` and
 `affixed_number` blocks, is FORBIDDEN on every other role, and is
 LOADER-ONLY: the document-level `n_rows` carries the row-count
@@ -347,5 +347,5 @@ for byte. Cells that wore no pair are reproduced by class through the
 straggler constructions, including the plain-number construction the
 generation method defines for this role — a spelling that reads back as
 a number, reads as no date form, and collides with no published hole
-spelling of its column (C6-40). Describing the twin again re-detects
+spelling of its column (C6-118). Describing the twin again re-detects
 the role, the same pair and the same core distribution.

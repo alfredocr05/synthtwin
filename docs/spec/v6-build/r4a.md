@@ -152,119 +152,16 @@ fixes is that the key stands on these roles and on no others.
 
 #### `fraction_widths`
 
-**C6-27 (where it lives, and why not where it looks like it belongs).**
-A `count`, `continuous` or `affixed_number` block carries
-`fraction_widths` as a key of the BLOCK, a sibling of `numeric_styles`
-and NOT a key inside it. Inside is where it reads as belonging, and
-inside is impossible: invariant P1 requires every value of
-`numeric_styles` to be an integer and requires those values to sum to
-the numeric count, so an object placed among them breaks both. There is
-exactly one location and it is the sibling one (plan amendment
-A-P4-5). It is forbidden on every other role.
+This role carries `fraction_widths`, a sibling of `numeric_styles` on
+the block rather than a key inside it. **Section 7.6 states it in
+full** — what it holds, its key grammar, and invariants P5, P6 and P7 —
+because it stands on three roles and a rule stated at one of them
+would be a rule the other two carry by inference.
 
-**C6-28 (what it holds).** A mapping from a fraction width — the count
-of digits after the point — to the number of `decimal`-styled cells
-written at that width, together with the pooled key `(withheld)` for
-widths fewer than `small_cell_floor` cells share.
-
-**C6-29 (the key grammar, so one width has one spelling).** A width key
-is the decimal spelling of a non-negative integer: no sign, no leading
-zero unless the width is itself zero, no space, no other character —
-`0`, `1`, `2`, `10`. `02`, `+2` and `-1` are not width keys and a
-loader refuses a document carrying one. The pooled key is exactly
-`(withheld)` and is the only non-numeric key permitted. Section 3
-fixes the order these keys are written in, which is code point order
-and not numeric order.
-
-**C6-30 (invariants).** The census this key holds is a census of the
-DECIMAL-styled cells, so its invariants are stated by cases over what
-`numeric_styles` publishes about that style. The cases are exhaustive
-over the shapes `numeric_styles` can take, and every one of them binds
-something.
-
-**P5 (the sum, by cases).** Let *F* be the sum of ALL values of
-`fraction_widths`, its own `(withheld)` value included.
-
-- **P5.a — `numeric_styles` publishes a `decimal` key.** *F* equals
-  that key's value exactly. This is the ordinary case and the strict
-  equality the style invariants lead a reader to expect. That value is
-  at or above the floor by P2, so the census is non-empty here.
-- **P5.b — `numeric_styles` publishes no `decimal` key and no
-  `(withheld)` key.** The column has no decimal-styled cell, so
-  `fraction_widths` is the empty object and *F* is zero.
-- **P5.c — `numeric_styles` publishes no `decimal` key but does
-  publish `(withheld)`.** The decimal count, if there is one, was
-  pooled, and no published number holds it. `fraction_widths` is
-  EITHER the empty object — the column has no decimal cell at all and
-  the pool holds other styles — OR it carries the pooled decimal cells
-  under its own `(withheld)`. Write *W* for
-  `numeric_styles["(withheld)"]`. FOUR conditions bind, and a document
-  breaking any of them does not conform:
-
-  1. *F* is at least 1 WHEREVER THE CENSUS IS NON-EMPTY. This
-     condition alone is branch-scoped, and the scope is the whole of
-     its content: it does not refuse the empty census, which P5.c's
-     own first sentence admits (plan amendment A-P4-6);
-  2. *F* is strictly BELOW `small_cell_floor`, because a style is
-     pooled only when its own count falls below the floor;
-  3. *F* is at most *W*, because the pooled decimal cells are a subset
-     of the pool;
-  4. **F ≥ W − 5 × (small_cell_floor − 1)** (plan amendment A-P4-8).
-     There are exactly six numeric styles, so at most five share the
-     pool with decimal, and each of those holds at most
-     `small_cell_floor − 1` cells. Where the right-hand side is zero or
-     negative this condition is vacuous.
-
-  **What binds the EMPTY census is condition 4 read at *F* = 0**, and
-  it is written out because a reader who has just been told condition 1
-  does not reach that branch will otherwise read the branch as free.
-  At *F* = 0 condition 4 says W ≤ 5 × (`small_cell_floor` − 1), which
-  is exactly the arithmetic A-P4-8 appeals to when it permits the empty
-  census where the right-hand side is zero or negative. At a floor of
-  11, `numeric_styles: {"(withheld)": 51}` with `fraction_widths: {}`
-  says five pooled styles hold fifty-one cells between them, so one of
-  them holds eleven and would have been published by name; condition 4
-  requires *F* ≥ 1 there and refuses it.
-
-  **A corollary a reader should not have to derive.** In case P5.c
-  `fraction_widths` is either the empty object or exactly
-  `{"(withheld)": F}` with 1 ≤ *F* < `small_cell_floor`. No NAMED width
-  key may appear, because every named width's count is at or above the
-  floor by P6 while *F* is below it.
-
-**Why conditions 3 and 4 exist, stated rather than quietly fixed.**
-An earlier revision said of case P5.c that the sum "binds nothing." It
-would have admitted `fraction_widths: {"(withheld)": 1000}` on a
-hundred-cell column — a fraction census larger than the table, with no
-rule to refuse it. What A-P4-5 correctly established is that an
-invariant cannot be stated over a key that may not exist; what it
-wrongly concluded is that nothing else can be stated. The bounds above
-are stated over keys that DO exist in case P5.c, so they cost that
-reasoning nothing. Condition 4 came from a later round, which found a
-document satisfying conditions 1 through 3 and describing no table:
-`n_numeric: 60` with `numeric_styles: {"(withheld)": 60}` and
-`fraction_widths: {"(withheld)": 1}` at a floor of 11 makes the other
-five styles hold fifty-nine cells between them, so one of them holds
-twelve, and a style holding twelve at a floor of eleven is published by
-name rather than pooled.
-
-**P6.** Every named width's count is at or above `small_cell_floor`.
-**P7.** A width key is present only if its count is nonzero;
-equivalently, *F* is zero if and only if `fraction_widths` is the
-empty object. This closes the route residual R-P3-12 records.
-
-**FW-P (a producer obligation, stated because a loader cannot check
-it).** Every `fraction_widths` count is the count of source cells
-written at that fraction width. The cases of P5 bound the total; none
-of them can check the shape of the census, so the shape is a producer
-obligation.
-
-**At a floor of one.** Where `small_cell_floor` is 1, what invariant
-S13 requires to be empty or zero is the `(withheld)` ENTRY of
-`fraction_widths` — the ENTRY, not the field, and section 4 states
-that list entire. At a floor of one every named width reaches the
-floor, so widths are NAMED rather than pooled, and the field is
-nonempty precisely because nothing is held back.
+What belongs here is only its reach: `fraction_widths` is REQUIRED on
+`count`, `continuous` and `affixed_number`, and FORBIDDEN on every
+other role, exactly as `numeric_styles` is and for the same reason
+(7.5).
 
 #### The Q family
 
