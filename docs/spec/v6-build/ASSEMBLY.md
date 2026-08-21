@@ -136,6 +136,39 @@ Items found by only ONE of the two and therefore easy to lose:
   version 4 leaves blank, one of them stating an invariant WEAKER than
   the invariant does.
 
+**The affixed-number role also exists twice**, as `r5a.md` (written
+whole) and `r5a1.md` + `r5a2.md` (written in two halves by different
+authors). Same treatment: `r5a.md` is the primary, the split pair is
+the second opinion, and the assembly takes the union.
+
+### The open question is SETTLED, and not by a guess
+
+This build raised one question no artifact answered: on
+`affixed_number`, does invariant Q9's denominator and Q2's subtrahend
+read `n_present` or `n_affixed`? The two versions answered it
+differently — and version 4's own key definitions settle it. `n_used_in
+_statistics` is "how many present cells the statistics were computed
+from", `n_left_out_of_statistics` is "how many present cells were not",
+`numeric_share` is "the share of present cells whose writer meant a
+number", and Q9 says "computed as a share of the present cells".
+
+**So `n_present` and `n_rows` are read unchanged on this role**, and
+the core substitution reaches only the three numeric-looking census
+counts. The reason is worth keeping beside the rule: under the
+`n_affixed` reading a straggler cell wearing no affix pair falls into
+NEITHER `n_used_in_statistics` nor `n_left_out_of_statistics`, so both
+keys would silently answer for a narrower population than their own
+published meanings — a fact that reads one way and is computed
+another, which is the defect this contract exists to make impossible.
+
+Two further corrections came with it. **X2 is not withdrawn from this
+role**: the four universal census counts still close over the CELLS
+here as on every role, and the core census AF4 stands BESIDE X2 rather
+than in place of it. And **Q10 is part of the substitution**, which is
+what makes it reach three counts rather than one: on a ninety-of-a-
+hundred milligram column, the un-substituted Q10 reads `10 <= 0` and a
+conforming document is refused.
+
 ## 4. Standing checks before the document is called finished
 
 1. **Every enumeration is written out, with its count stated beside
