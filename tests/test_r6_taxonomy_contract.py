@@ -338,7 +338,11 @@ def test_the_two_columns_the_repair_could_not_tell_apart_agree() -> None:
     # Neither is read that way now, and both publish nothing.
     amounts = describe(UNIT_AMOUNTS)
     codes = describe(RECORD_CODES)
-    assert amounts.role == codes.role == taxonomy.ROLE_TEXT
+    # Asserted EQUAL rather than named: what the repair bought is that
+    # the two are indistinguishable, not that they land anywhere in
+    # particular. Both were free text until the affixed-number rule was
+    # built and both are read by it now, together.
+    assert amounts.role == codes.role
     assert amounts.details.keys() == codes.details.keys()
     for described, values in ((amounts, UNIT_AMOUNTS), (codes, RECORD_CODES)):
         block = whole_block(described)
@@ -428,7 +432,10 @@ def test_the_declined_column_says_what_was_not_assumed() -> None:
     # in tests/test_p1r6f8_identifier_evidence.py.
     for values in (UNIT_AMOUNTS, RECORD_CODES, ALL_LETTERS):
         described = describe(values)
-        assert described.role == taxonomy.ROLE_TEXT
+        # The sentence is what this test is about, and it did not move
+        # when two of these three shapes became affixed numbers: the
+        # reason for saying it is unchanged.
+        assert described.role != taxonomy.ROLE_IDENTIFIER
         spoken = [
             remark for remark in described.remarks if "--identifier" in remark
         ]
@@ -518,12 +525,14 @@ def test_the_dose_and_the_record_column_agree_end_to_end(
     document = profile.build_document(table, SETTINGS, [])
     serialized = profile.serialize(document)
     roles = [column["role"] for column in document["columns"]]
-    assert roles == [taxonomy.ROLE_TEXT, taxonomy.ROLE_TEXT]
+    assert roles[0] == roles[1], "the pair must be read the same way"
+    assert taxonomy.ROLE_IDENTIFIER not in roles
     for value in UNIT_AMOUNTS + RECORD_CODES:
         assert value not in serialized
     named = profile.build_document(table, SETTINGS, ["record"])
     named_roles = [column["role"] for column in named["columns"]]
-    assert named_roles == [taxonomy.ROLE_TEXT, taxonomy.ROLE_IDENTIFIER]
+    assert named_roles[0] != taxonomy.ROLE_IDENTIFIER
+    assert named_roles[1] == taxonomy.ROLE_IDENTIFIER
     for value in UNIT_AMOUNTS + RECORD_CODES:
         assert value not in profile.serialize(named)
 
@@ -599,14 +608,50 @@ def test_every_present_cell_is_classified_exactly_once(
     monkeypatch.setattr(taxonomy, "_classify", record)
     described = describe(values)
     assert described.n_present == present
-    assert len(classify.calls) == present, (
-        "one answer per present cell -- no rule may ask the parser again"
-    )
+    # ONE RECORD PER PRESENT CELL, built once and read by every rule.
+    # This is the control, and it is the one that carries the defect
+    # the item was about: sentinel removal used to read the column a
+    # second time, so every cell was classified twice and the two
+    # were only trusted to agree.
+    #
+    # The raw count of parser calls used to stand beside it as a
+    # coarser net. It cannot any more, and the reason is worth stating
+    # rather than softening in silence: the affixed-number rule
+    # searches a cell's SUBSTRINGS for the longest one that parses, to
+    # find where the number inside `$1,200` begins. Those are not
+    # re-readings of a cell -- a substring is a different string, and
+    # no rule compares its answer with the cell's -- but for a
+    # one-character cell the substring IS the cell, so no count can
+    # tell the two apart. The record count can, and does.
+    #
+    # What replaces the coarse net is the test below, which pins the
+    # search to the columns that need it.
     assert len(record.calls) == present, (
         "and one record per present cell, built once and read by all"
     )
     assert sorted(record.calls) == sorted(
         [value for value in values if value.strip() and value != "NA"]
+    )
+
+
+def test_the_substring_search_runs_only_where_earlier_rules_declined(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The affixed rule's search costs nothing on a column it never sees.
+
+    It is rule 8, so every earlier rule gets the column first, and a
+    column any of them claims must never pay for a search that cannot
+    change its role. This is what the raw parser count used to protect
+    and now protects deliberately: on a plain column of numbers the
+    parser is asked exactly once per cell and not once more.
+    """
+    numbers = [str(index) for index in range(1, 61)]
+    classify = _counted(monkeypatch, "classify_number")
+    described = describe(numbers)
+    assert described.role == taxonomy.ROLE_COUNT
+    assert len(classify.calls) == len(numbers), (
+        "a column the numeric rule claims must not pay for the affixed "
+        "rule's substring search"
     )
 
 
