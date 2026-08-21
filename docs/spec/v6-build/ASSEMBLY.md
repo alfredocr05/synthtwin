@@ -193,6 +193,43 @@ names three. On a column carrying judged calendar placeholders a
 validator would have reported a failure against a correct twin. The
 `missing_by_source` exception beside it widens the same way.
 
+## 3C. The checks are mechanical now, and they found two more collisions
+
+`tools/spec/check_assembly.py` collects every identifier each section
+DEFINES and every one it CITES, and reports duplicates, unresolved
+citations, surviving delta framing and `C6-` letter identifiers. It
+exists because the first collision this build found was found by
+READING, which was luck: a document this size has more identifiers
+than a person checks reliably, and the failure it produces is the worst
+kind — two implementations obeying different rules while both believe
+they are obeying the text.
+
+It found two collisions on its first run that no reader had noticed:
+
+- **`D5` is defined twice** — the datetime family's invariant D5, and a
+  note form named `D5` in the grammar section. This is the collision
+  section 1 predicted from the lettered form groups, now confirmed by
+  measurement rather than by argument. The `NG1`–`NG41` renumbering
+  fixes it.
+- **`C6-54` is defined twice**, by two sections that never saw each
+  other — one for a completeness rule, one for the stand-in pass. Two
+  authors reaching for the next free number independently is exactly
+  what a single renumbering pass at assembly is for, and exactly what
+  no author could have prevented alone.
+
+**The exemption is auditable.** A paragraph explaining WHY the document
+is self-contained has to name the mechanism the rest of the document
+forbids, and no sentence test separates that from a rule being pointed
+at. So the author marks it in the text — `<!-- framing-ok: ... -->` —
+where a reader meets the mark beside the words it excuses, and the
+mark dies at the next blank line so an exemption cannot spread down a
+document by being forgotten.
+
+Unresolved citations are expected while sections are still being
+written; they are forward references to sections not yet delivered.
+The check is a gate only against the ASSEMBLED document, where every
+one of them must resolve.
+
 ## 4. Standing checks before the document is called finished
 
 1. **Every enumeration is written out, with its count stated beside
