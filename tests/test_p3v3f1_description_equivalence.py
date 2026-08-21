@@ -79,6 +79,9 @@ MARKER_TEXTS = tuple(
 SENTINEL_TEXTS = tuple(f"{value:g}" for value in parsing.NUMERIC_SENTINELS)
 
 
+_PROSE = fixtures.prose(60)
+
+
 def _table(rows: "list[list[str]]", names: "list[str]") -> str:
     """One CSV, written the way the twin writer writes one."""
     lines = [",".join(names)]
@@ -443,7 +446,7 @@ def test_a_column_publishing_no_spellings_keeps_its_presence_teeth(
     names = ["note", "tag"]
     rows = [
         [
-            "n/a" if index < 30 else f"a sentence of some length number {index}",
+            "n/a" if index < 30 else _PROSE[index % len(_PROSE)],
             f"t{index % 7}",
         ]
         for index in range(60)

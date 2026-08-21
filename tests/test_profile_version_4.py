@@ -151,7 +151,7 @@ def test_free_text_now_records_the_shape_of_its_repetition() -> None:
     value twice, the other holds twenty-nine once and one value
     thirty-one times. Nothing else in either block can tell them apart.
     """
-    words = [f"a note number {index} written out in words" for index in range(30)]
+    words = fixtures.prose(30)
     twice = describe(words * 2)
     lopsided = describe(words + [words[0]] * 30)
     assert twice.role == taxonomy.ROLE_TEXT

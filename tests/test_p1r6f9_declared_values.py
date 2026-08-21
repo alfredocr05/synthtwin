@@ -446,7 +446,7 @@ def test_the_declared_value_never_reaches_a_withholding_column(
     # A declaration is still a value of the real table, so it obeys the
     # publication rule like every other: a column that publishes nothing
     # names no spelling, not even one the person typed.
-    values = [f"a sentence number {index} in words" for index in range(50)]
+    values = fixtures.prose(50)
     document = _run(
         tmp_path,
         "comment",

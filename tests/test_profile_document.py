@@ -195,8 +195,23 @@ def test_nothing_that_varies_between_runs_is_written(
 # No count, no statistic, no label, no role and no spelling of any
 # column moved, and no cell of any twin moved with them: the twin's own
 # golden is unchanged.
+#
+# RE-RECORDED 2026-08-21, and the cause is one change with one reach:
+# the demonstration table's free-text column stopped being a template.
+# It held `observation 0 written out in several plain words`,
+# `observation 1 ...` and so on -- which the affixed-number rule of
+# this phase reads as a number wearing shared text, because that is
+# what those strings are. A fixture meant to stand for text NO rule
+# reads had to become text no rule reads, so it is prose that varies
+# at both ends and holds no digit.
+#
+# All four digests moved together, which is what a change to the
+# TABLE looks like: a different column of values makes a different
+# description, a different twin, a different report and a different
+# quality report. A change to the generator alone would have moved the
+# last three and left the first.
 GOLDEN_SHA256 = (
-    "c8e45bca6877060091d58f94ba463acb8f37e08f4eb7877b727f83bf1d03df86"
+    "88477418b9c5637b9235865d99905b685ac0e76e99d77664888857575dd75373"
 )
 
 

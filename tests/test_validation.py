@@ -2518,6 +2518,27 @@ def _apart_from_bytes(
     ]
 
 
+def _sized_text(length: int, step: int, words: int) -> str:
+    """One distinct cell of exactly ``length`` characters and ``words`` words.
+
+    Letters only, and no digit anywhere: a cell carrying a number would
+    be read as an affixed number, the perturbed column would change
+    role, and the length checks this case is about would not run at
+    all.
+    """
+    alphabet = "abcdefghijklmnopqrstuvwxyz"
+    tag = ""
+    place = step
+    for _ in range(4):
+        tag = tag + alphabet[place % len(alphabet)]
+        place = place // len(alphabet)
+    head = " ".join(["aa"] * (words - 1))
+    tail = tag + "z" * (length - len(head) - 1 - len(tag))
+    body = f"{head} {tail}"
+    assert len(body) == length, (length, len(body))
+    return body
+
+
 def test_red_a_reshaped_text_column_misses_the_length_average(
     tmp_path: pathlib.Path,
     every_role: "tuple[contract.Profile, str]",
@@ -2546,8 +2567,14 @@ def test_red_a_reshaped_text_column_misses_the_length_average(
     assert column is not None
     facts = column.facts
     assert isinstance(facts, contract.TextFacts)
-    assert facts.length.minimum == 48
-    assert facts.length.maximum == 50
+    # Read from the description rather than written in. The point of
+    # this case is the SHAPE of the reshaping -- both published ends
+    # kept, the average moved -- and that is the same case whatever
+    # lengths the fixture happens to publish. Hard numbers here meant
+    # the case stopped testing anything the day the fixture changed.
+    shortest = facts.length.minimum
+    longest = facts.length.maximum
+    assert shortest < longest, "the case needs two ends to alternate"
     green = _measure(tmp_path, described, twin, "text-green.csv")
     # The conforming twin's walk lands on the published average EXACTLY,
     # so its verdict is HELD rather than WITHIN-BOUND (review item
@@ -2565,11 +2592,8 @@ def test_red_a_reshaped_text_column_misses_the_length_average(
     for row in range(1, len(rows)):
         if not rows[row][index]:
             continue
-        wanted = 48 if step % 2 == 0 else 50
-        body = f"aa bb cc dd ee ff gg h{step:04d}"
-        body = body + "z" * (wanted - len(body))
-        assert len(body) == wanted
-        rows[row][index] = body
+        wanted = shortest if step % 2 == 0 else longest
+        rows[row][index] = _sized_text(wanted, step, facts.words.minimum)
         step = step + 1
     out = io.StringIO()
     csv.writer(out, lineterminator="\n").writerows(rows)

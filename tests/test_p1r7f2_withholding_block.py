@@ -257,7 +257,7 @@ def test_free_text_reaches_this_field_with_nothing_in_it() -> None:
     # empty, which is what makes the profile's shape the same on every
     # role.
     described = describe(
-        [f"a sentence number {index} in words" for index in range(60)]
+        fixtures.prose(60)
         + [SENTINEL] * 20
     )
     assert described.role == taxonomy.ROLE_TEXT
@@ -280,7 +280,7 @@ def _nothing_publishing() -> "dict[str, taxonomy.ColumnProfile]":
             ["1e999"] * 189 + [SENTINEL] * 11
         ),
         taxonomy.ROLE_TEXT: describe(
-            [f"a sentence number {index} in words" for index in range(60)]
+            fixtures.prose(60)
         ),
     }
 

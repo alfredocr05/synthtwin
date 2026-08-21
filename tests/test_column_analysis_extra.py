@@ -116,6 +116,26 @@ def test_the_category_ceiling_is_a_share_of_the_values_present() -> None:
 # -- F2: a percentile ladder must rest on the cells it is computed from
 
 
+def _leaves_equal_to(node: object, number: float, text: str) -> list[str]:
+    """Every leaf of a block that holds this value, by either spelling."""
+    found: list[str] = []
+    if isinstance(node, dict):
+        for key in node:
+            if key == text:
+                found = found + [f"key {key!r}"]
+            found = found + _leaves_equal_to(node[key], number, text)
+    elif isinstance(node, list):
+        for item in node:
+            found = found + _leaves_equal_to(item, number, text)
+    elif isinstance(node, bool):
+        pass
+    elif isinstance(node, (int, float)) and float(node) == number:
+        found = found + [f"value {node!r}"]
+    elif isinstance(node, str) and node == text:
+        found = found + [f"value {node!r}"]
+    return found
+
+
 def test_a_ladder_is_never_built_from_a_handful_of_cells() -> None:
     """A ladder must rest on the cells it is computed from.
 
@@ -134,7 +154,12 @@ def test_a_ladder_is_never_built_from_a_handful_of_cells() -> None:
     described = describe(values)
     assert described.role == taxonomy.ROLE_TEXT
     assert "percentiles" not in described.details
-    assert "7" not in whole_block(described).replace('"7"', "")
+    # The one real number must not be published as a VALUE. Searching
+    # the block for the character `7` cannot say that -- it matches the
+    # 7 inside a count of 47 or a length of 27 -- so the check is on
+    # what the block actually holds: no leaf equal to that value, by
+    # either spelling.
+    assert not _leaves_equal_to(described.details, 7.0, "7")
 
 
 def test_the_unrepresentable_evidence_states_what_the_column_shows() -> None:
@@ -234,9 +259,17 @@ def test_a_stray_space_changes_nothing_now_the_width_rule_is_gone() -> None:
 def test_the_free_text_remark_names_both_readings(
     values: list[str],
 ) -> None:
-    """Naming only --identifier tells a price column to withhold itself."""
+    """Naming only --identifier tells a price column to withhold itself.
+
+    Both fixtures are read by the affixed-number rule now -- a price and
+    a percentage ARE numbers wearing shared text -- so the column gets
+    its distribution instead of being declined. The sentence this test
+    is about survived the move: it still names `--identifier`, and it
+    still says "measurement", because the reason for saying both is the
+    same one. A column of codes must be able to recognize itself.
+    """
     described = describe(values)
-    assert described.role == taxonomy.ROLE_TEXT
+    assert described.role != taxonomy.ROLE_IDENTIFIER
     remark = " ".join(described.remarks)
     assert "--identifier" in remark
     assert "measurement" in remark

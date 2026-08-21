@@ -42,7 +42,7 @@ from synthtwin.cli import main
 SETTINGS = taxonomy.Settings()
 
 # The reviewer's own column and value.
-NARRATIVE = [f"a sentence number {index} in words" for index in range(60)]
+NARRATIVE = fixtures.prose(60)
 RARE_TOKEN = "withheld-token-417"
 
 

@@ -85,9 +85,16 @@ def _reinstated(monkeypatch: pytest.MonkeyPatch) -> None:
 def _sentences(count: int, start: int = 0) -> "list[str]":
     """Distinct free-text values: several words, none of them a label."""
     return [
-        f"a line of words numbered {row + start} and written out"
-        for row in range(count)
+        _PROSE[(row + start) % len(_PROSE)] for row in range(count)
     ]
+
+
+# Text no rule reads. It has to vary at both ends and hold no digit:
+# `a line of words numbered 7 and written out` is a number wearing
+# shared text, which the affixed-number rule reads -- so the column
+# meant to stand for free text would take that role and publish the
+# spellings this test asserts it does not.
+_PROSE = fixtures.prose(200)
 
 
 def _two_columns(folder: pathlib.Path, name: str) -> pathlib.Path:

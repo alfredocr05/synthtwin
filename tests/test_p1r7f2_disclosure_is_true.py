@@ -328,7 +328,7 @@ def test_a_declared_missing_spelling_below_the_floor_is_pooled(
 def test_a_column_that_publishes_nothing_publishes_nothing_either_way(
     tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    narrative = [f"a sentence number {index} in words" for index in range(60)]
+    narrative = fixtures.prose(60)
     token = "withheld-token-417"
     document, written, summary_text = _run(
         tmp_path,

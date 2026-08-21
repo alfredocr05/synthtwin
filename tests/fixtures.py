@@ -119,11 +119,19 @@ def every_role_table(seed: int = 20260807, n_rows: int = 240) -> str:
         amount = f"{rng.uniform(0.5, 99.5):.2f}"
         recorded = f"2024-{(index % 12) + 1:02d}-{(index % 28) + 1:02d}"
         answer = "yes" if rng.random() < 0.3 else "no"
-        comment = (
-            ""
-            if index % 3
-            else f"observation {index} written out in several plain words"
-        )
+        # Drawn from a pool SMALLER than the number of filled cells, so
+        # the column's repetition map holds more than one group size.
+        # A column of eighty singletons has a map nothing can perturb --
+        # every edit leaves it eighty singletons -- and the family
+        # stops being reachable by any red case.
+        # ALL DIFFERENT, which several batteries depend on: this is
+        # one of the two columns that carry the all-different
+        # obligation, and the length statistics of a column of unique
+        # sentences are what the approximation bounds are calibrated
+        # against. A column that REPEATS -- which the free-text
+        # repetition family needs to be able to miss -- is built in the
+        # battery that needs it, not here.
+        comment = "" if index % 3 else _PROSE_POOL[index % len(_PROSE_POOL)]
         rows.append(
             [
                 record,
@@ -236,7 +244,7 @@ def every_withholding_table(seed: int = 20260814, n_rows: int = 240) -> str:
                 (
                     ""
                     if index % 3
-                    else f"observation {index} written out in plain words"
+                    else _PROSE_POOL[index % len(_PROSE_POOL)]
                 ),
                 "",
                 "one",
@@ -260,12 +268,18 @@ def every_withholding_table(seed: int = 20260814, n_rows: int = 240) -> str:
 # no rule claims it: not the numeric rules, which find no number; not
 # the date rules; not the affixed rule, which finds no core; and not
 # the categorical rule, given enough of them to clear the ceiling.
+# Every part is ONE word, so a sentence is always five words long
+# while its LENGTH varies. That split matters to the red-case battery:
+# a perturbation that writes a one-word cell has to move the word
+# average decisively, which it cannot do if the average is already
+# ragged, and a perturbation that lengthens every cell has to move the
+# length statistics without touching the word count.
 _PROSE_PARTS = (
     ("seen", "review", "pending", "noted", "checked"),
-    ("in clinic", "by phone", "at home", "on the ward", "at review"),
+    ("clinic", "telephone", "home", "ward", "consultation"),
     ("with", "without", "after", "before", "despite"),
-    ("the nurse", "the doctor", "the family", "the ward", "the team"),
-    ("no change", "improving", "worse", "unclear", "resolved"),
+    ("nurse", "doctor", "family", "physiotherapist", "team"),
+    ("unchanged", "improving", "worse", "unclear", "resolved"),
 )
 
 
@@ -288,6 +302,43 @@ def prose(count: int) -> list[str]:
             place = place // len(part)
         built = built + [" ".join(words)]
     return built
+
+
+# Short sentences that are still text no rule reads. The red-case
+# battery needs a perturbation that writes cells SHORTER than any the
+# column held, without collapsing the column onto so few distinct
+# values that the categorical rule claims it -- five two-word cells in
+# eighty rows is a set of categories, not free text, and the free-text
+# checks would stop running.
+_SHORT_PARTS = (
+    ("ok", "up", "in", "on", "at"),
+    ("now", "soon", "late", "next", "past"),
+    ("here", "there", "home", "ward", "desk"),
+)
+
+
+def short_prose(count: int) -> list[str]:
+    """``count`` short sentences that no reading rule claims.
+
+    Distinct up to 125, and every one is shorter than any `prose`
+    sentence, which is what makes it usable as the short end of a
+    length perturbation.
+    """
+    built: list[str] = []
+    for index in range(count):
+        place = index
+        words: list[str] = []
+        for part in _SHORT_PARTS:
+            words = words + [part[place % len(part)]]
+            place = place // len(part)
+        built = built + [" ".join(words)]
+    return built
+
+
+# Built once, after `prose` is defined, and read by the two tables
+# above at call time. Rebuilding it per row was measurably wasteful and
+# said nothing extra.
+_PROSE_POOL = prose(200)
 
 
 def single_column_table(name: str, values: list[str]) -> str:

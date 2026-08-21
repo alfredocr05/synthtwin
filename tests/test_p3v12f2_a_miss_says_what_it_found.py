@@ -256,6 +256,9 @@ def _stamps(year: int, sign: str) -> "list[str]":
     ]
 
 
+_SENTENCES = fixtures.prose(120)
+
+
 def _corpus(root: pathlib.Path) -> "list[tuple[str, validation.Outcome]]":
     """Files measured against descriptions, chosen to miss in every way.
 
@@ -299,6 +302,29 @@ def _corpus(root: pathlib.Path) -> "list[tuple[str, validation.Outcome]]":
     )
     measured = measured + [
         ("every role, renamed header", validation.measure(roles, f"{renamed}"))
+    ]
+
+    # Free text that REPEATS, against the same column repeating
+    # differently. The every-role table's own free-text column is all
+    # different by design -- other batteries rest on that -- so a file
+    # whose repetition map can MOVE has to be built here, and without
+    # it the free-text repetition family is unreachable and this
+    # battery measures less than it was written for.
+    repeated = [_SENTENCES[index % 40] for index in range(240)]
+    grouped, _table = _described(
+        root / "grouped",
+        "grouped.csv",
+        fixtures.single_column_table("comment", repeated),
+    )
+    regrouped = fixtures.write(
+        root / "grouped",
+        "regrouped.csv",
+        fixtures.single_column_table(
+            "comment", [_SENTENCES[index % 26] for index in range(240)]
+        ),
+    )
+    measured = measured + [
+        ("free text regrouped", validation.measure(grouped, f"{regrouped}"))
     ]
 
     # A description of no rows at all, against a file holding two lines.
