@@ -55,7 +55,7 @@ def test_columns_keep_the_order_they_had_in_the_file(
     assert positions == list(range(1, len(positions) + 1))
     names = [column["name"] for column in document["columns"]]
     assert names[0] == "record_code"
-    assert names[-1] == "batch"
+    assert names[-1] == "dose"
 
 
 def test_every_column_carries_its_evidence_and_counts(
@@ -211,7 +211,7 @@ def test_nothing_that_varies_between_runs_is_written(
 # quality report. A change to the generator alone would have moved the
 # last three and left the first.
 GOLDEN_SHA256 = (
-    "88477418b9c5637b9235865d99905b685ac0e76e99d77664888857575dd75373"
+    "f0b75ad6838936085c415541400a2b0d81557c0690de89f9a2e5cc4c8cc8e7fc"
 )
 
 

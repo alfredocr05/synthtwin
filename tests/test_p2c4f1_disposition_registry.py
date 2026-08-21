@@ -118,6 +118,7 @@ DOCUMENTS = (("contract", CONTRACT), ("method", METHOD), ("plan", PLAN))
 # above, and the seal covers all four.
 PLAN3 = REPO_ROOT / "docs" / "plans" / "phase-3-product.md"
 PLAN4 = REPO_ROOT / "docs" / "plans" / "phase-4-columns.md"
+PLAN4 = REPO_ROOT / "docs" / "plans" / "phase-4-columns.md"
 VALIDATION = REPO_ROOT / "docs" / "spec" / "validation-method-v1.md"
 CONTRACT5 = REPO_ROOT / "docs" / "spec" / "profile-contract-v5.md"
 RELATIVE = {
@@ -199,6 +200,11 @@ def _plan_regions() -> "dict[str, str]":
         at = later.index(mark)
         rest = later.find("## ", at + len(mark))
         regions[name] = later[at : rest if rest > 0 else len(later)]
+    fourth = _flat(PLAN4)
+    for name, mark in dispositions.PLAN4_REGIONS.items():
+        at = fourth.index(mark)
+        rest = fourth.find("### P4-D", at + len(mark))
+        regions[name] = fourth[at : rest if rest > 0 else len(fourth)]
     return regions
 
 
@@ -1914,7 +1920,10 @@ def test_the_scan_reaches_every_exact_fact_and_all_three_documents(
         if fact.disposition in dispositions.EXACT
     ]
     assert len(exact) >= 70, len(exact)
-    assert len({fact.group for fact in exact}) == 9
+    # Ten groups: Phase 2's nine, plus `affixed`, whose own facts the
+    # Phase 4 plan disposes because the role did not exist when the
+    # Phase 2 matrix was written.
+    assert len({fact.group for fact in exact}) == 10
     for _name, path in DOCUMENTS:
         assert len(_statements(path)) > 150, path.name
     # ...and every document is really opened by the scan, which a
@@ -1940,5 +1949,7 @@ def test_the_registry_reaches_every_key_the_producer_emits() -> None:
     for group, section in dispositions.CONTRACT_SECTIONS.items():
         assert matrix[section], f"{group}: {section} has no rows"
     assert set(dispositions.CONTRACT_SECTIONS) == {
-        fact.group for fact in dispositions.REGISTRY
+        fact.group
+        for fact in dispositions.REGISTRY
+        if fact.group not in dispositions.GROUPS_OUTSIDE_THE_VERSION_4_MATRIX
     }

@@ -261,6 +261,7 @@ APPROXIMATED = {
         "categorical": (
             "9.5 The label roles: `constant`, `binary`, `categorical`"
         ),
+        "affixed_number": "9.4 The numeric roles: `count`, `continuous`",
     }.items()
 }
 
@@ -314,6 +315,20 @@ def _matrix_sections() -> "dict[str, dict[str, str]]":
 # `numeric_unrepresentable` are here too, with no approximated field of
 # their own, because a role missing from this map would silently escape
 # the completeness check below.
+# The seven keys the affixed role ADDS. They are counts and spellings,
+# every one of them exactly observable off a written twin, and their
+# disposition is stated in the Phase 4 plan rather than in the version
+# 4 matrix -- which was written before the role existed.
+AFFIXED_OWN_KEYS = (
+    "affix_prefix",
+    "affix_suffix",
+    "n_affixed",
+    "n_core_numeric",
+    "n_core_out_of_range",
+    "n_core_contradictory",
+    "n_core_not_numeric",
+)
+
 ROLE_SECTIONS = {
     "empty": "9.3 `empty`",
     "count": "9.4 The numeric roles: `count`, `continuous`",
@@ -325,6 +340,14 @@ ROLE_SECTIONS = {
     "free_text": "9.7 free_text",
     "identifier": "9.7 identifier",
     "numeric_unrepresentable": "9.7 numeric_unrepresentable",
+    # The affixed role reads the NUMERIC section, because its
+    # quantitative block IS the numeric block read over the cores (AF7)
+    # and every approximation the numeric roles carry it carries at the
+    # same width. Its own five keys are counts and spellings, none of
+    # them approximated, and they are registered in
+    # `tests/dispositions.py` -- the version 4 matrix this reads
+    # predates the role and states nothing about it.
+    "affixed_number": "9.4 The numeric roles: `count`, `continuous`",
 }
 
 
@@ -974,6 +997,16 @@ def test_every_key_the_producer_emits_has_a_disposition(
             role = block["role"]
             reached.add(role)
             table = dict(sections[ROLE_SECTIONS[role]])
+            # The affixed role's own seven keys are disposed in the
+            # Phase 4 plan and registered in `tests/dispositions.py`;
+            # the version 4 matrix this reads predates the role and
+            # says nothing about them. Its QUANTITATIVE keys are not
+            # exempt and are checked against the numeric section like
+            # everything else -- which is the point, because those are
+            # the ones that carry a distribution.
+            table = dict(table)
+            for own in AFFIXED_OWN_KEYS:
+                table[own] = "EXACT-OBSERVABLE (Phase 4 plan, P4-D4.1)"
             missing = _undisposed(_emitted_names(block), table, universal)
             assert missing == [], f"{role}: {missing}"
     assert reached == set(ROLE_SECTIONS)

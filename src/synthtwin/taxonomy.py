@@ -4070,6 +4070,59 @@ def _affixed_verdict(
     )
 
 
+def _cores_judged(
+    cells: _Cells,
+    classified: "list[_Cell]",
+    missing: "list[tuple[str, str]]",
+    verdicts: "dict[float, tuple[bool, str, int]]",
+) -> "tuple[list[_Cell], list[tuple[str, str]], dict[float, tuple[bool, str, int]]]":
+    """Judge this column's stand-ins over its CORES, and remove them.
+
+    The numeric pass asks its question of whole cells. On this role the
+    numbers live inside the affix pair, so the question has to be asked
+    of the cores -- and the answer removes the CELL, because a cell
+    whose core means "no value" holds no value whatever it wears.
+
+    Returns the surviving records, the absences with the removed cells
+    added, and the verdicts to publish. The candidates are published
+    exactly as they are on a numeric column: as the number, through the
+    standing verdict machinery.
+    """
+    reading = _affixed_reading(cells)
+    if reading is None:
+        return classified, missing, verdicts
+    cores = _tally(_classify_all(reading.cores), cells.n_rows, cells.settings)
+    if _numeric_looking(cores) < _needed(
+        cells.settings.minimum_parse_rate, len(cores.present)
+    ):
+        return classified, missing, verdicts
+    judged = _sentinel_verdicts(cores, len(cores.present))
+    withheld = sorted(
+        candidate for candidate in judged if judged[candidate][0]
+    )
+    if not withheld:
+        return classified, missing, verdicts
+    removed = [exact_of_number(candidate) for candidate in withheld]
+    kept: "list[_Cell]" = []
+    for cell in classified:
+        split = _core_of(cell.text, reading.prefix, reading.suffix)
+        core = _classify(split) if split is not None else None
+        if core is not None and core.exact in removed:
+            missing = missing + [(cell.text, parsing.MISSING_NUMERIC_SENTINEL)]
+        else:
+            kept = kept + [cell]
+    return kept, missing, judged
+
+
+def _core_of(text: str, prefix: str, suffix: str) -> "str | None":
+    """The core of one cell under a known pair, or None if it wears none."""
+    trimmed = parsing.trimmed(text)
+    if not trimmed.startswith(prefix) or not trimmed.endswith(suffix):
+        return None
+    core = trimmed[len(prefix) : len(trimmed) - len(suffix)]
+    return core if core else None
+
+
 def _decide(cells: _Cells, forced_identifier: bool) -> _Verdict:
     """Pick the one role, testing the rules in the documented order.
 
@@ -5036,6 +5089,27 @@ def profile_column(
             # Reading the column a second time here was the last place
             # where two readings of one cell could have differed
             # (review item P1-R6-F10).
+            cells = _tally(classified, n_rows, settings)
+            present = cells.present
+    # THE SAME JUDGEMENT, OVER THE CORES. A column of `-999 mg` beside
+    # real amounts is the shape a trial file actually has, and the pass
+    # above never sees it: the CELLS are not numeric-looking, so the
+    # question is never asked, and `-999` is published as the column's
+    # smallest dose with nothing complaining. That is the silent
+    # statistical wrongness this project treats as its worst failure,
+    # and the contract says plainly that stand-ins are judged over the
+    # CORES once the earlier rules decline (C6-5).
+    #
+    # It runs only where an affixed reading is what the column reaches,
+    # which is why the role is decided first and then decided again:
+    # removing cells changes every count, so nothing may be built from
+    # the first answer.
+    if present and not forced_identifier:
+        trial = _decide(cells, forced_identifier)
+        if trial.role == ROLE_AFFIXED:
+            classified, missing, verdicts = _cores_judged(
+                cells, classified, missing, verdicts
+            )
             cells = _tally(classified, n_rows, settings)
             present = cells.present
     entries, unpublished = _published_verdicts(verdicts, settings)

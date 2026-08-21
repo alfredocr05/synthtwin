@@ -95,7 +95,14 @@ def every_role_table(seed: int = 20260807, n_rows: int = 240) -> str:
     that the small-cell floor must withhold; whole numbers with blank
     cells; whole numbers using -999 as a stand-in for "no value"; a
     measured number; an ISO date; a two-value column; free text; a
-    column that is entirely blank; and a column with one repeated value.
+    column that is entirely blank; a column with one repeated value;
+    and a column of numbers each wearing one shared piece of text.
+
+    The last of those is here because the battery is what stops the
+    roles rotting: a role missing from this table is a role whose
+    generator branch, validator checks and dispositions nothing walks,
+    and every fix to it could be undone silently while the suite
+    stayed green.
     """
     rng = random.Random(seed)
     header = [
@@ -109,6 +116,7 @@ def every_role_table(seed: int = 20260807, n_rows: int = 240) -> str:
         "comment",
         "unused",
         "batch",
+        "dose",
     ]
     rows = []
     for index in range(n_rows):
@@ -132,6 +140,23 @@ def every_role_table(seed: int = 20260807, n_rows: int = 240) -> str:
         # repetition family needs to be able to miss -- is built in the
         # battery that needs it, not here.
         comment = "" if index % 3 else _PROSE_POOL[index % len(_PROSE_POOL)]
+        # A number wearing one shared piece of text. Whole cores, so
+        # the role's own `integer_valued` is exercised, and a spread
+        # wide enough for a ladder with distinct rungs.
+        # THE CORES REPEAT ON PURPOSE, and the two reasons are
+        # different sides of the same fact. Two hundred and forty whole
+        # numbers ALL DIFFERENT inside a range two hundred and forty
+        # wide is the one permutation of that range, so no twin could
+        # carry the published distinctness except by drawing it
+        # exactly. Widening the range fixes that and leaves the second
+        # reason standing: an all-different column publishes a distinct
+        # count equal to its own present count, G12.8's envelope then
+        # reaches from one value to every value the column can hold,
+        # and the check is dropped as proving nothing. A column whose
+        # cores repeat publishes a count the envelope can bracket, so
+        # the affixed role's distinctness is CHECKED here rather than
+        # listed as uncheckable.
+        dose = f"{10 + (index * 37) % 180} mg"
         rows.append(
             [
                 record,
@@ -144,6 +169,7 @@ def every_role_table(seed: int = 20260807, n_rows: int = 240) -> str:
                 comment,
                 "",
                 "one",
+                dose,
             ]
         )
     return rows_to_csv(header, rows)

@@ -278,6 +278,24 @@ PLAN3_REGIONS = {
     "A-P3-28": "**Amendment A-P3-28 —",
 }
 
+# ...and the Phase 4 plan's own sections, for the roles Phase 4 adds.
+# The Phase 2 matrix is the record of what Phase 2 ruled and is not
+# edited to carry a role Phase 2 never had, so a role a later phase
+# adds is disposed in that phase's plan and looked for there.
+PLAN4_REGIONS = {
+    "affixed": "### P4-D4.1 The affixed-number role",
+}
+
+# Groups whose facts are NOT in the version 4 contract matrix, and why.
+# That matrix is the record of what version 4 disposed; it is not
+# edited to carry a role version 4 never had. The affixed role's own
+# seven keys are disposed in the Phase 4 plan and checked against it by
+# `PLAN4_REGIONS` above -- so they are held to a document, just not to
+# that one. Its QUANTITATIVE keys are not here: they are registered
+# under `numeric` and checked against the numeric section like every
+# other numeric fact, which is the half that carries a distribution.
+GROUPS_OUTSIDE_THE_VERSION_4_MATRIX = ("affixed",)
+
 
 # -- the registry ------------------------------------------------------
 #
@@ -436,6 +454,31 @@ REGISTRY += _facts(
     "integer_valued",
 )
 REGISTRY += _facts("numeric", APPROXIMATED, "mean", "std", "skew")
+# THE AFFIXED ROLE'S OWN FACTS. Its quantitative block is the numeric
+# block read over the cores and is registered above under `numeric`;
+# these are the five it adds, and every one is a count or a spelling a
+# written twin carries in plain sight.
+REGISTRY += [
+    Fact(
+        "affixed",
+        field,
+        EXACT_OBSERVABLE,
+        plan_words=(
+            "Re-profiling the twin re-detects the role with the same "
+            "facts"
+        ),
+        plan_region="affixed",
+    )
+    for field in (
+        "n_affixed",
+        "affix_prefix",
+        "affix_suffix",
+        "n_core_numeric",
+        "n_core_out_of_range",
+        "n_core_contradictory",
+        "n_core_not_numeric",
+    )
+]
 REGISTRY += [
     Fact(
         "numeric",
