@@ -1001,8 +1001,9 @@ def _is_sentence(value: object) -> bool:
             # apart. What it does NOT check here is the positional
             # identity with the block's own two keys -- residual
             # R-P4-15 -- because this walk reaches a leaf without the
-            # block that owns it. `_affix_notes_are_bound` below checks
-            # that, over the document, where the block IS in hand.
+            # block that owns it. `_affix_notes_are_bound` checks that
+            # over the whole document, where the block IS in hand, and
+            # it is what makes this position safe.
             if not isinstance(argument, str):
                 return False
             continue

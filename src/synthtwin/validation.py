@@ -6071,6 +6071,10 @@ def _distinct_corner(
 
 def _group_of(facts: contract.ColumnFacts) -> str:
     """Which registry group a column's role publishes under."""
+    if isinstance(facts, contract.AffixedFacts):
+        # Its quantitative block IS the numeric block, read over the
+        # cores, so it takes the numeric group's dispositions entire.
+        return "numeric"
     if isinstance(facts, contract.NumericFacts):
         return "numeric"
     if isinstance(facts, contract.LabelFacts):
@@ -6095,6 +6099,8 @@ def _role_checks(
 ) -> "list[Check]":
     """Everything the column's own role adds."""
     facts = column.facts
+    if isinstance(facts, contract.AffixedFacts):
+        return _affixed_checks(column, facts, block, cells, floor)
     if isinstance(facts, contract.NumericFacts):
         return _numeric_checks(column, facts, block, cells, floor)
     if isinstance(facts, contract.LabelFacts):
@@ -6111,6 +6117,63 @@ def _role_checks(
 
 
 # -- the numeric roles ------------------------------------------------
+
+
+def _affixed_checks(
+    column: contract.ColumnBlock,
+    facts: contract.AffixedFacts,
+    block: "dict[str, object]",
+    cells: "list[str]",
+    floor: int,
+) -> "list[Check]":
+    """A column of numbers each wearing one shared piece of text.
+
+    TWO POPULATIONS, and the checks keep them apart exactly as the
+    producer does. The pair and how many cells wear it are read off the
+    CELLS. Everything quantitative is read off the CORES those cells
+    hold, which is why this re-describes the column's cores and hands
+    them to the numeric checks: the same window, the same envelope, the
+    same arithmetic that a plain numeric column is held to.
+
+    Written because the role shipped with none of this: `AffixedFacts`
+    fell through to the empty group and `_role_checks` returned nothing,
+    so a file could keep the role, the pair, the row count and the
+    distinctness while missing the ladder and every moment, and the
+    quality report said not a word (review item P4-AFX-F8).
+    """
+    name = column.name
+    checks: list[Check] = []
+    prefix = facts.affix_prefix
+    suffix = facts.affix_suffix
+    # The CELL population: which cells wear the pair, counted the way
+    # the producer counts them.
+    cores: list[str] = []
+    for cell in cells:
+        trimmed = parsing.trimmed(cell)
+        if not trimmed.startswith(prefix) or not trimmed.endswith(suffix):
+            continue
+        core = trimmed[len(prefix) : len(trimmed) - len(suffix)]
+        if core:
+            cores = cores + [core]
+    # `n_affixed` counts the CELLS wearing the pair, and a written file
+    # evidences it exactly: read the file's own cells the way the
+    # producer read the table's.
+    checks = checks + [
+        _exact(
+            name,
+            "affixed.n_affixed",
+            "counts.n_affixed",
+            f"{facts.n_affixed}",
+            f"{len(cores)}",
+        )
+    ]
+    # The CORE population, handed to the numeric checks as the column
+    # its cores make -- so every quantitative obligation is measured by
+    # the code that measures a plain numeric column.
+    checks = checks + _numeric_checks(
+        column, facts.numbers, block, cores, floor
+    )
+    return checks
 
 
 def _numeric_checks(
