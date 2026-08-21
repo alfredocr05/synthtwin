@@ -156,7 +156,18 @@ def every_role_table(seed: int = 20260807, n_rows: int = 240) -> str:
         # cores repeat publishes a count the envelope can bracket, so
         # the affixed role's distinctness is CHECKED here rather than
         # listed as uncheckable.
-        dose = f"{10 + (index * 37) % 180} mg"
+        # ...AND THE CORES CARRY A POINT, so the census of fraction
+        # widths is exercised on THIS role and not only on the plain
+        # numeric columns. Whole cores left the affixed half of that
+        # machinery unwitnessed: the code that strips the pair before
+        # recounting a width could be deleted and every battery stayed
+        # green, which is the state this shared table exists to prevent.
+        # Two widths, both clearing the floor, so the census names two
+        # keys rather than pooling one away.
+        dose = f"{10 + (index * 37) % 180}.{index % 10}"
+        if index % 3 == 0:
+            dose = f"{10 + (index * 37) % 180}.{index % 10}0"
+        dose = f"{dose} mg"
         rows.append(
             [
                 record,

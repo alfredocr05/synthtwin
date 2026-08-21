@@ -4167,14 +4167,23 @@ def _affixed_verdict(
     # measurement, so the choice is between telling every such column's
     # owner and telling none.
     pair = (affixed.prefix, affixed.suffix, affixed.n_affixed)
-    # And the all-different remark reaches this role VERBATIM, which
-    # the plan requires and which matters here more than anywhere: a
-    # column of `R1` to `R240` wearing one prefix is exactly the shape
-    # somebody meant as record numbers, and the sentence that says so
-    # was the free-text path's. Moving the column to a role that reads
-    # it must not cost the reader the observation that made them look.
+    # ...AND THE ALL-DIFFERENT REMARK IS THE NUMBERS ONE, NOT THE FREE
+    # TEXT ONE. The observation reaches this role and must: a column of
+    # `R1` to `R240` wearing one prefix is exactly the shape somebody
+    # meant as record numbers, and the sentence that says so, with the
+    # `--identifier` route beside it, is what makes them look. What may
+    # NOT reach it is the free-text form's account of what was done
+    # about it. That form says "Nothing from this column is published
+    # either way -- no value of it, and no distribution", and then
+    # tells the reader to write the values as plain numbers so that
+    # "their distribution will be described" -- three clauses that are
+    # false, in the plainest-language part of the document, of a block
+    # publishing a full ladder and every moment. The plan's word
+    # "verbatim" cannot mean a sentence that misdescribes the block it
+    # stands in; the contract assigns this role the NUMBERS form, and
+    # that is the one a column of `$1` to `$100` now carries.
     if _all_different(cells):
-        remarks = remarks + [note(REMARK_ALL_DIFFERENT_TEXT)]
+        remarks = remarks + [note(REMARK_ALL_DIFFERENT_NUMBERS)]
     return _Verdict(
         role=ROLE_AFFIXED,
         evidence=note(EVIDENCE_AFFIXED, pair),
@@ -4205,9 +4214,27 @@ def _cores_judged(
     reading = _affixed_reading(cells)
     if reading is None:
         return classified, missing, verdicts
-    cores = _tally(_classify_all(reading.cores), cells.n_rows, cells.settings)
+    # A DECLARATION MATCHES A WHOLE CELL, HERE AS EVERYWHERE, and the
+    # core pass has to be told so in the only language it speaks. It
+    # reads a column of CORES, and a rule that compared a declaration
+    # against a core got both directions wrong at once: the spelling
+    # the contract tells an owner to name -- `-999 mg`, the whole cell
+    # -- matched no core and was ignored, so eleven cells the owner
+    # declared to be data were published as holes on the same page that
+    # said the owner had named them; and `-999`, which matches no cell
+    # of that column at all and must therefore be inert on it, matched
+    # every core and kept the stand-in in the statistics with no
+    # verdict published anywhere (C6-117).
+    #
+    # So the declarations are TRANSLATED before the pass: a cell whose
+    # whole trimmed text a `--keep-value` names hands its own core to
+    # the pass as kept, and a declaration matching no cell hands over
+    # nothing. What is compared is still a whole cell; what the pass
+    # sees is the core of the cell that matched.
+    settings = _cores_settings(cells, reading)
+    cores = _tally(_classify_all(reading.cores), cells.n_rows, settings)
     if _numeric_looking(cores) < _needed(
-        cells.settings.minimum_parse_rate, len(cores.present)
+        settings.minimum_parse_rate, len(cores.present)
     ):
         return classified, missing, verdicts
     judged = _sentinel_verdicts(cores, len(cores.present))
@@ -4215,7 +4242,13 @@ def _cores_judged(
         candidate for candidate in judged if judged[candidate][0]
     )
     if not withheld:
-        return classified, missing, verdicts
+        # NOTHING IS REMOVED, AND THE VERDICTS ARE STILL THE PASS'S
+        # OWN. Returning the verdicts this pass never made threw away
+        # every `kept_as_a_number` answer it did make -- so a column
+        # whose owner protected its stand-in was described as though
+        # nobody had asked, and the one line that would have told them
+        # their instruction was honoured never appeared.
+        return classified, missing, judged
     removed = [exact_of_number(candidate) for candidate in withheld]
     kept: "list[_Cell]" = []
     for cell in classified:
@@ -4226,6 +4259,42 @@ def _cores_judged(
         else:
             kept = kept + [cell]
     return kept, missing, judged
+
+
+def _cores_settings(cells: _Cells, reading: "_Affixed") -> Settings:
+    """This column's settings with its declarations read over the cores.
+
+    A `--keep-value` names a whole cell. The pass this feeds reads a
+    column of cores, so the declaration is carried across the pair: a
+    cell whose whole trimmed text the declaration names contributes its
+    own CORE, and a declaration no cell matches contributes nothing and
+    is inert, which is what a spelling that names no value of a column
+    has always been.
+
+    Guarantees: accepts one column's tally and its affix reading;
+    returns a `Settings` differing from the column's own in
+    `kept_values` alone. No value of the table travels anywhere but
+    into that field, which the caller uses to compare against cores of
+    the same column. Determinism: a function of the two inputs, with
+    the cores gathered in the column's own order and de-duplicated by a
+    sorted walk. Raises nothing. No I/O of any kind.
+    """
+    settings = cells.settings
+    if not settings.kept_values:
+        return settings
+    declarations = _declarations(settings.kept_values)
+    carried: "dict[str, int]" = {}
+    for text in cells.present:
+        trimmed = parsing.trimmed(text)
+        if not _declared_spelling(trimmed, declarations):
+            continue
+        core = _core_of(text, reading.prefix, reading.suffix)
+        if core is None:
+            continue
+        carried[core] = 1
+    return dataclasses.replace(
+        settings, kept_values=tuple(sorted(carried))
+    )
 
 
 def _core_of(text: str, prefix: str, suffix: str) -> "str | None":

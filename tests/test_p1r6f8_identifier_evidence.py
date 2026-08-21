@@ -289,25 +289,39 @@ def test_the_remark_states_the_withdrawal_in_plain_language(
     shape: str,
 ) -> None:
     described = describe(ALL_SHAPES[shape])
-    # These four shapes are read by the affixed-number rule now. The
-    # sentence this test is about did not move with them: it still
-    # names `--identifier`, because the reason for saying it is the
-    # same -- no property of the values tells a dose from a code.
+    # These four shapes are read by the affixed-number rule now, and
+    # what the reader is owed moved with them. The WITHDRAWAL is the
+    # same and is still stated: no property of the values tells a dose
+    # from a code, so `--identifier` is named either way. What may NOT
+    # be carried across is the free-text path's account of what was
+    # done about it -- "Nothing from this column is published", and the
+    # advice to rewrite the values so that "their distribution will be
+    # described" -- because this block publishes the distribution. A
+    # test that went on asserting those two was asserting that a false
+    # sentence is printed.
     assert described.role != taxonomy.ROLE_IDENTIFIER
     spoken = [
         remark for remark in described.remarks if "--identifier" in remark
     ]
     assert spoken, "the withdrawal has to be stated, not silent"
-    said = spoken[0]
-    # The four things the person running the tool has to be told.
+    said = " ".join(spoken)
     assert "every value in this column is different" in said
-    assert "did NOT assume they are record numbers" in said
-    assert "Nothing from this column is published" in said
     assert "--identifier NAME" in said
-    # And the direction the earlier rounds got wrong: a measurement must
-    # not be pushed into the role either.
-    assert "write them as plain numbers" in said
-    assert "Do not use --identifier on a measurement" in said
+    assert "which keeps its distribution" in said
+    # ...and the direction the earlier rounds got wrong: a measurement
+    # must not be pushed into the role either. On this role the
+    # sentence that says so is the column's own remark.
+    assert "codes rather than measurements" in said
+    # THE TWO CLAUSES THAT WOULD BE FALSE HERE.
+    assert "Nothing from this column is published" not in said, (
+        "a block publishing a full ladder must not tell its reader "
+        "that nothing of the column is published"
+    )
+    assert "write them as plain numbers" not in said, (
+        "these values are already described as numbers; telling the "
+        "reader to rewrite them to get a distribution they already "
+        "have is advice about a column they do not hold"
+    )
 
 
 @pytest.mark.parametrize("shape", ["clock times", "padded numbers"])
@@ -543,7 +557,15 @@ def test_the_real_command_declines_and_declares(
     assert roles[0] == roles[1]
     assert "identifier" not in roles
     for shown in (printed, written):
-        assert "did NOT assume they are record numbers" in shown
+        # THE DECLINE IS STATED IN THE WORDS THE ROLE OWNS. Both
+        # columns are read by the affixed-number rule, whose own remark
+        # names `--identifier` and says the numbers were described as
+        # quantities -- so the reader is told the same thing the
+        # free-text sentence used to tell them, without the clauses
+        # that would be false of a block publishing a distribution.
+        assert "--identifier" in shown
+        assert "codes rather than measurements" in shown
+        assert "Nothing from this column is published" not in shown
         for value in UNIT_AMOUNTS + CODE_WORDS:
             assert value not in shown
 

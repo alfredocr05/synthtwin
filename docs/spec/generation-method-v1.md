@@ -691,6 +691,26 @@ positive infinity**. Not banker's rounding, and not toward zero: two
 implementations that disagree here disagree on bytes, and half-even
 would make a twin's rounding depend on the parity of a neighbour.
 
+**AND THE ONE PLACE THAT RULE DOES NOT GOVERN, named here so that
+"stated once" stays true.** The integer rule above places ONE value at
+a time and a bias in it moves that value. Phase 4's fixed-fraction
+snap — the rule that writes a `decimal`-styled cell at a width the
+column's own census publishes (plan P4-D4.5, with amendments A-P4-5,
+A-P4-6, A-P4-8 and A-P4-15) — places a whole column of them at once,
+and a bias toward positive infinity applied to every tie there walks
+the column's own mean up with it. That snap rounds **half to even**,
+which the plan fixes in those words. Nothing else in this method does.
+
+**THE SNAP ITSELF IS NOT WRITTEN HERE YET, and that is a recorded
+debt, not an omission this sentence closes.** Residual R-P4-17 owes
+this document the width assignment, the pinned-cell order, the
+same-class and endpoint guards, and the reference vectors that pin
+them; R-P4-18 owes a vector in which a value is actually rounded. Both
+are named in the Phase 4 plan's register. What the paragraph above
+settles is only the contradiction: a second implementer reading this
+section used to find a global tie rule the shipped snap violates by
+name, with nothing saying an exception existed.
+
 Both subtractions are exact. For `|v| >= 2**52` the value is already
 integral and `r` is zero; below that, `b` is exactly representable and
 `v - float(b)` needs no more than 53 bits, so no rounding occurs.

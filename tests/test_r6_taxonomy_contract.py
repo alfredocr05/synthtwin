@@ -432,22 +432,30 @@ def test_the_declined_column_says_what_was_not_assumed() -> None:
     # in tests/test_p1r6f8_identifier_evidence.py.
     for values in (UNIT_AMOUNTS, RECORD_CODES, ALL_LETTERS):
         described = describe(values)
-        # The sentence is what this test is about, and it did not move
-        # when two of these three shapes became affixed numbers: the
-        # reason for saying it is unchanged.
+        # THE WITHDRAWAL IS WHAT THIS TEST IS ABOUT, and it is stated
+        # on every one of these shapes. What each shape's sentence says
+        # about the CONSEQUENCE is its own role's business: two of the
+        # three are affixed numbers now and publish a distribution, so
+        # the free-text account of publishing nothing is false of them
+        # and is asserted against rather than for.
         assert described.role != taxonomy.ROLE_IDENTIFIER
         spoken = [
             remark for remark in described.remarks if "--identifier" in remark
         ]
         assert spoken, "the withdrawal has to be stated, not silent"
-        said = spoken[0]
+        said = " ".join(spoken)
         assert "every value in this column is different" in said
-        assert "did NOT assume they are record numbers" in said
-        assert "cannot tell" in said, "synthtwin must not claim to know"
-        assert "Nothing from this column is published" in said
         assert "--identifier NAME" in said
-        assert "measurements" in said
-        assert "write them as plain numbers" in said
+        assert "measurement" in said
+        if described.role == taxonomy.ROLE_TEXT:
+            assert "did NOT assume they are record numbers" in said
+            assert "cannot tell" in said, "synthtwin must not claim to know"
+            assert "Nothing from this column is published" in said
+            assert "write them as plain numbers" in said
+            continue
+        assert "which keeps its distribution" in said
+        assert "Nothing from this column is published" not in said
+        assert "write them as plain numbers" not in said
 
 
 def test_a_short_column_is_not_lectured_about_uniqueness() -> None:
