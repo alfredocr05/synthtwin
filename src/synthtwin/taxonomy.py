@@ -212,6 +212,7 @@ ROLE_COUNT = "count"
 ROLE_CONTINUOUS = "continuous"
 ROLE_CATEGORICAL = "categorical"
 ROLE_IDENTIFIER = "identifier"
+ROLE_AFFIXED = "affixed_number"
 ROLE_TEXT = "free_text"
 
 # Every role a column can be given. The order is the order the rules
@@ -241,6 +242,7 @@ ROLES = (
     ROLE_CONTINUOUS,
     ROLE_CATEGORICAL,
     ROLE_IDENTIFIER,
+    ROLE_AFFIXED,
     ROLE_TEXT,
 )
 
@@ -256,7 +258,17 @@ ROLES = (
 #   not in levels, not in missing_by_source, not in the evidence, not
 #   in a remark, not in a publication note, not in a sentinel verdict.
 ROLES_PUBLISHING_LABELS = (ROLE_CONSTANT, ROLE_BINARY, ROLE_CATEGORICAL)
-ROLES_PUBLISHING_RANGES = (ROLE_COUNT, ROLE_CONTINUOUS, ROLE_DATETIME)
+# `affixed_number` is a ranges role with ONE named exception: its two
+# affix keys carry floor-governed shared text off the table's cells, and
+# no other key of any ranges role may ever carry a spelling. The
+# exception is confined to those two keys by the forbidden-key rule, not
+# by this tuple.
+ROLES_PUBLISHING_RANGES = (
+    ROLE_COUNT,
+    ROLE_CONTINUOUS,
+    ROLE_DATETIME,
+    ROLE_AFFIXED,
+)
 ROLES_PUBLISHING_NOTHING = (
     ROLE_UNREPRESENTABLE,
     ROLE_IDENTIFIER,
@@ -302,6 +314,7 @@ STATISTICAL_TYPES = (
     ROLE_CONTINUOUS,
     ROLE_CATEGORICAL,
     TYPE_CODE,
+    ROLE_AFFIXED,
     TYPE_TEXT,
 )
 QUALITY_STATES = (QUALITY_OK, QUALITY_EMPTY, QUALITY_UNREPRESENTABLE)
@@ -320,7 +333,8 @@ STRUCTURAL_ROLES = (STRUCTURAL_DATA, STRUCTURAL_IDENTIFIER)
 # `free_text` holds text. The other six name their own shape, and are
 # written out one by one rather than derived from the role string,
 # because a mapping a reader can check is worth more than one line of
-# cleverness.
+# cleverness. `affixed_number` names its own shape and joins the ones
+# that do.
 ROLE_AXES: "dict[str, tuple[str, str]]" = {
     ROLE_EMPTY: (TYPE_UNKNOWN, QUALITY_EMPTY),
     ROLE_UNREPRESENTABLE: (TYPE_NUMERIC, QUALITY_UNREPRESENTABLE),
@@ -331,6 +345,7 @@ ROLE_AXES: "dict[str, tuple[str, str]]" = {
     ROLE_CONTINUOUS: (ROLE_CONTINUOUS, QUALITY_OK),
     ROLE_CATEGORICAL: (ROLE_CATEGORICAL, QUALITY_OK),
     ROLE_IDENTIFIER: (TYPE_CODE, QUALITY_OK),
+    ROLE_AFFIXED: (ROLE_AFFIXED, QUALITY_OK),
     ROLE_TEXT: (TYPE_TEXT, QUALITY_OK),
 }
 
@@ -537,6 +552,13 @@ SAID_READ_AS_DATES = "said_read_as_dates"
 
 # The remarks: what the person running the tool is told about a column.
 REMARK_OUT_OF_RANGE = "remark_values_out_of_range"
+# The affixed-number role's two sentences. The evidence says how the
+# column was read; the remark is carried by EVERY column of the role,
+# without condition, because no test of the values separates an opaque
+# token family from a measurement -- so the choice is between telling
+# every such column's owner and telling none.
+EVIDENCE_AFFIXED = "evidence_numbers_wearing_one_affix"
+REMARK_AFFIXED = "remark_affixed_numbers_may_be_codes"
 REMARK_CONTRADICTORY = "remark_values_contradictory"
 REMARK_RARE_SENTINELS = "remark_rare_sentinels_unnamed"
 REMARK_UNREPRESENTABLE = "remark_too_few_holdable_numbers"
@@ -589,6 +611,9 @@ NOTE_ARITY: "dict[str, int]" = {
     SAID_WRITTEN_AS_NUMBERS: 2,
     SAID_READ_AS_DATES: 2,
     REMARK_OUT_OF_RANGE: 1,
+    # How many cells wore the pair, and the pair itself.
+    EVIDENCE_AFFIXED: 3,
+    REMARK_AFFIXED: 3,
     REMARK_CONTRADICTORY: 1,
     REMARK_RARE_SENTINELS: 1,
     REMARK_UNREPRESENTABLE: 2,
@@ -732,6 +757,54 @@ def _word(arguments: "tuple[object, ...]", place: int) -> str:
     if argument not in NOTE_ARGUMENT_WORDS:
         raise ValueError(UNAUTHORIZED_NOTE_ARGUMENT)
     return argument
+
+
+def _affix(arguments: "tuple[object, ...]", place: int) -> str:
+    """One argument as an affix spelling, the fourth argument class.
+
+    The first three classes -- a whole number, one of this package's own
+    words, a nested form -- carry nothing off anybody's table. This one
+    does, and it is admitted under plan amendment A-P4-7 because the
+    remark's whole purpose is to let somebody holding a column of codes
+    recognize THEIR column, which a sentence that could not name the
+    pair would never do.
+
+    What keeps it narrow is a binding rather than a type: the argument
+    conforms only when it is character-for-character the `affix_prefix`
+    or `affix_suffix` of the block the note names, POSITIONALLY --
+    argument 1 is the prefix and argument 2 the suffix, never either.
+    The pair is already published in that block, so the sentence
+    discloses no spelling the document does not already hold, and a
+    reader who may not see the pair may not see the remark either:
+    one publication class governs both.
+
+    This accessor checks the type and renders the value. The identity
+    check is the publication guard's, because only the guard holds the
+    block the note names; residual R-P4-15 records that the binding is
+    written per form by hand rather than derived.
+    """
+    argument = arguments[place]
+    if not isinstance(argument, str):
+        raise TypeError(UNAUTHORIZED_NOTE_ARGUMENT)
+    return f"'{argument}'" if argument else ""
+
+
+def _affix_shape(
+    arguments: "tuple[object, ...]", prefix_place: int, suffix_place: int
+) -> str:
+    """The clause describing how a cell of an affixed column is written.
+
+    Three shapes, because one of the two sides is usually empty and a
+    sentence that said "written as nothing, a number, then 'mg'" would
+    be describing a shape no cell has.
+    """
+    prefix = _affix(arguments, prefix_place)
+    suffix = _affix(arguments, suffix_place)
+    if prefix and suffix:
+        return f"written as {prefix}, a number, then {suffix}"
+    if prefix:
+        return f"written as {prefix} followed by a number"
+    return f"written as a number followed by {suffix}"
 
 
 def _said(arguments: "tuple[object, ...]", place: int) -> str:
@@ -896,6 +969,24 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
         return (
             f"{read} read as dates written as "
             f"{parsing.format_example(_word(arguments, 1))}"
+        )
+    if form == EVIDENCE_AFFIXED:
+        return (
+            f"{_whole(arguments, 0)} value(s) are "
+            f"{_affix_shape(arguments, 1, 2)}"
+        )
+    if form == REMARK_AFFIXED:
+        # It names the COUNTED cells, never "every value": the role
+        # tolerates stragglers up to the parse line, so a sentence
+        # about every value would be false of them.
+        return (
+            f"{_whole(arguments, 0)} of this column's values are "
+            f"{_affix_shape(arguments, 1, 2)}, and synthtwin described "
+            f"those numbers as quantities: their average, their spread "
+            f"and their ends are in this profile. If these are codes "
+            f"rather than measurements, run the command again with "
+            f"--identifier and no value of this column will be "
+            f"published at all"
         )
     if form == REMARK_OUT_OF_RANGE:
         return (
@@ -1082,6 +1173,36 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
     raise ValueError(f"{UNKNOWN_NOTE_FORM} {form}")
 
 
+# The ONLY forms and positions where an affix spelling is an argument.
+# Written as a table rather than as a test on the value, so that
+# widening it is an edit somebody must make on purpose: a check that
+# asked "is this a string?" would admit any value of any table.
+_BOUND_AFFIX_PLACES: "dict[str, tuple[int, ...]]" = {
+    EVIDENCE_AFFIXED: (1, 2),
+    REMARK_AFFIXED: (1, 2),
+}
+
+
+def takes_a_bound_affix(form: str, place: int) -> bool:
+    """Whether this form takes an affix spelling at this position.
+
+    Guarantees:
+
+    - Inputs: a form name and a zero-based argument position.
+    - Determinism: a lookup in a fixed table; nothing else is consulted.
+    - Boundary: this is the ONE place that decides where the fourth
+      argument class is admitted. Both the builder of a sentence and
+      the guard that re-checks one ask it, so neither can drift from
+      the other into admitting a spelling the other refuses.
+    """
+    return place in _BOUND_AFFIX_PLACES.get(form, ())
+
+
+def _is_bound_affix(form: str, place: int) -> bool:
+    """True where this form takes an affix spelling at this position."""
+    return takes_a_bound_affix(form, place)
+
+
 def note(form: str, arguments: "tuple[object, ...]" = ()) -> Note:
     """Write one sentence of the profile, and say where it came from.
 
@@ -1110,7 +1231,19 @@ def note(form: str, arguments: "tuple[object, ...]" = ()) -> Note:
         raise ValueError(f"{UNKNOWN_NOTE_FORM} {form}")
     if len(arguments) != NOTE_ARITY[form]:
         raise ValueError(f"{WRONG_NOTE_ARGUMENTS} {form}")
-    for argument in arguments:
+    for place, argument in enumerate(arguments):
+        if _is_bound_affix(form, place):
+            # The fourth argument class (plan amendment A-P4-7): an
+            # affix spelling, admitted for exactly two forms and
+            # exactly two positions in each, because those sentences
+            # exist to let somebody recognize THEIR column and a
+            # sentence that could not name the pair would never do it.
+            # It is a spelling the same block already publishes, so it
+            # discloses nothing the document does not hold; the guard
+            # checks that identity, positionally.
+            if not isinstance(argument, str):
+                raise ValueError(UNAUTHORIZED_NOTE_ARGUMENT)
+            continue
         if not argument_is_enumerated(argument):
             raise ValueError(UNAUTHORIZED_NOTE_ARGUMENT)
     written = Note(rendered(form, arguments))
@@ -2414,6 +2547,81 @@ def _tally(
     )
 
 
+# The characters a number this format holds can be written with. Used
+# only to narrow the search for a cell's core: a substring the
+# classifier accepts is made of these, so a span that contains none of
+# them cannot hold one. Getting this wrong makes the search slower or
+# makes it miss a core, and the second is why the set is generous --
+# every character any accepted numeric form uses is in it, and the
+# classifier, not this set, decides what parses.
+_CORE_ALPHABET = frozenset("0123456789+-.,()eE \t\u00a0")
+
+
+def _core_spans(text: str) -> "list[tuple[int, int]]":
+    """Maximal runs of characters a number could be written with."""
+    spans: "list[tuple[int, int]]" = []
+    start = None
+    for index, character in enumerate(text):
+        if character in _CORE_ALPHABET:
+            if start is None:
+                start = index
+        elif start is not None:
+            spans += [(start, index)]
+            start = None
+    if start is not None:
+        spans += [(start, len(text))]
+    return spans
+
+
+def affixed_split(text: str) -> "tuple[str, str, str] | None":
+    """Split a cell into prefix, core and suffix, or None if it is not one.
+
+    Guarantees:
+
+    - Inputs: one cell's text, exactly as the file held it.
+    - Determinism: the split is a function of the text alone. Where
+      more than one substring parses as a number this format can hold,
+      the core is the LONGEST, and of equal-length candidates the
+      LEFTMOST -- a total order, so two producers reading one cell
+      cannot disagree about where its number begins.
+    - Returns None when no substring parses, and when the whole trimmed
+      cell is the core: a bare number wears no affix and is not an
+      affixed number. At least one side must carry text.
+    - The classifier TRIMS, so whitespace between the number and the
+      text around it belongs to the CORE and never to the pair. `5mg`,
+      `5 mg` and `5  mg` therefore wear the ONE pair -- empty prefix,
+      suffix `mg` -- and differ only in their cores. A reader will
+      assume the opposite, which is why it is written down here and in
+      the contract: a column mixing spaced and unspaced units is a
+      one-pair column, not a mixed-affix column that declines.
+    - The pair is the EXACT text on either side of the core, with no
+      case folding and no inner trimming: `mg` and `MG` are two pairs,
+      and so are `$` and `EUR`.
+    """
+    trimmed = parsing.trimmed(text)
+    best_start = -1
+    best_length = 0
+    for span_start, span_stop in _core_spans(trimmed):
+        for begin in range(span_start, span_stop):
+            if span_stop - begin <= best_length:
+                # Nothing from here on can be longer than what is held.
+                break
+            for end in range(span_stop, begin + best_length, -1):
+                if parsing.classify_number(trimmed[begin:end]) == (
+                    parsing.NUMBER
+                ):
+                    best_start, best_length = begin, end - begin
+                    break
+    if best_length <= 0:
+        return None
+    prefix = trimmed[:best_start]
+    core = trimmed[best_start : best_start + best_length]
+    suffix = trimmed[best_start + best_length :]
+    if not prefix and not suffix:
+        return None
+    return prefix, core, suffix
+
+
 def _numeric_looking(cells: _Cells) -> int:
     """The cells whose writer meant a number, however it came out."""
     return (
@@ -3639,6 +3847,137 @@ def _categorical_ceiling(cells: _Cells) -> int:
     return max(ceiling, settings.categorical_floor)
 
 
+@dataclasses.dataclass(frozen=True)
+class _Affixed:
+    """One column's affixed reading: the pair, and the cores under it."""
+
+    prefix: str
+    suffix: str
+    # The core text of every cell wearing the pair, in row order. The
+    # cells NOT wearing it are the stragglers the parse line tolerates,
+    # and they are counted rather than listed: nothing of a straggler
+    # is published.
+    cores: "list[str]"
+    n_affixed: int
+
+
+def _affixed_reading(cells: _Cells) -> "_Affixed | None":
+    """The one affix pair this column wears, or None if it wears none.
+
+    Guarantees:
+
+    - Determinism: every cell is split by `affixed_split`, which is a
+      function of the cell alone, and the winning pair is chosen by
+      count with ties broken by the pair's own text. Nothing here reads
+      a clock or a random source, and no dictionary order reaches the
+      result.
+    - The test, and both halves are the contract's: at least the
+      parse-line COUNT of present cells wear ONE pair, and that pair's
+      cell count is at least `small_cell_floor`. Both are counts and
+      neither is a compared share, so no rounding of a division decides
+      a role.
+    - The floor is read HERE, at detection, deliberately. The pair is
+      PUBLISHED, so being able to publish a floor-clearing spelling is
+      constitutive of the role: a column that could not publish one
+      under the recorded settings takes the next rule instead of taking
+      this one and then withholding the thing that makes it this role.
+    - A column whose cells wear more than one pair past the line's
+      slack returns None -- a recorded decline, not a partial reading.
+      Publishing a distribution over the `$` cells of a column that
+      also holds `EUR` cells would describe part of a column and drop
+      the rest.
+    """
+    present = cells.present
+    if not present:
+        return None
+    settings = cells.settings
+    needed = _needed(settings.minimum_parse_rate, len(present))
+    # Split once per cell, in row order, and keep the cores beside the
+    # pair that owns them so the winner needs no second pass.
+    by_pair: "dict[tuple[str, str], list[str]]" = {}
+    for text in present:
+        split = affixed_split(text)
+        if split is None:
+            continue
+        prefix, core, suffix = split
+        by_pair.setdefault((prefix, suffix), []).append(core)
+    if not by_pair:
+        return None
+    # Sorted so the choice cannot depend on insertion order; the count
+    # decides, and the pair's own text breaks a tie.
+    pair = max(sorted(by_pair), key=lambda key: len(by_pair[key]))
+    cores = by_pair[pair]
+    n_affixed = len(cores)
+    if n_affixed < needed or n_affixed < settings.small_cell_floor:
+        return None
+    return _Affixed(
+        prefix=pair[0], suffix=pair[1], cores=cores, n_affixed=n_affixed
+    )
+
+
+def _affixed_verdict(
+    cells: _Cells,
+    affixed: _Affixed,
+    notes: "list[Note]",
+    remarks: "list[Note]",
+) -> _Verdict:
+    """The `affixed_number` block: a distribution over the CORES.
+
+    TWO POPULATIONS run through this function and they are never the
+    same one. The column's CELLS answer for `n_present`, `n_rows` and
+    everything the universal keys count. The CORES those cells hold
+    answer for the quantitative block and for the four `n_core_*`
+    counts. Conflating them was a defect twice in review, so every line
+    below says which it is reading.
+
+    The cores are classified by the SAME classifier every other role
+    reads cells with, so a core too large to hold, or written in a form
+    that conflicts with itself, is counted exactly as it would be on a
+    plain numeric column -- and the statistics are computed over the
+    cores that hold, never over the cells.
+    """
+    core_cells = _tally(
+        _classify_all(affixed.cores), cells.n_rows, cells.settings
+    )
+    n_core_numeric = len(core_cells.numbers)
+    # `whole_everywhere` over the CORES, on the same test the numeric
+    # roles use over their cells.
+    core_looking = _numeric_looking(core_cells)
+    whole_everywhere = (
+        core_cells.n_whole == core_looking and core_looking > 0
+    )
+    details = _numeric_details(core_cells, whole_everywhere)
+    n_present = len(cells.present)
+    # The two keys whose population the core substitution does NOT
+    # reach. Version 4 defines them over PRESENT CELLS -- "how many
+    # present cells the statistics were computed from", "the share of
+    # present cells whose writer meant a number" -- so reading them
+    # over the cores would leave a straggler in NEITHER count and make
+    # both answer for a narrower population than their own published
+    # meaning.
+    details["n_left_out_of_statistics"] = n_present - n_core_numeric
+    details["numeric_share"] = _share(core_looking, n_present)
+    details["affix_prefix"] = affixed.prefix
+    details["affix_suffix"] = affixed.suffix
+    details["n_affixed"] = affixed.n_affixed
+    details["n_core_numeric"] = n_core_numeric
+    details["n_core_out_of_range"] = core_cells.n_out_of_range
+    details["n_core_contradictory"] = core_cells.n_contradictory
+    details["n_core_not_numeric"] = core_cells.n_not_numeric
+    # Carried by EVERY column of this role, without condition: no test
+    # of the values separates an opaque token family from a
+    # measurement, so the choice is between telling every such column's
+    # owner and telling none.
+    pair = (affixed.n_affixed, affixed.prefix, affixed.suffix)
+    return _Verdict(
+        role=ROLE_AFFIXED,
+        evidence=note(EVIDENCE_AFFIXED, pair),
+        details=details,
+        notes=notes,
+        remarks=remarks + [note(REMARK_AFFIXED, pair)],
+    )
+
+
 def _decide(cells: _Cells, forced_identifier: bool) -> _Verdict:
     """Pick the one role, testing the rules in the documented order.
 
@@ -3864,7 +4203,20 @@ def _decide(cells: _Cells, forced_identifier: bool) -> _Verdict:
             remarks=remarks,
         )
 
-    # RULE 8 -- everything else is free text, which publishes nothing.
+    # RULE 8 -- one shared piece of text around a number: the
+    # `affixed_number` role. `$1,200`, `45%`, `5 mg`, `170cm`.
+    #
+    # It is tested HERE, after every rule that already reads a column
+    # well, and that placement is the whole of its safety: it can claim
+    # only a column the earlier rules declined, so no column that reads
+    # as a number, a date, a label or a category today is diverted into
+    # it. A rule added earlier would have moved columns between roles,
+    # which is the one thing this phase's no-regression rule forbids.
+    affixed = _affixed_reading(cells)
+    if affixed is not None:
+        return _affixed_verdict(cells, affixed, notes, remarks)
+
+    # RULE 9 -- everything else is free text, which publishes nothing.
     #
     # There is no rule between RULE 7 and this one. Two rules used to
     # stand here. One read all-different single tokens as record

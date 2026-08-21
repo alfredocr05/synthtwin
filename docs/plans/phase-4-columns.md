@@ -1622,6 +1622,14 @@ Opened by this plan, each a limit accepted rather than work forgotten:
   a remark that is occasionally hopeful, to soften its promise to
   something always true, or to make the extra condition a producer
   obligation. Nothing else waits on this.
+- **R-P4-17** (opened by amendment A-P4-13, 2026-08-21). The frozen
+  reference vectors for the new roles are recorded FROM the
+  implementation rather than written before it. A vector written
+  afterwards proves the generator matches itself; a vector written
+  first proves it matches the specification, and only the second gives
+  a second implementer in another language something to reproduce.
+  The vectors and their committed failing mutants are owed before this
+  phase closes. Priced and accepted, not waived.
 - **R-P4-13** (opened by amendment A-P4-1's audit). A column mixing
   numeric results with qualitative text in ONE cell space — the
   long-format panel export, where `7.2` sits beside `POSITIVE` in the
@@ -2342,6 +2350,55 @@ sentence elsewhere in the same document false. An amendment that adds
 a member to an enumeration has to be walked against every rule that
 quantifies over that enumeration — which is the same discipline the
 contract rewrite is being done for, applied to the plan.
+
+## Amendment A-P4-13 — build one role end to end before the remaining specifications
+
+**THIS LOWERS the sequencing this plan set, on the owner's decision of
+2026-08-21**, and it is written because the reason is worth keeping
+beside the change.
+
+**What the plan required.** Stages 4 and 5 — the generation-method
+amendments with frozen reference vectors, then the validation-method
+work — before stage 6's implementation. That order was set when Phase
+4 looked like an extension of a settled format.
+
+**What actually happened.** Stage 3 took six adversarial review rounds
+that did not converge, a complete rewrite of the contract, and 33
+commits. It found three defects that would have reached a user, and
+five rules nobody had written, so it was not wasted. But rounds 3
+through 6 largely were: each repaired instances of one defect while
+none of us named the class, and the fix — the self-contained rewrite —
+could have been reached after round 2 by asking why the same item kept
+returning. **Meanwhile nothing about the new column types runs.** The
+loud decline of stage 2 is the only part of this phase a person using
+the tool would notice.
+
+**The change.** One role, `affixed_number`, is built end to end —
+profiler, wire, generator, validator — with its generation rules
+written as the code lands rather than ratified ahead of it. The other
+two roles follow on the same machinery.
+
+**What this gives up, stated at full size.** The frozen reference
+vectors before implementation. They exist so a second implementer, in
+another language, can reproduce this generator's bytes exactly, and
+building first means the vectors are recorded FROM the implementation
+rather than being the thing it is built to satisfy. That is a real
+loss and it is the one this amendment is paying: a vector written
+afterwards proves the generator matches itself, where a vector written
+first proves it matches the specification. **The debt is recorded as
+residual R-P4-17** and is owed before the phase closes, not waived.
+
+**What it buys.** A defect in the contract surfaces as a failing test
+instead of a review item, which is both faster and stricter — the
+user-facing defect this phase already found was found by RUNNING two
+commands, not by reading either document. And the owner gets a tool
+that handles a real column type, which is what the phase is for.
+
+**What does not change.** The contract still governs; where code and
+contract disagree the contract is right unless the plan says
+otherwise, and the disagreement is recorded rather than settled by
+whichever is convenient. Every landing keeps the suite green, the
+scans clean and the seal current.
 
 ## Acceptance criteria
 

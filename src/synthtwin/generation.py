@@ -3377,6 +3377,84 @@ def _numeric_layout(
     return layout, notes, max(total - pinned - zeroed, 0)
 
 
+def _core_view(column: "contract.ColumnBlock") -> "contract.ColumnBlock":
+    """The affixed column as the numeric machinery needs to see it.
+
+    An affixed column has TWO populations and the numeric machinery is
+    written over one of them. Its universal counts answer for the
+    CELLS -- and a cell reading `$100` is not itself a number, so those
+    counts say a column of prices holds no numbers at all. The
+    quantitative block answers for the CORES.
+
+    So the cores are handed over as a column in their own right: the
+    same block, with the core counts standing where the cell counts
+    were and the quantitative facts standing alone. Every rule of G5
+    and G6 then applies unchanged, which is the point -- the numbers
+    inside an affixed column are built by exactly the code that builds
+    a plain numeric column, and the pair is put on afterwards.
+    """
+    facts = column.facts
+    if not isinstance(facts, contract.AffixedFacts):
+        raise _wrong_facts(column.name)
+    return dataclasses.replace(
+        column,
+        statistical_type="continuous",
+        n_present=facts.n_affixed,
+        n_numeric=facts.n_core_numeric,
+        n_not_numeric=facts.n_core_not_numeric,
+        n_out_of_range=facts.n_core_out_of_range,
+        n_contradictory=facts.n_core_contradictory,
+        facts=facts.numbers,
+    )
+
+
+def _affixed_content(
+    plan: "_ColumnPlan", words: "list[int]"
+) -> "tuple[list[str], list[Deviation]]":
+    """Every present cell of an affixed column (contract 6.12).
+
+    The cores are built first, by the numeric rules, over the core
+    view of this column. The pair goes on afterwards, character for
+    character as the description publishes it. The cells that wore no
+    pair -- the stragglers the parse line tolerated -- are invented
+    last, and are marked as invention because nothing about them is
+    published: the description says how MANY there were and nothing
+    else.
+    """
+    column = plan.column
+    facts = column.facts
+    if not isinstance(facts, contract.AffixedFacts):
+        raise _wrong_facts(column.name)
+    core_plan = dataclasses.replace(plan, column=_core_view(column))
+    cores, notes = _numeric_content(core_plan, words)
+    cells = [f"{facts.affix_prefix}{core}{facts.affix_suffix}" for core in cores]
+    stragglers = column.n_present - facts.n_affixed
+    if stragglers > 0:
+        layout = plan.layout
+        used: dict[str, int] = {cell: 1 for cell in cells}
+        cells = cells + _class_spellings(
+            _CLASS_TEXT,
+            stragglers,
+            layout.folded_budgets[2] if layout else 1,
+            layout.raw_budgets[2] if layout else 1,
+            0,
+            used,
+        )
+        notes = notes + [
+            _deviation(
+                column.name,
+                "n_affixed",
+                f"{stragglers} value(s) wearing no affix pair",
+                "invented text stands in their place",
+                f"{stragglers} value(s) of this column did not wear the "
+                f"shared text the rest wore. The description says how "
+                f"many there were and nothing else about them, so the "
+                f"twin invents them.",
+            )
+        ]
+    return cells, notes
+
+
 def _numeric_content(
     plan: "_ColumnPlan", words: "list[int]"
 ) -> "tuple[list[str], list[Deviation]]":
@@ -7818,7 +7896,11 @@ def _plan_column(
     cells: list[str] = []
     carriers = _FIRST_TWO
     content = 0
-    if isinstance(facts, contract.NumericFacts):
+    if isinstance(facts, contract.AffixedFacts):
+        # The layout is the CORES' -- see `_core_view`.
+        core = _core_view(column)
+        layout, notes, content = _numeric_layout(core, facts.numbers)
+    elif isinstance(facts, contract.NumericFacts):
         layout, notes, content = _numeric_layout(column, facts)
     elif isinstance(facts, contract.DatetimeFacts):
         content = max(column.n_present - facts.n_unparsed - 2, 0)
@@ -8042,6 +8124,8 @@ def _content_of(
         return _label_content(plan)
     if kind == "count" or kind == "continuous":
         return _numeric_content(plan, words)
+    if kind == "affixed_number":
+        return _affixed_content(plan, words)
     if kind == "datetime":
         return _datetime_content(plan, words)
     if kind == "code":
