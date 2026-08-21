@@ -558,6 +558,16 @@ def test_canonical_spelling_stays_checkable_on_every_file(
     the canonical file's description, which is the obligation review
     item P3-V2-C-F1 restored and which the plan says this fact
     strengthens rather than trades away.
+
+    AND THE FLOOR IS WHERE THAT STOPS, pinned below rather than left to
+    be discovered (amendment A-P4-14 as narrowed, residual R-P4-19).
+    The census names a width only where at least `small_cell_floor`
+    cells wear it, so on a SHORT column both descriptions pool both
+    facts and are identical again -- and the old route survives there
+    exactly as A-P3-46 measured it. A test that showed only the
+    sixty-cell case would report the premise as retired and leave the
+    surviving half of it unnoticed, which is the same shape of claim
+    the amendment was written to correct.
     """
     folder = tmp_path / "spelling"
     folder.mkdir()
@@ -586,6 +596,38 @@ def test_canonical_spelling_stays_checkable_on_every_file(
             "the two files differ by a trailing zero and by nothing "
             f"else, so the census is the only key that may move: {moved}"
         )
+    # THE SHORT COLUMN, where the floor pools both facts. Ten cells is
+    # below the default floor of eleven, so neither description names
+    # the decimal form or any width, the two are identical, and the
+    # padded file misses the per-cell obligation against its OWN
+    # description -- the route A-P4-14 does NOT close.
+    short_names = ["amount", "tag"]
+    short_a = _table(
+        [[f"{index}.5", f"t{index % 3}"] for index in range(10)], short_names
+    )
+    short_b = _table(
+        [[f"{index}.50", f"t{index % 3}"] for index in range(10)], short_names
+    )
+    short_described = _describe(folder, short_b, "short-own")
+    own_short_a = _own_description(folder, short_described, short_a, "short-a")
+    own_short_b = _own_description(folder, short_described, short_b, "short-b")
+    assert own_short_a == own_short_b, (
+        "below the floor the census names no width, so the two files "
+        "are described alike and the premise A-P4-14 retires is still "
+        "true there -- if this now differs, R-P4-19 closed and the "
+        "amendment's narrowing should be revisited"
+    )
+    short_checks, _short_census = _report(
+        folder, short_described, short_b, "short-b.csv"
+    )
+    short_verdicts = {
+        (check[0], check[2]): check[3] for check in short_checks
+    }
+    assert short_verdicts[("amount", "styles.spelled")] == validation.MISSED, (
+        "the surviving below-floor route is what R-P4-19 records; a "
+        "file that now holds against its own description there means "
+        "the residual is closed and this file should say so"
+    )
     checks_a, _census_a = _report(folder, described, text_a, "a.csv")
     checks_b, _census_b = _report(folder, described, text_b, "b.csv")
     # Keyed by COLUMN and subcheck. Keyed by subcheck alone, two

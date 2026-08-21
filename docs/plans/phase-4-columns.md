@@ -1630,6 +1630,19 @@ Opened by this plan, each a limit accepted rather than work forgotten:
   a second implementer in another language something to reproduce.
   The vectors and their committed failing mutants are owed before this
   phase closes. Priced and accepted, not waived.
+- **R-P4-19** (opened by amendment A-P4-14's narrowing, 2026-08-21).
+  BELOW THE FLOOR, THE OLD ROUTE SURVIVES. The census is
+  floor-governed, so a column whose decimal cells are fewer than
+  `small_cell_floor` publishes no width at all and its padded and
+  canonical forms are described alike — and `styles.spelled` then
+  MISSES on a real table checked against its own description, which is
+  exactly the user-facing defect A-P3-46 measured. It is narrower than
+  the route was: it needs a column with fewer decimal cells than the
+  floor, where the file's own description names no spelling of them
+  anyway. Closing it means deciding what a per-cell spelling
+  obligation MEANS for a cell whose form the floor holds back, which
+  is an owner decision about the disclosure floor and not a defect to
+  patch. Named here so the next person meets it as a known state.
 - **R-P4-18** (opened with the fraction census, 2026-08-21). NO
   REFERENCE VECTOR EXERCISES THE WIDTH SNAP. The census of fraction
   widths ships with two vectors that carry it -- one naming a width its
@@ -2630,12 +2643,30 @@ published count of its own. The trailing-zero re-spelling that
 `styles.spelled` alone used to catch is now caught twice, which is the
 strengthening P4-D4.5 claims.
 
-**What it costs.** One ratified premise retired by name rather than
-left standing while the code contradicts it, and the test that asserted
-it rewritten to assert the new truth — that the two descriptions
-differ, and differ ONLY in the census. Clause 3's conclusion is
-untouched: the subcheck keeps its verdict and can still miss, which the
-same test still pins.
+**AND THE SCOPE IS THE FLOOR'S, WHICH THE FIRST WRITING OF THIS
+AMENDMENT DID NOT SAY** (codex round 2, item P4-AFX2-F5). The census is
+floor-governed like every other published map, so a width fewer cells
+than `small_cell_floor` wear is POOLED and names nothing. On such a
+column both descriptions pool both facts and are identical again: ten
+cells reading `1.2` through `10.2` and the same ten written `1.20`
+through `10.20` publish `numeric_styles: {"(withheld)": 10}` and
+`fraction_widths: {"(withheld)": 10}` alike, and `styles.spelled`
+still MISSES on the padded file checked against its own description.
+So A-P3-5 clause 3's premise is false where the width clears the floor
+and TRUE where it does not, and the route A-P3-46 measured is closed
+for the first case only. Claiming the whole of it would have been this
+project's own worst habit — a sentence that says more than the built
+thing carries — recorded in an amendment whose subject is a sentence
+that said more than it should have.
+
+**What it costs.** One ratified premise retired by name in the case
+the census reaches, and left standing in the case it does not, with
+the surviving route recorded as residual R-P4-19 rather than waved
+past. The test that asserted the old premise now asserts both halves:
+above the floor the two descriptions differ and differ ONLY in the
+census; below it they are identical and the subcheck still misses.
+Clause 3's conclusion is untouched either way: the subcheck keeps its
+verdict and can still miss.
 
 ## Amendment A-P4-15 — a width the twin cannot place is reported, not split
 

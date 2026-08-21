@@ -480,6 +480,23 @@ NUMERIC_STYLES = (
 # honest -- it renders the real form and asserts this phrase is in it.
 AFFIXED_REMARK_MARK = "If these are codes rather than measurements"
 
+# ...AND THE REST OF ITS FIXED SKELETON, in the order the sentence
+# writes them. One marker was not enough and the gap was not a small
+# one: a description carrying the marker ALONE as its whole remark --
+# thirty-nine characters naming no pair, no count and no command --
+# satisfied AF-R while telling its reader nothing the invariant exists
+# to tell them. A sentence holding every fragment below, in order,
+# around the block's own count IS the sentence; a forgery that
+# reproduces all of it has written the remark.
+AFFIXED_REMARK_PARTS = (
+    "of this column's values are written as",
+    "and synthtwin described those numbers as quantities: their "
+    "average, their spread and their ends are in this profile.",
+    AFFIXED_REMARK_MARK,
+    "run the command again with --identifier and no value of this "
+    "column will be published at all",
+)
+
 # The one form of the six the fraction census is taken over, named here
 # rather than spelled at the place it is read: the census and the forms
 # map have to agree about which form they are talking about, and a
@@ -3231,24 +3248,6 @@ def _column(
     for remark in _listing(mapping["remarks"], "remarks", where):
         remarks = remarks + [_text(remark, f"remarks[{place}]", where)]
         place = place + 1
-    if role == ROLE_AFFIXED:
-        # AF-R, and it is unconditional: no test of the values can
-        # separate a column of measurements from a column of codes, so
-        # the sentence is owed by every column of this role and not by
-        # the ones some rule found doubtful.
-        carried = False
-        for remark in remarks:
-            if AFFIXED_REMARK_MARK in remark:
-                carried = True
-        if not carried:
-            raise _out_of_range(
-                "remarks",
-                where,
-                f"{len(remarks)} remark(s), none of them that one",
-                "the sentence every column read this way carries, "
-                "which names the shared text its values wear and says "
-                "what to run if they are codes rather than measurements",
-            )
     facts = _facts(
         mapping,
         where,
@@ -3261,6 +3260,30 @@ def _column(
         n_out_of_range,
         n_contradictory,
     )
+    # AF-R, ASKED AFTER THE BLOCK'S OWN NUMBERS ARE READ. It is
+    # unconditional -- no test of the values can separate a column of
+    # measurements from a column of codes, so the sentence is owed by
+    # every column of this role and not by the ones some rule found
+    # doubtful. It is asked LAST of the block because it is asked about
+    # the count the block publishes: a block whose numbers do not hold
+    # together is refused for that, in the words of the invariant it
+    # broke, rather than for a sentence that could not have been right
+    # about numbers that are not.
+    if role == ROLE_AFFIXED:
+        carried = False
+        for remark in remarks:
+            if _is_the_affixed_remark(remark, facts.n_affixed):
+                carried = True
+        if not carried:
+            raise _out_of_range(
+                "remarks",
+                where,
+                f"{len(remarks)} remark(s), none of them that one",
+                "the sentence every column read this way carries, "
+                "which names the shared text its values wear, says how "
+                "many of them wore it, and says what to run if they "
+                "are codes rather than measurements",
+            )
     return ColumnBlock(
         name=name,
         position=position,
@@ -3286,6 +3309,42 @@ def _column(
         remarks=tuple(remarks),
         facts=facts,
     )
+
+
+def _is_the_affixed_remark(remark: str, n_affixed: int) -> bool:
+    """Whether one sentence is the remark AF-R requires, not a token of it.
+
+    Every fixed fragment, IN ORDER, and the block's own count in front
+    of them. The loader may not import the profiler's taxonomy and so
+    cannot render the sentence; what it can do is refuse anything that
+    is not shaped like it, which is the difference between an invariant
+    and a password.
+    """
+    if not isinstance(remark, str):
+        raise TypeError("internal check: a remark was not text")
+    if isinstance(n_affixed, bool) or not isinstance(n_affixed, int):
+        raise TypeError("internal check: a count was not a whole number")
+    # THE FRAGMENTS ARE WRITTEN OUT HERE AS LITERALS rather than walked
+    # out of the tuple beside them, and the reason is the offline
+    # audit's: a method call whose argument it cannot resolve is a call
+    # it cannot judge, and a loop variable is not resolvable. The tuple
+    # stays as the record of what the sentence is made of, and
+    # `tests/test_p4d4_affixed_role.py` holds these calls to it.
+    if remark[: len(f"{n_affixed} ")] != f"{n_affixed} ":
+        return False
+    first = remark.find("of this column's values are written as")
+    second = remark.find(
+        "and synthtwin described those numbers as quantities: their "
+        "average, their spread and their ends are in this profile."
+    )
+    third = remark.find("If these are codes rather than measurements")
+    fourth = remark.find(
+        "run the command again with --identifier and no value of this "
+        "column will be published at all"
+    )
+    if first < 0 or second < 0 or third < 0 or fourth < 0:
+        return False
+    return first < second < third < fourth
 
 
 def _role_keys(role: str) -> "tuple[str, ...]":
@@ -4440,6 +4499,25 @@ def _fraction_widths(
                 f"{styles[DECIMAL_STYLE]} cells were written with a point",
             )
         return widths
+    # THE POOL'S CAPACITY IS CHECKED BEFORE THE EMPTY CASE AND NOT
+    # AFTER IT. An empty census is a claim -- that NO cell of this
+    # column was written with a point -- and it is as checkable as any
+    # other: the pool then holds five forms rather than six, so a
+    # column whose forms map pools fifty-one cells at a floor of eleven
+    # is impossible with an empty census and was accepted. Returning
+    # early on a total of zero is what skipped the one condition an
+    # empty census can break.
+    pooled = styles[WITHHELD] if WITHHELD in styles else 0
+    room = 5 * (floor - 1)
+    if pooled - total > room:
+        raise _broken(
+            "P5",
+            where,
+            f"{total} of the {pooled} cells held back from the forms "
+            "map are counted as written with a point",
+            f"the {pooled - total} others would have to share five "
+            f"forms holding at most {floor - 1} cells each",
+        )
     if not total:
         return widths
     if total >= floor:
@@ -4450,32 +4528,12 @@ def _fraction_widths(
             "no such form is named at all, so every one of them was "
             f"held back and there are fewer than {floor}",
         )
-    pooled = styles[WITHHELD] if WITHHELD in styles else 0
     if total > pooled:
         raise _broken(
             "P5",
             where,
             f"{total} cells are counted as written with a point",
             f"{pooled} cells in all were held back from the forms map",
-        )
-    # ...AND THE POOL'S OWN CAPACITY BOUNDS IT FROM BELOW (plan
-    # amendment A-P4-8). The three conditions above still admit an
-    # impossible document: a pool of sixty cells with one of them
-    # counted as written with a point leaves fifty-nine for the FIVE
-    # other forms, so at least one of them holds twelve -- and a form
-    # holding twelve at a floor of eleven would have been published by
-    # name rather than pooled. There are exactly six forms, each pooled
-    # one holds at most one less than the floor, so the pool minus this
-    # census is at most five of those.
-    room = 5 * (floor - 1)
-    if pooled - total > room:
-        raise _broken(
-            "P5",
-            where,
-            f"{total} of the {pooled} cells held back from the forms "
-            "map are counted as written with a point",
-            f"the {pooled - total} others would have to share five "
-            f"forms holding at most {floor - 1} cells each",
         )
     return widths
 

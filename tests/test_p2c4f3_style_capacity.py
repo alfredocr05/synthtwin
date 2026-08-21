@@ -552,6 +552,20 @@ def test_the_crowded_ladder_of_p2c5f3_writes_its_published_map(
             if note.fact != "fraction_widths"
         ]
         assert other == [], seed
+        # ...AND THE WIDTH THAT WENT UNPLACED IS NAMED, which is the
+        # half a filter alone does not assert. A test that only
+        # subtracts the deviation it expects would stay green if the
+        # report fell silent -- and silence is exactly what A-P4-15
+        # trades the quota for, so silence is the thing to pin.
+        spoken = [
+            note for note in twin.deviations if note.fact == "fraction_widths"
+        ]
+        assert spoken, seed
+        for note in spoken:
+            assert note.column == "amount", seed
+            assert "figure(s) after the point" in note.published, seed
+            assert note.achieved.isdigit(), (seed, note.achieved)
+            assert note.published != note.achieved, seed
 
 
 def test_the_reach_step_is_what_places_the_crowded_ladder(

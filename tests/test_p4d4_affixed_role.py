@@ -192,6 +192,120 @@ def test_a_remark_that_is_not_that_one_does_not_answer_for_it(
         _loaded(tmp_path / "other", document, "other")
 
 
+def test_a_sentence_holding_only_the_marker_does_not_answer_for_it(
+    tmp_path: pathlib.Path,
+) -> None:
+    """An invariant is not a password (codex round 2, item P4-AFX2-F8).
+
+    The loader cannot render the sentence -- it may not import the
+    profiler's taxonomy -- so it holds a document to the sentence's
+    SHAPE. Held to one fragment, it accepted a remark that was that
+    fragment and nothing else: no pair, no count, no command, and a
+    reader of that description told none of the three things AF-R
+    exists to tell them.
+    """
+    document = _document(tmp_path / "marker", "price", _prices())
+    document["columns"][0]["remarks"] = [contract.AFFIXED_REMARK_MARK]
+    with pytest.raises(errors.ProfileError):
+        _loaded(tmp_path / "marker", document, "marker")
+
+
+def test_a_remark_naming_another_columns_count_does_not_answer_for_it(
+    tmp_path: pathlib.Path,
+) -> None:
+    """...and the count in the sentence is THIS block's own.
+
+    A sentence saying how many cells wore the pair is about a column
+    that has that many; carrying one from a different column would
+    misdescribe this one in the one place the reader is looking.
+    """
+    document = _document(tmp_path / "count", "price", _prices())
+    remarks = document["columns"][0]["remarks"]
+    moved = [
+        remark.replace("100 of this column", "40 of this column", 1)
+        for remark in remarks
+    ]
+    document["columns"][0]["remarks"] = moved
+    with pytest.raises(errors.ProfileError):
+        _loaded(tmp_path / "count", document, "count")
+
+
+def test_every_fixed_fragment_the_loader_wants_is_in_the_real_sentence(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The whole skeleton, not one phrase, and it is really the sentence's."""
+    said = taxonomy.rendered(taxonomy.REMARK_AFFIXED, ("$", "", 100))
+    at = 0
+    for part in contract.AFFIXED_REMARK_PARTS:
+        found = said.find(part, at)
+        assert found >= 0, part
+        at = found + len(part)
+    assert said.startswith("100 ")
+
+
+def test_the_written_out_literals_are_the_tuple_beside_them(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The loader's own calls use literals; this holds them to the record.
+
+    The offline audit refuses a method call whose argument it cannot
+    resolve, so the fragment tests are written out one call at a time
+    rather than walked out of `AFFIXED_REMARK_PARTS`. Two lists of the
+    same four phrases is two lists that can stop being the same, so the
+    tuple is checked against what the function actually accepts: a
+    sentence built from the tuple passes, and one with any single
+    fragment removed does not.
+    """
+    parts = contract.AFFIXED_REMARK_PARTS
+    assert len(parts) == 4
+    built = "100 " + " ".join(parts)
+    assert contract._is_the_affixed_remark(built, 100)
+    assert not contract._is_the_affixed_remark(built, 99)
+    for place in range(len(parts)):
+        short = "100 " + " ".join(
+            parts[index] for index in range(len(parts)) if index != place
+        )
+        assert not contract._is_the_affixed_remark(short, 100), parts[place]
+    backwards = "100 " + " ".join(reversed(parts))
+    assert not contract._is_the_affixed_remark(backwards, 100)
+
+
+# -- the stand-in pass may not re-run the rules that already declined --
+
+
+def test_removal_over_the_cores_does_not_hand_the_column_to_an_earlier_rule(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Codex round 2, item P4-AFX2-F4, on its own cells.
+
+    Eleven `-999 mg` cells beside eighty-nine cycling `1 mg` to `10 mg`
+    hold eleven different spellings, so the categorical ceiling of ten
+    declines and the affixed rule takes the column. The core pass then
+    reads `-999` as a stand-in and removes those eleven cells -- and
+    the column now holds ten different spellings, which the categorical
+    rule WOULD take if it were allowed to run again.
+
+    It is not allowed to: the contract lets removal be followed only by
+    the rules after the ones that already declined. Otherwise a removal
+    hands the column to a rule that declined it, the numbers inside the
+    affixes vanish, the type a consumer routes on changes, and nothing
+    on the page says why.
+    """
+    values = ["-999 mg"] * 11
+    values = values + [f"{1 + index % 10} mg" for index in range(89)]
+    document = _document(tmp_path / "judged", "dose", values)
+    column = document["columns"][0]
+    assert column["role"] == "affixed_number", column["role"]
+    assert column["n_present"] == 89
+    assert column["n_missing"] == 11
+    assert column["n_affixed"] == 89
+    assert "levels" not in column
+    verdicts = column["sentinel_verdicts"]
+    assert verdicts, "the removed stand-in is published as a verdict"
+    assert verdicts[0]["candidate"] == "-999"
+    assert column["percentiles"]["min"] == 1.0
+
+
 # -- the competing-readings remark ------------------------------------
 
 

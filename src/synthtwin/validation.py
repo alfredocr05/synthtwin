@@ -6270,14 +6270,63 @@ def _affixed_checks(
         ("affix_suffix", suffix),
     ):
         found = _text_at(block, field)
-        side = published if found is None else found
+        front = field == "affix_prefix"
+        shown = _shown_affix(published, front)
+        if found is None:
+            # THE FILE'S OWN DESCRIPTION READS NO AFFIX AT ALL, which
+            # is the DISCLOSURE GATE closing and is reported in the
+            # gate's own words: describing this file on its own
+            # publishes no pair, so neither the measurement nor its
+            # outcome is shown, and the role axis of this same column
+            # reports the MISS that says why.
+            #
+            # Substituting the PUBLISHED spelling for the missing
+            # measured one made the comparison hold by construction: a
+            # description of `USD 1 mg` to `USD 100 mg` checked against
+            # a file of bare `1` to `100` reported both affix spellings
+            # HELD, which is a check stating something about a file it
+            # had not looked at.
+            checks = checks + [
+                Check(
+                    name,
+                    f"affixed.{field}",
+                    f"counts.{field}",
+                    WITHHELD,
+                    shown,
+                    "",
+                    _GATE_CLOSED,
+                )
+            ]
+            continue
+        # THE VERDICT IS DECIDED ON THE SPELLINGS THEMSELVES AND THE
+        # DISPLAY IS BUILT AFTERWARDS. Deciding it on the displayed
+        # text let one file wear the display phrase as real text and
+        # pass: a description publishing an EMPTY prefix, checked
+        # against a file whose cells read `nothing in front of the
+        # number1 mg`, compared two identical display strings and
+        # reported HELD on a file whose prefix is twenty-nine
+        # characters the description never published.
+        verdict = HELD if found == published else MISSED
+        measured = _shown_affix(found, front)
+        if verdict == MISSED and measured == shown:
+            # The two spellings differ and their DISPLAY does not,
+            # which happens exactly when a file wears the phrase this
+            # report uses for an empty side. The verdict is already
+            # right; this keeps the line from showing a reader two
+            # identical strings under the word MISSED. What is added
+            # is a COUNT of characters, never more of the file's text.
+            measured = (
+                f"{measured} ({len(found)} character(s) of the file's "
+                "own text, not this report's words for none)"
+            )
         checks = checks + [
-            _exact(
+            Check(
                 name,
                 f"affixed.{field}",
                 f"counts.{field}",
-                _shown_affix(published, field == "affix_prefix"),
-                _shown_affix(side, field == "affix_prefix"),
+                verdict,
+                shown,
+                measured,
             )
         ]
     # THE FOUR CORE CLASSES, counted off the file's own cores by the

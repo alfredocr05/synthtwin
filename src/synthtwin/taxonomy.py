@@ -4238,7 +4238,10 @@ def _core_of(text: str, prefix: str, suffix: str) -> "str | None":
 
 
 def _decide(
-    cells: _Cells, forced_identifier: bool, removed: int = 0
+    cells: _Cells,
+    forced_identifier: bool,
+    removed: int = 0,
+    after_removal: bool = False,
 ) -> _Verdict:
     """Pick the one role, testing the rules in the documented order.
 
@@ -4278,191 +4281,205 @@ def _decide(
     folded_distinct = len(cells.folded_counts)
     ceiling = _categorical_ceiling(cells)
 
-    # RULE 0 -- the person who knows the table has the last word, and
-    # since review item P1-R6-F8 it is also the ONLY word: this is the
-    # one route to the identifier role, and every rule below can only
-    # send a column somewhere else. A declared identifier beats every
-    # rule, including the ones that publish. Eleven identical values
-    # used to take the constant branch and publish the value while the
-    # user had asked for exactly the opposite (review item P1-R1-F10).
-    if forced_identifier:
-        return _identifier_verdict(cells, notes=notes, remarks=remarks)
+    # AFTER THE CORE PASS, ONLY THE RULES THE CONTRACT LETS RUN AGAIN.
+    # The affix-based stand-in pass runs only once every rule THROUGH
+    # `categorical` has declined the un-removed column, and then only
+    # the rules after them run over what remains (C6-5). Re-running the
+    # whole ladder is not the same thing and is not a smaller mistake:
+    # a column of eleven `-999 mg` cells beside eighty-nine cycling
+    # `1 mg` to `10 mg` declines to the affixed rule with eleven
+    # different spellings, has its stand-ins removed, and then -- with
+    # the ladder run again -- comes back as a set of ten CATEGORIES.
+    # Its numbers are gone, the type a consumer routes on has changed
+    # under it, and nothing on the page says why. The removed cells are
+    # what made the earlier rules decline, so letting them decide again
+    # lets a removal claim a column no rule would have given it.
+    if not after_removal:
+        # RULE 0 -- the person who knows the table has the last word, and
+        # since review item P1-R6-F8 it is also the ONLY word: this is the
+        # one route to the identifier role, and every rule below can only
+        # send a column somewhere else. A declared identifier beats every
+        # rule, including the ones that publish. Eleven identical values
+        # used to take the constant branch and publish the value while the
+        # user had asked for exactly the opposite (review item P1-R1-F10).
+        if forced_identifier:
+            return _identifier_verdict(cells, notes=notes, remarks=remarks)
 
-    # RULE 2 -- numeric intent that nothing can hold. Tested before any
-    # rule that publishes a value, because the alternative is a column
-    # of huge numbers published as free-text lengths or, worse, three
-    # repeated spellings published as categorical labels (review items
-    # P1-R3-F3, P1-R4-F2, P1-R5-F2). RULE 1, the empty column, is
-    # settled before this function is called.
-    #
-    # This rule and the numeric rule share ONE line, and it is the
-    # plan's 0.99. The test is on how much of the column can be HELD,
-    # not merely on how much of it was written as a number:
-    # `numeric_looking` counts cells that contribute nothing to a
-    # percentile, so deciding the numeric roles on it alone let a ladder
-    # be built from a single representable cell out of a hundred -- one
-    # row's exact value published as eleven statistics. The population
-    # that decides the role and the population the statistics are
-    # computed from are one population, which is what STRUCTURAL RULE A
-    # already promises.
-    if numeric_looking >= strict_needed and (
-        len(cells.numbers) < strict_needed
-    ):
-        remarks = remarks + [
-            note(
-                REMARK_UNREPRESENTABLE,
-                (len(cells.numbers), numeric_looking),
-            )
-        ]
-        notes = notes + [note(NOTE_UNREPRESENTABLE_WITHHELD)]
-        return _Verdict(
-            role=ROLE_UNREPRESENTABLE,
-            # "all N of the M values" was false whenever N < M, and the
-            # review's own complaint was a detection_evidence sentence
-            # that stated something the column did not show.
-            evidence=note(
-                EVIDENCE_UNREPRESENTABLE,
-                (numeric_looking, n_present, len(cells.numbers)),
-            ),
-            details={
-                "n_negative": cells.n_negative,
-                "n_positive": cells.n_positive,
-                "n_sign_unknown": cells.n_sign_unknown,
-                "n_whole": cells.n_whole,
-                "n_fraction": cells.n_fraction,
-                "n_whole_unknown": cells.n_whole_unknown,
-                # The same repetition fact free text and declared record
-                # numbers carry (plan P2-D4), for the same reason: this
-                # column publishes no value either, so its shape of
-                # repetition is otherwise unrecorded, and two columns
-                # with different ones would be one description.
-                "n_distinct_by_occurrences": _n_distinct_by_occurrences(
-                    cells.present
-                ),
-            },
-            notes=notes,
-            remarks=remarks,
-        )
-
-    # RULE 3 -- one value, repeated.
-    if folded_distinct == 1:
-        levels = _levels(
-            cells.folded_counts, cells.spellings_by_folded, settings
-        )
-        if levels.suppressed_levels:
-            notes = notes + [
-                note(
-                    NOTE_ONE_VALUE_BELOW_FLOOR,
-                    (settings.small_cell_floor,),
-                )
-            ]
-        return _Verdict(
-            role=ROLE_CONSTANT,
-            evidence=note(EVIDENCE_ONE_VALUE, (n_present,)),
-            details=_level_details(levels),
-            notes=notes,
-            remarks=remarks,
-        )
-
-    # RULE 4 -- two values. Decided on the SAME key the levels are
-    # counted with, so the role and the published list can never
-    # disagree about how many values there are.
-    if folded_distinct == 2:
-        levels = _levels(
-            cells.folded_counts, cells.spellings_by_folded, settings
-        )
-        if levels.suppressed_levels:
-            notes = notes + [
-                note(
-                    NOTE_ONE_OF_TWO_BELOW_FLOOR,
-                    (levels.suppressed_levels, settings.small_cell_floor),
-                )
-            ]
-        if cells.raw_distinct != 2:
-            remarks = remarks + [note(REMARK_CASE_ONLY_TWO)]
-        if numeric_looking >= strict_needed or _matching_date_format(
-            present, settings
+        # RULE 2 -- numeric intent that nothing can hold. Tested before any
+        # rule that publishes a value, because the alternative is a column
+        # of huge numbers published as free-text lengths or, worse, three
+        # repeated spellings published as categorical labels (review items
+        # P1-R3-F3, P1-R4-F2, P1-R5-F2). RULE 1, the empty column, is
+        # settled before this function is called.
+        #
+        # This rule and the numeric rule share ONE line, and it is the
+        # plan's 0.99. The test is on how much of the column can be HELD,
+        # not merely on how much of it was written as a number:
+        # `numeric_looking` counts cells that contribute nothing to a
+        # percentile, so deciding the numeric roles on it alone let a ladder
+        # be built from a single representable cell out of a hundred -- one
+        # row's exact value published as eleven statistics. The population
+        # that decides the role and the population the statistics are
+        # computed from are one population, which is what STRUCTURAL RULE A
+        # already promises.
+        if numeric_looking >= strict_needed and (
+            len(cells.numbers) < strict_needed
         ):
-            remarks = remarks + [note(REMARK_TWO_ALSO_NUMBERS)]
-        return _Verdict(
-            role=ROLE_BINARY,
-            evidence=note(EVIDENCE_TWO_VALUES),
-            details=_level_details(levels),
-            notes=notes,
-            remarks=remarks,
-        )
-
-    # RULE 5 -- dates, under one documented format, at the parse rate.
-    #
-    # A rule stood ahead of this one until review item P1-R6-F7: a
-    # column of same-width all-digit values, at least one carrying a
-    # leading zero, was read as codes rather than as quantities. It is
-    # deleted. Nothing may be routed by the WIDTH of its text: the
-    # padding says how the value was WRITTEN, and a rule that reads a
-    # writing convention as a meaning claims something the values do not
-    # carry -- the identical text is a clock time, a padded account
-    # number and a postal code, and only the person who owns the table
-    # knows which. Such a column now lands where the ordinary rules put
-    # it, and `--identifier` is how a column of codes is declared.
-    matched = _matching_date_format(present, settings)
-    if matched is not None:
-        format_name, pairs, sources, unparsed = matched
-        details = _datetime_details(
-            format_name, pairs, sources, unparsed, settings
-        )
-        if numeric_looking >= strict_needed:
-            remarks = remarks + [note(REMARK_DATES_ALSO_NUMBERS)]
-        if format_name == "month-first-date":
-            remarks = remarks + [note(REMARK_MONTH_FIRST)]
-        return _Verdict(
-            role=ROLE_DATETIME,
-            evidence=note(
-                EVIDENCE_DATES, (len(pairs), n_present, format_name)
-            ),
-            notes=notes,
-            remarks=remarks,
-            details=details,
-        )
-
-    # RULE 6 -- numbers, at the one parse rate there is. A column that
-    # reads as numbers in essentially every cell is a quantity however
-    # many different values it holds.
-    #
-    # Falling short here decides nothing but this rule: the column goes
-    # on to RULE 7 and may still be a set of categories. Below the line
-    # is not a synonym for free text.
-    if numeric_looking >= strict_needed:
-        return _numeric_verdict(cells, notes, remarks)
-
-    # RULE 7 -- a set of categories: at most the ceiling of different
-    # values, counted after trimming and case folding. Tested after the
-    # numeric rule, so a column of measurements is described as
-    # measurements and a small set of labels that happen to be digits is
-    # described as labels.
-    if folded_distinct <= ceiling:
-        levels = _levels(
-            cells.folded_counts, cells.spellings_by_folded, settings
-        )
-        details = _level_details(levels)
-        details["level_ceiling"] = ceiling
-        if levels.suppressed_levels:
-            notes = notes + [_pooled_note(levels, settings)]
-        if cells.raw_distinct != folded_distinct:
-            remarks = remarks + [note(REMARK_CASE_ONLY_MANY)]
-        if ceiling - folded_distinct <= settings.near_threshold_slack:
             remarks = remarks + [
-                note(REMARK_NEAR_CATEGORY_LINE, (folded_distinct, ceiling))
+                note(
+                    REMARK_UNREPRESENTABLE,
+                    (len(cells.numbers), numeric_looking),
+                )
             ]
-        return _Verdict(
-            role=ROLE_CATEGORICAL,
-            evidence=note(
-                EVIDENCE_CATEGORIES,
-                (folded_distinct, ceiling, cells.n_rows),
-            ),
-            details=details,
-            notes=notes,
-            remarks=remarks,
-        )
+            notes = notes + [note(NOTE_UNREPRESENTABLE_WITHHELD)]
+            return _Verdict(
+                role=ROLE_UNREPRESENTABLE,
+                # "all N of the M values" was false whenever N < M, and the
+                # review's own complaint was a detection_evidence sentence
+                # that stated something the column did not show.
+                evidence=note(
+                    EVIDENCE_UNREPRESENTABLE,
+                    (numeric_looking, n_present, len(cells.numbers)),
+                ),
+                details={
+                    "n_negative": cells.n_negative,
+                    "n_positive": cells.n_positive,
+                    "n_sign_unknown": cells.n_sign_unknown,
+                    "n_whole": cells.n_whole,
+                    "n_fraction": cells.n_fraction,
+                    "n_whole_unknown": cells.n_whole_unknown,
+                    # The same repetition fact free text and declared record
+                    # numbers carry (plan P2-D4), for the same reason: this
+                    # column publishes no value either, so its shape of
+                    # repetition is otherwise unrecorded, and two columns
+                    # with different ones would be one description.
+                    "n_distinct_by_occurrences": _n_distinct_by_occurrences(
+                        cells.present
+                    ),
+                },
+                notes=notes,
+                remarks=remarks,
+            )
+
+        # RULE 3 -- one value, repeated.
+        if folded_distinct == 1:
+            levels = _levels(
+                cells.folded_counts, cells.spellings_by_folded, settings
+            )
+            if levels.suppressed_levels:
+                notes = notes + [
+                    note(
+                        NOTE_ONE_VALUE_BELOW_FLOOR,
+                        (settings.small_cell_floor,),
+                    )
+                ]
+            return _Verdict(
+                role=ROLE_CONSTANT,
+                evidence=note(EVIDENCE_ONE_VALUE, (n_present,)),
+                details=_level_details(levels),
+                notes=notes,
+                remarks=remarks,
+            )
+
+        # RULE 4 -- two values. Decided on the SAME key the levels are
+        # counted with, so the role and the published list can never
+        # disagree about how many values there are.
+        if folded_distinct == 2:
+            levels = _levels(
+                cells.folded_counts, cells.spellings_by_folded, settings
+            )
+            if levels.suppressed_levels:
+                notes = notes + [
+                    note(
+                        NOTE_ONE_OF_TWO_BELOW_FLOOR,
+                        (levels.suppressed_levels, settings.small_cell_floor),
+                    )
+                ]
+            if cells.raw_distinct != 2:
+                remarks = remarks + [note(REMARK_CASE_ONLY_TWO)]
+            if numeric_looking >= strict_needed or _matching_date_format(
+                present, settings
+            ):
+                remarks = remarks + [note(REMARK_TWO_ALSO_NUMBERS)]
+            return _Verdict(
+                role=ROLE_BINARY,
+                evidence=note(EVIDENCE_TWO_VALUES),
+                details=_level_details(levels),
+                notes=notes,
+                remarks=remarks,
+            )
+
+        # RULE 5 -- dates, under one documented format, at the parse rate.
+        #
+        # A rule stood ahead of this one until review item P1-R6-F7: a
+        # column of same-width all-digit values, at least one carrying a
+        # leading zero, was read as codes rather than as quantities. It is
+        # deleted. Nothing may be routed by the WIDTH of its text: the
+        # padding says how the value was WRITTEN, and a rule that reads a
+        # writing convention as a meaning claims something the values do not
+        # carry -- the identical text is a clock time, a padded account
+        # number and a postal code, and only the person who owns the table
+        # knows which. Such a column now lands where the ordinary rules put
+        # it, and `--identifier` is how a column of codes is declared.
+        matched = _matching_date_format(present, settings)
+        if matched is not None:
+            format_name, pairs, sources, unparsed = matched
+            details = _datetime_details(
+                format_name, pairs, sources, unparsed, settings
+            )
+            if numeric_looking >= strict_needed:
+                remarks = remarks + [note(REMARK_DATES_ALSO_NUMBERS)]
+            if format_name == "month-first-date":
+                remarks = remarks + [note(REMARK_MONTH_FIRST)]
+            return _Verdict(
+                role=ROLE_DATETIME,
+                evidence=note(
+                    EVIDENCE_DATES, (len(pairs), n_present, format_name)
+                ),
+                notes=notes,
+                remarks=remarks,
+                details=details,
+            )
+
+        # RULE 6 -- numbers, at the one parse rate there is. A column that
+        # reads as numbers in essentially every cell is a quantity however
+        # many different values it holds.
+        #
+        # Falling short here decides nothing but this rule: the column goes
+        # on to RULE 7 and may still be a set of categories. Below the line
+        # is not a synonym for free text.
+        if numeric_looking >= strict_needed:
+            return _numeric_verdict(cells, notes, remarks)
+
+        # RULE 7 -- a set of categories: at most the ceiling of different
+        # values, counted after trimming and case folding. Tested after the
+        # numeric rule, so a column of measurements is described as
+        # measurements and a small set of labels that happen to be digits is
+        # described as labels.
+        if folded_distinct <= ceiling:
+            levels = _levels(
+                cells.folded_counts, cells.spellings_by_folded, settings
+            )
+            details = _level_details(levels)
+            details["level_ceiling"] = ceiling
+            if levels.suppressed_levels:
+                notes = notes + [_pooled_note(levels, settings)]
+            if cells.raw_distinct != folded_distinct:
+                remarks = remarks + [note(REMARK_CASE_ONLY_MANY)]
+            if ceiling - folded_distinct <= settings.near_threshold_slack:
+                remarks = remarks + [
+                    note(REMARK_NEAR_CATEGORY_LINE, (folded_distinct, ceiling))
+                ]
+            return _Verdict(
+                role=ROLE_CATEGORICAL,
+                evidence=note(
+                    EVIDENCE_CATEGORIES,
+                    (folded_distinct, ceiling, cells.n_rows),
+                ),
+                details=details,
+                notes=notes,
+                remarks=remarks,
+            )
 
     # RULE 8 -- one shared piece of text around a number: the
     # `affixed_number` role. `$1,200`, `45%`, `5 mg`, `170cm`.
@@ -5245,6 +5262,7 @@ def profile_column(
     # removing cells changes every count, so nothing may be built from
     # the first answer.
     removed_by_cores = 0
+    judged_over_cores = False
     if present and not forced_identifier:
         trial = _decide(cells, forced_identifier)
         if trial.role == ROLE_AFFIXED:
@@ -5261,6 +5279,7 @@ def profile_column(
             # so, or the reader is told a count of a column that no
             # longer exists (contract C6-5).
             removed_by_cores = before - len(present)
+            judged_over_cores = True
     entries, unpublished = _published_verdicts(verdicts, settings)
 
     n_present = len(present)
@@ -5286,7 +5305,12 @@ def profile_column(
             remarks=[],
         )
     else:
-        verdict = _decide(cells, forced_identifier, removed_by_cores)
+        verdict = _decide(
+            cells,
+            forced_identifier,
+            removed_by_cores,
+            after_removal=judged_over_cores,
+        )
 
     by_source, by_class, n_blank, n_withheld = _missing_maps(
         missing, settings
