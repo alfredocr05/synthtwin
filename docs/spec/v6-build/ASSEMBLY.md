@@ -90,6 +90,52 @@ failure this list exists to prevent.
   author transcribed the role's use of it and left the full
   specification for the additions section.
 
+## 3A. Two sections have TWO independently verified versions
+
+An earlier run was thought lost to an API error and was relaunched;
+the first run then finished after all. The result is that two sections
+exist twice, each written and checked by a different pair of readers
+who never saw each other's work:
+
+| section | versions | verifier item counts |
+|---|---|---|
+| the numeric roles | `r4a.md`, `r4a_alt.md` | 22 and 15 |
+| `time_of_day` | `r5b.md`, `r5b_alt.md` | 14 and 22 |
+
+**This is worth more than the duplication cost, and the assembly takes
+the UNION rather than picking one.** Two independent checks of the same
+draft agree on the substantive question and disagree about what else
+they noticed, which is exactly the shape that makes a union sound. The
+agreement worth recording: both numeric-roles verifiers independently
+rejected a FIFTH bound on the pooled fraction census and reached four,
+reading amendment A-P4-8's condition 4 over its own defined quantity at
+a total of zero. That reading is now confirmed twice and stands.
+
+Items found by only ONE of the two and therefore easy to lose:
+
+- **`r4a_alt` alone** found that the section told a loader author that a
+  null endpoint suspends invariant Q5 entirely, while the shipped
+  loader refuses a document with a null endpoint, three or more values
+  in the statistics, and no skew. Two implementations following the
+  text and the code would refuse different documents. The code is
+  right.
+- **`r4a_alt` alone** found a transcribed rule that changed its
+  addressee: version 4 states an obligation on the rung ENVELOPE — it
+  must be tight enough that a mutant collapsing the interior rungs
+  FAILS it — and the transcription turned it into a remark about
+  twins, dropping the obligation the validation method's mutation set
+  is sized against.
+- **`r4a_alt` alone** found invariant AF7 extended past its source: AF7
+  puts in place of ONE count on the affixed role, and the transcription
+  substituted four. It also declares a real gap nobody has settled —
+  whether Q9's denominator and Q2's subtrahend on `affixed_number` are
+  `n_present` or `n_affixed`. **The affixed-number section must settle
+  that, and it is the one open question this build has raised that no
+  artifact answers.**
+- **`r4a` alone** found five invented range cells in a key table that
+  version 4 leaves blank, one of them stating an invariant WEAKER than
+  the invariant does.
+
 ## 4. Standing checks before the document is called finished
 
 1. **Every enumeration is written out, with its count stated beside
