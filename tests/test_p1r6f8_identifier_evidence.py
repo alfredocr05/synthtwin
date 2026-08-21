@@ -34,6 +34,7 @@ somebody says which is which.
 
 import json
 import pathlib
+import re
 import random
 
 import pytest
@@ -52,6 +53,19 @@ UNIT_AMOUNTS = [f"{index}mg" for index in range(1, 31)]
 # all different, letters and digits mixed. Nothing in the values tells
 # these two columns apart, which is the whole argument.
 CODE_WORDS = [f"code{index}" for index in range(1, 31)]
+
+# A column that is STILL declined, for the tests about what a decline
+# says. `1mg` and `code1` stopped being declined when the
+# affixed-number rule was built -- they are read now, which is the
+# point of that rule -- so the tests about the language of a DECLINE
+# need a column no rule reads: prose, varying in shape, wearing no
+# shared text and holding no number to find.
+DECLINED_PROSE = [
+    f"{opening} {middle} {ending}"
+    for opening in ("seen", "review", "pending")
+    for middle in ("in clinic", "by phone", "at home")
+    for ending in ("no change", "improving", "worse", "unclear")
+]
 
 # The shapes the earlier rounds argued over.
 CLOCK_TIMES = [
@@ -153,9 +167,26 @@ def test_the_amount_and_the_code_column_are_described_identically() -> None:
     # apart would be the fourth defeated guess.
     amount = describe(UNIT_AMOUNTS)
     codes = describe(CODE_WORDS)
-    assert amount.role == codes.role == taxonomy.ROLE_TEXT
+    # The role is asserted EQUAL rather than named, because what this
+    # item bought is that the two are indistinguishable -- not that
+    # they land anywhere in particular. They landed on free text until
+    # the affixed-number rule was built, and they land together on it
+    # now: `1mg` and `code1` are one shape of string, so a rule that
+    # reads one reads the other, and the remark both carry says so.
+    assert amount.role == codes.role
     assert sorted(amount.details) == sorted(codes.details)
-    assert amount.remarks == codes.remarks
+    # The remarks are compared by FORM rather than by text. They were
+    # identical while both columns were declined and published nothing.
+    # Now each names its own affix pair, and the sentences differ in
+    # more than the spelling: `1mg` wears its text after the number and
+    # `code1` before it, so even the clause order differs. That is a
+    # fact about the two columns, not a guess synthtwin made about
+    # which is which. What this item bought is that synthtwin reaches
+    # for the SAME sentences about both, and the forms are what carry
+    # that.
+    assert [remark.form for remark in amount.remarks] == [
+        remark.form for remark in codes.remarks
+    ]
 
 
 @pytest.mark.parametrize("shape", sorted(ALL_SHAPES))
@@ -233,7 +264,13 @@ def test_a_ten_label_column_needs_a_hundred_rows_for_the_ceiling() -> None:
     long = describe([f"code{index}" for index in range(10)] * 20)
     short = describe([f"code{index}" for index in range(10)] * 6)
     assert long.role == taxonomy.ROLE_CATEGORICAL
-    assert short.role == taxonomy.ROLE_TEXT
+    # The shorter column is past the ceiling, so the categorical rule
+    # declines it -- which is what this test is about, and it is
+    # unchanged. What happens AFTER the decline moved: it used to fall
+    # to free text and publish nothing, and the affixed-number rule now
+    # reads it as a number wearing `code`. Either way it publishes no
+    # LEVELS, which is the assertion this test rests on.
+    assert short.role != taxonomy.ROLE_CATEGORICAL
     assert "levels" not in short.details
 
 
@@ -252,7 +289,11 @@ def test_the_remark_states_the_withdrawal_in_plain_language(
     shape: str,
 ) -> None:
     described = describe(ALL_SHAPES[shape])
-    assert described.role == taxonomy.ROLE_TEXT
+    # These four shapes are read by the affixed-number rule now. The
+    # sentence this test is about did not move with them: it still
+    # names `--identifier`, because the reason for saying it is the
+    # same -- no property of the values tells a dose from a code.
+    assert described.role != taxonomy.ROLE_IDENTIFIER
     spoken = [
         remark for remark in described.remarks if "--identifier" in remark
     ]
@@ -367,16 +408,16 @@ def test_the_paired_columns_agree_end_to_end(tmp_path: pathlib.Path) -> None:
     table = reading.read_table(str(fixtures.write(tmp_path, "pair.csv", text)))
     document = profile.build_document(table, SETTINGS, [])
     serialized = profile.serialize(document)
-    assert [column["role"] for column in document["columns"]] == [
-        taxonomy.ROLE_TEXT, taxonomy.ROLE_TEXT,
-    ]
+    roles = [column["role"] for column in document["columns"]]
+    assert roles[0] == roles[1], "the pair must be read the same way"
+    assert taxonomy.ROLE_IDENTIFIER not in roles
     for value in UNIT_AMOUNTS + CODE_WORDS:
         assert value not in serialized
 
     named = profile.build_document(table, SETTINGS, ["record"])
-    assert [column["role"] for column in named["columns"]] == [
-        taxonomy.ROLE_TEXT, taxonomy.ROLE_IDENTIFIER,
-    ]
+    named_roles = [column["role"] for column in named["columns"]]
+    assert named_roles[0] != taxonomy.ROLE_IDENTIFIER
+    assert named_roles[1] == taxonomy.ROLE_IDENTIFIER
     assert named["settings"]["forced_identifiers"] == ["record"]
     for value in UNIT_AMOUNTS + CODE_WORDS:
         assert value not in profile.serialize(named)
@@ -396,7 +437,7 @@ def test_the_amount_column_is_never_declared_by_accident(
     table = reading.read_table(str(fixtures.write(tmp_path, "pair.csv", text)))
     named = profile.build_document(table, SETTINGS, ["record"])
     amount = named["columns"][0]
-    assert amount["role"] == taxonomy.ROLE_TEXT
+    assert amount["role"] != taxonomy.ROLE_IDENTIFIER
     assert "--identifier" in " ".join(amount["remarks"])
 
 
@@ -427,7 +468,7 @@ def test_the_summary_names_the_declined_column_in_plain_language(
             fixtures.write(
                 tmp_path,
                 "amount.csv",
-                fixtures.single_column_table("amount", UNIT_AMOUNTS),
+                fixtures.single_column_table("comment", DECLINED_PROSE),
             )
         )
     )
@@ -441,7 +482,7 @@ def test_the_summary_names_the_declined_column_in_plain_language(
     )
     assert "did NOT assume they are record numbers" in text
     assert "--identifier NAME" in text
-    for value in UNIT_AMOUNTS:
+    for value in DECLINED_PROSE:
         assert value not in text
 
 
@@ -494,9 +535,13 @@ def test_the_real_command_declines_and_declares(
     document = json.loads(
         (tmp_path / "clinic-profile.json").read_text(encoding="utf-8")
     )
-    assert [column["role"] for column in document["columns"]] == [
-        "free_text", "free_text",
-    ]
+    # Both columns are read the same way, and neither is called record
+    # numbers with nobody declaring it. Which role they take is the
+    # affixed-number rule's business and is asserted where that rule is
+    # tested; what matters HERE is that the command declines to guess.
+    roles = [column["role"] for column in document["columns"]]
+    assert roles[0] == roles[1]
+    assert "identifier" not in roles
     for shown in (printed, written):
         assert "did NOT assume they are record numbers" in shown
         for value in UNIT_AMOUNTS + CODE_WORDS:
@@ -508,7 +553,13 @@ def test_the_real_command_declines_and_declares(
         (tmp_path / "clinic-profile.json").read_text(encoding="utf-8")
     )
     roles = {column["name"]: column["role"] for column in document["columns"]}
-    assert roles == {"amount": "free_text", "record": "identifier"}
+    # The declared column takes the identifier role and the undeclared
+    # one does not: that is the whole assertion. The undeclared
+    # column's own role is the affixed-number rule's business, and
+    # pinning it here would make this test fail whenever that rule
+    # changes something it has no opinion about.
+    assert roles["record"] == "identifier"
+    assert roles["amount"] != "identifier"
     assert "record numbers or codes" in printed
     for value in UNIT_AMOUNTS + CODE_WORDS:
         assert value not in printed

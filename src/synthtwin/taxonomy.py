@@ -3969,6 +3969,14 @@ def _affixed_verdict(
     # measurement, so the choice is between telling every such column's
     # owner and telling none.
     pair = (affixed.n_affixed, affixed.prefix, affixed.suffix)
+    # And the all-different remark reaches this role VERBATIM, which
+    # the plan requires and which matters here more than anywhere: a
+    # column of `R1` to `R240` wearing one prefix is exactly the shape
+    # somebody meant as record numbers, and the sentence that says so
+    # was the free-text path's. Moving the column to a role that reads
+    # it must not cost the reader the observation that made them look.
+    if _all_different(cells):
+        remarks = remarks + [note(REMARK_ALL_DIFFERENT_TEXT)]
     return _Verdict(
         role=ROLE_AFFIXED,
         evidence=note(EVIDENCE_AFFIXED, pair),
