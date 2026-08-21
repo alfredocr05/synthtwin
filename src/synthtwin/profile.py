@@ -567,6 +567,14 @@ _WORD = "word"
 _TABLE_NAME = "column-name"
 _KNOWN_NAME = "a-name-of-this-table"
 _SPELLING = "authorized-spelling"
+# The ONE exception in the ranges class: an affixed column publishes the
+# shared text its cells wore, on two keys and no others. It is a rule of
+# its own rather than `_SPELLING` because either side may be EMPTY -- a
+# column of `5mg` has no prefix -- and because an exception a reader can
+# see in this table is an exception nobody widens by accident. That both
+# sides are not empty at once is invariant AF1, checked with the
+# invariants and not here.
+_AFFIX = "affix-spelling"
 _DIGITS = "whole-number-as-text"
 _MOMENT_TEXT = "canonical-datetime"
 _OFFSET = "utc-offset"
@@ -750,6 +758,16 @@ PUBLICATION_RULES: "dict[tuple[str, ...], str]" = {
     ("columns", _EACH, "n_used_in_statistics"): _COUNT,
     ("columns", _EACH, "n_left_out_of_statistics"): _COUNT,
     ("columns", _EACH, "numeric_share"): _NUMBER,
+    # The affixed-number role: the pair it publishes, how many cells
+    # wore it, and the four counts that answer for the CORES rather
+    # than for the cells.
+    ("columns", _EACH, "affix_prefix"): _AFFIX,
+    ("columns", _EACH, "affix_suffix"): _AFFIX,
+    ("columns", _EACH, "n_affixed"): _COUNT,
+    ("columns", _EACH, "n_core_numeric"): _COUNT,
+    ("columns", _EACH, "n_core_out_of_range"): _COUNT,
+    ("columns", _EACH, "n_core_contradictory"): _COUNT,
+    ("columns", _EACH, "n_core_not_numeric"): _COUNT,
     ("columns", _EACH, "numeric_styles"): _OBJECT,
     ("columns", _EACH, "numeric_styles", _KEY_OF): _WORD,
     ("columns", _EACH, "numeric_styles", _ANY_KEY): _FLOORED_ENTRY,
@@ -975,7 +993,19 @@ def _is_sentence(value: object) -> bool:
         return False
     if len(value.arguments) != taxonomy.NOTE_ARITY[value.form]:
         return False
-    for argument in value.arguments:
+    for place, argument in enumerate(value.arguments):
+        if taxonomy.takes_a_bound_affix(value.form, place):
+            # The fourth argument class: an affix spelling, admitted at
+            # exactly the positions of exactly the forms that same
+            # table names, so this guard and the builder cannot drift
+            # apart. What it does NOT check here is the positional
+            # identity with the block's own two keys -- residual
+            # R-P4-15 -- because this walk reaches a leaf without the
+            # block that owns it. `_affix_notes_are_bound` below checks
+            # that, over the document, where the block IS in hand.
+            if not isinstance(argument, str):
+                return False
+            continue
         if not taxonomy.argument_is_enumerated(argument):
             return False
     return f"{value}" == taxonomy.rendered(value.form, value.arguments)
@@ -1169,6 +1199,13 @@ def _leaf_is_published(
         # each of them to the floor is the count beside it, checked
         # under its own rule.
         return isinstance(value, str) and bool(value)
+    if kind == _AFFIX:
+        # Any text, the empty spelling included. What bounds this is
+        # not the shape of the value but the floor on `n_affixed`,
+        # which the role's own detection rule reads BEFORE the role is
+        # given: a pair too rare to publish sends the column to the
+        # next rule instead.
+        return isinstance(value, str)
     if kind == _DIGITS:
         return isinstance(value, str) and parsing.is_digit_text(value)
     if kind == _MOMENT_TEXT:

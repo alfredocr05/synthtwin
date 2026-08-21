@@ -242,6 +242,7 @@ ROLE_COUNT = "count"
 ROLE_CONTINUOUS = "continuous"
 ROLE_CATEGORICAL = "categorical"
 ROLE_IDENTIFIER = "identifier"
+ROLE_AFFIXED = "affixed_number"
 ROLE_TEXT = "free_text"
 
 ROLES = (
@@ -254,6 +255,7 @@ ROLES = (
     ROLE_CONTINUOUS,
     ROLE_CATEGORICAL,
     ROLE_IDENTIFIER,
+    ROLE_AFFIXED,
     ROLE_TEXT,
 )
 
@@ -282,6 +284,7 @@ AXIS_ROWS = (
     (ROLE_CONTINUOUS, "continuous", "ok"),
     (ROLE_CATEGORICAL, "categorical", "ok"),
     (ROLE_IDENTIFIER, "code", "ok"),
+    (ROLE_AFFIXED, "affixed_number", "ok"),
     (ROLE_TEXT, "text", "ok"),
 )
 
@@ -295,6 +298,7 @@ STATISTICAL_TYPES = (
     "continuous",
     "categorical",
     "code",
+    "affixed_number",
     "text",
 )
 
@@ -371,6 +375,21 @@ NUMERIC_KEYS = (
     "skew",
     "std",
     "std_unrepresentable",
+)
+
+# The affixed-number role: everything a numeric column carries, plus
+# the pair it publishes, how many cells wore it, and the four counts
+# that answer for the CORES rather than for the cells. The two
+# populations are never the same one, and the key names say which each
+# answers for.
+AFFIXED_KEYS = NUMERIC_KEYS + (
+    "affix_prefix",
+    "affix_suffix",
+    "n_affixed",
+    "n_core_contradictory",
+    "n_core_not_numeric",
+    "n_core_numeric",
+    "n_core_out_of_range",
 )
 
 UNREPRESENTABLE_KEYS = (
@@ -3232,6 +3251,8 @@ def _role_keys(role: str) -> "tuple[str, ...]":
         return DATETIME_KEYS
     if role == ROLE_COUNT or role == ROLE_CONTINUOUS:
         return NUMERIC_KEYS
+    if role == ROLE_AFFIXED:
+        return AFFIXED_KEYS
     if role == ROLE_IDENTIFIER:
         return IDENTIFIER_KEYS
     return TEXT_KEYS
@@ -3276,6 +3297,8 @@ def _facts(
             n_out_of_range,
             n_contradictory,
         )
+    if role == ROLE_AFFIXED:
+        return _affixed_facts(mapping, where, frame, n_present)
     if role == ROLE_IDENTIFIER:
         return _identifier_facts(
             mapping, where, n_present, n_distinct
@@ -4349,6 +4372,108 @@ def _identifier_facts(
             "the number of values the column holds",
         ),
         n_distinct_by_occurrences=pattern,
+    )
+
+
+@dataclasses.dataclass(frozen=True)
+class AffixedFacts:
+    """A column of numbers each wearing one shared piece of text.
+
+    TWO POPULATIONS, and they are never the same one. `numbers` holds
+    the quantitative block, read over the CORES the cells carry. The
+    four `n_core_*` counts answer for those cores. `n_affixed` and
+    everything the universal keys count answer for the CELLS.
+
+    The pair is the one place a ranges-class role publishes a spelling
+    of the table, and it is confined to these two fields by the
+    forbidden-key rule rather than by anybody remembering the
+    exception.
+    """
+
+    numbers: NumericFacts
+    affix_prefix: str
+    affix_suffix: str
+    n_affixed: int
+    n_core_numeric: int
+    n_core_out_of_range: int
+    n_core_contradictory: int
+    n_core_not_numeric: int
+
+
+def _affixed_facts(
+    mapping: "dict[str, object]",
+    where: str,
+    frame: _Frame,
+    n_present: int,
+) -> AffixedFacts:
+    """Read an affixed-number block (contract 6.12).
+
+    The quantitative invariants are read over the CORE counts, because
+    that is the population the statistics were computed from -- except
+    the two the contract defines over present CELLS, which the numeric
+    reader is given `n_present` for and which would otherwise leave a
+    straggler in neither count.
+    """
+    prefix = _text(mapping["affix_prefix"], "affix_prefix", where)
+    suffix = _text(mapping["affix_suffix"], "affix_suffix", where)
+    if not prefix and not suffix:
+        # AF1. A pair with nothing on either side describes no shape,
+        # and a cell wearing it is a bare number, which is a different
+        # role.
+        raise _out_of_range(
+            "affix_prefix", where, "two empty spellings",
+            "at least one side carrying text",
+        )
+    n_affixed = _bounded(
+        mapping["n_affixed"], "n_affixed", where, frame.floor, n_present,
+        "the number of values the column holds",
+    )
+    core_numeric = _bounded(
+        mapping["n_core_numeric"], "n_core_numeric", where, 0, n_affixed,
+        "the number of values wearing the pair",
+    )
+    core_out_of_range = _bounded(
+        mapping["n_core_out_of_range"], "n_core_out_of_range", where,
+        0, n_affixed, "the number of values wearing the pair",
+    )
+    core_contradictory = _bounded(
+        mapping["n_core_contradictory"], "n_core_contradictory", where,
+        0, n_affixed, "the number of values wearing the pair",
+    )
+    core_not_numeric = _bounded(
+        mapping["n_core_not_numeric"], "n_core_not_numeric", where,
+        0, n_affixed, "the number of values wearing the pair",
+    )
+    # AF4: the four core classes are a partition of the cells wearing
+    # the pair, so they close on `n_affixed` and on nothing else.
+    total = (
+        core_numeric
+        + core_out_of_range
+        + core_contradictory
+        + core_not_numeric
+    )
+    if total != n_affixed:
+        raise _out_of_range(
+            "n_core_numeric", where, f"a total of {total}",
+            f"a total of {n_affixed}, the number of values wearing the pair",
+        )
+    return AffixedFacts(
+        numbers=_numeric_facts(
+            mapping,
+            where,
+            frame,
+            n_present,
+            core_numeric,
+            core_out_of_range,
+            core_contradictory,
+        ),
+        affix_prefix=prefix,
+        affix_suffix=suffix,
+        n_affixed=n_affixed,
+        n_core_numeric=core_numeric,
+        n_core_out_of_range=core_out_of_range,
+        n_core_contradictory=core_contradictory,
+        n_core_not_numeric=core_not_numeric,
     )
 
 
