@@ -3661,6 +3661,14 @@ def _universal(name, role, statistical_type, structural_role, quality_state, **f
         "remarks": [],
     }
     block.update(facts)
+    # The census of fraction widths (contract C6-27 to C6-30), on the
+    # three roles that carry a forms map and on no other: a block that
+    # publishes no forms map has no decimal cells to take a census of,
+    # and a loader refuses a key its role does not carry.  A block that
+    # names no `decimal` cells publishes an empty census, which is what
+    # every case here but two does.
+    if "numeric_styles" in block and "fraction_widths" not in block:
+        block["fraction_widths"] = {}
     if block["n_missing"]:
         block["missing_by_class"] = dict(block["missing_by_class"])
         block["missing_by_class"]["(withheld)"] = block["n_missing"]
@@ -3910,6 +3918,14 @@ def _numeric_pooled_spelling():
         n_used_in_statistics=12, n_left_out_of_statistics=0,
         integer_valued=False, n_rows=12,
         numeric_styles={"plain": 11, "(withheld)": 1},
+        # THE POOLED SIDE OF THE CENSUS. The one cell that carries a
+        # point is the one the floor held back, so no width is named at
+        # all and the census carries the pooled remainder alone -- the
+        # census's own shape for a column whose decimal cells the floor
+        # pooled (contract C6-30's case P5.c). The cell is unsnapped and
+        # written at its own value's spelling, which is the pooled
+        # remainder's rule of G6.4 unchanged.
+        fraction_widths={"(withheld)": 1},
         **moments,
     )
     return {
@@ -4104,6 +4120,13 @@ def _numeric_point_free_styles():
         n_used_in_statistics=33, n_left_out_of_statistics=0,
         integer_valued=True, n_rows=33,
         numeric_styles={"decimal": 11, "leading_plus": 11, "leading_zero": 11},
+        # THE ONE CASE HERE WITH `decimal` CELLS, so the one that
+        # publishes a width for them.  Every decimal cell of this column
+        # writes the point-free spelling of a whole number with one
+        # figure after the point, so the census names ONE width and its
+        # cells already fit it -- no cell is snapped and the committed
+        # bytes are the bytes this case has always carried.
+        fraction_widths={"1": 11},
         **moments,
     )
     return {
@@ -4522,6 +4545,7 @@ INTEGER_COLUMN_KEYS = frozenset({
 INTEGER_COLUMN_MAPS = frozenset({
     "missing_by_class", "missing_by_source", "numeric_styles", "utc_offsets",
     "variants", "variants_withheld", "n_distinct_by_occurrences",
+    "fraction_widths",
 })
 INTEGER_COLUMN_ARRAYS = frozenset({"suppressed_level_counts"})
 # The two blocks of a free-text column whose own two ends are whole

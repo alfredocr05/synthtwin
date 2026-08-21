@@ -2587,5 +2587,79 @@ control gaps.
     its quality-report sentence; the screen count is two-part; the
     format vocabulary counts nine. No review items, no conditions.
 
+## Amendment A-P4-14 — the census of fraction widths supersedes A-P3-5 clause 3's premise
+
+**THIS RAISES an obligation the Phase 3 ruling had reasoned away**, and
+it is recorded because the ruling's ground moved rather than its
+wording.
+
+**What clause 3 rested on.** Phase 3's amendment A-P3-5 ruled that
+whether a numeric cell's TEXT is a spelling its own value licenses is a
+fact about the file's own form rather than about the table it holds.
+Its ground was a premise about the producer: two files differing only
+in a trailing zero on every decimal cell are described BYTE FOR BYTE
+ALIKE, so no floor and no window could ever settle the clause and
+withholding it would withhold it forever. A test asserted that premise
+directly.
+
+**What P4-D4.5 does to it.** The census of fraction widths publishes,
+floor-governed, how many cells wrote each number of figures after the
+point. The two files are therefore no longer described alike — they
+differ in the census and in nothing else — and the premise is false
+from the moment that fact ships. This is not a side effect: it is what
+the fact was added for, and P4-D4.5 says so in its own words when it
+closes route residual R-P3-12.
+
+**What is raised.** The padding is PUBLISHED rather than invisible, so
+a twin owes the widths and a file that re-spells them misses a
+published count of its own. The trailing-zero re-spelling that
+`styles.spelled` alone used to catch is now caught twice, which is the
+strengthening P4-D4.5 claims.
+
+**What it costs.** One ratified premise retired by name rather than
+left standing while the code contradicts it, and the test that asserted
+it rewritten to assert the new truth — that the two descriptions
+differ, and differ ONLY in the census. Clause 3's conclusion is
+untouched: the subcheck keeps its verdict and can still miss, which the
+same test still pins.
+
+## Amendment A-P4-15 — a width the twin cannot place is reported, not split
+
+**THIS LOWERS the width construction P4-D4.5 fixed**, in one branch it
+did not reach, and states what is written instead.
+
+**What the plan fixed.** Each unpinned decimal-destined cell is
+assigned a published width by a largest-remaining-quota walk, taken
+cell by cell.
+
+**The branch it does not reach.** A cell-by-cell walk can hand ONE
+value to two different widths, and a value written at two widths is TWO
+spellings of one number. On a real shape — a column whose published
+census is 30 cells at three figures and 14 at two, whose twin's own
+strata are sized 11, 11, 10, 11, 4 and 1 — no assignment of whole
+values meets both quotas, and the cell-by-cell walk met them by
+splitting a value and spending the column's published count of
+different spellings to do it. That is one exact fact bought with
+another, which this plan refuses everywhere else, and the same
+arithmetic shows no packing over whole values exists either: the quotas
+are simply unreachable on that shape.
+
+**What is written instead.** A value's decimal cells take one width or
+none. Where no remaining width holds the whole group, the group is
+written at its own value's width and the generation report NAMES the
+width that went unplaced, with the count published and the count
+written — the same treatment a style with nowhere to go already gets.
+A value some of whose cells were written another way is never SNAPPED
+either, for the same reason at one grain finer: snapping the decimal
+half of such a value splits the number itself rather than its spelling.
+Padding such a value is still permitted, because padding moves nothing.
+
+**What it costs.** A published width count can now miss where the
+twin's own strata cannot carry it, and the report says so instead of
+the census being met at the cost of a count nobody was told about. What
+it buys: the twin's count of different values and different spellings
+stay exact, which is what a person grouping rows by a column depends
+on.
+
   The five plan reviews are in `docs/plans/reviews/` as
   `phase-4-plan-review-round-1.md` through `-round-5.md`.

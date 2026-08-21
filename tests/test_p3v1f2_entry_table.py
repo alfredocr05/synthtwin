@@ -34,7 +34,7 @@ counts it excused are taken over the blank split, where the floor's
 worth of cells spelling a missing marker moves all three with the role
 still holding. So: coverage is credited to a registered case and to
 nothing else, which makes the registration total over the shipped sites
-(643 rows over 639 sites, 73 curated and 570 derived); each derived row
+(644 rows over 640 sites, 73 curated and 571 derived); each derived row
 must be an edit aimed
 at the site it covers; the floor is counted over the registration; and
 nothing is excused at all.
@@ -2609,6 +2609,11 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             # edit that still makes it MISS. Both `rewritten-amount` and
             # `worded-amount` make six subchecks miss; the rule above
             # takes the first by name.
+            # The census of fraction widths (plan P4-D4.5). One cell
+            # given a third figure after the point is the narrowest edit
+            # there is: the column still publishes one width, and one
+            # fewer cell wears it.
+            ("one-fractioned-amount", "widths.published.2"),
             ("rewritten-amount", "distinct.n_distinct"),
             ("rewritten-amount", "distinct.n_distinct_folded"),
             ("one-negated-amount", "ladder.min"),
@@ -3546,6 +3551,13 @@ SUBCHECK_FACTS: "dict[tuple[str, str], str]" = {
     # A plain numeric column emits none of them, so no row here says
     # that one owes them: this map answers which registry fact a
     # subcheck binds, never which subchecks a column owes.
+    # The census of fraction widths names one subcheck per PUBLISHED
+    # width, so its subcheck names are decided by the description rather
+    # than fixed here. Only the widths the fixtures actually publish
+    # need a row, and a width one of them publishes without a row here
+    # reaches the coverage identity as a dead row and is reported by
+    # name -- which is how a new fixture width is noticed.
+    ("numeric", "widths.published.2"): "numeric.fraction_widths",
     ("numeric", "counts.affix_prefix"): "affixed.affix_prefix",
     ("numeric", "counts.affix_suffix"): "affixed.affix_suffix",
     ("numeric", "counts.n_affixed"): "affixed.n_affixed",
@@ -4633,8 +4645,8 @@ def test_the_coverage_identity_walks_the_shipped_table(
     which is V8.3's "registered, named" read as though it said
     "reached". And a site could be covered only by an edit that broke
     something else, which is exactly the failure V8.2 refuses one grain
-    up. The registration is now total over the shipped sites: 643 rows
-    over 639 sites, 73 curated and 570 derived, each derived one an edit
+    up. The registration is now total over the shipped sites: 644 rows
+    over 640 sites, 73 curated and 571 derived, each derived one an edit
     aimed at the site it covers. THREE sites carry more than one row on
     purpose: `columns.order` carries three, because it is the whole of
     what the shipped table files for the STRUCTURAL disposition and the
@@ -4642,7 +4654,7 @@ def test_the_coverage_identity_walks_the_shipped_table(
     two, a row taken out and a row added; and the headerless
     `header.presence` carries the plain edit and the compensating one
     that used to defeat it. For those three, deleting one row is not
-    enough to turn this red. Every one of the other 636 is on its own.
+    enough to turn this red. Every one of the other 637 is on its own.
 
     NOTHING IS EXCUSED. There were two exemptions here and both are
     gone. A register of OPEN DEFECTS went with round 2's repairs. The

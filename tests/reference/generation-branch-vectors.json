@@ -307,6 +307,9 @@
       ],
       "column": {
         "detection_evidence": "written by hand in this method specification's own neutral vocabulary; no value here comes from any table.",
+        "fraction_widths": {
+          "1": 11
+        },
         "integer_valued": true,
         "mean": {
           "decimal": "5",
@@ -566,6 +569,9 @@
       ],
       "column": {
         "detection_evidence": "written by hand in this method specification's own neutral vocabulary; no value here comes from any table.",
+        "fraction_widths": {
+          "(withheld)": 1
+        },
         "integer_valued": false,
         "mean": {
           "decimal": "1e+19",

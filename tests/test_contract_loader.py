@@ -725,6 +725,11 @@ def battery() -> list[Mutation]:
             "P3", "a column of numbers saying nothing about their form",
             edit("visits", numeric_styles={}),
         ),
+        Mutation(
+            "P5",
+            "figures after the point counted for cells that wrote none",
+            edit("visits", fraction_widths={"2": 40}),
+        ),
         # -- record numbers and text ----------------------------------
         Mutation(
             "I4", "the shortest value longer than the longest",

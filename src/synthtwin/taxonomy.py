@@ -3554,6 +3554,73 @@ def _numeric_styles(cells: _Cells) -> dict[str, int]:
     return published_counts
 
 
+def fraction_width(text: str) -> int:
+    """How many figures one `decimal`-styled cell writes after its point.
+
+    THE RULE ITSELF IS `parsing.fraction_width`, and this is the name
+    the describing side calls it by, for the reason `numeric_style` is
+    reached the same way: the generator may not import this module and
+    must recount a twin's widths with the SAME reader rather than a
+    copy of it. Two readers of one width is how a census and the file
+    it describes come to disagree about a cell neither of them wrote
+    wrongly.
+    """
+    return parsing.fraction_width(text)
+
+
+def _fraction_widths(cells: _Cells) -> dict[str, int]:
+    """How many `decimal`-styled cells wrote each width, under the floor.
+
+    TWO COLUMNS OF THE SAME FORM ARE NOT THE SAME COLUMN.
+    Eleven cells reading `1.00` and eleven reading `2.000` are both
+    `decimal` under the styles map, which says only that twenty-two
+    cells carried a point -- so a twin writing every one of them to one
+    place carried the published styles map exactly while writing a
+    column no reader of the real table would recognize. This census is
+    what the styles map cannot say: not that a point was written, but
+    how many figures followed it.
+
+    THE FLOOR GOVERNS A WIDTH AS IT GOVERNS A FORM. A width used by
+    fewer than `small_cell_floor` cells has no key of its own and its
+    cells are counted into a `(withheld)` remainder, so one oddly
+    written cell cannot be singled out by its own width any more than
+    by its own form.
+
+    THE KEYS ARE THE WIDTHS AS DECIMAL FIGURES, canonically: no leading
+    zero, no sign, no padding, so `2` and never `02`. A key grammar
+    left to be inferred is a key two producers spell differently and a
+    consumer reads as two widths.
+
+    Guarantees: accepts a tally of one column; returns a mapping from
+    canonical width keys, plus possibly `(withheld)`, to counts that sum
+    to how many cells of this column were written in the `decimal`
+    form. Determinism: the answer depends only on the tally, and the
+    keys are built in ascending width order. Raises nothing. No I/O of
+    any kind.
+    """
+    counts: dict[int, int] = {}
+    for cell in cells.classified:
+        if cell.kind != parsing.NUMBER:
+            continue
+        if numeric_style(cell.text) != parsing.STYLE_DECIMAL:
+            continue
+        width = fraction_width(cell.text)
+        if width in counts:
+            counts[width] = counts[width] + 1
+        else:
+            counts[width] = 1
+    published_counts: dict[str, int] = {}
+    withheld = 0
+    for width in sorted(counts):
+        if counts[width] >= cells.settings.small_cell_floor:
+            published_counts[f"{width}"] = counts[width]
+        else:
+            withheld = withheld + counts[width]
+    if withheld:
+        published_counts[SUPPRESSED_LABEL] = withheld
+    return published_counts
+
+
 def _numeric_details(cells: _Cells, whole: bool) -> dict[str, object]:
     """The published description of a numeric column."""
     numbers = cells.numbers
@@ -3581,6 +3648,13 @@ def _numeric_details(cells: _Cells, whole: bool) -> dict[str, object]:
         # same profile, and a reader of either twin would infer a type
         # the real table does not have for one of them.
         "numeric_styles": _numeric_styles(cells),
+        # ...and how many figures the ones written with a point wrote
+        # after it, which the forms map cannot say (plan P4-D4.5,
+        # amendments A-P4-5 and A-P4-6). It is a SIBLING of the forms
+        # map and not a key inside it: version 4 requires every value of
+        # that map to be an integer summing to the numeric count, so an
+        # object among them is a document no loader can read.
+        "fraction_widths": _fraction_widths(cells),
     }
     moments = _moments(numbers)
     for key in sorted(moments):

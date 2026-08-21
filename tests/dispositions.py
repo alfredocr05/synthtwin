@@ -284,6 +284,10 @@ PLAN3_REGIONS = {
 # adds is disposed in that phase's plan and looked for there.
 PLAN4_REGIONS = {
     "affixed": "### P4-D4.1 The affixed-number role",
+    "fraction": (
+        "### P4-D4.5 The fixed-fraction spelling fact "
+        "(closes R-P3-12's route)"
+    ),
 }
 
 # Groups whose facts are NOT in the version 4 contract matrix, and why.
@@ -295,6 +299,17 @@ PLAN4_REGIONS = {
 # under `numeric` and checked against the numeric section like every
 # other numeric fact, which is the half that carries a distribution.
 GROUPS_OUTSIDE_THE_VERSION_4_MATRIX = ("affixed",)
+
+# ...and the same thing one grain finer: a fact registered under a group
+# version 4 DOES have, about something version 4 never published. The
+# census of fraction widths is a numeric fact and belongs in the numeric
+# group, and version 4's matrix has no row for it because version 4 has
+# no such key. Its disposition is decided in the Phase 4 plan and
+# checked against it by `PLAN4_REGIONS`, exactly as the affixed group's
+# own facts are -- held to a document, just not to that one.
+FACTS_OUTSIDE_THE_VERSION_4_MATRIX = (
+    ("numeric", "fraction_widths"),
+)
 
 
 # -- the registry ------------------------------------------------------
@@ -498,6 +513,17 @@ REGISTRY += [
         plan_words="The twin writes each style in its published count",
         plan_region=DECISIONS,
         aliases=("style map", "quota"),
+    ),
+    # Plan P4-D4.5. The census of widths is the styles map's sibling and
+    # takes its disposition: a written file carries every one of its
+    # counts in plain sight, so a reader of the twin can recount them.
+    Fact(
+        "numeric",
+        "fraction_widths",
+        EXACT_OBSERVABLE,
+        plan_words="the count sharing each fraction width",
+        plan_region="fraction",
+        aliases=("width census", "fraction census"),
     ),
     Fact(
         "numeric",

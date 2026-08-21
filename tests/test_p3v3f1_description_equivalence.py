@@ -537,15 +537,27 @@ def test_canonical_spelling_stays_checkable_on_every_file(
     The ruling is that whether a numeric cell's TEXT is a spelling its
     own value licenses is a fact about the file's own form rather than
     about the table it holds, on the ground that the producer publishes
-    it about NO file at ANY count. That ground is asserted here directly:
-    two files differing only in a trailing zero on every decimal cell are
-    described byte for byte alike, so no floor and no window could ever
-    settle the clause, and withholding it would withhold it forever --
-    the vacuity V3.4 refuses by name.
+    it about NO file at ANY count.
 
-    So the subcheck keeps its verdict, and this pins that it can still
-    MISS. If the owner reverses the ruling, this test is the one that
-    goes red, and A-P3-5 clause 4 says what to put in its place.
+    THAT GROUND IS GONE, AND THE PHASE 4 PLAN TOOK IT ON PURPOSE
+    (P4-D4.5, with amendments A-P4-5, A-P4-6 and A-P4-8). The census of
+    fraction widths publishes, floor-governed, how many cells wrote each
+    number of figures after the point -- so two files differing only in
+    a trailing zero on every decimal cell are no longer described alike,
+    and that is the whole reason the fact was added: a two-decimal
+    column's description now records what every cell does, and checking
+    the source against its own description stops missing on present
+    cells nothing is wrong with. The plan states the supersession in
+    those words and closes route residual R-P3-12 with it.
+
+    WHAT THIS TEST NOW PINS is the direction of that change and the
+    thing it was written to protect. The two descriptions DIFFER, and
+    they differ in the census and in nothing else -- so the padding is
+    published rather than invisible. And `styles.spelled` still holds on
+    the canonical file and still MISSES on the padded one described by
+    the canonical file's description, which is the obligation review
+    item P3-V2-C-F1 restored and which the plan says this fact
+    strengthens rather than trades away.
     """
     folder = tmp_path / "spelling"
     folder.mkdir()
@@ -556,10 +568,24 @@ def test_canonical_spelling_stays_checkable_on_every_file(
     described = _describe(folder, text_a, "submitted")
     own_a = _own_description(folder, described, text_a, "own-a")
     own_b = _own_description(folder, described, text_b, "own-b")
-    assert own_a == own_b, (
-        "the premise of the ruling: the producer publishes nothing that "
-        "separates a canonical spelling from a padded one"
+    assert own_a != own_b, (
+        "P4-D4.5: the census of fraction widths is what separates a "
+        "canonical spelling from a padded one, and a producer that "
+        "described these two files alike would have lost it"
     )
+    apart = json.loads(own_a)
+    together = json.loads(own_b)
+    for one, other in zip(apart["columns"], together["columns"]):
+        moved = [
+            key
+            for key in sorted(set(one) | set(other))
+            if (one[key] if key in one else None)
+            != (other[key] if key in other else None)
+        ]
+        assert moved in ([], ["fraction_widths"]), (
+            "the two files differ by a trailing zero and by nothing "
+            f"else, so the census is the only key that may move: {moved}"
+        )
     checks_a, _census_a = _report(folder, described, text_a, "a.csv")
     checks_b, _census_b = _report(folder, described, text_b, "b.csv")
     # Keyed by COLUMN and subcheck. Keyed by subcheck alone, two

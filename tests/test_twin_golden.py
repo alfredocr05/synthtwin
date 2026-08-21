@@ -207,7 +207,7 @@ def test_the_golden_run_is_the_shape_this_file_says_it_is(
 # quality report. A change to the generator alone would have moved the
 # last three and left the first.
 GOLDEN_DESCRIPTION_SHA256 = (
-    "92d732515607758da1968e219d2e23da75102d2d93bb4e13c1c90f8f74c141b0"
+    "e8c6e1aaadb453a0b3b1bc9be99786b0de5f841402f8fde08bf01b60689e2f65"
 )
 
 
@@ -255,7 +255,7 @@ def test_golden_hash_of_the_description_the_twin_is_built_from(
 # in one number. Any of them differing between two cells of the matrix
 # turns red here rather than shipping as a quietly different twin.
 GOLDEN_TWIN_SHA256 = (
-    "224bd9a8dd3c060014f2df08b603ddf6a0093363e3c94bbb5b93059bce9a008d"
+    "c639268ce35b887f134d8bd9dd3c4544ee19cb992e16750dcc11274f207ec046"
 )
 
 
@@ -532,7 +532,7 @@ def test_the_same_description_and_seed_give_the_same_twin_twice(
 # which is what says this is the page and not the run: stage 2 changes
 # no wire, no generation rule and no twin byte.
 GOLDEN_REPORT_SHA256 = (
-    "f8e383ef3dbc5f781611e0bee49629527d77bd7a8ce604d83a227e7658296b00"
+    "26cf2e3a59bfa15d68ce8e9cb4f4d9e39fcb4002a454d9acead5bbb81ab2cdcb"
 )
 
 
@@ -895,7 +895,7 @@ def test_the_report_names_the_seed_the_twin_was_built_at(
 # that way: a line where the two values DIFFER may not have moved, and
 # one that did would be this repair reaching further than its own rule.
 GOLDEN_QUALITY_SHA256 = (
-    "2e385c57a2b4c51f0142a3221797b7d5166e6116f3d84808c9ac461517a03f73"
+    "ee89bfd9b9f2f4f6fee1ce6b37bb8ebd2434dc8b47049d688acd5f0b2d1ca626"
 )
 
 

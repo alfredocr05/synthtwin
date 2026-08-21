@@ -229,7 +229,10 @@ def test_the_folded_pair_leaves_the_column_checked_in_full(
     )
     assert _unsupported(outcome) == []
     assert outcome.census.missed == 0
-    assert len(outcome.checks) == 53
+    # Fifty-four since the census of fraction widths shipped
+    # (plan P4-D4.5): this column names one width, so it carries
+    # one `widths.published.*` obligation of its own.
+    assert len(outcome.checks) == 54
 
 
 def test_the_witness_really_is_reconstructible(
@@ -284,7 +287,9 @@ def test_the_other_over_fire_stays_and_is_a_different_shape(
     ]
     outcome = validation.measure(case.described, case.path)
     assert outcome.census.missed == 0
-    assert len(_unsupported(outcome)) == 43
+    # Forty-four for the census's own width obligation
+    # (plan P4-D4.5).
+    assert len(_unsupported(outcome)) == 44
 
 
 def test_two_words_of_your_own_spelled_two_ways_each_still_come_back(

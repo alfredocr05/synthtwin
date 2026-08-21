@@ -1723,6 +1723,103 @@ def _fixed_point(sign: str, figures: str, place: int) -> str:
     return f"{sign}{figures[:place]}.{figures[place:]}"
 
 
+def _incremented(digits: str) -> str:
+    """One string of figures with one added to it, carrying to the left."""
+    carried = "1"
+    built = ""
+    for place in range(len(digits) - 1, -1, -1):
+        step = int(digits[place]) + int(carried)
+        carried = "1" if step > 9 else "0"
+        built = f"{step % 10}{built}"
+    if carried == "1":
+        return f"1{built}"
+    return built
+
+
+def _at_width(sign: str, figures: str, place: int, width: int) -> str:
+    """The figures written with EXACTLY ``width`` of them after the point.
+
+    THE CENSUS OF WIDTHS IS A PUBLISHED FACT AND THIS IS HOW A TWIN
+    CARRIES IT (contract C6-27 to C6-30). A column of eleven `1.00`
+    cells and eleven `2.000` cells publishes both widths, and a twin
+    writing every cell at whatever width its own value happened to need
+    carried the forms map exactly while writing a column no reader of
+    the real one would recognize.
+
+    SHORT OF THE WIDTH THE VALUE IS PADDED, WHICH COSTS NOTHING: a zero
+    on the end changes no value. PAST it the value is ROUNDED, which
+    costs something real and is stated rather than hidden -- the value
+    moves by less than half of the last place the width can hold, and
+    `_width_notes` recounts the finished text so the report says which
+    width the column actually came out at.
+
+    Ties go toward positive infinity, the direction every other rounding
+    in this method takes, so that a value exactly between two spellings
+    has one answer and not a parity-dependent one.
+
+    A width of zero writes the point with nothing after it, which is
+    what a cell reading `12.` is: the forms ladder counts it `decimal`
+    and its width is none.
+    """
+    if place <= 0:
+        whole = "0"
+        fraction = ("0" * (-place)) + figures
+    elif place >= len(figures):
+        whole = figures + ("0" * (place - len(figures)))
+        fraction = ""
+    else:
+        whole = figures[:place]
+        fraction = figures[place:]
+    if len(fraction) <= width:
+        return f"{sign}{whole}.{fraction}{'0' * (width - len(fraction))}"
+    kept = fraction[:width]
+    following = fraction[width]
+    rest = fraction[width + 1 :]
+    trailing = False
+    for character in rest:
+        if character != "0":
+            trailing = True
+    if following > "5":
+        up = True
+    elif following < "5":
+        up = False
+    elif trailing:
+        up = True
+    else:
+        # HALF TO EVEN, which is the plan's own word for this snap
+        # (P4-D4.5). It is not the tie rule the rest of this method
+        # uses, and that is deliberate rather than an oversight: every
+        # other rounding here places ONE value and a bias in it moves
+        # that value; this one places a whole column of them, and a
+        # bias toward positive infinity applied to every tie would walk
+        # the column's own mean up with it.
+        last = kept[len(kept) - 1 :] if kept else whole[len(whole) - 1 :]
+        up = last in "13579"
+    digits = whole + kept
+    if up:
+        digits = _incremented(digits)
+    cut = len(digits) - width
+    written = f"{sign}{digits[:cut]}.{digits[cut:]}"
+    # A SNAP MAY NOT CHANGE A CELL'S SIGN CLASS OR ITS ZERO-NESS
+    # (P4-D4.5). `n_zero` and `n_negative` are exact published counts,
+    # so a value rounded onto zero would buy a published width with a
+    # published count. The nearest same-class value at this width is
+    # written instead, which is one unit in the last place the width
+    # holds.
+    if width > 0:
+        held = False
+        for character in figures:
+            if character != "0":
+                held = True
+        settled = True
+        for character in digits:
+            if character != "0":
+                settled = False
+        if held and settled:
+            written = f"{sign}0.{'0' * (width - 1)}1"
+    return written
+
+
 def _exponent_form(sign: str, figures: str, place: int, marker: str) -> str:
     """The figures written in exponent notation, `d[.ddd]e+XX`."""
     power = place - 1
@@ -1849,7 +1946,11 @@ def _with_zeros(spelling: str, order: int) -> str:
 
 
 def _styled_number(
-    value: float, style: str, order: int, whole_column: bool
+    value: float,
+    style: str,
+    order: int,
+    whole_column: bool,
+    width: int = -1,
 ) -> str:
     """One value written in one of the six permitted styles (G6.1, G6.3).
 
@@ -1875,8 +1976,15 @@ def _styled_number(
         return _with_zeros(f"+{plain}", order)
     figures = _digits_and_point(value)
     if style == "decimal":
+        # A width of -1 is "whatever this value needs", which is what a
+        # column publishing no census of widths asks for. Any other
+        # width is one the census named, and the cell is written at it.
+        if width < 0:
+            return _with_zeros(
+                _fixed_point(figures[0], figures[1], figures[2]), order
+            )
         return _with_zeros(
-            _fixed_point(figures[0], figures[1], figures[2]), order
+            _at_width(figures[0], figures[1], figures[2], width), order
         )
     if style == "exponent_lower":
         return _with_zeros(
@@ -1887,6 +1995,177 @@ def _styled_number(
             _exponent_form(figures[0], figures[1], figures[2], "E"), order
         )
     return canonical
+
+
+def _pinned_cells(
+    layout: "_NumericLayout", values: "list[float]"
+) -> "list[int]":
+    """Which cells hold a value no snap may move, in the plan's order.
+
+    The minimum, then the maximum, then every cell of the zero stratum
+    (plan P4-D4.5). Each is an EXACT-OBSERVABLE fact of its own -- two
+    rungs the ladder pins and a published count of zeros -- so a width
+    census may never be met by moving one of them.
+
+    The indexes are into the COLUMN'S CELLS, which is what the width
+    walk holds: a stratum can cover several cells, and the zero stratum
+    covers all of its own.
+
+    A CELL IS PINNED BY THE VALUE IT HOLDS AND NOT BY WHERE IT STANDS.
+    An endpoint stratum can cover several cells and two strata can hold
+    the same number, so pinning the first cell of each and leaving its
+    twins free let a snap move a copy of the published minimum: at one
+    figure after the point a column whose smallest value is -745.75
+    wrote -745.8 into a second cell holding that same value, and the
+    file's own smallest value was then a number the description does
+    not publish. Every cell holding a pinned value is pinned.
+    """
+    starts: list[int] = []
+    at = 0
+    for place in range(len(layout.sizes)):
+        starts = starts + [at]
+        at = at + layout.sizes[place]
+    total = len(layout.sizes)
+    kept: list[float] = []
+    if total >= 1:
+        kept = kept + [values[0]]
+    if total >= 2:
+        kept = kept + [values[total - 1]]
+    found: list[int] = []
+    for value in kept:
+        for place in range(total):
+            if values[place] != value:
+                continue
+            for step in range(layout.sizes[place]):
+                found = found + [starts[place] + step]
+    for place in range(total):
+        if layout.bands[place] != _BAND_ZERO:
+            continue
+        for step in range(layout.sizes[place]):
+            found = found + [starts[place] + step]
+    settled: list[int] = []
+    seen: dict[int, int] = {}
+    for index in found:
+        if index in seen:
+            continue
+        seen[index] = 1
+        settled = settled + [index]
+    return settled
+
+
+def _fraction_need(value: float) -> int:
+    """How many figures after the point this value's own spelling needs."""
+    sign, figures, place = _digits_and_point(value)
+    if place <= 0:
+        return (-place) + len(figures)
+    if place >= len(figures):
+        return 1
+    return len(figures) - place
+
+
+def _width_places(
+    widths: "dict[str, int]",
+    styles: "list[str]",
+    holds: "list[float]",
+    pinned: "list[int]",
+) -> "list[int]":
+    """Which width each cell is written at, or -1 for the value's own.
+
+    THE PINNED CELLS ARE SERVED FIRST AND ARE NEVER SNAPPED (plan
+    P4-D4.5). The two endpoints and the zero stratum are
+    EXACT-OBSERVABLE facts of their own, so a snap that moved one of
+    them would buy a published width with a published rung. A pinned
+    cell counts toward a width only where its value ALREADY fits it,
+    and where it fits several it takes the largest still-unfilled one,
+    walked in the plan's stated order -- minimum, maximum, zero -- so
+    that no byte is left to an implementation's taste.
+
+    THE REST ARE SERVED LARGEST WIDTH FIRST, against the cells whose
+    drawn values need the most figures. A wide value put into a narrow
+    width loses figures it needed; a narrow value put into a wide width
+    is padded and loses nothing. So the cells that need the most are
+    matched to the widths that hold the most, and what rounding remains
+    is as little as the census allows.
+
+    A cell the census does not reach is written at whatever width its
+    own value needs -- the pooled remainder's rule of G6.4, unchanged.
+    """
+    quotas: dict[int, int] = {}
+    for key in sorted(widths):
+        if key == contract.WITHHELD:
+            continue
+        quotas[int(key)] = widths[key]
+    places = [-1 for _index in range(len(styles))]
+    served = {index: 1 for index in pinned}
+    for index in pinned:
+        if index >= len(styles) or styles[index] != "decimal":
+            continue
+        need = _fraction_need(holds[index])
+        for width in sorted(quotas, reverse=True):
+            if quotas[width] > 0 and need <= width:
+                quotas[width] = quotas[width] - 1
+                places[index] = width
+                break
+    # ONE WIDTH PER VALUE WHERE THE QUOTAS ALLOW IT, which is the width
+    # walk's form of the rule the style walk already keeps. A value
+    # written at two widths is TWO spellings of one number, so a walk
+    # that handed a value's cells to different widths spent a published
+    # spelling count to meet a published width count -- one exact fact
+    # bought with another, which is the trade this method refuses
+    # everywhere else. A real column's cells wear one width per value
+    # because that is what a person writing them does.
+    groups: dict[float, list[int]] = {}
+    order: list[tuple[int, float]] = []
+    for index in range(len(styles)):
+        if styles[index] != "decimal" or index in served:
+            continue
+        value = holds[index]
+        if value in groups:
+            groups[value] = groups[value] + [index]
+            continue
+        groups[value] = [index]
+        order = order + [(-_fraction_need(value), value)]
+    # HOW MANY CELLS EACH VALUE HOLDS IN ALL, not just how many of them
+    # the style step made decimal. A snap moves the VALUE, so snapping
+    # the decimal cells of a value some of whose cells were written
+    # another way splits one number into two -- and the count of
+    # different values is a published fact of its own. Such a value may
+    # still be PADDED, which changes nothing about it, so the rule is
+    # written over the two cases separately rather than refusing the
+    # value outright.
+    everywhere: dict[float, int] = {}
+    for index in range(len(styles)):
+        value = holds[index]
+        if value in everywhere:
+            everywhere[value] = everywhere[value] + 1
+            continue
+        everywhere[value] = 1
+    for _need, value in sorted(order):
+        members = groups[value]
+        alone = everywhere[value] == len(members)
+        need = _fraction_need(value)
+        whole = None
+        for width in sorted(quotas, reverse=True):
+            if quotas[width] < len(members):
+                continue
+            if width < need and not alone:
+                continue
+            whole = width
+            break
+        if whole is None:
+            # NO WIDTH HOLDS THE WHOLE GROUP, so this group takes none.
+            # Splitting it would write ONE value at two widths, which is
+            # two spellings of one number -- a published spelling count
+            # spent to buy a published width count, and that trade is
+            # refused here as it is refused for the forms map. The
+            # group's cells are written at their own value's width
+            # instead, and `_width_notes` names the width that went
+            # unplaced so a reader is told rather than left to recount.
+            continue
+        quotas[whole] = quotas[whole] - len(members)
+        for index in members:
+            places[index] = whole
+    return places
 
 
 def _style_quotas(styles: "dict[str, int]") -> "dict[str, int]":
@@ -4107,6 +4386,12 @@ def _number_cells(
     styles = _style_strata(
         quotas, layout, values, facts.integer_valued, wanted, styles
     )
+    widths = _width_places(
+        facts.fraction_widths,
+        styles,
+        holds,
+        _pinned_cells(layout, values),
+    )
     base: list[str] = []
     for index in range(len(holds)):
         base = base + [
@@ -4115,6 +4400,7 @@ def _number_cells(
                 styles[index],
                 1 if styles[index] == "leading_zero" else 0,
                 facts.integer_valued,
+                widths[index],
             )
         ]
     # HOW MANY IDENTITIES THE COLUMN IS SHORT BEFORE ANY ZERO IS SPENT.
@@ -4161,7 +4447,11 @@ def _number_cells(
             while parsing.folded(spelling) in identities:
                 order = order + 1
                 spelling = _styled_number(
-                    holds[index], style, order, facts.integer_valued
+                    holds[index],
+                    style,
+                    order,
+                    facts.integer_valued,
+                    widths[index],
                 )
             owed = owed - 1
         identities[parsing.folded(spelling)] = 1
@@ -8314,6 +8604,7 @@ def generate(profile: contract.Profile, seed: int) -> Twin:
             + _alphabet_notes(column, written)
             + _extreme_notes(column, written)
             + _width_notes(column, written)
+            + _fraction_notes(column, written)
             + _whole_notes(column, written)
             + _magnitude_notes(column, written)
             + _style_notes(column, written)
@@ -8589,6 +8880,93 @@ def _extreme_notes(
         notes = notes + _named_miss(
             column, fact, published, achieved, reasons[fact]
         )
+    return notes
+
+
+def _quantitative_facts(
+    column: contract.ColumnBlock,
+) -> "contract.NumericFacts | None":
+    """The numeric facts of a column that has some, or None.
+
+    An affixed column HOLDS a numeric block rather than being one, so a
+    reader written as "if this is a numeric column" walks past it -- and
+    the census of widths is taken over its cores exactly as every other
+    quantitative fact of that role is.
+    """
+    facts = column.facts
+    if isinstance(facts, contract.AffixedFacts):
+        return facts.numbers
+    if isinstance(facts, contract.NumericFacts):
+        return facts
+    return None
+
+
+def _fraction_notes(
+    column: contract.ColumnBlock, written: "list[str]"
+) -> "list[Deviation]":
+    """Name a published fraction width the column could not place.
+
+    The census is EXACT-OBSERVABLE: a person opens the twin, counts the
+    figures after the point on every cell written with one, and gets the
+    published census back. Where the twin cannot pay -- because no
+    remaining width holds a whole value's cells, or because snapping
+    that value would have split it -- it owes the reader a sentence
+    rather than a silence.
+
+    THIS IS A RECOUNT, taken off the finished text with the same reader
+    the contract's own ladder uses, so a width the writer intended and
+    a width the cell actually wears cannot come apart here.
+    """
+    facts = _quantitative_facts(column)
+    if facts is None:
+        return []
+    published: dict[int, int] = {}
+    for key in sorted(facts.fraction_widths):
+        if key == contract.WITHHELD:
+            continue
+        published[int(key)] = facts.fraction_widths[key]
+    if not published:
+        return []
+    pooled = 0
+    if contract.WITHHELD in facts.fraction_widths:
+        pooled = facts.fraction_widths[contract.WITHHELD]
+    counted: dict[int, int] = {}
+    for cell in written:
+        if cell == "":
+            continue
+        if parsing.classify_number(cell) != parsing.NUMBER:
+            continue
+        if parsing.numeric_style(cell) != parsing.STYLE_DECIMAL:
+            continue
+        width = parsing.fraction_width(cell)
+        if width in counted:
+            counted[width] = counted[width] + 1
+            continue
+        counted[width] = 1
+    sense = (
+        "The description says how many of this column's cells wrote "
+        "each number of figures after the decimal point, and the twin "
+        "wrote a different number of them that way. The values are "
+        "within the bounds the description sets; what changes is the "
+        "PRECISION each cell appears to carry, so a reader of the twin "
+        "sees a column written more raggedly -- or more evenly -- than "
+        "the real one."
+    )
+    notes: list[Deviation] = []
+    for width in sorted(published):
+        found = counted[width] if width in counted else 0
+        if published[width] <= found <= published[width] + pooled:
+            continue
+        notes = notes + [
+            _deviation(
+                column.name,
+                "fraction_widths",
+                f"{published[width]} cell(s) written with {width} "
+                f"figure(s) after the point",
+                f"{found}",
+                sense,
+            )
+        ]
     return notes
 
 

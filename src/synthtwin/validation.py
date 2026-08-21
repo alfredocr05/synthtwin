@@ -6893,10 +6893,16 @@ def _style_checks(
         # every obligation there was.
         withheld: list[Check] = []
         for subcheck in _style_subchecks(column, facts):
+            # The census of widths is its own published fact, so its
+            # withheld identities carry its own name. Filing them under
+            # the forms map would make the two sides of `_governed`
+            # disagree about which fact a subcheck binds, and one of the
+            # two would then be reported under a fact it is not about.
+            fact = "numeric.numeric_styles"
+            if subcheck[:17] == "widths.published.":
+                fact = "numeric.fraction_widths"
             withheld = withheld + [
-                _withheld(
-                    name, "numeric.numeric_styles", subcheck, _GATE_CLOSED
-                )
+                _withheld(name, fact, subcheck, _GATE_CLOSED)
             ]
         return withheld
     recount, no_point_free = _recounted_styles(cells)
@@ -7010,7 +7016,10 @@ def _style_checks(
                 "every cell written as a number spelled in one of the "
                 "six published forms of its own value"
             ),
-            _cells_outside_the_styles(cells, facts.integer_valued) == 0,
+            _cells_outside_the_styles(
+                cells, facts.integer_valued, _published_widths(facts)
+            )
+            == 0,
             _NOT_SHOWN_IT_IS_TEXT_OF_THE_FILE,
         )
     ]
@@ -7121,6 +7130,33 @@ def _style_checks(
                 style,
                 floor,
                 pooled,
+            )
+        ]
+    # THE CENSUS OF WIDTHS, ON THE SAME TERMS AS THE FORMS MAP. Each
+    # named width is a count of cells the file evidences by holding
+    # them, and the pooled remainder names no width so it is checked as
+    # the pool it is. Without this the twin owed the widths nothing: a
+    # column of eleven `1.00` cells and eleven `2.000` cells would have
+    # been carried by a twin writing every cell at one place, and the
+    # quality report would have called it held.
+    widths = _map_at(block, "fraction_widths")
+    census = facts.fraction_widths
+    held_back = 0
+    if taxonomy.SUPPRESSED_LABEL in census:
+        held_back = census[taxonomy.SUPPRESSED_LABEL]
+    for width in sorted(census):
+        if width == taxonomy.SUPPRESSED_LABEL:
+            continue
+        checks = checks + [
+            _floor_governed(
+                name,
+                "numeric.fraction_widths",
+                f"widths.published.{width}",
+                census[width],
+                widths,
+                width,
+                floor,
+                held_back,
             )
         ]
     return checks
@@ -7254,6 +7290,10 @@ def _style_subchecks(
         if style == taxonomy.SUPPRESSED_LABEL:
             continue
         named = named + [f"styles.published.{style}"]
+    for width in sorted(facts.fraction_widths):
+        if width == taxonomy.SUPPRESSED_LABEL:
+            continue
+        named = named + [f"widths.published.{width}"]
     return named
 
 
@@ -7442,7 +7482,7 @@ def _point_free_text(value: float, canonical: str) -> "str | None":
 
 
 def _permitted_spellings(
-    value: float, whole_column: bool
+    value: float, whole_column: bool, widths: "tuple[int, ...]" = ()
 ) -> "tuple[str, ...]":
     """Every base text the six styles of G6.1 can write for one value.
 
@@ -7488,11 +7528,56 @@ def _permitted_spellings(
     plain = _point_free_text(value, canonical)
     if plain is not None:
         spellings = spellings + [plain]
+    # ...AND THE FIXED-POINT FORM AT EVERY WIDTH THIS COLUMN'S OWN
+    # CENSUS NAMES, and at no other. A trailing zero is not free: the
+    # whole point of this subcheck is the twin whose every decimal cell
+    # carried one, which met every count and validated with exit 0. What
+    # the census changes is that a width is now a PUBLISHED fact, so a
+    # cell wearing a named width wears something the description asked
+    # for, and its count is checked on its own line. A width the census
+    # does not name authorizes nothing here.
+    #
+    # Only the PADDING direction is offered, and that is not a
+    # narrowing: the text is read off the file, the value is what that
+    # text reads back as, and a text already written to a width needs
+    # no rounding to be written to that same width again.
+    for width in widths:
+        padded = _text_at_width(sign, figures, place, width)
+        if padded is not None:
+            spellings = spellings + [padded]
     plussed: list[str] = []
     for spelling in spellings:
         if spelling[:1] != "-":
             plussed = plussed + [f"+{spelling}"]
     return tuple(spellings + plussed)
+
+
+def _text_at_width(
+    sign: str, figures: str, place: int, width: int
+) -> "str | None":
+    """The fixed-point spelling padded to one width, or None.
+
+    None where the value needs MORE figures after the point than the
+    width holds: such a cell is not this value written at this width,
+    and offering the rounded text instead would admit a spelling of a
+    value the file does not hold.
+    """
+    text = _fixed_text(sign, figures, place)
+    point = -1
+    for index in range(len(text)):
+        if text[index] == ".":
+            point = index
+    if point < 0:
+        return None
+    held = len(text) - point - 1
+    if width == 0:
+        for character in text[point + 1 :]:
+            if character != "0":
+                return None
+        return text[: point + 1]
+    if held > width:
+        return None
+    return text + ("0" * (width - held))
 
 
 def _wears(text: str, spelling: str) -> bool:
@@ -7525,8 +7610,26 @@ def _wears(text: str, spelling: str) -> bool:
     return True
 
 
+def _published_widths(
+    facts: contract.NumericFacts,
+) -> "tuple[int, ...]":
+    """The fraction widths this column's own census names, ascending.
+
+    The pooled remainder is not one of them: it names no width, so it
+    authorizes no spelling, and its cells are held to the spelling of
+    their own value exactly as every cell was before the census
+    existed.
+    """
+    named: list[int] = []
+    for key in sorted(facts.fraction_widths):
+        if key == taxonomy.SUPPRESSED_LABEL:
+            continue
+        named = named + [int(key)]
+    return tuple(sorted(named))
+
+
 def _cells_outside_the_styles(
-    cells: "list[str]", whole_column: bool
+    cells: "list[str]", whole_column: bool, widths: "tuple[int, ...]"
 ) -> int:
     """How many written cells are in no permitted spelling of their value.
 
@@ -7554,7 +7657,7 @@ def _cells_outside_the_styles(
         if value is None:
             continue
         worn = False
-        for spelling in _permitted_spellings(value, whole_column):
+        for spelling in _permitted_spellings(value, whole_column, widths):
             if _wears(body, spelling):
                 worn = True
         if not worn:

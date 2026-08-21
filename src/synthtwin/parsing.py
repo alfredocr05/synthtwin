@@ -660,6 +660,50 @@ def numeric_style(text: str) -> str:
     return STYLE_PLAIN
 
 
+def fraction_width(text: str) -> int:
+    """How many figures one `decimal`-styled cell writes after its point.
+
+    THE CORE IS THE ONE `numeric_style` READS, and that is the whole
+    reason this lives beside it rather than anywhere else. A width taken
+    off the raw text and a form taken off the unwrapped core are two
+    readings of the same cell, and the census would then name a width
+    for a cell the styles map counted under another form -- so the
+    brackets come off here exactly as they come off there, and the
+    thousands separators with them.
+
+    A point with nothing after it is a width of ZERO, not no width:
+    `12.` is a decimal-styled cell and the census must be able to say
+    how many figures it wrote, which is none.
+
+    Guarantees:
+
+    - Inputs: the text of one cell, exactly as the file spells it.
+      Sensible only for a cell `numeric_style` calls `decimal`; a cell
+      of any other form has no point to read and answers 0.
+    - Determinism: the answer depends only on the text.
+    - Errors raised: TypeError if handed anything that is not a string
+      instance, through `trimmed`.
+    - Boundary: the answer is a COUNT of characters. No figure of the
+      cell, and no magnitude, travels out through it. No I/O of any
+      kind.
+    """
+    body = trimmed(text)
+    if body[:1] == "(" and body[len(body) - 1 : len(body)] == ")":
+        body = trimmed(body[1 : len(body) - 1])
+    core = ""
+    for character in body:
+        if character != ",":
+            core = core + character
+    seen = False
+    width = 0
+    for character in core:
+        if seen:
+            width = width + 1
+        elif character == ".":
+            seen = True
+    return width
+
+
 def classify_number(text: str) -> str:
     """Say, once, what a cell is numerically.
 

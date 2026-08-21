@@ -576,6 +576,13 @@ _SPELLING = "authorized-spelling"
 # invariants and not here.
 _AFFIX = "affix-spelling"
 _DIGITS = "whole-number-as-text"
+# A KEY OF THE FRACTION CENSUS: a width written as decimal figures, or
+# the pooled remainder. It is not `_DIGITS`, and the difference is the
+# whole point of giving it a kind of its own: `_DIGITS` admits `02`
+# beside `2`, and a census whose keys admit padding is a census two
+# producers spell two ways and a consumer reads as two widths. The key
+# grammar is CANONICAL -- no sign, no padding, `0` written as itself.
+_WIDTH = "fraction-width-as-figures"
 _MOMENT_TEXT = "canonical-datetime"
 _OFFSET = "utc-offset"
 _SENTINEL = "numeric-sentinel-spelling"
@@ -771,6 +778,14 @@ PUBLICATION_RULES: "dict[tuple[str, ...], str]" = {
     ("columns", _EACH, "numeric_styles"): _OBJECT,
     ("columns", _EACH, "numeric_styles", _KEY_OF): _WORD,
     ("columns", _EACH, "numeric_styles", _ANY_KEY): _FLOORED_ENTRY,
+    # The forms map's sibling: how many figures the cells written with a
+    # point wrote after it. Its keys are figures rather than words of
+    # this package, so they are held to a grammar rather than to a
+    # vocabulary -- and its counts are held to the floor exactly as the
+    # forms map's are, the pooled remainder included.
+    ("columns", _EACH, "fraction_widths"): _OBJECT,
+    ("columns", _EACH, "fraction_widths", _KEY_OF): _WIDTH,
+    ("columns", _EACH, "fraction_widths", _ANY_KEY): _FLOORED_ENTRY,
     # The counts every numeric-looking column carries, and the ones a
     # column of numbers nothing can hold carries in their place.
     ("columns", _EACH, "n_negative"): _COUNT,
@@ -1209,6 +1224,12 @@ def _leaf_is_published(
         return isinstance(value, str)
     if kind == _DIGITS:
         return isinstance(value, str) and parsing.is_digit_text(value)
+    if kind == _WIDTH:
+        if value == taxonomy.SUPPRESSED_LABEL:
+            return True
+        if not isinstance(value, str) or not parsing.is_digit_text(value):
+            return False
+        return value == "0" or value[:1] != "0"
     if kind == _MOMENT_TEXT:
         return _is_moment(value)
     if kind == _OFFSET:
