@@ -230,6 +230,48 @@ written; they are forward references to sections not yet delivered.
 The check is a gate only against the ASSEMBLED document, where every
 one of them must resolve.
 
+## 3D. The assembly worklist, measured rather than guessed
+
+Every section is written. `tools/spec/check_assembly.py` over the
+finished build reports the work assembly must do. It is listed here at
+the size the tool found it, so nothing is resolved twice and nothing is
+missed.
+
+**Genuine identifier collisions — two rules, one name.**
+
+| name | sites | what happened |
+|---|---|---|
+| `A2` | `s45.md`, `s5.md` | a note form group label against the axes invariant |
+| `D5` | `s45.md`, `r3.md` | a note form group label against the datetime invariant |
+| `T1`, `T2`, `T3` | `a10a.md`, `r5b.md` | the loader coined a T family for TYPE rules; the time-of-day family already owns T1 to T5 |
+| `C6-54` | `a14.md`, `r5a1.md` | two authors reaching for the next free number |
+| `C6-44` | `a10b.md` twice | one clause and its continuation share a number inside one file |
+
+The note-form labels are fixed by the `NG1`–`NG41` renumbering section
+1 already decided. The loader's type rules need a family of their own
+or plain numbers — they are not the time-of-day family and must not
+borrow its letter. The `C6-` numbers are fixed by the single
+renumbering pass.
+
+**Genuine placement duplicates — one rule, two homes.** These are the
+ones section 3 predicted, now confirmed:
+
+| rule | sites | decision |
+|---|---|---|
+| `fraction_widths` (`C6-27` to `C6-30`, `P5`, `P6`, `P7`) | `a7c.md` and `r4a.md` | **section 7 owns it**; the numeric role points at it, as ASSEMBLY section 3 assigned |
+| `W1`–`W7` | `a7b2.md` and `a8a.md` | **section 7.4 owns them normatively**; the invariant list carries the compact walk rows and no reasons |
+
+**Alternate versions to merge, not choose between** (section 3A): the
+numeric roles, `time_of_day` and `affixed_number`. Their duplicate
+identifiers are an artefact of holding two drafts, and disappear when
+the union is taken.
+
+**Unresolved citations** are no longer expected to be forward
+references — every section exists now — so each one the tool reports
+against the ASSEMBLED document is either a rule nobody wrote or a
+pointer aimed at the wrong name. That list is the last thing to clear
+before the document is called finished.
+
 ## 4. Standing checks before the document is called finished
 
 1. **Every enumeration is written out, with its count stated beside
