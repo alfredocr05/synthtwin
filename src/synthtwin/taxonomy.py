@@ -623,7 +623,7 @@ NOTE_ARITY: "dict[str, int]" = {
     REMARK_MONTH_FIRST: 0,
     REMARK_CASE_ONLY_MANY: 0,
     REMARK_NEAR_CATEGORY_LINE: 2,
-    REMARK_NO_READING_FITS: 5,
+    REMARK_NO_READING_FITS: 7,
     REMARK_SOME_NOT_NUMBERS: 1,
     REMARK_NEAR_NUMERIC_LINE: 3,
     REMARK_ALL_DIFFERENT_NUMBERS: 0,
@@ -1083,7 +1083,10 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
             f"as "
             f"plain numbers -- one column for the number, and the unit in "
             f"the "
-            f"column name -- and run the command again"
+            f"column name -- and run the command again. "
+            f"{_whole(arguments, 5)} of its values are numbers wearing "
+            f"one shared piece of text, which is the reading that came "
+            f"closest{_removed_said(arguments, 6)}"
         )
     if form == REMARK_SOME_NOT_NUMBERS:
         return (
@@ -3967,6 +3970,43 @@ class _Affixed:
     n_affixed: int
 
 
+def affixed_reach(cells: _Cells) -> int:
+    """How many present cells the BEST affix reading accounted for.
+
+    The count the winning pair reached, whether or not it cleared the
+    detection line -- so a column that declined can still say how far
+    this reading got. Zero where no cell proposed a pair at all.
+
+    A COLUMN THAT PUBLISHES NOTHING OWES ITS OWNER THE REASON, and the
+    reason is a set of counts (contract C6-5). The competing-readings
+    remark already names how much of the column read as numbers and how
+    much as dates; without this one it stayed silent about the reading
+    that came closest on a column of prices, which is the reading its
+    owner would recognize.
+
+    Guarantees: accepts a tally of one column; returns a count of its
+    present cells. No spelling of the column travels out through it.
+    Determinism: a function of the cells alone. Raises nothing. No I/O
+    of any kind.
+    """
+    proposing: "dict[tuple[str, str], int]" = {}
+    for text in cells.present:
+        split = affixed_split(text)
+        if split is None:
+            continue
+        prefix, _core, suffix = split
+        key = (prefix, suffix)
+        if key in proposing:
+            proposing[key] = proposing[key] + 1
+            continue
+        proposing[key] = 1
+    best = 0
+    for key in sorted(proposing):
+        if proposing[key] > best:
+            best = proposing[key]
+    return best
+
+
 def _affixed_reading(cells: _Cells) -> "_Affixed | None":
     """The one affix pair this column wears, or None if it wears none.
 
@@ -4197,7 +4237,9 @@ def _core_of(text: str, prefix: str, suffix: str) -> "str | None":
     return core if core else None
 
 
-def _decide(cells: _Cells, forced_identifier: bool) -> _Verdict:
+def _decide(
+    cells: _Cells, forced_identifier: bool, removed: int = 0
+) -> _Verdict:
     """Pick the one role, testing the rules in the documented order.
 
     Every rule here routes a column to a role decided by its VALUES.
@@ -4464,7 +4506,9 @@ def _decide(cells: _Cells, forced_identifier: bool) -> _Verdict:
     numbers_said = _read_as_numbers(numeric_looking, n_present)
     dates_said = _read_as_dates(present)
     remarks = remarks + [
-        _competing_readings(cells, ceiling, numbers_said, dates_said)
+        _competing_readings(
+            cells, ceiling, numbers_said, dates_said, removed
+        )
     ]
     return _free_text_verdict(
         cells,
@@ -4512,11 +4556,31 @@ def _read_as_dates(present: list[str]) -> "tuple[str, tuple[object, ...]]":
     return (SAID_READ_AS_DATES, (best_count, best_name))
 
 
+def _removed_said(arguments: "tuple[object, ...]", place: int) -> str:
+    """What stand-in judging took out of this column, or nothing at all.
+
+    A clause rather than a sentence of its own, because it belongs to
+    the count beside it: a column can be moved across a line by having
+    its stand-ins removed, and a reader told only the count that
+    remained would be told a number that no longer describes the file
+    they are holding. Where nothing was removed the clause is empty --
+    naming a removal of none says something happened.
+    """
+    removed = _whole(arguments, place)
+    if removed == 0:
+        return ""
+    return (
+        f", after {removed} of them were read as stand-ins for "
+        f"'no value' and taken out"
+    )
+
+
 def _competing_readings(
     cells: _Cells,
     ceiling: int,
     numbers_said: "tuple[str, tuple[object, ...]]",
     dates_said: "tuple[str, tuple[object, ...]]",
+    removed: int,
 ) -> Note:
     """Why no reading fitted this column, with the rate each one reached.
 
@@ -4544,6 +4608,8 @@ def _competing_readings(
             strict_needed,
             folded_distinct,
             ceiling,
+            affixed_reach(cells),
+            removed,
         ),
     )
 
@@ -5178,14 +5244,23 @@ def profile_column(
     # which is why the role is decided first and then decided again:
     # removing cells changes every count, so nothing may be built from
     # the first answer.
+    removed_by_cores = 0
     if present and not forced_identifier:
         trial = _decide(cells, forced_identifier)
         if trial.role == ROLE_AFFIXED:
+            before = len(present)
             classified, missing, verdicts = _cores_judged(
                 cells, classified, missing, verdicts
             )
             cells = _tally(classified, n_rows, settings)
             present = cells.present
+            # HOW MANY THE CORE PASS TOOK, carried to the verdict below.
+            # Removal can move a column across the detection line -- a
+            # pair whose count is eaten below the floor lands on a later
+            # rule -- and the remark of the role it lands on has to say
+            # so, or the reader is told a count of a column that no
+            # longer exists (contract C6-5).
+            removed_by_cores = before - len(present)
     entries, unpublished = _published_verdicts(verdicts, settings)
 
     n_present = len(present)
@@ -5211,7 +5286,7 @@ def profile_column(
             remarks=[],
         )
     else:
-        verdict = _decide(cells, forced_identifier)
+        verdict = _decide(cells, forced_identifier, removed_by_cores)
 
     by_source, by_class, n_blank, n_withheld = _missing_maps(
         missing, settings

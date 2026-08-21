@@ -464,6 +464,22 @@ NUMERIC_STYLES = (
     "exponent_upper",
 )
 
+# WHAT AN AFFIXED COLUMN'S OWN REMARK READS, in the one clause of it
+# that carries no argument. Invariant AF-R says every `affixed_number`
+# column bears the remark that names the pair, says how many cells wore
+# it, and names `--identifier` as the route for a column of codes -- and
+# a document that dropped it would publish a distribution over what may
+# be a column of account numbers with nothing warning its reader.
+#
+# THIS IS A SECOND SPELLING OF ONE SENTENCE, and it is one deliberately,
+# for the reason `DEFAULT_SMALL_CELL_FLOOR` is: the generation and
+# validation paths may not import the profiler's taxonomy, so the loader
+# cannot render the sentence it is looking for. Two modules holding one
+# phrase is the arrangement, and
+# `tests/test_p4d4_affixed_role.py` is the comparison that keeps it
+# honest -- it renders the real form and asserts this phrase is in it.
+AFFIXED_REMARK_MARK = "If these are codes rather than measurements"
+
 # The one form of the six the fraction census is taken over, named here
 # rather than spelled at the place it is read: the census and the forms
 # map have to agree about which form they are talking about, and a
@@ -1240,6 +1256,11 @@ class _Frame:
     n_rows: int
     n_columns: int
     declared: "tuple[str, ...]"
+    # The share a role's detection line is drawn at, carried here
+    # because one invariant is stated over it: AF3 holds an affixed
+    # column's pair to the line its own detection had to clear, and a
+    # loader without the setting could not check it at all.
+    parse_rate: float
 
 
 # -- reading the file -------------------------------------------------
@@ -3210,6 +3231,24 @@ def _column(
     for remark in _listing(mapping["remarks"], "remarks", where):
         remarks = remarks + [_text(remark, f"remarks[{place}]", where)]
         place = place + 1
+    if role == ROLE_AFFIXED:
+        # AF-R, and it is unconditional: no test of the values can
+        # separate a column of measurements from a column of codes, so
+        # the sentence is owed by every column of this role and not by
+        # the ones some rule found doubtful.
+        carried = False
+        for remark in remarks:
+            if AFFIXED_REMARK_MARK in remark:
+                carried = True
+        if not carried:
+            raise _out_of_range(
+                "remarks",
+                where,
+                f"{len(remarks)} remark(s), none of them that one",
+                "the sentence every column read this way carries, "
+                "which names the shared text its values wear and says "
+                "what to run if they are codes rather than measurements",
+            )
     facts = _facts(
         mapping,
         where,
@@ -4532,6 +4571,22 @@ class AffixedFacts:
     n_core_not_numeric: int
 
 
+def _line_count(share: float, total: int) -> int:
+    """The smallest whole number of values that reaches ``share``.
+
+    THE PRODUCER'S OWN RULE, written again here rather than imported:
+    the loader may not import the describing side, and a threshold
+    applied as a count on one side and as a compared share on the other
+    is a threshold two implementations disagree about at the boundary.
+    A count is what both apply.
+    """
+    exact = share * total
+    whole = int(exact)
+    if whole < exact:
+        return whole + 1
+    return whole
+
+
 def _affixed_facts(
     mapping: "dict[str, object]",
     where: str,
@@ -4560,6 +4615,22 @@ def _affixed_facts(
         mapping["n_affixed"], "n_affixed", where, frame.floor, n_present,
         "the number of values the column holds",
     )
+    # AF3. The pair had to clear the detection line for this role to be
+    # given at all, and the line is a COUNT of the present cells rather
+    # than a share compared after a division -- so a block claiming the
+    # role with fewer cells wearing the pair than its own settings
+    # demand describes a column the producer would have declined.
+    # Applied here because nothing else could: the loader holds one
+    # document and the settings that wrote it, which is exactly what
+    # this invariant is stated over.
+    line = _line_count(frame.parse_rate, n_present)
+    if n_affixed < line:
+        raise _out_of_range(
+            "n_affixed", where, f"{n_affixed}",
+            f"at least {line}, the number of this column's values that "
+            "had to wear one shared piece of text for it to be read "
+            "this way at all",
+        )
     core_numeric = _bounded(
         mapping["n_core_numeric"], "n_core_numeric", where, 0, n_affixed,
         "the number of values wearing the pair",
@@ -5049,6 +5120,7 @@ def _validated(document: "dict[str, object]") -> Profile:
             n_rows=n_rows,
             n_columns=n_columns,
             declared=settings.forced_identifiers,
+            parse_rate=settings.minimum_parse_rate,
         ),
     )
     _cross_checks(columns, settings, notes)

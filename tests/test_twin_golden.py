@@ -207,7 +207,7 @@ def test_the_golden_run_is_the_shape_this_file_says_it_is(
 # quality report. A change to the generator alone would have moved the
 # last three and left the first.
 GOLDEN_DESCRIPTION_SHA256 = (
-    "e8c6e1aaadb453a0b3b1bc9be99786b0de5f841402f8fde08bf01b60689e2f65"
+    "3efedd7f1ba8ad519e796ed09e9fc5442b9ba9082fa8912bfbdb92f295292589"
 )
 
 
@@ -532,7 +532,7 @@ def test_the_same_description_and_seed_give_the_same_twin_twice(
 # which is what says this is the page and not the run: stage 2 changes
 # no wire, no generation rule and no twin byte.
 GOLDEN_REPORT_SHA256 = (
-    "26cf2e3a59bfa15d68ce8e9cb4f4d9e39fcb4002a454d9acead5bbb81ab2cdcb"
+    "c8911870d6b205448779c5195f90cbc247ebf81f95f71ef7c54bd33291a6dd60"
 )
 
 

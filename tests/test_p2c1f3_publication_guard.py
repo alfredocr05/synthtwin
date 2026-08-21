@@ -564,7 +564,9 @@ def _plausible_arguments(form: str) -> "tuple[object, ...]":
     if form == taxonomy.EVIDENCE_NO_READING_FITS:
         return (fragment, dates, 4, 5, 60)
     if form == taxonomy.REMARK_NO_READING_FITS:
-        return (fragment, dates, 9, 4, 5)
+        # Seven since the affixed role shipped: how far the affix
+        # reading got, and how many cells stand-in judging removed.
+        return (fragment, dates, 9, 4, 5, 6, 7)
     if form == taxonomy.EVIDENCE_DATES:
         return (9, 10, taxonomy.NOTE_ARGUMENT_WORDS[0])
     if form == taxonomy.SAID_READ_AS_DATES:
