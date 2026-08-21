@@ -2556,7 +2556,32 @@ def _tally(
 # makes it miss a core, and the second is why the set is generous --
 # every character any accepted numeric form uses is in it, and the
 # classifier, not this set, decides what parses.
-_CORE_ALPHABET = frozenset("0123456789+-.,()eE \t\u00a0")
+_CORE_CHARACTERS = frozenset("0123456789+-.,()eE")
+
+
+def _core_character(character: str) -> bool:
+    """Whether a number this format holds could be written with it.
+
+    Whitespace is admitted WHATEVER kind it is, because the classifier
+    trims before it reads and therefore accepts a core wearing any of
+    it. Listing three spellings of a space -- and missing the em space,
+    the no-break space and the line separator -- made the core of
+    `5<em space>mg` come out as `5` with the suffix ` mg`, so two cells
+    of one column wore two different pairs over a difference the
+    classifier cannot see.
+
+    The whitespace test goes through `parsing.trimmed`, which is this
+    package's own allowlisted answer to "what counts as space here",
+    rather than through a method call on a value this module cannot
+    trace. It also keeps ONE answer: the splitter and the classifier
+    must agree about what a space is, and asking the same function is
+    how that is guaranteed rather than hoped for.
+    """
+    if not isinstance(character, str):
+        raise TypeError(UNAUTHORIZED_NOTE_ARGUMENT)
+    if character in _CORE_CHARACTERS:
+        return True
+    return parsing.trimmed(character) == ""
 
 
 def _core_spans(text: str) -> "list[tuple[int, int]]":
@@ -2564,7 +2589,7 @@ def _core_spans(text: str) -> "list[tuple[int, int]]":
     spans: "list[tuple[int, int]]" = []
     start = None
     for index, character in enumerate(text):
-        if character in _CORE_ALPHABET:
+        if _core_character(character):
             if start is None:
                 start = index
         elif start is not None:
@@ -3894,37 +3919,78 @@ def _affixed_reading(cells: _Cells) -> "_Affixed | None":
         return None
     settings = cells.settings
     needed = _needed(settings.minimum_parse_rate, len(present))
-    # Split once per cell, in row order, and keep the cores beside the
-    # pair that owns them so the winner needs no second pass.
-    by_pair: "dict[tuple[str, str], list[str]]" = {}
+    # PASS ONE: which pair. Only cells whose core is a number this
+    # format can hold propose a pair, because the role exists to
+    # describe a distribution and a pair proposed by cells holding no
+    # number would describe none.
+    proposing: "dict[tuple[str, str], int]" = {}
     for text in present:
         split = affixed_split(text)
         if split is None:
             continue
         prefix, core, suffix = split
         key = (prefix, suffix)
-        if key in by_pair:
-            by_pair[key] = by_pair[key] + [core]
+        if key in proposing:
+            proposing[key] = proposing[key] + 1
         else:
-            by_pair[key] = [core]
-    if not by_pair:
+            proposing[key] = 1
+    if not proposing:
         return None
-    # The most common pair wins. Walked over SORTED keys with a strict
-    # comparison, so the winner is the one the most cells wore and, on
-    # a tie, the one whose own text sorts first -- never the one that
+    # Walked over SORTED keys with a strict comparison, so the winner
+    # is the pair the most cells proposed and never the one that
     # happened to be inserted first.
     pair = ("", "")
     best = 0
-    for key in sorted(by_pair):
-        if len(by_pair[key]) > best:
+    for key in sorted(proposing):
+        if proposing[key] > best:
             pair = key
-            best = len(by_pair[key])
-    cores = by_pair[pair]
+            best = proposing[key]
+    # THE DETECTION LINE is over the proposing cells: the contract's
+    # test is that at least the parse-line count of present cells are
+    # AFFIXED NUMBERS -- cells whose core reads as a number -- wearing
+    # one pair.
+    if best < needed:
+        return None
+    # TWO readings that both clear the line is an ambiguity, and this
+    # role declines an ambiguous column rather than publishing half of
+    # it. At the default line the slack is one cell in a hundred and
+    # this cannot arise; at a lowered rate it can, and a column of
+    # fifty `$` cells and fifty `EUR` cells would otherwise publish a
+    # distribution over the dollars and quietly treat every euro as a
+    # straggler -- describing part of a column and dropping the rest.
+    clearing = 0
+    for key in proposing:
+        if proposing[key] >= needed:
+            clearing = clearing + 1
+    if clearing > 1:
+        return None
+    # PASS TWO: which cells WEAR it. This is a different population and
+    # a larger one, and keeping them apart is the whole of C6-7. A
+    # column of `5 mg`, `7 mg` and `many mg` wears the pair three
+    # times: `n_affixed` is 3 and one core is not numeric at all. The
+    # first pass alone would have said 2, and the three non-holdable
+    # core classes would have been unreachable -- no producer could
+    # ever have written `n_core_not_numeric` above zero.
+    prefix, suffix = pair
+    cores: "list[str]" = []
+    for text in present:
+        trimmed = parsing.trimmed(text)
+        if not trimmed.startswith(prefix) or not trimmed.endswith(suffix):
+            continue
+        core = trimmed[len(prefix) : len(trimmed) - len(suffix)]
+        if not core:
+            # `mg` on its own wears no pair: it IS the suffix, with
+            # nothing between the two sides for a number to be.
+            continue
+        cores = cores + [core]
     n_affixed = len(cores)
-    if n_affixed < needed or n_affixed < settings.small_cell_floor:
+    # The floor is read HERE, at detection, deliberately: the pair is
+    # PUBLISHED, so being able to publish a floor-clearing spelling is
+    # constitutive of the role.
+    if n_affixed < settings.small_cell_floor:
         return None
     return _Affixed(
-        prefix=pair[0], suffix=pair[1], cores=cores, n_affixed=n_affixed
+        prefix=prefix, suffix=suffix, cores=cores, n_affixed=n_affixed
     )
 
 

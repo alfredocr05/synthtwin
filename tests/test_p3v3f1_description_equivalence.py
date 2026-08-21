@@ -562,10 +562,16 @@ def test_canonical_spelling_stays_checkable_on_every_file(
     )
     checks_a, _census_a = _report(folder, described, text_a, "a.csv")
     checks_b, _census_b = _report(folder, described, text_b, "b.csv")
-    verdicts_a = {check[2]: check[3] for check in checks_a}
-    verdicts_b = {check[2]: check[3] for check in checks_b}
-    assert verdicts_a["styles.spelled"] == validation.HELD
-    assert verdicts_b["styles.spelled"] == validation.MISSED
+    # Keyed by COLUMN and subcheck. Keyed by subcheck alone, two
+    # columns carrying the same obligation collide and the map keeps
+    # whichever came last -- which is a silent way for this test to
+    # assert about a column it does not mean. The `tag` column is read
+    # as an affixed number and carries the numeric obligations over its
+    # cores, so it now carries `styles.spelled` too.
+    verdicts_a = {(check[0], check[2]): check[3] for check in checks_a}
+    verdicts_b = {(check[0], check[2]): check[3] for check in checks_b}
+    assert verdicts_a[("amount", "styles.spelled")] == validation.HELD
+    assert verdicts_b[("amount", "styles.spelled")] == validation.MISSED
 
 
 def test_the_spelling_subcheck_takes_no_number_from_the_description(
@@ -606,7 +612,13 @@ def test_the_spelling_subcheck_takes_no_number_from_the_description(
             folder, described, padded, f"probe{spread}.csv"
         )
         for check in checks:
-            if check[2] == "styles.spelled":
+            # The `amount` column's answer, and only its. The `tag`
+            # column is read as an affixed number and carries the
+            # numeric obligations over its cores, so it answers this
+            # subcheck too -- and gathering both would compare two
+            # columns' verdicts as though they were one column's under
+            # three descriptions.
+            if check[0] == "amount" and check[2] == "styles.spelled":
                 answers = answers + [check[3]]
     assert answers, "the subcheck did not run"
     assert len(set(answers)) == 1, (
