@@ -882,8 +882,8 @@ def test_the_base_document_loads(
 ) -> None:
     """The description every mutation starts from is accepted as it is."""
     loaded = contract.load_profile(written(tmp_path, base))
-    assert loaded.n_columns == 12
-    assert len(loaded.columns) == 12
+    assert loaded.n_columns == 13
+    assert len(loaded.columns) == 13
 
 
 def test_every_mutation_starts_from_a_document_that_loads(

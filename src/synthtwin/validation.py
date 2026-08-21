@@ -1932,8 +1932,13 @@ def corners_of(
             facts, contract.LabelFacts
         ) and _label_variants_are_short(column, facts):
             corners = corners + [CORNER_LABEL_VARIANTS_SHORT]
+        # G12.8's corner is asked of the QUANTITATIVE facts, so a column
+        # whose numbers are held inside its own facts reaches it: an
+        # affixed column's cells stand one for one with its cores under
+        # a shared pair, so the supply its core spellings carry is the
+        # supply its cells carry.
         if isinstance(
-            facts, contract.NumericFacts
+            _quantitative(facts), contract.NumericFacts
         ) and _numeric_spellings_are_short(column, facts):
             corners = corners + [CORNER_NUMERIC_SPELLINGS_SHORT]
         if corners:
@@ -2355,6 +2360,8 @@ def _numeric_spellings_are_short(
     reading one of them for both would put a bar drawn from the raw
     allocation on the folded fact.
     """
+    column = _core_column(column)
+    facts = _quantitative(facts)
     for published in (column.n_distinct, column.n_distinct_folded):
         supply = _spelling_supply(column, facts, published)
         ceiling = _spelling_ceiling(column, facts, published)
@@ -5803,6 +5810,8 @@ def _spelling_supply(
     numbers were told a twin could hold as few as one different value,
     where the classes alone settle three.
     """
+    column = _core_column(column)
+    facts = _quantitative(facts)
     if isinstance(facts, contract.LabelFacts):
         supply = 0
         for level in facts.levels:
@@ -5942,6 +5951,8 @@ def _spelling_ceiling(
     G12.7's `S` is settled by the published level blocks alone -- so the
     ceiling IS the floor there and both ends are exact.
     """
+    column = _core_column(column)
+    facts = _quantitative(facts)
     if isinstance(facts, contract.LabelFacts):
         return _spelling_supply(column, facts, published)
     if not isinstance(facts, contract.NumericFacts):
@@ -6054,6 +6065,7 @@ def _distinct_corner(
     holding three folded identities where the description publishes two
     was reported an AUTHORIZED DEVIATION instead of a MISS.
     """
+    facts = _quantitative(facts)
     if CORNER_IDENTIFIER_INFEASIBLE in mine:
         return CORNER_IDENTIFIER_INFEASIBLE
     if (
@@ -6067,6 +6079,81 @@ def _distinct_corner(
     ):
         return CORNER_NUMERIC_SPELLINGS_SHORT
     return ""
+
+
+# What an EMPTY side of the pair is called where a person reads it.
+# One side is permitted to be empty and the report prints a value only
+# where there is one, so an empty side printed itself as nothing at all:
+# the line `counts.affix_prefix: HELD` stood with neither what was
+# asked for nor what was found under it, and a check whose two sides
+# are both invisible tells a reader nothing about what was checked.
+_NO_AFFIX_FRONT = "nothing in front of the number"
+_NO_AFFIX_BEHIND = "nothing after the number"
+
+
+def _shown_affix(side: str, front: bool) -> str:
+    """One side of the pair as a person reads it in the report."""
+    if side:
+        return side
+    if front:
+        return _NO_AFFIX_FRONT
+    return _NO_AFFIX_BEHIND
+
+
+def _core_column(column: contract.ColumnBlock) -> contract.ColumnBlock:
+    """An affixed column seen as the column its own cores make.
+
+    The universal counts of an affixed column answer for its CELLS, and
+    a cell reading `250 mg` is not a number, so those counts say the
+    column holds no numbers at all. Every G12.8 supply is written over
+    a column's number classes, so reading them off the cells put all
+    two hundred and forty cells in the "not a number" class and handed
+    the bracket an identity for each -- a floor at the published count
+    and a ceiling at twice it, which is a bracket that authorizes
+    nothing below and everything above. The cores are what those rules
+    mean, so they are what the rules are handed.
+
+    IT IS WRITTEN HERE RATHER THAN SHARED WITH THE GENERATOR'S OWN.
+    The generator holds a view of the same shape, and importing it
+    would put the planner inside the validator's import graph, which
+    the profile/generator boundary forbids outright: a validator that
+    read the planner could inherit the planner's defects and call the
+    result a measurement.
+
+    A column of any other role is returned unchanged, so callers do not
+    have to ask which kind they hold.
+    """
+    facts = column.facts
+    if not isinstance(facts, contract.AffixedFacts):
+        return column
+    return dataclasses.replace(
+        column,
+        n_present=facts.n_affixed,
+        n_numeric=facts.n_core_numeric,
+        n_not_numeric=facts.n_core_not_numeric,
+        n_out_of_range=facts.n_core_out_of_range,
+        n_contradictory=facts.n_core_contradictory,
+        facts=facts.numbers,
+    )
+
+
+def _quantitative(facts: contract.ColumnFacts) -> contract.ColumnFacts:
+    """The facts the numeric machinery reads, for any role that has some.
+
+    An affixed column's quantitative block is a `NumericFacts` HELD BY
+    its own facts rather than being one, so every rule written as "if
+    this is a numeric column" walked straight past it -- and walking
+    past an envelope is not a neutral omission, because a fact with no
+    envelope is compared exactly. That is how the distinctness of a
+    column of whole cores came to miss on a correct twin: two hundred
+    and forty different cores published, two hundred and thirty-three
+    written, and no envelope to say which of the two G12.8 authorizes.
+    Unwrapping here puts the affixed role under the same brackets as
+    the plain numeric one, which is what its axes already promise.
+    """
+    if isinstance(facts, contract.AffixedFacts):
+        return facts.numbers
+    return facts
 
 
 def _group_of(facts: contract.ColumnFacts) -> str:
@@ -6167,6 +6254,74 @@ def _affixed_checks(
             f"{len(cores)}",
         )
     ]
+    # THE PAIR ITSELF, compared as the two SPELLINGS they are. Counting
+    # how many cells wear one side is not the same check and cannot be
+    # substituted for it: one side is permitted to be empty (AF1 forbids
+    # only both), every cell in the file wears an empty side, and a
+    # count-shaped check would then read the whole column and miss on a
+    # file that carried the pair exactly. So each side is settled
+    # against what the file's OWN description read off it, which is the
+    # producer's reading of the file and is empty-side-correct by
+    # construction. A file whose description reads no affix at all
+    # carries no such key, and the sentence below says that rather than
+    # comparing against a spelling nothing wrote.
+    for field, published in (
+        ("affix_prefix", prefix),
+        ("affix_suffix", suffix),
+    ):
+        found = _text_at(block, field)
+        side = published if found is None else found
+        checks = checks + [
+            _exact(
+                name,
+                f"affixed.{field}",
+                f"counts.{field}",
+                _shown_affix(published, field == "affix_prefix"),
+                _shown_affix(side, field == "affix_prefix"),
+            )
+        ]
+    # THE FOUR CORE CLASSES, counted off the file's own cores by the
+    # same classifier the producer used. They are the census of the
+    # population the ladder and every moment are computed over, so a
+    # file whose cores fall into different classes has not carried what
+    # the description published even if every other count agrees.
+    measured = {
+        "n_core_numeric": 0,
+        "n_core_out_of_range": 0,
+        "n_core_contradictory": 0,
+        "n_core_not_numeric": 0,
+    }
+    for core in cores:
+        kind = parsing.classify_number(core)
+        if kind == parsing.NUMBER:
+            measured["n_core_numeric"] = measured["n_core_numeric"] + 1
+        elif kind == parsing.NUMBER_OUT_OF_RANGE:
+            measured["n_core_out_of_range"] = (
+                measured["n_core_out_of_range"] + 1
+            )
+        elif kind == parsing.NUMBER_CONTRADICTORY:
+            measured["n_core_contradictory"] = (
+                measured["n_core_contradictory"] + 1
+            )
+        else:
+            measured["n_core_not_numeric"] = (
+                measured["n_core_not_numeric"] + 1
+            )
+    for field, published in (
+        ("n_core_numeric", facts.n_core_numeric),
+        ("n_core_out_of_range", facts.n_core_out_of_range),
+        ("n_core_contradictory", facts.n_core_contradictory),
+        ("n_core_not_numeric", facts.n_core_not_numeric),
+    ):
+        checks = checks + [
+            _exact(
+                name,
+                f"affixed.{field}",
+                f"counts.{field}",
+                f"{published}",
+                f"{measured[field]}",
+            )
+        ]
     # The CORE population, handed to the numeric checks as the column
     # its cores make -- so every quantitative obligation is measured by
     # the code that measures a plain numeric column.

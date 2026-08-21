@@ -10074,6 +10074,29 @@ def _approximations(
     numbers.
     """
     facts = column.facts
+    if isinstance(facts, contract.AffixedFacts):
+        # Measured over the CORES the written cells hold, because that
+        # is the population every approximated fact of this role is
+        # about. Without this the role reported no approximation at
+        # all, so a ladder that landed outside its own window said
+        # nothing -- the twin's report is where a person reads that,
+        # and it was silent.
+        cores: list[str] = []
+        for cell in written:
+            trimmed = parsing.trimmed(cell)
+            if not trimmed.startswith(facts.affix_prefix):
+                continue
+            if not trimmed.endswith(facts.affix_suffix):
+                continue
+            core = trimmed[
+                len(facts.affix_prefix) : len(trimmed)
+                - len(facts.affix_suffix)
+            ]
+            if core:
+                cores = cores + [core]
+        return _numeric_approximations(
+            _core_view(column), facts.numbers, plan, cores
+        )
     if isinstance(facts, contract.NumericFacts):
         return _numeric_approximations(column, facts, plan, written)
     if isinstance(facts, contract.DatetimeFacts):

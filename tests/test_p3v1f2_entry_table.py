@@ -34,7 +34,7 @@ counts it excused are taken over the blank split, where the floor's
 worth of cells spelling a missing marker moves all three with the role
 still holding. So: coverage is credited to a registered case and to
 nothing else, which makes the registration total over the shipped sites
-(592 rows over 588 sites, 73 curated and 519 derived); each derived row
+(643 rows over 639 sites, 73 curated and 570 derived); each derived row
 must be an edit aimed
 at the site it covers; the floor is counted over the registration; and
 nothing is excused at all.
@@ -1398,7 +1398,15 @@ CLASS_SPELLING = "re-spelled-number"
 CLASS_CASING = "re-cased-label"
 CLASS_PRECISION = "precision"
 
-NUMERIC_ROLES = ("count", "continuous")
+# THE AFFIXED ROLE IS ONE OF THESE, and the edits reach its CORES.
+# Every numeric edit below is written against cells that parse as
+# numbers, and no cell of an affixed column does -- so applied to the
+# written cells they either skipped the column entirely or destroyed
+# the role, and neither proves anything about a quantitative check. The
+# battery therefore takes the pair off first, edits the column of cores
+# the numeric way, and puts the pair back on: the same edit, aimed at
+# the population the fact is about.
+NUMERIC_ROLES = ("count", "continuous", "affixed_number")
 LABEL_ROLES = ("categorical", "binary", "constant")
 
 # What one written cell can be made into, and the name each edit goes
@@ -1501,6 +1509,120 @@ def _perturbations(
     return [entry for entry in built if entry[2]]
 
 
+def _pair_of(
+    column: contract.ColumnBlock,
+) -> "tuple[str, str] | None":
+    """The two pieces of text an affixed column's cells wear, or None.
+
+    None for every other role, so a caller can ask without first
+    working out which kind of column it holds.
+    """
+    facts = column.facts
+    if not isinstance(facts, contract.AffixedFacts):
+        return None
+    return (facts.affix_prefix, facts.affix_suffix)
+
+
+def _without_pair(
+    described: contract.Profile,
+    text: str,
+    index: int,
+    pair: "tuple[str, str]",
+) -> str:
+    """One affixed column rewritten as the column of cores it holds.
+
+    A cell that does not wear the pair is left exactly as it is: the
+    stragglers a parse line tolerates are not cores, and making one up
+    for them would edit cells the perturbation was not aimed at.
+    """
+    prefix, suffix = pair
+    rows = _rows_of(text)
+    for row in range(_first_record(described), len(rows)):
+        cell = rows[row][index]
+        trimmed = cell.strip()
+        if not trimmed.startswith(prefix) or not trimmed.endswith(suffix):
+            continue
+        core = trimmed[len(prefix) : len(trimmed) - len(suffix)]
+        if core:
+            rows[row][index] = core
+    return _rebuilt(rows)
+
+
+def _wearing_pair(
+    described: contract.Profile,
+    text: str,
+    index: int,
+    pair: "tuple[str, str]",
+) -> str:
+    """One column of cores rewritten as the affixed column they make.
+
+    Every WRITTEN cell wears the pair. A blank cell stays blank -- a
+    hole wearing a unit is not a hole, and an edit that filled every
+    hole would be a presence edit wearing another edit's name.
+    """
+    prefix, suffix = pair
+    rows = _rows_of(text)
+    for row in range(_first_record(described), len(rows)):
+        cell = rows[row][index]
+        if cell:
+            rows[row][index] = f"{prefix}{cell}{suffix}"
+    return _rebuilt(rows)
+
+
+def _pair_perturbations(
+    described: contract.Profile,
+    twin: str,
+    index: int,
+    name: str,
+    pair: "tuple[str, str]",
+) -> "list[tuple[str, str, str | bytes]]":
+    """The edits aimed at the PAIR rather than at the numbers inside it.
+
+    Three, and each moves one thing. A column wearing another piece of
+    text in front moves the published prefix and nothing else; one
+    wearing another piece behind moves the published suffix and nothing
+    else; and the publication floor's worth of cells with the pair
+    taken off moves how many cells wear it, while leaving the pair
+    itself the one the rest of the column still wears.
+
+    THE FLOOR'S WORTH AND NOT ONE CELL, for the reason 7.5.7's style
+    edits are written that way: an edit below the floor is pooled out
+    of the file's own description, and a red case built on a fact no
+    description names shows nothing.
+    """
+    prefix, suffix = pair
+    rows = _rows_of(twin)
+    first = _first_record(described)
+    stripped = _rows_of(twin)
+    taken = 0
+    for row in range(first, len(stripped)):
+        if taken >= described.settings.small_cell_floor:
+            break
+        cell = stripped[row][index].strip()
+        if not cell.startswith(prefix) or not cell.endswith(suffix):
+            continue
+        core = cell[len(prefix) : len(cell) - len(suffix)]
+        if not core:
+            continue
+        stripped[row][index] = core
+        taken = taken + 1
+    front = _rows_of(twin)
+    behind = _rows_of(twin)
+    for row in range(first, len(rows)):
+        if rows[row][index]:
+            front[row][index] = f"x{rows[row][index]}"
+            behind[row][index] = f"{rows[row][index]}x"
+    built: list[tuple[str, str, "str | bytes"]] = [
+        (f"prefixed-{name}", CLASS_SPELLING, _rebuilt(front)),
+        (f"suffixed-{name}", CLASS_SPELLING, _rebuilt(behind)),
+    ]
+    if taken:
+        built = built + [
+            (f"unaffixed-{name}", CLASS_SPELLING, _rebuilt(stripped))
+        ]
+    return built
+
+
 def _column_perturbations(
     described: contract.Profile,
     twin: str,
@@ -1570,72 +1692,81 @@ def _column_perturbations(
                 _changed(described, twin, index, True, value),
             ),
         ]
+    # From here the numeric families are built against `source`, which
+    # is the twin itself for a plain numeric column and the twin with
+    # the pair taken off for an affixed one, and `shaped` collects them
+    # so the pair can go back on before they are handed over.
+    pair = _pair_of(column)
+    source = twin if pair is None else _without_pair(described, twin, index, pair)
+    shaped: list[tuple[str, str, "str | bytes"]] = []
+    if pair is not None:
+        built = built + _pair_perturbations(described, twin, index, name, pair)
     if column.role in NUMERIC_ROLES:
         for tag, value in FLOOR_STYLE_VALUES:
-            built = built + [
+            shaped = shaped + [
                 (
                     f"floor-{tag}-{name}",
                     CLASS_SPELLING,
-                    _floor_cells(described, twin, index, value),
+                    _floor_cells(described, source, index, value),
                 )
             ]
     if column.role in NUMERIC_ROLES:
-        built = built + [
-            (f"spread-{name}", CLASS_SHAPE, _numbered(described, twin, index)),
+        shaped = shaped + [
+            (f"spread-{name}", CLASS_SHAPE, _numbered(described, source, index)),
             (
                 f"raised-{name}",
                 CLASS_SHAPE,
-                _raised_end(described, twin, index),
+                _raised_end(described, source, index),
             ),
             (
                 f"crowded-{name}",
                 CLASS_SHAPE,
-                _compressed(described, twin, index),
+                _compressed(described, source, index),
             ),
             (
                 f"enormous-{name}",
                 CLASS_MANY_CELLS,
-                _classed(described, twin, index, "1e200", 2),
+                _classed(described, source, index, "1e200", 2),
             ),
             (
                 f"zeroed-{name}",
                 CLASS_MANY_CELLS,
-                _classed(described, twin, index, "0"),
+                _classed(described, source, index, "0"),
             ),
             (
                 f"negated-{name}",
                 CLASS_MANY_CELLS,
-                _classed(described, twin, index, "-8"),
+                _classed(described, source, index, "-8"),
             ),
             (
                 f"worded-{name}",
                 CLASS_MANY_CELLS,
-                _classed(described, twin, index, "zz"),
+                _classed(described, source, index, "zz"),
             ),
             (
                 f"bracketed-{name}",
                 CLASS_MANY_CELLS,
-                _classed(described, twin, index, "(4)"),
+                _classed(described, source, index, "(4)"),
             ),
             (
                 f"overflowed-{name}",
                 CLASS_MANY_CELLS,
-                _classed(described, twin, index, "9e999"),
+                _classed(described, source, index, "9e999"),
             ),
             (
                 f"underflowed-{name}",
                 CLASS_MANY_CELLS,
-                _classed(described, twin, index, "-9e999"),
+                _classed(described, source, index, "-9e999"),
             ),
             (
                 f"fractioned-{name}",
                 CLASS_MANY_CELLS,
-                _classed(described, twin, index, "1.5"),
+                _classed(described, source, index, "1.5"),
             ),
             (
                 f"contradicted-{name}",
                 CLASS_MANY_CELLS,
-                _classed(described, twin, index, "(-4)"),
+                _classed(described, source, index, "(-4)"),
             ),
         ]
         for style in (
@@ -1646,17 +1777,32 @@ def _column_perturbations(
             "noncanonical",
             "padded",
         ):
-            built = built + [
+            shaped = shaped + [
                 (
                     f"{style}-{name}",
                     CLASS_SPELLING,
-                    _restyled(described, twin, index, style),
+                    _restyled(described, source, index, style),
                 )
             ]
     if column.role in NUMERIC_ROLES or column.role == "numeric_unrepresentable":
-        built = built + [
-            (f"vast-{name}", CLASS_SHAPE, _huge_spread(described, twin, index))
+        shaped = shaped + [
+            (f"vast-{name}", CLASS_SHAPE, _huge_spread(described, source, index))
         ]
+    # The pair goes back on, character for character as the
+    # description publishes it, so what the file carries is the edited
+    # NUMBER wearing the column's own text. A perturbation that came
+    # out empty stays empty: that is the battery's word for "this
+    # column has no such edit", and wrapping it would build a file
+    # identical to the twin and register a red case that can never go
+    # red.
+    if pair is not None:
+        wrapped: list[tuple[str, str, "str | bytes"]] = []
+        for edit_name, edit_class, written in shaped:
+            if isinstance(written, str) and written:
+                written = _wearing_pair(described, written, index, pair)
+            wrapped = wrapped + [(edit_name, edit_class, written)]
+        shaped = wrapped
+    built = built + shaped
     if column.role in LABEL_ROLES:
         built = built + [
             (
@@ -2557,6 +2703,68 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("one-worded-comment", "words.mean"),
             ("one-worded-comment", "words.min"),
         ),
+        "dose": (
+            # THE AFFIXED ROLE, and the edits divide the way its two
+            # populations do. The pair is moved by three edits of its
+            # own -- another piece of text in front, another behind,
+            # and the floor's worth of cells with the pair taken off
+            # -- and every quantitative site is moved by the numeric
+            # edit the plain numeric columns above use, applied to the
+            # CORES and put back inside the pair. So each row here is
+            # aimed at the population its fact is about, which is the
+            # whole of what this role adds.
+            ("renamed-dose", "position.at"),
+            ("blanked-dose", "presence.n_present"),
+            ("blanked-dose", "presence.n_missing"),
+            ("contradicted-dose", "axes.role"),
+            ("contradicted-dose", "axes.statistical_type"),
+            ("emptied-dose", "axes.quality_state"),
+            ("unaffixed-dose", "counts.n_numeric"),
+            ("unaffixed-dose", "counts.n_not_numeric"),
+            ("one-overflowed-dose", "counts.n_out_of_range"),
+            ("one-contradicted-dose", "counts.n_contradictory"),
+            ("spread-dose", "distinct.n_distinct"),
+            ("spread-dose", "distinct.n_distinct_folded"),
+            ("rewritten-dose", "counts.n_affixed"),
+            ("prefixed-dose", "counts.affix_prefix"),
+            ("suffixed-dose", "counts.affix_suffix"),
+            ("contradicted-dose", "counts.n_core_numeric"),
+            ("overflowed-dose", "counts.n_core_out_of_range"),
+            ("contradicted-dose", "counts.n_core_contradictory"),
+            ("worded-dose", "counts.n_core_not_numeric"),
+            ("zeroed-dose", "counts.n_zero"),
+            ("negated-dose", "counts.n_negative"),
+            ("marked-dose", "counts.n_negative_unrepresentable"),
+            ("one-worded-dose", "counts.n_used_in_statistics"),
+            ("one-worded-dose", "counts.n_left_out_of_statistics"),
+            ("spread-dose", "type.integer_valued"),
+            ("vast-dose", "type.std_unrepresentable"),
+            ("one-worded-dose", "counts.numeric_share"),
+            ("floor-plussed-dose", "ladder.min"),
+            ("raised-dose", "ladder.max"),
+            ("floor-plussed-dose", "ladder.p01"),
+            ("floor-plussed-dose", "ladder.p05"),
+            ("floor-plussed-dose", "ladder.p10"),
+            ("floor-plussed-dose", "ladder.p25"),
+            ("negated-dose", "ladder.p50"),
+            ("negated-dose", "ladder.p75"),
+            ("crowded-dose", "ladder.p90"),
+            ("crowded-dose", "ladder.p95"),
+            ("enormous-dose", "ladder.p99"),
+            ("raised-dose", "moments.mean"),
+            ("raised-dose", "moments.std"),
+            ("raised-dose", "moments.skew"),
+            ("leading_zero-dose", "styles.exact.leading_zero"),
+            ("leading_plus-dose", "styles.exact.leading_plus"),
+            ("exponent_upper-dose", "styles.exact.exponent_upper"),
+            ("leading_plus-dose", "styles.at-least.plain"),
+            ("exponent_lower-dose", "styles.spill"),
+            ("leading_plus-dose", "styles.remainder"),
+            ("exponent_upper-dose", "styles.spelled"),
+            ("noncanonical-dose", "styles.canonical.decimal"),
+            ("exponent_lower-dose", "styles.canonical.exponent_lower"),
+            ("leading_plus-dose", "styles.published.plain"),
+        ),
         "reading": (
             ("contradicted-reading", "axes.quality_state"),
             ("one-negated-reading", "axes.role"),
@@ -3097,6 +3305,9 @@ ROLE_FAMILIES = {
     "binary": "label",
     "categorical": "label",
     "constant": "label",
+    # Its quantitative facts are the numeric family's, read over the
+    # cores; the seven keys it adds carry the family name `affixed`.
+    "affixed_number": "numeric",
     "continuous": "numeric",
     "count": "numeric",
     "datetime": "datetime",
@@ -3120,6 +3331,7 @@ FIXTURE_ROLES: "dict[str, dict[str, str]]" = {
         "answer": "binary",
         "batch": "constant",
         "comment": "free_text",
+        "dose": "affixed_number",
         "reading": "count",
         "record_code": "identifier",
         "recorded_on": "datetime",
@@ -3329,6 +3541,18 @@ SUBCHECK_FACTS: "dict[tuple[str, str], str]" = {
     ("label", "suppressed.suppressed_levels"): "label.suppressed_levels",
     ("label", "suppressed.suppressed_rows"): "label.suppressed_rows",
     # -- numeric -----------------------------------------------------------
+    # The seven below are emitted only by the affixed role, whose
+    # quantitative facts are the numeric family's read over the cores.
+    # A plain numeric column emits none of them, so no row here says
+    # that one owes them: this map answers which registry fact a
+    # subcheck binds, never which subchecks a column owes.
+    ("numeric", "counts.affix_prefix"): "affixed.affix_prefix",
+    ("numeric", "counts.affix_suffix"): "affixed.affix_suffix",
+    ("numeric", "counts.n_affixed"): "affixed.n_affixed",
+    ("numeric", "counts.n_core_contradictory"): "affixed.n_core_contradictory",
+    ("numeric", "counts.n_core_not_numeric"): "affixed.n_core_not_numeric",
+    ("numeric", "counts.n_core_numeric"): "affixed.n_core_numeric",
+    ("numeric", "counts.n_core_out_of_range"): "affixed.n_core_out_of_range",
     ("numeric", "axes.quality_state"): "universal.quality_state",
     ("numeric", "axes.role"): "universal.role",
     ("numeric", "axes.statistical_type"): "universal.statistical_type",
@@ -4409,8 +4633,8 @@ def test_the_coverage_identity_walks_the_shipped_table(
     which is V8.3's "registered, named" read as though it said
     "reached". And a site could be covered only by an edit that broke
     something else, which is exactly the failure V8.2 refuses one grain
-    up. The registration is now total over the shipped sites: 592 rows
-    over 588 sites, 73 curated and 519 derived, each derived one an edit
+    up. The registration is now total over the shipped sites: 643 rows
+    over 639 sites, 73 curated and 570 derived, each derived one an edit
     aimed at the site it covers. THREE sites carry more than one row on
     purpose: `columns.order` carries three, because it is the whole of
     what the shipped table files for the STRUCTURAL disposition and the
@@ -4418,7 +4642,7 @@ def test_the_coverage_identity_walks_the_shipped_table(
     two, a row taken out and a row added; and the headerless
     `header.presence` carries the plain edit and the compensating one
     that used to defeat it. For those three, deleting one row is not
-    enough to turn this red. Every one of the other 585 is on its own.
+    enough to turn this red. Every one of the other 636 is on its own.
 
     NOTHING IS EXCUSED. There were two exemptions here and both are
     gone. A register of OPEN DEFECTS went with round 2's repairs. The
