@@ -1630,6 +1630,20 @@ Opened by this plan, each a limit accepted rather than work forgotten:
   a second implementer in another language something to reproduce.
   The vectors and their committed failing mutants are owed before this
   phase closes. Priced and accepted, not waived.
+- **R-P4-18** (opened with the fraction census, 2026-08-21). NO
+  REFERENCE VECTOR EXERCISES THE WIDTH SNAP. The census of fraction
+  widths ships with two vectors that carry it -- one naming a width its
+  cells already fit, one whose decimal cell the floor pooled -- and in
+  neither does any value have to be ROUNDED to reach its published
+  width. So the arithmetic that moves a value, the half-to-even tie
+  rule, the sign-and-zero guard and the pinned-endpoint rule are pinned
+  by the suite and by no vector at all: a second implementer in another
+  language has nothing here to reproduce them against. A vector that
+  bites is owed, and A-P4-8's own costing already asked for one on the
+  loader side, where the pooled lower bound needs a pool large enough
+  to refuse the reviewer's document. Both are owed before this phase
+  closes, with R-P4-17 and for its reason. Priced and accepted, not
+  waived.
 - **R-P4-13** (opened by amendment A-P4-1's audit). A column mixing
   numeric results with qualitative text in ONE cell space — the
   long-format panel export, where `7.2` sits beside `POSITIVE` in the
