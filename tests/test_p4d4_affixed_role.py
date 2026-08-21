@@ -24,11 +24,23 @@ only the first half is an invariant nothing shows can fail.
 
 import json
 import pathlib
+import tempfile
 
 import pytest
 
 import fixtures
-from synthtwin import contract, errors, profile, reading, taxonomy
+from synthtwin import (
+    contract,
+    errors,
+    generation,
+    parsing,
+    profile,
+    quality,
+    reading,
+    rendering,
+    taxonomy,
+    validation,
+)
 
 
 def _document(
@@ -397,3 +409,253 @@ def test_every_affixed_document_this_file_builds_round_trips(
     assert json.loads(
         (tmp_path / "round" / "round.json").read_text(encoding="utf-8")
     )["columns"][0]["role"] == "affixed_number"
+
+# -- what the internal audit found, each with the scenario it found it on --
+
+
+def _kept(values: "list[str]", kept: "tuple[str, ...]") -> "dict[str, object]":
+    """One dose column described with a `--keep-value` declaration."""
+    folder = pathlib.Path(tempfile.mkdtemp())
+    table = fixtures.write(
+        folder, "dose.csv", fixtures.single_column_table("dose", values)
+    )
+    read = reading.read_table(f"{table}")
+    return profile.build_document(
+        read, taxonomy.Settings(kept_values=kept), []
+    )
+
+
+_UNIT_CELLS = [f"{index} mg" for index in range(1, 90)] + ["-999 mg"] * 11
+
+
+def test_a_kept_whole_cell_is_kept_on_the_affixed_role() -> None:
+    """C6-117: a value named with `--keep-value` is data, and no judged
+    pass may read it as a hole.
+
+    The core pass compared declarations against the CORE, so the
+    spelling the contract tells an owner to name -- the whole cell,
+    `-999 mg` -- matched no core and was ignored. Eleven cells the
+    owner declared to be data were published as holes, on the same page
+    whose disclosure section said the owner had named that word.
+    """
+    column = _kept(_UNIT_CELLS, ("-999 mg",))["columns"][0]
+    assert column["role"] == "affixed_number"
+    assert column["n_present"] == 100
+    assert column["n_missing"] == 0
+    assert column["percentiles"]["min"] == -999.0
+    assert column["missing_by_source"] == {}
+    verdicts = column["sentinel_verdicts"]
+    assert [entry["verdict"] for entry in verdicts] == ["kept_as_a_number"]
+    assert verdicts[0]["reason"] == "kept_by_you"
+
+
+def test_a_declaration_matching_no_cell_is_inert_on_the_affixed_role() -> None:
+    """...and the same rule from the other side.
+
+    `-999` matches no whole cell of a column of `-999 mg`, so it must
+    change nothing. Compared against the core it matched every one, kept
+    the stand-in in the statistics, and published no verdict at all --
+    so the description said the smallest dose was -999 and said nothing
+    anywhere about why.
+    """
+    column = _kept(_UNIT_CELLS, ("-999",))["columns"][0]
+    plain = _kept(_UNIT_CELLS, ())["columns"][0]
+    assert column["n_present"] == plain["n_present"] == 89
+    assert column["percentiles"]["min"] == plain["percentiles"]["min"] == 1.0
+    assert [entry["verdict"] for entry in column["sentinel_verdicts"]] == [
+        "read_as_missing"
+    ]
+
+
+def test_a_straggler_that_wears_the_pair_is_counted_once() -> None:
+    """The two populations overlap, and the arithmetic has to say so.
+
+    A column of `1-01` to `1-99` wears the pair `1` / empty, and its
+    hundredth cell `12` wears it too AND reads as a number. Subtracting
+    the wearers from the text class alone and clamping at zero swallowed
+    that overlap in a class that did not hold it, so the twin came out
+    one cell too long and `generate` stopped with an internal-check
+    message telling its user synthtwin has a bug.
+    """
+    folder = pathlib.Path(tempfile.mkdtemp())
+    for tail in ("12", "1e999", "(5)"):
+        values = [f"1-{index:02d}" for index in range(1, 100)] + [tail]
+        table = fixtures.write(
+            folder, "code.csv", fixtures.single_column_table("code", values)
+        )
+        document = profile.build_document(
+            reading.read_table(f"{table}"), taxonomy.Settings(), []
+        )
+        if document["columns"][0]["role"] != "affixed_number":
+            continue
+        written = fixtures.write_profile(folder, "code.json", document)
+        loaded = contract.load_profile(f"{written}")
+        twin = generation.generate(loaded, 3)
+        assert len(twin.columns[0]) == loaded.n_rows, tail
+
+
+def test_no_affix_of_the_measured_file_reaches_the_report() -> None:
+    """V5.4, on the one comparison in the module that was not routed.
+
+    A milligram description checked against a file whose cells read
+    `SECRET-5.16` printed `SECRET` on the achieved line of the quality
+    report. Every sibling comparison over file text keeps the measured
+    side back and prints the sentence saying why; the affix pair was the
+    outlier, and the contract's publication-class carve-out is about the
+    DESCRIPTION's own block, not about a report on somebody's file.
+    """
+    folder = pathlib.Path(tempfile.mkdtemp())
+    table = fixtures.write(
+        folder,
+        "dose.csv",
+        fixtures.single_column_table(
+            "dose", [f"{index} mg" for index in range(1, 101)]
+        ),
+    )
+    document = profile.build_document(
+        reading.read_table(f"{table}"), taxonomy.Settings(), []
+    )
+    described = contract.load_profile(
+        f"{fixtures.write_profile(folder, 'dose.json', document)}"
+    )
+    other = fixtures.write(
+        folder,
+        "other.csv",
+        fixtures.single_column_table(
+            "dose", [f"SECRET-{index}.16" for index in range(1, 101)]
+        ),
+    )
+    outcome = validation.measure(described, f"{other}")
+    report = parsing.visible_lines(quality.quality_report(described, outcome))
+    assert "SECRET" not in report
+    pair = [
+        check
+        for check in outcome.checks
+        if check.subcheck.startswith("counts.affix")
+    ]
+    assert len(pair) == 2
+    for check in pair:
+        assert check.verdict == validation.MISSED
+        assert check.achieved == ""
+
+
+def test_a_snap_never_carries_a_cell_past_a_published_end() -> None:
+    """The two ladder ends are exact, and pinning the CELL is not enough.
+
+    A column publishing a minimum of 2.11 and a width of one figure had
+    an interior cell -- not the endpoint cell, which is pinned -- snapped
+    to 2.1, so the twin's own smallest value was a number the
+    description does not publish and `validate` reported the exact
+    minimum MISSED on a twin of that description.
+    """
+    folder = pathlib.Path(tempfile.mkdtemp())
+    values = [f"2.{10 + index}" for index in range(1, 11)]
+    values = values + [f"{3 + index // 10}.{index % 10}" for index in range(50)]
+    table = fixtures.write(
+        folder, "v.csv", fixtures.single_column_table("v", values)
+    )
+    document = profile.build_document(
+        reading.read_table(f"{table}"), taxonomy.Settings(), []
+    )
+    column = document["columns"][0]
+    assert column["fraction_widths"] == {"1": 50, "(withheld)": 10}
+    assert column["percentiles"]["min"] == 2.11
+    described = contract.load_profile(
+        f"{fixtures.write_profile(folder, 'v.json', document)}"
+    )
+    for seed in range(6):
+        twin = generation.generate(described, seed)
+        target = fixtures.write(
+            folder, f"twin-{seed}.csv", rendering.twin_csv(twin)
+        )
+        outcome = validation.measure(described, f"{target}")
+        missed = [
+            check.subcheck
+            for check in outcome.checks
+            if check.verdict == validation.MISSED
+        ]
+        assert missed == [], (seed, missed)
+
+
+def test_an_invented_straggler_is_not_a_spelling_this_column_calls_absent(
+) -> None:
+    """A present cell of a twin may not be a hole of its own description.
+
+    A column of prices beside eleven cells spelled `1`, declared with
+    `--missing-value 1`, publishes `missing_by_source {"1": 11}`. The
+    straggler walk counted up from one and wrote `1`, so the twin's own
+    description read that present cell as absent and five exact counts
+    moved against the description the twin was built from.
+    """
+    folder = pathlib.Path(tempfile.mkdtemp())
+    values = [f"${index}" for index in range(1, 100)] + ["1"] * 11 + ["7"]
+    table = fixtures.write(
+        folder, "price.csv", fixtures.single_column_table("price", values)
+    )
+    document = profile.build_document(
+        reading.read_table(f"{table}"),
+        taxonomy.Settings(declared_missing_values=("1",)),
+        [],
+    )
+    column = document["columns"][0]
+    assert column["missing_by_source"] == {"1": 11}
+    described = contract.load_profile(
+        f"{fixtures.write_profile(folder, 'price.json', document)}"
+    )
+    twin = generation.generate(described, 5)
+    target = fixtures.write(folder, "twin.csv", rendering.twin_csv(twin))
+    outcome = validation.measure(described, f"{target}")
+    missed = [
+        check.subcheck
+        for check in outcome.checks
+        if check.verdict == validation.MISSED
+    ]
+    assert missed == [], missed
+
+
+def test_the_all_different_remark_does_not_deny_the_distribution() -> None:
+    """A block publishing a ladder may not say it publishes nothing.
+
+    The free-text form of the all-different remark says "Nothing from
+    this column is published either way -- no value of it, and no
+    distribution", and tells the reader to rewrite the values so that
+    their distribution will be described. Both clauses are false of an
+    affixed column, which publishes the full distribution, and the
+    column of `$1` to `$100` carried them.
+    """
+    folder = pathlib.Path(tempfile.mkdtemp())
+    table = fixtures.write(
+        folder, "price.csv", fixtures.single_column_table("price", _prices())
+    )
+    column = profile.build_document(
+        reading.read_table(f"{table}"), taxonomy.Settings(), []
+    )["columns"][0]
+    assert column["role"] == "affixed_number"
+    assert column["mean"] == 50.5
+    said = " ".join(column["remarks"])
+    assert "every value in this column is different" in said
+    assert "which keeps its distribution" in said
+    assert "Nothing from this column is published" not in said
+    assert "write them as plain numbers" not in said
+
+
+def test_an_affix_spelling_may_not_stand_in_the_header_sentence() -> None:
+    """The fourth sentence path belongs to no column, so it binds to none.
+
+    A note carrying an affix argument at `source.header_evidence` passed
+    the whole publication guard while the same note on a column's own
+    evidence was refused. Nothing writes one there today, which is not
+    the same thing as a control.
+    """
+    folder = pathlib.Path(tempfile.mkdtemp())
+    table = fixtures.write(
+        folder, "price.csv", fixtures.single_column_table("price", _prices())
+    )
+    document = profile.build_document(
+        reading.read_table(f"{table}"), taxonomy.Settings(), []
+    )
+    document["source"]["header_evidence"] = taxonomy.note(
+        taxonomy.REMARK_AFFIXED, ("PATIENT-4471-SSN-", "", 40)
+    )
+    with pytest.raises(errors.ProfileError):
+        profile.check_publication(document)
