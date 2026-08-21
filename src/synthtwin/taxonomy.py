@@ -4144,13 +4144,18 @@ def _n_distinct_by_occurrences(present: list[str]) -> dict[str, int]:
 def _multiplicity_map(sizes: list[int]) -> dict[str, int]:
     """How many of these groups have one member, two members, and so on.
 
-    THE ONE SHAPE, BUILT IN ONE PLACE. Three published mappings are this
-    same fact about three different things -- how many different values
+    THE ONE SHAPE, BUILT IN ONE PLACE. TWO published mappings are this
+    same fact about two different things -- how many different values
     cover exactly n rows (`n_distinct_by_occurrences`), and how many
     different spellings of one published label cover exactly n rows
     (`variants_withheld`) -- and they must not drift apart in key form,
     in padding or in order, because a consumer reads them with one
-    routine. `_n_distinct_by_occurrences` above states what this class
+    routine. This said THREE and then named two; the miscount came from
+    the contract's own section heading and was found while transcribing
+    that section for the self-contained version 6. There is no third:
+    this function has exactly two callers, and the only candidate --
+    `suppressed_level_counts` -- is a sorted array of integers rather
+    than a mapping. `_n_distinct_by_occurrences` above states what this class
     of fact does and does not disclose; that statement holds for every
     caller, because none of them passes anything but group sizes.
 
