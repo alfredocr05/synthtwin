@@ -1295,6 +1295,86 @@ def _check_published(
         raise _refuse(path)
 
 
+def _affix_notes_are_bound(document: "dict[str, object]") -> None:
+    """Every affix spelling in a sentence is that column's own, positionally.
+
+    THE COMPENSATING CONTROL for the fourth argument class (plan
+    amendment A-P4-7). The walk above reaches a sentence without the
+    block that owns it, so it can only ask whether an affix argument is
+    text -- and that is not the rule. The rule is that argument 1 IS
+    the block's `affix_prefix` and argument 2 IS its `affix_suffix`,
+    character for character.
+
+    Positional, because "one of the two" is satisfied by the pair
+    SWAPPED: a sentence saying cells read `kg`, a number, then `$`
+    misdescribes the column while passing a membership test.
+
+    Without this, any value of anybody's table could ride into a
+    published sentence through those two positions, which is the whole
+    hole the argument class opened. The rendering round trip does NOT
+    close it: a producer that builds the sentence from the wrong
+    spelling renders consistently and passes.
+
+    Raises ProfileError naming the column and the place, never the text
+    that stood there.
+    """
+    columns = document["columns"] if "columns" in document else None
+    if not isinstance(columns, list):
+        return
+    pairs: "dict[str, tuple[str, str]]" = {}
+    for block in columns:
+        if not isinstance(block, dict):
+            continue
+        name = block["name"] if "name" in block else None
+        prefix = block["affix_prefix"] if "affix_prefix" in block else None
+        suffix = block["affix_suffix"] if "affix_suffix" in block else None
+        if (
+            isinstance(name, str)
+            and isinstance(prefix, str)
+            and isinstance(suffix, str)
+        ):
+            pairs[name] = (prefix, suffix)
+    for block in columns:
+        if not isinstance(block, dict):
+            continue
+        name = block["name"] if "name" in block else None
+        if not isinstance(name, str):
+            continue
+        said: "list[object]" = [block["detection_evidence"] if "detection_evidence" in block else None]
+        remarks = block["remarks"] if "remarks" in block else None
+        if isinstance(remarks, list):
+            for remark in remarks:
+                said = said + [remark]
+        for sentence in said:
+            _one_affix_note_is_bound(sentence, name, pairs)
+    notes = document["publication_notes"] if "publication_notes" in document else None
+    if isinstance(notes, list):
+        for note in notes:
+            if not isinstance(note, dict):
+                continue
+            named = note["column"] if "column" in note else None
+            if isinstance(named, str):
+                _one_affix_note_is_bound(note["note"] if "note" in note else None, named, pairs)
+
+
+def _one_affix_note_is_bound(
+    sentence: object, column: str, pairs: "dict[str, tuple[str, str]]"
+) -> None:
+    """One sentence, checked against the pair of the column it names."""
+    if not isinstance(sentence, taxonomy.Note):
+        return
+    for place, argument in enumerate(sentence.arguments):
+        if not taxonomy.takes_a_bound_affix(sentence.form, place):
+            continue
+        if column not in pairs:
+            # A sentence carrying an affix spelling about a column that
+            # publishes no pair has nothing to be bound to.
+            raise _refuse(("columns", "[]", "affix argument"))
+        side = pairs[column][0] if place == 0 else pairs[column][1]
+        if argument != side:
+            raise _refuse(("columns", "[]", "affix argument"))
+
+
 def _publication_context(document: dict[str, object]) -> _Publication:
     """The floor and the column names, read out before the walk.
 
@@ -1354,6 +1434,7 @@ def check_publication(document: dict[str, object]) -> None:
     """
     context = _publication_context(document)
     _check_published(document, (), "", context)
+    _affix_notes_are_bound(document)
 
 
 def build_document(
