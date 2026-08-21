@@ -1195,7 +1195,9 @@ def takes_a_bound_affix(form: str, place: int) -> bool:
       the guard that re-checks one ask it, so neither can drift from
       the other into admitting a spelling the other refuses.
     """
-    return place in _BOUND_AFFIX_PLACES.get(form, ())
+    if form not in _BOUND_AFFIX_PLACES:
+        return False
+    return place in _BOUND_AFFIX_PLACES[form]
 
 
 def _is_bound_affix(form: str, place: int) -> bool:
@@ -3900,12 +3902,23 @@ def _affixed_reading(cells: _Cells) -> "_Affixed | None":
         if split is None:
             continue
         prefix, core, suffix = split
-        by_pair.setdefault((prefix, suffix), []).append(core)
+        key = (prefix, suffix)
+        if key in by_pair:
+            by_pair[key] = by_pair[key] + [core]
+        else:
+            by_pair[key] = [core]
     if not by_pair:
         return None
-    # Sorted so the choice cannot depend on insertion order; the count
-    # decides, and the pair's own text breaks a tie.
-    pair = max(sorted(by_pair), key=lambda key: len(by_pair[key]))
+    # The most common pair wins. Walked over SORTED keys with a strict
+    # comparison, so the winner is the one the most cells wore and, on
+    # a tie, the one whose own text sorts first -- never the one that
+    # happened to be inserted first.
+    pair = ("", "")
+    best = 0
+    for key in sorted(by_pair):
+        if len(by_pair[key]) > best:
+            pair = key
+            best = len(by_pair[key])
     cores = by_pair[pair]
     n_affixed = len(cores)
     if n_affixed < needed or n_affixed < settings.small_cell_floor:
