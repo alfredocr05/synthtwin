@@ -60,11 +60,11 @@ def numeric_column(parsing_count: int, total: int = 100) -> list[str]:
     column either: what is being tested is the numeric line alone.
     """
     numbers = [str(index) for index in range(parsing_count)]
-    notes = [
-        f"note {index} written out in words"
-        for index in range(total - parsing_count)
-    ]
+    notes = fixtures.prose(total - parsing_count)
     return numbers + notes
+
+
+_PROSE = fixtures.prose(40)
 
 
 def ceiling_of(values: list[str]) -> int:
@@ -130,9 +130,7 @@ def test_the_reviewers_own_worst_example_publishes_nothing() -> None:
     # Sixty numeric cells and forty two-word notes were published as
     # role `count` with `min: 0`, `max: 59` and `mean: 29.5`, with the
     # forty in no distribution at all.
-    values = [str(index) for index in range(60)] + [
-        f"note {index}" for index in range(40)
-    ]
+    values = [str(index) for index in range(60)] + fixtures.prose(40)
     described = describe(values)
     assert described.role == taxonomy.ROLE_TEXT
     block = whole_block(described)
@@ -299,7 +297,7 @@ def test_the_policy_reaches_the_written_profile(
         rows.append(
             [
                 # 60 numbers and 40 notes: below the numeric line.
-                str(index) if index < 60 else f"note {index} in words",
+                str(index) if index < 60 else _PROSE[index % len(_PROSE)],
                 # 11 labels in 100 rows: above the category ceiling.
                 f"label{index % 11}",
                 # 9 labels in 100 rows: within it.

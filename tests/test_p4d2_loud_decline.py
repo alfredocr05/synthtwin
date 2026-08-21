@@ -88,6 +88,23 @@ NOTHING = rendering._MADE_UP_NOTHING
 SEED = 20260819
 
 
+# A column no rule reads, for the tests about what a column NOBODY
+# reads says about itself. It has to vary in shape and hold no number:
+# `free words 0`, `free words 1` and the rest of that family stopped
+# being free text when the affixed-number rule was built -- it reads
+# them as a number wearing `free words `, which is the whole point of
+# that rule -- so a template cannot stand for prose here any more.
+#
+# Thirty-six different sentences over 240 rows clears the categorical
+# ceiling of a tenth, so no earlier rule claims it either.
+_PROSE = [
+    f"{opening} {middle} {ending}"
+    for opening in ("seen", "review", "pending")
+    for middle in ("in clinic", "by phone", "at home")
+    for ending in ("no change", "improving", "worse", "unclear")
+]
+
+
 def _described(
     folder: pathlib.Path, text: str, declared: "list[str] | None" = None
 ) -> contract.Profile:
@@ -174,7 +191,7 @@ def every_class(tmp_path_factory: pytest.TempPathFactory) -> contract.Profile:
         rows = rows + [
             [
                 f"K{place:04d}",
-                f"free words {place}",
+                _PROSE[place % len(_PROSE)],
                 # One label is worn by exactly seven rows, which the
                 # default floor of eleven holds back; the other two are
                 # worn by plenty and are published.
@@ -375,7 +392,7 @@ def test_the_screen_line_reaches_a_person_running_the_command(
 ) -> None:
     """`synthtwin generate` says it on the screen, not only in the file."""
     header = ["note"]
-    rows = [[f"free words {place}"] for place in range(60)]
+    rows = [[_PROSE[place % len(_PROSE)]] for place in range(60)]
     table = fixtures.write(
         tmp_path, "table.csv", fixtures.rows_to_csv(header, rows)
     )
@@ -395,7 +412,7 @@ def test_the_summary_tells_a_person_before_they_generate_anything(
 ) -> None:
     """The producer's own page says what a twin of it would hold."""
     header = ["note"]
-    rows = [[f"free words {place}"] for place in range(60)]
+    rows = [[_PROSE[place % len(_PROSE)]] for place in range(60)]
     table = fixtures.write(
         tmp_path, "table.csv", fixtures.rows_to_csv(header, rows)
     )
