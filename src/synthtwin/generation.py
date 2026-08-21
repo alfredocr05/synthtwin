@@ -1753,9 +1753,14 @@ def _at_width(sign: str, figures: str, place: int, width: int) -> str:
     `_width_notes` recounts the finished text so the report says which
     width the column actually came out at.
 
-    Ties go toward positive infinity, the direction every other rounding
-    in this method takes, so that a value exactly between two spellings
-    has one answer and not a parity-dependent one.
+    TIES GO TO EVEN, which is the plan's own word for this snap
+    (P4-D4.5) and is NOT the tie rule the rest of this method uses.
+    Every other rounding here places ONE value and a bias in it moves
+    that value; this one places a whole column of them, and a bias
+    toward positive infinity applied to every tie would walk the
+    column's own mean up with it. The difference is stated here because
+    a second implementer reading this function is owed one answer and
+    this docstring gave the other one.
 
     A width of zero writes the point with nothing after it, which is
     what a cell reading `12.` is: the forms ladder counts it `decimal`
@@ -1799,25 +1804,7 @@ def _at_width(sign: str, figures: str, place: int, width: int) -> str:
     if up:
         digits = _incremented(digits)
     cut = len(digits) - width
-    written = f"{sign}{digits[:cut]}.{digits[cut:]}"
-    # A SNAP MAY NOT CHANGE A CELL'S SIGN CLASS OR ITS ZERO-NESS
-    # (P4-D4.5). `n_zero` and `n_negative` are exact published counts,
-    # so a value rounded onto zero would buy a published width with a
-    # published count. The nearest same-class value at this width is
-    # written instead, which is one unit in the last place the width
-    # holds.
-    if width > 0:
-        held = False
-        for character in figures:
-            if character != "0":
-                held = True
-        settled = True
-        for character in digits:
-            if character != "0":
-                settled = False
-        if held and settled:
-            written = f"{sign}0.{'0' * (width - 1)}1"
-    return written
+    return f"{sign}{digits[:cut]}.{digits[cut:]}"
 
 
 def _exponent_form(sign: str, figures: str, place: int, marker: str) -> str:
@@ -2063,6 +2050,38 @@ def _fraction_need(value: float) -> int:
     return len(figures) - place
 
 
+def _snaps_away(value: float, width: int) -> bool:
+    """Whether writing this value at this width would erase what it is.
+
+    A SNAP MAY NEVER CHANGE A CELL'S ZERO-NESS OR ITS SIGN CLASS
+    (P4-D4.5). `n_zero` and `n_negative` are EXACT published counts, so
+    a value rounded onto zero would buy a published width with a
+    published count -- and the plan's repair, "the nearest same-class
+    value at that width inside the cell's segment", has no answer at
+    WIDTH ZERO: the nearest non-zero whole number is a whole unit away
+    and lands outside the segment the ladder gave the cell.
+
+    So the width is refused for that value instead, and A-P4-15's route
+    carries it: the value keeps its own width, the quota goes unmet,
+    and the report names the width that went unplaced. The alternative
+    was silent, and it fired on an ordinary column -- eighty-nine cells
+    written `1.` through `11.` beside eleven written `0.01` to `0.11`
+    publishes eighty-nine cells at width zero, and the twin wrote four
+    of its own positive values as `0.` while its description published
+    no zero at all.
+    """
+    if value == 0.0:
+        return False
+    sign, figures, place = _digits_and_point(value)
+    written = _at_width(sign, figures, place, width)
+    read = parsing.parse_number(written)
+    if read is None:
+        return True
+    if read == 0.0:
+        return True
+    return (read < 0.0) != (value < 0.0)
+
+
 def _width_places(
     widths: "dict[str, int]",
     styles: "list[str]",
@@ -2149,6 +2168,8 @@ def _width_places(
             if quotas[width] < len(members):
                 continue
             if width < need and not alone:
+                continue
+            if _snaps_away(value, width):
                 continue
             whole = width
             break
@@ -8930,15 +8951,37 @@ def _fraction_notes(
     pooled = 0
     if contract.WITHHELD in facts.fraction_widths:
         pooled = facts.fraction_widths[contract.WITHHELD]
+    # THE RECOUNT IS OVER THE CORES ON THE AFFIXED ROLE, because that
+    # is the population the census is about. Reading `$1.20` as a bare
+    # number finds no number at all, so every cell of a column of
+    # prices failed the test and the report said the published width
+    # was written by NO cell of a twin that had in fact written every
+    # one of them at it -- a report that accuses a correct twin is
+    # worse than one that says nothing.
+    prefix = ""
+    suffix = ""
+    if isinstance(column.facts, contract.AffixedFacts):
+        prefix = column.facts.affix_prefix
+        suffix = column.facts.affix_suffix
     counted: dict[int, int] = {}
     for cell in written:
         if cell == "":
             continue
-        if parsing.classify_number(cell) != parsing.NUMBER:
+        trimmed = parsing.trimmed(cell)
+        body = trimmed
+        if prefix or suffix:
+            if not trimmed.startswith(prefix):
+                continue
+            if not trimmed.endswith(suffix):
+                continue
+            body = trimmed[len(prefix) : len(trimmed) - len(suffix)]
+            if not body:
+                continue
+        if parsing.classify_number(body) != parsing.NUMBER:
             continue
-        if parsing.numeric_style(cell) != parsing.STYLE_DECIMAL:
+        if parsing.numeric_style(body) != parsing.STYLE_DECIMAL:
             continue
-        width = parsing.fraction_width(cell)
+        width = parsing.fraction_width(body)
         if width in counted:
             counted[width] = counted[width] + 1
             continue
