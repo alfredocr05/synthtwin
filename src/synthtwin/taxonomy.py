@@ -972,16 +972,16 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
         )
     if form == EVIDENCE_AFFIXED:
         return (
-            f"{_whole(arguments, 0)} value(s) are "
-            f"{_affix_shape(arguments, 1, 2)}"
+            f"{_whole(arguments, 2)} value(s) are "
+            f"{_affix_shape(arguments, 0, 1)}"
         )
     if form == REMARK_AFFIXED:
         # It names the COUNTED cells, never "every value": the role
         # tolerates stragglers up to the parse line, so a sentence
         # about every value would be false of them.
         return (
-            f"{_whole(arguments, 0)} of this column's values are "
-            f"{_affix_shape(arguments, 1, 2)}, and synthtwin described "
+            f"{_whole(arguments, 2)} of this column's values are "
+            f"{_affix_shape(arguments, 0, 1)}, and synthtwin described "
             f"those numbers as quantities: their average, their spread "
             f"and their ends are in this profile. If these are codes "
             f"rather than measurements, run the command again with "
@@ -1177,9 +1177,14 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
 # Written as a table rather than as a test on the value, so that
 # widening it is an edit somebody must make on purpose: a check that
 # asked "is this a string?" would admit any value of any table.
+# The contract fixes the order (NF35): argument 1 is the prefix,
+# argument 2 the suffix, argument 3 `n_affixed`. The code had the count
+# first, which is a different sentence shape from the one the contract
+# specifies and would have made a guard written from the contract
+# refuse every remark this producer writes.
 _BOUND_AFFIX_PLACES: "dict[str, tuple[int, ...]]" = {
-    EVIDENCE_AFFIXED: (1, 2),
-    REMARK_AFFIXED: (1, 2),
+    EVIDENCE_AFFIXED: (0, 1),
+    REMARK_AFFIXED: (0, 1),
 }
 
 
@@ -4047,7 +4052,7 @@ def _affixed_verdict(
     # of the values separates an opaque token family from a
     # measurement, so the choice is between telling every such column's
     # owner and telling none.
-    pair = (affixed.n_affixed, affixed.prefix, affixed.suffix)
+    pair = (affixed.prefix, affixed.suffix, affixed.n_affixed)
     # And the all-different remark reaches this role VERBATIM, which
     # the plan requires and which matters here more than anywhere: a
     # column of `R1` to `R240` wearing one prefix is exactly the shape

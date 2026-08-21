@@ -3428,31 +3428,116 @@ def _affixed_content(
     core_plan = dataclasses.replace(plan, column=_core_view(column))
     cores, notes = _numeric_content(core_plan, words)
     cells = [f"{facts.affix_prefix}{core}{facts.affix_suffix}" for core in cores]
-    stragglers = column.n_present - facts.n_affixed
-    if stragglers > 0:
-        layout = plan.layout
-        used: dict[str, int] = {cell: 1 for cell in cells}
-        cells = cells + _class_spellings(
-            _CLASS_TEXT,
-            stragglers,
-            layout.folded_budgets[2] if layout else 1,
-            layout.raw_budgets[2] if layout else 1,
-            0,
+    # THE STRAGGLERS: the cells wearing no pair. Their count is
+    # `n_present - n_affixed`, and their CLASSES are published -- the
+    # universal census counts cells, and an affixed cell is not a
+    # number, so every numeric, out-of-range and contradictory cell of
+    # this column is a straggler and the rest of `n_not_numeric` is the
+    # ordinary text among them.
+    #
+    # Writing them all as text was wrong twice over: it lost the
+    # published class of a plain number sitting beside the affixed
+    # cells, and it reported the loss as a deviation instead of not
+    # committing it (review item P4-AFX-F6). G10.2 requires the
+    # construction to preserve the class, not to apologize for it.
+    layout = plan.layout
+    used: "dict[str, int]" = {cell: 1 for cell in cells}
+    pair = (facts.affix_prefix, facts.affix_suffix)
+    ordinary = column.n_not_numeric - facts.n_affixed
+    if ordinary < 0:
+        ordinary = 0
+    if column.n_numeric:
+        cells = cells + _unaffixed_numbers(column.n_numeric, pair, used)
+    for kind, count, place in (
+        (_CLASS_OUT_OF_RANGE, column.n_out_of_range, 1),
+        (_CLASS_CONTRADICTORY, column.n_contradictory, 2),
+        (_CLASS_TEXT, ordinary, 3),
+    ):
+        if not count:
+            continue
+        cells = cells + _unaffixed_spellings(
+            kind,
+            count,
+            layout.folded_budgets[place] if layout else 1,
+            layout.raw_budgets[place] if layout else 1,
+            pair,
             used,
         )
-        notes = notes + [
-            _deviation(
-                column.name,
-                "n_affixed",
-                f"{stragglers} value(s) wearing no affix pair",
-                "invented text stands in their place",
-                f"{stragglers} value(s) of this column did not wear the "
-                f"shared text the rest wore. The description says how "
-                f"many there were and nothing else about them, so the "
-                f"twin invents them.",
-            )
-        ]
     return cells, notes
+
+
+def _wears(text: str, pair: "tuple[str, str]") -> bool:
+    """Whether this cell would be read as wearing the published pair.
+
+    A straggler that wears it is counted as affixed when the twin is
+    described again, so `n_affixed` comes out higher than the
+    description published and the collision is silent (review item
+    P4-AFX-F7). The invented spelling `text-1` wearing the published
+    prefix `text-` is exactly that case.
+    """
+    prefix, suffix = pair
+    trimmed = parsing.trimmed(text)
+    if not trimmed.startswith(prefix) or not trimmed.endswith(suffix):
+        return False
+    return bool(trimmed[len(prefix) : len(trimmed) - len(suffix)])
+
+
+def _unaffixed_spellings(
+    kind: str,
+    count: int,
+    folded_budget: int,
+    raw_budget: int,
+    pair: "tuple[str, str]",
+    used: "dict[str, int]",
+) -> "list[str]":
+    """One straggler class, with nothing in it wearing the pair."""
+    built: list[str] = []
+    step = 0
+    while len(built) < count and step < count * 8 + 64:
+        wanted = count - len(built)
+        batch = _class_spellings(
+            kind, wanted + step, folded_budget, raw_budget, 0, used
+        )
+        for spelling in batch:
+            if len(built) >= count:
+                break
+            if _wears(spelling, pair) or spelling in used:
+                continue
+            built = built + [spelling]
+            used[spelling] = 1
+        step = step + wanted + 1
+    while len(built) < count:
+        # A last resort that cannot wear the pair whatever it is: a
+        # spelling of this package's own, made distinct by its place.
+        made = f"(no pair {len(built)})"
+        if not _wears(made, pair) and made not in used:
+            used[made] = 1
+            built = built + [made]
+        else:
+            built = built + [f"(no pair {len(built)}{len(used)})"]
+    return built
+
+
+def _unaffixed_numbers(
+    count: int, pair: "tuple[str, str]", used: "dict[str, int]"
+) -> "list[str]":
+    """Plain numbers standing beside the affixed cells.
+
+    A cell of an affixed column that IS a number wears no pair -- the
+    detection rule requires one side to carry text -- so these are
+    stragglers, and the description publishes how many. Written as
+    whole numbers because nothing else about them is published: the
+    ladder and every moment belong to the CORES.
+    """
+    built: list[str] = []
+    value = 1
+    while len(built) < count:
+        spelling = f"{value}"
+        if spelling not in used and not _wears(spelling, pair):
+            used[spelling] = 1
+            built = built + [spelling]
+        value = value + 1
+    return built
 
 
 def _numeric_content(
