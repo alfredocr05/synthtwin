@@ -246,6 +246,12 @@ def test_a_style_with_nowhere_to_go_is_still_named(
     assert named == [], [note.published for note in named]
 
     document["columns"][0]["numeric_styles"] = {"leading_plus": 46}
+    # The census of widths moves with the forms map, because P5 ties the
+    # two together: a map that names no `decimal` cells is a map whose
+    # census names no width, and a hand-edited document that kept the
+    # old census would be refused at the door instead of reaching the
+    # placement this test is about.
+    document["columns"][0]["fraction_widths"] = {}
     target = fixtures.write_profile(tmp_path, "edited-profile.json", document)
     edited = contract.load_profile(str(target))
     twin = generation.generate(edited, 0)

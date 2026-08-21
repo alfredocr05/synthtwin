@@ -359,6 +359,11 @@ def test_a_style_the_twin_cannot_place_is_named_in_the_report(
     assert quiet == [], [note.published for note in quiet]
 
     document["columns"][0]["numeric_styles"] = {"leading_plus": 46}
+    # P5 ties the census to the forms map: a map naming no `decimal`
+    # cells is a map whose census names no width, and a document that
+    # kept the old census would be refused before this placement is
+    # reached.
+    document["columns"][0]["fraction_widths"] = {}
     target = fixtures.write_profile(tmp_path, "edited-profile.json", document)
     edited = contract.load_profile(str(target))
     twin = generation.generate(edited, 0)

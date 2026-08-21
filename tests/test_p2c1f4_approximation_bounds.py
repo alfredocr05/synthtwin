@@ -319,6 +319,13 @@ def _matrix_sections() -> "dict[str, dict[str, str]]":
 # every one of them exactly observable off a written twin, and their
 # disposition is stated in the Phase 4 plan rather than in the version
 # 4 matrix -- which was written before the role existed.
+# ...and the one key the NUMERIC roles gained in the same phase. It
+# stands here for the same reason and no other: the version 4 matrix
+# was written before the census of fraction widths existed, and its
+# disposition is stated in the Phase 4 plan (P4-D4.5) and registered
+# under `numeric` in `tests/dispositions.py`.
+PHASE_4_NUMERIC_KEYS = ("fraction_widths",)
+
 AFFIXED_OWN_KEYS = (
     "affix_prefix",
     "affix_suffix",
@@ -1007,6 +1014,8 @@ def test_every_key_the_producer_emits_has_a_disposition(
             table = dict(table)
             for own in AFFIXED_OWN_KEYS:
                 table[own] = "EXACT-OBSERVABLE (Phase 4 plan, P4-D4.1)"
+            for own in PHASE_4_NUMERIC_KEYS:
+                table[own] = "EXACT-OBSERVABLE (Phase 4 plan, P4-D4.5)"
             missing = _undisposed(_emitted_names(block), table, universal)
             assert missing == [], f"{role}: {missing}"
     assert reached == set(ROLE_SECTIONS)
@@ -1026,6 +1035,8 @@ def test_the_completeness_assertion_refuses_a_key_nobody_disposed(
         if block["role"] != "count":
             continue
         table = dict(sections[ROLE_SECTIONS["count"]])
+        for own in PHASE_4_NUMERIC_KEYS:
+            table[own] = "EXACT-OBSERVABLE (Phase 4 plan, P4-D4.5)"
         names = _emitted_names(block) + ["a_field_nobody_disposed"]
         assert _undisposed(names, table, universal) == [
             "a_field_nobody_disposed"

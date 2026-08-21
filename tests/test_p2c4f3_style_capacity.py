@@ -537,7 +537,21 @@ def test_the_crowded_ladder_of_p2c5f3_writes_its_published_map(
         assert len({parsing.folded(cell) for cell in present}) == (
             column["n_distinct_folded"]
         ), seed
-        assert list(twin.deviations) == [], seed
+        # THE ONE THING THIS COLUMN CANNOT CARRY, and it is named
+        # rather than silent (plan amendment A-P4-15). Its census
+        # publishes thirty cells at three figures after the point and
+        # fourteen at two, and its twin's own strata are sized 11, 11,
+        # 10, 11, 4 and 1 -- no assignment of whole values reaches
+        # either quota, and the walk refuses to split a value across two
+        # widths because that would spend the count of different
+        # spellings this test recounts one line above. So a width goes
+        # unplaced, the report says which, and nothing else moves.
+        other = [
+            note
+            for note in twin.deviations
+            if note.fact != "fraction_widths"
+        ]
+        assert other == [], seed
 
 
 def test_the_reach_step_is_what_places_the_crowded_ladder(

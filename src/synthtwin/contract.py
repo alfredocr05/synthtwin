@@ -361,6 +361,7 @@ DATETIME_KEYS = (
 )
 
 NUMERIC_KEYS = (
+    "fraction_widths",
     "integer_valued",
     "mean",
     "n_left_out_of_statistics",
@@ -462,6 +463,12 @@ NUMERIC_STYLES = (
     "exponent_lower",
     "exponent_upper",
 )
+
+# The one form of the six the fraction census is taken over, named here
+# rather than spelled at the place it is read: the census and the forms
+# map have to agree about which form they are talking about, and a
+# spelling repeated at two sites is a spelling one site can change.
+DECIMAL_STYLE = "decimal"
 
 DECLARATION_MATCHING = "exact_number_when_it_reads_as_one_else_spelling"
 
@@ -823,6 +830,10 @@ INVARIANTS = {
     "P3": (
         "a column of numbers says how its numbers were written"
     ),
+    "P5": (
+        "the cells counted by the figures they wrote after the point "
+        "come to the cells that were written with a point"
+    ),
 }
 
 
@@ -1122,6 +1133,7 @@ class NumericFacts:
     integer_valued: bool
     n_rows: int
     numeric_styles: "dict[str, int]"
+    fraction_widths: "dict[str, int]"
 
 
 @dataclasses.dataclass(frozen=True)
@@ -4245,6 +4257,7 @@ def _numeric_facts(
             f"{n_numeric} values read as a number",
         )
     styles = _numeric_styles(mapping, where, frame.floor, n_numeric)
+    widths = _fraction_widths(mapping, where, frame.floor, styles)
     return NumericFacts(
         percentiles=ladder,
         mean=mean,
@@ -4260,6 +4273,7 @@ def _numeric_facts(
         integer_valued=integer_valued,
         n_rows=echoed,
         numeric_styles=styles,
+        fraction_widths=widths,
     )
 
 
@@ -4325,6 +4339,124 @@ def _numeric_styles(
             f"{n_numeric} of the column's values read as a number",
         )
     return styles
+
+
+def _fraction_widths(
+    mapping: "dict[str, object]",
+    where: str,
+    floor: int,
+    styles: "dict[str, int]",
+) -> "dict[str, int]":
+    """How many figures the cells written with a point wrote after it.
+
+    ITS SUM IS STATED OVER A NUMBER THAT MAY NOT EXIST, and that is the
+    whole difficulty this reads through (plan amendments A-P4-5 and
+    A-P4-6). Where the floor named the decimal form, `numeric_styles`
+    carries a `decimal` key and the census sums to it exactly. Where
+    the floor POOLED that form, no published number holds the count of
+    decimal cells -- and an earlier reading concluded the sum obligation
+    then binds nothing, which would have admitted a census of a
+    thousand decimal cells in a column of a hundred. Three published
+    numbers bound it instead:
+
+    1. non-empty means a total of at least one;
+    2. the total is strictly BELOW the floor, because a form is pooled
+       only when its own count falls below it;
+    3. the total is at most the pooled remainder of the forms map,
+       because the pooled decimal cells are a subset of that pool.
+
+    The census may also be empty in the pooled case, which is what a
+    column with no decimal cell at all writes.
+
+    Raises ProfileError for a wrong type, a key that is not a canonical
+    width, a named width below the floor, and for each of the four
+    cases above.
+    """
+    widths = _counts(mapping["fraction_widths"], "fraction_widths", where, 1)
+    for name in sorted(widths):
+        if name == WITHHELD:
+            continue
+        if not _is_canonical_width(name):
+            raise _out_of_range(
+                f"fraction_widths -> {name}",
+                where,
+                f"'{name}'",
+                "a whole number of figures written without padding",
+            )
+        if widths[name] < floor:
+            raise _broken(
+                "P5",
+                where,
+                f"the width '{name}' was written by {widths[name]} cells",
+                f"the smallest group size is {floor}",
+            )
+    total = _added(widths)
+    if DECIMAL_STYLE in styles:
+        if total != styles[DECIMAL_STYLE]:
+            raise _broken(
+                "P5",
+                where,
+                f"the cells counted by the figures they wrote after the "
+                f"point come to {total}",
+                f"{styles[DECIMAL_STYLE]} cells were written with a point",
+            )
+        return widths
+    if not total:
+        return widths
+    if total >= floor:
+        raise _broken(
+            "P5",
+            where,
+            f"{total} cells are counted as written with a point",
+            "no such form is named at all, so every one of them was "
+            f"held back and there are fewer than {floor}",
+        )
+    pooled = styles[WITHHELD] if WITHHELD in styles else 0
+    if total > pooled:
+        raise _broken(
+            "P5",
+            where,
+            f"{total} cells are counted as written with a point",
+            f"{pooled} cells in all were held back from the forms map",
+        )
+    # ...AND THE POOL'S OWN CAPACITY BOUNDS IT FROM BELOW (plan
+    # amendment A-P4-8). The three conditions above still admit an
+    # impossible document: a pool of sixty cells with one of them
+    # counted as written with a point leaves fifty-nine for the FIVE
+    # other forms, so at least one of them holds twelve -- and a form
+    # holding twelve at a floor of eleven would have been published by
+    # name rather than pooled. There are exactly six forms, each pooled
+    # one holds at most one less than the floor, so the pool minus this
+    # census is at most five of those.
+    room = 5 * (floor - 1)
+    if pooled - total > room:
+        raise _broken(
+            "P5",
+            where,
+            f"{total} of the {pooled} cells held back from the forms "
+            "map are counted as written with a point",
+            f"the {pooled - total} others would have to share five "
+            f"forms holding at most {floor - 1} cells each",
+        )
+    return widths
+
+
+def _is_canonical_width(name: str) -> bool:
+    """Whether one census key is a width written the one permitted way.
+
+    Decimal figures, no sign, no padding: `0` written as itself and
+    nothing else beginning with a zero. A grammar left to be inferred is
+    a grammar two producers spell differently and a consumer reads as
+    two widths.
+    """
+    if not name:
+        return False
+    for character in name:
+        if character not in "0123456789":
+            return False
+    if name == "0":
+        return True
+    return name[:1] != "0"
 
 
 def _identifier_facts(

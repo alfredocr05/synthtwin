@@ -771,7 +771,13 @@ def _matrix_violations(
     for group, section in dispositions.CONTRACT_SECTIONS.items():
         rows = matrix[section]
         stated = {name for names, _text in rows for name in names}
-        owed = {fact.field for fact in registry if fact.group == group}
+        owed = {
+            fact.field
+            for fact in registry
+            if fact.group == group
+            and (fact.group, fact.field)
+            not in dispositions.FACTS_OUTSIDE_THE_VERSION_4_MATRIX
+        }
         if stated != owed:
             broken.append(
                 f"{group}: the contract states {sorted(stated - owed)} that "
