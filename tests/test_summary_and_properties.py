@@ -26,8 +26,15 @@ def _profile_of(tmp_path: pathlib.Path, text: str, name: str = "t.csv"):
 
 def test_the_summary_names_every_column_once(tmp_path: pathlib.Path) -> None:
     table, _document, text = _profile_of(tmp_path, fixtures.every_role_table())
+    # Compared as WHOLE LINES. Counting the substring `"  name\n"`
+    # also matched the deeper-indented lists further down, where a
+    # column is named again among the ones that publish nothing -- so
+    # the count was one only while some other column happened to share
+    # those lines. Every column has exactly one HEADING, and that is
+    # what this test is about.
+    headings = [line for line in text.split("\n") if line.startswith("  ")]
     for name in table.column_names:
-        assert text.count(f"  {name}\n") == 1, name
+        assert headings.count(f"  {name}") == 1, name
 
 
 def test_each_role_is_named_in_plain_language(
@@ -71,7 +78,7 @@ def test_the_disclosure_section_is_always_present(
 def test_the_summary_says_when_nothing_is_visible(
     tmp_path: pathlib.Path,
 ) -> None:
-    values = [f"code{index}" for index in range(40)]
+    values = fixtures.prose(40)
     _table, _document, text = _profile_of(
         tmp_path, fixtures.single_column_table("token", values)
     )

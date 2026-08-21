@@ -569,4 +569,14 @@ def _plausible_arguments(form: str) -> "tuple[object, ...]":
         return (9, 10, taxonomy.NOTE_ARGUMENT_WORDS[0])
     if form == taxonomy.SAID_READ_AS_DATES:
         return (2, taxonomy.NOTE_ARGUMENT_WORDS[0])
-    return tuple(1 + place for place in range(taxonomy.NOTE_ARITY[form]))
+    # The two affixed forms take the fourth argument class at two of
+    # their positions: an affix spelling, which the grammar admits only
+    # there and only under the binding the guard checks. Every other
+    # position of every form is a whole number.
+    built: list[object] = []
+    for place in range(taxonomy.NOTE_ARITY[form]):
+        if taxonomy.takes_a_bound_affix(form, place):
+            built = built + ["mg"]
+        else:
+            built = built + [1 + place]
+    return tuple(built)

@@ -73,7 +73,7 @@ def test_unique_words_are_free_text_until_someone_declares_them() -> None:
     is still exercised -- but the role now comes from the person who
     owns the table rather than from the values.
     """
-    values = [f"code{index}" for index in range(50)]
+    values = fixtures.prose(50)
     described = describe(values)
     assert described.role == taxonomy.ROLE_TEXT
     assert described.n_distinct == 50
@@ -92,7 +92,7 @@ def test_unique_words_are_free_text_until_someone_declares_them() -> None:
 def test_the_declined_column_says_what_was_not_assumed() -> None:
     # The withdrawal is not silent: the column that would once have been
     # called a record number carries the reason and the way to declare it.
-    described = describe([f"code{index}" for index in range(50)])
+    described = describe(fixtures.prose(50))
     said = " ".join(described.remarks)
     assert "did NOT assume they are record numbers" in said
     assert "--identifier NAME" in said
@@ -116,13 +116,11 @@ def test_the_user_can_declare_a_numeric_column_to_be_a_record_number() -> None:
 
 
 def test_all_different_sentences_are_free_text_not_identifiers() -> None:
-    described = describe(
-        [f"a sentence with several words number {index}" for index in range(50)]
-    )
+    described = describe(fixtures.prose(50))
     assert described.role == taxonomy.ROLE_TEXT
     assert "length" in described.details
     body = f"{described.details}"
-    assert "sentence" not in body, "no free-text value may appear anywhere"
+    assert "clinic" not in body, "no free-text value may appear anywhere"
 
 
 def test_two_values_are_binary_whatever_their_case() -> None:

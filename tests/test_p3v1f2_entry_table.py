@@ -1228,6 +1228,10 @@ def _one_variant(described: contract.Profile, text: str, index: int) -> str:
     return _rebuilt(rows)
 
 
+_PROSE = fixtures.prose(300)
+_SHORT = fixtures.short_prose(125)
+
+
 def _text_shape(
     described: contract.Profile, text: str, index: int, longer: bool
 ) -> str:
@@ -1245,10 +1249,24 @@ def _text_shape(
             continue
         # Distinct values, because a column whose cells are all the same
         # is a constant column and the gate closes over its whole role.
-        body = f"wo rd {step}"
+        #
+        # Prose rather than `wo rd 0`, `wo rd 1`: that family is a
+        # number wearing shared text, so the perturbed column would
+        # take the affixed-number role and the free-text checks this
+        # case is registered against would not run at all. The filler
+        # goes in the MIDDLE so both ends keep varying and no affix
+        # pair can form.
         if longer:
-            body = f"wo rd {step} " + "and more words " * 12
-        rows[row][index] = body
+            sentence = _PROSE[step % len(_PROSE)]
+            head, rest = sentence.split(" ", 1)
+            sentence = f"{head} " + "and more words " * 12 + rest
+        else:
+            # Shorter than any sentence the column held, and still
+            # distinct enough that the categorical rule does not claim
+            # the perturbed column -- which would stop the free-text
+            # checks running at all.
+            sentence = _SHORT[step % len(_SHORT)]
+        rows[row][index] = sentence
         step = step + 1
     return _rebuilt(rows)
 
