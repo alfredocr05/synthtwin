@@ -832,6 +832,16 @@ RUNGS = ("p01", "p05", "p10", "p25", "p50", "p75", "p90", "p95", "p99")
 ROLE_GROUPS = {
     "count": "numeric",
     "continuous": "numeric",
+    # The affixed role's quantitative block IS the numeric block, read
+    # over the CORES its cells carry rather than over the cells: the
+    # same ladder, the same styles, the same statistics, built by the
+    # same code. So it takes the numeric group's dispositions entire,
+    # including the distinctness envelope -- a twin of an affixed
+    # column reaches its distinct count exactly as closely as a twin
+    # of the numeric column its cores make, because it IS that twin
+    # with a pair written round each cell. Its own seven keys are
+    # registered separately below.
+    "affixed_number": "numeric",
     "constant": "label",
     "binary": "label",
     "categorical": "label",
