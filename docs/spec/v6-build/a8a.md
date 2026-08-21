@@ -1,8 +1,17 @@
 ## 8. Every invariant, in one checkable list — part one
 
-This section restates the rules above as one list a loader or a test can
-walk. Each row is true or false with no interpretation left; the
-identifiers are the ones the sections above use.
+This section states every invariant of this format as one list a loader
+or a test can walk. Each row is true or false with no interpretation
+left, and the identifiers are the ones the rest of the document uses.
+
+**Most rows restate a rule stated beside the thing it constrains**, and
+a reader who has met the rule already will meet it again here. Four
+families are stated ONLY here, because their subject is spread across
+several sections and a normative home in any one of them would be a
+home the others reached by inference: the cell census (`X`), the
+multiplicity-map bounds (`M`), the style and fraction census (`P`), and
+the note-grammar checks (`NG`). For those, this list is the rule and
+not an echo of one.
 
 **The third column.** `yes` — true or false of ONE PARSED DOCUMENT; a
 loader decides it holding nothing else. `producer` — checked

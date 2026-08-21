@@ -1,4 +1,4 @@
-### 6.7 `long_tail_labels`
+### 6.14 `long_tail_labels`
 
 A column holding more different values than a set of categories may
 hold, some of which are nevertheless shared by enough rows to be

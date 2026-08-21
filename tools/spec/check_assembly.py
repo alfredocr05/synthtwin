@@ -45,10 +45,22 @@ import sys
 # "**D1 (the format bindings).**" or "**C6-12.**". The families are the
 # lettered ones the sealed documents and the test suite cite by name.
 _FAMILIES = (
-    "A|AF|B|C6|D|E|F|I|K|LT|N|NG|P|Q|RM|S|T|U|V|X"
+    "A|AF|B|C6|D|E|F|I|K|L|LT|M|N|NF|NG|P|Q|RM|S|T|TY|U|V|W|X"
 )
+# A definition appears in three shapes in this document, and all three
+# are real: a bolded clause opener, a bolded "Invariant Nn." opener,
+# and a row of the one-list invariant table. A checker that knew only
+# the first would report every table-defined invariant as a dangling
+# citation, and a reader would learn to ignore it.
 _DEFINITION = re.compile(
-    r"^\*\*(" + _FAMILIES + r")-?(\d+[a-z]?)\b",
+    r"^(?:\*\*(?:Invariant\s+)?|\|\s*|#{2,6}\s+)"
+    r"(" + _FAMILIES + r")-?(\d+[a-z]?)"
+    # A DEFINITION opener, not a mention. "**D5 (which clock)**" and
+    # "| D5 |" define; "**D5 is a published fact...**" discusses one.
+    # The difference is what follows the identifier, so the lookahead
+    # admits punctuation, a parenthetical or a table pipe, and refuses
+    # a running word.
+    r"(?=\.|,|:|\)|\s*\||\*\*|\s*\(|\s*—)",
     re.MULTILINE,
 )
 
@@ -71,6 +83,9 @@ _DELTA_FRAMING = (
 
 # A `C6-` LETTER identifier: these existed only to name what they
 # superseded, under a convention amendment A-P4-11 abolishes.
+# Inline code: a wire spelling or an example value, never an identifier.
+_CODE_SPAN = re.compile(r"`[^`\n]*`")
+
 _C6_LETTER = re.compile(r"\bC6-[A-Z]{2,}\b")
 
 # "**Roles (13):**" and the like -- a count stated beside a list.
@@ -99,15 +114,54 @@ def _identifier(match: re.Match[str]) -> str:
     return f"{family}-{number}" if family == "C6" else f"{family}{number}"
 
 
+# Two sections say of THEMSELVES that they restate rules stated
+# elsewhere: the one-list invariant walk, and the enumeration appendix.
+# A rule appearing in its own section and again in one of those is not
+# a collision -- it is the restatement doing its job. What IS a defect
+# is a restatement row for a rule nothing defines, so the two are
+# counted separately rather than merged.
+_RESTATEMENT = ("a8a", "a8b1", "a8b2", "a14app")
+
+# Four families are stated ONLY in the one-list section, and it says so
+# in its own opening: their subject is spread across several sections
+# and a home in any one of them would be a home the others reached by
+# inference. A FIFTH family appearing only there is still reported --
+# that would be a rule nobody wrote, which is what this check is for.
+_ONE_LIST_FAMILIES = ("X", "M", "P", "NG")
+_REGION = re.compile(r"^<!-- ([a-z0-9_]+): ", re.MULTILINE)
+
+
+def _regions(text: str) -> list[tuple[str, int, int]]:
+    """The assembled document, split by its section markers."""
+    marks = list(_REGION.finditer(text))
+    if not marks:
+        return [("", 0, len(text))]
+    spans = []
+    for index, mark in enumerate(marks):
+        end = marks[index + 1].start() if index + 1 < len(marks) else len(text)
+        spans.append((mark.group(1), mark.start(), end))
+    return spans
+
+
+def _restates(name: str) -> bool:
+    return any(name.startswith(prefix) for prefix in _RESTATEMENT)
+
+
 def check_identifiers(paths: list[pathlib.Path]) -> list[str]:
     """Every identifier defined once, and every citation resolving."""
     items: list[str] = []
     defined: dict[str, list[str]] = collections.defaultdict(list)
+    restated: dict[str, list[str]] = collections.defaultdict(list)
+
     for path in paths:
         text = path.read_text(encoding="utf-8")
-        for match in _DEFINITION.finditer(text):
-            line = text[: match.start()].count("\n") + 1
-            defined[_identifier(match)].append(f"{path.name}:{line}")
+        for region, start, end in _regions(text):
+            bucket = restated if (
+                _restates(region) or _restates(path.stem)
+            ) else defined
+            for match in _DEFINITION.finditer(text[start:end]):
+                line = text[: start + match.start()].count("\n") + 1
+                bucket[_identifier(match)].append(f"{path.name}:{line}")
 
     for name, sites in sorted(defined.items()):
         if len(sites) > 1:
@@ -118,10 +172,24 @@ def check_identifiers(paths: list[pathlib.Path]) -> list[str]:
             )
 
     known = set(defined)
+    # A citation is plain text. Wire spellings, example values and key
+    # names live in backticks, and one of them -- a prefixed code column
+    # written `A-101` -- reads as an identifier if inline code is
+    # scanned. Strip it before looking for citations.
+    for name, sites in sorted(restated.items()):
+        if name[:2] in _ONE_LIST_FAMILIES or name[:1] in _ONE_LIST_FAMILIES:
+            continue
+        if name not in known:
+            items.append(
+                f"RESTATED BUT NEVER STATED: {name} appears at {sites[0]}"
+                " in a section that restates rules stated elsewhere, and no"
+                " section states it"
+            )
+
     for path in paths:
-        text = path.read_text(encoding="utf-8")
+        text = _CODE_SPAN.sub(" ", path.read_text(encoding="utf-8"))
         cited = {_identifier(m) for m in _CITATION.finditer(text)}
-        for name in sorted(cited - known):
+        for name in sorted(cited - known - set(restated)):
             items.append(
                 f"{path.name}: cites {name}, which no section defines"
             )
