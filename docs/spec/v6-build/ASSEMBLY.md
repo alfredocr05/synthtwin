@@ -169,6 +169,30 @@ what makes it reach three counts rather than one: on a ninety-of-a-
 hundred milligram column, the un-substituted Q10 reads `10 <= 0` and a
 conforming document is refused.
 
+## 3B. Two conflicts settled at assembly, with their grounds
+
+**`clock_form` is EXACT-OBSERVABLE.** Two written sections gave one key
+two dispositions — `r5b.md` and the old delta say EXACT-CONTROL, the
+disposition matrix says EXACT-OBSERVABLE — and the format allows a
+fact exactly one. The evidence settles it without an owner ruling.
+EXACT-CONTROL means "a metadata or dispatch decision a CSV cannot
+evidence"; a CSV plainly can evidence which clock form its cells wear,
+since `09:20` and `09:20:00` are different bytes. And the plan's own
+validation section lists "the one form" among the time-of-day checks
+that RE-DESCRIBE the written twin, which is EXACT-OBSERVABLE's
+evidence route by definition. **`r5b.md` takes the matrix's answer.**
+
+**The SUM identity widens, and it needed a plan amendment (A-P4-12).**
+The disposition matrix wrote the identity over judged-pass-sourced
+cells while three other places — `s5.md`, the old delta, and the
+ratified plan itself — wrote it over stand-in-sourced cells. The
+matrix is right and the others widen. The reason is arithmetic: the
+reproduction rule leaves a spelling blank when EITHER judged pass put
+it there, so the twin writes four pools blank and the narrow identity
+names three. On a column carrying judged calendar placeholders a
+validator would have reported a failure against a correct twin. The
+`missing_by_source` exception beside it widens the same way.
+
 ## 4. Standing checks before the document is called finished
 
 1. **Every enumeration is written out, with its count stated beside
