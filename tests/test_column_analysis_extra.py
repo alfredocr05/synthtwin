@@ -9,6 +9,7 @@ import json
 
 import pytest
 
+import fixtures
 from synthtwin import parsing, profile, taxonomy
 
 SETTINGS = taxonomy.Settings()
@@ -128,7 +129,7 @@ def test_a_ladder_is_never_built_from_a_handful_of_cells() -> None:
     one row's value.
     """
     values = (
-        ["1e999"] * 50 + ["7"] + [f"note {index} here" for index in range(49)]
+        ["1e999"] * 50 + ["7"] + fixtures.prose(49)
     )
     described = describe(values)
     assert described.role == taxonomy.ROLE_TEXT
@@ -166,7 +167,7 @@ def test_a_majority_numeric_column_publishes_nothing_and_says_why() -> None:
     """
     described = describe(
         [str(index) for index in range(60)]
-        + [f"note {index} here" for index in range(40)]
+        + fixtures.prose(40)
     )
     assert described.role == taxonomy.ROLE_TEXT
     assert "percentiles" not in described.details

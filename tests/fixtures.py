@@ -245,6 +245,51 @@ def every_withholding_table(seed: int = 20260814, n_rows: int = 240) -> str:
     return rows_to_csv(header, rows)
 
 
+# Text NO RULE READS, for the many tests that need a column which
+# publishes nothing.
+#
+# It is here rather than written out at each site because the shape
+# that stands for "free text" moved once and would otherwise have to
+# move in a dozen files again. Every such fixture used to be a
+# template with a counter in it -- `note 0`, `note 1`, `code7` -- and
+# the affixed-number rule reads exactly that: a number wearing one
+# shared piece of text, which is what those strings are. A template
+# cannot stand for prose any more.
+#
+# What this returns instead varies at both ends and holds no digit, so
+# no rule claims it: not the numeric rules, which find no number; not
+# the date rules; not the affixed rule, which finds no core; and not
+# the categorical rule, given enough of them to clear the ceiling.
+_PROSE_PARTS = (
+    ("seen", "review", "pending", "noted", "checked"),
+    ("in clinic", "by phone", "at home", "on the ward", "at review"),
+    ("with", "without", "after", "before", "despite"),
+    ("the nurse", "the doctor", "the family", "the ward", "the team"),
+    ("no change", "improving", "worse", "unclear", "resolved"),
+)
+
+
+def prose(count: int) -> list[str]:
+    """``count`` sentences that no reading rule claims.
+
+    Every sentence is distinct up to 3,125 of them, which is past the
+    categorical ceiling of any table these tests build. The parts vary
+    at BOTH ends on purpose: a family sharing a first or last word
+    would wear an affix pair, and the affixed-number rule would read
+    it -- which is exactly the trap the templates these replaced fell
+    into.
+    """
+    built: list[str] = []
+    for index in range(count):
+        place = index
+        words: list[str] = []
+        for part in _PROSE_PARTS:
+            words = words + [part[place % len(part)]]
+            place = place // len(part)
+        built = built + [" ".join(words)]
+    return built
+
+
 def single_column_table(name: str, values: list[str]) -> str:
     """A one-column table holding exactly ``values``."""
     return rows_to_csv([name], [[value] for value in values])

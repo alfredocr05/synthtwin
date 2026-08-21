@@ -1375,9 +1375,7 @@ def test_a_column_of_free_text_folds_onto_its_own_partners(
     # every invention role, not on record numbers alone.
     folder = tmp_path / "text"
     folder.mkdir(parents=True, exist_ok=True)
-    values = [
-        f"note {index} written out in plain words" for index in range(58)
-    ]
+    values = fixtures.prose(58)
     values = values + [
         "NOTE 0 WRITTEN OUT IN PLAIN WORDS",
         "Note 1 Written Out In Plain Words",
@@ -1611,9 +1609,10 @@ def test_a_column_of_sentences_still_meets_its_code_alphabet_count(
     folder = tmp_path / "sentences"
     folder.mkdir(parents=True, exist_ok=True)
     values: list[str] = []
+    sentences = fixtures.prose(30)
     for index in range(30):
-        values = values + [f"note {index} written out plainly", f"tag{index}"]
-        values = values + [f"note {index} written out plainly", f"tag{index}"]
+        values = values + [sentences[index], f"tag{index}"]
+        values = values + [sentences[index], f"tag{index}"]
     described = _described(
         folder, fixtures.single_column_table("comment", values)
     )
