@@ -34,7 +34,7 @@ counts it excused are taken over the blank split, where the floor's
 worth of cells spelling a missing marker moves all three with the role
 still holding. So: coverage is credited to a registered case and to
 nothing else, which makes the registration total over the shipped sites
-(644 rows over 640 sites, 73 curated and 571 derived); each derived row
+(645 rows over 641 sites, 73 curated and 572 derived); each derived row
 must be an edit aimed
 at the site it covers; the floor is counted over the registration; and
 nothing is excused at all.
@@ -2717,10 +2717,11 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             # edit the plain numeric columns above use, applied to the
             # CORES and put back inside the pair. So each row here is
             # aimed at the population its fact is about, which is the
-            # whole of what this role adds.
+            # whole of what this role adds. Its cores carry a POINT,
+            # so the census of fraction widths is walked here too.
             ("renamed-dose", "position.at"),
-            ("blanked-dose", "presence.n_present"),
-            ("blanked-dose", "presence.n_missing"),
+            ("emptied-dose", "presence.n_present"),
+            ("emptied-dose", "presence.n_missing"),
             ("contradicted-dose", "axes.role"),
             ("contradicted-dose", "axes.statistical_type"),
             ("emptied-dose", "axes.quality_state"),
@@ -2728,47 +2729,48 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("unaffixed-dose", "counts.n_not_numeric"),
             ("one-overflowed-dose", "counts.n_out_of_range"),
             ("one-contradicted-dose", "counts.n_contradictory"),
-            ("spread-dose", "distinct.n_distinct"),
-            ("spread-dose", "distinct.n_distinct_folded"),
-            ("rewritten-dose", "counts.n_affixed"),
+            ("contradicted-dose", "distinct.n_distinct"),
+            ("contradicted-dose", "distinct.n_distinct_folded"),
+            ("suffixed-dose", "counts.n_affixed"),
             ("prefixed-dose", "counts.affix_prefix"),
             ("suffixed-dose", "counts.affix_suffix"),
-            ("contradicted-dose", "counts.n_core_numeric"),
+            ("prefixed-dose", "counts.n_core_numeric"),
             ("overflowed-dose", "counts.n_core_out_of_range"),
             ("contradicted-dose", "counts.n_core_contradictory"),
             ("worded-dose", "counts.n_core_not_numeric"),
             ("zeroed-dose", "counts.n_zero"),
-            ("negated-dose", "counts.n_negative"),
+            ("bracketed-dose", "counts.n_negative"),
             ("marked-dose", "counts.n_negative_unrepresentable"),
             ("one-worded-dose", "counts.n_used_in_statistics"),
             ("one-worded-dose", "counts.n_left_out_of_statistics"),
-            ("spread-dose", "type.integer_valued"),
+            ("vast-dose", "type.integer_valued"),
             ("vast-dose", "type.std_unrepresentable"),
             ("one-worded-dose", "counts.numeric_share"),
-            ("floor-plussed-dose", "ladder.min"),
+            ("fractioned-dose", "ladder.min"),
             ("raised-dose", "ladder.max"),
-            ("floor-plussed-dose", "ladder.p01"),
-            ("floor-plussed-dose", "ladder.p05"),
-            ("floor-plussed-dose", "ladder.p10"),
-            ("floor-plussed-dose", "ladder.p25"),
-            ("negated-dose", "ladder.p50"),
-            ("negated-dose", "ladder.p75"),
+            ("fractioned-dose", "ladder.p01"),
+            ("crowded-dose", "ladder.p05"),
+            ("crowded-dose", "ladder.p10"),
+            ("crowded-dose", "ladder.p25"),
+            ("crowded-dose", "ladder.p50"),
+            ("crowded-dose", "ladder.p75"),
             ("crowded-dose", "ladder.p90"),
             ("crowded-dose", "ladder.p95"),
-            ("enormous-dose", "ladder.p99"),
+            ("crowded-dose", "ladder.p99"),
             ("raised-dose", "moments.mean"),
             ("raised-dose", "moments.std"),
             ("raised-dose", "moments.skew"),
-            ("leading_zero-dose", "styles.exact.leading_zero"),
-            ("leading_plus-dose", "styles.exact.leading_plus"),
+            ("floor-zero-led-dose", "styles.exact.leading_zero"),
+            ("floor-plussed-dose", "styles.exact.leading_plus"),
             ("exponent_upper-dose", "styles.exact.exponent_upper"),
-            ("leading_plus-dose", "styles.at-least.plain"),
-            ("exponent_lower-dose", "styles.spill"),
-            ("leading_plus-dose", "styles.remainder"),
-            ("exponent_upper-dose", "styles.spelled"),
-            ("noncanonical-dose", "styles.canonical.decimal"),
+            ("prefixed-dose", "styles.at-least.decimal"),
+            ("prefixed-dose", "styles.spill"),
+            ("zeroed-dose", "styles.remainder"),
+            ("noncanonical-dose", "styles.spelled"),
             ("exponent_lower-dose", "styles.canonical.exponent_lower"),
-            ("leading_plus-dose", "styles.published.plain"),
+            ("exponent_lower-dose", "styles.published.decimal"),
+            ("spread-dose", "widths.published.1"),
+            ("spread-dose", "widths.published.2"),
         ),
         "reading": (
             ("contradicted-reading", "axes.quality_state"),
@@ -3557,6 +3559,7 @@ SUBCHECK_FACTS: "dict[tuple[str, str], str]" = {
     # need a row, and a width one of them publishes without a row here
     # reaches the coverage identity as a dead row and is reported by
     # name -- which is how a new fixture width is noticed.
+    ("numeric", "widths.published.1"): "numeric.fraction_widths",
     ("numeric", "widths.published.2"): "numeric.fraction_widths",
     ("numeric", "counts.affix_prefix"): "affixed.affix_prefix",
     ("numeric", "counts.affix_suffix"): "affixed.affix_suffix",
@@ -4645,8 +4648,8 @@ def test_the_coverage_identity_walks_the_shipped_table(
     which is V8.3's "registered, named" read as though it said
     "reached". And a site could be covered only by an edit that broke
     something else, which is exactly the failure V8.2 refuses one grain
-    up. The registration is now total over the shipped sites: 644 rows
-    over 640 sites, 73 curated and 571 derived, each derived one an edit
+    up. The registration is now total over the shipped sites: 645 rows
+    over 641 sites, 73 curated and 572 derived, each derived one an edit
     aimed at the site it covers. THREE sites carry more than one row on
     purpose: `columns.order` carries three, because it is the whole of
     what the shipped table files for the STRUCTURAL disposition and the
@@ -4654,7 +4657,7 @@ def test_the_coverage_identity_walks_the_shipped_table(
     two, a row taken out and a row added; and the headerless
     `header.presence` carries the plain edit and the compensating one
     that used to defeat it. For those three, deleting one row is not
-    enough to turn this red. Every one of the other 637 is on its own.
+    enough to turn this red. Every one of the other 638 is on its own.
 
     NOTHING IS EXCUSED. There were two exemptions here and both are
     gone. A register of OPEN DEFECTS went with round 2's repairs. The

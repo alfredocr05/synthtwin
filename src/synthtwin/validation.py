@@ -6298,35 +6298,31 @@ def _affixed_checks(
                 )
             ]
             continue
-        # THE VERDICT IS DECIDED ON THE SPELLINGS THEMSELVES AND THE
-        # DISPLAY IS BUILT AFTERWARDS. Deciding it on the displayed
-        # text let one file wear the display phrase as real text and
-        # pass: a description publishing an EMPTY prefix, checked
-        # against a file whose cells read `nothing in front of the
-        # number1 mg`, compared two identical display strings and
-        # reported HELD on a file whose prefix is twenty-nine
-        # characters the description never published.
-        verdict = HELD if found == published else MISSED
-        measured = _shown_affix(found, front)
-        if verdict == MISSED and measured == shown:
-            # The two spellings differ and their DISPLAY does not,
-            # which happens exactly when a file wears the phrase this
-            # report uses for an empty side. The verdict is already
-            # right; this keeps the line from showing a reader two
-            # identical strings under the word MISSED. What is added
-            # is a COUNT of characters, never more of the file's text.
-            measured = (
-                f"{measured} ({len(found)} character(s) of the file's "
-                "own text, not this report's words for none)"
-            )
+        # THE COMPARISON IS MADE IN FULL AND THE MEASURED SPELLING IS
+        # NEVER PRINTED. It is text read out of the file, and V5.4 is
+        # unconditional about that: no string from a measured file
+        # reaches this report under any verdict, which is what lets one
+        # report be handed to a person who does not hold the file. The
+        # affix pair looked like an exception because the DESCRIPTION
+        # may publish its own pair -- that is contract C6-9, a rule
+        # about the description's own block, and it says nothing about
+        # what a report may print about somebody else's file. A
+        # milligram description checked against a file of `SECRET-5.16`
+        # cells printed `SECRET` on the achieved line.
+        #
+        # Deciding the verdict on the DISPLAYED text was the other half
+        # of the same mistake: a file whose prefix is literally this
+        # report's phrase for an empty side compared equal to a
+        # description that publishes none. The spellings decide; the
+        # report says only which way it came out.
         checks = checks + [
-            Check(
+            _silent(
                 name,
                 f"affixed.{field}",
                 f"counts.{field}",
-                verdict,
                 shown,
-                measured,
+                found == published,
+                _NOT_SHOWN_IT_IS_TEXT_OF_THE_FILE,
             )
         ]
     # THE FOUR CORE CLASSES, counted off the file's own cores by the

@@ -2050,7 +2050,30 @@ def _fraction_need(value: float) -> int:
     return len(figures) - place
 
 
-def _snaps_away(value: float, width: int) -> bool:
+def _published_ends(
+    facts: contract.NumericFacts, values: "list[float]"
+) -> "tuple[float, float]":
+    """The two rungs no cell of this column may be carried outside.
+
+    The published ladder's own ends where it has them, and the drawn
+    values' ends where a rung is null -- a null rung carries no
+    obligation at that rung (contract L3), so nothing is bounded by it
+    and the column's own spread is what remains.
+    """
+    rungs = facts.percentiles.rungs
+    low = rungs[0]
+    high = rungs[10]
+    if low is None or high is None:
+        found = sorted(values)
+        if not found:
+            return (0.0, 0.0)
+        return (found[0], found[len(found) - 1])
+    return (low, high)
+
+
+def _snaps_away(
+    value: float, width: int, low: float, high: float
+) -> bool:
     """Whether writing this value at this width would erase what it is.
 
     A SNAP MAY NEVER CHANGE A CELL'S ZERO-NESS OR ITS SIGN CLASS
@@ -2070,13 +2093,25 @@ def _snaps_away(value: float, width: int) -> bool:
     of its own positive values as `0.` while its description published
     no zero at all.
     """
-    if value == 0.0:
-        return False
     sign, figures, place = _digits_and_point(value)
     written = _at_width(sign, figures, place, width)
     read = parsing.parse_number(written)
     if read is None:
         return True
+    # ...AND IT MAY NOT CARRY A CELL PAST EITHER END OF THE PUBLISHED
+    # LADDER. `min` and `max` are the two rungs this method pins and
+    # they are EXACT-OBSERVABLE, so a cell that snapped below the
+    # smallest published value makes the twin's own smallest value a
+    # number the description does not publish -- and pinning the
+    # endpoint CELL does not stop it, because the cell that moved is
+    # some interior cell of the column. A sixty-cell column publishing
+    # a minimum of 2.11 and a width of one figure wrote 2.1 into an
+    # interior cell, and `validate` reported the exact minimum MISSED
+    # on a twin of that description.
+    if read < low or read > high:
+        return True
+    if value == 0.0:
+        return False
     if read == 0.0:
         return True
     return (read < 0.0) != (value < 0.0)
@@ -2087,6 +2122,8 @@ def _width_places(
     styles: "list[str]",
     holds: "list[float]",
     pinned: "list[int]",
+    low: float,
+    high: float,
 ) -> "list[int]":
     """Which width each cell is written at, or -1 for the value's own.
 
@@ -2116,15 +2153,38 @@ def _width_places(
         quotas[int(key)] = widths[key]
     places = [-1 for _index in range(len(styles))]
     served = {index: 1 for index in pinned}
+    # THE PINNED CELLS ARE SERVED BY VALUE TOO, not one cell at a time.
+    # The plan fixes the ORDER a pinned value takes its width in --
+    # minimum, maximum, zero, each taking the largest still-unfilled
+    # width its value fits -- and that order is kept. What is not kept
+    # is doing it per CELL: a pinned value can cover a dozen cells, and
+    # a quota that holds eleven of them handed the twelfth to another
+    # width, so one number came out as `9.50` eleven times and `9.5`
+    # once. That is two spellings of one value, which spends the
+    # column's published count of different values -- and it buys
+    # nothing, because the quotas close either way. A pinned value now
+    # takes a width only where the width can hold its whole group.
+    pinned_order: "list[float]" = []
+    pinned_groups: "dict[float, list[int]]" = {}
     for index in pinned:
         if index >= len(styles) or styles[index] != "decimal":
             continue
-        need = _fraction_need(holds[index])
+        value = holds[index]
+        if value in pinned_groups:
+            pinned_groups[value] = pinned_groups[value] + [index]
+            continue
+        pinned_order = pinned_order + [value]
+        pinned_groups[value] = [index]
+    for value in pinned_order:
+        members = pinned_groups[value]
+        need = _fraction_need(value)
         for width in sorted(quotas, reverse=True):
-            if quotas[width] > 0 and need <= width:
-                quotas[width] = quotas[width] - 1
+            if quotas[width] < len(members) or need > width:
+                continue
+            quotas[width] = quotas[width] - len(members)
+            for index in members:
                 places[index] = width
-                break
+            break
     # ONE WIDTH PER VALUE WHERE THE QUOTAS ALLOW IT, which is the width
     # walk's form of the rule the style walk already keeps. A value
     # written at two widths is TWO spellings of one number, so a walk
@@ -2167,9 +2227,17 @@ def _width_places(
         for width in sorted(quotas, reverse=True):
             if quotas[width] < len(members):
                 continue
-            if width < need and not alone:
+            if not alone:
+                # A VALUE SOME OF WHOSE CELLS WERE WRITTEN ANOTHER WAY
+                # TAKES NO WIDTH AT ALL, and that covers padding as
+                # well as snapping. Snapping such a value splits the
+                # NUMBER; padding it splits its SPELLING, because the
+                # cells the style step wrote plainly keep the value's
+                # own canonical text -- one column came out holding
+                # `0.500` beside `0.5`, two spellings of one number
+                # bought with a width quota that closed either way.
                 continue
-            if _snaps_away(value, width):
+            if _snaps_away(value, width, low, high):
                 continue
             whole = width
             break
@@ -3743,15 +3811,57 @@ def _affixed_content(
     layout = plan.layout
     used: "dict[str, int]" = {cell: 1 for cell in cells}
     pair = (facts.affix_prefix, facts.affix_suffix)
-    ordinary = column.n_not_numeric - facts.n_affixed
-    if ordinary < 0:
-        ordinary = 0
-    if column.n_numeric:
-        cells = cells + _unaffixed_numbers(column.n_numeric, pair, used)
+    # WHAT THE AFFIXED CELLS ALREADY PAID, class by class. The two
+    # populations OVERLAP and the earlier arithmetic assumed they could
+    # not: a cell wearing the pair is still a cell, so it lands in one
+    # of the four universal classes like any other, and a column whose
+    # pair is `1` holds cells such as `12` that wear it AND read as
+    # numbers. Subtracting `n_affixed` from the text class alone and
+    # clamping the result at zero swallowed that overlap in a class
+    # that did not hold it, then wrote the number class again on top --
+    # so a hundred-row column came out with a hundred and one cells and
+    # `generate` stopped with an internal-check message telling its
+    # user that synthtwin has a bug. It has one; this is it.
+    #
+    # The classes the written cells already fill are RECOUNTED here
+    # rather than assumed, by the same classifier the description was
+    # built with, and only the shortfall is written. What the twin
+    # cannot then reach is named by `_class_notes`, which recounts all
+    # four from the finished text.
+    worn = {name: 0 for name in _CLASSES}
+    for cell in cells:
+        found = parsing.classify_number(cell)
+        worn[found] = worn[found] + 1
+    stragglers = column.n_present - facts.n_affixed
+    if stragglers < 0:
+        stragglers = 0
+    owed: "dict[str, int]" = {}
+    room = stragglers
+    for kind, published in (
+        (_CLASS_NUMBER, column.n_numeric),
+        (_CLASS_OUT_OF_RANGE, column.n_out_of_range),
+        (_CLASS_CONTRADICTORY, column.n_contradictory),
+    ):
+        short = published - worn[kind]
+        if short < 0:
+            short = 0
+        if short > room:
+            short = room
+        owed[kind] = short
+        room = room - short
+    # Whatever the three named classes did not claim is ordinary text,
+    # which is the class the contract gives every cell no other class
+    # names.
+    owed[_CLASS_TEXT] = room
+    holes = _hole_spellings(column)
+    if owed[_CLASS_NUMBER]:
+        cells = cells + _unaffixed_numbers(
+            owed[_CLASS_NUMBER], pair, used, holes
+        )
     for kind, count, place in (
-        (_CLASS_OUT_OF_RANGE, column.n_out_of_range, 1),
-        (_CLASS_CONTRADICTORY, column.n_contradictory, 2),
-        (_CLASS_TEXT, ordinary, 3),
+        (_CLASS_OUT_OF_RANGE, owed[_CLASS_OUT_OF_RANGE], 1),
+        (_CLASS_CONTRADICTORY, owed[_CLASS_CONTRADICTORY], 2),
+        (_CLASS_TEXT, owed[_CLASS_TEXT], 3),
     ):
         if not count:
             continue
@@ -3818,8 +3928,30 @@ def _unaffixed_spellings(
     return built
 
 
+def _hole_spellings(
+    column: contract.ColumnBlock,
+) -> "tuple[str, ...]":
+    """Every spelling this column publishes among its absent cells.
+
+    The keys of `missing_by_source`, which are the spellings the column
+    ACTUALLY held where the floor let it name them. What is NOT here is
+    anything the floor pooled: those spellings the description does not
+    publish, so a generator cannot avoid them and does not pretend to.
+    The blank spelling is not here either, for the same reason it is
+    not a key of that map -- a twin's absent cells are written empty
+    and no present cell of one is blank.
+    """
+    found: list[str] = []
+    for spelling in sorted(column.missing_by_source):
+        found = found + [spelling]
+    return tuple(found)
+
+
 def _unaffixed_numbers(
-    count: int, pair: "tuple[str, str]", used: "dict[str, int]"
+    count: int,
+    pair: "tuple[str, str]",
+    used: "dict[str, int]",
+    holes: "tuple[str, ...]",
 ) -> "list[str]":
     """Plain numbers standing beside the affixed cells.
 
@@ -3828,16 +3960,48 @@ def _unaffixed_numbers(
     stragglers, and the description publishes how many. Written as
     whole numbers because nothing else about them is published: the
     ladder and every moment belong to the CORES.
+
+    THREE SPELLINGS ARE REFUSED, and the third was missing. A spelling
+    already written would repeat a cell; one that WEARS the pair would
+    be counted affixed when the twin is described again; and one this
+    column publishes as a HOLE SPELLING is read back as no value at
+    all. A column of prices beside eleven cells spelled `1`, declared
+    with `--missing-value 1`, published `missing_by_source {"1": 11}`
+    and its twin then wrote a present cell spelled `1` -- so the twin's
+    own description read it as absent, and five exact counts moved
+    against a description the twin was built from.
     """
     built: list[str] = []
     value = 1
     while len(built) < count:
         spelling = f"{value}"
-        if spelling not in used and not _wears(spelling, pair):
+        if (
+            spelling not in used
+            and not _wears(spelling, pair)
+            and not _is_a_hole_spelling(spelling, holes)
+        ):
             used[spelling] = 1
             built = built + [spelling]
         value = value + 1
     return built
+
+
+def _is_a_hole_spelling(text: str, holes: "tuple[str, ...]") -> bool:
+    """Whether a twin's own description would read this cell as absent.
+
+    Three ways, and all three are the reader's own: the spelling is one
+    this format always reads as "no value"; the person named it when
+    the description was written; or this column publishes it among the
+    spellings its absent cells wore. A present cell wearing any of them
+    is a present cell the twin's own description counts as a hole.
+    """
+    if parsing.is_missing_text(text):
+        return True
+    folded = parsing.folded(parsing.trimmed(text))
+    for spelling in holes:
+        if parsing.folded(parsing.trimmed(spelling)) == folded:
+            return True
+    return False
 
 
 def _numeric_content(
@@ -4407,11 +4571,14 @@ def _number_cells(
     styles = _style_strata(
         quotas, layout, values, facts.integer_valued, wanted, styles
     )
+    ends = _published_ends(facts, values)
     widths = _width_places(
         facts.fraction_widths,
         styles,
         holds,
         _pinned_cells(layout, values),
+        ends[0],
+        ends[1],
     )
     base: list[str] = []
     for index in range(len(holds)):

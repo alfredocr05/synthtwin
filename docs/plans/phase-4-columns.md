@@ -282,12 +282,17 @@ recording what remained undone.
    numeric column's styles block records how many decimal cells share
    each fraction width. Cost: one fact through the styles machinery and
    its recount identity; the generator writes fixed-width decimals
-   where the counts say so. What it buys: the durable close of
-   R-P3-12's route — a two-decimal price column checks clean against
-   its own description because the description finally records what the
-   file does — superseding whichever interim option amendment A-P3-46's
-   ruling took, and strengthening rather than trading away the
-   obligation review item P3-V2-C-F1 restored. **TAKEN 2026-08-19:
+   where the counts say so. What it buys: the close of R-P3-12's route
+   WHERE A WIDTH CLEARS THE PUBLICATION FLOOR — a two-decimal price
+   column of at least `small_cell_floor` such cells checks clean
+   against its own description, because the description finally
+   records what those cells do — superseding whichever interim option
+   amendment A-P3-46's ruling took for that case, and strengthening
+   rather than trading away the obligation review item P3-V2-C-F1
+   restored. **Below the floor the census names no width and the route
+   survives**, which amendment A-P4-14 states and residual R-P4-19
+   carries; the first writing of this clause said "durable close" flat
+   and was wider than the fact it rests on. **TAKEN 2026-08-19:
    yes.** The owner's ground, recorded: the same fidelity ground as
    decisions 1 through 3 — reproduce the source so code and statistics
    carry over.
@@ -871,8 +876,15 @@ exact where nothing pooled, windowed where something did. A two-decimal
 price column's description then records what every cell does, the twin
 writes `1.20` where the source did, and checking the source against its
 own description stops missing on present cells nothing is wrong with —
-the durable close of the route residual R-P3-12 records, superseding
-whichever interim option amendment A-P3-46's ruling took. The
+the close of the route residual R-P3-12 records WHEREVER A WIDTH
+CLEARS THE PUBLICATION FLOOR, superseding whichever interim option
+amendment A-P3-46's ruling took for that case. A column with fewer
+decimal cells than the floor publishes no width, its padded and
+canonical forms are described alike, and the route survives there:
+amendment A-P4-14 states the scope and residual R-P4-19 carries what
+is left. A-P3-46's own measurements were taken at five and ten rows,
+both below the default floor, so the residual is not closed on the
+sizes it was costed at. The
 trailing-zero re-spelling attack that `styles.spelled` alone catches
 stays caught: the new fact makes the re-spelled file miss its published
 widths too, so the obligation P3-V2-C-F1 restored is strengthened, not

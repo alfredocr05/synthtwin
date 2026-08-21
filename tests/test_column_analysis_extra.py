@@ -273,4 +273,10 @@ def test_the_free_text_remark_names_both_readings(
     remark = " ".join(described.remarks)
     assert "--identifier" in remark
     assert "measurement" in remark
-    assert "plain numbers" in remark
+    # AND NOT THE FREE-TEXT PATH'S ADVICE. "Write them as plain
+    # numbers" is what a reader is told when nothing of their column
+    # was published; these two columns publish a full distribution, so
+    # the same sentence would send them to rewrite a table to obtain
+    # what they already have.
+    assert "write them as plain numbers" not in remark
+    assert "Nothing from this column is published" not in remark

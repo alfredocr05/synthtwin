@@ -1376,6 +1376,37 @@ def _affix_notes_are_bound(document: "dict[str, object]") -> None:
             named = note["column"] if "column" in note else None
             if isinstance(named, str):
                 _one_affix_note_is_bound(note["note"] if "note" in note else None, named, pairs)
+    # THE FOURTH SENTENCE PATH, and it is here because leaving it out
+    # was not safe -- only unreached. `source.header_evidence` is one of
+    # the four places this format carries a sentence, and it belongs to
+    # no column, so no pair on earth can bind an affix spelling
+    # standing in it. A note written there passed the whole guard while
+    # the same note on a column's own evidence was refused, and the
+    # only thing standing between that and a published spelling of
+    # somebody's table was that no producer path writes one there
+    # today. A control that holds because nothing currently exercises
+    # it is not a control.
+    source = document["source"] if "source" in document else None
+    if isinstance(source, dict):
+        _no_affix_stands_outside_a_column(
+            source["header_evidence"] if "header_evidence" in source else None
+        )
+
+
+def _no_affix_stands_outside_a_column(sentence: object) -> None:
+    """Refuse an affix spelling in a sentence that belongs to no column.
+
+    The binding rule is positional against ONE column's published pair.
+    A sentence about the file's header names no column, so there is
+    nothing to bind it to and nothing that could make it right --
+    which makes the only honest answer to refuse the form there
+    outright rather than to invent a pair for it.
+    """
+    if not isinstance(sentence, taxonomy.Note):
+        return
+    for place in range(len(sentence.arguments)):
+        if taxonomy.takes_a_bound_affix(sentence.form, place):
+            raise _refuse(("source", "header_evidence"))
 
 
 def _one_affix_note_is_bound(
