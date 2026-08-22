@@ -3434,6 +3434,108 @@ def _sentinel_verdicts(
     return verdicts
 
 
+# -- calendar placeholders --------------------------------------------
+
+
+def _placeholder_verdicts(
+    present: "list[str]",
+    format_name: str,
+    settings: Settings,
+) -> "dict[str, tuple[bool, str, int]]":
+    """Decide, for each placeholder day present, whether it means "missing".
+
+    THE NUMERIC RULE, TRANSPOSED TO DAY ORDINALS (plan amendment A-P4-1
+    item 3). Every property of `_sentinel_verdicts` carries over and is
+    carried over deliberately, because a second rule that merely
+    resembles the first is a second rule:
+
+    * the REFERENCE POPULATION excludes EVERY candidate, not only the
+      one being judged, so a column holding both placeholders cannot
+      make either look ordinary;
+    * a candidate the person named with `--keep-value` is data, and
+      says so, before any arithmetic runs;
+    * fewer than four other values leaves the question unanswerable and
+      the candidate is kept with that reason;
+    * and the two recorded sentinel settings decide it -- an outlier by
+      the interquartile rule and a share reaching the recorded minimum,
+      applied as a COUNT.
+
+    The ordinal space is whole days from the same civil epoch the rest
+    of this package counts in, so no floating-point value is formed
+    anywhere near a calendar and the answer is the same on every
+    machine.
+
+    Returns placeholder -> (is missing, reason code, occurrences).
+    """
+    kept = _declarations(settings.kept_values)
+    verdicts: dict[str, tuple[bool, str, int]] = {}
+    occurrences_of: dict[str, int] = {}
+    days: dict[str, int] = {}
+    others: list[float] = []
+    for value in present:
+        found = parsing.placeholder_day_of(value, format_name)
+        if found is not None:
+            if found in occurrences_of:
+                occurrences_of[found] = occurrences_of[found] + 1
+            else:
+                occurrences_of[found] = 1
+            continue
+        pair = parsing.parse_datetime(value, format_name)
+        if pair is None:
+            continue
+        others += [float(_day_ordinal(pair[0]))]
+    for candidate in parsing.calendar_placeholders():
+        if candidate not in occurrences_of:
+            continue
+        days[candidate] = _day_ordinal(candidate)
+    for candidate in sorted(days):
+        occurrences = occurrences_of[candidate]
+        if _declared_spelling(candidate, kept):
+            verdicts[candidate] = (False, REASON_KEPT_BY_USER, occurrences)
+            continue
+        if len(others) < 4:
+            verdicts[candidate] = (
+                False,
+                REASON_TOO_FEW_OTHERS,
+                occurrences,
+            )
+            continue
+        ordered_others = sorted(others)
+        lower = _quantile(ordered_others, 25, 100)
+        upper = _quantile(ordered_others, 75, 100)
+        spread = upper - lower
+        distance = settings.sentinel_outlier_iqr_multiple * spread
+        ordinal = float(days[candidate])
+        is_outlier = (
+            ordinal < lower - distance or ordinal > upper + distance
+        )
+        frequent = occurrences >= _needed(
+            settings.sentinel_minimum_share, len(present)
+        )
+        if is_outlier and frequent:
+            verdicts[candidate] = (
+                True,
+                REASON_OUTLIER_AND_FREQUENT,
+                occurrences,
+            )
+        elif is_outlier:
+            verdicts[candidate] = (False, REASON_TOO_RARE, occurrences)
+        else:
+            verdicts[candidate] = (
+                False,
+                REASON_NOT_AN_OUTLIER,
+                occurrences,
+            )
+    return verdicts
+
+
+def _day_ordinal(canonical: str) -> int:
+    """One canonical date's day, counted from the civil epoch."""
+    return parsing.days_from_civil(
+        int(canonical[0:4]), int(canonical[5:7]), int(canonical[8:10])
+    )
+
+
 def _published_verdicts(
     verdicts: "dict[float, tuple[bool, str, int]]", settings: Settings
 ) -> "tuple[list[dict[str, object]], int]":
@@ -3456,6 +3558,40 @@ def _published_verdicts(
         entries += [
             {
                 "candidate": f"{candidate:g}",
+                "verdict": VERDICT_MISSING if missing else VERDICT_KEPT,
+                "reason": reason,
+                "n_occurrences": occurrences,
+            }
+        ]
+    return entries, unpublished
+
+
+def _published_day_verdicts(
+    verdicts: "dict[str, tuple[bool, str, int]]", settings: Settings
+) -> "tuple[list[dict[str, object]], int]":
+    """The same publication rule, over the placeholder days.
+
+    The candidate is written as its canonical ISO day and the entries
+    are ordered as TEXT, which for these spellings is the same order as
+    by day. Below the floor a candidate is counted and not named, for
+    the reason the numeric half gives: naming it would publish a value
+    the levels are withholding at the same moment.
+
+    A DAY IS NOT A NUMBER AND IS NOT WRITTEN AS ONE. The numeric half
+    writes `f"{candidate:g}"`; a day written that way would not be a
+    day at all, and the two halves are two functions for exactly that
+    reason rather than one with a branch in it.
+    """
+    entries: list[dict[str, object]] = []
+    unpublished = 0
+    for candidate in sorted(verdicts):
+        missing, reason, occurrences = verdicts[candidate]
+        if occurrences < settings.small_cell_floor:
+            unpublished = unpublished + 1
+            continue
+        entries += [
+            {
+                "candidate": candidate,
                 "verdict": VERDICT_MISSING if missing else VERDICT_KEPT,
                 "reason": reason,
                 "n_occurrences": occurrences,
@@ -3985,6 +4121,47 @@ def _slashed_evidence(
         month_only=month_only,
         day_only=day_only,
     )
+
+
+def _remainder_reading(
+    present: "list[str]", settings: Settings
+) -> "str | None":
+    """The format the NON-PLACEHOLDER cells read under, or None.
+
+    THE ENTRY CONDITION OF THE PLACEHOLDER PASS, and the whole of what
+    keeps it from moving a column between roles (plan amendment A-P4-1
+    item 3). The candidates are taken out FIRST and the remainder is
+    asked to clear the datetime rule's own line by itself: a column
+    that is a column of dates without its placeholders is one this pass
+    may judge, and a column that is not is one it must leave alone.
+
+    The candidates are recognised under each format in turn, because
+    which cells ARE candidates depends on the reading -- `12/31/9999`
+    is a placeholder under one slashed member and unreadable under the
+    other.
+
+    Guarantees: accepts the present cells and the settings; returns a
+    format member or None. Determinism: a function of the two, in the
+    format table's own order. Raises nothing. No I/O of any kind.
+    """
+    for format_name in parsing.DATE_FORMATS:
+        remainder: list[str] = []
+        placeholders = 0
+        for value in present:
+            if parsing.placeholder_day_of(value, format_name) is not None:
+                placeholders = placeholders + 1
+                continue
+            remainder += [value]
+        if placeholders < 1:
+            continue
+        needed = _needed(settings.minimum_parse_rate, len(remainder))
+        parsed = 0
+        for value in remainder:
+            if parsing.parse_datetime(value, format_name) is not None:
+                parsed = parsed + 1
+        if parsed >= needed and parsed:
+            return format_name
+    return None
 
 
 def _matching_date_format(
@@ -5925,6 +6102,62 @@ def profile_column(
             # (review item P1-R6-F10).
             cells = _tally(classified, n_rows, settings)
             present = cells.present
+    # THE SAME JUDGEMENT, OVER THE PLACEHOLDER DAYS (plan amendment
+    # A-P4-1 item 3). A column whose open-ended rows are filled with
+    # `9999-12-31` publishes that day as its exact last value, drags
+    # its whole ladder toward it, and seeds the twin with decades the
+    # source never held -- the one audited shape where the ratified
+    # plan published wrong numbers with no warning at all. It is the
+    # calendar's `-999`, one space over.
+    #
+    # ITS ORDERING IS TIGHTER THAN THE AFFIX PASS'S, and the decision
+    # says why: taking cells out changes every count, so a column no
+    # rule has trouble with today might be claimed by a different one
+    # afterwards. There are two conditions, and both must hold.
+    #
+    # The first is that rules 0 through 4 declined the UN-REMOVED
+    # column, which is what the trial below asks. So a constant column
+    # of one placeholder day keeps today's claim, and a two-valued
+    # column whose one value is a placeholder stays binary.
+    #
+    # The second is that the NON-CANDIDATE REMAINDER itself clears the
+    # datetime rule's line. Otherwise no cell is judged, no cell is
+    # removed, and the column lands exactly where today's rules put
+    # it -- so an existing datetime column can never fall out of the
+    # role by this pass, and a column that was never a column of dates
+    # cannot be turned into one by taking cells out of it.
+    day_verdicts: dict[str, tuple[bool, str, int]] = {}
+    removed_by_days = 0
+    if present and not forced_identifier:
+        trial = _decide(cells, forced_identifier)
+        if trial.role == ROLE_TEXT or trial.role == ROLE_DATETIME:
+            reading = _remainder_reading(present, settings)
+            if reading is not None:
+                day_verdicts = _placeholder_verdicts(
+                    present, reading, settings
+                )
+                withheld_days = sorted(
+                    candidate
+                    for candidate in day_verdicts
+                    if day_verdicts[candidate][0]
+                )
+                if withheld_days:
+                    kept_cells: list[_Cell] = []
+                    for cell in classified:
+                        found = parsing.placeholder_day_of(
+                            cell.text, reading
+                        )
+                        if found is not None and found in withheld_days:
+                            missing += [
+                                (cell.text, parsing.MISSING_DATE_SENTINEL)
+                            ]
+                            removed_by_days = removed_by_days + 1
+                        else:
+                            kept_cells += [cell]
+                    classified = kept_cells
+                    cells = _tally(classified, n_rows, settings)
+                    present = cells.present
+
     # THE SAME JUDGEMENT, OVER THE CORES. A column of `-999 mg` beside
     # real amounts is the shape a trial file actually has, and the pass
     # above never sees it: the CELLS are not numeric-looking, so the
@@ -5958,6 +6191,17 @@ def profile_column(
             removed_by_cores = before - len(present)
             judged_over_cores = True
     entries, unpublished = _published_verdicts(verdicts, settings)
+    # THE DAY VERDICTS FOLLOW THE NUMBER VERDICTS, and the order is the
+    # contract's own (invariant V4): every numeric candidate, ascending
+    # by number, then every placeholder day, ascending as text. Two
+    # kinds of candidate in one list need an order somebody can check,
+    # and sorting the two together as text would put `1900-01-01`
+    # between `-999` and `9999`.
+    day_entries, day_unpublished = _published_day_verdicts(
+        day_verdicts, settings
+    )
+    entries = entries + day_entries
+    unpublished = unpublished + day_unpublished
 
     n_present = len(present)
     n_missing = n_rows - n_present

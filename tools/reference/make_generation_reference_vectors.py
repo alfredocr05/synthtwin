@@ -3649,6 +3649,7 @@ def _universal(name, role, statistical_type, structural_role, quality_state, **f
         "structural_role": structural_role,
         "missing_by_class": {
             "(blank)": 0,
+            "(date-sentinel)": 0,
             "(declared-missing)": 0,
             "(numeric-sentinel)": 0,
             "(text-code)": 0,

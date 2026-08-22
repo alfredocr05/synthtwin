@@ -28,6 +28,7 @@
         },
         "missing_by_class": {
           "(blank)": 0,
+          "(date-sentinel)": 0,
           "(declared-missing)": 0,
           "(numeric-sentinel)": 0,
           "(text-code)": 0,
@@ -103,6 +104,7 @@
         "min_length": 1,
         "missing_by_class": {
           "(blank)": 0,
+          "(date-sentinel)": 0,
           "(declared-missing)": 0,
           "(numeric-sentinel)": 0,
           "(text-code)": 0,
@@ -191,6 +193,7 @@
         "latest_utc_offset": "(none)",
         "missing_by_class": {
           "(blank)": 0,
+          "(date-sentinel)": 0,
           "(declared-missing)": 0,
           "(numeric-sentinel)": 0,
           "(text-code)": 0,
@@ -310,6 +313,7 @@
         "latest_utc_offset": "(none)",
         "missing_by_class": {
           "(blank)": 0,
+          "(date-sentinel)": 0,
           "(declared-missing)": 0,
           "(numeric-sentinel)": 0,
           "(text-code)": 0,
@@ -441,6 +445,7 @@
         },
         "missing_by_class": {
           "(blank)": 0,
+          "(date-sentinel)": 0,
           "(declared-missing)": 0,
           "(numeric-sentinel)": 0,
           "(text-code)": 0,
@@ -703,6 +708,7 @@
         },
         "missing_by_class": {
           "(blank)": 0,
+          "(date-sentinel)": 0,
           "(declared-missing)": 0,
           "(numeric-sentinel)": 0,
           "(text-code)": 0,
@@ -911,6 +917,7 @@
         "detection_evidence": "written by hand in this method specification's own neutral vocabulary; no value here comes from any table.",
         "missing_by_class": {
           "(blank)": 0,
+          "(date-sentinel)": 0,
           "(declared-missing)": 0,
           "(numeric-sentinel)": 0,
           "(text-code)": 0,

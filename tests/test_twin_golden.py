@@ -229,7 +229,7 @@ def test_the_golden_run_is_the_shape_this_file_says_it_is(
 # twenty-seven more obligations than it did, which is the direction a
 # re-recording must move in.
 GOLDEN_DESCRIPTION_SHA256 = (
-    "397851f594efeaacb3d3c3047719987ef504d2b35d23e9f61515bb9ada618ad3"
+    "9121a094d4f1cb35657309b49a37ac53af390400342655d6a63005bd2747dd4d"
 )
 
 
