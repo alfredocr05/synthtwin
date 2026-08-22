@@ -3102,5 +3102,50 @@ which is the quarter's own reason for having a space of its own. The
 month-with-day mix stays unread and stays a residual, as the decision
 says.
 
+## Amendment A-P4-25 — five more the readings owed, found on the third pass
+
+**THIS RAISES on every count and lowers nothing.** Five items, and
+four of them are places where a new member of a closed set had no case.
+
+1. **The month landed ahead of its own method text** (P4-DATE3-F1,
+   blocking). G7.1's ordinal table, G7.5's cell table and its offset
+   rule, G12.4's exact-unit sentence and G14.3's required-vector table
+   all named three resolutions where there are now four, so generation
+   and validation agreed with each other about a transform the
+   authoritative method did not contain. All five carry the month now,
+   and G14.3's sixteenth required case — `month_span` — is built by the
+   independent oracle from the method alone, with the mutant that
+   proves it: a month written as the first DAY of that month, which is
+   the space a month must not fall into.
+2. **A published hole was matched after rounding** (P4-DATE3-F2). The
+   producer's declaration rule is exact — `-999` and
+   `-999.00000000000001` are two numbers — and the recount compared
+   them in binary64, so a column publishing the second as a label had
+   those cells counted absent. The exact rule MOVED to `parsing`, where
+   every module can reach it, because the generator may not import the
+   producer and was quietly keeping a second opinion; `taxonomy` keeps
+   the name every existing caller asks for.
+3. **A stand-in could wear a spelling its own column publishes as
+   absent** (P4-DATE3-F3). The claim that every invention site guards
+   itself was false: the ordinary-text speller checked the built-in
+   words, prior use and the date readings, but not the column's own
+   published holes. It asks now, so the guard is total wherever a
+   stand-in is spelled.
+4. **Year zero** (P4-DATE3-F4). `_valid_date` has always refused it for
+   every reader that names a DAY; the two readers that name a SPAN had
+   no such check, so the producer itself would publish `0000-01` or
+   `0000-Q1`, canonical forms the contract's own range starts above.
+   Both readers, both loader checks and both validator ordinals refuse
+   it now — a hole the quarter carried from the beginning, which the
+   month made visible.
+5. **Two sentences that were false in front of the reader**
+   (P4-DATE3-F5). The twin report told every column of dates that its
+   spelling was NOT kept and that code with an explicit format must
+   change — untrue of the four readings whose own form IS what the twin
+   writes, and a warning that sends somebody to fix working code. And
+   the census listing described every `resolution_mix` as whole dates
+   against dates carrying a time of day, which a column of months has
+   none of. Both say what is true of the column in front of them.
+
   The five plan reviews are in `docs/plans/reviews/` as
   `phase-4-plan-review-round-1.md` through `-round-5.md`.

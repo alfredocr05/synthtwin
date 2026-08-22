@@ -2172,82 +2172,7 @@ def _moments(numbers: list[float]) -> dict[str, "float | None"]:
 # of digits, and building the whole number it denotes would cost time
 # quadratic in that length, while comparing two tuples costs its length.
 
-_EXACTLY_ZERO: "tuple[int, tuple[str, ...], int]" = (0, (), 0)
-
-_ASCII_ZERO = ord("0")
-
-
-def _exact_digits(text: str) -> "tuple[int, tuple[str, ...], int]":
-    """The canonical triple of a spelling ALREADY READ AS A NUMBER.
-
-    Asked only about text the reader of record has classified as a
-    number this format can hold, which is what lets the scan below be
-    arithmetic over the characters rather than a second opinion about
-    what the cell is: nothing here decides whether a spelling is a
-    number, so nothing here can disagree with the answer already given.
-
-    Guarantees: accepts text the reader has accepted; returns the
-    canonical triple denoting exactly that number; raises TypeError if
-    handed anything that is not a string instance. No I/O of any kind.
-    """
-    body = parsing.trimmed(text)
-    negative = False
-    if body[:1] == "(" and body[len(body) - 1 : len(body)] == ")":
-        # Accounting parentheses mean negative, and the reader has
-        # already refused a sign inside them, so nothing can say
-        # "negative" twice here.
-        negative = True
-        body = parsing.trimmed(body[1 : len(body) - 1])
-    if body[:1] == "-":
-        negative = True
-        body = body[1:]
-    elif body[:1] == "+":
-        body = body[1:]
-    # One pass over the characters. The digits are collected in order
-    # with the leading zeros left out, the decimal places are counted,
-    # and the exponent is added up after the `e`. A thousands separator
-    # is none of those things and contributes nothing to the value, so
-    # it falls through every branch, which is exactly right.
-    digits: list[str] = []
-    places = 0
-    after_point = False
-    in_exponent = False
-    exponent_negative = False
-    magnitude = 0
-    for character in body:
-        if in_exponent:
-            if character == "-":
-                exponent_negative = True
-            elif "0" <= character <= "9" and len(digits):
-                # The exponent is added up only while a digit that is
-                # not a leading zero has been seen. That keeps `0e`
-                # followed by a thousand nines cheap -- such a spelling
-                # is zero whatever its exponent says -- and it is why
-                # the magnitude below stays small: a spelling this
-                # format can hold, whose digits are not all zeros, has
-                # an exponent within a few hundred of the number of
-                # digits written.
-                magnitude = magnitude * 10 + (ord(character) - _ASCII_ZERO)
-        elif "0" <= character <= "9":
-            if after_point:
-                places = places + 1
-            if character != "0" or len(digits):
-                digits += [character]
-        elif character == ".":
-            after_point = True
-        elif character == "e" or character == "E":
-            in_exponent = True
-    if not len(digits):
-        return _EXACTLY_ZERO
-    if exponent_negative:
-        power = -places - magnitude
-    else:
-        power = -places + magnitude
-    kept = len(digits)
-    while kept > 0 and digits[kept - 1] == "0":
-        kept = kept - 1
-        power = power + 1
-    return (-1 if negative else 1, tuple(digits[:kept]), power)
+_EXACTLY_ZERO: "tuple[int, tuple[str, ...], int]" = parsing.EXACTLY_ZERO
 
 
 def exact_of_spelling(text: str) -> "tuple[int, tuple[str, ...], int] | None":
@@ -2282,9 +2207,15 @@ def exact_of_spelling(text: str) -> "tuple[int, tuple[str, ...], int] | None":
       number this format can hold, which is the reader of record's own
       answer and never a second reading of it. No I/O of any kind.
     """
-    if parsing.classify_number(text) != parsing.NUMBER:
-        return None
-    return _exact_digits(text)
+    # ONE RULE WITH ONE NAME, AND IT LIVES WHERE EVERY SIDE CAN REACH
+    # IT (review item P4-DATE3-F2). The scan itself moved to `parsing`,
+    # which every module imports, because the generator may not import
+    # this one and was left comparing two spellings after rounding them
+    # both to binary64 -- a second opinion about what a number is,
+    # which is exactly what this function exists to prevent. The name
+    # stays here so that every caller that already asks this module
+    # goes on asking it.
+    return parsing.exact_of_spelling(text)
 
 
 def exact_of_number(value: float) -> "tuple[int, tuple[str, ...], int]":
@@ -2441,7 +2372,7 @@ def _classify(text: str) -> _Cell:
     whole = parsing.WHOLE_UNKNOWN
     if kind == parsing.NUMBER:
         value = parsing.parse_number(text)
-        exact = _exact_digits(text)
+        exact = parsing.exact_of_accepted_number(text)
         if value is not None:
             if value < 0.0:
                 sign = parsing.SIGN_NEGATIVE
@@ -3896,6 +3827,10 @@ def _datetime_details(
     resolution = RESOLUTION_DATE
     if format_name == "iso-datetime" or format_name == FORMAT_ISO_MIXED:
         resolution = RESOLUTION_DATETIME
+    if format_name == "month-first-datetime":
+        resolution = RESOLUTION_DATETIME
+    if format_name == "day-first-datetime":
+        resolution = RESOLUTION_DATETIME
     if format_name == "year-quarter":
         resolution = RESOLUTION_QUARTER
     if format_name == "iso-month":
@@ -4801,7 +4736,16 @@ def _decide(
             )
             if numeric_looking >= strict_needed:
                 remarks = remarks + [note(REMARK_DATES_ALSO_NUMBERS)]
+            # THE STAMP MEMBER CARRIES THE SAME QUESTION AS THE DATE
+            # MEMBER, so it carries the same remark (plan amendment
+            # A-P4-1 item 2, which says ambiguity handling is
+            # untouched). `03/05/2024 14:05` is as ambiguous as
+            # `03/05/2024` is, and a column of the first that said
+            # nothing while a column of the second spoke would be
+            # telling a reader the question had gone away.
             if format_name == "month-first-date":
+                remarks = remarks + [note(REMARK_MONTH_FIRST)]
+            if format_name == "month-first-datetime":
                 remarks = remarks + [note(REMARK_MONTH_FIRST)]
             return _Verdict(
                 role=ROLE_DATETIME,

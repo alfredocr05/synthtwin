@@ -141,7 +141,7 @@ REQUIRED_CASES = (
     "quarter",
 )
 
-# The six that section adds for the branches those nine leave
+# The seven that section adds for the branches those nine leave
 # unexercised (review items P2-C3-F3 and P2-C4-C3, and owner decision
 # 11's pooled-spelling case), which are the second committed file of the
 # same oracle.
@@ -149,6 +149,11 @@ BRANCH_CASES = (
     "free_text_joint",
     "identifier_edge_spacing",
     "leap_second_endpoint",
+    # The month, added with the second SPAN resolution (plan P4-D4.3
+    # item 2). A new transform reaching the twin without an independent
+    # frozen case is a transform the generator and the validator agree
+    # about with nobody else in the room (review item P4-DATE3-F1).
+    "month_span",
     "numeric_point_free_styles",
     "numeric_pooled_spelling",
     "unrepresentable_joint",
@@ -175,6 +180,7 @@ SEEDS = {
     "identifier_edge_spacing": 113,
     "leap_second_endpoint": 114,
     "numeric_pooled_spelling": 115,
+    "month_span": 116,
 }
 
 # The cases whose column was declared with --identifier, which the
@@ -917,6 +923,20 @@ def _zero_based_quarter(ordinal, resolution, time_precision, subsecond_digits):
     return _precision_form(ordinal, resolution, time_precision, subsecond_digits)
 
 
+def _month_as_a_day(ordinal, resolution, time_precision, subsecond_digits):
+    """G7.1's month row withdrawn: the month read in the DAY space.
+
+    The one mistake a month invites, because both spaces count from the
+    same origin and both write four figures, a dash and two more: an
+    implementation that let the month fall through to the day branch
+    would put a value in the column that no cell of it holds. Every
+    cell moves.
+    """
+    if resolution == "month":
+        return f"{1970 + ordinal // 12:04d}-{ordinal % 12 + 1:02d}-01"
+    return _precision_form(ordinal, resolution, time_precision, subsecond_digits)
+
+
 _offset_form = gen.offset_form
 
 
@@ -1180,6 +1200,15 @@ CASE_MUTANTS = {
         "counts the quarter from nought and every cell moves",
         attribute="precision_form",
         replacement=_zero_based_quarter,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "month_span": Mutant(
+        branch="G7.1's month ordinal and G7.5's month cell form; the "
+        "mutant writes the month as the first day of that month, which "
+        "is the day space the month must not fall into, and every cell "
+        "moves",
+        attribute="precision_form",
+        replacement=_month_as_a_day,
         outcome=CHANGES_THE_CELLS,
     ),
     "unrepresentable_joint": Mutant(

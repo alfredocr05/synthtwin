@@ -1163,18 +1163,50 @@ def _sentinel_lines(column: contract.ColumnBlock) -> "list[str]":
     ]
 
 
+# The date readings whose own spelling IS what the twin writes. A
+# column read under one of these gets the same text back, so telling
+# its reader that the spelling changed would be a false warning
+# (review item P4-DATE3-F5).
+_SPELLINGS_THE_TWIN_KEEPS = (
+    "iso-date",
+    "iso-datetime",
+    "iso-month",
+    "year-quarter",
+)
+
+
 def _datetime_lines(column: contract.ColumnBlock) -> "list[str]":
-    """The date spelling the twin does not keep (residual R-P2-7)."""
+    """The date spelling the twin does not keep (residual R-P2-7).
+
+    ...OR DOES, AND THE TWO CASES SAY DIFFERENT THINGS. The twin writes
+    the international form. Where the column was already read in it --
+    a column of ISO dates, of ISO stamps, of months, of quarters --
+    nothing about the spelling changed and the reader is told so;
+    telling such a reader to change an explicit format would send them
+    to fix code that is not broken (review item P4-DATE3-F5).
+    """
     facts = column.facts
     if not isinstance(facts, contract.DatetimeFacts):
         return []
-    return [
+    lines = [
         "  The twin writes this column's dates in the international form",
-        "  (2024-03-15, or 2024-Q1 for a column of quarters), at the same",
-        "  precision your table had and with an offset only where the",
+        "  (2024-03-15; 2024-03 for a column of months, 2024-Q1 for a",
+        "  column of quarters), at the same precision your table had and",
+        "  with an offset only where the description records one.",
+    ]
+    if facts.parser_family in _SPELLINGS_THE_TWIN_KEEPS:
+        return lines + [
+            (
+                f"  Your table's own spelling was read as "
+                f"'{_shown(facts.parser_family)}', which IS that form, so"
+            ),
+            "  code that reads these dates with an explicit format needs no",
+            "  change for the twin.",
+        ]
+    return lines + [
         (
-            f"  description records one. Your table's own spelling was read "
-            f"as '{_shown(facts.parser_family)}', and it is NOT kept:"
+            f"  Your table's own spelling was read as "
+            f"'{_shown(facts.parser_family)}', and it is NOT kept:"
         ),
         "  code that reads dates with an explicit format needs that format",
         "  changed for the twin.",

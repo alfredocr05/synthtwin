@@ -645,8 +645,8 @@ _LISTING_WORDS = {
         "the date spelling your column was written in"
     ),
     "datetime.resolution_mix": (
-        "how many of your dates were written as a whole date and how "
-        "many carried a time of day"
+        "which written form each of your dates wore, and how many wore "
+        "each"
     ),
 }
 

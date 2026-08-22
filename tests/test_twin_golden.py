@@ -553,7 +553,7 @@ def test_the_same_description_and_seed_give_the_same_twin_twice(
 # which is what says this is the page and not the run: stage 2 changes
 # no wire, no generation rule and no twin byte.
 GOLDEN_REPORT_SHA256 = (
-    "fd89333b36e7d7633482985a28b876a1ca4abe0291f7d74e771d2b8defb3ff34"
+    "601507b584fc9cfc5131972feef103cb1c615c48b6743de2b309f6e1d950709b"
 )
 
 
@@ -920,7 +920,7 @@ def test_the_report_names_the_seed_the_twin_was_built_at(
 # that way: a line where the two values DIFFER may not have moved, and
 # one that did would be this repair reaching further than its own rule.
 GOLDEN_QUALITY_SHA256 = (
-    "6a66270e1945dd6f1488643c9b0faad352f6d19c04931d4ec2b79d7e8d6a849e"
+    "f950ac98ab274d7507bf35294fcfe7b00538bf8f0801d6f8d6b39b722e146444"
 )
 
 

@@ -2901,19 +2901,32 @@ def _contradictory_spelling(order: int) -> str:
     return f"(-{order})"
 
 
-def _text_spelling(order: int, used: "dict[str, int]") -> str:
+def _text_spelling(
+    order: int, used: "dict[str, int]", holes: "tuple[str, ...]"
+) -> str:
     """Ordinary text that reads as no number and no date (G10.3, G10.4).
 
     `text-1`, `text-2` and so on, stepped past any spelling that means
-    "no value", any spelling already used in this column, and any
-    spelling that would read as a date under one of the formats the
-    profiler tries -- so a stand-in can never quietly change a count.
+    "no value", any spelling already used in this column, any spelling
+    that would read as a date under one of the formats the profiler
+    tries, and any spelling THIS COLUMN publishes among its absent
+    cells -- so a stand-in can never quietly change a count.
+
+    THE LAST OF THOSE FOUR WAS MISSING, and the argument that every
+    invention site guards itself was false because of it (review item
+    P4-DATE3-F3). A column publishing `missing_by_source {"text-1":
+    11}` got `text-1` invented for its one ordinary-text stand-in, and
+    describing the twin again then found twelve absent cells and no
+    unparsed one -- an EXACT-OBSERVABLE count gone, with the class-
+    preserving construction the method promises already broken by the
+    time any recount could name it. Asking here rather than at each
+    caller is what makes the guard total.
     """
     step = order
     while True:
         candidate = f"text-{step}"
         if (
-            not parsing.is_missing_text(candidate)
+            not _is_a_hole_spelling(candidate, holes)
             and _unused(candidate, used)
             and not _reads_as_a_date(candidate)
         ):
@@ -2936,6 +2949,7 @@ def _class_spellings(
     raw_budget: int,
     negatives: int,
     used: "dict[str, int]",
+    holes: "tuple[str, ...]",
 ) -> "list[str]":
     """Every cell of one straggler class, in one fixed order (G10.3).
 
@@ -2959,7 +2973,7 @@ def _class_spellings(
         room = len(made) < folded_budget or side not in last
         if room:
             order = order + 1
-            spelling = _base_spelling(kind, order, negative, used)
+            spelling = _base_spelling(kind, order, negative, used, holes)
             made = made + [spelling]
             _take(spelling, used)
         elif len(made) + len(extra) < raw_budget:
@@ -2978,14 +2992,18 @@ def _class_spellings(
 
 
 def _base_spelling(
-    kind: str, order: int, negative: bool, used: "dict[str, int]"
+    kind: str,
+    order: int,
+    negative: bool,
+    used: "dict[str, int]",
+    holes: "tuple[str, ...]",
 ) -> str:
     """The ``order``-th base spelling of one straggler class."""
     if kind == _CLASS_OUT_OF_RANGE:
         return _out_of_range_spelling(order, negative)
     if kind == _CLASS_CONTRADICTORY:
         return _contradictory_spelling(order)
-    return _text_spelling(order, used)
+    return _text_spelling(order, used, holes)
 
 
 def _first_variant(
@@ -4133,7 +4151,7 @@ def _unaffixed_spellings(
     while len(built) < count and step < count * 8 + 64:
         wanted = count - len(built)
         batch = _class_spellings(
-            kind, wanted + step, folded_budget, raw_budget, 0, used
+            kind, wanted + step, folded_budget, raw_budget, 0, used, holes
         )
         for spelling in batch:
             if len(built) >= count:
@@ -4261,7 +4279,7 @@ def _wears_a_published_hole(text: str, holes: "tuple[str, ...]") -> bool:
     """
     body = parsing.trimmed(text)
     folded = parsing.folded(body)
-    held = parsing.parse_number(body)
+    held = parsing.exact_of_spelling(body)
     for spelling in holes:
         other = parsing.trimmed(spelling)
         if parsing.folded(other) == folded:
@@ -4274,9 +4292,17 @@ def _wears_a_published_hole(text: str, holes: "tuple[str, ...]") -> bool:
         # `missing_by_source {"1.0": 11}`, and the twin's own
         # description then counted that present cell absent. The same
         # holds for `01`, `1.00` and `1e0`.
+        #
+        # MATCHED EXACTLY, and it was matched after rounding (review
+        # item P4-DATE3-F2). The producer's rule is that two spellings
+        # are one number when they denote one number, however close the
+        # binary64 values they round to -- so `-999` and
+        # `-999.00000000000001` are two numbers, and a comparison made
+        # in binary64 called them one and counted a present cell
+        # absent. This asks the producer's own rule, by its own name.
         if held is None:
             continue
-        found = parsing.parse_number(other)
+        found = parsing.exact_of_spelling(other)
         if found is not None and found == held:
             return True
     return False
@@ -4325,6 +4351,7 @@ def _numeric_content(
             layout.raw_budgets[1],
             facts.n_negative_unrepresentable,
             used,
+            _hole_spellings(column),
         )
         notes = notes + [
             _deviation(
@@ -4346,6 +4373,7 @@ def _numeric_content(
             layout.raw_budgets[2],
             0,
             used,
+            _hole_spellings(column),
         )
     if column.n_not_numeric:
         cells = cells + _class_spellings(
@@ -4355,6 +4383,7 @@ def _numeric_content(
             layout.raw_budgets[3],
             0,
             used,
+            _hole_spellings(column),
         )
     return cells, notes
 
@@ -5036,7 +5065,7 @@ def _clock_content(
     holes = _hole_spellings(column)
     step = 1
     while len(cells) < column.n_present:
-        candidate = _text_spelling(step, used)
+        candidate = _text_spelling(step, used, holes)
         step = step + 1
         if _reads_as_a_clock(candidate):
             continue
@@ -5150,7 +5179,7 @@ def _datetime_content(
         )
     used: dict[str, int] = {cell: 1 for cell in cells}
     for step in range(facts.n_unparsed):
-        cells = cells + [_take(_text_spelling(step + 1, used), used)]
+        cells = cells + [_take(_text_spelling(step + 1, used, holes), used)]
     carried = [offset for offset in offsets if offset]
     if facts.datetimes_read_at == "utc" and len(set(carried)) < 2:
         notes = notes + [
@@ -8451,7 +8480,9 @@ def _unrepresentable_cells(
         if partner is not None:
             spellings = spellings + [_take(partner, used)]
             continue
-        spelling = _wide_number(kinds[index], signs[index], states, used)
+        spelling = _wide_number(
+            kinds[index], signs[index], states, used, _hole_spellings(column)
+        )
         if spelling is None:
             raise errors.ProfileError(
                 _domain_too_small(
@@ -8649,7 +8680,7 @@ def _spread_pairs(kinds: int, width: int) -> int:
 
 def _wide_number(
     kind: int, negative: bool, states: "dict[str, list[int]]",
-    used: "dict[str, int]",
+    used: "dict[str, int]", holes: "tuple[str, ...]",
 ) -> "str | None":
     """One value at the canonical width, of one kind and one sign.
 
@@ -8683,7 +8714,7 @@ def _wide_number(
         elif kind == 4:
             candidate = f"{lead}{'0' * index}0.5"
         else:
-            candidate = _text_spelling(index + 1, used)
+            candidate = _text_spelling(index + 1, used, holes)
         if _unused(candidate, used):
             return _take(candidate, used)
     return None

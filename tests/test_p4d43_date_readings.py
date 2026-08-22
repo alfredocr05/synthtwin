@@ -1,10 +1,11 @@
 """The widened date readings, and the form census they made necessary.
 
-Plan P4-D4.3. Two of its three widenings are built here: the slashed
-ISO form of item 1, and the joint ISO reading of item 3 with the
-`resolution_mix` census that reading forced onto every column of dates.
-Item 2, the month resolution, is not built and nothing in this file
-pretends it is.
+Plan P4-D4.3, all three widenings: the slashed ISO form of item 1, the
+month resolution of item 2, and the joint ISO reading of item 3 with
+the `resolution_mix` census that reading forced onto every column of
+dates. Amendment A-P4-1's own two widenings are here too -- the
+unpadded year-last slashed fields of its item 1, and the two slashed
+stamp members of its item 2.
 
 WHAT IS PINNED HERE, each of it a rule the decision states rather than
 a property somebody noticed:
@@ -322,13 +323,166 @@ def test_a_mixed_column_of_two_other_families_is_not_read() -> None:
 def test_a_month_beside_a_day_stays_unread() -> None:
     """The residual the decision names, asserted as the residual it is.
 
-    `2024-03` beside `2024-03-17` is not read, because the month
-    resolution is not built. This test exists so that building it is a
-    visible change here rather than a silent one.
+    `2024-03` beside `2024-03-17` is not read, and now that the month
+    resolution IS built the reason is the one the decision gives rather
+    than an absence: neither form reaches the parse line alone, and the
+    only joint reading there is joins the two ISO instant forms. A
+    month is a span and a date is a day, so a joint reading of them
+    would have to choose which of the two the column publishes at, and
+    the decision declines to choose.
     """
     values = ["2024-03"] * 60 + _dates(60)
     document, _loaded, _table = _described(values)
     assert document["columns"][0]["role"] != "datetime"
+
+
+# -- item 2: the month resolution -------------------------------------
+
+
+def test_a_column_of_months_is_read_at_the_month() -> None:
+    """`YYYY-MM` is a span, and it is published as one."""
+    values = [f"20{20 + place // 12:02d}-{1 + place % 12:02d}" for place in range(120)]
+    document, described, _table = _described(values)
+    block = document["columns"][0]
+    assert block["role"] == "datetime"
+    assert block["format"] == "iso-month"
+    assert block["resolution"] == "month"
+    assert block["time_precision"] == "month"
+    assert block["earliest"] == "2020-01"
+    assert block["latest"] == "2029-12"
+    assert block["resolution_mix"] == {"iso-month": 120}
+    assert described.columns[0].facts.n_unparsed == 0
+
+
+def test_a_month_ladder_is_read_in_months() -> None:
+    """Twelve to the year, from the origin the quarter counts from."""
+    assert generation._ordinal_of("1970-01", "month") == 0
+    assert generation._ordinal_of("1970-12", "month") == 11
+    assert generation._ordinal_of("1971-01", "month") == 12
+    assert generation._ordinal_of("2024-06", "month") == 12 * 54 + 5
+    for ordinal, text in ((0, "1970-01"), (11, "1970-12"), (12, "1971-01")):
+        assert generation._cell_of_ordinal(ordinal, "month", "month", 0) == text
+
+
+def test_a_month_twin_reads_back_as_a_column_of_months() -> None:
+    """The whole way through, on the resolution this item added."""
+    values = [f"20{20 + place // 12:02d}-{1 + place % 12:02d}" for place in range(120)]
+    _document, described, _table = _described(values)
+    twin = generation.generate(described, 5)
+    folder = pathlib.Path(tempfile.mkdtemp())
+    written = fixtures.write(folder, "twin.csv", rendering.twin_csv(twin))
+    outcome = validation.measure(described, f"{written}")
+    missed = [
+        check.subcheck for check in outcome.checks if check.verdict == validation.MISSED
+    ]
+    assert missed == []
+    again = profile.build_document(
+        reading.read_table(f"{written}"), taxonomy.Settings(), []
+    )
+    assert again["columns"][0]["format"] == "iso-month"
+    assert again["columns"][0]["resolution"] == "month"
+
+
+def test_a_month_and_a_quarter_are_not_one_reading() -> None:
+    """Both are seven characters with a dash at the fifth, and neither
+    reads the other."""
+    assert parsing.parse_datetime("2024-03", "year-quarter") is None
+    assert parsing.parse_datetime("2024-Q1", "iso-month") is None
+    assert parsing.parse_datetime("2024-03-15", "iso-month") is None
+
+
+def test_no_span_reader_admits_a_year_the_calendar_lacks() -> None:
+    """Year zero, which both span readers took (review item P4-DATE3-F4).
+
+    `_valid_date` has always refused it for every reader that names a
+    DAY. The two readers that name a span had no such check, so the
+    producer itself would publish `0000-01` -- a canonical form the
+    contract's own range starts above.
+    """
+    for value in ("0000-01", "0000-12"):
+        assert parsing.parse_datetime(value, "iso-month") is None
+    for value in ("0000-Q1", "0000-Q4"):
+        assert parsing.parse_datetime(value, "year-quarter") is None
+    assert parsing.parse_datetime("0001-01", "iso-month") is not None
+    assert parsing.parse_datetime("0001-Q1", "year-quarter") is not None
+
+
+def test_the_twin_report_does_not_warn_where_nothing_changed() -> None:
+    """A column already in the international form keeps its spelling.
+
+    Telling that reader to change an explicit date format would send
+    them to fix code that is not broken (review item P4-DATE3-F5).
+    """
+    values = [f"20{20 + place // 12:02d}-{1 + place % 12:02d}" for place in range(120)]
+    _document, described, _table = _described(values)
+    twin = generation.generate(described, 6)
+    page = rendering.report(described, twin)
+    assert "which IS that form" in page
+    assert "it is NOT kept" not in page
+
+
+# -- amendment A-P4-1 item 2: the two slashed stamp members -----------
+
+
+def test_a_slashed_stamp_column_is_a_column_of_dates_and_times() -> None:
+    """A slashed date, one space, and a clock in the role's two forms."""
+    values = [
+        f"{1 + place % 12}/{1 + place % 28}/2024 {8 + place % 10:02d}:{place % 60:02d}"
+        for place in range(120)
+    ]
+    document, described, _table = _described(values)
+    block = document["columns"][0]
+    assert block["role"] == "datetime"
+    assert block["format"] == "month-first-datetime"
+    assert block["resolution"] == "datetime"
+    assert block["time_precision"] == "minute"
+    assert described.columns[0].facts.n_unparsed == 0
+
+
+def test_the_slashed_stamp_carries_the_ambiguity_remark() -> None:
+    """The date half is as ambiguous as the date member's is."""
+    values = [
+        f"0{1 + place % 9}/0{1 + place % 9}/2024 {8 + place % 10:02d}:{place % 60:02d}"
+        for place in range(120)
+    ]
+    document, _loaded, _table = _described(values)
+    assert document["columns"][0]["format"] == "month-first-datetime"
+    assert document["columns"][0]["remarks"] != []
+
+
+def test_the_stamp_clock_is_the_role_s_two_forms_and_no_wider() -> None:
+    """No fractional second, no offset, no unpadded hour."""
+    for value in ("3/17/2024 14:05", "3/17/2024 14:05:09", "03/17/2024 14:05"):
+        assert parsing.parse_datetime(value, "month-first-datetime") is not None
+    for value in (
+        "3/17/2024 14:05:09.5",
+        "3/17/2024 14:05+02:00",
+        "3/17/2024 4:05",
+        "3/17/2024  14:05",
+        "3/17/2024T14:05",
+        "2024/03/17 14:05",
+        "3/17/2024",
+    ):
+        assert parsing.parse_datetime(value, "month-first-datetime") is None
+
+
+def test_the_stamp_reader_and_the_precision_reader_cannot_part() -> None:
+    """One says the cell parsed and the other says how finely it wrote.
+
+    A cell one accepts and the other reads differently is two answers
+    to one question, which is the shape every reading defect in this
+    module has taken.
+    """
+    for value in (
+        "3/17/2024 14:05",
+        "3/17/2024 14:05:09",
+        "3/17/2024  14:05",
+        "3/17/2024 4:05",
+        "3/17/2024",
+    ):
+        parsed = parsing.parse_datetime(value, "month-first-datetime") is not None
+        told = parsing.datetime_precision(value, "month-first-datetime")
+        assert parsed == (told in ("minute", "second")), value
 
 
 # -- the census as a document: what the loader refuses ----------------
@@ -446,8 +600,12 @@ def test_the_quality_report_lists_the_census_in_its_own_words() -> None:
     assert len(listed) == 1
     assert "asks no file to write them the same way" in listed[0].reason
     assert "cannot show it" not in listed[0].reason
+    # ...and the words are true of a column of MONTHS too, whose census
+    # has one key and no time of day in it at all (review item
+    # P4-DATE3-F5).
+    assert "carried a time of day" not in listed[0].reason
     page = quality.quality_report(described, outcome)
-    assert "how many of your dates were written as a whole date" in page
+    assert "which written form each of your dates wore" in page
 
 
 def test_the_census_is_never_a_verdict() -> None:
@@ -710,3 +868,62 @@ def test_the_method_names_the_census_among_its_deviations(  # P4-DATE-F3
     flat = " ".join(body.split())
     assert "the form census of a column of dates read under the joint" in flat
     assert "`resolution_mix` is REPORT-ONLY" in flat
+
+
+def test_a_declared_number_is_matched_exactly_by_the_recount() -> None:
+    """Two numbers a person can tell apart are never one (P4-DATE3-F2).
+
+    The producer's declaration rule is exact: `-999` and
+    `-999.00000000000001` denote two numbers and a declaration naming
+    one reaches only its own cells. The recount compared the two after
+    rounding them both to binary64, so a column publishing the second
+    as a label had those cells counted absent.
+    """
+    assert generation._wears_a_published_hole("-999.00", ("-999",))
+    assert generation._wears_a_published_hole("-999e0", ("-999",))
+    assert not generation._wears_a_published_hole(
+        "-999.00000000000001", ("-999",)
+    )
+    assert not generation._wears_a_published_hole("-998", ("-999",))
+    # ...and it is the producer's own rule, by its own name, not a
+    # second copy of it.
+    assert parsing.exact_of_spelling("-999.00") == parsing.exact_of_spelling(
+        "-999"
+    )
+    assert parsing.exact_of_spelling(
+        "-999.00000000000001"
+    ) != parsing.exact_of_spelling("-999")
+
+
+def test_a_stand_in_never_wears_a_spelling_the_column_calls_absent() -> None:
+    """Every invention site asks, because the speller itself asks.
+
+    A numeric column publishing `missing_by_source {"text-1": 11}` got
+    `text-1` invented for its one ordinary-text stand-in, and
+    describing the twin again then found twelve absent cells and no
+    unparsed one -- an EXACT-OBSERVABLE count gone before any recount
+    could name it (review item P4-DATE3-F3).
+    """
+    used: "dict[str, int]" = {}
+    assert generation._text_spelling(1, used, ()) == "text-1"
+    assert generation._text_spelling(1, used, ("text-1",)) == "text-2"
+    assert generation._text_spelling(1, used, ("text-1", "text-2")) == "text-3"
+
+    values = [f"{place + 1}" for place in range(120)] + ["oddity"]
+    folder = pathlib.Path(tempfile.mkdtemp())
+    table = fixtures.write(
+        folder,
+        "n.csv",
+        fixtures.single_column_table("score", values + ["text-1"] * 11),
+    )
+    settings = taxonomy.Settings(declared_missing_values=("text-1",))
+    document = profile.build_document(
+        reading.read_table(f"{table}"), settings, []
+    )
+    assert document["columns"][0]["missing_by_source"] == {"text-1": 11}
+    written = fixtures.write_profile(folder, "n.json", document)
+    described = contract.load_profile(f"{written}")
+    twin = generation.generate(described, 4)
+    cells = [cell for cell in twin.columns[0] if cell]
+    assert "text-1" not in cells
+    assert twin.outcomes[0].n_present == 121
