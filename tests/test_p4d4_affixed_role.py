@@ -871,3 +871,73 @@ def test_no_count_of_the_measured_file_is_printed_below_the_floor() -> None:
             "counts.n_core_not_numeric",
         ):
             assert check.verdict == validation.WITHHELD, check.subcheck
+
+def test_an_ordinary_two_figure_column_has_a_twin_that_passes() -> None:
+    """A description no seed can build is a broken feature (A-P4-18).
+
+    Thirty cells written `5.` beside thirty written `5.01` to `5.30`
+    publish a width of zero for half the column. The drawn values hold
+    every window; the snap then rounded twenty-six of them onto 5.0 and
+    the twin missed p50, p75, p90, p95, the mean and the spread at
+    every seed. A conforming twin demonstrably exists -- the source
+    column is one -- so the width gives way and the distribution does
+    not.
+    """
+    folder = pathlib.Path(tempfile.mkdtemp())
+    values = ["5."] * 30 + [f"5.{index:02d}" for index in range(1, 31)]
+    table = fixtures.write(
+        folder, "v.csv", fixtures.single_column_table("v", values)
+    )
+    document = profile.build_document(
+        reading.read_table(f"{table}"), taxonomy.Settings(), []
+    )
+    assert document["columns"][0]["fraction_widths"] == {"0": 30, "2": 30}
+    described = contract.load_profile(
+        f"{fixtures.write_profile(folder, 'v.json', document)}"
+    )
+    for seed in range(6):
+        twin = generation.generate(described, seed)
+        target = fixtures.write(
+            folder, f"twin-{seed}.csv", rendering.twin_csv(twin)
+        )
+        outcome = validation.measure(described, f"{target}")
+        missed = [
+            check.subcheck
+            for check in outcome.checks
+            if check.verdict == validation.MISSED
+        ]
+        for owed in (
+            "ladder.p50",
+            "ladder.p75",
+            "ladder.p90",
+            "ladder.p95",
+            "moments.mean",
+            "moments.std",
+        ):
+            assert owed not in missed, (seed, missed)
+        # ...and the width that gave way is NAMED rather than silent.
+        spoken = [
+            note for note in twin.deviations if note.fact == "fraction_widths"
+        ]
+        assert spoken, seed
+
+
+def test_a_declaration_carried_across_the_pair_protects_the_number() -> None:
+    """A-P4-19: every spelling of the candidate, and the count says so.
+
+    Eleven `-999 mg` cells beside eleven `-999.0 mg` cells: naming
+    either spelling keeps all twenty-two, because the pass counts and
+    removes by NUMBER and one verdict per candidate number is all the
+    wire can carry. Pinned here so the reach is witnessed rather than
+    discovered, and so a later edit that narrows it is seen.
+    """
+    values = [f"{index} mg" for index in range(1, 79)]
+    values = values + ["-999 mg"] * 11 + ["-999.0 mg"] * 11
+    for named in ("-999 mg", "-999.0 mg"):
+        column = _kept(values, (named,))["columns"][0]
+        assert column["n_present"] == 100, named
+        assert column["percentiles"]["min"] == -999.0, named
+        verdicts = column["sentinel_verdicts"]
+        assert len(verdicts) == 1, named
+        assert verdicts[0]["reason"] == "kept_by_you", named
+        assert verdicts[0]["n_occurrences"] == 22, named
