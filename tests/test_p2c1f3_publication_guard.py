@@ -567,6 +567,12 @@ def _plausible_arguments(form: str) -> "tuple[object, ...]":
         # Seven since the affixed role shipped: how far the affix
         # reading got, and how many cells stand-in judging removed.
         return (fragment, dates, 9, 4, 5, 6, 7)
+    if form == taxonomy.EVIDENCE_CLOCK:
+        # Its middle argument is a clock FORM word, not a date format:
+        # the two vocabularies are both this package's own and the
+        # grammar admits either at a word position, so a form built
+        # from the wrong one renders nothing a reader could use.
+        return (9, taxonomy.NOTE_CLOCK_WORDS[0], 2)
     if form == taxonomy.EVIDENCE_DATES:
         return (9, 10, taxonomy.NOTE_ARGUMENT_WORDS[0])
     if form == taxonomy.SAID_READ_AS_DATES:

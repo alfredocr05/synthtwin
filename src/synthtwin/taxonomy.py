@@ -212,6 +212,7 @@ ROLE_COUNT = "count"
 ROLE_CONTINUOUS = "continuous"
 ROLE_CATEGORICAL = "categorical"
 ROLE_IDENTIFIER = "identifier"
+ROLE_CLOCK = "time_of_day"
 ROLE_AFFIXED = "affixed_number"
 ROLE_TEXT = "free_text"
 
@@ -242,6 +243,7 @@ ROLES = (
     ROLE_CONTINUOUS,
     ROLE_CATEGORICAL,
     ROLE_IDENTIFIER,
+    ROLE_CLOCK,
     ROLE_AFFIXED,
     ROLE_TEXT,
 )
@@ -267,6 +269,7 @@ ROLES_PUBLISHING_RANGES = (
     ROLE_COUNT,
     ROLE_CONTINUOUS,
     ROLE_DATETIME,
+    ROLE_CLOCK,
     ROLE_AFFIXED,
 )
 ROLES_PUBLISHING_NOTHING = (
@@ -314,6 +317,7 @@ STATISTICAL_TYPES = (
     ROLE_CONTINUOUS,
     ROLE_CATEGORICAL,
     TYPE_CODE,
+    ROLE_CLOCK,
     ROLE_AFFIXED,
     TYPE_TEXT,
 )
@@ -345,6 +349,7 @@ ROLE_AXES: "dict[str, tuple[str, str]]" = {
     ROLE_CONTINUOUS: (ROLE_CONTINUOUS, QUALITY_OK),
     ROLE_CATEGORICAL: (ROLE_CATEGORICAL, QUALITY_OK),
     ROLE_IDENTIFIER: (TYPE_CODE, QUALITY_OK),
+    ROLE_CLOCK: (ROLE_CLOCK, QUALITY_OK),
     ROLE_AFFIXED: (ROLE_AFFIXED, QUALITY_OK),
     ROLE_TEXT: (TYPE_TEXT, QUALITY_OK),
 }
@@ -557,6 +562,7 @@ REMARK_OUT_OF_RANGE = "remark_values_out_of_range"
 # without condition, because no test of the values separates an opaque
 # token family from a measurement -- so the choice is between telling
 # every such column's owner and telling none.
+EVIDENCE_CLOCK = "evidence_clock_times"
 EVIDENCE_AFFIXED = "evidence_numbers_wearing_one_affix"
 REMARK_AFFIXED = "remark_affixed_numbers_may_be_codes"
 REMARK_CONTRADICTORY = "remark_values_contradictory"
@@ -612,6 +618,7 @@ NOTE_ARITY: "dict[str, int]" = {
     SAID_READ_AS_DATES: 2,
     REMARK_OUT_OF_RANGE: 1,
     # How many cells wore the pair, and the pair itself.
+    EVIDENCE_CLOCK: 3,
     EVIDENCE_AFFIXED: 3,
     REMARK_AFFIXED: 3,
     REMARK_CONTRADICTORY: 1,
@@ -647,7 +654,18 @@ NOTE_FORMS = tuple(sorted(NOTE_ARITY))
 # A value of the real table is not here and cannot be added by any
 # route, because this tuple is written out rather than gathered: that
 # is what stops a spelling from becoming an argument.
-NOTE_ARGUMENT_WORDS = parsing.DATE_FORMATS
+# ...and the two words a clock sentence names its form by. They are
+# this package's own, chosen from a closed pair, so a sentence carrying
+# one says which SHAPE the column's cells had and nothing about what
+# any cell said.
+NOTE_CLOCK_HOURS_MINUTES = "hours_and_minutes"
+NOTE_CLOCK_HOURS_MINUTES_SECONDS = "hours_minutes_and_seconds"
+NOTE_CLOCK_WORDS = (
+    NOTE_CLOCK_HOURS_MINUTES,
+    NOTE_CLOCK_HOURS_MINUTES_SECONDS,
+)
+
+NOTE_ARGUMENT_WORDS = parsing.DATE_FORMATS + NOTE_CLOCK_WORDS
 
 # What `note` and `rendered` say when they are handed something the
 # grammar does not have. Both are internal invariants -- no input a
@@ -787,6 +805,14 @@ def _affix(arguments: "tuple[object, ...]", place: int) -> str:
     if not isinstance(argument, str):
         raise TypeError(UNAUTHORIZED_NOTE_ARGUMENT)
     return f"'{argument}'" if argument else ""
+
+
+def _clock_shape(arguments: "tuple[object, ...]", place: int) -> str:
+    """The clause naming which clock form a column's cells wore."""
+    word = _word(arguments, place)
+    if word == NOTE_CLOCK_HOURS_MINUTES:
+        return "hours and minutes, `09:30`"
+    return "hours, minutes and seconds, `09:30:00`"
 
 
 def _affix_shape(
@@ -969,6 +995,12 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
         return (
             f"{read} read as dates written as "
             f"{parsing.format_example(_word(arguments, 1))}"
+        )
+    if form == EVIDENCE_CLOCK:
+        return (
+            f"{_whole(arguments, 0)} value(s) are clock times written "
+            f"as {_clock_shape(arguments, 1)}, and "
+            f"{_whole(arguments, 2)} value(s) are not"
         )
     if form == EVIDENCE_AFFIXED:
         return (
@@ -3957,6 +3989,160 @@ def _categorical_ceiling(cells: _Cells) -> int:
 
 
 @dataclasses.dataclass(frozen=True)
+class _Clock:
+    """One column's clock reading: the form, and the cells under it."""
+
+    form: str
+    # The text of every present cell the winning form accepted, in row
+    # order. The cells it did not accept -- the other form's among them
+    # -- are COUNTED and not listed: nothing of an unreadable cell is
+    # published, and `n_unparsed` is the whole of what is said about
+    # them.
+    values: "list[str]"
+    n_unparsed: int
+
+
+def clock_reach(cells: _Cells) -> int:
+    """How many present cells the BEST clock reading accepted.
+
+    The count the closer of the two forms reached, whether or not it
+    cleared the detection line -- so a column that declined can still
+    say how far this reading got. Zero where no cell wore either form.
+
+    A column that publishes nothing owes its owner the reason, and the
+    reason is a set of counts (contract C6-5): the competing-readings
+    remark already names how much of the column read as numbers, as
+    dates and as one shared piece of text, and without this one it
+    stayed silent about the reading that came closest on a column of
+    clock times.
+
+    Guarantees: accepts a tally of one column; returns a count of its
+    present cells. No spelling of the column travels out through it.
+    Determinism: a function of the cells alone. Raises nothing. No I/O
+    of any kind.
+    """
+    best = 0
+    for form in parsing.CLOCK_FORMS:
+        found = 0
+        for text in cells.present:
+            if parsing.clock_form(text) == form:
+                found = found + 1
+        if found > best:
+            best = found
+    return best
+
+
+def _clock_reading(cells: _Cells) -> "_Clock | None":
+    """The one clock form this column wears, or None if it wears none.
+
+    Guarantees:
+
+    - Determinism: every cell is read by `parsing.clock_form`, which is
+      a function of the cell alone, and the two forms are tried in a
+      fixed order. Nothing here reads a clock or a random source.
+    - The test is the contract's: at least the parse-line COUNT of
+      present cells wear ONE form. It is a count and never a compared
+      share, so no rounding of a division decides a role.
+    - THE FINER FORM WINS where both clear the line, which can happen
+      only at a lowered parse rate -- no cell wears both, since the two
+      have different lengths, so both clearing needs twice the line to
+      fit inside the column. `hh-mm-ss` is tried first, which is that
+      rule.
+    - NO FLOOR IS READ HERE, and that is a decision rather than an
+      omission. Two rules of this phase consult `small_cell_floor` at
+      detection because publishing a floor-clearing SPELLING is what
+      makes them the role they are. This role publishes no spelling of
+      the column's own text -- its clock values are the column's, but
+      they are published as a range and a ladder, which is the ranges
+      class -- so the only threshold it reads is the parse rate.
+    - The winning form must have accepted at least ONE cell. At a parse
+      rate of zero the line is zero and the contract's T5 is vacuous;
+      this is what keeps a cell for the endpoints and the ladder to be
+      values of.
+    """
+    present = cells.present
+    if not present:
+        return None
+    needed = _needed(cells.settings.minimum_parse_rate, len(present))
+    for form in (parsing.CLOCK_HH_MM_SS, parsing.CLOCK_HH_MM):
+        good: "list[str]" = []
+        for text in present:
+            if parsing.clock_form(text) == form:
+                good = good + [parsing.trimmed(text)]
+        if len(good) >= needed and good:
+            return _Clock(
+                form=form,
+                values=good,
+                n_unparsed=len(present) - len(good),
+            )
+    return None
+
+
+def _clock_verdict(
+    cells: _Cells,
+    clock: _Clock,
+    notes: "list[Note]",
+    remarks: "list[Note]",
+) -> _Verdict:
+    """The published block of a column of clock times (contract C6-10).
+
+    FIVE KEYS AND NO SIXTH: which form the cells wore, the earliest and
+    latest clock value, an eleven-rung ladder over the parsed values,
+    and how many present cells no clock reading accepted.
+
+    THE LADDER IS SELECTION, exactly as the date ladder is: eleven
+    order statistics of cells the column really holds, with no
+    interpolation anywhere in it. So every rung is a clock value some
+    row wore, and `min` and `max` are the endpoints themselves.
+
+    THE ORDER IS TEXT ORDER, and that is safe here rather than
+    convenient: both forms are fixed-width and zero-padded, so
+    comparing the written cells character by character puts them in
+    the same order their ordinals do. The contract states the same
+    equivalence and its own T3 is a text comparison for this reason.
+
+    ONE LIMIT STATED AT THE FACT THAT CARRIES IT. The ladder reads the
+    day as a LINE from `00:00` to the end of the day, as every ladder
+    reads its axis, so a column whose values cluster across midnight is
+    described as two clusters with an empty middle and a twin fills
+    that middle. The clock face's circular reading is not modeled, in
+    the same way a two-humped numeric column's valley is filled by the
+    same ladder model today. The rungs stay exact cells either way.
+    """
+    ordered = sorted(clock.values)
+    details: "dict[str, object]" = {
+        "clock_form": clock.form,
+        "earliest": ordered[0],
+        "latest": ordered[len(ordered) - 1],
+        "clock_percentiles": _date_ladder(ordered),
+        "n_unparsed": clock.n_unparsed,
+    }
+    if _all_different(cells):
+        remarks = remarks + [note(REMARK_ALL_DIFFERENT_NUMBERS)]
+    return _Verdict(
+        role=ROLE_CLOCK,
+        evidence=note(
+            EVIDENCE_CLOCK,
+            (len(ordered), _clock_form_said(clock.form), clock.n_unparsed),
+        ),
+        details=details,
+        notes=notes,
+        remarks=remarks,
+    )
+
+
+def _clock_form_said(form: str) -> str:
+    """One clock form as the word a sentence names it by.
+
+    A word of this package's own, chosen from a closed pair, so a
+    sentence carrying it carries nothing of anybody's table.
+    """
+    if form == parsing.CLOCK_HH_MM:
+        return NOTE_CLOCK_HOURS_MINUTES
+    return NOTE_CLOCK_HOURS_MINUTES_SECONDS
+
+
+@dataclasses.dataclass(frozen=True)
 class _Affixed:
     """One column's affixed reading: the pair, and the cores under it."""
 
@@ -4331,7 +4517,18 @@ def _decide(
     5. dates, under one documented format, at the parse rate;
     6. numbers, at the parse rate -- `count` or `continuous`;
     7. at most the ceiling of different values -- `categorical`;
-    8. everything else -- `free_text`, which publishes nothing.
+    8. clock times, in one of two forms, at the parse rate --
+       `time_of_day`;
+    9. a number wearing one shared piece of text -- `affixed_number`;
+    10. everything else -- `free_text`, which publishes nothing.
+
+    RULES 8 AND 9 SIT WHERE THEY DO ON PURPOSE. Both are tested last
+    before the fallback, so each claims only a column every earlier
+    rule declined: no column an earlier rule can claim is diverted into
+    one of them, and no earlier rule's reach depends on them. Between
+    the two, the clock reading is first because it is the more specific
+    claim -- clock text rarely splits as an affixed number, and where
+    both could fire the time is what the column holds.
 
     Two rules that stood in this list through round 6 are gone (review
     item P1-R6-F7): a fixed-width digit-code rule that ran ahead of the
@@ -4550,7 +4747,19 @@ def _decide(
                 remarks=remarks,
             )
 
-    # RULE 8 -- one shared piece of text around a number: the
+    # RULE 8 -- a column of clock times: the `time_of_day` role.
+    # `09:30`, `14:05:00`.
+    #
+    # Before the affixed rule and after every rule that already reads a
+    # column well. Its place in front of the affix reading is the
+    # contract's and has a reason: clock text rarely splits as an
+    # affixed number, but where both could fire the time reading is the
+    # more specific claim.
+    clock = _clock_reading(cells)
+    if clock is not None:
+        return _clock_verdict(cells, clock, notes, remarks)
+
+    # RULE 9 -- one shared piece of text around a number: the
     # `affixed_number` role. `$1,200`, `45%`, `5 mg`, `170cm`.
     #
     # It is tested HERE, after every rule that already reads a column
@@ -4563,7 +4772,7 @@ def _decide(
     if affixed is not None:
         return _affixed_verdict(cells, affixed, notes, remarks)
 
-    # RULE 9 -- everything else is free text, which publishes nothing.
+    # RULE 10 -- everything else is free text, which publishes nothing.
     #
     # There is no rule between RULE 7 and this one. Two rules used to
     # stand here. One read all-different single tokens as record
