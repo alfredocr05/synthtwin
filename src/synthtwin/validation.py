@@ -1990,9 +1990,10 @@ def corners_of(
         # affixed column's cells stand one for one with its cores under
         # a shared pair, so the supply its core spellings carry is the
         # supply its cells carry.
+        quantitative = _quantitative(facts)
         if isinstance(
-            _quantitative(facts), contract.NumericFacts
-        ) and _numeric_spellings_are_short(column, facts):
+            quantitative, contract.NumericFacts
+        ) and _numeric_spellings_are_short(column, quantitative):
             corners = corners + [CORNER_NUMERIC_SPELLINGS_SHORT]
         if corners:
             found[column.name] = tuple(corners)
@@ -2414,7 +2415,10 @@ def _numeric_spellings_are_short(
     allocation on the folded fact.
     """
     column = _core_column(column)
-    facts = _quantitative(facts)
+    quantitative = _quantitative(facts)
+    if not isinstance(quantitative, contract.NumericFacts):
+        return False
+    facts = quantitative
     for published in (column.n_distinct, column.n_distinct_folded):
         supply = _spelling_supply(column, facts, published)
         ceiling = _spelling_ceiling(column, facts, published)
@@ -6391,7 +6395,7 @@ def _affixed_checks(
     # the same reason: they are counts of the cells that wear the pair,
     # so a recount under a pair the file does not wear is a count of
     # the file rather than a description of it.
-    for field, published in (
+    for field, counted in (
         ("n_core_numeric", facts.n_core_numeric),
         ("n_core_out_of_range", facts.n_core_out_of_range),
         ("n_core_contradictory", facts.n_core_contradictory),
@@ -6402,7 +6406,7 @@ def _affixed_checks(
                 name,
                 f"affixed.{field}",
                 f"counts.{field}",
-                f"{published}",
+                f"{counted}",
                 _shown_count_or_none(_count_at(block, field)),
             )
         ]

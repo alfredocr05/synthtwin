@@ -2116,29 +2116,31 @@ def _segment_bounds(
         held = sorted(values)
         if not held:
             return found
-        span = (held[0], held[len(held) - 1])
+        whole: "tuple[float, float]" = (held[0], held[len(held) - 1])
         for value in values:
-            found[value] = span
+            found[value] = whole
         return found
     total = len(layout.sizes)
+    # Read out once, past the null test above, so the interpolation
+    # takes the finite ladder this function has already established.
+    settled_rungs = tuple(rung for rung in rungs if rung is not None)
     for place in range(total):
         value = values[place]
-        if place == 0 or (place == total - 1 and total >= 2):
-            span = (value, value)
-        else:
+        span: "tuple[float, float]" = (value, value)
+        if not (place == 0 or (place == total - 1 and total >= 2)):
             span = (
                 _interpolated(
-                    rungs, layout.starts[place], column.n_numeric
+                    settled_rungs, layout.starts[place], column.n_numeric
                 ),
                 _interpolated(
-                    rungs,
+                    settled_rungs,
                     layout.starts[place] + layout.sizes[place],
                     column.n_numeric,
                 ),
             )
         if value in found:
-            held = found[value]
-            span = (max(held[0], span[0]), min(held[1], span[1]))
+            seen = found[value]
+            span = (max(seen[0], span[0]), min(seen[1], span[1]))
         found[value] = span
     return found
 

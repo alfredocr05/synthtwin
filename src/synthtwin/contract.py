@@ -1196,6 +1196,52 @@ class TextFacts:
     n_distinct_by_occurrences: "dict[str, int]"
 
 
+@dataclasses.dataclass(frozen=True)
+class AffixedFacts:
+    """A column of numbers each wearing one shared piece of text.
+
+    TWO POPULATIONS, and they are never the same one. `numbers` holds
+    the quantitative block, read over the CORES the cells carry. The
+    four `n_core_*` counts answer for those cores. `n_affixed` and
+    everything the universal keys count answer for the CELLS.
+
+    The pair is the one place a ranges-class role publishes a spelling
+    of the table, and it is confined to these two fields by the
+    forbidden-key rule rather than by anybody remembering the
+    exception.
+    """
+
+    numbers: NumericFacts
+    affix_prefix: str
+    affix_suffix: str
+    n_affixed: int
+    n_core_numeric: int
+    n_core_out_of_range: int
+    n_core_contradictory: int
+    n_core_not_numeric: int
+
+
+@dataclasses.dataclass(frozen=True)
+class ClockFacts:
+    """A column of clock times (contract section 6, the clock role).
+
+    FIVE FACTS AND NO SIXTH: which of the two forms the cells wore, the
+    earliest and latest value, the eleven-rung ladder over the values
+    that parsed, and how many present cells no clock reading accepted.
+
+    Every clock value here is written in the form `clock_form` names,
+    two digits a field. The ladder is SELECTION -- eleven order
+    statistics of cells the column really holds -- so its two ends ARE
+    the endpoints, which the loader checks rather than assumes.
+    """
+
+    clock_form: str
+    earliest: str
+    latest: str
+    clock_percentiles: "dict[str, str]"
+    n_unparsed: int
+
+
 ColumnFacts = (
     EmptyFacts
     | UnrepresentableFacts
@@ -1204,6 +1250,8 @@ ColumnFacts = (
     | NumericFacts
     | IdentifierFacts
     | TextFacts
+    | AffixedFacts
+    | ClockFacts
 )
 
 
@@ -3263,35 +3311,8 @@ def _column(
         n_numeric,
         n_out_of_range,
         n_contradictory,
+        remarks,
     )
-    # AF-R, ASKED AFTER THE BLOCK'S OWN NUMBERS ARE READ. It is
-    # unconditional -- no test of the values can separate a column of
-    # measurements from a column of codes, so the sentence is owed by
-    # every column of this role and not by the ones some rule found
-    # doubtful. It is asked LAST of the block because it is asked about
-    # the count the block publishes: a block whose numbers do not hold
-    # together is refused for that, in the words of the invariant it
-    # broke, rather than for a sentence that could not have been right
-    # about numbers that are not.
-    if role == ROLE_AFFIXED:
-        carried = False
-        for remark in remarks:
-            if _is_the_affixed_remark(
-                remark,
-                facts.n_affixed,
-                _affix_clause(facts.affix_prefix, facts.affix_suffix),
-            ):
-                carried = True
-        if not carried:
-            raise _out_of_range(
-                "remarks",
-                where,
-                f"{len(remarks)} remark(s), none of them that one",
-                "the sentence every column read this way carries, "
-                "which names the shared text its values wear, says how "
-                "many of them wore it, and says what to run if they "
-                "are codes rather than measurements",
-            )
     return ColumnBlock(
         name=name,
         position=position,
@@ -3433,6 +3454,7 @@ def _facts(
     n_numeric: int,
     n_out_of_range: int,
     n_contradictory: int,
+    remarks: "list[str]",
 ) -> ColumnFacts:
     """Everything the ROLE adds, checked by the rules of its section."""
     if role == ROLE_EMPTY:
@@ -3462,7 +3484,7 @@ def _facts(
             n_contradictory,
         )
     if role == ROLE_AFFIXED:
-        return _affixed_facts(mapping, where, frame, n_present)
+        return _affixed_facts(mapping, where, frame, n_present, remarks)
     if role == ROLE_IDENTIFIER:
         return _identifier_facts(
             mapping, where, n_present, n_distinct
@@ -4683,31 +4705,6 @@ def _identifier_facts(
     )
 
 
-@dataclasses.dataclass(frozen=True)
-class AffixedFacts:
-    """A column of numbers each wearing one shared piece of text.
-
-    TWO POPULATIONS, and they are never the same one. `numbers` holds
-    the quantitative block, read over the CORES the cells carry. The
-    four `n_core_*` counts answer for those cores. `n_affixed` and
-    everything the universal keys count answer for the CELLS.
-
-    The pair is the one place a ranges-class role publishes a spelling
-    of the table, and it is confined to these two fields by the
-    forbidden-key rule rather than by anybody remembering the
-    exception.
-    """
-
-    numbers: NumericFacts
-    affix_prefix: str
-    affix_suffix: str
-    n_affixed: int
-    n_core_numeric: int
-    n_core_out_of_range: int
-    n_core_contradictory: int
-    n_core_not_numeric: int
-
-
 def _line_count(share: float, total: int) -> int:
     """The smallest whole number of values that reaches ``share``.
 
@@ -4729,6 +4726,7 @@ def _affixed_facts(
     where: str,
     frame: _Frame,
     n_present: int,
+    remarks: "list[str]",
 ) -> AffixedFacts:
     """Read an affixed-number block (contract 6.12).
 
@@ -4796,6 +4794,31 @@ def _affixed_facts(
         raise _out_of_range(
             "n_core_numeric", where, f"a total of {total}",
             f"a total of {n_affixed}, the number of values wearing the pair",
+        )
+    # AF-R, ASKED WHERE THE BLOCK'S OWN NUMBERS ARE. It is
+    # unconditional -- no test of the values can separate a column of
+    # measurements from a column of codes, so the sentence is owed by
+    # every column of this role and not by the ones some rule found
+    # doubtful. It is asked HERE rather than beside the other remarks
+    # because here the pair and the count are already read: a check
+    # written where the facts are still a union of every role's would
+    # have to ask which role it holds, and asking that is a construct
+    # the offline audit refuses on a value it cannot trace.
+    carried = False
+    for remark in remarks:
+        if _is_the_affixed_remark(
+            remark, n_affixed, _affix_clause(prefix, suffix)
+        ):
+            carried = True
+    if not carried:
+        raise _out_of_range(
+            "remarks",
+            where,
+            f"{len(remarks)} remark(s), none of them that one",
+            "the sentence every column read this way carries, "
+            "which names the shared text its values wear, says how "
+            "many of them wore it, and says what to run if they "
+            "are codes rather than measurements",
         )
     return AffixedFacts(
         numbers=_numeric_facts(
