@@ -103,6 +103,114 @@ def test_a_slashed_iso_column_is_a_column_of_dates() -> None:
     assert described.columns[0].facts.n_unparsed == 0
 
 
+def test_the_year_last_slashed_families_take_unpadded_fields() -> None:
+    """A table that writes `3/5/2024` writes the same day as `03/05/2024`.
+
+    Amendment A-P4-1 item 1 retired the ten-character rule for the four
+    year-last families and for those only. The earlier reader refused
+    the first spelling over a leading zero nobody typed, and a whole
+    column of them fell through to free text, which publishes nothing.
+    """
+    for value, day in (
+        ("3/5/2024", "2024-03-05"),
+        ("1/1/2024", "2024-01-01"),
+        ("12/31/2024", "2024-12-31"),
+        ("3/13/2024", "2024-03-13"),
+    ):
+        assert parsing.parse_datetime(value, "month-first-date") == (day, "")
+    assert parsing.parse_datetime("5/3/2024", "day-first-date") == (
+        "2024-03-05",
+        "",
+    )
+
+
+def test_an_unpadded_slashed_column_is_a_column_of_dates() -> None:
+    """And the widening is a ROUTING change, not only a parsing one."""
+    values = [f"3/{13 + place % 19}/2024" for place in range(120)]
+    document, described, _table = _described(values)
+    block = document["columns"][0]
+    assert block["role"] == "datetime"
+    assert block["format"] == "month-first-date"
+    assert block["earliest"] == "2024-03-13"
+    assert block["latest"] == "2024-03-31"
+    assert described.columns[0].facts.n_unparsed == 0
+
+
+def test_the_unpadded_grammar_refuses_what_it_should() -> None:
+    """The year is four figures and still comes last, or nothing reads.
+
+    That is the whole of what keeps the four families apart: the
+    year-first slashed member is fully padded, and the compact family
+    is eight figures with no delimiter, so no spelling satisfies two of
+    the three.
+    """
+    for value in (
+        "003/5/2024",
+        "3/5/24",
+        "3//2024",
+        "3/5/2024/",
+        "3/5/20244",
+        "/3/5/2024",
+        "2/30/2024",
+        "3/5/two-thousand",
+    ):
+        assert parsing.parse_datetime(value, "month-first-date") is None
+        assert parsing.parse_datetime(value, "day-first-date") is None
+    for value in ("2024/03/05", "20240305"):
+        assert parsing.parse_datetime(value, "month-first-date") is None
+        assert parsing.parse_datetime(value, "day-first-date") is None
+
+
+def test_an_unpadded_column_still_carries_the_ambiguity_remark() -> None:
+    """The amendment says ambiguity handling is untouched; it is.
+
+    A column whose fields could be read either way is read month-first
+    and says so, whether or not its fields are padded.
+    """
+    padded = [f"0{1 + place % 9}/0{1 + place % 9}/2024" for place in range(120)]
+    unpadded = [f"{1 + place % 9}/{1 + place % 9}/2024" for place in range(120)]
+    first, _described_one, _one = _described(padded, "padded")
+    second, _described_two, _two = _described(unpadded, "unpadded")
+    assert first["columns"][0]["format"] == "month-first-date"
+    assert second["columns"][0]["format"] == "month-first-date"
+    assert first["columns"][0]["remarks"] == second["columns"][0]["remarks"]
+    assert first["columns"][0]["remarks"] != []
+
+
+def test_a_rescued_spelling_is_counted_present() -> None:
+    """`--keep-value NA` makes `NA` a value, and the recount must agree.
+
+    The recount now reads cells the way the twin will be read, and it
+    reached for the predicate that keeps this run from MAKING UP a
+    spelling a reader might call absent, rather than the one that says
+    what this column publishes. Forty cells the person rescued were
+    then counted absent, and the report carried distinctness
+    deviations no file has (review item P4-DATE2-F2).
+    """
+    values = ["north"] * 40 + ["south"] * 40 + ["NA"] * 40
+    folder = pathlib.Path(tempfile.mkdtemp())
+    table = fixtures.write(
+        folder, "r.csv", fixtures.single_column_table("region", values)
+    )
+    settings = taxonomy.Settings(kept_values=("NA",))
+    document = profile.build_document(
+        reading.read_table(f"{table}"), settings, []
+    )
+    written = fixtures.write_profile(folder, "r.json", document)
+    described = contract.load_profile(f"{written}")
+    twin = generation.generate(described, 3)
+    outcome = twin.outcomes[0]
+    assert outcome.n_present == 120
+    assert outcome.n_missing == 0
+    assert outcome.n_distinct == 3
+    assert twin.deviations == ()
+    # ...and the conservative predicate is still the one that guards an
+    # INVENTED spelling, so nothing this run makes up wears a word a
+    # reader might call absent.
+    assert generation._is_a_hole_spelling("NA", ())
+    assert not generation._wears_a_published_hole("NA", ())
+
+
 def test_the_slashed_iso_form_does_not_read_the_two_figure_forms() -> None:
     """A padded four-figure year is required, and nothing shorter.
 
@@ -407,10 +515,66 @@ def test_the_rate_is_carried_as_the_numbers_it_stands_for() -> None:
 
 
 def test_the_ceiling_counterpart_is_exact_too() -> None:
-    """`_at_most` decides roles by the same product and moves the same."""
+    """`_at_most` decides roles by the same product and moves the same.
+
+    THE FIRST THREE CASES CANNOT FAIL, AND THAT IS WHY THE REST ARE
+    HERE (review item P4-DATE2-F4). At `0.10` against 240, at zero and
+    at one, rounding and exactness agree, so an assertion built from
+    those alone stays green under the very implementation this repair
+    replaced. The cases below are ones where the two part company: the
+    binary64 nearest three hundredths sits BELOW it, so the exact
+    product with a hundred is a shade under three and the ceiling is
+    two, where the rounded product was exactly three. This count routes
+    a column to the category rule, so the difference is a role.
+    """
     assert taxonomy._at_most(0.10, 240) == 24
     assert taxonomy._at_most(0.0, 240) == 0
     assert taxonomy._at_most(1.0, 13) == 13
+    assert taxonomy._at_most(0.03, 100) == 2
+    assert taxonomy._at_most(0.03, 200) == 5
+    assert taxonomy._at_most(0.06, 50) == 2
+    assert taxonomy._at_most(0.15, 20) == 2
+
+
+def test_the_loader_applies_the_same_line_the_producer_does() -> None:
+    """The rule is written twice on purpose, so it is checked twice.
+
+    The loader may not import the describing side, so it carries its
+    own copy of the parse line -- and one copy was repaired while the
+    other went on rounding, which is a loader admitting a description
+    the producer would never write (review item P4-DATE2-F1).
+    """
+    for share in (0.01, 0.03, 0.07, 0.5, 0.99, 1.0, 0.0):
+        for total in (1, 7, 50, 100, 200, 240, 1000):
+            assert contract._line_count(share, total) == taxonomy._needed(
+                share, total
+            )
+
+
+def test_a_stand_in_number_reaches_its_share_as_a_count() -> None:
+    """The last threshold that decided a boundary by a rounded division.
+
+    A candidate is removed only where it is BOTH an outlier and reaches
+    `sentinel_minimum_share`. That share was compared against a
+    division computed in binary64, and one occurrence in two hundred
+    rounds to exactly the recorded rate although the exact share is
+    below it -- so a single `-999` was called frequent, removed, and
+    the column published a smallest value of 1 where its own table
+    holds -999 (review item P4-DATE2-F3).
+    """
+    values = ["-999"] + [f"{place + 1}" for place in range(199)]
+    folder = pathlib.Path(tempfile.mkdtemp())
+    table = fixtures.write(
+        folder, "n.csv", fixtures.single_column_table("score", values)
+    )
+    document = profile.build_document(
+        reading.read_table(f"{table}"), taxonomy.Settings(), []
+    )
+    block = document["columns"][0]
+    assert block["n_present"] == 200
+    assert block["n_missing"] == 0
+    assert block["percentiles"]["min"] == -999.0
+    assert block["sentinel_verdicts"] == []
 
 
 def _mixed_with_a_declared_hole(

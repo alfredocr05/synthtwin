@@ -472,7 +472,13 @@ SENTINEL_REASONS = (
 RESOLUTION_DATE = "date"
 RESOLUTION_DATETIME = "datetime"
 RESOLUTION_QUARTER = "quarter"
-RESOLUTIONS = (RESOLUTION_DATE, RESOLUTION_DATETIME, RESOLUTION_QUARTER)
+RESOLUTION_MONTH = "month"
+RESOLUTIONS = (
+    RESOLUTION_DATE,
+    RESOLUTION_DATETIME,
+    RESOLUTION_QUARTER,
+    RESOLUTION_MONTH,
+)
 READ_AT_LOCAL = "local"
 READ_AT_UTC = "utc"
 DATETIMES_READ_AT = (READ_AT_LOCAL, READ_AT_UTC)
@@ -1880,13 +1886,16 @@ def _needed(share: float, total: int) -> int:
     that no rounding of a division can decide a column's role.
 
     AND THE PRODUCT IS EXACT, which the multiplication was not (review
-    item P4-DATE-F1). A setting of 0.07 against 100 values is 7 values,
-    and the binary64 product of the two is 7.000000000000001, so the
-    line came out at 8 and a column that reached it exactly was
-    declined. The setting's own binary64 value is turned into the whole
-    numbers it stands for and the ceiling is taken there, where no
-    rounding is left to happen: the contract asks for the exact product
-    of the recorded rate and the count, and this is that product.
+    item P4-DATE-F1). A rate recorded as `0.01` is not one hundredth:
+    the nearest binary64 to one hundredth sits a shade above it, so
+    against a hundred values the exact product is a shade above one and
+    the line is TWO. Multiplying in binary64 rounded that product back
+    down to exactly one and the line came out at ONE, so a column
+    holding a single value in a hundred cleared a line the contract
+    says it misses. The rate is turned into the whole numbers it stands
+    for and the ceiling is taken there, where no rounding is left to
+    happen: the contract asks for the exact product of the recorded
+    rate and the count (its section 4.5.2), and this is that product.
 
     Guarantees: accepts a rate and a count; returns the smallest whole
     number of values reaching the rate, never more than the count's own
@@ -3325,7 +3334,9 @@ def _sentinel_verdicts(
         spread = upper - lower
         distance = settings.sentinel_outlier_iqr_multiple * spread
         is_outlier = candidate < lower - distance or candidate > upper + distance
-        frequent = _share(occurrences, n_present) >= settings.sentinel_minimum_share
+        frequent = occurrences >= _needed(
+            settings.sentinel_minimum_share, n_present
+        )
         if is_outlier and frequent:
             verdicts[candidate] = (
                 True,
@@ -3887,6 +3898,8 @@ def _datetime_details(
         resolution = RESOLUTION_DATETIME
     if format_name == "year-quarter":
         resolution = RESOLUTION_QUARTER
+    if format_name == "iso-month":
+        resolution = RESOLUTION_MONTH
     # An offset is NAMED only where at least `small_cell_floor` rows
     # carry it. Publishing the endpoint's offset unconditionally beside a
     # floored `utc_offsets` map named the one rare zone the map had just

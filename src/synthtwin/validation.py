@@ -8635,6 +8635,7 @@ def _date_ladder_checks(
 
 _INSTANT_UNITS = {
     taxonomy.RESOLUTION_QUARTER: "quarter",
+    taxonomy.RESOLUTION_MONTH: "month",
     taxonomy.RESOLUTION_DATE: "day",
     taxonomy.RESOLUTION_DATETIME: "second",
 }
@@ -9075,6 +9076,8 @@ def _precision_step(facts: contract.DatetimeFacts) -> int:
     """
     if facts.resolution == taxonomy.RESOLUTION_QUARTER:
         return 1
+    if facts.resolution == taxonomy.RESOLUTION_MONTH:
+        return 1
     if facts.resolution == taxonomy.RESOLUTION_DATE:
         return 86400
     if facts.time_precision == parsing.PRECISION_MINUTE:
@@ -9167,7 +9170,31 @@ def _instant_of(moment: str, resolution: str) -> "int | None":
     """
     if resolution == taxonomy.RESOLUTION_QUARTER:
         return _quarter_ordinal(moment)
+    if resolution == taxonomy.RESOLUTION_MONTH:
+        return _month_ordinal(moment)
     return parsing.instant_key(moment, "")
+
+
+def _month_ordinal(moment: str) -> "int | None":
+    """`YYYY-MM` as `12 * (year - 1970) + (month - 1)`, or None (G7.1).
+
+    Whole-number arithmetic on six digits, so the answer is the same on
+    every machine and no calendar is consulted: a month names a span
+    rather than an instant, which is exactly why it has a space of its
+    own, as a quarter does below.
+    """
+    if len(moment) != 7:
+        return None
+    if moment[4] != "-":
+        return None
+    if not parsing.is_digit_text(moment[0:4]):
+        return None
+    if not parsing.is_digit_text(moment[5:7]):
+        return None
+    month = int(moment[5:7])
+    if month < 1 or month > 12:
+        return None
+    return 12 * (int(moment[0:4]) - 1970) + month - 1
 
 
 def _quarter_ordinal(moment: str) -> "int | None":

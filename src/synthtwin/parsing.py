@@ -65,6 +65,7 @@ DATE_FORMATS = (
     "iso-date",
     "iso-datetime",
     "slashed-iso-date",
+    "iso-month",
     "compact-date",
     "month-first-date",
     "day-first-date",
@@ -82,6 +83,7 @@ _FORMAT_EXAMPLES = {
     "iso-date": "2024-03-17",
     "iso-datetime": "2024-03-17 14:05:00",
     "slashed-iso-date": "2024/03/17",
+    "iso-month": "2024-03",
     "iso-mixed": "2024-03-17 and 2024-03-17 14:05:00 together",
     "compact-date": "20240317",
     "month-first-date": "03/17/2024 (month first)",
@@ -1196,6 +1198,20 @@ def parse_datetime(text: str, format_name: str) -> "tuple[str, str] | None":
         if canonical is None:
             return None
         return canonical, ""
+    if format_name == "iso-month":
+        # A MONTH NAMES A SPAN, WHICH IS WHY IT HAS A SPACE OF ITS OWN
+        # (plan P4-D4.3 item 2). `2024-03` is not a day and turning it
+        # into one would put a value in the column that no cell holds,
+        # so the canonical form IS the text and it sorts as text.
+        if len(body) != 7 or body[4] != "-":
+            return None
+        year = _digits_at(body, 0, 4)
+        month = _digits_at(body, 5, 2)
+        if year is None or month is None:
+            return None
+        if int(month) < 1 or int(month) > 12:
+            return None
+        return f"{year}-{month}", ""
     if format_name == "year-quarter":
         if len(body) != 7 or body[4] != "-":
             return None
@@ -1258,6 +1274,7 @@ MISSING_CLASSES = (
 
 # How finely a datetime column states its time of day.
 PRECISION_QUARTER = "quarter"
+PRECISION_MONTH = "month"
 PRECISION_DATE = "date"
 PRECISION_MINUTE = "minute"
 PRECISION_SECOND = "second"
@@ -1271,6 +1288,10 @@ PRECISION_ORDER = (
     PRECISION_SECOND,
     PRECISION_MINUTE,
     PRECISION_DATE,
+    # A MONTH IS COARSER THAN A DAY AND FINER THAN A QUARTER, so it
+    # sits between them: three months make a quarter and a month holds
+    # twenty-eight days or more (plan P4-D4.3 item 2).
+    PRECISION_MONTH,
     PRECISION_QUARTER,
 )
 
@@ -1612,6 +1633,8 @@ def datetime_precision(text: str, format_name: str) -> str:
         raise TypeError(_NOT_TEXT)
     if format_name == "year-quarter":
         return PRECISION_QUARTER
+    if format_name == "iso-month":
+        return PRECISION_MONTH
     clock = _clock_of(text, format_name)
     if clock is None:
         return PRECISION_DATE

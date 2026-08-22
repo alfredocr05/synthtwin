@@ -83,6 +83,21 @@ def _quarter_values(count: int) -> "list[str]":
     return sorted(values)
 
 
+def _month_values(count: int) -> "list[str]":
+    """Months over seven years, lopsided the same way as the quarters.
+
+    A month is the second span the producer publishes -- it names a
+    stretch of days rather than one instant -- so it needs its own
+    ordinal space for exactly the reason the quarter needed one, and
+    this is the fixture that shows the validator reads it there.
+    """
+    values = []
+    for index in range(count):
+        year = 2018 + (index * index) % 7
+        values = values + [f"{year}-{(index % 12) + 1:02d}"]
+    return sorted(values)
+
+
 def _date_values(count: int) -> "list[str]":
     """Whole dates over one year, lopsided the same way."""
     values = []
@@ -107,6 +122,7 @@ def _datetime_values(count: int) -> "list[str]":
 # checked against `taxonomy.RESOLUTIONS` below rather than trusted.
 _BUILDERS = {
     taxonomy.RESOLUTION_QUARTER: _quarter_values,
+    taxonomy.RESOLUTION_MONTH: _month_values,
     taxonomy.RESOLUTION_DATE: _date_values,
     taxonomy.RESOLUTION_DATETIME: _datetime_values,
 }
