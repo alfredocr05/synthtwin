@@ -2071,8 +2071,83 @@ def _published_ends(
     return (low, high)
 
 
+def _segment_of(
+    value: float, bounds: "dict[float, tuple[float, float]]"
+) -> "tuple[float, float]":
+    """The stretch of the ladder one value's cells were drawn from."""
+    if value in bounds:
+        return bounds[value]
+    return (value, value)
+
+
+def _segment_bounds(
+    column: contract.ColumnBlock,
+    facts: contract.NumericFacts,
+    layout: "_NumericLayout | None",
+    values: "list[float]",
+) -> "dict[float, tuple[float, float]]":
+    """Where on the ladder each drawn value came from, by value.
+
+    A stratum covers a stretch of the ladder and its value was
+    interpolated inside that stretch, so the stretch is what a snap of
+    that value may not leave. The two ENDPOINT strata are pinned and
+    their stretch is the single published rung, which is what keeps a
+    snap off `min` and `max`.
+
+    Keyed by VALUE rather than by cell, because that is what the width
+    walk holds and because two strata carrying the same number are one
+    number however many stretches drew it: where that happens the
+    widest stretch would be too generous, so the tightest is kept.
+
+    A null rung carries no obligation at that rung (contract L3), so a
+    ladder with one is bounded by the drawn values' own ends instead.
+    """
+    rungs = facts.percentiles.rungs
+    found: dict[float, tuple[float, float]] = {}
+    # ANY null rung, not only an end. A rung that is not a finite
+    # binary64 carries no obligation at that rung (contract L3), and
+    # interpolating THROUGH it is arithmetic on nothing -- which is a
+    # crash rather than a wrong answer, and was one.
+    settled = True
+    for rung in rungs:
+        if rung is None:
+            settled = False
+    if layout is None or not settled:
+        held = sorted(values)
+        if not held:
+            return found
+        span = (held[0], held[len(held) - 1])
+        for value in values:
+            found[value] = span
+        return found
+    total = len(layout.sizes)
+    for place in range(total):
+        value = values[place]
+        if place == 0 or (place == total - 1 and total >= 2):
+            span = (value, value)
+        else:
+            span = (
+                _interpolated(
+                    rungs, layout.starts[place], column.n_numeric
+                ),
+                _interpolated(
+                    rungs,
+                    layout.starts[place] + layout.sizes[place],
+                    column.n_numeric,
+                ),
+            )
+        if value in found:
+            held = found[value]
+            span = (max(held[0], span[0]), min(held[1], span[1]))
+        found[value] = span
+    return found
+
+
 def _snaps_away(
-    value: float, width: int, low: float, high: float
+    value: float,
+    width: int,
+    bounds: "dict[float, tuple[float, float]]",
+    ends: "tuple[float, float]",
 ) -> bool:
     """Whether writing this value at this width would erase what it is.
 
@@ -2098,17 +2173,39 @@ def _snaps_away(
     read = parsing.parse_number(written)
     if read is None:
         return True
-    # ...AND IT MAY NOT CARRY A CELL PAST EITHER END OF THE PUBLISHED
-    # LADDER. `min` and `max` are the two rungs this method pins and
-    # they are EXACT-OBSERVABLE, so a cell that snapped below the
-    # smallest published value makes the twin's own smallest value a
-    # number the description does not publish -- and pinning the
-    # endpoint CELL does not stop it, because the cell that moved is
-    # some interior cell of the column. A sixty-cell column publishing
-    # a minimum of 2.11 and a width of one figure wrote 2.1 into an
-    # interior cell, and `validate` reported the exact minimum MISSED
-    # on a twin of that description.
-    if read < low or read > high:
+    # ...AND ITS REACH MAY NOT EXCEED THE STRETCH OF LADDER THE CELL
+    # WAS DRAWN FROM. A snap at width w moves a value by less than half
+    # of the last place that width holds; the stratum it came from
+    # covers a stretch of the published ladder. Where the reach is
+    # smaller than the stretch, the cell stays in the neighbourhood the
+    # ladder put it in and every rung window absorbs it -- which is
+    # what the plan means by landing "in the same G12 envelopes".
+    # Where the reach is BIGGER, the snap is not an adjustment inside a
+    # neighbourhood, it is the neighbourhood being erased.
+    #
+    # That case is not hypothetical and it is loud. Thirty cells
+    # written `5.` beside thirty written `5.01` to `5.30` publish a
+    # width of zero for half the column; the drawn values hold every
+    # window before the snap, and after it twenty-six of them read
+    # `5.` -- p50, p75, p90, p95, the mean and the spread all MISSED,
+    # at every seed tried, on a description a real table produced.
+    # G12.2 grants this method exactly one widening and says so, and it
+    # is not this one, so the answer cannot be a wider window.
+    #
+    # The two pinned rungs come through this rule rather than beside
+    # it: their stretch is the single published value, so no reach at
+    # all fits inside it and no snap may touch them.
+    low, high = _segment_of(value, bounds)
+    reach = 0.5
+    for _step in range(width):
+        reach = reach / 10.0
+    if reach > high - low:
+        return True
+    # AND NEVER OUTSIDE THE COLUMN'S OWN TWO ENDS, which are exact.
+    # The stretch test above keeps a cell in its neighbourhood; this
+    # keeps the whole column inside the two rungs the ladder pins, for
+    # the cell whose neighbourhood touches one of them.
+    if read < ends[0] or read > ends[1]:
         return True
     if value == 0.0:
         return False
@@ -2122,8 +2219,8 @@ def _width_places(
     styles: "list[str]",
     holds: "list[float]",
     pinned: "list[int]",
-    low: float,
-    high: float,
+    bounds: "dict[float, tuple[float, float]]",
+    ends: "tuple[float, float]",
     whole_column: bool,
 ) -> "list[int]":
     """Which width each cell is written at, or -1 for the value's own.
@@ -2238,7 +2335,7 @@ def _width_places(
                 # `0.500` beside `0.5`, two spellings of one number
                 # bought with a width quota that closed either way.
                 continue
-            if _snaps_away(value, width, low, high):
+            if _snaps_away(value, width, bounds, ends):
                 continue
             whole = width
             break
@@ -4669,14 +4766,13 @@ def _number_cells(
     styles = _style_strata(
         quotas, layout, values, facts.integer_valued, wanted, styles
     )
-    ends = _published_ends(facts, values)
     widths = _width_places(
         facts.fraction_widths,
         styles,
         holds,
         _pinned_cells(layout, values),
-        ends[0],
-        ends[1],
+        _segment_bounds(column, facts, layout, values),
+        _published_ends(facts, values),
         facts.integer_valued,
     )
     base: list[str] = []

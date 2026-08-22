@@ -1643,6 +1643,13 @@ Opened by this plan, each a limit accepted rather than work forgotten:
   a second implementer in another language something to reproduce.
   The vectors and their committed failing mutants are owed before this
   phase closes. Priced and accepted, not waived.
+- **R-P4-22** (opened by amendment A-P4-19, 2026-08-21). CONTRACT
+  C6-117 must state that a whole-cell declaration carried across an
+  affix pair protects the candidate NUMBER, hence every spelling of it
+  in that column. The code does that today and a test pins it; the
+  contract is silent, and a reader following the declaration-matching
+  rule alone would expect spelling-granular rescue that the wire
+  cannot represent.
 - **R-P4-21** (opened by amendment A-P4-17, 2026-08-21). THE CONTRACT
   STILL SAYS BOTH THINGS about which all-different remark the affixed
   role carries. Version 6 section 4.5 must state the form, and
@@ -2833,6 +2840,87 @@ neutral choice.
 **What it costs.** A shipped sentence changed ahead of the contract
 text that will describe it, and three tests moved from asserting the
 free-text clauses to asserting their absence.
+
+## Amendment A-P4-18 — the snap reaches no further than the stretch the ladder gave the cell
+
+**THIS RAISES a bound P4-D4.5 assumed the envelopes would carry**, and
+the assumption was false in a way that made ordinary descriptions
+unbuildable.
+
+**What the plan assumed.** P4-D4.5 says the snap is "bounded by half a
+unit in the last published digit" and that "all of it lands where
+integer rounding lands today, in the same G12 envelopes".
+
+**What the method actually grants.** `docs/spec/generation-method-v1.md`
+G12.2 enumerates the two rules that may spend a half unit and closes:
+"The half unit above remains the only widening this document grants."
+The snap is not one of them. So the rung and moment windows are the
+unwidened envelope while the snap moves values inside them.
+
+**What that produced.** Thirty cells written `5.` beside thirty written
+`5.01` to `5.30` — a real shape, and one this profiler produces —
+publish a width of zero for half the column. The DRAWN values hold
+every window; the snap then rounds twenty-six of them onto 5.0, and the
+twin misses `p50`, `p75`, `p90`, `p95`, the mean and the spread at
+every seed tried. A description no seed can build is not a hard case,
+it is a broken feature: the source column itself satisfies both the
+census and the ladder, so a conforming twin demonstrably exists.
+
+**What is raised.** A snap may reach no further than the stretch of the
+published ladder the cell's own stratum covers. A snap at width *w*
+moves a value by less than half of the last place that width holds;
+where that reach is smaller than the stretch, the cell stays in the
+neighbourhood the ladder put it in and every window absorbs it, which
+is what "the same G12 envelopes" was reaching for. Where the reach is
+larger, the snap is not an adjustment inside a neighbourhood — it is
+the neighbourhood being erased, and the width is refused. The two
+pinned rungs come through the same rule rather than beside it: their
+stretch is a single value, so no reach fits inside it.
+
+**Why not the other repair.** Widening G12's windows for a snapped
+column would keep the width quota and loosen the checks that make the
+twin worth having. Statistical fidelity is the product; the shape of
+the spelling is not. So the quota gives way, and the report names it.
+
+**What it costs.** A published width count now goes unmet on any column
+whose ladder is tight relative to the width — the `5.` column above
+meets neither of its two — and the generation report says so on every
+one. That is the visible price of the trade, and it is the direction
+this plan takes everywhere else.
+
+## Amendment A-P4-19 — a declaration carried across the pair protects the NUMBER
+
+**THIS STATES A REACH the repair of the declaration rule left
+unstated**, and it states it because the alternative has no
+representation on the wire.
+
+**What happens.** `--keep-value "-999 mg"` names a whole cell. Carried
+across the pair, it hands that cell's CORE to the stand-in pass, and
+the pass matches cores the way it matches every candidate: by NUMBER.
+So a column holding eleven `-999 mg` cells and eleven `-999.0 mg`
+cells has all twenty-two rescued by naming either spelling, and the
+verdict reads `n_occurrences: 22`.
+
+**Why it is not repaired to match spellings.** The stand-in pass counts
+and removes by number throughout, and `sentinel_verdicts` carries one
+entry per candidate NUMBER: "eleven kept, eleven removed" has nowhere
+to be written. The only two reachable outcomes are all twenty-two kept
+and all twenty-two removed — and the second reverses the owner's
+instruction, which C6-117 forbids outright. Rescuing more than was
+named is the safe direction of the two: it keeps cells as data, which
+is what the owner asked for about the value they named.
+
+**What is owed.** Contract C6-117 must say this in a sentence: carrying
+a whole-cell declaration across the pair protects the candidate NUMBER,
+and therefore every spelling of it in that column. Residual R-P4-22
+carries it. A test pins the behaviour so it is witnessed rather than
+accidental.
+
+**What it costs.** An owner naming one spelling of a stand-in gets
+every spelling of that number kept, which is more than they typed. The
+description says so — the verdict publishes the count it rescued — and
+the alternative says less than they typed about cells they explicitly
+protected.
 
   The five plan reviews are in `docs/plans/reviews/` as
   `phase-4-plan-review-round-1.md` through `-round-5.md`.
