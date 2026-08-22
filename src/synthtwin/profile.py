@@ -807,6 +807,15 @@ PUBLICATION_RULES: "dict[tuple[str, ...], str]" = {
     ("columns", _EACH, "date_percentiles"): _OBJECT,
     ("columns", _EACH, "date_percentiles", _KEY_OF): _WORD,
     ("columns", _EACH, "date_percentiles", _ANY_KEY): _MOMENT_TEXT,
+    # The clock role's own two. `earliest`, `latest` and `n_unparsed`
+    # need no row of their own and must not be given one: these rules
+    # are keyed by PATH and not by role, so the rows above already
+    # serve both roles -- a clock value is canonical moment text by the
+    # same character rule a date is.
+    ("columns", _EACH, "clock_form"): _WORD,
+    ("columns", _EACH, "clock_percentiles"): _OBJECT,
+    ("columns", _EACH, "clock_percentiles", _KEY_OF): _WORD,
+    ("columns", _EACH, "clock_percentiles", _ANY_KEY): _MOMENT_TEXT,
     ("columns", _EACH, "n_unparsed"): _COUNT,
     ("columns", _EACH, "utc_offsets"): _OBJECT,
     ("columns", _EACH, "utc_offsets", _KEY_OF): _OFFSET,
@@ -866,6 +875,10 @@ PUBLICATION_WORDS: "dict[tuple[str, ...], tuple[str, ...]]" = {
     ),
     ("columns", _EACH, "percentiles", _KEY_OF): taxonomy.LADDER_NAMES,
     ("columns", _EACH, "date_percentiles", _KEY_OF): taxonomy.LADDER_NAMES,
+    ("columns", _EACH, "clock_percentiles", _KEY_OF): taxonomy.LADDER_NAMES,
+    # Read from the one place the two forms are named, so the word a
+    # producer writes and the word this guard admits cannot drift.
+    ("columns", _EACH, "clock_form"): parsing.CLOCK_FORMS,
     ("columns", _EACH, "length", _KEY_OF): taxonomy.LENGTH_KEYS,
     ("columns", _EACH, "words", _KEY_OF): taxonomy.WORD_KEYS,
     ("columns", _EACH, "numeric_styles", _KEY_OF): (

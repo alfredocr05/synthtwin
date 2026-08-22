@@ -847,6 +847,132 @@ def _parse_clock(text: str) -> "str | None":
     return f"{hours}:{minutes}:{seconds}"
 
 
+# THE TWO FORMS A COLUMN OF CLOCK VALUES CAN WEAR, and the names the
+# profile publishes them under. They are this package's own words, not
+# anybody's text: a document naming one of them says which shape the
+# column's cells had and nothing about what any cell said.
+CLOCK_HH_MM = "hh-mm"
+CLOCK_HH_MM_SS = "hh-mm-ss"
+CLOCK_FORMS = (CLOCK_HH_MM, CLOCK_HH_MM_SS)
+
+# How many different values each form can spell, which is the whole of
+# what a column of that form can hold: a day has 1,440 minutes and
+# 86,400 seconds. The generator needs it to know whether a published
+# count of different values is reachable at all.
+CLOCK_CAPACITY = {CLOCK_HH_MM: 1440, CLOCK_HH_MM_SS: 86400}
+
+# The unit each form counts in, seconds per step: a minute for `hh-mm`
+# and a second for `hh-mm-ss`.
+_CLOCK_STEP = {CLOCK_HH_MM: 60, CLOCK_HH_MM_SS: 1}
+
+
+def clock_form(text: str) -> "str | None":
+    """Which of the two clock forms one cell wears, or None.
+
+    EXACTLY `HH:MM` OR `HH:MM:SS`, and the word exactly is the rule
+    rather than a summary of it. Two ASCII digits in every field, hours
+    at most 23, minutes and seconds at most 59, nothing before and
+    nothing after. Four shapes a reader might expect are refused, and
+    each is refused on purpose:
+
+    - a FRACTIONAL part. A reading that dropped it would describe every
+      such cell approximately while publishing an exact ladder;
+    - a LEAP SECOND, `23:59:60`. The ordinal space this role counts in
+      has no faithful point for it, and making one up would put a value
+      in the twin that no clock shows;
+    - a SINGLE-DIGIT hour, `9:30`. The published spellings are
+      fixed-width, so a column of them could not be written back;
+    - anything else around the digits -- a date, an offset, a name.
+
+    A column of cells this refuses takes a later rule, which is where
+    such a column already goes today.
+
+    Guarantees:
+
+    - Inputs: the text of one cell, exactly as the file spells it;
+      surrounding spaces come off first, as they do everywhere else.
+    - Determinism: the answer depends only on the text.
+    - Errors raised: TypeError if handed anything that is not a string
+      instance, through `trimmed`.
+    - Boundary: the answer is one of two words of this module's own
+      vocabulary, or nothing, so no spelling of any cell travels out
+      through it. No I/O of any kind.
+    """
+    body = trimmed(text)
+    hours = _digits_at(body, 0, 2)
+    if hours is None or len(body) < 5 or body[2] != ":":
+        return None
+    minutes = _digits_at(body, 3, 2)
+    if minutes is None:
+        return None
+    if int(hours) > 23 or int(minutes) > 59:
+        return None
+    if len(body) == 5:
+        return CLOCK_HH_MM
+    if len(body) != 8 or body[5] != ":":
+        return None
+    seconds = _digits_at(body, 6, 2)
+    if seconds is None or int(seconds) > 59:
+        return None
+    return CLOCK_HH_MM_SS
+
+
+def clock_ordinal(text: str, form: str) -> "int | None":
+    """Where one cell stands in its own form's unit, or None.
+
+    Minutes of day for `hh-mm`, seconds of day for `hh-mm-ss` -- the
+    unit the form itself sets, so every ordinal has a spelling in that
+    form and no value the generator interpolates is ever truncated or
+    widened to fit a cell.
+
+    None where the cell does not wear the form asked about, which is
+    how a cell of the OTHER form is counted unparsed rather than
+    silently re-read.
+
+    Guarantees: accepts one cell's text and one of `CLOCK_FORMS`;
+    returns a whole number below that form's capacity, or nothing.
+    Determinism: a function of the two. Errors raised: TypeError
+    through `trimmed`; ValueError for a form this module does not know.
+    Boundary: the answer is a COUNT. No I/O of any kind.
+    """
+    if form not in _CLOCK_STEP:
+        raise ValueError(_NOT_TEXT)
+    if clock_form(text) != form:
+        return None
+    body = trimmed(text)
+    hours = int(body[0:2])
+    minutes = int(body[3:5])
+    if form == CLOCK_HH_MM:
+        return hours * 60 + minutes
+    return (hours * 3600) + (minutes * 60) + int(body[6:8])
+
+
+def clock_spelling(ordinal: int, form: str) -> str:
+    """The one spelling of one ordinal in one form.
+
+    The inverse of `clock_ordinal` and the only way a clock value is
+    written, so a producer and a generator cannot spell the same moment
+    two ways.
+
+    Guarantees: accepts a whole number below the form's capacity and
+    one of `CLOCK_FORMS`; returns fixed-width text. Determinism: a
+    function of the two. Errors raised: ValueError for an unknown form
+    or an ordinal outside the form's space. Boundary: the text is built
+    from the number handed in. No I/O of any kind.
+    """
+    if form not in _CLOCK_STEP:
+        raise ValueError(_NOT_TEXT)
+    if isinstance(ordinal, bool) or not isinstance(ordinal, int):
+        raise ValueError(_NOT_TEXT)
+    if ordinal < 0 or ordinal >= CLOCK_CAPACITY[form]:
+        raise ValueError(_NOT_TEXT)
+    if form == CLOCK_HH_MM:
+        return f"{ordinal // 60:02d}:{ordinal % 60:02d}"
+    hours = ordinal // 3600
+    rest = ordinal % 3600
+    return f"{hours:02d}:{rest // 60:02d}:{rest % 60:02d}"
+
+
 def _split_offset(text: str) -> "tuple[str, str] | None":
     """Split a time from its UTC offset. Returns (time, offset marker).
 
