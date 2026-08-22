@@ -1635,6 +1635,11 @@ def ordinal_of(text, resolution):
     if resolution == "quarter":
         year, quarter = text.split("-Q")
         return 4 * (int(year) - 1970) + (int(quarter) - 1)
+    if resolution == "month":
+        # G7.1's month row: twelve to the year, from the same origin
+        # the quarter counts from.  A month names a SPAN, so it has a
+        # space of its own and no day is consulted.
+        return 12 * (int(text[0:4]) - 1970) + (int(text[5:7]) - 1)
     date_text = text[:10]
     year, month, day = (int(part) for part in date_text.split("-"))
     days = days_from_civil(year, month, day)
@@ -1651,6 +1656,9 @@ def precision_form(ordinal, resolution, time_precision, subsecond_digits):
         year = 1970 + ordinal // 4
         quarter = ordinal % 4 + 1
         return f"{year:04d}-Q{quarter}"
+    if resolution == "month":
+        year = 1970 + ordinal // 12
+        return f"{year:04d}-{ordinal % 12 + 1:02d}"
     if resolution == "date":
         year, month, day = civil_from_days(ordinal)
         return f"{year:04d}-{month:02d}-{day:02d}"
@@ -3741,6 +3749,41 @@ def _quarter():
     }
 
 
+def _month_span():
+    """The second SPAN resolution, added with the month (P4-D4.3).
+
+    Twelve months of one year, so the ordinal walk crosses no year
+    boundary and a reader can check every cell by counting.  The two
+    ends are pinned by G7.3 and, because a month IS its own canonical
+    text, the fields route and the ordinal route of G7.5 write the same
+    characters -- which is the property this case exists to freeze.
+    """
+    column = _universal(
+        "column_1", "datetime", "datetime", "data", "ok",
+        n_present=12, n_missing=0, n_distinct=12, n_distinct_folded=12,
+        n_numeric=0, n_not_numeric=12, n_out_of_range=0, n_contradictory=0,
+        format="iso-month", resolution="month", time_precision="month",
+        subsecond_digits=0, datetimes_read_at="local",
+        earliest="2024-01", latest="2024-12",
+        earliest_utc_offset="(none)", latest_utc_offset="(none)",
+        date_percentiles={
+            "min": "2024-01", "p01": "2024-01", "p05": "2024-02",
+            "p10": "2024-02", "p25": "2024-04", "p50": "2024-06",
+            "p75": "2024-09", "p90": "2024-11", "p95": "2024-12",
+            "p99": "2024-12", "max": "2024-12",
+        },
+        n_unparsed=0, utc_offsets={"(none)": 12},
+    )
+    return {
+        "why": "the month form of G7.5 and the month ordinal of G7.1, "
+        "where one unit is one month, no clock exists to shift, and the "
+        "cell text is the canonical form itself.",
+        "column": column,
+        "rows": 12,
+        "identifier_declared": False,
+    }
+
+
 def _offset_bearing():
     column = _universal(
         "column_1", "datetime", "datetime", "data", "ok",
@@ -4309,6 +4352,7 @@ BRANCH_CASE_BUILDERS = {
     "numeric_pooled_spelling": _numeric_pooled_spelling,
     "identifier_edge_spacing": _identifier_edge_spacing,
     "leap_second_endpoint": _leap_second_endpoint,
+    "month_span": _month_span,
     "numeric_point_free_styles": _numeric_point_free_styles,
     "unrepresentable_joint": _unrepresentable_joint,
 }
@@ -4492,6 +4536,15 @@ GIVEN_WORDS = {
     "unrepresentable_joint": (
         2834551707271871843, 3123094663624302558, 9333394219979397357,
         12140150428679393766, 14159367994340888644,
+    ),
+    "month_span": (
+        3179660957074219929, 16176357821278490312, 17656820539994292342,
+        17540219834124380146, 9365132703411629466, 11037237009629682836,
+        5537033287795020884, 10091697982931758559, 5772994017682272647,
+        9256936461562489083, 5846245697595079916, 3288170915282709302,
+        17570781254895321736, 17342232991728644533, 424412772268271036,
+        5101176902256472994, 17483310722792023123, 11776508763375653527,
+        11238713790439917190, 2349096050734119258, 14187853255911556467,
     ),
     "quarter": (
         2951315705954145492, 10808750059907510011, 15197106187201647244,

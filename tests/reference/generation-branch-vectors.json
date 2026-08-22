@@ -272,6 +272,125 @@
         "9204310222248724882"
       ]
     },
+    "month_span": {
+      "cells": [
+        "2024-05",
+        "2024-06",
+        "2024-07",
+        "2024-03",
+        "2024-12",
+        "2024-05",
+        "2024-10",
+        "2024-01",
+        "2024-08",
+        "2024-09",
+        "2024-02",
+        "2024-04"
+      ],
+      "column": {
+        "date_percentiles": {
+          "max": "2024-12",
+          "min": "2024-01",
+          "p01": "2024-01",
+          "p05": "2024-02",
+          "p10": "2024-02",
+          "p25": "2024-04",
+          "p50": "2024-06",
+          "p75": "2024-09",
+          "p90": "2024-11",
+          "p95": "2024-12",
+          "p99": "2024-12"
+        },
+        "datetimes_read_at": "local",
+        "detection_evidence": "written by hand in this method specification's own neutral vocabulary; no value here comes from any table.",
+        "earliest": "2024-01",
+        "earliest_utc_offset": "(none)",
+        "format": "iso-month",
+        "latest": "2024-12",
+        "latest_utc_offset": "(none)",
+        "missing_by_class": {
+          "(blank)": 0,
+          "(declared-missing)": 0,
+          "(numeric-sentinel)": 0,
+          "(text-code)": 0,
+          "(withheld)": 0
+        },
+        "missing_by_source": {},
+        "n_contradictory": 0,
+        "n_distinct": 12,
+        "n_distinct_folded": 12,
+        "n_missing": 0,
+        "n_missing_blank": 0,
+        "n_missing_withheld": 0,
+        "n_not_numeric": 12,
+        "n_numeric": 0,
+        "n_out_of_range": 0,
+        "n_present": 12,
+        "n_sentinel_candidates_unpublished": 0,
+        "n_unparsed": 0,
+        "name": "column_1",
+        "position": 1,
+        "quality_state": "ok",
+        "remarks": [],
+        "resolution": "month",
+        "resolution_mix": {
+          "iso-month": 12
+        },
+        "role": "datetime",
+        "sentinel_verdicts": [],
+        "statistical_type": "datetime",
+        "structural_role": "data",
+        "subsecond_digits": 0,
+        "time_precision": "month",
+        "utc_offsets": {
+          "(none)": 12
+        }
+      },
+      "content": [
+        "2024-01",
+        "2024-02",
+        "2024-03",
+        "2024-04",
+        "2024-05",
+        "2024-05",
+        "2024-06",
+        "2024-07",
+        "2024-08",
+        "2024-09",
+        "2024-10",
+        "2024-12"
+      ],
+      "csv_bytes": "2024-05\n2024-06\n2024-07\n2024-03\n2024-12\n2024-05\n2024-10\n2024-01\n2024-08\n2024-09\n2024-02\n2024-04\n",
+      "float64": [],
+      "why": "the month form of G7.5 and the month ordinal of G7.1, where one unit is one month, no clock exists to shift, and the cell text is the canonical form itself.",
+      "word_budget": {
+        "content": 10,
+        "placement": 11
+      },
+      "words": [
+        "3179660957074219929",
+        "16176357821278490312",
+        "17656820539994292342",
+        "17540219834124380146",
+        "9365132703411629466",
+        "11037237009629682836",
+        "5537033287795020884",
+        "10091697982931758559",
+        "5772994017682272647",
+        "9256936461562489083",
+        "5846245697595079916",
+        "3288170915282709302",
+        "17570781254895321736",
+        "17342232991728644533",
+        "424412772268271036",
+        "5101176902256472994",
+        "17483310722792023123",
+        "11776508763375653527",
+        "11238713790439917190",
+        "2349096050734119258",
+        "14187853255911556467"
+      ]
+    },
     "numeric_point_free_styles": {
       "cells": [
         "5.0",

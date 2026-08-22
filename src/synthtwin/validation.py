@@ -365,10 +365,10 @@ _NOT_CHECKABLE_REPORT_ONLY = (
     "real table was read, and a written file cannot show it"
 )
 _NOT_CHECKABLE_RESOLUTION_MIX = (
-    "the description records how many of the real table's dates were "
-    "written as whole dates and how many carried a time of day, and it "
-    "asks no file to write them the same way: a file that writes every "
-    "date at one precision misses no obligation this description makes"
+    "the description records which written form each of the real "
+    "table's dates wore, and how many wore each, and it asks no file "
+    "to write them the same way: a file that writes them all one way "
+    "misses no obligation this description makes"
 )
 _NOT_CHECKABLE_HEADERLESS_ORDER = (
     "the description says the column names were generated, so the file "
@@ -9194,7 +9194,10 @@ def _month_ordinal(moment: str) -> "int | None":
     month = int(moment[5:7])
     if month < 1 or month > 12:
         return None
-    return 12 * (int(moment[0:4]) - 1970) + month - 1
+    year = int(moment[0:4])
+    if year < 1:
+        return None
+    return 12 * (year - 1970) + month - 1
 
 
 def _quarter_ordinal(moment: str) -> "int | None":
@@ -9214,6 +9217,8 @@ def _quarter_ordinal(moment: str) -> "int | None":
     if year is None or quarter is None:
         return None
     if quarter < 1 or quarter > 4:
+        return None
+    if year < 1:
         return None
     return 4 * (year - 1970) + (quarter - 1)
 

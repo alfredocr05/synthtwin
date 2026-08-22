@@ -466,6 +466,8 @@ DATE_FORMATS = (
     "compact-date",
     "month-first-date",
     "day-first-date",
+    "month-first-datetime",
+    "day-first-datetime",
     "year-quarter",
     "iso-mixed",
 )
@@ -2381,6 +2383,7 @@ def _canonical_datetime(
             and found[4] == "-"
             and _digits_at(found, 5, 2)
             and "01" <= found[5:7] <= "12"
+            and found[0:4] != "0000"
         )
     elif resolution == "quarter":
         wanted = "a quarter written like 2024-Q1"
@@ -2390,6 +2393,7 @@ def _canonical_datetime(
             and found[4] == "-"
             and found[5] == "Q"
             and "1" <= found[6] <= "4"
+            and found[0:4] != "0000"
         )
     elif resolution == "datetime":
         wanted = (
@@ -4045,6 +4049,10 @@ def _datetime_facts(
     unparsed = _whole(mapping["n_unparsed"], "n_unparsed", where, 0)
     wanted = "date"
     if parser_family == "iso-datetime":
+        wanted = "datetime"
+    elif parser_family == "month-first-datetime":
+        wanted = "datetime"
+    elif parser_family == "day-first-datetime":
         wanted = "datetime"
     elif parser_family == FORMAT_ISO_MIXED:
         # THE JOINT READING PUBLISHES AT THE FINER OF THE TWO FORMS it

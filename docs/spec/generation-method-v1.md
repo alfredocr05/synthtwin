@@ -1332,6 +1332,17 @@ fixed by the published `resolution`:
 | `date` | `YYYY-MM-DD` | one day | days from 1970-01-01, proleptic Gregorian |
 | `datetime` | `YYYY-MM-DD HH:MM:SS` | one second | `86400 * days + 3600*HH + 60*MM + SS` |
 | `quarter` | `YYYY-Qn` | one quarter | `4 * (year - 1970) + (n - 1)` |
+| `month` | `YYYY-MM` | one month | `12 * (year - 1970) + (MM - 1)` |
+
+**THE TWO SPAN ROWS ARE SPANS, AND THAT IS WHY THEY HAVE SPACES OF
+THEIR OWN** (plan P4-D4.3 item 2, amendment A-P4-24). A quarter and a
+month each name a stretch of days rather than one instant, so neither
+has a place in the day or second space: turning `2024-03` into a day
+would put a value in the column that no cell of it holds. Both count
+from the same origin, both are exact whole-number arithmetic on the
+written figures, and for both the canonical form IS the cell text, so
+their endpoints and their ladder rungs sort as text and come back out
+of a file unchanged.
 
 The day count is the proleptic Gregorian civil-to-days function the
 shipped `parsing._days_from_civil` computes, and its inverse is
@@ -1483,6 +1494,7 @@ only where the profile records a real one.** Exactly:
 | `resolution` | `time_precision` | cell text |
 |---|---|---|
 | `quarter` | `quarter` | `YYYY-Qn` |
+| `month` | `month` | `YYYY-MM` |
 | `date` | `date` | `YYYY-MM-DD` |
 | `datetime` | `minute` | `YYYY-MM-DDTHH:MM` |
 | `datetime` | `second` | `YYYY-MM-DDTHH:MM:SS` |
@@ -1503,14 +1515,17 @@ now refuses it and its loader enforces that. Every pair a description
 can carry has a row above.
 
 **An offset is written only where `resolution` is `datetime`** (contract
-invariant D9). A whole date and a quarter have no time of day for an
-offset to move, and a cell written `2024-03-15+02:00` reads back as no
-date at all.
+invariant D9). A whole date, a month and a quarter have no time of day
+for an offset to move, and a cell written `2024-03-15+02:00` reads back
+as no date at all.
 
 **THE TWO ENDPOINT CELLS ARE BUILT FROM THE PUBLISHED ENDPOINT'S OWN
 FIELDS, NOT FROM ITS ORDINAL** (review item P2-C2-F5). G7.3 pins ranks
 `0` and `P - 1` to `earliest` and `latest` "used exactly as published",
-and this paragraph is what makes that sentence literal. The ordinal
+and this paragraph is what makes that sentence literal. For the two
+SPAN resolutions the two routes cannot differ at all: a month and a
+quarter ARE their canonical text, so the fields route and the ordinal
+route write the same characters, and the pin is literal either way. The ordinal
 space of G7.1 round-trips every instant a whole-second count can hold,
 and there is one a real reader can still hand a description that it
 cannot: the last second of a leap minute, `SS` of `60`, which the
@@ -3301,8 +3316,8 @@ where `u` is what reading a written cell back can lose: one unit for
 the downward rounding of the whole-number interpolation itself, plus
 59 seconds where `resolution == "datetime"` and
 `time_precision == "minute"`, because such a cell carries no seconds.
-A date, a quarter, a second and a subsecond cell each carry their own
-unit exactly and lose nothing further.
+A date, a month, a quarter, a second and a subsecond cell each carry
+their own unit exactly and lose nothing further.
 
 The achieved rung at percent `c` is the profiler's own selection rule
 (`taxonomy._ordinal_rung`): the ordinal at sorted position
@@ -3646,8 +3661,9 @@ review item P2-C4-C3 and one at owner decision 11, review
 item P2-C3-F3), and one more for the published end the ordinal space
 cannot hold (review item P2-C4-C3), and the pooled remainder written by
 its own value beside a whole number wider than the fixed-point window
-(owner decision 11). **All fifteen are required.** The
-first nine are the first committed file and the last five the second
+(owner decision 11), and one for the second SPAN resolution when it was
+added (plan P4-D4.3 item 2). **All sixteen are required.** The
+first nine are the first committed file and the last six the second
 (G14.2):
 
 | case | pins |
@@ -3666,6 +3682,7 @@ first nine are the first committed file and the last five the second
 | `identifier_edge_spacing` | G9.3's partner family where case flips supply nothing at all, so every partner is edge spacing |
 | `numeric_point_free_styles` | G6.1's literal `decimal`, `leading_zero` and `leading_plus` placements, G6.4's tie order, and G5.3's clamp |
 | `leap_second_endpoint` | G7.5's endpoint-fields route on a `local`-clock end whose seconds field is `60`, which the ordinal space of G7.1 has no place for |
+| `month_span` | G7.1's month ordinal and G7.5's `month/month` cell form: the second resolution that names a SPAN rather than an instant, whose canonical form is its own cell text |
 
 Each case is small enough to read by hand — at most a few dozen cells —
 because a vector nobody can check by hand is a vector nobody checks.

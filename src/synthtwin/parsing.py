@@ -69,6 +69,8 @@ DATE_FORMATS = (
     "compact-date",
     "month-first-date",
     "day-first-date",
+    "month-first-datetime",
+    "day-first-datetime",
     "year-quarter",
     # LAST, AND THAT IS THE RULE RATHER THAN A PLACE IN A LIST. The
     # single-format pass runs first and its verdict stands wherever it
@@ -88,6 +90,8 @@ _FORMAT_EXAMPLES = {
     "compact-date": "20240317",
     "month-first-date": "03/17/2024 (month first)",
     "day-first-date": "17/03/2024 (day first)",
+    "month-first-datetime": "03/17/2024 14:05 (month first)",
+    "day-first-datetime": "17/03/2024 14:05 (day first)",
     "year-quarter": "2024-Q1",
 }
 
@@ -1198,6 +1202,44 @@ def parse_datetime(text: str, format_name: str) -> "tuple[str, str] | None":
         if canonical is None:
             return None
         return canonical, ""
+    if (
+        format_name == "month-first-datetime"
+        or format_name == "day-first-datetime"
+    ):
+        # A SLASHED DATE, ONE SPACE, THEN A CLOCK (plan amendment
+        # A-P4-1 item 2). The date half is the same grammar the two
+        # date-only slashed members read, padded or not; the clock half
+        # is the time-of-day role's own two forms and nothing wider, so
+        # a stamp this reads is one whose two halves are each already
+        # read somewhere in this module.
+        mark = 0
+        place = 0
+        for character in body:
+            if character == " ":
+                mark = place
+            place = place + 1
+        if mark < 1:
+            return None
+        fields = _slashed_fields(body[0:mark])
+        if fields is None:
+            return None
+        first, second, year = fields
+        if format_name == "month-first-datetime":
+            date_part = _canonical_date(year, first, second)
+        else:
+            date_part = _canonical_date(year, second, first)
+        if date_part is None:
+            return None
+        # THE CLOCK HALF IS THE TIME-OF-DAY ROLE'S OWN TWO FORMS AND
+        # NOTHING WIDER, which is what the amendment fixes and what
+        # keeps these two members from quietly accepting a fractional
+        # second the contract's row for them does not mention.
+        if clock_form(body[mark + 1 :]) is None:
+            return None
+        clock = _parse_clock(body[mark + 1 :])
+        if clock is None:
+            return None
+        return f"{date_part} {clock}", ""
     if format_name == "iso-month":
         # A MONTH NAMES A SPAN, WHICH IS WHY IT HAS A SPACE OF ITS OWN
         # (plan P4-D4.3 item 2). `2024-03` is not a day and turning it
@@ -1211,6 +1253,14 @@ def parse_datetime(text: str, format_name: str) -> "tuple[str, str] | None":
             return None
         if int(month) < 1 or int(month) > 12:
             return None
+        # THE YEAR IS ONE THE CALENDAR HAS. `_valid_date` refuses year
+        # zero for every reader that names a day, and the two SPAN
+        # readers have to refuse it for the same reason: the contract's
+        # canonical form runs from `0001` up, and a producer that
+        # published `0000-01` would write a description its own loader
+        # is meant to refuse (review item P4-DATE3-F4).
+        if int(year) < 1:
+            return None
         return f"{year}-{month}", ""
     if format_name == "year-quarter":
         if len(body) != 7 or body[4] != "-":
@@ -1222,8 +1272,139 @@ def parse_datetime(text: str, format_name: str) -> "tuple[str, str] | None":
         quarter = body[6]
         if year is None or quarter < "1" or quarter > "4":
             return None
+        # The same year rule, and it was missing here before the month
+        # made it visible (review item P4-DATE3-F4).
+        if int(year) < 1:
+            return None
         return f"{year}-Q{quarter}", ""
     return None
+
+
+EXACTLY_ZERO: "tuple[int, tuple[str, ...], int]" = (0, (), 0)
+
+_ASCII_ZERO = ord("0")
+
+
+def _exact_digits(text: str) -> "tuple[int, tuple[str, ...], int]":
+    """The canonical triple of a spelling ALREADY READ AS A NUMBER.
+
+    Asked only about text the reader of record has classified as a
+    number this format can hold, which is what lets the scan below be
+    arithmetic over the characters rather than a second opinion about
+    what the cell is: nothing here decides whether a spelling is a
+    number, so nothing here can disagree with the answer already given.
+
+    Guarantees: accepts text the reader has accepted; returns the
+    canonical triple denoting exactly that number; raises TypeError if
+    handed anything that is not a string instance. No I/O of any kind.
+    """
+    body = trimmed(text)
+    negative = False
+    if body[:1] == "(" and body[len(body) - 1 : len(body)] == ")":
+        # Accounting parentheses mean negative, and the reader has
+        # already refused a sign inside them, so nothing can say
+        # "negative" twice here.
+        negative = True
+        body = trimmed(body[1 : len(body) - 1])
+    if body[:1] == "-":
+        negative = True
+        body = body[1:]
+    elif body[:1] == "+":
+        body = body[1:]
+    # One pass over the characters. The digits are collected in order
+    # with the leading zeros left out, the decimal places are counted,
+    # and the exponent is added up after the `e`. A thousands separator
+    # is none of those things and contributes nothing to the value, so
+    # it falls through every branch, which is exactly right.
+    digits: list[str] = []
+    places = 0
+    after_point = False
+    in_exponent = False
+    exponent_negative = False
+    magnitude = 0
+    for character in body:
+        if in_exponent:
+            if character == "-":
+                exponent_negative = True
+            elif "0" <= character <= "9" and len(digits):
+                # The exponent is added up only while a digit that is
+                # not a leading zero has been seen. That keeps `0e`
+                # followed by a thousand nines cheap -- such a spelling
+                # is zero whatever its exponent says -- and it is why
+                # the magnitude below stays small: a spelling this
+                # format can hold, whose digits are not all zeros, has
+                # an exponent within a few hundred of the number of
+                # digits written.
+                magnitude = magnitude * 10 + (ord(character) - _ASCII_ZERO)
+        elif "0" <= character <= "9":
+            if after_point:
+                places = places + 1
+            if character != "0" or len(digits):
+                digits += [character]
+        elif character == ".":
+            after_point = True
+        elif character == "e" or character == "E":
+            in_exponent = True
+    if not len(digits):
+        return EXACTLY_ZERO
+    if exponent_negative:
+        power = -places - magnitude
+    else:
+        power = -places + magnitude
+    kept = len(digits)
+    while kept > 0 and digits[kept - 1] == "0":
+        kept = kept - 1
+        power = power + 1
+    return (-1 if negative else 1, tuple(digits[:kept]), power)
+
+
+def exact_of_accepted_number(
+    text: str,
+) -> "tuple[int, tuple[str, ...], int]":
+    """The same triple, for text the reader has ALREADY accepted.
+
+    The entry point below classifies first, which is right for a caller
+    holding an arbitrary spelling. A caller that has just asked
+    `classify_number` itself and got NUMBER would be paying for that
+    answer twice, and one such caller reads every cell of every
+    column -- so the two doors are both here rather than one of them
+    being a private name somebody reaches around.
+
+    Guarantees: accepts text the reader has accepted; returns the
+    canonical triple denoting exactly that number; raises TypeError if
+    handed anything that is not a string instance. No I/O of any kind.
+    """
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT)
+    return _exact_digits(text)
+
+
+def exact_of_spelling(text: str) -> "tuple[int, tuple[str, ...], int] | None":
+    """The exact number a spelling denotes, or None when it denotes none.
+
+    THE RULE OF RECORD FOR "ARE THESE TWO SPELLINGS ONE NUMBER", and it
+    lives here because every module imports this one. It decides FIRST,
+    through `classify_number`, whether the text is a number this format
+    can hold: nothing is exact about a spelling the rest of the tool
+    refuses, and asking that question a second way is how two parts of
+    one program come to disagree about what a value is.
+
+    Two texts give equal triples exactly when they denote the same
+    number, and unequal triples exactly when they denote different
+    numbers, HOWEVER CLOSE the binary64 values they round to. That is
+    the whole point: `-999` and `-999.00000000000001` are two numbers a
+    person can tell apart, and a comparison made after rounding calls
+    them one.
+
+    Guarantees: accepts any text; returns the canonical triple or None;
+    raises TypeError if handed anything that is not a string instance.
+    No I/O of any kind.
+    """
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT)
+    if classify_number(text) != NUMBER:
+        return None
+    return _exact_digits(text)
 
 
 def token_count(text: str) -> int:
@@ -1604,9 +1785,29 @@ def _clock_of(text: str, format_name: str) -> "str | None":
         raise TypeError(_NOT_TEXT)
     if not isinstance(format_name, str):
         raise TypeError(_NOT_TEXT)
+    body = text.strip()
+    if (
+        format_name == "month-first-datetime"
+        or format_name == "day-first-datetime"
+    ):
+        # THE SLASHED STAMPS ANSWER FROM THEIR OWN TEXT. Their date
+        # half is not ten characters wide, so the ISO cut below finds
+        # nothing; the clock is what stands after the one space, and it
+        # is the time-of-day role's own two forms, so the same answer
+        # comes back here as the reader accepted.
+        if parse_datetime(text, format_name) is None:
+            return None
+        mark = 0
+        place = 0
+        for character in body:
+            if character == " ":
+                mark = place
+            place = place + 1
+        if mark < 1:
+            return None
+        return body[mark + 1 :]
     if format_name != "iso-datetime" and format_name != "iso-mixed":
         return None
-    body = text.strip()
     if len(body) < 16:
         return None
     split = _split_offset(body[11:])
