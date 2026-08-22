@@ -2922,5 +2922,43 @@ description says so — the verdict publishes the count it rescued — and
 the alternative says less than they typed about cells they explicitly
 protected.
 
+## Amendment A-P4-20 — the clock role's distinctness is approximated, under its own envelope
+
+**THIS LOWERS an obligation P4-D4.2 left at the exact bar**, and the
+lowering is the date role's own, arrived at for the same reason.
+
+**What the decision says and does not say.** P4-D4.2 fixes the twin's
+construction — the two ends pinned, the interior interpolated by floor
+division in the form's own ordinal unit — and states the capacity
+question: the space holds 1,440 or 86,400 different spellings by form,
+and a description demanding more than that NET of its unparsed cells is
+refused by name. What it does not say is what happens to
+`n_distinct` and `n_distinct_folded` on a column whose demand is
+FEASIBLE but whose construction cannot reach it.
+
+**Why the exact bar cannot stand.** The construction writes a value per
+RANK, not per published identity. A column of two hundred and forty
+rows over a hundred and twenty different times publishes a hundred and
+twenty, and the interpolation lands two ranks on one minute wherever
+the ladder is tight — so a conforming twin of an ordinary column misses
+the exact count at every seed. That is precisely the position the date
+role was in, and the version 4 matrix answers it there by giving a
+column of dates its own explicit cardinality bound.
+
+**What is lowered.** Both distinctness counts on a `time_of_day` column
+are APPROXIMATED under a two-sided envelope: the lower end counts ranks
+whose windows cannot hold the same time, plus the stand-ins, each
+spelled differently from every other cell; the upper end is how many
+times the published range holds at all, plus those stand-ins, and never
+more cells than the column has. The envelope need not contain the
+published count and on an ordinary column it does not, which is what an
+explicit cardinality bound means.
+
+**What it costs.** A consumer cannot read an exact count of different
+times off a clock twin, and must read the published count off the
+DESCRIPTION instead — which is where it was always true. What it buys
+is a bar an ordinary column can actually meet, rather than a MISSED
+line on every conforming twin of every clock column this phase adds.
+
   The five plan reviews are in `docs/plans/reviews/` as
   `phase-4-plan-review-round-1.md` through `-round-5.md`.

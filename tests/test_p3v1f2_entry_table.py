@@ -34,7 +34,7 @@ counts it excused are taken over the blank split, where the floor's
 worth of cells spelling a missing marker moves all three with the role
 still holding. So: coverage is credited to a registered case and to
 nothing else, which makes the registration total over the shipped sites
-(645 rows over 641 sites, 73 curated and 572 derived); each derived row
+(672 rows over 668 sites, 73 curated and 599 derived); each derived row
 must be an edit aimed
 at the site it covers; the floor is counted over the registration; and
 nothing is excused at all.
@@ -906,6 +906,103 @@ def _quartered(described: contract.Profile, text: str, index: int) -> str:
             continue
         rows[row][index] = f"{2030 + (step % 3)}-Q{(step % 4) + 1}"
         step = step + 1
+    return _rebuilt(rows)
+
+
+def _clock_piled(
+    described: contract.Profile,
+    text: str,
+    index: int,
+    at_the_top: bool,
+) -> str:
+    """A clock column with its two ends kept and its middle piled up.
+
+    The clock analogue of the date ladder's own two edits, and it exists
+    for the same reason: a rung's window is the band its own rank can
+    reach, so a rung near the bottom is falsifiable only UPWARD and one
+    near the top only downward. One direction alone leaves half the
+    ladder covered by nothing.
+    """
+    column = described.columns[index]
+    facts = column.facts
+    if not isinstance(facts, contract.ClockFacts):
+        return ""
+    form = facts.clock_form
+    low = parsing.clock_ordinal(facts.earliest, form)
+    high = parsing.clock_ordinal(facts.latest, form)
+    if low is None or high is None:
+        return ""
+    half = (high - low) // 2
+    if half < 4:
+        return ""
+    rows = _rows_of(text)
+    first = _first_record(described)
+    written = [row for row in range(first, len(rows)) if rows[row][index]]
+    if len(written) < 12:
+        return ""
+    keep: "set[int]" = set()
+    for row in written:
+        if rows[row][index] == facts.earliest:
+            keep.add(row)
+            break
+    for row in written:
+        if rows[row][index] == facts.latest and row not in keep:
+            keep.add(row)
+            break
+    corner = high - half if at_the_top else low
+    place = 0
+    for row in written:
+        if row in keep:
+            continue
+        if parsing.clock_form(rows[row][index]) != form:
+            # A stand-in stays a stand-in: moving it would change how
+            # many cells read as clock times, which is a different
+            # check's business.
+            continue
+        rows[row][index] = parsing.clock_spelling(
+            corner + (place % half), form
+        )
+        place = place + 1
+    return _rebuilt(rows)
+
+
+def _clock_crushed(
+    described: contract.Profile, text: str, index: int
+) -> str:
+    """A clock column with its middle piled low."""
+    return _clock_piled(described, text, index, at_the_top=False)
+
+
+def _clock_lifted(
+    described: contract.Profile, text: str, index: int
+) -> str:
+    """The same edit with the middle piled high."""
+    return _clock_piled(described, text, index, at_the_top=True)
+
+
+def _clock_reformed(
+    described: contract.Profile, text: str, index: int
+) -> str:
+    """Every clock cell rewritten in the OTHER of the two forms.
+
+    The one edit that moves the published form without moving a single
+    time: `09:30` and `09:30:00` are the same moment, so the column
+    still reads as clock times and every value it holds is the value it
+    held -- what changes is the shape its own description reads off it.
+    """
+    column = described.columns[index]
+    facts = column.facts
+    if not isinstance(facts, contract.ClockFacts):
+        return ""
+    rows = _rows_of(text)
+    for row in range(_first_record(described), len(rows)):
+        cell = rows[row][index]
+        if parsing.clock_form(cell) != facts.clock_form:
+            continue
+        if facts.clock_form == parsing.CLOCK_HH_MM:
+            rows[row][index] = f"{cell}:00"
+            continue
+        rows[row][index] = cell[0:5]
     return _rebuilt(rows)
 
 
@@ -1814,6 +1911,16 @@ def _column_perturbations(
                 f"spaced-{name}",
                 CLASS_CASING,
                 _one_variant(described, twin, index),
+            ),
+        ]
+    if column.role == "time_of_day":
+        built = built + [
+            (f"crushed-{name}", CLASS_DATE, _clock_crushed(described, twin, index)),
+            (f"lifted-{name}", CLASS_DATE, _clock_lifted(described, twin, index)),
+            (
+                f"reformed-{name}",
+                CLASS_PRECISION,
+                _clock_reformed(described, twin, index),
             ),
         ]
     if column.role == "datetime":
@@ -2772,6 +2879,41 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("spread-dose", "widths.published.1"),
             ("spread-dose", "widths.published.2"),
         ),
+        "seen_at": (
+            # THE CLOCK ROLE. Three edits are its own: the two halves
+            # of the ladder, piled low and piled high, because a rung
+            # near the bottom is falsifiable only upward and one near
+            # the top only downward; and every cell rewritten in the
+            # OTHER form, which moves the published form and the four
+            # values written in it without moving a single time.
+            ("renamed-seen_at", "position.at"),
+            ("blanked-seen_at", "presence.n_present"),
+            ("blanked-seen_at", "presence.n_missing"),
+            ("one-worded-seen_at", "axes.role"),
+            ("one-worded-seen_at", "axes.statistical_type"),
+            ("emptied-seen_at", "axes.quality_state"),
+            ("one-bracketed-seen_at", "counts.n_numeric"),
+            ("blanked-seen_at", "counts.n_not_numeric"),
+            ("one-overflowed-seen_at", "counts.n_out_of_range"),
+            ("one-contradicted-seen_at", "counts.n_contradictory"),
+            ("one-worded-seen_at", "distinct.n_distinct"),
+            ("one-worded-seen_at", "distinct.n_distinct_folded"),
+            ("reformed-seen_at", "form.clock_form"),
+            ("reformed-seen_at", "ends.earliest"),
+            ("reformed-seen_at", "ends.latest"),
+            ("marked-seen_at", "counts.n_unparsed"),
+            ("reformed-seen_at", "clock-ladder.min"),
+            ("reformed-seen_at", "clock-ladder.max"),
+            ("lifted-seen_at", "clock-ladder.p01"),
+            ("crushed-seen_at", "clock-ladder.p05"),
+            ("crushed-seen_at", "clock-ladder.p10"),
+            ("crushed-seen_at", "clock-ladder.p25"),
+            ("crushed-seen_at", "clock-ladder.p50"),
+            ("crushed-seen_at", "clock-ladder.p75"),
+            ("crushed-seen_at", "clock-ladder.p90"),
+            ("crushed-seen_at", "clock-ladder.p95"),
+            ("crushed-seen_at", "clock-ladder.p99"),
+        ),
         "reading": (
             ("contradicted-reading", "axes.quality_state"),
             ("one-negated-reading", "axes.role"),
@@ -3315,6 +3457,7 @@ ROLE_FAMILIES = {
     # Its quantitative facts are the numeric family's, read over the
     # cores; the seven keys it adds carry the family name `affixed`.
     "affixed_number": "numeric",
+    "time_of_day": "clock",
     "continuous": "numeric",
     "count": "numeric",
     "datetime": "datetime",
@@ -3340,6 +3483,7 @@ FIXTURE_ROLES: "dict[str, dict[str, str]]" = {
         "comment": "free_text",
         "dose": "affixed_number",
         "reading": "count",
+        "seen_at": "time_of_day",
         "record_code": "identifier",
         "recorded_on": "datetime",
         "region": "categorical",
@@ -3387,6 +3531,35 @@ PREDICATE_FIXTURES = {
 # a column of each family. Keyed by (family, subcheck); the value is the
 # fact, `group.field`, exactly as the registry spells it.
 SUBCHECK_FACTS: "dict[tuple[str, str], str]" = {
+    # -- clock ------------------------------------------------------------
+    ("clock", "axes.quality_state"): "universal.quality_state",
+    ("clock", "axes.role"): "universal.role",
+    ("clock", "axes.statistical_type"): "universal.statistical_type",
+    ("clock", "axes.structural_role"): "universal.structural_role",
+    ("clock", "counts.n_contradictory"): "universal.n_contradictory",
+    ("clock", "counts.n_not_numeric"): "universal.n_not_numeric",
+    ("clock", "counts.n_numeric"): "universal.n_numeric",
+    ("clock", "counts.n_out_of_range"): "universal.n_out_of_range",
+    ("clock", "counts.n_unparsed"): "clock.n_unparsed",
+    ("clock", "clock-ladder.max"): "clock.clock_percentiles.max",
+    ("clock", "clock-ladder.min"): "clock.clock_percentiles.min",
+    ("clock", "distinct.n_distinct"): "clock.n_distinct",
+    ("clock", "distinct.n_distinct_folded"): "clock.n_distinct_folded",
+    ("clock", "ends.earliest"): "clock.earliest",
+    ("clock", "ends.latest"): "clock.latest",
+    ("clock", "form.clock_form"): "clock.clock_form",
+    ("clock", "position.at"): "universal.position",
+    ("clock", "presence.n_missing"): "universal.n_missing",
+    ("clock", "presence.n_present"): "universal.n_present",
+    ("clock", "clock-ladder.p01"): "clock.clock_percentiles",
+    ("clock", "clock-ladder.p05"): "clock.clock_percentiles",
+    ("clock", "clock-ladder.p10"): "clock.clock_percentiles",
+    ("clock", "clock-ladder.p25"): "clock.clock_percentiles",
+    ("clock", "clock-ladder.p50"): "clock.clock_percentiles",
+    ("clock", "clock-ladder.p75"): "clock.clock_percentiles",
+    ("clock", "clock-ladder.p90"): "clock.clock_percentiles",
+    ("clock", "clock-ladder.p95"): "clock.clock_percentiles",
+    ("clock", "clock-ladder.p99"): "clock.clock_percentiles",
     # -- datetime ----------------------------------------------------------
     ("datetime", "axes.quality_state"): "universal.quality_state",
     ("datetime", "axes.role"): "universal.role",
@@ -3671,6 +3844,19 @@ SUBCHECK_FACTS: "dict[tuple[str, str], str]" = {
 # assertion in this file green while the report duplicated one offset
 # fact and omitted another.
 WHOLE_FACT_LISTINGS: "dict[str, tuple[str, ...]]" = {
+    # The clock role lists the eight universal facts no CSV can
+    # evidence, and nothing of its own: every one of its five keys is
+    # checked.
+    "clock": (
+        "universal.detection_evidence",
+        "universal.missing_by_class",
+        "universal.missing_by_source",
+        "universal.n_missing_blank",
+        "universal.n_missing_withheld",
+        "universal.n_sentinel_candidates_unpublished",
+        "universal.remarks",
+        "universal.sentinel_verdicts",
+    ),
     "datetime": (
         "datetime.format",
         "universal.detection_evidence",
@@ -4648,8 +4834,8 @@ def test_the_coverage_identity_walks_the_shipped_table(
     which is V8.3's "registered, named" read as though it said
     "reached". And a site could be covered only by an edit that broke
     something else, which is exactly the failure V8.2 refuses one grain
-    up. The registration is now total over the shipped sites: 645 rows
-    over 641 sites, 73 curated and 572 derived, each derived one an edit
+    up. The registration is now total over the shipped sites: 672 rows
+    over 668 sites, 73 curated and 599 derived, each derived one an edit
     aimed at the site it covers. THREE sites carry more than one row on
     purpose: `columns.order` carries three, because it is the whole of
     what the shipped table files for the STRUCTURAL disposition and the
@@ -4657,7 +4843,7 @@ def test_the_coverage_identity_walks_the_shipped_table(
     two, a row taken out and a row added; and the headerless
     `header.presence` carries the plain edit and the compensating one
     that used to defeat it. For those three, deleting one row is not
-    enough to turn this red. Every one of the other 638 is on its own.
+    enough to turn this red. Every one of the other 665 is on its own.
 
     NOTHING IS EXCUSED. There were two exemptions here and both are
     gone. A register of OPEN DEFECTS went with round 2's repairs. The

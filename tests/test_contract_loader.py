@@ -730,6 +730,27 @@ def battery() -> list[Mutation]:
             "figures after the point counted for cells that wrote none",
             edit("visits", fraction_widths={"2": 40}),
         ),
+        # -- clock times --------------------------------------------
+        Mutation(
+            "T1", "a clock rung written in the other form",
+            edit_inside("seen_at", "clock_percentiles", p50="07:59:00"),
+        ),
+        Mutation(
+            "T2", "a ladder that does not begin at the earliest time",
+            edit("seen_at", earliest="07:01"),
+        ),
+        Mutation(
+            "T3", "clock rungs that go backwards",
+            edit_inside("seen_at", "clock_percentiles", p50="07:01"),
+        ),
+        Mutation(
+            "T4", "a column of clock times holding none",
+            edit("seen_at", n_unparsed=240),
+        ),
+        Mutation(
+            "T5", "too few clock times for the column to be read that way",
+            edit("seen_at", n_unparsed=100),
+        ),
         Mutation(
             "P6",
             "a pool larger than the forms left to hold it",
@@ -896,8 +917,8 @@ def test_the_base_document_loads(
 ) -> None:
     """The description every mutation starts from is accepted as it is."""
     loaded = contract.load_profile(written(tmp_path, base))
-    assert loaded.n_columns == 13
-    assert len(loaded.columns) == 13
+    assert loaded.n_columns == 14
+    assert len(loaded.columns) == 14
 
 
 def test_every_mutation_starts_from_a_document_that_loads(

@@ -244,6 +244,12 @@ ENVELOPE_NUMERIC_RUNGS = (
 ENVELOPE_MOMENTS = "docs/spec/generation-method-v1.md G12.3"
 ENVELOPE_DATETIME_RUNGS = "docs/spec/generation-method-v1.md G12.4"
 ENVELOPE_DATETIME_DISTINCT = "docs/spec/generation-method-v1.md G12.5"
+# The clock role's two, cited and never restated. Both point at the
+# clause the generation method carries for this role, which is written
+# in the same landing as the construction it bounds.
+ENVELOPE_CLOCK_RUNG = "docs/spec/generation-method-v1.md G12.9"
+ENVELOPE_CLOCK_DISTINCT = "docs/spec/generation-method-v1.md G12.9"
+
 ENVELOPE_TEXT_SHAPE = "docs/spec/generation-method-v1.md G12.6"
 ENVELOPE_LABEL_DISTINCT = "docs/spec/generation-method-v1.md G12.7"
 ENVELOPE_NUMERIC_DISTINCT = "docs/spec/generation-method-v1.md G12.8"
@@ -5718,6 +5724,24 @@ def _distinctness_checks(
         measured = _count_at(block, field)
         fact = f"{group}.{field}"
         subcheck = f"distinct.{field}"
+        if isinstance(facts, contract.ClockFacts):
+            # This role's own explicit cardinality bound, for the
+            # reason the date role has one: the construction writes a
+            # value per RANK, so a column publishing fewer different
+            # times than it has rows is met by a twin holding more.
+            checks = checks + [
+                _within(
+                    name,
+                    fact,
+                    subcheck,
+                    _shown_count(published),
+                    None if measured is None else float(measured),
+                    _clock_distinct_window(column, facts),
+                    ENVELOPE_CLOCK_DISTINCT,
+                    float(published),
+                )
+            ]
+            continue
         if isinstance(facts, contract.DatetimeFacts):
             # A column of dates has its own explicit cardinality bound:
             # the construction writes a value per rank and holds far
@@ -6215,6 +6239,8 @@ def _quantitative(facts: contract.ColumnFacts) -> contract.ColumnFacts:
 
 def _group_of(facts: contract.ColumnFacts) -> str:
     """Which registry group a column's role publishes under."""
+    if isinstance(facts, contract.ClockFacts):
+        return "clock"
     if isinstance(facts, contract.AffixedFacts):
         # Its quantitative block IS the numeric block, read over the
         # cores, so it takes the numeric group's dispositions entire.
@@ -6243,6 +6269,8 @@ def _role_checks(
 ) -> "list[Check]":
     """Everything the column's own role adds."""
     facts = column.facts
+    if isinstance(facts, contract.ClockFacts):
+        return _clock_checks(column, facts, block)
     if isinstance(facts, contract.AffixedFacts):
         return _affixed_checks(column, facts, block, cells, floor)
     if isinstance(facts, contract.NumericFacts):
@@ -8079,6 +8107,281 @@ def _variant_map(
 # -- the datetime role ------------------------------------------------
 
 
+def _clock_checks(
+    column: contract.ColumnBlock,
+    facts: contract.ClockFacts,
+    block: "dict[str, object]",
+) -> "list[Check]":
+    """A column of clock times.
+
+    THE THREE KINDS OF OBLIGATION THIS ROLE CARRIES. The form and the
+    unparsed count are exact and are COUNTS or words of this package's
+    own, so both sides print. The two endpoints and the ladder's two
+    ends are exact too, but their measured side is TEXT READ OUT OF THE
+    FILE, so the comparison is made in full and only the verdict is
+    shown -- the same treatment the datetime role's endpoints get, and
+    for the same rule. The nine interior rungs are approximated inside
+    the window this role's own construction leaves them.
+    """
+    name = column.name
+    checks: "list[Check]" = []
+    found = _text_at(block, "clock_form")
+    checks = checks + [
+        _exact(
+            name,
+            "clock.clock_form",
+            "form.clock_form",
+            facts.clock_form,
+            found,
+        )
+    ]
+    for field, published in (
+        ("earliest", facts.earliest),
+        ("latest", facts.latest),
+    ):
+        seen = _text_at(block, field)
+        checks = checks + [
+            _silent(
+                name,
+                f"clock.{field}",
+                f"ends.{field}",
+                published,
+                None if seen is None else seen == published,
+                _NOT_SHOWN_IT_IS_TEXT_OF_THE_FILE,
+            )
+        ]
+    counted = _count_at(block, "n_unparsed")
+    checks = checks + [
+        _exact(
+            name,
+            "clock.n_unparsed",
+            "counts.n_unparsed",
+            _shown_count(facts.n_unparsed),
+            None if counted is None else _shown_count(counted),
+        )
+    ]
+    checks = checks + _clock_ladder_checks(column, facts, block)
+    return checks
+
+
+def _clock_ladder_checks(
+    column: contract.ColumnBlock,
+    facts: contract.ClockFacts,
+    block: "dict[str, object]",
+) -> "list[Check]":
+    """The clock ladder: the two ends exact, the nine interior windowed.
+
+    The window is this role's own construction written out here rather
+    than imported: the validator may not read the generator, so the
+    arithmetic is taken from the method's clause and the suite holds the
+    two writings to agreeing.
+
+    Rank `k` is its own stratum -- its share of the day runs from `k/P`
+    to `(k+1)/P` and no word can carry it outside that band -- so the
+    rank sits between the ladder read at those two shares, less one unit
+    of the form at the low end for the flooring. The two ends are PINNED
+    and have no room at all: the construction writes rank 0 at the
+    published earliest and rank `P-1` at the published latest, and T2
+    makes those the ladder's own two ends.
+    """
+    name = column.name
+    measured = _inner_at(block, "clock_percentiles")
+    form = facts.clock_form
+    checks: "list[Check]" = []
+    for key, expected in (
+        ("min", facts.earliest),
+        ("max", facts.latest),
+    ):
+        seen = None if measured is None else _text_at(measured, key)
+        checks = checks + [
+            _silent(
+                name,
+                f"clock.clock_percentiles.{key}",
+                f"clock-ladder.{key}",
+                expected,
+                None if seen is None else seen == expected,
+                _NOT_SHOWN_IT_IS_TEXT_OF_THE_FILE,
+            )
+        ]
+    parsed = max(1, column.n_present - facts.n_unparsed)
+    lows, highs = _clock_rank_windows(facts, parsed)
+    for index in range(1, len(_LADDER_KEYS) - 1):
+        key = _LADDER_KEYS[index]
+        seen = None if measured is None else _text_at(measured, key)
+        held = None if seen is None else parsing.clock_ordinal(seen, form)
+        rank = _rung_rank(_LADDER_PERCENTS[index], parsed)
+        published = parsing.clock_ordinal(
+            facts.clock_percentiles[key], form
+        )
+        checks = checks + [
+            _within_clock(
+                name,
+                f"clock-ladder.{key}",
+                facts,
+                facts.clock_percentiles[key],
+                held,
+                (lows[rank], highs[rank]),
+            )
+        ]
+    return checks
+
+
+def _clock_units(form: str) -> str:
+    """The word for one step of this form's own ordinal space."""
+    if form == contract.CLOCK_FORMS[0]:
+        return "minute"
+    return "second"
+
+
+def _shown_clock_distance(ordinal: int, rung: int, form: str) -> str:
+    """One clock ordinal said as its distance from the published rung.
+
+    A DISTANCE AND NOT A TIME, for the reason the datetime rungs are
+    said that way: the measured side is a value read out of the file,
+    and no text of a measured file is printed in this report. A
+    distance is arithmetic on two numbers the reader already has -- the
+    published rung is on the line above -- and carries no spelling of
+    anybody's table.
+    """
+    away = ordinal - rung
+    word = _clock_units(form)
+    if away == 0:
+        return "that same time"
+    if away < 0:
+        return f"{-away} {word}(s) before that"
+    return f"{away} {word}(s) after that"
+
+
+def _within_clock(
+    column: str,
+    subcheck: str,
+    facts: contract.ClockFacts,
+    published: str,
+    measured: "int | None",
+    window: "tuple[int, int]",
+) -> Check:
+    """One interior rung of a clock ladder, against its own window.
+
+    The same shape the datetime rungs take: the exact reading is tried
+    first, so a file holding the published rung is HELD whatever the
+    window says; the three numbers are said as distances from that
+    rung; and a window that does not reach the published value says so
+    rather than leaving a reader to think the page is wrong.
+    """
+    rung = _clock_ordinal_or_zero(published, facts.clock_form)
+    low, high = window
+    form = facts.clock_form
+    allowed = (
+        f"      this rung of the file is allowed from "
+        f"{_shown_clock_distance(low, rung, form)}"
+    )
+    note: "tuple[str, ...]" = (
+        allowed,
+        (
+            f"        to {_shown_clock_distance(high, rung, form)}, and "
+            f"it covers the value above"
+        ),
+    )
+    reaches = low <= rung <= high
+    if not reaches:
+        note = (
+            allowed,
+            (
+                f"        to {_shown_clock_distance(high, rung, form)}, "
+                f"and it does NOT reach the"
+            ),
+            "        value above. This window is what the method allows",
+            "        the file's own rung, worked out from the description",
+            "        and the size of this column; it is not a margin",
+            "        around the description's value.",
+        )
+    if measured is None:
+        return Check(
+            column,
+            "clock.clock_percentiles",
+            subcheck,
+            WITHHELD,
+            published,
+            "",
+            _GATE_CLOSED,
+        )
+    if measured == rung:
+        return Check(
+            column,
+            "clock.clock_percentiles",
+            subcheck,
+            HELD,
+            published,
+            _shown_clock_distance(measured, rung, form),
+            "",
+            () if reaches else _MET_OUTSIDE_ITS_WINDOW,
+        )
+    verdict = WITHIN_BOUND if low <= measured <= high else MISSED
+    return Check(
+        column,
+        "clock.clock_percentiles",
+        subcheck,
+        verdict,
+        published,
+        _shown_clock_distance(measured, rung, form),
+        ENVELOPE_CLOCK_RUNG,
+        note,
+    )
+
+
+def _clock_rank_windows(
+    facts: contract.ClockFacts, parsed: int
+) -> "tuple[list[int], list[int]]":
+    """The window every rank of a column of clock times sits in.
+
+    Whole-number arithmetic throughout, in the ordinal unit the
+    published FORM sets -- minutes of day, or seconds of day -- because
+    that is the unit the construction interpolates in and a window drawn
+    in another one would floor to a different place.
+
+    Guarantees: accepts one column's published clock facts and how many
+    of its cells read back as clock times; returns the two ends of every
+    rank's window. Nothing measured is consulted -- this is what the
+    DESCRIPTION obliges. Determinism: a fixed function of those two.
+    Errors raised: none.
+    """
+    ladder = [
+        _clock_ordinal_or_zero(facts.clock_percentiles[name], facts.clock_form)
+        for name in _LADDER_KEYS
+    ]
+    last = len(_LADDER_KEYS) - 1
+    lows: "list[int]" = []
+    highs: "list[int]" = []
+    for rank in range(parsed):
+        if rank == 0:
+            lows = lows + [ladder[0]]
+            highs = highs + [ladder[0]]
+            continue
+        if rank == parsed - 1 and parsed >= 2:
+            lows = lows + [ladder[last]]
+            highs = highs + [ladder[last]]
+            continue
+        lows = lows + [_ladder_ordinal_at(ladder, rank, parsed) - 1]
+        highs = highs + [_ladder_ordinal_at(ladder, rank + 1, parsed)]
+    return (lows, highs)
+
+
+def _clock_ordinal_or_zero(text: str, form: str) -> int:
+    """One published clock value as its ordinal, or zero.
+
+    The loader has held every published clock value to the column's own
+    form (T1), so the reader answers for every value that reaches here.
+    Zero is what a value it cannot read would give, and it is a value
+    inside the space rather than an exception, because a window is a
+    statement about the description and a description that got this far
+    has already been refused if it could not be read.
+    """
+    found = parsing.clock_ordinal(text, form)
+    if found is None:
+        return 0
+    return found
+
+
 def _datetime_checks(
     column: contract.ColumnBlock,
     facts: contract.DatetimeFacts,
@@ -8414,6 +8717,37 @@ def _within_instant(
         ENVELOPE_DATETIME_RUNGS,
         note,
     )
+
+
+def _clock_distinct_window(
+    column: contract.ColumnBlock, facts: contract.ClockFacts
+) -> "tuple[float, float]":
+    """How many different values a column of clock times may hold.
+
+    The same two ends the date role's envelope has, in this role's own
+    ordinal space. The LOWER end counts ranks whose windows do not
+    overlap -- two ranks that cannot hold the same time are two
+    identities the twin must carry -- plus every stand-in, each spelled
+    differently from every other cell. The UPPER end is how many times
+    the published range holds at all, plus those stand-ins, and never
+    more cells than the column has.
+
+    IT NEED NOT CONTAIN THE PUBLISHED COUNT, and on an ordinary column
+    it does not: a column of two hundred and forty rows over a hundred
+    and twenty different times publishes a hundred and twenty while the
+    construction writes a value per rank. That is what an explicit
+    cardinality bound is for, and it is why this role's two distinctness
+    counts are approximated rather than exact.
+    """
+    parsed = max(1, column.n_present - facts.n_unparsed)
+    lows, highs = _clock_rank_windows(facts, parsed)
+    separate = _ranks_forced_apart(lows, highs)
+    earliest = _clock_ordinal_or_zero(facts.earliest, facts.clock_form)
+    latest = _clock_ordinal_or_zero(facts.latest, facts.clock_form)
+    room = latest - earliest + 1
+    upper = min(column.n_present, room + facts.n_unparsed)
+    lower = min(separate + facts.n_unparsed, upper)
+    return (float(lower), float(upper))
 
 
 def _datetime_distinct_window(

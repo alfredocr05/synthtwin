@@ -284,6 +284,11 @@ PLAN3_REGIONS = {
 # adds is disposed in that phase's plan and looked for there.
 PLAN4_REGIONS = {
     "affixed": "### P4-D4.1 The affixed-number role",
+    "clock": "### P4-D4.2 The time-of-day role",
+    "clock-cardinality": (
+        "## Amendment A-P4-20 — the clock role's distinctness is "
+        "approximated, under its own envelope"
+    ),
     "fraction": (
         "### P4-D4.5 The fixed-fraction spelling fact "
         "(closes R-P3-12's route)"
@@ -298,7 +303,7 @@ PLAN4_REGIONS = {
 # that one. Its QUANTITATIVE keys are not here: they are registered
 # under `numeric` and checked against the numeric section like every
 # other numeric fact, which is the half that carries a distribution.
-GROUPS_OUTSIDE_THE_VERSION_4_MATRIX = ("affixed",)
+GROUPS_OUTSIDE_THE_VERSION_4_MATRIX = ("affixed", "clock")
 
 # ...and the same thing one grain finer: a fact registered under a group
 # version 4 DOES have, about something version 4 never published. The
@@ -473,6 +478,59 @@ REGISTRY += _facts("numeric", APPROXIMATED, "mean", "std", "skew")
 # block read over the cores and is registered above under `numeric`;
 # these are the five it adds, and every one is a count or a spelling a
 # written twin carries in plain sight.
+# THE CLOCK ROLE'S FIVE. Four are exactly observable off a written
+# twin -- the form its cells wear, its two ends, and how many cells no
+# clock reading accepted -- and the ladder is the one approximated
+# fact, for the reason the date ladder is: the construction writes a
+# value per rank, so an interior rung lands inside a window rather than
+# on the published value.
+REGISTRY += [
+    Fact(
+        "clock",
+        field,
+        EXACT_OBSERVABLE,
+        plan_words="an eleven-rung ordinal ladder",
+        plan_region="clock",
+    )
+    for field in ("clock_form", "earliest", "latest", "n_unparsed")
+]
+# The ladder's two ENDS are exact, and its interior is not: T2 makes
+# the ends the column's own two endpoints, which a written twin carries
+# character for character, while every rank between them is
+# interpolated into a window.
+REGISTRY += [
+    Fact(
+        "clock",
+        f"clock_percentiles.{end}",
+        EXACT_OBSERVABLE,
+        plan_words="an eleven-rung ordinal ladder",
+        plan_region="clock",
+    )
+    for end in ("min", "max")
+]
+REGISTRY += [
+    Fact(
+        "clock",
+        "clock_percentiles",
+        APPROXIMATED,
+        plan_words="an eleven-rung ordinal ladder",
+        plan_region="clock",
+    ),
+]
+# ...and its two distinctness counts, lowered to the envelope by
+# amendment A-P4-20 for the reason the date role's are: the
+# construction writes a value per RANK, so a conforming twin of an
+# ordinary column cannot meet the exact bar.
+REGISTRY += [
+    Fact(
+        "clock",
+        field,
+        APPROXIMATED,
+        plan_words="Both distinctness counts on a `time_of_day` column",
+        plan_region="clock-cardinality",
+    )
+    for field in ("n_distinct", "n_distinct_folded")
+]
 REGISTRY += [
     Fact(
         "affixed",
@@ -899,6 +957,7 @@ RUNGS = ("p01", "p05", "p10", "p25", "p50", "p75", "p90", "p95", "p99")
 # of this file. A fact a role does not carry falls back to the universal
 # and top-level groups, which every role shares.
 ROLE_GROUPS = {
+    "time_of_day": "clock",
     "count": "numeric",
     "continuous": "numeric",
     # The affixed role's quantitative block IS the numeric block, read
