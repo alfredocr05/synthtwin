@@ -460,6 +460,7 @@ LADDER_KEYS = (
 DATE_FORMATS = (
     "iso-date",
     "iso-datetime",
+    "slashed-iso-date",
     "compact-date",
     "month-first-date",
     "day-first-date",
