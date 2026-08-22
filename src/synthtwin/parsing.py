@@ -889,18 +889,31 @@ def clock_form(text: str) -> "str | None":
     A column of cells this refuses takes a later rule, which is where
     such a column already goes today.
 
+    NOTHING COMES OFF FIRST, and that is the fifth refusal rather than
+    an oversight. Every other reader in this module trims its cell
+    before looking at it; this one may not, because what it publishes
+    are the CELLS THEMSELVES -- the two endpoints and eleven ladder
+    rungs are values some row of the table wore, character for
+    character. Trimming would let a column of ` 09:30 ` cells publish
+    `09:30`, a string no row of that table holds, and the ladder would
+    stop being a selection of real cells. So a cell with a space, a
+    tab or a no-break space around it is a cell this role does not
+    read, and it is counted with the rest.
+
     Guarantees:
 
-    - Inputs: the text of one cell, exactly as the file spells it;
-      surrounding spaces come off first, as they do everywhere else.
+    - Inputs: the text of one cell, exactly as the file spells it, and
+      exactly as it is judged.
     - Determinism: the answer depends only on the text.
     - Errors raised: TypeError if handed anything that is not a string
-      instance, through `trimmed`.
+      instance.
     - Boundary: the answer is one of two words of this module's own
       vocabulary, or nothing, so no spelling of any cell travels out
       through it. No I/O of any kind.
     """
-    body = trimmed(text)
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT)
+    body = text
     hours = _digits_at(body, 0, 2)
     if hours is None or len(body) < 5 or body[2] != ":":
         return None
@@ -941,7 +954,7 @@ def clock_ordinal(text: str, form: str) -> "int | None":
         raise ValueError(_NOT_TEXT)
     if clock_form(text) != form:
         return None
-    body = trimmed(text)
+    body = text
     hours = int(body[0:2])
     minutes = int(body[3:5])
     if form == CLOCK_HH_MM:

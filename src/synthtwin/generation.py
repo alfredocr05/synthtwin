@@ -4927,6 +4927,16 @@ def _clock_content(
         _clock_ordinal_of(facts.clock_percentiles[name], form)
         for name in _LADDER_NAMES
     ]
+    # WHETHER THIS COLUMN'S VALUES WERE ALL DIFFERENT. The description
+    # says so when its count of different values, net of the cells that
+    # are stand-ins, is the count of cells that parsed -- and that
+    # obligation is EXACT: the plan keeps it for this case even though
+    # every other shape's distinctness falls to an envelope, because a
+    # closed finite space of times has a place for each of them and the
+    # construction can simply take the next one.
+    apart = column.n_distinct - facts.n_unparsed >= parsed
+    ceiling = _clock_ordinal_of(facts.latest, form)
+    last = _clock_ordinal_of(facts.earliest, form)
     cells: "list[str]" = []
     taken = 0
     for rank in range(parsed):
@@ -4946,6 +4956,21 @@ def _clock_content(
         ordinal = ladder[step] + (
             above * (ladder[step + 1] - ladder[step])
         ) // span
+        if apart:
+            # WHERE THE COLUMN'S OWN VALUES WERE ALL DIFFERENT, so are
+            # the twin's. The interpolation is non-decreasing across
+            # ranks -- each rank's share is larger than the last -- so
+            # two ranks land on one time only where the ladder is
+            # tighter than the ranks are numerous, and stepping the
+            # later one up by a minute is what the source column itself
+            # did. Bounded by the last rank, which is pinned to the
+            # published latest: the room test above is what guarantees
+            # there is a place for every one of them.
+            if ordinal <= last:
+                ordinal = last + 1
+            if ordinal > ceiling:
+                ordinal = ceiling
+        last = ordinal
         cells = cells + [parsing.clock_spelling(ordinal, form)]
     # THE STAND-INS, which are outside the obligation to reproduce a
     # clock value and are counted rather than described. Each is
@@ -8796,6 +8821,7 @@ def _plan_column(
     elif isinstance(facts, contract.NumericFacts):
         layout, notes, content = _numeric_layout(column, facts)
     elif isinstance(facts, contract.ClockFacts):
+        _clock_room(column, facts)
         # THE SAME SHAPE THE DATE ROLE BUDGETS BY, and for the same
         # reason: both ends are pinned by fixed rule and cost no word,
         # every stand-in is stepped past its neighbours and costs none,
@@ -8874,6 +8900,54 @@ def _word_room(
                 column.name, shortest, words, length, held, 2 * words - 1
             )
         )
+
+
+def _clock_room(
+    column: contract.ColumnBlock, facts: contract.ClockFacts
+) -> None:
+    """Refuse a clock column asking for more times than a day holds.
+
+    THE ONE REFUSAL THIS ROLE ADDS, and it is decided from the published
+    facts alone, before a single cell exists. A day holds 1,440
+    different minutes and 86,400 different seconds, and nothing else can
+    be written in the column's form. So a description whose count of
+    different values, NET of the cells that are stand-ins, exceeds its
+    form's own space describes a column no table of that form can hold.
+
+    THE TEST IS THE FORM'S CAPACITY AND NOT THE SPAN BETWEEN THE ENDS.
+    A description whose own source met every count -- stand-ins
+    included -- is never refused here: that is the difference between a
+    description nothing can satisfy and one this method finds hard.
+
+    Raised as a REFUSAL rather than reported as a deviation because
+    there is no twin to report about: every arrangement of cells fails,
+    so the honest answer is to say so before writing anything and to
+    say that the description itself is valid -- what cannot be done is
+    building a table from it.
+    """
+    wanted = column.n_distinct - facts.n_unparsed
+    room = parsing.CLOCK_CAPACITY[facts.clock_form]
+    if wanted <= room:
+        return
+    raise errors.ProfileError(_clock_needs_room(column.name, wanted, room))
+
+
+def _clock_needs_room(name: str, wanted: int, room: int) -> str:
+    """What a person is told when a day is not long enough."""
+    return (
+        f"synthtwin cannot build a twin of the column '{parsing.visible(name)}'. "
+        f"Its description says the column holds {wanted} different "
+        f"times of day, and it says those times are written with "
+        f"{room} different ones available -- there are only {room} of "
+        f"them in a day at that precision. Both statements can be true "
+        f"of the description and neither can be true of any table, so "
+        f"no file synthtwin could write would match it.\n\n"
+        f"The description is not damaged and nothing is wrong with your "
+        f"file. If the real column recorded seconds as well as minutes, "
+        f"profile it again from the table that has them; if it did not, "
+        f"there is nothing here to fix and this column cannot be "
+        f"twinned. Nothing has been written."
+    )
 
 
 def _whole_number_room(
