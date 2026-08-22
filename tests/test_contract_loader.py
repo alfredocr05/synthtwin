@@ -190,6 +190,7 @@ def _relabelled_as_a_long_tail(_column: str) -> Change:
     def change(document: Document) -> None:
         block = at(document, _column)
         block["role"] = "long_tail_labels"
+        block["statistical_type"] = "long_tail_labels"
         del block["level_ceiling"]
     return change
 

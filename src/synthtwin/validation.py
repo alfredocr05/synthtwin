@@ -1434,6 +1434,12 @@ def _vocabulary_spellings(
         for value, spelling in _STAND_IN_SPELLINGS:
             if number == value:
                 found[spelling] = 1
+    # AND THE THIRD LIST (plan amendment A-P4-1 item 3). A placeholder
+    # day the person named is a value they kept, and a reconstruction
+    # that stopped at two lists could not rebuild the reading rule of a
+    # column whose placeholder they rescued.
+    for day in record.built_in_dates:
+        found[day] = 1
     return tuple(sorted(found))
 
 
@@ -1682,7 +1688,8 @@ def _own_words_named(record: contract.DeclarationRecord) -> int:
     being asked.
     """
     named = record.n_declared - len(record.built_in_texts)
-    return named - len(record.built_in_numbers)
+    named = named - len(record.built_in_numbers)
+    return named - len(record.built_in_dates)
 
 
 def unrebuildable_columns(

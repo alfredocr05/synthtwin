@@ -155,12 +155,14 @@ def test_only_a_member_of_synthtwins_own_list_is_ever_written(
     )
     capsys.readouterr()
     assert document["settings"]["kept_values"] == {
+        "built_in_dates": [],
         "built_in_numbers": [-999.0],
         "built_in_texts": ["n/a"],
         "n_declared": 2,
         "values_recorded": False,
     }
     assert document["settings"]["declared_missing_values"] == {
+        "built_in_dates": [],
         "built_in_numbers": [],
         "built_in_texts": [],
         "n_declared": 1,

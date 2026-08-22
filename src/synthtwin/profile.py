@@ -148,7 +148,7 @@ CLAIM_REACHED = writing.CLAIM_REACHED
 #    the map holds one key space, the table's own (contract 5 C5-11);
 # 3. each of the two declaration records gains `built_in_texts` and
 #    `built_in_numbers`, naming which members of synthtwin's own
-#    twenty-one published words were typed -- and never the person's text
+#    twenty-three published words were typed -- and never the person's text
 #    (contract 5 section 6).
 #
 # WHAT THAT COSTS AND WHAT IT BUYS. It buys a description a reader can
@@ -230,7 +230,7 @@ RELATIONSHIP_SLOTS = (
 # FROM CONTRACT VERSION 5 THE RULE HAS ONE EXCEPTION, AND THIS LOWERS
 # THE PHASE 1 BAR BY EXACTLY THAT MUCH (owner ruling 2026-08-17, plan
 # amendment A-P3-27, contract 5 section 6.6). The two declaration
-# records also name WHICH MEMBERS of synthtwin's own twenty-one published
+# records also name WHICH MEMBERS of synthtwin's own twenty-three published
 # words were typed: the ten spellings this package reads as "no value"
 # and the three stand-in numbers it judges, listed in the contract's own
 # appendix and identical in every installation.
@@ -245,7 +245,7 @@ RELATIONSHIP_SLOTS = (
 # is not evidence that any cell wore the word. What a reader can still
 # infer is that somebody usually types a word because it is in their
 # table -- so the guess a version 4 description made coarsely ("one
-# value was rescued") is made at twenty-one words. The word guessed at
+# value was rescued") is made at twenty-three words. The word guessed at
 # HERE can never be a name, a code, a diagnosis or a free-text answer,
 # because a value outside the list is written nowhere in this block.
 # That is a sentence about this block, and the paragraph below says why
@@ -284,7 +284,7 @@ RELATIONSHIP_SLOTS = (
 # Phase 1 and the settings rule has never been wider than this block --
 # and the profiler's own summary page, `SECURITY.md` and contract 5
 # section 6 all went on denying, with no scope attached, that a word
-# outside the twenty-one was written anywhere at all. The one that
+# outside the twenty-three was written anywhere at all. The one that
 # mattered was the summary: it printed `counted as missing: <the
 # person's word> (12)` and, four screens below, that synthtwin would
 # not keep any other word they typed. Both are now scoped where they
@@ -354,8 +354,9 @@ def _declaration_record(spellings: "tuple[str, ...]") -> dict[str, object]:
     beside the two new lists rather than being retired (contract 5
     C5-S7, decision 13.9).
     """
-    texts, numbers = taxonomy.built_in_values_named(spellings)
+    texts, numbers, days = taxonomy.built_in_values_named(spellings)
     return {
+        "built_in_dates": list(days),
         "built_in_numbers": list(numbers),
         "built_in_texts": list(texts),
         "n_declared": taxonomy.declarations_named(spellings),
@@ -648,6 +649,8 @@ PUBLICATION_RULES: "dict[tuple[str, ...], str]" = {
     # of the table standing here is refused before the file is written.
     ("settings", "kept_values", "built_in_texts"): _ARRAY,
     ("settings", "kept_values", "built_in_texts", _EACH): _WORD,
+    ("settings", "kept_values", "built_in_dates"): _ARRAY,
+    ("settings", "kept_values", "built_in_dates", _EACH): _WORD,
     ("settings", "kept_values", "built_in_numbers"): _ARRAY,
     ("settings", "kept_values", "built_in_numbers", _EACH): _STAND_IN_NUMBER,
     ("settings", "declared_missing_values"): _OBJECT,
@@ -655,6 +658,8 @@ PUBLICATION_RULES: "dict[tuple[str, ...], str]" = {
     ("settings", "declared_missing_values", "values_recorded"): _FLAG,
     ("settings", "declared_missing_values", "built_in_texts"): _ARRAY,
     ("settings", "declared_missing_values", "built_in_texts", _EACH): _WORD,
+    ("settings", "declared_missing_values", "built_in_dates"): _ARRAY,
+    ("settings", "declared_missing_values", "built_in_dates", _EACH): _WORD,
     ("settings", "declared_missing_values", "built_in_numbers"): _ARRAY,
     (
         "settings",
@@ -865,6 +870,12 @@ PUBLICATION_WORDS: "dict[tuple[str, ...], tuple[str, ...]]" = {
     # under `missing_by_source`, and its rule there is `_SPELLING`.
     ("settings", "kept_values", "built_in_texts", _EACH): (
         parsing.built_in_missing_texts()
+    ),
+    ("settings", "kept_values", "built_in_dates", _EACH): (
+        parsing.calendar_placeholders()
+    ),
+    ("settings", "declared_missing_values", "built_in_dates", _EACH): (
+        parsing.calendar_placeholders()
     ),
     ("settings", "declared_missing_values", "built_in_texts", _EACH): (
         parsing.built_in_missing_texts()

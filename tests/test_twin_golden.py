@@ -229,7 +229,7 @@ def test_the_golden_run_is_the_shape_this_file_says_it_is(
 # twenty-seven more obligations than it did, which is the direction a
 # re-recording must move in.
 GOLDEN_DESCRIPTION_SHA256 = (
-    "9121a094d4f1cb35657309b49a37ac53af390400342655d6a63005bd2747dd4d"
+    "8a8e12ee5454ca47f8dab35497053e11d6690881546604b49985aaa6d40191d1"
 )
 
 
@@ -554,7 +554,7 @@ def test_the_same_description_and_seed_give_the_same_twin_twice(
 # which is what says this is the page and not the run: stage 2 changes
 # no wire, no generation rule and no twin byte.
 GOLDEN_REPORT_SHA256 = (
-    "7577b962ac4f5f332b85cf47ea6be332d65b47024dc2db31fbef0320dabdc769"
+    "4ae022f7d6c279fa7d89a4305402e311a2e16a35da70e53f0cee4b7bf5536b17"
 )
 
 
@@ -921,7 +921,7 @@ def test_the_report_names_the_seed_the_twin_was_built_at(
 # that way: a line where the two values DIFFER may not have moved, and
 # one that did would be this repair reaching further than its own rule.
 GOLDEN_QUALITY_SHA256 = (
-    "6b0a7b7897cbc6a719b89c710e7b0be5c9141820b52c18403fb5a818e9f0448d"
+    "eb883c803f5d13bd4f08422ff30552b40b4fcdba2774417c509888b3e328ca5a"
 )
 
 

@@ -236,11 +236,11 @@ def test_the_declaration_record_uses_the_same_rule() -> None:
     ` nat `, and the validator would then read a name column's cells as
     absence when it checked a file against that description.
     """
-    named, _numbers = taxonomy.built_in_values_named((ABSENT_TIME,))
+    named, _numbers, _days = taxonomy.built_in_values_named((ABSENT_TIME,))
     assert ABSENT_TIME in named
-    loose, _also = taxonomy.built_in_values_named((" nat ",))
+    loose, _also, _more_days = taxonomy.built_in_values_named((" nat ",))
     assert ABSENT_TIME not in loose
-    folded, _more = taxonomy.built_in_values_named(("  #n/a  ",))
+    folded, _more, _also_days = taxonomy.built_in_values_named(("  #n/a  ",))
     assert "#N/A" in folded
 
 

@@ -335,6 +335,7 @@ STATISTICAL_TYPES = (
     TYPE_CODE,
     ROLE_CLOCK,
     ROLE_AFFIXED,
+    ROLE_LONG_TAIL,
     TYPE_TEXT,
 )
 QUALITY_STATES = (QUALITY_OK, QUALITY_EMPTY, QUALITY_UNREPRESENTABLE)
@@ -367,13 +368,16 @@ ROLE_AXES: "dict[str, tuple[str, str]]" = {
     ROLE_IDENTIFIER: (TYPE_CODE, QUALITY_OK),
     ROLE_CLOCK: (ROLE_CLOCK, QUALITY_OK),
     ROLE_AFFIXED: (ROLE_AFFIXED, QUALITY_OK),
-    # A LONG-TAIL COLUMN IS CATEGORICAL IN SHAPE, and the axis says so
-    # rather than naming a shape of its own (plan P4-D5). What the
-    # consumer asks is "what shape are the values": these are labels
-    # with counts, the same shape a set of categories has, and the
-    # generator dispatches on the axis. The ROLE is what records that a
-    # different rule claimed the column and why.
-    ROLE_LONG_TAIL: (ROLE_CATEGORICAL, QUALITY_OK),
+    # A LONG-TAIL COLUMN NAMES ITS OWN SHAPE (contract 14.1 and C6-19).
+    # It was mapped to `categorical` when the role landed, on the
+    # ground that the two publish the same four keys -- but the axis
+    # table is a BIJECTION, thirteen roles onto thirteen types, and a
+    # role sharing another's type breaks the totality discipline that
+    # is the axes' whole value here. The contract states the cost
+    # plainly: for this role the shape axis buys nothing over the role
+    # name, and it names itself anyway so that every role's type is one
+    # row of one table a reader can check.
+    ROLE_LONG_TAIL: (ROLE_LONG_TAIL, QUALITY_OK),
     ROLE_TEXT: (TYPE_TEXT, QUALITY_OK),
 }
 
@@ -1483,7 +1487,7 @@ class Settings:
     # FROM CONTRACT VERSION 5 THAT RULE HAS ONE STATED EXCEPTION, and it
     # is not the person's text (owner ruling 2026-08-17, plan amendment
     # A-P3-27 part 3, contract 5 section 6). The settings block also
-    # names WHICH MEMBERS of synthtwin's own twenty-one published words a
+    # names WHICH MEMBERS of synthtwin's own twenty-three published words a
     # declaration named -- ten spellings and three stand-in numbers,
     # written in the vocabulary's own spelling, identical in every
     # installation, and computed from the command line without reading a
@@ -2953,16 +2957,18 @@ def contradictory_declarations(
 
 def built_in_values_named(
     spellings: "tuple[str, ...]",
-) -> "tuple[tuple[str, ...], tuple[float, ...]]":
+) -> "tuple[tuple[str, ...], tuple[float, ...], tuple[str, ...]]":
     """Which of synthtwin's OWN published words a declaration named.
 
     Contract 5 section 6, invariants C5-16, C5-17 and C5-K1 to C5-K5;
     plan amendment A-P3-27 part 3.
 
-    THE WHOLE OF WHAT THIS MAY WRITE is a member of the twenty-one the
-    contract publishes in its own appendix: the ten spellings
-    `parsing.MISSING_TEXTS` reads as "no value" and the three stand-in
-    numbers `parsing.NUMERIC_SENTINELS` judges. They are synthtwin's
+    THE WHOLE OF WHAT THIS MAY WRITE is a member of the twenty-three
+    the contract publishes in its own appendix: the eighteen spellings
+    `parsing.MISSING_TEXTS` and `parsing.MISSING_TEXTS_EXACT` read as
+    "no value", the three stand-in numbers
+    `parsing.NUMERIC_SENTINELS` judges, and the two placeholder days
+    `parsing.CALENDAR_PLACEHOLDERS` judges. They are synthtwin's
     vocabulary, identical in every installation, and they contain no
     text of anybody's table. A declared value that is not one of them
     reaches NEITHER LIST, and the settings block keeps counting it and
@@ -3009,7 +3015,16 @@ def built_in_values_named(
     """
     texts: dict[str, int] = {}
     numbers: dict[float, int] = {}
+    days: dict[str, int] = {}
     for spelling in spellings:
+        # THE THIRD LIST, and it is the placeholder days (plan
+        # amendment A-P4-1 item 3). Its shape and its identity rules
+        # are the numeric list's: a member is recorded when the
+        # declaration names it, whether or not the table holds it, and
+        # the person's own spelling never travels.
+        for day in parsing.calendar_placeholders():
+            if parsing.folded(spelling) == parsing.folded(day):
+                days[day] = 1
         for member in parsing.built_in_missing_texts():
             # ASKED THROUGH THE ONE RULE, so the vocabulary's exact
             # member and its folded members are matched here exactly as
@@ -3022,16 +3037,16 @@ def built_in_values_named(
         for candidate in parsing.NUMERIC_SENTINELS:
             if exact == exact_of_number(candidate):
                 numbers[candidate] = 1
-    return tuple(sorted(texts)), tuple(sorted(numbers))
+    return tuple(sorted(texts)), tuple(sorted(numbers)), tuple(sorted(days))
 
 
 def is_published_vocabulary(spelling: str) -> bool:
-    """Whether this spelling is one of synthtwin's own twenty-one words.
+    """Whether this spelling is one of synthtwin's own twenty-three words.
 
     The question every surface that talks about a declared word has to
     answer the same way: is this word OURS -- one of the ten spellings
     `parsing.MISSING_TEXTS` reads as "no value" or one of the three
-    stand-in numbers `parsing.NUMERIC_SENTINELS` judges, all twenty-one
+    stand-in numbers `parsing.NUMERIC_SENTINELS` judges, all twenty-three
     printed in the contract's own appendix and identical in every
     installation -- or is it a word out of somebody's table?
 
@@ -3490,7 +3505,18 @@ def _placeholder_verdicts(
         days[candidate] = _day_ordinal(candidate)
     for candidate in sorted(days):
         occurrences = occurrences_of[candidate]
+        # THE PERSON NAMES A SPELLING OF THEIR TABLE, NOT A CANONICAL
+        # DAY (review item P4-HOLE-F2). A month-first column writes the
+        # far placeholder as `12/31/9999`, and that is what somebody
+        # types after `--keep-value`; comparing their word against the
+        # canonical `9999-12-31` matched nothing and the cells were
+        # taken out over their instruction. So the declaration is asked
+        # of the CELLS that denote this candidate, and of the canonical
+        # spelling too, because a person may type either.
         if _declared_spelling(candidate, kept):
+            verdicts[candidate] = (False, REASON_KEPT_BY_USER, occurrences)
+            continue
+        if _kept_by_spelling(present, format_name, candidate, kept):
             verdicts[candidate] = (False, REASON_KEPT_BY_USER, occurrences)
             continue
         if len(others) < 4:
@@ -3527,6 +3553,21 @@ def _placeholder_verdicts(
                 occurrences,
             )
     return verdicts
+
+
+def _kept_by_spelling(
+    present: "list[str]",
+    format_name: str,
+    candidate: str,
+    kept: "list[_Declaration]",
+) -> bool:
+    """Whether a declaration names a CELL that denotes this candidate."""
+    for value in present:
+        if parsing.placeholder_day_of(value, format_name) != candidate:
+            continue
+        if _declared_spelling(value, kept):
+            return True
+    return False
 
 
 def _day_ordinal(canonical: str) -> int:
@@ -4991,6 +5032,7 @@ def _decide(
     forced_identifier: bool,
     removed: int = 0,
     after_removal: bool = False,
+    after_days: bool = False,
 ) -> _Verdict:
     """Pick the one role, testing the rules in the documented order.
 
@@ -5054,6 +5096,16 @@ def _decide(
     # under it, and nothing on the page says why. The removed cells are
     # what made the earlier rules decline, so letting them decide again
     # lets a removal claim a column no rule would have given it.
+    # AND AFTER THE PLACEHOLDER PASS, ONLY RULES 5 ONWARD (plan
+    # amendment A-P4-1 item 3, review item P4-HOLE-F1). That pass's
+    # gate is narrower than the core pass's: it runs where rules 0
+    # through 4 declined, so those four are the ones that may not
+    # decide again -- and the datetime rule, which is the whole reason
+    # the pass ran, must still be asked. Two hundred and twenty-eight
+    # dates over two days beside twelve placeholder cells is a column
+    # of dates; re-asking rule 4 made it a two-valued column of labels
+    # once the placeholders were gone, which is a column changing role
+    # because cells LEFT it.
     if not after_removal:
         # RULE 0 -- the person who knows the table has the last word, and
         # since review item P1-R6-F8 it is also the ONLY word: this is the
@@ -5062,7 +5114,7 @@ def _decide(
         # rule, including the ones that publish. Eleven identical values
         # used to take the constant branch and publish the value while the
         # user had asked for exactly the opposite (review item P1-R1-F10).
-        if forced_identifier:
+        if forced_identifier and not after_days:
             return _identifier_verdict(cells, notes=notes, remarks=remarks)
 
         # RULE 2 -- numeric intent that nothing can hold. Tested before any
@@ -5082,7 +5134,7 @@ def _decide(
         # that decides the role and the population the statistics are
         # computed from are one population, which is what STRUCTURAL RULE A
         # already promises.
-        if numeric_looking >= strict_needed and (
+        if not after_days and numeric_looking >= strict_needed and (
             len(cells.numbers) < strict_needed
         ):
             remarks = remarks + [
@@ -5122,7 +5174,7 @@ def _decide(
             )
 
         # RULE 3 -- one value, repeated.
-        if folded_distinct == 1:
+        if folded_distinct == 1 and not after_days:
             levels = _levels(
                 cells.folded_counts, cells.spellings_by_folded, settings
             )
@@ -5144,7 +5196,7 @@ def _decide(
         # RULE 4 -- two values. Decided on the SAME key the levels are
         # counted with, so the role and the published list can never
         # disagree about how many values there are.
-        if folded_distinct == 2:
+        if folded_distinct == 2 and not after_days:
             levels = _levels(
                 cells.folded_counts, cells.spellings_by_folded, settings
             )
@@ -6128,6 +6180,7 @@ def profile_column(
     # cannot be turned into one by taking cells out of it.
     day_verdicts: dict[str, tuple[bool, str, int]] = {}
     removed_by_days = 0
+    judged_over_days = False
     if present and not forced_identifier:
         trial = _decide(cells, forced_identifier)
         if trial.role == ROLE_TEXT or trial.role == ROLE_DATETIME:
@@ -6157,6 +6210,7 @@ def profile_column(
                     classified = kept_cells
                     cells = _tally(classified, n_rows, settings)
                     present = cells.present
+                    judged_over_days = True
 
     # THE SAME JUDGEMENT, OVER THE CORES. A column of `-999 mg` beside
     # real amounts is the shape a trial file actually has, and the pass
@@ -6226,11 +6280,21 @@ def profile_column(
             remarks=[],
         )
     else:
+        # AFTER EITHER JUDGED PASS, rules 0 through 4 are not asked
+        # again (review item P4-HOLE-F1). They already declined the
+        # un-removed column, and asking them of the remainder is how a
+        # column changes role because cells LEFT it: two hundred and
+        # twenty-eight dates over two days beside twelve placeholder
+        # cells is a column of dates, and re-asking made it a
+        # two-valued column of labels once the placeholders were gone.
+        # The plan's gate promises no such move, and this is what makes
+        # the promise true rather than argued.
         verdict = _decide(
             cells,
             forced_identifier,
             removed_by_cores,
             after_removal=judged_over_cores,
+            after_days=judged_over_days,
         )
 
     by_source, by_class, n_blank, n_withheld = _missing_maps(

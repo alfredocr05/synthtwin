@@ -4281,6 +4281,17 @@ def _wears_a_published_hole(text: str, holes: "tuple[str, ...]") -> bool:
     folded = parsing.folded(body)
     held = parsing.exact_of_spelling(body)
     for spelling in holes:
+        # A PUBLISHED HOLE THAT IS A VOCABULARY MEMBER IS MATCHED THE
+        # MEMBER'S OWN WAY (contract C6-32, review item P4-HOLE-F3).
+        # This predicate folded every hole spelling, so a column
+        # publishing the exact member `NaT` had its sixty ordinary
+        # `nat` cells counted as holes by the recount -- and the twin
+        # report then said the column held sixty values where the file
+        # holds a hundred and twenty.
+        if spelling in parsing.MISSING_TEXTS_EXACT:
+            if text == spelling:
+                return True
+            continue
         other = parsing.trimmed(spelling)
         if parsing.folded(other) == folded:
             return True
@@ -9234,6 +9245,13 @@ def _content_of(
         return [cell for cell in plan.cells], []
     kind = column.statistical_type
     if kind == "constant" or kind == "binary" or kind == "categorical":
+        return _label_content(plan)
+    # THE LONG TAIL NAMES ITS OWN SHAPE (contract 14.1, C6-19) and is
+    # written by the label rule verbatim: published labels at their
+    # counts, invented neutral labels at the exact suppressed sizes.
+    # Naming it here rather than folding it into the line above keeps
+    # the axis table a bijection while leaving one construction.
+    if kind == "long_tail_labels":
         return _label_content(plan)
     if kind == "count" or kind == "continuous":
         return _numeric_content(plan, words)

@@ -106,6 +106,10 @@ _TYPE_WORDS = {
     "count": "whole numbers that count things",
     "continuous": "measured numbers",
     "categorical": "a set of categories",
+    "long_tail_labels": (
+        "many different values, some of them repeated often enough to "
+        "name"
+    ),
     "code": "record numbers or codes (you named this column)",
     "text": "free text",
 }
@@ -1098,6 +1102,14 @@ def _by_reason_lines(
             "a number this column used as a stand-in for 'no value'",
         ),
         (classes.text_code, "a code such as NA that reads as 'no value'"),
+        # THE SIXTH REASON, and its line was missing entirely (review
+        # item P4-HOLE-F5): a column with twelve placeholder cells
+        # printed a reason table adding to nothing while the block
+        # beside it counted twelve absent.
+        (
+            classes.date_sentinel,
+            "a date this column used as a stand-in for 'no value'",
+        ),
     ]
     lines: list[str] = []
     for count, reason in reasons:
@@ -1135,10 +1147,38 @@ def _sentinel_lines(column: contract.ColumnBlock) -> "list[str]":
     """
     if not column.sentinel_verdicts:
         return []
-    lines = [
-        "  Numbers this column used as stand-ins for 'no value', and what",
-        "  synthtwin decided about each. The twin does not reproduce them:",
-    ]
+    # THE CANDIDATES ARE OF TWO KINDS AND THE PAGE SAYS SO (review item
+    # P4-HOLE-F5). A placeholder day is not a number, and a section
+    # headed "numbers this column used" that then prints `9999-12-31`
+    # tells its reader the wrong thing about what the column held.
+    days = 0
+    numbers = 0
+    for verdict in column.sentinel_verdicts:
+        if verdict.candidate in parsing.calendar_placeholders():
+            days = days + 1
+        else:
+            numbers = numbers + 1
+    if numbers and days:
+        opening = (
+            "  Values this column used as stand-ins for 'no value' -- "
+            "numbers and"
+        )
+        lines = [
+            opening,
+            "  dates both -- and what synthtwin decided about each. The",
+            "  twin does not reproduce them:",
+        ]
+    elif days:
+        lines = [
+            "  Dates this column used as stand-ins for 'no value', and what",
+            "  synthtwin decided about each. The twin does not reproduce",
+            "  them:",
+        ]
+    else:
+        lines = [
+            "  Numbers this column used as stand-ins for 'no value', and what",
+            "  synthtwin decided about each. The twin does not reproduce them:",
+        ]
     for verdict in column.sentinel_verdicts:
         decision = verdict.verdict
         if decision in _VERDICT_WORDS:
@@ -1148,7 +1188,7 @@ def _sentinel_lines(column: contract.ColumnBlock) -> "list[str]":
             because = _REASON_WORDS[because]
         named = f"{_shown(verdict.candidate)}"
         if verdict.candidate == contract.WITHHELD:
-            named = "a number not named here"
+            named = "a value not named here"
         lines = lines + [
             (
                 f"    {named} in "
@@ -1156,8 +1196,15 @@ def _sentinel_lines(column: contract.ColumnBlock) -> "list[str]":
                 f"because {_shown(because)}"
             )
         ]
+    if days and not numbers:
+        return lines + [
+            "  A date the twin worked out can land on one of those days by",
+            "  ordinary interpolation. Describing the twin again would",
+            "  count that cell absent, exactly as your own column's cells",
+            "  were counted.",
+        ]
     return lines + [
-        "  A number the twin worked out can land on one of those spellings",
+        "  A value the twin worked out can land on one of those spellings",
         "  by arithmetic alone. Describing the twin again would count that",
         "  cell absent, exactly as your own column's cells were counted.",
     ]

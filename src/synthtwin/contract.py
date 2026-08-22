@@ -171,6 +171,7 @@ SETTINGS_KEYS = (
 # lists that say which members of this package's OWN published
 # vocabulary a declaration named, and never a spelling of the person's.
 DECLARATION_KEYS = (
+    "built_in_dates",
     "built_in_numbers",
     "built_in_texts",
     "n_declared",
@@ -299,10 +300,11 @@ AXIS_ROWS = (
     (ROLE_IDENTIFIER, "code", "ok"),
     (ROLE_CLOCK, "time_of_day", "ok"),
     (ROLE_AFFIXED, "affixed_number", "ok"),
-    # A LONG TAIL IS CATEGORICAL IN SHAPE (plan P4-D5): labels with
-    # counts, which is what a consumer asks the shape axis. The ROLE is
-    # what records that a different rule claimed it, and why.
-    (ROLE_LONG_TAIL, "categorical", "ok"),
+    # IT NAMES ITS OWN SHAPE (contract 14.1, C6-19). The axis table is
+    # a bijection -- thirteen roles onto thirteen types, one row each --
+    # and a role sharing another's type breaks the totality discipline
+    # the axes exist for.
+    (ROLE_LONG_TAIL, ROLE_LONG_TAIL, "ok"),
     (ROLE_TEXT, "text", "ok"),
 )
 
@@ -318,6 +320,7 @@ STATISTICAL_TYPES = (
     "code",
     "time_of_day",
     "affixed_number",
+    "long_tail_labels",
     "text",
 )
 
@@ -1015,6 +1018,7 @@ class DeclarationRecord:
     values_recorded: bool
     built_in_texts: "tuple[str, ...]"
     built_in_numbers: "tuple[float, ...]"
+    built_in_dates: "tuple[str, ...]"
 
 
 
@@ -2681,14 +2685,17 @@ def _declaration(value: object, key: str, where: str) -> DeclarationRecord:
         )
     texts = _built_in_texts(mapping["built_in_texts"], key, where)
     numbers = _built_in_numbers(mapping["built_in_numbers"], key, where)
-    if len(texts) + len(numbers) > declared:
+    days = _built_in_dates(mapping["built_in_dates"], key, where)
+    # THE COUNT IDENTITY REACHES ALL THREE LISTS (plan amendment
+    # A-P4-1 item 3): a record naming more of this package's own words
+    # than it says values were declared is a record that cannot be
+    # read back, whichever list the words are in.
+    named = len(texts) + len(numbers) + len(days)
+    if named > declared:
         raise _broken(
             "C5-K3",
             where,
-            (
-                f"the record '{key}' names "
-                f"{len(texts) + len(numbers)} of synthtwin's own words"
-            ),
+            f"the record '{key}' names {named} of synthtwin's own words",
             f"it says {declared} value(s) were named that way",
         )
     return DeclarationRecord(
@@ -2696,6 +2703,7 @@ def _declaration(value: object, key: str, where: str) -> DeclarationRecord:
         values_recorded=recorded,
         built_in_texts=texts,
         built_in_numbers=numbers,
+        built_in_dates=days,
     )
 
 
@@ -2739,6 +2747,39 @@ def _built_in_texts(
         found = found + [member]
         place = place + 1
     return tuple(found)
+
+
+def _built_in_dates(
+    value: object, key: str, where: str
+) -> "tuple[str, ...]":
+    """The placeholder days one declaration named (A-P4-1 item 3).
+
+    Every element must be a member of `parsing.calendar_placeholders()`,
+    the two days this package judges, and the list is sorted and holds
+    no repeat -- the same shape and the same identity rules the numeric
+    list carries, so a consumer can tell a day this package supplied
+    from a day somebody typed.
+    """
+    listed = _listing(value, f"{key} -> built_in_dates", where)
+    seen: list[str] = []
+    for item in listed:
+        member = _text(item, f"{key} -> built_in_dates", where)
+        if member not in parsing.calendar_placeholders():
+            raise _out_of_range(
+                f"{key} -> built_in_dates",
+                where,
+                f"'{member}'",
+                _listed(parsing.calendar_placeholders()),
+            )
+        if seen and member <= seen[len(seen) - 1]:
+            raise _broken(
+                "C5-K2",
+                where,
+                f"the record '{key}' names '{member}' out of order",
+                "the days it names are sorted and none is repeated",
+            )
+        seen = seen + [member]
+    return tuple(seen)
 
 
 def _built_in_numbers(
@@ -2797,7 +2838,7 @@ def _no_word_is_named_both_ways(
     words -- so a description carrying one member in both records is a
     description its own settings contradict. The refusal says which
     record pair clashed and never quotes the member: it is one of
-    synthtwin's own twenty-one words, but naming it here would put the
+    synthtwin's own twenty-three words, but naming it here would put the
     loader in the business of quoting a settings value, which nothing
     else on this path does.
 
