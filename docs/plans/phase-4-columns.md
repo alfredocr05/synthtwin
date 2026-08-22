@@ -2945,8 +2945,19 @@ the exact count at every seed. That is precisely the position the date
 role was in, and the version 4 matrix answers it there by giving a
 column of dates its own explicit cardinality bound.
 
+**WHAT IS NOT LOWERED, and the first writing of this amendment did not
+say it** (codex round 1 on this role, item P4-CLK-F1). Where a column's
+values were ALL DIFFERENT -- where its count of different values, net
+of the cells that are stand-ins, is the count that parsed -- the
+obligation stays EXACT and the construction meets it: a closed finite
+space of times has a place for each of them, so where two ranks
+interpolate onto one time the later takes the next, which is what the
+source column itself did. The room to do that is exactly what the
+capacity refusal guarantees. Only a column whose own values REPEAT
+falls to the envelope below.
+
 **What is lowered.** Both distinctness counts on a `time_of_day` column
-are APPROXIMATED under a two-sided envelope: the lower end counts ranks
+whose values repeat are APPROXIMATED under a two-sided envelope: the lower end counts ranks
 whose windows cannot hold the same time, plus the stand-ins, each
 spelled differently from every other cell; the upper end is how many
 times the published range holds at all, plus those stand-ins, and never
@@ -2954,9 +2965,9 @@ more cells than the column has. The envelope need not contain the
 published count and on an ordinary column it does not, which is what an
 explicit cardinality bound means.
 
-**What it costs.** A consumer cannot read an exact count of different
-times off a clock twin, and must read the published count off the
-DESCRIPTION instead — which is where it was always true. What it buys
+**What it costs.** On a column whose values repeat, a consumer cannot
+read an exact count of different times off the twin, and must read the
+published count off the DESCRIPTION instead — which is where it was always true. What it buys
 is a bar an ordinary column can actually meet, rather than a MISSED
 line on every conforming twin of every clock column this phase adds.
 

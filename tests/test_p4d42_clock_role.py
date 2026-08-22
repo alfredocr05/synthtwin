@@ -359,3 +359,96 @@ def test_a_rung_is_said_as_a_distance_a_person_can_read() -> None:
             "minute(s)" in check.achieved
         ), check.achieved
         assert ".0" not in check.achieved, check.achieved
+
+# -- what codex round 1 found ------------------------------------------
+
+
+def test_an_all_different_column_keeps_every_value_apart() -> None:
+    """A-P4-20 as narrowed: the exact bar stands where the values did.
+
+    A hundred different minutes published as a hundred different values
+    must come back as a hundred. The interpolation collides where the
+    ladder is tighter than the ranks are numerous, and the repair is
+    the one the source column itself used: take the next minute. A
+    closed finite space has a place for each of them, which the
+    capacity refusal below is what guarantees.
+    """
+    values = _minutes(100)
+    _document, loaded, _table = _described(values)
+    for seed in range(12):
+        cells = [cell for cell in generation.generate(loaded, seed).columns[0] if cell]
+        assert len(set(cells)) == 100, seed
+
+
+def test_a_column_asking_for_more_times_than_a_day_holds_is_refused() -> None:
+    """The one refusal this role adds, decided before any cell exists.
+
+    A day holds 1,440 minutes. A description saying a column holds
+    1,441 different ones describes no table, and every arrangement of
+    cells fails -- so the honest answer is to say so before writing
+    anything, and to say the description itself is not damaged.
+    """
+    import copy
+
+    document, _loaded, _table = _described(
+        [
+            parsing.clock_spelling(index, parsing.CLOCK_HH_MM)
+            for index in range(1440)
+        ]
+    )
+    forged = copy.deepcopy(document)
+    forged["n_rows"] = 1441
+    column = forged["columns"][0]
+    column["n_present"] = 1441
+    column["n_distinct"] = 1441
+    column["n_distinct_folded"] = 1441
+    column["n_not_numeric"] = 1441
+    folder = pathlib.Path(tempfile.mkdtemp())
+    written = fixtures.write_profile(folder, "over.json", forged)
+    loaded = contract.load_profile(f"{written}")
+    with pytest.raises(errors.ProfileError) as raised:
+        generation.generate(loaded, 0)
+    said = f"{raised.value}"
+    assert "1441 different times of day" in said
+    assert "only 1440 of them in a day" in said
+    assert "description is not damaged" in said
+
+
+def test_a_cell_needing_a_tidy_is_not_a_clock_time() -> None:
+    """The fifth refusal: this reader takes the cell as the file wrote it.
+
+    What this role publishes ARE the cells -- the two endpoints and
+    eleven rungs are values some row wore, character for character. A
+    reader that trimmed would let a column of ` 09:30 ` publish
+    `09:30`, a string no row of that table holds, and the ladder would
+    stop being a selection of real cells.
+    """
+    for cell in (" 09:30 ", "09:30 ", " 09:30", "\t09:30", "09:30\u00a0"):
+        assert parsing.clock_form(cell) is None, repr(cell)
+
+
+def test_a_file_in_the_other_form_is_read_rather_than_silenced() -> None:
+    """V5.3: only the disclosure gate may withhold, and this is not it.
+
+    A file whose cells wear the other shape publishes a ladder in that
+    shape. Reading it under the DESCRIPTION's form found nothing and
+    every rung went silent -- on a file whose own description publishes
+    exactly the measurement being asked for. Both sides are read in
+    their own form now and compared in seconds of day, so the same
+    moments HOLD and the form itself is what misses.
+    """
+    coarse = _minutes(100, start=9 * 60)
+    fine = [
+        parsing.clock_spelling(9 * 3600 + index * 60, parsing.CLOCK_HH_MM_SS)
+        for index in range(100)
+    ]
+    _document, loaded, _table = _described(coarse)
+    folder = pathlib.Path(tempfile.mkdtemp())
+    other = fixtures.write(
+        folder, "other.csv", fixtures.single_column_table("seen_at", fine)
+    )
+    outcome = validation.measure(loaded, f"{other}")
+    spoken = {check.subcheck: check.verdict for check in outcome.checks}
+    assert spoken["form.clock_form"] == validation.MISSED
+    for name in ("p01", "p25", "p50", "p75", "p99"):
+        assert spoken[f"clock-ladder.{name}"] == validation.HELD, name

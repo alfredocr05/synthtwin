@@ -4068,7 +4068,10 @@ def _clock_reading(cells: _Cells) -> "_Clock | None":
         good: "list[str]" = []
         for text in present:
             if parsing.clock_form(text) == form:
-                good = good + [parsing.trimmed(text)]
+                # The CELL, not a tidied copy of it: what this role
+                # publishes are values some row wore, and the reader
+                # accepts nothing that needed tidying.
+                good = good + [text]
         if len(good) >= needed and good:
             return _Clock(
                 form=form,

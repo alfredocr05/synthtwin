@@ -174,10 +174,12 @@ def every_role_table(seed: int = 20260807, n_rows: int = 240) -> str:
         # Its values come from `index` alone, so no draw of the shared
         # generator moves when this column is added. They REPEAT --
         # a hundred and twenty different times over two hundred and
-        # forty rows -- because an all-different column publishes a
-        # distinct count equal to its own present count, which no
-        # interpolated twin can carry and which makes the envelope
-        # vacuous. And two rows hold text no clock reading accepts, so
+        # forty rows -- because that is the shape whose distinctness
+        # falls to the envelope of amendment A-P4-20, and a fixture
+        # that only ever held all-different values would never walk it.
+        # The all-different case is exact and is pinned in the role's
+        # own test file, where the construction is held to carrying
+        # every value. And two rows hold text no clock reading accepts, so
         # `n_unparsed` is exercised rather than sitting at zero: two is
         # the most a hundred-and-ninety-nine-hundredths parse line
         # leaves room for at this length.

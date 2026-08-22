@@ -8208,11 +8208,18 @@ def _clock_ladder_checks(
     for index in range(1, len(_LADDER_KEYS) - 1):
         key = _LADDER_KEYS[index]
         seen = None if measured is None else _text_at(measured, key)
-        held = None if seen is None else parsing.clock_ordinal(seen, form)
+        # READ IN THE FILE'S OWN FORM AND COMPARED IN ONE UNIT. A file
+        # whose cells wear the other shape publishes a ladder in that
+        # shape, and reading it under the DESCRIPTION's form finds
+        # nothing -- so every rung went silent, on a file whose own
+        # description publishes exactly the measurement being asked
+        # for. That is not the disclosure gate closing; it is the
+        # validator unable to read, which V5.3 does not permit as a
+        # reason for silence. Both sides are read in their own form and
+        # compared in seconds of day, where a minute is sixty and the
+        # two spaces are one.
+        held = None if seen is None else _clock_seconds(seen, block)
         rank = _rung_rank(_LADDER_PERCENTS[index], parsed)
-        published = parsing.clock_ordinal(
-            facts.clock_percentiles[key], form
-        )
         checks = checks + [
             _within_clock(
                 name,
@@ -8224,6 +8231,26 @@ def _clock_ladder_checks(
             )
         ]
     return checks
+
+
+def _clock_seconds(text: str, block: "dict[str, object]") -> "int | None":
+    """One measured clock value in SECONDS of day, read in its own form.
+
+    The file's own description says which form its cells wore, and that
+    is the form its ladder is written in. Reading it under somebody
+    else's form is reading it wrongly, and answering "cannot tell" is
+    worse than answering wrongly: it makes the check silent on a file
+    whose own description publishes the very value being compared.
+    """
+    found = _text_at(block, "clock_form")
+    if found is None:
+        return None
+    ordinal = parsing.clock_ordinal(text, found)
+    if ordinal is None:
+        return None
+    if found == contract.CLOCK_FORMS[0]:
+        return ordinal * 60
+    return ordinal
 
 
 def _clock_units(form: str) -> str:
@@ -8243,8 +8270,18 @@ def _shown_clock_distance(ordinal: int, rung: int, form: str) -> str:
     published rung is on the line above -- and carries no spelling of
     anybody's table.
     """
+    # The two numbers arrive in seconds; a column of minutes says its
+    # distance in minutes, which is what its reader has in front of
+    # them. An odd number of seconds on such a column is a file that
+    # wore the other form, and it is said in seconds rather than
+    # rounded into a lie.
     away = ordinal - rung
     word = _clock_units(form)
+    if form == contract.CLOCK_FORMS[0]:
+        if away % 60 == 0:
+            away = away // 60
+        else:
+            word = "second"
     if away == 0:
         return "that same time"
     if away < 0:
@@ -8268,7 +8305,11 @@ def _within_clock(
     rung; and a window that does not reach the published value says so
     rather than leaving a reader to think the page is wrong.
     """
-    rung = _clock_ordinal_or_zero(published, facts.clock_form)
+    # IN SECONDS OF DAY, the one unit the two forms share, because the
+    # measured side was read in the FILE's own form and this one is
+    # read in the description's.
+    step = 60 if facts.clock_form == contract.CLOCK_FORMS[0] else 1
+    rung = step * _clock_ordinal_or_zero(published, facts.clock_form)
     low, high = window
     form = facts.clock_form
     allowed = (
@@ -8350,19 +8391,28 @@ def _clock_rank_windows(
         for name in _LADDER_KEYS
     ]
     last = len(_LADDER_KEYS) - 1
+    # THE WINDOWS ARE DRAWN IN THE FORM'S OWN UNIT AND HANDED BACK IN
+    # SECONDS, because the measured side is read in the FILE's form and
+    # the two have to meet in one space. The interpolation itself must
+    # happen in the column's own unit -- it floors, and flooring in
+    # seconds lands part way through a minute the construction cannot
+    # write -- so the conversion is the last step and never the first.
+    step = 60 if facts.clock_form == contract.CLOCK_FORMS[0] else 1
     lows: "list[int]" = []
     highs: "list[int]" = []
     for rank in range(parsed):
         if rank == 0:
-            lows = lows + [ladder[0]]
-            highs = highs + [ladder[0]]
+            lows = lows + [step * ladder[0]]
+            highs = highs + [step * ladder[0]]
             continue
         if rank == parsed - 1 and parsed >= 2:
-            lows = lows + [ladder[last]]
-            highs = highs + [ladder[last]]
+            lows = lows + [step * ladder[last]]
+            highs = highs + [step * ladder[last]]
             continue
-        lows = lows + [_ladder_ordinal_at(ladder, rank, parsed) - 1]
-        highs = highs + [_ladder_ordinal_at(ladder, rank + 1, parsed)]
+        lows = lows + [
+            step * _ladder_ordinal_at(ladder, rank, parsed) - step
+        ]
+        highs = highs + [step * _ladder_ordinal_at(ladder, rank + 1, parsed)]
     return (lows, highs)
 
 
