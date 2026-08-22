@@ -3859,6 +3859,7 @@ WHOLE_FACT_LISTINGS: "dict[str, tuple[str, ...]]" = {
     ),
     "datetime": (
         "datetime.format",
+        "datetime.resolution_mix",
         "universal.detection_evidence",
         "universal.missing_by_class",
         "universal.missing_by_source",

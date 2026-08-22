@@ -9210,6 +9210,7 @@ def generate(profile: contract.Profile, seed: int) -> Twin:
             + _whole_notes(column, written)
             + _magnitude_notes(column, written)
             + _style_notes(column, written)
+            + _mix_notes(column, written)
         )
         # Every APPROXIMATED fact of this column, measured on the cells
         # just written and checked against both ends of the bound
@@ -9727,6 +9728,77 @@ def _whole_notes(
             "the width the description publishes, so a check that reads "
             "them as numbers can behave differently here than on the "
             "real table.",
+        )
+    ]
+
+
+def _mix_notes(
+    column: contract.ColumnBlock, written: "list[str]"
+) -> "list[Deviation]":
+    """Name the form census a column read under the joint ISO reading loses.
+
+    `resolution_mix` is REPORT-ONLY and the plan says why: the twin
+    writes every parsed cell of such a column at the column's finest
+    recorded precision, exactly as the ratified rule writes every
+    column of dates today, because a cell spelled as a whole date
+    cannot carry an interior value of a column published at the
+    second. So the census is recorded and not reproduced -- and this is
+    where the report says so, per column, every run (plan P4-D4.3).
+
+    IT IS RECOUNTED RATHER THAN PREDICTED, like every other count in
+    this part of the report. The rule above says the twin writes no
+    whole dates at all, and a run that finds otherwise has found a
+    defect in itself; recounting is what lets the line say which it
+    was.
+
+    Only the joint reading reaches here. On a column read under one
+    format the census restates that format's own name beside the parsed
+    total, and the report already discloses the format as recorded
+    rather than reproduced, so a second line would name the same loss
+    twice.
+    """
+    facts = column.facts
+    if not isinstance(facts, contract.DatetimeFacts):
+        return []
+    if facts.parser_family != contract.FORMAT_ISO_MIXED:
+        return []
+    counted = {"iso-date": 0, "iso-datetime": 0}
+    for cell in written:
+        if cell == "":
+            continue
+        if parsing.parse_datetime(cell, "iso-datetime") is not None:
+            counted["iso-datetime"] = counted["iso-datetime"] + 1
+            continue
+        if parsing.parse_datetime(cell, "iso-date") is not None:
+            counted["iso-date"] = counted["iso-date"] + 1
+    # THE TWO KEYS ARE THE LOADER'S OWN GUARANTEE. RM1 refuses a joint
+    # reading whose census names any other pair, so both are read
+    # straight rather than asked for with a stand-in value that would
+    # quietly answer zero if the pair ever changed.
+    published = facts.resolution_mix
+    whole_dates = published["iso-date"]
+    with_a_time = published["iso-datetime"]
+    if counted["iso-date"] == whole_dates:
+        if counted["iso-datetime"] == with_a_time:
+            return []
+    return [
+        _deviation(
+            column.name,
+            "resolution_mix",
+            f"{whole_dates} of these dates were written "
+            f"as a whole date and "
+            f"{with_a_time} carried a time of day",
+            f"{counted['iso-date']} of the twin's are written as a whole "
+            f"date and {counted['iso-datetime']} carry a time of day",
+            "The real column mixed the two ways of writing a date and "
+            "the twin writes them all the same way, at the finer of the "
+            "two, so code that reads these cells as text -- taking the "
+            "first ten characters, or testing how long a cell is -- can "
+            "behave differently here than on the real table. Code that "
+            "reads them as dates is unaffected: every cell of the twin "
+            "reads back as the same moment it would on the real table's "
+            "own terms, with a cell that carried no time of day placed "
+            "at midnight.",
         )
     ]
 

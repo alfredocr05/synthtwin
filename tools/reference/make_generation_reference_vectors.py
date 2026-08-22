@@ -3669,6 +3669,17 @@ def _universal(name, role, statistical_type, structural_role, quality_state, **f
     # every case here but two does.
     if "numeric_styles" in block and "fraction_widths" not in block:
         block["fraction_widths"] = {}
+    # The census of which form each parsed date wore (contract C6-25),
+    # on every column of dates and on no other role.  A column read
+    # under one format wore that format in every cell that parsed, so
+    # its census is that one name beside that one count; the joint ISO
+    # reading is the only shape with two names in it, and no case in
+    # this file takes that reading.  The census is REPORT-ONLY and
+    # steers no rule of the method: it is written because every block
+    # of dates carries it and a loader refuses a block that does not.
+    if role == "datetime":
+        parsed = block["n_present"] - block["n_unparsed"]
+        block["resolution_mix"] = {block["format"]: parsed}
     if block["n_missing"]:
         block["missing_by_class"] = dict(block["missing_by_class"])
         block["missing_by_class"]["(withheld)"] = block["n_missing"]
@@ -4545,7 +4556,7 @@ INTEGER_COLUMN_KEYS = frozenset({
 INTEGER_COLUMN_MAPS = frozenset({
     "missing_by_class", "missing_by_source", "numeric_styles", "utc_offsets",
     "variants", "variants_withheld", "n_distinct_by_occurrences",
-    "fraction_widths",
+    "fraction_widths", "resolution_mix",
 })
 INTEGER_COLUMN_ARRAYS = frozenset({"suppressed_level_counts"})
 # The two blocks of a free-text column whose own two ends are whole

@@ -289,6 +289,7 @@ PLAN4_REGIONS = {
         "## Amendment A-P4-20 — the clock role's distinctness is "
         "approximated, under its own envelope"
     ),
+    "date-readings": "### P4-D4.3 The widened date readings",
     "fraction": (
         "### P4-D4.5 The fixed-fraction spelling fact "
         "(closes R-P3-12's route)"
@@ -314,6 +315,7 @@ GROUPS_OUTSIDE_THE_VERSION_4_MATRIX = ("affixed", "clock")
 # own facts are -- held to a document, just not to that one.
 FACTS_OUTSIDE_THE_VERSION_4_MATRIX = (
     ("numeric", "fraction_widths"),
+    ("datetime", "resolution_mix"),
 )
 
 
@@ -734,6 +736,17 @@ REGISTRY += [
         "format",
         REPORT_ONLY,
         plan_words="**`format` is REPORT-ONLY, not EXACT-OBSERVABLE.**",
+    ),
+]
+REGISTRY += [
+    Fact(
+        "datetime",
+        "resolution_mix",
+        REPORT_ONLY,
+        plan_region="date-readings",
+        plan_words="And it is REPORT-ONLY, deliberately, on the exact "
+        "precedent of the `format` fact itself",
+        aliases=("form census", "how many wore each form"),
     ),
 ]
 REGISTRY += [

@@ -813,6 +813,14 @@ PUBLICATION_RULES: "dict[tuple[str, ...], str]" = {
     # serve both roles -- a clock value is canonical moment text by the
     # same character rule a date is.
     ("columns", _EACH, "clock_form"): _WORD,
+    # HOW MANY PARSED CELLS WORE EACH FORM. Its keys are members of
+    # this package's own format vocabulary, so a spelling of the table
+    # cannot become one; its counts are exact and no floor governs
+    # them, which is why they are plain counts rather than floored
+    # entries (contract C6-25).
+    ("columns", _EACH, "resolution_mix"): _OBJECT,
+    ("columns", _EACH, "resolution_mix", _KEY_OF): _WORD,
+    ("columns", _EACH, "resolution_mix", _ANY_KEY): _COUNT,
     ("columns", _EACH, "clock_percentiles"): _OBJECT,
     ("columns", _EACH, "clock_percentiles", _KEY_OF): _WORD,
     ("columns", _EACH, "clock_percentiles", _ANY_KEY): _MOMENT_TEXT,
@@ -879,6 +887,7 @@ PUBLICATION_WORDS: "dict[tuple[str, ...], tuple[str, ...]]" = {
     # Read from the one place the two forms are named, so the word a
     # producer writes and the word this guard admits cannot drift.
     ("columns", _EACH, "clock_form"): parsing.CLOCK_FORMS,
+    ("columns", _EACH, "resolution_mix", _KEY_OF): parsing.DATE_FORMATS,
     ("columns", _EACH, "length", _KEY_OF): taxonomy.LENGTH_KEYS,
     ("columns", _EACH, "words", _KEY_OF): taxonomy.WORD_KEYS,
     ("columns", _EACH, "numeric_styles", _KEY_OF): (

@@ -345,6 +345,14 @@ def _matrix_sections() -> "dict[str, dict[str, str]]":
 # under `numeric` in `tests/dispositions.py`.
 PHASE_4_NUMERIC_KEYS = ("fraction_widths",)
 
+# ...and the form census a column of dates now carries, for the same
+# reason at one grain finer: version 4 HAS the datetime section, and
+# that section has no row for a key version 4 never published. The
+# Phase 4 plan disposes it (P4-D4.3) and the registry carries it.
+PHASE_4_DATETIME_KEYS = (
+    ("resolution_mix", "REPORT-ONLY (Phase 4 plan, P4-D4.3)"),
+)
+
 # ...and the clock role's own five, for the same reason: the version 4
 # matrix was written before the role existed, and the Phase 4 plan
 # disposes them (P4-D4.2, with A-P4-20 for the ladder).
@@ -1063,6 +1071,8 @@ def test_every_key_the_producer_emits_has_a_disposition(
                 table[own] = "EXACT-OBSERVABLE (Phase 4 plan, P4-D4.1)"
             for own in PHASE_4_NUMERIC_KEYS:
                 table[own] = "EXACT-OBSERVABLE (Phase 4 plan, P4-D4.5)"
+            for own, said in PHASE_4_DATETIME_KEYS:
+                table[own] = said
             if role == "time_of_day":
                 # The datetime section it borrows disposes the DATE
                 # ladder and the offset fields, none of which this role

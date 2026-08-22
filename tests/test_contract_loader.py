@@ -647,8 +647,30 @@ def battery() -> list[Mutation]:
             edit("recorded_on", subsecond_digits=3),
         ),
         Mutation(
+            # THE CENSUS MOVES WITH IT. Since the form census joined
+            # the block it counts the values that parsed, so a
+            # mutation that makes nothing parse has to empty the
+            # census too -- otherwise RM2 refuses the document one
+            # rule earlier and D8 is never reached, which would leave
+            # D8 with no case at all while this file still looked
+            # green.
             "D8", "a column of dates where nothing read as a date",
-            edit("recorded_on", n_unparsed=240),
+            edit("recorded_on", n_unparsed=240, resolution_mix={}),
+        ),
+        Mutation(
+            "RM1", "a form census naming a form the column was not read in",
+            edit("recorded_on", resolution_mix={"compact-date": 240}),
+        ),
+        Mutation(
+            "RM1", "a form census naming two forms on a single-form column",
+            edit(
+                "recorded_on",
+                resolution_mix={"iso-date": 200, "iso-datetime": 40},
+            ),
+        ),
+        Mutation(
+            "RM2", "a form census counting more values than parsed",
+            edit("recorded_on", resolution_mix={"iso-date": 241}),
         ),
         Mutation(
             "D9", "an offset on a column that publishes no time of day",

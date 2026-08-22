@@ -69,12 +69,20 @@ DATE_FORMATS = (
     "month-first-date",
     "day-first-date",
     "year-quarter",
+    # LAST, AND THAT IS THE RULE RATHER THAN A PLACE IN A LIST. The
+    # single-format pass runs first and its verdict stands wherever it
+    # clears -- a column of ninety-nine ISO dates and one datetime cell
+    # is a date column with one unparsed cell, as it is today. Only
+    # where NO single format clears does the joint reading get a turn,
+    # which is what putting it after every other member means.
+    "iso-mixed",
 )
 
 _FORMAT_EXAMPLES = {
     "iso-date": "2024-03-17",
     "iso-datetime": "2024-03-17 14:05:00",
     "slashed-iso-date": "2024/03/17",
+    "iso-mixed": "2024-03-17 and 2024-03-17 14:05:00 together",
     "compact-date": "20240317",
     "month-first-date": "03/17/2024 (month first)",
     "day-first-date": "17/03/2024 (day first)",
@@ -1079,6 +1087,19 @@ def parse_datetime(text: str, format_name: str) -> "tuple[str, str] | None":
         if clock is None:
             return None
         return f"{date_part} {clock}", split[1]
+    if format_name == "iso-mixed":
+        # THE JOINT ISO READING. A cell conforms when EITHER ISO member
+        # reads it, and a whole date is read at the family's finest
+        # resolution -- midnight of that day -- because the column is
+        # described at that resolution and a date-form cell has no
+        # other place in it.
+        found = parse_datetime(text, "iso-datetime")
+        if found is not None:
+            return found
+        whole = parse_datetime(text, "iso-date")
+        if whole is None:
+            return None
+        return f"{whole[0]} 00:00:00", whole[1]
     if format_name == "slashed-iso-date":
         # THE YEAR LEADS, WHICH IS WHAT MAKES IT UNAMBIGUOUS. A slashed
         # date whose first field is four figures cannot be read the
@@ -1494,12 +1515,19 @@ def instant_key(canonical: str, offset: str) -> "int | None":
 
 
 def _clock_of(text: str, format_name: str) -> "str | None":
-    """The time-of-day part of an iso-datetime cell, offset removed."""
+    """The time-of-day part of an iso-datetime cell, offset removed.
+
+    THE JOINT READING IS ANSWERED CELL BY CELL. Under `iso-mixed` some
+    cells carry a time of day and some are whole dates, so the question
+    is asked of the cell rather than of the column: a whole date is
+    shorter than the guard below and answers None, which is the same
+    answer it gives under any date-only form.
+    """
     if not isinstance(text, str):
         raise TypeError(_NOT_TEXT)
     if not isinstance(format_name, str):
         raise TypeError(_NOT_TEXT)
-    if format_name != "iso-datetime":
+    if format_name != "iso-datetime" and format_name != "iso-mixed":
         return None
     body = text.strip()
     if len(body) < 16:

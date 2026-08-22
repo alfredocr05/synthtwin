@@ -364,6 +364,12 @@ _NOT_CHECKABLE_REPORT_ONLY = (
     "no CSV can evidence this fact: the description records how the "
     "real table was read, and a written file cannot show it"
 )
+_NOT_CHECKABLE_RESOLUTION_MIX = (
+    "the description records how many of the real table's dates were "
+    "written as whole dates and how many carried a time of day, and it "
+    "asks no file to write them the same way: a file that writes every "
+    "date at one precision misses no obligation this description makes"
+)
 _NOT_CHECKABLE_HEADERLESS_ORDER = (
     "the description says the column names were generated, so the file "
     "carries no header line and nothing in it can evidence the order "
@@ -9695,7 +9701,13 @@ def _listings(
                     "datetime.format",
                     "",
                     _NOT_CHECKABLE_REPORT_ONLY,
-                )
+                ),
+                Listing(
+                    column.name,
+                    "datetime.resolution_mix",
+                    "",
+                    _NOT_CHECKABLE_RESOLUTION_MIX,
+                ),
             ]
             listings = listings + _endpoint_listings(column, facts, corners)
         if isinstance(facts, contract.NumericFacts) and not _ladder_points(

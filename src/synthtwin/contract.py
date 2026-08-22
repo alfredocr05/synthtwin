@@ -364,6 +364,7 @@ CLOCK_FORMS = ("hh-mm", "hh-mm-ss")
 
 DATETIME_KEYS = (
     "date_percentiles",
+    "resolution_mix",
     "datetimes_read_at",
     "earliest",
     "earliest_utc_offset",
@@ -465,7 +466,13 @@ DATE_FORMATS = (
     "month-first-date",
     "day-first-date",
     "year-quarter",
+    "iso-mixed",
 )
+
+# The two members the joint ISO reading joins. A column that took that
+# reading publishes exactly these two counts and no other key.
+ISO_MEMBERS = ("iso-date", "iso-datetime")
+FORMAT_ISO_MIXED = "iso-mixed"
 
 RESOLUTIONS = ("date", "datetime", "quarter")
 
@@ -881,6 +888,14 @@ INVARIANTS = {
     "P3": (
         "a column of numbers says how its numbers were written"
     ),
+    "RM1": (
+        "a column of dates says how many of its values wore each form, "
+        "and names the form it was read under"
+    ),
+    "RM2": (
+        "the values counted by the form they were written in come to "
+        "the values that were read as dates at all"
+    ),
     "T1": (
         "every time of day this description publishes is written the "
         "way this column's own times were written"
@@ -1180,6 +1195,7 @@ class DatetimeFacts:
     date_percentiles: DateLadder
     n_unparsed: int
     utc_offsets: "dict[str, int]"
+    resolution_mix: "dict[str, int]"
 
 
 @dataclasses.dataclass(frozen=True)
@@ -3940,6 +3956,51 @@ def _categorical_facts(
     )
 
 
+def _resolution_mix(
+    value: object,
+    where: str,
+    parser_family: str,
+    parsed: int,
+) -> "dict[str, int]":
+    """How many parsed cells wore each form (contract C6-25).
+
+    TWO PERMITTED KEY SETS AND NO THIRD. A column read under one form
+    names that form and nothing else; a column the joint ISO reading
+    claimed names exactly the two members it joins. Anything else is a
+    document describing a column no producer writes.
+
+    The counts are exact and no floor governs them, for the reason the
+    contract gives: a two-member space beside the published parsed
+    total makes a pooled remainder recoverable by subtraction, so a
+    floor would withhold nothing, and what these carry is a count of
+    FORMS rather than any value of the table.
+
+    Raises ProfileError for RM1 -- the wrong key set -- and RM2, the
+    total that does not come to the cells that parsed.
+    """
+    mix = _counts(value, "resolution_mix", where, 0)
+    wanted: "tuple[str, ...]" = ISO_MEMBERS
+    if parser_family != FORMAT_ISO_MIXED:
+        wanted = (parser_family,)
+    if sorted(mix) != sorted(wanted):
+        raise _broken(
+            "RM1",
+            where,
+            f"the forms it counts are {_listed(tuple(sorted(mix)))}",
+            f"a column read as '{parser_family}' counts "
+            f"{_listed(tuple(sorted(wanted)))}",
+        )
+    total = _added(mix)
+    if total != parsed:
+        raise _broken(
+            "RM2",
+            where,
+            f"the values counted by their form come to {total}",
+            f"{parsed} of the column's values were read as dates",
+        )
+    return mix
+
+
 def _datetime_facts(
     mapping: "dict[str, object]", where: str, floor: int, n_present: int
 ) -> DatetimeFacts:
@@ -3967,6 +4028,17 @@ def _datetime_facts(
     unparsed = _whole(mapping["n_unparsed"], "n_unparsed", where, 0)
     wanted = "date"
     if parser_family == "iso-datetime":
+        wanted = "datetime"
+    elif parser_family == FORMAT_ISO_MIXED:
+        # THE JOINT READING PUBLISHES AT THE FINER OF THE TWO FORMS it
+        # joins. A column holding both `2024-03-15` and
+        # `2024-03-15 08:30:00` writes a time of day in some of its
+        # cells, so the column reaches the second; publishing it as a
+        # column of whole dates would lose every one of those times.
+        # The cells that carry no time of day are placed at midnight,
+        # which is what `resolution_mix` is published for -- it says
+        # how many of them there were, so a reader is never left to
+        # infer that all of them wrote a time (contract C6-25).
         wanted = "datetime"
     elif parser_family == "year-quarter":
         wanted = "quarter"
@@ -4027,6 +4099,14 @@ def _datetime_facts(
             f"{unparsed} values did not read as a date",
             f"the column holds {n_present} values",
         )
+    # AFTER D8, WHICH IS WHAT MAKES THE CENSUS'S KEY SET CLOSED. A
+    # column where nothing read as a date would carry an empty census
+    # honestly, and RM1 would then have a third permitted key set for a
+    # document D8 has already refused. Asking D8 first leaves RM1 with
+    # the two key sets a real producer writes and nothing else.
+    mix = _resolution_mix(
+        mapping["resolution_mix"], where, parser_family, n_present - unparsed
+    )
     offsets = _counts(mapping["utc_offsets"], "utc_offsets", where, 1)
     named = 0
     for key in sorted(offsets):
@@ -4132,6 +4212,7 @@ def _datetime_facts(
         latest_utc_offset=latest_offset,
         date_percentiles=ladder,
         n_unparsed=unparsed,
+        resolution_mix=mix,
         utc_offsets=offsets,
     )
 
