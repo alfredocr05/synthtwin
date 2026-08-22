@@ -64,6 +64,7 @@ NUMERIC_SENTINELS = (-9999.0, -999.0, 9999.0)
 DATE_FORMATS = (
     "iso-date",
     "iso-datetime",
+    "slashed-iso-date",
     "compact-date",
     "month-first-date",
     "day-first-date",
@@ -73,6 +74,7 @@ DATE_FORMATS = (
 _FORMAT_EXAMPLES = {
     "iso-date": "2024-03-17",
     "iso-datetime": "2024-03-17 14:05:00",
+    "slashed-iso-date": "2024/03/17",
     "compact-date": "20240317",
     "month-first-date": "03/17/2024 (month first)",
     "day-first-date": "17/03/2024 (day first)",
@@ -1064,6 +1066,24 @@ def parse_datetime(text: str, format_name: str) -> "tuple[str, str] | None":
         if clock is None:
             return None
         return f"{date_part} {clock}", split[1]
+    if format_name == "slashed-iso-date":
+        # THE YEAR LEADS, WHICH IS WHAT MAKES IT UNAMBIGUOUS. A slashed
+        # date whose first field is four figures cannot be read the
+        # other way round -- there is no calendar in which the day or
+        # the month is a four-figure number -- so this form joins the
+        # table without the day-first question the two-figure slashed
+        # forms carry (plan P4-D4.3 item 1).
+        if len(body) != 10 or body[4] != "/" or body[7] != "/":
+            return None
+        year = _digits_at(body, 0, 4)
+        month = _digits_at(body, 5, 2)
+        day = _digits_at(body, 8, 2)
+        if year is None or month is None or day is None:
+            return None
+        canonical = _canonical_date(year, month, day)
+        if canonical is None:
+            return None
+        return canonical, ""
     if format_name == "compact-date":
         if len(body) != 8 or not _all_ascii_digits(body):
             return None
