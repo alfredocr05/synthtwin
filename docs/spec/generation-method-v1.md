@@ -1590,6 +1590,25 @@ rather than passing it off as an outcome the description asked for.
 - **The separator is `T`**, on every `datetime` cell. The shipped parser
   accepts `T`, `t` and a space; `T` is the ISO form and one choice has
   to be made for the bytes to be fixed.
+
+  **WITH ONE EXCEPTION, AND IT KEEPS AN EXACT FACT RATHER THAN
+  RELAXING ONE** (review item P4-DATE-F2). Where the cell this rule
+  produces is one of the spellings the column publishes among its
+  absent cells — the keys of `missing_by_source` — the space form is
+  written instead. The two spell the same instant at the same precision
+  on the same clock, so nothing published moves; what moves is whether
+  the twin's OWN description still counts the cell. A real column can
+  hold a present cell at midnight written `2024-01-01` and, beside it,
+  cells a declaration made absent as `2024-01-01T00:00:00`; the twin
+  writes every parsed cell at the finest precision, reaches the second
+  spelling, and hands back a cell its own reader calls absent — so
+  `n_present` falls and, where the cell was an endpoint, an
+  EXACT-OBSERVABLE end walks out of the twin over a separator nobody
+  chose. The exception is asked ONLY at that collision, so no other
+  cell and no frozen vector moves. Where BOTH spellings are published
+  as absent the `T` form stands and G12's endpoint entry names the
+  loss: this rule declines to invent a third spelling to hide a fact
+  the description really does make impossible.
 - **The fractional digits are zeros.** The profile publishes how MANY
   subsecond digits the finest cell carried and nothing about their
   values — the parser reads and discards the fraction — so any other
@@ -3027,7 +3046,27 @@ the three distinctness facts they cost (G9.6); a word count brought down
 to what its own length carries on a group carrying NEITHER published
 word extreme, the two carrying groups being settled by a refusal instead
 (G9.5 step 6, P2-C5-F4); the invented canonical width of an unrepresentable column
-(G10.5); and the out-of-range cells all written too large (G10.3).
+(G10.5); the out-of-range cells all written too large (G10.3); and the
+form census of a column of dates read under the joint ISO reading,
+which the twin does not reproduce (G7.5, contract C6-25, plan P4-D4.3).
+
+**The census entry, in full, because it is the one entry on this list
+that is named on EVERY run of the column it belongs to.**
+`resolution_mix` is REPORT-ONLY: it records how many of the real
+column's parsed cells were written as a whole date and how many carried
+a time of day, and the twin writes every one of them at the column's
+finest recorded precision, because a cell spelled as a whole date
+cannot carry an interior value of a column published at the second. So
+the achieved side is not a shortfall a rule failed to reach; it is what
+the rule above says the twin writes, and the entry exists so the reader
+is told rather than left to work it out. It is RECOUNTED from the
+finished cells like every count below, not predicted: the rule says the
+twin writes no whole dates at all, and a run that finds otherwise has
+found a defect in itself. A column read under ONE format has no such
+line — its census restates that format's own name beside the parsed
+total, and `format` is already disclosed as recorded-not-reproduced, so
+a second line would tell a reader there were two losses where there is
+one.
 
 **What this list does not hold, and why the absence is the point.** No
 end of a column of dates appears in it. The contract's D10 and D11

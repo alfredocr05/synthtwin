@@ -2971,5 +2971,80 @@ published count off the DESCRIPTION instead — which is where it was always tru
 is a bar an ordinary column can actually meet, rather than a MISSED
 line on every conforming twin of every clock column this phase adds.
 
+## Amendment A-P4-21 — the parse line is the exact product, and was not
+
+**THIS RAISES conformance and lowers nothing that was ever true.** The
+contract fixes the parse-line count (its section 4.5.2) as the smallest
+whole number reaching the EXACT product of `settings.minimum_parse_rate`
+and the population. The implementation multiplied the two in binary64,
+which ROUNDS the product, and a rounded product is a different number
+from an exact one.
+
+**What was wrong, concretely.** A rate recorded as `0.01` is not one
+hundredth: the nearest binary64 to one hundredth sits a shade above it.
+Against a hundred values the exact product is therefore a shade above
+one and the line is TWO; the binary64 multiplication rounded that
+product back down to exactly one and the line came out at ONE. A column
+holding a single value in a hundred cleared a line the contract says it
+misses, and every check resting on the line — the datetime readings,
+the clock reading, the affixed pair — inherited it.
+
+**What changes.** The rate is carried as the two whole numbers it
+really stands for, taken from its own binary64 fraction and exponent,
+and both the line and its ceiling counterpart are decided there, where
+no rounding is left to happen. THE SHIPPED DEFAULT IS UNTOUCHED: at
+`0.99`, and at `0.5`, the two answers agree for every population from
+one to one hundred thousand, so no column any shipped run described
+moves. What moves is a rate whose binary64 sits above the decimal a
+person typed, at populations that are exact multiples of it.
+
+**What it costs.** On those rates the line is one value stricter than
+the rounded one, so a column at exactly the typed share now declines
+where it used to be claimed. That is the contract's own answer and the
+implementation was giving another one; a reading that is claimed by a
+rounding error is a reading nobody can check.
+
+Found by the adversarial read of the widened date readings
+(P4-DATE-F1).
+
+## Amendment A-P4-22 — a twin date cell is not written into its own column's absent spellings
+
+**THIS RAISES what the twin holds and lowers nothing.** G7.5 fixes `T`
+as the separator of every `datetime` cell so that the bytes are a fixed
+function of the description. One collision makes that rule cost an
+EXACT-OBSERVABLE fact.
+
+**What was wrong, concretely.** A real column can hold a present cell
+at midnight written `2024-01-01` and, beside it, eleven cells a
+declaration made absent as `2024-01-01T00:00:00`. Those are two
+spellings and the description carries both facts honestly. The twin
+writes every parsed cell at the column's finest recorded precision,
+reaches the second spelling for the endpoint, and hands back a cell its
+OWN description reads as absent: `n_present` falls by one and the
+published `earliest` — EXACT-OBSERVABLE, with no corner — is gone.
+Neither the endpoint self-check nor the new form census noticed,
+because both read the raw text rather than reading it the way the twin
+will be read.
+
+**What changes.** Three things, and the first is the repair while the
+other two are the honesty. (1) Where the cell G7.5 produces is one the
+column publishes among its absent cells, the space form is written
+instead — the same instant, at the same precision, on the same clock,
+so nothing published moves. Where BOTH spellings are declared absent no
+third is invented and the loss is named. (2) The endpoint self-check
+asks whether the twin's own description would read that cell as absent.
+(3) The recount of present, absent and different values does the same,
+on every role, so a count this report prints is the count a person gets
+by describing the twin again.
+
+**What it costs.** One cell of one column can now be written with a
+space where the fixed rule says `T`, and only at that collision, so no
+other cell and no frozen reference vector moves. The alternative was a
+twin that silently loses an exact end.
+
+Found by the adversarial read of the widened date readings
+(P4-DATE-F2), together with F3, which is closed by the generation
+method carrying the census line in its own inventory of deviations.
+
   The five plan reviews are in `docs/plans/reviews/` as
   `phase-4-plan-review-round-1.md` through `-round-5.md`.
