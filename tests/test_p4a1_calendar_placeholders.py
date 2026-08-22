@@ -15,11 +15,11 @@ WHAT IS PINNED HERE, and each of it is a rule the amendment states:
   offset arithmetic;
 - the standing outlier-and-share rule transposed to day ordinals,
   reusing the two recorded sentinel settings and adding none;
-- TWO gates on the pass, and both must hold: rules 0 through 4 declined
-  the un-removed column, AND the non-candidate remainder clears the
-  datetime rule's line by itself -- otherwise no cell is judged, no
-  cell is removed, and the column lands exactly where today's rules put
-  it;
+- TWO conditions on the pass, and both must hold: rules 0 through 4
+  declined the un-removed column, AND the non-candidate remainder
+  clears the datetime rule's line by itself -- otherwise no cell is
+  judged, no cell is removed, and the column lands exactly where
+  today's rules put it;
 - so a constant column of one placeholder stays constant, a two-valued
   column whose one value is a placeholder stays binary, and a column
   that was never a column of dates cannot be turned into one;
@@ -149,11 +149,11 @@ def test_there_are_exactly_two_candidates() -> None:
     assert parsing.calendar_placeholders() == (NEAR, FAR)
 
 
-# -- the two gates ----------------------------------------------------
+# -- the two conditions ------------------------------------------------
 
 
 def test_a_constant_column_of_the_placeholder_keeps_its_claim() -> None:
-    """Rules 0 through 4 declined the UN-REMOVED column, and they did not."""
+    """Rules 0 through 4 declined the un-removed column, and they did not."""
     document, _loaded, _folder = _described([FAR] * 240)
     assert document["columns"][0]["role"] == "constant"
     assert document["columns"][0]["n_missing"] == 0
@@ -269,3 +269,94 @@ def test_every_column_block_carries_the_sixth_class() -> None:
         "(text-code)",
         "(withheld)",
     )
+
+
+# -- what the adversarial read of this landing turned up --------------
+
+
+def test_a_removal_never_sends_a_column_to_an_earlier_rule() -> None:
+    """P4-HOLE-F1, and it is the promise the two conditions exist for.
+
+    A hundred and fourteen cells of one day, a hundred and fourteen of
+    another, and twelve placeholders. Rules 0 through 4 decline the
+    un-removed column and the remainder clears the datetime line, so
+    the pass runs -- and then the whole ladder was asked again, rule 4
+    saw two values, and a column of dates came back as a two-valued
+    column of labels. That is a column changing role because cells LEFT
+    it, which the amendment's ordering exists to forbid.
+    """
+    values = (
+        ["2024-01-01"] * 114 + ["2024-01-02"] * 114 + [FAR] * 12
+    )
+    document, _loaded, _folder = _described(values)
+    block = document["columns"][0]
+    assert block["role"] == "datetime"
+    assert block["statistical_type"] == "datetime"
+    assert block["n_missing"] == 12
+
+
+def test_the_declaration_names_a_spelling_of_your_table() -> None:
+    """P4-HOLE-F2: `--keep-value` takes the cell's own spelling.
+
+    A month-first column writes the far placeholder as `12/31/9999`,
+    and that is what somebody types. Comparing their word against the
+    canonical `9999-12-31` matched nothing, so the cells were taken out
+    over their instruction and the column published a last value they
+    had asked to keep.
+    """
+    values = [
+        f"{1 + place % 12}/{1 + place % 28}/2024" for place in range(228)
+    ] + ["12/31/9999"] * 12
+    document, _loaded, _folder = _described(
+        values, taxonomy.Settings(kept_values=("12/31/9999",))
+    )
+    block = document["columns"][0]
+    assert block["n_missing"] == 0
+    assert block["latest"] == FAR
+    assert block["sentinel_verdicts"][0]["reason"] == "kept_by_you"
+
+
+def test_a_declared_placeholder_is_recorded_in_its_own_list() -> None:
+    """P4-HOLE-F4: the third declaration list, which the wire requires.
+
+    Without it the settings say one value was declared and name none of
+    this package's own words, so a validator cannot rebuild the reading
+    rule the description was written under -- and the summary tells a
+    person they named none of synthtwin's own words when they named one.
+    """
+    document, described, _folder = _described(
+        _dates(228) + [FAR] * 12, taxonomy.Settings(kept_values=(FAR,))
+    )
+    record = document["settings"]["kept_values"]
+    assert record["built_in_dates"] == [FAR]
+    assert record["n_declared"] == 1
+    assert described.settings.kept_values.built_in_dates == (FAR,)
+    assert FAR in validation.kept_spellings(described)
+
+
+def test_the_twin_report_counts_the_sixth_reason() -> None:
+    """P4-HOLE-F5: its reason table printed nothing at all.
+
+    A column with twelve placeholder cells had a block saying twelve
+    were absent and a reason table adding to zero.
+    """
+    _document, described, _folder = _described(_dates(228) + [FAR] * 12)
+    twin = generation.generate(described, 5)
+    page = rendering.report(described, twin)
+    assert "a date this column used as a stand-in" in page
+    assert "12 cell(s)" in page
+
+
+def test_neither_page_calls_a_placeholder_day_a_number() -> None:
+    """P4-HOLE-F5 again, on the two surfaces a person reads."""
+    from synthtwin import summary
+
+    document, described, _folder = _described(_dates(228) + [FAR] * 12)
+    page = summary.render(document, "")
+    assert "dates synthtwin checks as stand-ins" in page
+    assert "numbers synthtwin checks as stand-ins" not in page
+
+    twin = generation.generate(described, 5)
+    report = rendering.report(described, twin)
+    assert "Dates this column used as stand-ins" in report
+    assert "Numbers this column used as stand-ins" not in report

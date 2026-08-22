@@ -108,6 +108,7 @@ def test_keep_value_makes_a_genuine_na_data_again(
     # record names the MEMBER `na` -- not the person's capitals, and not
     # any word of theirs that is not on that list.
     assert document["settings"]["kept_values"] == {
+        "built_in_dates": [],
         "built_in_numbers": [],
         "built_in_texts": ["na"],
         "n_declared": 1,
@@ -142,6 +143,7 @@ def test_missing_value_makes_ordinary_text_a_hole(
     # so both lists stay empty and the count is the whole of what the
     # settings block says about it (contract 5 C5-17, C5-18).
     assert document["settings"]["declared_missing_values"] == {
+        "built_in_dates": [],
         "built_in_numbers": [],
         "built_in_texts": [],
         "n_declared": 1,
@@ -280,6 +282,7 @@ def test_both_candidates_can_be_kept_at_once(
     assert column["percentiles"]["min"] == -999.0
     assert column["percentiles"]["max"] == 9999.0
     assert document["settings"]["kept_values"] == {
+        "built_in_dates": [],
         "built_in_numbers": [-999.0, 9999.0],
         "built_in_texts": [],
         "n_declared": 2,

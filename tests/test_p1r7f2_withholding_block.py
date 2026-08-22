@@ -156,7 +156,7 @@ def test_the_decision_survives_without_the_spelling(
     # `(withheld)` is synthtwin's word for "not published here", and
     # "(withheld), in 20 row(s): kept as a number" reads as a spelling
     # this table wrote (review of the shipped reports, 2026-08-15).
-    assert "a number not named here, in 20 row(s)" in said
+    assert "a value not named here, in 20 row(s)" in said
     assert taxonomy.SUPPRESSED_LABEL not in said
     assert "kept as a number" in said
 
@@ -484,7 +484,7 @@ def test_the_summary_prints_what_the_profile_holds(
         assert entry["candidate"] == taxonomy.SUPPRESSED_LABEL
         # The profile's pooled name reaches the page as what it means --
         # "not published here" -- and never as a spelling of the table.
-        assert "a number not named here, in" in said
+        assert "a value not named here, in" in said
     assert taxonomy.SUPPRESSED_LABEL not in said
     for entry in named["sentinel_verdicts"]:
         assert entry["candidate"] == SENTINEL

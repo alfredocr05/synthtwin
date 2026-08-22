@@ -3410,5 +3410,59 @@ after every numeric candidate and among themselves as text -- one rule
 per kind, and the two kinds never interleave. Every consequence rides
 the version 6 bump, which is residual R-P4-23.
 
+## Amendment A-P4-32 — the read of the two absence landings, and the role's own shape
+
+**Five items came back on the machine artifacts and the calendar
+placeholders together, three of them blocking.** Under A-P4-30 this
+range gets at most three review rounds; the first is spent here.
+
+1. **A removal sent a column to an earlier rule** (P4-HOLE-F1,
+   blocking). A hundred and fourteen cells of one day, a hundred and
+   fourteen of another and twelve placeholders: rules 0 through 4
+   declined the un-removed column and the remainder cleared the
+   datetime line, so the pass ran -- and then the whole ladder was
+   asked again, rule 4 saw two values, and a column of dates came back
+   as a two-valued column of labels. `_decide` gains `after_days`,
+   which stands down exactly rules 0 through 4 and leaves the datetime
+   rule to be asked, because the datetime rule is why the pass ran.
+   The affix pass's own flag stands down rules 0 through 7 and is
+   unchanged; the two are different widths because the two passes
+   enter the order at different rules.
+2. **A declaration named a spelling of the person's table, and was
+   compared with a canonical day** (P4-HOLE-F2, blocking). A
+   month-first column writes the far placeholder as `12/31/9999`, and
+   that is what somebody types after `--keep-value`; the cells were
+   taken out over their instruction. The declaration is asked of the
+   CELLS that denote the candidate now, and of the canonical spelling
+   too, because either may be typed.
+3. **The generator's hole predicate folded the exact member**
+   (P4-HOLE-F3). A column publishing `NaT` had its sixty ordinary
+   `nat` cells counted as holes by the recount, so the twin report
+   said the column held sixty values where the file holds a hundred
+   and twenty. This is the fourth place the exception came apart, and
+   it is why C6-32 names the sites rather than leaving them inferred.
+4. **The third declaration list did not exist** (P4-HOLE-F4,
+   blocking). The wire requires `built_in_dates` in both records;
+   without it a person who rescued a placeholder had their instruction
+   recorded as a word of their own, so no validator could rebuild the
+   reading rule their description was written under. The list is
+   built, the count identity reaches all three, and the published
+   vocabulary is TWENTY-THREE members on every surface that states a
+   size.
+5. **Two pages called a placeholder day a number** (P4-HOLE-F5). The
+   summary printed it under a heading promising numbers, and the twin
+   report's reason table omitted the sixth class entirely -- so a
+   column with twelve absent cells had a reason table adding to zero.
+   Both name the kinds they hold.
+
+**And the role's own shape, taken with them.** `long_tail_labels`
+answered `categorical` on the shape axis, and the version 6 contract's
+14.1 makes that table a BIJECTION: thirteen roles onto thirteen types,
+one row each, with C6-19 saying plainly that for three of them the
+shape axis buys nothing over the role name and that they name
+themselves anyway, because what the axes are worth here is the
+totality discipline. It names itself now, and the generator dispatches
+that type onto the label construction, so one rule still writes both.
+
   The five plan reviews are in `docs/plans/reviews/` as
   `phase-4-plan-review-round-1.md` through `-round-5.md`.

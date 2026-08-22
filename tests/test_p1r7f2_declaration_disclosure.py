@@ -94,6 +94,7 @@ def test_a_declared_value_never_reaches_the_settings_block(
     # list carries it and the count is still the whole of what the
     # settings block says (contract 5 C5-17).
     assert document["settings"]["declared_missing_values"] == {
+        "built_in_dates": [],
         "built_in_numbers": [],
         "built_in_texts": [],
         "n_declared": 1,
@@ -163,6 +164,7 @@ def test_a_kept_value_stays_out_of_the_settings_and_stays_in_its_column(
     # person's capitals (contract 5 C5-17). What that gives up is
     # written out in `profile.DECLARATION_PUBLICATION`.
     assert document["settings"]["kept_values"] == {
+        "built_in_dates": [],
         "built_in_numbers": [],
         "built_in_texts": ["na"],
         "n_declared": 1,
@@ -223,12 +225,14 @@ def test_the_settings_block_still_names_every_setting() -> None:
         [],
     )
     assert recorded["kept_values"] == {
+        "built_in_dates": [],
         "built_in_numbers": [-999.0],
         "built_in_texts": ["na"],
         "n_declared": 2,
         "values_recorded": False,
     }
     assert recorded["declared_missing_values"] == {
+        "built_in_dates": [],
         "built_in_numbers": [],
         "built_in_texts": [],
         "n_declared": 1,

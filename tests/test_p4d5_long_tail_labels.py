@@ -81,7 +81,11 @@ def test_a_long_tail_is_read_as_labels() -> None:
     )
     block = document["columns"][0]
     assert block["role"] == "long_tail_labels"
-    assert block["statistical_type"] == "categorical"
+    # IT NAMES ITS OWN SHAPE (contract 14.1, C6-19). The axis table is
+    # a bijection -- thirteen roles onto thirteen types -- so a role
+    # sharing another's type would break the totality the axes exist
+    # for. What it publishes is still the label family's four keys.
+    assert block["statistical_type"] == "long_tail_labels"
     assert [level["label"] for level in block["levels"]] == [
         "common",
         "also common",
@@ -227,7 +231,7 @@ def test_a_document_claiming_the_role_without_a_covering_level() -> None:
     forged = copy.deepcopy(document)
     block = forged["columns"][0]
     block["role"] = "long_tail_labels"
-    block["statistical_type"] = "categorical"
+    block["statistical_type"] = "long_tail_labels"
     block["levels"] = [
         {
             "label": "aaa",
