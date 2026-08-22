@@ -214,6 +214,9 @@
         "quality_state": "ok",
         "remarks": [],
         "resolution": "datetime",
+        "resolution_mix": {
+          "iso-datetime": 12
+        },
         "role": "datetime",
         "sentinel_verdicts": [],
         "statistical_type": "datetime",

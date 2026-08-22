@@ -3163,7 +3163,7 @@ SEALED: "dict[str, tuple[str, ...]]" = {
 # `dispositions.judgment` separates.
 JUDGMENT: "dict[str, str]" = {
     "authorizations": "640ab4a896839384",
-    "bindings": "2ea9dea275f9ad41",
-    "classes": "d1a3ca8afb67da0b",
+    "bindings": "8295ff86eaa3276f",
+    "classes": "ac685e6cd942389a",
     "reports": "8726c800d2c56eee",
 }

@@ -62,6 +62,9 @@
         "quality_state": "ok",
         "remarks": [],
         "resolution": "date",
+        "resolution_mix": {
+          "iso-date": 12
+        },
         "role": "datetime",
         "sentinel_verdicts": [],
         "statistical_type": "datetime",
@@ -593,6 +596,9 @@
         "quality_state": "ok",
         "remarks": [],
         "resolution": "date",
+        "resolution_mix": {
+          "iso-date": 11
+        },
         "role": "datetime",
         "sentinel_verdicts": [],
         "statistical_type": "datetime",
@@ -2245,6 +2251,9 @@
         "quality_state": "ok",
         "remarks": [],
         "resolution": "datetime",
+        "resolution_mix": {
+          "iso-datetime": 24
+        },
         "role": "datetime",
         "sentinel_verdicts": [],
         "statistical_type": "datetime",
@@ -2398,6 +2407,9 @@
         "quality_state": "ok",
         "remarks": [],
         "resolution": "quarter",
+        "resolution_mix": {
+          "year-quarter": 12
+        },
         "role": "datetime",
         "sentinel_verdicts": [],
         "statistical_type": "datetime",

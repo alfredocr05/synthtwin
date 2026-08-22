@@ -3828,7 +3828,7 @@ def _datetime_details(
     for value in sources:
         digits = max(digits, parsing.subsecond_digits(value, format_name))
     resolution = RESOLUTION_DATE
-    if format_name == "iso-datetime":
+    if format_name == "iso-datetime" or format_name == FORMAT_ISO_MIXED:
         resolution = RESOLUTION_DATETIME
     if format_name == "year-quarter":
         resolution = RESOLUTION_QUARTER
@@ -3841,6 +3841,7 @@ def _datetime_details(
     offsets = _offset_counts(pairs, settings)
     return {
         "format": format_name,
+        "resolution_mix": _resolution_mix(format_name, sources),
         "resolution": resolution,
         "time_precision": _finest_precision(sources, format_name),
         "subsecond_digits": digits,
@@ -3859,6 +3860,40 @@ def _datetime_details(
         "n_unparsed": unparsed,
         "utc_offsets": offsets,
     }
+
+
+# The joint ISO reading's own name, used where a rule has to tell it
+# from the two members it joins.
+FORMAT_ISO_MIXED = "iso-mixed"
+
+
+def _resolution_mix(
+    format_name: str, sources: "list[str]"
+) -> "dict[str, int]":
+    """How many parsed cells of this column wore each form (C6-25).
+
+    ONE KEY ON A SINGLE-FORMAT COLUMN -- its own form, carrying every
+    cell that parsed -- and exactly the two ISO members on a column the
+    joint reading claimed. No other key set conforms, and the counts
+    are exact with no floor: a two-member space beside the published
+    parsed total makes a pooled remainder recoverable by subtraction,
+    so a floor would withhold nothing, and what the fact carries is a
+    count of FORMS rather than any value of the table.
+
+    Guarantees: accepts a format member and the source cells that
+    parsed under it; returns a mapping whose values sum to how many
+    there were. Determinism: a function of the two, with the keys built
+    in the format table's own order. Raises nothing. No I/O of any kind.
+    """
+    if format_name != FORMAT_ISO_MIXED:
+        return {format_name: len(sources)}
+    counted = {"iso-date": 0, "iso-datetime": 0}
+    for value in sources:
+        if parsing.parse_datetime(value, "iso-datetime") is not None:
+            counted["iso-datetime"] = counted["iso-datetime"] + 1
+            continue
+        counted["iso-date"] = counted["iso-date"] + 1
+    return counted
 
 
 def _datetime_reading(pairs: list[tuple[str, str]]) -> str:
