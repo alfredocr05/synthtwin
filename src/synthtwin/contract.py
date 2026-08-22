@@ -2706,7 +2706,7 @@ def _built_in_texts(
     place = 0
     for item in listed:
         member = _text(item, f"{field}[{place + 1}]", where)
-        if member not in parsing.MISSING_TEXTS:
+        if member not in parsing.built_in_missing_texts():
             raise _broken(
                 "C5-K1",
                 where,
@@ -2787,7 +2787,7 @@ def _no_word_is_named_both_ways(
     words -- so a description carrying one member in both records is a
     description its own settings contradict. The refusal says which
     record pair clashed and never quotes the member: it is one of
-    synthtwin's own thirteen words, but naming it here would put the
+    synthtwin's own twenty-one words, but naming it here would put the
     loader in the business of quoting a settings value, which nothing
     else on this path does.
 

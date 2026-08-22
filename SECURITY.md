@@ -301,14 +301,30 @@ Stated here so that no reader has to discover them independently:
   version 4 the settings block carried a declaration as a COUNT and
   never as text, because a declared value is compared against every cell
   of every column and could be data. **From version 5 it also names
-  which members of a thirteen-member list synthtwin publishes in its own
-  contract were among the values you typed** - ten spellings it reads as
-  "no value" (the empty spelling, `-`, `--`, `.`, `?`, `n/a`, `na`,
-  `nan`, `none`, `null`) and three stand-in numbers (`-9999`, `-999`,
-  `9999`).
+  which members of a twenty-one-member list synthtwin publishes in its
+  own contract were among the values you typed** - eighteen spellings it
+  reads as "no value" (the empty spelling, `-`, `--`, `.`, `?`, `n/a`,
+  `na`, `nan`, `none`, `null`, the seven spreadsheet error literals
+  `#DIV/0!`, `#N/A`, `#NAME?`, `#NULL!`, `#NUM!`, `#REF!` and `#VALUE!`,
+  and `NaT`) and three stand-in numbers (`-9999`, `-999`, `9999`).
+
+  **The list grew from thirteen to twenty-one at Phase 4** (plan
+  P4-D6.2, owner ruling 2026-08-19), and the eight it grew by are
+  machine artifacts: seven spreadsheet error literals and the
+  absent-time literal a common data library writes. Every one of the
+  seven has a folded form no human word collides with, which is the
+  criterion that keeps words like `unknown` out. `NaT` does NOT meet
+  that criterion - its folded form is a person's name - so it is the
+  list's one EXACT-SPELLING member: it reads as "no value" only on a
+  cell that is exactly those three characters, with no spaces around it
+  and the capitals as written, so a column of names cannot be hollowed
+  by it. What the eight buy: a column of numbers with a few artifact
+  cells stops losing its whole distribution, so the twin of it is a
+  column of numbers rather than text. The route for a table where an
+  artifact really is data is unchanged: `--keep-value`.
 
   **What that gives up, at its size.** A reader of the settings block
-  is told which of those thirteen fixed words were typed, and nothing
+  is told which of those twenty-one fixed words were typed, and nothing
   else. The field carries no count of cells, no column and no row; the
   MEMBER's spelling is written and never yours, so if you typed `" N/A "`
   the settings hold `n/a` and your spacing and capitals do not travel;
@@ -318,7 +334,7 @@ Stated here so that no reader has to discover them independently:
   people usually type a word because it is in their table, so a version 5
   settings block makes available a guess a version 4 settings block made
   only coarsely - not "one value was rescued" but "the value rescued was
-  one of these thirteen". **The word guessed at THERE can never be a
+  one of these twenty-one". **The word guessed at THERE can never be a
   name, a code, a diagnosis or a free-text answer, because a value
   outside that list is written nowhere in the settings.** That is a
   statement about the settings block and about nothing else in the
@@ -326,7 +342,7 @@ Stated here so that no reader has to discover them independently:
   it is not a corner case.
 
   **What is not relaxed.** A declared value that is not one of the
-  thirteen is still recorded nowhere IN THE SETTINGS. Every publication
+  twenty-one is still recorded nowhere IN THE SETTINGS. Every publication
   class is unchanged: a column of record numbers, free text or
   unrepresentable numbers still publishes no value of the table. Every
   floor rule is unchanged. No column block publishes a fact version 4 did
@@ -347,7 +363,7 @@ Stated here so that no reader has to discover them independently:
   (review item P3-V9-F1; Phase 3 plan amendment A-P3-31). This is the
   one bullet in this section that corrects a false assurance rather than
   disclosing a new one, so it says the correction first: **a value
-  outside synthtwin's thirteen published words is written nowhere in the
+  outside synthtwin's twenty-one published words is written nowhere in the
   SETTINGS BLOCK, and that was never a statement about the whole
   document.** Two bullets above said it as though it were, and the
   profile's own summary page told the reader the same thing while

@@ -1650,6 +1650,12 @@ Opened by this plan, each a limit accepted rather than work forgotten:
   contract is silent, and a reader following the declaration-matching
   rule alone would expect spelling-granular rescue that the wire
   cannot represent.
+- **R-P4-24** (opened by amendment A-P4-30, 2026-08-22). THE ADVISORY
+  REMARKS OF P4-D4.7 AND A-P4-1 ITEM 4 ARE NOT BUILT, by owner
+  decision, with their cost priced in that amendment. Every one of them
+  routes nothing, so nothing published moves and no reader is misled;
+  what is missing is help a reader would have acted on. A later phase
+  picks them up from A-P4-30's own text.
 - **R-P4-23** (opened at the fifth adversarial read of the date
   readings, 2026-08-22, item P4-DATE5-F2). THE BRANCH WRITES A
   VERSION 5 DOCUMENT THAT IS NOT A VERSION 5 DOCUMENT, and this
@@ -3296,6 +3302,73 @@ not one value of itself, and now publishes that word as a label,
 because twelve cells share it and that clears the floor. The larger
 half of that option's disclosure -- the whole distribution of the sixty
 readings -- is untouched, and that is what the control now holds.
+
+## Amendment A-P4-30 — the owner cuts the phase's scope and its process (2026-08-22)
+
+**THIS LOWERS what the phase delivers, and the owner made the call with
+the price in front of them.** After the night of 2026-08-21/22 the owner
+asked why a phase whose product goal is "read more kinds of column" had
+taken so long, and the accounting was put in front of them: seven
+commits carrying 1,590 lines of product code against 2,224 of tests and
+433 of specification, with roughly seventy per cent of the ELAPSED time
+spent on process rather than capability — about two and a half hours of
+it waiting on a six-minute suite run after nearly every edit, and six
+adversarial review rounds with their repairs.
+
+**What is dropped, and what that costs.**
+
+1. **P4-D4.7, the misroute remarks, is withdrawn.** Three remark
+   widenings: the code-shaped remark firing on repeating code columns,
+   the compact-date-versus-number remark stating both counts, and a new
+   remark where a label column publishes one of the built-in stand-in
+   numbers as a level. **The cost is real and is stated rather than
+   waved past:** a person whose column of padded codes is described as
+   labels is not told that `--identifier` exists for it, and a person
+   whose label column publishes `-999` as a level is not told that
+   `--missing-value` would read it as absent instead. They are not
+   misled — every one of these routes NOTHING, so no description
+   changes and no twin cell moves — but they are not helped either, and
+   a reader who would have acted on the advice now has to notice the
+   shape themselves. It is withdrawn because it is the only remaining
+   item that changes no published fact at all.
+2. **A-P4-1 item 4, the recoverable-distribution advice, is withdrawn**
+   for the same reason and at the same kind of cost: a declined column
+   whose distribution one `--missing-value` would recover goes on
+   saying only that no reading fitted it.
+
+Both are recorded as residual R-P4-24 rather than deleted, so a later
+phase picks them up from the text that priced them.
+
+**What is kept:** the calendar-placeholder stand-ins with the
+`(date-sentinel)` class (A-P4-1 item 3), the Excel-artifact spellings
+(P4-D6.2), the version 6 wire flip (which closes R-P4-23), and the
+phase close. Each of those changes what a description PUBLISHES or what
+a twin HOLDS.
+
+**And the process is cut with it**, by the same owner decision:
+
+- **Adversarial review rounds go from five to at most THREE per
+  landing**, and are spent on landings that touch the loader or a
+  surface a person reads before deciding what may leave their machine.
+  The five-round ceiling found real defects in every round, so this is
+  a genuine lowering of assurance and not a discovery that the rounds
+  were empty; what it buys is the phase finishing.
+- **The full suite is run once before a commit, not after every edit.**
+  Targeted files during the work.
+- **The entry table is FROZEN against new roles.** Its twenty-four
+  covering red cases per column cost hours on the long-tail role and
+  found nothing that the role's own red-case file did not; a role added
+  from here carries its own file and is exempted from that table by a
+  named line there. This is the one cut that removes a standing control
+  rather than an advisory item, and it is named here so that a reader
+  of the entry table knows why a role is missing from it.
+
+**Why the owner is right to make this trade.** The twin is one column
+wide until Phase 5, and no number of column types changes that. A
+person developing analysis code against the twin is served by the
+column reading Phase 4 gives them and then by the cross-column
+structure Phase 5 gives them; process spent past the point of catching
+defects that reach a reader serves neither.
 
   The five plan reviews are in `docs/plans/reviews/` as
   `phase-4-plan-review-round-1.md` through `-round-5.md`.

@@ -51,7 +51,43 @@ MISSING_TEXTS = (
     "nan",
     "none",
     "null",
+    # THE SEVEN SPREADSHEET ERROR LITERALS (plan P4-D6.2). Each is a
+    # machine artifact whose folded form collides with no human word,
+    # which is the criterion that keeps `unknown` and `missing` OUT: a
+    # human word carries meaning somewhere, and a column where it does
+    # would be hollowed by reading it as absence. What these buy is
+    # stated plainly in the decision: a column of numbers with a few
+    # artifact cells stops losing its whole distribution to the parse
+    # line, so the twin of it is a column of numbers rather than free
+    # text.
+    "#div/0!",
+    "#n/a",
+    "#name?",
+    "#null!",
+    "#num!",
+    "#ref!",
+    "#value!",
 )
+
+# ...and the ONE member matched byte for byte instead.
+#
+# WHY IT IS NOT IN THE LIST ABOVE, which is the whole of the owner
+# ruling of 2026-08-19 that admitted it. The list is compared after
+# trimming and case folding, and this literal's folded form is a
+# person's name -- so a folded member would read a name column's cells
+# as absence and hollow it in silence. Compared raw, the collision
+# cannot arise: a cell reads as absent here only if it is exactly these
+# three characters, with no spaces around them and the capitals as
+# written.
+#
+# ONE OPERATION, APPLIED IDENTICALLY WHEREVER THE VOCABULARY IS
+# CONSULTED. `is_missing_text` below is that operation, and everything
+# that asks the vocabulary a question asks it through
+# `missing_text_matches` beside it -- recognition, the recording of a
+# declaration, the published-vocabulary guards and the validator's
+# reconstruction alike. A second reading of this rule anywhere is how
+# the exception becomes a hole.
+MISSING_TEXTS_EXACT = ("NaT",)
 
 # Numbers that are conventionally used to mean "no value". They count
 # as missing only when they are also distribution outliers; the rule is
@@ -396,11 +432,51 @@ def is_missing_text(text: str) -> bool:
 
     Guarantees: accepts text; returns a truth value; raises TypeError
     if handed anything that is not a string instance. The comparison is
-    against MISSING_TEXTS after trimming and case folding. No I/O.
+    against MISSING_TEXTS after trimming and case folding, and against
+    MISSING_TEXTS_EXACT byte for byte. No I/O.
     """
     if not isinstance(text, str):
         raise TypeError(_NOT_TEXT)
+    if text in MISSING_TEXTS_EXACT:
+        return True
     return text.strip().casefold() in MISSING_TEXTS
+
+
+def missing_text_matches(spelling: str, member: str) -> bool:
+    """Whether one spelling names one member of the built-in vocabulary.
+
+    THE ONE OPERATION (plan P4-D6.2, owner ruling 2026-08-19). Every
+    side that has to agree about what a member names asks this: the
+    recording of a declaration, the guards over the published
+    vocabulary, and the validator's reconstruction of what a
+    description was written under. The rule is the member's own -- a
+    folded member matches after trimming and case folding, and the
+    exact member matches byte for byte -- so the exception cannot come
+    apart from the rule it excepts by living in two places.
+
+    Guarantees: accepts two strings; returns a truth value; raises
+    TypeError if handed anything that is not a string instance. No I/O
+    of any kind.
+    """
+    if not isinstance(spelling, str):
+        raise TypeError(_NOT_TEXT)
+    if not isinstance(member, str):
+        raise TypeError(_NOT_TEXT)
+    if member in MISSING_TEXTS_EXACT:
+        return spelling == member
+    return folded(spelling) == member
+
+
+def built_in_missing_texts() -> "tuple[str, ...]":
+    """Every built-in spelling of "no value", both matching rules over.
+
+    Sorted, and the empty spelling is in it: a caller that wants the
+    NAMEABLE half filters it out, as the ones that publish do.
+
+    Guarantees: returns the same tuple on every call, of this package's
+    own constants. Raises nothing. No I/O of any kind.
+    """
+    return tuple(sorted(MISSING_TEXTS + MISSING_TEXTS_EXACT))
 
 
 def _all_ascii_digits(text: str) -> bool:

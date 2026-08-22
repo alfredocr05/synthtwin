@@ -151,7 +151,7 @@ def test_the_measurement_side_stops_pinning_only_the_named_words(
     # Every OTHER built-in missing word is still data on this side,
     # which is the whole of what R-P2-13 asks for on a marker the
     # description passes no verdict about.
-    for spelling in parsing.MISSING_TEXTS:
+    for spelling in parsing.built_in_missing_texts():
         if spelling and spelling != MARKER:
             assert spelling in split.kept_values
     # ...and so is this one, on a description no column of which names
@@ -173,7 +173,15 @@ def test_every_built_in_word_the_description_names_comes_off_the_pin(
     three stand-in NUMBERS, whose verdict is a per-column matter the
     settings block answers for separately (A-P3-35).
     """
-    words = [spelling for spelling in parsing.MISSING_TEXTS if spelling]
+    # EVERY built-in word, the exact-spelling member included: it is
+    # not a special case here either, and a version of this walk that
+    # skipped it would leave the newest member of the vocabulary
+    # unpinned (plan P4-D6.2).
+    words = [
+        spelling
+        for spelling in parsing.built_in_missing_texts()
+        if spelling
+    ]
     values = [f"{10 + index * 3}.5" for index in range(60)]
     for word in words:
         values = values + [word] * 12

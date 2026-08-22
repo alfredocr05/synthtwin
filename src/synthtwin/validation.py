@@ -754,7 +754,11 @@ _MEASURED_FROM_THE_CELLS = (
 # string reaches the settings.
 _KEPT_OVER_THE_SPLIT = tuple(
     sorted(
-        [spelling for spelling in parsing.MISSING_TEXTS if spelling]
+        [
+            spelling
+            for spelling in parsing.built_in_missing_texts()
+            if spelling
+        ]
         + [f"{value:g}" for value in parsing.NUMERIC_SENTINELS]
     )
 )
@@ -765,7 +769,13 @@ _KEPT_OVER_THE_SPLIT = tuple(
 # `sentinel_verdicts` instead, because a stand-in is judged per column
 # and a published key alone does not say which way that judgment went.
 _BUILT_IN_TEXTS = tuple(
-    sorted([spelling for spelling in parsing.MISSING_TEXTS if spelling])
+    sorted(
+        [
+            spelling
+            for spelling in parsing.built_in_missing_texts()
+            if spelling
+        ]
+    )
 )
 
 # The same three stand-ins, as the EXACT numbers the producer decides

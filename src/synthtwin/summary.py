@@ -462,13 +462,13 @@ def words_of_your_own(
     WHAT THIS IS FOR, AND IT IS THE WHOLE OF REVIEW ITEM P3-V9-F1.
     Contract 5 section 3.3.1 fixes the derivation: every key of a
     published `missing_by_source` that is not blank and is not a member
-    of synthtwin's own thirteen published words is a spelling somebody
+    of synthtwin's own twenty-one published words is a spelling somebody
     typed after `--missing-value`. So a version 5 description CARRIES
     the person's own declared word, character for character, wherever
     the floor permits the group to be named and the column publishes
     values at all -- and until this function existed, no page said so.
     The summary told the reader the opposite: that synthtwin would not
-    keep a record of any word outside those thirteen, printed four
+    keep a record of any word outside those twenty-one, printed four
     screens under `counted as missing: <their word> (12)`.
 
     A FALSE ASSURANCE ABOUT WITHHOLDING IS WORSE THAN NO ASSURANCE.
@@ -658,7 +658,7 @@ def _declaration_lines(document: dict[str, object]) -> list[str]:
     - Boundary: no spelling of the PERSON'S reaches the lines rendered
       from the SETTINGS BLOCK, because none reaches that block (review
       item P1-R7-F2). From contract version 5 the block also names
-      which members of synthtwin's own thirteen published words were
+      which members of synthtwin's own twenty-one published words were
       typed; these lines say that it does and print how many, and they
       do not repeat the members -- saying the fact is what the contract
       asks of this page (its section 6.6), and a page that travels says
@@ -714,7 +714,7 @@ def _declaration_lines(document: dict[str, object]) -> list[str]:
     was it retired for the right reason. It began by telling the person
     to keep a note of their own command line because synthtwin would
     keep no record of which values they had named. Contract version 5
-    made that false of synthtwin's own thirteen words, since the
+    made that false of synthtwin's own twenty-one words, since the
     settings now name which of them were typed -- so the sentence was
     narrowed to the words that are NOT synthtwin's, which carried the
     defect forward whole rather than repairing it.
@@ -745,7 +745,7 @@ def _declaration_lines(document: dict[str, object]) -> list[str]:
     lower, told the person who typed `n/a` that the description records
     which of synthtwin's own words they named. Both halves were true and
     the pair was not readable: the reader who has to act on this page is
-    exactly the reader who typed one of the thirteen. The opening now
+    exactly the reader who typed one of the twenty-one. The opening now
     names the exception where it makes the claim.
 
     Nothing is said on a run where nothing was declared. A sentence
@@ -818,7 +818,7 @@ def _declaration_lines(document: dict[str, object]) -> list[str]:
     )
 
 
-# The thirteen words of the published vocabulary, counted rather than
+# The twenty-one words of the published vocabulary, counted rather than
 # repeated. The contract fixes the list in its own appendix; this page
 # says that the description records WHICH of them were typed, and how
 # many, because a person deciding whether to move this file has to know
@@ -847,7 +847,7 @@ def _own_words_lines(settings: dict[str, object]) -> list[str]:
     THE SCOPE OF EVERY SENTENCE HERE IS THE SETTINGS BLOCK, and saying
     so is the repair of review item P3-V9-F1. These lines used to close
     by sending the person away to their own shell history for a record
-    of any word outside the thirteen, on the ground that synthtwin
+    of any word outside the twenty-one, on the ground that synthtwin
     would keep none. Read as it stood, that spoke for the whole
     document, and it was false of one from the moment contract version
     5 landed: a word of the person's own reaches its column's
@@ -868,9 +868,10 @@ def _own_words_lines(settings: dict[str, object]) -> list[str]:
     # is published in its description contract; what this page owes is
     # the FACT that the description records which of them were typed.
     lines = [
-        "    synthtwin has thirteen words of its own that it already",
-        "    reads as 'no value' -- an empty cell, NA, n/a, none, null",
-        "    and a few more, and three numbers often used as stand-ins.",
+        "    synthtwin has twenty-one words of its own that it already",
+        "    reads as 'no value' -- an empty cell, NA, n/a, none, null,",
+        "    the spreadsheet error cells like #N/A, and a few more,",
+        "    with three numbers often used as stand-ins.",
         "    They are listed in synthtwin's description contract, and",
         "    the description records which of them you named.",
     ]
