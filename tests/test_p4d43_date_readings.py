@@ -303,7 +303,7 @@ def test_the_twin_report_names_the_census_as_not_reproduced() -> None:
         assert "120 carry a time of day" in named[0].achieved
 
 
-def test_a_single_format_column_earns_no_census_line() -> None:
+def test_a_column_read_under_one_format_has_no_census_line() -> None:
     """The census restates the format there, and the format is listed.
 
     Two lines for one loss would tell a reader there were two.
@@ -369,3 +369,180 @@ def test_a_twin_of_a_mixed_column_still_meets_every_obligation() -> None:
         check.subcheck for check in outcome.checks if check.verdict == validation.MISSED
     ]
     assert missed == []
+
+
+# -- what the adversarial read of this work turned up -----------------
+
+
+def test_the_parse_line_is_the_exact_product(  # P4-DATE-F1
+) -> None:
+    """A line built by rounding is a line that moves.
+
+    The contract fixes the parse-line count as the smallest whole
+    number reaching the EXACT product of the recorded rate and the
+    count. A rate recorded as `0.01` is not one hundredth -- the
+    nearest binary64 to it is a shade above -- so against a hundred
+    values the exact product is a shade above one and the line is two.
+    Multiplying in binary64 rounded that product back down to exactly
+    one and the line came out at one, which is a line the contract does
+    not state.
+    """
+    assert taxonomy._needed(0.01, 100) == 2
+    assert taxonomy._needed(0.01, 200) == 3
+    assert taxonomy._needed(0.99, 240) == 238
+    assert taxonomy._needed(0.5, 7) == 4
+    assert taxonomy._needed(1.0, 240) == 240
+    assert taxonomy._needed(0.0, 240) == 0
+
+
+def test_the_rate_is_carried_as_the_numbers_it_stands_for() -> None:
+    """And the pair really is the rate, for every rate in the range."""
+    place = 0
+    while place < 2000:
+        share = place / 2000
+        numerator, denominator = taxonomy._exact_ratio(share)
+        assert numerator / denominator == share
+        assert denominator > 0
+        place = place + 1
+
+
+def test_the_ceiling_counterpart_is_exact_too() -> None:
+    """`_at_most` decides roles by the same product and moves the same."""
+    assert taxonomy._at_most(0.10, 240) == 24
+    assert taxonomy._at_most(0.0, 240) == 0
+    assert taxonomy._at_most(1.0, 13) == 13
+
+
+def _mixed_with_a_declared_hole(
+    declared: "tuple[str, ...]",
+    holes: "list[str]",
+) -> "tuple[dict, contract.Profile, taxonomy.Settings, pathlib.Path]":
+    """A joint reading whose midnight endpoint a declaration also spells."""
+    folder = pathlib.Path(tempfile.mkdtemp())
+    dates = ["2024-01-01"] + [f"2024-04-{1 + place % 28:02d}" for place in range(59)]
+    stamps = [
+        f"2024-{6 + place % 6:02d}-{1 + place % 28:02d} "
+        f"{8 + place % 10:02d}:{place % 60:02d}:{(place * 7) % 60:02d}"
+        for place in range(60)
+    ]
+    table = fixtures.write(
+        folder,
+        "seen.csv",
+        fixtures.single_column_table("seen", dates + stamps + holes),
+    )
+    settings = taxonomy.Settings(declared_missing_values=declared)
+    document = profile.build_document(reading.read_table(f"{table}"), settings, [])
+    written = fixtures.write_profile(folder, "seen.json", document)
+    return document, contract.load_profile(f"{written}"), settings, folder
+
+
+def test_an_endpoint_is_not_lost_to_a_declared_spelling(  # P4-DATE-F2
+) -> None:
+    """The collision is the twin's own doing, so the twin undoes it.
+
+    A real column can hold a present cell at midnight written
+    `2024-01-01` and, beside it, cells a declaration made absent as
+    `2024-01-01T00:00:00`. Both facts are honest. The twin then writes
+    every parsed cell at the finest precision, reaches for the second
+    spelling, and hands back a cell its OWN description reads as
+    absent -- so an exact end walks out over a separator nobody chose.
+    The space form is written instead: the same instant, at the same
+    precision, on the same clock.
+    """
+    document, described, settings, folder = _mixed_with_a_declared_hole(
+        ("2024-01-01T00:00:00",), ["2024-01-01T00:00:00"] * 11
+    )
+    assert document["columns"][0]["format"] == "iso-mixed"
+    assert document["columns"][0]["earliest"] == "2024-01-01 00:00:00"
+    assert document["columns"][0]["missing_by_source"] == {
+        "2024-01-01T00:00:00": 11
+    }
+    for seed in (1, 2, 3):
+        twin = generation.generate(described, seed)
+        cells = [cell for cell in twin.columns[0] if cell]
+        assert "2024-01-01T00:00:00" not in cells
+        assert "2024-01-01 00:00:00" in cells
+        assert [
+            deviation
+            for deviation in twin.deviations
+            if deviation.fact == "earliest"
+        ] == []
+        written = fixtures.write(
+            folder, f"twin{seed}.csv", rendering.twin_csv(twin)
+        )
+        again = profile.build_document(
+            reading.read_table(f"{written}"), settings, []
+        )
+        assert again["columns"][0]["n_present"] == 120
+        assert again["columns"][0]["earliest"] == "2024-01-01 00:00:00"
+
+
+def test_where_no_spelling_survives_the_loss_is_named() -> None:
+    """And no third spelling is invented to hide it.
+
+    With BOTH separators declared absent there is no cell text left
+    that reads as the published end and is not read as a hole. The run
+    writes the fixed form and says the end is gone, which is what the
+    method's own words promise for a fact it cannot hold.
+    """
+    _document, described, _settings, _folder = _mixed_with_a_declared_hole(
+        ("2024-01-01T00:00:00", "2024-01-01 00:00:00"),
+        ["2024-01-01T00:00:00"] * 11 + ["2024-01-01 00:00:00"] * 11,
+    )
+    twin = generation.generate(described, 1)
+    named = [
+        deviation for deviation in twin.deviations if deviation.fact == "earliest"
+    ]
+    assert len(named) == 1
+    assert "reads that cell as absent" in named[0].achieved
+
+
+def test_the_census_recount_does_not_count_an_absent_cell() -> None:
+    """The recount is the twin's own reader, or it is not a recount.
+
+    A cell wearing a declared spelling is not a date of any form when
+    the twin is described again, and a census line that counted it
+    would say the twin wrote a value where its own description finds
+    none.
+    """
+    _document, described, _settings, _folder = _mixed_with_a_declared_hole(
+        ("2024-01-01T00:00:00", "2024-01-01 00:00:00"),
+        ["2024-01-01T00:00:00"] * 11 + ["2024-01-01 00:00:00"] * 11,
+    )
+    twin = generation.generate(described, 1)
+    named = [
+        deviation
+        for deviation in twin.deviations
+        if deviation.fact == "resolution_mix"
+    ]
+    assert len(named) == 1
+    assert "119 carry a time of day" in named[0].achieved
+
+
+def test_the_recount_of_present_cells_reads_through_the_declaration() -> None:
+    """The same rule, one grain wider: this is every column's count.
+
+    `n_present` is what a person gets by describing the twin again, so
+    a cell the twin's own description reads as absent is not present in
+    it, whatever the bytes look like.
+    """
+    holes = ("no value",)
+    assert generation._recounted(["a", "b", ""], ()) == (2, 1, 2, 2)
+    assert generation._recounted(["a", "no value", ""], holes) == (1, 2, 1, 1)
+
+
+def test_the_method_names_the_census_among_its_deviations(  # P4-DATE-F3
+) -> None:
+    """A report line no specification carries is a line nobody owes.
+
+    G12's list is the closed inventory a reviewer checks the report
+    against, and a second implementation reading it would have had no
+    rule authorizing this line at all.
+    """
+    method = pathlib.Path(__file__).resolve().parent.parent
+    body = (method / "docs" / "spec" / "generation-method-v1.md").read_text(
+        encoding="utf-8"
+    )
+    flat = " ".join(body.split())
+    assert "the form census of a column of dates read under the joint" in flat
+    assert "`resolution_mix` is REPORT-ONLY" in flat

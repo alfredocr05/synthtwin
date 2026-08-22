@@ -823,6 +823,60 @@ def _canonical_date(year: str, month: str, day: str) -> "str | None":
     return f"{year}-{month}-{day}"
 
 
+def _padded_field(field: str) -> "str | None":
+    """One or two ASCII digits, written as two, or None.
+
+    THE FIELD IS PADDED RATHER THAN REFUSED (plan amendment A-P4-1
+    item 1). A table that writes `3/5/2024` is writing the same day as
+    one that writes `03/05/2024`, and the earlier reader refused the
+    first over a leading zero nobody typed. What is published is the
+    canonical day either way, so the two spell one date and not two.
+    """
+    if not isinstance(field, str):
+        raise TypeError(_NOT_TEXT)
+    if len(field) < 1 or len(field) > 2:
+        return None
+    if not _all_ascii_digits(field):
+        return None
+    if len(field) == 1:
+        return f"0{field}"
+    return field
+
+
+def _slashed_fields(body: str) -> "tuple[str, str, str] | None":
+    """The three fields of a year-last slashed date, each at its width.
+
+    The year is FOUR figures and comes last; the two fields before it
+    are one or two figures each. That grammar is what keeps the four
+    families apart: `slashed-iso-date` leads with a four-figure year,
+    the compact family is eight figures and no delimiter, and no
+    spelling can satisfy two of the three.
+
+    Guarantees: accepts a string; returns the month-or-day field, the
+    day-or-month field and the year, padded to two, two and four
+    figures, or None where the text is not this grammar. Raises
+    TypeError if handed anything that is not a string instance. No I/O.
+    """
+    if not isinstance(body, str):
+        raise TypeError(_NOT_TEXT)
+    marks: list[int] = []
+    place = 0
+    for character in body:
+        if character == "/":
+            marks = marks + [place]
+        place = place + 1
+    if len(marks) != 2:
+        return None
+    year = body[marks[1] + 1 :]
+    if len(year) != 4 or not _all_ascii_digits(year):
+        return None
+    first = _padded_field(body[0 : marks[0]])
+    second = _padded_field(body[marks[0] + 1 : marks[1]])
+    if first is None or second is None:
+        return None
+    return first, second, year
+
+
 def _parse_clock(text: str) -> "str | None":
     """Return 'HH:MM:SS' for a time of day, or None.
 
@@ -1126,13 +1180,15 @@ def parse_datetime(text: str, format_name: str) -> "tuple[str, str] | None":
             return None
         return canonical, ""
     if format_name == "month-first-date" or format_name == "day-first-date":
-        if len(body) != 10 or body[2] != "/" or body[5] != "/":
+        # PADDED OR NOT, AND THE FAMILIES STILL DO NOT OVERLAP (plan
+        # amendment A-P4-1 item 1). The ten-character rule retired here
+        # and here only: the year still has to be four figures and
+        # still has to come last, which is what keeps `3/5/2024` out of
+        # every other member's reach.
+        fields = _slashed_fields(body)
+        if fields is None:
             return None
-        first = _digits_at(body, 0, 2)
-        second = _digits_at(body, 3, 2)
-        year = _digits_at(body, 6, 4)
-        if first is None or second is None or year is None:
-            return None
+        first, second, year = fields
         if format_name == "month-first-date":
             canonical = _canonical_date(year, first, second)
         else:

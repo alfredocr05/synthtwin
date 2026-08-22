@@ -1559,9 +1559,24 @@ def _groups_of(pattern: "dict[str, int]") -> "tuple[int, ...]":
     return tuple(sizes)
 
 
-def _recounted(cells: "list[str]") -> "tuple[int, int, int, int]":
-    """Recount a written column: present, absent, different, folded."""
-    present = [cell for cell in cells if cell != ""]
+def _recounted(
+    cells: "list[str]", holes: "tuple[str, ...]"
+) -> "tuple[int, int, int, int]":
+    """Recount a written column: present, absent, different, folded.
+
+    COUNTED THE WAY THE TWIN'S OWN DESCRIPTION WILL COUNT IT (review
+    item P4-DATE-F2). A cell is present when it holds something the
+    description does not read as absent -- not merely when it is not
+    empty. A run that wrote a cell wearing a spelling the column
+    publishes among its absent ones has written a cell its own reader
+    will not count, and a recount that called it present would report
+    a count the twin does not hold.
+    """
+    present = [
+        cell
+        for cell in cells
+        if cell != "" and not _is_a_hole_spelling(cell, holes)
+    ]
     folded = {parsing.folded(cell) for cell in present}
     return (
         len(present),
@@ -5038,6 +5053,9 @@ def _datetime_content(
     first = _ordinal_of(facts.earliest, facts.resolution)
     last = _ordinal_of(facts.latest, facts.resolution)
     offsets, notes = _offset_allocation(column, facts, parsed)
+    # The spellings this column publishes among its absent cells, so
+    # that no cell this run writes wears one (review item P4-DATE-F2).
+    holes = _hole_spellings(column)
     cells: list[str] = []
     taken = 0
     for rank in range(parsed):
@@ -5082,14 +5100,14 @@ def _datetime_content(
         text = written
         if _is_real_offset(offset) and offset:
             text = f"{text}{offset}"
-        cells = cells + [text]
+        cells = cells + [_kept_datetime_cell(text, holes)]
     if parsed >= 1:
         notes = notes + _endpoint_notes(
-            column, facts, "earliest", facts.earliest, cells[0]
+            column, facts, "earliest", facts.earliest, cells[0], holes
         )
     if parsed >= 2:
         notes = notes + _endpoint_notes(
-            column, facts, "latest", facts.latest, cells[parsed - 1]
+            column, facts, "latest", facts.latest, cells[parsed - 1], holes
         )
     used: dict[str, int] = {cell: 1 for cell in cells}
     for step in range(facts.n_unparsed):
@@ -5140,12 +5158,52 @@ def _instant_written(text: str, facts: contract.DatetimeFacts) -> "str | None":
     return found[0]
 
 
+def _kept_datetime_cell(text: str, holes: "tuple[str, ...]") -> str:
+    """The same instant, spelled so the twin's own reader still sees it.
+
+    THE COLLISION IS THE TWIN'S OWN DOING, WHICH IS WHY IT CAN BE
+    UNDONE (review item P4-DATE-F2). A real table can hold a present
+    cell at midnight written `2024-01-01` and, in the same column,
+    eleven absent cells the person declared as `2024-01-01T00:00:00`.
+    Those are two spellings and the description carries both facts
+    honestly. The twin then writes every parsed cell at the column's
+    finest precision, reaches for the second spelling, and hands back a
+    cell its OWN description reads as absent -- so an exact endpoint
+    walks out of the twin over a separator nobody chose.
+
+    The date reader accepts three separators between the day and the
+    time. The fixed one is `T`, and it stays fixed: this is asked only
+    where that spelling is one the column publishes among its absent
+    cells, and then the space form is offered, which reads back as the
+    same instant at the same precision on the same clock. Where BOTH
+    spellings are declared absent, nothing here can help and the
+    original is returned so that the recount names the loss rather than
+    hiding it behind a third spelling.
+
+    Guarantees: accepts a written cell and the column's own absent
+    spellings; returns that cell or an equivalent one. Determinism: a
+    function of the two. Raises TypeError if handed anything that is
+    not a string instance. No I/O of any kind.
+    """
+    if not isinstance(text, str):
+        raise TypeError("a twin cell reached the spelling rule as something else")
+    if not _is_a_hole_spelling(text, holes):
+        return text
+    if len(text) < 11 or text[10] != "T":
+        return text
+    other = f"{text[0:10]} {text[11:]}"
+    if _is_a_hole_spelling(other, holes):
+        return text
+    return other
+
+
 def _endpoint_notes(
     column: contract.ColumnBlock,
     facts: contract.DatetimeFacts,
     key: str,
     published: str,
     written: str,
+    holes: "tuple[str, ...]",
 ) -> "list[Deviation]":
     """Catch an end of a column of dates this run failed to write back.
 
@@ -5168,11 +5226,19 @@ def _endpoint_notes(
     evidence of its own defect is the worse of the two failures.
     """
     found = _instant_written(written, facts)
-    if found == published:
+    absent = _is_a_hole_spelling(written, holes)
+    if found == published and not absent:
         return []
     achieved = "a value that does not read as a date at all"
     if found is not None:
         achieved = found
+    if absent:
+        # ASKED THE WAY THE TWIN WILL BE READ (review item P4-DATE-F2).
+        # A cell wearing a spelling this column publishes among its
+        # absent ones is not a value at all when the twin is described
+        # again, whatever instant its text would otherwise read as, so
+        # the end is gone even though the bytes look right.
+        achieved = "no value: the twin's own description reads that cell as absent"
     return [
         _deviation(
             column.name,
@@ -9197,7 +9263,7 @@ def generate(profile: contract.Profile, seed: int) -> Twin:
         order = _arrangement(places, profile.n_rows)
         written = [content[order[place]] for place in range(profile.n_rows)]
         columns = columns + [tuple(written)]
-        counted = _recounted(written)
+        counted = _recounted(written, _hole_spellings(column))
         notes = (
             list(each.notes)
             + notes
@@ -9763,8 +9829,15 @@ def _mix_notes(
     if facts.parser_family != contract.FORMAT_ISO_MIXED:
         return []
     counted = {"iso-date": 0, "iso-datetime": 0}
+    holes = _hole_spellings(column)
     for cell in written:
         if cell == "":
+            continue
+        # AND A CELL THE COLUMN'S OWN DECLARATION READS AS ABSENT IS
+        # NOT A DATE OF ANY FORM (review item P4-DATE-F2). Counting it
+        # would make this line say the twin wrote a value where its own
+        # description finds none.
+        if _is_a_hole_spelling(cell, holes):
             continue
         if parsing.parse_datetime(cell, "iso-datetime") is not None:
             counted["iso-datetime"] = counted["iso-datetime"] + 1
@@ -10391,7 +10464,7 @@ def _numeric_cardinalities(
     if layout is None:
         return []
     supply = _numeric_supply(layout, written)
-    counted = _recounted(written)
+    counted = _recounted(written, _hole_spellings(column))
     found: list[Approximation] = []
     for place, name, room, note in (
         (
@@ -10802,7 +10875,7 @@ def _clock_approximations(
     reachable = ladder[10] - ladder[0] + 1
     highest_count = min(len(present), reachable + stand_ins)
     lowest_count = min(lowest_count, highest_count)
-    counted = _recounted(written)
+    counted = _recounted(written, _hole_spellings(column))
     for place, name in ((2, "n_distinct"), (3, "n_distinct_folded")):
         published = column.n_distinct
         if place == 3:
@@ -10943,7 +11016,7 @@ def _datetime_approximations(
         reachable * _spellings_of_a_date(facts) + stand_ins,
     )
     lowest_count = min(lowest_count, highest_count)
-    counted = _recounted(written)
+    counted = _recounted(written, _hole_spellings(column))
     for place, name in ((2, "n_distinct"), (3, "n_distinct_folded")):
         published = column.n_distinct
         if place == 3:
@@ -11247,7 +11320,7 @@ def _label_approximations(
     bound are exactly those two numbers.
     """
     supply = _label_supply(facts)
-    counted = _recounted(written)
+    counted = _recounted(written, _hole_spellings(column))
     lowest = min(supply, column.n_distinct)
     highest = max(supply, column.n_distinct)
     return [

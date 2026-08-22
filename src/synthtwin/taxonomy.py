@@ -1838,15 +1838,65 @@ def _share(part: int, whole: int) -> float:
     return part / whole
 
 
+def _exact_ratio(share: float) -> "tuple[int, int]":
+    """One rate as the exact pair of whole numbers it really is.
+
+    A rate recorded as `0.01` is not one hundredth: the nearest
+    binary64 to one hundredth is a shade above it, and a line computed
+    by multiplying that value in binary64 rounds the product back down,
+    so a column holding exactly one value in a hundred cleared a line
+    the contract says it misses. The contract asks for the EXACT
+    product of the recorded rate and the count (its section 4.5.2), and
+    a product is only exact if the rate is carried as the whole numbers
+    it stands for.
+
+    Every binary64 is a whole number times a power of two, which is
+    what `frexp` hands back: the fraction it returns has at most
+    fifty-three significant bits, so multiplying it by two to the
+    fifty-third is exact and gives that whole number outright.
+
+    Guarantees: accepts a rate of zero or more; returns a numerator and
+    a denominator whose quotient IS the rate, with no rounding
+    anywhere. Determinism: a function of the rate. Raises TypeError if
+    handed anything that is not a float instance, and ValueError for a
+    negative rate, which no setting of this tool carries. No I/O.
+    """
+    if not isinstance(share, float):
+        raise TypeError("a rate reached the count rule as something else")
+    if share < 0.0:
+        raise ValueError("a rate reached the count rule below zero")
+    fraction, power = math.frexp(share)
+    numerator = int(fraction * float(1 << 53))
+    place = power - 53
+    if place >= 0:
+        return numerator << place, 1
+    return numerator, 1 << -place
+
+
 def _needed(share: float, total: int) -> int:
     """The smallest whole number of values that reaches ``share``.
 
     Thresholds are applied as counts rather than as compared shares, so
     that no rounding of a division can decide a column's role.
+
+    AND THE PRODUCT IS EXACT, which the multiplication was not (review
+    item P4-DATE-F1). A setting of 0.07 against 100 values is 7 values,
+    and the binary64 product of the two is 7.000000000000001, so the
+    line came out at 8 and a column that reached it exactly was
+    declined. The setting's own binary64 value is turned into the whole
+    numbers it stands for and the ceiling is taken there, where no
+    rounding is left to happen: the contract asks for the exact product
+    of the recorded rate and the count, and this is that product.
+
+    Guarantees: accepts a rate and a count; returns the smallest whole
+    number of values reaching the rate, never more than the count's own
+    exact answer. Determinism: a function of the two. Raises TypeError
+    if the rate is not a float instance. No I/O of any kind.
     """
-    exact = share * total
-    whole = int(exact)
-    if whole < exact:
+    numerator, denominator = _exact_ratio(share)
+    exact = numerator * total
+    whole = exact // denominator
+    if whole * denominator < exact:
         return whole + 1
     return whole
 
@@ -1856,12 +1906,17 @@ def _at_most(share: float, total: int) -> int:
 
     The ceiling counterpart of `_needed`, and a count for the same
     reason: `distinct <= 10% of the values` is decided by comparing two
-    whole numbers, so no rounding of a division decides a role.
+    whole numbers, so no rounding of a division decides a role. Its
+    product is exact for the same reason `_needed`'s is: a line built
+    by rounding is a line that moves.
+
+    Guarantees: accepts a rate and a count; returns the largest whole
+    number of values within the rate. Determinism: a function of the
+    two. Raises TypeError if the rate is not a float instance. No I/O.
     """
-    exact = share * total
-    whole = int(exact)
-    if whole > exact:
-        return whole - 1
+    numerator, denominator = _exact_ratio(share)
+    exact = numerator * total
+    whole = exact // denominator
     return whole
 
 
