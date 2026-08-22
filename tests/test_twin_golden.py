@@ -148,7 +148,7 @@ def test_the_golden_run_is_the_shape_this_file_says_it_is(
     words.
     """
     assert built.n_rows == 240
-    assert len(built.names) == 11
+    assert len(built.names) == 12
     assert built.write_header is True
     assert built.seed == GOLDEN_SEED
     # The word budget is a fixed function of the published facts (method
@@ -156,7 +156,7 @@ def test_the_golden_run_is_the_shape_this_file_says_it_is(
     # Pinned beside the bytes because "the run spends a different number
     # of words" is a different failure from "the run writes different
     # cells", and a reader is owed the difference.
-    assert built.words_drawn == 3465
+    assert built.words_drawn == 3940
     assert [column.name for column in loaded.columns] == [
         "record_code",
         "region",
@@ -169,6 +169,7 @@ def test_the_golden_run_is_the_shape_this_file_says_it_is(
         "unused",
         "batch",
         "dose",
+        "seen_at",
     ]
 
 
@@ -219,8 +220,15 @@ def test_the_golden_run_is_the_shape_this_file_says_it_is(
 # description, a different twin, a different report and a different
 # quality report. A change to the generator alone would have moved the
 # last three and left the first.
+# RE-RECORDED AGAIN FOR THE CLOCK ROLE (2026-08-22). The shared table
+# gained a `seen_at` column of clock times -- the second of Phase 4's
+# three new column types built end to end -- so the description, the
+# twin, its report and the quality report moved together, which is what
+# a change to the TABLE looks like. The quality report carries
+# twenty-seven more obligations than it did, which is the direction a
+# re-recording must move in.
 GOLDEN_DESCRIPTION_SHA256 = (
-    "bf1b089d4ca39797979c94c6b8ad4e2064b6a122a112af61de1f920f19035c17"
+    "dd64f6db8b0925e66d050d46bb4ac415b6f342b0fab851d2f1057742150a10b0"
 )
 
 
@@ -268,7 +276,7 @@ def test_golden_hash_of_the_description_the_twin_is_built_from(
 # in one number. Any of them differing between two cells of the matrix
 # turns red here rather than shipping as a quietly different twin.
 GOLDEN_TWIN_SHA256 = (
-    "29d5c21333659eb9d40445a90844d3d9bc1a565666736d414fdc1572a92b6e08"
+    "592006e62eb0d881ae447ec49a7f4acf37effe8c20872e430c8e559f7c7a587a"
 )
 
 
@@ -545,7 +553,7 @@ def test_the_same_description_and_seed_give_the_same_twin_twice(
 # which is what says this is the page and not the run: stage 2 changes
 # no wire, no generation rule and no twin byte.
 GOLDEN_REPORT_SHA256 = (
-    "4bab3ff61af00d8ead0e2aa578519fe98c0477226728104e1d5495977de4d59c"
+    "fd89333b36e7d7633482985a28b876a1ca4abe0291f7d74e771d2b8defb3ff34"
 )
 
 
@@ -912,7 +920,7 @@ def test_the_report_names_the_seed_the_twin_was_built_at(
 # that way: a line where the two values DIFFER may not have moved, and
 # one that did would be this repair reaching further than its own rule.
 GOLDEN_QUALITY_SHA256 = (
-    "a5ac296ccde2bc8a4df9b81e22d693eacafa86aa3c61400025acbfb545041155"
+    "d218522487837b72572187c95d9d6fcba530082297f64f702756b30982750116"
 )
 
 

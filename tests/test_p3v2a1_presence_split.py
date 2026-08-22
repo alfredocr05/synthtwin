@@ -304,6 +304,31 @@ def test_nothing_a_file_holds_decides_which_obligations_it_owes(
 # a shape the producer publishes, and has no deviation it can state.
 _SPREAD_SUBCHECKS = ("moments.std",)
 
+# THE THIRD CHECK THAT CAN SAY WHY, and it is the clock role's own
+# form. A column of clock times rewritten cell for cell in the OTHER of
+# the two forms is still a column of clock times -- its ROLE is right,
+# and reported HELD -- while every published clock value of the
+# description is written in a form the file's own description does not
+# read. So the four exact values and the nine rungs are comparisons
+# between two different shapes and the gate closes over them, and what
+# says so is `form.clock_form`, MISSED, on the same column and in the
+# same report. The role axis cannot say it: the role did not move.
+#
+# This is the same shape as the spread above -- a published fact of the
+# column's own decides whether a measurement exists at all -- and it is
+# named here for the same reason: a silence explained by a check nobody
+# listed reads as a silence explained by nothing.
+_CLOCK_SUBCHECKS = tuple(
+    ["ends.earliest", "ends.latest"]
+    + [
+        f"clock-ladder.{name}"
+        for name in (
+            "min", "p01", "p05", "p10", "p25",
+            "p50", "p75", "p90", "p95", "p99", "max",
+        )
+    ]
+)
+
 
 def test_silence_is_never_free_and_never_the_validator_s_own_difficulty(
     battery: "list[tuple[str, str, str, validation.Outcome, validation.Outcome]]",
@@ -407,6 +432,11 @@ def test_silence_is_never_free_and_never_the_validator_s_own_difficulty(
                 if check.subcheck in _SPREAD_SUBCHECKS and (
                     check.column,
                     "type.std_unrepresentable",
+                ) in missed:
+                    continue
+                if check.subcheck in _CLOCK_SUBCHECKS and (
+                    check.column,
+                    "form.clock_form",
                 ) in missed:
                     continue
                 unexplained = unexplained + [

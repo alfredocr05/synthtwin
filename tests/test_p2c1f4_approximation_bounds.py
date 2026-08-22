@@ -265,6 +265,25 @@ APPROXIMATED = {
     }.items()
 }
 
+# THE CLOCK ROLE'S INVENTORY IS STATED, because no matrix row carries
+# it. The role borrows the datetime SECTION for the completeness walk
+# -- its ladder is the date ladder's shape in another ordinal space --
+# but the two documents name different keys: version 4 disposes
+# `date_percentiles` and the offset fields, which this role publishes
+# none of, and this role publishes `clock_percentiles`, which version 4
+# never heard of. So the three approximated facts are written out here
+# against the plan clauses that decide them, and the reverse walk over
+# the matrix skips the role rather than demanding it carry rows about
+# somebody else's keys.
+APPROXIMATED["time_of_day"] = tuple(
+    [f"clock_percentiles.{name}" for name in RUNGS]
+    + ["n_distinct", "n_distinct_folded"]
+)
+
+# Roles whose approximated inventory is stated above rather than read
+# out of the version 4 matrix, and why: the matrix predates them.
+ROLES_STATED_RATHER_THAN_READ = ("time_of_day",)
+
 
 def _matrix_sections() -> "dict[str, dict[str, str]]":
     """The disposition matrix, read from both versions, as fields.
@@ -326,6 +345,17 @@ def _matrix_sections() -> "dict[str, dict[str, str]]":
 # under `numeric` in `tests/dispositions.py`.
 PHASE_4_NUMERIC_KEYS = ("fraction_widths",)
 
+# ...and the clock role's own five, for the same reason: the version 4
+# matrix was written before the role existed, and the Phase 4 plan
+# disposes them (P4-D4.2, with A-P4-20 for the ladder).
+CLOCK_OWN_KEYS = (
+    ("clock_form", "EXACT-OBSERVABLE (Phase 4 plan, P4-D4.2)"),
+    ("clock_percentiles", "APPROXIMATED (Phase 4 plan, A-P4-20)"),
+    ("earliest", "EXACT-OBSERVABLE (Phase 4 plan, P4-D4.2)"),
+    ("latest", "EXACT-OBSERVABLE (Phase 4 plan, P4-D4.2)"),
+    ("n_unparsed", "EXACT-OBSERVABLE (Phase 4 plan, P4-D4.2)"),
+)
+
 AFFIXED_OWN_KEYS = (
     "affix_prefix",
     "affix_suffix",
@@ -355,6 +385,14 @@ ROLE_SECTIONS = {
     # `tests/dispositions.py` -- the version 4 matrix this reads
     # predates the role and states nothing about it.
     "affixed_number": "9.4 The numeric roles: `count`, `continuous`",
+    # The clock role reads the DATETIME section: its ladder is the date
+    # ladder's shape in another ordinal space, its two ends are exact
+    # the same way, and its two distinctness counts are approximated
+    # for the same reason (plan P4-D4.2 with amendment A-P4-20). Its
+    # own five keys are counts, words and clock text, and they are
+    # registered in `tests/dispositions.py` -- the version 4 matrix
+    # this reads predates the role.
+    "time_of_day": "9.6 `datetime`",
 }
 
 
@@ -373,6 +411,13 @@ def test_the_inventory_is_read_out_of_the_matrix_and_misses_no_clause(
     """
     sections = _matrix_sections()
     for role, owed in APPROXIMATED.items():
+        if role in ROLES_STATED_RATHER_THAN_READ:
+            # Its inventory is stated beside the plan clauses that
+            # decide it, above, and the registry is what holds those
+            # decisions -- `tests/dispositions.py`, whose seal moves
+            # when they do. Reading it out of a matrix written before
+            # the role existed is what is impossible, not checking it.
+            continue
         table = sections[ROLE_SECTIONS[role]]
         for fact in owed:
             found = table.get(fact)
@@ -383,6 +428,8 @@ def test_the_inventory_is_read_out_of_the_matrix_and_misses_no_clause(
                 f"{role}/{fact} is disposed as {found}"
             )
     for role, section in ROLE_SECTIONS.items():
+        if role in ROLES_STATED_RATHER_THAN_READ:
+            continue
         for names, disposition in _matrix_rows()[section]:
             if "APPROXIMATED" not in disposition:
                 continue
@@ -1016,6 +1063,12 @@ def test_every_key_the_producer_emits_has_a_disposition(
                 table[own] = "EXACT-OBSERVABLE (Phase 4 plan, P4-D4.1)"
             for own in PHASE_4_NUMERIC_KEYS:
                 table[own] = "EXACT-OBSERVABLE (Phase 4 plan, P4-D4.5)"
+            if role == "time_of_day":
+                # The datetime section it borrows disposes the DATE
+                # ladder and the offset fields, none of which this role
+                # publishes; what it does publish is these five.
+                for own, said in CLOCK_OWN_KEYS:
+                    table[own] = said
             missing = _undisposed(_emitted_names(block), table, universal)
             assert missing == [], f"{role}: {missing}"
     assert reached == set(ROLE_SECTIONS)

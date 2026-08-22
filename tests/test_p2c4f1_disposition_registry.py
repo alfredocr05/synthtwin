@@ -1929,7 +1929,10 @@ def test_the_scan_reaches_every_exact_fact_and_all_three_documents(
     # Ten groups: Phase 2's nine, plus `affixed`, whose own facts the
     # Phase 4 plan disposes because the role did not exist when the
     # Phase 2 matrix was written.
-    assert len({fact.group for fact in exact}) == 10
+    # Eleven since the clock role joined: its four exactly observable
+    # facts are a group of their own, disposed by the Phase 4 plan
+    # rather than by the version 4 matrix, which predates the role.
+    assert len({fact.group for fact in exact}) == 11
     for _name, path in DOCUMENTS:
         assert len(_statements(path)) > 150, path.name
     # ...and every document is really opened by the scan, which a

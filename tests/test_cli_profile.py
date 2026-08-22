@@ -99,7 +99,7 @@ def test_the_written_profile_is_valid_json_and_readable_back(
         (tmp_path / "clinic-profile.json").read_text(encoding="utf-8")
     )
     assert document["n_rows"] == 240
-    assert document["n_columns"] == 11
+    assert document["n_columns"] == 12
 
 
 def test_running_twice_produces_identical_files(

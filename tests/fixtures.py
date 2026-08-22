@@ -117,6 +117,7 @@ def every_role_table(seed: int = 20260807, n_rows: int = 240) -> str:
         "unused",
         "batch",
         "dose",
+        "seen_at",
     ]
     rows = []
     for index in range(n_rows):
@@ -168,6 +169,21 @@ def every_role_table(seed: int = 20260807, n_rows: int = 240) -> str:
         if index % 3 == 0:
             dose = f"{10 + (index * 37) % 180}.{index % 10}0"
         dose = f"{dose} mg"
+        # A COLUMN OF CLOCK TIMES, shaped against four things the
+        # affixed column had to be reshaped three times to satisfy.
+        # Its values come from `index` alone, so no draw of the shared
+        # generator moves when this column is added. They REPEAT --
+        # a hundred and twenty different times over two hundred and
+        # forty rows -- because an all-different column publishes a
+        # distinct count equal to its own present count, which no
+        # interpolated twin can carry and which makes the envelope
+        # vacuous. And two rows hold text no clock reading accepts, so
+        # `n_unparsed` is exercised rather than sitting at zero: two is
+        # the most a hundred-and-ninety-nine-hundredths parse line
+        # leaves room for at this length.
+        seen_at = f"{7 + (index % 120) // 60:02d}:{(index % 120) % 60:02d}"
+        if index in (100, 200):
+            seen_at = "not recorded"
         rows.append(
             [
                 record,
@@ -181,6 +197,7 @@ def every_role_table(seed: int = 20260807, n_rows: int = 240) -> str:
                 "",
                 "one",
                 dose,
+                seen_at,
             ]
         )
     return rows_to_csv(header, rows)

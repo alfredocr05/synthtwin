@@ -242,6 +242,7 @@ ROLE_COUNT = "count"
 ROLE_CONTINUOUS = "continuous"
 ROLE_CATEGORICAL = "categorical"
 ROLE_IDENTIFIER = "identifier"
+ROLE_CLOCK = "time_of_day"
 ROLE_AFFIXED = "affixed_number"
 ROLE_TEXT = "free_text"
 
@@ -255,6 +256,7 @@ ROLES = (
     ROLE_CONTINUOUS,
     ROLE_CATEGORICAL,
     ROLE_IDENTIFIER,
+    ROLE_CLOCK,
     ROLE_AFFIXED,
     ROLE_TEXT,
 )
@@ -284,6 +286,7 @@ AXIS_ROWS = (
     (ROLE_CONTINUOUS, "continuous", "ok"),
     (ROLE_CATEGORICAL, "categorical", "ok"),
     (ROLE_IDENTIFIER, "code", "ok"),
+    (ROLE_CLOCK, "time_of_day", "ok"),
     (ROLE_AFFIXED, "affixed_number", "ok"),
     (ROLE_TEXT, "text", "ok"),
 )
@@ -298,6 +301,7 @@ STATISTICAL_TYPES = (
     "continuous",
     "categorical",
     "code",
+    "time_of_day",
     "affixed_number",
     "text",
 )
@@ -344,6 +348,19 @@ LABEL_KEYS = (
 )
 
 CATEGORICAL_KEYS = LABEL_KEYS + ("level_ceiling",)
+
+# The clock role's own five, and the two forms its cells can wear.
+# Nothing else joins them: these five are the whole of what this role
+# adds to the universal keys, and the forbidden-key rule is what stops
+# a sixth.
+CLOCK_KEYS = (
+    "clock_form",
+    "clock_percentiles",
+    "earliest",
+    "latest",
+    "n_unparsed",
+)
+CLOCK_FORMS = ("hh-mm", "hh-mm-ss")
 
 DATETIME_KEYS = (
     "date_percentiles",
@@ -862,6 +879,24 @@ INVARIANTS = {
     ),
     "P3": (
         "a column of numbers says how its numbers were written"
+    ),
+    "T1": (
+        "every time of day this description publishes is written the "
+        "way this column's own times were written"
+    ),
+    "T2": (
+        "the ladder of clock times begins at the column's earliest "
+        "time and ends at its latest"
+    ),
+    "T3": (
+        "the ladder of clock times never goes backwards"
+    ),
+    "T4": (
+        "a column read as clock times holds at least one"
+    ),
+    "T5": (
+        "enough of a column's values are clock times for it to be read "
+        "that way"
     ),
     "P6": (
         "the cells held back from the forms map fit inside the forms "
@@ -3436,6 +3471,8 @@ def _role_keys(role: str) -> "tuple[str, ...]":
         return DATETIME_KEYS
     if role == ROLE_COUNT or role == ROLE_CONTINUOUS:
         return NUMERIC_KEYS
+    if role == ROLE_CLOCK:
+        return CLOCK_KEYS
     if role == ROLE_AFFIXED:
         return AFFIXED_KEYS
     if role == ROLE_IDENTIFIER:
@@ -3483,6 +3520,8 @@ def _facts(
             n_out_of_range,
             n_contradictory,
         )
+    if role == ROLE_CLOCK:
+        return _clock_facts(mapping, where, frame, n_present)
     if role == ROLE_AFFIXED:
         return _affixed_facts(mapping, where, frame, n_present, remarks)
     if role == ROLE_IDENTIFIER:
@@ -4655,6 +4694,184 @@ def _is_canonical_width(name: str) -> bool:
     if name == "0":
         return True
     return name[:1] != "0"
+
+
+def _is_a_clock_value(text: object, form: str) -> bool:
+    """Whether one published value is a clock time in one form.
+
+    Two digits a field, the separators where the form puts them, hours
+    to 23 and minutes and seconds to 59 -- invariant T1, asked of every
+    one of the thirteen clock values a block publishes.
+
+    Built out of character comparisons rather than string methods: the
+    offline audit refuses a method call on a value it cannot trace to
+    text, and a value read out of somebody's document is exactly such a
+    value.
+    """
+    if not isinstance(text, str):
+        return False
+    if form == CLOCK_FORMS[0]:
+        if len(text) != 5 or text[2] != ":":
+            return False
+    else:
+        if len(text) != 8 or text[2] != ":" or text[5] != ":":
+            return False
+        seconds = _digits_at(text, 6, 2)
+        if seconds is None or int(seconds) > 59:
+            return False
+    hours = _digits_at(text, 0, 2)
+    minutes = _digits_at(text, 3, 2)
+    if hours is None or minutes is None:
+        return False
+    return int(hours) <= 23 and int(minutes) <= 59
+
+
+def _clock_value(
+    value: object, key: str, where: str, form: str
+) -> str:
+    """One published clock time, checked against the column's own form."""
+    if not _is_a_clock_value(value, form):
+        # T1, raised in the invariant's own words rather than as a
+        # range error: what is wrong is not that one entry holds an odd
+        # value, it is that the block publishes a time in a form its
+        # own cells did not wear, and a reader is owed that sentence.
+        raise _broken(
+            "T1",
+            where,
+            f"the entry called '{key}' does not hold a time of day "
+            "written that way",
+            f"this column's times are written as {_clock_shape_said(form)}",
+        )
+    return f"{value}"
+
+
+def _clock_shape_said(form: str) -> str:
+    """The form named in the words a person reads."""
+    if form == CLOCK_FORMS[0]:
+        return "two digits for the hour and two for the minute, `09:30`"
+    return (
+        "two digits each for the hour, the minute and the second, "
+        "`09:30:00`"
+    )
+
+
+def _clock_ladder(
+    value: object, key: str, where: str, form: str
+) -> "dict[str, str]":
+    """The eleven rungs of a column of clock times (contract 5.6).
+
+    Guarantees: accepts the value under ``key`` and the form the column
+    publishes; returns the ladder as a mapping from rung name to clock
+    text. Raises ProfileError when it is not a block of entries (R15),
+    when its keys are not exactly the eleven rungs (L4), when a rung
+    holds nothing -- a rung of a clock ladder is never null -- when a
+    rung is not a clock time in this column's form (T1), or when the
+    rungs go DOWN (T3).
+
+    T3 IS A PLAIN TEXT COMPARISON, and that is sound rather than
+    convenient: both forms are fixed width and zero padded, so
+    comparing the written rungs character by character puts them in the
+    same order their ordinals do. It is checked only after T1 has
+    passed on the rung, because the equivalence rests on the shape.
+    """
+    mapping = _mapping(value, key, where)
+    _keys(mapping, where, LADDER_KEYS, "every ladder of clock times")
+    ladder: "dict[str, str]" = {}
+    previous = ""
+    previous_name = ""
+    for name in LADDER_KEYS:
+        rung = mapping[name]
+        if rung is None:
+            raise _broken(
+                "T1",
+                where,
+                f"the rung '{name}' of {key} holds nothing",
+                "a ladder of clock times has a time at every rung",
+            )
+        found = _clock_value(rung, f"{key} -> {name}", where, form)
+        ladder[name] = found
+        if previous and found < previous:
+            raise _broken(
+                "T3",
+                where,
+                f"the rung '{previous_name}' of {key} is {previous}",
+                f"the rung '{name}' after it is {found}",
+            )
+        previous = found
+        previous_name = name
+    return ladder
+
+
+def _clock_facts(
+    mapping: "dict[str, object]",
+    where: str,
+    frame: _Frame,
+    n_present: int,
+) -> ClockFacts:
+    """Read a clock block (contract section 6, the clock role).
+
+    The form is read FIRST, because every other value of the block is
+    checked against it: a ladder rung is a clock time in THIS column's
+    form, and asking that question without the form first would either
+    accept both shapes or invent one.
+
+    The five invariants, each raised in the words of the rule it broke:
+    T1 every published clock value is written in the column's own form;
+    T2 the ladder's two ends ARE the endpoints; T3 the rungs never go
+    backwards; T4 some cell parsed; T5 enough of them did.
+    """
+    form = _one_of(mapping["clock_form"], "clock_form", where, CLOCK_FORMS)
+    earliest = _clock_value(mapping["earliest"], "earliest", where, form)
+    latest = _clock_value(mapping["latest"], "latest", where, form)
+    ladder = _clock_ladder(
+        mapping["clock_percentiles"], "clock_percentiles", where, form
+    )
+    # T2. Both ends of the ladder ARE the endpoints. Untied, a twin
+    # pinned to the ladder could hold values earlier than the earliest
+    # this description publishes.
+    if ladder["min"] != earliest:
+        raise _broken(
+            "T2",
+            where,
+            f"the ladder of clock times begins at {ladder['min']}",
+            f"the column's earliest time is {earliest}",
+        )
+    if ladder["max"] != latest:
+        raise _broken(
+            "T2",
+            where,
+            f"the ladder of clock times ends at {ladder['max']}",
+            f"the column's latest time is {latest}",
+        )
+    unparsed = _whole(mapping["n_unparsed"], "n_unparsed", where, 0)
+    # T4. Some cell parsed, and this is NOT implied by T5: at a parse
+    # rate of zero the line is zero and T5 says nothing, and this is
+    # then the only rule keeping a cell for the endpoints to be values
+    # of.
+    if unparsed >= n_present:
+        raise _broken(
+            "T4",
+            where,
+            f"{unparsed} of this column's values are not clock times",
+            f"the column holds {n_present} values in all",
+        )
+    # T5. Enough of them parsed -- the parse line, applied as a COUNT
+    # and never as a compared share, exactly as the producer applied it.
+    line = _line_count(frame.parse_rate, n_present)
+    if n_present - unparsed < line:
+        raise _broken(
+            "T5",
+            where,
+            f"{n_present - unparsed} of this column's values are clock times",
+            f"at least {line} of them had to be for it to be read this way",
+        )
+    return ClockFacts(
+        clock_form=form,
+        earliest=earliest,
+        latest=latest,
+        clock_percentiles=ladder,
+        n_unparsed=unparsed,
+    )
 
 
 def _identifier_facts(

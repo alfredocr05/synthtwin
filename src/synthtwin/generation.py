@@ -158,6 +158,33 @@ _WORD_SCALE = 18446744073709551616
 # of neighbours in a large column (method G5.1).
 _PCT = (0, 1, 5, 10, 25, 50, 75, 90, 95, 99, 100)
 
+# The eleven rungs by name, in ladder order, which is the order `_PCT`
+# is in. A ladder read out of a document is a MAPPING, so a walk over
+# it needs the order written down; taking the mapping's own order would
+# make the twin depend on how a document happened to be serialised.
+_LADDER_NAMES = (
+    "min",
+    "p01",
+    "p05",
+    "p10",
+    "p25",
+    "p50",
+    "p75",
+    "p90",
+    "p95",
+    "p99",
+    "max",
+)
+
+# What is said when a published clock value the loader already checked
+# cannot be read back. No document a person can write reaches it.
+_INTERNAL_CLOCK = (
+    "synthtwin internal check: a clock time this description publishes "
+    "could not be read back in the form the same description names. "
+    "This means a mistake in synthtwin; please report it. Nothing has "
+    "been written."
+)
+
 # The three alphabets of method G9.1. The ORDER is part of the
 # specification, because it decides which spellings are produced first.
 # `_CODE` is exactly the alphabet `parsing.is_code_text` accepts, in
@@ -4859,6 +4886,112 @@ def _number_cells(
 # -- columns of dates and times (method G7) ---------------------------
 
 
+def _clock_content(
+    plan: "_ColumnPlan", words: "list[int]"
+) -> "tuple[list[str], list[Deviation]]":
+    """Every present cell of a column of clock times.
+
+    TWO POPULATIONS AND ONE SUBTRACTION. `n_present - n_unparsed` cells
+    parsed as clock times and are built first in rank order; exactly
+    `n_unparsed` stand-ins follow. Nothing else divides the column.
+
+    THE TWO ENDS ARE THE PUBLISHED TEXT, character for character, and
+    neither draws a word. Every rank between them travels through the
+    ordinal space the PUBLISHED FORM sets -- minutes of day for
+    `hh-mm`, seconds of day for `hh-mm-ss` -- by the same floor-division
+    interpolation the date rule uses, so no interpolated value is ever
+    truncated or widened to fit its cell.
+
+    WHY THE INTERPOLATION ALWAYS HAS AN ANSWER, written down rather than
+    assumed. Each interior ordinal is computed inside one segment of
+    the ladder, so it lies between that segment's two rungs; the ladder
+    never goes backwards (T3), so no segment is inverted; and its two
+    ends ARE the column's endpoints (T2), so every ordinal lies between
+    them. Both endpoints are real cells of a closed finite space, so
+    every ordinal is inside that space and has exactly one spelling in
+    the column's form.
+
+    THIS ROLE HAS NO OFFSET MACHINERY AND MAY NOT INVENT ANY. The clock
+    role publishes none of the datetime role's ten offset and
+    resolution keys, so there is no zone to carry, no reading to
+    convert and no endpoint field surgery: a clock time is a place in
+    the day and nothing else.
+    """
+    column = plan.column
+    facts = column.facts
+    if not isinstance(facts, contract.ClockFacts):
+        raise _wrong_facts(column.name)
+    form = facts.clock_form
+    parsed = column.n_present - facts.n_unparsed
+    ladder = [
+        _clock_ordinal_of(facts.clock_percentiles[name], form)
+        for name in _LADDER_NAMES
+    ]
+    cells: "list[str]" = []
+    taken = 0
+    for rank in range(parsed):
+        if rank == 0:
+            cells = cells + [facts.earliest]
+            continue
+        if rank == parsed - 1 and parsed >= 2:
+            cells = cells + [facts.latest]
+            continue
+        word = words[taken]
+        taken = taken + 1
+        numerator = rank * _WORD_SCALE + word
+        denominator = parsed * _WORD_SCALE
+        step = _segment(numerator, denominator)
+        above = 100 * numerator - _PCT[step] * denominator
+        span = (_PCT[step + 1] - _PCT[step]) * denominator
+        ordinal = ladder[step] + (
+            above * (ladder[step + 1] - ladder[step])
+        ) // span
+        cells = cells + [parsing.clock_spelling(ordinal, form)]
+    # THE STAND-INS, which are outside the obligation to reproduce a
+    # clock value and are counted rather than described. Each is
+    # stepped past four things: a spelling this column already wrote, a
+    # word this format reads as "no value", a spelling that would read
+    # as a clock time in EITHER form -- which would quietly move
+    # `n_unparsed` -- and a spelling this column publishes as a hole.
+    used: "dict[str, int]" = {cell: 1 for cell in cells}
+    holes = _hole_spellings(column)
+    step = 1
+    while len(cells) < column.n_present:
+        candidate = _text_spelling(step, used)
+        step = step + 1
+        if _reads_as_a_clock(candidate):
+            continue
+        if _is_a_hole_spelling(candidate, holes):
+            continue
+        cells = cells + [_take(candidate, used)]
+    return cells, []
+
+
+def _reads_as_a_clock(text: str) -> bool:
+    """Whether this spelling would be read as a clock time at all.
+
+    Either form, because a stand-in that reads as one under the form
+    the column did NOT publish is still a cell the twin's own
+    description counts differently from the description it was built
+    from.
+    """
+    return parsing.clock_form(text) is not None
+
+
+def _clock_ordinal_of(text: str, form: str) -> int:
+    """One published clock value as its place in the form's own unit.
+
+    The loader has already held every published clock value to that
+    form (invariant T1), so the reader answers; a None here would be an
+    internal contradiction rather than a document a person can write,
+    and it is raised as one.
+    """
+    found = parsing.clock_ordinal(text, form)
+    if found is None:
+        raise errors.ProfileError(_INTERNAL_CLOCK)
+    return found
+
+
 def _datetime_content(
     plan: "_ColumnPlan", words: "list[int]"
 ) -> "tuple[list[str], list[Deviation]]":
@@ -8662,6 +8795,14 @@ def _plan_column(
         layout, notes, content = _numeric_layout(core, facts.numbers)
     elif isinstance(facts, contract.NumericFacts):
         layout, notes, content = _numeric_layout(column, facts)
+    elif isinstance(facts, contract.ClockFacts):
+        # THE SAME SHAPE THE DATE ROLE BUDGETS BY, and for the same
+        # reason: both ends are pinned by fixed rule and cost no word,
+        # every stand-in is stepped past its neighbours and costs none,
+        # and each rank between the ends takes exactly one. `max(..., 0)`
+        # covers a column of one parsed cell, and invariant T4 -- some
+        # cell parsed -- is what stops it being none.
+        content = max(column.n_present - facts.n_unparsed - 2, 0)
     elif isinstance(facts, contract.DatetimeFacts):
         content = max(column.n_present - facts.n_unparsed - 2, 0)
     elif isinstance(facts, contract.IdentifierFacts):
@@ -8886,6 +9027,8 @@ def _content_of(
         return _numeric_content(plan, words)
     if kind == "affixed_number":
         return _affixed_content(plan, words)
+    if kind == "time_of_day":
+        return _clock_content(plan, words)
     if kind == "datetime":
         return _datetime_content(plan, words)
     if kind == "code":
@@ -10457,6 +10600,122 @@ def _spellings_of_a_date(facts: contract.DatetimeFacts) -> int:
     return max(1, carried)
 
 
+def _clock_approximations(
+    column: contract.ColumnBlock,
+    facts: contract.ClockFacts,
+    written: "list[str]",
+) -> "list[Approximation]":
+    """The two approximated families of a column of clock times.
+
+    The nine interior rungs against the window each rank was built in,
+    and the two distinctness counts against the envelope amendment
+    A-P4-20 fixes. Both are measured off the FINISHED cells and neither
+    is restated from what this module intended.
+    """
+    present = [cell for cell in written if cell != ""]
+    form = facts.clock_form
+    ordinals = sorted(
+        [
+            found
+            for found in [parsing.clock_ordinal(cell, form) for cell in present]
+            if found is not None
+        ]
+    )
+    held = len(ordinals)
+    ladder = [
+        _clock_ordinal_of(facts.clock_percentiles[name], form)
+        for name in _LADDER_NAMES
+    ]
+    lows, highs = _clock_windows(ladder, held)
+    found_facts: "list[Approximation]" = []
+    rungs = 10 if held >= 1 else 1
+    for step in range(1, rungs):
+        percent = _PCT[step]
+        place = min(held - 1, ((held - 1) * percent) // 100)
+        achieved = ordinals[place]
+        lowest = lows[place]
+        highest = highs[place]
+        found_facts = found_facts + [
+            Approximation(
+                column=column.name,
+                fact=f"clock_percentiles.p{percent:02d}",
+                published=facts.clock_percentiles[_LADDER_NAMES[step]],
+                achieved=parsing.clock_spelling(achieved, form),
+                lowest=parsing.clock_spelling(max(0, lowest), form),
+                highest=parsing.clock_spelling(highest, form),
+                inside=lowest <= achieved <= highest,
+                note=(
+                    "the time of day that stands "
+                    f"{percent} percent of the way up this column"
+                ),
+                covers_published=lowest <= ladder[step] <= highest,
+            )
+        ]
+    stand_ins = len(present) - held
+    lowest_count = _forced_apart(lows, highs) + stand_ins
+    reachable = ladder[10] - ladder[0] + 1
+    highest_count = min(len(present), reachable + stand_ins)
+    lowest_count = min(lowest_count, highest_count)
+    counted = _recounted(written)
+    for place, name in ((2, "n_distinct"), (3, "n_distinct_folded")):
+        published = column.n_distinct
+        if place == 3:
+            published = column.n_distinct_folded
+        found_facts = found_facts + [
+            Approximation(
+                column=column.name,
+                fact=name,
+                published=f"{published}",
+                achieved=f"{counted[place]}",
+                lowest=f"{lowest_count}",
+                highest=f"{highest_count}",
+                inside=lowest_count <= counted[place] <= highest_count,
+                note=(
+                    "how many different values this column holds"
+                    if place == 2
+                    else "how many different values it holds, ignoring "
+                    "case and edge spacing"
+                ),
+                covers_published=lowest_count <= published <= highest_count,
+            )
+        ]
+    return found_facts
+
+
+def _clock_windows(
+    ladder: "list[int]", held: int
+) -> "tuple[list[int], list[int]]":
+    """The window every rank of a clock column was built in.
+
+    The two ends are PINNED and have no room at all; every rank between
+    them was interpolated inside one segment of the ladder, so it sits
+    between the ladder read at its own two shares, one unit lower at
+    the bottom for the flooring.
+    """
+    lows: "list[int]" = []
+    highs: "list[int]" = []
+    for rank in range(held):
+        if rank == 0:
+            lows = lows + [ladder[0]]
+            highs = highs + [ladder[0]]
+            continue
+        if rank == held - 1 and held >= 2:
+            lows = lows + [ladder[10]]
+            highs = highs + [ladder[10]]
+            continue
+        lows = lows + [_ladder_at(ladder, rank, held) - 1]
+        highs = highs + [_ladder_at(ladder, rank + 1, held)]
+    return (lows, highs)
+
+
+def _ladder_at(ladder: "list[int]", numerator: int, denominator: int) -> int:
+    """One ladder read at one share, by the construction's own walk."""
+    step = _segment(numerator, denominator)
+    above = 100 * numerator - _PCT[step] * denominator
+    span = (_PCT[step + 1] - _PCT[step]) * denominator
+    return ladder[step] + (above * (ladder[step + 1] - ladder[step])) // span
+
+
 def _datetime_approximations(
     column: contract.ColumnBlock,
     facts: contract.DatetimeFacts,
@@ -10906,6 +11165,8 @@ def _approximations(
         )
     if isinstance(facts, contract.NumericFacts):
         return _numeric_approximations(column, facts, plan, written)
+    if isinstance(facts, contract.ClockFacts):
+        return _clock_approximations(column, facts, written)
     if isinstance(facts, contract.DatetimeFacts):
         return _datetime_approximations(column, facts, written)
     if isinstance(facts, contract.TextFacts):
