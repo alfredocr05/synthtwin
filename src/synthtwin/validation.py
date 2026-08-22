@@ -1772,6 +1772,23 @@ def unrebuildable_columns(
     short = own_recovered < own_named
     unrebuildable: dict[str, str] = {}
     for column in description.columns:
+        # A CELL RESCUED OVER ITS CORE, whose spelling this description
+        # does not carry. On the affixed role a `--keep-value` names a
+        # WHOLE CELL -- `-999 mg` -- and the rescue is recorded as a
+        # verdict about the core `-999`, so the document holds the
+        # decision without holding the word that made it. Rebuilding
+        # the reading rule from the description would judge those cells
+        # holes again, which is a rule the description was not written
+        # under: a hundred-cell column checked against the file it was
+        # written from reported fifteen obligations MISSED, every one
+        # of them a number untrue of that file. The obligations go to
+        # the NOT-CHECKABLE census instead, which is what this function
+        # exists for.
+        if _rescued_over_a_core(column):
+            unrebuildable[column.name] = _core_rescue_not_recorded(
+                _cells_rescued_over_cores(column)
+            )
+            continue
         if not _publishes_no_source_accounting(column):
             unnamed = _holes_no_spelling_accounts_for(column, recovered)
             if unnamed > 0:
@@ -1784,6 +1801,42 @@ def unrebuildable_columns(
                 own_named, own_recovered
             )
     return unrebuildable
+
+
+def _rescued_over_a_core(column: contract.ColumnBlock) -> bool:
+    """Whether a declaration rescued this column's cells over their cores.
+
+    Read from the description alone, as V3.3 requires: the role says
+    the stand-in pass ran over cores, and a verdict reading
+    `kept_by_you` says a declaration decided one. What the document
+    does NOT carry is the spelling that decided it -- the cell, not the
+    core -- so the rule cannot be rebuilt from here.
+    """
+    if column.role != contract.ROLE_AFFIXED:
+        return False
+    for entry in column.sentinel_verdicts:
+        if entry.reason == "kept_by_you":
+            return True
+    return False
+
+
+def _cells_rescued_over_cores(column: contract.ColumnBlock) -> int:
+    """How many cells the rescue kept, from the published verdicts."""
+    found = 0
+    for entry in column.sentinel_verdicts:
+        if entry.reason == "kept_by_you":
+            found = found + entry.n_occurrences
+    return found
+
+
+def _core_rescue_not_recorded(kept: int) -> str:
+    """A column whose rescue this description records without its word."""
+    return (
+        f"the description records {_shown_count(kept)} cell(s) of this "
+        f"column kept as values by a word you named, and the word names "
+        f"the whole cell while the description records only the number "
+        f"inside it, so " + UNREBUILDABLE_REASON_TAIL
+    )
 
 
 def _publishes_no_source_accounting(column: contract.ColumnBlock) -> bool:

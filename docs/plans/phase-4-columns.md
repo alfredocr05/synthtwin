@@ -882,9 +882,10 @@ amendment A-P3-46's ruling took for that case. A column with fewer
 decimal cells than the floor publishes no width, its padded and
 canonical forms are described alike, and the route survives there:
 amendment A-P4-14 states the scope and residual R-P4-19 carries what
-is left. A-P3-46's own measurements were taken at five and ten rows,
-both below the default floor, so the residual is not closed on the
-sizes it was costed at. The
+is left. A-P3-46 measured the route at seven column sizes
+from five rows to two hundred and forty, so most of what it costed IS
+closed; what survives is every column, of any length, none of whose
+widths is worn by `small_cell_floor` cells. The
 trailing-zero re-spelling attack that `styles.spelled` alone catches
 stays caught: the new fact makes the re-spelled file miss its published
 widths too, so the obligation P3-V2-C-F1 restored is strengthened, not
@@ -1642,16 +1643,38 @@ Opened by this plan, each a limit accepted rather than work forgotten:
   a second implementer in another language something to reproduce.
   The vectors and their committed failing mutants are owed before this
   phase closes. Priced and accepted, not waived.
+- **R-P4-21** (opened by amendment A-P4-17, 2026-08-21). THE CONTRACT
+  STILL SAYS BOTH THINGS about which all-different remark the affixed
+  role carries. Version 6 section 4.5 must state the form, and
+  P4-D4.1's "verbatim" sentence and `r5a2.md`'s must be corrected to
+  match it. The code ships the numbers form because the alternative is
+  a false sentence in the plainest-language part of a document; the
+  text has to catch up.
+- **R-P4-20** (opened at codex round 3, 2026-08-21). A SNAP CAN LAND
+  ONE VALUE ON ANOTHER THE COLUMN ALREADY HOLDS, and the published
+  counts of different values and different folded identities are then
+  met by the leading-zero spelling family rather than by different
+  numbers. The counts are true — they are counts of SPELLINGS and the
+  contract defines them that way on every role — and the run reports
+  the ladder rungs and moments it missed. What no published fact binds
+  is how many different NUMBERS the twin holds, so a reader grouping
+  rows by value can find three groups where the real table had
+  thirty-one, with every check green. P4-D4.5 routes the merge through
+  the distinctness envelope and this is what that route leaves open;
+  closing it means publishing a count of different values that no
+  spelling can buy, which is a format decision and an owner's.
 - **R-P4-19** (opened by amendment A-P4-14's narrowing, 2026-08-21).
   BELOW THE FLOOR, THE OLD ROUTE SURVIVES. The census is
-  floor-governed, so a column whose decimal cells are fewer than
-  `small_cell_floor` publishes no width at all and its padded and
-  canonical forms are described alike — and `styles.spelled` then
+  floor-governed PER WIDTH, not per column, and the difference is the
+  whole size of what is left: a column of any length whose decimal
+  cells are spread across widths none of which is worn by
+  `small_cell_floor` cells publishes no width at all, and its padded
+  and canonical forms are then described alike — so `styles.spelled`
   MISSES on a real table checked against its own description, which is
-  exactly the user-facing defect A-P3-46 measured. It is narrower than
-  the route was: it needs a column with fewer decimal cells than the
-  floor, where the file's own description names no spelling of them
-  anyway. Closing it means deciding what a per-cell spelling
+  exactly the user-facing defect A-P3-46 measured. A first writing of
+  this residual said "a column with fewer decimal cells than the
+  floor", which reads as a tiny-column corner and is not what the rule
+  says; a two-hundred-row table of ragged precision meets it. Closing it means deciding what a per-cell spelling
   obligation MEANS for a cell whose form the floor holds back, which
   is an owner decision about the disclosure floor and not a defect to
   patch. Named here so the next person meets it as a known state.
@@ -2706,10 +2729,25 @@ none. Where no remaining width holds the whole group, the group is
 written at its own value's width and the generation report NAMES the
 width that went unplaced, with the count published and the count
 written — the same treatment a style with nowhere to go already gets.
-A value some of whose cells were written another way is never SNAPPED
-either, for the same reason at one grain finer: snapping the decimal
-half of such a value splits the number itself rather than its spelling.
-Padding such a value is still permitted, because padding moves nothing.
+A value some of whose cells were written another way takes no width at
+all — neither snapped NOR padded — and the second half of that is a
+correction to this amendment's own first writing (codex round 3, item
+P4-AFX3-F5). Snapping the decimal half of such a value splits the
+NUMBER. Padding it splits the SPELLING, which the sentence "padding
+moves nothing" missed: the cells the style step wrote plainly keep the
+value's own canonical text, so a column came out holding `0.500`
+beside `0.5` — two spellings of one number, bought with a width quota
+that closed either way. Both are refused, and the width goes unplaced
+and is named like any other.
+
+**What that costs, stated rather than left implicit.** A padding this
+plan meant to permit is now refused in one shape it could have been
+safe in: where another style's spelling of the same value is
+independently distinct, replacing the decimal spelling changes no
+count. Telling that case from the unsafe one needs a spelling-count
+feasibility test the width walk does not carry, so the safe-by-
+construction rule is taken and the cost is a width quota that
+occasionally goes unmet where it need not have. The report names it.
 
 **What it costs.** A published width count can now miss where the
 twin's own strata cannot carry it, and the report says so instead of
@@ -2717,6 +2755,84 @@ the census being met at the cost of a count nobody was told about. What
 it buys: the twin's count of different values and different spellings
 stay exact, which is what a person grouping rows by a column depends
 on.
+
+## Amendment A-P4-16 — the pool of the forms map is bounded by the forms in it
+
+**THIS RAISES an obligation on every numeric column**, not only on the
+new role, and it is recorded here because the raise is the loader's and
+the plan is where the loader's obligations are decided.
+
+**What nothing checked.** There are exactly six ways this format writes
+a number, a form is pooled into `(withheld)` only when its own count
+falls BELOW `small_cell_floor`, and a form the map NAMES is not in the
+pool. So the pooled remainder cannot exceed the number of unnamed forms
+times one less than the floor — and no invariant said so. A column of
+two hundred and forty numbers naming `plain: 160` and `decimal: 20`
+could publish `(withheld): 60`, which four forms holding at most ten
+each cannot make, and the loader took it. `generate` then reported that
+the TWIN had missed a published count, when what had happened is that
+the description was altered after synthtwin wrote it — the tool
+blaming its own output for somebody else's edit.
+
+**What is raised: invariant P6.** `numeric_styles["(withheld)"]` is at
+most `(6 − named) × (small_cell_floor − 1)`, where `named` counts the
+map's keys other than the remainder. Every description a producer
+writes satisfies it by construction, so nothing real is refused.
+
+**Where amendment A-P4-8's condition 4 stands after it.** That
+condition bounds the fraction census from BELOW given the pool; this
+bounds the POOL from above given the forms map. Neither implies the
+other and both stay. A-P4-8's constant — five forms sharing the pool —
+was written for the case where `decimal` is the pooled form and does
+not account for other named forms; it is left as it is, because it is
+a valid bound in its own branch, and P6 is what catches the documents
+it lets through.
+
+**What it costs.** One more condition for a loader to check and one
+more for a producer to satisfy, and the admission that three impossible
+documents loaded through the branch amendment A-P4-8 was written to
+close.
+
+## Amendment A-P4-17 — the affixed role carries the NUMBERS form of the all-different remark
+
+**THIS RESOLVES A CONTRADICTION IN THE CONTRACT rather than lowering or
+raising an obligation**, and it is written because the resolution
+changes a shipped sentence and the contract still says both things.
+
+**What the documents say.** Two passages give this role the FREE-TEXT
+form of the all-different remark: this plan's own P4-D4.1 ("the
+all-different remark additionally extends to this role verbatim", two
+lines after naming the all-different TEXT remark) and
+`docs/spec/v6-build/r5a2.md`. One passage gives it the NUMBERS form:
+contract C6-81, which assigns one form to the roles described as
+numbers — `count`, `continuous` and `affixed_number` — and one to
+`free_text`. The project's own derivation notes for the section
+(`r5a_meta.md`) already record the conflict and name the owed act:
+section 4.5 must move the sentence or say why not. It was never done.
+
+**Why the numbers form is what ships.** The free-text form says
+"Nothing from this column is published either way — no value of it,
+and no distribution", and tells the reader to rewrite the values as
+plain numbers so that "their distribution will be described". Both
+clauses are FALSE printed over an affixed block, which publishes a full
+core ladder, every moment and both ends. A description that says
+something untrue about the table it describes is this project's worst
+failure class, and no reading of the word "verbatim" outranks it. The
+withdrawal itself — that synthtwin did not assume these are record
+numbers, and that `--identifier` is the route if they are — is carried
+by the numbers form and by this role's own required remark, so nothing
+a reader is owed is lost.
+
+**What is owed, and it is owed to the CONTRACT.** Section 4.5 of
+version 6 must state which form this role carries, and P4-D4.1's
+"verbatim" sentence and `r5a2.md`'s must be corrected to match.
+Residual R-P4-21 carries that; the code is not waiting on it, because
+shipping a false sentence while the paperwork catches up is not a
+neutral choice.
+
+**What it costs.** A shipped sentence changed ahead of the contract
+text that will describe it, and three tests moved from asserting the
+free-text clauses to asserting their absence.
 
   The five plan reviews are in `docs/plans/reviews/` as
   `phase-4-plan-review-round-1.md` through `-round-5.md`.

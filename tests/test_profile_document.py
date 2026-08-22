@@ -205,6 +205,19 @@ def test_nothing_that_varies_between_runs_is_written(
 # reads had to become text no rule reads, so it is prose that varies
 # at both ends and holds no digit.
 #
+# RE-RECORDED AGAIN THROUGH CODEX ROUNDS 2 AND 3 (2026-08-21), and the
+# cause is NOT the one above: that free-text change is a round-1 record
+# and the column has not moved since. What moved these digests is the
+# `dose` column and the census beside it. `dose` was added to the
+# shared table so the affixed role is walked by every battery, its
+# spread was widened so a twin can carry its distinctness, and its
+# cores were given a decimal point so the fraction-width census is
+# exercised on THIS role rather than only on the plain numeric ones.
+# The census itself is new in that range and publishes two more
+# obligations on `dose` -- `widths.published.1` and
+# `widths.published.2` -- so the quality report carries MORE than it
+# did, which is the direction a re-recording must move in.
+#
 # All four digests moved together, which is what a change to the
 # TABLE looks like: a different column of values makes a different
 # description, a different twin, a different report and a different
