@@ -403,6 +403,7 @@ def _settings_block(
         "declaration_publication": DECLARATION_PUBLICATION,
         "near_threshold_slack": settings.near_threshold_slack,
         "day_first": settings.day_first,
+        "long_tail_minimum_level": settings.long_tail_minimum_level,
         "forced_identifiers": sorted(forced_identifiers),
     }
 
@@ -665,6 +666,7 @@ PUBLICATION_RULES: "dict[tuple[str, ...], str]" = {
     ("settings", "declaration_publication"): _WORD,
     ("settings", "near_threshold_slack"): _COUNT,
     ("settings", "day_first"): _FLAG,
+    ("settings", "long_tail_minimum_level"): _COUNT,
     ("settings", "forced_identifiers"): _ARRAY,
     ("settings", "forced_identifiers", _EACH): _KNOWN_NAME,
     # How the table was read.

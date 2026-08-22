@@ -1019,6 +1019,7 @@ def settings_for(description: contract.Profile) -> taxonomy.Settings:
         declaration_matching=block.declaration_matching,
         near_threshold_slack=block.near_threshold_slack,
         day_first=block.day_first,
+        long_tail_minimum_level=block.long_tail_minimum_level,
     )
 
 

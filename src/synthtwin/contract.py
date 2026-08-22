@@ -160,6 +160,7 @@ SETTINGS_KEYS = (
     "minimum_parse_rate",
     "near_threshold_slack",
     "day_first",
+    "long_tail_minimum_level",
     "sentinel_minimum_share",
     "sentinel_outlier_iqr_multiple",
     "small_cell_floor",
@@ -794,9 +795,13 @@ INVARIANTS = {
     "B7": "no two published labels are the same label",
     "C1": "a column of one value has one value, ignoring case",
     "Y1": "a column of two values has two, ignoring case",
-    "G2": (
+    "LT1": (
         "a long tail of labels has at least one value shared by as "
         "many rows as its own detection line asks"
+    ),
+    "LT2": (
+        "a long tail of labels holds more different values than a set "
+        "of categories may"
     ),
     "G1": (
         "a column of categories has no more different values than the "
@@ -1029,6 +1034,7 @@ class SettingsBlock:
     declaration_publication: str
     near_threshold_slack: int
     day_first: bool
+    long_tail_minimum_level: int
     forced_identifiers: "tuple[str, ...]"
 
 
@@ -1421,6 +1427,38 @@ class _Frame:
     # column's pair to the line its own detection had to clear, and a
     # loader without the setting could not check it at all.
     parse_rate: float
+    # The three settings the categorical ceiling is computed from,
+    # carried here because LT2 is stated over it: a long-tail block has
+    # to hold more different values than a set of categories may, and a
+    # loader without these could not ask the producer's own question.
+    category_share: float
+    category_ceiling: int
+    category_floor: int
+
+
+def _category_ceiling(frame: _Frame) -> int:
+    """The most different values a set of categories may hold here.
+
+    THE PRODUCER'S OWN RULE, written again for the reason every
+    threshold is written twice: the loader may not import the
+    describing side. `min(categorical_ceiling, categorical_share of the
+    table's ROWS)`, never below `categorical_floor` -- rows, not the
+    values the column happens to hold, which is what the producer
+    computes and what every profile records the settings for.
+    """
+    # THE EXACT PRODUCT, like every other threshold in this file
+    # (amendments A-P4-21 and A-P4-23). A ceiling computed by
+    # multiplying in binary64 is a ceiling the two sides can disagree
+    # about at the boundary, which is the whole reason the rule is
+    # written twice.
+    numerator, denominator = _exact_ratio(frame.category_share)
+    share = (numerator * frame.n_rows) // denominator
+    ceiling = frame.category_ceiling
+    if share < ceiling:
+        ceiling = share
+    if ceiling < frame.category_floor:
+        ceiling = frame.category_floor
+    return ceiling
 
 
 # -- reading the file -------------------------------------------------
@@ -1978,6 +2016,21 @@ def _one_of(
     found = _text(value, key, where)
     if found not in permitted:
         raise _out_of_range(key, where, f"'{found}'", _listed(permitted))
+    return found
+
+
+def _exactly(value: object, key: str, where: str, permitted: int) -> int:
+    """The value under ``key``, required to be one whole number.
+
+    A setting with exactly one permitted value, on the
+    `declaration_matching` precedent. It is recorded rather than
+    assumed so that the number is on the document's own face, and it is
+    refused at any other value because moving it is a change to the
+    contract rather than a choice a run may make.
+    """
+    found = _whole(value, key, where, 0)
+    if found != permitted:
+        raise _out_of_range(key, where, f"{found}", f"{permitted}")
     return found
 
 
@@ -2878,6 +2931,12 @@ def _settings(value: object) -> SettingsBlock:
             mapping["near_threshold_slack"], "near_threshold_slack", where, 0
         ),
         day_first=_truth(mapping["day_first"], "day_first", where),
+        long_tail_minimum_level=_exactly(
+            mapping["long_tail_minimum_level"],
+            "long_tail_minimum_level",
+            where,
+            LONG_TAIL_LINE,
+        ),
         forced_identifiers=tuple(declared),
     )
     # C5-K4 LAST, because it is the one rule here that needs BOTH
@@ -3587,7 +3646,12 @@ def _facts(
         )
     if role == ROLE_LONG_TAIL:
         return _long_tail_facts(
-            mapping, where, frame.floor, n_present, n_folded
+            mapping,
+            where,
+            frame.floor,
+            n_present,
+            n_folded,
+            _category_ceiling(frame),
         )
     if role == ROLE_DATETIME:
         return _datetime_facts(mapping, where, frame.floor, n_present)
@@ -3995,6 +4059,7 @@ def _long_tail_facts(
     floor: int,
     n_present: int,
     n_folded: int,
+    ceiling: int,
 ) -> LabelFacts:
     """A long tail of labels (plan P4-D5).
 
@@ -4018,12 +4083,29 @@ def _long_tail_facts(
             covering = covering + 1
     if covering < 1:
         raise _broken(
-            "G2",
+            "LT1",
             where,
             f"the type path is '{ROLE_LONG_TAIL}'",
             (
                 f"no value of it is shared by {line} rows or more, so "
                 f"this rule would not have claimed the column"
+            ),
+        )
+    # LT2. THE COLUMN HAS TO BE PAST THE CEILING TOO, and checking only
+    # the line let a plain set of categories be relabelled by hand
+    # (review item P4-TAIL-F3). The ceiling is recomputed from the
+    # settings the document itself records, so the loader asks the
+    # producer's own question rather than trusting the answer.
+    if n_folded <= ceiling:
+        raise _broken(
+            "LT2",
+            where,
+            f"the type path is '{ROLE_LONG_TAIL}'",
+            (
+                f"the column has {n_folded} different values ignoring "
+                f"case, which is within the {ceiling} a set of "
+                f"categories may have, so the earlier rule would have "
+                f"claimed it"
             ),
         )
     return LabelFacts(
@@ -5805,6 +5887,9 @@ def _validated(document: "dict[str, object]") -> Profile:
             n_columns=n_columns,
             declared=settings.forced_identifiers,
             parse_rate=settings.minimum_parse_rate,
+            category_share=settings.categorical_share,
+            category_ceiling=settings.categorical_ceiling,
+            category_floor=settings.categorical_floor,
         ),
     )
     _cross_checks(columns, settings, notes)

@@ -224,7 +224,7 @@ def test_nothing_that_varies_between_runs_is_written(
 # quality report. A change to the generator alone would have moved the
 # last three and left the first.
 GOLDEN_SHA256 = (
-    "c3cd6d9f0e6f730620a7c3a76aaf2b2ef02f8ac5cf31a38288ee8b18bc2b41b5"
+    "4d72d563f4bb4216766fce81bf67bcf5a3023cc88dd9ee6d138a9c88852616fa"
 )
 
 
