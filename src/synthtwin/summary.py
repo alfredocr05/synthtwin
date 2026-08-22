@@ -48,6 +48,14 @@ _ROLES_WITH_LABELS = (
     taxonomy.ROLE_CONSTANT,
     taxonomy.ROLE_BINARY,
     taxonomy.ROLE_CATEGORICAL,
+    # THE LONG TAIL BELONGS HERE OR THIS PAGE UNDERSTATES ITSELF (plan
+    # P4-D5, which requires the summary to list every column whose
+    # labels will be visible BEFORE anything is written). It is the one
+    # role that CHANGED what a column publishes: such a column was free
+    # text and published no value at all, and now names its
+    # floor-clearing spellings. A page that left it out would tell a
+    # person the fewest columns are the ones that disclose.
+    taxonomy.ROLE_LONG_TAIL,
 )
 _ROLES_WITHOUT_VALUES = (
     taxonomy.ROLE_IDENTIFIER,
@@ -58,6 +66,17 @@ _ROLES_WITH_RANGES = (
     taxonomy.ROLE_COUNT,
     taxonomy.ROLE_CONTINUOUS,
     taxonomy.ROLE_DATETIME,
+    # THE TWO PHASE 4 RANGE ROLES, and they were in NO list at all
+    # until 2026-08-22, so a person reading this page was told nothing
+    # about a column of clock times, or about one whose numbers each
+    # wear a unit -- two of the kinds of column this phase taught
+    # synthtwin to read. Both publish
+    # a smallest and a largest value and a ladder between them, which
+    # is exactly what this list is for. The affixed role's shared text
+    # is disclosed separately below, because it is a spelling and this
+    # list is about ranges.
+    taxonomy.ROLE_CLOCK,
+    taxonomy.ROLE_AFFIXED,
 )
 
 # What was decided about a number synthtwin uses as a stand-in for "no
@@ -992,6 +1011,7 @@ def _disclosure_lines(document: dict[str, object]) -> list[str]:
     with_labels: list[str] = []
     without_values: list[str] = []
     with_ranges: list[str] = []
+    with_shared_text: list[str] = []
     all_invented: list[str] = []
     for entry in _list_of(document["columns"]):
         column = _map_of(entry)
@@ -1004,6 +1024,15 @@ def _disclosure_lines(document: dict[str, object]) -> list[str]:
             all_invented = all_invented + [name]
         if role in _ROLES_WITH_RANGES:
             with_ranges = with_ranges + [name]
+        # THE ONE SPELLING A RANGES ROLE PUBLISHES. An affixed column
+        # names the piece of text its cells share -- `mg`, `$`, `%` --
+        # where enough rows wrote it, and that is text of the table
+        # however short it is. It has its own sentence because it is
+        # not a label and not a range, and a person deciding what may
+        # leave their machine is owed it in the place they read about
+        # everything else (plan P4-D4.1).
+        if role == taxonomy.ROLE_AFFIXED:
+            with_shared_text = with_shared_text + [name]
         # A LABEL COLUMN CAN BE FULLY INVENTED WITHOUT PUBLISHING
         # NOTHING (plan amendment A-P4-2, review item P4-C2-F1). It
         # keeps its place in the disclosure lists above -- a published
@@ -1070,6 +1099,15 @@ def _disclosure_lines(document: dict[str, object]) -> list[str]:
             "  Real smallest and largest values, and the points in between",
             "  that describe the shape of the column:",
             f"    {_listed(with_ranges)}",
+            "",
+        ]
+    if with_shared_text:
+        lines = lines + [
+            "  A piece of text your cells share -- the unit or the sign",
+            "  written around each number, like mg or $ -- named exactly",
+            f"  as your file writes it, and only where at least {floor} rows",
+            "  wrote it that way:",
+            f"    {_listed(with_shared_text)}",
             "",
         ]
     if without_values:

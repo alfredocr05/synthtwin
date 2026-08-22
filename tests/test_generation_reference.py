@@ -242,6 +242,7 @@ def _settings(declared: list) -> dict:
         "declaration_publication": "settings_counts_only_columns_unchanged",
         "near_threshold_slack": 0,
         "day_first": False,
+        "long_tail_minimum_level": 11,
         "forced_identifiers": declared,
     }
 

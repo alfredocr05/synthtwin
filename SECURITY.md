@@ -170,6 +170,30 @@ Stated here so that no reader has to discover them independently:
   quality report, per the entry above. Profile version 4 widened what it
   carries in exactly two ways, and each gets its own entry below rather
   than a clause here.
+- **A column of writing can now publish a sentence it repeats** (plan
+  P4-D5, owner decision 1). Until the `long_tail_labels` rule, a column
+  holding mostly one-off text published no value of itself at all. Now
+  a column past the categorical ceiling that still shares one of its
+  values with at least eleven rows publishes THAT value, spelled as the
+  file wrote it, with its count -- so a free-text column of clinical
+  notes in which eleven rows hold the same sentence names that sentence
+  in the profile and in the summary beside it.
+
+  **Eleven ROWS is not eleven people, and this is where that is said.**
+  The floor counts rows, and the grain of the table is undescribed:
+  eleven repeated cells can be eleven records of one person. The
+  charter states that caveat for every floor-guarded fact; it now
+  guards sentences, which can carry more of a person than a label does.
+  Judge a column of writing on what its repeated sentences say, not on
+  the count alone.
+
+  What the rule does NOT do: it cannot be reached by lowering the
+  floor. The detection line is the floor or eleven, whichever is
+  larger, so a column with no eleven-row value stays free text at every
+  floor and goes on publishing nothing. Raising the floor can only take
+  columns OUT of the class. And the summary printed before anything is
+  written lists every column whose labels will be visible, long-tail
+  columns included -- read it there, before the files exist.
 - **The quality report withholds numbers from its reader; it does not
   hide them from whoever holds the file** (owner ruling 2026-08-14;
   Phase 3 plan amendment A-P3-13, carried into the validation method as

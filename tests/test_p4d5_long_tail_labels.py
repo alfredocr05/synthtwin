@@ -21,7 +21,8 @@ rather than a property somebody noticed:
   whose invariant a long tail breaks by definition; the ceiling it
   passed is in its evidence sentence instead;
 - the loader refuses a document claiming the role with no level that
-  reaches the line (G2);
+  reaches the line (LT1), and one claiming it for a column that is not
+  past the categorical ceiling at all (LT2);
 - and the twin is the categorical rule verbatim: published labels at
   their counts, invented neutral labels at the exact suppressed sizes.
 """
@@ -213,7 +214,7 @@ def test_the_evidence_names_the_line_and_how_many_cleared_it() -> None:
 
 
 def test_a_document_claiming_the_role_without_a_covering_level() -> None:
-    """G2, and it is the rule that makes the role's own line checkable.
+    """LT1, and it is the rule that makes the role's own line checkable.
 
     At a lowered floor a column may publish levels of ten, none of
     which reaches the line -- which is a document claiming a role its
@@ -263,7 +264,7 @@ def test_a_document_claiming_the_role_without_a_covering_level() -> None:
     written = fixtures.write_profile(folder, "forged.json", forged)
     with pytest.raises(errors.ProfileError) as raised:
         contract.load_profile(f"{written}")
-    assert "G2" in f"{raised.value}"
+    assert "LT1" in f"{raised.value}"
 
 
 # -- the twin ---------------------------------------------------------
@@ -320,3 +321,77 @@ def test_the_twin_is_a_fixed_function_of_the_description_and_seed() -> None:
     assert first.columns == again.columns
     other = generation.generate(described, 8)
     assert other.columns != first.columns
+
+
+# -- the disclosure page, which is where a person meets this ----------
+
+
+def test_every_role_is_classified_by_the_disclosure_page() -> None:
+    """A role in none of the three lists appears on the page NOWHERE.
+
+    THIS IS THE CONTROL THAT WAS MISSING, and two shipped roles had
+    already fallen through it: `time_of_day` and `affixed_number` were
+    in no list at all, so the page a person reads BEFORE anything is
+    written said nothing about a column of clock times, or about one
+    whose numbers each wear a unit -- two of the three kinds of column
+    this phase taught synthtwin to read.
+
+    `empty` is the one role deliberately outside the three: a column
+    with no values in it has nothing to disclose, and listing it under
+    "no value at all" would put a column that never had one beside the
+    columns that have values the profile withholds.
+    """
+    from synthtwin import summary
+
+    classified = (
+        set(summary._ROLES_WITH_LABELS)
+        | set(summary._ROLES_WITHOUT_VALUES)
+        | set(summary._ROLES_WITH_RANGES)
+    )
+    missing = sorted(set(taxonomy.ROLES) - classified - {taxonomy.ROLE_EMPTY})
+    assert missing == [], (
+        f"these roles are in no disclosure list, so the summary page "
+        f"says nothing at all about a column of them: {missing}"
+    )
+
+
+def test_the_page_names_a_long_tail_among_the_label_columns() -> None:
+    """P4-D5: the summary lists them BEFORE anything is written."""
+    from synthtwin import summary
+
+    folder = pathlib.Path(tempfile.mkdtemp())
+    table = fixtures.write(
+        folder,
+        "thing.csv",
+        fixtures.single_column_table(
+            "thing", _tail([("common", 40), ("also common", 30)], 230)
+        ),
+    )
+    document = profile.build_document(
+        reading.read_table(f"{table}"), taxonomy.Settings(), []
+    )
+    page = summary.render(document, "")
+    assert "Real labels you will see in the profile" in page
+    at = page.index("Real labels you will see in the profile")
+    tail = page[at : at + 400]
+    assert "thing" in tail
+
+
+def test_the_page_names_the_shared_text_of_an_affixed_column() -> None:
+    """The one spelling a ranges role publishes, said in its own words."""
+    from synthtwin import summary
+
+    folder = pathlib.Path(tempfile.mkdtemp())
+    table = fixtures.write(
+        folder,
+        "dose.csv",
+        fixtures.single_column_table(
+            "dose", [f"{10 + place % 90} mg" for place in range(120)]
+        ),
+    )
+    document = profile.build_document(
+        reading.read_table(f"{table}"), taxonomy.Settings(), []
+    )
+    assert document["columns"][0]["role"] == "affixed_number"
+    page = summary.render(document, "")
+    assert "A piece of text your cells share" in page

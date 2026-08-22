@@ -185,6 +185,15 @@ def edit_level(_column: str, _index: int, **changes: object) -> Change:
     return change
 
 
+def _relabelled_as_a_long_tail(_column: str) -> Change:
+    """Give a set of categories the long tail's role and key set."""
+    def change(document: Document) -> None:
+        block = at(document, _column)
+        block["role"] = "long_tail_labels"
+        del block["level_ceiling"]
+    return change
+
+
 def _long_tail_below_its_line(_column: str) -> Change:
     """Lower the floor, then put every published level under the line.
 
@@ -642,8 +651,17 @@ def battery() -> list[Mutation]:
             # cover fewer rows than the floor, so dropping the floor to
             # five makes another column's seven-row withheld label
             # illegal and B5 fires before G2 is reached.
-            "G2", "a long tail whose levels never reach its own line",
+            "LT1", "a long tail whose levels never reach its own line",
             _long_tail_below_its_line("note"),
+        ),
+        Mutation(
+            # LT2, and it is the OTHER half of the rule: a document can
+            # claim this role for a column that is not past the
+            # categorical ceiling at all, whose four label keys are
+            # perfectly good ones. Only recomputing the ceiling catches
+            # it (review item P4-TAIL-F3).
+            "LT2", "a set of categories relabelled as a long tail",
+            _relabelled_as_a_long_tail("region"),
         ),
         # -- the spellings of a published label -----------------------
         Mutation(

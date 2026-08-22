@@ -1515,6 +1515,16 @@ class Settings:
     # strictly more cells wins whatever the declaration said; the
     # declaration decides a count tie and nothing else.
     day_first: bool = False
+    # THE LONG-TAIL DETECTION LINE, RECORDED RATHER THAN ASSUMED
+    # (contract 4.x, plan P4-D5). It has exactly one permitted value,
+    # on the `declaration_matching` precedent, and a loader refuses any
+    # other -- because the line is a privacy boundary: a settings key
+    # that could move it downward would let a settings combination, a
+    # lowered floor included, widen which columns publish labels, which
+    # is exactly what the `max` against the floor exists to prevent.
+    # It is on the document's face so that a later phase can move it
+    # only in the open, by a change to that contract.
+    long_tail_minimum_level: int = LONG_TAIL_LINE
 
 
 def axes_of(role: str, forced_identifier: bool) -> "tuple[str, str, str]":
@@ -3547,15 +3557,19 @@ def _levels(
 def _long_tail_line(settings: Settings) -> int:
     """How many rows a level must cover for the long-tail rule to fire.
 
-    The publication floor or eleven, whichever is LARGER (plan P4-D5).
-    The max is the rule, not a safety margin: at a lowered floor the
-    published set of an already-qualifying column widens with the
-    floor, exactly as a categorical column's does, but no NEW column
-    becomes label-publishing, because the line does not move down.
+    The publication floor or the recorded minimum, whichever is LARGER
+    (plan P4-D5, contract 4.x). The max is the rule, not a safety
+    margin, and the guarantee it buys is exact: membership at ANY floor
+    is a subset of membership at eleven. Raising the floor can only
+    remove a column -- publishing a floor-clearing spelling is
+    constitutive of the role, so a level too small to be published must
+    not be the level that made the column label-publishing. Lowering
+    the floor widens which LEVELS of an admitted column are shown, and
+    admits no column that was not one at eleven.
     """
-    if settings.small_cell_floor > LONG_TAIL_LINE:
+    if settings.small_cell_floor > settings.long_tail_minimum_level:
         return settings.small_cell_floor
-    return LONG_TAIL_LINE
+    return settings.long_tail_minimum_level
 
 
 def _levels_covering(counts: "dict[str, int]", settings: Settings) -> int:
