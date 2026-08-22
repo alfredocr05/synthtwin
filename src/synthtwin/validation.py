@@ -1210,14 +1210,44 @@ def settings_over_the_split(
     settled = _stand_ins_the_description_reads_as_holes(description)
     named = _built_in_words_the_description_names_as_holes(description)
     for spelling in _KEPT_OVER_THE_SPLIT:
-        if _explained_by(spelling, block.declared_missing_values):
+        if _names_this_member(spelling, block.declared_missing_values):
             continue
-        if _explained_by(spelling, settled):
+        if _names_this_member(spelling, settled):
             continue
-        if _explained_by(spelling, named):
+        if _names_this_member(spelling, named):
             continue
         found[spelling] = 1
     return dataclasses.replace(block, kept_values=tuple(sorted(found)))
+
+
+def _names_this_member(member: str, recovered: "tuple[str, ...]") -> bool:
+    """Whether anything recovered from the description names THIS member.
+
+    `_explained_by` answers the DECLARATION's question -- would this
+    declaration take a cell spelled this way -- and folds to do it. This
+    answers the VOCABULARY's question, which for the one exact-spelling
+    member is a different question with a different answer (contract
+    C6-32, which names the validator's reconstruction as one of the
+    places the one operation applies).
+
+    The two came apart here. Somebody may declare a value of their
+    own that folds onto the exact member, and their column then
+    names that value among its own hole spellings. The validator reads
+    it back as a declaration, compared it folded against the member, and took
+    the member off the measured side's kept list -- so a file whose
+    own cells wear the member exactly had them counted absent on a
+    description that says nothing about the member at all.
+
+    Guarantees: accepts a member and the recovered spellings; returns a
+    truth value; raises TypeError if handed anything that is not text.
+    No I/O of any kind.
+    """
+    if member in parsing.MISSING_TEXTS_EXACT:
+        for declared in recovered:
+            if parsing.missing_text_matches(declared, member):
+                return True
+        return False
+    return _explained_by(member, recovered)
 
 
 def _built_in_words_the_description_names_as_holes(
@@ -1265,7 +1295,16 @@ def _built_in_words_the_description_names_as_holes(
     for column in description.columns:
         for key in sorted(column.missing_by_source):
             for spelling in _BUILT_IN_TEXTS:
-                if _explained_by(key, (spelling,)):
+                # THE VOCABULARY'S OWN RULE, NOT THE DECLARATION'S
+                # (contract C6-32, which names this reconstruction as
+                # one of the places the one operation applies). Asking
+                # `_explained_by` here folded both sides, so a column
+                # publishing the key `nat` -- which it can, under a
+                # declaration of the person's own -- was read as naming
+                # the member `NaT` and un-pinned it from the measured
+                # side's kept values. That is the exception coming
+                # apart from the rule it excepts.
+                if parsing.missing_text_matches(key, spelling):
                     found[spelling] = 1
     return tuple(sorted(found))
 

@@ -40,6 +40,14 @@ _NOT_TEXT = (
 # folding (plan P1-D4). Every one of them is reported per column, by
 # spelling, so a reader can see exactly where the missing values came
 # from.
+#
+# THE MEMBER IS WRITTEN IN THE VOCABULARY'S OWN SPELLING, which for the
+# first ten is lower case and for the seven spreadsheet literals is the
+# form a spreadsheet writes (contract 14.4 lists all eighteen). BOTH
+# sides of a folded comparison are folded, so the member's own capitals
+# cost nothing at the comparison and are what a document records --
+# which is what a producer written from the contract emits and what
+# this loader must accept.
 MISSING_TEXTS = (
     "",
     "-",
@@ -60,13 +68,13 @@ MISSING_TEXTS = (
     # artifact cells stops losing its whole distribution to the parse
     # line, so the twin of it is a column of numbers rather than free
     # text.
-    "#div/0!",
-    "#n/a",
-    "#name?",
-    "#null!",
-    "#num!",
-    "#ref!",
-    "#value!",
+    "#DIV/0!",
+    "#N/A",
+    "#NAME?",
+    "#NULL!",
+    "#NUM!",
+    "#REF!",
+    "#VALUE!",
 )
 
 # ...and the ONE member matched byte for byte instead.
@@ -439,7 +447,11 @@ def is_missing_text(text: str) -> bool:
         raise TypeError(_NOT_TEXT)
     if text in MISSING_TEXTS_EXACT:
         return True
-    return text.strip().casefold() in MISSING_TEXTS
+    body = folded(text)
+    for member in MISSING_TEXTS:
+        if body == folded(member):
+            return True
+    return False
 
 
 def missing_text_matches(spelling: str, member: str) -> bool:
@@ -464,7 +476,7 @@ def missing_text_matches(spelling: str, member: str) -> bool:
         raise TypeError(_NOT_TEXT)
     if member in MISSING_TEXTS_EXACT:
         return spelling == member
-    return folded(spelling) == member
+    return folded(spelling) == folded(member)
 
 
 def built_in_missing_texts() -> "tuple[str, ...]":

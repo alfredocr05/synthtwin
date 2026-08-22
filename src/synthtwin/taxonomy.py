@@ -1483,7 +1483,7 @@ class Settings:
     # FROM CONTRACT VERSION 5 THAT RULE HAS ONE STATED EXCEPTION, and it
     # is not the person's text (owner ruling 2026-08-17, plan amendment
     # A-P3-27 part 3, contract 5 section 6). The settings block also
-    # names WHICH MEMBERS of synthtwin's own thirteen published words a
+    # names WHICH MEMBERS of synthtwin's own twenty-one published words a
     # declaration named -- ten spellings and three stand-in numbers,
     # written in the vocabulary's own spelling, identical in every
     # installation, and computed from the command line without reading a
@@ -2959,7 +2959,7 @@ def built_in_values_named(
     Contract 5 section 6, invariants C5-16, C5-17 and C5-K1 to C5-K5;
     plan amendment A-P3-27 part 3.
 
-    THE WHOLE OF WHAT THIS MAY WRITE is a member of the thirteen the
+    THE WHOLE OF WHAT THIS MAY WRITE is a member of the twenty-one the
     contract publishes in its own appendix: the ten spellings
     `parsing.MISSING_TEXTS` reads as "no value" and the three stand-in
     numbers `parsing.NUMERIC_SENTINELS` judges. They are synthtwin's
@@ -3026,12 +3026,12 @@ def built_in_values_named(
 
 
 def is_published_vocabulary(spelling: str) -> bool:
-    """Whether this spelling is one of synthtwin's own thirteen words.
+    """Whether this spelling is one of synthtwin's own twenty-one words.
 
     The question every surface that talks about a declared word has to
     answer the same way: is this word OURS -- one of the ten spellings
     `parsing.MISSING_TEXTS` reads as "no value" or one of the three
-    stand-in numbers `parsing.NUMERIC_SENTINELS` judges, all thirteen
+    stand-in numbers `parsing.NUMERIC_SENTINELS` judges, all twenty-one
     printed in the contract's own appendix and identical in every
     installation -- or is it a word out of somebody's table?
 
@@ -3077,6 +3077,40 @@ def _declared_spelling(
         if declaration.exact is None and folded == declaration.folded:
             return True
     return False
+
+
+def _rescues_a_vocabulary_cell(
+    text: str, declarations: "list[_Declaration]"
+) -> bool:
+    """Whether a declaration reaches a cell THIS PACKAGE'S OWN LIST claims.
+
+    THE RESCUE TEST, NAMED EXPLICITLY BY THE CONTRACT (C6-32) because
+    leaving it to be inferred is how a completeness proof came to be
+    carried with one of its ways unproved. A cell this package would
+    read as absent is rescued only by a declaration that names the
+    member claiming it, under THAT MEMBER'S OWN rule -- so a person who
+    types `--keep-value nat` does not rescue cells spelled `NaT`, whose
+    member is matched byte for byte.
+
+    Without this, the declaration took effect on the cells while the
+    settings block recorded no member as named: the person's own word
+    was recorded as a word of their own, the count of members named
+    stayed at zero, and the reading rule the description was written
+    under could not be rebuilt from it -- which is the defect amendments
+    A-P3-34 and A-P3-37 closed twice for the numeric list.
+
+    Guarantees: accepts a cell's text and the declarations of one side;
+    returns a truth value. Raises TypeError if handed anything that is
+    not text. No I/O of any kind.
+    """
+    for member in parsing.MISSING_TEXTS_EXACT:
+        if text != member:
+            continue
+        for declaration in declarations:
+            if declaration.exact is None and declaration.text == member:
+                return True
+        return False
+    return _declared_spelling(text, declarations)
 
 
 def _declared_number(
@@ -3133,9 +3167,13 @@ def _split_missing(
     present: list[str] = []
     missing: list[tuple[str, str]] = []
     for value in values:
-        if _declared_spelling(value, kept):
+        # THE RESCUE ASKS THE MEMBER'S OWN RULE (contract C6-32). A
+        # cell this package's own list claims is reached only by a
+        # declaration that names the member claiming it, and for the
+        # one exact-spelling member that means byte for byte.
+        if _rescues_a_vocabulary_cell(value, kept):
             present += [value]
-        elif _declared_spelling(value, declared_missing):
+        elif _rescues_a_vocabulary_cell(value, declared_missing):
             missing += [(value, parsing.MISSING_DECLARED)]
         elif not parsing.trimmed(value):
             missing += [(value, parsing.MISSING_BLANK)]
