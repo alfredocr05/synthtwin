@@ -143,16 +143,19 @@ def test_a_ladder_is_never_built_from_a_handful_of_cells() -> None:
     cleared the deleted majority rule, so the column was described as a
     count whose eleven rungs were all one row's exact value. With one
     line at 0.99 (review item P1-R6-F7) the column is not written as
-    numbers often enough to be named for them either, so it lands on
-    free text -- which publishes no value and no ladder. The property
-    the test exists for is unchanged: no rung of any ladder is ever that
-    one row's value.
+    numbers often enough to be named for them either. Since plan P4-D5
+    it lands on the long-tail role, because fifty cells share one
+    spelling and that clears the publication floor; before that rule it
+    landed on free text. NEITHER publishes a ladder, and the property
+    the test exists for is unchanged and is asserted below: no rung of
+    any ladder is ever that one row's value, and the one row's value is
+    published nowhere, because ONE cell is far under the floor.
     """
     values = (
         ["1e999"] * 50 + ["7"] + fixtures.prose(49)
     )
     described = describe(values)
-    assert described.role == taxonomy.ROLE_TEXT
+    assert described.role == taxonomy.ROLE_LONG_TAIL
     assert "percentiles" not in described.details
     # The one real number must not be published as a VALUE. Searching
     # the block for the character `7` cannot say that -- it matches the

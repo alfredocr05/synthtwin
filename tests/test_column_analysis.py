@@ -209,10 +209,14 @@ def test_more_labels_than_the_cap_are_not_a_set_of_categories() -> None:
     described = describe(values)
     assert described.role != taxonomy.ROLE_CATEGORICAL
     assert described.n_distinct == 1001
-    assert "levels" not in described.details
-    said = " ".join(described.remarks)
-    assert "1001 different values" in said
-    assert "at most 1000" in said
+    # Since plan P4-D5 the column past the ceiling is a LONG TAIL where
+    # its levels repeat -- each of these covers twenty rows -- and the
+    # ceiling it passed is recorded in the evidence rather than in a
+    # remark. The ceiling's own job is unchanged and is what the first
+    # assertion above holds it to.
+    assert described.role == taxonomy.ROLE_LONG_TAIL
+    assert "1001 different values" in described.detection_evidence
+    assert "more than the 1000" in described.detection_evidence
 
 
 def test_one_label_below_the_thousand_cap_is_still_a_set_of_categories(

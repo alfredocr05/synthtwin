@@ -185,6 +185,40 @@ def edit_level(_column: str, _index: int, **changes: object) -> Change:
     return change
 
 
+def _long_tail_below_its_line(_column: str) -> Change:
+    """Lower the floor, then put every published level under the line.
+
+    The rows the two levels give up are counted among the withheld
+    ones, so the sums the label invariants check still hold and G2 is
+    the rule the document breaks rather than an arithmetic one.
+    """
+    def change(document: Document) -> None:
+        document["settings"]["small_cell_floor"] = 10
+        block = at(document, _column)
+        given = 0
+        # Both levels take the floor exactly -- ten, which is under the
+        # line of eleven and is the smallest a published label may
+        # take at this floor (B5) -- and are then put in the order B6
+        # asks for, which at equal counts is by name.
+        for level in block["levels"]:
+            spare = level["count"] - 10
+            level["count"] = 10
+            level["variants"] = {key: 10 for key in level["variants"]}
+            given = given + spare
+        block["levels"] = sorted(
+            block["levels"], key=lambda level: level["label"]
+        )
+        # The rows the two levels gave up join a level that was already
+        # held back, rather than making a new one: the number of
+        # DIFFERENT values did not change, and B2 counts the published
+        # and the held-back levels against it.
+        block["suppressed_rows"] = block["suppressed_rows"] + given
+        sizes = list(block["suppressed_level_counts"])
+        sizes[0] = sizes[0] + given
+        block["suppressed_level_counts"] = sorted(sizes)
+    return change
+
+
 def edit_verdict(_column: str, _index: int, **changes: object) -> Change:
     """Replace keys of one decision about a stand-in number."""
     def change(document: Document) -> None:
@@ -594,6 +628,23 @@ def battery() -> list[Mutation]:
             "G1", "more categories than the line the column passed",
             edit("region", level_ceiling=2),
         ),
+        Mutation(
+            # G2 CAN ONLY BE REACHED UNDER A LOWERED FLOOR, and that is
+            # the rule rather than a gap in the battery: at the default
+            # floor of eleven every published level already covers the
+            # long-tail line, because the line IS eleven there. At a
+            # floor of ten a column may publish levels of ten, none of
+            # which reaches the line -- a document claiming a role its
+            # own numbers say the rule would not have given it.
+            #
+            # TEN AND NOT LESS, because a lowered floor is not simply
+            # more permissive: a label the document HOLDS BACK must
+            # cover fewer rows than the floor, so dropping the floor to
+            # five makes another column's seven-row withheld label
+            # illegal and B5 fires before G2 is reached.
+            "G2", "a long tail whose levels never reach its own line",
+            _long_tail_below_its_line("note"),
+        ),
         # -- the spellings of a published label -----------------------
         Mutation(
             "W2", "a spelling filed under the wrong label",
@@ -939,8 +990,8 @@ def test_the_base_document_loads(
 ) -> None:
     """The description every mutation starts from is accepted as it is."""
     loaded = contract.load_profile(written(tmp_path, base))
-    assert loaded.n_columns == 14
-    assert len(loaded.columns) == 14
+    assert loaded.n_columns == 15
+    assert len(loaded.columns) == 15
 
 
 def test_every_mutation_starts_from_a_document_that_loads(

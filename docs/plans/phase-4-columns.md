@@ -1650,6 +1650,39 @@ Opened by this plan, each a limit accepted rather than work forgotten:
   contract is silent, and a reader following the declaration-matching
   rule alone would expect spelling-granular rescue that the wire
   cannot represent.
+- **R-P4-23** (opened at the fifth adversarial read of the date
+  readings, 2026-08-22, item P4-DATE5-F2). THE BRANCH WRITES A
+  VERSION 5 DOCUMENT THAT IS NOT A VERSION 5 DOCUMENT, and this
+  residual is where a reader meets that rather than finding it. Every
+  new REQUIRED key this phase adds -- `resolution_mix` on every
+  datetime block, `day_first` in the settings, the new format members,
+  the new roles -- goes into a document still stamped
+  `profile_version: 5`. So a description written before this branch is
+  refused by the loader on it with no older-version guidance, because
+  the version numbers match; and a description written on this branch
+  is one a strict reader of the shipped version 5 contract must
+  refuse.
+  **This is the state the plan's own stage list puts the phase in**
+  (stage 6 is the version flip: the wire version, the loader, and every
+  naming surface, landed whole). What was NOT stated anywhere before
+  this residual is that the interim is not merely incomplete but
+  incoherent for anybody holding an older description, and that no
+  sentence of the branch says so. Nothing is released from this branch
+  and nothing is tagged, so no reader outside it has met the state --
+  which is what makes recording it enough for now rather than a reason
+  to flip the version out of order. Stage 6 closes it; until then, a
+  description from this branch and a description from `main` are two
+  formats wearing one number.
+- **R-P4-22** (opened at the fifth adversarial read, 2026-08-22, item
+  P4-DATE5-F1's neighbourhood). THE LONG-TAIL ROLE'S OWN LINE IS
+  CHECKABLE ONLY UNDER A LOWERED FLOOR. G2 refuses a document claiming
+  `long_tail_labels` with no level reaching the detection line, and at
+  the default floor of eleven that check cannot fire: every published
+  level is at or above the floor, and the line IS eleven there. The
+  battery reaches it at a floor of ten, which is the only band where
+  the rule bites. That is a property of the rule rather than a gap, but
+  a reader of the contract should be told that G2 is a lowered-floor
+  rule, and version 6 does not say so.
 - **R-P4-21** (opened by amendment A-P4-17, 2026-08-21). THE CONTRACT
   STILL SAYS BOTH THINGS about which all-different remark the affixed
   role carries. Version 6 section 4.5 must state the form, and
@@ -3199,6 +3232,70 @@ costs, in the wording the version 6 contract had already ratified for
 it; the version 5 contract's own clause is amended to the same words,
 because the option ships before the version flip and a message the
 shipped contract does not carry is a message nobody agreed to.
+
+## Amendment A-P4-28 — the fifth read of the readings, and where it stopped
+
+**The ceiling of five adversarial rounds was reached on the date
+readings.** Four items came back; two are repaired here, one is
+repaired and one is recorded as residual R-P4-23 because repairing it
+out of order would be worse than naming it.
+
+1. **D5 accepted an impossible shared-clock claim** (P4-DATE5-F1). The
+   two slashed stamp members take no offset at all -- their own reader
+   returns an empty one for every cell it accepts -- so no column of
+   theirs ever carried two, and `datetimes_read_at` of `utc` on such a
+   column is an EXACT-OBSERVABLE fact no twin can meet. D5's allowance
+   for either value where the offset map is fully withheld is an
+   allowance for readings that CAN carry an offset. The loader now
+   requires `local` for that family, and the contract's D5 row and D9
+   paragraph say so.
+2. **The evidence remark was not the ratified grammar** (P4-DATE5-F3).
+   Contract NF36 fixes the form's name, its five argument positions,
+   its word vocabulary and all four of its renderings; the built remark
+   had a different name, the reverse argument order, a format member
+   where a package word belongs, and sentences of its own. It is NF36
+   now, word for word, and the controls assert the whole sentence
+   rather than fragments of it -- a control that matched fragments
+   would pass on a sentence outside the grammar.
+3. **The contract contradicted itself about offsets** (P4-DATE5-F4).
+   D9's paragraph opened by naming the three ISO members and closed by
+   naming four, the two slashed stamps included; the invariant table
+   repeated the four. Corrected to TWO in both places, with the reason
+   written where the wrong number was.
+4. **The version 5 wire is carrying version 6 keys**, which is
+   residual R-P4-23.
+
+## Amendment A-P4-29 — the long tail of labels is built
+
+P4-D5 as ratified. Past the categorical ceiling, a column with at least
+one folded level covering `max(small_cell_floor, 11)` rows takes the
+`long_tail_labels` role: the four shared label keys under the shared
+label invariants, NOT `level_ceiling`, and the ceiling it passed
+recorded in its evidence sentence. The twin is the categorical rule
+verbatim -- published labels at their counts, invented neutral labels
+at the exact suppressed sizes -- so a twin of such a column now carries
+its real repeated labels and a counted tail, against a filler that
+carried neither.
+
+**Where the rule sits is not where it was first written.** It went in
+after the categorical rule, which would have let it claim a column of
+clock times with a repeated time. It sits LAST BUT ONE instead, after
+every rule that reads a column better and before free text, so it
+claims only what would otherwise have been free text -- which is the
+one thing this phase's no-regression rule allows.
+
+**The lowering P4-D5 prices, met in the suite.** Six shipped controls
+moved because columns they used as free text are long tails now, and
+each was repaired to go on testing what it was written for rather than
+to go green: three had their fixtures put back under the line, where
+the property under test is free text's own; three assert the new role,
+where the property holds on either. One is a real narrowing and is
+recorded as one rather than worked around: a column of sixty readings
+and twelve cells of a word named with `--keep-value` used to publish
+not one value of itself, and now publishes that word as a label,
+because twelve cells share it and that clears the floor. The larger
+half of that option's disclosure -- the whole distribution of the sixty
+readings -- is untouched, and that is what the control now holds.
 
   The five plan reviews are in `docs/plans/reviews/` as
   `phase-4-plan-review-round-1.md` through `-round-5.md`.

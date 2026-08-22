@@ -96,10 +96,13 @@ def test_one_contrary_cell_overrules_the_declaration() -> None:
     assert block["format"] == "month-first-date"
     assert block["n_unparsed"] == 0
     assert described.columns[0].facts.n_unparsed == 0
-    said = f"{block['remarks'][0]}"
-    assert "This column's own values decide it instead" in said
-    assert "month first parses 100" in said
-    assert "day first parses 99" in said
+    # THE WHOLE SENTENCE, not a fragment of it: contract NF36 fixes
+    # every word, and a control that matched fragments would pass on a
+    # sentence outside the ratified grammar (review item P4-DATE5-F3).
+    assert f"{block['remarks'][0]}" == (
+        "read month first, though you asked for day first, because it "
+        "parses 100 against 99."
+    )
 
 
 def test_one_contrary_cell_the_other_way_obeys_the_declaration() -> None:
@@ -108,8 +111,10 @@ def test_one_contrary_cell_the_other_way_obeys_the_declaration() -> None:
     block = document["columns"][0]
     assert block["format"] == "day-first-date"
     assert block["n_unparsed"] == 0
-    said = f"{block['remarks'][0]}"
-    assert "day first parses 100" in said
+    assert f"{block['remarks'][0]}" == (
+        "read day first, which parses 100 of these values against the "
+        "month-first reading's 99."
+    )
 
 
 def test_a_count_tie_is_where_the_declaration_decides() -> None:
@@ -117,9 +122,11 @@ def test_a_count_tie_is_where_the_declaration_decides() -> None:
     document, _loaded = _described(_ambiguous(120), True)
     block = document["columns"][0]
     assert block["format"] == "day-first-date"
-    said = f"{block['remarks'][0]}"
-    assert "Both readings parse the same number" in said
-    assert "what you told it did" in said
+    assert f"{block['remarks'][0]}" == (
+        "read day first because you asked for it: both readings parse "
+        "120 of these values and the values themselves do not settle "
+        "which is right."
+    )
 
 
 def test_a_tie_is_not_the_same_thing_as_full_ambiguity() -> None:
@@ -137,11 +144,12 @@ def test_a_tie_is_not_the_same_thing_as_full_ambiguity() -> None:
     block = document["columns"][0]
     assert block["format"] == "day-first-date"
     assert block["n_unparsed"] == 1
-    said = f"{block['remarks'][0]}"
-    assert "Both readings parse the same number" in said
-    assert "This column also disagrees with itself" in said
-    assert "1 of its values can only be read month first" in said
-    assert "1 can only be read day first" in said
+    assert f"{block['remarks'][0]}" == (
+        "read day first because you asked for it: both readings parse "
+        "99 of these values and the values themselves do not settle "
+        "which is right. This column contradicts itself: 1 values only "
+        "a day-first reading accepts, and 1 only a month-first one."
+    )
 
 
 def test_a_column_decided_by_evidence_can_also_contradict_itself() -> None:
@@ -157,10 +165,11 @@ def test_a_column_decided_by_evidence_can_also_contradict_itself() -> None:
     )
     block = document["columns"][0]
     assert block["format"] == "month-first-date"
-    said = f"{block['remarks'][0]}"
-    assert "This column's own values decide it instead" in said
-    assert "This column also disagrees with itself" in said
-    assert "2 of its values can only be read month first" in said
+    assert f"{block['remarks'][0]}" == (
+        "read month first, though you asked for day first, because it "
+        "parses 99 against 98. This column contradicts itself: 1 values "
+        "only a day-first reading accepts, and 2 only a month-first one."
+    )
 
 
 def test_exactly_one_remark_and_it_is_the_evidence_one() -> None:
@@ -173,7 +182,7 @@ def test_exactly_one_remark_and_it_is_the_evidence_one() -> None:
         document, _loaded = _described(values, True)
         remarks = document["columns"][0]["remarks"]
         assert len(remarks) == 1
-        assert "you told synthtwin" in f"{remarks[0]}"
+        assert f"{remarks[0]}".startswith("read ")
         assert "the profile has the month and day the wrong way round" not in (
             f"{remarks[0]}"
         )
@@ -189,7 +198,10 @@ def test_the_stamp_members_are_one_pair_too() -> None:
     block = document["columns"][0]
     assert block["format"] == "day-first-datetime"
     assert block["n_unparsed"] == 0
-    assert "day first parses 100" in f"{block['remarks'][0]}"
+    assert f"{block['remarks'][0]}" == (
+        "read day first, which parses 100 of these values against the "
+        "month-first reading's 99."
+    )
 
 
 def test_a_column_with_no_slashes_is_untouched_by_the_option() -> None:
@@ -229,10 +241,32 @@ def test_the_evidence_is_computed_from_the_readings_themselves() -> None:
     assert found.month_only == 1
     assert found.day_only == 1
     assert found.used == "day-first-date"
+    assert found.reading == taxonomy.READING_DAY_FIRST
     without = taxonomy._slashed_evidence(
         values, ("month-first-date", "day-first-date"), False
     )
     assert without.used == "month-first-date"
+    assert without.reading == taxonomy.READING_MONTH_FIRST
+    # NG2, the both-readings identity the contract will not let go of:
+    # the cells BOTH readings parse are countable two ways and the two
+    # answers have to agree.
+    assert found.day_parsed - found.day_only == (
+        found.month_parsed - found.month_only
+    )
+
+
+def test_the_reading_names_are_words_and_not_format_members() -> None:
+    """Contract NF36's fifth argument is a READING, not a member.
+
+    One reading covers two format members, so naming the member would
+    make the sentence narrower than it means and would render a date
+    column and a stamp column differently where they were decided
+    identically.
+    """
+    assert taxonomy.NOTE_READING_WORDS == ("day-first", "month-first")
+    for word in taxonomy.NOTE_READING_WORDS:
+        assert word in taxonomy.NOTE_ARGUMENT_WORDS
+        assert word not in parsing.DATE_FORMATS
 
 
 def test_the_pairs_are_the_two_slashed_grammars_and_no_others() -> None:

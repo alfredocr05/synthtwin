@@ -148,12 +148,19 @@ def test_free_text_now_records_the_shape_of_its_repetition() -> None:
     """Two free-text columns that used to serialize identically.
 
     Both hold sixty rows and thirty different values; one holds each
-    value twice, the other holds twenty-nine once and one value
-    thirty-one times. Nothing else in either block can tell them apart.
+    value twice, the other holds twenty-five once and five of them
+    seven times. Nothing else in either block can tell them apart.
+
+    THE LOPSIDED SHAPE IS UNDER THE LONG-TAIL LINE ON PURPOSE. It used
+    to be twenty-nine values once and one thirty-one times, and since
+    plan P4-D5 a spelling thirty-one rows share makes the column a long
+    tail of labels rather than free text -- so the two columns would no
+    longer be two free-text columns at all, and the thing this test
+    tells apart would not be under test.
     """
     words = fixtures.prose(30)
     twice = describe(words * 2)
-    lopsided = describe(words + [words[0]] * 30)
+    lopsided = describe(words[:25] + words[25:30] * 7)
     assert twice.role == taxonomy.ROLE_TEXT
     assert lopsided.role == taxonomy.ROLE_TEXT
     assert twice.n_present == lopsided.n_present == 60
@@ -163,8 +170,8 @@ def test_free_text_now_records_the_shape_of_its_repetition() -> None:
     # numeric one: written bare, "31" would sort before "01".
     assert twice.details["n_distinct_by_occurrences"] == {"2": 30}
     assert lopsided.details["n_distinct_by_occurrences"] == {
-        "01": 29,
-        "31": 1,
+        "1": 25,
+        "7": 5,
     }
 
 

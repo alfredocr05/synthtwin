@@ -401,7 +401,13 @@ def test_a_file_the_declaration_rejects_is_reported_on_again(
         table, taxonomy.Settings(declared_missing_values=(RAW,)), []
     )
     column = truth["columns"][1]
-    assert column["role"] == "free_text"
+    # NOT free text since plan P4-D5: the spelling this declaration
+    # does NOT name is worn by enough cells to clear the publication
+    # floor, so the column that declaration describes is a long tail of
+    # labels. What this test is about is untouched -- the file the
+    # declaration rejects is described with no holes at all, and the
+    # seven obligations below are still missed.
+    assert column["role"] == "long_tail_labels"
     assert column["n_present"] == 72
     assert column["n_missing"] == 0
     assert raw.described.columns[1].role == "continuous"

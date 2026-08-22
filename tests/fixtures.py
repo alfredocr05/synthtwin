@@ -96,7 +96,9 @@ def every_role_table(seed: int = 20260807, n_rows: int = 240) -> str:
     cells; whole numbers using -999 as a stand-in for "no value"; a
     measured number; an ISO date; a two-value column; free text; a
     column that is entirely blank; a column with one repeated value;
-    and a column of numbers each wearing one shared piece of text.
+    a column of numbers each wearing one shared piece of text; and a
+    long tail of labels -- mostly one-off notes, with two words enough
+    rows share to publish.
 
     The last of those is here because the battery is what stops the
     roles rotting: a role missing from this table is a role whose
@@ -118,6 +120,7 @@ def every_role_table(seed: int = 20260807, n_rows: int = 240) -> str:
         "batch",
         "dose",
         "seen_at",
+        "note",
     ]
     rows = []
     for index in range(n_rows):
@@ -186,6 +189,24 @@ def every_role_table(seed: int = 20260807, n_rows: int = 240) -> str:
         seen_at = f"{7 + (index % 120) // 60:02d}:{(index % 120) % 60:02d}"
         if index in (100, 200):
             seen_at = "not recorded"
+        # A LONG TAIL OF LABELS: two sentences enough rows share to
+        # clear the publication floor, and a one-off for every other
+        # row. Free text is what this column was before plan P4-D5, and
+        # the whole point of the role is that such a column is not the
+        # same thing as a column of names -- so the battery needs one,
+        # or its generator branch, its validator checks and its
+        # dispositions are walked by nothing.
+        # The one-offs come from the prose pool, whose sentences vary
+        # at BOTH ends: a family sharing a first or last word would
+        # wear an affix pair, and the affixed rule -- which is tested
+        # before this one -- would read the column instead. The two
+        # shared labels are single words, which is what keeps the
+        # entry table's subcheck names readable.
+        note_text = _PROSE_POOL[index % len(_PROSE_POOL)]
+        if index % 20 == 0:
+            note_text = "clinic"
+        elif index % 21 == 0:
+            note_text = "referral"
         rows.append(
             [
                 record,
@@ -200,6 +221,7 @@ def every_role_table(seed: int = 20260807, n_rows: int = 240) -> str:
                 "one",
                 dose,
                 seen_at,
+                note_text,
             ]
         )
     return rows_to_csv(header, rows)

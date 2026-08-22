@@ -576,9 +576,9 @@ def _plausible_arguments(form: str) -> "tuple[object, ...]":
     if form == taxonomy.EVIDENCE_DATES:
         return (9, 10, taxonomy.NOTE_ARGUMENT_WORDS[0])
     if form == taxonomy.REMARK_SLASHED_EVIDENCE:
-        # Its first argument is the date-format word for the reading
-        # that was used; the four after it are counts.
-        return ("day-first-date", 9, 10, 1, 2)
+        # Contract NF36: four counts, then the READING used, which is a
+        # package word of its own rather than a format member.
+        return (10, 9, 2, 1, taxonomy.READING_DAY_FIRST)
     if form == taxonomy.SAID_READ_AS_DATES:
         return (2, taxonomy.NOTE_ARGUMENT_WORDS[0])
     # The two affixed forms take the fourth argument class at two of

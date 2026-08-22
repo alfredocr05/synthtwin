@@ -986,6 +986,11 @@ ROLE_GROUPS = {
     "constant": "label",
     "binary": "label",
     "categorical": "label",
+    # A long tail publishes the label group's four keys and no key of
+    # its own, so it takes that group's dispositions entire -- the
+    # invented labels behind withheld levels included, which is the one
+    # authorization these roles carry (plan P4-D5).
+    "long_tail_labels": "label",
     "datetime": "datetime",
     "identifier": "identifier",
     "free_text": "free_text",
