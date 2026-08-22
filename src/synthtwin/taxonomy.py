@@ -3010,9 +3010,11 @@ def built_in_values_named(
     texts: dict[str, int] = {}
     numbers: dict[float, int] = {}
     for spelling in spellings:
-        folded = parsing.folded(spelling)
-        for member in parsing.MISSING_TEXTS:
-            if folded == member:
+        for member in parsing.built_in_missing_texts():
+            # ASKED THROUGH THE ONE RULE, so the vocabulary's exact
+            # member and its folded members are matched here exactly as
+            # they are matched when a cell is read (plan P4-D6.2).
+            if parsing.missing_text_matches(spelling, member):
                 texts[member] = 1
         exact = exact_of_spelling(spelling)
         if exact is None:
@@ -3054,8 +3056,9 @@ def is_published_vocabulary(spelling: str) -> bool:
       through `parsing.folded`.
     - Boundary: no I/O of any kind.
     """
-    if parsing.folded(spelling) in parsing.MISSING_TEXTS:
-        return True
+    for member in parsing.built_in_missing_texts():
+        if parsing.missing_text_matches(spelling, member):
+            return True
     exact = exact_of_spelling(spelling)
     if exact is None:
         return False

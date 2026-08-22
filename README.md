@@ -214,9 +214,10 @@ value". A value that reads as a number is matched as a number, so `-999`
 also covers `-999.00`; anything else is matched as text, ignoring
 surrounding spaces and capitals. The profile records how many values you
 named each way and the rule that matched them. Where the value you named
-is one of synthtwin's own thirteen published words for "no value" -- the
-ten spellings such as `NA` and `null`, and the three stand-in numbers
-`-9999`, `-999` and `9999` -- it also records which of those words it
+is one of synthtwin's own twenty-one published words for "no value" --
+the eighteen spellings such as `NA`, `null` and the spreadsheet error
+literals like `#N/A`, and the three stand-in numbers `-9999`, `-999`
+and `9999` -- it also records which of those words it
 was, because a check of your own table against its own description has
 to read those cells the way the description read them. **A word of your
 own is written nowhere in the settings**, no count, column or row goes
