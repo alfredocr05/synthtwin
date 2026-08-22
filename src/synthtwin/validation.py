@@ -1018,6 +1018,7 @@ def settings_for(description: contract.Profile) -> taxonomy.Settings:
         declared_missing_values=declared_spellings(description),
         declaration_matching=block.declaration_matching,
         near_threshold_slack=block.near_threshold_slack,
+        day_first=block.day_first,
     )
 
 
