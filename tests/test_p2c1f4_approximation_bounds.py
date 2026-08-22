@@ -262,6 +262,12 @@ APPROXIMATED = {
             "9.5 The label roles: `constant`, `binary`, `categorical`"
         ),
         "affixed_number": "9.4 The numeric roles: `count`, `continuous`",
+        # A long tail publishes the label roles' own four keys and
+        # nothing else, so it owes what they owe, read from their
+        # section (plan P4-D5).
+        "long_tail_labels": (
+            "9.5 The label roles: `constant`, `binary`, `categorical`"
+        ),
     }.items()
 }
 
@@ -401,6 +407,14 @@ ROLE_SECTIONS = {
     # registered in `tests/dispositions.py` -- the version 4 matrix
     # this reads predates the role.
     "time_of_day": "9.6 `datetime`",
+    # The long tail reads the LABEL section: its four keys ARE the
+    # label roles' four keys, under the same invariants, and it
+    # publishes no key of its own (plan P4-D5). `level_ceiling` is
+    # categorical's alone and this role does not carry it, which is
+    # why it is not simply the categorical row.
+    "long_tail_labels": (
+        "9.5 The label roles: `constant`, `binary`, `categorical`"
+    ),
 }
 
 

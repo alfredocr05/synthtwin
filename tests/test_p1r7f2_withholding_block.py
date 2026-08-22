@@ -256,9 +256,14 @@ def test_free_text_reaches_this_field_with_nothing_in_it() -> None:
     # never described as free text. The field is still present and
     # empty, which is what makes the profile's shape the same on every
     # role.
+    # TEN OF THE STAND-IN, NOT TWENTY, and the number is the point
+    # since plan P4-D5: a spelling twenty rows share clears the
+    # publication floor, so such a column is a long tail of labels and
+    # not free text at all. The property under test is free text's, so
+    # the fixture stays under the line.
     described = describe(
-        fixtures.prose(60)
-        + [SENTINEL] * 20
+        fixtures.prose(70)
+        + [SENTINEL] * 10
     )
     assert described.role == taxonomy.ROLE_TEXT
     assert described.sentinel_verdicts == []

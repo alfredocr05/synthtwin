@@ -245,7 +245,15 @@ ROLE_CATEGORICAL = "categorical"
 ROLE_IDENTIFIER = "identifier"
 ROLE_CLOCK = "time_of_day"
 ROLE_AFFIXED = "affixed_number"
+ROLE_LONG_TAIL = "long_tail_labels"
 ROLE_TEXT = "free_text"
+
+# The lower bound of the long-tail detection line (plan P4-D5). The
+# producer's own constant, written again here for the reason every
+# threshold is written twice: the loader may not import the describing
+# side, and a line applied on one side only is a line two
+# implementations disagree about.
+LONG_TAIL_LINE = 11
 
 ROLES = (
     ROLE_EMPTY,
@@ -259,6 +267,7 @@ ROLES = (
     ROLE_IDENTIFIER,
     ROLE_CLOCK,
     ROLE_AFFIXED,
+    ROLE_LONG_TAIL,
     ROLE_TEXT,
 )
 
@@ -289,6 +298,10 @@ AXIS_ROWS = (
     (ROLE_IDENTIFIER, "code", "ok"),
     (ROLE_CLOCK, "time_of_day", "ok"),
     (ROLE_AFFIXED, "affixed_number", "ok"),
+    # A LONG TAIL IS CATEGORICAL IN SHAPE (plan P4-D5): labels with
+    # counts, which is what a consumer asks the shape axis. The ROLE is
+    # what records that a different rule claimed it, and why.
+    (ROLE_LONG_TAIL, "categorical", "ok"),
     (ROLE_TEXT, "text", "ok"),
 )
 
@@ -781,6 +794,10 @@ INVARIANTS = {
     "B7": "no two published labels are the same label",
     "C1": "a column of one value has one value, ignoring case",
     "Y1": "a column of two values has two, ignoring case",
+    "G2": (
+        "a long tail of labels has at least one value shared by as "
+        "many rows as its own detection line asks"
+    ),
     "G1": (
         "a column of categories has no more different values than the "
         "line it passed allows"
@@ -3518,6 +3535,15 @@ def _role_keys(role: str) -> "tuple[str, ...]":
         return LABEL_KEYS
     if role == ROLE_CATEGORICAL:
         return CATEGORICAL_KEYS
+    if role == ROLE_LONG_TAIL:
+        # THE FOUR SHARED LABEL KEYS AND NOT `level_ceiling` (plan
+        # P4-D5, stated there so no ambiguity survives into this
+        # contract). That key is categorical's own, and its invariant --
+        # folded distinctness at or under the ceiling -- is exactly what
+        # a long-tail column breaks by definition. The format has no
+        # optional keys, so the ceiling this column PASSED is recorded
+        # in its evidence sentence instead.
+        return LABEL_KEYS
     if role == ROLE_DATETIME:
         return DATETIME_KEYS
     if role == ROLE_COUNT or role == ROLE_CONTINUOUS:
@@ -3557,6 +3583,10 @@ def _facts(
         )
     if role == ROLE_CATEGORICAL:
         return _categorical_facts(
+            mapping, where, frame.floor, n_present, n_folded
+        )
+    if role == ROLE_LONG_TAIL:
+        return _long_tail_facts(
             mapping, where, frame.floor, n_present, n_folded
         )
     if role == ROLE_DATETIME:
@@ -3959,6 +3989,51 @@ def _label_facts(
     )
 
 
+def _long_tail_facts(
+    mapping: "dict[str, object]",
+    where: str,
+    floor: int,
+    n_present: int,
+    n_folded: int,
+) -> LabelFacts:
+    """A long tail of labels (plan P4-D5).
+
+    The same four keys under the same shared label invariants a
+    constant, a binary and a categorical column are held to. What it
+    adds is the rule that made it this role rather than free text, and
+    the loader can check it: at least one published level covers the
+    detection line, which is the recorded floor or eleven, whichever is
+    larger. A document whose every level falls below that line
+    describes a column this rule would not have claimed.
+    """
+    entries, suppressed, rows, sizes = _levels(
+        mapping, where, floor, n_present, n_folded
+    )
+    line = LONG_TAIL_LINE
+    if floor > line:
+        line = floor
+    covering = 0
+    for entry in entries:
+        if entry.count >= line:
+            covering = covering + 1
+    if covering < 1:
+        raise _broken(
+            "G2",
+            where,
+            f"the type path is '{ROLE_LONG_TAIL}'",
+            (
+                f"no value of it is shared by {line} rows or more, so "
+                f"this rule would not have claimed the column"
+            ),
+        )
+    return LabelFacts(
+        levels=entries,
+        suppressed_levels=suppressed,
+        suppressed_rows=rows,
+        suppressed_level_counts=sizes,
+    )
+
+
 def _categorical_facts(
     mapping: "dict[str, object]",
     where: str,
@@ -4205,6 +4280,24 @@ def _datetime_facts(
             where,
             f"{named} different offsets are named",
             f"the dates are published on the '{clock}' clock",
+        )
+    if parser_family in CLOCK_FORM_MEMBERS and clock != "local":
+        # AND A COLUMN WHOSE READER TAKES NO OFFSET IS ON ONE CLOCK
+        # (review item P4-DATE5-F1). D5 lets either reading stand where
+        # the offset map is fully withheld, because a withheld map
+        # reads the same whether one offset wrote the column or ten --
+        # true of every reading that CAN carry an offset. These two
+        # cannot: their own reader returns an empty offset for every
+        # cell it accepts, so no column of theirs ever held two, and a
+        # description claiming the shared clock states an
+        # EXACT-OBSERVABLE fact no twin of it can meet.
+        raise _broken(
+            "D5",
+            where,
+            f"the dates are published on the '{clock}' clock",
+            f"they were read as '{parser_family}', which reads no "
+            f"offset at all, so every value of the column wore the same "
+            f"one",
         )
     if parser_family in CLOCK_FORM_MEMBERS:
         # ...AND SO DOES A READING WHOSE CLOCK CARRIES NO OFFSET

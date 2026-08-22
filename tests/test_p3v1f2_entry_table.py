@@ -3002,6 +3002,37 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("blanked-recorded_on", "presence.n_missing"),
             ("blanked-recorded_on", "presence.n_present"),
         ),
+        "note": (
+            # THE LONG-TAIL ROLE (plan P4-D5). It publishes the four
+            # shared label keys and no key of its own, so its
+            # obligations are the label family's -- and each of them
+            # is falsified by an edit to THIS column, never by the
+            # column going missing.
+            ("emptied-note", "axes.quality_state"),
+            ("emptied-note", "axes.role"),
+            ("emptied-note", "axes.statistical_type"),
+            ("one-contradicted-note", "counts.n_contradictory"),
+            ("blanked-note", "counts.n_not_numeric"),
+            ("one-zeroed-note", "counts.n_numeric"),
+            ("one-tiny-note", "counts.n_out_of_range"),
+            ("marked-note", "distinct.n_distinct"),
+            ("marked-note", "distinct.n_distinct_folded"),
+            ("rewritten-note", "levels.clinic.count"),
+            ("rewritten-note", "levels.clinic.label"),
+            ("rewritten-note", "levels.clinic.variants"),
+            ("rewritten-note", "levels.clinic.variants_withheld"),
+            ("marked-note", "levels.referral.count"),
+            ("marked-note", "levels.referral.label"),
+            ("marked-note", "levels.referral.variants"),
+            ("marked-note", "levels.referral.variants_withheld"),
+            ("marked-note", "levels.set"),
+            ("renamed-note", "position.at"),
+            ("blanked-note", "presence.n_missing"),
+            ("blanked-note", "presence.n_present"),
+            ("marked-note", "suppressed.counts"),
+            ("marked-note", "suppressed.suppressed_levels"),
+            ("blanked-note", "suppressed.suppressed_rows"),
+        ),
         "region": (
             ("emptied-region", "axes.role"),
             ("emptied-region", "axes.statistical_type"),
@@ -3454,6 +3485,9 @@ ROLE_FAMILIES = {
     "binary": "label",
     "categorical": "label",
     "constant": "label",
+    # It publishes the four shared label keys and no key of its own,
+    # so its facts are the label family's (plan P4-D5).
+    "long_tail_labels": "label",
     # Its quantitative facts are the numeric family's, read over the
     # cores; the seven keys it adds carry the family name `affixed`.
     "affixed_number": "numeric",
@@ -3482,6 +3516,7 @@ FIXTURE_ROLES: "dict[str, dict[str, str]]" = {
         "batch": "constant",
         "comment": "free_text",
         "dose": "affixed_number",
+        "note": "long_tail_labels",
         "reading": "count",
         "seen_at": "time_of_day",
         "record_code": "identifier",
@@ -3685,6 +3720,10 @@ SUBCHECK_FACTS: "dict[tuple[str, str], str]" = {
     ("label", "counts.n_out_of_range"): "universal.n_out_of_range",
     ("label", "distinct.n_distinct"): "label.n_distinct",
     ("label", "distinct.n_distinct_folded"): "label.n_distinct_folded",
+    ("label", "levels.clinic.count"): "label.count",
+    ("label", "levels.clinic.label"): "label.label",
+    ("label", "levels.clinic.variants"): "label.variants",
+    ("label", "levels.clinic.variants_withheld"): "label.variants_withheld",
     ("label", "levels.east.count"): "label.count",
     ("label", "levels.east.label"): "label.label",
     ("label", "levels.east.variants"): "label.variants",
@@ -3694,6 +3733,12 @@ SUBCHECK_FACTS: "dict[tuple[str, str], str]" = {
     ("label", "levels.no.variants"): "label.variants",
     ("label", "levels.no.variants_withheld"): "label.variants_withheld",
     ("label", "levels.north.count"): "label.count",
+    ("label", "levels.referral.count"): "label.count",
+    ("label", "levels.referral.label"): "label.label",
+    ("label", "levels.referral.variants"): "label.variants",
+    ("label", "levels.referral.variants_withheld"): (
+        "label.variants_withheld"
+    ),
     ("label", "levels.north.label"): "label.label",
     ("label", "levels.north.variants"): "label.variants",
     ("label", "levels.north.variants_withheld"): "label.variants_withheld",

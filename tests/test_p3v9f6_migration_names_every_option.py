@@ -480,12 +480,21 @@ def test_leaving_out_the_keep_value_publishes_a_whole_distribution(
 
     Sixty readings and twelve cells holding one of synthtwin's own
     thirteen words, named as REAL DATA. Named, twelve of the column's
-    values are not numbers, so the column reads as free text and the
-    description publishes not one value of it -- no smallest, no
-    largest, no percentile, and not the word. Left out, the word is read
-    as "no value", the column reads as numbers, and the description
-    publishes the whole distribution of the sixty readings AND the word
-    itself, character for character.
+    values are not numbers, so the column is not read as numbers at all
+    and the description publishes no reading of it -- no smallest, no
+    largest, no percentile. Left out, the word is read as "no value",
+    the column reads as numbers, and the description publishes the
+    whole distribution of the sixty readings AND the word itself,
+    character for character.
+
+    THE SENTENCE THIS DOCSTRING USED TO CARRY IS STRUCK RATHER THAN
+    EDITED AWAY: "the description publishes not one value of it, the
+    word included". That was true while such a column was free text.
+    Plan P4-D5 gives it the long-tail role instead, because twelve
+    cells share one spelling and that clears the publication floor, so
+    the word is published as a label. The option's larger disclosure --
+    the whole distribution of sixty readings — is what this test holds,
+    and it is untouched.
     """
     word = " N/A "
     readings = _numbers(60)
@@ -498,13 +507,28 @@ def test_leaving_out_the_keep_value_publishes_a_whole_distribution(
         [],
     )
     column = kept["columns"][0]
-    assert column["role"] == "free_text"
+    # WHAT THIS COLUMN IS HAS MOVED, AND THE MOVE IS RECORDED HERE
+    # RATHER THAN WORKED AROUND. Until plan P4-D5 the kept column was
+    # free text and published NOT ONE value of itself, the word
+    # included. Twelve cells share that word, which clears the default
+    # publication floor of eleven, so the column is now a long tail of
+    # labels and the word IS published -- as a label of the column,
+    # with its count.
+    #
+    # That is a real narrowing of what this option buys, and P4-D5
+    # prices it in the open under owner decision 1: columns that today
+    # publish no value will publish their floor-clearing spellings. The
+    # disclosure this test exists for survives it, because the LARGER
+    # half is untouched: kept, not one of the sixty readings is
+    # published, and no distribution of them exists in the document at
+    # all.
+    assert column["role"] == "long_tail_labels"
     assert column["n_present"] == 72
     written = json.dumps(kept)
-    assert word not in written
+    assert "percentiles" not in column
     assert readings[0] not in written, (
-        "the witness is wrong: a free-text column was supposed to "
-        "publish no value of the table"
+        "the witness is wrong: the readings themselves are still "
+        "published nowhere when the word is named as real data"
     )
     forgotten = _described(
         tmp_path, "forgotten-keep", values, taxonomy.Settings(), []

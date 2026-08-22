@@ -224,11 +224,17 @@ def test_the_thousand_cap_is_a_ceiling_on_the_role() -> None:
     for index in range(1001):
         over = over + [_LABELS[index]] * 20
     beyond = describe(over)
-    assert beyond.role == taxonomy.ROLE_TEXT
-    assert "levels" not in beyond.details
-    said = " ".join(beyond.remarks)
-    assert "1001 different values" in said
-    assert "at most 1000" in said
+    # THE CEILING IS STILL A CEILING ON THE CATEGORICAL ROLE, which is
+    # what this test exists for. What changed under plan P4-D5 is where
+    # the column lands after it: every one of its 1001 levels covers
+    # twenty rows, so it is a long tail of labels rather than free
+    # text, and the numbers this test read out of a remark are in the
+    # evidence sentence of the rule that claimed it.
+    assert beyond.role != taxonomy.ROLE_CATEGORICAL
+    assert beyond.role == taxonomy.ROLE_LONG_TAIL
+    assert len(beyond.details["levels"]) == 1001
+    assert "1001 different values" in beyond.detection_evidence
+    assert "more than the 1000" in beyond.detection_evidence
 
 
 def test_the_floor_keeps_a_categorical_path_in_a_tiny_table() -> None:

@@ -148,7 +148,7 @@ def test_the_golden_run_is_the_shape_this_file_says_it_is(
     words.
     """
     assert built.n_rows == 240
-    assert len(built.names) == 12
+    assert len(built.names) == 13
     assert built.write_header is True
     assert built.seed == GOLDEN_SEED
     # The word budget is a fixed function of the published facts (method
@@ -156,7 +156,7 @@ def test_the_golden_run_is_the_shape_this_file_says_it_is(
     # Pinned beside the bytes because "the run spends a different number
     # of words" is a different failure from "the run writes different
     # cells", and a reader is owed the difference.
-    assert built.words_drawn == 3940
+    assert built.words_drawn == 4179
     assert [column.name for column in loaded.columns] == [
         "record_code",
         "region",
@@ -170,6 +170,7 @@ def test_the_golden_run_is_the_shape_this_file_says_it_is(
         "batch",
         "dose",
         "seen_at",
+        "note",
     ]
 
 
@@ -228,7 +229,7 @@ def test_the_golden_run_is_the_shape_this_file_says_it_is(
 # twenty-seven more obligations than it did, which is the direction a
 # re-recording must move in.
 GOLDEN_DESCRIPTION_SHA256 = (
-    "c3749beb8679c8d15cb0aa7544dfc6d5d56e4f8b0eaf2eb59388bc150dff3fe4"
+    "d5734e52bb95f790c9af1a90df88789fe9ba738e8bd30d86fca753626275ad6a"
 )
 
 
@@ -276,7 +277,7 @@ def test_golden_hash_of_the_description_the_twin_is_built_from(
 # in one number. Any of them differing between two cells of the matrix
 # turns red here rather than shipping as a quietly different twin.
 GOLDEN_TWIN_SHA256 = (
-    "592006e62eb0d881ae447ec49a7f4acf37effe8c20872e430c8e559f7c7a587a"
+    "ba6fde8b0435f86bb8c540c9768854b8374aea0092a930057c0a189912ba8af3"
 )
 
 
@@ -553,7 +554,7 @@ def test_the_same_description_and_seed_give_the_same_twin_twice(
 # which is what says this is the page and not the run: stage 2 changes
 # no wire, no generation rule and no twin byte.
 GOLDEN_REPORT_SHA256 = (
-    "601507b584fc9cfc5131972feef103cb1c615c48b6743de2b309f6e1d950709b"
+    "7577b962ac4f5f332b85cf47ea6be332d65b47024dc2db31fbef0320dabdc769"
 )
 
 
@@ -920,7 +921,7 @@ def test_the_report_names_the_seed_the_twin_was_built_at(
 # that way: a line where the two values DIFFER may not have moved, and
 # one that did would be this repair reaching further than its own rule.
 GOLDEN_QUALITY_SHA256 = (
-    "f950ac98ab274d7507bf35294fcfe7b00538bf8f0801d6f8d6b39b722e146444"
+    "6b0a7b7897cbc6a719b89c710e7b0be5c9141820b52c18403fb5a818e9f0448d"
 )
 
 

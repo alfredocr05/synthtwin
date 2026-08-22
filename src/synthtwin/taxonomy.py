@@ -214,7 +214,17 @@ ROLE_CATEGORICAL = "categorical"
 ROLE_IDENTIFIER = "identifier"
 ROLE_CLOCK = "time_of_day"
 ROLE_AFFIXED = "affixed_number"
+ROLE_LONG_TAIL = "long_tail_labels"
 ROLE_TEXT = "free_text"
+
+# The lower bound of the long-tail detection line, and the max below is
+# deliberate (plan P4-D5). LOWERING the publication floor must not widen
+# WHICH columns become label-publishing: an all-different or nearly
+# all-different column -- names, addresses, free comments -- has no
+# eleven-row level and stays free text at EVERY floor, so the free-text
+# role stays reachable and its promise stays floor-invariant. Raising
+# the floor raises the line with it.
+LONG_TAIL_LINE = 11
 
 # Every role a column can be given. The order is the order the rules
 # are tested in, with one exception worth naming: `identifier` is not in
@@ -245,6 +255,7 @@ ROLES = (
     ROLE_IDENTIFIER,
     ROLE_CLOCK,
     ROLE_AFFIXED,
+    ROLE_LONG_TAIL,
     ROLE_TEXT,
 )
 
@@ -259,7 +270,12 @@ ROLES = (
 # * nothing: no value, no spelling, no fragment of one, anywhere --
 #   not in levels, not in missing_by_source, not in the evidence, not
 #   in a remark, not in a publication note, not in a sentinel verdict.
-ROLES_PUBLISHING_LABELS = (ROLE_CONSTANT, ROLE_BINARY, ROLE_CATEGORICAL)
+ROLES_PUBLISHING_LABELS = (
+    ROLE_CONSTANT,
+    ROLE_BINARY,
+    ROLE_CATEGORICAL,
+    ROLE_LONG_TAIL,
+)
 # `affixed_number` is a ranges role with ONE named exception: its two
 # affix keys carry floor-governed shared text off the table's cells, and
 # no other key of any ranges role may ever carry a spelling. The
@@ -351,6 +367,13 @@ ROLE_AXES: "dict[str, tuple[str, str]]" = {
     ROLE_IDENTIFIER: (TYPE_CODE, QUALITY_OK),
     ROLE_CLOCK: (ROLE_CLOCK, QUALITY_OK),
     ROLE_AFFIXED: (ROLE_AFFIXED, QUALITY_OK),
+    # A LONG-TAIL COLUMN IS CATEGORICAL IN SHAPE, and the axis says so
+    # rather than naming a shape of its own (plan P4-D5). What the
+    # consumer asks is "what shape are the values": these are labels
+    # with counts, the same shape a set of categories has, and the
+    # generator dispatches on the axis. The ROLE is what records that a
+    # different rule claimed the column and why.
+    ROLE_LONG_TAIL: (ROLE_CATEGORICAL, QUALITY_OK),
     ROLE_TEXT: (TYPE_TEXT, QUALITY_OK),
 }
 
@@ -551,6 +574,7 @@ EVIDENCE_DATES = "evidence_dates"
 EVIDENCE_COUNTS = "evidence_counts_things"
 EVIDENCE_NUMBERS = "evidence_written_as_numbers"
 EVIDENCE_CATEGORIES = "evidence_set_of_categories"
+EVIDENCE_LONG_TAIL = "evidence_long_tail_of_labels"
 EVIDENCE_NO_READING_FITS = "evidence_no_reading_fits"
 EVIDENCE_DECLARED_IDENTIFIER = "evidence_declared_identifier"
 
@@ -578,7 +602,18 @@ REMARK_CASE_ONLY_TWO = "remark_two_values_differ_in_case"
 REMARK_TWO_ALSO_NUMBERS = "remark_two_values_also_read_otherwise"
 REMARK_DATES_ALSO_NUMBERS = "remark_dates_also_read_as_numbers"
 REMARK_MONTH_FIRST = "remark_slashed_dates_are_month_first"
-REMARK_SLASHED_EVIDENCE = "remark_slashed_dates_read_against_the_evidence"
+REMARK_SLASHED_EVIDENCE = "remark_slashed_dates_read_against_your_declaration"
+
+# The two reading names the slashed remark's fifth argument takes. They
+# are package words rather than format members on purpose (contract
+# NF36): the remark speaks about a READING -- a way round to read a
+# slashed date -- and one reading covers two format members, so naming
+# the member would make the sentence say something narrower than it
+# means and would render differently for a date column and a stamp
+# column that were decided identically.
+READING_DAY_FIRST = "day-first"
+READING_MONTH_FIRST = "month-first"
+NOTE_READING_WORDS = (READING_DAY_FIRST, READING_MONTH_FIRST)
 REMARK_CASE_ONLY_MANY = "remark_values_differ_in_case"
 REMARK_NEAR_CATEGORY_LINE = "remark_close_to_the_category_line"
 REMARK_NO_READING_FITS = "remark_no_reading_fits"
@@ -619,6 +654,9 @@ NOTE_ARITY: "dict[str, int]" = {
     EVIDENCE_COUNTS: 1,
     EVIDENCE_NUMBERS: 2,
     EVIDENCE_CATEGORIES: 3,
+    # The different values, the ceiling it passed, the rows, the line a
+    # level had to cover, and how many levels covered it.
+    EVIDENCE_LONG_TAIL: 5,
     EVIDENCE_NO_READING_FITS: 5,
     EVIDENCE_DECLARED_IDENTIFIER: 0,
     SAID_WRITTEN_AS_NUMBERS: 2,
@@ -635,8 +673,7 @@ NOTE_ARITY: "dict[str, int]" = {
     REMARK_TWO_ALSO_NUMBERS: 0,
     REMARK_DATES_ALSO_NUMBERS: 0,
     REMARK_MONTH_FIRST: 0,
-    # The reading used, then the four counts: how many cells each
-    # reading parses, and how many ONLY each reading parses.
+    # Contract NF36 fixes the order: D, M, X, Y, then the reading used.
     REMARK_SLASHED_EVIDENCE: 5,
     REMARK_CASE_ONLY_MANY: 0,
     REMARK_NEAR_CATEGORY_LINE: 2,
@@ -675,7 +712,9 @@ NOTE_CLOCK_WORDS = (
     NOTE_CLOCK_HOURS_MINUTES_SECONDS,
 )
 
-NOTE_ARGUMENT_WORDS = parsing.DATE_FORMATS + NOTE_CLOCK_WORDS
+NOTE_ARGUMENT_WORDS = (
+    parsing.DATE_FORMATS + NOTE_CLOCK_WORDS + NOTE_READING_WORDS
+)
 
 # What `note` and `rendered` say when they are handed something the
 # grammar does not have. Both are internal invariants -- no input a
@@ -975,6 +1014,15 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
             f"have in a table of {_whole(arguments, 2)} rows, so this "
             f"column is a set of categories"
         )
+    if form == EVIDENCE_LONG_TAIL:
+        return (
+            f"there are {_whole(arguments, 0)} different values, more "
+            f"than the {_whole(arguments, 1)} a set of categories may "
+            f"have in a table of {_whole(arguments, 2)} rows -- but "
+            f"{_whole(arguments, 4)} level(s) of it are shared by at "
+            f"least {_whole(arguments, 3)} rows each, so this column is "
+            f"a long tail of labels rather than free text"
+        )
     if form == EVIDENCE_NO_READING_FITS:
         return (
             f"{_said(arguments, 0)}, {_said(arguments, 1)}, and there are "
@@ -1096,40 +1144,44 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
             "lower case; they are counted, and published, as one"
         )
     if form == REMARK_SLASHED_EVIDENCE:
-        # TWO INDEPENDENT CLAUSES, because how the winner was chosen
-        # and whether the column contradicts itself are different
-        # questions that combine freely (plan P4-D4.6). The first is
-        # always here; the second appears whenever the column carries
-        # evidence in BOTH directions, at any counts, tie or no tie, so
-        # a column that is evidence-decided AND internally inconsistent
-        # is reported as both rather than presented as settled.
-        used = _word(arguments, 0)
-        month_parsed = _whole(arguments, 1)
-        day_parsed = _whole(arguments, 2)
+        # CONTRACT NF36, WHICH FIXES EVERY PART OF THIS SENTENCE. Two
+        # clauses, the first always and the second on its own trigger;
+        # the first has three renderings and exactly one applies,
+        # selected by the arguments alone. The tie has a rendering of
+        # its own because the tie is the case the declaration decides:
+        # with only the other two, a producer on a tie must invent a
+        # sentence or write a false one, since each of those claims one
+        # reading parsed more than the other.
+        day = _whole(arguments, 0)
+        month = _whole(arguments, 1)
+        day_only = _whole(arguments, 2)
         month_only = _whole(arguments, 3)
-        day_only = _whole(arguments, 4)
-        if month_parsed == day_parsed:
+        used = _word(arguments, 4)
+        if day > month:
             first = (
-                f"you told synthtwin the slashed dates in this table are "
-                f"written day first. Both readings parse the same number "
-                f"of this column's values ({month_parsed}), so nothing in "
-                f"the column decides between them and what you told it "
-                f"did: they were read as '{used}'"
+                f"read day first, which parses {day} of these values "
+                f"against the month-first reading's {month}."
+            )
+        elif month > day:
+            first = (
+                f"read month first, though you asked for day first, "
+                f"because it parses {month} against {day}."
             )
         else:
             first = (
-                f"you told synthtwin the slashed dates in this table are "
-                f"written day first. This column's own values decide it "
-                f"instead: reading them month first parses "
-                f"{month_parsed} of them and day first parses "
-                f"{day_parsed}, so they were read as '{used}'"
+                f"read day first because you asked for it: both "
+                f"readings parse {day} of these values and the values "
+                f"themselves do not settle which is right."
             )
-        if month_only > 0 and day_only > 0:
+        if used != READING_DAY_FIRST and used != READING_MONTH_FIRST:
+            raise ValueError(UNAUTHORIZED_NOTE_ARGUMENT)
+        if day_only > 0 and month_only > 0:
+            # THE COMPOSITION IS EXACT: one space after the first
+            # clause's closing stop, and no conjunction or joining word.
             return (
-                f"{first}. This column also disagrees with itself: "
-                f"{month_only} of its values can only be read month "
-                f"first and {day_only} can only be read day first, so "
-                f"no single reading of it is right about every value"
+                f"{first} This column contradicts itself: {day_only} "
+                f"values only a day-first reading accepts, and "
+                f"{month_only} only a month-first one."
             )
         return first
     if form == REMARK_NEAR_CATEGORY_LINE:
@@ -3492,6 +3544,30 @@ def _levels(
     )
 
 
+def _long_tail_line(settings: Settings) -> int:
+    """How many rows a level must cover for the long-tail rule to fire.
+
+    The publication floor or eleven, whichever is LARGER (plan P4-D5).
+    The max is the rule, not a safety margin: at a lowered floor the
+    published set of an already-qualifying column widens with the
+    floor, exactly as a categorical column's does, but no NEW column
+    becomes label-publishing, because the line does not move down.
+    """
+    if settings.small_cell_floor > LONG_TAIL_LINE:
+        return settings.small_cell_floor
+    return LONG_TAIL_LINE
+
+
+def _levels_covering(counts: "dict[str, int]", settings: Settings) -> int:
+    """How many folded levels reach the long-tail detection line."""
+    line = _long_tail_line(settings)
+    found = 0
+    for key in sorted(counts):
+        if counts[key] >= line:
+            found = found + 1
+    return found
+
+
 def _level_details(levels: _Levels) -> dict[str, object]:
     """The published block a label-publishing role carries."""
     return {
@@ -3795,6 +3871,7 @@ class _SlashedEvidence:
     """
 
     used: str
+    reading: str
     month_parsed: int
     day_parsed: int
     month_only: int
@@ -3838,12 +3915,16 @@ def _slashed_evidence(
             if not month[place]:
                 day_only = day_only + 1
     used = pair[0]
+    reading = READING_MONTH_FIRST
     if day_parsed > month_parsed:
         used = pair[1]
+        reading = READING_DAY_FIRST
     elif day_parsed == month_parsed and day_first:
         used = pair[1]
+        reading = READING_DAY_FIRST
     return _SlashedEvidence(
         used=used,
+        reading=reading,
         month_parsed=month_parsed,
         day_parsed=day_parsed,
         month_only=month_only,
@@ -4896,11 +4977,11 @@ def _decide(
                     note(
                         REMARK_SLASHED_EVIDENCE,
                         (
-                            evidence.used,
-                            evidence.month_parsed,
                             evidence.day_parsed,
-                            evidence.month_only,
+                            evidence.month_parsed,
                             evidence.day_only,
+                            evidence.month_only,
+                            evidence.reading,
                         ),
                     )
                 ]
@@ -4983,10 +5064,61 @@ def _decide(
     if affixed is not None:
         return _affixed_verdict(cells, affixed, notes, remarks)
 
+    # RULE 9b -- a LONG TAIL of labels (plan P4-D5). Past the
+    # ceiling, and at least one folded level covers the detection
+    # line, which is the publication floor or eleven, whichever is
+    # larger.
+    #
+    # WHY THE LINE HAS A LOWER BOUND OF ITS OWN, and it is the whole
+    # of what keeps the free-text promise floor-invariant: lowering
+    # the publication floor must not widen WHICH columns publish
+    # labels. A column of names or free comments has no eleven-row
+    # level at any floor, so it stays free text at every floor and
+    # goes on publishing no value at all. Raising the floor raises
+    # the line with it, because a level nobody may name is not a
+    # level this rule can count.
+    #
+    # IT SITS LAST BUT ONE, AND THAT IS THE WHOLE OF ITS SAFETY. Every
+    # rule above reads a column BETTER: a column of clock times with a
+    # repeated time is a column of clock times, and a column of `5 mg`
+    # readings with one repeated reading is a column of those. A long
+    # tail is what a column is when nothing else fits AND it still
+    # holds repeated labels worth publishing -- so it claims only what
+    # would otherwise have been free text, which is the one thing this
+    # phase's no-regression rule allows.
+    covering = _levels_covering(cells.folded_counts, settings)
+    if covering > 0:
+        levels = _levels(
+            cells.folded_counts, cells.spellings_by_folded, settings
+        )
+        details = _level_details(levels)
+        if levels.suppressed_levels:
+            notes = notes + [_pooled_note(levels, settings)]
+        if cells.raw_distinct != folded_distinct:
+            remarks = remarks + [note(REMARK_CASE_ONLY_MANY)]
+        return _Verdict(
+            role=ROLE_LONG_TAIL,
+            evidence=note(
+                EVIDENCE_LONG_TAIL,
+                (
+                    folded_distinct,
+                    ceiling,
+                    cells.n_rows,
+                    _long_tail_line(settings),
+                    covering,
+                ),
+            ),
+            details=details,
+            notes=notes,
+            remarks=remarks,
+        )
+
     # RULE 10 -- everything else is free text, which publishes nothing.
     #
-    # There is no rule between RULE 7 and this one. Two rules used to
-    # stand here. One read all-different single tokens as record
+    # The rules between RULE 7 and this one all read a column BETTER
+    # than free text does, and each was added by a ratified decision:
+    # the clock, the affix pair and the long tail. Two rules used to
+    # stand here as well, and both are gone. One read all-different single tokens as record
     # numbers, and three revisions of it were each defeated by the
     # column next door: `0930` (a clock), `000042` (a padded count),
     # `1mg` (a dose). The last of those is why it is gone rather than

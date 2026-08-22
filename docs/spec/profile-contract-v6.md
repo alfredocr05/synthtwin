@@ -2959,9 +2959,22 @@ the whole of what their own reader takes; the date reader reads none
 of them with an offset, and a twin cell written `2024-03-15+02:00`
 reads back as no
 date at all. Under D1 this reaches every member of the format
-vocabulary but four: only `iso-datetime`, `iso-mixed`,
-`month-first-datetime` and `day-first-datetime` may carry an offset at
-all.
+vocabulary but TWO: only `iso-datetime` and `iso-mixed` may carry an
+offset at all. The paragraph named four until 2026-08-22, which
+contradicted its own opening sentence in the same breath (review item
+P4-DATE5-F4): the two slashed stamp members reach `datetime`
+resolution, so a reader that took the four-member list would accept
+`03/17/2024 14:05+02:00` as a cell of a conforming column, and the
+named parser refuses that cell because its clock grammar stops after
+the minutes or the seconds.
+
+**And their clock is `local`, always** (invariant D5). A reading that
+takes no offset gives every cell it accepts the same one, so a column
+read under either slashed stamp member never carried two, and
+`datetimes_read_at` of `utc` on such a column is an EXACT-OBSERVABLE
+fact no file can meet. D5's allowance for either value where the
+offset map is fully withheld is an allowance for readings that CAN
+carry an offset, and these two cannot.
 
 **Invariant D7 (subsecond digits).** `subsecond_digits > 0` implies
 `time_precision == "subsecond"`, and `time_precision == "subsecond"`
@@ -5513,11 +5526,11 @@ it answers to.
 | D2 | `sum(utc_offsets.values()) == n_present - n_unparsed` — only cells that parsed have an offset | yes |
 | D3 | every key of `utc_offsets` other than `(withheld)` maps to a count at least the floor, and `(withheld)` appears only when the pooled remainder is non-zero | yes |
 | D4 | an endpoint offset field naming a real offset names a key of `utc_offsets`: a value published in one field of a block that another field of the same block promises to withhold is a contradiction this format forbids | yes, in that direction — that `(none)` marks an endpoint cell wearing no offset, and `(withheld)` an offset the map is holding back, is *producer* |
-| D5 | `datetimes_read_at` is `local` when the whole column shares one UTC offset, `utc` when two or more appear | yes, in the direction a document supports — two or more non-`(withheld)` keys in `utc_offsets` require `utc`; where the map is fully withheld either value is accepted, because it reads the same whether one offset wrote the column or ten |
+| D5 | `datetimes_read_at` is `local` when the whole column shares one UTC offset, `utc` when two or more appear | yes, in the direction a document supports — two or more non-`(withheld)` keys in `utc_offsets` require `utc`; where the map is fully withheld either value is accepted, because it reads the same whether one offset wrote the column or ten — EXCEPT under a format whose reader takes no offset at all (`month-first-datetime`, `day-first-datetime`), where `local` is the only value any column could have held (review item P4-DATE5-F1) |
 | D6 | the pair (`resolution`, `time_precision`) is one row of this map, TOTAL over the FOUR resolutions and the SIX precisions, so all twenty-four pairs are decided: `date` permits `date`; `datetime` permits `minute`, `second` and `subsecond`; `quarter` permits `quarter`; `month` permits `month` — with ONE format-family narrowing inside the datetime row: `month-first-datetime` and `day-first-datetime` read a clock in the `time_of_day` role's two forms, which carry no fraction, so those two members permit `minute` and `second` and not `subsecond` | yes |
 | D7 | `subsecond_digits > 0` implies `time_precision == "subsecond"`, and `time_precision == "subsecond"` implies `subsecond_digits > 0` | yes |
 | D8 | `n_unparsed < n_present` — the checkable form of "the ladder covers the parsed cells", so both endpoints are always real values | yes |
-| D9 | every key of `utc_offsets`, and both endpoint offset fields, are `(none)` or `(withheld)` unless `resolution` is `datetime`; under D1 that reaches every format member but four — only `iso-datetime`, `iso-mixed`, `month-first-datetime` and `day-first-datetime` may carry an offset at all | yes |
+| D9 | every key of `utc_offsets`, and both endpoint offset fields, are `(none)` or `(withheld)` unless `resolution` is `datetime` AND `format` is an ISO member; under D1 that reaches every format member but TWO — only `iso-datetime` and `iso-mixed` may carry an offset at all, because the two slashed stamp members take a clock in the `time_of_day` role's two forms and no offset (review item P4-DATE5-F4) | yes |
 | D10 | where `resolution` is `datetime`, the seconds field of `earliest` and of `latest` is `00` when `time_precision` is `minute`, and is not `60` when `datetimes_read_at` is `utc`; and where `resolution` is `datetime` and `datetimes_read_at` is `utc`, each endpoint moved onto the clock its own endpoint offset names stays inside the years `0001` to `9999` | yes — the loader holds all three fields it needs: the endpoint, its offset, the clock |
 | D11 | `date_percentiles.min == earliest` and `date_percentiles.max == latest` | yes |
 
