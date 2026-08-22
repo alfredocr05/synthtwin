@@ -329,8 +329,11 @@ ENCODINGS = ("utf-8-sig", "latin-1")
 
 HEADER_SOURCES = ("file", "generated")
 
+DATE_SENTINEL = "(date-sentinel)"
+
 MISSING_CLASS_KEYS = (
     BLANK,
+    DATE_SENTINEL,
     "(declared-missing)",
     "(numeric-sentinel)",
     "(text-code)",
@@ -1076,13 +1079,20 @@ class SentinelVerdict:
 class MissingByClass:
     """Absent cells by the reason each was counted absent (contract 5.4).
 
-    The five keys of the document are five fields here, because the
+    The six keys of the document are six fields here, because the
     document's own key spellings -- `(blank)` and the rest -- are not
-    names a program can carry, and a consumer that reads a sixth reason
-    should find out where it made the mistake.
+    names a program can carry, and a consumer that reads a seventh
+    reason should find out where it made the mistake.
+
+    THE SIXTH ARRIVED WITH THE CALENDAR PLACEHOLDERS (plan amendment
+    A-P4-1 item 3): a cell taken out because it wrote a placeholder day
+    is absent for its own reason, and pooling it with the numeric
+    stand-ins would tell a reader a column of dates held a stand-in
+    NUMBER.
     """
 
     blank: int
+    date_sentinel: int
     declared_missing: int
     numeric_sentinel: int
     text_code: int
@@ -3125,6 +3135,7 @@ def _missing_by_class(
             )
     return MissingByClass(
         blank=counted[BLANK],
+        date_sentinel=counted[DATE_SENTINEL],
         declared_missing=counted["(declared-missing)"],
         numeric_sentinel=counted["(numeric-sentinel)"],
         text_code=counted["(text-code)"],
@@ -3227,6 +3238,7 @@ def _sentinel_verdicts(
     place = 0
     previous: tuple[int, str, str] | None = None
     previous_number: float | None = None
+    previous_day: "str | None" = None
     for entry in listed:
         seat = f"{where}, in decision number {place + 1} about a stand-in number"
         mapping = _mapping(entry, f"sentinel_verdicts[{place}]", where)
@@ -3275,7 +3287,33 @@ def _sentinel_verdicts(
                     ),
                 )
             previous = ranked
+        elif candidate in parsing.calendar_placeholders():
+            # A PLACEHOLDER DAY, WHICH IS NOT A NUMBER AND IS NOT
+            # ORDERED AS ONE (plan amendment A-P4-1 item 3, invariant
+            # V4). The decisions of one column carry every numeric
+            # candidate first, ascending by number, then every
+            # placeholder day, ascending as text -- so a reader
+            # checking the order has one rule per kind and the two
+            # kinds never interleave.
+            if previous_day is not None and candidate < previous_day:
+                raise _broken(
+                    "V4",
+                    seat,
+                    f"this decision is about '{candidate}'",
+                    f"the one before it is about '{previous_day}'",
+                )
+            previous_day = candidate
         else:
+            if previous_day is not None:
+                raise _broken(
+                    "V4",
+                    seat,
+                    "this decision is about a stand-in number",
+                    (
+                        "the one before it is about a placeholder day, "
+                        "and every number comes first"
+                    ),
+                )
             number = _reads_as_a_number(candidate, "candidate", seat)
             if previous_number is not None and number < previous_number:
                 raise _broken(

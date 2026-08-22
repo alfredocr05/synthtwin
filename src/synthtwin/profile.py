@@ -998,13 +998,23 @@ def _is_moment(value: object) -> bool:
 
 
 def _is_sentinel(value: object) -> bool:
-    """One of the numeric stand-ins this package knows, or the pool."""
+    """One stand-in this package knows -- a number or a day -- or the pool.
+
+    BOTH KINDS OF CANDIDATE, and the guard is what makes that a closed
+    question: a verdict names a value of the table, so the only values
+    it may name are this package's own constants, and a spelling
+    outside them is refused before anything is written (plan amendment
+    A-P4-1 item 3).
+    """
     if not isinstance(value, str):
         return False
     if value == taxonomy.SUPPRESSED_LABEL:
         return True
     for candidate in parsing.NUMERIC_SENTINELS:
         if value == f"{candidate:g}":
+            return True
+    for day in parsing.calendar_placeholders():
+        if value == day:
             return True
     return False
 

@@ -102,6 +102,56 @@ MISSING_TEXTS_EXACT = ("NaT",)
 # in taxonomy.py, and every candidate's fate is reported either way.
 NUMERIC_SENTINELS = (-9999.0, -999.0, 9999.0)
 
+# Dates conventionally used to mean "no value" -- the placeholder a
+# person types into an open-ended row. They count as missing only when
+# they are also distribution outliers, by the same rule the numbers
+# above are judged under, transposed to day ordinals; the rule is in
+# taxonomy.py and every candidate's fate is reported either way.
+#
+# THEIR IDENTITY IS THE WRITTEN CALENDAR DAY (plan amendment A-P4-1
+# item 3). A cell matches a placeholder when its own written fields,
+# under the column's own format, denote that day: no shared-clock
+# normalization and no offset arithmetic enters the question, because
+# the placeholder is a writing convention and the writer typed that
+# day.
+CALENDAR_PLACEHOLDERS = ("1900-01-01", "9999-12-31")
+
+
+def calendar_placeholders() -> "tuple[str, ...]":
+    """The built-in placeholder days, as canonical ISO spellings.
+
+    Guarantees: returns the same tuple on every call, of this package's
+    own constants. Raises nothing. No I/O of any kind.
+    """
+    return CALENDAR_PLACEHOLDERS
+
+
+def placeholder_day_of(text: str, format_name: str) -> "str | None":
+    """The placeholder day a cell denotes under one format, or None.
+
+    THE WRITTEN DAY AND NOTHING ELSE. The cell is read under the
+    column's own format and its DATE part is compared with the
+    placeholder; any time of day and any offset the cell carries are
+    not consulted, because a placeholder is a writing convention rather
+    than an instant and the person typed a day.
+
+    Guarantees: accepts a cell's text and a format member; returns the
+    placeholder it denotes or None; raises TypeError if handed anything
+    that is not a string instance. No I/O of any kind.
+    """
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT)
+    if not isinstance(format_name, str):
+        raise TypeError(_NOT_TEXT)
+    found = parse_datetime(text, format_name)
+    if found is None:
+        return None
+    written = found[0][0:10]
+    for candidate in CALENDAR_PLACEHOLDERS:
+        if written == candidate:
+            return candidate
+    return None
+
 # The date and time formats, in the order they are tried. The first
 # format that parses at least the required share of a column's values
 # wins, and the profile records which one it was.
@@ -1530,11 +1580,15 @@ WHOLE_UNKNOWN = "unknown"
 MISSING_BLANK = "(blank)"
 MISSING_TEXT_CODE = "(text-code)"
 MISSING_NUMERIC_SENTINEL = "(numeric-sentinel)"
+MISSING_DATE_SENTINEL = "(date-sentinel)"
 MISSING_DECLARED = "(declared-missing)"
 MISSING_WITHHELD = "(withheld)"
 
+# In code-point order, which is the order the contract enumerates them
+# in and the order every total walk over them takes.
 MISSING_CLASSES = (
     MISSING_BLANK,
+    MISSING_DATE_SENTINEL,
     MISSING_DECLARED,
     MISSING_NUMERIC_SENTINEL,
     MISSING_TEXT_CODE,

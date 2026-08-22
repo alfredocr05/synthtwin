@@ -3370,5 +3370,45 @@ column reading Phase 4 gives them and then by the cross-column
 structure Phase 5 gives them; process spent past the point of catching
 defects that reach a reader serves neither.
 
+## Amendment A-P4-31 — the calendar placeholders are built
+
+A-P4-1 item 3 as ratified. Two built-in candidate days, `1900-01-01`
+and `9999-12-31`, judged by the standing outlier-and-share rule
+transposed to day ordinals, with the two recorded sentinel settings
+reused and no new key. Their identity is the WRITTEN calendar day: a
+cell matches when its own fields, under the column's own format,
+denote that day, so `9999-12-31 23:59:59` and `12/31/9999` are the same
+candidate and no offset arithmetic enters the question.
+
+**What it closes, measured.** Two hundred and twenty-eight dates in
+2024 beside twelve rows filled with the far placeholder published
+`latest: 9999-12-31`, dragged every rung of the ladder toward it, and
+seeded the twin with dates spread over eight thousand years. Code
+computing a span, a maximum date or a days-to-event therefore ran one
+way on the real table and another on the twin, in the same direction,
+with nothing saying so. That column now publishes `latest:
+2024-12-28`, counts twelve cells absent under `(date-sentinel)`, and
+carries a verdict naming the candidate, the decision and the reason.
+
+**Both conditions hold.** The pass runs only where rules 0
+through 4 declined the un-removed column, and it ENTERS only where the
+non-candidate remainder clears the datetime rule's line by itself.
+Each of the three shapes the amendment names by hand is a control: a
+constant column of one placeholder stays constant, a two-valued column
+whose one value is a placeholder stays binary, and a column of free
+text with a few placeholder cells has nothing judged and nothing
+removed. So this pass sends no column to a rule other than the one it
+reaches today, which is what the no-regression rule asks of it.
+
+**The wire.** The absence-class map gains `(date-sentinel)` as its
+sixth key, in code-point order, present on every column block like the
+other five; the loader carries a sixth field for it rather than
+pooling it with the numeric stand-ins, because a cell taken out for
+writing a placeholder day is absent for its own reason. Verdicts carry
+the candidate as its canonical ISO day, and invariant V4 orders them
+after every numeric candidate and among themselves as text -- one rule
+per kind, and the two kinds never interleave. Every consequence rides
+the version 6 bump, which is residual R-P4-23.
+
   The five plan reviews are in `docs/plans/reviews/` as
   `phase-4-plan-review-round-1.md` through `-round-5.md`.
