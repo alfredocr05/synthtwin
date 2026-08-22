@@ -270,16 +270,49 @@ def test_the_written_out_literals_are_the_tuple_beside_them(
     """
     parts = contract.AFFIXED_REMARK_PARTS
     assert len(parts) == 4
-    built = "100 " + " ".join(parts)
-    assert contract._is_the_affixed_remark(built, 100)
-    assert not contract._is_the_affixed_remark(built, 99)
+    clause = contract._affix_clause("$", "")
+    built = f"100 {parts[0]} {clause}, " + " ".join(parts[1:])
+    assert contract._is_the_affixed_remark(built, 100, clause)
+    assert not contract._is_the_affixed_remark(built, 99, clause)
     for place in range(len(parts)):
         short = "100 " + " ".join(
             parts[index] for index in range(len(parts)) if index != place
         )
-        assert not contract._is_the_affixed_remark(short, 100), parts[place]
+        assert not contract._is_the_affixed_remark(
+            f"{short} {clause}", 100, clause
+        ), parts[place]
     backwards = "100 " + " ".join(reversed(parts))
-    assert not contract._is_the_affixed_remark(backwards, 100)
+    assert not contract._is_the_affixed_remark(
+        f"{backwards} {clause}", 100, clause
+    )
+    # ...AND THE PAIR ITSELF. A sentence with every generic fragment in
+    # order, the right count, and the WRONG pair is a required warning
+    # that misdescribes the column it warns about.
+    assert not contract._is_the_affixed_remark(
+        built, 100, contract._affix_clause("kg", "")
+    )
+
+
+def test_a_remark_naming_another_pair_does_not_answer_for_this_block(
+    tmp_path: pathlib.Path,
+) -> None:
+    """AF-R binds the two spellings positionally, character for character.
+
+    The block publishes prefix `$` and no suffix. A remark saying its
+    cells read `'kg' followed by a number` carries every generic
+    fragment, the right count and the marker -- and describes a column
+    nobody holds.
+    """
+    document = _document(tmp_path / "pair", "price", _prices())
+    remarks = document["columns"][0]["remarks"]
+    moved = [
+        remark.replace("'$' followed by a number", "'kg' followed by a number")
+        for remark in remarks
+    ]
+    assert moved != remarks
+    document["columns"][0]["remarks"] = moved
+    with pytest.raises(errors.ProfileError):
+        _loaded(tmp_path / "pair", document, "pair")
 
 
 # -- the stand-in pass may not re-run the rules that already declined --
@@ -574,7 +607,16 @@ def test_a_snap_never_carries_a_cell_past_a_published_end() -> None:
             for check in outcome.checks
             if check.verdict == validation.MISSED
         ]
-        assert missed == [], (seed, missed)
+        # A WIDTH QUOTA MAY GO UNMET AND IS REPORTED (A-P4-15); no
+        # other obligation may move, and the ladder ends least of all.
+        other = [
+            subcheck
+            for subcheck in missed
+            if not subcheck.startswith("widths.published.")
+        ]
+        assert other == [], (seed, missed)
+        assert "ladder.min" not in missed
+        assert "ladder.max" not in missed
 
 
 def test_an_invented_straggler_is_not_a_spelling_this_column_calls_absent(

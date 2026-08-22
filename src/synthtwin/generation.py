@@ -2124,6 +2124,7 @@ def _width_places(
     pinned: "list[int]",
     low: float,
     high: float,
+    whole_column: bool,
 ) -> "list[int]":
     """Which width each cell is written at, or -1 for the value's own.
 
@@ -2254,7 +2255,64 @@ def _width_places(
         quotas[whole] = quotas[whole] - len(members)
         for index in members:
             places[index] = whole
-    return places
+    return _some_fraction_survives(places, styles, holds, whole_column)
+
+
+def _some_fraction_survives(
+    places: "list[int]",
+    styles: "list[str]",
+    holds: "list[float]",
+    whole_column: bool,
+) -> "list[int]":
+    """Give one width back where the snap would make every value whole.
+
+    `integer_valued` is a fact about the COLUMN -- "every value it
+    holds is a whole number" -- and it is the fact a consumer routes on
+    (AF6), recounted from the written cells. A column publishing FALSE
+    whose every value the snap rounded onto a whole number is
+    re-profiled as `count` rather than `continuous`, so the twin's own
+    type is not the type its description publishes: twenty-six cells
+    written `1.`, twenty-five `2.` and twenty-nine at one figure
+    published a width of zero for fifty-one of them, the twin came back
+    a column of counts, and `validate` reported the ROLE missed.
+
+    THE GRAIN IS THE COLUMN AND NOT THE CELL. Refusing every snap that
+    makes one value whole is far too strong -- a column of halves may
+    round one of them to `2.0` and still hold plenty that are not --
+    and it spends published width quotas for nothing. So the walk runs,
+    and only where NOTHING non-whole survived does one group give its
+    width back: the one that needed the most figures, which is the one
+    the snap took the most from.
+    """
+    if whole_column:
+        return places
+    widest = -1
+    biggest = -1
+    for index in range(len(styles)):
+        value = holds[index]
+        if value == int(value):
+            continue
+        if places[index] < 0:
+            return places
+        sign, figures, place = _digits_and_point(value)
+        written = _at_width(sign, figures, place, places[index])
+        read = parsing.parse_number(written)
+        if read is not None and read != int(read):
+            return places
+        need = _fraction_need(value)
+        if need > biggest:
+            biggest = need
+            widest = index
+    if widest < 0:
+        return places
+    kept = holds[widest]
+    given: list[int] = []
+    for index in range(len(places)):
+        if styles[index] == "decimal" and holds[index] == kept:
+            given = given + [-1]
+            continue
+        given = given + [places[index]]
+    return given
 
 
 def _style_quotas(styles: "dict[str, int]") -> "dict[str, int]":
@@ -3872,6 +3930,7 @@ def _affixed_content(
             layout.raw_budgets[place] if layout else 1,
             pair,
             used,
+            holes,
         )
     return cells, notes
 
@@ -3899,9 +3958,28 @@ def _unaffixed_spellings(
     raw_budget: int,
     pair: "tuple[str, str]",
     used: "dict[str, int]",
+    holes: "tuple[str, ...]" = (),
 ) -> "list[str]":
-    """One straggler class, with nothing in it wearing the pair."""
+    """One straggler class, with nothing in it wearing the pair.
+
+    THE FILTER USED TO REJECT EVERY CANDIDATE, and the two published
+    classes it feeds were unreachable because of it. `_class_spellings`
+    RECORDS each spelling it builds before handing it back, so testing
+    `spelling in used` after the call was testing whether the builder
+    had just done its own bookkeeping -- always true. Every cell fell
+    through to the last resort below, so a thousand-row column of
+    prices beside five cells too large to hold and five of
+    contradictory notation wrote `(no pair 0)` through `(no pair 4)`
+    for all ten: two exact published counts missed, the count of
+    different values missed with them, and the deviation note blamed
+    group granularity for cells that were never built at all.
+    What must be refused is a spelling used BEFORE this walk began, so
+    the snapshot is taken at entry. A repeat WITHIN the walk is not a
+    collision: a class whose spelling budget is spent repeats its last
+    spelling on purpose (G6.5).
+    """
     built: list[str] = []
+    already = {spelling: 1 for spelling in used}
     step = 0
     while len(built) < count and step < count * 8 + 64:
         wanted = count - len(built)
@@ -3911,7 +3989,11 @@ def _unaffixed_spellings(
         for spelling in batch:
             if len(built) >= count:
                 break
-            if _wears(spelling, pair) or spelling in used:
+            if _wears(spelling, pair):
+                continue
+            if spelling in already:
+                continue
+            if _is_a_hole_spelling(spelling, holes):
                 continue
             built = built + [spelling]
             used[spelling] = 1
@@ -3997,9 +4079,25 @@ def _is_a_hole_spelling(text: str, holes: "tuple[str, ...]") -> bool:
     """
     if parsing.is_missing_text(text):
         return True
-    folded = parsing.folded(parsing.trimmed(text))
+    body = parsing.trimmed(text)
+    folded = parsing.folded(body)
+    held = parsing.parse_number(body)
     for spelling in holes:
-        if parsing.folded(parsing.trimmed(spelling)) == folded:
+        other = parsing.trimmed(spelling)
+        if parsing.folded(other) == folded:
+            return True
+        # ...AND A NUMBER IS MATCHED AS A NUMBER, which is how the
+        # description's own reader matches a declared value: `1` and
+        # `1.0` are one value and one of them being published as a hole
+        # makes the other one a hole too. Comparing spellings alone let
+        # the straggler walk write `1` into a column publishing
+        # `missing_by_source {"1.0": 11}`, and the twin's own
+        # description then counted that present cell absent. The same
+        # holds for `01`, `1.00` and `1e0`.
+        if held is None:
+            continue
+        found = parsing.parse_number(other)
+        if found is not None and found == held:
             return True
     return False
 
@@ -4579,6 +4677,7 @@ def _number_cells(
         _pinned_cells(layout, values),
         ends[0],
         ends[1],
+        facts.integer_valued,
     )
     base: list[str] = []
     for index in range(len(holds)):
@@ -9370,9 +9469,20 @@ def _style_notes(
     and a reader who went looking for either number in the description
     alone would not find it, so the note names both.
     """
-    facts = column.facts
-    if not isinstance(facts, contract.NumericFacts):
+    # THE AFFIXED ROLE IS READ OVER ITS CORES HERE TOO. Its
+    # quantitative block IS the numeric block (P4-D4.1), styles map
+    # included, so a styles obligation it could not meet is owed the
+    # same sentence a plain numeric column gets. Returning empty for
+    # `AffixedFacts` meant an unmet EXACT count was reported on one
+    # role and silent on the other, with the same facts underneath.
+    facts = _quantitative_facts(column)
+    if facts is None:
         return []
+    prefix = ""
+    suffix = ""
+    if isinstance(column.facts, contract.AffixedFacts):
+        prefix = column.facts.affix_prefix
+        suffix = column.facts.affix_suffix
     published = {name: 0 for name in contract.NUMERIC_STYLES}
     for name in sorted(facts.numeric_styles):
         if name != contract.WITHHELD:
@@ -9383,6 +9493,17 @@ def _style_notes(
     for cell in written:
         if cell == "":
             continue
+        trimmed = parsing.trimmed(cell)
+        body = trimmed
+        if prefix or suffix:
+            if not trimmed.startswith(prefix):
+                continue
+            if not trimmed.endswith(suffix):
+                continue
+            body = trimmed[len(prefix) : len(trimmed) - len(suffix)]
+            if not body:
+                continue
+        cell = body
         if parsing.classify_number(cell) != parsing.NUMBER:
             continue
         counted[parsing.numeric_style(cell)] = (

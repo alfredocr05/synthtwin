@@ -3272,7 +3272,11 @@ def _column(
     if role == ROLE_AFFIXED:
         carried = False
         for remark in remarks:
-            if _is_the_affixed_remark(remark, facts.n_affixed):
+            if _is_the_affixed_remark(
+                remark,
+                facts.n_affixed,
+                _affix_clause(facts.affix_prefix, facts.affix_suffix),
+            ):
                 carried = True
         if not carried:
             raise _out_of_range(
@@ -3311,7 +3315,47 @@ def _column(
     )
 
 
-def _is_the_affixed_remark(remark: str, n_affixed: int) -> bool:
+def _where(said: str, part: str) -> int:
+    """Where one fragment stands in a sentence, or -1.
+
+    Written with slicing rather than `find`, and that is the offline
+    audit's rule rather than a preference: a method call whose argument
+    the audit cannot resolve is a call it cannot judge, and one of
+    these fragments is built from the block's own pair. Slicing and
+    equality are neither of them method calls on an untraced value.
+    """
+    if not isinstance(said, str) or not isinstance(part, str):
+        raise TypeError("internal check: a sentence was not text")
+    span = len(part)
+    for start in range(len(said) - span + 1):
+        if said[start : start + span] == part:
+            return start
+    return -1
+
+
+def _affix_clause(prefix: str, suffix: str) -> str:
+    """The clause the required remark writes about THIS block's pair.
+
+    Three shapes, because one side is usually empty and a sentence
+    saying "written as nothing, a number, then 'mg'" describes a shape
+    no cell has. Built from the block's OWN two spellings, so a remark
+    holding this clause names the pair the block publishes, character
+    for character -- which is what AF-R asks and what a check of the
+    sentence's generic fragments alone could not tell: a block
+    publishing `$` accepted a remark saying `'kg' followed by a
+    number`, a required warning that misdescribes the column it warns
+    about.
+    """
+    if prefix and suffix:
+        return f"written as '{prefix}', a number, then '{suffix}'"
+    if prefix:
+        return f"written as '{prefix}' followed by a number"
+    return f"written as a number followed by '{suffix}'"
+
+
+def _is_the_affixed_remark(
+    remark: str, n_affixed: int, clause: str
+) -> bool:
     """Whether one sentence is the remark AF-R requires, not a token of it.
 
     Every fixed fragment, IN ORDER, and the block's own count in front
@@ -3332,15 +3376,21 @@ def _is_the_affixed_remark(remark: str, n_affixed: int) -> bool:
     # `tests/test_p4d4_affixed_role.py` holds these calls to it.
     if remark[: len(f"{n_affixed} ")] != f"{n_affixed} ":
         return False
-    first = remark.find("of this column's values are written as")
-    second = remark.find(
+    # The pair's own clause, which is where the block's two published
+    # spellings have to appear.
+    if _where(remark, clause) < 0:
+        return False
+    first = _where(remark, "of this column's values are written as")
+    second = _where(
+        remark,
         "and synthtwin described those numbers as quantities: their "
-        "average, their spread and their ends are in this profile."
+        "average, their spread and their ends are in this profile.",
     )
-    third = remark.find("If these are codes rather than measurements")
-    fourth = remark.find(
+    third = _where(remark, "If these are codes rather than measurements")
+    fourth = _where(
+        remark,
         "run the command again with --identifier and no value of this "
-        "column will be published at all"
+        "column will be published at all",
     )
     if first < 0 or second < 0 or third < 0 or fourth < 0:
         return False

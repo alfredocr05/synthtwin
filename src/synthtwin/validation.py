@@ -6242,16 +6242,25 @@ def _affixed_checks(
         core = trimmed[len(prefix) : len(trimmed) - len(suffix)]
         if core:
             cores = cores + [core]
-    # `n_affixed` counts the CELLS wearing the pair, and a written file
-    # evidences it exactly: read the file's own cells the way the
-    # producer read the table's.
+    # `n_affixed` COMES OFF THE FILE'S OWN DESCRIPTION, not off a
+    # recount of its cells under the published pair. The difference is
+    # V5.1: this report may state about the measured file only what
+    # `synthtwin profile`, run on THAT FILE, would publish about it.
+    # Counting the file's cells against a pair the DESCRIPTION's author
+    # chose states something else -- and `n_affixed` is floor-bounded
+    # from below (AF2), so the recount printed exact counts BELOW the
+    # publication floor, live functions of a file whose own description
+    # publishes no affixed fact at all. A description of one pair
+    # checked against a file of another printed "found: 5" beside the
+    # pair, which is five cells of somebody's table counted for a
+    # reader who may not hold it.
     checks = checks + [
         _exact(
             name,
             "affixed.n_affixed",
             "counts.n_affixed",
             f"{facts.n_affixed}",
-            f"{len(cores)}",
+            _shown_count_or_none(_count_at(block, "n_affixed")),
         )
     ]
     # THE PAIR ITSELF, compared as the two SPELLINGS they are. Counting
@@ -6325,33 +6334,10 @@ def _affixed_checks(
                 _NOT_SHOWN_IT_IS_TEXT_OF_THE_FILE,
             )
         ]
-    # THE FOUR CORE CLASSES, counted off the file's own cores by the
-    # same classifier the producer used. They are the census of the
-    # population the ladder and every moment are computed over, so a
-    # file whose cores fall into different classes has not carried what
-    # the description published even if every other count agrees.
-    measured = {
-        "n_core_numeric": 0,
-        "n_core_out_of_range": 0,
-        "n_core_contradictory": 0,
-        "n_core_not_numeric": 0,
-    }
-    for core in cores:
-        kind = parsing.classify_number(core)
-        if kind == parsing.NUMBER:
-            measured["n_core_numeric"] = measured["n_core_numeric"] + 1
-        elif kind == parsing.NUMBER_OUT_OF_RANGE:
-            measured["n_core_out_of_range"] = (
-                measured["n_core_out_of_range"] + 1
-            )
-        elif kind == parsing.NUMBER_CONTRADICTORY:
-            measured["n_core_contradictory"] = (
-                measured["n_core_contradictory"] + 1
-            )
-        else:
-            measured["n_core_not_numeric"] = (
-                measured["n_core_not_numeric"] + 1
-            )
+    # THE FOUR CORE CLASSES, read off the file's own description for
+    # the same reason: they are counts of the cells that wear the pair,
+    # so a recount under a pair the file does not wear is a count of
+    # the file rather than a description of it.
     for field, published in (
         ("n_core_numeric", facts.n_core_numeric),
         ("n_core_out_of_range", facts.n_core_out_of_range),
@@ -6364,7 +6350,7 @@ def _affixed_checks(
                 f"affixed.{field}",
                 f"counts.{field}",
                 f"{published}",
-                f"{measured[field]}",
+                _shown_count_or_none(_count_at(block, field)),
             )
         ]
     # The CORE population, handed to the numeric checks as the column
@@ -7653,6 +7639,19 @@ def _wears(text: str, spelling: str) -> bool:
         if character != "0":
             return False
     return True
+
+
+def _shown_count_or_none(found: "int | None") -> "str | None":
+    """One measured count as the report shows it, or nothing at all.
+
+    None where the file's own description does not carry the key,
+    which is the disclosure gate closing: `_exact` then reports
+    WITHHELD in the gate's own words, and the role axis of the same
+    column carries the MISS that says why.
+    """
+    if found is None:
+        return None
+    return _shown_count(found)
 
 
 def _published_widths(
