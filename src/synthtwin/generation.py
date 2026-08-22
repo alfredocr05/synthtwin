@@ -1575,7 +1575,7 @@ def _recounted(
     present = [
         cell
         for cell in cells
-        if cell != "" and not _is_a_hole_spelling(cell, holes)
+        if cell != "" and not _wears_a_published_hole(cell, holes)
     ]
     folded = {parsing.folded(cell) for cell in present}
     return (
@@ -2682,6 +2682,11 @@ def _ordinal_of(canonical: str, resolution: str) -> int:
     """
     if resolution == "quarter":
         return 4 * (int(canonical[0:4]) - 1970) + int(canonical[6]) - 1
+    if resolution == "month":
+        # TWELVE MONTHS TO THE YEAR, counted from the same origin the
+        # quarter counts from, so a month is a whole number of months
+        # and no calendar is consulted to place it (plan P4-D4.3).
+        return 12 * (int(canonical[0:4]) - 1970) + int(canonical[5:7]) - 1
     days = parsing.days_from_civil(
         int(canonical[0:4]), int(canonical[5:7]), int(canonical[8:10])
     )
@@ -2711,6 +2716,9 @@ def _cell_of_ordinal(
     if resolution == "quarter":
         year = 1970 + (ordinal // 4)
         return f"{year:04d}-Q{(ordinal % 4) + 1}"
+    if resolution == "month":
+        year = 1970 + (ordinal // 12)
+        return f"{year:04d}-{(ordinal % 12) + 1:02d}"
     if resolution == "date":
         year, month, day = parsing.civil_from_days(ordinal)
         return f"{year:04d}-{month:02d}-{day:02d}"
@@ -4210,16 +4218,47 @@ def _unaffixed_numbers(
 
 
 def _is_a_hole_spelling(text: str, holes: "tuple[str, ...]") -> bool:
-    """Whether a twin's own description would read this cell as absent.
+    """Whether a spelling is one this run must not INVENT.
 
     Three ways, and all three are the reader's own: the spelling is one
     this format always reads as "no value"; the person named it when
     the description was written; or this column publishes it among the
-    spellings its absent cells wore. A present cell wearing any of them
-    is a present cell the twin's own description counts as a hole.
+    spellings its absent cells wore.
+
+    THIS IS THE CONSERVATIVE HALF OF THE QUESTION, and it is asked
+    where a spelling is being CHOSEN -- an invented straggler, a
+    stand-in, a withheld variant. There the safe answer is to avoid
+    anything a reader might call absent, so the built-in vocabulary
+    counts even where no cell of this column ever wore it.
+
+    It is NOT the question a recount asks (review item P4-DATE2-F2).
+    `--keep-value NA` makes `NA` a real label of a real column, and a
+    twin that writes it writes a present cell; a recount that used this
+    predicate called forty such cells absent and reported distinctness
+    deviations no file has. `_wears_a_published_hole` is that other
+    half.
     """
     if parsing.is_missing_text(text):
         return True
+    return _wears_a_published_hole(text, holes)
+
+
+def _wears_a_published_hole(text: str, holes: "tuple[str, ...]") -> bool:
+    """Whether the twin's own description reads this WRITTEN cell as absent.
+
+    The honest half of the question above, and the one a recount asks:
+    not "might a reader call this absent" but "does this column's own
+    description". What answers it is what the column PUBLISHES among
+    the spellings its absent cells wore -- facts of this column, not of
+    the vocabulary.
+
+    The built-in words are deliberately not consulted here. A twin cell
+    can only wear one of them where the description publishes it as a
+    VALUE, which happens only where a `--keep-value` rescued it, and
+    such a cell is present; every place that INVENTS a spelling asks
+    the conservative predicate above instead, so no cell reaches a
+    recount wearing a built-in word by accident.
+    """
     body = parsing.trimmed(text)
     folded = parsing.folded(body)
     held = parsing.parse_number(body)
@@ -5134,6 +5173,8 @@ def _parser_family(resolution: str) -> str:
         return "iso-date"
     if resolution == "quarter":
         return "year-quarter"
+    if resolution == "month":
+        return "iso-month"
     return "iso-datetime"
 
 
@@ -5226,7 +5267,7 @@ def _endpoint_notes(
     evidence of its own defect is the worse of the two failures.
     """
     found = _instant_written(written, facts)
-    absent = _is_a_hole_spelling(written, holes)
+    absent = _wears_a_published_hole(written, holes)
     if found == published and not absent:
         return []
     achieved = "a value that does not read as a date at all"
@@ -9837,7 +9878,7 @@ def _mix_notes(
         # NOT A DATE OF ANY FORM (review item P4-DATE-F2). Counting it
         # would make this line say the twin wrote a value where its own
         # description finds none.
-        if _is_a_hole_spelling(cell, holes):
+        if _wears_a_published_hole(cell, holes):
             continue
         if parsing.parse_datetime(cell, "iso-datetime") is not None:
             counted["iso-datetime"] = counted["iso-datetime"] + 1
@@ -10714,7 +10755,7 @@ def _written_ordinal(
     found = _instant_written(cell, facts)
     if found is None:
         return None
-    if facts.resolution == "quarter":
+    if facts.resolution == "quarter" or facts.resolution == "month":
         if len(found) < 7:
             return None
         return _ordinal_of(found, facts.resolution)

@@ -462,6 +462,7 @@ DATE_FORMATS = (
     "iso-date",
     "iso-datetime",
     "slashed-iso-date",
+    "iso-month",
     "compact-date",
     "month-first-date",
     "day-first-date",
@@ -474,9 +475,16 @@ DATE_FORMATS = (
 ISO_MEMBERS = ("iso-date", "iso-datetime")
 FORMAT_ISO_MIXED = "iso-mixed"
 
-RESOLUTIONS = ("date", "datetime", "quarter")
+RESOLUTIONS = ("date", "datetime", "quarter", "month")
 
-TIME_PRECISIONS = ("subsecond", "second", "minute", "date", "quarter")
+TIME_PRECISIONS = (
+    "subsecond",
+    "second",
+    "minute",
+    "date",
+    "month",
+    "quarter",
+)
 
 CLOCKS = ("local", "utc")
 
@@ -2365,7 +2373,16 @@ def _canonical_datetime(
     reporting the end as a loss (review item P2-C3-F2).
     """
     found = _text(value, key, where)
-    if resolution == "quarter":
+    if resolution == "month":
+        wanted = "a month written like 2024-03"
+        good = (
+            len(found) == 7
+            and _digits_at(found, 0, 4)
+            and found[4] == "-"
+            and _digits_at(found, 5, 2)
+            and "01" <= found[5:7] <= "12"
+        )
+    elif resolution == "quarter":
         wanted = "a quarter written like 2024-Q1"
         good = (
             len(found) == 7
@@ -4042,12 +4059,26 @@ def _datetime_facts(
         wanted = "datetime"
     elif parser_family == "year-quarter":
         wanted = "quarter"
+    elif parser_family == "iso-month":
+        wanted = "month"
     if resolution != wanted:
         raise _broken(
             "D1",
             where,
             f"the dates were read as '{parser_family}'",
             f"they are published as '{resolution}' rather than '{wanted}'",
+        )
+    if precision == "month" and resolution != "month":
+        # A WHOLE MONTH IS THE FINEST DETAIL ONLY OF A COLUMN OF
+        # MONTHS, on the quarter's own precedent below. A cell written
+        # `2024-03` reads back as a column of months, so a description
+        # publishing that precision beside any other resolution
+        # publishes two facts no file can carry at once.
+        raise _broken(
+            "D6",
+            where,
+            "the finest detail the column writes is a whole month",
+            f"its dates are published as '{resolution}'",
         )
     if precision == "quarter" and resolution != "quarter":
         raise _broken(
@@ -5004,6 +5035,34 @@ def _identifier_facts(
     )
 
 
+def _exact_ratio(share: float) -> "tuple[int, int]":
+    """One rate as the exact pair of whole numbers it really is.
+
+    THE PRODUCER'S OWN RULE AGAIN, and written again for the same
+    reason the line itself is. A rate recorded as `0.01` is not one
+    hundredth: the nearest binary64 to one hundredth sits a shade above
+    it, and a line computed by multiplying in binary64 rounds the
+    product back down, so a document the producer refuses is one the
+    loader accepts. Every binary64 is a whole number times a power of
+    two, which is what `frexp` hands back.
+
+    Guarantees: accepts a rate of zero or more; returns a numerator and
+    a denominator whose quotient IS the rate. Determinism: a function
+    of the rate. Raises TypeError if handed anything that is not a
+    float instance, and ValueError for a negative rate. No I/O.
+    """
+    if not isinstance(share, float):
+        raise TypeError("a rate reached the count rule as something else")
+    if share < 0.0:
+        raise ValueError("a rate reached the count rule below zero")
+    fraction, power = math.frexp(share)
+    numerator = int(fraction * float(1 << 53))
+    place = power - 53
+    if place >= 0:
+        return numerator << place, 1
+    return numerator, 1 << -place
+
+
 def _line_count(share: float, total: int) -> int:
     """The smallest whole number of values that reaches ``share``.
 
@@ -5012,10 +5071,19 @@ def _line_count(share: float, total: int) -> int:
     applied as a count on one side and as a compared share on the other
     is a threshold two implementations disagree about at the boundary.
     A count is what both apply.
+
+    AND THE PRODUCT IS EXACT ON BOTH SIDES, which for a while it was on
+    only one (review item P4-DATE2-F1). Writing the rule twice is what
+    keeps the two sides independent; it is also what let one of them be
+    repaired alone, and a loader that admits a description the producer
+    would never write is a loader that admits a forged one. The rate is
+    carried as the whole numbers it stands for and the ceiling is taken
+    there, with no rounding left to happen.
     """
-    exact = share * total
-    whole = int(exact)
-    if whole < exact:
+    numerator, denominator = _exact_ratio(share)
+    exact = numerator * total
+    whole = exact // denominator
+    if whole * denominator < exact:
         return whole + 1
     return whole
 

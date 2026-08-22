@@ -3046,5 +3046,61 @@ Found by the adversarial read of the widened date readings
 (P4-DATE-F2), together with F3, which is closed by the generation
 method carrying the census line in its own inventory of deviations.
 
+## Amendment A-P4-23 — the last two thresholds that a rounded product decided
+
+**THIS RAISES conformance and lowers nothing that was ever true.**
+A-P4-21 made the producer's parse line the exact product the contract
+states. Two more places went on rounding, and both were found by the
+adversarial read of the repair itself rather than of the original code
+— which is the argument for reviewing repairs as repairs.
+
+**The loader's own copy** (P4-DATE2-F1). The loader may not import the
+describing side, so it writes the parse line again; that second copy
+was left multiplying in binary64. A rule written twice and repaired
+once is worse than a rule written twice: the loader then admits a
+description the producer would never write, which is exactly the class
+of document the loader exists to refuse. Both copies now carry the
+exact rate, and a control asserts they agree over every settings rate
+and every population it walks.
+
+**The stand-in number's share** (P4-DATE2-F3). A candidate is removed
+only where it is BOTH an outlier and reaches
+`settings.sentinel_minimum_share`. That share was the one threshold
+still decided by comparing a division computed in binary64 against the
+recorded rate. At the shipped default, one occurrence in two hundred
+divides to exactly the recorded rate although its exact share is below
+it, so a single `-999` in two hundred numbers was called frequent,
+removed from the column, and the description published a smallest
+value of 1 for a table holding -999. It is now applied as a COUNT,
+like every other threshold in the tool.
+
+**What it costs.** On those boundaries a candidate that was removed by
+a rounding error is now kept, so such a column publishes the real
+value it holds. No shipped default moves anywhere else: the parse line
+agrees with the rounded one at `0.99` for every population from one to
+a hundred thousand.
+
+## Amendment A-P4-24 — the month resolution landed with its consumers, not after them
+
+**THIS RAISES nothing and lowers nothing; it moves WHEN.** P4-D4.3
+item 2 says the resolution and precision vocabularies each gain the
+member `month` and that "every consumer of both vocabularies moves in
+the stage 6 landing". They moved here instead, in the commit that adds
+the member, because the same clause states the rule that governs:
+a resolution added to the producer without a reading in the validator
+is red on the commit that adds it. The suite proved the point without
+being asked — two coverage guards went red on the commit, one
+demanding a fixture per resolution and one per precision, and both are
+satisfied by fixtures rather than by exemptions.
+
+So `iso-month` reads `YYYY-MM`, publishes resolution and precision
+`month`, places its endpoints and ladder in month ordinals — twelve to
+the year, counted from the same origin the quarter counts from — and
+the validator reads those ordinals in the same space. The canonical
+form IS the text, because a month names a span rather than an instant,
+which is the quarter's own reason for having a space of its own. The
+month-with-day mix stays unread and stays a residual, as the decision
+says.
+
   The five plan reviews are in `docs/plans/reviews/` as
   `phase-4-plan-review-round-1.md` through `-round-5.md`.
