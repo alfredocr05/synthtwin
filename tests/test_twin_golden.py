@@ -201,6 +201,19 @@ def test_the_golden_run_is_the_shape_this_file_says_it_is(
 # reads had to become text no rule reads, so it is prose that varies
 # at both ends and holds no digit.
 #
+# RE-RECORDED AGAIN THROUGH CODEX ROUNDS 2 AND 3 (2026-08-21), and the
+# cause is NOT the one above: that free-text change is a round-1 record
+# and the column has not moved since. What moved these digests is the
+# `dose` column and the census beside it. `dose` was added to the
+# shared table so the affixed role is walked by every battery, its
+# spread was widened so a twin can carry its distinctness, and its
+# cores were given a decimal point so the fraction-width census is
+# exercised on THIS role rather than only on the plain numeric ones.
+# The census itself is new in that range and publishes two more
+# obligations on `dose` -- `widths.published.1` and
+# `widths.published.2` -- so the quality report carries MORE than it
+# did, which is the direction a re-recording must move in.
+#
 # All four digests moved together, which is what a change to the
 # TABLE looks like: a different column of values makes a different
 # description, a different twin, a different report and a different
@@ -885,8 +898,12 @@ def test_the_report_names_the_seed_the_twin_was_built_at(
 # ENVELOPE (review item P3-V10-F5; plan amendment A-P3-40, validation
 # method clause V6.1-A1). THIRTEEN checks moved from WITHIN-BOUND to
 # HELD and nothing else moved at all: the same 300 checkable
-# obligations, the same 97 not checkable, the same 2 authorized
-# deviations, 0 withheld and 0 missed, with 249/49 becoming 262/36. Each
+# obligations AS AT THAT DATE, the same 97 not checkable, the same 2
+# authorized deviations, 0 withheld and 0 missed, with 249/49 becoming
+# 262/36. Those counts are a record of what that amendment did and are
+# not this file's current census: Phase 4 added the affixed column and
+# the fraction-width census, and the report carries more obligations
+# now than it did then. Each
 # of the thirteen is a line whose "asks for" and "found" were already
 # the same number -- eight numeric rungs on `visits`, one on `amount`,
 # one date rung on `recorded_on`, and the three text-shape facts of

@@ -863,6 +863,10 @@ INVARIANTS = {
     "P3": (
         "a column of numbers says how its numbers were written"
     ),
+    "P6": (
+        "the cells held back from the forms map fit inside the forms "
+        "that map does not name"
+    ),
     "P5": (
         "the cells counted by the figures they wrote after the point "
         "come to the cells that were written with a point"
@@ -4485,6 +4489,31 @@ def _numeric_styles(
             where,
             f"the cells counted by the form they were written in come to {total}",
             f"{n_numeric} of the column's values read as a number",
+        )
+    # P6. THE POOL CANNOT HOLD MORE THAN THE FORMS IN IT. There are
+    # exactly six ways to write a number, a form is pooled only when
+    # its own count falls BELOW the floor, and a form this map names is
+    # not in the pool -- so the remainder is bounded by however many
+    # forms are left times one less than the floor. Nothing checked it,
+    # and the gap was not small: a column of two hundred and forty
+    # numbers naming `plain` and `decimal` could publish a pool of
+    # sixty, which four forms holding at most ten each cannot make.
+    # `generate` then told its reader the TWIN had missed a fact, when
+    # what had happened is that the description was altered after
+    # synthtwin wrote it.
+    named = 0
+    for name in sorted(styles):
+        if name != WITHHELD:
+            named = named + 1
+    pooled = styles[WITHHELD] if WITHHELD in styles else 0
+    room = (len(NUMERIC_STYLES) - named) * (floor - 1)
+    if pooled > room:
+        raise _broken(
+            "P6",
+            where,
+            f"{pooled} cells are held back from the forms map",
+            f"the {len(NUMERIC_STYLES) - named} form(s) it does not "
+            f"name can hold at most {floor - 1} cells each",
         )
     return styles
 

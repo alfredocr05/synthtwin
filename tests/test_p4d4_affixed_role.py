@@ -701,3 +701,173 @@ def test_an_affix_spelling_may_not_stand_in_the_header_sentence() -> None:
     )
     with pytest.raises(errors.ProfileError):
         profile.check_publication(document)
+
+def test_a_kept_cell_leaves_the_column_saying_it_cannot_be_checked() -> None:
+    """The rescue is recorded without the word that made it.
+
+    `--keep-value "-999 mg"` names a WHOLE CELL; the description records
+    the decision as a verdict about the CORE `-999`, and the pair is
+    published beside it -- but the cell's own spelling is nowhere, so
+    rebuilding the reading rule from the description judges those cells
+    holes again. Checked against the very file it was written from, the
+    column reported fifteen obligations MISSED, every one a number
+    untrue of that file. It says it cannot be checked instead.
+    """
+    document = _kept(_UNIT_CELLS, ("-999 mg",))
+    folder = pathlib.Path(tempfile.mkdtemp())
+    table = fixtures.write(
+        folder, "dose.csv", fixtures.single_column_table("dose", _UNIT_CELLS)
+    )
+    described = contract.load_profile(
+        f"{fixtures.write_profile(folder, 'dose.json', document)}"
+    )
+    unrebuildable = validation.unrebuildable_columns(described)
+    assert "dose" in unrebuildable
+    assert "kept as values by a word you named" in unrebuildable["dose"]
+    outcome = validation.measure(described, f"{table}")
+    missed = [
+        check.subcheck
+        for check in outcome.checks
+        if check.verdict == validation.MISSED
+    ]
+    assert missed == [], missed
+    assert outcome.census.not_checkable > 0
+
+
+def test_a_pool_bigger_than_the_forms_left_to_hold_it_is_refused() -> None:
+    """Invariant P6: six forms, and a pooled one holds fewer than the floor.
+
+    A column of two hundred and forty numbers naming `plain` and
+    `decimal` could publish a remainder of sixty, which the four forms
+    left can hold at most forty of. Nothing checked it, and `generate`
+    then told its reader the TWIN had missed a published count -- the
+    tool blaming its own output for an edit somebody made to the
+    description.
+    """
+    folder = pathlib.Path(tempfile.mkdtemp())
+    table = fixtures.write(
+        folder,
+        "amount.csv",
+        fixtures.single_column_table(
+            "amount", [f"{index}" for index in range(1, 241)]
+        ),
+    )
+    document = profile.build_document(
+        reading.read_table(f"{table}"), taxonomy.Settings(), []
+    )
+    column = document["columns"][0]
+    column["numeric_styles"] = {"plain": 160, "decimal": 20, "(withheld)": 60}
+    column["fraction_widths"] = {"2": 20}
+    with pytest.raises(errors.ProfileError):
+        _loaded(folder, document, "pooled")
+
+
+def test_the_class_writers_write_their_own_class() -> None:
+    """Two published classes were unreachable, and this is the red case.
+
+    The straggler writer filtered its candidates with `spelling in
+    used` after the builder had already recorded every one of them
+    there, so the test was always true and every cell fell through to
+    an internal placeholder. A column of prices beside cells too large
+    to hold and cells of contradictory notation wrote `(no pair 0)` for
+    all of them: two exact published counts missed, and the deviation
+    note blamed group granularity for cells that were never built.
+    """
+    for kind in (
+        generation._CLASS_OUT_OF_RANGE,
+        generation._CLASS_CONTRADICTORY,
+        generation._CLASS_TEXT,
+    ):
+        written = generation._unaffixed_spellings(
+            kind, 3, 3, 3, ("$", ""), {"$1.00": 1}
+        )
+        assert len(written) == 3, kind
+        for cell in written:
+            assert "no pair" not in cell, (kind, written)
+
+
+def test_the_snap_may_not_turn_a_column_of_measurements_into_counts() -> None:
+    """`integer_valued` is what a consumer routes on (AF6).
+
+    Twenty-six cells written `1.`, twenty-five `2.` and twenty-nine at
+    one figure publish `integer_valued: false` and a width of zero for
+    fifty-one of them. The twin wrote every value whole and came back a
+    column of COUNTS -- the type changed under a reader who had been
+    told the column was continuous.
+    """
+    folder = pathlib.Path(tempfile.mkdtemp())
+    values = ["1."] * 26 + ["2."] * 25
+    values = values + [f"1.{index % 10}" for index in range(29)]
+    table = fixtures.write(
+        folder, "v.csv", fixtures.single_column_table("v", values)
+    )
+    document = profile.build_document(
+        reading.read_table(f"{table}"), taxonomy.Settings(), []
+    )
+    column = document["columns"][0]
+    assert column["integer_valued"] is False
+    assert column["fraction_widths"]["0"] == 51
+    described = contract.load_profile(
+        f"{fixtures.write_profile(folder, 'v.json', document)}"
+    )
+    for seed in range(4):
+        twin = generation.generate(described, seed)
+        target = fixtures.write(
+            folder, f"twin-{seed}.csv", rendering.twin_csv(twin)
+        )
+        outcome = validation.measure(described, f"{target}")
+        missed = [
+            check.subcheck
+            for check in outcome.checks
+            if check.verdict == validation.MISSED
+        ]
+        for owed in ("axes.role", "axes.statistical_type", "type.integer_valued"):
+            assert owed not in missed, (seed, missed)
+
+
+def test_no_count_of_the_measured_file_is_printed_below_the_floor() -> None:
+    """V5.1: this report says only what describing THAT file would publish.
+
+    A description of one pair checked against a file of another counted
+    the file's cells under the pair the DESCRIPTION's author chose and
+    printed "found: 5" -- an exact count below the publication floor,
+    about a file whose own description publishes no affixed fact at
+    all, for a reader who may not hold that file.
+    """
+    folder = pathlib.Path(tempfile.mkdtemp())
+    mine = fixtures.write(
+        folder,
+        "mine.csv",
+        fixtures.single_column_table(
+            "note", [f"Chen Wu note {index}.5" for index in range(1, 61)]
+        ),
+    )
+    document = profile.build_document(
+        reading.read_table(f"{mine}"), taxonomy.Settings(), []
+    )
+    assert document["columns"][0]["role"] == "affixed_number"
+    described = contract.load_profile(
+        f"{fixtures.write_profile(folder, 'note.json', document)}"
+    )
+    theirs = fixtures.write(
+        folder,
+        "theirs.csv",
+        fixtures.single_column_table(
+            "note",
+            [f"Alice Brown note {index}" for index in range(1, 56)]
+            + [f"Chen Wu note {index}.5" for index in range(1, 6)],
+        ),
+    )
+    outcome = validation.measure(described, f"{theirs}")
+    for check in outcome.checks:
+        if not check.subcheck.startswith("counts.n_"):
+            continue
+        assert check.achieved != "5", check.subcheck
+        if check.subcheck in (
+            "counts.n_affixed",
+            "counts.n_core_numeric",
+            "counts.n_core_out_of_range",
+            "counts.n_core_contradictory",
+            "counts.n_core_not_numeric",
+        ):
+            assert check.verdict == validation.WITHHELD, check.subcheck

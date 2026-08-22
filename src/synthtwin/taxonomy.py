@@ -4657,7 +4657,8 @@ def _removed_said(arguments: "tuple[object, ...]", place: int) -> str:
         return ""
     return (
         f", after {removed} of them were read as stand-ins for "
-        f"'no value' and taken out"
+        f"'no value' and taken out -- which is what moved this column "
+        f"across a line, so the counts above are of what was left"
     )
 
 

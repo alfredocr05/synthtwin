@@ -730,6 +730,15 @@ def battery() -> list[Mutation]:
             "figures after the point counted for cells that wrote none",
             edit("visits", fraction_widths={"2": 40}),
         ),
+        Mutation(
+            "P6",
+            "a pool larger than the forms left to hold it",
+            edit(
+                "visits",
+                numeric_styles={"plain": 100, "decimal": 60, "(withheld)": 69},
+                fraction_widths={"2": 60},
+            ),
+        ),
         # -- record numbers and text ----------------------------------
         Mutation(
             "I4", "the shortest value longer than the longest",
