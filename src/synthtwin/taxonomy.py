@@ -578,6 +578,7 @@ REMARK_CASE_ONLY_TWO = "remark_two_values_differ_in_case"
 REMARK_TWO_ALSO_NUMBERS = "remark_two_values_also_read_otherwise"
 REMARK_DATES_ALSO_NUMBERS = "remark_dates_also_read_as_numbers"
 REMARK_MONTH_FIRST = "remark_slashed_dates_are_month_first"
+REMARK_SLASHED_EVIDENCE = "remark_slashed_dates_read_against_the_evidence"
 REMARK_CASE_ONLY_MANY = "remark_values_differ_in_case"
 REMARK_NEAR_CATEGORY_LINE = "remark_close_to_the_category_line"
 REMARK_NO_READING_FITS = "remark_no_reading_fits"
@@ -634,6 +635,9 @@ NOTE_ARITY: "dict[str, int]" = {
     REMARK_TWO_ALSO_NUMBERS: 0,
     REMARK_DATES_ALSO_NUMBERS: 0,
     REMARK_MONTH_FIRST: 0,
+    # The reading used, then the four counts: how many cells each
+    # reading parses, and how many ONLY each reading parses.
+    REMARK_SLASHED_EVIDENCE: 5,
     REMARK_CASE_ONLY_MANY: 0,
     REMARK_NEAR_CATEGORY_LINE: 2,
     REMARK_NO_READING_FITS: 7,
@@ -1091,6 +1095,43 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
             "some values in this column differ only in upper and "
             "lower case; they are counted, and published, as one"
         )
+    if form == REMARK_SLASHED_EVIDENCE:
+        # TWO INDEPENDENT CLAUSES, because how the winner was chosen
+        # and whether the column contradicts itself are different
+        # questions that combine freely (plan P4-D4.6). The first is
+        # always here; the second appears whenever the column carries
+        # evidence in BOTH directions, at any counts, tie or no tie, so
+        # a column that is evidence-decided AND internally inconsistent
+        # is reported as both rather than presented as settled.
+        used = _word(arguments, 0)
+        month_parsed = _whole(arguments, 1)
+        day_parsed = _whole(arguments, 2)
+        month_only = _whole(arguments, 3)
+        day_only = _whole(arguments, 4)
+        if month_parsed == day_parsed:
+            first = (
+                f"you told synthtwin the slashed dates in this table are "
+                f"written day first. Both readings parse the same number "
+                f"of this column's values ({month_parsed}), so nothing in "
+                f"the column decides between them and what you told it "
+                f"did: they were read as '{used}'"
+            )
+        else:
+            first = (
+                f"you told synthtwin the slashed dates in this table are "
+                f"written day first. This column's own values decide it "
+                f"instead: reading them month first parses "
+                f"{month_parsed} of them and day first parses "
+                f"{day_parsed}, so they were read as '{used}'"
+            )
+        if month_only > 0 and day_only > 0:
+            return (
+                f"{first}. This column also disagrees with itself: "
+                f"{month_only} of its values can only be read month "
+                f"first and {day_only} can only be read day first, so "
+                f"no single reading of it is right about every value"
+            )
+        return first
     if form == REMARK_NEAR_CATEGORY_LINE:
         return (
             f"this column was close to the line between a set of "
@@ -1413,6 +1454,15 @@ class Settings:
     # "close to the line", while one where a single extra bad value
     # would have changed its role is.
     near_threshold_slack: int = 1
+    # WHAT THE PERSON SAID ABOUT SLASHED DATES, AND IT IS NOT AN ORDER
+    # SWAP (plan P4-D4.6). A swap can reverse a column against its own
+    # evidence: ninety-nine ambiguous slashed cells and one cell only
+    # the month-first reading can parse would be read backwards, with
+    # the column's ONLY evidence counted as unparsed. So where this is
+    # set, BOTH slashed readings are counted and the one that parses
+    # strictly more cells wins whatever the declaration said; the
+    # declaration decides a count tie and nothing else.
+    day_first: bool = False
 
 
 def axes_of(role: str, forced_identifier: bool) -> "tuple[str, str, str]":
@@ -3722,25 +3772,115 @@ def _offset_counts(
     return published_counts
 
 
+# The two slashed readings of one grammar, month-first named first
+# because that is the order the rule table tries them in. Each pair is
+# the two ways ONE column can be read, which is what makes the
+# declaration of P4-D4.6 a question about a pair rather than about a
+# member.
+SLASHED_PAIRS = (
+    ("month-first-date", "day-first-date"),
+    ("month-first-datetime", "day-first-datetime"),
+)
+
+
+@dataclasses.dataclass(frozen=True)
+class _SlashedEvidence:
+    """What a column itself says about which way its slashes read.
+
+    Four counts, and the two `only` ones are the whole reason the
+    declaration is not a bare order swap: a column can hold a cell only
+    the month-first reading parses AND a cell only the day-first
+    reading parses, which is evidence in both directions and not a
+    thing any single reading can be right about.
+    """
+
+    used: str
+    month_parsed: int
+    day_parsed: int
+    month_only: int
+    day_only: int
+
+
+def _reads(present: "list[str]", format_name: str) -> "list[bool]":
+    """Which of these cells one reading parses."""
+    answers: list[bool] = []
+    for value in present:
+        answers = answers + [
+            parsing.parse_datetime(value, format_name) is not None
+        ]
+    return answers
+
+
+def _slashed_evidence(
+    present: "list[str]", pair: "tuple[str, str]", day_first: bool
+) -> _SlashedEvidence:
+    """Which reading of one slashed pair this column's values choose.
+
+    EVIDENCE FIRST, AND THE DECLARATION ONLY BREAKS A TIE (plan
+    P4-D4.6). The reading that parses strictly more cells wins whatever
+    the person said, because a swap that ignored the count would read a
+    column backwards over its own single contrary cell and then count
+    that cell -- the column's only evidence -- as unparsed.
+    """
+    month = _reads(present, pair[0])
+    day = _reads(present, pair[1])
+    month_parsed = 0
+    day_parsed = 0
+    month_only = 0
+    day_only = 0
+    for place in range(len(present)):
+        if month[place]:
+            month_parsed = month_parsed + 1
+            if not day[place]:
+                month_only = month_only + 1
+        if day[place]:
+            day_parsed = day_parsed + 1
+            if not month[place]:
+                day_only = day_only + 1
+    used = pair[0]
+    if day_parsed > month_parsed:
+        used = pair[1]
+    elif day_parsed == month_parsed and day_first:
+        used = pair[1]
+    return _SlashedEvidence(
+        used=used,
+        month_parsed=month_parsed,
+        day_parsed=day_parsed,
+        month_only=month_only,
+        day_only=day_only,
+    )
+
+
 def _matching_date_format(
     present: list[str], settings: Settings
-) -> "tuple[str, list[tuple[str, str]], list[str], int] | None":
+) -> (
+    "tuple[str, list[tuple[str, str]], list[str], int, "
+    "_SlashedEvidence | None] | None"
+):
     """The first date format that parses enough of the values.
 
     Returns (format name, parsed (canonical, offset) pairs, the source
-    cells that parsed, count of cells that did not), or None.
+    cells that parsed, count of cells that did not, and the slashed
+    evidence where a declaration put a pair in play), or None.
     """
     needed = _needed(settings.minimum_parse_rate, len(present))
     for format_name in parsing.DATE_FORMATS:
+        evidence: "_SlashedEvidence | None" = None
+        reading = format_name
+        if settings.day_first:
+            for pair in SLASHED_PAIRS:
+                if format_name == pair[0]:
+                    evidence = _slashed_evidence(present, pair, True)
+                    reading = evidence.used
         good: list[tuple[str, str]] = []
         sources: list[str] = []
         for value in present:
-            pair = parsing.parse_datetime(value, format_name)
-            if pair is not None:
-                good += [pair]
+            pair_read = parsing.parse_datetime(value, reading)
+            if pair_read is not None:
+                good += [pair_read]
                 sources += [value]
         if len(good) >= needed and good:
-            return format_name, good, sources, len(present) - len(good)
+            return reading, good, sources, len(present) - len(good), evidence
     return None
 
 
@@ -4730,7 +4870,7 @@ def _decide(
         # it, and `--identifier` is how a column of codes is declared.
         matched = _matching_date_format(present, settings)
         if matched is not None:
-            format_name, pairs, sources, unparsed = matched
+            format_name, pairs, sources, unparsed, evidence = matched
             details = _datetime_details(
                 format_name, pairs, sources, unparsed, settings
             )
@@ -4743,9 +4883,30 @@ def _decide(
             # `03/05/2024` is, and a column of the first that said
             # nothing while a column of the second spoke would be
             # telling a reader the question had gone away.
-            if format_name == "month-first-date":
+            #
+            # UNDER THE DECLARATION IT IS THE OTHER REMARK, AND EXACTLY
+            # ONE OF THEM (plan P4-D4.6). The standing remark says the
+            # profile may have the month and day the wrong way round,
+            # which is a warning about a guess; a column read under the
+            # declaration was not guessed at, so it gets the remark
+            # that says what decided it and whether its own values
+            # disagree with each other.
+            if evidence is not None:
+                remarks = remarks + [
+                    note(
+                        REMARK_SLASHED_EVIDENCE,
+                        (
+                            evidence.used,
+                            evidence.month_parsed,
+                            evidence.day_parsed,
+                            evidence.month_only,
+                            evidence.day_only,
+                        ),
+                    )
+                ]
+            elif format_name == "month-first-date":
                 remarks = remarks + [note(REMARK_MONTH_FIRST)]
-            if format_name == "month-first-datetime":
+            elif format_name == "month-first-datetime":
                 remarks = remarks + [note(REMARK_MONTH_FIRST)]
             return _Verdict(
                 role=ROLE_DATETIME,

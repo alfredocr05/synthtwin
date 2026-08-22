@@ -1088,8 +1088,8 @@ filled in from the document and the loader:
 > this file cannot be read back exactly. Please make the description
 > again by running 'synthtwin profile' on your table, giving it every
 > option you gave the first time: --keep-value, --missing-value,
-> --identifier, --smallest-group and --first-row. Every one of them
-> changes what the description PUBLISHES about your table, so any
+> --identifier, --smallest-group, --first-row and --day-first. Every one
+> of them changes what the description PUBLISHES about your table, so any
 > option you leave out can put something into the new description that
 > the old one held back: without the --smallest-group you gave, a value
 > that fewer rows share can be named; without the --identifier you
@@ -1099,8 +1099,11 @@ filled in from the document and the loader:
 > smallest value; without the --keep-value you gave, a word you had
 > counted as an ordinary value becomes a gap, which can change what
 > kind of column synthtwin sees and publish both that word and the
-> column's own numbers; and without the --first-row you gave, the first
-> line of your file is read as the column names and published as them.
+> column's own numbers; without the --first-row you gave, the first
+> line of your file is read as the column names and published as them;
+> and without the --day-first you gave, slashed dates can be read the
+> other way round, which changes the dates the description publishes
+> and can leave the column described as text instead.
 > Read the summary page synthtwin writes beside the new description
 > before either file goes anywhere, and use the description exactly as
 > synthtwin writes it.

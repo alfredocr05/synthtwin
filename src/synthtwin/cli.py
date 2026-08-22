@@ -428,6 +428,7 @@ class _Options:
     kept_values: list[str]
     missing_values: list[str]
     first_row: str
+    day_first: bool
     seed: str
     replace: bool
 
@@ -602,6 +603,23 @@ def _parse_arguments(argv: "list[str] | None") -> _Options:
         help=_MISSING_VALUE_HELP,
     )
     parser.add_argument(
+        "--day-first",
+        action="store_true",
+        help=(
+            "say that dates written with slashes in this table are "
+            "written day first, so 03/04/2024 is the 3rd of April. It "
+            "is not a bare order swap: a column whose own values can "
+            "only be read the other way round would then be read "
+            "backwards and its evidence counted as unreadable. So both "
+            "readings are counted for every such column, whichever "
+            "parses more of that column's values is the one used, and "
+            "this option decides only where the two parse exactly as "
+            "many. Every column it touches says in its remarks which "
+            "reading was used and why, and says so again where the "
+            "column's own values point both ways at once"
+        ),
+    )
+    parser.add_argument(
         "--first-row",
         default=_FIRST_ROW_AUTOMATIC,
         choices=[
@@ -678,6 +696,7 @@ def _parse_arguments(argv: "list[str] | None") -> _Options:
         kept_values=list(kept),
         missing_values=list(declared_missing),
         first_row=f"{args.first_row}",
+        day_first=bool(args.day_first),
         seed=f"{args.seed}",
         replace=bool(args.replace),
     )
@@ -891,6 +910,7 @@ def _run_profile(
     kept_values: list[str],
     missing_values: list[str],
     first_row: str,
+    day_first: bool,
 ) -> int:
     """Do the work of `synthtwin profile`; return the exit code.
 
@@ -935,6 +955,7 @@ def _run_profile(
         small_cell_floor=smallest_group,
         kept_values=tuple(kept_values),
         declared_missing_values=tuple(missing_values),
+        day_first=day_first,
     )
     read = reading.read_table(table, first_row)
 
@@ -1740,6 +1761,7 @@ def main(argv: "list[str] | None" = None) -> int:
             options.kept_values,
             options.missing_values,
             options.first_row,
+            options.day_first,
         )
     except PathValidationError as error:
         # The message is treated as a VALUE, not as something synthtwin

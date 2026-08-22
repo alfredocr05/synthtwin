@@ -159,6 +159,7 @@ SETTINGS_KEYS = (
     "kept_values",
     "minimum_parse_rate",
     "near_threshold_slack",
+    "day_first",
     "sentinel_minimum_share",
     "sentinel_outlier_iqr_multiple",
     "small_cell_floor",
@@ -476,6 +477,16 @@ DATE_FORMATS = (
 # reading publishes exactly these two counts and no other key.
 ISO_MEMBERS = ("iso-date", "iso-datetime")
 FORMAT_ISO_MIXED = "iso-mixed"
+
+# The two readings that reach `datetime` resolution through a clock in
+# the time-of-day role's own two forms -- `HH:MM` and `HH:MM:SS`, and
+# nothing else. THEY CARRY NEITHER A FRACTION NOR AN OFFSET, because
+# their own reader takes neither (plan amendment A-P4-1 item 2), so a
+# description claiming one of those for such a column describes a
+# column no table can hold. That is a rule about the FORMAT and not
+# about the resolution, which is why D6 and D9 each need a clause of
+# their own for it (review item P4-DATE4-F1).
+CLOCK_FORM_MEMBERS = ("month-first-datetime", "day-first-datetime")
 
 RESOLUTIONS = ("date", "datetime", "quarter", "month")
 
@@ -1000,6 +1011,7 @@ class SettingsBlock:
     declaration_matching: str
     declaration_publication: str
     near_threshold_slack: int
+    day_first: bool
     forced_identifiers: "tuple[str, ...]"
 
 
@@ -2848,6 +2860,7 @@ def _settings(value: object) -> SettingsBlock:
         near_threshold_slack=_whole(
             mapping["near_threshold_slack"], "near_threshold_slack", where, 0
         ),
+        day_first=_truth(mapping["day_first"], "day_first", where),
         forced_identifiers=tuple(declared),
     )
     # C5-K4 LAST, because it is the one rule here that needs BOTH
@@ -4076,6 +4089,15 @@ def _datetime_facts(
             f"the dates were read as '{parser_family}'",
             f"they are published as '{resolution}' rather than '{wanted}'",
         )
+    if precision == "subsecond" and parser_family in CLOCK_FORM_MEMBERS:
+        raise _broken(
+            "D6",
+            where,
+            f"the dates were read as '{parser_family}', whose clock is "
+            f"a whole number of minutes or seconds",
+            "the finest detail the column writes is given as a "
+            "fraction of a second",
+        )
     if precision == "month" and resolution != "month":
         # A WHOLE MONTH IS THE FINEST DETAIL ONLY OF A COLUMN OF
         # MONTHS, on the quarter's own precedent below. A cell written
@@ -4184,6 +4206,23 @@ def _datetime_facts(
             f"{named} different offsets are named",
             f"the dates are published on the '{clock}' clock",
         )
+    if parser_family in CLOCK_FORM_MEMBERS:
+        # ...AND SO DOES A READING WHOSE CLOCK CARRIES NO OFFSET
+        # (review item P4-DATE4-F1). These two members reach `datetime`
+        # resolution, so the resolution test below lets them through;
+        # their own reader takes a clock in two fixed forms and stops,
+        # so a cell of theirs with `+02:00` after it reads back as no
+        # date at all, exactly as a whole date with one does.
+        for key in sorted(offsets):
+            if key == WITHHELD or key == NO_OFFSET:
+                continue
+            raise _broken(
+                "D9",
+                where,
+                f"the offset '{key}' is named",
+                f"the dates were read as '{parser_family}', which reads "
+                f"no offset at all",
+            )
     if resolution != "datetime":
         # ONLY A DATE AND TIME CARRIES AN OFFSET (invariant D9, review
         # item P2-C1-F6). A whole date and a quarter have no time of day
@@ -4208,6 +4247,23 @@ def _datetime_facts(
     latest_offset = _endpoint_offset(
         mapping["latest_utc_offset"], "latest_utc_offset", where, offsets
     )
+    if parser_family in CLOCK_FORM_MEMBERS:
+        # The two ENDPOINT offset fields, held to the same rule as the
+        # map above and asked here because this is where they are read
+        # (review item P4-DATE4-F1).
+        for key, field in (
+            (earliest_offset, "earliest_utc_offset"),
+            (latest_offset, "latest_utc_offset"),
+        ):
+            if key == WITHHELD or key == NO_OFFSET:
+                continue
+            raise _broken(
+                "D9",
+                where,
+                f"{field} names the offset '{key}'",
+                f"the dates were read as '{parser_family}', which reads "
+                f"no offset at all",
+            )
     earliest = _canonical_datetime(
         mapping["earliest"], "earliest", where, resolution
     )

@@ -1466,8 +1466,8 @@ says which clock `earliest`, `latest` and the ladder are written on:
   ```
   local_ordinal = ordinal + offset_in_seconds     (resolution `datetime`)
   local_ordinal = ordinal                          (resolution `date`,
-                                                    `quarter`: no clock
-                                                    to shift)
+                                                    `month`, `quarter`:
+                                                    no clock to shift)
   ```
 
   where `offset_in_seconds` is `+/- (3600 * HH + 60 * MM)` read from the
@@ -1533,7 +1533,7 @@ profile contract's canonical form admits at 6.6.2 because the shipped
 reader accepts one. Read `earliest` (or `latest`) as its four fields —
 the date, `HH`, `MM` and `SS` — and build the cell as:
 
-1. `resolution` `date` or `quarter`: the published text itself, which is
+1. `resolution` `date`, `month` or `quarter`: the published text itself, which is
    already the cell text the table above asks for.
 2. `resolution` `datetime`: take the published date with `HH:MM` and
    `SS` of `00`, move THAT to the clock G7.4 allocates for this cell —
@@ -3663,8 +3663,12 @@ cannot hold (review item P2-C4-C3), and the pooled remainder written by
 its own value beside a whole number wider than the fixed-point window
 (owner decision 11), and one for the second SPAN resolution when it was
 added (plan P4-D4.3 item 2). **All sixteen are required.** The
-first nine are the first committed file and the last six the second
-(G14.2):
+first nine are the first committed file and the last seven the second
+(G14.2). **The table below is the inventory itself, and it was short of
+the count above by one row from the day the pooled-spelling case was
+added** (review item P4-DATE4-F3): an implementer who built exactly the
+rows listed would have left out a required branch while every listed
+case passed, which is the failure the count exists to prevent:
 
 | case | pins |
 |---|---|
@@ -3683,6 +3687,7 @@ first nine are the first committed file and the last six the second
 | `numeric_point_free_styles` | G6.1's literal `decimal`, `leading_zero` and `leading_plus` placements, G6.4's tie order, and G5.3's clamp |
 | `leap_second_endpoint` | G7.5's endpoint-fields route on a `local`-clock end whose seconds field is `60`, which the ordinal space of G7.1 has no place for |
 | `month_span` | G7.1's month ordinal and G7.5's `month/month` cell form: the second resolution that names a SPAN rather than an instant, whose canonical form is its own cell text |
+| `numeric_pooled_spelling` | owner decision 11's pooled remainder written by its own value, beside a whole number wider than the fixed-point window |
 
 Each case is small enough to read by hand — at most a few dozen cells —
 because a vector nobody can check by hand is a vector nobody checks.

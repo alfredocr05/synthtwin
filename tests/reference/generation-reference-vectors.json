@@ -1,5 +1,5 @@
 {
-  "case_set": "The nine cases method section G14.3 names, committed as tests/reference/generation-reference-vectors.json. The five cases that reach the branches these nine leave unexercised (review items P2-C3-F3 and P2-C4-C3) are the same oracle's second file, tests/reference/generation-branch-vectors.json: one transform, one proof layer, two files, because a committed fixture must stay under the provenance manifest's byte cap and these nine already spend most of it.",
+  "case_set": "The nine cases method section G14.3 names, committed as tests/reference/generation-reference-vectors.json. The seven cases that reach the branches these nine leave unexercised (review items P2-C3-F3 and P2-C4-C3, owner decision 11, and the month resolution of plan P4-D4.3) are the same oracle's second file, tests/reference/generation-branch-vectors.json: one transform, one proof layer, two files, because a committed fixture must stay under the provenance manifest's byte cap and these nine already spend most of it.",
   "cases": {
     "date_only": {
       "cells": [

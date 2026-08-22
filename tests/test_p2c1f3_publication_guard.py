@@ -575,6 +575,10 @@ def _plausible_arguments(form: str) -> "tuple[object, ...]":
         return (9, taxonomy.NOTE_CLOCK_WORDS[0], 2)
     if form == taxonomy.EVIDENCE_DATES:
         return (9, 10, taxonomy.NOTE_ARGUMENT_WORDS[0])
+    if form == taxonomy.REMARK_SLASHED_EVIDENCE:
+        # Its first argument is the date-format word for the reading
+        # that was used; the four after it are counts.
+        return ("day-first-date", 9, 10, 1, 2)
     if form == taxonomy.SAID_READ_AS_DATES:
         return (2, taxonomy.NOTE_ARGUMENT_WORDS[0])
     # The two affixed forms take the fourth argument class at two of

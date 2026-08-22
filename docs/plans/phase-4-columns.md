@@ -3147,5 +3147,58 @@ four of them are places where a new member of a closed set had no case.
    against dates carrying a time of day, which a column of months has
    none of. Both say what is true of the column in front of them.
 
+## Amendment A-P4-26 — three the fourth read of the readings found
+
+**THIS RAISES on every count and lowers nothing.**
+
+1. **The loader accepted profiles the two slashed stamp readers cannot
+   produce** (P4-DATE4-F1, blocking). Both members reach `datetime`
+   resolution, and D6 and D9 were gated on the RESOLUTION alone — so a
+   document could claim `subsecond` precision with three fractional
+   digits, or a `+02:00` offset, for a column whose own reader takes a
+   clock in the time-of-day role's two forms and stops. No table could
+   have produced such a description, and generation honoured it. Both
+   invariants now carry a format-family clause, and the version 6
+   contract's D6 row and D9 paragraph say which formats they mean.
+2. **The month's method text was still incomplete** (P4-DATE4-F2,
+   blocking). G7.1's table and G7.5's explanatory paragraph carried the
+   month, but the two NUMBERED branches — G7.4's clock conversion and
+   G7.5's endpoint construction — still named only date and quarter, so
+   an implementation following the enumerated algorithm reached no rule
+   for a month endpoint at all. Both name it now.
+3. **G14.3's count and its inventory disagreed** (P4-DATE4-F3). The
+   prose said sixteen and the table listed fifteen: `numeric_pooled_
+   spelling` was never given a row when owner decision 11 added it. An
+   implementer building exactly the listed rows would have left out a
+   required branch while every listed case passed, which is the failure
+   the count exists to prevent. The row is written, and the oracle's own
+   account of its two files is corrected with it.
+
+## Amendment A-P4-27 — the day-first declaration is built, evidence first
+
+P4-D4.6 as ratified, with nothing narrowed. `--day-first` records
+`day_first` in the settings block; where it is given, BOTH readings of
+each slashed pair are counted and the one parsing strictly more cells
+wins whatever the declaration said, with the declaration deciding a
+count tie and nothing else. The pairs are two, because the stamp
+members added by A-P4-1 item 2 carry the same question their date-only
+members carry.
+
+Every column read under the option carries exactly ONE remark, and it
+is the evidence remark rather than the standing month-first warning:
+that warning is about a guess, and a column decided by its own values
+was not guessed at. The remark's two clauses are independent, as the
+decision requires — which reading was used and why, and, whenever both
+only-one-reading counts are nonzero at any counts, that the column
+carries evidence in both directions with both counts named. So a column
+that is evidence-decided AND internally inconsistent is reported as
+both.
+
+The version-refusal message names the option and what leaving it out
+costs, in the wording the version 6 contract had already ratified for
+it; the version 5 contract's own clause is amended to the same words,
+because the option ships before the version flip and a message the
+shipped contract does not carry is a message nobody agreed to.
+
   The five plan reviews are in `docs/plans/reviews/` as
   `phase-4-plan-review-round-1.md` through `-round-5.md`.

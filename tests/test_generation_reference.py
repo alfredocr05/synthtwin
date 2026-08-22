@@ -241,6 +241,7 @@ def _settings(declared: list) -> dict:
         "declaration_matching": "exact_number_when_it_reads_as_one_else_spelling",
         "declaration_publication": "settings_counts_only_columns_unchanged",
         "near_threshold_slack": 0,
+        "day_first": False,
         "forced_identifiers": declared,
     }
 
