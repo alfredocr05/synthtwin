@@ -1103,13 +1103,20 @@ def month_of_name(word: str) -> "str | None":
     """
     if not isinstance(word, str):
         raise TypeError(_NOT_TEXT)
-    folded = word.strip().lower()
-    if not folded:
+    # THE PACKAGE HAS ONE FOLDING OPERATION AND THIS IS IT. An earlier
+    # revision reached for `.lower()`, which is not the same rule:
+    # Unicode case folding maps the long s to `s`, so `ſep` folds to
+    # `sep` and lower-casing leaves it alone. The contract says CASE
+    # FOLDING, and a second spelling of "the same word" living in one
+    # function is how an exception comes apart from the rule it excepts
+    # -- this repository has paid for that four times over.
+    name = folded(word)
+    if not name:
         return None
     place = 0
     for short, whole in _MONTH_NAMES:
         place = place + 1
-        if folded == short or folded == whole:
+        if name == short or name == whole:
             if place < 10:
                 return f"0{place}"
             return f"{place}"

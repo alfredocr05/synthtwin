@@ -1534,8 +1534,10 @@ class Settings:
     # "close to the line", while one where a single extra bad value
     # would have changed its role is.
     near_threshold_slack: int = 1
-    # WHAT THE PERSON SAID ABOUT SLASHED DATES, AND IT IS NOT AN ORDER
-    # SWAP (plan P4-D4.6). A swap can reverse a column against its own
+    # WHAT THE PERSON SAID ABOUT DATES WHOSE DAY AND MONTH ARE BOTH
+    # NUMBERS -- written with slashes, with dots, or with a two-figure
+    # year (plan P4-D4.6, widened by P4-D8) -- AND IT IS NOT AN ORDER
+    # SWAP. A swap can reverse a column against its own
     # evidence: ninety-nine ambiguous slashed cells and one cell only
     # the month-first reading can parse would be read backwards, with
     # the column's ONLY evidence counted as unparsed. So where this is
