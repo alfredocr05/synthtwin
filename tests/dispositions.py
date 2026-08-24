@@ -290,6 +290,10 @@ PLAN4_REGIONS = {
         "approximated, under its own envelope"
     ),
     "date-readings": "### P4-D4.3 The widened date readings",
+    "holes": (
+        "### P4-D6.1 The twin reproduces recorded hole spellings "
+        "(decision 2)"
+    ),
     "fraction": (
         "### P4-D4.5 The fixed-fraction spelling fact "
         "(closes R-P3-12's route)"
@@ -317,6 +321,25 @@ FACTS_OUTSIDE_THE_VERSION_4_MATRIX = (
     ("numeric", "fraction_widths"),
     ("datetime", "resolution_mix"),
 )
+
+# THE ONE FACT WHOSE DISPOSITION A VERSION CHANGED, and the reason it
+# needs a tuple of its own rather than the one above. Version 4 and
+# version 5 both HAVE a row for `missing_by_source` and both say
+# REPORT-ONLY -- and both were right when they said it: their twins
+# wrote every absent cell empty, so the field owed the twin nothing. A
+# version 6 twin writes each spelling at its published count (C6-115),
+# so the field is recounted off the written cells like any other exact
+# fact, and version 6's own 9.2 row says so.
+#
+# The older rows are NOT edited: they are the record of what those
+# versions required. So the matrix still states this fact and is still
+# checked for stating it -- what is not checked against the older
+# matrices is its CLASS, which is version 6's to give.
+#
+# Residual R-P4-25 carries the wider job: since the flip, version 6
+# governs all one hundred and thirty facts, and this machinery still
+# reads version 4's tables for the other hundred and twenty-nine.
+FACTS_A_LATER_VERSION_REDISPOSES = (("universal", "missing_by_source"),)
 
 
 # -- the registry ------------------------------------------------------
@@ -389,9 +412,39 @@ REGISTRY += [
         ("universal", "structural_role"),
     ]
 ]
-REGISTRY += _facts(
-    "universal", REPORT_ONLY, "missing_by_class", "missing_by_source"
+# The version 6 write rule's one authorization, quoted from the plan
+# region that states it so a softened sentence stops being found.
+_JUDGED_PASS_SAID = (
+    "**A spelling a JUDGED PASS put there** (P4-D6.1, contract C6-116) "
+    "is REPORT-ONLY for that key"
 )
+
+REGISTRY += _facts("universal", REPORT_ONLY, "missing_by_class")
+# `missing_by_source` STOPPED BEING REPORT-ONLY at version 6 (plan
+# P4-D6.1, contract C6-115 and its 9.2 row). Version 5 wrote every
+# absent cell empty, so the field owed the twin nothing; a version 6
+# twin writes each spelling at its published count and the field is
+# recounted from the written cells like any other exact fact.
+#
+# The exception is the judged passes'. A key a stand-in number or a
+# calendar placeholder put there stays blank in the twin, for the
+# reason C6-116 gives -- reproducing it would make the twin's own
+# measurement contingent on a re-judgement -- and for THAT key the
+# field is report-only, with the achieved zero named beside the
+# published count.
+REGISTRY += [
+    Fact(
+        "universal",
+        "missing_by_source",
+        EXACT_OBSERVABLE,
+        plan_region="holes",
+        plan_words="each `missing_by_source` spelling at exactly its "
+        "count",
+        authorized=(
+            ("judged", _JUDGED_PASS_SAID),
+        ),
+    )
+]
 # The two counts contract version 5 moved out of `missing_by_source`
 # (its section 5). The Phase 2 plan's matrix predates them, so they
 # bind to the Phase 3 amendment that landed them, which writes their
@@ -888,6 +941,11 @@ AUTHORIZED_BY: "dict[tuple[str, str, str], tuple[str, str]]" = {
         "raw-versus-folded",
         APPROXIMATED,
     ),
+    # The one authorization the version 6 write rule carries: a
+    # spelling a JUDGED PASS put there stays blank in the twin, so for
+    # THAT key the field is report-only with the achieved zero named
+    # beside the published count (plan P4-D6.1, contract C6-116).
+    ("universal", "missing_by_source", "judged"): ("holes", REPORT_ONLY),
     # The one corner P2-D9 gives a column of dates: offsets the
     # disclosure rules withheld cannot be put back without making them
     # up. It reaches the offset fields, never the two ends.
@@ -1108,6 +1166,30 @@ OPEN: "dict[tuple[str, str], str]" = {
     # descriptions it leaves with no answer meet the FIFTH refusal of
     # method G12 by name rather than being written with a leading `-`.
     #
+}
+
+# A LESSER OUTCOME AN OLDER DOCUMENT STATES ABOUT ITS OWN VERSION, and
+# it is not the same thing as an open lowering. `OPEN` above is for a
+# bar this project has not yet met and a review leaves standing; every
+# entry there names that review's own item. This is the other case:
+# the bar IS met, and the sentence the scan finds is an older
+# contract's account of what IT required.
+#
+# Version 4 and version 5 both say `missing_by_source` is REPORT-ONLY,
+# and both were right: their twins wrote every absent cell empty, so
+# the field owed the twin nothing. A version 6 twin writes each
+# recorded spelling at its published count (plan P4-D6.1, contract
+# C6-115), so the field is EXACT-OBSERVABLE from that version, with
+# the judged passes' keys as its one authorized exception. The older
+# sentences are the record of what those versions required and are
+# never edited to carry a later version's rule -- so the scan meets
+# them for as long as those documents stand, and this is where it is
+# told why.
+HISTORICAL: "dict[tuple[str, str], str]" = {
+    ("universal", "missing_by_source"): (
+        "version 4 and version 5 wrote every absent cell empty; "
+        "version 6 reproduces the recorded spellings (P4-D6.1)"
+    ),
 }
 
 

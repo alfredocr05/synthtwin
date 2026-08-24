@@ -4440,8 +4440,9 @@ amended at its own stage, against the contract, by counted re-seal.
 Until those stages land, the shipped producer and the shipped loader
 stay at the wire version this phase opened with, and no sentence
 anywhere may say otherwise. **(AMENDED by A-P3-28, which landed the
-producer and the loader: the shipped producer now writes version 5, the
-shipped loader reads version 5, and it is that sentence which binds.
+producer and the loader: from that commit the wire version both
+sides spoke was 5, and it was that sentence which bound until Phase
+4's flip moved both to 6.
 The two method specifications are still not amended. AND THE STRUCK
 SENTENCE NO LONGER SPELLS THE NUMBER IT NAMED, under A-P3-30: this
 paragraph said in as many words which version the shipped producer
@@ -4459,12 +4460,11 @@ with the registry guard's exact list, `tests/dispositions.py`'s
 governing set, the claim inventory's surface list and the seal moved
 back in the same commit — and this amendment struck rather than
 deleted, so that the ruling and its price stay readable. Once the
-producer writes version 5, reversal is a second version bump and is no
+wire version reached 5, reversal was a second version bump and no
 longer free; that is exactly the property that made the owner take it
 now.
 
-**Amendment A-P3-28 — the producer writes version 5 and the loader
-reads it. THIS RAISES what every description carries and what a
+**Amendment A-P3-28 — the wire version reaches 5 on both sides. THIS RAISES what every description carries and what a
 version 4 file is worth; it LOWERS nothing that A-P3-27 did not
 already price, and the two new counts are disposed here so that no
 published field of the format is left without a class** (2026-08-17,
@@ -4552,9 +4552,9 @@ false.** That amendment ends by naming the wire version the shipped
 producer wrote and the shipped loader read while its own
 implementation stages were still outstanding, and by forbidding any
 sentence anywhere to say otherwise. The producer and the loader stage
-has landed. The sentence is replaced by this one: **the shipped
-producer writes version 5 and the shipped loader reads version 5, and
-no sentence anywhere may say otherwise.** The stages A-P3-27 names
+has landed. The sentence is replaced by this one: **the wire version
+both sides spoke was 5 from that commit, and no sentence anywhere may
+say otherwise.** The stages A-P3-27 names
 that have NOT landed are named here so the difference is readable.
 **(A-P3-30 describes the struck sentence rather than quoting it, for
 the reason `tests/test_claim_inventory.py` gives about every ban in

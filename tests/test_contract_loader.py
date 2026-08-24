@@ -1146,7 +1146,7 @@ def test_r5_text_that_is_not_the_written_form(
     tmp_path: pathlib.Path
 ) -> None:
     """R5 says where the reading stopped and what usually causes it."""
-    message = refusal_of_text(tmp_path, '{\n  "profile_version": 5,\n')
+    message = refusal_of_text(tmp_path, '{\n  "profile_version": 6,\n')
     assert "line 3" in message
     assert "character" in message
     assert "edited" in message or "copied" in message
@@ -1157,7 +1157,7 @@ def test_r6_a_character_that_cannot_be_written(
 ) -> None:
     """R6 says the file holds a character that is not writable text."""
     message = refusal_of_text(
-        tmp_path, '{\n  "note": "\\ud800",\n  "profile_version": 5\n}\n'
+        tmp_path, '{\n  "note": "\\ud800",\n  "profile_version": 6\n}\n'
     )
     assert "cannot be written as text" in message
 
@@ -1165,7 +1165,7 @@ def test_r6_a_character_that_cannot_be_written(
 def test_r7_a_number_that_is_not_one(tmp_path: pathlib.Path) -> None:
     """R7 says the file holds a number that is not a number."""
     message = refusal_of_text(
-        tmp_path, '{\n  "note": NaN,\n  "profile_version": 5\n}\n'
+        tmp_path, '{\n  "note": NaN,\n  "profile_version": 6\n}\n'
     )
     assert "is not a number" in message
 
@@ -1205,24 +1205,24 @@ def test_the_number_bound_accepts_the_token_at_the_limit() -> None:
 
 def test_the_pre_scan_counts_nothing_inside_a_string() -> None:
     """A brace or a long figure inside a value is a character of it."""
-    braces = '{"note": "' + "{" * 100 + '", "profile_version": 5}'
+    braces = '{"note": "' + "{" * 100 + '", "profile_version": 6}'
     contract._scanned(braces, "somewhere")
-    figures = '{"note": "' + "1" * 500 + '", "profile_version": 5}'
+    figures = '{"note": "' + "1" * 500 + '", "profile_version": 6}'
     contract._scanned(figures, "somewhere")
     escaped = '{"note": "a quotation mark \\" and ' + "{" * 100 + '"}'
     contract._scanned(escaped, "somewhere")
 
 
 NOT_CANONICAL = (
-    ("a repeated entry", '{\n  "a": 1,\n  "a": 2,\n  "profile_version": 5\n}\n'),
-    ("entries out of order", '{\n  "b": 1,\n  "a": 2,\n  "profile_version": 5\n}\n'),
-    ("a number written the long way", '{\n  "a": 1.0e2,\n  "profile_version": 5\n}\n'),
-    ("no final newline", '{\n  "a": 1,\n  "profile_version": 5\n}'),
-    ("two final newlines", '{\n  "a": 1,\n  "profile_version": 5\n}\n\n'),
-    ("an indent of its own", '{\n    "a": 1,\n    "profile_version": 5\n}\n'),
+    ("a repeated entry", '{\n  "a": 1,\n  "a": 2,\n  "profile_version": 6\n}\n'),
+    ("entries out of order", '{\n  "b": 1,\n  "a": 2,\n  "profile_version": 6\n}\n'),
+    ("a number written the long way", '{\n  "a": 1.0e2,\n  "profile_version": 6\n}\n'),
+    ("no final newline", '{\n  "a": 1,\n  "profile_version": 6\n}'),
+    ("two final newlines", '{\n  "a": 1,\n  "profile_version": 6\n}\n\n'),
+    ("an indent of its own", '{\n    "a": 1,\n    "profile_version": 6\n}\n'),
     (
         "line endings from another system",
-        '{\r\n  "a": 1,\r\n  "profile_version": 5\r\n}\r\n',
+        '{\r\n  "a": 1,\r\n  "profile_version": 6\r\n}\r\n',
     ),
 )
 
@@ -1251,7 +1251,7 @@ def test_r11_an_older_description_is_made_again(
     document["profile_version"] = 4
     message = refusal(tmp_path, document)
     assert "version 4" in message
-    assert "version 5" in message
+    assert "version 6" in message
     assert "synthtwin profile" in message
     # THE THINGS CONTRACT 5 SECTION 10.2 FIXES WORD FOR WORD: why the
     # older file cannot be read, and every option that has to come back
@@ -1284,10 +1284,10 @@ def test_r12_a_newer_description_never_sends_anybody_to_a_profiler(
     acted on anyway.
     """
     document = copy.deepcopy(base)
-    document["profile_version"] = 6
+    document["profile_version"] = 7
     message = refusal(tmp_path, document)
+    assert "version 7" in message
     assert "version 6" in message
-    assert "version 5" in message
     assert "update synthtwin" in message
     assert "synthtwin profile" not in message
 
@@ -1302,7 +1302,7 @@ def test_the_version_is_read_before_the_canonical_form(
     another version is very likely canonical under its own rules.
     """
     document = copy.deepcopy(base)
-    document["profile_version"] = 6
+    document["profile_version"] = 7
     target = tmp_path / "table-profile.json"
     target.write_text(
         canonical.serialize(document) + "\n", encoding="utf-8", newline="\n"

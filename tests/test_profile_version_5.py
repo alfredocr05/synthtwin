@@ -656,11 +656,20 @@ def test_the_whole_of_the_kept_side_is_recorded(folder: pathlib.Path) -> None:
 def test_the_producer_writes_five_and_the_loader_reads_five(
     declarations: Described,
 ) -> None:
-    """C5-VER and C5-24."""
-    assert profile.PROFILE_VERSION == 5
-    assert contract.PROFILE_VERSION == 5
-    assert declarations.document["profile_version"] == 5
-    assert declarations.loaded.profile_version == 5
+    """C5-VER and C5-24 -- and the number has moved past both.
+
+    This file is the record of what the version 5 landing added, and
+    the additions below are all still true of the producer. The NUMBER
+    is not: Phase 4 carried its own wire changes and the version moved
+    to six with them, so what this test pins is that the move happened
+    and that the producer and the loader moved together. A version
+    number one of them could drift from is a version number nothing
+    pins.
+    """
+    assert profile.PROFILE_VERSION == 6
+    assert contract.PROFILE_VERSION == 6
+    assert declarations.document["profile_version"] == 6
+    assert declarations.loaded.profile_version == 6
 
 
 def test_a_version_four_description_is_refused_in_the_contract_s_words(
@@ -689,10 +698,11 @@ def test_a_version_four_description_is_refused_in_the_contract_s_words(
     said = f"{refused.value}"
     assert said == (
         "This description was written by an older version of synthtwin: "
-        "it says it is version 4, and this synthtwin reads version 5. A "
-        "version 5 description records which of synthtwin's own words "
-        'for "no value" you named on the command line, and a version 4 '
-        "description does not, so this file cannot be read back "
+        "it says it is version 4, and this synthtwin reads version 6. A "
+        "version 6 description records things an older description does "
+        'not \u2014 which of synthtwin\'s own words for "no value" you '
+        "named on the command line, and how slashed dates were read "
+        "\u2014 so this file cannot be read back "
         "exactly. Please make the description again by running "
         "'synthtwin profile' on your table, giving it every option you "
         "gave the first time: --keep-value, --missing-value, "
@@ -715,7 +725,8 @@ def test_a_version_four_description_is_refused_in_the_contract_s_words(
         "without the --day-first you gave, slashed dates can be read "
         "the other way round, which changes the dates the description "
         "publishes and can leave the column described as text instead. "
-        "Read the "
+        "If you do not hold the table yourself, ask whoever made this "
+        "description to run it again for you. Read the "
         "summary page synthtwin writes beside the new description "
         "before either file goes anywhere, and use the description "
         "exactly as synthtwin writes it."

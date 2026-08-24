@@ -106,7 +106,7 @@ from synthtwin.paths import validate_local_path
 # advice that is safe today because there is no release and every
 # description belongs to somebody who still holds the table, and that
 # is re-examined rather than inherited after the first one.
-PROFILE_VERSION = 5
+PROFILE_VERSION = 6
 
 # THE TWO PARSER BOUNDS, AND THERE ARE EXACTLY TWO (contract 10.3).
 # Neither is reachable by any producible profile, because neither scales

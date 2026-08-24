@@ -591,11 +591,17 @@ def test_every_authorization_quotes_the_plan() -> None:
     the authorization list itself is sealed, so a genuine sentence
     quoted beside a fact it says nothing about no longer buys anything.
     """
-    plan = _flat(PLAN)
+    # EVERY PLAN THAT AUTHORIZES ANYTHING, not the Phase 2 plan alone.
+    # Phase 4 authorizes one lesser outcome of its own -- the judged
+    # pass's keys under the version 6 write rule -- and the older plans
+    # are not edited to carry a later phase's sentence, so a check that
+    # read only the first of them would have made the newer
+    # authorization unquotable rather than unauthorized.
+    plans = _flat(PLAN) + " " + _flat(PLAN3) + " " + _flat(PLAN4)
     seen = 0
     for fact in dispositions.REGISTRY:
         for _phrase, words in fact.authorized:
-            assert words in plan, f"{fact.group}/{fact.field}: {words[:60]}"
+            assert words in plans, f"{fact.group}/{fact.field}: {words[:60]}"
             seen = seen + 1
     assert seen >= 4, seen
 
@@ -788,6 +794,15 @@ def _matrix_violations(
             for name in names:
                 fact = by_key.get((group, name))
                 if fact is None:
+                    continue
+                if (group, name) in (
+                    dispositions.FACTS_A_LATER_VERSION_REDISPOSES
+                ):
+                    # The older matrix states this fact and is checked
+                    # for stating it; the CLASS it gives is the class
+                    # that version required, and a later version gave
+                    # the fact another. Comparing them here would call
+                    # the older document wrong about its own version.
                     continue
                 if not said or said[0] != fact.disposition:
                     broken.append(
@@ -1032,6 +1047,7 @@ def test_no_document_states_a_lesser_outcome_for_an_exact_fact() -> None:
         key: statements
         for key, statements in caught.items()
         if key not in dispositions.OPEN
+        and key not in dispositions.HISTORICAL
     }
     assert not undecided, {
         key: [one[:200] for one in statements]
