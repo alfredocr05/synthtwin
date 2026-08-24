@@ -224,10 +224,25 @@ def test_the_declaration_is_recorded_in_the_settings_block() -> None:
 
 
 def test_the_version_refusal_names_the_option_and_its_cost() -> None:
-    """The suite derives the list from the parser, so forgetting is red."""
+    """The suite derives the list from the parser, so forgetting is red.
+
+    AND THE COST IT NAMES IS THE COST THE OPTION ACTUALLY HAS. The
+    message said "slashed dates can be read the other way round" long
+    after the option reached dotted dates and two-figure years, and
+    this test passed anyway because it asked only that the option's
+    NAME appear. A person holding a dotted column read a message that
+    told them, in as many words, that the option did not concern their
+    dates.
+    """
     said = errors.profile_version_is_older(4, 5)
     assert "--day-first" in said
     assert "without the --day-first you gave" in said
+    # The sentence must reach every shape the option reaches, and must
+    # not narrow itself to one of them.
+    assert "day and month are both written as numbers" in said
+    assert "with dots" in said
+    assert "two-figure year" in said
+    assert "slashed dates can be read the other way round" not in said
 
 
 def test_the_evidence_is_computed_from_the_readings_themselves() -> None:

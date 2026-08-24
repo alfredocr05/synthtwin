@@ -144,17 +144,25 @@ def test_the_century_guess_is_always_said_out_loud() -> None:
     chain. A column that said nothing here would be a column whose
     dates are a hundred years out with no warning at all.
     """
-    # This column carries days above twelve, so its month-and-day
-    # reading is EVIDENCE and not a guess -- and it still says so about
-    # the century.
-    document, _loaded, _folder = _described(
-        [day.strftime("%m/%d/%y") for day in DAYS]
-    )
-    block = document["columns"][0]
-    assert block["format"] == "two-digit-month-first-date"
-    remarks = block["remarks"]
-    assert any("two figures" in remark for remark in remarks), remarks
-    assert any("1969" in remark for remark in remarks), remarks
+    # BOTH MEMBERS OF THE PAIR, because deleting either from the
+    # two-figure family would otherwise leave this test green while a
+    # column of that reading published pivot-shifted dates with no
+    # warning at all. The first column carries days above twelve, so
+    # its month-and-day reading is EVIDENCE and not a guess -- and it
+    # still says so about the century.
+    for pattern, member, settings in (
+        ("%m/%d/%y", "two-digit-month-first-date", None),
+        ("%d/%m/%y", "two-digit-day-first-date",
+         taxonomy.Settings(day_first=True)),
+    ):
+        document, _loaded, _folder = _described(
+            [day.strftime(pattern) for day in DAYS], settings
+        )
+        block = document["columns"][0]
+        assert block["format"] == member, pattern
+        remarks = block["remarks"]
+        assert any("two figures" in remark for remark in remarks), remarks
+        assert any("1969" in remark for remark in remarks), remarks
 
 
 def test_a_four_figure_year_says_nothing_about_a_century() -> None:
@@ -210,13 +218,20 @@ def test_the_columns_evidence_still_beats_the_declaration() -> None:
 
     A column holding a field above twelve has said which way it reads,
     and a declaration does not overrule what the values themselves
-    settle.
+    settle. BOTH new families are walked: an earlier version claimed
+    both in its prose and exercised only the dotted one, so the
+    two-figure family's evidence handling could have been reversed with
+    this test still green.
     """
-    values = [day.strftime("%m.%d.%Y") for day in DAYS]
-    turned, _loaded, _folder = _described(
-        values, taxonomy.Settings(day_first=True)
-    )
-    assert turned["columns"][0]["format"] == "dotted-month-first-date"
+    for pattern, member in (
+        ("%m.%d.%Y", "dotted-month-first-date"),
+        ("%m/%d/%y", "two-digit-month-first-date"),
+    ):
+        values = [day.strftime(pattern) for day in DAYS]
+        turned, _loaded, _folder = _described(
+            values, taxonomy.Settings(day_first=True)
+        )
+        assert turned["columns"][0]["format"] == member, pattern
 
 
 # -- the column, end to end -------------------------------------------

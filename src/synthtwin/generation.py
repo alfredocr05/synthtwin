@@ -2419,6 +2419,89 @@ def _pad_need(value: float, whole_column: bool) -> int:
     return len(plain) - 1 if plain[:1] == "-" else len(plain)
 
 
+def _can_wear(style: str, value: float, whole_column: bool) -> bool:
+    """Whether one value may be written in one style at all.
+
+    Two rules, and the styles impose both: there is no leading-plus
+    spelling of a negative value, and no point-free spelling of a value
+    that has none.
+    """
+    if style == "leading_plus" and value < 0.0:
+        return False
+    if style in _WHOLE_STYLES and not _carries_plainly(value, whole_column):
+        return False
+    return True
+
+
+def _first_giver(
+    moved: "list[str]",
+    holds: "list[float]",
+    reserved: "dict[int, int]",
+    taken: "dict[int, int]",
+    width: int,
+    taking: str,
+    whole_column: bool,
+) -> int:
+    """The first padded cell free to give the style up, or -1.
+
+    Written outside the walk so a whole value's exchange can be tried
+    before any of it is applied: ``taken`` holds the cells this trial
+    has already spoken for, which the walk's own bookkeeping does not
+    know about until the trial is accepted.
+
+    IT TAKES THE VALUES AND NOT TWO FUNCTIONS. Handing a callable to a
+    helper is a call this repository's offline audit cannot read, and
+    the audit is right to refuse it: a function passed as a value is a
+    function nobody can check by reading the source.
+    """
+    for other in range(len(moved)):
+        if moved[other] != "leading_zero":
+            continue
+        if other in reserved or other in taken:
+            continue
+        if _pad_need(holds[other], whole_column) < width:
+            continue
+        if not _can_wear(taking, holds[other], whole_column):
+            continue
+        return other
+    return -1
+
+
+def _eligible_groups(
+    eligible: "list[int]",
+    moved: "list[str]",
+    holds: "list[float]",
+    spent: "dict[int, int]",
+) -> "list[list[int]]":
+    """The eligible cells, gathered into one group per value.
+
+    The walk that fills a published field width takes a WHOLE group or
+    none of it, so a value never ends up wearing the padded style on
+    some of its cells and another style on the rest. Groups are walked
+    largest first, and the value itself breaks every tie, so the order
+    is a function of the description rather than of the order a mapping
+    happens to hold.
+    """
+    groups: "dict[float, list[int]]" = {}
+    seen: "list[float]" = []
+    for index in eligible:
+        if index in spent or moved[index] == "leading_zero":
+            continue
+        value = holds[index]
+        if value in groups:
+            groups[value] = groups[value] + [index]
+            continue
+        groups[value] = [index]
+        seen = seen + [value]
+    ranked: "list[tuple[int, float]]" = []
+    for value in seen:
+        ranked = ranked + [(-len(groups[value]), value)]
+    ordered: "list[list[int]]" = []
+    for _size, value in sorted(ranked):
+        ordered = ordered + [groups[value]]
+    return ordered
+
+
 def _padded_style_swaps(
     styles: "list[str]",
     holds: "list[float]",
@@ -2472,15 +2555,7 @@ def _padded_style_swaps(
 
     def receivable(index: int, other: str) -> bool:
         """Whether the cell giving up the padded style can wear ``other``."""
-        if other == "leading_plus" and holds[index] < 0.0:
-            # There is no leading-plus spelling of a negative value, so
-            # this exchange would write a cell the method forbids.
-            return False
-        if other in _WHOLE_STYLES and not _carries_plainly(
-            holds[index], whole_column
-        ):
-            return False
-        return True
+        return _can_wear(other, holds[index], whole_column)
 
     # Every cell that could WEAR the padded style but is not wearing it,
     # in ascending index order so the partner chosen is the same on
@@ -2519,6 +2594,37 @@ def _padded_style_swaps(
     # unfillable.
     reserved: "dict[int, int]" = {}
     spent: "dict[int, int]" = {}
+
+    def give_up(width: int, taking: str) -> int:
+        """A padded cell this width cannot hold, free to give the style up."""
+        for other in range(len(moved)):
+            if moved[other] != "leading_zero" or other in reserved:
+                continue
+            # A PINNED CELL MAY GIVE THE STYLE UP, though it may never
+            # be handed it. What pins a cell is its VALUE -- it is a
+            # published endpoint or the zero stratum -- and a style
+            # carries no value: `27` and `027` read back as the same
+            # number, so taking the padding off the maximum moves no
+            # published fact. Refusing it left the census unmeetable on
+            # every column whose widest value was also its endpoint.
+            if need_of(other) < width:
+                continue
+            if not receivable(other, taking):
+                continue
+            return other
+        return -1
+
+    def hand_over(index: int, width: int) -> bool:
+        """Swap the padded style onto ``index``; say whether it happened."""
+        partner = give_up(width, moved[index])
+        if partner < 0:
+            return False
+        moved[partner] = moved[index]
+        moved[index] = "leading_zero"
+        spent[index] = 1
+        reserved[index] = width
+        return True
+
     for width in sorted(quotas):
         owing = quotas[width]
         for index in range(len(moved)):
@@ -2530,6 +2636,58 @@ def _padded_style_swaps(
                 continue
             reserved[index] = width
             owing = owing - 1
+        # A WHOLE VALUE AT A TIME, AND ONLY WHERE THE WHOLE OF IT FITS.
+        # Taking SOME of a value's cells leaves that value wearing the
+        # padded style on those and another style on the rest: `0185`
+        # beside `185` in one column is one number written two ways,
+        # and on a column of codes it is worse than that, because the
+        # two are different LENGTHS and somebody checking how long a
+        # code is meets both. An earlier version of this walk ordered
+        # the cells so a value's travelled together but still stopped
+        # mid-value when the count ran out, which is the same defect
+        # arrived at more tidily.
+        for group in _eligible_groups(eligible, moved, holds, spent):
+            if owing < 1:
+                break
+            if len(group) > owing:
+                continue
+            if need_of(group[0]) >= width:
+                continue
+            # ALL OF IT OR NONE OF IT. Handing the style over one cell
+            # at a time and stopping when the givers run out splits the
+            # value just as surely as stopping when the count does, so
+            # the exchange is tried first and applied only if every
+            # cell of the group found a partner.
+            trial: "list[tuple[int, int]]" = []
+            taken: "dict[int, int]" = {}
+            for index in group:
+                partner = _first_giver(
+                    moved, holds, reserved, taken, width,
+                    moved[index], whole_column,
+                )
+                if partner < 0:
+                    trial = []
+                    break
+                taken[partner] = 1
+                trial = trial + [(index, partner)]
+            if not trial:
+                continue
+            for index, partner in trial:
+                moved[partner] = moved[index]
+                moved[index] = "leading_zero"
+                spent[index] = 1
+                reserved[index] = width
+                owing = owing - 1
+        # ...and cell by cell for a count no whole value fits. This
+        # SPLITS a value -- `0185` beside `185` is one number in two
+        # spellings at two lengths -- and it is kept because the
+        # alternative is worse rather than because it is good. Leaving
+        # the count short sends the cells to the identity walk instead,
+        # which spends leading zeros to make spellings differ and wrote
+        # one number at FOUR widths on the same column. One split is
+        # the smaller harm, and the shortfall it avoids is the one a
+        # person measuring a code's length would meet everywhere
+        # rather than once.
         for index in eligible:
             if owing < 1:
                 break
@@ -2537,33 +2695,8 @@ def _padded_style_swaps(
                 continue
             if need_of(index) >= width:
                 continue
-            # The cell that gives the style up is one THIS width cannot
-            # hold and no narrower width has claimed, so the exchange
-            # never takes back a field already filled.
-            partner = -1
-            for other in range(len(moved)):
-                if moved[other] != "leading_zero" or other in reserved:
-                    continue
-                # A PINNED CELL MAY GIVE THE STYLE UP, though it may
-                # never be handed it. What pins a cell is its VALUE --
-                # it is a published endpoint or the zero stratum -- and
-                # a style carries no value: `27` and `027` read back as
-                # the same number, so taking the padding off the
-                # maximum moves no published fact. Refusing it left the
-                # census unmeetable on every column whose widest value
-                # was also its endpoint, which is most of them.
-                if need_of(other) < width:
-                    continue
-                if not receivable(other, moved[index]):
-                    continue
-                partner = other
+            if not hand_over(index, width):
                 break
-            if partner < 0:
-                break
-            moved[partner] = moved[index]
-            moved[index] = "leading_zero"
-            spent[index] = 1
-            reserved[index] = width
             owing = owing - 1
     return moved
 

@@ -6621,8 +6621,8 @@ version 5 document reads "version 5":
 > says it is version 4, and this synthtwin reads version 6. A version
 > 6 description records things an older description does not — which
 > of synthtwin's own words for "no value" you named on the command
-> line, and how slashed dates were read — so this file cannot be read
-> back exactly. Please make the description again by running
+> line, and how dates whose day and month are both numbers were read —
+> so this file cannot be read back exactly. Please make the description again by running
 > 'synthtwin profile' on your table, giving it every option you gave
 > the first time: --keep-value, --missing-value, --identifier,
 > --smallest-group, --first-row and --day-first. Every one of them
@@ -6638,9 +6638,11 @@ version 5 document reads "version 5":
 > what kind of column synthtwin sees and publish both that word and
 > the column's own numbers; without the --first-row you gave, the
 > first line of your file is read as the column names and published as
-> them; and without the --day-first you gave, slashed dates can be
-> read the other way round, which changes the dates the description
-> publishes and can leave the column described as text instead. If you
+> them; and without the --day-first you gave, a date whose day and
+> month are both written as numbers — with slashes, with dots, or with
+> a two-figure year — can be read the other way round, which changes
+> the dates the description publishes and can leave the column
+> described as text instead. If you
 > do not hold the table yourself, ask whoever made this description to
 > run it again for you. Read the summary page synthtwin writes beside
 > the new description before either file goes anywhere, and use the

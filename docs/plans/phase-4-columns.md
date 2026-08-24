@@ -1701,6 +1701,32 @@ Opened by this plan, each a limit accepted rather than work forgotten:
   be reconciled first, and reconciling them changes sentences a shipped
   profile prints. It is its own landing, not a passenger on a landing
   about dates.
+- **R-P4-30** (opened 2026-08-24, from the survey of healthcare code
+  columns). A PLAIN NUMERIC CELL CARRIES NO WIDTH FACT, so a code
+  column whose values are uniformly wide can still be written at two
+  lengths. `pad_widths` censuses the cells written with a leading zero
+  and nothing censuses the rest — but a column of dental codes is
+  `D0120`, `D1110`, `D2740`: some cores wear a leading zero and some do
+  not, and ALL of them are four figures wide. The twin honours the
+  padded census exactly and writes the plain cores at whatever width
+  their drawn value needs, so `D0185` appears beside `D185` and a
+  person checking how long a code is meets both.
+
+  Two things are tangled here and only one is closed. The generator's
+  own share — a value wearing the padded style on some cells and
+  another style on the rest — is narrowed by the whole-value exchange
+  of A-P4-34, which now moves a value's cells together or not at all;
+  what survives is the case where no whole value fits the count left,
+  and leaving THAT alone is worse, because the identity walk then
+  spends leading zeros instead and wrote one number at four widths on
+  the same column.
+
+  The other share is not the generator's. It is that the description
+  never said the column's cells were all one width, because only the
+  padded ones were counted. Closing it means censusing the field width
+  of EVERY whole-number cell rather than only the padded ones — which
+  is a wider disclosure than P4-D7 asked for and an owner decision,
+  not an implementation choice.
 - **R-P4-28** (opened by amendment A-P4-34, 2026-08-24, at the second
   adversarial read). THE FRACTION CENSUS IS NOT ALWAYS MET EITHER, and
   it was not this landing that made it so. A column of eleven padded
@@ -2752,8 +2778,19 @@ common in real files than the slashed pair that raised it.
 **What keeps the families apart.** The year is four figures and comes
 last for the dotted pair, two figures and last for the two-digit pair,
 and the textual pair is decided by where the month name sits. No
-spelling satisfies two members, which is the property the slashed
-grammar already keeps and the one that lets the single-format pass
+spelling satisfies two FAMILIES.
+
+**Inside an ambiguous family the two readings DO overlap, and that is
+the point of them.** `03.04.2024` is read by both dotted members and
+`03/04/24` by both two-figure members, exactly as `03/04/2024` is read
+by both slashed members. That overlap is not a leak in the grammar: it
+IS the ambiguity, it is what the pair machinery counts both sides of,
+and a walk that made each cell readable one way only would have nothing
+left to weigh. An earlier wording here said no spelling satisfies two
+MEMBERS, which is false of every ambiguous pair this tool has ever had
+and would have led an independent implementer to compute different
+parse totals from the same column. Disjointness is a property of the
+families, and the property that lets the single-format pass
 stay a single pass.
 
 **Order.** The textual pair is unambiguous, so it lands first and
@@ -4079,6 +4116,48 @@ REJECTED again; every item worked.
    twin it would have got with the reading removed; and the shape test
    claimed the padded dotted rule in its prose without checking it.
    Both now assert what they describe.
+
+**The third adversarial read, and where the review budget ran out.**
+REJECTED a third time; eight items, all worked.
+
+1. *`month_of_name` lower-cased where the contract says case folding*
+   (blocking). They are different rules: Unicode folding maps the long
+   s to `s`, so `17 ſep 2024` is a spelling the contract owns and the
+   code refused. `parsing.folded` is what the rest of this package
+   means by folding, and the function now reads it — a second spelling
+   of one rule living in one function is how an exception comes apart
+   from the rule it excepts, which this repository has paid for
+   repeatedly.
+2. *Four MORE places still described `--day-first` as slashed-only*
+   (blocking), including the shipped older-version refusal a person
+   actually reads, and its copy quoted in the contract. Both now name
+   every shape the option reaches.
+3. *The plan claimed no spelling satisfies two members* (serious) —
+   false of every ambiguous pair this tool has ever had. `03.04.2024`
+   IS read by both dotted members, and that overlap is the ambiguity
+   itself, which the pair machinery counts both sides of. Disjointness
+   is a property of the FAMILIES, and the text now says so.
+4. *The disclosure inventory said the slashed stamp pair may publish an
+   offset* (serious). Its reader takes a clock in one of the two forms
+   the clock role fixes, and that clock carries none — so a privacy
+   reviewer was told about an exposure that cannot happen.
+5. *The month-vocabulary test walked eight names of twelve* (test
+   weakening), so removing `february` left it green. It now exhausts
+   the closed list, and a second test pins the folding rule.
+6. *The version-refusal test asked only that the option be NAMED* (test
+   weakening), so the message stayed slashed-only through two rounds
+   of this work. It now asserts the cost the sentence must state.
+7. *The century test covered one member of the two-figure pair* (test
+   weakening) — deleting the other from the family left it green while
+   such a column published pivot-shifted dates with no warning.
+8. *The evidence-beats-declaration test claimed both new families and
+   walked one* (test weakening).
+
+**WHAT IS NOT REVIEWED.** Three reads is the owner's budget (A-P4-30)
+and all three are spent. These eight repairs were made after the last
+one and nothing adversarial has read them. Each earlier round found
+defects in what the round before had repaired, so the honest
+expectation is that some of these eight are wrong too.
 
 **Residual R-P4-29 was opened while building this and not by it:** the
 contract's note grammar and `taxonomy.NOTE_ARITY` disagree about five

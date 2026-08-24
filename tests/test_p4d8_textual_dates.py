@@ -59,16 +59,50 @@ def _described(
 # -- the reading itself -----------------------------------------------
 
 
+MONTHS = (
+    ("jan", "january"), ("feb", "february"), ("mar", "march"),
+    ("apr", "april"), ("may", "may"), ("jun", "june"),
+    ("jul", "july"), ("aug", "august"), ("sep", "september"),
+    ("oct", "october"), ("nov", "november"), ("dec", "december"),
+)
+
+
 def test_the_month_name_vocabulary_is_read_either_way_it_is_written() -> None:
-    """Abbreviated or in full, and in any case."""
-    for word, month in (
-        ("Jan", "01"), ("JANUARY", "01"), ("jan", "01"),
-        ("Mar", "03"), ("march", "03"), ("Dec", "12"),
-        ("December", "12"), ("May", "05"),
-    ):
-        assert parsing.month_of_name(word) == month, word
-    for word in ("", "Ja", "Janu", "Smarch", "13", "Mar."):
+    """THE WHOLE CLOSED LIST, not a sample of it (contract C6-D8N).
+
+    An earlier version of this test walked eight names, so removing
+    `february` or `april` from the vocabulary left it green -- a test
+    that names a closed list and checks part of it is a test that lets
+    the list quietly shrink.
+    """
+    place = 0
+    for short, whole in MONTHS:
+        place = place + 1
+        month = f"0{place}" if place < 10 else f"{place}"
+        for spelling in (
+            short, whole, short.upper(), whole.upper(), short.capitalize(),
+        ):
+            assert parsing.month_of_name(spelling) == month, spelling
+    for word in ("", "Ja", "Janu", "Smarch", "13", "Mar.", "Sept"):
         assert parsing.month_of_name(word) is None, word
+
+
+def test_the_month_name_is_CASE_FOLDED_and_not_merely_lowercased() -> None:
+    """The package has one folding operation and this reads it.
+
+    An earlier revision reached for `.lower()`, which is a different
+    rule: Unicode case folding maps the long s to `s`, so `ſep` folds
+    to `sep` while lower-casing leaves it alone. The contract says case
+    folding, `parsing.folded` is what the rest of the package means by
+    it, and a second spelling of one rule living in one function is how
+    an exception comes apart from the rule it excepts.
+    """
+    assert "\u017Fep".lower() != "sep"
+    assert parsing.folded("\u017Fep") == "sep"
+    assert parsing.month_of_name("\u017Fep") == "09"
+    assert parsing.parse_datetime(
+        "17 \u017Fep 2024", "textual-day-first-date"
+    ) == ("2024-09-17", "")
 
 
 def test_each_written_shape_reads_as_the_day_it_names() -> None:
