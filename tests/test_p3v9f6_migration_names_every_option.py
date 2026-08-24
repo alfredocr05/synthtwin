@@ -87,7 +87,7 @@ import fixtures
 from synthtwin import cli, contract, errors, profile, reading, taxonomy
 
 _FOUND = 4
-_READS = 5
+_READS = 6
 
 # The wording as it shipped, for the red check. It is written out rather
 # than described, because a reinstatement somebody has to reconstruct is
@@ -258,7 +258,7 @@ def test_the_message_is_the_contract_clause_word_for_word() -> None:
         pathlib.Path(__file__).resolve().parents[1]
         / "docs"
         / "spec"
-        / "profile-contract-v5.md"
+        / "profile-contract-v6.md"
     ).read_text(encoding="utf-8")
     opening = "> This description was written by an older version"
     start = document.index(opening)
@@ -268,8 +268,11 @@ def test_the_message_is_the_contract_clause_word_for_word() -> None:
     )
     assert " ".join(quoted.split()) == " ".join(_message().split()), (
         "R11's message and the contract clause that fixes it word for "
-        "word have drifted apart. Contract 5 section 10.2 is the "
-        "governing text; change it by amendment, then change the code."
+        "word have drifted apart. The GOVERNING text is the contract "
+        "whose number the tree stamps; change that clause by "
+        "amendment, then change the code. An older contract keeps its "
+        "own clause as the record of what it asked for, and is not "
+        "edited to carry a later one's."
     )
 
 

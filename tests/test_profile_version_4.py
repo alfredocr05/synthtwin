@@ -355,13 +355,13 @@ def test_the_version_number_moved_with_the_additions(
     tmp_path: pathlib.Path,
 ) -> None:
     document = document_for(tmp_path, [str(index) for index in range(40)])
-    # The number moved AGAIN with version 5's three additions, and it is
+    # The number moved AGAIN with version 6's additions, and it is
     # asserted exactly rather than as "at least four": a version number
     # that could drift upward without a test moving is a version number
     # nothing pins. What this test is about is that the five additions
     # above arrived with a number of their own, and they did.
-    assert profile.PROFILE_VERSION == 5
-    assert document["profile_version"] == 5
+    assert profile.PROFILE_VERSION == 6
+    assert document["profile_version"] == 6
 
 
 def test_the_document_still_serializes_to_the_same_bytes_twice(

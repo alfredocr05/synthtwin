@@ -276,7 +276,7 @@ def _profile_document(case: dict, name: str) -> dict:
         "created_with": "0+unknown",
         "n_columns": 1,
         "n_rows": len(case["cells"]),
-        "profile_version": 5,
+        "profile_version": 6,
         "publication_notes": [],
         "relationships": _relationships(),
         "settings": _settings(declared),

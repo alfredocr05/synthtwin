@@ -4177,6 +4177,93 @@ def _unaffixed_spellings(
     return built
 
 
+def _absent_cells(column: contract.ColumnBlock) -> "list[str]":
+    """Every absent cell of one column, as the text it is written with.
+
+    THE VERSION 6 WRITE RULE (contract C6-115, plan P4-D6.1). Version 5
+    wrote every absent cell empty and said so in a sealed sentence
+    (C5-9); a person's own `NA`, `#N/A` or `Not recorded` was recorded
+    in the description and then thrown away by the twin, so code that
+    filtered on it -- `df[df.status != "NA"]`, or a `na_values=` list
+    handed to a reader -- did something on the real table and nothing
+    at all on the twin.
+
+    Three parts, and the exception is the whole of the second:
+
+    1. each `missing_by_source` spelling at exactly its published
+       count, EXCEPT a spelling a judged pass put there;
+    2. every other absent cell empty -- the blank count, the withheld
+       remainder, and every judged-pass-sourced cell;
+    3. in a fixed sorted order, so the permutation that places
+       everything else places these too and the bytes stay a pure
+       function of the description and the seed.
+
+    WHY A JUDGED PASS'S CELLS STAY BLANK (C6-116). A reproduced TEXT
+    spelling reads back as absence by a fixed rule of the description
+    alone -- it is a member of the published vocabulary, or a value the
+    person named -- and that reading does not depend on the twin's own
+    values. A stand-in NUMBER and a calendar PLACEHOLDER are that
+    rule's named exclusions: the absence reading of both runs through
+    the producer's outlier-and-share judgement over the measured file's
+    own values, which a twin's generated distribution is not
+    guaranteed to re-fire. Reproducing them would make the twin's own
+    measurement contingent on a re-judgement. Nothing is lost by it:
+    the twin's report names those cells, per column.
+
+    Guarantees: accepts one loaded column block; returns exactly
+    `n_missing` cells. Determinism: a fixed function of the block.
+    Raises nothing. No I/O of any kind.
+    """
+    written: list[str] = []
+    for spelling in sorted(column.missing_by_source):
+        if _a_judged_pass_put_it_there(column, spelling):
+            continue
+        for _each in range(column.missing_by_source[spelling]):
+            written = written + [spelling]
+    while len(written) < column.n_missing:
+        written = written + [""]
+    return written[: column.n_missing]
+
+
+def _a_judged_pass_put_it_there(
+    column: contract.ColumnBlock, spelling: str
+) -> bool:
+    """Whether a judged pass is what made cells of this spelling absent.
+
+    The two passes this version has are the stand-in number pass and
+    the calendar placeholder pass, and each records its decision as a
+    verdict naming the candidate. A published hole spelling that
+    denotes a candidate this column read as missing is that pass's
+    doing, and C6-116 keeps it blank.
+    """
+    for verdict in column.sentinel_verdicts:
+        if verdict.verdict != contract.VERDICT_MISSING:
+            continue
+        if verdict.candidate == contract.WITHHELD:
+            continue
+        if _is_the_same_candidate(spelling, verdict.candidate):
+            return True
+    return False
+
+
+def _is_the_same_candidate(spelling: str, candidate: str) -> bool:
+    """Whether a hole spelling denotes one judged candidate.
+
+    A day is compared as its canonical spelling and a number as the
+    NUMBER it denotes, which is how the producer counted the
+    candidate's own rows in the first place.
+    """
+    if candidate in parsing.calendar_placeholders():
+        for name in parsing.DATE_FORMATS:
+            if parsing.placeholder_day_of(spelling, name) == candidate:
+                return True
+        return False
+    held = parsing.exact_of_spelling(spelling)
+    if held is None:
+        return False
+    return held == parsing.exact_of_spelling(candidate)
+
+
 def _hole_spellings(
     column: contract.ColumnBlock,
 ) -> "tuple[str, ...]":
@@ -9336,7 +9423,7 @@ def generate(profile: contract.Profile, seed: int) -> Twin:
                 f"{column.n_present}. This means a mistake in synthtwin; "
                 f"please report it. Nothing has been written."
             )
-        content = content + ["" for _cell in range(column.n_missing)]
+        content = content + _absent_cells(column)
         places: list[int] = []
         if each.placement_words > 0:
             places = [

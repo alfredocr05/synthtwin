@@ -1,16 +1,26 @@
 # Profile contract, version 5 — the normative specification
 
-**Status: SHIPPED, and this document was written before any of it,
-which is this repository's standing process.** `synthtwin profile`
-writes version 5, the loader reads version 5, and an older description
-is refused with the message section 10.2 fixes word for word. Every
-rule below describes the file the tree produces today.
+**Status: SUPERSEDED by version 6 at the Phase 4 wire flip.** This
+document is the record of what version 5 required, and every rule
+below still describes a version 5 description exactly. It is not
+edited to carry version 6's rules: where the two differ, version 6
+governs the tree and this document governs the files version 5 wrote.
+
+**The status paragraph this replaces, and why replacing it is the
+point** (the same move this document made when it shipped). It said
+this document was SHIPPED, that the producer and the loader both spoke
+this format, and that every rule below described the file the tree
+produced that day. All three were true then and became false on the
+commit that flipped the wire, and a document claiming the tree speaks
+it when the tree does not is the one kind of stale sentence a reader
+has no way to catch. What the paragraph said is not quoted here
+because quoting it would make the claim again.
 
 **The status paragraph this replaces, and why replacing it is the
 point** (plan amendment A-P3-30). Until the implementation stages
 landed, this document opened by saying what the shipped producer and
-loader did instead, and by forbidding anybody to write about version 5
-anywhere as though it were built. Both of those sentences became false
+loader did instead, and by forbidding anybody to write about this
+format anywhere as though it were built. Both of those sentences became false
 on the commit that landed the producer and the loader, and they stayed
 here for a stage afterwards while `CHANGELOG.md`, `SECURITY.md` and the
 plan all correctly described version 5 as shipped — so the one document
@@ -250,7 +260,7 @@ And one way a cell that would have been absent is a value instead:
 |---|---|---|
 | 6 | the person rescued the cell's spelling or its number with `--keep-value` | nowhere in a version 4 description, except where the rescued value happens to be published as a level, a variant or a sentinel verdict |
 
-### 3.2 What a version 5 producer writes for each way
+### 3.2 What version 5 records for each way
 
 | # | what is written, so the way is reconstructible | what is NOT written |
 |---|---|---|
@@ -1081,32 +1091,17 @@ document, which is every description written before the implementation
 stage lands — is exactly this text, with only the two version numbers
 filled in from the document and the loader:
 
-> This description was written by an older version of synthtwin: it says
-> it is version 4, and this synthtwin reads version 5. A version 5
-> description records which of synthtwin's own words for "no value" you
-> named on the command line, and a version 4 description does not, so
-> this file cannot be read back exactly. Please make the description
-> again by running 'synthtwin profile' on your table, giving it every
-> option you gave the first time: --keep-value, --missing-value,
-> --identifier, --smallest-group, --first-row and --day-first. Every one
-> of them changes what the description PUBLISHES about your table, so any
-> option you leave out can put something into the new description that
-> the old one held back: without the --smallest-group you gave, a value
-> that fewer rows share can be named; without the --identifier you
-> gave, a column of record numbers is described like any other column;
-> without the --missing-value you gave, a stand-in is read as a real
-> reading, and the stand-in itself can be published as the column's
-> smallest value; without the --keep-value you gave, a word you had
-> counted as an ordinary value becomes a gap, which can change what
-> kind of column synthtwin sees and publish both that word and the
-> column's own numbers; without the --first-row you gave, the first
-> line of your file is read as the column names and published as them;
-> and without the --day-first you gave, slashed dates can be read the
-> other way round, which changes the dates the description publishes
-> and can leave the column described as text instead.
-> Read the summary page synthtwin writes beside the new description
-> before either file goes anywhere, and use the description exactly as
-> synthtwin writes it.
+**The message version 5 fixed word for word is not quoted here any
+more, and the reason is this document's own rule.** It opened "This
+description was written by an older version of synthtwin", named the
+version the file said it was and the version the build spoke, and went
+on to name every option a person had to bring back. Quoted live, its
+second clause says the tree speaks version 5 -- which stopped being
+true at the Phase 4 flip, and a stale sentence in a contract is the
+one kind a reader cannot correct from. What version 5 required of that
+message is unchanged and is stated in the clauses below; the message
+the tree emits today is fixed word for word by the governing
+contract's own section 10.2.
 
 **C5-26 NAMES FIVE OPTIONS AND NAMED TWO UNTIL 2026-08-17, AND THE TWO
 COULD DISCLOSE** (review item P3-V9-F6; owner ruling of 2026-08-17,

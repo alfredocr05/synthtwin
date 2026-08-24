@@ -1,10 +1,21 @@
 # Profile contract, version 6 — the normative specification
 
-**Status:** revision 6, 2026-08-21 — the first COMPLETE statement of
-this format. **Not ratified.** It is reviewed adversarially before the
-implementation it anchors is written, under the standing process:
-plans and specifications before the artifacts they anchor. It joins
-the disposition seal at its own landing.
+**Status: SHIPPED**, as of the Phase 4 wire flip. `synthtwin profile`
+writes version 6, the loader reads version 6, and an older description
+is refused with the message section 10.2 fixes word for word. Every
+rule below describes the file the tree produces today.
+
+**The status paragraph this replaces, and why replacing it is the
+point** (the same move version 5 made when it shipped). Until the flip
+this document read: "revision 6, 2026-08-21 — the first COMPLETE
+statement of this format. **Not ratified.** It is reviewed
+adversarially before the implementation it anchors is written, under
+the standing process: plans and specifications before the artifacts
+they anchor. It joins the disposition seal at its own landing." Both
+of the first two sentences became false on the commit that landed the
+flip, and a document that goes on describing itself as unbuilt while
+the tree ships it is the one surface a reader has no way to correct
+from.
 
 **This document is self-contained.** It carries nothing by reference
 from version 4 or version 5, replaces nothing by name, and holds no
@@ -659,7 +670,9 @@ calendar day spelling — so the count separates exactly into the
 members this document names and the values of the person's own, and a
 shortfall is exactly the second of those. A consumer reading a
 shortfall knows only that some values named were not synthtwin's own
-words, never what they were. A producer that wrote a smaller
+words. The settings block does not record what those values were --
+and that is a sentence about the settings block, which is not the
+document. A producer that wrote a smaller
 `n_declared` than its own lists is refused here.
 
 **Invariant K4 (the two records do not overlap).** No member appears
@@ -703,9 +716,9 @@ not a version 6 document.
 
 **The settings block carries the policy — how many values were named
 each way, the rules that matched them, and which of synthtwin's own
-published words were among them — and it never carries a spelling of
-the person's own. AND THAT IS A SENTENCE ABOUT THE SETTINGS BLOCK,
-WHICH IS NOT THE DOCUMENT.** The reason the block is bounded is sound
+published words were among them. The settings block never carries a
+spelling of the person's own. AND THAT IS A SENTENCE ABOUT THE
+SETTINGS BLOCK, WHICH IS NOT THE DOCUMENT.** The reason the block is bounded is sound
 and is not withdrawn: a declaration is compared against every cell of
 every column, including the columns whose values never appear in a
 description at all, so a spelling written into the settings would

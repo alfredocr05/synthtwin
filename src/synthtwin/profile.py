@@ -164,7 +164,7 @@ CLAIM_REACHED = writing.CLAIM_REACHED
 # one printable form it was; it is empty for every ordinary word, and in
 # one corner it publishes strictly LESS, because the floor now falls on
 # the exact spelling rather than on the escaped one.
-PROFILE_VERSION = 5
+PROFILE_VERSION = 6
 
 # The two files a run writes, as suffixes added to the table's name.
 PROFILE_SUFFIX = "-profile.json"

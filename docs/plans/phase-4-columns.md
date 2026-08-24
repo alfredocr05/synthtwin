@@ -1040,7 +1040,11 @@ Under this decision the generator writes, per column, ONE rule:
 
 - each `missing_by_source` spelling at exactly its count — EXCEPT a
   spelling that reads as one of the three built-in stand-in numbers,
-  which stays blank (stated in the next paragraph);
+  which stays blank (stated in the next paragraph). The field is
+  EXACT-OBSERVABLE from this version, recounted per spelling off the
+  written twin, with ONE authorization: **A spelling a JUDGED PASS put
+  there** (P4-D6.1, contract C6-116) is report-only for that key, the
+  achieved zero named beside the published count;
 - every other absent cell — the blank count, the withheld remainder,
   and any stand-in-sourced cells — empty;
 - placed by the same single permutation that places everything (one
@@ -1095,9 +1099,12 @@ is what the description says they should be.
 
 **Consequences, each landed at stage 6 with the rule:** the generation
 method's absent-cell rule and the version 6 matrix move together under
-counted re-seals; `missing_by_source` strengthens from REPORT-ONLY to
-EXACT-OBSERVABLE with a per-spelling recount (stand-in-spelled keys
-excepted, their exception stated in the matrix row); the blank and
+counted re-seals; `missing_by_source` is EXACT-OBSERVABLE from version
+6, with a per-spelling recount off the written twin, and the older
+versions' rows stand as the record of what those versions required.
+It carries exactly one authorization: **A spelling a JUDGED PASS put
+there** (P4-D6.1, contract C6-116) is REPORT-ONLY for that key, the
+achieved zero named beside the published count. Then: the blank and
 withheld counts take a stated SUM identity — the twin's recounted blank
 absent cells equal `n_missing_blank` plus `n_missing_withheld` plus the
 JUDGED-PASS-sourced count **(AMENDED by A-P4-12: this read
@@ -1656,6 +1663,20 @@ Opened by this plan, each a limit accepted rather than work forgotten:
   routes nothing, so nothing published moves and no reader is misled;
   what is missing is help a reader would have acted on. A later phase
   picks them up from A-P4-30's own text.
+- **R-P4-25** (opened by amendment A-P4-33, 2026-08-22). THE
+  DISPOSITION MACHINERY STILL READS VERSION 4'S TABLES. Since the wire
+  flip, version 6 governs all one hundred and thirty registered facts;
+  the matrix comparison in `tests/test_p2c4f1_disposition_registry.py`
+  reads version 4's section 9 for the hundred and twenty-nine version
+  6 did not re-dispose. The two agree about every one of them today,
+  so nothing is wrong -- but a governance surface pointed at a
+  document that governs nothing shipped is a surface whose agreement
+  is luck rather than design, and the next fact a version re-disposes
+  will meet it again.
+- **R-P4-23 — CLOSED by amendment A-P4-33** (2026-08-22). The wire is
+  version 6 and the documents say so. What follows is the entry as it
+  stood, kept because a residual that is struck rather than deleted is
+  how this plan records that a thing was open.
 - **R-P4-23** (opened at the fifth adversarial read of the date
   readings, 2026-08-22, item P4-DATE5-F2). THE BRANCH WRITES A
   VERSION 5 DOCUMENT THAT IS NOT A VERSION 5 DOCUMENT, and this
@@ -3463,6 +3484,70 @@ shape axis buys nothing over the role name and that they name
 themselves anyway, because what the axes are worth here is the
 totality discipline. It names itself now, and the generator dispatches
 that type onto the label construction, so one rule still writes both.
+
+## Amendment A-P4-33 — the wire is version 6, and the twin keeps your holes
+
+**Stage 6, landed whole.** `PROFILE_VERSION` is 6 on both sides, and
+with it P4-D6.1: a twin writes each recorded `missing_by_source`
+spelling at exactly its published count, and every other absent cell
+empty. This closes residual R-P4-23, which named the state the branch
+had been in since the first Phase 4 wire change -- documents stamped
+version 5 that carried version 6 keys, so an older description would
+not load and a newer one was not what it said it was.
+
+**What P4-D6.1 buys, in the sentence that matters.** A person's `NA`,
+`#N/A` or `Not recorded` was recorded in the description and then
+thrown away by the twin, so `df[df.status != "NA"]` -- or a
+`na_values=` list handed to a reader -- did something on the real
+table and nothing at all on the twin. Both judged passes' keys stay
+blank, for the reason C6-116 gives: their absence reading runs through
+the producer's own outlier-and-share judgement over the measured
+file's values, which a twin's generated distribution is not guaranteed
+to re-fire, so reproducing them would make the twin's own measurement
+contingent on a re-judgement.
+
+**`missing_by_source` is EXACT-OBSERVABLE from this version**, with
+one authorization -- the judged passes' keys -- and that is the first
+fact in this project whose disposition a version has CHANGED. The
+governance was built on the assumption that a fact's disposition is
+fixed for all time, and three of its layers had to learn otherwise:
+the matrix comparison now separates a fact's MEMBERSHIP in an older
+matrix (still checked) from the CLASS that matrix gives it (version
+6's to give); the authorization check reads every plan that authorizes
+rather than the Phase 2 plan alone, because an older plan is not
+edited to carry a later phase's sentence; and the lesser-outcome scan
+gains `HISTORICAL` beside `OPEN` -- an older document describing its
+own version is not an open lowering, and filing it as one would have
+made a closed thing look open forever.
+
+**The documents that had to move, and how far.** Version 6's contract
+says it is SHIPPED; version 5's says it is SUPERSEDED, by the same
+move version 5 made to its own predecessor, and neither has a rule
+edited -- version 5 still governs every version 5 description exactly.
+Seven present-tense sentences across version 5's contract and the
+Phase 3 plan said the tree speaks version 5; each is now that
+document's account of its own day. Version 5's contract no longer
+quotes its refusal message live, because quoting it made the claim
+again. Two denials in version 6's contract now name their subject, per
+the rule review item P3-V10-F1 established and which was written after
+that document.
+
+**Residual R-P4-25 is opened by this landing.** Since the flip,
+version 6 governs all one hundred and thirty registered facts, and the
+disposition machinery still reads version 4's tables for the hundred
+and twenty-nine it did not re-dispose. That is not wrong today -- the
+older matrix and version 6 agree about every one of them -- but it is
+a governance surface pointed at a document that governs nothing
+shipped, and the next fact a version re-disposes will meet it again.
+
+**What the shared fixture does NOT walk.** Its only named hole
+spelling is `-999`, a judged pass's key, so the battery exercises the
+EXCEPTION and not the rule. The rule's own red cases are in
+`tests/test_p4d61_holes_reproduced.py`, which walks both halves and
+the re-description that makes the fact exact. Adding a reproduced
+spelling to the shared table would cascade through the entry table,
+which A-P4-30 froze; the coverage is stated here rather than left to
+be discovered.
 
   The five plan reviews are in `docs/plans/reviews/` as
   `phase-4-plan-review-round-1.md` through `-round-5.md`.

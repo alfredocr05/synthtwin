@@ -181,6 +181,13 @@ SURFACES = (
     "src/synthtwin/writing.py",
     "docs/spec/profile-contract-v4.md",
     "docs/spec/profile-contract-v5.md",
+    # THE GOVERNING CONTRACT IS A SURFACE LIKE ANY OTHER, and it has to
+    # be: the ban's positive half asks that SOME surface state the
+    # shipped version, and the contract that governs it is where a
+    # reader looks first. Leaving it out let the ban be satisfied by
+    # silence on the one document whose whole job is to say what the
+    # tree speaks.
+    "docs/spec/profile-contract-v6.md",
     "docs/spec/generation-method-v1.md",
     "docs/spec/validation-method-v1.md",
 )
@@ -3545,8 +3552,8 @@ def test_the_version_ban_reads_history_and_refusals_as_permitted() -> None:
         # The four the FRONTED half has to walk past. The first three
         # are sentences of this tree.
         (
-            "it says it is version 4, and this synthtwin reads "
-            "version 5."
+            "it says it is version 5, and this synthtwin reads "
+            "version 6."
         ),
         (
             "a profile that exceeds the invention capacity is a valid "

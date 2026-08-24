@@ -781,7 +781,17 @@ def test_an_endpoint_is_not_lost_to_a_declared_spelling(  # P4-DATE-F2
     }
     for seed in (1, 2, 3):
         twin = generation.generate(described, seed)
-        cells = [cell for cell in twin.columns[0] if cell]
+        # THE PRESENT CELLS, and the filter is the version 6 write rule
+        # (plan P4-D6.1): the twin now writes each recorded hole
+        # spelling at its published count, so the declared spelling
+        # appears among the ABSENT cells on purpose. What must not wear
+        # it is a cell the twin means as a value.
+        holes = set(described.columns[0].missing_by_source)
+        cells = [
+            cell
+            for cell in twin.columns[0]
+            if cell and cell not in holes
+        ]
         assert "2024-01-01T00:00:00" not in cells
         assert "2024-01-01 00:00:00" in cells
         assert [
@@ -924,6 +934,13 @@ def test_a_stand_in_never_wears_a_spelling_the_column_calls_absent() -> None:
     written = fixtures.write_profile(folder, "n.json", document)
     described = contract.load_profile(f"{written}")
     twin = generation.generate(described, 4)
-    cells = [cell for cell in twin.columns[0] if cell]
+    # The PRESENT cells again: since P4-D6.1 the twin reproduces
+    # `text-1` in the absent cells at its published count, which is
+    # what the description records. The stand-in this test is about is
+    # a cell the twin means as a value.
+    holes = set(described.columns[0].missing_by_source)
+    cells = [
+        cell for cell in twin.columns[0] if cell and cell not in holes
+    ]
     assert "text-1" not in cells
     assert twin.outcomes[0].n_present == 121
