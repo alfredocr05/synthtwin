@@ -627,6 +627,10 @@ REMARK_NO_READING_FITS = "remark_no_reading_fits"
 REMARK_SOME_NOT_NUMBERS = "remark_some_values_are_not_numbers"
 REMARK_NEAR_NUMERIC_LINE = "remark_close_to_the_numeric_line"
 REMARK_ALL_DIFFERENT_NUMBERS = "remark_every_number_is_different"
+# A number written with a leading zero is usually a code, and a column
+# of them is described as quantities unless a person says otherwise
+# (plan P4-D9, contract NF43).
+REMARK_PADDED_NUMBERS = "remark_padded_numbers_may_be_codes"
 REMARK_SPREAD_OUT_OF_RANGE = "remark_spread_out_of_range"
 REMARK_ALL_DIFFERENT_TEXT = "remark_every_value_is_different"
 
@@ -689,6 +693,7 @@ NOTE_ARITY: "dict[str, int]" = {
     REMARK_SOME_NOT_NUMBERS: 1,
     REMARK_NEAR_NUMERIC_LINE: 3,
     REMARK_ALL_DIFFERENT_NUMBERS: 0,
+    REMARK_PADDED_NUMBERS: 1,
     REMARK_SPREAD_OUT_OF_RANGE: 0,
     REMARK_ALL_DIFFERENT_TEXT: 0,
     HEADER_NAMES_BY_OPTION: 0,
@@ -1259,6 +1264,26 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
             f"and text: {_whole(arguments, 0)} of its "
             f"{_whole(arguments, 1)} values are "
             f"written as numbers, and the line is at {_whole(arguments, 2)}"
+        )
+    if form == REMARK_PADDED_NUMBERS:
+        # IT DECIDES NOTHING, and says so, on the exact pattern the
+        # all-different remark set: the column is described as numbers
+        # either way, which is what keeps its distribution. What it
+        # adds is the one pointer a numeric code column had nowhere. A
+        # column wearing an affix has carried this sentence since
+        # P4-D4.1; a column of `00100` carried none, and those are the
+        # same hazard written two ways.
+        return (
+            f"{_whole(arguments, 0)} of this column's values are "
+            f"written with a leading zero, and synthtwin described "
+            f"them as quantities: their average, their spread and "
+            f"their ends are in this profile. A number written `00100` "
+            f"is usually a code rather than a measurement -- nothing "
+            f"is assumed from that, and the column is described as "
+            f"numbers either way, which keeps its distribution. If "
+            f"these are codes, run the command again with --identifier "
+            f"NAME, where NAME is this column's name, and no value of "
+            f"this column will be published at all"
         )
     if form == REMARK_ALL_DIFFERENT_NUMBERS:
         return (
@@ -4046,6 +4071,24 @@ def pad_width(text: str) -> int:
     return parsing.pad_width(text)
 
 
+def _padded_cells(cells: _Cells) -> int:
+    """How many cells of this column were written with a leading zero.
+
+    Counted off the CELLS rather than read back off the published
+    styles map, because the map may have pooled the form below the
+    floor -- and a column whose padding was too rare to name is still a
+    column whose padding a person should be told about.
+    """
+    counted = 0
+    for cell in cells.classified:
+        if cell.kind != parsing.NUMBER:
+            continue
+        if numeric_style(cell.text) != parsing.STYLE_LEADING_ZERO:
+            continue
+        counted = counted + 1
+    return counted
+
+
 def _pad_widths(cells: _Cells) -> dict[str, int]:
     """How many `leading_zero`-styled cells wrote each field width.
 
@@ -5979,6 +6022,17 @@ def _numeric_verdict(
         settings.identifier_uniqueness, n_present
     ):
         remarks = remarks + [note(REMARK_ALL_DIFFERENT_NUMBERS)]
+    # ...AND A COLUMN WRITTEN WITH LEADING ZEROS SAYS SO TOO. The
+    # all-different remark reaches a column whose every value differs,
+    # which a column of codes is not: codes repeat, so that sentence
+    # never fires on one. The affixed role has carried its own
+    # `--identifier` pointer since P4-D4.1. Between the two, a column
+    # of `00100` -- a procedure code, a vaccine code, a zip -- got no
+    # pointer at all while being described as a quantity with an
+    # average and a spread.
+    padded = _padded_cells(cells)
+    if padded:
+        remarks = remarks + [note(REMARK_PADDED_NUMBERS, (padded,))]
     # A column of counts must be whole and non-negative in EVERY cell
     # whose writer meant a number -- including the ones no format can
     # hold. `(1e999)` is visibly negative and `1e-999` is visibly a

@@ -2798,6 +2798,57 @@ alone. The two-digit and dotted pairs land after it, each with the
 evidence machinery, because each reopens the day-first question and
 the reads that follow should see one of them at a time.
 
+### P4-D9 A number written with a leading zero says it may be a code
+
+A survey of the clinical coding schemes this tool is actually pointed
+at — the ones a diagnosis, a procedure, a laboratory test, a dispensed
+drug and a vaccine are recorded under — found one failure above all
+the others: **a code column whose values
+are all digits is described as arithmetic.** A procedure-code column
+publishes an average of its code numbers, and a diagnosis-code column
+publishes one of its codes as a middle value. The twin is then invented numbers drawn from that ladder, and a
+join that matched every row of the real column matches a fifth of the
+twin's.
+
+That is not a defect in any rule. The numeric path is doing exactly
+what it is specified to do, and the escape already exists:
+`--identifier` produces a twin of the right width, the right
+cardinality and the right repeat structure. **What was missing is
+anybody telling the person the escape was there.**
+
+**Two pointers already exist and neither reaches a code column.** NF32
+fires where every value in the column differs — which a code column is
+not, because codes repeat. NF35 fires where the cells wear an affix —
+which reaches `D0120` and not `00100`. Between them a procedure code, a
+vaccine code and a zip code fell through: described as a quantity, with
+an average and a spread, and no sentence anywhere.
+
+**The decision.** A `count` or `continuous` column with at least one
+cell written with a leading zero carries note NF43, which names the
+count and points at `--identifier`.
+
+**IT DECIDES NOTHING.** The README's ratified rule is that no rule may
+DECIDE the identifier role from a column's values, and this does not:
+the column is described as numbers either way, which is what keeps its
+distribution, and the sentence says so in as many words. It proposes,
+exactly as the two pointers beside it propose.
+
+**Why leading zeros.** Because it is a fact the producer already reads
+and already publishes a census of (P4-D7), and because nobody writes a
+MEASUREMENT as `00100`. It is evidence about how the column was
+WRITTEN, not a guess about what it means — which is the line the three
+withdrawn identifier heuristics in this repository's history all
+crossed.
+
+**What it does NOT fix, stated so nobody reads more into it.** A code
+column with no leading zeros — RxNorm, SNOMED, most ICD-9 — is
+untouched by this and is still described as arithmetic with no pointer
+at all. Reaching those needs a signal about repetition or spread rather
+than about spelling, which is a guess of the kind this repository has
+withdrawn three times, and is an owner decision rather than an
+implementation choice. This decision takes the case that can be made
+from a written fact and leaves the rest named.
+
 ## Acceptance criteria
 
 1. Every owner decision of P4-D0 is recorded in this plan — taken or
