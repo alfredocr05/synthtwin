@@ -180,3 +180,26 @@ def test_a_column_of_month_names_alone_is_not_a_date_column() -> None:
         ["Jan", "Feb", "Mar", "Apr"] * 60
     )
     assert document["columns"][0]["role"] != "datetime"
+
+
+def test_a_comma_after_the_month_name_is_not_this_grammar() -> None:
+    """What the adversarial read found: the comma belongs to one shape.
+
+    `Mar 17, 2024` is written with a comma because the comma follows a
+    DAY. `17 Mar, 2024` puts one after a month name, which no writer
+    does and no member of the contract owns -- and the shared splitter
+    stripped it before either member was consulted, so the day-first
+    member accepted a spelling nobody had written down.
+    """
+    for text in ("17 Mar, 2024", "17-Mar,-2024", "17 March, 2024"):
+        assert parsing.parse_datetime(
+            text, "textual-day-first-date"
+        ) is None, text
+    # The shape that does own a comma still reads, and so does the
+    # day-first shape without one.
+    assert parsing.parse_datetime(
+        "Mar 17, 2024", "textual-month-first-date"
+    ) == ("2024-03-17", "")
+    assert parsing.parse_datetime(
+        "17 Mar 2024", "textual-day-first-date"
+    ) == ("2024-03-17", "")

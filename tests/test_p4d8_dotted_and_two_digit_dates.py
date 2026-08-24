@@ -62,10 +62,19 @@ def _described(
 
 
 def test_each_shape_reads_under_the_member_that_owns_it() -> None:
+    """The dotted pair is PADDED and the two-figure pair is not.
+
+    That asymmetry is deliberate and is the subject of
+    `test_a_version_identifier_is_not_a_dotted_date` below: a version
+    identifier is written `1.2.2024` and never `01.02.2024`, so the
+    padding is what tells a dotted date from a version. Nothing writes
+    a version with slashes and a two-figure year, so the two-figure
+    pair keeps the unpadded fields C6-22 gives the slashed families.
+    """
     for text, member in (
         ("17.03.2024", "dotted-day-first-date"),
         ("03.17.2024", "dotted-month-first-date"),
-        ("7.3.2024", "dotted-day-first-date"),
+        ("07.03.2024", "dotted-day-first-date"),
         ("03/17/24", "two-digit-month-first-date"),
         ("17/03/24", "two-digit-day-first-date"),
         ("3/7/24", "two-digit-month-first-date"),
@@ -226,3 +235,58 @@ def test_both_families_become_date_columns() -> None:
         )
         outcome = validation.measure(described, f"{written}")
         assert outcome.census.missed == 0, pattern
+
+
+# -- what the adversarial read found ----------------------------------
+
+
+def test_a_version_identifier_is_not_a_dotted_date() -> None:
+    """THE DEFECT THE FIRST READ FOUND, and the reason the dotted pair
+    is the one padded family.
+
+    `1.2.2024` is how a version identifier is written and, character
+    for character, how an unpadded dotted date would be written. With
+    the unpadded grammar a `version` column of `1.1.2024` through
+    `1.12.2024` cleared the date parse line, became a `datetime`
+    column, published endpoints and a ladder over version numbers, and
+    handed back a twin of ISO days. Nothing in the cell settles which
+    it is; the PADDING does, well enough to be worth a rule.
+    """
+    for text in ("1.2.2024", "1.12.2024", "2.0.2024", "7.3.2024"):
+        for member in ("dotted-day-first-date", "dotted-month-first-date"):
+            assert parsing.parse_datetime(text, member) is None, text
+    # ...and the padded shape, which is what the places that write
+    # dotted dates actually write, still reads.
+    assert parsing.parse_datetime(
+        "17.03.2024", "dotted-day-first-date"
+    ) == ("2024-03-17", "")
+
+
+def test_a_column_of_versions_stays_a_column_of_versions() -> None:
+    """The same finding, as the column a person would actually hold."""
+    values = [
+        f"{major}.{minor}.2024"
+        for major in range(1, 4)
+        for minor in range(1, 13)
+    ] * 3
+    document, _loaded, _folder = _described(values)
+    assert document["columns"][0]["role"] != "datetime"
+
+
+def test_the_pivot_remark_states_a_range_and_not_a_distance() -> None:
+    """The consequence clause the first read corrected.
+
+    An earlier wording said such a table is read forward "by a hundred
+    years". That holds only for the century either side of the pivot:
+    `68` meaning 1868 is read as 2068 and is two hundred years out, and
+    `75` meaning 2075 is read as 1975 -- out in the other direction,
+    which that wording did not warn about at all.
+    """
+    document, _loaded, _folder = _described(
+        [day.strftime("%m/%d/%y") for day in DAYS]
+    )
+    remarks = document["columns"][0]["remarks"]
+    said = [remark for remark in remarks if "two figures" in remark]
+    assert len(said) == 1
+    assert "1969 to 2068" in said[0]
+    assert "hundred years" not in said[0]

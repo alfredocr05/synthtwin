@@ -992,7 +992,7 @@ contract:
    would read as a fact about the column. `true` and `false` are
    refused.
 2. **One of this package's own words.** The membership is closed at
-   THIRTEEN and is written out rather than gathered, because a tuple
+   NINETEEN and is written out rather than gathered, because a tuple
    written out is what stops a spelling of somebody's table from
    becoming an argument:
 
@@ -1002,9 +1002,10 @@ contract:
    `dotted-day-first-date`, `two-digit-month-first-date`,
    `two-digit-day-first-date`, `year-quarter`, `slashed-iso-date`,
    `iso-month`, `iso-mixed`, `month-first-datetime`,
-   `day-first-datetime` — the seventeen `format` members — and `day-first`, `month-first`, the two
-   reading names the slashed-date remark needs. No other string is a
-   word of this class.
+   `day-first-datetime` — the seventeen `format` members — and
+   `day-first`, `month-first`, the two reading names the
+   day-and-month remark needs. No other string is a word of this
+   class.
 
    **Membership is not enough; the position is bound too** (NG18).
    A `format` member stands only where a form's argument table below
@@ -1629,8 +1630,14 @@ way its month and day were settled.
 
 > this column writes its years with two figures, which do not say which
 > century they are in; 00 to 68 are read as 2000 to 2068 and 69 to 99
-> as 1969 to 1999, so a table reaching further back than 1969 is read
-> forward by a hundred years
+> as 1969 to 1999, so any year this table means outside 1969 to 2068 is
+> read as the wrong one
+
+**The consequence is a RANGE and not a distance.** An earlier wording
+said such a table is read forward "by a hundred years", which holds
+only for the century either side of the pivot: `68` meaning 1868 is
+read as 2068, two hundred years out, and `75` meaning 2075 is read as
+1975, out in the other direction and not warned about at all.
 
 **It stands outside the month-first chain, not inside it** (plan
 P4-D8). The century is a guess whether the month and day were settled
@@ -1748,7 +1755,7 @@ names:
 
 | id | statement |
 |---|---|
-| NG14 | the form is one of the 41 in section 4.5.1 |
+| NG14 | the form is one of the 42 in section 4.5.1 |
 | NG15 | the argument count equals that form's arity |
 | NG16 | every argument is of one of C6-119's four classes |
 | NG17 | re-rendering the form with those arguments writes the leaf's text character for character |
@@ -2749,9 +2756,9 @@ ISO reading below may still claim the column.
 | `resolution_mix` | object | format member → count | how many parsed cells wore each form |
 
 **Three closed vocabularies stand in that table** — `format` with
-ELEVEN members, `resolution` with FOUR, `time_precision` with SIX — and
-each is written again below inside a table that BINDS it: the eleven
-formats are the rows of the next table, where D1 fixes each one's
+SEVENTEEN members, `resolution` with FOUR, `time_precision` with SIX —
+and each is written again below inside a table that BINDS it: the
+seventeen formats are the rows of the next table, where D1 fixes each one's
 resolution; the four resolutions are the rows of the canonical-forms
 table, which fixes what each one's instants are written as, and of D6's
 table; and the six precisions are named in D6's table, which admits no
@@ -2799,7 +2806,7 @@ table reaching further back than 1969.
 total: every member of the format vocabulary appears exactly once, a
 document whose pair is not a row does not conform, and a loader refuses
 it naming both the format and the resolution it found. Totality is the
-point of writing all eleven rows out. A partial binding — one that
+point of writing all seventeen rows out. A partial binding — one that
 named the resolutions of some members and left the rest unbound — would
 let a document pair `format: iso-date` with `resolution: datetime` and
 be refused by no rule at all, so a whole-date source could be routed as
@@ -2811,13 +2818,29 @@ profile recording whole seconds; how many digits the source wrote is
 The two fields are where that notation is recorded, and the published
 instants are not.
 
-**C6-22 (the unpadded widening).** Exactly four families accept one- or
+**C6-22 (the unpadded widening).** Six families accept one- or
 two-digit month and day fields: `month-first-date`, `day-first-date`,
-`month-first-datetime` and `day-first-datetime`. Their grammar is a
-one- or two-digit month and day, a four-digit year, and the slash
-delimiter. `slashed-iso-date` stays fully padded and `compact-date`
-stays exactly eight digits, so no family overlaps another, and no fixed
-character-count rule stands over the four widened families.
+`month-first-datetime`, `day-first-datetime`,
+`two-digit-month-first-date` and `two-digit-day-first-date`. The first
+four are a one- or two-digit month and day, a four-digit year, and the
+slash delimiter; the last two are the same with a TWO-figure year. The
+textual pair accepts a one- or two-digit day beside a month NAME.
+
+**THE DOTTED PAIR IS PADDED, AND IT IS THE ONE FAMILY THAT IS** (plan
+P4-D8). `1.2.2024` is how a version identifier is written and, character
+for character, how an unpadded dotted date would be written — so an
+unpadded dotted grammar routed a column of version numbers into the
+datetime role, published endpoints and a ladder over them, and handed
+back a twin of ISO days. Nothing in such a cell settles which it is.
+The padding does, well enough to be worth a rule: `17.03.2024` is how
+the places that write dotted dates write them, and no version is
+written `01.02.2024`. So `dotted-month-first-date` and
+`dotted-day-first-date` require both fields at exactly two figures, and
+an unpadded dotted date is read as text.
+
+`slashed-iso-date` stays fully padded and `compact-date` stays exactly
+eight digits, so no family overlaps another, and no fixed
+character-count rule stands over the widened families.
 
 **The day-first reading rule.** `--day-first` tells the profiler that
 slashed dates in this table are day-first, and the settings key
@@ -5831,7 +5854,7 @@ month-first parsed.
 | NG11 | on `remark_affixed_numbers_may_be_codes`: argument 3 equals the named block's `n_affixed` |
 | NG12 | argument 1 is character-for-character that block's `affix_prefix` and argument 2 its `affix_suffix`, AT THOSE POSITIONS, not merely as members of the pair |
 | NG13 | on `remark_a_label_is_a_built_in_stand_in`: argument 1 is 1, 2 or 3 |
-| NG14 | for every form: one of the 41 the note grammar enumerates |
+| NG14 | for every form: one of the 42 the note grammar enumerates |
 | NG15 | the argument count equals that form's arity |
 | NG16 | every argument is of one of the four argument classes |
 | NG17 | re-rendering the form with those arguments writes the leaf's text character for character |

@@ -1152,12 +1152,19 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
             "has the month and day the wrong way round"
         )
     if form == REMARK_TWO_DIGIT_YEAR:
+        # THE CONSEQUENCE IS STATED AS A RANGE AND NOT AS A DISTANCE.
+        # An earlier wording said such a table is read forward "by a
+        # hundred years", which is true only for the century either
+        # side of the pivot: `68` meaning 1868 is read as 2068 and is
+        # two hundred years out, and `75` meaning 2075 is read as 1975
+        # and is out in the other direction, which that wording did not
+        # warn about at all.
         return (
             "this column writes its years with two figures, which do "
             "not say which century they are in; 00 to 68 are read as "
-            "2000 to 2068 and 69 to 99 as 1969 to 1999, so a table "
-            "reaching further back than 1969 is read forward by a "
-            "hundred years"
+            "2000 to 2068 and 69 to 99 as 1969 to 1999, so any year "
+            "this table means outside 1969 to 2068 is read as the "
+            "wrong one"
         )
     if form == REMARK_CASE_ONLY_MANY:
         return (

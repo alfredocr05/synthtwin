@@ -1116,15 +1116,24 @@ def month_of_name(word: str) -> "str | None":
     return None
 
 
-def _textual_fields(body: str) -> "tuple[str, str, str] | None":
+def _textual_fields(
+    body: str, comma_after_middle: bool
+) -> "tuple[str, str, str] | None":
     """The three fields of a date written with a month NAME.
 
     THE SEPARATOR IS ONE CHARACTER AND THE SAME ONE BOTH TIMES -- a
     space or a hyphen -- because `17 Mar-2024` is not a shape anybody
     writes, and admitting it would let this member reach for spellings
-    the next member is meant to have. A comma may follow the middle
-    field, which is how `Mar 17, 2024` is written, and it is removed
-    before the fields are read.
+    the next member is meant to have.
+
+    THE COMMA BELONGS TO ONE SHAPE AND NOT THE OTHER, which is what
+    ``comma_after_middle`` decides. `Mar 17, 2024` is written with one
+    because the comma follows a DAY; `17 Mar, 2024` puts a comma after
+    a month name, which no writer does and no member of this contract
+    owns. Stripping it before either member was consulted let the
+    day-first member accept a spelling the contract does not describe,
+    so a column of them became a date column under a grammar nobody
+    had written down.
 
     Guarantees: accepts a string; returns the first field, the middle
     field and the last field exactly as written, or None where the text
@@ -1146,6 +1155,8 @@ def _textual_fields(body: str) -> "tuple[str, str, str] | None":
         middle = body[marks[0] + 1 : marks[1]]
         last = body[marks[1] + 1 :]
         if middle[len(middle) - 1 : len(middle)] == ",":
+            if not comma_after_middle:
+                continue
             middle = middle[0 : len(middle) - 1]
         if first and middle and last:
             return first, middle, last
@@ -1153,7 +1164,7 @@ def _textual_fields(body: str) -> "tuple[str, str, str] | None":
 
 
 def _delimited_fields(
-    body: str, mark: str, year_width: int
+    body: str, mark: str, year_width: int, padded_only: bool = False
 ) -> "tuple[str, str, str] | None":
     """Three year-last fields split on one delimiter, each at its width.
 
@@ -1168,6 +1179,20 @@ def _delimited_fields(
     after slashes is the `month-first-date` pair; a two-figure year
     after slashes is the two-digit pair; a four-figure year after dots
     is the dotted pair; and no spelling satisfies two of them.
+
+    ``padded_only`` REFUSES A ONE-FIGURE FIELD, and it exists for the
+    dotted family alone. `1.2.2024` is how a version identifier is
+    written, and it is also, character for character, how an unpadded
+    dotted date is written -- so a column of versions cleared the date
+    line, became a `datetime` column, published endpoints and a ladder
+    it had no business publishing, and handed back a twin of ISO days
+    where the real column held version numbers. Nothing about the cell
+    settles which it is. What does settle it, well enough to be worth a
+    rule, is the PADDING: a dotted date is written `17.03.2024` in the
+    places that write dotted dates, and a version is not written
+    `01.02.2024` anywhere. The unpadded dotted date is therefore read
+    as text, which is what it was before this family existed, and the
+    version column keeps its own values.
 
     Guarantees: accepts strings and a positive width; returns the
     first field, the second field and the year, the first two padded to
@@ -1190,8 +1215,14 @@ def _delimited_fields(
     year = body[marks[1] + 1 :]
     if len(year) != year_width or not _all_ascii_digits(year):
         return None
-    first = _padded_field(body[0 : marks[0]])
-    second = _padded_field(body[marks[0] + 1 : marks[1]])
+    written_first = body[0 : marks[0]]
+    written_second = body[marks[0] + 1 : marks[1]]
+    if padded_only and (
+        len(written_first) != 2 or len(written_second) != 2
+    ):
+        return None
+    first = _padded_field(written_first)
+    second = _padded_field(written_second)
     if first is None or second is None:
         return None
     return first, second, year
@@ -1535,7 +1566,9 @@ def parse_datetime(text: str, format_name: str) -> "tuple[str, str] | None":
         # member names (plan P4-D8). The name is what makes this pair
         # unambiguous where the slashed pair is not: no evidence and no
         # setting is consulted, because `Mar` cannot be a day.
-        fields = _textual_fields(body)
+        fields = _textual_fields(
+            body, format_name == "textual-month-first-date"
+        )
         if fields is None:
             return None
         first, middle, last = fields
@@ -1581,7 +1614,7 @@ def parse_datetime(text: str, format_name: str) -> "tuple[str, str] | None":
         # a four-figure year last, which no decimal number satisfies:
         # `17.03` carries one dot and is a number, `17.03.2024` carries
         # two and is not.
-        fields = _delimited_fields(body, ".", 4)
+        fields = _delimited_fields(body, ".", 4, True)
         if fields is None:
             return None
         first, second, year = fields
