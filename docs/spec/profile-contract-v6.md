@@ -1061,7 +1061,7 @@ contract:
    widening it to arbitrary strings would be exactly the hole that lets
    a source-derived value into a sentence and be rebuilt successfully.
 
-**The census.** The table holds 42 forms and 62 argument positions. Of
+**The census.** The table holds 43 forms and 63 argument positions. Of
 those, 53 are whole numbers, 3 are package words, 4 are nested forms,
 and 2 are bound affix strings. No position is a string of any other
 kind.
@@ -1646,6 +1646,37 @@ by the column's own evidence, by a declaration or by the default, so
 the sentence is carried in all three cases and not only where something
 else was also guessed.
 
+**NF43. `remark_padded_numbers_may_be_codes`** — arity 1. Argument 1:
+how many of the column's cells were written with a leading zero,
+counted off the cells rather than read back off `numeric_styles`, which
+may have pooled the form below the floor. Carried on a `count` or
+`continuous` column with at least one such cell.
+
+> «1» of this column's values are written with a leading zero, and
+> synthtwin described them as quantities: their average, their spread
+> and their ends are in this profile. A number written `00100` is
+> usually a code rather than a measurement — nothing is assumed from
+> that, and the column is described as numbers either way, which keeps
+> its distribution. If these are codes, run the command again with
+> --identifier NAME, where NAME is this column's name, and no value of
+> this column will be published at all
+
+**IT DECIDES NOTHING, and the sentence says so** (plan P4-D9). The
+README's ratified rule is that no rule may DECIDE the identifier role
+from a column's values, and this does not: the column is described as
+numbers either way. It PROPOSES, which is what NF32's all-different
+sentence and NF35's affixed sentence already do — and between those
+two a column of `00100` fell through. NF32 reaches a column whose every
+value differs, which a code column is not, because codes repeat; NF35
+reaches a column wearing an affix. A procedure code, a vaccine code or
+a zip written with its leading zero had no pointer at all while being
+published with an average and a spread.
+
+**Why leading zeros and not some other signal.** Because it is a fact
+the producer already reads and already publishes a census of (7.8), and
+because nobody writes a MEASUREMENT as `00100`. It is evidence about
+how the column was written, not a guess about what it means.
+
 **Why the header verdict is a form at all.** A verdict built anywhere
 else would be the one string in the document with no form behind it, and
 one exception is all a guard needs to stop meaning anything.
@@ -1756,7 +1787,7 @@ names:
 
 | id | statement |
 |---|---|
-| NG14 | the form is one of the 42 in section 4.5.1 |
+| NG14 | the form is one of the 43 in section 4.5.1 |
 | NG15 | the argument count equals that form's arity |
 | NG16 | every argument is of one of C6-119's four classes |
 | NG17 | re-rendering the form with those arguments writes the leaf's text character for character |
@@ -5879,7 +5910,7 @@ month-first parsed.
 | NG11 | on `remark_affixed_numbers_may_be_codes`: argument 3 equals the named block's `n_affixed` |
 | NG12 | argument 1 is character-for-character that block's `affix_prefix` and argument 2 its `affix_suffix`, AT THOSE POSITIONS, not merely as members of the pair |
 | NG13 | on `remark_a_label_is_a_built_in_stand_in`: argument 1 is 1, 2 or 3 |
-| NG14 | for every form: one of the 42 the note grammar enumerates |
+| NG14 | for every form: one of the 43 the note grammar enumerates |
 | NG15 | the argument count equals that form's arity |
 | NG16 | every argument is of one of the four argument classes |
 | NG17 | re-rendering the form with those arguments writes the leaf's text character for character |
@@ -6793,7 +6824,7 @@ this document, and the battery the plan requires turns red on it.
 | nothing-class blocks (`numeric_unrepresentable`, `identifier`, `free_text`) | lengths, word statistics, digit and code-alphabet counts, the whole-number test, the repetition multiset, and on `numeric_unrepresentable` the whole-number and sign counts | no value, no spelling, no fragment of one; the multiplicity map publishes SIZES of unnamed groups under no floor |
 | `empty` columns nobody declared | the absent SPELLINGS their cells wore and the two absence counts, exactly as any column that is not nothing-publishing | floor-governed |
 | `settings` | the rules the run applied, the floor's own value, how many values each declaration named, and which of THIS package's published words were among them | carries no cell, no column and no count of the table; a person's own spelling never enters |
-| `source.header_evidence`, `publication_notes[].note`, `detection_evidence`, `remarks` | sentences of the 42 closed forms: 62 argument positions, of which 53 are whole numbers, 3 package words, 4 nested forms and 2 bound affix strings | the whole numbers are counts the block beside them already publishes, EXCEPT the positions priced at rows 16 and 18 |
+| `source.header_evidence`, `publication_notes[].note`, `detection_evidence`, `remarks` | sentences of the 43 closed forms: 63 argument positions, of which 54 are whole numbers, 3 package words, 4 nested forms and 2 bound affix strings | the whole numbers are counts the block beside them already publishes, EXCEPT the positions priced at rows 16 and 18 |
 | `relationships` | nothing: eight nulls | — |
 
 ### 12.3 The rows, each priced
@@ -7606,10 +7637,10 @@ way, with one difference: the width is at least TWO (`2`, `3`, `10`),
 a padded cell writing at least one zero in front of at least one figure
 (C6-29b). `(withheld)` is again the only non-numeric key permitted.
 
-### 14.8 The note grammar — 42 forms
+### 14.8 The note grammar — 43 forms
 
 Defined in 4.5.1, which is the authority on every rendering and every
-argument. 62 argument positions: 53 whole numbers, 3 package words, 4
+argument. 63 argument positions: 54 whole numbers, 3 package words, 4
 nested forms, 2 bound affix strings.
 
 | # | form | arity |
@@ -7656,6 +7687,7 @@ nested forms, 2 bound affix strings.
 | NG40 | `header_names_by_convention` | 0 |
 | NG41 | `header_names_shown_by_a_column` | 1 |
 | NG42 | `remark_two_figure_years_are_read_at_a_pivot` | 0 |
+| NG43 | `remark_padded_numbers_may_be_codes` | 1 |
 
 **The package-word vocabulary — 19**, the whole of the second argument
 class (4.5.1): the seventeen `format` members of 14.6, plus `day-first`
