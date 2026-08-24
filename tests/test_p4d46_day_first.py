@@ -269,12 +269,34 @@ def test_the_reading_names_are_words_and_not_format_members() -> None:
         assert word not in parsing.DATE_FORMATS
 
 
-def test_the_pairs_are_the_two_slashed_grammars_and_no_others() -> None:
-    """A pair added without a reading is a declaration that lies."""
+def test_the_pairs_are_every_ambiguous_grammar_and_no_others() -> None:
+    """A pair added without a reading is a declaration that lies.
+
+    THE LIST GREW WITH P4-D8 AND THE PROPERTY DID NOT. A dotted date
+    and a two-figure year say no more about which field is the month
+    than a slashed one does, so they are read by this machinery too --
+    the same evidence, the same declaration, the same default. What the
+    list must never hold is a grammar that is NOT ambiguous: the
+    textual pair is decided by where the month name sits, so putting it
+    here would offer a person a declaration that changes nothing.
+    """
     assert taxonomy.SLASHED_PAIRS == (
         ("month-first-date", "day-first-date"),
         ("month-first-datetime", "day-first-datetime"),
+        ("dotted-month-first-date", "dotted-day-first-date"),
+        ("two-digit-month-first-date", "two-digit-day-first-date"),
     )
     for pair in taxonomy.SLASHED_PAIRS:
         for member in pair:
             assert member in parsing.DATE_FORMATS
+    # THE UNAMBIGUOUS PAIR IS NOT HERE, and that is the assertion this
+    # test gained rather than a restatement of the one above.
+    paired: set = set()
+    for pair in taxonomy.SLASHED_PAIRS:
+        for member in pair:
+            paired.add(member)
+    for member in (
+        "textual-day-first-date", "textual-month-first-date"
+    ):
+        assert member in parsing.DATE_FORMATS, member
+        assert member not in paired, member
