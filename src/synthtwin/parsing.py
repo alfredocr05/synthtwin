@@ -163,6 +163,8 @@ DATE_FORMATS = (
     "compact-date",
     "month-first-date",
     "day-first-date",
+    "textual-day-first-date",
+    "textual-month-first-date",
     "month-first-datetime",
     "day-first-datetime",
     "year-quarter",
@@ -184,6 +186,8 @@ _FORMAT_EXAMPLES = {
     "compact-date": "20240317",
     "month-first-date": "03/17/2024 (month first)",
     "day-first-date": "17/03/2024 (day first)",
+    "textual-day-first-date": "17 Mar 2024",
+    "textual-month-first-date": "Mar 17, 2024",
     "month-first-datetime": "03/17/2024 14:05 (month first)",
     "day-first-datetime": "17/03/2024 14:05 (day first)",
     "year-quarter": "2024-Q1",
@@ -1072,6 +1076,89 @@ def _slashed_fields(body: str) -> "tuple[str, str, str] | None":
     return first, second, year
 
 
+# The month names this package reads, in calendar order, each as the
+# three-letter abbreviation and the full word. ENGLISH ONLY, and that
+# is a limit rather than an oversight: a name read in one language and
+# not another would give one table its dates and the next table beside
+# it free text, which is worse than reading neither. Matched with the
+# folding rule the rest of this module uses, so `MAR`, `Mar` and `mar`
+# are one name.
+_MONTH_NAMES = (
+    ("jan", "january"),
+    ("feb", "february"),
+    ("mar", "march"),
+    ("apr", "april"),
+    ("may", "may"),
+    ("jun", "june"),
+    ("jul", "july"),
+    ("aug", "august"),
+    ("sep", "september"),
+    ("oct", "october"),
+    ("nov", "november"),
+    ("dec", "december"),
+)
+
+
+def month_of_name(word: str) -> "str | None":
+    """The month a written name stands for, as two figures, or None.
+
+    Guarantees: accepts any string; answers `01` through `12` for a
+    name in this package's English vocabulary, abbreviated or written
+    in full, whatever its case; answers None for everything else.
+    Raises TypeError if handed anything that is not a string instance.
+    No I/O of any kind.
+    """
+    if not isinstance(word, str):
+        raise TypeError(_NOT_TEXT)
+    folded = word.strip().lower()
+    if not folded:
+        return None
+    place = 0
+    for short, whole in _MONTH_NAMES:
+        place = place + 1
+        if folded == short or folded == whole:
+            if place < 10:
+                return f"0{place}"
+            return f"{place}"
+    return None
+
+
+def _textual_fields(body: str) -> "tuple[str, str, str] | None":
+    """The three fields of a date written with a month NAME.
+
+    THE SEPARATOR IS ONE CHARACTER AND THE SAME ONE BOTH TIMES -- a
+    space or a hyphen -- because `17 Mar-2024` is not a shape anybody
+    writes, and admitting it would let this member reach for spellings
+    the next member is meant to have. A comma may follow the middle
+    field, which is how `Mar 17, 2024` is written, and it is removed
+    before the fields are read.
+
+    Guarantees: accepts a string; returns the first field, the middle
+    field and the last field exactly as written, or None where the text
+    is not this grammar. Raises TypeError if handed anything that is
+    not a string instance. No I/O of any kind.
+    """
+    if not isinstance(body, str):
+        raise TypeError(_NOT_TEXT)
+    for mark in (" ", "-"):
+        marks: list[int] = []
+        place = 0
+        for character in body:
+            if character == mark:
+                marks = marks + [place]
+            place = place + 1
+        if len(marks) != 2:
+            continue
+        first = body[0 : marks[0]]
+        middle = body[marks[0] + 1 : marks[1]]
+        last = body[marks[1] + 1 :]
+        if middle[len(middle) - 1 : len(middle)] == ",":
+            middle = middle[0 : len(middle) - 1]
+        if first and middle and last:
+            return first, middle, last
+    return None
+
+
 def _parse_clock(text: str) -> "str | None":
     """Return 'HH:MM:SS' for a time of day, or None.
 
@@ -1371,6 +1458,32 @@ def parse_datetime(text: str, format_name: str) -> "tuple[str, str] | None":
         if len(body) != 8 or not _all_ascii_digits(body):
             return None
         canonical = _canonical_date(body[0:4], body[4:6], body[6:8])
+        if canonical is None:
+            return None
+        return canonical, ""
+    if (
+        format_name == "textual-day-first-date"
+        or format_name == "textual-month-first-date"
+    ):
+        # A DAY, A MONTH NAME AND A FOUR-FIGURE YEAR, in the order the
+        # member names (plan P4-D8). The name is what makes this pair
+        # unambiguous where the slashed pair is not: no evidence and no
+        # setting is consulted, because `Mar` cannot be a day.
+        fields = _textual_fields(body)
+        if fields is None:
+            return None
+        first, middle, last = fields
+        if len(last) != 4 or not _all_ascii_digits(last):
+            return None
+        if format_name == "textual-day-first-date":
+            day = _padded_field(first)
+            month = month_of_name(middle)
+        else:
+            month = month_of_name(first)
+            day = _padded_field(middle)
+        if day is None or month is None:
+            return None
+        canonical = _canonical_date(last, month, day)
         if canonical is None:
             return None
         return canonical, ""

@@ -997,9 +997,10 @@ contract:
    becoming an argument:
 
    `iso-date`, `iso-datetime`, `compact-date`, `month-first-date`,
-   `day-first-date`, `year-quarter`, `slashed-iso-date`, `iso-month`,
-   `iso-mixed`, `month-first-datetime`, `day-first-datetime` — the
-   eleven `format` members — and `day-first`, `month-first`, the two
+   `day-first-date`, `textual-day-first-date`,
+   `textual-month-first-date`, `year-quarter`, `slashed-iso-date`,
+   `iso-month`, `iso-mixed`, `month-first-datetime`,
+   `day-first-datetime` — the thirteen `format` members — and `day-first`, `month-first`, the two
    reading names the slashed-date remark needs. No other string is a
    word of this class.
 
@@ -1153,12 +1154,14 @@ examples is closed:
 | `compact-date` | `20240317` |
 | `month-first-date` | `03/17/2024 (month first)` |
 | `day-first-date` | `17/03/2024 (day first)` |
+| `textual-day-first-date` | `17 Mar 2024` |
+| `textual-month-first-date` | `Mar 17, 2024` |
 | `year-quarter` | `2024-Q1` |
 
 A format name with no row of its own is written out as itself, so
 `slashed-iso-date`, `iso-month`, `iso-mixed`, `month-first-datetime`
 and `day-first-datetime` render as their own wire spellings. The
-rendering is therefore fixed for all eleven members and two
+rendering is therefore fixed for all thirteen members and two
 implementations cannot diverge, but the five that fall through the
 table read badly ("are dates written as slashed-iso-date"), and an
 example for each of them should be fixed and added to this table.
@@ -2737,6 +2740,8 @@ requires:
 | `iso-date` | `YYYY-MM-DD`: a four-digit year, two-digit month and day, hyphen-delimited, exactly ten characters | `date` |
 | `month-first-date` | a slashed month-first date: a one- or two-digit month, a one- or two-digit day, a four-digit year, slash-delimited | `date` |
 | `day-first-date` | a slashed day-first date: a one- or two-digit day, a one- or two-digit month, a four-digit year, slash-delimited | `date` |
+| `textual-day-first-date` | a one- or two-digit day, a month NAME, a four-digit year, delimited by a space or a hyphen — the same one both times | `date` |
+| `textual-month-first-date` | a month NAME, a one- or two-digit day with an optional trailing comma, a four-digit year, delimited by a space or a hyphen — the same one both times | `date` |
 | `compact-date` | `YYYYMMDD`: exactly eight digits and nothing else | `date` |
 | `slashed-iso-date` | `YYYY/MM/DD`, fields padded | `date` |
 | `iso-month` | `YYYY-MM` | `month` |
@@ -6007,7 +6012,7 @@ reaches it with nothing to dispose.
 | `date_percentiles` interior rungs | APPROXIMATED — the window is G12.4 |
 | `resolution`, `time_precision`, `subsecond_digits`, `utc_offsets`, `earliest_utc_offset`, `latest_utc_offset` | EXACT-OBSERVABLE, outside the withheld-offset corner below |
 | `datetimes_read_at` | EXACT-OBSERVABLE outside that corner — derived from the offset diversity present in the cells, so it is recomputable from the written twin and must be checked that way. A dispatch assertion cannot detect a twin that reprofiles from `utc` to `local` because one invented rare offset changed the diversity while the pooled offset map and the endpoints still matched |
-| `format` | REPORT-ONLY — it names the real file's parser family across all eleven members, and owner decision 5 chooses ISO twin syntax at the recorded precision, not the source's lexical family (residual R-P2-7) |
+| `format` | REPORT-ONLY — it names the real file's parser family across all thirteen members, and owner decision 5 chooses ISO twin syntax at the recorded precision, not the source's lexical family (residual R-P2-7) |
 | `resolution_mix` | REPORT-ONLY — the twin writes every parsed cell at the column's finest recorded precision, exactly as the datetime rule writes every column, and the report names the recorded mix as not reproduced, per column, every run (residual R-P4-12) |
 | `n_unparsed` | EXACT-OBSERVABLE as counted neutral stand-ins, explicitly OUTSIDE the parsed-value representation obligation |
 | `n_distinct`, `n_distinct_folded` | APPROXIMATED — the envelope is G12.5, and it is stated there that it need not contain the published count |
@@ -7219,7 +7224,7 @@ never edited to change what it requires, and a description is governed
 by exactly one version's documents.
 
 **13.35 Inherited invariants keep their exact identifiers.** `D1` binds
-eleven formats rather than six and is still `D1`. This is not a style
+thirteen formats rather than six and is still `D1`. This is not a style
 preference: the sealed generation method, the validation method and the
 test suite cite these by name, and a document that renames them
 silently breaks every citation pointing at it. New checkable rules join
