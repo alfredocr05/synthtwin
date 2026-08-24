@@ -1673,6 +1673,64 @@ Opened by this plan, each a limit accepted rather than work forgotten:
   document that governs nothing shipped is a surface whose agreement
   is luck rather than design, and the next fact a version re-disposes
   will meet it again.
+- **R-P4-28** (opened by amendment A-P4-34, 2026-08-24, at the second
+  adversarial read). THE FRACTION CENSUS IS NOT ALWAYS MET EITHER, and
+  it was not this landing that made it so. A column of eleven padded
+  cells beside forty-four written to three figures after the point
+  publishes `fraction_widths: {"3": 44}` and the twin writes twenty-two
+  of them at one figure. The same shortfall appears with the padded
+  cells replaced by plain ones, so no padding is involved: it is
+  `_width_places` declining to place a width whose whole value group
+  will not fit, which P4-D4.5 chose deliberately and A-P4-15 records.
+  What is new is only that the second read found a shape where the
+  choice is visible. It is named here so that the next reader meets it
+  rather than rediscovering it.
+- **R-P4-27** (opened by amendment A-P4-34, 2026-08-24; RESTATED at
+  the third adversarial read, which showed the first wording was
+  wrong). THE VALUE STAGE DOES NOT KNOW WHAT FIELDS THE CENSUS ASKS
+  FOR. It was first written here as though the profile could ask for
+  facts that cannot hold together. It cannot, and saying so blamed the
+  description for the tool's own limit: the source column is a
+  standing proof that every fact it publishes is satisfiable, because
+  the source column satisfied them.
+
+  What is true is narrower and worse. The value stage of G5 runs
+  first, draws from the ladder alone, and reads neither census. The
+  values it draws may therefore be unable to wear the fields the census
+  names, even where the source's own values could. Eleven `+1`, eleven
+  `-99` and eleven `-02` publish one field of two figures and three
+  spelling styles; the source wears them by putting the padding on
+  `-02`, whose figure count is one. The twin draws `-33` in that
+  stratum instead, and no arrangement of the published styles fits: the
+  leading-plus style can go only to a value that is not negative, and
+  the only such value left needs the plus. The twin writes a
+  three-figure field and reports the miss.
+
+  A column whose cells are ALL padded to one field is untouched,
+  because every value in it came from a cell of that field -- that is
+  every fixed-width code column, which is what the decision was raised
+  for. ONE named field is not by itself enough: where the padded cells
+  are a minority holding a range of their own -- forty four-figure
+  codes below a thousand beside fifty-five plain four-figure numbers
+  above it -- the ladder is built over the whole column and too few
+  drawn values are narrow enough to fill the field.
+
+  Closing this means letting the value stage see what fields the
+  census asks for, which reaches into the stage P4-D7 deliberately
+  left alone.
+- **R-P4-26** (opened by amendment A-P4-34, 2026-08-24). NEITHER WIDTH
+  CENSUS IS DISCLOSED IN PLAIN LANGUAGE. The profile publishes
+  `fraction_widths` and now `pad_widths`, the twin honours both, and
+  the twin's report names either one the twin could not reach. What no
+  surface says, in words, is that a column of five-figure codes WAS
+  read as five figures wide and that the twin keeps it. A person
+  reading the plain-language summary beside their profile is told
+  nothing about how wide that column was read to be, and finds out
+  that the twin preserves the width only by measuring the twin. This is a
+  disclosure gap and not a fidelity one -- the fact is published,
+  honoured and checked -- so it is recorded rather than fixed inside a
+  landing about the construction. Both censuses should be named
+  together when it is.
 - **R-P4-23 — CLOSED by amendment A-P4-33** (2026-08-22). The wire is
   version 6 and the documents say so. What follows is the entry as it
   stood, kept because a residual that is struck rather than deleted is
@@ -2528,6 +2586,78 @@ contract disagree the contract is right unless the plan says
 otherwise, and the disagreement is recorded rather than settled by
 whichever is convenient. Every landing keeps the suite green, the
 scans clean and the seal current.
+
+### P4-D7 The padded-field width fact
+
+The numeric styles machinery gains its second census, carried BESIDE
+the styles block for the reason A-P4-5 gives for the first: among a
+column's `leading_zero` cells, the count sharing each field width — the
+figures written before any point, the sign not counted —
+floor-governed with a pooled remainder like every styles fact.
+
+**What it is for.** `numeric_styles` can say that two hundred and forty
+cells began with a redundant zero. It cannot say whether the field was
+five figures wide or nine, so a five-figure procedure code and a
+nine-figure record number are the same fact to it. A twin honouring
+that map exactly therefore wrote codes at widths the source never used
+— and honoured every published fact while doing it, so no report said
+a word. That is the shape of defect this phase exists to close:
+principle 5 says a column is handled correctly or declined with an
+explanation, and a column written at the wrong width was neither.
+
+**How the twin meets it, and why this is the simpler of the two width
+rules.** A named width is honoured by PADDING and never by moving the
+value. `000123` and `123` read back as the same number, so unlike the
+fraction census this one can spend no rung, no endpoint and no
+statistic to reach a width, and needs none of P4-D4.5's guards against
+doing so. Each value's cells take one width, by the same
+largest-remaining-quota walk that assigns styles and fraction widths,
+widths taken largest first against the values needing the most
+figures; a width narrower than a value's own figures is never taken,
+because writing it would lose figures the value needs and that would
+move the value. Cells the census does not reach are written at their
+own value's width, which is the pooled remainder's rule unchanged.
+
+**What a named width costs, stated here rather than discovered.**
+Every order of the leading-zero family writes one more figure, so at a
+named width a value has exactly one spelling and the family is spent.
+Where the twin is short of identities it may no longer buy one with a
+zero on a pinned cell. Raw `n_distinct` then falls to its own
+two-sided envelope under the authorization owner decision 11 already
+carries — "only where even those cannot supply" — and the report
+prints the shortfall beside the published count. THIS RAISES nothing
+and LOWERS nothing that was not already authorized: it is the case
+that authorization was written for, reached by a new route. The trade
+is stated because it is a real one, and it is decided in favour of the
+width: a distinctness shortfall is reported and costs a person nothing
+they were relying on, while a code written a figure too wide breaks a
+width check, a fixed-width slice or a join, silently, on the one kind
+of column a person is least likely to re-measure.
+
+**THE BOUND, STATED RATHER THAN DISCOVERED.** A field width is a fact
+about SPELLING; which values can wear it is a fact about MAGNITUDE.
+The two are published separately -- the census here, the distribution
+in the ladder -- and on a column where they disagree the twin cannot
+meet both. A value of six figures cannot be written in a field of
+five, however the walk is arranged, so a description publishing widths
+five and six beside a distribution that yields mostly six-figure
+values leaves cells the census cannot place.
+
+Where that happens the twin does the least-wrong thing and says so: a
+cell the quotas cannot hold takes the narrowest PUBLISHED width its
+value can still wear, over that width's count, so that a person
+checking the length of a code never meets a width their real column
+has nowhere; and where no published width can hold the value at all,
+the cell is written at its own value's width and `pad_widths` is
+reported MISSED with the published count beside the achieved one.
+
+A column of ONE width -- which is what a fixed-width code column is,
+and the case this decision was raised for -- has no such disagreement
+and is met exactly.
+
+**Disposition: EXACT-OBSERVABLE**, against a recount of the twin's own
+finished cells, exactly as the fraction census is, and reported rather
+than met wherever the paragraph above bites.
 
 ## Acceptance criteria
 
@@ -3551,3 +3681,198 @@ be discovered.
 
   The five plan reviews are in `docs/plans/reviews/` as
   `phase-4-plan-review-round-1.md` through `-round-5.md`.
+
+
+## Amendment A-P4-34 — the census of padded field widths is added to version 6
+
+**Raised by:** the owner's sequence of 2026-08-24, item 2 — twins of
+zero-padded code columns came out at the wrong width.
+
+**What was found.** A column of two hundred and forty six-figure codes
+published `numeric_styles: {"leading_zero": 240}` and nothing else
+about their shape. The twin wrote fields two, three, four and five
+figures wide, the quality report recorded no missed obligation, and
+both were correct: no published fact said the width, so none could be
+missed. The same held for a five-figure procedure code, for a record
+number behind an affix, and for any zip code whose leading zero
+matters. `--identifier COLUMN` already produced the right widths, by
+publishing `min_length` and `max_length` — but nothing told a person
+they needed it, and a twin that is silently wrong is worse than one
+that refuses.
+
+**What changed.** Version 6 gains `pad_widths`, a sibling of
+`numeric_styles` on `count`, `continuous` and `affixed_number`, stated
+in full at contract section 7.8 (C6-27b to C6-30b) with producer
+obligation PW-P. The decision is P4-D7 above. The generator honours a
+named width when it writes a padded cell; the report recounts the
+census on the finished cells and names any width the twin did not
+reach; and both ends of G12.8's spelling envelope now read the census,
+because a named width spends the leading-zero family.
+
+**Why it is version 6 and not version 7.** Version 6 has not been
+released. Phase 3 closed with its release NOT executed — there is no
+tag and nothing is published — and the version 6 wire flip landed on
+this same unreleased branch. No version 6 document exists outside this
+repository, so the key is folded into version 6 rather than opening a
+version nobody would ever read. Had version 6 shipped, this would have
+been version 7 and the loader would have had to read both.
+
+**THIS RAISES** the obligation on a padded column: a fact that was
+unpublished and unmeasurable is now published, honoured and recounted.
+**THIS LOWERS** nothing. Raw `n_distinct` reaching its two-sided
+envelope on a column whose widths are named is the case owner decision
+11's authorization already names, and the report prints both ends of
+that envelope on every run.
+
+**The first adversarial read, and the eight things it found.** The
+landing was REJECTED at round 1 and every item was worked.
+
+1. *The width walk reversed a census it could have met* (blocking).
+   Widths were taken widest-first, so a two-cell group took a
+   three-quota and left the three-cell group nowhere to go. The walk is
+   now by GROUP SIZE, largest first, each taking the tightest width
+   that holds it — and it is named as a heuristic, because placing
+   groups into quotas exactly is the shape of problem packing bins is.
+2. *The distinctness ceiling was not an upper bound* (blocking). The
+   padded cells were folded into the plain bucket, but `5` and `05` are
+   two spellings of one value, so a conforming twin sat outside its own
+   bound and was reported MISSED — P3-V7-F4's defect by a new route.
+   The padded cells now take a bucket of their own.
+3. *The style exchange split what the stratum walk had joined*
+   (serious). Taking SOME of a value's cells left that value wearing
+   two spellings. The exchange was rebuilt around the census's own
+   demand — narrow fields first, each filled from cells whose values
+   can wear them — which removes the arbitrary splitting the finding
+   was about. The second read then showed that splitting a value is
+   sometimes REQUIRED rather than merely tolerable, and that half of
+   the repair was replaced again; see the round-2 record below.
+4. *Refusals about the padded census cited the fraction census's
+   invariant* (minor). P5b, P6b and P7b are now named, and each has a
+   description that must be refused in the loader battery.
+5. *The normative generation method was never amended* (blocking) —
+   and NOT ONLY FOR THIS CENSUS. `fraction_widths` was never in G5.1's
+   published inputs either, so an independent implementer working from
+   the method alone had been writing a different column since P4-D4.5.
+   G5.1, G6.3 and G12.8 now carry both censuses. This landing repaired
+   a hole it did not make, because leaving it would have left the
+   method wrong about two facts instead of one.
+6. *Widths 0 and 1 were admitted and are impossible* (serious). A
+   padded cell writes at least one zero in front of at least one
+   figure, so its narrowest field is two. The loader refused what the
+   generator would then refuse — a document accepted at one end of the
+   tool and impossible at the other. C6-29b now fixes the floor at two.
+7. *The contract's closed inventories were stale* (serious): the key
+   counts, the role matrix's row and mark totals, the affixed
+   confinement, the disclosure inventory and the reserved-token count.
+   All corrected.
+8. *A witness accepted either verdict where it now has one* (test
+   weakening), and the landing's own test file was untracked. Both
+   fixed; the named-width witness asserts HELD exactly.
+
+**The second adversarial read, and the eight things it found.** The
+landing was REJECTED again at round 2. Every item was worked.
+
+1. *One value may need SEVERAL widths, and the walk forbade it*
+   (blocking). Eleven cells `01`, eleven `001` and eleven `0001` are
+   one number written three ways, and a description publishing three
+   different spellings because of it. The walk held each value to a
+   single width, so all thirty-three cells collapsed onto `01`: no
+   published count met, and ONE spelling where three were published.
+   The unit of the walk is now the CELL. The rule the round-1 repair
+   was built on — one width per value, to keep a value from wearing
+   two spellings — was simply wrong, and the source column is what
+   proves it.
+2. *The padded exchange ran after the fraction widths were assigned*
+   (blocking). `_width_places` gives a fraction width to each cell it
+   finds wearing `decimal`; the exchange then moved styles underneath
+   those assignments. The exchange now runs FIRST. (The scenario the
+   finding named also reports a fraction-width miss with NO padded cell
+   in the column at all, so that shortfall is a standing limit of
+   `_width_places` rather than anything this landing did; it is
+   recorded as residual R-P4-28 rather than claimed fixed.)
+3. *The amendment described a repair the code no longer had* (serious).
+   Item 3 of the round-1 record has been corrected above rather than
+   left to read as though the whole-group exchange were still there.
+4. *The twin's own report used the pre-amendment supply formula*
+   (serious): it counted every padded cell as its own identity while
+   the validator and the method counted a named width as one. Two
+   surfaces disagreeing about one formula is the defect a shared
+   formula exists to prevent. `_numeric_supply` now reads the census.
+5. *The method did not fix the walk to the byte* (serious). "Largest
+   group first" and "smallest remaining count" left both tie rules
+   unstated, so two implementations meeting the same census could write
+   different files. G6.3 now states the order, the tie rules, the
+   cell-level unit, the fallback and the exchange's own order.
+6. *The disclosure inventory called it three maps* (serious) and priced
+   the padding census nowhere, though a 240-row code column discloses
+   that all 240 cells share one field width. Now four maps.
+7. *The affixed role's prose and disposition row omitted it* (serious),
+   so an implementer reading the role's own section owed no padded-core
+   recount. Both now name it.
+8. *Section 14.1's compact matrix inventory was still stale* (minor):
+   55 rows and 107 marks against the matrix's own 56 and 110.
+
+**The third adversarial read, and where the review budget ran out.**
+REJECTED again, seven items, all worked.
+
+1. *The cell walk split values further than the census forced*
+   (blocking). Seventeen `01`, seventeen `002` and eleven `3` came out
+   wearing six spellings where three were published. Round 1 said never
+   split a value; round 2 proved a value sometimes MUST be split; the
+   rule that survives both is that a field is filled from WHOLE value
+   groups while whole groups still fit it, and one group is divided
+   only to finish a count nothing else can.
+2. *The report still collapsed a value's widths* (serious). Its supply
+   keyed groups by value and style, so three named widths of one value
+   read as one identity while the validator read three. The field width
+   is now part of the key, and the two surfaces agree.
+3. *G6.3 stated both that a pinned cell is never a partner and that it
+   may give the padded style up* (serious) — two byte outcomes from one
+   method. Resolved in favour of the wider rule and for a reason that
+   makes the special case disappear: a style carries no value, `1` and
+   `01` are the same number, so a pinned cell may both give the padded
+   style up and receive it. The only guards that bind are the ones the
+   styles themselves impose.
+4. *Residual R-P4-27 was wrong, not merely thin* (serious). It said the
+   profile could ask for facts that cannot hold together. It cannot,
+   and saying so blamed the description for the tool's own limit: the
+   source column is a standing proof that what it publishes is
+   satisfiable. The residual is restated — the value stage draws from
+   the ladder alone and reads neither census, so it may draw values
+   that cannot wear the published fields even where the source's own
+   values could.
+5. *Two width censuses each possible, and not both* (serious). The
+   pooled remainder was checked against each census alone. A column
+   pooling thirty-five cells whose fraction census accounts for ten and
+   whose empty padding census accounts for none leaves twenty-five for
+   two forms that can hold twenty. Invariant **P8** asks the question
+   once, over the pool the two censuses leave and the forms actually
+   left to hold it.
+6. *The affixed role's own added-key count still said twenty-two*
+   (serious), against a table of twenty-three; and the compact key
+   grammar named only the fraction census. Both corrected.
+7. *This landing's parity test checked neither parity nor more than one
+   width* (test weakening) — a three-width column passed it while the
+   two surfaces disagreed. It now walks a real column and puts the
+   report's own number inside the validator's bracket.
+
+**WHAT IS NOT REVIEWED, said plainly.** The owner's budget for this
+phase is three adversarial reads per landing (A-P4-30) and all three
+are spent. The seven repairs above were made AFTER the last read, and
+nothing adversarial has looked at them. They rest on the test suite,
+on every gate this repository runs, and on a generated exercise of
+many awkward column shapes. That is not the same thing. Each earlier
+round found defects in what the round before it had repaired — twice,
+defects the repairs themselves had introduced — so the honest
+expectation is that some of these seven are wrong as well. A fourth
+read is the obvious next step whenever the owner wants one.
+
+**What it cost, stated plainly.** The frozen generation reference
+vectors gained the key and were rebuilt through their registered
+generators, with the manifest digests re-recorded; the committed CELLS
+did not move, which is the property that mattered. One corner-parity
+witness had its padded cells named by the census and so no longer
+showed the envelope opening upward, so a second witness with its
+widths scattered below the floor was added beside it and carries that
+property now — P3-V7-F4's regression is under test at both ends of the
+envelope rather than one.

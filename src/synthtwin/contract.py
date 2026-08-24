@@ -401,6 +401,7 @@ DATETIME_KEYS = (
 
 NUMERIC_KEYS = (
     "fraction_widths",
+    "pad_widths",
     "integer_valued",
     "mean",
     "n_left_out_of_statistics",
@@ -568,6 +569,7 @@ AFFIXED_REMARK_PARTS = (
 # map have to agree about which form they are talking about, and a
 # spelling repeated at two sites is a spelling one site can change.
 DECIMAL_STYLE = "decimal"
+LEADING_ZERO_STYLE = "leading_zero"
 
 DECLARATION_MATCHING = "exact_number_when_it_reads_as_one_else_spelling"
 
@@ -971,6 +973,23 @@ INVARIANTS = {
         "the cells counted by the figures they wrote after the point "
         "come to the cells that were written with a point"
     ),
+    "P5b": (
+        "the cells counted by the width of the field they wrote come "
+        "to the cells that were written with a redundant zero"
+    ),
+    "P6b": (
+        "every field width the census names was written by at least "
+        "the smallest group size"
+    ),
+    "P7b": (
+        "a field width narrower than two figures is a width no padded "
+        "cell can wear"
+    ),
+    "P8": (
+        "the cells held back from the forms map fit inside the forms "
+        "that map does not name, once both width censuses have said "
+        "how many of them they account for"
+    ),
 }
 
 
@@ -1282,6 +1301,7 @@ class NumericFacts:
     n_rows: int
     numeric_styles: "dict[str, int]"
     fraction_widths: "dict[str, int]"
+    pad_widths: "dict[str, int]"
 
 
 @dataclasses.dataclass(frozen=True)
@@ -4902,6 +4922,8 @@ def _numeric_facts(
         )
     styles = _numeric_styles(mapping, where, frame.floor, n_numeric)
     widths = _fraction_widths(mapping, where, frame.floor, styles)
+    padded = _padded_widths(mapping, where, frame.floor, styles)
+    _pool_holds_both(where, frame.floor, styles, widths, padded)
     return NumericFacts(
         percentiles=ladder,
         mean=mean,
@@ -4918,6 +4940,7 @@ def _numeric_facts(
         n_rows=echoed,
         numeric_styles=styles,
         fraction_widths=widths,
+        pad_widths=padded,
     )
 
 
@@ -5018,61 +5041,150 @@ def _fraction_widths(
 ) -> "dict[str, int]":
     """How many figures the cells written with a point wrote after it.
 
+    One of the two width censuses, and the rule they are both read
+    under is `_width_census`. Raises ProfileError for a wrong type, a
+    key that is not a canonical width, a named width below the floor,
+    and for each of the four sum cases that rule states.
+    """
+    return _width_census(
+        mapping,
+        "fraction_widths",
+        where,
+        floor,
+        styles,
+        DECIMAL_STYLE,
+        "written with a point",
+        "the cells counted by the figures they wrote after the point",
+        "P5",
+        "P5",
+        0,
+        "P5",
+        "a fraction may be written to no figures at all",
+    )
+
+
+def _padded_widths(
+    mapping: "dict[str, object]",
+    where: str,
+    floor: int,
+    styles: "dict[str, int]",
+) -> "dict[str, int]":
+    """How wide the cells written with a redundant zero wrote a field.
+
+    The second width census (P4-D7). A forms map counting two hundred
+    and forty `leading_zero` cells cannot say whether the field was
+    five figures wide or nine, so a twin honouring that map exactly
+    wrote fields of another width and no report could say so.
+
+    Raises ProfileError for a wrong type, a key that is not a canonical
+    width, a named width below the floor, and for each of the four sum
+    cases `_width_census` states.
+    """
+    return _width_census(
+        mapping,
+        "pad_widths",
+        where,
+        floor,
+        styles,
+        LEADING_ZERO_STYLE,
+        "written with a redundant zero",
+        "the cells counted by the width of the field they wrote",
+        "P5b",
+        "P6b",
+        2,
+        "P7b",
+        "a padded cell writes at least one zero in front of at least "
+        "one figure, so its narrowest field is two",
+    )
+
+
+def _width_census(
+    mapping: "dict[str, object]",
+    key: str,
+    where: str,
+    floor: int,
+    styles: "dict[str, int]",
+    style: str,
+    wrote: str,
+    counted: str,
+    sum_rule: str,
+    floor_rule: str,
+    least: int,
+    least_rule: str,
+    least_rule_says: str,
+) -> "dict[str, int]":
+    """The one reading both width censuses are checked under.
+
+    ONE RULE, ASKED TWICE, IN ONE PLACE. Two censuses of the same shape
+    with two copies of this arithmetic is the shape of defect this
+    repository has already paid for more than once: a rule that lives
+    in two places comes apart from itself, and the half nobody edited
+    is the half that stays wrong. The wording each census shows a
+    person differs, so the words are arguments; the arithmetic does
+    not, so it is written once.
+
     ITS SUM IS STATED OVER A NUMBER THAT MAY NOT EXIST, and that is the
     whole difficulty this reads through (plan amendments A-P4-5 and
-    A-P4-6). Where the floor named the decimal form, `numeric_styles`
-    carries a `decimal` key and the census sums to it exactly. Where
-    the floor POOLED that form, no published number holds the count of
-    decimal cells -- and an earlier reading concluded the sum obligation
-    then binds nothing, which would have admitted a census of a
-    thousand decimal cells in a column of a hundred. Three published
-    numbers bound it instead:
+    A-P4-6). Where the floor named the form, `numeric_styles` carries
+    its key and the census sums to it exactly. Where the floor POOLED
+    that form, no published number holds the count of its cells -- and
+    an earlier reading concluded the sum obligation then binds nothing,
+    which would have admitted a census of a thousand cells in a column
+    of a hundred. Three published numbers bound it instead:
 
     1. non-empty means a total of at least one;
     2. the total is strictly BELOW the floor, because a form is pooled
        only when its own count falls below it;
     3. the total is at most the pooled remainder of the forms map,
-       because the pooled decimal cells are a subset of that pool.
+       because the pooled cells of this form are a subset of that pool.
 
     The census may also be empty in the pooled case, which is what a
-    column with no decimal cell at all writes.
-
-    Raises ProfileError for a wrong type, a key that is not a canonical
-    width, a named width below the floor, and for each of the four
-    cases above.
+    column with no cell of the form at all writes.
     """
-    widths = _counts(mapping["fraction_widths"], "fraction_widths", where, 1)
+    widths = _counts(mapping[key], key, where, 1)
     for name in sorted(widths):
         if name == WITHHELD:
             continue
         if not _is_canonical_width(name):
             raise _out_of_range(
-                f"fraction_widths -> {name}",
+                f"{key} -> {name}",
                 where,
                 f"'{name}'",
                 "a whole number of figures written without padding",
             )
+        if int(name) < least:
+            # A WIDTH NO CELL OF THIS FORM CAN WEAR. The padded style
+            # writes at least one zero in front of at least one figure,
+            # so its narrowest field is two: a census naming width 0 or
+            # 1 describes cells no producer can have read and no twin
+            # can write, and admitting it left the generator refusing a
+            # width the loader had accepted.
+            raise _broken(
+                least_rule,
+                where,
+                f"the width '{name}' is named",
+                least_rule_says,
+            )
         if widths[name] < floor:
             raise _broken(
-                "P5",
+                floor_rule,
                 where,
                 f"the width '{name}' was written by {widths[name]} cells",
                 f"the smallest group size is {floor}",
             )
     total = _added(widths)
-    if DECIMAL_STYLE in styles:
-        if total != styles[DECIMAL_STYLE]:
+    if style in styles:
+        if total != styles[style]:
             raise _broken(
-                "P5",
+                sum_rule,
                 where,
-                f"the cells counted by the figures they wrote after the "
-                f"point come to {total}",
-                f"{styles[DECIMAL_STYLE]} cells were written with a point",
+                f"{counted} come to {total}",
+                f"{styles[style]} cells were {wrote}",
             )
         return widths
     # THE POOL'S CAPACITY IS CHECKED BEFORE THE EMPTY CASE AND NOT
     # AFTER IT. An empty census is a claim -- that NO cell of this
-    # column was written with a point -- and it is as checkable as any
+    # column was written in this form -- and it is as checkable as any
     # other: the pool then holds five forms rather than six, so a
     # column whose forms map pools fifty-one cells at a floor of eleven
     # is impossible with an empty census and was accepted. Returning
@@ -5082,10 +5194,10 @@ def _fraction_widths(
     room = 5 * (floor - 1)
     if pooled - total > room:
         raise _broken(
-            "P5",
+            sum_rule,
             where,
             f"{total} of the {pooled} cells held back from the forms "
-            "map are counted as written with a point",
+            f"map are counted as {wrote}",
             f"the {pooled - total} others would have to share five "
             f"forms holding at most {floor - 1} cells each",
         )
@@ -5093,20 +5205,84 @@ def _fraction_widths(
         return widths
     if total >= floor:
         raise _broken(
-            "P5",
+            sum_rule,
             where,
-            f"{total} cells are counted as written with a point",
+            f"{total} cells are counted as {wrote}",
             "no such form is named at all, so every one of them was "
             f"held back and there are fewer than {floor}",
         )
     if total > pooled:
         raise _broken(
-            "P5",
+            sum_rule,
             where,
-            f"{total} cells are counted as written with a point",
+            f"{total} cells are counted as {wrote}",
             f"{pooled} cells in all were held back from the forms map",
         )
     return widths
+
+
+def _pool_holds_both(
+    where: str,
+    floor: int,
+    styles: "dict[str, int]",
+    widths: "dict[str, int]",
+    padded: "dict[str, int]",
+) -> None:
+    """The pooled remainder, read against BOTH censuses at once (P8).
+
+    EACH CENSUS CHECKED THE POOL ALONE, AND TWO TRUE STATEMENTS MADE A
+    FALSE ONE. C6-30's fourth condition asks whether the cells the
+    forms map held back can be shared out among the forms it does not
+    name, each holding fewer than the floor. It asks that of the
+    fraction census on its own, and then of the padded census on its
+    own, and a document can pass both while passing neither together:
+    each census says how many of the pooled cells belong to ITS form,
+    so what is left over has fewer forms to hide in than either check
+    supposed. A column pooling thirty-five cells, whose fraction census
+    accounts for ten of them and whose padded census -- being empty --
+    accounts for none, leaves twenty-five cells for the two exponent
+    forms alone, which at a floor of eleven can hold at most twenty.
+    The document is impossible and both single checks admitted it.
+
+    This is that condition asked once, over the pool the two censuses
+    leave behind and the forms that are actually left to hold it.
+
+    Raises ProfileError naming P8; returns None when the counts hold.
+    """
+    if WITHHELD not in styles:
+        return
+    pooled = styles[WITHHELD]
+    named = 0
+    for style in styles:
+        if style == WITHHELD:
+            continue
+        named = named + 1
+    spoken = 0
+    hidden = 0
+    for style, census in (
+        (DECIMAL_STYLE, widths),
+        (LEADING_ZERO_STYLE, padded),
+    ):
+        if style in styles:
+            continue
+        # This form is pooled, so its census speaks for the pooled
+        # cells of that form -- and an EMPTY census speaks too: it says
+        # there are none.
+        hidden = hidden + 1
+        spoken = spoken + _added(census)
+    # SIX FORMS EXIST. The map names some; the two censuses speak for
+    # up to two more; what is left is what the remainder has to hide
+    # in, and each of those holds fewer than the floor.
+    left = 6 - named - hidden
+    room = max(0, left) * (floor - 1)
+    if pooled - spoken > room:
+        raise _broken(
+            "P8",
+            where,
+            f"{pooled - spoken} of the cells held back from the forms "
+            "map are accounted for by neither width census",
+            f"the forms left to hold them can carry at most {room}",
+        )
 
 
 def _is_canonical_width(name: str) -> bool:

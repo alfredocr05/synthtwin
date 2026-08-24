@@ -1980,6 +1980,7 @@ def _styled_number(
     order: int,
     whole_column: bool,
     width: int = -1,
+    pad: int = -1,
 ) -> str:
     """One value written in one of the six permitted styles (G6.1, G6.3).
 
@@ -1997,7 +1998,16 @@ def _styled_number(
     if style == "plain":
         return _point_free(value, canonical)
     if style == "leading_zero":
-        return _with_zeros(_point_free(value, canonical), max(order, 1))
+        plain = _point_free(value, canonical)
+        # A PUBLISHED FIELD WIDTH OUTRANKS THE ORDER, because the order
+        # is a count of zeros and the width is the fact a person sees.
+        # `pad` of -1 is "no census reached this cell", which is the
+        # pooled remainder's rule and the behaviour of every profile
+        # written before the census existed.
+        if pad >= 0:
+            carried = len(plain) - 1 if plain[:1] == "-" else len(plain)
+            return _with_zeros(plain, max(order, pad - carried))
+        return _with_zeros(plain, max(order, 1))
     if style == "leading_plus":
         plain = _point_free(value, canonical)
         if plain[0] == "-":
@@ -2397,6 +2407,302 @@ def _width_places(
         for index in members:
             places[index] = whole
     return _some_fraction_survives(places, styles, holds, whole_column)
+
+
+def _pad_need(value: float, whole_column: bool) -> int:
+    """How many figures this value's own point-free spelling writes.
+
+    The sign is not a figure, for the reason `parsing.pad_width` gives:
+    the width a person sees in a code column is the field.
+    """
+    plain = _point_free(value, _canonical_number(value, whole_column))
+    return len(plain) - 1 if plain[:1] == "-" else len(plain)
+
+
+def _padded_style_swaps(
+    styles: "list[str]",
+    holds: "list[float]",
+    widths: "dict[str, int]",
+    pinned: "list[int]",
+    whole_column: bool,
+) -> "list[str]":
+    """Move the padded style onto values a published field width can hold.
+
+    THE STYLE WALK CHOOSES CELLS AND THE CENSUS CHOOSES WIDTHS, and
+    before this pass the two never spoke. A description publishing
+    fifteen padded cells all two figures wide is met only by padding
+    fifteen SINGLE-FIGURE values: a two-figure value wearing a leading
+    zero is three figures wide, and no amount of padding makes it two.
+    The style walk, which knows nothing of the census, handed the style
+    to values needing two figures, so the twin wrote fourteen cells at
+    width three, missed a census it could have met, and the report
+    accused a twin whose description was perfectly satisfiable.
+
+    THE EXCHANGE IS BETWEEN TWO CELLS, so every published style count is
+    the same afterwards as before: one cell gives up `leading_zero` and
+    takes the partner's style, and the partner takes `leading_zero`.
+    Nothing is invented and no quota moves.
+
+    WHAT GUARDS IT. A pinned cell -- an endpoint or the zero stratum --
+    is never a partner, because those are exact-observable positions
+    the style walk placed deliberately. A partner must be able to WEAR
+    the padded style, which the whole-value test decides; and the cell
+    giving it up must be able to wear what it receives, which is the
+    same test wherever the partner's own style carries no point. A
+    value already fitting a published width is left alone, so a twin
+    that was already meeting the census is not stirred.
+
+    Guarantees: accepts the assigned styles, the drawn values, the
+    published census, the pinned positions and whether the column is
+    whole; returns one style per cell, a permutation of the styles
+    handed in. Determinism: every walk is over an ascending index
+    order. Raises nothing. No I/O of any kind.
+    """
+    quotas: dict[int, int] = {}
+    for key in sorted(widths):
+        if key == contract.WITHHELD:
+            continue
+        quotas[int(key)] = widths[key]
+    if not quotas:
+        return styles
+    moved = list(styles)
+
+    def need_of(index: int) -> int:
+        return _pad_need(holds[index], whole_column)
+
+    def receivable(index: int, other: str) -> bool:
+        """Whether the cell giving up the padded style can wear ``other``."""
+        if other == "leading_plus" and holds[index] < 0.0:
+            # There is no leading-plus spelling of a negative value, so
+            # this exchange would write a cell the method forbids.
+            return False
+        if other in _WHOLE_STYLES and not _carries_plainly(
+            holds[index], whole_column
+        ):
+            return False
+        return True
+
+    # Every cell that could WEAR the padded style but is not wearing it,
+    # in ascending index order so the partner chosen is the same on
+    # every run.
+    # A PINNED CELL IS NOT SPECIAL HERE, EITHER WAY ROUND, and that is
+    # the whole rule rather than an exception to one. What pins a cell
+    # is its VALUE -- it is a published endpoint or the zero stratum --
+    # and a style carries no value: `1` and `01` read back as the same
+    # number, so neither taking the padding off a pinned cell nor
+    # putting it on moves a published fact. Guarding pinned cells left
+    # the census unmeetable on a real column whose ONLY value narrow
+    # enough for the published field was the endpoint: eleven `+1`,
+    # eleven `-99` and eleven `-02` publish one field of two figures,
+    # and the twin wrote three-figure fields because the one cell that
+    # could have worn it was refused.
+    eligible: "list[int]" = []
+    for index in range(len(moved)):
+        if moved[index] == "leading_zero":
+            continue
+        if not _carries_plainly(holds[index], whole_column):
+            continue
+        eligible = eligible + [index]
+
+    # THE CENSUS ASKS FOR WIDTHS, NOT FOR A WIDTH, and this walk is the
+    # difference. An earlier pass asked only whether a value fitted the
+    # WIDEST published field, which on a column publishing several
+    # widths is barely a question at all: a six-figure value "fits" a
+    # width of eight and is still hopeless for the width of three that
+    # the census also asks for. So the narrow widths went unfilled, the
+    # cells that could have filled them sat in another style, and the
+    # twin missed most of a census it could largely have met.
+    #
+    # Narrow fields first, because they are the hard ones: a value that
+    # can wear a field of three can wear every wider field too, so
+    # spending it on a wide field is what makes a narrow one
+    # unfillable.
+    reserved: "dict[int, int]" = {}
+    spent: "dict[int, int]" = {}
+    for width in sorted(quotas):
+        owing = quotas[width]
+        for index in range(len(moved)):
+            if owing < 1:
+                break
+            if moved[index] != "leading_zero" or index in reserved:
+                continue
+            if need_of(index) >= width:
+                continue
+            reserved[index] = width
+            owing = owing - 1
+        for index in eligible:
+            if owing < 1:
+                break
+            if index in spent or moved[index] == "leading_zero":
+                continue
+            if need_of(index) >= width:
+                continue
+            # The cell that gives the style up is one THIS width cannot
+            # hold and no narrower width has claimed, so the exchange
+            # never takes back a field already filled.
+            partner = -1
+            for other in range(len(moved)):
+                if moved[other] != "leading_zero" or other in reserved:
+                    continue
+                # A PINNED CELL MAY GIVE THE STYLE UP, though it may
+                # never be handed it. What pins a cell is its VALUE --
+                # it is a published endpoint or the zero stratum -- and
+                # a style carries no value: `27` and `027` read back as
+                # the same number, so taking the padding off the
+                # maximum moves no published fact. Refusing it left the
+                # census unmeetable on every column whose widest value
+                # was also its endpoint, which is most of them.
+                if need_of(other) < width:
+                    continue
+                if not receivable(other, moved[index]):
+                    continue
+                partner = other
+                break
+            if partner < 0:
+                break
+            moved[partner] = moved[index]
+            moved[index] = "leading_zero"
+            spent[index] = 1
+            reserved[index] = width
+            owing = owing - 1
+    return moved
+
+
+def _pad_places(
+    widths: "dict[str, int]",
+    styles: "list[str]",
+    holds: "list[float]",
+    whole_column: bool,
+) -> "list[int]":
+    """Which field width each padded cell is written at, or -1 for none.
+
+    THE SIMPLER OF THE TWO WIDTH WALKS, and it is worth saying why it
+    is allowed to be. A fraction width MOVES THE VALUE: writing 9.53 at
+    one place makes it 9.5, so that walk has to protect the published
+    endpoints, the zero stratum and every pinned rung from being bought
+    with a width. Padding moves nothing -- `000123` and `123` read back
+    as the same number -- so no rung, no endpoint and no statistic is
+    at stake here, and the walk has only one published fact to keep
+    faith with besides the census itself.
+
+    THAT ONE FACT IS THE COUNT OF DIFFERENT VALUES. A value written at
+    two field widths is TWO spellings of one number, so a width is
+    taken only where it holds a value's WHOLE group of cells -- the
+    same rule the fraction walk keeps, for the same reason, and the
+    reason the identity walk downstream is left its own room.
+
+    A WIDTH NARROWER THAN THE VALUE IS NOT A WIDTH. Nine figures cannot
+    be written in a field of five without losing figures the value
+    needs, and losing them would move the value -- which is the one
+    thing padding must never do. Such a pairing is skipped, and the
+    cells fall to the pooled remainder's rule.
+
+    SERVED NARROWEST FIRST, CELL BY CELL, IN INDEX ORDER. A value that
+    can wear a field of three can wear every wider field too, so a walk
+    that spends it on a wide field is the walk that leaves a narrow one
+    unfillable. Serving the narrow quotas first is what makes a census
+    of several widths reachable at all.
+
+    IT IS A WALK AND NOT AN OPTIMUM, and that is stated rather than
+    implied: filling counted quotas from cells of differing capacities
+    is the shape of problem packing bins is, and no rule of this size
+    settles every case. What makes that safe is that a width the walk
+    cannot fill is RECOUNTED off the finished cells and named in the
+    twin's report by `_pad_notes`, rather than passed over in silence.
+
+    Guarantees: accepts the published census, the assigned styles, the
+    drawn values and whether the column is whole; returns one entry per
+    cell, either a published width or -1. Determinism: the answer
+    depends only on those inputs, and every walk is over a sorted
+    order. Raises nothing. No I/O of any kind.
+    """
+    quotas: dict[int, int] = {}
+    for key in sorted(widths):
+        if key == contract.WITHHELD:
+            continue
+        quotas[int(key)] = widths[key]
+    places = [-1 for _index in range(len(styles))]
+    if not quotas:
+        return places
+    # THE CELLS THIS WALK MAY PLACE, GROUPED BY THE VALUE THEY HOLD.
+    groups: "dict[float, list[int]]" = {}
+    seen: "list[float]" = []
+    for index in range(len(styles)):
+        if styles[index] != "leading_zero":
+            continue
+        value = holds[index]
+        if value in groups:
+            groups[value] = groups[value] + [index]
+            continue
+        groups[value] = [index]
+        seen = seen + [value]
+    # NARROW FIELDS FIRST, because a value that fits a field of three
+    # fits every wider one, so spending it on a wide field is what
+    # makes a narrow field unfillable.
+    #
+    # WHOLE VALUES FIRST WITHIN EACH FIELD, AND A VALUE IS SPLIT ONLY
+    # AS FAR AS THE CENSUS FORCES IT. Both halves of that sentence were
+    # learned from a defect. Holding every value to ONE field collapsed
+    # a column publishing `01`, `001` and `0001` -- one number written
+    # three ways -- onto a single spelling, meeting none of its three
+    # published counts. Splitting freely did the opposite: a column of
+    # seventeen `01`, seventeen `002` and eleven `3` came out wearing
+    # six spellings where three were published, because the walk cut
+    # values across fields it had no need to cut. So a field is filled
+    # from WHOLE value groups while whole groups still fit it, and one
+    # group is divided only to finish a count that nothing else can.
+    for width in sorted(quotas):
+        owing = quotas[width]
+        ranked: "list[tuple[int, float]]" = []
+        for value in seen:
+            waiting = 0
+            for index in groups[value]:
+                if places[index] < 0:
+                    waiting = waiting + 1
+            if waiting < 1 or _pad_need(value, whole_column) >= width:
+                continue
+            ranked = ranked + [(-waiting, value)]
+        for _size, value in sorted(ranked):
+            if owing < 1:
+                break
+            unplaced: "list[int]" = []
+            for index in groups[value]:
+                if places[index] < 0:
+                    unplaced = unplaced + [index]
+            if len(unplaced) > owing:
+                continue
+            for index in unplaced:
+                places[index] = width
+            owing = owing - len(unplaced)
+        # ...and then, and only then, one value is divided.
+        for _size, value in sorted(ranked):
+            if owing < 1:
+                break
+            for index in groups[value]:
+                if owing < 1:
+                    break
+                if places[index] >= 0:
+                    continue
+                places[index] = width
+                owing = owing - 1
+    # A cell no count could hold takes the narrowest PUBLISHED width
+    # its value can still wear, over that width's count rather than
+    # outside the census altogether. A cell left to its own value
+    # writes a field the census never named -- a seventh figure where
+    # the census names three and six -- so the twin would carry a field
+    # width the source column never had. Over-filling a published width
+    # is a miss the recount names; writing an unpublished width is a
+    # shape that was never there to begin with.
+    for index in range(len(styles)):
+        if styles[index] != "leading_zero" or places[index] >= 0:
+            continue
+        need = _pad_need(holds[index], whole_column)
+        for width in sorted(quotas):
+            if need >= width:
+                continue
+            places[index] = width
+            break
+    return places
 
 
 def _some_fraction_survives(
@@ -4976,6 +5282,23 @@ def _number_cells(
     styles = _style_strata(
         quotas, layout, values, facts.integer_valued, wanted, styles
     )
+    # THE PADDED EXCHANGE RUNS BEFORE ANY WIDTH IS ASSIGNED, and the
+    # order is the whole of the rule. `_width_places` assigns a
+    # FRACTION width to each cell it finds wearing `decimal`; the
+    # exchange then moves styles between cells. Run the other way round
+    # those assignments end up on cells that are no longer decimal,
+    # while the cells that now are carry none -- a column publishing
+    # forty-four cells at three figures after the point kept twenty-two
+    # of them and wrote the rest at one, having met the padding census
+    # exactly. One census was bought with another. Choosing the styles
+    # first and the widths afterwards is what makes both reachable.
+    styles = _padded_style_swaps(
+        styles,
+        holds,
+        facts.pad_widths,
+        _pinned_cells(layout, values),
+        facts.integer_valued,
+    )
     widths = _width_places(
         facts.fraction_widths,
         styles,
@@ -4984,6 +5307,9 @@ def _number_cells(
         _segment_bounds(column, facts, layout, values),
         _published_ends(facts, values),
         facts.integer_valued,
+    )
+    pads = _pad_places(
+        facts.pad_widths, styles, holds, facts.integer_valued
     )
     base: list[str] = []
     for index in range(len(holds)):
@@ -4994,6 +5320,7 @@ def _number_cells(
                 1 if styles[index] == "leading_zero" else 0,
                 facts.integer_valued,
                 widths[index],
+                pads[index],
             )
         ]
     # HOW MANY IDENTITIES THE COLUMN IS SHORT BEFORE ANY ZERO IS SPENT.
@@ -5016,8 +5343,24 @@ def _number_cells(
         if (
             style != "plain"
             and owed > 0
+            and pads[index] < 0
             and parsing.folded(spelling) in identities
         ):
+            # A PUBLISHED FIELD WIDTH IS NOT SPENT ON AN IDENTITY, and
+            # the ratified text is what says which way this goes. Every
+            # order of the family writes ONE MORE FIGURE, so a column
+            # whose census pins the field at five has exactly one
+            # leading-zero spelling of each value and the family cannot
+            # supply a second without leaving the width. That is the
+            # case owner decision 11's authorization already names --
+            # raw distinctness falls to the two-sided envelope "only
+            # where even those cannot supply" -- so the shortfall is an
+            # authorized approximation the report prints, while a
+            # broken width would be a silent miss on the one fact a
+            # person reading a code column actually depends on: a
+            # width check, a slice, or a join against a five-figure
+            # code fails on a six-figure cell, and nothing said a word.
+            #
             # NO CEILING, BY OWNER DECISION 8. `0`, `00`, `000` and so
             # on supply as many different spellings of one value as a
             # description can ask for, and that unbounded supply is the
@@ -5045,6 +5388,7 @@ def _number_cells(
                     order,
                     facts.integer_valued,
                     widths[index],
+                    pads[index],
                 )
             owed = owed - 1
         identities[parsing.folded(spelling)] = 1
@@ -9450,6 +9794,7 @@ def generate(profile: contract.Profile, seed: int) -> Twin:
             + _extreme_notes(column, written)
             + _width_notes(column, written)
             + _fraction_notes(column, written)
+            + _pad_notes(column, written)
             + _whole_notes(column, written)
             + _magnitude_notes(column, written)
             + _style_notes(column, written)
@@ -9831,6 +10176,94 @@ def _fraction_notes(
                 "fraction_widths",
                 f"{published[width]} cell(s) written with {width} "
                 f"figure(s) after the point",
+                f"{found}",
+                sense,
+            )
+        ]
+    return notes
+
+
+def _pad_notes(
+    column: contract.ColumnBlock, written: "list[str]"
+) -> "list[Deviation]":
+    """Name a published field width the padded cells did not reach.
+
+    The census is EXACT-OBSERVABLE for the reason the fraction census
+    is: a person opens the twin, counts the figures each padded cell
+    writes, and gets the published census back. Where the twin cannot
+    pay -- because no remaining width holds a whole value's cells, or
+    because the value needs more figures than the width holds -- it
+    owes the reader a sentence rather than a silence.
+
+    THIS IS A RECOUNT, taken off the finished text with the same reader
+    the census itself used, so a width the writer intended and a width
+    the cell actually wears cannot come apart here.
+    """
+    facts = _quantitative_facts(column)
+    if facts is None:
+        return []
+    published: dict[int, int] = {}
+    for key in sorted(facts.pad_widths):
+        if key == contract.WITHHELD:
+            continue
+        published[int(key)] = facts.pad_widths[key]
+    if not published:
+        return []
+    pooled = 0
+    if contract.WITHHELD in facts.pad_widths:
+        pooled = facts.pad_widths[contract.WITHHELD]
+    # THE RECOUNT IS OVER THE CORES ON THE AFFIXED ROLE, for the reason
+    # `_fraction_notes` gives: reading a padded core still wearing its
+    # prefix as a bare number finds no number at all, and a report that
+    # accuses a correct twin is worse than one that says nothing.
+    prefix = ""
+    suffix = ""
+    if isinstance(column.facts, contract.AffixedFacts):
+        prefix = column.facts.affix_prefix
+        suffix = column.facts.affix_suffix
+    counted: dict[int, int] = {}
+    for cell in written:
+        if cell == "":
+            continue
+        trimmed = parsing.trimmed(cell)
+        body = trimmed
+        if prefix or suffix:
+            if not trimmed.startswith(prefix):
+                continue
+            if not trimmed.endswith(suffix):
+                continue
+            body = trimmed[len(prefix) : len(trimmed) - len(suffix)]
+            if not body:
+                continue
+        if parsing.classify_number(body) != parsing.NUMBER:
+            continue
+        if parsing.numeric_style(body) != parsing.STYLE_LEADING_ZERO:
+            continue
+        width = parsing.pad_width(body)
+        if width in counted:
+            counted[width] = counted[width] + 1
+            continue
+        counted[width] = 1
+    sense = (
+        "The description says how many of this column's cells wrote "
+        "each field width with a leading zero, and the twin wrote a "
+        "different number of them that way. The values are within the "
+        "bounds the description sets; what changes is the WIDTH each "
+        "cell appears to carry, so code developed against the twin "
+        "that checks a length, slices a fixed-width code, or joins on "
+        "one can behave differently on the real table."
+    )
+    notes: list[Deviation] = []
+    for width in sorted(published):
+        found = counted[width] if width in counted else 0
+        if published[width] <= found <= published[width] + pooled:
+            continue
+        notes = notes + [
+            _deviation(
+                column.name,
+                "pad_widths",
+                f"{published[width]} cell(s) written {width} "
+                f"figure(s) wide with a leading zero",
                 f"{found}",
                 sense,
             )
@@ -10560,8 +10993,21 @@ def _inside(value: float, lowest: float, highest: float) -> bool:
     return lowest <= value <= highest
 
 
+def _at_a_named_width(cell: str, style: str, named: "dict[int, int]") -> bool:
+    """Whether this padded cell wears a field width the census names.
+
+    Read off the cell's own text, because this is a recount and a width
+    the writer intended is not a width the cell wears.
+    """
+    if style != parsing.STYLE_LEADING_ZERO:
+        return False
+    return parsing.pad_width(cell) in named
+
+
 def _numeric_supply(
-    layout: "_NumericLayout", written: "list[str]"
+    layout: "_NumericLayout",
+    written: "list[str]",
+    pad_widths: "dict[str, int]",
 ) -> "tuple[int, int]":
     """How many spellings and identities this column's own cells can hold.
 
@@ -10582,6 +11028,16 @@ def _numeric_supply(
       shape of the corner G12.8 names, where the whole-number rule of
       G5.4 rounds two strata onto one value and no spelling rule brings
       the second back.
+    - A PADDED CELL AT A NAMED FIELD WIDTH IS THE ONE EXCEPTION to the
+      family rule above, and it is the exception method G12.8 states
+      (plan P4-D7). Every order of the leading-zero family writes one
+      more figure, so where `pad_widths` names a cell's width the
+      family is spent: that value has exactly one padded spelling at
+      that width, and such a group supplies ONE, like a plain group.
+      Counting those cells one apiece put this report's bound above the
+      validator's on the same twin -- two surfaces disagreeing about
+      one method's formula, which is the defect a shared formula
+      exists to prevent.
     - Each other class supplies what its own share of the budget allows,
       never more than its cell count.
 
@@ -10591,8 +11047,13 @@ def _numeric_supply(
     bound able to fail.
     """
     present = [cell for cell in written if cell != ""]
+    named: dict[int, int] = {}
+    for key in sorted(pad_widths):
+        if key == contract.WITHHELD:
+            continue
+        named[int(key)] = pad_widths[key]
     counted = {name: 0 for name in _CLASSES}
-    seen: dict[tuple[float, str], int] = {}
+    seen: dict[tuple[float, str, int], int] = {}
     raw_room = 0
     folded_room = 0
     for cell in present:
@@ -10604,12 +11065,23 @@ def _numeric_supply(
         if value is None:
             continue
         style = parsing.numeric_style(cell)
-        if style != "plain":
+        if style != "plain" and not _at_a_named_width(cell, style, named):
             raw_room = raw_room + 1
             folded_room = folded_room + 1
             continue
-        if (value, style) not in seen:
-            seen[(value, style)] = 1
+        # THE FIELD WIDTH IS PART OF THE KEY, not a detail below it. One
+        # value at two named widths is TWO spellings -- `01` and `001`
+        # are the same number and different identities -- so a group
+        # keyed by value and style alone collapsed all three widths of
+        # a column publishing three and reported a supply of one. The
+        # validator meanwhile allowed one identity per named width, so
+        # the twin's own report and the check disagreed about the same
+        # twin, which is the failure a shared formula exists to stop.
+        field = -1
+        if style == parsing.STYLE_LEADING_ZERO:
+            field = parsing.pad_width(cell)
+        if (value, style, field) not in seen:
+            seen[(value, style, field)] = 1
             raw_room = raw_room + 1
             folded_room = folded_room + 1
     for place in range(1, len(_CLASSES)):
@@ -10640,7 +11112,10 @@ def _numeric_cardinalities(
     layout = plan.layout
     if layout is None:
         return []
-    supply = _numeric_supply(layout, written)
+    facts = _quantitative_facts(column)
+    supply = _numeric_supply(
+        layout, written, facts.pad_widths if facts is not None else {}
+    )
     counted = _recounted(written, _hole_spellings(column))
     found: list[Approximation] = []
     for place, name, room, note in (

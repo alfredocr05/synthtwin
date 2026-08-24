@@ -349,7 +349,7 @@ def _matrix_sections() -> "dict[str, dict[str, str]]":
 # was written before the census of fraction widths existed, and its
 # disposition is stated in the Phase 4 plan (P4-D4.5) and registered
 # under `numeric` in `tests/dispositions.py`.
-PHASE_4_NUMERIC_KEYS = ("fraction_widths",)
+PHASE_4_NUMERIC_KEYS = ("fraction_widths", "pad_widths")
 
 # ...and the form census a column of dates now carries, for the same
 # reason at one grain finer: version 4 HAS the datetime section, and

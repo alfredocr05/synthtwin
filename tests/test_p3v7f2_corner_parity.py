@@ -593,6 +593,27 @@ def _named_entries() -> "list[Entry]":
         + ["18e0"] * 2
         + ["0"] * 13
     )
+    # THE SAME COLUMN WITH ITS PADDING SCATTERED, which is what keeps
+    # P3-V7-F4's original property under test after P4-D7. The witness
+    # above writes all fifteen padded cells two figures wide, so the
+    # width census NAMES that width and the leading-zero family is
+    # spent on it. Here the same fifteen cells are written at three
+    # widths, each shared by too few cells to be named, so the census
+    # holds them back and the family is open exactly as it was before
+    # the census existed.
+    scattered = (
+        ["13"] * 10
+        + ["10e0"]
+        + ["2E0"] * 7
+        + ["7.0"] * 6
+        + ["11"] * 8
+        + ["27e0"] * 6
+        + ["02"] * 5
+        + ["002"] * 5
+        + ["0002"] * 5
+        + ["18e0"] * 2
+        + ["0"] * 13
+    )
     wide = _wide_singles(26)
     return [
         # P3-V7-F3: two withheld variants covering six rows each.
@@ -600,6 +621,11 @@ def _named_entries() -> "list[Entry]":
         # P3-V7-F4, the first half: a floored style map whose own
         # leading-zero cells force more identities than are published.
         Entry("witness-number-floored", tuple(floored), False, 11),
+        # ...and the same map with the padded widths held back, so the
+        # family is open and the envelope still opens upward (P4-D7).
+        Entry(
+            "witness-number-floored-open", tuple(scattered), False, 11
+        ),
         # P3-V7-F4, the second half: forced integers, one style, and a
         # bar that would reach from one value to every value.
         Entry(
@@ -1428,12 +1454,35 @@ def test_the_floored_style_witness_reaches_the_generators_own_twin(
     """P3-V7-F4's first half, from the producer to the report.
 
     A floored style map naming fifteen leading-zero cells on a column
-    publishing nine different values. Those cells each carry their own
-    spelling, so the supply STANDS ABOVE the published count and G12.8's
-    envelope opens upward -- which the version this replaces could not
-    say, because it asked only whether the supply fell short. The
-    shipped generator writes twelve identities, its own report calls
-    that inside the bound, and the exact bar called it MISSED.
+    publishing nine different values, ALL FIFTEEN WRITTEN TWO FIGURES
+    WIDE. The width census of P4-D7 therefore names that width, and a
+    named width spends the leading-zero family: every further spelling
+    of a value is one figure wider, so a twin reaching for a second
+    would leave the published width. The supply falls to what a column
+    carrying a single value would still hold -- one spelling for the
+    pooled cells and one for the named width -- and G12.8's envelope
+    opens DOWNWARD here rather than upward.
+
+    THE UPWARD CASE IS NOT RETIRED, it moved: the property this witness
+    was written for is asserted on `witness-number-floored-open` below,
+    whose fifteen padded cells are written at three widths too thinly
+    shared to be named, so the census holds them back and the family is
+    open. Both halves of a two-sided envelope are under test, which is
+    what P3-V7-F4 asked for and what a single witness could no longer
+    show once the census existed.
+
+    WHAT THE CENSUS BOUGHT HERE, which is worth recording because it
+    is the opposite of a cost. Meeting a named width means padding
+    values the field can hold, so the style walk now hands
+    `leading_zero` to single-figure values rather than to the
+    two-figure ones it reached for before. The twin writes nine
+    identities against nine published and the count is HELD outright,
+    where the version before this census wrote twelve and needed the
+    envelope to admit them. A narrower construction met the fact
+    exactly.
+
+    What has not changed is the parity this file is for: the bracket
+    admits what the generator writes, and no verdict is MISSED.
     """
     found = [
         probe for probe in parity
@@ -1446,14 +1495,89 @@ def test_the_floored_style_witness_reaches_the_generators_own_twin(
     assert probe.column.n_distinct == 9
     assert facts.numeric_styles[parsing.STYLE_LEADING_ZERO] == 15
     assert taxonomy.SUPPRESSED_LABEL in facts.numeric_styles
+    assert facts.pad_widths == {"2": 15}
+    # AND THE TWIN WRITES THE CENSUS IT WAS GIVEN: fifteen padded cells,
+    # every one of them two figures wide (P4-D7).
+    padded = [
+        cell for cell in probe.twin.columns[0]
+        if cell
+        and parsing.classify_number(cell) == parsing.NUMBER
+        and parsing.numeric_style(cell) == parsing.STYLE_LEADING_ZERO
+    ]
+    assert len(padded) == 15
+    assert {parsing.pad_width(cell) for cell in padded} == {2}
     assert validation._spelling_supply(
         probe.column, facts, probe.column.n_distinct
-    ) == 16
+    ) == 2
     assert probe.corners == (validation.CORNER_NUMERIC_SPELLINGS_SHORT,)
+    # HELD, EXACTLY, because that is what this witness now does and a
+    # test that accepts either verdict would pass on a regression that
+    # reported an approximation it did not need. The named-width case
+    # meets its count outright; the open-family case below is the one
+    # whose verdict may legitimately be either.
     for field in ("n_distinct", "n_distinct_folded"):
         assert _verdicts(probe.outcome, f"distinct.{field}") == [
-            validation.AUTHORIZED_DEVIATION
+            validation.HELD
         ], field
+    # AND THE BRACKET STILL HOLDS WHAT THE GENERATOR WROTE, which is
+    # the whole subject of this file. A floor that moved without the
+    # twin moving with it would be a bound drawn against the shipped
+    # construction rather than around it.
+    written = len({cell for cell in probe.twin.columns[0] if cell})
+    ceiling = validation._spelling_ceiling(
+        probe.column, facts, probe.column.n_distinct
+    )
+    assert ceiling is not None
+    assert 2 <= written <= ceiling
+    assert probe.outcome.census.missed == 0
+
+
+def test_the_open_padding_witness_still_opens_the_envelope_upward(
+    parity: "tuple[Probe, ...]",
+) -> None:
+    """P3-V7-F4's original property, kept alive across P4-D7.
+
+    THE REGRESSION THIS GUARDS IS STILL REAL. `_numeric_spellings_are_short`
+    once asked only whether the supply fell SHORT, so a description
+    whose own permitted spellings force MORE identities than it
+    publishes was given the exact bar and the shipped generator's twin
+    was reported MISSED against its own description. The witness that
+    showed it now has its widths named by the census, so this one keeps
+    the case: the same floored style map with its fifteen padded cells
+    written at three widths, each shared by too few cells to be named.
+    The census holds all fifteen back, the family is open, and the
+    supply stands ABOVE the published count exactly as before.
+    """
+    found = [
+        probe for probe in parity
+        if probe.stem == "witness-number-floored-open"
+    ]
+    assert len(found) == 1
+    probe = found[0]
+    facts = probe.column.facts
+    assert isinstance(facts, contract.NumericFacts)
+    assert facts.numeric_styles[parsing.STYLE_LEADING_ZERO] == 15
+    assert taxonomy.SUPPRESSED_LABEL in facts.numeric_styles
+    # NOT ONE WIDTH IS NAMED, which is what leaves the family open.
+    assert list(facts.pad_widths) == [taxonomy.SUPPRESSED_LABEL]
+    supply = validation._spelling_supply(
+        probe.column, facts, probe.column.n_distinct
+    )
+    assert supply is not None
+    assert supply > probe.column.n_distinct
+    assert probe.corners == (validation.CORNER_NUMERIC_SPELLINGS_SHORT,)
+    # NEVER MISSED, which is the defect this guards. The twin may MEET
+    # the published count outright -- an open family is room, not an
+    # obligation to spend it -- so the verdict this asserts is the one
+    # the bug produced and not the one it happened to replace.
+    for field in ("n_distinct", "n_distinct_folded"):
+        verdicts = _verdicts(probe.outcome, f"distinct.{field}")
+        assert validation.MISSED not in verdicts, field
+        for verdict in verdicts:
+            assert verdict in (
+                validation.HELD, validation.AUTHORIZED_DEVIATION
+            ), field
+    assert probe.outcome.census.missed == 0
 
 
 def test_the_class_witness_gets_g12_8s_second_summand(

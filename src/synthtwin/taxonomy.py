@@ -4011,6 +4011,69 @@ def _fraction_widths(cells: _Cells) -> dict[str, int]:
     return published_counts
 
 
+def pad_width(text: str) -> int:
+    """How wide one zero-padded cell writes its figure field.
+
+    THE RULE ITSELF IS `parsing.pad_width`, and this is the name the
+    census reads it under, exactly as `fraction_width` is.
+    """
+    return parsing.pad_width(text)
+
+
+def _pad_widths(cells: _Cells) -> dict[str, int]:
+    """How many `leading_zero`-styled cells wrote each field width.
+
+    TWO CODE COLUMNS OF THE SAME FORM ARE NOT THE SAME COLUMN, which is
+    the argument `_fraction_widths` makes about the point and this one
+    makes about the padding. A styles map saying `leading_zero: 240`
+    says a redundant zero was written two hundred and forty times. It
+    does not say the field was five figures wide, so a twin carrying
+    that map exactly wrote fields two, three and four figures wide and
+    was not wrong by the map -- while a person reading a fixed-width
+    code, slicing it, or joining on it held a twin their own code could
+    not run against, and no report said a word.
+
+    THE FLOOR GOVERNS A WIDTH AS IT GOVERNS A FORM, for the reason it
+    does there: a width fewer than `small_cell_floor` cells share has
+    no key of its own and its cells are counted into a `(withheld)`
+    remainder, so one oddly written cell cannot be singled out by its
+    width.
+
+    THE KEYS ARE THE WIDTHS AS DECIMAL FIGURES, canonically -- no
+    leading zero, no sign, no padding -- which is the one grammar the
+    contract fixes for a width key, and it would be a poor joke for the
+    census of padding to write a padded key.
+
+    Guarantees: accepts a tally of one column; returns a mapping from
+    canonical width keys, plus possibly `(withheld)`, to counts that sum
+    to how many cells of this column were written in the `leading_zero`
+    form. Determinism: the answer depends only on the tally, and the
+    keys are built in ascending width order. Raises nothing. No I/O of
+    any kind.
+    """
+    counts: dict[int, int] = {}
+    for cell in cells.classified:
+        if cell.kind != parsing.NUMBER:
+            continue
+        if numeric_style(cell.text) != parsing.STYLE_LEADING_ZERO:
+            continue
+        width = pad_width(cell.text)
+        if width in counts:
+            counts[width] = counts[width] + 1
+        else:
+            counts[width] = 1
+    published_counts: dict[str, int] = {}
+    withheld = 0
+    for width in sorted(counts):
+        if counts[width] >= cells.settings.small_cell_floor:
+            published_counts[f"{width}"] = counts[width]
+        else:
+            withheld = withheld + counts[width]
+    if withheld:
+        published_counts[SUPPRESSED_LABEL] = withheld
+    return published_counts
+
+
 def _numeric_details(cells: _Cells, whole: bool) -> dict[str, object]:
     """The published description of a numeric column."""
     numbers = cells.numbers
@@ -4045,6 +4108,12 @@ def _numeric_details(cells: _Cells, whole: bool) -> dict[str, object]:
         # that map to be an integer summing to the numeric count, so an
         # object among them is a document no loader can read.
         "fraction_widths": _fraction_widths(cells),
+        # ...and how wide the ones written with a redundant zero wrote
+        # their figure field, which the forms map cannot say either
+        # (P4-D7). A SIBLING for the same reason: version 6 requires
+        # every value of the forms map to be an integer summing to the
+        # numeric count.
+        "pad_widths": _pad_widths(cells),
     }
     moments = _moments(numbers)
     for key in sorted(moments):

@@ -298,6 +298,7 @@ PLAN4_REGIONS = {
         "### P4-D4.5 The fixed-fraction spelling fact "
         "(closes R-P3-12's route)"
     ),
+    "padding": "### P4-D7 The padded-field width fact",
 }
 
 # Groups whose facts are NOT in the version 4 contract matrix, and why.
@@ -319,6 +320,7 @@ GROUPS_OUTSIDE_THE_VERSION_4_MATRIX = ("affixed", "clock")
 # own facts are -- held to a document, just not to that one.
 FACTS_OUTSIDE_THE_VERSION_4_MATRIX = (
     ("numeric", "fraction_widths"),
+    ("numeric", "pad_widths"),
     ("datetime", "resolution_mix"),
 )
 
@@ -637,6 +639,18 @@ REGISTRY += [
         plan_words="the count sharing each fraction width",
         plan_region="fraction",
         aliases=("width census", "fraction census"),
+    ),
+    # Plan P4-D7. The census of field widths is the other sibling of the
+    # styles map and takes the same disposition for the same reason: a
+    # person opens the twin, counts the figures each padded cell writes,
+    # and gets the published census back.
+    Fact(
+        "numeric",
+        "pad_widths",
+        EXACT_OBSERVABLE,
+        plan_words="the count sharing each field width",
+        plan_region="padding",
+        aliases=("padding census", "field-width census"),
     ),
     Fact(
         "numeric",
