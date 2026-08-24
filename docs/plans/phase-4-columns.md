@@ -1673,6 +1673,34 @@ Opened by this plan, each a limit accepted rather than work forgotten:
   document that governs nothing shipped is a surface whose agreement
   is luck rather than design, and the next fact a version re-disposes
   will meet it again.
+- **R-P4-29** (opened while building P4-D8, 2026-08-24). THE NOTE
+  GRAMMAR AND THE CODE HAVE DRIFTED, AND NOTHING WAS COMPARING THEM.
+  Contract 4.5.1 is the authority on every note form and every
+  argument; section 14.8 summarises it; `taxonomy.NOTE_ARITY` is what
+  the producer actually emits. The three disagree today, and not about
+  anything this decision added:
+
+  - **NF25** `remark_dates_also_read_as_numbers` is arity 2 in the
+    contract, whose rendering carries both counts — "«1» of them read
+    as dates and «2» of them are written as numbers". The producer
+    emits it at arity 0 and writes the sentence without the counts. A
+    column of eight-figure compact dates emits exactly this today, so
+    the disagreement is in shipped output rather than in theory.
+  - **NF29** is arity 9 in the contract and 7 in the producer.
+  - **NF32** and **NF34** are arity 1 in the contract and 0 in the
+    producer.
+  - **NF37** `remark_a_label_is_a_built_in_stand_in` exists in the
+    contract, with an argument-consistency check of its own, and the
+    producer has no such form at all.
+
+  No amendment records any of it, so it is drift rather than a decision
+  — and the reason it survived is that no test compares the contract's
+  form table to `NOTE_ARITY`. THAT GUARD IS THE REAL FIX and it is
+  written down here rather than added now, because a guard that turns
+  the suite red is not a guard anybody can land: the five forms have to
+  be reconciled first, and reconciling them changes sentences a shipped
+  profile prints. It is its own landing, not a passenger on a landing
+  about dates.
 - **R-P4-28** (opened by amendment A-P4-34, 2026-08-24, at the second
   adversarial read). THE FRACTION CENSUS IS NOT ALWAYS MET EITHER, and
   it was not this landing that made it so. A column of eleven padded

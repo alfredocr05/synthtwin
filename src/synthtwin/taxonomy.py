@@ -607,6 +607,9 @@ REMARK_TWO_ALSO_NUMBERS = "remark_two_values_also_read_otherwise"
 REMARK_DATES_ALSO_NUMBERS = "remark_dates_also_read_as_numbers"
 REMARK_MONTH_FIRST = "remark_slashed_dates_are_month_first"
 REMARK_SLASHED_EVIDENCE = "remark_slashed_dates_read_against_your_declaration"
+# The century a two-figure year is read into is a GUESS, and this is
+# where the column says so (plan P4-D8, contract NF42).
+REMARK_TWO_DIGIT_YEAR = "remark_two_figure_years_are_read_at_a_pivot"
 
 # The two reading names the slashed remark's fifth argument takes. They
 # are package words rather than format members on purpose (contract
@@ -677,6 +680,7 @@ NOTE_ARITY: "dict[str, int]" = {
     REMARK_TWO_ALSO_NUMBERS: 0,
     REMARK_DATES_ALSO_NUMBERS: 0,
     REMARK_MONTH_FIRST: 0,
+    REMARK_TWO_DIGIT_YEAR: 0,
     # Contract NF36 fixes the order: D, M, X, Y, then the reading used.
     REMARK_SLASHED_EVIDENCE: 5,
     REMARK_CASE_ONLY_MANY: 0,
@@ -1136,11 +1140,24 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
             "plain numbers; they were read as dates"
         )
     if form == REMARK_MONTH_FIRST:
+        # THE SENTENCE NAMES NO PUNCTUATION, and that is the change
+        # P4-D8 made to it. The same ambiguity is carried by slashes,
+        # by dots and by a two-figure year, and a sentence that said
+        # "written with slashes" was read by a person holding a dotted
+        # column as a statement about some other column.
         return (
-            "dates written with slashes are read month first "
-            "(03/04/2024 is the 4th of March); if this table writes "
-            "the day first, the profile has the month and day the "
-            "wrong way round"
+            "where the day and the month are both written as numbers, "
+            "they are read month first (03/04/2024 is the 4th of "
+            "March); if this table writes the day first, the profile "
+            "has the month and day the wrong way round"
+        )
+    if form == REMARK_TWO_DIGIT_YEAR:
+        return (
+            "this column writes its years with two figures, which do "
+            "not say which century they are in; 00 to 68 are read as "
+            "2000 to 2068 and 69 to 99 as 1969 to 1999, so a table "
+            "reaching further back than 1969 is read forward by a "
+            "hundred years"
         )
     if form == REMARK_CASE_ONLY_MANY:
         return (
@@ -4154,9 +4171,35 @@ def _offset_counts(
 # the two ways ONE column can be read, which is what makes the
 # declaration of P4-D4.6 a question about a pair rather than about a
 # member.
+# The month-first readings whose choice was a GUESS about a column
+# that could have been read either way, and which therefore carry the
+# standing warning. The textual pair is absent on purpose: a month name
+# settles the order, so nothing was guessed.
+_MONTH_FIRST_GUESSES = (
+    "month-first-date",
+    "month-first-datetime",
+    "dotted-month-first-date",
+    "two-digit-month-first-date",
+)
+
+# Both readings of the two-figure-year family, either of which leaves
+# the century undecided by the cell.
+_TWO_DIGIT_YEAR_MEMBERS = (
+    "two-digit-month-first-date",
+    "two-digit-day-first-date",
+)
+
 SLASHED_PAIRS = (
     ("month-first-date", "day-first-date"),
     ("month-first-datetime", "day-first-datetime"),
+    # ...and the two families of P4-D8 that carry the same ambiguity in
+    # different punctuation. A dotted date and a two-figure year say no
+    # more about which field is the month than a slashed one does, so
+    # they are read by this same machinery rather than by a rule of
+    # their own: the evidence of a field above twelve first, then the
+    # person's declaration, then the ratified default.
+    ("dotted-month-first-date", "dotted-day-first-date"),
+    ("two-digit-month-first-date", "two-digit-day-first-date"),
 )
 
 
@@ -5338,10 +5381,16 @@ def _decide(
                         ),
                     )
                 ]
-            elif format_name == "month-first-date":
+            elif format_name in _MONTH_FIRST_GUESSES:
                 remarks = remarks + [note(REMARK_MONTH_FIRST)]
-            elif format_name == "month-first-datetime":
-                remarks = remarks + [note(REMARK_MONTH_FIRST)]
+            # THE CENTURY REMARK IS NOT AN ALTERNATIVE TO EITHER, so it
+            # stands outside the chain above. A two-figure year is a
+            # guess about the century whichever way the month and day
+            # were settled -- by evidence, by a declaration, or by the
+            # default -- so the column says so in every one of those
+            # cases (plan P4-D8).
+            if format_name in _TWO_DIGIT_YEAR_MEMBERS:
+                remarks = remarks + [note(REMARK_TWO_DIGIT_YEAR)]
             return _Verdict(
                 role=ROLE_DATETIME,
                 evidence=note(

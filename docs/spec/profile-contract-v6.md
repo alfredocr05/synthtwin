@@ -998,9 +998,11 @@ contract:
 
    `iso-date`, `iso-datetime`, `compact-date`, `month-first-date`,
    `day-first-date`, `textual-day-first-date`,
-   `textual-month-first-date`, `year-quarter`, `slashed-iso-date`,
+   `textual-month-first-date`, `dotted-month-first-date`,
+   `dotted-day-first-date`, `two-digit-month-first-date`,
+   `two-digit-day-first-date`, `year-quarter`, `slashed-iso-date`,
    `iso-month`, `iso-mixed`, `month-first-datetime`,
-   `day-first-datetime` — the thirteen `format` members — and `day-first`, `month-first`, the two
+   `day-first-datetime` — the seventeen `format` members — and `day-first`, `month-first`, the two
    reading names the slashed-date remark needs. No other string is a
    word of this class.
 
@@ -1058,7 +1060,7 @@ contract:
    widening it to arbitrary strings would be exactly the hole that lets
    a source-derived value into a sentence and be rebuilt successfully.
 
-**The census.** The table holds 41 forms and 62 argument positions. Of
+**The census.** The table holds 42 forms and 62 argument positions. Of
 those, 53 are whole numbers, 3 are package words, 4 are nested forms,
 and 2 are bound affix strings. No position is a string of any other
 kind.
@@ -1156,12 +1158,16 @@ examples is closed:
 | `day-first-date` | `17/03/2024 (day first)` |
 | `textual-day-first-date` | `17 Mar 2024` |
 | `textual-month-first-date` | `Mar 17, 2024` |
+| `dotted-month-first-date` | `03.17.2024 (month first)` |
+| `dotted-day-first-date` | `17.03.2024 (day first)` |
+| `two-digit-month-first-date` | `03/17/24 (month first)` |
+| `two-digit-day-first-date` | `17/03/24 (day first)` |
 | `year-quarter` | `2024-Q1` |
 
 A format name with no row of its own is written out as itself, so
 `slashed-iso-date`, `iso-month`, `iso-mixed`, `month-first-datetime`
 and `day-first-datetime` render as their own wire spellings. The
-rendering is therefore fixed for all thirteen members and two
+rendering is therefore fixed for all seventeen members and two
 implementations cannot diverge, but the five that fall through the
 table read badly ("are dates written as slashed-iso-date"), and an
 example for each of them should be fixed and added to this table.
@@ -1302,12 +1308,21 @@ remark that says only which reading won leaves its reader no way to see
 how close the other one came. Stating both counts is what lets somebody
 recognize a column that should have been read the other way.
 
-**NF26. `remark_slashed_dates_are_month_first`** — arity 0. Carried when
-the chosen `format` is a month-first slashed reading.
+**NF26. `remark_slashed_dates_are_month_first`** — arity 0. Carried
+when the chosen `format` is a month-first reading of a grammar whose
+day and month are BOTH written as numbers: the slashed pair, the
+slashed stamp pair, the dotted pair and the two-figure-year pair. Not
+carried for the textual pair, whose order a month name settles.
 
-> dates written with slashes are read month first (03/04/2024 is the
-> 4th of March); if this table writes the day first, the profile has
-> the month and day the wrong way round
+> where the day and the month are both written as numbers, they are
+> read month first (03/04/2024 is the 4th of March); if this table
+> writes the day first, the profile has the month and day the wrong
+> way round
+
+**The sentence names no punctuation** (plan P4-D8). It said "written
+with slashes" while three grammars carried the same ambiguity, so a
+person holding a dotted column read a true sentence as a statement
+about some other column.
 
 This form is not false under a `day_first` declaration. It is carried
 only where the month-first reading was the reading chosen, and a
@@ -1607,6 +1622,21 @@ column's one-based position.
 
 > column «1» holds a number in every row below it, and its first-row
 > value is not a number
+
+**NF42. `remark_two_figure_years_are_read_at_a_pivot`** — arity 0.
+Carried on every column read under the two-figure-year pair, whichever
+way its month and day were settled.
+
+> this column writes its years with two figures, which do not say which
+> century they are in; 00 to 68 are read as 2000 to 2068 and 69 to 99
+> as 1969 to 1999, so a table reaching further back than 1969 is read
+> forward by a hundred years
+
+**It stands outside the month-first chain, not inside it** (plan
+P4-D8). The century is a guess whether the month and day were settled
+by the column's own evidence, by a declaration or by the default, so
+the sentence is carried in all three cases and not only where something
+else was also guessed.
 
 **Why the header verdict is a form at all.** A verdict built anywhere
 else would be the one string in the document with no form behind it, and
@@ -2742,6 +2772,10 @@ requires:
 | `day-first-date` | a slashed day-first date: a one- or two-digit day, a one- or two-digit month, a four-digit year, slash-delimited | `date` |
 | `textual-day-first-date` | a one- or two-digit day, a month NAME, a four-digit year, delimited by a space or a hyphen — the same one both times | `date` |
 | `textual-month-first-date` | a month NAME, a one- or two-digit day with an optional trailing comma, a four-digit year, delimited by a space or a hyphen — the same one both times | `date` |
+| `dotted-month-first-date` | a dotted month-first date: a one- or two-digit month, a one- or two-digit day, a four-digit year, dot-delimited | `date` |
+| `dotted-day-first-date` | a dotted day-first date: a one- or two-digit day, a one- or two-digit month, a four-digit year, dot-delimited | `date` |
+| `two-digit-month-first-date` | a slashed month-first date whose year is TWO figures, read at the pivot C6-D8P fixes | `date` |
+| `two-digit-day-first-date` | a slashed day-first date whose year is TWO figures, read at the pivot C6-D8P fixes | `date` |
 | `compact-date` | `YYYYMMDD`: exactly eight digits and nothing else | `date` |
 | `slashed-iso-date` | `YYYY/MM/DD`, fields padded | `date` |
 | `iso-month` | `YYYY-MM` | `month` |
@@ -2750,6 +2784,15 @@ requires:
 | `iso-mixed` | the joint ISO family reading below | `datetime` |
 | `month-first-datetime` | a slashed month-first date, one space, then a clock in one of the two forms the `time_of_day` role fixes | `datetime` |
 | `day-first-datetime` | a slashed day-first date, one space, then a clock in one of the two forms the `time_of_day` role fixes | `datetime` |
+
+**C6-D8P (the century a two-figure year is read into).** A year
+written with two figures does not carry its century. `00` to `68` are
+read as `2000` to `2068`; `69` to `99` as `1969` to `1999`. This is the
+POSIX pivot, chosen because it is the convention the tools around this
+one already use, and it is a GUESS about somebody's data rather than a
+fact their file states — so every column read under either two-figure
+member carries note NF42, which says the rule and says what it costs a
+table reaching further back than 1969.
 
 **Invariant D1 (resolution follows format).** A document's `format` and
 `resolution` are one row of the table above. The binding is exact and
@@ -6012,7 +6055,7 @@ reaches it with nothing to dispose.
 | `date_percentiles` interior rungs | APPROXIMATED — the window is G12.4 |
 | `resolution`, `time_precision`, `subsecond_digits`, `utc_offsets`, `earliest_utc_offset`, `latest_utc_offset` | EXACT-OBSERVABLE, outside the withheld-offset corner below |
 | `datetimes_read_at` | EXACT-OBSERVABLE outside that corner — derived from the offset diversity present in the cells, so it is recomputable from the written twin and must be checked that way. A dispatch assertion cannot detect a twin that reprofiles from `utc` to `local` because one invented rare offset changed the diversity while the pooled offset map and the endpoints still matched |
-| `format` | REPORT-ONLY — it names the real file's parser family across all thirteen members, and owner decision 5 chooses ISO twin syntax at the recorded precision, not the source's lexical family (residual R-P2-7) |
+| `format` | REPORT-ONLY — it names the real file's parser family across all seventeen members, and owner decision 5 chooses ISO twin syntax at the recorded precision, not the source's lexical family (residual R-P2-7) |
 | `resolution_mix` | REPORT-ONLY — the twin writes every parsed cell at the column's finest recorded precision, exactly as the datetime rule writes every column, and the report names the recorded mix as not reproduced, per column, every run (residual R-P4-12) |
 | `n_unparsed` | EXACT-OBSERVABLE as counted neutral stand-ins, explicitly OUTSIDE the parsed-value representation obligation |
 | `n_distinct`, `n_distinct_folded` | APPROXIMATED — the envelope is G12.5, and it is stated there that it need not contain the published count |
@@ -6700,7 +6743,7 @@ this document, and the battery the plan requires turns red on it.
 | nothing-class blocks (`numeric_unrepresentable`, `identifier`, `free_text`) | lengths, word statistics, digit and code-alphabet counts, the whole-number test, the repetition multiset, and on `numeric_unrepresentable` the whole-number and sign counts | no value, no spelling, no fragment of one; the multiplicity map publishes SIZES of unnamed groups under no floor |
 | `empty` columns nobody declared | the absent SPELLINGS their cells wore and the two absence counts, exactly as any column that is not nothing-publishing | floor-governed |
 | `settings` | the rules the run applied, the floor's own value, how many values each declaration named, and which of THIS package's published words were among them | carries no cell, no column and no count of the table; a person's own spelling never enters |
-| `source.header_evidence`, `publication_notes[].note`, `detection_evidence`, `remarks` | sentences of the 41 closed forms: 62 argument positions, of which 53 are whole numbers, 3 package words, 4 nested forms and 2 bound affix strings | the whole numbers are counts the block beside them already publishes, EXCEPT the positions priced at rows 16 and 18 |
+| `source.header_evidence`, `publication_notes[].note`, `detection_evidence`, `remarks` | sentences of the 42 closed forms: 62 argument positions, of which 53 are whole numbers, 3 package words, 4 nested forms and 2 bound affix strings | the whole numbers are counts the block beside them already publishes, EXCEPT the positions priced at rows 16 and 18 |
 | `relationships` | nothing: eight nulls | — |
 
 ### 12.3 The rows, each priced
@@ -7224,7 +7267,7 @@ never edited to change what it requires, and a description is governed
 by exactly one version's documents.
 
 **13.35 Inherited invariants keep their exact identifiers.** `D1` binds
-thirteen formats rather than six and is still `D1`. This is not a style
+seventeen formats rather than six and is still `D1`. This is not a style
 preference: the sealed generation method, the validation method and the
 test suite cite these by name, and a document that renames them
 silently breaks every citation pointing at it. New checkable rules join
@@ -7503,7 +7546,7 @@ way, with one difference: the width is at least TWO (`2`, `3`, `10`),
 a padded cell writing at least one zero in front of at least one figure
 (C6-29b). `(withheld)` is again the only non-numeric key permitted.
 
-### 14.8 The note grammar — 41 forms
+### 14.8 The note grammar — 42 forms
 
 Defined in 4.5.1, which is the authority on every rendering and every
 argument. 62 argument positions: 53 whole numbers, 3 package words, 4
@@ -7552,6 +7595,7 @@ nested forms, 2 bound affix strings.
 | NG39 | `header_data_because_you_said_so` | 0 |
 | NG40 | `header_names_by_convention` | 0 |
 | NG41 | `header_names_shown_by_a_column` | 1 |
+| NG42 | `remark_two_figure_years_are_read_at_a_pivot` | 0 |
 
 **The package-word vocabulary — 13**, the whole of the second argument
 class (4.5.1): the eleven `format` members of 14.6, plus `day-first`

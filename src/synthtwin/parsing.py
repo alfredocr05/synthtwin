@@ -165,6 +165,10 @@ DATE_FORMATS = (
     "day-first-date",
     "textual-day-first-date",
     "textual-month-first-date",
+    "dotted-month-first-date",
+    "dotted-day-first-date",
+    "two-digit-month-first-date",
+    "two-digit-day-first-date",
     "month-first-datetime",
     "day-first-datetime",
     "year-quarter",
@@ -188,6 +192,10 @@ _FORMAT_EXAMPLES = {
     "day-first-date": "17/03/2024 (day first)",
     "textual-day-first-date": "17 Mar 2024",
     "textual-month-first-date": "Mar 17, 2024",
+    "dotted-month-first-date": "03.17.2024 (month first)",
+    "dotted-day-first-date": "17.03.2024 (day first)",
+    "two-digit-month-first-date": "03/17/24 (month first)",
+    "two-digit-day-first-date": "17/03/24 (day first)",
     "month-first-datetime": "03/17/2024 14:05 (month first)",
     "day-first-datetime": "17/03/2024 14:05 (day first)",
     "year-quarter": "2024-Q1",
@@ -1058,22 +1066,7 @@ def _slashed_fields(body: str) -> "tuple[str, str, str] | None":
     """
     if not isinstance(body, str):
         raise TypeError(_NOT_TEXT)
-    marks: list[int] = []
-    place = 0
-    for character in body:
-        if character == "/":
-            marks = marks + [place]
-        place = place + 1
-    if len(marks) != 2:
-        return None
-    year = body[marks[1] + 1 :]
-    if len(year) != 4 or not _all_ascii_digits(year):
-        return None
-    first = _padded_field(body[0 : marks[0]])
-    second = _padded_field(body[marks[0] + 1 : marks[1]])
-    if first is None or second is None:
-        return None
-    return first, second, year
+    return _delimited_fields(body, "/", 4)
 
 
 # The month names this package reads, in calendar order, each as the
@@ -1157,6 +1150,79 @@ def _textual_fields(body: str) -> "tuple[str, str, str] | None":
         if first and middle and last:
             return first, middle, last
     return None
+
+
+def _delimited_fields(
+    body: str, mark: str, year_width: int
+) -> "tuple[str, str, str] | None":
+    """Three year-last fields split on one delimiter, each at its width.
+
+    The generalization of `_slashed_fields` over the delimiter and the
+    width of the year, which is what keeps the dotted and two-digit
+    families reading by the same rule as the slashed one rather than by
+    a second copy of it. The year comes LAST and is exactly
+    ``year_width`` figures; the two fields before it are one or two
+    figures each.
+
+    THAT GRAMMAR IS WHAT KEEPS THE FAMILIES APART. A four-figure year
+    after slashes is the `month-first-date` pair; a two-figure year
+    after slashes is the two-digit pair; a four-figure year after dots
+    is the dotted pair; and no spelling satisfies two of them.
+
+    Guarantees: accepts strings and a positive width; returns the
+    first field, the second field and the year, the first two padded to
+    two figures and the year exactly as written, or None where the text
+    is not this grammar. Raises TypeError if handed anything that is
+    not a string instance. No I/O of any kind.
+    """
+    if not isinstance(body, str):
+        raise TypeError(_NOT_TEXT)
+    if not isinstance(mark, str):
+        raise TypeError(_NOT_TEXT)
+    marks: list[int] = []
+    place = 0
+    for character in body:
+        if character == mark:
+            marks = marks + [place]
+        place = place + 1
+    if len(marks) != 2:
+        return None
+    year = body[marks[1] + 1 :]
+    if len(year) != year_width or not _all_ascii_digits(year):
+        return None
+    first = _padded_field(body[0 : marks[0]])
+    second = _padded_field(body[marks[0] + 1 : marks[1]])
+    if first is None or second is None:
+        return None
+    return first, second, year
+
+
+# The year a two-figure year stands for, split at the POSIX pivot: 00
+# to 68 are this century, 69 to 99 the last one.
+TWO_DIGIT_YEAR_PIVOT = 68
+
+
+def year_of_two_figures(year: str) -> str:
+    """The four-figure year a two-figure year is read as.
+
+    THIS IS A GUESS AND THE PACKAGE SAYS SO WHEREVER IT MAKES ONE. A
+    two-figure year does not carry its century: `24` is 2024 in most
+    tables and 1924 in a table of birth dates, and nothing in the cell
+    settles which. The pivot is the POSIX one because it is the
+    convention the tools around this one already use, so a person who
+    knows any of them knows this. The column's remarks name the rule
+    wherever this family is read, so nobody meets it by surprise.
+
+    Guarantees: accepts a string of exactly two ASCII digits; returns
+    four figures. Raises TypeError if handed anything that is not a
+    string instance. No I/O of any kind.
+    """
+    if not isinstance(year, str):
+        raise TypeError(_NOT_TEXT)
+    figures = int(year)
+    if figures <= TWO_DIGIT_YEAR_PIVOT:
+        return f"20{year}"
+    return f"19{year}"
 
 
 def _parse_clock(text: str) -> "str | None":
@@ -1484,6 +1550,45 @@ def parse_datetime(text: str, format_name: str) -> "tuple[str, str] | None":
         if day is None or month is None:
             return None
         canonical = _canonical_date(last, month, day)
+        if canonical is None:
+            return None
+        return canonical, ""
+    if (
+        format_name == "two-digit-month-first-date"
+        or format_name == "two-digit-day-first-date"
+    ):
+        # A SLASHED DATE WHOSE YEAR IS TWO FIGURES (plan P4-D8). The
+        # century is not in the cell, so it is decided by the pivot
+        # `year_of_two_figures` fixes and named in the column's
+        # remarks.
+        fields = _delimited_fields(body, "/", 2)
+        if fields is None:
+            return None
+        first, second, short = fields
+        year = year_of_two_figures(short)
+        if format_name == "two-digit-month-first-date":
+            canonical = _canonical_date(year, first, second)
+        else:
+            canonical = _canonical_date(year, second, first)
+        if canonical is None:
+            return None
+        return canonical, ""
+    if (
+        format_name == "dotted-month-first-date"
+        or format_name == "dotted-day-first-date"
+    ):
+        # THE SAME GRAMMAR WRITTEN WITH DOTS (plan P4-D8). Two dots and
+        # a four-figure year last, which no decimal number satisfies:
+        # `17.03` carries one dot and is a number, `17.03.2024` carries
+        # two and is not.
+        fields = _delimited_fields(body, ".", 4)
+        if fields is None:
+            return None
+        first, second, year = fields
+        if format_name == "dotted-month-first-date":
+            canonical = _canonical_date(year, first, second)
+        else:
+            canonical = _canonical_date(year, second, first)
         if canonical is None:
             return None
         return canonical, ""
