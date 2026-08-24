@@ -3978,3 +3978,70 @@ showed the envelope opening upward, so a second witness with its
 widths scattered below the floor was added beside it and carries that
 property now — P3-V7-F4's regression is under test at both ends of the
 envelope rather than one.
+
+
+## Amendment A-P4-35 — the date shapes a spreadsheet writes are read
+
+**Raised by:** the owner's sequence of 2026-08-24, item 3.
+
+**What was found.** Four shapes a person meets constantly were read as
+free text: `17 Mar 2024` and `17-Mar-2024`; `Mar 17, 2024` and
+`March 17, 2024`; `17.03.2024`; `03/17/24`. A free-text column
+publishes no earliest, no latest, no ladder and no distribution over
+time, so its twin held invented strings and nothing written against a
+date ran on it. Neither handled nor declined, which is what principle 5
+forbids.
+
+**What changed.** Six members join `format`, taking it to seventeen:
+the textual pair, the dotted pair and the two-figure-year pair.
+`_slashed_fields` became one case of a delimiter-and-year-width rule,
+so the numeric families read by one rule rather than three copies of
+it. The dotted and two-figure pairs joined `SLASHED_PAIRS`, so the
+evidence walk, `--day-first` and the remarks reach them unchanged.
+Contract C6-D8P fixes the two-figure century pivot and note NF42
+carries it on every such column.
+
+**THIS ADDS READING AND NOT WRITING.** The twin still writes ISO —
+owner decision 5 of the Phase 2 plan, `format` REPORT-ONLY, residual
+R-P2-7 — and a test asserts the ISO syntax so nothing drifts into
+claiming otherwise. **THIS RAISES** what a column of these shapes
+publishes, from nothing to the whole of a date column's behaviour.
+**THIS LOWERS** nothing.
+
+**The adversarial read, and the six things it found.** REJECTED at
+round 1; every item worked.
+
+1. *A version identifier is a dotted date* (high). `1.2.2024` is how a
+   version is written and, character for character, how an unpadded
+   dotted date would be. A `version` column cleared the date line,
+   became `datetime`, published endpoints and a ladder over version
+   numbers, and handed back ISO days. The dotted pair is now the one
+   PADDED family: `17.03.2024` reads, `1.2.2024` does not, and C6-22
+   states the asymmetry with its reason. The cost is stated too — an
+   unpadded dotted date is read as text, which is what it was before
+   this landing existed.
+2. *`--day-first` was widened in code and not in the words* (high).
+   The CLI help and three contract clauses still said "slashed", so a
+   person with dotted day-first dates was told the option did not
+   apply to them and got 4 March where their table said 3 April. Both
+   surfaces now say what the option actually reaches.
+3. *D1 still bound eleven formats* (high) — a conforming reader
+   implementing it would refuse the six new members. D1, the
+   closed-vocabulary census and C6-22 corrected.
+4. *The note grammar's executable invariants still closed at 41 forms*
+   (high), so NG14 refused NF42, which every two-figure column carries.
+   Corrected, with the package-word census that had gone stale beside
+   it.
+5. *A comma after a month NAME was accepted* (medium). `17 Mar, 2024`
+   parsed, though no contracted grammar owns it: the shared splitter
+   stripped the comma before either member was consulted. The comma is
+   now the month-first shape's alone.
+6. *NF42's consequence was false away from the pivot* (medium). It
+   said such a table is read forward "by a hundred years"; `68` meaning
+   1868 is read as 2068 and is two hundred years out, and `75` meaning
+   2075 is read as 1975, out the other way and unmentioned. The
+   sentence now states the RANGE it is right about.
+
+**Residual R-P4-29 was opened while building this and not by it:** the
+contract's note grammar and `taxonomy.NOTE_ARITY` disagree about five
+forms, one of them in shipped output, and no test compares them.

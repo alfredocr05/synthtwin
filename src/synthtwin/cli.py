@@ -609,8 +609,12 @@ def _parse_arguments(argv: "list[str] | None") -> _Options:
         "--day-first",
         action="store_true",
         help=(
-            "say that dates written with slashes in this table are "
-            "written day first, so 03/04/2024 is the 3rd of April. It "
+            "say that dates in this table are written day first, so "
+            "03/04/2024 is the 3rd of April. It reaches every shape "
+            "whose day and month are both numbers -- written with "
+            "slashes, written with dots, and written with a "
+            "two-figure year -- because each of them leaves the same "
+            "question open. It "
             "is not a bare order swap: a column whose own values can "
             "only be read the other way round would then be read "
             "backwards and its evidence counted as unreadable. So both "
