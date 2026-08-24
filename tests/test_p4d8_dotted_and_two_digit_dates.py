@@ -80,6 +80,15 @@ def test_each_shape_reads_under_the_member_that_owns_it() -> None:
         ("3/7/24", "two-digit-month-first-date"),
     ):
         assert parsing.parse_datetime(text, member) is not None, text
+    # ...AND THE ASYMMETRY IS ASSERTED HERE TOO, not only in the
+    # version-column test below. This test claimed the padded rule in
+    # its own prose and would have passed with the rule removed, which
+    # is a test that describes a property it does not check.
+    for text, member in (
+        ("7.3.2024", "dotted-day-first-date"),
+        ("3.7.2024", "dotted-month-first-date"),
+    ):
+        assert parsing.parse_datetime(text, member) is None, text
 
 
 def test_the_families_do_not_reach_each_other_s_spellings() -> None:
