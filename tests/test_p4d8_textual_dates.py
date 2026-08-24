@@ -144,11 +144,26 @@ def test_a_textual_column_is_a_date_column_now() -> None:
 
 
 def test_the_twin_of_a_textual_column_carries_the_dates() -> None:
-    """Every published obligation met, on a column that had none."""
-    _document, described, folder = _described(
+    """Every published obligation met, on a column that had none.
+
+    THE ROLE IS ASSERTED HERE AND NOT ONLY THE VERDICT, which is the
+    correction the second adversarial read asked for. A quality report
+    is a statement about a description and the file beside it, so a
+    twin of a FREE-TEXT column also reports nothing missed -- and this
+    test, which exists to show the textual reading works, passed just
+    as happily with the reading removed entirely. It now says what kind
+    of column it is looking at before it says the column is met.
+    """
+    document, described, folder = _described(
         [day.strftime("%d %b %Y") for day in DAYS]
     )
+    assert document["columns"][0]["role"] == "datetime"
+    assert described.columns[0].role == "datetime"
     twin = generation.generate(described, 3)
+    cells = [cell for cell in twin.columns[0] if cell]
+    assert cells, "a twin of this column must hold cells"
+    for cell in cells:
+        assert parsing.parse_datetime(cell, "iso-date") is not None, cell
     written = fixtures.write(folder, "twin.csv", rendering.twin_csv(twin))
     outcome = validation.measure(described, f"{written}")
     assert outcome.census.missed == 0
@@ -203,3 +218,44 @@ def test_a_comma_after_the_month_name_is_not_this_grammar() -> None:
     assert parsing.parse_datetime(
         "17 Mar 2024", "textual-day-first-date"
     ) == ("2024-03-17", "")
+
+
+def test_no_field_carries_space_of_its_own() -> None:
+    """The separator rule, made true rather than nearly true.
+
+    `month_of_name` trims before it matches, so a middle field of
+    ` Mar` answered `03` and `17- Mar-2024` was read as a date under a
+    grammar that permits no such spelling: the contract asks for ONE
+    separator character, the same one both times. The day and year
+    fields were never exposed to this -- both ask for ASCII digits and
+    a space is not one -- so the guard is written over all three
+    rather than the one that happened to need it.
+    """
+    for text in (
+        "17- Mar-2024",
+        "17-Mar -2024",
+        "17-\tMar-2024",
+        "17 Mar-2024",
+        "17-Mar 2024",
+    ):
+        for member in (
+            "textual-day-first-date", "textual-month-first-date"
+        ):
+            assert parsing.parse_datetime(text, member) is None, text
+
+
+def test_the_month_vocabulary_is_closed_where_the_contract_closes_it() -> None:
+    """C6-D8N, and the cost of closing it, both asserted.
+
+    `Sept` is a real abbreviation people write and this package does
+    NOT read it. That is the contract's choice and the test states it,
+    so that a later widening is a decision somebody makes rather than
+    something that drifts in: a vocabulary left open is one two
+    implementations spell differently.
+    """
+    assert parsing.month_of_name("Sept") is None
+    assert parsing.month_of_name("Sep") == "09"
+    assert parsing.month_of_name("September") == "09"
+    assert parsing.parse_datetime(
+        "17 Sept 2024", "textual-day-first-date"
+    ) is None

@@ -558,7 +558,7 @@ claim.
 | `categorical_ceiling` | integer | ≥ 1 | the absolute cap on how many different FOLDED values a column may hold and still be described as categories |
 | `categorical_floor` | integer | ≥ 1 | the effective cap is never below this, so that a tiny table still has a categorical path |
 | `categorical_share` | number | 0.0 ≤ x ≤ 1.0 | the share of the table's ROWS that caps it as well: the effective cap is `min(categorical_ceiling, categorical_share of n_rows)`, never below `categorical_floor` |
-| `day_first` | boolean | — | true when the person declared, with `--day-first`, that slashed dates in this table are day-first; false otherwise. Default false. It records that the DECLARATION was made, and not which reading any column took — see below |
+| `day_first` | boolean | — | true when the person declared, with `--day-first`, that dates in this table are day-first wherever the day and month are BOTH written as numbers — the slashed pair, the slashed stamp pair, the dotted pair and the two-figure-year pair; false otherwise. Default false. It records that the DECLARATION was made, and not which reading any column took — see below |
 | `declaration_matching` | string | exactly `exact_number_when_it_reads_as_one_else_spelling` | the one rule that says which cells a declared value matches: a declared value that reads as a number this format can hold matches every cell holding that EXACT NUMBER, whatever either is spelled like, so `-999` covers a file that writes `-999.00`; any other declared value matches by spelling, after trimming and case folding |
 | `declaration_publication` | string | exactly `settings_counts_only_columns_unchanged` | what this block publishes about a declaration and what it does not: counts and synthtwin's own words here, and the columns unchanged |
 | `declared_missing_values` | object | exactly the five keys below | the declaration record for `--missing-value` |
@@ -1525,7 +1525,8 @@ hundredth.
 | 4 | whole number | *Y*, cells only the month-first reading parsed |
 | 5 | package word | the reading USED: `day-first` or `month-first` |
 
-Carried whenever `day_first` was given and a slashed reading was in
+Carried whenever `day_first` was given and an ambiguous numeric
+reading — slashed, slashed stamp, dotted or two-figure-year — was in
 play, exactly once per such column.
 
 The rendering is TWO clauses, the first always and the second on its own
@@ -2741,7 +2742,7 @@ ISO reading below may still claim the column.
 
 | key | JSON type | permitted values | meaning |
 |---|---|---|---|
-| `format` | string | one of the ELEVEN members of the table below | the parser family that read the REAL file |
+| `format` | string | one of the SEVENTEEN members of the table below | the parser family that read the REAL file |
 | `resolution` | string | `date`, `datetime`, `quarter`, `month` | which canonical form the published datetimes are written in |
 | `time_precision` | string | `subsecond`, `second`, `minute`, `date`, `quarter`, `month` | the FINEST precision any cell of the real column writes |
 | `subsecond_digits` | integer ≥ 0 | — | the most fractional-second digits any cell writes |
@@ -2769,7 +2770,7 @@ that rule catches. Section 14 indexes all three.
 
 ##### The format vocabulary, its readings and its resolutions
 
-Eleven members, each with the shape it reads and the `resolution` it
+Seventeen members, each with the shape it reads and the `resolution` it
 requires:
 
 | `format` | reads | `resolution` |
@@ -2777,10 +2778,10 @@ requires:
 | `iso-date` | `YYYY-MM-DD`: a four-digit year, two-digit month and day, hyphen-delimited, exactly ten characters | `date` |
 | `month-first-date` | a slashed month-first date: a one- or two-digit month, a one- or two-digit day, a four-digit year, slash-delimited | `date` |
 | `day-first-date` | a slashed day-first date: a one- or two-digit day, a one- or two-digit month, a four-digit year, slash-delimited | `date` |
-| `textual-day-first-date` | a one- or two-digit day, a month NAME, a four-digit year, delimited by a space or a hyphen — the same one both times | `date` |
-| `textual-month-first-date` | a month NAME, a one- or two-digit day with an optional trailing comma, a four-digit year, delimited by a space or a hyphen — the same one both times | `date` |
-| `dotted-month-first-date` | a dotted month-first date: a one- or two-digit month, a one- or two-digit day, a four-digit year, dot-delimited | `date` |
-| `dotted-day-first-date` | a dotted day-first date: a one- or two-digit day, a one- or two-digit month, a four-digit year, dot-delimited | `date` |
+| `textual-day-first-date` | a one- or two-digit day, a month NAME, a four-digit year, delimited by a space or a hyphen — the same one both times, and no field carrying space of its own | `date` |
+| `textual-month-first-date` | a month NAME, a one- or two-digit day with an optional trailing comma, a four-digit year, delimited by a space or a hyphen — the same one both times, and no field carrying space of its own | `date` |
+| `dotted-month-first-date` | a dotted month-first date: a TWO-digit month, a TWO-digit day, a four-digit year, dot-delimited. Padded, and the one family that is — C6-22 says why | `date` |
+| `dotted-day-first-date` | a dotted day-first date: a TWO-digit day, a TWO-digit month, a four-digit year, dot-delimited. Padded, and the one family that is — C6-22 says why | `date` |
 | `two-digit-month-first-date` | a slashed month-first date whose year is TWO figures, read at the pivot C6-D8P fixes | `date` |
 | `two-digit-day-first-date` | a slashed day-first date whose year is TWO figures, read at the pivot C6-D8P fixes | `date` |
 | `compact-date` | `YYYYMMDD`: exactly eight digits and nothing else | `date` |
@@ -2818,6 +2819,25 @@ profile recording whole seconds; how many digits the source wrote is
 The two fields are where that notation is recorded, and the published
 instants are not.
 
+**C6-D8N (the month-name vocabulary, closed).** The two textual
+members read a month NAME, and the names they read are these and no
+others: `jan`, `feb`, `mar`, `apr`, `may`, `jun`, `jul`, `aug`, `sep`,
+`oct`, `nov`, `dec`, and the full words `january`, `february`, `march`,
+`april`, `may`, `june`, `july`, `august`, `september`, `october`,
+`november`, `december`. Matched after trimming and case folding, so
+`MAR`, `Mar` and `mar` are one name.
+
+THE ABBREVIATION IS EXACTLY THREE LETTERS. `Sept` is not read, and
+that is a limit rather than an oversight: a vocabulary left open is a
+vocabulary two implementations spell differently, and a column of
+`17 Sept 2024` read as dates by one tool and as text by another is
+worse for a person than either answer alone. A column this vocabulary
+does not reach is read as text, exactly as it was before these members
+existed.
+
+ENGLISH ONLY, for the same reason. A name read in one language and not
+another gives one table its dates and the table beside it free text.
+
 **C6-22 (the unpadded widening).** Six families accept one- or
 two-digit month and day fields: `month-first-date`, `day-first-date`,
 `month-first-datetime`, `day-first-datetime`,
@@ -2843,26 +2863,31 @@ eight digits, so no family overlaps another, and no fixed
 character-count rule stands over the widened families.
 
 **The day-first reading rule.** `--day-first` tells the profiler that
-slashed dates in this table are day-first, and the settings key
-`day_first` (section 4.4) records that the declaration was made.
+dates in this table are day-first wherever the day and month are BOTH
+written as numbers — the slashed pair, the slashed stamp pair, the
+dotted pair and the two-figure-year pair (plan P4-D8) — and the
+settings key `day_first` (section 4.4) records that the declaration was
+made. It does NOT reach the textual pair, whose order a month name
+settles, so a declaration changes nothing there.
 Its mechanics are NOT a bare order swap, because a swap can silently
 reverse a column against its own evidence: with ninety-nine ambiguous
 slashed cells and one cell only the month-first reading can parse, a
 swapped table lets the day-first reading clear the line first and reads
 the whole column backwards, counting the one contrary cell — the
 column's only evidence — as unparsed. The rule is therefore
-evidence-first: where the option is given and a column's slashed cells
-are in play, BOTH slashed readings are counted, and the reading that
-parses strictly more cells wins whatever the declaration said; the
+evidence-first: where the option is given and a column's ambiguous
+numeric cells are in play, BOTH readings of that column's pair are
+counted, and the reading that parses strictly more cells wins whatever
+the declaration said; the
 declaration decides only a count tie. Which reading a column took is
 that column's own `format` and is recorded nowhere else. Absent the
 declaration the ordinary reading stands: the vocabulary is tried in its
 own fixed order, month-first before day-first, and the first member
 that clears the line wins.
 
-**DF-P (producer).** Both slashed readings were counted, the reading
-used is the one that parsed strictly more cells, and the declaration
-decided only a count tie.
+**DF-P (producer).** Both readings of the column's own pair were
+counted, the reading used is the one that parsed strictly more cells,
+and the declaration decided only a count tie.
 
 **DF-R (producer).** Where the option was given and a column's slashed
 reading was in play, that column carries the slashed-date remark form
@@ -5726,7 +5751,7 @@ it answers to.
 
 | id | statement | loader? |
 |---|---|---|
-| D1 | the pair (`format`, `resolution`) is one row of the format table, and the binding is exact and TOTAL over all ELEVEN members: `iso-date`, `month-first-date`, `day-first-date`, `compact-date` and `slashed-iso-date` take `date`; `iso-month` takes `month`; `year-quarter` takes `quarter`; `iso-datetime`, `iso-mixed`, `month-first-datetime` and `day-first-datetime` take `datetime` | yes |
+| D1 | the pair (`format`, `resolution`) is one row of the format table, and the binding is exact and TOTAL over all SEVENTEEN members: `iso-date`, `month-first-date`, `day-first-date`, `compact-date`, `slashed-iso-date`, `textual-day-first-date`, `textual-month-first-date`, `dotted-month-first-date`, `dotted-day-first-date`, `two-digit-month-first-date` and `two-digit-day-first-date` take `date`; `iso-month` takes `month`; `year-quarter` takes `quarter`; `iso-datetime`, `iso-mixed`, `month-first-datetime` and `day-first-datetime` take `datetime` | yes |
 | D2 | `sum(utc_offsets.values()) == n_present - n_unparsed` — only cells that parsed have an offset | yes |
 | D3 | every key of `utc_offsets` other than `(withheld)` maps to a count at least the floor, and `(withheld)` appears only when the pooled remainder is non-zero | yes |
 | D4 | an endpoint offset field naming a real offset names a key of `utc_offsets`: a value published in one field of a block that another field of the same block promises to withhold is a contradiction this format forbids | yes, in that direction — that `(none)` marks an endpoint cell wearing no offset, and `(withheld)` an offset the map is holding back, is *producer* |
@@ -5871,7 +5896,7 @@ document, never the table it describes.
 | T-P | every published clock value, endpoints and rungs, is a value some cell of the source column held | T1 checks spelling and T2 and T3 order, never provenance |
 | TU-P | `n_unparsed` on `time_of_day` is the count of present cells no clock reading accepted | its type bounds it below and T4 and T5 above; neither reaches the measurement |
 | U-P | `min_length` and `max_length` on `numeric_unrepresentable` are measured over the NUMERIC-LOOKING cells only, each a character count of the cell's text | a straggler's length is a fact about text and as a bound would read as magnitude; U5 reaches no further |
-| DF-P | both slashed readings were counted, the reading used parsed strictly more cells, and the declaration decided only a tie | the winning `format` is recorded, the losing count is not |
+| DF-P | both readings of the column's own ambiguous pair were counted, the reading used parsed strictly more cells, and the declaration decided only a tie | the winning `format` is recorded, the losing count is not |
 | DF-R | where the option was given and a slashed reading was in play, the column bears that remark exactly once, over the EVIDENCE, not the winner | whether a reading was in play is a fact about the table |
 | CP-P | a published calendar-placeholder verdict is the one the outlier-and-share rule reached over the source's written days | the rule ran over a table a loader never holds |
 | RM-P | the `resolution_mix` counts are the counts the source's own cells wore | a 40/60 and a 50/50 split of a hundred cells both satisfy RM1 and RM2 |
@@ -6801,8 +6826,12 @@ a marked row.
    endpoint policy, newly reaching columns that were free text.
 5. **Every ROLE-ADDED fact a datetime block publishes**, on every
    column the five calendar members `slashed-iso-date`, `iso-month`,
-   `iso-mixed`, `month-first-datetime` and `day-first-datetime`, or the
-   unpadded reading of the slashed month and day fields, newly claim.
+   `iso-mixed`, `month-first-datetime` and `day-first-datetime`, the
+   unpadded reading of the slashed month and day fields, or the SIX
+   members of plan P4-D8 — `textual-day-first-date`,
+   `textual-month-first-date`, `dotted-month-first-date`,
+   `dotted-day-first-date`, `two-digit-month-first-date` and
+   `two-digit-day-first-date` — newly claim.
    **NEW for such a column.** The universal keys it newly fills are
    priced at row 15, not here. The role-added set is thirteen keys, of
    which a `free_text` block carries none, so every one is new for such
@@ -6915,9 +6944,9 @@ a marked row.
     every sentinel candidate reads `(withheld)`; on the other classes
     none of that holds. So every column crossing out of free text into
     one of those FOUR roles — by the five calendar members named at row
-    5, the unpadded reading, the clock rule, the affix rule or the
-    long-tail rule — newly publishes four kinds of fact about its
-    ABSENT cells:
+    5, the six P4-D8 members named beside them, the unpadded reading,
+    the clock rule, the affix rule or the long-tail rule — newly
+    publishes four kinds of fact about its ABSENT cells:
     - the EXACT absent-value SPELLINGS its cells wore, every key of
       `missing_by_source` being text of the table with no first-party
       meaning, floor-governed;
@@ -7528,7 +7557,7 @@ count and the blank count live in `n_missing_withheld` and
 
 ### 14.6 Datetime and clock
 
-**`format` — 11** (6.6.2), each with the `resolution` it requires:
+**`format` — 17** (6.6.2), each with the `resolution` it requires:
 
 | `format` | `resolution` |
 |---|---|
@@ -7537,6 +7566,12 @@ count and the blank count live in `n_missing_withheld` and
 | `day-first-date` | `date` |
 | `compact-date` | `date` |
 | `slashed-iso-date` | `date` |
+| `textual-day-first-date` | `date` |
+| `textual-month-first-date` | `date` |
+| `dotted-month-first-date` | `date` |
+| `dotted-day-first-date` | `date` |
+| `two-digit-month-first-date` | `date` |
+| `two-digit-day-first-date` | `date` |
 | `iso-month` | `month` |
 | `year-quarter` | `quarter` |
 | `iso-datetime` | `datetime` |
@@ -7620,9 +7655,10 @@ nested forms, 2 bound affix strings.
 | NG41 | `header_names_shown_by_a_column` | 1 |
 | NG42 | `remark_two_figure_years_are_read_at_a_pivot` | 0 |
 
-**The package-word vocabulary — 13**, the whole of the second argument
-class (4.5.1): the eleven `format` members of 14.6, plus `day-first`
-and `month-first`, the two reading names the slashed-date remark needs.
+**The package-word vocabulary — 19**, the whole of the second argument
+class (4.5.1): the seventeen `format` members of 14.6, plus `day-first`
+and `month-first`, the two reading names the day-and-month remark
+needs.
 No other string is a word of this class, and membership alone does not
 admit a word: a `format` member stands only at `evidence_dates`
 argument 3 or `said_read_as_dates` argument 2, and `day-first` or

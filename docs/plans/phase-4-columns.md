@@ -4042,6 +4042,44 @@ round 1; every item worked.
    2075 is read as 1975, out the other way and unmentioned. The
    sentence now states the RANGE it is right about.
 
+**The second adversarial read, and the seven things it found.**
+REJECTED again; every item worked.
+
+1. *`--day-first` was still slashed-only in the contract* (blocking) —
+   five clauses, including the settings definition, NF36's trigger, the
+   principal rule and DF-P. The code and the CLI had been widened and
+   the normative text had not, so an independent producer would read a
+   dotted column the other way round from the shipped one.
+2. *Four more copies of the eleven-format list* (blocking): the
+   permitted-values row, the format table's own heading, the
+   consolidated D1 in the invariant census, and section 14's index. A
+   conforming reader implementing any of them refuses the six new
+   members.
+3. *The primary format table still called the dotted pair unpadded*
+   (blocking), which is the opposite of what C6-22 now says and of
+   what the code does.
+4. *A textual field could carry space of its own* (serious).
+   `month_of_name` trims before it matches, so `17- Mar-2024` was read
+   as a date under a grammar that permits one separator character, the
+   same one both times. The reviewer's own example did not reproduce —
+   the space split is tried first and fails on the year — but the class
+   is real and three spellings of it parsed.
+5. *The disclosure inventory omitted the six new routes out of free
+   text* (serious), so an audit run from the contract would miss what
+   these columns now expose.
+6. *The contract never closed the month-name vocabulary* (serious). The
+   code reads exactly three-letter abbreviations and full English
+   names; the contract said only "a month NAME", so another conforming
+   implementation could read `Sept` and produce a datetime profile
+   where this one produces text. C6-D8N closes it, states the English
+   limit and states the cost.
+7. *Two of the new tests were not sensitive to their own rule* (test
+   weakening). The textual twin test asserted only that a quality
+   report reported nothing missed, which is also true of the free-text
+   twin it would have got with the reading removed; and the shape test
+   claimed the padded dotted rule in its prose without checking it.
+   Both now assert what they describe.
+
 **Residual R-P4-29 was opened while building this and not by it:** the
 contract's note grammar and `taxonomy.NOTE_ARITY` disagree about five
 forms, one of them in shipped output, and no test compares them.

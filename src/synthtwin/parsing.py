@@ -1116,6 +1116,19 @@ def month_of_name(word: str) -> "str | None":
     return None
 
 
+def _carries_space(field: str) -> bool:
+    """Whether one field of a textual date carries space of its own.
+
+    Written as a function of its own, with the type gate at the top,
+    because the offline audit traces a value it can read as a string
+    and refuses a method call on anything else -- and a field sliced
+    out of a body inside a loop is not something it can follow.
+    """
+    if not isinstance(field, str):
+        raise TypeError(_NOT_TEXT)
+    return field != field.strip()
+
+
 def _textual_fields(
     body: str, comma_after_middle: bool
 ) -> "tuple[str, str, str] | None":
@@ -1158,8 +1171,24 @@ def _textual_fields(
             if not comma_after_middle:
                 continue
             middle = middle[0 : len(middle) - 1]
-        if first and middle and last:
-            return first, middle, last
+        if not first or not middle or not last:
+            continue
+        # NO FIELD CARRIES SPACE OF ITS OWN, which is what makes "one
+        # separator character, the same one both times" true rather
+        # than nearly true. `month_of_name` trims before it matches, so
+        # a middle field of ` Mar` answered `03` and `17- Mar-2024` was
+        # read as a date under a grammar that permits no such spelling.
+        # The day and year fields were never exposed to this -- both
+        # ask for ASCII digits and a space is not one -- so the guard
+        # is written over all three rather than over the one that
+        # happened to need it.
+        if _carries_space(first):
+            continue
+        if _carries_space(middle):
+            continue
+        if _carries_space(last):
+            continue
+        return first, middle, last
     return None
 
 
