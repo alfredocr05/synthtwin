@@ -2659,6 +2659,80 @@ and is met exactly.
 finished cells, exactly as the fraction census is, and reported rather
 than met wherever the paragraph above bites.
 
+### P4-D8 The date shapes a spreadsheet actually writes
+
+Four shapes a person meets constantly are read by this tool as free
+text today, and a column of them loses everything a date column has:
+
+| written | today |
+|---|---|
+| `17 Mar 2024`, `17-Mar-2024` | free text |
+| `Mar 17, 2024`, `March 17, 2024` | free text |
+| `03/17/24`, `17/03/24` | free text |
+| `17.03.2024`, `03.17.2024` | free text |
+
+A free-text column publishes no earliest, no latest, no ladder and no
+distribution over time. Its twin holds invented strings, so nothing a
+person writes against a date — a difference in days, a window, a sort,
+a resample — runs on it at all. That is principle 5's case exactly: a
+column handled by an appropriate type path, or declined with an
+explanation, and this is neither.
+
+**WHAT THIS DECISION ADDS IS READING, AND ONLY READING.** The twin
+still writes ISO. That is owner decision 5 of the Phase 2 plan, which
+chose ISO twin syntax at the recorded precision rather than the
+source's lexical family, and it is why `format` is REPORT-ONLY and why
+residual R-P2-7 stands. Nothing here disturbs it, and no sentence
+anywhere may say the twin reproduces these spellings. What the person
+gains is the whole of the column's behaviour as a date — its ends, its
+ladder, its gaps, its absence pattern — and what they still owe is the
+`format` argument in their own parsing call, which R-P2-7 names.
+
+Whether the twin should write the source's own date spelling is a
+question this decision deliberately does not reopen; it is owner
+decision 5's to revisit, and the case for revisiting it is stronger
+after this landing than before, because these four shapes are more
+common in real files than the slashed pair that raised it.
+
+**Six members, in three families.**
+
+1. **The textual pair.** `textual-day-first-date` reads `17 Mar 2024`,
+   `17-Mar-2024` and `17 March 2024`; `textual-month-first-date` reads
+   `Mar 17, 2024`, `March 17, 2024` and `Mar-17-2024`. A month NAME
+   cannot be mistaken for a day number, so these two need no evidence
+   and no setting to tell them apart: the position of the name decides
+   it. The vocabulary is English, abbreviated to three letters or
+   written in full, matched case-insensitively. The separator is a
+   space or a hyphen, the same one between both pairs of fields, and a
+   comma may follow the day in the month-first member because that is
+   how the shape is written.
+2. **The two-digit-year pair.** `two-digit-month-first-date` and
+   `two-digit-day-first-date` read `03/17/24` and `17/03/24`. They are
+   ambiguous exactly as the four-figure slashed pair is, and they are
+   resolved by the same machinery: the evidence of a field above
+   twelve, then `--day-first`, then the ratified default. **The
+   century rule is stated here rather than inferred**: `00` to `68`
+   read as 2000 to 2068, `69` to `99` as 1969 to 1999. That is the
+   POSIX convention and it is a GUESS about somebody's data — a
+   two-figure year does not carry its century — so it is written into
+   the column's remarks wherever this pair is read, and a person whose
+   data crosses that line is told rather than left to find out.
+3. **The dotted pair.** `dotted-day-first-date` and
+   `dotted-month-first-date` read `17.03.2024` and `03.17.2024`,
+   ambiguous on the same terms and resolved by the same machinery.
+
+**What keeps the families apart.** The year is four figures and comes
+last for the dotted pair, two figures and last for the two-digit pair,
+and the textual pair is decided by where the month name sits. No
+spelling satisfies two members, which is the property the slashed
+grammar already keeps and the one that lets the single-format pass
+stay a single pass.
+
+**Order.** The textual pair is unambiguous, so it lands first and
+alone. The two-digit and dotted pairs land after it, each with the
+evidence machinery, because each reopens the day-first question and
+the reads that follow should see one of them at a time.
+
 ## Acceptance criteria
 
 1. Every owner decision of P4-D0 is recorded in this plan — taken or

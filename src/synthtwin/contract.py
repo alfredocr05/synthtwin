@@ -488,6 +488,8 @@ DATE_FORMATS = (
     "compact-date",
     "month-first-date",
     "day-first-date",
+    "textual-day-first-date",
+    "textual-month-first-date",
     "month-first-datetime",
     "day-first-datetime",
     "year-quarter",
