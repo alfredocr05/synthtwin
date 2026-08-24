@@ -335,7 +335,15 @@ Published: the 11-rung `percentiles` ladder; `n_zero`; `n_negative`;
 `std_unrepresentable`; the universal class counts `n_numeric`,
 `n_out_of_range`, `n_contradictory`, `n_not_numeric`; `n_distinct` and
 `n_distinct_folded`; and (owner decision 10) `numeric_styles` with its
-withheld remainder.
+withheld remainder, TOGETHER WITH ITS TWO SIBLING CENSUSES:
+`fraction_widths`, how many `decimal`-styled cells wrote each number of
+figures after the point (plan P4-D4.5), and `pad_widths`, how many
+`leading_zero`-styled cells wrote each FIELD WIDTH (plan P4-D7). Both
+are floor-governed with a `(withheld)` remainder, both are read over
+the CORES on `affixed_number`, and both were absent from this list
+while the profile published them -- an omission that left an
+independent implementer writing a column the shipped tool would not
+write, which is the one thing this document exists to prevent.
 
 Fixed quantities used throughout:
 
@@ -975,6 +983,60 @@ because a zero in front of a plain spelling is what makes it
 `leading_zero`, and a column whose whole map is `plain` therefore
 reaches its published distinctness only as far as its different values
 carry it (G12.8).
+
+**A NAMED FIELD WIDTH SPENDS THE FAMILY, and this is the one bound the
+family has** (plan P4-D7). Where `pad_widths` names a width, the cells
+it counts are written AT that width: the order is not one, and not
+whatever an identity walk asks for, but exactly the number of zeros
+that makes the field the published width. Every further order writes
+one more figure, so a value has exactly ONE leading-zero spelling at a
+named width and the supply that "has no ceiling" above has, for those
+cells, a ceiling of one. Two rules follow and both are normative:
+
+1. **A width narrower than a value is never assigned.** A padded cell
+   writes at least one zero in front of at least one figure, so a value
+   needing `k` figures can wear only a field STRICTLY wider than `k`.
+   Assigning it a field of `k` or less would lose figures the value
+   needs, and padding must never move a value.
+2. **The style is placed on values the widths can hold.** Where the
+   style walk of G6.4 would give `leading_zero` to a value no published
+   width can hold while a value that fits wears another style, the two
+   cells EXCHANGE styles. The exchange is between two cells, so every
+   published style count is unchanged. A PINNED CELL IS NOT SPECIAL
+   HERE, either way round: what pins a cell is its value, a style
+   carries no value, and `1` and `01` read back as the same number, so
+   a published endpoint may give the padded style up and may equally
+   receive it. The two guards that DO bind are the ones the styles
+   themselves impose: there is no leading-plus spelling of a negative
+   value, and no point-free spelling of a value that has none.
+
+Placing the counted cells into the published widths is a packing
+problem and this method fixes a WALK rather than an optimum. The walk
+is stated to the byte, because two implementations agreeing on the
+census and differing on the order write different files:
+
+- the published widths are served in ASCENDING order, narrow fields
+  first, a value that fits a narrow field fitting every wider one;
+- within one width, the cells are taken in ASCENDING CELL POSITION,
+  each cell taken if its value needs strictly fewer figures than the
+  field and the width's count is not yet spent;
+- THE UNIT IS THE CELL AND NOT THE VALUE. One value may wear several
+  published widths, and must be able to: a column publishing widths
+  two, three and four over the single value 1 is a column whose source
+  wrote `01`, `001` and `0001`, and whose three different spellings are
+  published because of it. Holding such a value to one width collapses
+  the census and the spelling count together;
+- a cell no count can hold takes the NARROWEST published width its
+  value can still wear, over that width's count. Only where no
+  published width can hold the value at all is the cell written at its
+  own value's width;
+- and in the exchange of rule 2 above, the published widths are walked
+  ascending, the cells that may receive the padded style are walked in
+  ascending position, and the cell that gives it up is the first in
+  ascending position whose value the width in hand cannot hold.
+
+A width the walk cannot fill is reported by G13's recount rather than
+passed over.
 
 ### G6.4 Which cell gets which style
 
@@ -3492,6 +3554,10 @@ construction and not a second reading of the output:
 ```
 supply = for each (value, style) group of the numbers class:
              1                      where the style is `plain`
+             1                      where the style is `leading_zero`
+                                    AND `pad_widths` names that cell's
+                                    field width, the family being spent
+                                    by the width (G6.3)
              the group's cell count otherwise, since every other style
                                     carries the leading-zero family
        + for each other class:

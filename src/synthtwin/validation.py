@@ -5979,6 +5979,16 @@ def _spelling_supply(
                 pooled = pooled + facts.numeric_styles[style]
             else:
                 supply = supply + facts.numeric_styles[style]
+        # ...less the padded cells the width census pins, which carry no
+        # family of their own -- but NOT folded into the plain pool,
+        # because a padded cell and a plain one spell the SAME VALUE
+        # differently: `5` and `05` are two identities wherever both
+        # forms appear. So each named width keeps one spelling of its
+        # own, which is the floor a column all of whose cells carried a
+        # single value would still reach.
+        pinned = _pinned_padding(facts)
+        if pinned > 0:
+            supply = max(0, supply - pinned) + _named_pad_widths(facts)
         if pooled > 0:
             supply = supply + 1
         return supply + _other_class_spellings(column, published)
@@ -6069,6 +6079,55 @@ def _other_class_spellings(
     return found
 
 
+def _pinned_padding(facts: "contract.NumericFacts") -> int:
+    """How many padded cells the width census pins to a field width.
+
+    A CELL WHOSE FIELD WIDTH IS PUBLISHED IS KEYED BY ITS VALUE, exactly
+    as a `plain` cell is, and that is the whole of why this number is
+    needed on both ends of G12.8's supply. The leading-zero family is
+    the one unbounded supply of alternate spellings a numeric column
+    has -- `5`, `05`, `005` -- and every step of it writes ONE MORE
+    FIGURE. So where the census names the width, the family is spent:
+    a value has exactly one leading-zero spelling five figures wide,
+    and a twin reaching for a second would leave the published width.
+
+    Both ends read this. Counting a pinned cell as carrying a family it
+    cannot reach put the exact bar on a column whose twin cannot meet
+    it, and reported a twin that honoured every published width as
+    MISSED for the distinctness that honouring them costs -- which is
+    the case owner decision 11 already authorizes the envelope for,
+    "only where even those cannot supply".
+
+    The `(withheld)` remainder is NOT pinned: the floor held those cells
+    back precisely because no width of theirs was named, so the twin
+    writes them at whatever width its construction reaches and the
+    family is still open to them.
+    """
+    pinned = 0
+    for key in facts.pad_widths:
+        if key == taxonomy.SUPPRESSED_LABEL:
+            continue
+        pinned = pinned + facts.pad_widths[key]
+    return pinned
+
+
+def _named_pad_widths(facts: "contract.NumericFacts") -> int:
+    """How many field widths the census names, the `(withheld)` pool aside.
+
+    Each named width is a spelling family of its own: one value written
+    two figures wide is `05` and five figures wide is `00005`, so a
+    column whose cells all carried one value still holds one identity
+    per named width. That is why the pinned cells do not simply join
+    the plain pool at the floor.
+    """
+    named = 0
+    for key in facts.pad_widths:
+        if key == taxonomy.SUPPRESSED_LABEL:
+            continue
+        named = named + 1
+    return named
+
+
 def _spelling_ceiling(
     column: contract.ColumnBlock,
     facts: contract.ColumnFacts,
@@ -6109,6 +6168,34 @@ def _spelling_ceiling(
             plain = plain + facts.numeric_styles[style]
         else:
             others = others + facts.numeric_styles[style]
+    # A PINNED PADDED CELL IS KEYED BY ITS VALUE TOO -- the census fixed
+    # its width, and every further spelling of its value is a figure
+    # wider -- BUT IT IS NOT KEYED WITH THE PLAIN CELLS. `5` and `05`
+    # are two spellings of one value, so a column holding both carries
+    # two identities for it, and folding the padded cells into the plain
+    # bucket capped the pair at the plain bucket's own ceiling. That put
+    # the twin the shipped generator writes OUTSIDE its own bound: a
+    # description with three plain and three padded cells over three
+    # values was given a ceiling of three where the construction writes
+    # four, and a conforming twin was reported MISSED -- which is review
+    # item P3-V7-F4's defect reached by a new route. The padded cells
+    # take a bucket of their own, capped the same way.
+    pinned = _pinned_padding(facts)
+    padded_room = 0
+    if pinned > 0:
+        others = max(0, others - pinned)
+        # ONE SPELLING PER VALUE PER NAMED WIDTH, which is why the count
+        # of named widths is a factor here and not an afterthought. A
+        # value has exactly one padded spelling at one field width, so
+        # where a single width is named this is the plain bucket's own
+        # cap; where SEVERAL are, the same value reaches a different
+        # spelling in each -- `01`, `001` and `0001` are one number and
+        # three identities -- and a cap of `n_distinct` then excludes
+        # twins the construction actually writes. A column of
+        # thirty-three padded cells over three named widths wrote
+        # thirty-one identities against a ceiling of thirty and was
+        # reported MISSED for it.
+        padded_room = min(pinned, column.n_distinct * _named_pad_widths(facts))
     # A PLAIN GROUP IS KEYED BY ITS VALUE, so the plain cells supply one
     # spelling for each different value among them and no more -- and
     # the value construction of G5 and G7 is built to the published
@@ -6117,7 +6204,7 @@ def _spelling_ceiling(
     # is counted here at its own cell count, which is the side that
     # claims MORE room: those cells may each be wearing a style with a
     # leading-zero family of its own.
-    room = others + min(plain, column.n_distinct)
+    room = others + min(plain, column.n_distinct) + padded_room
     # Cells outside the numbers class carry their own share of the G6.5
     # budget, never more than one identity per cell -- and the share is
     # what is added, not the cell count. Adding the cell count was the
@@ -7081,6 +7168,8 @@ def _style_checks(
             fact = "numeric.numeric_styles"
             if subcheck[:17] == "widths.published.":
                 fact = "numeric.fraction_widths"
+            if subcheck[:15] == "pads.published.":
+                fact = "numeric.pad_widths"
             withheld = withheld + [
                 _withheld(name, fact, subcheck, _GATE_CLOSED)
             ]
@@ -7339,6 +7428,32 @@ def _style_checks(
                 held_back,
             )
         ]
+    # THE CENSUS OF FIELD WIDTHS, ON THOSE SAME TERMS (P4-D7). Without
+    # this the twin owed the widths nothing: a column of two hundred
+    # and forty six-figure codes would have been carried by a twin
+    # writing fields two to five figures wide, and the quality report
+    # would have called it held -- which is exactly what it did before
+    # this census existed.
+    pads = _map_at(block, "pad_widths")
+    padding = facts.pad_widths
+    pooled_pads = 0
+    if taxonomy.SUPPRESSED_LABEL in padding:
+        pooled_pads = padding[taxonomy.SUPPRESSED_LABEL]
+    for width in sorted(padding):
+        if width == taxonomy.SUPPRESSED_LABEL:
+            continue
+        checks = checks + [
+            _floor_governed(
+                name,
+                "numeric.pad_widths",
+                f"pads.published.{width}",
+                padding[width],
+                pads,
+                width,
+                floor,
+                pooled_pads,
+            )
+        ]
     return checks
 
 
@@ -7474,6 +7589,10 @@ def _style_subchecks(
         if width == taxonomy.SUPPRESSED_LABEL:
             continue
         named = named + [f"widths.published.{width}"]
+    for width in sorted(facts.pad_widths):
+        if width == taxonomy.SUPPRESSED_LABEL:
+            continue
+        named = named + [f"pads.published.{width}"]
     return named
 
 

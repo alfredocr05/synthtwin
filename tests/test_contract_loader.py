@@ -822,6 +822,42 @@ def battery() -> list[Mutation]:
             "figures after the point counted for cells that wrote none",
             edit("visits", fraction_widths={"2": 40}),
         ),
+        # -- the census of padded field widths (P4-D7) ---------------
+        Mutation(
+            "P5b",
+            "field widths counted for cells that wrote no padding",
+            edit("visits", pad_widths={"5": 40}),
+        ),
+        Mutation(
+            "P6b",
+            "a field width written by too few cells to name",
+            edit(
+                "visits",
+                numeric_styles={"plain": 218, "leading_zero": 11},
+                pad_widths={"5": 10, "6": 1},
+            ),
+        ),
+        Mutation(
+            "P8",
+            "two width censuses that are each possible and not both",
+            edit(
+                "visits",
+                numeric_styles={
+                    "plain": 174, "leading_plus": 20, "(withheld)": 35,
+                },
+                fraction_widths={"(withheld)": 10},
+                pad_widths={},
+            ),
+        ),
+        Mutation(
+            "P7b",
+            "a field width no padded cell could ever wear",
+            edit(
+                "visits",
+                numeric_styles={"plain": 218, "leading_zero": 11},
+                pad_widths={"1": 11},
+            ),
+        ),
         # -- clock times --------------------------------------------
         Mutation(
             "T1", "a clock rung written in the other form",

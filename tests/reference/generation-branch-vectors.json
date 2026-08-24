@@ -481,6 +481,9 @@
           "leading_plus": 11,
           "leading_zero": 11
         },
+        "pad_widths": {
+          "2": 11
+        },
         "percentiles": {
           "max": {
             "decimal": "5",
@@ -743,6 +746,7 @@
           "(withheld)": 1,
           "plain": 11
         },
+        "pad_widths": {},
         "percentiles": {
           "max": {
             "decimal": "1e+20",

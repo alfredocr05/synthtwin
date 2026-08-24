@@ -740,6 +740,7 @@
           "exponent_lower": 11,
           "exponent_upper": 11
         },
+        "pad_widths": {},
         "percentiles": {
           "max": {
             "decimal": "1e+16",
@@ -1718,6 +1719,7 @@
         "numeric_styles": {
           "plain": 20
         },
+        "pad_widths": {},
         "percentiles": {
           "max": {
             "decimal": "34",

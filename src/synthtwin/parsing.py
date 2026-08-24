@@ -858,6 +858,57 @@ def fraction_width(text: str) -> int:
     return width
 
 
+def pad_width(text: str) -> int:
+    """How wide the figure field of one zero-padded cell is written.
+
+    THE FACT A FORMS MAP CANNOT SAY, and the reason a census of it has
+    to exist at all. `numeric_styles` counts how many cells began with
+    a redundant zero; it cannot say whether they were written five
+    figures wide or nine. A code column of five-figure cells and a
+    record number nine figures wide are both "leading_zero" to that
+    map, so a twin honouring the map exactly can still write a field of
+    another width -- and a person whose code reads a fixed-width code,
+    slices it, or joins on it is holding a twin their code cannot run
+    against.
+
+    THE CORE IS THE ONE `numeric_style` READS, for the reason it is in
+    `fraction_width`: a width taken off the raw text and a form taken
+    off the unwrapped core are two readings of the same cell.
+
+    THE SIGN IS NOT A FIGURE. `-000123` writes six figures, as
+    `000123` does, because the width a person sees in a code column is
+    the field, not the character count.
+
+    Guarantees:
+
+    - Inputs: the text of one cell, exactly as the file spells it.
+      Sensible only for a cell whose value is whole; a cell carrying a
+      point answers the figures BEFORE it, which is what padding is
+      written into.
+    - Determinism: the answer depends only on the text.
+    - Errors raised: TypeError if handed anything that is not a string
+      instance, through `trimmed`.
+    - Boundary: the answer is a COUNT of characters. No figure of the
+      cell, and no magnitude, travels out through it. No I/O of any
+      kind.
+    """
+    body = trimmed(text)
+    if body[:1] == "(" and body[len(body) - 1 : len(body)] == ")":
+        body = trimmed(body[1 : len(body) - 1])
+    core = ""
+    for character in body:
+        if character != ",":
+            core = core + character
+    if core[:1] == "-" or core[:1] == "+":
+        core = core[1:]
+    width = 0
+    for character in core:
+        if character == ".":
+            return width
+        width = width + 1
+    return width
+
+
 def classify_number(text: str) -> str:
     """Say, once, what a cell is numerically.
 

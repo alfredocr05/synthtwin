@@ -3678,6 +3678,11 @@ def _universal(name, role, statistical_type, structural_role, quality_state, **f
     # every case here but two does.
     if "numeric_styles" in block and "fraction_widths" not in block:
         block["fraction_widths"] = {}
+    # ...and the same for the census of field widths (P4-D7), which is
+    # that map's sibling and empty for every case here but one: a block
+    # naming no padded cells takes a census of none.
+    if "numeric_styles" in block and "pad_widths" not in block:
+        block["pad_widths"] = {}
     # The census of which form each parsed date wore (contract C6-25),
     # on every column of dates and on no other role.  A column read
     # under one format wore that format in every cell that parsed, so
@@ -3981,6 +3986,9 @@ def _numeric_pooled_spelling():
         # written at its own value's spelling, which is the pooled
         # remainder's rule of G6.4 unchanged.
         fraction_widths={"(withheld)": 1},
+        # No cell of this case is padded, so the field-width census is
+        # empty and pins nothing.
+        pad_widths={},
         **moments,
     )
     return {
@@ -4182,6 +4190,13 @@ def _numeric_point_free_styles():
         # cells already fit it -- no cell is snapped and the committed
         # bytes are the bytes this case has always carried.
         fraction_widths={"1": 11},
+        # THE ONE CASE THAT PLACES A PADDED CELL. All eleven leading-zero
+        # cells are `05`, two figures wide, and eleven is the smallest
+        # group size -- so the census names the width rather than
+        # pooling it. The value needs one figure and the field holds
+        # two, so the one zero the style already wrote is the one the
+        # width asks for and the committed bytes do not move (P4-D7).
+        pad_widths={"2": 11},
         **moments,
     )
     return {
@@ -4615,7 +4630,7 @@ INTEGER_COLUMN_KEYS = frozenset({
 INTEGER_COLUMN_MAPS = frozenset({
     "missing_by_class", "missing_by_source", "numeric_styles", "utc_offsets",
     "variants", "variants_withheld", "n_distinct_by_occurrences",
-    "fraction_widths", "resolution_mix",
+    "fraction_widths", "pad_widths", "resolution_mix",
 })
 INTEGER_COLUMN_ARRAYS = frozenset({"suppressed_level_counts"})
 # The two blocks of a free-text column whose own two ends are whole

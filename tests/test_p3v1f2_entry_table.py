@@ -256,6 +256,25 @@ def _spelled_styles_table() -> str:
     return fixtures.single_column_table("reading", values)
 
 
+def _padded_code_table() -> str:
+    """A numeric column of fixed-width codes written with leading zeros.
+
+    THE CENSUS OF FIELD WIDTHS HAD NO FIXTURE PUBLISHING A NAMED WIDTH,
+    and a fact no fixture reaches is a fact no test asserts anything
+    about -- which is the whole subject of this file. Forty cells all
+    five figures wide put `pad_widths` above the publication floor, so
+    the description names the width and the subcheck that binds it
+    exists here with a file it can fail on.
+
+    Five figures is the shape a person actually holds: a procedure
+    code, a zip code whose leading zero matters, an account number. It
+    is the case P4-D7 was built for, so it is the case the coverage
+    identity walks.
+    """
+    values = [f"{index:05d}" for index in range(40)]
+    return fixtures.single_column_table("code", values)
+
+
 def _quarter_table() -> str:
     """A datetime column whose values name QUARTERS rather than instants.
 
@@ -338,6 +357,12 @@ def runs(
         (
             "quarters",
             _quarter_table(),
+            None,
+            reading.FIRST_ROW_AUTOMATIC,
+        ),
+        (
+            "padded-codes",
+            _padded_code_table(),
             None,
             reading.FIRST_ROW_AUTOMATIC,
         ),
@@ -3142,6 +3167,72 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("blanked-overflow", "presence.n_missing"),
         ),
     },
+    # THE PADDED-CODE FIXTURE (P4-D7). Its one column publishes a named
+    # field width, which is what binds `numeric.pad_widths` to an
+    # executable subcheck; before it, that fact was in the registry and
+    # in no check any fixture reached.
+    "padded-codes": {
+        "": (
+            ("byte-order-mark", "bytes.byte-order-mark"),
+            ("carriage-returns", "bytes.line-endings"),
+            ("no-terminal-newline", "bytes.terminal-newline"),
+            ("not-utf8", "bytes.utf8"),
+            ("added-column", "columns.n_columns"),
+            ("added-column", "columns.order"),
+            ("added-column", "header.names"),
+            ("added-column", "header.presence"),
+            ("added-row", "rows.n_rows"),
+        ),
+        "code": (
+            # THE CENSUS CATCHES WHAT THE FORMS MAP CANNOT, and this
+            # row is that claim made executable: `leading_zero-code`
+            # writes every cell one figure wider WITHOUT leaving the
+            # leading-zero style, so the forms map still balances and
+            # only the width census goes red (P4-D7).
+            ("contradicted-code", "axes.quality_state"),
+            ("bracketed-code", "axes.role"),
+            ("bracketed-code", "axes.statistical_type"),
+            ("contradicted-code", "counts.n_contradictory"),
+            ("marked-code", "counts.n_left_out_of_statistics"),
+            ("bracketed-code", "counts.n_negative"),
+            ("marked-code", "counts.n_negative_unrepresentable"),
+            ("marked-code", "counts.n_not_numeric"),
+            ("blanked-code", "counts.n_numeric"),
+            ("one-overflowed-code", "counts.n_out_of_range"),
+            ("blanked-code", "counts.n_used_in_statistics"),
+            ("floor-plussed-code", "counts.n_zero"),
+            ("marked-code", "counts.numeric_share"),
+            ("enormous-code", "ladder.max"),
+            ("bracketed-code", "ladder.min"),
+            ("bracketed-code", "ladder.p01"),
+            ("marked-code", "ladder.p05"),
+            ("crowded-code", "ladder.p10"),
+            ("crowded-code", "ladder.p25"),
+            ("crowded-code", "ladder.p50"),
+            ("crowded-code", "ladder.p75"),
+            ("crowded-code", "ladder.p90"),
+            ("crowded-code", "ladder.p95"),
+            ("enormous-code", "ladder.p99"),
+            ("crowded-code", "moments.mean"),
+            ("marked-code", "moments.skew"),
+            ("enormous-code", "moments.std"),
+            ("leading_zero-code", "pads.published.5"),
+            ("renamed-code", "position.at"),
+            ("blanked-code", "presence.n_missing"),
+            ("blanked-code", "presence.n_present"),
+            ("crowded-code", "styles.canonical.decimal"),
+            ("enormous-code", "styles.canonical.exponent_lower"),
+            ("exponent_upper-code", "styles.exact.exponent_upper"),
+            ("floor-plussed-code", "styles.exact.leading_plus"),
+            ("blanked-code", "styles.exact.leading_zero"),
+            ("blanked-code", "styles.published.leading_zero"),
+            ("crowded-code", "styles.remainder"),
+            ("bracketed-code", "styles.spelled"),
+            ("crowded-code", "styles.spill"),
+            ("crowded-code", "type.integer_valued"),
+            ("marked-code", "type.std_unrepresentable"),
+        ),
+    },
     "pooled": {
         "": (
             ("byte-order-mark", "bytes.byte-order-mark"),
@@ -3529,6 +3620,7 @@ FIXTURE_ROLES: "dict[str, dict[str, str]]" = {
         "column_1": "count",
         "column_2": "categorical",
     },
+    "padded-codes": {"code": "count"},
     "pooled": {"reading": "continuous"},
     "quarters": {
         "region": "categorical",
@@ -3779,6 +3871,10 @@ SUBCHECK_FACTS: "dict[tuple[str, str], str]" = {
     # name -- which is how a new fixture width is noticed.
     ("numeric", "widths.published.1"): "numeric.fraction_widths",
     ("numeric", "widths.published.2"): "numeric.fraction_widths",
+    # The census of FIELD widths names one subcheck per published width
+    # on the same terms, and for the same reason only the widths the
+    # fixtures publish need a row here (P4-D7).
+    ("numeric", "pads.published.5"): "numeric.pad_widths",
     ("numeric", "counts.affix_prefix"): "affixed.affix_prefix",
     ("numeric", "counts.affix_suffix"): "affixed.affix_suffix",
     ("numeric", "counts.n_affixed"): "affixed.n_affixed",
@@ -3831,6 +3927,7 @@ SUBCHECK_FACTS: "dict[tuple[str, str], str]" = {
     ("numeric", "styles.exact.leading_zero"): "numeric.numeric_styles",
     ("numeric", "styles.published.decimal"): "numeric.numeric_styles",
     ("numeric", "styles.published.exponent_lower"): "numeric.numeric_styles",
+    ("numeric", "styles.published.leading_zero"): "numeric.numeric_styles",
     ("numeric", "styles.published.plain"): "numeric.numeric_styles",
     ("numeric", "styles.remainder"): "numeric.numeric_styles",
     ("numeric", "styles.spelled"): "numeric.numeric_styles",

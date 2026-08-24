@@ -294,7 +294,8 @@ followed by one newline character. That fixes, normatively:
   case an implementer may leave untested: `publication_notes` is an
   array possibly empty (section 4.5), `levels == []` is valid
   (invariant B8), a multiplicity map may be `{}` (section 5.3), and
-  `fraction_widths` is the empty object in case P5.b;
+  `fraction_widths` is the empty object in case P5.b, and `pad_widths`
+  is the empty object in the same case of its own (C6-30b);
 - inside a string, exactly three groups of characters are escaped and
   no others: `\` is written `\\`; `"` is written `\"`; and every
   character U+0000 through U+001F is written with the short escape JSON
@@ -311,9 +312,9 @@ followed by one newline character. That fixes, normatively:
   whole.
 
 **The key order is over CODE POINTS, and never over what a key
-denotes.** Two of this contract's mappings key themselves on the figures
-of a whole number, and THEY DO NOT READ THE SAME WAY, so neither may be
-inferred from the other:
+denotes.** Three of this contract's mappings key themselves on the
+figures of a whole number, and THEY DO NOT ALL READ THE SAME WAY, so
+none may be inferred from another:
 
 - `fraction_widths` writes its width keys BARE — no sign, no leading
   zero unless the width is itself zero, no space, no other character
@@ -323,6 +324,11 @@ inferred from the other:
   the widths `0`, `1`, `2` and `10` and a pooled remainder is written
   in the order `(withheld)`, `0`, `1`, `10`, `2`, and any other order
   is a document section 10.4 refuses.
+- `pad_widths` writes its width keys by the SAME grammar and reads the
+  same way (C6-29 governs both), and it would be a poor joke for the
+  census of padding to write a padded key. A `pad_widths` object
+  carrying the widths `2`, `5` and `10` is written in the order `10`,
+  `2`, `5`.
 - a multiplicity map — `n_distinct_by_occurrences` and
   `variants_withheld` — pads its row-count keys with leading zeros to a
   uniform width, and section 5.3, which states that key form, gives
@@ -431,8 +437,8 @@ stand at four or less. On `affixed_number` these are `affix_prefix`,
 whose only container members are the objects `percentiles` and
 `numeric_styles`. On `time_of_day` they are `clock_form`, `earliest`,
 `latest`, `clock_percentiles` and `n_unparsed`. Elsewhere they are
-`fraction_widths` — a key of the block, a sibling of `numeric_styles` —
-`resolution_mix`, `min_length`, `max_length`, the `(date-sentinel)` key
+`fraction_widths` and `pad_widths` — each a key of the block, a sibling
+of `numeric_styles` — `resolution_mix`, `min_length`, `max_length`, the `(date-sentinel)` key
 of `missing_by_class`, `built_in_dates` as the third list of each
 declaration record, whose members are strings, and the `settings` keys
 `day_first` and `long_tail_minimum_level`.
@@ -814,8 +820,8 @@ whole of it:
 `suppressed_levels`; `suppressed_rows`; `suppressed_level_counts`;
 every `variants_withheld` block; `n_sentinel_candidates_unpublished`;
 `n_missing_withheld`; and the `(withheld)` ENTRIES of
-`missing_by_class`, `utc_offsets`, `numeric_styles` and
-`fraction_widths`.
+`missing_by_class`, `utc_offsets`, `numeric_styles`,
+`fraction_widths` and `pad_widths`.
 
 A document that fills one of them is refused. The rule is checked with
 the top-level rules, before any column block is read, because the
@@ -3144,7 +3150,7 @@ that comes to differ.
 
 ### 6.7 `count` and `continuous` — the numeric roles
 
-Both roles carry exactly the same key set — the fifteen keys below,
+Both roles carry exactly the same key set — the sixteen keys below,
 added to the universal set of section 5.1. They differ only in the
 verdict that produced them.
 
@@ -3232,8 +3238,9 @@ consumer off the role name.
 | `n_rows` | integer ≥ 0 | `== n_rows` at the top level | the table's row count, echoed | LOADER-ONLY |
 | `numeric_styles` | object | section 7.5 | how many cells were written in each spelling style, under the floor | EXACT-OBSERVABLE against the recount identity of section 7.5.7 |
 | `fraction_widths` | object | C6-28 to C6-30 below | how many `decimal`-styled cells were written at each fraction width, under the floor | EXACT-OBSERVABLE, under the producer obligation FW-P |
+| `pad_widths` | object | C6-27b to C6-30b below | how many `leading_zero`-styled cells wrote each field width, under the floor | EXACT-OBSERVABLE, under the producer obligation PW-P |
 
-Fifteen keys. Every one is present in every block of these two roles —
+Sixteen keys. Every one is present in every block of these two roles —
 this format has no optional keys — and every key not listed here or in
 section 5.1 is FORBIDDEN on them (section 6.11).
 
@@ -3306,6 +3313,18 @@ What belongs here is only its reach: `fraction_widths` is REQUIRED on
 `count`, `continuous` and `affixed_number`, and FORBIDDEN on every
 other role, exactly as `numeric_styles` is and for the same reason
 (7.5).
+
+#### `pad_widths`
+
+This role carries `pad_widths`, the other sibling of `numeric_styles`
+on the block rather than a key inside it. **Section 7.8 states it in
+full** — what it holds, its key grammar, and invariants P5b, P6b and
+P7b — for the reason section 7.6 is written that way: it stands on
+three roles, and a rule stated at one of them would be a rule the
+other two carry by inference.
+
+Its reach is the same: `pad_widths` is REQUIRED on `count`,
+`continuous` and `affixed_number`, and FORBIDDEN on every other role.
 
 #### The Q family
 
@@ -3812,6 +3831,7 @@ The thirteen columns, abbreviated for width: `emp` `empty`, `unr`
 | `n_rows` (echo) | | | | | | | | | ● | ● | ● | | |
 | `numeric_styles` | | | | | | | | | ● | ● | ● | | |
 | `fraction_widths` | | | | | | | | | ● | ● | ● | | |
+| `pad_widths` | | | | | | | | | ● | ● | ● | | |
 | `affix_prefix` | | | | | | | | | | | ● | | |
 | `affix_suffix` | | | | | | | | | | | ● | | |
 | `n_affixed` | | | | | | | | | | | ● | | |
@@ -3833,10 +3853,10 @@ The thirteen columns, abbreviated for width: `emp` `empty`, `unr`
 | `n_code_alphabet` | | | | | | | | | | | | ● | ● |
 | `n_distinct_by_occurrences` | | ● | | | | | | | | | | ● | ● |
 
-**Fifty-five rows, one hundred and seven marked cells**, distributed
+**Fifty-six rows, one hundred and ten marked cells**, distributed
 `empty` 0, `numeric_unrepresentable` 9, `constant` 4, `binary` 4,
 `categorical` 5, `long_tail_labels` 4, `datetime` 13, `time_of_day`
-5, `count` 15, `continuous` 15, `affixed_number` 22, `identifier` 6,
+5, `count` 16, `continuous` 16, `affixed_number` 23, `identifier` 6,
 `free_text` 5. The counts are stated so that a reader can check a
 column of the matrix against the role's own section without counting
 twice.
@@ -3879,17 +3899,17 @@ does not read a coincidence into the matrix.**
   document-level key is the one that carries the row-count
   obligation.
 - The quantitative set on `affixed_number` — `percentiles` through
-  `numeric_styles`, and `fraction_widths` beside it — describes the
-  CORES, not the cells. The four universal cell-census counts answer
+  `numeric_styles`, with `fraction_widths` and `pad_widths` beside it —
+  describes the CORES, not the cells. The four universal cell-census counts answer
   for the cells on that role as on every other, and the cores have
   four counts of their own beginning with `n_core_numeric` (C6-7).
   Every quantitative invariant this format states over `n_numeric` is
   read on that role over `n_core_numeric`, and nowhere else (AF7).
 
 **Three confinements this matrix is where a reader finds enforced.**
-`numeric_styles` and `fraction_widths` stand on exactly `count`,
-`continuous` and `affixed_number`, and are forbidden everywhere else
-including `numeric_unrepresentable`. `level_ceiling` stands on
+`numeric_styles`, `fraction_widths` and `pad_widths` stand on exactly
+`count`, `continuous` and `affixed_number`, and are forbidden
+everywhere else including `numeric_unrepresentable`. `level_ceiling` stands on
 `categorical` alone: it is that role's own key, its invariant is that
 folded distinctness is at or under the ceiling, and that is exactly
 what a `long_tail_labels` column violates by definition, so the key
@@ -4044,9 +4064,9 @@ role: a person protecting `-999 mg` names that spelling and not `-999`.
 C6-117 binds this pass with the rest — a value named with `--keep-value`
 is data, and no judged pass may read it as a hole.
 
-#### C6-6. Added keys: twenty-two
+#### C6-6. Added keys: twenty-three
 
-Seven of this role's own, and the fifteen a `count` or `continuous`
+Seven of this role's own, and the sixteen a `count` or `continuous`
 block carries, the quantitative ones computed over the CORES.
 
 | key | JSON type | range | meaning | disposition |
@@ -4073,11 +4093,12 @@ block carries, the quantitative ones computed over the CORES.
 | `n_rows` | integer ≥ 0 | `== n_rows` at the top level | the table's row count, echoed | LOADER-ONLY |
 | `numeric_styles` | object | section 7.5 | CORES per spelling style, under the floor | EXACT-OBSERVABLE, recount identity of section 7.5.7 |
 | `fraction_widths` | object | C6-27 to C6-30 | `decimal`-styled CORES per fraction width, under the floor | EXACT-OBSERVABLE |
+| `pad_widths` | object | C6-27b to C6-30b | `leading_zero`-styled CORES per field width, under the floor | EXACT-OBSERVABLE |
 
-**The block is forty-four keys**: the twenty-two universal keys of
-section 5.1 and the twenty-two above — a `count` block's fifteen
+**The block is forty-five keys**: the twenty-two universal keys of
+section 5.1 and the twenty-three above — a `count` block's sixteen
 additions plus this role's own seven. The matrix of section 6.11 marks
-exactly those twenty-two cells in its `afx` column. There is no
+exactly those twenty-three cells in its `afx` column. There is no
 unparsed count on this role: cells wearing no pair are
 `n_present - n_affixed`, and a key restating a subtraction is a key
 two implementations can disagree about.
@@ -4170,7 +4191,12 @@ census being a census of the CORES. It reaches this role for the reason
 it reached the two numeric ones: an `affixed_number` twin cell is
 written as a parsed number from the ladder placed inside its affix
 pair, so the reader's inferred type is at stake and a style map is
-something the generator can discharge. `fraction_widths` sits beside it
+something the generator can discharge. `pad_widths` is REQUIRED here
+on the same terms and for the same reason, its census likewise a census
+of the CORES: a padded record number behind a prefix is a fixed-width
+code exactly as a bare one is, and a twin that wrote its core at
+another width would break the same length check. `fraction_widths`
+sits beside it
 as a sibling key of the block under C6-27 through C6-30 — never inside
 `numeric_styles`, which P1 forbids — its cases P5.a to P5.c, P6 and P7
 read over the same core population, P2 and P4 bind as section 7.5
@@ -5253,6 +5279,100 @@ cells at that width — a loader holds no table and cannot recompute it.
 
 ---
 
+<!-- a7e: the census of padded field widths -->
+
+### 7.8 `pad_widths`
+
+**C6-27b (where it lives).** A `count`, `continuous` or
+`affixed_number` block carries `pad_widths` as a key of the BLOCK, a
+sibling of `numeric_styles` and NOT a key inside it, and forbidden on
+every other role. Inside is impossible for the reason C6-27 gives: P1
+makes every value of `numeric_styles` an integer summing to the numeric
+count, and an object is neither.
+
+**C6-28b (what it holds).** A mapping from a FIELD WIDTH — the figures
+a cell writes before any point, the sign not counted — to the number of
+`leading_zero`-styled cells at that width, with the pooled key
+`(withheld)` for widths fewer than `small_cell_floor` cells share; read
+over the cores on `affixed_number`, exactly as AF7 reads the fraction
+census there.
+
+**Why the styles map cannot say it, which is the whole reason this key
+exists.** `numeric_styles` counts how many cells began with a redundant
+zero. It cannot say whether they were written five figures wide or
+nine — a five-figure procedure code and a nine-figure record number are
+both `leading_zero` to that map — so a twin honouring the map exactly
+could write a field of another width and break a width check, a
+fixed-width slice or a join, with no published fact to name what it
+had done. A census of the width is what closes that (**A-P4-34**).
+
+**C6-29b (key grammar, and the narrowest field there is).** A width
+key is the decimal spelling of an integer of AT LEAST TWO, by the
+grammar C6-29 fixes and for the same reason: no sign, no leading zero,
+no space, no other character. It would be a poor joke for the census of
+padding to write a padded key. `(withheld)` is the only non-numeric key
+permitted.
+
+TWO IS THE FLOOR BECAUSE ONE IS NOT REACHABLE. A padded cell writes at
+least one zero, in front of at least one figure, so its narrowest field
+is two characters wide. A census naming width `0` or `1` describes
+cells no producer can have read and no twin can write, and a loader
+admitting it hands the generator a width it must then refuse -- a
+document accepted at one end of the tool and impossible at the other.
+Invariant P7b refuses it.
+
+**C6-30b (invariants, by cases).** The census counts LEADING-ZERO
+styled cells, so its invariants are the cases of C6-30 with
+`leading_zero` in the place of `decimal`, and each binds the same
+thing. **P5b (the sum).** Let *F* be the sum of ALL values,
+`(withheld)` included; an empty census has *F* = 0.
+
+- **P5b.a — a `leading_zero` key is published.** *F* equals that key's
+  value exactly.
+- **P5b.b — no `leading_zero` key and no `(withheld)` key.** No padded
+  cell exists: `pad_widths` is `{}`, *F* zero.
+- **P5b.c — no `leading_zero` key but a `(withheld)` key.** The four
+  conditions of P5.c bind unchanged, with `leading_zero` in the place
+  of `decimal`: *F* at least 1 wherever the census is non-empty; *F*
+  strictly below `small_cell_floor`; *F* at most *W*; and *F* ≥ *W* − 5
+  × (`small_cell_floor` − 1), six styles existing so that at most five
+  share the pool.
+
+**P6b.** Every NAMED width's count is at or above `small_cell_floor`.
+**P7b.** Every NAMED width is at least 2, by C6-29b, and a width key is
+present only if its count is nonzero.
+
+**A NAMED WIDTH IS HONOURED BY PADDING AND NEVER BY MOVING THE VALUE.**
+This is the one place the two censuses part company, and it is what
+makes this one the simpler of the pair. A fraction width is reached by
+adjusting the value — writing 9.53 at one place makes it 9.5 — so
+C6-30's census must be kept from spending a published rung, an
+endpoint or the zero stratum to buy a width. Padding spends nothing:
+`000123` and `123` read back as the same number, so no statistic, no
+rung and no endpoint is ever at stake here. A width narrower than the
+value's own figures is therefore not reachable at all and is never
+taken.
+
+**WHAT A NAMED WIDTH DOES COST is the leading-zero family**, and the
+cost is stated here rather than discovered. Every order of that family
+writes one more figure, so a value has exactly ONE leading-zero
+spelling at a named width and a twin reaching for a second would leave
+the width. Where a width is named, raw `n_distinct` therefore falls to
+its own two-sided envelope under the authorization owner decision 11
+already carries — "only where even those cannot supply" — and the
+report prints the shortfall. It is not a new lowering: it is the case
+that authorization was written for, reached by a new route.
+
+**Disposition: EXACT-OBSERVABLE**, against a C6-85-shaped recount:
+padded cells recounted at a named width number at least the published
+count and at most it plus the pooled `(withheld)` value. **P5b to P7b
+do not reach producer obligation PW-P**: they bound the census against
+published numbers, and none checks that a width count IS the count of
+source cells at that width — a loader holds no table and cannot
+recompute it.
+
+---
+
 <!-- a7d: the twin reproduces the recorded hole spellings -->
 
 ### 7.7 The twin reproduces the recorded hole spellings
@@ -5685,6 +5805,7 @@ document, never the table it describes.
 | CP-P | a published calendar-placeholder verdict is the one the outlier-and-share rule reached over the source's written days | the rule ran over a table a loader never holds |
 | RM-P | the `resolution_mix` counts are the counts the source's own cells wore | a 40/60 and a 50/50 split of a hundred cells both satisfy RM1 and RM2 |
 | FW-P | every `fraction_widths` count is the count of source cells written at that fraction width | P5 bounds the total and P6 and P7 the entries; none checks the census's SHAPE |
+| PW-P | every `pad_widths` count is the count of source cells written at that field width | P5b bounds the total and P6b and P7b the entries; none checks the census's SHAPE |
 | NG9-P | where the recoverable-distribution arithmetic holds, that clause IS written | a document with no clause holds no *C*, so the converse is untestable |
 | NG13-P | the column publishes a level whose spelling is the stand-in argument 1 names | the argument names a stand-in by number and the level is published folded |
 
@@ -5829,6 +5950,7 @@ reproduces the recorded spellings there as on any other column.
 | `mean`, `std`, `skew` | APPROXIMATED, fixed formula and two-sided bound — G12.3 |
 | `n_distinct`, `n_distinct_folded` | EXACT-OBSERVABLE using the spellings owner decisions 7, 8 and 10 permit — the ordinary case; APPROXIMATED under the two-sided envelope only where even those cannot supply the count, with the report naming the profile's count beside the twin's. The envelope is G12.8, and BOTH of its ends are measured and printed on every run, because a fallback whose range is never shown is a fallback a reader cannot check (review item P2-C2-F4) |
 | `numeric_styles` | EXACT-OBSERVABLE against the recount identity of section 7.5.7: every published count is met or exceeded, the three forms the remainder cannot reach are exact, and the remainder is spelled by its own cells' values |
+| `pad_widths` | EXACT-OBSERVABLE against a recount identity of the same shape as `fraction_widths`: recounted padded cells at a named width number at least the published count and at most that count plus the pooled `(withheld)` value. A named width is honoured by PADDING and never by adjusting the value — `000123` and `123` read back as the same number — so no rung, endpoint or statistic is ever spent to reach one. Where a width is named the leading-zero family is spent on it, because every further spelling of a value is one figure wider; raw `n_distinct` then falls to its own two-sided envelope under the authorization owner decision 11 already carries, "only where even those cannot supply" |
 | `fraction_widths` | EXACT-OBSERVABLE against a recount identity of the same shape: recounted cells at a named width number at least the published count and at most that count plus the pooled `(withheld)` value — exact where nothing pooled, windowed where something did. Widths are met by value adjustment inside the value-construction stage, so a pinned cell counts toward a width only when its value already fits it |
 | `n_rows` (echo) | LOADER-ONLY |
 
@@ -5851,7 +5973,7 @@ the cores and over `n_core_numeric` in place of `n_numeric`.
 | `mean`, `std`, `skew` | APPROXIMATED, the G12.3 bounds read over the cores |
 | `n_zero`, `n_negative`, `std_unrepresentable`, `n_negative_unrepresentable`, `n_used_in_statistics`, `n_left_out_of_statistics`, `numeric_share` | EXACT-OBSERVABLE over the cores |
 | `integer_valued` | EXACT-OBSERVABLE, computed over the cores and routed on as the published FACT, never inferred from the role name (AF6) |
-| `numeric_styles`, `fraction_widths` | EXACT-OBSERVABLE against the same two recount identities, read over the cores |
+| `numeric_styles`, `fraction_widths`, `pad_widths` | EXACT-OBSERVABLE against the same three recount identities, read over the cores |
 | `n_distinct`, `n_distinct_folded` | as on `count` and `continuous` above, the numeric mechanism supplying the spellings over the cores while the affix pair is constant across every counted cell |
 | `n_rows` (echo) | LOADER-ONLY |
 
@@ -6569,7 +6691,7 @@ this document, and the battery the plan requires turns red on it.
 | `sentinel_verdicts` | the candidate as text — a stand-in number, or a calendar placeholder's ISO day — with occurrence count, verdict and reason | `(withheld)` on a nothing-publishing column |
 | labels-class blocks (`constant`, `binary`, `categorical`, `long_tail_labels`) | folded label spellings with row counts; each label's exact spellings under `variants`; how many levels were held back and how many rows they cover (`suppressed_levels`, `suppressed_rows`) and the ascending sizes of those levels (`suppressed_level_counts`) | every named spelling floor-governed; the three held-back facts publish SIZES and COUNTS of unnamed groups, floor-free |
 | `level_ceiling`, on `categorical` | the effective category cap the run applied, computed from `categorical_ceiling`, `categorical_share`, `categorical_floor` and `n_rows` | publishes nothing the settings block and `n_rows` do not already publish |
-| ranges-class blocks (`count`, `continuous`, `datetime`, `time_of_day`, `affixed_number`) | endpoints and the eleven ladder rungs, which are exact values of real cells; moments and shape statistics; sign and zero counts; the style census, the fraction-width census and the offset map; `resolution_mix`; the affix pair | endpoints and rungs FLOOR-FREE under the ranges-class endpoint policy; the three maps floor-governed with a `(withheld)` pool; the affix pair floor-governed by its own detection rule |
+| ranges-class blocks (`count`, `continuous`, `datetime`, `time_of_day`, `affixed_number`) | endpoints and the eleven ladder rungs, which are exact values of real cells; moments and shape statistics; sign and zero counts; the style census, the fraction-width census, the FIELD-WIDTH census and the offset map; `resolution_mix`; the affix pair | endpoints and rungs FLOOR-FREE under the ranges-class endpoint policy; the four maps floor-governed with a `(withheld)` pool; the affix pair floor-governed by its own detection rule |
 | nothing-class blocks (`numeric_unrepresentable`, `identifier`, `free_text`) | lengths, word statistics, digit and code-alphabet counts, the whole-number test, the repetition multiset, and on `numeric_unrepresentable` the whole-number and sign counts | no value, no spelling, no fragment of one; the multiplicity map publishes SIZES of unnamed groups under no floor |
 | `empty` columns nobody declared | the absent SPELLINGS their cells wore and the two absence counts, exactly as any column that is not nothing-publishing | floor-governed |
 | `settings` | the rules the run applied, the floor's own value, how many values each declaration named, and which of THIS package's published words were among them | carries no cell, no column and no count of the table; a person's own spelling never enters |
@@ -6595,12 +6717,12 @@ a marked row.
    `std_unrepresentable`, `n_zero`, `n_negative`,
    `n_negative_unrepresentable`, `n_used_in_statistics`,
    `n_left_out_of_statistics`, `numeric_share`, `integer_valued`,
-   `n_rows`, `numeric_styles` with its sibling `fraction_widths`,
-   `n_affixed`, and the four core-class counts `n_core_numeric`,
-   `n_core_out_of_range`, `n_core_contradictory`, `n_core_not_numeric`
-   — each under the treatment the same fact has on a plain numeric
-   column, all of it reaching columns that were free text. With row 2
-   this prices all twenty-two keys the role adds; rows 4 and 7 restate
+   `n_rows`, `numeric_styles` with its siblings `fraction_widths` and
+   `pad_widths`, `n_affixed`, and the four core-class counts
+   `n_core_numeric`, `n_core_out_of_range`, `n_core_contradictory`,
+   `n_core_not_numeric` — each under the treatment the same fact has on
+   a plain numeric column, all of it reaching columns that were free
+   text. With row 2 this prices all twenty-three keys the role adds; rows 4 and 7 restate
    two of them at their own floor treatment and add nothing to the set.
 4. **Core endpoints and ladder rungs of affixed columns, and clock
    endpoints and rungs of time-of-day columns. NEW.** Exact values of
@@ -7214,7 +7336,7 @@ override.
 `EXACT-CONTROL`, `APPROXIMATED`, `REPORT-ONLY`, `LOADER-ONLY`,
 `STRUCTURAL`.
 
-**Forbidden-key matrix — 55 rows over 13 role columns**, 107 marked
+**Forbidden-key matrix — 56 rows over 13 role columns**, 110 marked
 cells, defined in 6.11. Not reproduced here; a matrix is not a list.
 
 ### 14.2 Document and block key sets
@@ -7371,6 +7493,11 @@ integer — no sign, no leading zero unless the width is itself zero, no
 space, no other character (`0`, `1`, `2`, `10`) — plus the pooled key
 `(withheld)`, which is the only non-numeric key permitted.
 
+**`pad_widths` keys** are written by the same grammar and read the same
+way, with one difference: the width is at least TWO (`2`, `3`, `10`),
+a padded cell writing at least one zero in front of at least one figure
+(C6-29b). `(withheld)` is again the only non-numeric key permitted.
+
 ### 14.8 The note grammar — 41 forms
 
 Defined in 4.5.1, which is the authority on every rendering and every
@@ -7437,7 +7564,7 @@ form to one of those four paths.
 
 ### 14.9 The reserved tokens
 
-**Where `(withheld)` appears — 6 places.**
+**Where `(withheld)` appears — 7 places.**
 
 | place | meaning |
 |---|---|
@@ -7447,6 +7574,7 @@ form to one of those four paths.
 | `earliest_utc_offset`, `latest_utc_offset` | that endpoint's offset is one the map is withholding |
 | `numeric_styles` | the pooled count of cells whose spelling STYLE was used by too few rows to name |
 | `fraction_widths` | the pooled count of `decimal`-styled cells whose fraction WIDTH was used by too few rows to name |
+| `pad_widths` | the pooled count of `leading_zero`-styled cells whose FIELD WIDTH was used by too few rows to name |
 
 One token, one meaning: a group too small to name, counted rather than
 named. It is never a value, and it is never a key a generator has to
