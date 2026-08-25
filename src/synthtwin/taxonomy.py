@@ -1286,22 +1286,40 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
         # a column of fifty comma-bearing cells beside fifty plain ones
         # is not uniformly a thousand times out, and its average is not
         # out by that factor either.
-        settled = _whole(arguments, 1)
+        # NEITHER SENTENCE CLAIMS A STATISTIC THIS COLUMN MAY NOT
+        # HAVE. An earlier wording said "this column's average, its
+        # spread and its ends are wrong with them" -- which is false of
+        # a `free_text` column, and a column that PROVES a decimal
+        # comma is usually exactly that, because the cells that prove
+        # it are not numbers this format reads and the column drops
+        # below the parse line because of them. Both sentences now say
+        # "any average, spread or ends this profile publishes", which
+        # is true whether it publishes them or none.
+        #
+        # AND THE SETTLED SENTENCE DOES NOT SPEAK FOR THE FILE. Two
+        # proof cells beside two hundred legitimate thousands-grouped
+        # ones do not make the file European, and declaring that it is
+        # would be the same false confidence in the other direction.
+        # It says what it saw: this column CONTAINS values that cannot
+        # be thousands-grouped.
         if arguments[1]:
             return (
-                f"{settled} of this column's values cannot be read "
-                f"with the comma as a thousands separator -- a "
-                f"thousands group is exactly three figures and these "
-                f"are not -- so THIS FILE WRITES THE DECIMAL POINT AS "
-                f"A COMMA. synthtwin read the comma the other way, as "
-                f"a thousands separator, so `1,795` was read as one "
-                f"thousand seven hundred and ninety-five where the "
-                f"file means 1.795. The "
-                f"{_whole(arguments, 0)} value(s) that could be read "
-                f"either way were read a thousand times too large, "
-                f"and this column's average, its spread and its ends "
-                f"are wrong with them. Write this column with a "
-                f"decimal point and run the command again"
+                f"{_whole(arguments, 1)} of this column's values "
+                f"cannot be read with the comma as a thousands "
+                f"separator -- a thousands group is exactly three "
+                f"figures and these are not -- so THIS COLUMN "
+                f"CONTAINS VALUES WRITTEN WITH A DECIMAL COMMA, and "
+                f"synthtwin does not read those as numbers at all. "
+                f"Of the rest, {_whole(arguments, 0)} could be read "
+                f"either way and were read with the comma as a "
+                f"thousands separator, so `1,795` was read as one "
+                f"thousand seven hundred and ninety-five; every one "
+                f"of those that was meant the way the values above "
+                f"are written has been read a thousand times too "
+                f"large, and any average, spread or ends this profile "
+                f"publishes for this column are wrong with them. "
+                f"Write this column with a decimal point and run the "
+                f"command again"
             )
         return (
             f"{_whole(arguments, 0)} of this column's values are "
@@ -1312,11 +1330,11 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
             f"MANY COUNTRIES WRITE THE DECIMAL POINT AS A COMMA, and "
             f"if this table is one of them then `1,795` means 1.795 "
             f"and each of those values has been read as a thousand "
-            f"times its real size, carrying this column's average, "
-            f"its spread and its ends with them. Nothing in the "
-            f"column settles which was meant. If your file writes "
-            f"decimals with a comma, write this column with a decimal "
-            f"point instead and run the command again"
+            f"times its real size, carrying any average, spread or "
+            f"ends this profile publishes for this column with them. "
+            f"Nothing in this column settles which was meant. If your "
+            f"file writes decimals with a comma, write this column "
+            f"with a decimal point instead and run the command again"
         )
     if form == REMARK_PADDED_NUMBERS:
         # IT DECIDES NOTHING, and says so, on the exact pattern the
@@ -4124,6 +4142,32 @@ def pad_width(text: str) -> int:
     return parsing.pad_width(text)
 
 
+def _comma_eaten_by_the_affix(
+    affixed: "_Affixed", cells: _Cells
+) -> "list[Note]":
+    """The comma remark for a column whose 'affix' is a decimal part.
+
+    THE ONE PLACE THE CORE SCAN CANNOT SEE. `10,5` through `249,5` is a
+    column of European one-decimal values, and the affix rule reads it
+    as the number 10 wearing the shared suffix `,5`. The cores are then
+    comma-free, so scanning them finds nothing at all -- while the
+    column publishes statistics over 10 to 249 for values that run 10.5
+    to 249.5.
+
+    A shared suffix that BEGINS WITH A COMMA and is otherwise figures
+    is not an affix any measurement wears; it is the fractional part of
+    a number written the European way. Where one is found, every cell
+    wearing it is counted as proof.
+    """
+    suffix = affixed.suffix
+    if suffix[:1] != ",":
+        return []
+    figures = suffix[1:]
+    if not figures or not parsing.is_digit_text(figures):
+        return []
+    return [note(REMARK_GROUP_COMMAS, (0, affixed.n_affixed))]
+
+
 def _comma_remarks(cells: _Cells) -> "list[Note]":
     """The comma remark, or nothing, for any column that can carry it.
 
@@ -5175,6 +5219,7 @@ def _affixed_verdict(
             remarks
             + [note(REMARK_AFFIXED, pair)]
             + _comma_remarks(core_cells)
+            + _comma_eaten_by_the_affix(affixed, cells)
         ),
     )
 

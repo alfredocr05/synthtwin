@@ -719,10 +719,43 @@ def comma_reading(text: str) -> str:
         body = body[1 : len(body) - 1].strip()
     if body[:1] == "+" or body[:1] == "-":
         body = body[1:]
+    # NOTHING BUT FIGURES, POINTS AND COMMAS MAY SPEAK HERE, and this
+    # guard is the whole reason the second count is safe to publish. A
+    # cell is evidence about how NUMBERS are written only if it is
+    # trying to be a number: without this, `Hello.World,Foo` -- a point
+    # before a comma -- was read as proof of a decimal comma, and a
+    # column of names or addresses would have been told in capital
+    # letters that this file writes the decimal point as a comma. A
+    # false alarm in a loud sentence is worse than no sentence, which
+    # is the same lesson the first read taught about `1,234.56`.
+    # AN EXPONENT IS PART OF THE NUMBER AND NOT PART OF THE QUESTION.
+    # `1,001e2` is a spelling the documented grammar admits, and
+    # reading the exponent as ordinary characters made the whole cell
+    # answer "no comma" -- so a column of them was neither read as
+    # numbers nor warned about. The mantissa is what the comma sits in,
+    # so the mantissa is what is classified.
+    # The two marks are written out rather than walked: this audit
+    # accepts a data method only where what it is handed is a literal
+    # or a value it watched being built, and a loop variable is
+    # neither.
+    at_mark = body.find("e")
+    if at_mark < 0:
+        at_mark = body.find("E")
+    if at_mark >= 0:
+        exponent = body[at_mark + 1 :]
+        if exponent[:1] == "+" or exponent[:1] == "-":
+            exponent = exponent[1:]
+        if exponent and _all_ascii_digits(exponent):
+            body = body[:at_mark]
     commas = 0
     for character in body:
         if character == ",":
             commas = commas + 1
+            continue
+        if character == ".":
+            continue
+        if not ("0" <= character <= "9"):
+            return COMMA_NONE
     if not commas:
         return COMMA_NONE
     if commas > 1:
