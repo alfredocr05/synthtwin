@@ -52,11 +52,26 @@ exists).
   those forms, so a split, a width check and a pattern match all answer
   the way they will on the real table.
 - **A form says the shape and nothing else, and that is CHECKED rather
-  than promised.** A key holds `9`, `A` and thirteen marks synthtwin
-  names -- and nothing else, whatever wrote it, including a file edited
-  by hand. So it can carry no letter and no figure of any of your
-  values, in any alphabet: `E11.9` and `Z99.1` are one key and it tells
+  than promised.** A key holds two placeholder characters -- `%` for a
+  figure, `@` for a letter -- and thirteen marks synthtwin names, and
+  nothing else, whatever wrote it, including a file edited by hand.
+  `E11.9` is `@%%.%`, and `E11.9` and `Z99.1` are one key that tells
   them apart from nothing.
+- **The placeholders are characters no code of yours can contain, and
+  that is the whole reason they are those two.** They were `9` and
+  `A`, which read far better and were WRONG: a form built from
+  figures and letters is a string a cell can also be spelled with, so
+  a form could BE one of your values. `A99` is a real diagnosis code.
+  On a column with three patients coded `A99` -- held back by the
+  small-cell floor, exactly as it should be -- the shape census
+  published `A99` straight back into the description file. That is
+  fixed: no cell that has a shape can ever be spelled the same as any
+  shape, and synthtwin refuses a description whose key breaks it.
+- **A shape is read over `0`-`9` and `a`-`z` only, and a cell holding
+  anything else has none.** Reading letters the way Python reads them
+  made the answer depend on which version of Python you ran: the same
+  table gave a different description, a different twin, and a quality
+  report that called a good twin BROKEN, purely from where it ran.
 - **A column of prose publishes nothing here.** A cell holding a space
   has no form, and neither does one longer than twenty-four
   characters, or one holding any mark outside the thirteen. So a note,
@@ -86,6 +101,27 @@ exists).
   for: a rare finding represented in the twin, at its real count, in
   the shape of the thing it stands for -- and code developed against
   the twin that runs on the real table.
+
+### Fixed in Phase 4: your twin's report no longer accuses a twin that is fine
+
+- **A column whose empty cells were written with a word -- `-999`,
+  `N/A`, anything you named with `--missing-value` -- had those cells
+  counted as values by the report written beside the twin.** On a
+  column of ages with twenty `-999` holes, the report said the twin's
+  average was -40.4 where your table's is 39.5, its spread 277 where
+  yours is 11.6, and its smallest percentile -999. **Thirteen
+  complaints about a twin that `synthtwin validate` calls correct.**
+- **The check was always right; only the report was wrong.** Nine
+  places in the generator asked "is this cell blank" where they meant
+  "is this cell a value". A twin writes your absent cells the way your
+  file wrote them, so a hole spelled `-999` looks like a number. They
+  all ask the same question now, and it is the question
+  `synthtwin validate` was already asking.
+- **What this changes for you:** if you saw a twin report full of
+  alarming numbers on a column with coded missing values, it was the
+  report and not the twin. Real shortfalls are still named -- the
+  twin holding fewer different values than your table does is still
+  reported, because that one is true.
 
 ### Fixed in Phase 4: two older defects the form census turned up
 

@@ -12,7 +12,7 @@
       "path": "tests/reference/generation-reference-vectors.json",
       "generator": "tools/reference/make_generation_reference_vectors.py",
       "seed": 0,
-      "sha256": "b2e4889302e643688dbd96b5ab89ca29b91e512623b89a4644b3e53a63c77f30",
+      "sha256": "bd22d09ae1511c6fe40308bcf8c5bc8a122ec159f674c003d2cbbba6a7f660f1",
       "justification": "The twin cells synthtwin's generation method requires, for the nine cases docs/spec/generation-method-v1.md section G14.3 names, computed from that specification alone. They are committed rather than built at test time for the same reason the numeric vectors are: their whole purpose is to be an oracle the implementation cannot influence, and a value recomputed beside the code it checks could drift with it. The vectors are a pure function of the uint64 words the file itself carries as inputs; the generator holds no random generator and no seed handling, so the recorded seed is accepted and ignored. It imports only argparse, datetime, fractions, json, math, struct and sys - never synthtwin, never numpy, never pandas. numpy could not be imported here in any case: this runner's audit hook refuses ctypes and numpy imports ctypes, which is why the transform from words to bytes is written in exact standard-library integer arithmetic. Every binary64 the file publishes is proved correctly rounded, or proved exact, by integer comparison against the midpoints to its neighbours, and the run refuses a full-generator mutant before it writes a byte. No value in this file comes from any real or synthetic table."
     },
     {

@@ -586,7 +586,7 @@ _DIGITS = "whole-number-as-text"
 # producers spell two ways and a consumer reads as two widths. The key
 # grammar is CANONICAL -- no sign, no padding, `0` written as itself.
 _WIDTH = "fraction-width-as-figures"
-_SHAPE_FORM = "a-written-form-carrying-no-figure-and-no-letter"
+_SHAPE_FORM = "a-written-form-a-cell-could-not-be-spelled-with"
 _MOMENT_TEXT = "canonical-datetime"
 _OFFSET = "utc-offset"
 _SENTINEL = "numeric-sentinel-spelling"
@@ -1300,31 +1300,25 @@ def _leaf_is_published(
 def _is_shape_form(value: object) -> bool:
     """Whether one key of the form census carries no value of the table.
 
-    THIS IS THE GUARD THAT MAKES THE CENSUS PUBLISHABLE, and it is
-    written as a CLOSED ALPHABET rather than as a replacement audit.
-    Asking only that no OTHER figure or letter survived leaves every
-    character that is neither -- a space, a mark nobody writes a code
-    with, a letter no ASCII range reaches -- free to stand in the key,
-    and a column of Japanese clinical text published a key holding the
-    words themselves (review round 1 finding 1). A key is `9`, `A`, and
-    marks from a list this tool owns, or it is refused, whatever built
-    it. The marks are the whole point of the census: the structure is
-    published and the content is not.
+    THIS IS THE GUARD THAT MAKES THE CENSUS PUBLISHABLE, and it asks
+    the ONE definition rather than restating it. It restated it, and
+    the restatement drifted: this accepted `AAAA` and `9999`, which the
+    producer cannot write and no cell can wear, so a document carrying
+    one passed here and missed its own census at every recount (review
+    round 2 finding 2).
+
+    What `parsing.is_a_written_form` guarantees is what this guard
+    needs: a key is spelled from two placeholders and a closed list of
+    marks, and neither placeholder is a letter, a digit or a mark -- so
+    a cell carrying one has no form, and therefore NO CELL THAT HAS A
+    FORM CAN BE SPELLED THE SAME AS ANY KEY. That is checkable here,
+    where "the producer would not do that" is not.
     """
     if value == taxonomy.SUPPRESSED_LABEL:
         return True
-    if not isinstance(value, str) or not value:
+    if not isinstance(value, str):
         return False
-    if len(value) > parsing.SHAPE_FORM_LIMIT:
-        return False
-    for character in value:
-        if character == parsing.SHAPE_DIGIT:
-            continue
-        if character == parsing.SHAPE_LETTER:
-            continue
-        if character not in parsing.SHAPE_MARKS:
-            return False
-    return True
+    return parsing.is_a_written_form(value)
 
 
 def _check_word(

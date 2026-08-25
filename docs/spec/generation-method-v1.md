@@ -1701,7 +1701,7 @@ rather than passing it off as an outcome the description asked for.
   `iso-date`. Code that parses dates with an explicit source format
   needs that argument changed, and the report says so.
 
-## G8. Label columns (`constant`, `binary`, `categorical`)
+## G8. Label columns (`constant`, `binary`, `categorical`, `long_tail_labels`)
 
 A label column consumes no content words. Everything is fixed by
 published counts, which is why a fully determined label column produces
@@ -1779,7 +1779,7 @@ is not empty — an empty cell is an absent value, not a label.
 in ascending order. For each size in that list, in order, one invented
 neutral label is produced and used exactly that many times.
 
-**Where the column publishes NO census of written forms** the invented
+**Where the column's census NAMES NO FORM** the invented
 labels are `group-1`, `group-2`, `group-3`, … in order. Each candidate
 is skipped and the number advanced when it collides, raw or folded,
 with any spelling already used in the column. They are neutral by
@@ -1789,8 +1789,9 @@ or a date, they contain no comma or quote so they need no quoting, and
 they do not begin with a character that a spreadsheet reads as a
 formula.
 
-**Where it DOES — which is `long_tail_labels` and no other label role
-— the invented label is written in one of the published forms**
+**Where it DOES — which is any of the four label roles, since all four
+carry the census (contract 6.11, C6-31b) — the invented label is
+written in one of the published forms**
 (contract C6-D18, plan P4-D18). `group-14` is not a code: it is the
 wrong length, it is lower-case where the codes are not, and on a
 hyphenated scheme it carries a hyphen of its own, so it passes a "looks

@@ -449,7 +449,7 @@ whose only container members are the objects `percentiles` and
 `numeric_styles`. On `time_of_day` they are `clock_form`, `earliest`,
 `latest`, `clock_percentiles` and `n_unparsed`. Elsewhere they are
 `fraction_widths` and `pad_widths` — each a key of the block, a sibling
-of `numeric_styles` — `shape_forms`, a key of the block on the two
+of `numeric_styles` — `shape_forms`, a key of the block on the five
 roles that carry it, `resolution_mix`, `min_length`, `max_length`, the `(date-sentinel)` key
 of `missing_by_class`, `built_in_dates` as the third list of each
 declaration record, whose members are strings, and the `settings` keys
@@ -1116,8 +1116,18 @@ rows those levels cover.
 **NF5. `free_text_publishes_no_values`** — arity 0.
 
 > this column is described as free text, so none of its values are
-> published: only how long they are, how many words they hold, and how
-> often they repeat
+> published: only how long they are, how many words they hold, how
+> often they repeat, and -- where enough of them were written the same
+> way -- the shape of that writing, which carries no letter and no
+> figure of any value
+
+**THE LAST CLAUSE IS NOT DECORATION, and C6-120 is why it is here.**
+That rule makes the rendering written above the WHOLE of what this
+form may say, character for character. So when the form census landed
+on this role, the sentence the producer prints gained a clause and
+this one did not, and every free-text profile then had two different
+canonical texts depending on which of the two an implementation
+followed (review round 2 finding 15). They are one sentence again.
 
 **NF6. `identifier_publishes_no_values`** — arity 0.
 
@@ -2702,10 +2712,15 @@ method states that rule (`docs/spec/generation-method-v1.md` G10.5).
 ### 6.3 The label roles: shared shape
 
 `constant`, `binary`, `categorical` and `long_tail_labels` all publish
-LEVELS. Their shared keys are specified once here; sections 6.4 and
-6.5, section 6.6.1, and the section for `long_tail_labels` state only
-what each adds or restricts. The four are the labels publication
+LEVELS. Their FIVE shared keys are specified once here; sections 6.4
+and 6.5, section 6.6.1, and the section for `long_tail_labels` state
+only what each adds or restricts. The four are the labels publication
 class, and the forbidden-key matrix admits `levels` on no other role.
+
+**THE FIFTH SHARED KEY IS `shape_forms`, AND IT STANDS ON ALL FOUR**
+because whether a label role holds levels back is a fact about the
+FLOOR and not about the role. Section 6.11's matrix is the authority
+on where it stands; section 7.9 states what it holds.
 
 | key | JSON type | meaning |
 |---|---|---|
@@ -2713,6 +2728,7 @@ class, and the forbidden-key matrix admits `levels` on no other role.
 | `suppressed_levels` | integer ≥ 0 | how many labels the floor held back |
 | `suppressed_rows` | integer ≥ 0 | how many rows those held-back labels covered in total |
 | `suppressed_level_counts` | array of integers | the sizes of the held-back labels, sorted ascending |
+| `shape_forms` | object | the census of WRITTEN FORMS the column's cells wore, section 7.9; REQUIRED on all four label roles, written even when empty |
 
 The floor named throughout this section is `small_cell_floor`, the
 setting of section 4.4. Every rule below that reads it is written as
@@ -2793,7 +2809,7 @@ exactly the held-back sizes.
 
 Every present cell is the same folded identity.
 
-**Added keys:** the four shared label keys of section 6.3 and nothing
+**Added keys:** the five shared label keys of section 6.3 and nothing
 else. `level_ceiling` is FORBIDDEN on this role: it is `categorical`'s
 own key, and this format has no optional keys, so it is absent rather
 than sometimes-present.
@@ -2809,7 +2825,7 @@ value itself is not published. C2 is what C1 and B2 come to together.
 
 Exactly two folded identities.
 
-**Added keys:** the four shared label keys of section 6.3 and nothing
+**Added keys:** the five shared label keys of section 6.3 and nothing
 else. `level_ceiling` is FORBIDDEN on this role, for the reason section
 6.4 gives.
 
@@ -2839,7 +2855,7 @@ At most a ceiling of different folded identities, each shared by rows.
 It is rule 8 of the order in section 5.2, so it claims only a column
 every earlier rule declined.
 
-**Added keys:** the four shared label keys of section 6.3, plus:
+**Added keys:** the five shared label keys of section 6.3, plus:
 
 | key | JSON type | range | meaning | disposition |
 |---|---|---|---|---|
@@ -5668,11 +5684,26 @@ pressure `120/80` has `999/99`. The marks are the STRUCTURE and the
 figures and letters are the content, and the form is what is left when
 the content is taken out.
 
-**"Every digit" and "every letter" reach the whole of Unicode**, not
-the ASCII ranges. Replacing only the ASCII ranges left every other
-letter standing, so a column of Japanese clinical text published a key
-holding the words themselves — a fragment of a value in the one field
-this census exists to keep free of them.
+**"EVERY DIGIT" AND "EVERY LETTER" ARE `0`–`9`, `a`–`z` AND `A`–`Z`,
+AND A CELL HOLDING ANYTHING ELSE HAS NO FORM.** The ranges are fixed
+by this contract and are NOT the running language's idea of a letter.
+
+Both halves of that were learned the hard way. Replacing only the
+ASCII ranges and letting every other character STAND left a column of
+Japanese clinical text publishing a key that held the words
+themselves. Replacing every letter the interpreter recognises instead
+made the census depend on which Unicode database that interpreter
+carries: five supported versions give five answers — U+16AC0 is a
+digit in one and not the one before it, U+1E4D0 a letter in one and
+not the one before it — so one table produced two different
+descriptions, two different twins, and a quality report that called a
+conforming twin MISSING on two exact counts, purely from where it ran.
+
+A fixed range with everything outside it FORMLESS answers both: no
+character of a value can stand in a key, because a cell holding one
+has no form; and the census says the same thing everywhere. What it
+costs is the census on a column of non-ASCII codes, which the twin
+could not have written in its own alphabet in any case (7.9.1).
 
 **THE THIRTEEN MARKS, and the list is CLOSED**: `-` `.` `/` `_` `:`
 `#` `*` `(` `)` `[` `]` `+` `,`. **A cell holding any character that
@@ -5711,12 +5742,23 @@ mark — appear in it.** That line is what keeps four region names from
 publishing a census nobody can use while a procedure code `J1200`
 keeps one.
 
-**C6-31b (where it lives, and what it holds).** A `long_tail_labels`
-or `free_text` block carries `shape_forms` as a key of the BLOCK. It
-is REQUIRED on those two roles, written even when empty, and FORBIDDEN
-on the other eleven. It maps a written form to the number of present
-cells written in it, with the pooled key `(withheld)` for the forms
-fewer than `small_cell_floor` cells share.
+**C6-31b (where it lives, and what it holds).** A `constant`,
+`binary`, `categorical`, `long_tail_labels` or `free_text` block
+carries `shape_forms` as a key of the BLOCK. It is REQUIRED on those
+FIVE roles, written even when empty, and FORBIDDEN on the other EIGHT;
+section 6.11's matrix is the authority and this clause restates it. It
+maps a written form to the number of present cells written in it, with
+the pooled key `(withheld)` for the forms fewer than
+`small_cell_floor` cells share.
+
+**IT STANDS ON ALL FOUR LABEL ROLES BECAUSE SUPPRESSION IS A FACT
+ABOUT THE FLOOR AND NOT ABOUT THE ROLE.** It stood on
+`long_tail_labels` alone for one landing, on the reasoning that the
+other three publish their levels so their twins hold them and have no
+stand-in to shape. That reasoning was wrong: a diagnosis column of
+five common codes and twenty-six rare ones is under the categorical
+ceiling, so it takes `categorical`, and the floor holds every rare one
+back (P4-D18 corrected, A-P4-36).
 
 **A CELL WITH NO FORM IS NOT POOLED. It is not counted at all.**
 `(withheld)` means one thing in this format — a group too small to
@@ -5745,10 +5787,18 @@ opposite of each. The census is the intersection, not a judgement.
 
 **C6-31d (key grammar, checked as a CLOSED ALPHABET).** A key is
 either exactly `(withheld)` or a written form: at least one character,
-at most twenty-four, every one of which is `9`, `A`, or one of the
-thirteen marks C6-31a names. A loader CHECKS this key by key and
-refuses the document otherwise, rather than trusting that the producer
-built the key by the replacement C6-31a states.
+at most twenty-four, every one of which is one of the two PLACEHOLDERS
+or one of the thirteen marks C6-31a names, AND CARRYING AT LEAST TWO
+OF THE THREE KINDS. A loader CHECKS this key by key and refuses the
+document otherwise, rather than trusting that the producer built the
+key by the replacement C6-31a states.
+
+**BOTH HALVES, AND THE SECOND WAS MISSING.** The loader enforced the
+two-kinds rule while this grammar stated only the alphabet, so the
+contract admitted `%%%%` and `@@@@` that the shipped loader refuses --
+a rule enforced by code and not stated here, which is the one thing
+this document exists to prevent. It is stated now, and one predicate
+in the producer answers for all three readings of it.
 
 **The check is an alphabet and not a replacement audit, and the
 difference is the whole guarantee.** Asking only that no OTHER figure
@@ -5972,7 +6022,15 @@ a document, so no document can violate it.
 **Four membership rules of this part carry no identifier**, so no list
 can cite them: the nine top-level keys (4.1), the five `source` keys
 (4.3), a level entry's four (6.3.1), a `publication_notes` entry's two
-(4.5). Each is normative where stated, and a loader enforces it.
+(4.5).
+
+**AND S13's OWN LIST IS THE SIX MAP POSITIONS IT NAMES, NOT FOUR.**
+An earlier synopsis here counted four pooled-entry maps and omitted
+`pad_widths` and `shape_forms`, so a loader written from the synopsis
+would accept a floor-one document carrying a pooled form entry that
+the shipped loader refuses. The defining list at S13 is the authority
+and it names six: `missing_by_class`, `utc_offsets`, `numeric_styles`,
+`fraction_widths`, `pad_widths` and `shape_forms`. Each is normative where stated, and a loader enforces it.
 
 ### 8.2 The cell census — X
 
@@ -6230,8 +6288,9 @@ at *F* = 0 it reads *W* ≤ 5 × (`small_cell_floor` − 1).
 
 ### 8.x The census of written forms — SF
 
-Binding on the two roles that carry `shape_forms`, `long_tail_labels`
-and `free_text`, and stated in full at section 7.9.
+Binding on the five roles that carry `shape_forms` -- `constant`,
+`binary`, `categorical`, `long_tail_labels` and `free_text` -- and
+stated in full at section 7.9.
 
 | id | statement |
 |---|---|

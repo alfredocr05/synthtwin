@@ -1947,6 +1947,12 @@ def invented_variants(parent, used, wanted):
 
 SHAPE_FORM_LIMIT = 24
 WITHHELD = "(withheld)"
+# The two placeholders and the closed mark list, held here so this
+# file's own reading of a form is written out rather than imported --
+# which is the whole point of an oracle.
+SHAPE_DIGIT = "%"
+SHAPE_LETTER = "@"
+SHAPE_MARKS = "-./_:#*()[]+,"
 
 
 def usable_stand_in(candidate):
@@ -1994,13 +2000,23 @@ def written_form(text):
     if not text or len(text) > SHAPE_FORM_LIMIT:
         return ""
     built = ""
+    figures = letters = marks = 0
     for character in text:
-        if "0" <= character <= "9":
-            built += "9"
-        elif ("a" <= character <= "z") or ("A" <= character <= "Z"):
-            built += "A"
-        else:
+        if character in (SHAPE_DIGIT, SHAPE_LETTER):
+            return ""
+        if character.isdigit():
+            built += SHAPE_DIGIT
+            figures = 1
+        elif character.isalpha():
+            built += SHAPE_LETTER
+            letters = 1
+        elif character in SHAPE_MARKS:
             built += character
+            marks = 1
+        else:
+            return ""
+    if figures + letters + marks < 2:
+        return ""
     return built
 
 
@@ -2008,9 +2024,9 @@ def form_room(form):
     """How many different spellings one form holds."""
     room = 1
     for character in form:
-        if character == "9":
+        if character == SHAPE_DIGIT:
             room *= 10
-        elif character == "A":
+        elif character == SHAPE_LETTER:
             room *= 26
     return room
 
@@ -2046,10 +2062,10 @@ def filled_form(form, step):
     built = ""
     place = stepped_around(step, form_room(form))
     for character in form:
-        if character == "9":
+        if character == SHAPE_DIGIT:
             built += figures[place % 10]
             place //= 10
-        elif character == "A":
+        elif character == SHAPE_LETTER:
             built += letters[place % 26]
             place //= 26
         else:
@@ -4283,14 +4299,13 @@ def _label_variants():
         suppressed_levels=2, suppressed_rows=10,
         suppressed_level_counts=[3, 7], level_ceiling=20,
         # The forms this column's cells were written in (P4-D18). The
-        # published and made-up variants cover 26 cells of `AAAAA` --
-        # the two five-letter labels and every spelling of them -- and
-        # the twelve `7-11` cells wear three forms too rare to name, so
-        # they are pooled. The census then owes the two stand-ins ten
-        # cells of `AAAAA`, which is exactly what their published sizes
-        # cover, so this case pins the shaped walk as well as the
-        # variant allocation.
-        shape_forms={"AAAAA": 36, "(withheld)": 12},
+        # published and made-up variants would cover 26 cells were the
+        # labels shaped like codes; they are words, so the census here
+        # is WRITTEN rather than derived, and it owes the two stand-ins
+        # ten cells of `@@@-@`, which is exactly what their published
+        # sizes cover -- so this case pins the shaped walk as well as
+        # the variant allocation.
+        shape_forms={"@@@-@": 36, "(withheld)": 12},
     )
     return {
         "why": "the variant allocation of G8.1, including the label's own "

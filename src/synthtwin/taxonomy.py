@@ -4191,8 +4191,11 @@ def _shape_forms(cells: _Cells) -> dict[str, int]:
     census therefore selects for STRUCTURE without anybody deciding
     which columns are structured.
 
-    A cell too long to have a form (`parsing.SHAPE_FORM_LIMIT`) is
-    counted into the pool for the same reason.
+    A cell with NO FORM AT ALL is counted NOWHERE -- not named and not
+    pooled. `(withheld)` means one thing in this format, a group too
+    small to name, and a cell this census does not describe is not a
+    small group. The docstring said the opposite of the code for one
+    landing; the code was right and this now says what it does.
 
     Guarantees: accepts a tally of one column; returns a mapping from
     forms, plus possibly `(withheld)`, to counts that sum to the cells

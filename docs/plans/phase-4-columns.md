@@ -1701,6 +1701,29 @@ Opened by this plan, each a limit accepted rather than work forgotten:
   be reconciled first, and reconciling them changes sentences a shipped
   profile prints. It is its own landing, not a passenger on a landing
   about dates.
+- **R-P4-37** (opened by the role-topology guard, 2026-08-25, and NOT
+  caused by P4-D18). THE CONTRACT SPECIFIES TWO KEYS ON
+  `numeric_unrepresentable` THAT THE PRODUCER HAS NEVER WRITTEN.
+  `min_length` and `max_length` are stated there four times over -- in
+  the added-keys table of 6.2, in invariant U5, in producer obligation
+  U-P, and in the forbidden-key matrix -- and a real block of that role
+  carries neither. So a producer written to the contract emits a block
+  the shipped loader refuses for an unknown key, and an invariant and
+  an obligation stand over fields that do not exist.
+
+  It was found by the guard `tests/test_p4d18_role_topology.py` adds,
+  which compares the matrix against the loader's own key sets in both
+  directions for all thirteen roles -- the guard round 2 finding 10
+  asked for, doing on its first run exactly what it was built to do.
+  The guard holds this one disagreement as a NAMED exception so it
+  cannot be mistaken for new and cannot grow.
+
+  Closing it is a decision about that role's format: either the
+  producer measures and writes the two lengths, which is a new
+  published fact and needs the disclosure treatment, or the contract
+  strikes the table rows, U5, U-P and the two matrix cells. It is not
+  P4-D18's to take.
+
 - **R-P4-36** (opened at the first read of P4-D18, 2026-08-25, and NOT
   caused by it). A FREE-TEXT TWIN CAN REPROFILE INTO A LABEL ROLE
   THROUGH ITS FOLD PARTNERS, AND SAYS NOTHING. A column of twenty
@@ -3147,6 +3170,80 @@ column with a rare tail kept `group-N`, because the census stood on
 `long_tail_labels` alone. Whether a label role suppresses levels is a
 fact about the FLOOR and not about the role, so the census stands on
 all four.
+
+**THE SECOND ADVERSARIAL READ REJECTED IT TOO, and it found the thing
+this decision most needed found.** Twenty-three items, ten blocking.
+
+**A FORM COULD BE A VALUE, SPELLED EXACTLY.** Under `9` and `A` every
+form was a string a cell could also be spelled with -- all 1230 of
+length one to three were their own form -- and `A99` is a real
+diagnosis code. Measured on the column a person actually holds: three
+patients coded `A99`, the floor held it back, and the census published
+it straight into the file that travels.
+
+The repair proposed for it was BUILT AND REFUTED, which is the reason
+to build a repair before believing it. "Do not name a form spelled
+like a present cell" makes suppression data-dependent, so the ABSENCE
+of a key becomes a signal: SF1 says a key covering 191 cells must be
+present, it is absent, the only rule that removes it is the collision
+rule, therefore a cell is spelled exactly that -- a floor-suppressed
+value recovered EXACTLY from published facts. It traded a leak that
+discloses nothing (`A99` has 2600 preimages) for one that discloses a
+value, and cost 31 twin cells their shape on one rare row.
+
+**So the alphabet is DISJOINT instead**: `%` for a figure, `@` for a
+letter, both already outside the mark list so no cell loses a form it
+had. Every form carries a placeholder, because a form needs two kinds
+and two of the three ARE the placeholders; a cell carrying a
+placeholder has no form. So NO CELL THAT HAS A FORM CAN BE SPELLED THE
+SAME AS ANY FORM -- a property the loader checks, not one the producer
+promises. It costs readability, and that is the whole price.
+
+**AND THE CENSUS ASKED THE INTERPRETER WHAT A LETTER IS.** Round 1
+answered the leak by replacing letters over the whole of Unicode,
+which reads out of whichever Unicode database the running Python
+carries -- five supported versions, five answers. Measured: the same
+table produced a different census, a different profile and a different
+twin on 3.10 and 3.13, and a twin built on one and validated on the
+other was reported MISSING two exact counts it held. The ranges are
+fixed by this plan now and everything outside them is FORMLESS, which
+closes the leak, restores determinism, and let the `isalpha` widening
+of the offline audit be withdrawn.
+
+**THREE DEFECTS WERE IN THE ROUND-1 REPAIRS THEMSELVES**, which is why
+the rounds exist. Giving each form its own place in its supply closed
+one defect and opened another -- the letter ask spent a form's whole
+supply and left nothing for the values after it, 100 of 240 cells
+shaped where the corrected rule gets 200. The label walk restarted its
+place per stand-in: 6.0 seconds on a 300-level column against 0.025.
+And shaped probes advanced the neutral counter, so a twin held
+`group-20101` where method G8.3 says the number advances WHEN IT
+COLLIDES.
+
+**AND THREE MORE LANDED IN EXACTLY THE WEAKENED FORM THEIR OWN
+VERIFICATION HAD NAMED AS THE MUTANT TO KILL** -- the supply counted
+as `_form_room` (2600 spellings where 0 are usable), the hole test
+asked raw where the reader folds, and the recount repaired in one
+function of nine.
+
+**THAT LAST ONE WAS THE WIDEST THING IN THE ROUND, and it predates
+this decision entirely.** Nine recounts asked "is this cell not blank"
+where they meant "is this cell PRESENT". A twin reproduces the
+spellings its source's absent cells wore (7.7), so a numeric column
+whose holes were written `-999` had them counted as values:
+**thirteen fabricated deviations on a twin `synthtwin validate` calls
+conforming**, including a mean of -40.4 against a published 39.5 and a
+standard deviation of 277 against 11.6. The validator was right the
+whole time; only the report beside the twin accused it. Now zero, with
+the one real shortfall still named. Residual none -- it is closed.
+
+**THE MOST VALUABLE THING THE ROUND PRODUCED IS A GUARD, NOT A FIX.**
+Round 2's finding 10 was three documents disagreeing about where one
+key lives, each corrected by hand -- which is how the next one drifts.
+So `tests/test_p4d18_role_topology.py` parses section 6.11's matrix
+and compares it against the loader's own key sets, in both directions,
+for all thirteen roles. **It found a defect on its first run**, older
+than this whole phase and recorded as R-P4-37.
 
 **THE OWNER RULED FOR THIS** (amendment A-P4-36): may a column that
 publishes nothing today publish its shape, so its twin stops being
