@@ -268,7 +268,7 @@ def _padded_code_table() -> str:
 
     Five figures is the shape a person actually holds: a procedure
     code, a zip code whose leading zero matters, an account number. It
-    is the case P4-D7 was built for, so it is the case the coverage
+    is the case P4-D14 was built for, so it is the case the coverage
     identity walks.
     """
     values = [f"{index:05d}" for index in range(40)]
@@ -3167,7 +3167,7 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("blanked-overflow", "presence.n_missing"),
         ),
     },
-    # THE PADDED-CODE FIXTURE (P4-D7). Its one column publishes a named
+    # THE PADDED-CODE FIXTURE (P4-D14). Its one column publishes a named
     # field width, which is what binds `numeric.pad_widths` to an
     # executable subcheck; before it, that fact was in the registry and
     # in no check any fixture reached.
@@ -3188,7 +3188,7 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             # row is that claim made executable: `leading_zero-code`
             # writes every cell one figure wider WITHOUT leaving the
             # leading-zero style, so the forms map still balances and
-            # only the width census goes red (P4-D7).
+            # only the width census goes red (P4-D14).
             ("contradicted-code", "axes.quality_state"),
             ("bracketed-code", "axes.role"),
             ("bracketed-code", "axes.statistical_type"),
@@ -3873,7 +3873,7 @@ SUBCHECK_FACTS: "dict[tuple[str, str], str]" = {
     ("numeric", "widths.published.2"): "numeric.fraction_widths",
     # The census of FIELD widths names one subcheck per published width
     # on the same terms, and for the same reason only the widths the
-    # fixtures publish need a row here (P4-D7).
+    # fixtures publish need a row here (P4-D14).
     ("numeric", "pads.published.5"): "numeric.pad_widths",
     ("numeric", "counts.affix_prefix"): "affixed.affix_prefix",
     ("numeric", "counts.affix_suffix"): "affixed.affix_suffix",

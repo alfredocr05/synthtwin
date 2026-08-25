@@ -338,7 +338,7 @@ Published: the 11-rung `percentiles` ladder; `n_zero`; `n_negative`;
 withheld remainder, TOGETHER WITH ITS TWO SIBLING CENSUSES:
 `fraction_widths`, how many `decimal`-styled cells wrote each number of
 figures after the point (plan P4-D4.5), and `pad_widths`, how many
-`leading_zero`-styled cells wrote each FIELD WIDTH (plan P4-D7). Both
+`leading_zero`-styled cells wrote each FIELD WIDTH (plan P4-D14). Both
 are floor-governed with a `(withheld)` remainder, both are read over
 the CORES on `affixed_number`, and both were absent from this list
 while the profile published them -- an omission that left an
@@ -985,7 +985,7 @@ reaches its published distinctness only as far as its different values
 carry it (G12.8).
 
 **A NAMED FIELD WIDTH SPENDS THE FAMILY, and this is the one bound the
-family has** (plan P4-D7). Where `pad_widths` names a width, the cells
+family has** (plan P4-D14). Where `pad_widths` names a width, the cells
 it counts are written AT that width: the order is not one, and not
 whatever an identity walk asks for, but exactly the number of zeros
 that makes the field the published width. Every further order writes

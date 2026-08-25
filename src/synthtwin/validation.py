@@ -7428,7 +7428,7 @@ def _style_checks(
                 held_back,
             )
         ]
-    # THE CENSUS OF FIELD WIDTHS, ON THOSE SAME TERMS (P4-D7). Without
+    # THE CENSUS OF FIELD WIDTHS, ON THOSE SAME TERMS (P4-D14). Without
     # this the twin owed the widths nothing: a column of two hundred
     # and forty six-figure codes would have been carried by a twin
     # writing fields two to five figures wide, and the quality report

@@ -1,6 +1,6 @@
 """Dotted dates and two-figure years are read as dates.
 
-Plan decision P4-D8, its second and third families.
+Plan decision P4-D15, its second and third families.
 
 `17.03.2024` and `03/17/24` are two more shapes a spreadsheet writes
 constantly, and this tool read both as free text -- so the column lost

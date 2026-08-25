@@ -1,6 +1,6 @@
 """A zero-padded code column keeps its field width in the twin.
 
-Plan decision P4-D7, amendment A-P4-34, contract section 7.8.
+Plan decision P4-D14, amendment A-P4-34, contract section 7.8.
 
 THE DEFECT THIS FILE IS THE RECORD OF. A profile could say that two
 hundred and forty cells were written with a redundant leading zero. It

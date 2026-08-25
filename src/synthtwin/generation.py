@@ -11163,7 +11163,7 @@ def _numeric_supply(
       the second back.
     - A PADDED CELL AT A NAMED FIELD WIDTH IS THE ONE EXCEPTION to the
       family rule above, and it is the exception method G12.8 states
-      (plan P4-D7). Every order of the leading-zero family writes one
+      (plan P4-D14). Every order of the leading-zero family writes one
       more figure, so where `pad_widths` names a cell's width the
       family is spent: that value has exactly one padded spelling at
       that width, and such a group supplies ONE, like a plain group.
