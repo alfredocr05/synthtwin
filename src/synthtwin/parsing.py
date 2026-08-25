@@ -707,47 +707,95 @@ SHAPE_FORM_LIMIT = 24
 # the cells written to a scheme.
 SHAPE_MARKS = "-./_:#*()[]+,"
 
-SHAPE_DIGIT = "9"
-SHAPE_LETTER = "A"
+# THE TWO PLACEHOLDERS, AND WHY THEY ARE NOT `9` AND `A` (review round
+# 2 finding 1). They were, and they read beautifully, and they were
+# wrong: a form built from `9`, `A` and marks is a string a CELL can
+# also be spelled with, so a form could BE a value. Every form of
+# length one to three over that alphabet -- all 1230 of them -- was its
+# own form. `A99` is a real diagnosis code, so a column holding three
+# patients coded `A99` had that code held back by the floor and
+# published straight back as a census key.
+#
+# THE PROPERTY THESE TWO BUY, and it holds without looking at any data.
+# A form carries at least one placeholder, because a form needs two of
+# the three kinds and two of the three ARE the placeholders. A cell
+# that HAS a form carries only letters, digits and marks. Neither
+# placeholder is any of those. So NO CELL THAT HAS A FORM CAN BE
+# SPELLED THE SAME AS ANY FORM -- in any column, in any table.
+#
+# Both are already outside `SHAPE_MARKS`, so no cell loses a form it
+# had before: the only thing that changes is how a key is spelled.
+# `%` and `@` are what a number-format language calls a digit and a
+# text placeholder, so the pair is not invented here. The cost is
+# read-ability -- `@%%.%` is not `A99.9` -- and it is paid in prose,
+# in the sentence the report prints beside every form it names.
+SHAPE_DIGIT = "%"
+SHAPE_LETTER = "@"
 
 
 def _is_a_digit(character: str) -> bool:
-    """Whether one character is a digit, over the whole of Unicode.
+    """Whether one character is a figure `0` to `9`.
 
-    A function of its own with its own type gate, because the offline
-    audit accepts a method call only on a value it can trace to a
-    string, and a character taken out of a loop over one is not traced
-    through the loop.
+    THE RANGE IS FIXED HERE AND NOT ASKED OF THE INTERPRETER (review
+    round 2 finding 14). It was `str.isdigit`, which answers out of the
+    Unicode database the running Python carries -- and this package
+    supports five of them. U+16AC0 TANGSA DIGIT ZERO is a digit on
+    3.11 and not on 3.10; U+1E4D0 NAG MUNDARI LETTER O is a letter on
+    3.12 and not on 3.11; U+10D50 GARAY CAPITAL A is a letter on 3.14
+    and not on 3.13. So the same table produced a different census, a
+    different profile and a different twin on two supported
+    interpreters -- and, measured, a twin built on one and validated on
+    another was reported as MISSING two exact counts it in fact held.
+
+    A cell holding any character outside these ranges has no form at
+    all, which is the `else` branch of `shape_form`. That costs a
+    column of non-ASCII codes its census -- and it was going to lose it
+    anyway, because a twin can only write the alphabets G9.1 gives it
+    and none of them holds a letter outside ASCII, so the band check
+    refuses every spelling of such a form. What is bought is a census
+    that says the same thing on every interpreter this package runs on.
     """
     if not isinstance(character, str):
         raise TypeError(_NOT_TEXT)
-    return character.isdigit()
+    return "0" <= character <= "9"
 
 
 def _is_a_letter(character: str) -> bool:
-    """Whether one character is a letter, over the whole of Unicode."""
+    """Whether one character is a letter `a` to `z` or `A` to `Z`.
+
+    The range is fixed here for the reason `_is_a_digit` gives: a
+    census that asks the interpreter what a letter is answers
+    differently on different supported interpreters.
+    """
     if not isinstance(character, str):
         raise TypeError(_NOT_TEXT)
-    return character.isalpha()
+    return ("a" <= character <= "z") or ("A" <= character <= "Z")
 
 
 def shape_form(text: str) -> str:
     """The shape of one cell: its figures and letters, its marks kept.
 
-    Every DIGIT becomes `9`, every LETTER becomes `A`, and every other
-    character must be one of `SHAPE_MARKS` and stands as itself,
-    because the marks are the STRUCTURE and the letters and figures are
-    the content. A diagnosis code `E11.9` has the form `A99.9`; a
-    laboratory code `4548-4` has `9999-9`; a blood pressure `120/80`
-    has `999/99`; a dispensed-drug code `0002-8215-01` has
-    `9999-9999-99`.
+    Every FIGURE `0`-`9` becomes `SHAPE_DIGIT`, every LETTER `a`-`z`
+    or `A`-`Z` becomes `SHAPE_LETTER`, and every other character must
+    be one of `SHAPE_MARKS` and stands as itself, because the marks are
+    the STRUCTURE and the letters and figures are the content. A
+    diagnosis code `E11.9` has the form `@%%.%`; a laboratory code
+    `4548-4` has `%%%%-%`; a blood pressure `120/80` has `%%%/%%`; a
+    dispensed-drug code `0002-8215-01` has `%%%%-%%%%-%%`.
 
-    "Every letter" and "every digit" are read the way Python reads
-    them, over the whole of Unicode and not over the ASCII ranges. A
-    column of Japanese clinical text published a key still holding the
-    words when only the ASCII ranges were replaced, which is a fragment
-    of a value in the one field this census has for saying what its
-    values look like (review round 1 finding 1).
+    A CELL HOLDING ANYTHING ELSE HAS NO FORM -- a letter of another
+    alphabet, a space, a mark this list leaves out, a placeholder. The
+    two rules that narrow it were each learned from a defect. Letting
+    an unreplaced character STAND let a column of Japanese clinical
+    text publish a key holding the words (review round 1 finding 1);
+    asking the INTERPRETER what a letter is made the census depend on
+    which Unicode database it carries, and five supported versions
+    disagree (round 2 finding 14).
+
+    AND A FORM CARRIES TWO OF THE THREE KINDS, or it is not a form.
+    `@@@@@` says five letters, which `length` and the two alphabet
+    counts already say between them; what a form is FOR is the ORDER
+    of the kinds and where the marks fall between them.
 
     WHAT THIS IS FOR. A column whose values the disclosure floor holds
     back publishes nothing about them today, so its twin holds
@@ -784,6 +832,12 @@ def shape_form(text: str) -> str:
     letters = 0
     marks = 0
     for character in text:
+        if character == SHAPE_DIGIT or character == SHAPE_LETTER:
+            # A CELL CARRYING A PLACEHOLDER HAS NO FORM. This is what
+            # makes the disjointness above a property and not a hope:
+            # without it a cell spelled `@%%` would have the form
+            # `@%%` and be its own form again.
+            return ""
         if _is_a_digit(character):
             form = form + SHAPE_DIGIT
             figures = 1
@@ -813,6 +867,46 @@ def shape_form(text: str) -> str:
         # the two.
         return ""
     return form
+
+
+def is_a_written_form(name: str) -> bool:
+    """Whether ``name`` is a written form: THE one definition of it.
+
+    The producer builds a form (`shape_form`), the loader admits a
+    census key, and the publication guard refuses one -- and those three
+    were three separate readings of the same rule, which is how the
+    loader and the guard came to accept `AAAA`, `9999` and `----`,
+    keys the producer can never write and every recount then misses
+    (review round 2 finding 2). There is one definition now and the
+    other two call it.
+
+    A form is one to `SHAPE_FORM_LIMIT` characters, every one of them a
+    placeholder or a mark from the closed list, carrying at least TWO
+    of the three kinds -- figure, letter, mark. Two kinds, because a
+    key of one kind says nothing `length` and the two alphabet counts
+    do not already say.
+
+    Guarantees: accepts any string; answers only from the characters.
+    Raises TypeError if handed anything that is not a string instance.
+    No I/O of any kind.
+    """
+    if not isinstance(name, str):
+        raise TypeError(_NOT_TEXT)
+    if not name or len(name) > SHAPE_FORM_LIMIT:
+        return False
+    figures = 0
+    letters = 0
+    marks = 0
+    for character in name:
+        if character == SHAPE_DIGIT:
+            figures = 1
+        elif character == SHAPE_LETTER:
+            letters = 1
+        elif character in SHAPE_MARKS:
+            marks = 1
+        else:
+            return False
+    return figures + letters + marks >= 2
 
 
 # What one cell says about the comma inside it.

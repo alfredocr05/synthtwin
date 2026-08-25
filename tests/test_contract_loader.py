@@ -188,8 +188,8 @@ def edit_level(_column: str, _index: int, **changes: object) -> Change:
 def _relabelled_as_a_long_tail(_column: str) -> Change:
     """Give a set of categories the long tail's role and key set.
 
-    The role's key set is the four shared label keys AND its own form
-    census (P4-D18), so the relabelling supplies one -- otherwise the
+    The role's key set is the five shared label keys, the form census
+    among them (P4-D18), so the relabelling supplies one -- otherwise the
     document is refused for a missing key and never reaches LT2, which
     is the rule this mutation exists to break.
     """
@@ -849,10 +849,16 @@ def battery() -> list[Mutation]:
         # is registered here because a rule the loader raises without
         # an entry in this battery reaches a person as a bare KeyError
         # (review round 1 finding 9).
+        # THE KEYS HERE MUST BE FORMS THE PRODUCER COULD WRITE, or the
+        # key grammar refuses them before SF1 is reached and the entry
+        # names a rule it does not exercise. They were `AAAA` and
+        # `AAAAA`, which the two-kinds rule forbids -- the review named
+        # it before the alphabet change made it fail loudly (round 2,
+        # test weakening 17).
         Mutation(
             "SF1",
             "a written form named by fewer cells than the floor admits",
-            edit("region", shape_forms={"AAAA": 117, "AAAAA": 3}),
+            edit("region", shape_forms={"@@@-@": 117, "@@@-@@": 3}),
         ),
         # A pooled remainder at a floor of one is refused too, but by
         # C5-S13 at the top of the document rather than by a rule of
@@ -863,13 +869,13 @@ def battery() -> list[Mutation]:
             "a form census holding a pooled remainder at a floor of one",
             all_of(
                 edit_in("settings", small_cell_floor=1),
-                edit("region", shape_forms={"AAAA": 1, "(withheld)": 1}),
+                edit("region", shape_forms={"@@@-@": 1, "(withheld)": 1}),
             ),
         ),
         Mutation(
             "SF3",
             "a census counting more cells than the column has present",
-            edit("region", shape_forms={"AAAA": 117, "AAAAA": 9999}),
+            edit("region", shape_forms={"@@@-@": 117, "@@@-@@": 9999}),
         ),
         Mutation(
             "P8",

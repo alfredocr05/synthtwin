@@ -17,7 +17,7 @@ rather than a property somebody noticed:
 - the role sits last but one, so every rule that reads a column better
   still claims it first -- a column of clock times with a repeated time
   is a column of clock times;
-- it publishes the four shared label keys and NOT `level_ceiling`,
+- it publishes the five shared label keys and NOT `level_ceiling`,
   whose invariant a long tail breaks by definition; the ceiling it
   passed is in its evidence sentence instead;
 - the loader refuses a document claiming the role with no level that

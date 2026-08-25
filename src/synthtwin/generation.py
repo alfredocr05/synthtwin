@@ -6046,12 +6046,23 @@ def _label_content(
     # `group-N` spelling stands as before.
     owing = _forms_owed(facts, cells)
     wanted = _shared_out(facts.suppressed_level_counts, owing)
+    # Each form's place in its own supply, carried across the whole
+    # column so no spelling is walked twice.
+    walked: "dict[str, int]" = {}
     shaped = 0
     for place in range(len(facts.suppressed_level_counts)):
         size = facts.suppressed_level_counts[place]
         form = wanted[place]
-        number, label = _made_up_label(number, used, owners, form)
-        if form:
+        number, label = _made_up_label(
+            number, used, owners, form, _hole_spellings(column), walked
+        )
+        # WHAT THE LABEL ACTUALLY WEARS, not what it was asked to wear
+        # (review round 2 finding 12). The walk gives a form up when
+        # its supply is spent or every spelling of it is refused, and
+        # this counted the ASKING -- so a report said thirty-three
+        # stand-ins were written in a published form when five of them
+        # were `group-N`.
+        if form and parsing.shape_form(label) == form:
             shaped = shaped + 1
         cells = cells + [label for _row in range(size)]
     if facts.suppressed_levels:
@@ -6223,6 +6234,12 @@ def _forms_owed(
 # arrangement the report would name either way.
 _SHARE_OUT_NODES = 20000
 
+# How many held-back levels the search will walk at all. Past this the
+# budget above runs out before an answer does, and the greedy walk is
+# what the search would settle for -- so it is taken directly, which
+# also keeps the walk's own bookkeeping small on a long tail.
+_SHARE_OUT_PLACES = 256
+
 
 def _shared_out(
     sizes: "tuple[int, ...]", owing: "dict[str, int]"
@@ -6254,9 +6271,26 @@ def _shared_out(
     order = sorted([(0 - sizes[place], place) for place in range(len(sizes))])
     places = [pair[1] for pair in order]
     left = {form: owing[form] for form in names}
+    # HOW MANY DISTINCT SPELLINGS EACH FORM CAN STILL SUPPLY (review
+    # round 2 finding 5). The debt is in CELLS and the supply is in
+    # SPELLINGS, and they are not the same quantity: `@-%` owes 31
+    # cells and can spell 260 of them, but a form of one figure owes 31
+    # and can spell ten. An arrangement that settles every debt
+    # arithmetically and asks a form for more distinct stand-ins than
+    # it HAS is not an arrangement at all -- the walk exhausts the form
+    # and writes neutral spellings, and the census is missed by the
+    # cells it was built to meet.
+    supply = {form: _usable_room(form) for form in names}
     chosen: "dict[int, str]" = {}
     budget = [_SHARE_OUT_NODES]
-    if _settles(places, 0, sizes, left, names, chosen, budget):
+    # SEARCHING ONLY THE SMALL CASES. Past this many places the search
+    # would spend its budget without reaching an answer, and the greedy
+    # walk below is what it would settle for anyway.
+    if len(places) > _SHARE_OUT_PLACES:
+        names = []
+    if names and _settles(
+        places, sizes, left, names, chosen, budget, supply
+    ):
         return [
             chosen[place] if place in chosen else ""
             for place in range(len(sizes))
@@ -6264,48 +6298,162 @@ def _shared_out(
     # NO EXACT ARRANGEMENT WAS FOUND, so the greedy one stands. It is
     # the arrangement this walk had before the search was written, and
     # it leaves the smallest remainder a one-pass rule can.
-    left = {form: owing[form] for form in names}
+    #
+    # IT OWES THE SUPPLY RULE TOO. The search learned that a form can
+    # be asked for more distinct stand-ins than it can spell (review
+    # round 2 finding 5); the fallback is reached on exactly the large
+    # arrangements where that is most likely, so it counts spellings as
+    # well as cells. Without this the fallback handed a form of
+    # twenty-six spellings thirty-one places.
+    every = [form for form in sorted(owing) if owing[form] > 0]
+    left = {form: owing[form] for form in every}
+    spare = {form: _form_room(form) for form in every}
     taken: "list[str]" = ["" for _each in sizes]
     for place in places:
-        form = _neediest_form(left)
+        form = _neediest_form(_within_supply(left, spare))
         if not form:
             break
         taken[place] = form
         left[form] = max(0, left[form] - sizes[place])
+        spare[form] = spare[form] - 1
     return taken
+
+
+def _within_supply(
+    left: "dict[str, int]", spare: "dict[str, int]"
+) -> "dict[str, int]":
+    """The debts of the forms that can still spell one more stand-in."""
+    open_still: "dict[str, int]" = {}
+    for form in sorted(left):
+        if spare[form] > 0:
+            open_still[form] = left[form]
+    return open_still
 
 
 def _settles(
     places: "list[int]",
-    depth: int,
     sizes: "tuple[int, ...]",
     left: "dict[str, int]",
     names: "list[str]",
     chosen: "dict[int, str]",
     budget: "list[int]",
+    supply: "dict[str, int]",
 ) -> bool:
-    """Whether the sizes from ``depth`` on can settle every debt exactly."""
-    if depth >= len(places):
-        for form in names:
-            if left[form] != 0:
+    """Whether the sizes can settle every debt exactly, walked ITERATIVELY.
+
+    IT RECURSED, AND A PRODUCER-VALID COLUMN CRASHED (review round 2
+    finding 6). One frame per suppressed level, and a long tail can
+    hold twelve hundred of them: a column of `steady` beside twelve
+    hundred singleton codes raised a bare `RecursionError` before ever
+    reaching the greedy fallback this function documents. The node
+    budget bounded the WORK and could not bound the STACK.
+
+    So the walk carries its own stack. Each entry is one place and how
+    many of that place's forms have been tried; stepping forward pushes,
+    exhausting a place's forms pops and undoes what that place took.
+    The answer, the order and the budget are exactly what the recursive
+    walk gave, so no arrangement moves.
+    """
+    depth = 0
+    tried: "list[int]" = [0 for _each in places]
+    while True:
+        if depth >= len(places):
+            settled = True
+            for form in names:
+                if left[form] != 0:
+                    settled = False
+            if settled:
+                return True
+            depth = depth - 1
+            if depth < 0:
                 return False
-        return True
-    budget[0] = budget[0] - 1
-    if budget[0] < 0:
-        return False
-    place = places[depth]
-    size = sizes[place]
-    for pair in sorted([(0 - left[form], form) for form in names]):
-        form = pair[1]
-        if left[form] < size:
+            place = places[depth]
+            _given_back(left, supply, sizes, chosen, place)
             continue
-        left[form] = left[form] - size
-        chosen[place] = form
-        if _settles(places, depth + 1, sizes, left, names, chosen, budget):
-            return True
-        left[form] = left[form] + size
-        del chosen[place]
-    return False
+        budget[0] = budget[0] - 1
+        if budget[0] < 0:
+            return False
+        place = places[depth]
+        size = sizes[place]
+        # A PLACE MAY BE LEFT NEUTRAL, and the empty string is how
+        # (review round 2 finding 4). Without it the search had to give
+        # every held-back level a form, so a column owing six cells
+        # with levels of three, three and four could not reach the
+        # arrangement its own source had -- two threes and the four
+        # left alone -- and overshot by one. The neutral choice is
+        # offered LAST, so an arrangement that uses a form is preferred
+        # to one that does not.
+        offers = [(0 - left[form], form) for form in names]
+        taken = False
+        for step in range(tried[depth], len(offers) + 1):
+            if step == len(offers):
+                tried[depth] = step + 1
+                chosen[place] = ""
+                taken = True
+                break
+            form = sorted(offers)[step][1]
+            if left[form] < size:
+                continue
+            if supply[form] < 1:
+                continue
+            tried[depth] = step + 1
+            left[form] = left[form] - size
+            supply[form] = supply[form] - 1
+            chosen[place] = form
+            taken = True
+            break
+        if taken:
+            depth = depth + 1
+            if depth < len(places):
+                tried[depth] = 0
+            continue
+        # THIS PLACE IS SPENT: undo the place before it and try its
+        # next form. Where there is no place before it, no arrangement
+        # settles every debt and the caller falls back.
+        tried[depth] = 0
+        depth = depth - 1
+        if depth < 0:
+            return False
+        _given_back(left, supply, sizes, chosen, places[depth])
+
+
+def _given_back(
+    left: "dict[str, int]",
+    supply: "dict[str, int]",
+    sizes: "tuple[int, ...]",
+    chosen: "dict[int, str]",
+    place: int,
+) -> None:
+    """Undo what one place took, so the walk can try its next choice."""
+    form = chosen[place]
+    if form:
+        left[form] = left[form] + sizes[place]
+        supply[form] = supply[form] + 1
+    del chosen[place]
+
+
+def _usable_room(form: str) -> int:
+    """How many spellings of one form a walk could actually write.
+
+    `_form_room` counts the spellings the form HAS; this counts the
+    ones a stand-in may wear. They are not the same number and the
+    search needs the second (review round 2 finding 5's own
+    verification): `-@%%` has two thousand six hundred spellings and
+    NONE of them usable, every one opening with the character a
+    spreadsheet reads as the start of a formula -- so a search told
+    the first number hands that form places it can never fill, and the
+    census is missed by exactly those cells.
+
+    Counted over the walk's own bound rather than the whole supply, so
+    a form of many letters costs this no more than the walk itself
+    would spend on it.
+    """
+    room = min(_form_room(form), _STAND_IN_STEPS)
+    usable = 0
+    for step in range(room):
+        if _is_a_usable_stand_in(_filled_form(form, step)):
+            usable = usable + 1
+    return usable
 
 
 def _neediest_form(owing: "dict[str, int]") -> str:
@@ -6439,6 +6587,65 @@ def _form_words(form: str) -> int:
     return words
 
 
+def _length_budget(
+    facts: "contract.TextFacts",
+    groups: "tuple[int, ...]",
+    lengths: "list[int]",
+) -> "list[int]":
+    """How far this column's total length may move, each way, in cells.
+
+    ONE CHARACTER EACH WAY, AND THE ONE IS MEASURED RATHER THAN
+    CHOSEN. G12.6 holds the achieved mean inside a window narrower than
+    a hundredth of a character on an ordinary column -- four
+    thousandths on the case that found this defect -- so a budget
+    stated as a fraction of the column is not a budget at all. Swept
+    against two real columns: at a budget of half the rows, a fiftieth
+    and a hundredth, a column whose census asks for lengths its average
+    does not want misses `length.mean` outright; at ONE character each
+    way it holds, and a blood-pressure column -- whose census asks for
+    exactly the lengths its own values had -- still meets all four of
+    its forms and its average.
+
+    That is the precedence rule made arithmetic. An exact count
+    outranks an approximated average (method G9.5), and here it spends
+    the average's own slack to the last character and no further.
+
+    The budget opens at whatever the packing's own lengths already
+    spend, so a swap is measured against the walk that would have
+    happened, not against a perfect one. Both halves are clamped at
+    zero: a packing that already overspends buys no room by it.
+    """
+    total = 0
+    for place in range(len(groups)):
+        total = total + lengths[place] * groups[place]
+    rows = 0
+    for size in groups:
+        rows = rows + size
+    if rows < 1:
+        return [0, 0]
+    average = facts.length.mean
+    if average is None:
+        # NO PUBLISHED AVERAGE MEANS NO BUDGET TO KEEP, so the length a
+        # form asks for costs nothing and every admitted one is open.
+        return [total, total]
+    wanted = int(round(average * rows))
+    room = 1
+    return [max(wanted + room - total, 0), max(total - (wanted - room), 0)]
+
+
+def _spend_length(budget: "list[int]", moved: int, size: int) -> None:
+    """Take one group's length swap out of the budget, both ways."""
+    if moved == 0:
+        return
+    cost = moved * size
+    if cost > 0:
+        budget[0] = max(budget[0] - cost, 0)
+        budget[1] = budget[1] + cost
+        return
+    budget[1] = max(budget[1] + cost, 0)
+    budget[0] = budget[0] - cost
+
+
 def _text_debt(facts: "contract.TextFacts") -> "dict[str, int]":
     """Cells each published form still owes, before anything is written."""
     owing: "dict[str, int]" = {}
@@ -6464,6 +6671,7 @@ def _wanted_form(
     carrier: bool,
     shortest: int,
     longest: int,
+    budget: "list[int]",
 ) -> str:
     """Which published form this group is offered, or "" for none.
 
@@ -6475,16 +6683,28 @@ def _wanted_form(
     A GROUP CARRYING A PUBLISHED LENGTH END keeps its length exactly,
     because `length.min` and `length.max` are EXACT-OBSERVABLE and a
     twin that moved one would miss a fact it could have met. EVERY
-    OTHER GROUP may take any form whose length lies between those two
-    ends. The length the packing gave it came from `length.mean` and
-    `length.p50`, which are APPROXIMATED, and this format's own
-    precedence rule is that an exact count outranks an approximated
-    average (method G9.5). Holding every group to its assigned length
-    was how a blood-pressure column met the ONE form its middle length
-    carried and missed the two beside it: the packing had put almost
-    every group at six characters, so no group was left to write
-    `99/99` or `999/999`, and sixty cells came out of the wide
-    alphabet instead.
+    OTHER GROUP may take a form of another length, but ONLY WHILE THAT
+    LEAVES THE PUBLISHED AVERAGE NO WORSE THAN IT FOUND IT.
+
+    THE SECOND CLAUSE IS THE PRICE OF THE FIRST, and it was missing
+    (review round 2 finding 9). Holding every group to its assigned
+    length was how a blood-pressure column met the ONE form its middle
+    length carried and missed the two beside it -- the packing had put
+    almost every group at six characters, so nothing was left to write
+    `%%/%%` or `%%%/%%%` and sixty cells came out of the wide alphabet.
+    But letting every group move freely cost the average outright: a
+    column publishing `length.mean` 4.8333 within a band four
+    thousandths wide had a twin at 5.4875, which its own quality report
+    called MISSED. An exact count outranks an approximated average
+    (method G9.5) -- it does not get to spend one without limit.
+
+    So a swap is offered only where the projected total length, taken
+    over the groups already written and the groups still to come at the
+    lengths the packing gave them, ends no further from the published
+    total than it would have without the swap. The census is then paid
+    out of the slack the average actually has, and no further. Where
+    there is no slack the form is not offered and `_form_notes` says
+    which counts went unmet.
 
     A space survives into a form unchanged, so the form's own word
     count must equal the group's either way.
@@ -6506,13 +6726,33 @@ def _wanted_form(
                 continue
         elif len(form) < shortest or len(form) > longest:
             continue
+        elif not _length_affords(len(form) - length, budget):
+            continue
         fits = fits + [(0 - owing[form], form)]
     if not fits:
         return ""
     return sorted(fits)[0][1]
 
 
-def _is_a_usable_stand_in(candidate: str) -> bool:
+def _length_affords(moved: int, budget: "list[int]") -> bool:
+    """Whether the published average can still afford one length swap.
+
+    ``budget`` carries how far the twin's total length may still move
+    from the total the published average asks for, in each direction:
+    `budget[0]` is how much it may still grow and `budget[1]` how much
+    it may still shrink. A swap that costs nothing -- the same length
+    -- is always afforded and spends nothing.
+    """
+    if moved == 0:
+        return True
+    if moved > 0:
+        return budget[0] >= moved
+    return budget[1] >= 0 - moved
+
+
+def _is_a_usable_stand_in(
+    candidate: str, holes: "tuple[str, ...]" = ()
+) -> bool:
     """Whether a made-up spelling may stand in a twin cell at all.
 
     The four properties `group-N` had by construction, asked of a
@@ -6520,8 +6760,28 @@ def _is_a_usable_stand_in(candidate: str) -> bool:
     the words that mean "no value", must read as neither a number nor a
     date, must carry no comma or quote, and must not begin with a
     character a spreadsheet reads as the start of a formula.
+
+    AND A FIFTH THE GLOBAL VOCABULARY DOES NOT COVER (review round 2
+    finding 8). `holes` is what THIS COLUMN publishes among its absent
+    cells: the keys of its own `missing_by_source`, which this format
+    writes character for character wherever the floor lets the column
+    name them. Such a spelling means "no value" in THIS column and in
+    no other. A shaped stand-in walked straight onto one: a diagnosis
+    column whose absent cells were written `A00.0` had
+    thirteen twin cells spelled `A00.0`, so the twin read back with two
+    hundred and forty-one present cells where the description published
+    two hundred and forty-three. The numeric walks have taken this
+    population since they were written; these two did not.
     """
     if not candidate:
+        return False
+    if _is_a_hole_spelling(candidate, holes):
+        # THE CONSERVATIVE HALF, because a spelling is being CHOSEN
+        # here (review round 2 finding 8). It matches the way the
+        # READER matches -- folded, and a vocabulary member its own
+        # way -- so a column declaring `a-00` absent cannot be handed
+        # a stand-in spelled `A-00`, which the reader would call
+        # absent too. Raw membership missed exactly that.
         return False
     if parsing.is_missing_text(candidate):
         return False
@@ -6541,6 +6801,8 @@ def _made_up_label(
     used: "dict[str, int]",
     owners: "dict[str, str]",
     form: str,
+    holes: "tuple[str, ...]",
+    walked: "dict[str, int]",
 ) -> "tuple[int, str]":
     """One label standing in for one that was held back (G8.3, P4-D18).
 
@@ -6567,33 +6829,46 @@ def _made_up_label(
     `_is_a_usable_stand_in` asks them, because a spelling built to look
     like a code no longer has them for free.
     """
+    if form:
+        # THE FORM'S CURSOR IS CARRIED ACROSS STAND-INS, and the
+        # counter for the neutral spelling is NOT TOUCHED here (review
+        # round 2 finding 13, and the second defect its verification
+        # found).
+        #
+        # It restarted at zero on every call, so two hundred stand-ins
+        # of one form cost 1+2+...+200 probes and four thousand cost
+        # eight million -- twelve seconds. The worst case was not the
+        # big one: a form every spelling of which is refused, `-@%%`,
+        # re-walked its whole supply for EVERY stand-in, so three
+        # hundred held-back levels on a small column cost six seconds
+        # against a fortieth of a second here.
+        #
+        # And the shaped probes were counted as neutral ones. Method
+        # G8.3 says the invented labels are `group-1`, `group-2`, ...
+        # in order, each number advanced WHEN IT COLLIDES; a mixed
+        # column advanced it twenty thousand times without a single
+        # collision and its twin held `group-20101`. A shaped walk now
+        # leaves `number` exactly where it found it.
+        room = min(_form_room(form), _STAND_IN_STEPS)
+        if form not in walked:
+            walked[form] = 0
+        while walked[form] < room:
+            candidate = _filled_form(form, walked[form])
+            walked[form] = walked[form] + 1
+            if candidate in used or parsing.folded(candidate) in owners:
+                continue
+            if not _is_a_usable_stand_in(candidate, holes):
+                continue
+            used[candidate] = 1
+            owners[parsing.folded(candidate)] = candidate
+            return number, candidate
     step = number
-    tried = 0
-    wanted = form
     while True:
         step = step + 1
-        if wanted:
-            # THE FORM'S SUPPLY IS FINITE AND CAN BE ENTIRELY UNUSABLE
-            # (review round 1 finding 3). A column whose cells are
-            # `-A` through `-Z` publishes the form `-A`, and EVERY
-            # spelling of it opens with the character a spreadsheet
-            # reads as the start of a formula -- so every candidate
-            # was refused and this loop ran forever on a document the
-            # loader had accepted. The walk is bounded by the form's
-            # own supply and then gives the form up: a neutral
-            # spelling in place of a shaped one costs the census a
-            # count and says so, where a hang costs the person their
-            # run and says nothing.
-            tried = tried + 1
-            if tried > _form_room(wanted) or tried > _STAND_IN_STEPS:
-                wanted = ""
-                continue
-            candidate = _filled_form(wanted, tried - 1)
-        else:
-            candidate = f"group-{step}"
+        candidate = f"group-{step}"
         if candidate in used or parsing.folded(candidate) in owners:
             continue
-        if not _is_a_usable_stand_in(candidate):
+        if not _is_a_usable_stand_in(candidate, holes):
             continue
         used[candidate] = 1
         owners[parsing.folded(candidate)] = candidate
@@ -8523,6 +8798,12 @@ def _text_cells(
     # written without it, and a partner spelling wears whatever a case
     # flip or an edge space left it wearing.
     owing = _text_debt(facts)
+    # HOW FAR THE TWIN'S TOTAL LENGTH MAY STILL MOVE, in each direction
+    # (review round 2 finding 9). `length.mean` is approximated, so it
+    # has a window rather than a value -- and a window is a budget, not
+    # a licence. A form of another length is offered only while the
+    # projected total stays inside it.
+    budget = _length_budget(facts, groups, lengths)
     made: dict[str, int] = {}
     for index in range(total):
         partner = _partner_of(
@@ -8531,6 +8812,7 @@ def _text_cells(
         if partner is not None:
             taken = _take(partner, used)
             _settle(owing, taken, groups[index])
+            _spend_length(budget, len(taken) - lengths[index], groups[index])
             spellings = spellings + [taken]
             continue
         kind = _CLASSES[kinds[index]]
@@ -8546,7 +8828,9 @@ def _text_cells(
                 index in carriers,
                 facts.length.minimum,
                 facts.length.maximum,
+                budget,
             ),
+            _hole_spellings(column),
         )
         if spelling is None:
             held = 0
@@ -8564,6 +8848,7 @@ def _text_cells(
             made[key] = 0
         made[key] = made[key] + 1
         _settle(owing, spelling, groups[index])
+        _spend_length(budget, len(spelling) - lengths[index], groups[index])
         spellings = spellings + [spelling]
     return _grouped(groups, spellings), notes, carriers
 
@@ -9438,6 +9723,22 @@ def _worded_room(
 _ASK_STEPS = 4096
 
 
+def _reads_in_band(candidate: str, band: str) -> bool:
+    """Whether a finished cell recounts into the band it was made for.
+
+    Asked with the SHIPPED readers, on the trimmed cell, exactly as
+    `_alphabet_notes` recounts the twin -- so what this permits and
+    what a person recounting the column measures are one predicate and
+    cannot drift apart.
+    """
+    bare = parsing.trimmed(candidate)
+    if band == _BAND_DIGITS:
+        return parsing.is_digit_text(bare)
+    if band == _BAND_CODE:
+        return parsing.is_code_text(bare) and not parsing.is_digit_text(bare)
+    return not parsing.is_code_text(bare) and not parsing.is_digit_text(bare)
+
+
 def _made_up_cell(
     kind: str,
     band: str,
@@ -9447,6 +9748,7 @@ def _made_up_cell(
     states: "dict[str, list[int]]",
     used: "dict[str, int]",
     form: str = "",
+    holes: "tuple[str, ...]" = (),
 ) -> "str | None":
     """One made-up cell of one class, one band and one length, or None.
 
@@ -9467,26 +9769,63 @@ def _made_up_cell(
     spend a family that the ordinary rule could still have used. The
     folded count then comes up short and the recount names it.
     """
+    # THE CURSOR IS THE FAMILY'S AND THE FORM'S, NOT THE FAMILY'S ALONE
+    # (review round 2 finding 3). Two forms of one family shared it, so
+    # after the first form had walked two hundred and twenty spellings
+    # the second -- whose whole supply is twenty-six -- began past its
+    # own end and was never tried at all: the twin wrote two hundred
+    # and forty cells of the first form and none of the second. A form
+    # walks its own supply from its own start.
     key = f"{kind}/{band}/{length}/{words}"
     if key not in states:
         states[key] = [0]
     state = states[key]
     began = state[0]
     if form:
+        # THE FORM'S CURSOR IS KEYED WITH A SPACE, not with a slash. A
+        # slash is one of the thirteen marks a form may hold, so a
+        # slashed key is injective only by an argument about how many
+        # fields each kind of key has; no class name, band name, whole
+        # number or admitted form can hold a SPACE, so this one is
+        # injective by inspection.
+        shaped = f"{key} {form}"
+        if shaped not in states:
+            states[shaped] = [0]
         # THE FORM IS AN ASK TOO, AND IT IS ASKED FIRST. Where the
         # column published one that fits this value, the value is
         # written in it; where the form's own spellings cannot satisfy
         # the family -- they read back as another class, or the form's
-        # supply is spent -- the walk is put back where it started and
-        # taken again without it, exactly as the letter ask is. A form
-        # can then cost the column no value it would otherwise have had
+        # supply is spent -- the walk is taken again WITHOUT it, so a
+        # form can cost the column no value it would otherwise have had
         # (P4-D18).
+        #
+        # A FORM PASS THAT GAVE UP UNDER THE LETTER ASK IS PUT BACK
+        # EXACTLY WHERE IT BEGAN; ONE THAT GAVE UP WITHOUT THE ASK
+        # LEAVES ITS CURSOR WHERE IT STOPPED. That is verbatim the rule
+        # the family cursor two lines below already obeys, so one
+        # sentence governs both.
+        #
+        # NEITHER HALF IS OPTIONAL, and both were got wrong in turn.
+        # Sharing one cursor between two forms left the second never
+        # tried at all (review round 2 finding 3). Never putting the
+        # form's cursor back -- the first repair -- let the letter
+        # ask's give-up path walk a form's WHOLE supply producing
+        # nothing, so a column publishing two hundred cells of one
+        # shape got zero of them where this rule gets a hundred and
+        # eighty. And putting it back UNCONDITIONALLY costs the run:
+        # measured on a column whose every spelling of a form is
+        # refused, a thousand fillings under this rule against two
+        # hundred and forty thousand under that one.
+        shaped_state = states[shaped]
+        marked = shaped_state[0]
         found = _walked_cell(
-            kind, band, length, words, letter, state, used, form
+            kind, band, length, words, letter, shaped_state, used, form,
+            holes,
         )
         if found is not None:
             return found
-        state[0] = began
+        if letter:
+            shaped_state[0] = marked
     found = _walked_cell(kind, band, length, words, letter, state, used)
     if found is None and letter:
         state[0] = began
@@ -9503,6 +9842,7 @@ def _walked_cell(
     state: "list[int]",
     used: "dict[str, int]",
     form: str = "",
+    holes: "tuple[str, ...]" = (),
 ) -> "str | None":
     """One pass of the family's walk, from where the last one stopped.
 
@@ -9553,7 +9893,29 @@ def _walked_cell(
             continue
         if _reads_as_a_date(candidate):
             continue
-        if form and not _is_a_usable_stand_in(candidate):
+        if not _reads_in_band(candidate, band):
+            # THE BAND IS NOT THE CLASS, AND ONLY THE CLASS WAS ASKED
+            # (review round 2 finding 7). A form's spelling is built
+            # from the CELL's shape and filled from ASCII, so a column
+            # of Greek-letter codes published `n_code_alphabet: 0` and
+            # its twin recounted 240. Both counts are exact facts of
+            # the description, so the form yields to them: the
+            # candidate is refused, the walk is taken again without the
+            # form, and the census is missed instead -- which
+            # `_form_notes` then says.
+            #
+            # ASKED OF EVERY CANDIDATE AND NOT ONLY OF A FORM'S. Every
+            # spelling `_family_at` builds is in its band by
+            # construction, so gating this on `form` would change
+            # nothing -- measured across all sixty-one class, band,
+            # length and word combinations the packing can assign, not
+            # one candidate leaves its band. But "by construction" is
+            # an argument and this is a check, and a check that runs
+            # on everything cannot be quietly weakened to run on
+            # nothing. `tests/test_p4d18_shape_forms.py` holds the
+            # enumeration.
+            continue
+        if form and not _is_a_usable_stand_in(candidate, holes):
             # THE FORM'S OWN MARKS ARE NOT THE ALPHABETS' (review round
             # 1 finding 6). Every candidate `_family_at` builds comes
             # from an alphabet with the four hazardous characters taken
@@ -10637,6 +10999,34 @@ def _recount_notes(
     return notes
 
 
+def _present_of(
+    written: "list[str]", holes: "tuple[str, ...]"
+) -> "list[str]":
+    """The cells of a written column that are PRESENT cells.
+
+    NOT "every cell that is not blank", which is what nine recounts of
+    this module asked and which is a different question (review round
+    2 finding 11, widened by its own verification). A twin reproduces
+    the spellings its source's absent cells wore (7.7), so a numeric
+    column whose holes were written `-999` has twenty cells that LOOK
+    like numbers and are not values -- and counting them recounted a
+    mean of -40.4 against a published 39.5, a standard deviation of
+    277 against 11.6, and a first percentile of -999.
+
+    The validator was right about that file the whole time and said
+    so; only the report written beside the twin accused it. Eleven
+    fabricated deviations on a conforming twin is worse than none at
+    all, because a person reading them abandons a twin that was fine.
+
+    `_wears_a_published_hole` is the question a recount asks, and this
+    is every recount asking it once.
+    """
+    return [
+        cell for cell in written
+        if cell != "" and not _wears_a_published_hole(cell, holes)
+    ]
+
+
 def _alphabet_notes(
     column: contract.ColumnBlock, written: "list[str]"
 ) -> "list[Deviation]":
@@ -10658,7 +11048,8 @@ def _alphabet_notes(
         return []
     published = (facts.n_all_digits, facts.n_code_alphabet)
     trimmed = [
-        parsing.trimmed(cell) for cell in written if cell != ""
+        parsing.trimmed(cell)
+        for cell in _present_of(written, _hole_spellings(column))
     ]
     counted = (
         len([cell for cell in trimmed if parsing.is_digit_text(cell)]),
@@ -10733,7 +11124,7 @@ def _extreme_notes(
     facts = column.facts
     if not isinstance(facts, contract.TextFacts):
         return []
-    present = [cell for cell in written if cell != ""]
+    present = _present_of(written, _hole_spellings(column))
     if not present:
         return []
     lengths = [len(cell) for cell in present]
@@ -10999,9 +11390,25 @@ def _form_notes(
     pooled = 0
     if contract.WITHHELD in census:
         pooled = census[contract.WITHHELD]
+    # THE COLUMN'S OWN ABSENT CELLS ARE NOT PRESENT CELLS, and this
+    # counted them (review round 2 finding 11). A twin reproduces the
+    # spellings its source's absent cells wore (7.7), so a column whose
+    # holes were written `N/A` has eleven twin cells wearing the form
+    # `@/@` -- and the census counts PRESENT cells. The note therefore
+    # accused a twin the validator, which excludes them correctly, had
+    # just called conforming.
+    holes = _hole_spellings(column)
     counted: "dict[str, int]" = {}
     for cell in written:
         if cell == "":
+            continue
+        if _wears_a_published_hole(cell, holes):
+            # THE RECOUNTING HALF, not the conservative one. The
+            # question here is whether THIS COLUMN'S DESCRIPTION reads
+            # the cell as absent, and raw membership answered a
+            # narrower question -- so a hole the twin wrote in another
+            # case was counted as a present cell and a conforming twin
+            # was accused (review round 2 finding 11).
             continue
         form = parsing.shape_form(cell)
         if not form:
@@ -11059,7 +11466,7 @@ def _width_notes(
     facts = column.facts
     if not isinstance(facts, contract.IdentifierFacts):
         return []
-    present = [cell for cell in written if cell != ""]
+    present = _present_of(written, _hole_spellings(column))
     if not present:
         return []
     lengths = [len(cell) for cell in present]
@@ -11101,7 +11508,7 @@ def _class_notes(
     a group can be missed by a packing, and a packing that missed it in
     silence is the defect this closes (review item P2-C1-F1).
     """
-    present = [cell for cell in written if cell != ""]
+    present = _present_of(written, _hole_spellings(column))
     counted = {name: 0 for name in _CLASSES}
     for cell in present:
         found = parsing.classify_number(cell)
@@ -11148,7 +11555,10 @@ def _whole_notes(
     facts = column.facts
     if not isinstance(facts, contract.IdentifierFacts):
         return []
-    present = [parsing.trimmed(cell) for cell in written if cell != ""]
+    present = [
+        parsing.trimmed(cell)
+        for cell in _present_of(written, _hole_spellings(column))
+    ]
     whole = len(present) > 0
     for cell in present:
         if parsing.numeric_whole(cell) != parsing.WHOLE_YES:
@@ -11327,9 +11737,7 @@ def _style_notes(
     pooled = _style_pool(facts.numeric_styles)
     counted = {name: 0 for name in contract.NUMERIC_STYLES}
     pointless = 0
-    for cell in written:
-        if cell == "":
-            continue
+    for cell in _present_of(written, _hole_spellings(column)):
         trimmed = parsing.trimmed(cell)
         body = trimmed
         if prefix or suffix:
@@ -11948,9 +12356,8 @@ def _numeric_approximations(
             value
             for value in [
                 parsing.parse_number(cell)
-                for cell in written
-                if cell != ""
-                and parsing.classify_number(cell) == parsing.NUMBER
+                for cell in _present_of(written, _hole_spellings(column))
+                if parsing.classify_number(cell) == parsing.NUMBER
             ]
             if value is not None
         ]
@@ -12250,7 +12657,7 @@ def _clock_approximations(
     A-P4-20 fixes. Both are measured off the FINISHED cells and neither
     is restated from what this module intended.
     """
-    present = [cell for cell in written if cell != ""]
+    present = _present_of(written, _hole_spellings(column))
     form = facts.clock_form
     ordinals = sorted(
         [
@@ -12360,7 +12767,7 @@ def _datetime_approximations(
     written: "list[str]",
 ) -> "list[Approximation]":
     """The two approximated families of a column of dates (G12.4, G12.5)."""
-    present = [cell for cell in written if cell != ""]
+    present = _present_of(written, _hole_spellings(column))
     ordinals = sorted(
         [
             found
@@ -12513,7 +12920,7 @@ def _text_approximations(
     that filled the groups AROUND those two, so it is measured against
     the pair the run actually used and never against an assumed one.
     """
-    present = [cell for cell in written if cell != ""]
+    present = _present_of(written, _hole_spellings(column))
     rows = len(present)
     if rows < 1:
         return []

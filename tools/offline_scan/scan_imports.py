@@ -765,18 +765,6 @@ _OTHER_RESULT_STR_METHODS = {
     "count",
     "endswith",
     "find",
-    # `isalpha` joins `isdigit` here as a policy decision, made when
-    # the written-form census needed to read "is this a letter" over
-    # the whole of Unicode rather than over the ASCII ranges (plan
-    # P4-D18, adversarial round 1 finding 1). It is the same kind of
-    # call as `isdigit`, which this set already holds: a pure predicate
-    # on a value this audit has already established is text, taking no
-    # argument, returning a truth value, reaching no I/O and no
-    # network, and carrying no text origin forward. The reason the
-    # census needs it is a security reason of its own: reading letters
-    # by ASCII range let a column of non-ASCII clinical text publish
-    # its own words in a census key.
-    "isalpha",
     "isascii",
     "isdigit",
     "split",

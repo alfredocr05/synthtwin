@@ -583,15 +583,6 @@ AFFIXED_REMARK_PARTS = (
 DECIMAL_STYLE = "decimal"
 LEADING_ZERO_STYLE = "leading_zero"
 
-# The form census's own three constants, held here so the loader checks
-# a key by the same rule the producer built it by.
-SHAPE_FORM_LIMIT = 24
-SHAPE_DIGIT = "9"
-SHAPE_LETTER = "A"
-# The closed list of marks a form may carry beside those two. A key
-# holding anything else is refused, whatever wrote it.
-SHAPE_MARKS = "-./_:#*()[]+,"
-
 DECLARATION_MATCHING = "exact_number_when_it_reads_as_one_else_spelling"
 
 DECLARATION_PUBLICATION = "settings_counts_only_columns_unchanged"
@@ -5412,25 +5403,21 @@ def _shape_forms(
 
 
 def _is_shape_form(name: str) -> bool:
-    """Whether one census key is a form and carries nothing else.
+    """Whether one census key is a form -- asked of the ONE definition.
 
-    THE TEST IS A CLOSED ALPHABET AND NOT A REPLACEMENT AUDIT (review
-    round 1 finding 1). Checking that no OTHER figure or letter
-    survived leaves every character that is neither -- a space, a mark
-    nobody writes a code with, a letter no ASCII range reaches -- to
-    stand in the key, and a column of Japanese clinical text then
-    published a key holding the words themselves. A key is now `9`,
-    `A`, and marks from a list this module owns, or it is refused;
-    nothing a table wrote can pass that.
+    THE LOADER MUST NOT HOLD A SECOND READING OF THIS RULE. It did, and
+    the two parted: the producer refuses a key of one kind of symbol
+    and this accepted `AAAA`, `9999` and `----`, so a document
+    carrying one loaded, passed the publication guard, and then missed
+    its own census at every recount because no cell can ever wear such
+    a form (review round 2 finding 2).
+
+    `parsing.is_a_written_form` is that definition. Calling it also
+    carries the property finding 1 turned on: a key is spelled from
+    placeholders no cell that has a form may contain, so admitting a
+    key can never admit a value.
     """
-    if not name or len(name) > SHAPE_FORM_LIMIT:
-        return False
-    for character in name:
-        if character == SHAPE_DIGIT or character == SHAPE_LETTER:
-            continue
-        if character not in SHAPE_MARKS:
-            return False
-    return True
+    return parsing.is_a_written_form(name)
 
 
 def _is_canonical_width(name: str) -> bool:

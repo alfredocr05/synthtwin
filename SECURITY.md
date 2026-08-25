@@ -190,7 +190,16 @@ Stated here so that no reader has to discover them independently:
   What the rule does NOT do: it cannot be reached by lowering the
   floor. The detection line is the floor or eleven, whichever is
   larger, so a column with no eleven-row value stays free text at every
-  floor and goes on publishing nothing. Raising the floor can only take
+  floor, and no VALUE of it is published at any floor. What such a
+  column does publish, since synthtwin gained the written-form census,
+  is the SHAPE its cells were written in where enough of them shared
+  one -- an all-different column of laboratory codes says that four
+  hundred of its cells were four figures, a hyphen and a figure. A
+  shape carries no letter and no figure of any cell: it is spelled from
+  two placeholder characters and a closed list of marks, none of which
+  a cell that has a shape may contain, so a shape is never a spelling
+  any value of yours could wear. It is governed by the same small-cell
+  floor as every other count. Raising the floor can only take
   columns OUT of the class. And the summary printed before anything is
   written lists every column whose labels will be visible, long-tail
   columns included -- read it there, before the files exist.
