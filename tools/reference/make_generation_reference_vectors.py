@@ -4275,6 +4275,11 @@ def _free_text_joint():
         length=length, words=words,
         n_all_digits=2, n_code_alphabet=3,
         n_distinct_by_occurrences={"1": 2, "2": 1},
+        # The census of written forms (plan P4-D18). Four cells at the
+        # smallest group size of eleven: no form is shared by enough of
+        # them to be named, so the whole census is the pooled
+        # remainder.
+        shape_forms={"(withheld)": 4},
     )
     return {
         "why": "the joint class-and-alphabet packing of G9.5 steps 3 and 4 on "
@@ -4630,7 +4635,7 @@ INTEGER_COLUMN_KEYS = frozenset({
 INTEGER_COLUMN_MAPS = frozenset({
     "missing_by_class", "missing_by_source", "numeric_styles", "utc_offsets",
     "variants", "variants_withheld", "n_distinct_by_occurrences",
-    "fraction_widths", "pad_widths", "resolution_mix",
+    "fraction_widths", "pad_widths", "resolution_mix", "shape_forms",
 })
 INTEGER_COLUMN_ARRAYS = frozenset({"suppressed_level_counts"})
 # The two blocks of a free-text column whose own two ends are whole

@@ -457,8 +457,14 @@ TEXT_KEYS = (
     "n_all_digits",
     "n_code_alphabet",
     "n_distinct_by_occurrences",
+    "shape_forms",
     "words",
 )
+
+# The long-tail role's own key beside the four it shares with the label
+# roles. It is the role whose twin is mostly stand-ins, so it is the
+# role that needs to say what a stand-in should look like (P4-D18).
+LONG_TAIL_KEYS = LABEL_KEYS + ("shape_forms",)
 
 LENGTH_KEYS = ("max", "mean", "min", "p50")
 
@@ -576,6 +582,12 @@ AFFIXED_REMARK_PARTS = (
 # spelling repeated at two sites is a spelling one site can change.
 DECIMAL_STYLE = "decimal"
 LEADING_ZERO_STYLE = "leading_zero"
+
+# The form census's own three constants, held here so the loader checks
+# a key by the same rule the producer built it by.
+SHAPE_FORM_LIMIT = 24
+SHAPE_DIGIT = "9"
+SHAPE_LETTER = "A"
 
 DECLARATION_MATCHING = "exact_number_when_it_reads_as_one_else_spelling"
 
@@ -1245,6 +1257,19 @@ class LabelFacts:
 
 
 @dataclasses.dataclass(frozen=True)
+class LongTailFacts(LabelFacts):
+    """A long tail of labels, and the forms its cells were written in.
+
+    The census is this role's own key (P4-D18). It is the role whose
+    twin is mostly stand-ins -- a long tail is by definition a column
+    most of whose values the floor holds back -- so it is the role that
+    has to say what a stand-in should look like.
+    """
+
+    shape_forms: "dict[str, int]"
+
+
+@dataclasses.dataclass(frozen=True)
 class CategoricalFacts(LabelFacts):
     """The published labels of a column of categories (6.6.1).
 
@@ -1331,6 +1356,7 @@ class TextFacts:
     n_all_digits: int
     n_code_alphabet: int
     n_distinct_by_occurrences: "dict[str, int]"
+    shape_forms: "dict[str, int]"
 
 
 @dataclasses.dataclass(frozen=True)
@@ -3707,7 +3733,12 @@ def _role_keys(role: str) -> "tuple[str, ...]":
         # a long-tail column breaks by definition. The format has no
         # optional keys, so the ceiling this column PASSED is recorded
         # in its evidence sentence instead.
-        return LABEL_KEYS
+        #
+        # ...AND ITS OWN FORM CENSUS BESIDE THEM (P4-D18). The three
+        # sibling label roles do not carry it: a column at or under the
+        # categorical ceiling publishes its levels, so its twin holds
+        # them and has no stand-in to shape.
+        return LONG_TAIL_KEYS
     if role == ROLE_DATETIME:
         return DATETIME_KEYS
     if role == ROLE_COUNT or role == ROLE_CONTINUOUS:
@@ -3778,7 +3809,7 @@ def _facts(
         return _identifier_facts(
             mapping, where, n_present, n_distinct
         )
-    return _text_facts(mapping, where, n_present, n_distinct)
+    return _text_facts(mapping, where, n_present, n_distinct, frame.floor)
 
 
 def _empty_facts(mapping: "dict[str, object]", where: str) -> EmptyFacts:
@@ -4213,11 +4244,12 @@ def _long_tail_facts(
                 f"claimed it"
             ),
         )
-    return LabelFacts(
+    return LongTailFacts(
         levels=entries,
         suppressed_levels=suppressed,
         suppressed_rows=rows,
         suppressed_level_counts=sizes,
+        shape_forms=_shape_forms(mapping, where, floor),
     )
 
 
@@ -5291,6 +5323,74 @@ def _pool_holds_both(
         )
 
 
+def _shape_forms(
+    mapping: "dict[str, object]", where: str, floor: int
+) -> "dict[str, int]":
+    """The census of written forms, checked key by key (C6-D18).
+
+    A KEY CARRIES NO FIGURE AND NO LETTER OF THE TABLE, and that is
+    checked here rather than assumed: every ASCII digit of a key must
+    be `9` and every ASCII letter must be `A`, because the producer
+    builds a form by replacing them and a key where another survived is
+    a key carrying a fragment of somebody's value. A loader that
+    accepted one would let a producer -- or a hand-edited file -- put a
+    real code into the one field this role has for saying what its
+    values look like.
+
+    The floor governs a named form as it governs a level, and the
+    `(withheld)` pool takes what it holds back.
+
+    Raises ProfileError for a wrong type, a key that is not a form, a
+    key longer than the limit, and a named form below the floor.
+    """
+    forms = _counts(mapping["shape_forms"], "shape_forms", where, 1)
+    for name in sorted(forms):
+        if name == WITHHELD:
+            # THE POOL IS THE FLOOR'S OWN, AND AT A FLOOR OF ONE THERE
+            # IS NONE. `(withheld)` means one thing in this format -- a
+            # group too small to name -- so a floor of one, below which
+            # nothing falls, admits no such key.
+            if floor < 2:
+                raise _broken(
+                    "SF2",
+                    where,
+                    "the census holds a pooled remainder",
+                    "the smallest group size is 1, so nothing is "
+                    "below it",
+                )
+            continue
+        if not _is_shape_form(name):
+            raise _out_of_range(
+                f"shape_forms -> {name}",
+                where,
+                "a key of that shape",
+                "a written form, in which every figure is 9 and every "
+                "letter is A",
+            )
+        if forms[name] < floor:
+            raise _broken(
+                "SF1",
+                where,
+                f"the form '{name}' was written by {forms[name]} cells",
+                f"the smallest group size is {floor}",
+            )
+    return forms
+
+
+def _is_shape_form(name: str) -> bool:
+    """Whether one census key is a form and carries nothing else."""
+    if not name or len(name) > SHAPE_FORM_LIMIT:
+        return False
+    for character in name:
+        if "0" <= character <= "9" and character != SHAPE_DIGIT:
+            return False
+        lower = "a" <= character <= "z"
+        upper = "A" <= character <= "Z"
+        if (lower or upper) and character != SHAPE_LETTER:
+            return False
+    return True
+
+
 def _is_canonical_width(name: str) -> bool:
     """Whether one census key is a width written the one permitted way.
 
@@ -5712,6 +5812,7 @@ def _text_facts(
     where: str,
     n_present: int,
     n_distinct: int,
+    floor: int,
 ) -> TextFacts:
     """A column no rule claimed (contract 6.9).
 
@@ -5755,6 +5856,7 @@ def _text_facts(
     )
     _pattern_closes(pairs, where, "F2", n_distinct, n_present)
     return TextFacts(
+        shape_forms=_shape_forms(mapping, where, floor),
         length=LengthStats(
             minimum=shortest, maximum=longest, mean=mean_length, p50=middle
         ),

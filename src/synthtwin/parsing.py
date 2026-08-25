@@ -676,11 +676,96 @@ def _without_group_separators(text: str) -> "str | None":
     return sign + joined + tail
 
 
+# The longest cell a shape form is taken of. A form is a fact about the
+# WRITING of a value, and on a short cell it is a fact about a code; on
+# a long one it would start to be a fact about a sentence -- word
+# lengths, where the commas fall -- which is a different thing to
+# publish and is not what the form is for.
+SHAPE_FORM_LIMIT = 24
+
+SHAPE_DIGIT = "9"
+SHAPE_LETTER = "A"
+
+
+def shape_form(text: str) -> str:
+    """The shape of one cell: its figures and letters, its marks kept.
+
+    Every ASCII digit becomes `9`, every ASCII letter becomes `A`, and
+    every other character stands as itself, because the marks are the
+    STRUCTURE and the letters and figures are the content. A diagnosis
+    code `E11.9` has the form `A99.9`; a laboratory code `4548-4` has
+    `9999-9`; a blood pressure `120/80` has `999/99`; a dispensed-drug
+    code `0002-8215-01` has `9999-9999-99`.
+
+    WHAT THIS IS FOR. A column whose values the disclosure floor holds
+    back publishes nothing about them today, so its twin holds
+    `group-14` -- which is not a code, is not the right length, and on
+    a column of hyphenated codes even splits into two parts and reads
+    as one. A form lets the twin hold something of the right shape
+    without holding anything of the value: `A99.9` says a letter, two
+    figures, a point and a figure, and says nothing about WHICH.
+
+    WHAT IT DELIBERATELY WILL NOT DO. A cell longer than
+    `SHAPE_FORM_LIMIT` has no form. On a note or an address the form
+    would carry where the spaces and the commas fall and how long each
+    word is, which is a fact about a sentence rather than about a code,
+    and this census is not the place to decide whether that may be
+    published. Such a cell answers the empty string and its column
+    counts it among the forms it holds back.
+
+    Guarantees: accepts any string; returns a form, or "" for a cell
+    that is empty or longer than the limit. Determinism: the answer
+    depends only on the text. Raises TypeError if handed anything that
+    is not a string instance. Boundary: no figure and no letter of the
+    cell survives into the answer -- only how many there were, and
+    where the marks between them fell. No I/O of any kind.
+    """
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT)
+    if not text or len(text) > SHAPE_FORM_LIMIT:
+        return ""
+    form = ""
+    for character in text:
+        if "0" <= character <= "9":
+            form = form + SHAPE_DIGIT
+        elif ("a" <= character <= "z") or ("A" <= character <= "Z"):
+            form = form + SHAPE_LETTER
+        else:
+            form = form + character
+    return form
+
+
 # What one cell says about the comma inside it.
 COMMA_NONE = "no-comma"
 COMMA_GROUPED = "proves-a-thousands-separator"
 COMMA_DECIMAL = "proves-a-decimal-comma"
 COMMA_EITHER = "reads-either-way"
+
+
+def _groups_by_threes(body: str, mark: str) -> bool:
+    """Whether the fields ``mark`` separates read as thousands groups.
+
+    The first field is one to three figures and every later one is
+    exactly three, which is what tells `1.234.567,89` -- a million and
+    a bit, written the German way -- from `1.2.3,4`, which is a version
+    identifier and no number at all.
+    """
+    fields: "list[str]" = []
+    current = ""
+    for character in body:
+        if character == mark:
+            fields = fields + [current]
+            current = ""
+            continue
+        current = current + character
+    fields = fields + [current]
+    head = fields[0]
+    if not head or len(head) > 3 or not _all_ascii_digits(head):
+        return False
+    for field in fields[1:]:
+        if len(field) != 3 or not _all_ascii_digits(field):
+            return False
+    return True
 
 
 def comma_reading(text: str) -> str:
@@ -748,13 +833,36 @@ def comma_reading(text: str) -> str:
         if exponent and _all_ascii_digits(exponent):
             body = body[:at_mark]
     commas = 0
+    points = 0
+    figures = 0
     for character in body:
         if character == ",":
             commas = commas + 1
             continue
         if character == ".":
+            points = points + 1
             continue
         if not ("0" <= character <= "9"):
+            return COMMA_NONE
+        figures = figures + 1
+    # AT LEAST ONE FIGURE, and where there is more than one point they
+    # must GROUP. A software version `1.2.3,4` carries only figures,
+    # points and commas, and its point before a comma read as PROOF of
+    # a decimal comma -- so a column of versions would have been told
+    # in capital letters that this file writes decimals with commas.
+    # But `1.234.567,89` is how German writes a million and a bit, and
+    # refusing every second point would have silenced exactly the
+    # convention this note exists for. What tells them apart is the
+    # grouping: a thousands group is three figures, so `234` and `567`
+    # are one and `2` and `3` are not.
+    if not figures:
+        return COMMA_NONE
+    if points > 1:
+        # The grouping is asked of the part BEFORE the comma, which is
+        # where the points sit in `1.234.567,89`; the figures after it
+        # are the fraction and group nothing.
+        before = body[: body.find(",")]
+        if not _groups_by_threes(before, "."):
             return COMMA_NONE
     if not commas:
         return COMMA_NONE

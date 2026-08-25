@@ -299,6 +299,7 @@ PLAN4_REGIONS = {
         "(closes R-P3-12's route)"
     ),
     "padding": "### P4-D14 The padded-field width fact",
+    "forms": "### P4-D18 A held-back value gets a stand-in that looks like one",
 }
 
 # Groups whose facts are NOT in the version 4 contract matrix, and why.
@@ -322,6 +323,8 @@ FACTS_OUTSIDE_THE_VERSION_4_MATRIX = (
     ("numeric", "fraction_widths"),
     ("numeric", "pad_widths"),
     ("datetime", "resolution_mix"),
+    ("free_text", "shape_forms"),
+    ("label", "shape_forms"),
 )
 
 # THE ONE FACT WHOSE DISPOSITION A VERSION CHANGED, and the reason it
@@ -846,6 +849,29 @@ REGISTRY += [
         plan_region="document",
     )
     for field in ("length", "words")
+]
+REGISTRY += [
+    # Plan P4-D18. The census of written forms is the fact that lets a
+    # held-back value have a stand-in that looks like one, and it is
+    # EXACT-OBSERVABLE for the reason the width censuses are: a person
+    # opens the twin, reads the form off each cell, and gets the
+    # published census back.
+    Fact(
+        "free_text",
+        "shape_forms",
+        EXACT_OBSERVABLE,
+        plan_words="the count sharing each written form",
+        plan_region="forms",
+        aliases=("form census", "shape census"),
+    ),
+    Fact(
+        "label",
+        "shape_forms",
+        EXACT_OBSERVABLE,
+        plan_words="the count sharing each written form",
+        plan_region="forms",
+        aliases=("form census", "shape census"),
+    ),
 ]
 REGISTRY += _facts(
     "free_text",

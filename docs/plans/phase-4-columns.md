@@ -1701,6 +1701,27 @@ Opened by this plan, each a limit accepted rather than work forgotten:
   be reconciled first, and reconciling them changes sentences a shipped
   profile prints. It is its own landing, not a passenger on a landing
   about dates.
+- **R-P4-33** (opened at the third read of P4-D17, 2026-08-25). A
+  DECIMAL COMMA THE AFFIX RULE HAS SWALLOWED IS NOT DETECTED, AND THE
+  ATTEMPT TO DETECT IT WAS WITHDRAWN. `10,5` through `249,5` is read as
+  the number 10 wearing the shared suffix `,5`; the cores are then
+  comma-free, so the comma scan finds nothing and the block publishes
+  statistics over 10 to 249 for values running 10.5 to 249.5.
+
+  A repair was built and is gone. It declared such a suffix "not an
+  affix", counted every cell wearing one as proof of a decimal comma,
+  and told the person to rewrite the column with a decimal point. The
+  third adversarial read killed it on the ground that settles it: a
+  revision identifier `10,5` with a genuine `,5` suffix is
+  OBSERVATIONALLY IDENTICAL to a European number, so the repair
+  asserted one reading and instructed somebody to corrupt their file on
+  the other. It also gave one column two contradictory remarks, because
+  the core scan and the suffix scan disagreed by construction.
+
+  What would close this honestly is the `--decimal-comma` declaration
+  of R-P4-31: a person who says what their file does needs no
+  heuristic, and no heuristic here can be right. Until then the column
+  is silent, which is not good and is not defended as good.
 - **R-P4-32** (opened at the first read of P4-D17, 2026-08-24, and NOT
   caused by it). A GROUPED NUMBER CARRYING AN EXPONENT AND NO POINT IS
   MISROUTED. `1,001e2` is admitted by the documented grammar — valid
@@ -2957,6 +2978,55 @@ reading. It is not built here because the reading has to be applied per
 COLUMN rather than per table — a comma inside `Apt 1,795` in an address
 column is not a decimal point — and choosing which columns it reaches
 is a decision of its own. Recorded as residual R-P4-31.
+
+### P4-D18 A held-back value gets a stand-in that looks like one
+
+A column whose rare values the disclosure floor holds back publishes
+NOTHING about them, so the twin writes `group-1`, `group-2`, `group-3`
+in their place. On a column of clinical codes that stand-in is wrong in
+every way a stand-in can be wrong: it is the wrong length, it is
+lower-case where the codes are not, and on a hyphenated scheme it
+carries a hyphen of its own — so it passes a "looks segmented" check,
+crashes a split into fixed parts, and, because the word is exactly five
+characters, makes a width check on the leading segment return a
+plausible wrong answer with no error and no warning.
+
+**The decision.** A `long_tail_labels` column and a `free_text` column
+publish `shape_forms`: the count sharing each written form, where a
+form is the cell with every ASCII digit replaced by `9`, every ASCII
+letter replaced by `A`, and every other character standing as itself.
+`E11.9` has the form `A99.9`; a laboratory code `4548-4` has `9999-9`;
+a dispensed-drug code `0002-8215-01` has `9999-9999-99`.
+
+**What it publishes and what it does not.** A form says a letter, two
+figures, a point and a figure. It says nothing whatever about WHICH
+letter or WHICH figures. That is checked rather than argued: the
+producer builds a form by replacing them, and the publication guard
+refuses any key in which a digit other than `9` or a letter other than
+`A` survived — whatever built it, including a hand-edited file.
+
+**THE FLOOR DOES MORE WORK HERE THAN ANYWHERE ELSE.** A form shared by
+fewer than `small_cell_floor` cells is pooled, so a column of prose,
+where every cell's form is its own, publishes nothing but the pool. The
+census therefore selects for STRUCTURE without anybody deciding which
+columns are structured, and without a rule that could get it wrong.
+
+**Two limits, both deliberate.** A cell longer than twenty-four
+characters has no form at all and is not counted: on a note or an
+address a form would carry where the spaces and the commas fall and how
+long each word is, which is a fact about a sentence rather than about a
+code, and this census is not the place to decide whether that may be
+published. And a cell with no form is not POOLED either — `(withheld)`
+means one thing in this format, a group too small to name, and at a
+floor of one there is no such group.
+
+**THE OWNER RULED FOR THIS** (amendment A-P4-36): may a column that
+publishes nothing today publish its shape, so its twin stops being
+nonsense. **THIS LOWERS** what a long-tail and a free-text column
+disclose, from nothing about their values' writing to the forms those
+values were written in. What it buys is the thing the owner asked for:
+a rare finding REPRESENTED in the twin, at its real count, in the shape
+of the thing it stands for.
 
 ## Acceptance criteria
 

@@ -186,12 +186,19 @@ def edit_level(_column: str, _index: int, **changes: object) -> Change:
 
 
 def _relabelled_as_a_long_tail(_column: str) -> Change:
-    """Give a set of categories the long tail's role and key set."""
+    """Give a set of categories the long tail's role and key set.
+
+    The role's key set is the four shared label keys AND its own form
+    census (P4-D18), so the relabelling supplies one -- otherwise the
+    document is refused for a missing key and never reaches LT2, which
+    is the rule this mutation exists to break.
+    """
     def change(document: Document) -> None:
         block = at(document, _column)
         block["role"] = "long_tail_labels"
         block["statistical_type"] = "long_tail_labels"
         del block["level_ceiling"]
+        block["shape_forms"] = {"(withheld)": block["n_present"]}
     return change
 
 

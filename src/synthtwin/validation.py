@@ -6426,12 +6426,17 @@ def _role_checks(
         return _affixed_checks(column, facts, block, cells, floor)
     if isinstance(facts, contract.NumericFacts):
         return _numeric_checks(column, facts, block, cells, floor)
+    if isinstance(facts, contract.LongTailFacts):
+        return _label_checks(column, facts, block, floor) + _form_checks(
+            column.name, "label.shape_forms", facts.shape_forms,
+            block, floor,
+        )
     if isinstance(facts, contract.LabelFacts):
         return _label_checks(column, facts, block, floor)
     if isinstance(facts, contract.DatetimeFacts):
         return _datetime_checks(column, facts, block, floor, mine)
     if isinstance(facts, contract.TextFacts):
-        return _text_checks(column, facts, block)
+        return _text_checks(column, facts, block, floor)
     if isinstance(facts, contract.IdentifierFacts):
         return _identifier_checks(column, facts, block, mine)
     if isinstance(facts, contract.UnrepresentableFacts):
@@ -9417,6 +9422,7 @@ def _text_checks(
     column: contract.ColumnBlock,
     facts: contract.TextFacts,
     block: "dict[str, object]",
+    floor: int,
 ) -> "list[Check]":
     """A column no rule claimed, which publishes none of its values."""
     name = column.name
@@ -9474,6 +9480,49 @@ def _text_checks(
             block,
         )
     ]
+    checks = checks + _form_checks(
+        name, "free_text.shape_forms", facts.shape_forms, block, floor
+    )
+    return checks
+
+
+def _form_checks(
+    name: str,
+    fact: str,
+    census: "dict[str, int]",
+    block: "dict[str, object]",
+    floor: int,
+) -> "list[Check]":
+    """The census of written forms, recounted on the measured file.
+
+    ON THE SAME TERMS AS THE TWO WIDTH CENSUSES. Each named form is a
+    count of cells the file evidences by holding them, and the pooled
+    remainder names no form, so it is checked as the pool it is: a
+    recounted form numbers at least its published count and at most
+    that count plus the pool. Without this the twin owed the forms
+    nothing, and the fact that lets a held-back value have a stand-in
+    shaped like one would be published and never checked.
+    """
+    measured = _map_at(block, "shape_forms")
+    held_back = 0
+    if taxonomy.SUPPRESSED_LABEL in census:
+        held_back = census[taxonomy.SUPPRESSED_LABEL]
+    checks: "list[Check]" = []
+    for form in sorted(census):
+        if form == taxonomy.SUPPRESSED_LABEL:
+            continue
+        checks = checks + [
+            _floor_governed(
+                name,
+                fact,
+                f"forms.published.{form}",
+                census[form],
+                measured,
+                form,
+                floor,
+                held_back,
+            )
+        ]
     return checks
 
 
