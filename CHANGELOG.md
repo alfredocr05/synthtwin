@@ -31,6 +31,66 @@ exists).
   round, and the amendment authorizes that one interval, prices it, and
   leaves the rule at full strength for every stage that follows.
 
+### Added in Phase 4: a twin of a column of codes now holds things shaped like codes
+
+- **A column whose rare values the disclosure floor holds back used to
+  put `group-1`, `group-2`, `group-3` in the twin.** On a column of
+  clinical codes that stand-in is wrong every way a stand-in can be: it
+  is the wrong length, it is lower-case where the codes are not, and on
+  a hyphenated scheme it carries a hyphen of its own -- so it passes a
+  "looks segmented" check, crashes a split into a fixed number of
+  parts, and, the word being exactly five characters, makes a width
+  check on the leading segment answer plausibly and wrongly. You found
+  all three at once against the real file.
+- **A long-tail column and a free-text column now publish the WRITTEN
+  FORMS their cells were written in, and the twin wears them** (plan
+  P4-D18, contract 7.9, on the owner's ruling A-P4-36). A form is the
+  cell with every figure replaced by `9` and every letter by `A`, the
+  marks standing as themselves: `E11.9` has the form `A99.9`, a
+  laboratory code `4548-4` has `9999-9`, a dispensed-drug code
+  `0002-8215-01` has `9999-9999-99`. Your twin's cells are written in
+  those forms, so a split, a width check and a pattern match all answer
+  the way they will on the real table.
+- **A form says the shape and nothing else, and that is CHECKED rather
+  than promised.** It carries no figure and no letter of any cell -- it
+  says a letter, two figures, a point and a figure, and nothing about
+  which -- and the description refuses any key in which some other
+  figure or letter survived, whatever wrote it, including a file edited
+  by hand.
+- **A column of prose publishes nothing here, and the floor is what
+  does that.** Every cell of a note has its own form, so no form is
+  shared by enough cells to name and the census comes out empty. No
+  rule anywhere decides which of your columns are codes; the same
+  small-cell floor that governs everything else decides, so there is no
+  rule that can get it wrong. A cell longer than twenty-four characters
+  has no form at all.
+- **Measured across the ten clinical coding schemes the owner named**,
+  each written twice: as a column of all-different codes and as a long
+  tail. Every one of the twenty twins is shaped like its own scheme and
+  splits into the number of parts that scheme has. A blood-pressure
+  column reaches `152/90`-shaped cells the same way.
+- **What this LOWERS is said plainly**: two roles that published
+  nothing about their values' writing now publish the forms those
+  values were written in. What it buys is the thing the owner asked
+  for: a rare finding represented in the twin, at its real count, in
+  the shape of the thing it stands for -- and code developed against
+  the twin that runs on the real table.
+
+### Fixed in Phase 4: two older defects the form census turned up
+
+- **A held-back spelling of a published label could be written in a
+  form the column never had.** The twin makes up spellings for the
+  spellings below the floor, by flipping case and then by appending
+  spaces -- and a trailing space is a different written form. Where a
+  label had few letters and its flips were already published, the twin
+  wrote `E11.9 ` and `E11.9  ` for cells the real column wrote `e11.9`.
+  The label's own spelling is now offered where nothing else of the
+  level needs it, and it is offered to the largest held-back group.
+- **The order of a multiplicity map's keys read the figures as text**,
+  so a spelling covering ten rows was written before one covering two.
+  The method says ascending numeric order and now the code does too. It
+  changes nothing until a spelling covers ten rows or more.
+
 ### Added in Phase 4: the twin now tells you which of its cells synthtwin made up
 
 - **Every column whose cells synthtwin invented says so, in its own

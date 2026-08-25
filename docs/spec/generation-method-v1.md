@@ -1719,8 +1719,20 @@ cells are filled as follows:
    sorted key order.
 2. **`variants_withheld`** maps an occurrence count to how many distinct
    spellings occurred that often. For each key in ascending numeric
-   order, and for each of its distinct spellings, one invented variant
-   spelling is produced (G8.2) and used exactly that many times.
+   order — the key is a whole number written in figures, and the order
+   is over the NUMBER, so `2` comes before `10` — and for each of its
+   distinct spellings, one invented variant spelling is produced (G8.2)
+   and used exactly that many times.
+
+   **Where step 3 is not reached, the label's OWN spelling is one of
+   the spellings available to G8.2**, and it is offered to the key
+   naming the LARGEST row count. It is available only then: a level
+   whose published and withheld spellings do not cover its `count` is
+   finished by step 3 writing the label itself, so that spelling is
+   spoken for. It is worth offering because it is the one further
+   spelling that folds onto the label while KEEPING ITS WRITTEN FORM,
+   where a trailing space does not, and the largest group is where that
+   covers the most cells (P4-D18).
 3. If the entry publishes neither key, or both are empty, all `count`
    cells are written with the normalized label itself.
 
@@ -1767,14 +1779,46 @@ is not empty — an empty cell is an absent value, not a label.
 in ascending order. For each size in that list, in order, one invented
 neutral label is produced and used exactly that many times.
 
-The invented labels are `group-1`, `group-2`, `group-3`, … in order.
-Each candidate is skipped and the number advanced when it collides,
-raw or folded, with any spelling already used in the column. They are
-neutral by construction: they carry no fragment of any real value, they
-are not one of the spellings that mean "no value", they do not read as a
-number or a date, they contain no comma or quote so they need no
-quoting, and they do not begin with a character that a spreadsheet reads
-as a formula.
+**Where the column publishes NO census of written forms** the invented
+labels are `group-1`, `group-2`, `group-3`, … in order. Each candidate
+is skipped and the number advanced when it collides, raw or folded,
+with any spelling already used in the column. They are neutral by
+construction: they carry no fragment of any real value, they are not
+one of the spellings that mean "no value", they do not read as a number
+or a date, they contain no comma or quote so they need no quoting, and
+they do not begin with a character that a spreadsheet reads as a
+formula.
+
+**Where it DOES — which is `long_tail_labels` and no other label role
+— the invented label is written in one of the published forms**
+(contract C6-D18, plan P4-D18). `group-14` is not a code: it is the
+wrong length, it is lower-case where the codes are not, and on a
+hyphenated scheme it carries a hyphen of its own, so it passes a "looks
+segmented" check, crashes a split into a fixed number of parts, and,
+the word being exactly five characters, makes a width check on the
+leading segment answer plausibly and wrongly.
+
+- **The debt is over CELLS ALREADY WRITTEN.** The census counts every
+  present cell of the column, and the published spellings and the
+  invented variants of G8.1 and G8.2 are already on the page wearing
+  their forms. What the invented labels owe is the published count
+  minus what those cells paid, counted over the twin's own cells. A
+  walk taking its debt from the census alone writes every form twice
+  over and misses every count it was built to meet.
+- **Each invented label covers its level's size**, which
+  `suppressed_level_counts` fixes, so the walk chooses only WHERE to
+  pay: the form owing the most cells, ties broken by the form's own
+  spelling ascending.
+- **The form is filled from a counter**, never from a reading. Every
+  `9` takes a figure and every `A` a letter, the step taken apart into
+  those positions by mixed-radix arithmetic after being multiplied by a
+  stride sharing no factor with the form's own supply — so consecutive
+  labels differ in every fillable position, and no two steps below that
+  supply collide. Every other character of the form stands as itself.
+- **The four neutrality properties are ASKED rather than had.** A
+  spelling built to look like a code no longer has them by
+  construction, so each candidate is tested against all four and
+  stepped past where it fails, exactly as a collision is.
 
 ### G8.4 The order of `content`
 
@@ -2615,6 +2659,37 @@ for.
    word is the next spelling of the group's alphabet enumeration
    (G9.2) at that word's length, so the whole cell is distinct from
    every other group's cell.
+
+   **Where the column publishes a census of written forms and one of
+   them fits this group, the group is written in that form instead**
+   (contract 7.9.1, plan P4-D18). A form FIXES a length — every cell
+   that wore one was exactly as long as the form — so a form is offered
+   only to a group the packing already put at that length, and offering
+   it costs steps 5 and 6 nothing; a space survives into a form
+   unchanged, so the form's own word count must equal the group's. The
+   debt is over cells and a group covers its own number of them, so the
+   walk settles the form owing the most cells, ties broken by the form's
+   own spelling.
+
+   **THE FORM IS AN ASK AND NOT A PROMISE**, exactly as the fold
+   collision of G9.3 is. The candidate is still checked against the
+   class the group has to read back as, against what the column has
+   already written, and against the four neutrality tests; where the
+   form's spellings cannot satisfy those, the walk is put back where it
+   started and taken again WITHOUT the form, so a form can cost the
+   column no value the ordinary rule could still have written. A column
+   of prose publishes an empty census, so no group of it is offered a
+   form and this paragraph is vacuous there — which is every free-text
+   column the free-text promise was written for.
+
+   **The stride matters and is part of the rule.** Two hundred and
+   forty values taken in counting order out of a form holding a hundred
+   thousand leave every position but the lowest at zero, so every cell
+   ends alike — and a column whose cells all end in the same characters
+   is not free text to the describer, it is a column of numbers wearing
+   an affix. The twin then reprofiles into a role the source never had.
+   The step is therefore multiplied by a stride sharing no factor with
+   the form's supply, which is a one-to-one map onto it.
 
 ### G9.6 Identifiers
 

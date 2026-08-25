@@ -5344,6 +5344,21 @@ def _shape_forms(
     key longer than the limit, and a named form below the floor.
     """
     forms = _counts(mapping["shape_forms"], "shape_forms", where, 1)
+    counted = 0
+    for name in sorted(forms):
+        counted = counted + forms[name]
+    present = _whole(mapping["n_present"], "n_present", where, 0)
+    if counted > present:
+        # SF3. AT MOST, AND NOT EXACTLY. A cell over the length limit
+        # has no form and is counted nowhere in this census, so the
+        # sum falls short of `n_present` on any column holding one and
+        # only an upper bound is checkable here.
+        raise _broken(
+            "SF3",
+            where,
+            f"the census counts {counted} cells",
+            f"the column holds {present} present cells",
+        )
     for name in sorted(forms):
         if name == WITHHELD:
             # THE POOL IS THE FLOOR'S OWN, AND AT A FLOOR OF ONE THERE

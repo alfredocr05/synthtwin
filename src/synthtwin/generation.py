@@ -5998,10 +5998,24 @@ def _label_content(
             covered = covered + entry.variants[spelling]
             used[spelling] = 1
             owners[parsing.folded(spelling)] = entry.label
-        for key in sorted(entry.variants_withheld):
+        # WHETHER THE LABEL'S OWN SPELLING IS SPOKEN FOR. A level whose
+        # published and held-back spellings do not reach its count is
+        # finished below by writing the label itself, so that spelling
+        # is reserved and a variant may not take it. Where they DO
+        # reach the count nothing is left to write and the label's own
+        # spelling is free -- and it is worth having, because it is the
+        # one further spelling that folds onto the label while KEEPING
+        # ITS WRITTEN FORM, where a trailing space does not (P4-D18).
+        spare = _spare_label_rows(entry)
+        for key in _withheld_keys(entry.variants_withheld):
             rows = int(key)
             for _each in range(entry.variants_withheld[key]):
-                variant = _variant_spelling(entry.label, used, owners)
+                take = rows == spare
+                variant = _variant_spelling(
+                    entry.label, used, owners, take
+                )
+                if take:
+                    spare = 0
                 made_up = made_up + 1
                 cells = cells + [variant for _row in range(rows)]
                 covered = covered + rows
@@ -6025,17 +6039,42 @@ def _label_content(
             )
         ]
     number = 0
+    # THE FORMS THIS COLUMN WAS WRITTEN IN, IF IT PUBLISHED ANY (plan
+    # P4-D18). A long tail publishes a census of them, and it is the
+    # role whose twin is mostly stand-ins; the sibling label roles
+    # publish none, so the debt is empty for them and the neutral
+    # `group-N` spelling stands as before.
+    owing = _forms_owed(facts, cells)
+    shaped = 0
     for size in facts.suppressed_level_counts:
-        number, label = _made_up_label(number, used, owners)
+        form = _neediest_form(owing)
+        number, label = _made_up_label(number, used, owners, form)
+        if form:
+            owing[form] = max(0, owing[form] - size)
+            shaped = shaped + 1
         cells = cells + [label for _row in range(size)]
     if facts.suppressed_levels:
+        # WHAT THE STAND-INS WERE WRITTEN IN IS PART OF THE NOTE (plan
+        # P4-D18). A column publishing a census of written forms has
+        # its stand-ins written in them, and a column publishing none
+        # has the neutral spelling as before -- and a column can have
+        # both, where the forms the held-back cells wore were
+        # themselves too rare to name, so the count is given rather
+        # than the reader left to guess which happened.
+        made = (
+            f"{facts.suppressed_levels} neutral labels made up in their place"
+        )
+        if shaped:
+            made = (
+                f"{facts.suppressed_levels} labels made up in their place, "
+                f"{shaped} of them written in a form this column published"
+            )
         notes = notes + [
             _deviation(
                 column.name,
                 "suppressed_levels",
                 f"{facts.suppressed_levels} labels that were held back",
-                f"{facts.suppressed_levels} neutral labels made up in their "
-                f"place",
+                made,
                 "Those labels covered too few rows to publish, so the twin "
                 "keeps their number and their sizes but not the labels.",
             )
@@ -6043,8 +6082,52 @@ def _label_content(
     return cells, notes
 
 
+def _withheld_keys(withheld: "dict[str, int]") -> "list[str]":
+    """The keys of a multiplicity map in ASCENDING NUMERIC order (G8.1).
+
+    Method G8.1 step 2 says ascending numeric order and the code sorted
+    the key STRINGS, which puts `10` before `2`. On the maps this
+    format writes the two orders agree only while every key is a single
+    figure; past nine they part, and two implementations reading the
+    same document then write the twin's cells in different orders.
+    """
+    ordered = [(int(key), key) for key in withheld]
+    return [pair[1] for pair in sorted(ordered)]
+
+
+def _spare_label_rows(entry: "contract.LevelEntry") -> int:
+    """How many rows the level's own spelling may cover, or 0 for none.
+
+    THE LABEL'S OWN SPELLING IS ONE MORE SPELLING, and where nothing
+    else of the level needs it, it is the only further one that folds
+    onto the label while KEEPING ITS WRITTEN FORM -- a case flip may
+    already be published and a trailing space changes the form. So it
+    is worth spending where it covers most: on the LARGEST held-back
+    group, whose rows are the most cells that would otherwise be
+    written in a form the column never had.
+
+    It is spare only when the published and held-back spellings already
+    cover the level's count. A level they do not cover is finished by
+    writing the label itself, so that spelling is spoken for and a
+    variant may not take it.
+    """
+    covered = 0
+    for spelling in sorted(entry.variants):
+        covered = covered + entry.variants[spelling]
+    largest = 0
+    for key in _withheld_keys(entry.variants_withheld):
+        covered = covered + int(key) * entry.variants_withheld[key]
+        largest = max(largest, int(key))
+    if covered < entry.count:
+        return 0
+    return largest
+
+
 def _variant_spelling(
-    parent: str, used: "dict[str, int]", owners: "dict[str, str]"
+    parent: str,
+    used: "dict[str, int]",
+    owners: "dict[str, str]",
+    spare: bool = False,
 ) -> str:
     """One made-up spelling of a published label (method G8.2).
 
@@ -6053,7 +6136,20 @@ def _variant_spelling(
     stepped past when it is already used in this column, or when it
     would fold onto a DIFFERENT label -- so the published counts of
     folded identities stay exactly what the description says.
+
+    ``spare`` OFFERS THE LABEL'S OWN SPELLING FIRST where nothing else
+    of the level needs it. `E11.9` published beside three rows of
+    `e11.9` held back is a level with exactly two spellings and one of
+    them is the label; without this the walk skipped the label -- the
+    binary counter calls it order zero and starts at one -- found its
+    single case flip already published, and fell through to `E11.9 `,
+    which is a DIFFERENT WRITTEN FORM. The form census then went
+    unpaid, which is how this was found (P4-D18).
     """
+    if spare and parent not in used:
+        used[parent] = 1
+        owners[parsing.folded(parent)] = parent
+        return parent
     order = 0
     while order < 4096:
         order = order + 1
@@ -6079,24 +6175,273 @@ def _variant_spelling(
         return candidate
 
 
-def _made_up_label(
-    number: int, used: "dict[str, int]", owners: "dict[str, str]"
-) -> "tuple[int, str]":
-    """One neutral label standing in for one that was held back (G8.3).
+def _forms_owed(
+    facts: "contract.LabelFacts", written: "list[str]"
+) -> "dict[str, int]":
+    """Cells each published form still owes after what is already written.
 
-    `group-1`, `group-2`, `group-3` and so on, stepped past any spelling
-    already used in this column, raw or folded. They are neutral by
-    construction: they carry no fragment of any real value, they are not
-    one of the spellings that mean "no value", they read as neither a
-    number nor a date, they hold no comma or quote so they need no
-    quoting, and they do not begin with a character a spreadsheet reads
-    as the start of a formula.
+    THE CELLS ALREADY WRITTEN PAY FIRST, and they are read rather than
+    reasoned about. A twin writes the published spellings byte for byte
+    and makes up the held-back ones, and every one of those cells wears
+    a form -- so a debt taken from the census alone would be paid twice
+    over and the census missed by exactly the cells the walk forgot it
+    had written. This counts the column's own cells.
+
+    Only the NAMED forms are here: the pooled key names no form, and a
+    stand-in cannot be written in a form nobody published.
+    """
+    if not isinstance(facts, contract.LongTailFacts):
+        return {}
+    owing: "dict[str, int]" = {}
+    for form in sorted(facts.shape_forms):
+        if form == contract.WITHHELD:
+            continue
+        owing[form] = facts.shape_forms[form]
+    for cell in written:
+        form = parsing.shape_form(cell)
+        if form not in owing:
+            continue
+        if owing[form] > 0:
+            owing[form] = owing[form] - 1
+    return owing
+
+
+def _neediest_form(owing: "dict[str, int]") -> str:
+    """The published form owing the most cells, or "" where none owes any.
+
+    Largest debt first, ties broken by the form's own spelling
+    ascending, so the walk is a function of the description and of
+    nothing else. A stand-in covers a fixed number of rows -- its
+    level's size, which the description gives -- so the walk cannot
+    choose HOW MUCH to pay, only WHERE, and paying the largest debt
+    first is what leaves the smallest remainder when the sizes do not
+    divide the debts evenly.
+    """
+    ordered = [(0 - owing[form], form) for form in sorted(owing)
+               if owing[form] > 0]
+    if not ordered:
+        return ""
+    return sorted(ordered)[0][1]
+
+
+def _filled_form(form: str, step: int) -> str:
+    """One spelling of one published form, stepped by ``step``.
+
+    THE FORM SAYS THE SHAPE AND THE STEP SAYS WHICH ONE. Every `9` of
+    the form takes a figure and every `A` takes a letter; every other
+    character stands as itself, because the marks ARE the form. The
+    step is taken apart into those positions by plain mixed-radix
+    arithmetic, LEFTMOST FIRST, so consecutive steps differ and the
+    form's whole supply is reachable: `A99.9` at step 0 is `A00.0`, at
+    step 1 `B00.0`, and the form holds 26 x 10 x 10 x 10 spellings
+    before any repeats. Past that the spellings come round again, and
+    the caller steps past what it has already written.
+
+    IT CARRIES NO FRAGMENT OF ANY REAL VALUE. The form is built by
+    replacing every figure and letter of a cell before it is published,
+    and the figures and letters put back here come from the step, which
+    is a count of made-up values and not a reading of anything.
+    """
+    figures = "0123456789"
+    letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    spelling = ""
+    place = _stepped_around(step, _form_room(form))
+    for character in form:
+        if character == parsing.SHAPE_DIGIT:
+            spelling = spelling + figures[place % 10]
+            place = place // 10
+            continue
+        if character == parsing.SHAPE_LETTER:
+            spelling = spelling + letters[place % 26]
+            place = place // 26
+            continue
+        spelling = spelling + character
+    return spelling
+
+
+def _form_room(form: str) -> int:
+    """How many different spellings one form holds."""
+    room = 1
+    for character in form:
+        if character == parsing.SHAPE_DIGIT:
+            room = room * 10
+        elif character == parsing.SHAPE_LETTER:
+            room = room * 26
+    return room
+
+
+def _stepped_around(step: int, room: int) -> int:
+    """``step`` moved around ``room`` so that every position varies.
+
+    WHY THE PLAIN COUNTER WAS WRONG, and it was wrong in a way that
+    changed a twin's ROLE. Two hundred and forty values taken in order
+    out of a form holding a hundred thousand leave every position but
+    the lowest at zero, so every cell ended `-0` -- and a column whose
+    cells all end in the same three characters is not free text to the
+    describer, it is a column of numbers wearing an affix. The twin's
+    role no longer matched the source's.
+
+    A STRIDE COPRIME TO THE ROOM IS A BIJECTION ON IT, so no two steps
+    below the room collide and consecutive steps land far apart. The
+    stride is taken near the golden section of the room, which spreads
+    a short run about as evenly as a single multiplier can, and then
+    walked up to the first value sharing no factor with the room.
+    """
+    if room < 4:
+        return step % max(room, 1)
+    stride = max(room * 61803 // 100000, 1)
+    while _shares_a_factor(stride, room):
+        stride = stride + 1
+    return (step * stride) % room
+
+
+def _shares_a_factor(one: int, other: int) -> bool:
+    """Whether two whole numbers have any divisor above one."""
+    left = one
+    right = other
+    while right:
+        left, right = right, left % right
+    return left != 1
+
+
+def _form_words(form: str) -> int:
+    """How many whitespace-separated words a form's spellings hold.
+
+    Read off the FORM, because a space in a cell survives into its form
+    unchanged -- only figures and letters are replaced -- so the word
+    count of every spelling of a form is the form's own.
+
+    Counted character by character rather than by splitting, because a
+    census key comes off a document a loader read and the offline audit
+    accepts no method call on a value it cannot trace to a string.
+    """
+    if not isinstance(form, str):
+        raise TypeError("a written form is text")
+    words = 0
+    inside = False
+    for character in form:
+        if character == _SPACE or character == "\t":
+            inside = False
+            continue
+        if not inside:
+            words = words + 1
+        inside = True
+    return words
+
+
+def _text_debt(facts: "contract.TextFacts") -> "dict[str, int]":
+    """Cells each published form still owes, before anything is written."""
+    owing: "dict[str, int]" = {}
+    for form in sorted(facts.shape_forms):
+        if form == contract.WITHHELD:
+            continue
+        owing[form] = facts.shape_forms[form]
+    return owing
+
+
+def _settle(owing: "dict[str, int]", spelling: str, cells: int) -> None:
+    """Take one group's cells off the debt of the form it wears."""
+    form = parsing.shape_form(spelling)
+    if form not in owing:
+        return
+    owing[form] = max(0, owing[form] - cells)
+
+
+def _wanted_form(
+    owing: "dict[str, int]", length: int, words: int
+) -> str:
+    """Which published form this group is offered, or "" for none.
+
+    A FORM FIXES A LENGTH, which is what makes it offerable at all:
+    every cell that wore a form was exactly as long as the form, so a
+    form is offered only to a group the packing already put at that
+    length, and offering it costs the published length statistics
+    nothing. A space survives into a form unchanged, so the word count
+    has to agree too.
+
+    The debt is over CELLS and a group covers its own number of them,
+    so the walk chooses only WHERE to settle: the form owing the most
+    cells this group can be written in, ties broken by the form's own
+    spelling. A group no form fits is written the way every free-text
+    value was written before this rule, and the empty string says so.
+    """
+    fits = [
+        (0 - owing[form], form)
+        for form in sorted(owing)
+        if owing[form] > 0
+        and len(form) == length
+        and _form_words(form) == max(words, 1)
+    ]
+    if not fits:
+        return ""
+    return sorted(fits)[0][1]
+
+
+def _is_a_usable_stand_in(candidate: str) -> bool:
+    """Whether a made-up spelling may stand in a twin cell at all.
+
+    The four properties `group-N` had by construction, asked of a
+    spelling that no longer has them for free: it must not be one of
+    the words that mean "no value", must read as neither a number nor a
+    date, must carry no comma or quote, and must not begin with a
+    character a spreadsheet reads as the start of a formula.
+    """
+    if not candidate:
+        return False
+    if parsing.is_missing_text(candidate):
+        return False
+    if parsing.classify_number(candidate) == parsing.NUMBER:
+        return False
+    for name in parsing.DATE_FORMATS:
+        if parsing.parse_datetime(candidate, name) is not None:
+            return False
+    for character in candidate:
+        if character == "," or character == '"':
+            return False
+    return candidate[0] not in "=+-@"
+
+
+def _made_up_label(
+    number: int,
+    used: "dict[str, int]",
+    owners: "dict[str, str]",
+    form: str,
+) -> "tuple[int, str]":
+    """One label standing in for one that was held back (G8.3, P4-D18).
+
+    WHERE THE COLUMN PUBLISHED THE FORMS ITS VALUES WERE WRITTEN IN,
+    the stand-in is written in one of them. `group-14` is not a code:
+    it is the wrong length, it is lower-case where the codes are not,
+    and on a hyphenated scheme it carries a hyphen of its own -- so it
+    passes a "looks segmented" check, crashes a split into fixed parts,
+    and, the word being exactly five characters, makes a width check on
+    the leading segment answer plausibly and wrongly.
+
+    WHERE THE COLUMN PUBLISHED NONE it is `group-1`, `group-2` and so
+    on, exactly as before: the three sibling label roles publish their
+    levels, so their twins hold them and have no stand-in to shape.
+
+    A COLLISION MOVES THE SPELLING AND NEVER THE FORM. The step is what
+    the candidate is built from, so an earlier walk that advanced the
+    step on a collision threw away the form that stand-in owed and the
+    census went unpaid by exactly the collisions.
+
+    Either way the spelling is stepped past anything already used in
+    this column, raw or folded, and either way it is checked against
+    the four properties the neutral spelling had by construction --
+    `_is_a_usable_stand_in` asks them, because a spelling built to look
+    like a code no longer has them for free.
     """
     step = number
     while True:
         step = step + 1
-        candidate = f"group-{step}"
+        if form:
+            candidate = _filled_form(form, step - 1)
+        else:
+            candidate = f"group-{step}"
         if candidate in used or parsing.folded(candidate) in owners:
+            continue
+        if not _is_a_usable_stand_in(candidate):
             continue
         used[candidate] = 1
         owners[parsing.folded(candidate)] = candidate
@@ -8018,13 +8363,23 @@ def _text_cells(
         carriers,
     )
     wanted = _demand(kinds, bands, lengths, counts)
+    # THE FORMS THIS COLUMN WAS WRITTEN IN, IF IT PUBLISHED ANY (plan
+    # P4-D18). A free-text column of prose publishes none, so the debt
+    # is empty, every group is offered nothing and the walk is what it
+    # was. The debt is settled by the spelling ACTUALLY WRITTEN, read
+    # back off it, because a form is an ask: a group offered one may be
+    # written without it, and a partner spelling wears whatever a case
+    # flip or an edge space left it wearing.
+    owing = _text_debt(facts)
     made: dict[str, int] = {}
     for index in range(total):
         partner = _partner_of(
             index, folded, spellings, families, used, windows
         )
         if partner is not None:
-            spellings = spellings + [_take(partner, used)]
+            taken = _take(partner, used)
+            _settle(owing, taken, groups[index])
+            spellings = spellings + [taken]
             continue
         kind = _CLASSES[kinds[index]]
         band = _BANDS[bands[index]]
@@ -8032,6 +8387,7 @@ def _text_cells(
         spelling = _made_up_cell(
             kind, band, lengths[index], counts[index],
             asks[index], states, used,
+            _wanted_form(owing, lengths[index], counts[index]),
         )
         if spelling is None:
             held = 0
@@ -8048,6 +8404,7 @@ def _text_cells(
         if key not in made:
             made[key] = 0
         made[key] = made[key] + 1
+        _settle(owing, spelling, groups[index])
         spellings = spellings + [spelling]
     return _grouped(groups, spellings), notes, carriers
 
@@ -8930,6 +9287,7 @@ def _made_up_cell(
     letter: bool,
     states: "dict[str, list[int]]",
     used: "dict[str, int]",
+    form: str = "",
 ) -> "str | None":
     """One made-up cell of one class, one band and one length, or None.
 
@@ -8955,6 +9313,21 @@ def _made_up_cell(
         states[key] = [0]
     state = states[key]
     began = state[0]
+    if form:
+        # THE FORM IS AN ASK TOO, AND IT IS ASKED FIRST. Where the
+        # column published one that fits this value, the value is
+        # written in it; where the form's own spellings cannot satisfy
+        # the family -- they read back as another class, or the form's
+        # supply is spent -- the walk is put back where it started and
+        # taken again without it, exactly as the letter ask is. A form
+        # can then cost the column no value it would otherwise have had
+        # (P4-D18).
+        found = _walked_cell(
+            kind, band, length, words, letter, state, used, form
+        )
+        if found is not None:
+            return found
+        state[0] = began
     found = _walked_cell(kind, band, length, words, letter, state, used)
     if found is None and letter:
         state[0] = began
@@ -8970,6 +9343,7 @@ def _walked_cell(
     letter: bool,
     state: "list[int]",
     used: "dict[str, int]",
+    form: str = "",
 ) -> "str | None":
     """One pass of the family's walk, from where the last one stopped.
 
@@ -8989,7 +9363,11 @@ def _walked_cell(
     while state[0] < room:
         index = state[0]
         state[0] = state[0] + 1
-        candidate = _family_at(kind, band, length, words, index)
+        candidate: "str | None" = None
+        if form:
+            candidate = _filled_form(form, index)
+        else:
+            candidate = _family_at(kind, band, length, words, index)
         if candidate is None:
             return None
         if letter and not _has_letter(candidate):
