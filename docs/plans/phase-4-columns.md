@@ -2890,20 +2890,42 @@ That is not a fidelity gap of the kind the rest of this phase is about.
 It is a wrong number that looks entirely plausible, and somebody would
 have to already know the answer to catch it.
 
-**THE COLUMN CANNOT SETTLE IT, and that is the finding that shapes this
-decision.** A thousands group is exactly three digits, so `12,5` and
-`1,23` prove a decimal comma — but a European column written to three
-decimals has every group exactly three digits long, and is therefore
-indistinguishable from a US column written with thousands separators.
-Evidence does not reach the dangerous case. There is no rule to be
-found here, only a choice.
+**A CELL CAN SETTLE IT, AND THE FIRST WRITING OF THIS SECTION SAID
+OTHERWISE.** That claim was wrong in both directions and the
+adversarial read is what found it:
+
+- A POINT AFTER THE COMMA settles it as a thousands separator, and so
+  does a SECOND COMMA. `1,234.56` and `1,234,567` are not ambiguous at
+  all, and warning such a column that it might be a thousand times out
+  is a false alarm — on a common shape, which is how a true alarm stops
+  being read.
+- A GROUP THAT IS NOT THREE FIGURES settles it as a decimal comma, and
+  so does a FIRST GROUP LONGER THAN THREE: `1000,000` cannot be
+  thousands-grouped at all. So a European column carries its own proof
+  as soon as one of its values reaches a thousand — and such a column
+  DECLINES to free text today, because those cells are not numbers,
+  which is how it came to say "synthtwin could not settle what this
+  column holds" with no mention of the reason sitting in every cell.
+
+What settles nothing is narrower than the first writing claimed: a
+column every one of whose values is under a thousand and written to
+three figures after the comma. That is a real column — an INR, a
+creatinine — and it is the one the choice is made for.
 
 **The decision.** The choice stands — a comma is read as a thousands
-separator — and every column where that choice was MADE carries note
-NF44, which states the reading, states that many countries write the
-decimal point as a comma, states that such a column has been read as a
-thousand times its real size along with its average, its spread and
-both its ends, and says what to do about it.
+separator — and every column where that choice was MADE, or where the
+column itself PROVES the choice wrong, carries note NF44. It renders
+one sentence where the column settled nothing and another where the
+column settled it, because those are not the same news: the first says
+nothing in the column decides which was meant, the second says the file
+has decided and the reading is wrong. It counts CELLS and speaks of
+them, never of "every value", because a column of fifty comma-bearing
+cells beside fifty plain ones is not uniformly a thousand times out.
+
+It is carried on `count`, `continuous`, `affixed_number` — read over
+the cores, so a column wearing a currency sign is not silent — and
+`free_text`, which is where a column that proves a decimal comma
+actually lands.
 
 **Why a remark and not a refusal.** Refusing every comma-bearing
 numeric column would decline a US column that is read perfectly well,

@@ -3678,7 +3678,7 @@ def _universal(name, role, statistical_type, structural_role, quality_state, **f
     # every case here but two does.
     if "numeric_styles" in block and "fraction_widths" not in block:
         block["fraction_widths"] = {}
-    # ...and the same for the census of field widths (P4-D7), which is
+    # ...and the same for the census of field widths (P4-D14), which is
     # that map's sibling and empty for every case here but one: a block
     # naming no padded cells takes a census of none.
     if "numeric_styles" in block and "pad_widths" not in block:
@@ -4195,7 +4195,7 @@ def _numeric_point_free_styles():
         # group size -- so the census names the width rather than
         # pooling it. The value needs one figure and the field holds
         # two, so the one zero the style already wrote is the one the
-        # width asks for and the committed bytes do not move (P4-D7).
+        # width asks for and the committed bytes do not move (P4-D14).
         pad_widths={"2": 11},
         **moments,
     )

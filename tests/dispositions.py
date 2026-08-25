@@ -640,7 +640,7 @@ REGISTRY += [
         plan_region="fraction",
         aliases=("width census", "fraction census"),
     ),
-    # Plan P4-D7. The census of field widths is the other sibling of the
+    # Plan P4-D14. The census of field widths is the other sibling of the
     # styles map and takes the same disposition for the same reason: a
     # person opens the twin, counts the figures each padded cell writes,
     # and gets the published census back.

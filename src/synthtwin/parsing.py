@@ -676,31 +676,83 @@ def _without_group_separators(text: str) -> "str | None":
     return sign + joined + tail
 
 
-def carries_a_group_comma(text: str) -> bool:
-    """Whether this cell reads as a number ONLY by way of a comma.
+# What one cell says about the comma inside it.
+COMMA_NONE = "no-comma"
+COMMA_GROUPED = "proves-a-thousands-separator"
+COMMA_DECIMAL = "proves-a-decimal-comma"
+COMMA_EITHER = "reads-either-way"
 
-    THE ONE AMBIGUITY THIS PACKAGE CANNOT SETTLE FROM A CELL. `1,795`
-    is one thousand seven hundred and ninety-five where a comma groups
-    thousands, and it is 1.795 where a comma is the decimal point --
-    and most of the world writes the second. Nothing in the cell
-    decides it, and a column of three-decimal values written the second
-    way carries no evidence either, because every group is three digits
-    long and that is exactly what a thousands group looks like.
 
-    So this package reads the comma as a thousands separator, which is
-    a choice and not a reading, and it says so wherever it makes one
-    (note NF44). What this answers is where that choice was made.
+def comma_reading(text: str) -> str:
+    """What one cell settles about the comma it carries, if anything.
 
-    Guarantees: accepts text; returns a truth value; raises TypeError
-    if handed anything that is not a string instance. No I/O of any
-    kind.
+    `1,795` is one thousand seven hundred and ninety-five where a comma
+    groups thousands, and 1.795 where a comma is the decimal point --
+    and most of the world writes the second. THAT ONE CELL SETTLES
+    NOTHING. But many cells do, and an earlier revision of this package
+    said flatly that none could, which was wrong in both directions:
+
+    - A POINT AFTER THE COMMA settles it as a thousands separator, and
+      so does a SECOND COMMA. `1,234.56` and `1,234,567` are not
+      ambiguous at all, and a column of them was being told it might be
+      a thousand times out when it was not.
+    - A GROUP THAT IS NOT THREE FIGURES settles it as a decimal comma
+      -- `12,5`, `1,23` -- and so does a FIRST GROUP OF MORE THAN THREE
+      figures, because `1000,000` cannot be thousands-grouped at all.
+      A point BEFORE a comma settles it the same way: `22.008,28` is
+      grouped with points.
+
+    So a three-decimal European column DOES carry evidence as soon as
+    one of its values reaches a thousand, and a column that reaches
+    none is the one that settles nothing. The difference is the whole
+    of what NF44 has to say to a person.
+
+    Guarantees: accepts text; answers one of the four constants above.
+    Determinism: the answer depends only on the text. Raises TypeError
+    if handed anything that is not a string instance. Boundary: no
+    figure of the cell travels out through it. No I/O of any kind.
     """
     if not isinstance(text, str):
         raise TypeError(_NOT_TEXT)
     body = text.strip()
-    if "," not in body:
+    if body[:1] == "(" and body[len(body) - 1 : len(body)] == ")":
+        body = body[1 : len(body) - 1].strip()
+    if body[:1] == "+" or body[:1] == "-":
+        body = body[1:]
+    commas = 0
+    for character in body:
+        if character == ",":
+            commas = commas + 1
+    if not commas:
+        return COMMA_NONE
+    if commas > 1:
+        return COMMA_GROUPED
+    at = body.find(",")
+    point = body.find(".")
+    if point >= 0:
+        return COMMA_GROUPED if point > at else COMMA_DECIMAL
+    head = body[:at]
+    tail = body[at + 1 :]
+    if not _all_ascii_digits(head) or not _all_ascii_digits(tail):
+        return COMMA_NONE
+    if len(tail) != 3 or len(head) > 3 or not head:
+        return COMMA_DECIMAL
+    return COMMA_EITHER
+
+
+def carries_a_group_comma(text: str) -> bool:
+    """Whether this cell reads as a number and settles nothing about it.
+
+    The cells NF44 counts: a number this package read by treating a
+    comma as a thousands separator, where the cell itself did not
+    settle that the comma was one. A cell that settles it either way is
+    not a choice and is not counted.
+    """
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT)
+    if comma_reading(text) != COMMA_EITHER:
         return False
-    return classify_number(body) == NUMBER
+    return classify_number(text.strip()) == NUMBER
 
 
 def parse_number(text: str) -> "float | None":
