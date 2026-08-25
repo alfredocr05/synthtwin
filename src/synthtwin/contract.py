@@ -363,6 +363,7 @@ LEVEL_KEYS = ("count", "label", "variants", "variants_withheld")
 
 LABEL_KEYS = (
     "levels",
+    "shape_forms",
     "suppressed_level_counts",
     "suppressed_levels",
     "suppressed_rows",
@@ -461,10 +462,9 @@ TEXT_KEYS = (
     "words",
 )
 
-# The long-tail role's own key beside the four it shares with the label
-# roles. It is the role whose twin is mostly stand-ins, so it is the
-# role that needs to say what a stand-in should look like (P4-D18).
-LONG_TAIL_KEYS = LABEL_KEYS + ("shape_forms",)
+# The long-tail role adds no key to the five every label role carries:
+# the form census stands on all four of them (P4-D18, corrected).
+LONG_TAIL_KEYS = LABEL_KEYS
 
 LENGTH_KEYS = ("max", "mean", "min", "p50")
 
@@ -588,6 +588,9 @@ LEADING_ZERO_STYLE = "leading_zero"
 SHAPE_FORM_LIMIT = 24
 SHAPE_DIGIT = "9"
 SHAPE_LETTER = "A"
+# The closed list of marks a form may carry beside those two. A key
+# holding anything else is refused, whatever wrote it.
+SHAPE_MARKS = "-./_:#*()[]+,"
 
 DECLARATION_MATCHING = "exact_number_when_it_reads_as_one_else_spelling"
 
@@ -1008,6 +1011,19 @@ INVARIANTS = {
         "that map does not name, once both width censuses have said "
         "how many of them they account for"
     ),
+    # The census of written forms. Registered here because a rule this
+    # module RAISES and this table does not hold reaches a person as a
+    # bare KeyError rather than as the refusal it is -- which is what a
+    # hand-edited document with a below-floor named form did (review
+    # round 1 finding 9).
+    "SF1": (
+        "every written form the census names was written by at least "
+        "the smallest group size"
+    ),
+    "SF3": (
+        "the census counts no more cells than the column has present, "
+        "a cell too long to have a form being counted nowhere"
+    ),
 }
 
 
@@ -1248,25 +1264,31 @@ class UnrepresentableFacts:
 
 @dataclasses.dataclass(frozen=True)
 class LabelFacts:
-    """The published labels of a constant or binary column (6.3)."""
+    """The published labels of a label column (6.3), and their forms.
+
+    `shape_forms` is carried by ALL FOUR label roles (P4-D18,
+    corrected). It first stood on `long_tail_labels` alone, on the
+    reasoning that the other three publish their levels so their twins
+    hold them and have no stand-in to shape. That reasoning was wrong.
+    A diagnosis column of five common codes and twenty-six rare ones
+    is under the categorical ceiling, so it takes `categorical` -- and
+    the floor holds back every rare one, whose twin cells came out
+    `group-1` through `group-24`, which is the defect the census was
+    raised to close, in the shape a real table most often has it.
+    Whether a label role suppresses levels is a fact about the FLOOR,
+    not about the role.
+    """
 
     levels: "tuple[LevelEntry, ...]"
     suppressed_levels: int
     suppressed_rows: int
     suppressed_level_counts: "tuple[int, ...]"
+    shape_forms: "dict[str, int]"
 
 
 @dataclasses.dataclass(frozen=True)
 class LongTailFacts(LabelFacts):
-    """A long tail of labels, and the forms its cells were written in.
-
-    The census is this role's own key (P4-D18). It is the role whose
-    twin is mostly stand-ins -- a long tail is by definition a column
-    most of whose values the floor holds back -- so it is the role that
-    has to say what a stand-in should look like.
-    """
-
-    shape_forms: "dict[str, int]"
+    """A long tail of labels. It adds no key of its own."""
 
 
 @dataclasses.dataclass(frozen=True)
@@ -3734,10 +3756,8 @@ def _role_keys(role: str) -> "tuple[str, ...]":
         # optional keys, so the ceiling this column PASSED is recorded
         # in its evidence sentence instead.
         #
-        # ...AND ITS OWN FORM CENSUS BESIDE THEM (P4-D18). The three
-        # sibling label roles do not carry it: a column at or under the
-        # categorical ceiling publishes its levels, so its twin holds
-        # them and has no stand-in to shape.
+        # The form census is NOT among them: it is one of the five
+        # every label role carries (P4-D18, corrected).
         return LONG_TAIL_KEYS
     if role == ROLE_DATETIME:
         return DATETIME_KEYS
@@ -4186,6 +4206,7 @@ def _label_facts(
         suppressed_levels=suppressed,
         suppressed_rows=rows,
         suppressed_level_counts=sizes,
+        shape_forms=_shape_forms(mapping, where, floor),
     )
 
 
@@ -4280,6 +4301,7 @@ def _categorical_facts(
         suppressed_levels=suppressed,
         suppressed_rows=rows,
         suppressed_level_counts=sizes,
+        shape_forms=_shape_forms(mapping, where, floor),
         level_ceiling=ceiling,
     )
 
@@ -5362,17 +5384,14 @@ def _shape_forms(
     for name in sorted(forms):
         if name == WITHHELD:
             # THE POOL IS THE FLOOR'S OWN, AND AT A FLOOR OF ONE THERE
-            # IS NONE. `(withheld)` means one thing in this format -- a
-            # group too small to name -- so a floor of one, below which
-            # nothing falls, admits no such key.
-            if floor < 2:
-                raise _broken(
-                    "SF2",
-                    where,
-                    "the census holds a pooled remainder",
-                    "the smallest group size is 1, so nothing is "
-                    "below it",
-                )
+            # IS NONE -- but that rule is C5-S13's and is checked at
+            # the top of the document, before any column block is
+            # read. `shape_forms` is in C5-S13's own list, so a census
+            # holding a pool at a floor of one is refused there and a
+            # rule of this function's own would be unreachable. It was
+            # written and withdrawn for exactly that reason (review
+            # round 1 finding 9): a rule no document can reach is a
+            # rule no test can exercise.
             continue
         if not _is_shape_form(name):
             raise _out_of_range(
@@ -5393,15 +5412,23 @@ def _shape_forms(
 
 
 def _is_shape_form(name: str) -> bool:
-    """Whether one census key is a form and carries nothing else."""
+    """Whether one census key is a form and carries nothing else.
+
+    THE TEST IS A CLOSED ALPHABET AND NOT A REPLACEMENT AUDIT (review
+    round 1 finding 1). Checking that no OTHER figure or letter
+    survived leaves every character that is neither -- a space, a mark
+    nobody writes a code with, a letter no ASCII range reaches -- to
+    stand in the key, and a column of Japanese clinical text then
+    published a key holding the words themselves. A key is now `9`,
+    `A`, and marks from a list this module owns, or it is refused;
+    nothing a table wrote can pass that.
+    """
     if not name or len(name) > SHAPE_FORM_LIMIT:
         return False
     for character in name:
-        if "0" <= character <= "9" and character != SHAPE_DIGIT:
-            return False
-        lower = "a" <= character <= "z"
-        upper = "A" <= character <= "Z"
-        if (lower or upper) and character != SHAPE_LETTER:
+        if character == SHAPE_DIGIT or character == SHAPE_LETTER:
+            continue
+        if character not in SHAPE_MARKS:
             return False
     return True
 

@@ -683,19 +683,71 @@ def _without_group_separators(text: str) -> "str | None":
 # publish and is not what the form is for.
 SHAPE_FORM_LIMIT = 24
 
+# THE ONLY CHARACTERS A FORM MAY CARRY BESIDE `9` AND `A`, and the list
+# is CLOSED and belongs to this tool (plan P4-D18, review round 1).
+# A cell holding a character the list omits has no form: a space, or
+# a mark no coding scheme uses.
+#
+# WHY A CLOSED LIST RATHER THAN "EVERY OTHER CHARACTER STANDS". Because
+# the guarantee this census rests on is that a key carries no fragment
+# of anybody's value, and "replace the ASCII letters and figures" does
+# not give it: a column of Japanese clinical text published a key still
+# holding the words themselves, since no ASCII rule reached them. That
+# is a leak in the one field these roles have for saying what their
+# values look like. A closed list is checkable -- a key holds `9`, `A`
+# and marks from this string, or it is refused -- and what it costs is
+# a form for cells nobody was going to read as codes anyway.
+#
+# THE SPACE IS EXCLUDED ON ITS OWN GROUND, not as an oversight. Two
+# hundred and forty different short sentences written to one template
+# all share the form `AAAAA, AAAA!`, and that names every word's
+# length, where the spaces fall and where the punctuation falls -- a
+# fact about a sentence, which is what the length limit was already
+# there to keep out. Without a space, the cells that share a form are
+# the cells written to a scheme.
+SHAPE_MARKS = "-./_:#*()[]+,"
+
 SHAPE_DIGIT = "9"
 SHAPE_LETTER = "A"
+
+
+def _is_a_digit(character: str) -> bool:
+    """Whether one character is a digit, over the whole of Unicode.
+
+    A function of its own with its own type gate, because the offline
+    audit accepts a method call only on a value it can trace to a
+    string, and a character taken out of a loop over one is not traced
+    through the loop.
+    """
+    if not isinstance(character, str):
+        raise TypeError(_NOT_TEXT)
+    return character.isdigit()
+
+
+def _is_a_letter(character: str) -> bool:
+    """Whether one character is a letter, over the whole of Unicode."""
+    if not isinstance(character, str):
+        raise TypeError(_NOT_TEXT)
+    return character.isalpha()
 
 
 def shape_form(text: str) -> str:
     """The shape of one cell: its figures and letters, its marks kept.
 
-    Every ASCII digit becomes `9`, every ASCII letter becomes `A`, and
-    every other character stands as itself, because the marks are the
-    STRUCTURE and the letters and figures are the content. A diagnosis
-    code `E11.9` has the form `A99.9`; a laboratory code `4548-4` has
-    `9999-9`; a blood pressure `120/80` has `999/99`; a dispensed-drug
-    code `0002-8215-01` has `9999-9999-99`.
+    Every DIGIT becomes `9`, every LETTER becomes `A`, and every other
+    character must be one of `SHAPE_MARKS` and stands as itself,
+    because the marks are the STRUCTURE and the letters and figures are
+    the content. A diagnosis code `E11.9` has the form `A99.9`; a
+    laboratory code `4548-4` has `9999-9`; a blood pressure `120/80`
+    has `999/99`; a dispensed-drug code `0002-8215-01` has
+    `9999-9999-99`.
+
+    "Every letter" and "every digit" are read the way Python reads
+    them, over the whole of Unicode and not over the ASCII ranges. A
+    column of Japanese clinical text published a key still holding the
+    words when only the ASCII ranges were replaced, which is a fragment
+    of a value in the one field this census has for saying what its
+    values look like (review round 1 finding 1).
 
     WHAT THIS IS FOR. A column whose values the disclosure floor holds
     back publishes nothing about them today, so its twin holds
@@ -705,33 +757,61 @@ def shape_form(text: str) -> str:
     without holding anything of the value: `A99.9` says a letter, two
     figures, a point and a figure, and says nothing about WHICH.
 
-    WHAT IT DELIBERATELY WILL NOT DO. A cell longer than
-    `SHAPE_FORM_LIMIT` has no form. On a note or an address the form
+    WHAT IT DELIBERATELY WILL NOT DO. A cell has NO FORM when it is
+    empty, when it is longer than `SHAPE_FORM_LIMIT`, or when it holds
+    any character that is neither a letter, nor a digit, nor one of
+    `SHAPE_MARKS` -- a space among them. On a note or an address a form
     would carry where the spaces and the commas fall and how long each
     word is, which is a fact about a sentence rather than about a code,
     and this census is not the place to decide whether that may be
-    published. Such a cell answers the empty string and its column
-    counts it among the forms it holds back.
+    published. Such a cell answers the empty string.
 
-    Guarantees: accepts any string; returns a form, or "" for a cell
-    that is empty or longer than the limit. Determinism: the answer
-    depends only on the text. Raises TypeError if handed anything that
-    is not a string instance. Boundary: no figure and no letter of the
-    cell survives into the answer -- only how many there were, and
-    where the marks between them fell. No I/O of any kind.
+    Guarantees: accepts any string; returns a form built only from `9`,
+    `A` and `SHAPE_MARKS`, or "" for a cell this census does not
+    describe. Determinism: the answer depends only on the text. Raises
+    TypeError if handed anything that is not a string instance.
+    Boundary: no figure and no letter of the cell survives into the
+    answer -- only how many there were, and where the marks between
+    them fell. No I/O of any kind.
     """
     if not isinstance(text, str):
         raise TypeError(_NOT_TEXT)
     if not text or len(text) > SHAPE_FORM_LIMIT:
         return ""
     form = ""
+    kinds = 0
+    figures = 0
+    letters = 0
+    marks = 0
     for character in text:
-        if "0" <= character <= "9":
+        if _is_a_digit(character):
             form = form + SHAPE_DIGIT
-        elif ("a" <= character <= "z") or ("A" <= character <= "Z"):
+            figures = 1
+        elif _is_a_letter(character):
             form = form + SHAPE_LETTER
-        else:
+            letters = 1
+        elif character in SHAPE_MARKS:
             form = form + character
+            marks = 1
+        else:
+            return ""
+    kinds = figures + letters + marks
+    if kinds < 2:
+        # A FORM OF ONE KIND OF SYMBOL SAYS NOTHING NEW, so it is not a
+        # form. `AAAAA` says five letters and `99999` says five
+        # figures -- and `length` already publishes the five exactly,
+        # while `n_all_digits` and `n_code_alphabet` already publish
+        # which alphabet the cell was drawn from. Naming those adds a
+        # published fact that carries no information and costs a
+        # disclosure line, and it made a column of four region names
+        # publish a census nobody could use.
+        #
+        # WHAT A FORM IS FOR is the ORDER of the kinds and where the
+        # marks fall between them: `A9999` says a letter and then four
+        # figures, which no other published fact says; `9999-9` says
+        # where the hyphen is. Two kinds is exactly the line between
+        # the two.
+        return ""
     return form
 
 

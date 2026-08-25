@@ -840,7 +840,7 @@ the top-level rules, before any column block is read, because the
 floor is a top-level setting and what the rule states is a fact about
 the whole description.
 
-**On four of those positions the added thing is the ENTRY, not the
+**On SIX of those positions the added thing is the ENTRY, not the
 field, and the difference matters.** At a floor of 1 a decimal column
 of two cells written at width 2 publishes `fraction_widths: {"2": 2}`,
 which is correct and must not be refused: at a floor of one every
@@ -848,8 +848,9 @@ named width reaches the floor, so widths are NAMED rather than pooled,
 and the field is nonempty precisely because nothing is held back. What
 must be zero or absent there is the `(withheld)` entry alone, for the
 rule's own reason — at a floor of one there is nothing to pool. The
-same reading applies to `missing_by_class`, `utc_offsets` and
-`numeric_styles`: the map stays, the pooled remainder goes.
+same reading applies to `missing_by_class`, `utc_offsets`,
+`numeric_styles`, `pad_widths` and `shape_forms`: the map stays, the
+pooled remainder goes.
 
 **What does NOT join the list, named so no reader adds it.**
 `missing_by_source` is not on it: its keys are spellings of the table
@@ -4120,11 +4121,11 @@ The thirteen columns, abbreviated for width: `emp` `empty`, `unr`
 | `n_all_digits` | | | | | | | | | | | | ● | ● |
 | `n_code_alphabet` | | | | | | | | | | | | ● | ● |
 | `n_distinct_by_occurrences` | | ● | | | | | | | | | | ● | ● |
-| `shape_forms` | | | | | | ● | | | | | | | ● |
+| `shape_forms` | | | ● | ● | ● | ● | | | | | | | ● |
 
-**Fifty-seven rows, one hundred and twelve marked cells**, distributed
-`empty` 0, `numeric_unrepresentable` 9, `constant` 4, `binary` 4,
-`categorical` 5, `long_tail_labels` 5, `datetime` 13, `time_of_day`
+**Fifty-seven rows, one hundred and fifteen marked cells**, distributed
+`empty` 0, `numeric_unrepresentable` 9, `constant` 5, `binary` 5,
+`categorical` 6, `long_tail_labels` 5, `datetime` 13, `time_of_day`
 5, `count` 16, `continuous` 16, `affixed_number` 23, `identifier` 6,
 `free_text` 6. The counts are stated so that a reader can check a
 column of the matrix against the role's own section without counting
@@ -4179,10 +4180,9 @@ does not read a coincidence into the matrix.**
 `numeric_styles`, `fraction_widths` and `pad_widths` stand on exactly
 `count`, `continuous` and `affixed_number`, and are forbidden
 everywhere else including `numeric_unrepresentable`. `shape_forms`
-stands on exactly `long_tail_labels` and `free_text` — the two roles
-whose twins are made-up spellings — and is forbidden on the other
-eleven, `categorical` included, whose twin holds the column's own
-spellings and has nothing whose shape needs describing (7.9). `level_ceiling` stands on
+stands on exactly the four LABEL roles and `free_text` — every role
+whose twin can hold a made-up spelling in place of one the floor held
+back — and is forbidden on the other eight (7.9). `level_ceiling` stands on
 `categorical` alone: it is that role's own key, its invariant is that
 folded distinctness is at or under the ceiling, and that is exactly
 what a `long_tail_labels` column violates by definition, so the key
@@ -4910,25 +4910,23 @@ that is the whole of what the `max` buys. Which levels of an admitted
 column are then SHOWN is the floor's question and moves with it;
 whether the column is admitted is this line's question and does not.
 
-**Added keys:** the four shared label keys of section 6.3, and
-`shape_forms` — `levels`, whose entries carry exactly `label`,
-`count`, `variants` and `variants_withheld` under section 6.3.1;
+**Added keys:** the five shared label keys of section 6.3 and nothing
+else — `levels`, whose entries carry exactly `label`, `count`,
+`variants` and `variants_withheld` under section 6.3.1;
 `suppressed_levels`; `suppressed_rows`; `suppressed_level_counts`; and
-the census of written forms section 7.9 states. The first four have
-section 6.3's JSON types and meanings, identically, and `variants` and
-`variants_withheld` are specified in full in section 7.4: the
-spellings of a published label that cleared the floor are named in its
-`variants`, and those that did not are counted, unnamed, in its
-`variants_withheld` — exactly as on any other label role.
+`shape_forms`, the census of written forms section 7.9 states. Their
+JSON types and meanings are section 6.3's, identically, and `variants`
+and `variants_withheld` are specified in full in section 7.4.
 
-**Why the census stands on THIS label role and on no other.** The
-other three publish every level the floor admits, so their twins hold
-the column's own spellings and have nothing whose shape needs
-describing. This is the label role that is mostly what the floor held
-back: a column past the categorical ceiling can publish a handful of
-levels and suppress hundreds, and every suppressed one becomes a
-made-up spelling in the twin. What that spelling looks like is
-therefore this role's question and not theirs (A-P4-36, P4-D18).
+**The census is not this role's own key, and the record of why says
+so.** It stood here alone for one landing, on the reasoning that the
+other three label roles publish every level the floor admits, so their
+twins hold the column's own spellings and have nothing whose shape
+needs describing. That reasoning was wrong: every label role suppresses
+levels, and whether it does is a fact about the FLOOR rather than about
+the role. A `categorical` column of five common diagnosis codes and
+twenty-six rare ones is the case the census was raised for, and it is
+not this role (A-P4-36, P4-D18, and the correction recorded with it).
 
 **`level_ceiling` is FORBIDDEN on this role.** It is `categorical`'s
 own key. Its invariant, G1, is that folded distinctness is at or under
@@ -5661,22 +5659,57 @@ recompute it.
 ### 7.9 `shape_forms`
 
 **C6-31a (what a form is).** The **written form** of a cell is that
-cell with every ASCII digit replaced by `9`, every ASCII letter — `a`
-to `z` and `A` to `Z` — replaced by `A`, and EVERY OTHER CHARACTER
-STANDING AS ITSELF. A diagnosis code `E11.9` has the form `A99.9`; a
-laboratory code `4548-4` has `9999-9`; a dispensed-drug code
-`0002-8215-01` has `9999-9999-99`; a blood pressure `120/80` has
-`999/99`. The marks are the STRUCTURE and the figures and letters are
-the content, and the form is what is left when the content is taken
-out.
+cell with every DIGIT replaced by `9`, every LETTER replaced by `A`,
+and every other character required to be one of THIRTEEN MARKS this
+contract names, standing as itself. A diagnosis code `E11.9` has the
+form `A99.9`; a laboratory code `4548-4` has `9999-9`; a
+dispensed-drug code `0002-8215-01` has `9999-9999-99`; a blood
+pressure `120/80` has `999/99`. The marks are the STRUCTURE and the
+figures and letters are the content, and the form is what is left when
+the content is taken out.
 
-**A cell longer than TWENTY-FOUR characters has no form, and neither
-does an empty one.** The limit is deliberate and it is not a
-performance limit. On a note or a street address a form would carry
-where the spaces and the commas fall and how long each word is, which
-is a fact about a sentence rather than about a code, and this census
-is not the place to decide whether that may be published. Such a cell
-answers no form at all.
+**"Every digit" and "every letter" reach the whole of Unicode**, not
+the ASCII ranges. Replacing only the ASCII ranges left every other
+letter standing, so a column of Japanese clinical text published a key
+holding the words themselves — a fragment of a value in the one field
+this census exists to keep free of them.
+
+**THE THIRTEEN MARKS, and the list is CLOSED**: `-` `.` `/` `_` `:`
+`#` `*` `(` `)` `[` `]` `+` `,`. **A cell holding any character that
+is neither a letter, nor a digit, nor one of those thirteen has NO
+FORM AT ALL** — a space among them, and so is every mark this list
+leaves out. The list is closed rather than open because the guarantee
+the census rests on is that a key carries no fragment of anybody's
+value, and "every other character stands as itself" does not give it:
+it is checkable that a key holds only `9`, `A` and these thirteen, and
+not checkable that whatever else survived was harmless.
+
+**AND THE SPACE IS EXCLUDED ON ITS OWN GROUND.** Two hundred and forty
+different short sentences written to one template — `xxxxx, yyyy!` —
+all share the form `AAAAA, AAAA!`, which names every word's length,
+where the spaces fall and where the punctuation falls. That is a fact
+about a sentence, which is what the length limit below was already
+there to keep out, and it reached past the limit because the sentences
+were short. Without a space, the cells that share a form are the cells
+written to a scheme.
+
+**A cell longer than TWENTY-FOUR characters has no form either, and
+neither does an empty one.** The limit is deliberate and it is not a
+performance limit: it is the same judgement as the space, applied to
+the cells a scheme could not have produced.
+
+**AND A FORM OF ONE KIND OF SYMBOL IS NOT A FORM.** `AAAAA` says five
+letters; `length` already publishes the five exactly, and
+`n_all_digits` and `n_code_alphabet` already publish which alphabet
+the cells were drawn from. Such a key adds a published fact carrying
+no information and costs a disclosure line for it. What a form is FOR
+is the ORDER of the kinds and where the marks fall between them:
+`A9999` says a letter and then four figures, which no other published
+fact says, and `9999-9` says where the hyphen is. **So a cell has a
+form only where at least TWO of the three kinds — figure, letter,
+mark — appear in it.** That line is what keeps four region names from
+publishing a census nobody can use while a procedure code `J1200`
+keeps one.
 
 **C6-31b (where it lives, and what it holds).** A `long_tail_labels`
 or `free_text` block carries `shape_forms` as a key of the BLOCK. It
@@ -5691,36 +5724,43 @@ name — and a cell over the limit is not a small group, it is a cell
 this census does not describe. Pooling them would also break the
 floor-of-one rule of section 4.6: at `small_cell_floor` of `1` nothing
 is below the floor, so no `(withheld)` key may exist, and a producer
-pooling formless cells would write one. SF2 refuses it.
+pooling formless cells would write one. C5-S13 refuses it.
 
-**C6-31c (the two roles, and why the census is empty on most
-columns).** Every cell of a prose column has a form of its own — or
-none, being over the limit — so no form is shared by
-`small_cell_floor` cells, nothing is named, and nothing is pooled
-either, because a form shared by too few cells is pooled only when it
-IS a form. `shape_forms` is therefore `{}` on a column of notes, of
-addresses, of typed comments. **The census selects for STRUCTURE, and
-it does so with no rule anywhere deciding which columns are
-structured.** That is the point of doing it this way rather than with
-a code detector: a rule that decides can decide wrongly, and the floor
-cannot.
+**C6-31c (why the census is empty on a column of prose, and what
+actually makes it so).** Two things do, and the FIRST is the one that
+matters: a cell holding a space has no form, so no cell of a column of
+notes, addresses or typed comments is counted at all and
+`shape_forms` is `{}` there — not because every such cell's form is
+its own, which was the earlier claim here and was FALSE. Where every
+cell's form really is its own, the floor pools them and the census
+reads `{"(withheld)": n}`; it never reads `{}` by that route.
 
-**C6-31d (key grammar, checked and not assumed).** A key is either
-exactly `(withheld)` or a written form: at least one character, at
-most twenty-four, in which every ASCII digit is `9` and every ASCII
-letter is `A`. A loader CHECKS this key by key and refuses the
-document otherwise, rather than trusting that the producer built the
-key by the replacement C6-31a states. A key in which some other figure
-or letter survived is a key carrying a fragment of somebody's value,
-and a loader that accepted one would let a producer — or a hand-edited
-file — put a real code into the one field these two roles have for
-saying what their values look like. This is the whole of what makes
-the key safe on `free_text`, whose F3 promises that no fragment of a
-value stands anywhere in the block.
+The second is the floor, and it does the rest: a form fewer than
+`small_cell_floor` cells share is pooled and never named. **Between
+them the census selects for STRUCTURE with no rule anywhere deciding
+which columns are structured** — no rule that could decide wrongly.
+What a scheme's cells have in common is that they are short, they use
+a small set of marks, and they hold no space; what prose has is the
+opposite of each. The census is the intersection, not a judgement.
+
+**C6-31d (key grammar, checked as a CLOSED ALPHABET).** A key is
+either exactly `(withheld)` or a written form: at least one character,
+at most twenty-four, every one of which is `9`, `A`, or one of the
+thirteen marks C6-31a names. A loader CHECKS this key by key and
+refuses the document otherwise, rather than trusting that the producer
+built the key by the replacement C6-31a states.
+
+**The check is an alphabet and not a replacement audit, and the
+difference is the whole guarantee.** Asking only that no OTHER figure
+or letter survived leaves every character that is neither free to
+stand in the key, which is how a column of Japanese clinical text
+published its words. Under a closed alphabet nothing a table wrote can
+pass, whatever wrote the key — a producer, or a file edited by hand.
+This is what makes the key safe on `free_text`, whose F3 promises that
+no fragment of a value stands anywhere in the block.
 
 **C6-31e (invariants).** **SF1.** Every NAMED form's count is at least
-`small_cell_floor`. **SF2.** `(withheld)` is present only where
-`small_cell_floor` is at least 2, and its value is at least 1. **SF3.**
+`small_cell_floor`. **SF3.**
 Every count is at least 1, and the sum of all counts, `(withheld)`
 included, is at most `n_present` — at most, and not exactly, because
 the formless cells C6-31b excludes are present cells this census does
@@ -5758,6 +5798,20 @@ off a step that counts stand-ins; every other character of the form
 stands as itself. The form was built by removing every figure and
 letter before it was published, so nothing put back can be a fragment
 of any value.
+
+**A FREE-TEXT GROUP MAY TAKE A FORM OF ANY ADMITTED LENGTH, AND MUST
+BE ABLE TO.** A form fixes a length, so which lengths a group may be
+offered is the whole question. A group carrying a published length end
+keeps its length exactly, because `length.min` and `length.max` are
+EXACT-OBSERVABLE. Every OTHER group may take any form whose length
+lies between those two ends: the length the packing gave it came from
+`length.mean` and `length.p50`, which are APPROXIMATED, and this
+format's precedence rule is that an exact count outranks an
+approximated average. Holding every group to its assigned length was
+how a blood-pressure column met the ONE form its middle length carried
+and missed the two beside it -- the packing had put almost every group
+at six characters, so no group was left to write `99/99` or `999/999`,
+and sixty cells came out of the wide alphabet instead.
 
 **THE CELLS ALREADY WRITTEN PAY THE CENSUS FIRST.** The census counts
 every present cell of the column, and the first two of the three
@@ -6182,7 +6236,6 @@ and `free_text`, and stated in full at section 7.9.
 | id | statement |
 |---|---|
 | SF1 | every NAMED form's count is at least `small_cell_floor` |
-| SF2 | `(withheld)` is present only where `small_cell_floor` is at least 2, and its value is at least 1 |
 | SF3 | every count is at least 1, and the sum of all counts, `(withheld)` included, is at most `n_present` — at most, because a cell over the length limit has no form and is counted nowhere |
 
 A key that is neither `(withheld)` nor a written form by the grammar of
@@ -6242,7 +6295,7 @@ document, never the table it describes.
 | RM-P | the `resolution_mix` counts are the counts the source's own cells wore | a 40/60 and a 50/50 split of a hundred cells both satisfy RM1 and RM2 |
 | FW-P | every `fraction_widths` count is the count of source cells written at that fraction width | P5 bounds the total and P6 and P7 the entries; none checks the census's SHAPE |
 | PW-P | every `pad_widths` count is the count of source cells written at that field width | P5b bounds the total and P6b and P7b the entries; none checks the census's SHAPE |
-| SF-P | every `shape_forms` count is the count of source cells written in that form, and the pooled value the count of cells whose form too few shared | SF3 bounds the total from above and SF1 and SF2 the entries; none checks the census's SHAPE, and none can see the cells that had no form at all |
+| SF-P | every `shape_forms` count is the count of source cells written in that form, and the pooled value the count of cells whose form too few shared | SF3 bounds the total from above and SF1 the named entries; none checks the census's SHAPE, and none can see the cells that had no form at all |
 | NG9-P | where the recoverable-distribution arithmetic holds, that clause IS written | a document with no clause holds no *C*, so the converse is untestable |
 | NG13-P | the column publishes a level whose spelling is the stand-in argument 1 names | the argument names a stand-in by number and the level is published folded |
 
@@ -6424,18 +6477,18 @@ the cores and over `n_core_numeric` in place of `n_numeric`.
 | `n_distinct_folded` | EXACT-OBSERVABLE |
 | `n_distinct` | EXACT-OBSERVABLE where the published variants and the withheld-variant map supply enough spellings — the ordinary case; APPROXIMATED under the two-sided envelope only where they do not, with the report naming the profile's count beside the twin's. The envelope is G12.7 |
 | `level_ceiling` (`categorical` only) | LOADER-ONLY |
-| `shape_forms` (`long_tail_labels` only) | EXACT-OBSERVABLE against the recount identity 7.9 states: cells recounted at a named form number at least the published count and at most that count plus the pooled `(withheld)` value. It is met by the STAND-INS, which are what this role's twin is mostly made of; where the spelling supply for a published label's held-back variants cannot keep that label's form, the census can fall one group short and the report names it (residual R-P4-34) |
+| `shape_forms` (all four label roles) | EXACT-OBSERVABLE against the recount identity 7.9 states: cells recounted at a named form number at least the published count and at most that count plus the pooled `(withheld)` value. It is met by the published spellings, which wear their own forms, and then by the STAND-INS; where the spelling supply for a published label's held-back variants cannot keep that label's form, the census can fall one group short and the report names it (residual R-P4-34) |
 
 The first five rows bind `long_tail_labels` exactly as they bind the
-other three label roles: it publishes the four shared label keys under
+other three label roles: it publishes the five shared label keys under
 the shared label invariants, its twin is written by the label
 construction — published variants byte-for-byte at their counts,
 made-up labels at the exact suppressed sizes, fold collisions
 reproduced — and it carries no `level_ceiling`, so the sixth row
 reaches it with nothing to dispose. **What is no longer neutral is the
 made-up label's SPELLING**, and the seventh row is where that is
-disposed: on this role alone of the four, a made-up label is written
-in a form the column published (7.9.1).
+disposed, on all four roles alike: where the census owes a stand-in a
+form, the stand-in is written in it (7.9.1).
 
 ### 9.6 The calendar and clock roles: `datetime`, `time_of_day`
 
@@ -7133,10 +7186,10 @@ this document, and the battery the plan requires turns red on it.
 | `missing_by_class` | six counts of absent cells by reason | each non-`(withheld)` value 0 or at least the floor |
 | `missing_by_source` | the EXACT absent-value SPELLINGS the cells wore, with counts | floor-governed; empty on a nothing-publishing column |
 | `sentinel_verdicts` | the candidate as text — a stand-in number, or a calendar placeholder's ISO day — with occurrence count, verdict and reason | `(withheld)` on a nothing-publishing column |
-| labels-class blocks (`constant`, `binary`, `categorical`, `long_tail_labels`) | folded label spellings with row counts; each label's exact spellings under `variants`; how many levels were held back and how many rows they cover (`suppressed_levels`, `suppressed_rows`) and the ascending sizes of those levels (`suppressed_level_counts`) | every named spelling floor-governed; the three held-back facts publish SIZES and COUNTS of unnamed groups, floor-free |
+| labels-class blocks (`constant`, `binary`, `categorical`, `long_tail_labels`) | folded label spellings with row counts; each label's exact spellings under `variants`; how many levels were held back and how many rows they cover (`suppressed_levels`, `suppressed_rows`) and the ascending sizes of those levels (`suppressed_level_counts`); and the census of WRITTEN FORMS its cells wore (`shape_forms`) | every named spelling floor-governed; the three held-back facts publish SIZES and COUNTS of unnamed groups, floor-free; the form census floor-governed with a `(withheld)` pool, and every key of it built only from `9`, `A` and thirteen named marks |
 | `level_ceiling`, on `categorical` | the effective category cap the run applied, computed from `categorical_ceiling`, `categorical_share`, `categorical_floor` and `n_rows` | publishes nothing the settings block and `n_rows` do not already publish |
 | ranges-class blocks (`count`, `continuous`, `datetime`, `time_of_day`, `affixed_number`) | endpoints and the eleven ladder rungs, which are exact values of real cells; moments and shape statistics; sign and zero counts; the style census, the fraction-width census, the FIELD-WIDTH census and the offset map; `resolution_mix`; the affix pair | endpoints and rungs FLOOR-FREE under the ranges-class endpoint policy; the four maps floor-governed with a `(withheld)` pool; the affix pair floor-governed by its own detection rule |
-| nothing-class blocks (`numeric_unrepresentable`, `identifier`, `free_text`) | lengths, word statistics, digit and code-alphabet counts, the whole-number test, the repetition multiset, and on `numeric_unrepresentable` the whole-number and sign counts | no value, no spelling, no fragment of one; the multiplicity map publishes SIZES of unnamed groups under no floor |
+| nothing-class blocks (`numeric_unrepresentable`, `identifier`, `free_text`) | lengths, word statistics, digit and code-alphabet counts, the whole-number test, the repetition multiset, on `numeric_unrepresentable` the whole-number and sign counts, and on `free_text` the census of WRITTEN FORMS its cells wore (`shape_forms`) | no value, no spelling, no fragment of one — the form census included, whose every key is built from `9`, `A` and thirteen named marks and can therefore carry no letter and no figure of any cell; the multiplicity map publishes SIZES of unnamed groups under no floor, the form census under the floor with a `(withheld)` pool |
 | `empty` columns nobody declared | the absent SPELLINGS their cells wore and the two absence counts, exactly as any column that is not nothing-publishing | floor-governed |
 | `settings` | the rules the run applied, the floor's own value, how many values each declaration named, and which of THIS package's published words were among them | carries no cell, no column and no count of the table; a person's own spelling never enters |
 | `source.header_evidence`, `publication_notes[].note`, `detection_evidence`, `remarks` | sentences of the 44 closed forms: 65 argument positions, of which 56 are whole numbers, 3 package words, 4 nested forms and 2 bound affix strings | the whole numbers are counts the block beside them already publishes, EXCEPT the positions priced at rows 16 and 18 |
@@ -7344,6 +7397,33 @@ a marked row.
     clears the datetime rule's parse line. Row 14 prices the
     placeholder VERDICTS; this row prices the CLASS COUNT beside them,
     which is a different key.
+18a. **The census of written forms. NEW.** How many present cells of
+    a label-class or `free_text` column wore each WRITTEN FORM — the
+    cell with every digit replaced by `9`, every letter by `A`, and
+    every other character required to be one of thirteen marks this
+    contract names — under the floor, with a `(withheld)` pool for the
+    forms too few cells shared.
+
+    **What it publishes is a count of cells per SHAPE and nothing
+    else**, and the key grammar is what makes that true rather than
+    argued: a key is `9`, `A` and those thirteen marks or the loader
+    refuses the document, so no letter and no figure of any cell can
+    stand in one. A cell holding a character outside that list — a
+    space among them — has no form, so THIS CENSUS does not count it,
+    which is what keeps a sentence's word lengths and punctuation out
+    of the census and leaves a column of prose publishing `{}`. What
+    such a cell contributes to the block's other keys is unchanged:
+    its length, its words and its repetition are counted exactly as
+    any other cell's are.
+
+    **The floor governs a named form as it governs a level.** Its
+    price is therefore the price of every floor-governed count: a
+    published form asserts that at least `small_cell_floor` cells of
+    the column were written that way. On `free_text` this is the FIRST
+    fact of the block that is about the values' writing rather than
+    their size, and it is what makes that role's twin usable for a
+    column of codes (plan P4-D18, amendment A-P4-36).
+
 18. **The declined column's evidence counts, carried in a sentence.
     NEW in four positions.** `remark_no_reading_fits` has arity 9 and
     is carried by a `free_text` column, which publishes no value of the
@@ -7784,7 +7864,7 @@ override.
 `EXACT-CONTROL`, `APPROXIMATED`, `REPORT-ONLY`, `LOADER-ONLY`,
 `STRUCTURAL`.
 
-**Forbidden-key matrix — 56 rows over 13 role columns**, 110 marked
+**Forbidden-key matrix — 57 rows over 13 role columns**, 115 marked
 cells, defined in 6.11. Not reproduced here; a matrix is not a list.
 
 ### 14.2 Document and block key sets
@@ -8022,7 +8102,7 @@ form to one of those four paths.
 
 ### 14.9 The reserved tokens
 
-**Where `(withheld)` appears — 7 places.**
+**Where `(withheld)` appears — 8 places.**
 
 | place | meaning |
 |---|---|
@@ -8033,12 +8113,14 @@ form to one of those four paths.
 | `numeric_styles` | the pooled count of cells whose spelling STYLE was used by too few rows to name |
 | `fraction_widths` | the pooled count of `decimal`-styled cells whose fraction WIDTH was used by too few rows to name |
 | `pad_widths` | the pooled count of `leading_zero`-styled cells whose FIELD WIDTH was used by too few rows to name |
+| `shape_forms` | the pooled count of cells whose WRITTEN FORM was worn by too few rows to name |
 
 One token, one meaning: a group too small to name, counted rather than
 named. It is never a value, and it is never a key a generator has to
 invert. Every list it appears in draws its other keys from a fixed
 first-party vocabulary — class words, offset texts, style names, width
-digits — so there is no field of this format in which a value of
+digits, and the form alphabet `9`, `A` and thirteen marks — so there
+is no field of this format in which a value of
 somebody's table and one of synthtwin's own words can land in the same
 slot. A field added later that breaks that property breaks this
 sentence.

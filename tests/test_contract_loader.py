@@ -844,6 +844,33 @@ def battery() -> list[Mutation]:
                 pad_widths={"5": 10, "6": 1},
             ),
         ),
+        # -- the census of written forms (P4-D18) --------------------
+        # Each of these is a document the loader must REFUSE, and each
+        # is registered here because a rule the loader raises without
+        # an entry in this battery reaches a person as a bare KeyError
+        # (review round 1 finding 9).
+        Mutation(
+            "SF1",
+            "a written form named by fewer cells than the floor admits",
+            edit("region", shape_forms={"AAAA": 117, "AAAAA": 3}),
+        ),
+        # A pooled remainder at a floor of one is refused too, but by
+        # C5-S13 at the top of the document rather than by a rule of
+        # the census's own -- `shape_forms` is in C5-S13's list, so the
+        # census never gets to see it.
+        Mutation(
+            "C5-S13",
+            "a form census holding a pooled remainder at a floor of one",
+            all_of(
+                edit_in("settings", small_cell_floor=1),
+                edit("region", shape_forms={"AAAA": 1, "(withheld)": 1}),
+            ),
+        ),
+        Mutation(
+            "SF3",
+            "a census counting more cells than the column has present",
+            edit("region", shape_forms={"AAAA": 117, "AAAAA": 9999}),
+        ),
         Mutation(
             "P8",
             "two width censuses that are each possible and not both",

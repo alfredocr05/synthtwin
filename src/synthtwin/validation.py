@@ -6426,13 +6426,16 @@ def _role_checks(
         return _affixed_checks(column, facts, block, cells, floor)
     if isinstance(facts, contract.NumericFacts):
         return _numeric_checks(column, facts, block, cells, floor)
-    if isinstance(facts, contract.LongTailFacts):
+    if isinstance(facts, contract.LabelFacts):
+        # THE CENSUS IS CHECKED ON ALL FOUR LABEL ROLES (P4-D18,
+        # corrected). It was dispatched on `LongTailFacts` alone while
+        # it stood on that role alone; a categorical column with a rare
+        # tail carries it too, and it is exactly the case the census
+        # was raised for.
         return _label_checks(column, facts, block, floor) + _form_checks(
             column.name, "label.shape_forms", facts.shape_forms,
             block, floor,
         )
-    if isinstance(facts, contract.LabelFacts):
-        return _label_checks(column, facts, block, floor)
     if isinstance(facts, contract.DatetimeFacts):
         return _datetime_checks(column, facts, block, floor, mine)
     if isinstance(facts, contract.TextFacts):

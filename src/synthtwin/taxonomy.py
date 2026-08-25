@@ -984,7 +984,9 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
         return (
             "this column is described as free text, so none of its values "
             "are published: only how long they are, how many words they "
-            "hold, and how often they repeat"
+            "hold, how often they repeat, and -- where enough of them "
+            "were written the same way -- the shape of that writing, "
+            "which carries no letter and no figure of any value"
         )
     if form == NOTE_IDENTIFIER_WITHHELD:
         return (
@@ -3933,13 +3935,28 @@ def _levels_covering(counts: "dict[str, int]", settings: Settings) -> int:
     return found
 
 
-def _level_details(levels: _Levels) -> dict[str, object]:
-    """The published block a label-publishing role carries."""
+def _level_details(levels: _Levels, cells: _Cells) -> dict[str, object]:
+    """The published block a label-publishing role carries.
+
+    ...AND THE FORMS ITS CELLS WERE WRITTEN IN, ON ALL FOUR OF THEM
+    (plan P4-D18, corrected). The census first stood on
+    `long_tail_labels` alone, on the reasoning that the other three
+    publish their levels so their twins hold them and have no stand-in
+    to shape. That reasoning was WRONG, and running the tool on a
+    patient table is what showed it: a diagnosis column of five common
+    codes and twenty-six rare ones is under the categorical ceiling, so
+    it takes `categorical` -- and the floor holds back all
+    twenty-six, whose twin cells came out `group-1` through
+    `group-24`. Every label role suppresses levels; whether it does is
+    a fact about the FLOOR and not about the role. So the census
+    stands wherever levels can be held back, which is here.
+    """
     return {
         "levels": levels.published,
         "suppressed_levels": levels.suppressed_levels,
         "suppressed_rows": levels.suppressed_rows,
         "suppressed_level_counts": levels.suppressed_counts,
+        "shape_forms": _shape_forms(cells),
     }
 
 
@@ -5543,7 +5560,7 @@ def _decide(
             return _Verdict(
                 role=ROLE_CONSTANT,
                 evidence=note(EVIDENCE_ONE_VALUE, (n_present,)),
-                details=_level_details(levels),
+                details=_level_details(levels, cells),
                 notes=notes,
                 remarks=remarks,
             )
@@ -5571,7 +5588,7 @@ def _decide(
             return _Verdict(
                 role=ROLE_BINARY,
                 evidence=note(EVIDENCE_TWO_VALUES),
-                details=_level_details(levels),
+                details=_level_details(levels, cells),
                 notes=notes,
                 remarks=remarks,
             )
@@ -5663,7 +5680,7 @@ def _decide(
             levels = _levels(
                 cells.folded_counts, cells.spellings_by_folded, settings
             )
-            details = _level_details(levels)
+            details = _level_details(levels, cells)
             details["level_ceiling"] = ceiling
             if levels.suppressed_levels:
                 notes = notes + [_pooled_note(levels, settings)]
@@ -5736,17 +5753,7 @@ def _decide(
         levels = _levels(
             cells.folded_counts, cells.spellings_by_folded, settings
         )
-        details = _level_details(levels)
-        # ...AND THE FORMS THIS ROLE'S CELLS WERE WRITTEN IN (plan
-        # P4-D18). This is the role the census was raised for: a long
-        # tail is precisely a column most of whose values the floor
-        # holds back, so it is the role whose twin is mostly stand-ins,
-        # and a stand-in that looks nothing like the values around it
-        # is what makes a column of codes unusable. The three sibling
-        # label roles do not carry it: a column at or under the
-        # categorical ceiling publishes its levels, so its twin holds
-        # them and has no stand-in to shape.
-        details["shape_forms"] = _shape_forms(cells)
+        details = _level_details(levels, cells)
         if levels.suppressed_levels:
             notes = notes + [_pooled_note(levels, settings)]
         if cells.raw_distinct != folded_distinct:

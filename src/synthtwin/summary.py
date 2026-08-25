@@ -1154,8 +1154,9 @@ def _disclosure_lines(document: dict[str, object]) -> list[str]:
         # column's own block above says it in words for the person who
         # wants to know what shape of repetition was recorded.
         lines = lines + [
-            "  No value at all, in any form -- only counts, lengths, and what",
-            "  synthtwin decided about the column:",
+            "  No value at all -- only counts, lengths, the SHAPE its values",
+            "  were written in where enough shared one, and what synthtwin",
+            "  decided about the column:",
             f"    {_listed(without_values)}",
             "",
         ]

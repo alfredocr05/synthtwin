@@ -52,18 +52,29 @@ exists).
   those forms, so a split, a width check and a pattern match all answer
   the way they will on the real table.
 - **A form says the shape and nothing else, and that is CHECKED rather
-  than promised.** It carries no figure and no letter of any cell -- it
-  says a letter, two figures, a point and a figure, and nothing about
-  which -- and the description refuses any key in which some other
-  figure or letter survived, whatever wrote it, including a file edited
-  by hand.
-- **A column of prose publishes nothing here, and the floor is what
-  does that.** Every cell of a note has its own form, so no form is
-  shared by enough cells to name and the census comes out empty. No
-  rule anywhere decides which of your columns are codes; the same
-  small-cell floor that governs everything else decides, so there is no
-  rule that can get it wrong. A cell longer than twenty-four characters
-  has no form at all.
+  than promised.** A key holds `9`, `A` and thirteen marks synthtwin
+  names -- and nothing else, whatever wrote it, including a file edited
+  by hand. So it can carry no letter and no figure of any of your
+  values, in any alphabet: `E11.9` and `Z99.1` are one key and it tells
+  them apart from nothing.
+- **A column of prose publishes nothing here.** A cell holding a space
+  has no form, and neither does one longer than twenty-four
+  characters, or one holding any mark outside the thirteen. So a note,
+  an address or a typed comment puts nothing in the census -- and
+  neither does a short sentence written to a template, which was a
+  real hole: two hundred and forty of those share one form, and that
+  form would have named every word's length and where the punctuation
+  fell.
+- **A form that says nothing new is not published.** Four region names
+  would say `AAAA` and `AAAAA`, and the description already publishes
+  their lengths exactly and which alphabet they came from. A cell has
+  a form only where at least two of the three kinds -- figure, letter,
+  mark -- appear in it, so `J1200` keeps `A9999` and `north` publishes
+  nothing.
+- **No rule anywhere decides which of your columns are codes.** The
+  same small-cell floor that governs everything else does, together
+  with those three limits, so there is no code detector here that can
+  get it wrong.
 - **Measured across the ten clinical coding schemes the owner named**,
   each written twice: as a column of all-different codes and as a long
   tail. Every one of the twenty twins is shaped like its own scheme and

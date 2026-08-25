@@ -174,7 +174,14 @@ def test_the_summary_claim_about_such_a_column_is_true(
         ["--identifier", "record_id", f"--keep-value={SENTINEL}"],
         capsys,
     )
-    assert "No value at all, in any form" in said
+    # The wording carries one more clause since the form census landed
+    # (plan P4-D18): what these columns publish is counts, lengths, the
+    # SHAPE their values were written in where enough shared one, and
+    # what synthtwin decided -- and a shape carries no letter and no
+    # figure of any value, which is why "no value at all" is still the
+    # claim the sentence opens with.
+    assert "No value at all" in said
+    assert "the SHAPE its values" in said
     assert "record_id" in said
     for column in document["columns"]:
         assert column["role"] in taxonomy.ROLES_PUBLISHING_NOTHING
