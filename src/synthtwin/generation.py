@@ -6307,9 +6307,29 @@ def _shared_out(
     # and this walks the debts largest first, takes an exact subset
     # for each and hands the rest on. Where every debt is settled that
     # way the search is never entered.
-    settled = _settled_by_sums(sizes, places, owing, names, supply)
-    if settled is not None:
-        return settled
+    # THE SIZE GUARD COMES FIRST, BEFORE ANY ARRANGEMENT IS WORKED OUT
+    # (review round 4 finding 5). It stood after the arithmetic pass,
+    # so a long tail of a hundred thousand held-back levels reached
+    # four thousand sums and then rescanned them for every remaining
+    # group -- some four hundred million visits -- before the guard
+    # that exists to stop exactly that was consulted. Past this many
+    # places the greedy walk is what either pass would settle for
+    # anyway, so it is taken directly.
+    if len(places) > _SHARE_OUT_PLACES:
+        return _greedily(sizes, places, owing, names, used, owners, holes)
+    # BOTH WAYS ROUND BEFORE GIVING UP (review round 4 finding 4). One
+    # debt taking an exact subset can leave another unreachable where
+    # a different subset would not: debts of four and two, with sizes
+    # three, two, two and one, are settled by `3+1` and `2` -- and
+    # taking the larger debt first picks `2+2` and strands the other.
+    # Trying the smaller debt first costs one more pass and reaches
+    # the arrangement the source itself had.
+    for biggest_first in (True, False):
+        settled = _settled_by_sums(
+            sizes, places, owing, names, supply, biggest_first
+        )
+        if settled is not None:
+            return settled
     budget = [_SHARE_OUT_NODES]
     # SEARCHING ONLY THE SMALL CASES. Past this many places the search
     # would spend its budget without reaching an answer, and the greedy
@@ -6323,6 +6343,30 @@ def _shared_out(
             chosen[place] if place in chosen else ""
             for place in range(len(sizes))
         ]
+    return _greedily(sizes, places, owing, names, used, owners, holes)
+
+
+def _greedily(
+    sizes: "tuple[int, ...]",
+    places: "list[int]",
+    owing: "dict[str, int]",
+    names: "list[str]",
+    used: "dict[str, int]",
+    owners: "dict[str, str]",
+    holes: "tuple[str, ...]",
+) -> "list[str]":
+    """The one-pass arrangement, settling the largest debt first.
+
+    Taken where no exact arrangement was found, and taken DIRECTLY on
+    a column with more held-back levels than the search will walk. It
+    is the arrangement this walk had before either the search or the
+    arithmetic was written, and it leaves the smallest remainder a
+    one-pass rule can.
+
+    IT OWES THE SUPPLY RULE TOO, and its own comment promised it
+    before the code did: a form of twenty-six spellings must not be
+    handed a twenty-seventh place.
+    """
     # NO EXACT ARRANGEMENT WAS FOUND, so the greedy one stands. It is
     # the arrangement this walk had before the search was written, and
     # it leaves the smallest remainder a one-pass rule can.
@@ -6333,6 +6377,7 @@ def _shared_out(
     # arrangements where that is most likely, so it counts spellings as
     # well as cells. Without this the fallback handed a form of
     # twenty-six spellings thirty-one places.
+    _unused = names
     every = [form for form in sorted(owing) if owing[form] > 0]
     left = {form: owing[form] for form in every}
     spare = {
@@ -6367,6 +6412,7 @@ def _settled_by_sums(
     owing: "dict[str, int]",
     names: "list[str]",
     supply: "dict[str, int]",
+    biggest_first: bool,
 ) -> "list[str] | None":
     """An arrangement settling every debt exactly, or None.
 
@@ -6386,6 +6432,8 @@ def _settled_by_sums(
     where = list(places)
     taken: "dict[int, str]" = {}
     ordered = sorted([(0 - owing[form], form) for form in names])
+    if not biggest_first:
+        ordered = sorted([(owing[form], form) for form in names])
     for pair in ordered:
         form = pair[1]
         picked = _subset_making(spare, owing[form], supply[form])
@@ -6406,39 +6454,49 @@ def _subset_making(
 ) -> "list[int] | None":
     """Which of ``spare`` sum to ``total`` in at most ``most`` parts.
 
-    Reachable sums, walked once: `made[sum]` remembers which size was
-    laid down to reach that sum and how many parts it took, so the
-    answer is read back rather than searched for. Fewest parts wins,
-    because a form's supply of distinct spellings is spent one per
-    part.
+    Reachable sums, walked once per size: `made[sum]` remembers which
+    size was laid down to reach that sum and which smaller sum it was
+    laid on, so the answer is read back rather than searched for.
+
+    TWO RULES KEEP THE CHAIN HONEST, and the first version had neither
+    (review round 4 finding 3). Each size is offered against the sums
+    reachable WITHOUT it -- a snapshot taken before it is laid down --
+    so no size is used twice. And a sum once reached is NEVER
+    rewritten: rewriting it improved `3+3+3` to `8+1` after a larger
+    sum had already been recorded as resting on it, and reading that
+    chain back returned the same slot twice. It returned `[4, 4, 0]`
+    for `[8,3,3,3,1]` making ten, which crashed the caller outright on
+    one arrangement of sizes and silently underpaid on another.
+
+    Both rules together make the chain strictly decreasing in slot, so
+    a slot cannot repeat -- which is the property the caller needs and
+    the one it did not have.
     """
     if total < 1:
         return []
     if most < 1:
         return None
-    made: "dict[int, tuple[int, int, int]]" = {}
-    reached = {0: 0}
+    made: "dict[int, tuple[int, int]]" = {}
+    reached: "dict[int, int]" = {0: 0}
     for slot in range(len(spare)):
         size = spare[slot]
-        for sum_so_far in sorted(reached, reverse=True):
+        before = [(sum_so_far, reached[sum_so_far]) for sum_so_far in reached]
+        for pair in before:
+            sum_so_far = pair[0]
+            parts = pair[1] + 1
             step = sum_so_far + size
-            if step > total:
-                continue
-            parts = reached[sum_so_far] + 1
-            if step in reached and reached[step] <= parts:
-                continue
-            if parts > most:
+            if step > total or step in reached or parts > most:
                 continue
             reached[step] = parts
-            made[step] = (slot, sum_so_far, parts)
+            made[step] = (slot, sum_so_far)
     if total not in made:
         return None
     picked: "list[int]" = []
     at = total
     while at:
-        slot, before, _parts = made[at]
+        slot, before_sum = made[at]
         picked = picked + [slot]
-        at = before
+        at = before_sum
     return picked
 
 
@@ -12052,10 +12110,19 @@ def _magnitude_notes(
     positive = 0
     sign_unknown = 0
     for cell in _present_of(written, _hole_spellings(column)):
-        # A cell the column's own description reads as absent
-        # is not a present cell (review round 3 finding 4).
-        if parsing.classify_number(cell) == parsing.NOT_A_NUMBER:
-            continue
+        # A cell the column's own description reads as absent is not a
+        # present cell (review round 3 finding 4) -- but a cell that
+        # is not a NUMBER still is, and this used to skip those
+        # (review round 4 finding 6).
+        #
+        # This role tolerates a slack of ordinary-text stragglers, and
+        # they are exactly what `n_whole_unknown` and `n_sign_unknown`
+        # count: a word settles no sign and settles no whole-number
+        # status, which is what the readers say of it. Skipping them
+        # recounted both as zero on a column publishing two, and
+        # accused a twin that had written them correctly. They fall
+        # into the two `unknown` arms below on their own; nothing else
+        # here has to know they are words.
         sign = parsing.numeric_sign(cell)
         if sign == parsing.SIGN_NEGATIVE:
             negative = negative + 1
