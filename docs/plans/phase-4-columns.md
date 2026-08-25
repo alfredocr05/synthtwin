@@ -1701,6 +1701,17 @@ Opened by this plan, each a limit accepted rather than work forgotten:
   be reconciled first, and reconciling them changes sentences a shipped
   profile prints. It is its own landing, not a passenger on a landing
   about dates.
+- **R-P4-32** (opened at the first read of P4-D17, 2026-08-24, and NOT
+  caused by it). A GROUPED NUMBER CARRYING AN EXPONENT AND NO POINT IS
+  MISROUTED. `1,001e2` is admitted by the documented grammar — valid
+  group separators, an optional exponent — but the separator rule takes
+  everything after the last comma as a group and finds `001e2`, which
+  is not three figures, so the cell is not a number at all. The affix
+  rule can then read `e2` as a shared suffix and publish the column as
+  `affixed_number` with a mean of 1050.5 where the numeric reading is
+  105050. `1,001.0e2` works, because the point happens to split the
+  grouped head before the exponent. The defect is in the separator
+  rule's reading of the tail and predates every landing of this phase.
 - **R-P4-31** (opened by P4-D17, 2026-08-24). A PERSON WHOSE FILE
   WRITES DECIMALS WITH A COMMA CANNOT GET A CORRECT DESCRIPTION. P4-D17
   makes the reading loud; it does not make it right. The proper answer
