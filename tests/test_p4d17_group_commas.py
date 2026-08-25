@@ -148,8 +148,13 @@ def test_a_column_that_settles_it_is_told_so_outright() -> None:
     document = _described(values)
     said = _comma_remark(document)
     assert said is not None, document["columns"][0]["remarks"]
-    assert "THIS FILE WRITES THE DECIMAL POINT AS A COMMA" in said
+    assert "CONTAINS VALUES WRITTEN WITH A DECIMAL COMMA" in said
     assert "cannot be read with the comma as a thousands separator" in said
+    # AND IT DOES NOT SPEAK FOR THE FILE. Two proof cells beside two
+    # hundred legitimate thousands-grouped ones do not make the file
+    # European, and declaring that it is would be the same false
+    # confidence in the other direction.
+    assert "THIS FILE" not in said
 
 
 def test_a_settled_thousands_column_is_not_warned() -> None:
@@ -190,13 +195,110 @@ def test_a_column_with_no_comma_says_nothing() -> None:
     assert _comma_remark(_described(values)) is None
 
 
-def test_a_column_whose_commas_are_not_numbers_says_nothing() -> None:
-    """No choice was made, because nothing was read as a number.
+def test_the_affix_rule_cannot_swallow_a_decimal_comma() -> None:
+    """THE TRAP AN EARLIER VERSION OF THIS TEST BLESSED.
 
-    `12,5` is refused by the thousands rule, so such a column is text
-    and this sentence would be false of it.
+    `10,5` through `249,5` is a column of European one-decimal values.
+    The affix rule reads it as the number 10 wearing the shared suffix
+    `,5`, so the cores are comma-free and a scan of them finds nothing
+    -- while the column publishes statistics over 10 to 249 for values
+    that run 10.5 to 249.5. This test used to REQUIRE that silence, on
+    the reasoning that nothing had been read as a number; what had
+    happened is that the comma was read as part of an affix, which is
+    worse.
+
+    A shared suffix that begins with a comma and is otherwise figures
+    is not an affix any measurement wears. It is the fractional part of
+    a number written the European way, and the column says so.
     """
     values = [f"{number},5" for number in range(10, 250)]
     document = _described(values)
-    assert document["columns"][0]["role"] != "count"
-    assert _comma_remark(document) is None
+    assert document["columns"][0]["role"] == "affixed_number"
+    said = _comma_remark(document)
+    assert said is not None, document["columns"][0]["remarks"]
+    assert "CONTAINS VALUES WRITTEN WITH A DECIMAL COMMA" in said
+
+
+def test_a_genuine_affixed_column_is_warned_too() -> None:
+    """A currency column's numeric block is read over its CORES.
+
+    `$1,795` is the same hazard as a bare `1,795`: the affix comes off
+    and the core is read as a quantity. The first revision fired the
+    remark only from the numeric verdict, so a column of money was
+    silently a thousand times out.
+    """
+    values = [
+        f"${number // 1000},{number % 1000:03d}"
+        for number in range(1000, 1240)
+    ]
+    document = _described(values, "amount")
+    assert document["columns"][0]["role"] == "affixed_number"
+    said = _comma_remark(document)
+    assert said is not None, document["columns"][0]["remarks"]
+    assert "could be read either way" in said
+
+
+def test_a_continuous_column_is_warned_too() -> None:
+    """The other numeric role, pinned separately from `count`.
+
+    Both are served by one call, but a test that walks only `count`
+    lets that call be narrowed to `count` and stay green.
+    """
+    values = [
+        f"{number // 1000},{number % 1000:03d}"
+        for number in range(1000, 1240)
+    ] + ["0.5"] * 12
+    document = _described(values)
+    assert document["columns"][0]["role"] == "continuous"
+    assert _comma_remark(document) is not None
+
+
+def test_an_exponent_does_not_hide_the_comma() -> None:
+    """`1,001e2` is a spelling the grammar admits.
+
+    Reading the exponent as ordinary characters made the whole cell
+    answer "no comma", so a column of them was neither read as numbers
+    nor warned about.
+    """
+    assert parsing.comma_reading("1,001e2") == parsing.COMMA_EITHER
+    assert parsing.comma_reading("1,23e2") == parsing.COMMA_DECIMAL
+    assert parsing.comma_reading("1,001E+2") == parsing.COMMA_EITHER
+
+
+def test_only_a_cell_trying_to_be_a_number_may_speak() -> None:
+    """THE SHARPEST RISK IN THE SECOND COUNT, closed.
+
+    The proof count is read over EVERY present cell rather than only
+    over the numbers, because a cell that settles the question is
+    usually not a number this format reads -- `1000,000` is the whole
+    reason the count exists. That reach is also its danger: without a
+    guard, `Hello.World,Foo` is a point before a comma and was read as
+    PROOF of a decimal comma, so a column of names or addresses would
+    have been told, in capital letters, that this file writes the
+    decimal point as a comma.
+
+    A cell is evidence about how NUMBERS are written only if it is
+    trying to be a number. Anything carrying a character that is not a
+    figure, a point or a comma says nothing at all.
+    """
+    for text in (
+        "Smith, John",
+        "Doe, J., MD",
+        "Hello.World,Foo",
+        "a,b,c",
+        "1,5 mg",
+        "Iowa City, IA 52242",
+        "2024, March",
+    ):
+        assert parsing.comma_reading(text) == parsing.COMMA_NONE, text
+
+
+def test_a_column_of_names_is_never_told_about_decimals() -> None:
+    """The same guard, as the column a person would actually hold."""
+    names = [f"Family{number}, Given{number % 40}" for number in range(240)]
+    assert _comma_remark(_described(names, "patient_name")) is None
+    addresses = [
+        f"{number} Main St., Apt {number % 40}, Iowa City"
+        for number in range(240)
+    ]
+    assert _comma_remark(_described(addresses, "address")) is None

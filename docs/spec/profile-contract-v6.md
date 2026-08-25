@@ -1061,7 +1061,7 @@ contract:
    widening it to arbitrary strings would be exactly the hole that lets
    a source-derived value into a sentence and be rebuilt successfully.
 
-**The census.** The table holds 44 forms and 65 argument positions. Of
+**The census.** The table holds 44 forms and 65 argument positions: 56 whole numbers, 3 package words, 4 nested forms and 2 bound affix strings. Of
 those, 53 are whole numbers, 3 are package words, 4 are nested forms,
 and 2 are bound affix strings. No position is a string of any other
 kind.
@@ -1697,22 +1697,24 @@ zero:
 > one thousand seven hundred and ninety-five. MANY COUNTRIES WRITE THE
 > DECIMAL POINT AS A COMMA, and if this table is one of them then
 > `1,795` means 1.795 and each of those values has been read as a
-> thousand times its real size, carrying this column's average, its
-> spread and its ends with them. Nothing in the column settles which
-> was meant. If your file writes decimals with a comma, write this
+> thousand times its real size, carrying any average, spread or ends
+> this profile publishes for this column with them. Nothing in this
+> column settles which was meant. If your file writes decimals with a comma, write this
 > column with a decimal point instead and run the command again
 
 and where it is not:
 
 > «2» of this column's values cannot be read with the comma as a
 > thousands separator — a thousands group is exactly three figures and
-> these are not — so THIS FILE WRITES THE DECIMAL POINT AS A COMMA.
-> synthtwin read the comma the other way, as a thousands separator, so
-> `1,795` was read as one thousand seven hundred and ninety-five where
-> the file means 1.795. The «1» value(s) that could be read either way
-> were read a thousand times too large, and this column's average, its
-> spread and its ends are wrong with them. Write this column with a
-> decimal point and run the command again
+> these are not — so THIS COLUMN CONTAINS VALUES WRITTEN WITH A DECIMAL
+> COMMA, and synthtwin does not read those as numbers at all. Of the
+> rest, «1» could be read either way and were read with the comma as a
+> thousands separator, so `1,795` was read as one thousand seven
+> hundred and ninety-five; every one of those that was meant the way
+> the values above are written has been read a thousand times too
+> large, and any average, spread or ends this profile publishes for
+> this column are wrong with them. Write this column with a decimal
+> point and run the command again
 
 **A CELL CAN SETTLE IT, AND AN EARLIER WORDING HERE SAID OTHERWISE**
 (plan P4-D17). That wording was wrong in both directions. A point AFTER
@@ -1724,6 +1726,34 @@ way, because `1000,000` cannot be thousands-grouped at all, so a
 European column carries its own proof as soon as one of its values
 reaches a thousand. What settles nothing is a column every one of whose
 values is under a thousand and written to three figures.
+
+**ONLY A CELL TRYING TO BE A NUMBER MAY SPEAK.** Argument 2 reaches
+every present cell rather than only the numbers, because a cell that
+settles the question is usually not a number this format reads —
+`1000,000` is why the count exists. That reach is also its danger: a
+cell carrying any character that is not a figure, a point or a comma
+says NOTHING, because without that guard `Hello.World,Foo` is a point
+before a comma and a column of names or addresses would be told, in
+capital letters, that this file writes the decimal point as a comma.
+
+**NEITHER SENTENCE CLAIMS A STATISTIC THE COLUMN MAY NOT HAVE, AND
+NEITHER SPEAKS FOR THE FILE.** A column that PROVES a decimal comma is
+usually `free_text`, because the cells that prove it are not numbers
+this format reads and the column drops below the parse line because of
+them — so a sentence naming "this column's average" would be false
+exactly where it matters. Both say "any average, spread or ends this
+profile publishes", which is true whether it publishes them or none.
+And two proof cells beside two hundred legitimate thousands-grouped
+ones do not make the FILE European: the settled sentence says what it
+saw, that this COLUMN contains such values.
+
+**A SHARED SUFFIX THAT BEGINS WITH A COMMA IS NOT AN AFFIX.** `10,5`
+through `249,5` is a column of European one-decimal values, and the
+affix rule reads it as the number 10 wearing the suffix `,5` — so the
+cores are comma-free and a scan of them finds nothing, while the block
+publishes statistics over 10 to 249 for values running 10.5 to 249.5.
+Such a suffix is the fractional part of a number written the European
+way, and every cell wearing one is counted as proof.
 
 **It counts CELLS and speaks of them, never of "every value".** A
 column of fifty comma-bearing cells beside fifty plain ones is not
