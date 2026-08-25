@@ -995,7 +995,7 @@ def test_the_arrangement_of_forms_is_searched_and_not_only_greedy() -> None:
     """
     sizes = tuple(sorted([8] * 5 + [10] * 20))
     owing = {"@@-%%": 76, "@@_%%": 164}
-    taken = generation._shared_out(sizes, dict(owing))
+    taken = generation._shared_out(sizes, dict(owing), {}, {}, ())
     settled: dict[str, int] = {}
     for place in range(len(sizes)):
         form = taken[place]
@@ -1011,9 +1011,9 @@ def test_where_no_exact_arrangement_exists_the_walk_still_answers() -> None:
     one-pass rule stands -- and the twin's own report names whatever
     that leaves unsettled.
     """
-    taken = generation._shared_out((7, 7, 7), {"@-%": 10, "@_%": 5})
+    taken = generation._shared_out((7, 7, 7), {"@-%": 10, "@_%": 5}, {}, {}, ())
     assert taken == ["@-%", "@_%", "@-%"]
-    assert generation._shared_out((5,), {}) == [""]
+    assert generation._shared_out((5,), {}, {}, {}, ()) == [""]
 
 
 def test_a_file_holding_TOO_MANY_of_a_form_misses_it_too() -> None:
@@ -1305,3 +1305,78 @@ def test_a_column_whose_holes_look_like_values_is_not_accused() -> None:
         for check in outcome.checks
         if check.verdict == validation.MISSED
     ] == []
+
+
+def test_a_form_spelled_like_a_cell_of_the_column_is_not_named() -> None:
+    """THE HALF THE PLACEHOLDERS DO NOT REACH (round 3 finding 1).
+
+    A cell that HAS a form can never be spelled like any form, because
+    every form carries a placeholder and a cell carrying one is
+    formless. That is the guarantee, and it is checkable.
+
+    A FORMLESS cell is under no such rule. A column holding `E11.9`
+    eleven times beside the literal text `@%%.%` three times published
+    the key `@%%.%` -- and that key is the suppressed value, spelled
+    exactly. The producer pools such a form instead of naming it,
+    which costs nothing: the cell was formless and in no count.
+    """
+    values = ["E11.9"] * 11 + ["@%%.%"] * 3
+    document, _loaded, _folder = _described(values, "dx")
+    forms = document["columns"][0]["shape_forms"]
+    assert "@%%.%" not in forms, forms
+    assert forms == {"(withheld)": 11}, forms
+
+    # ...and an ordinary column is untouched by the rule.
+    document, _loaded, _folder = _described(
+        ["E11.9"] * 60 + ["I10.0"] * 45, "dx"
+    )
+    assert document["columns"][0]["shape_forms"] == {"@%%.%": 105}
+
+
+def test_the_debts_are_settled_by_arithmetic_before_any_search() -> None:
+    """A SEARCH NEEDS A BOUND, AND THE BOUND MISSED A REAL ANSWER.
+
+    Twelve held-back levels whose debts of 31 and 74 are met exactly by
+    `14+17` and `6+13+13+14+14+14` -- an arrangement the SOURCE itself
+    exhibits -- were reached only at node 67,208, past the twenty
+    thousand the walk allows, so it settled for 41 and 83 (round 3
+    finding 7).
+
+    Which sizes make one debt is a question with an answer: reachable
+    sums over the sizes. Both this case and round 1's are settled
+    exactly now, without entering the search at all.
+    """
+    for sizes, owing in (
+        ((6, 9, 10, 11, 13, 13, 14, 14, 14, 14, 14, 17),
+         {"@-%": 31, "@_%": 74}),
+        (tuple(sorted([8] * 5 + [10] * 20)),
+         {"@%-%%": 76, "@%_%%": 164}),
+    ):
+        taken = generation._shared_out(sizes, dict(owing), {}, {}, ())
+        settled: dict[str, int] = {}
+        for place in range(len(sizes)):
+            settled[taken[place]] = settled.get(taken[place], 0) + sizes[place]
+        for form in owing:
+            assert settled.get(form) == owing[form], (form, settled, owing)
+
+
+def test_the_supply_knows_what_the_column_has_already_written() -> None:
+    """IT COUNTED SPELLINGS THE WALK WOULD REFUSE (round 3 finding 5).
+
+    A form's supply is how many stand-ins it can still dress, not how
+    many spellings it has. `_form_room` answers the second: for a form
+    whose twenty-six spellings are twenty-five taken and one free, it
+    says twenty-six, and an arrangement built on that hands the form
+    places it cannot fill.
+
+    It stops at what the caller asked for, too, which is what makes it
+    affordable on a wide table -- fifty calls cost five milliseconds
+    where the whole-supply scan cost nearly two seconds.
+    """
+    used = {generation._filled_form("@_", step): 1 for step in range(25)}
+    assert generation._form_room("@_") == 26
+    assert generation._usable_room("@_", 10, used, {}, ()) == 1
+    # ...and a form no spelling of which is usable supplies nothing.
+    assert generation._usable_room("-@%%", 10, {}, {}, ()) == 0
+    # ...and it stops at what was asked for.
+    assert generation._usable_room("@%%.%", 12, {}, {}, ()) == 12

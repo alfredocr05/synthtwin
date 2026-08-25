@@ -1776,8 +1776,24 @@ is not empty — an empty cell is an absent value, not a label.
 
 `suppressed_levels` says how many levels were withheld and
 `suppressed_level_counts` gives their sizes as an anonymous multiset,
-in ascending order. For each size in that list, in order, one invented
-neutral label is produced and used exactly that many times.
+in ascending order. One invented label is produced for each size and
+used exactly that many times.
+
+**WHICH SIZE TAKES WHICH FORM IS SETTLED BEFORE ANY LABEL IS BUILT,
+and it is not the list's own order** (contract 7.9.1, review round 3
+finding 9). Where the column publishes a census, the sizes are
+considered LARGEST FIRST and each published form's outstanding debt is
+settled by an exact subset of them, read off the reachable sums rather
+than hunted for; a size no debt needs is left NEUTRAL. Where no
+arrangement settles every debt exactly, the largest debt is taken
+first and the report names what went unmet.
+
+Ascending order and neediest-form-first were what this said, and they
+do not reach an arrangement the source itself exhibits: twelve levels
+whose debts of 31 and 74 are met exactly by `14+17` and
+`6+13+13+14+14+14` are reached by no one-pass rule over the ascending
+list. The published counts are exact facts and the order of a list is
+not, so the order yields.
 
 **Where the column's census NAMES NO FORM** the invented
 labels are `group-1`, `group-2`, `group-3`, … in order. Each candidate
@@ -2664,13 +2680,30 @@ for.
    **Where the column publishes a census of written forms and one of
    them fits this group, the group is written in that form instead**
    (contract 7.9.1, plan P4-D18). A form FIXES a length — every cell
-   that wore one was exactly as long as the form — so a form is offered
-   only to a group the packing already put at that length, and offering
-   it costs steps 5 and 6 nothing; a space survives into a form
-   unchanged, so the form's own word count must equal the group's. The
-   debt is over cells and a group covers its own number of them, so the
-   walk settles the form owing the most cells, ties broken by the form's
-   own spelling.
+   that wore one was exactly as long as the form — so which lengths a
+   group may be offered is the whole question here.
+
+   **A GROUP CARRYING A PUBLISHED LENGTH END keeps its length exactly**,
+   because `length.min` and `length.max` are EXACT-OBSERVABLE. **EVERY
+   OTHER GROUP may take a form of another length, but only while the
+   published AVERAGE can still afford it** — the total length may move
+   by ONE CHARACTER in each direction and no further, measured against
+   what the packing's own lengths already spend (review round 3 finding
+   10; the rule stated here was "the assigned length", which met one
+   form of a blood-pressure column and missed the two beside it).
+
+   That budget is the precedence rule of this section made arithmetic:
+   an exact count outranks an approximated average, and it spends the
+   average's own slack to the last character and no further. Swept
+   against two real columns at four budgets — half the rows, a
+   fiftieth, a hundredth and one character — only one character keeps
+   BOTH a blood-pressure column's four forms and a column whose census
+   asks for lengths its average does not want.
+
+   A space survives into a form unchanged, so the form's own word count
+   must equal the group's either way. The debt is over cells and a
+   group covers its own number of them, so the walk settles the form
+   owing the most cells, ties broken by the form's own spelling.
 
    **THE FORM IS AN ASK AND NOT A PROMISE**, exactly as the fold
    collision of G9.3 is. The candidate is still checked against the

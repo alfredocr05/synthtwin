@@ -4223,8 +4223,26 @@ def _shape_forms(cells: _Cells) -> dict[str, int]:
             counts[form] = counts[form] + 1
             continue
         counts[form] = 1
+    # ...AND A FORM SPELLED LIKE A CELL OF THIS COLUMN IS NOT NAMED
+    # (review round 3 finding 1). The placeholders make a form
+    # unspellable by any cell that HAS one, which is the guarantee this
+    # census rests on -- but a FORMLESS cell is under no such rule. A
+    # column holding `E11.9` eleven times and the literal text `@%%.%`
+    # three times publishes the key `@%%.%`, and that key is the
+    # suppressed value, spelled exactly.
+    #
+    # It costs nothing real: such a cell is formless, so it was in no
+    # count here, and dropping its form drops a key the column can do
+    # without. It cannot be checked by a loader, which holds no cells,
+    # so it is a producer obligation and is stated as one (SF-P2).
+    spelled: dict[str, int] = {}
+    for value in cells.present:
+        spelled[value] = 1
     published_counts: dict[str, int] = {}
     for form in sorted(counts):
+        if form in spelled:
+            withheld = withheld + counts[form]
+            continue
         if counts[form] >= cells.settings.small_cell_floor:
             published_counts[form] = counts[form]
             continue
