@@ -1701,6 +1701,37 @@ Opened by this plan, each a limit accepted rather than work forgotten:
   be reconciled first, and reconciling them changes sentences a shipped
   profile prints. It is its own landing, not a passenger on a landing
   about dates.
+- **R-P4-35** (opened by P4-D18's build, 2026-08-25, and NOT caused by
+  it). A FIXED-WIDTH CODE COLUMN WHOSE LARGER CODES NEED NO LEADING
+  ZERO LOSES THAT WIDTH ON THE UNPADDED HALF. A vaccine-code column
+  running `000` to `199` is a column of numbers, so `pad_widths`
+  governs it — and that census counts LEADING-ZERO cells only (C6-28b).
+  The 103 cells written `100` to `199` carry no leading zero, are
+  `plain` to `numeric_styles`, and their WIDTH is published nowhere. On
+  a 230-row measurement the twin wrote 5 of them two figures wide.
+
+  Closing it means widening the census to cover the unpadded cells'
+  widths, which is a description change and its own landing. It is not
+  P4-D18's to fix: the shape census does not reach numeric roles, and
+  it should not — a number's spelling is `numeric_styles`' subject.
+
+- **R-P4-34** (opened by P4-D18, 2026-08-25). THE FORM CENSUS CAN FALL
+  ONE GROUP SHORT WHEN A PUBLISHED LABEL'S HELD-BACK SPELLINGS RUN OUT
+  OF FORM-KEEPING ONES. A made-up spelling of a published label must
+  fold onto that label, and the fold-preserving supply is the case
+  flips and then edge spaces (G8.2) — of which only the case flips keep
+  the written form. `E11.9` has one letter, so it has one case flip; if
+  that flip is already published, the next spelling is `E11.9 `, which
+  is a different form, and the census goes short by that group's rows.
+
+  Two things narrow it and are built: the label's own spelling is
+  offered where nothing else of the level needs it, and it is offered
+  to the LARGEST held-back group. Beyond that the description does not
+  say which held-back spelling wore which form, and no generator can
+  recover it. What would close it is publishing the forms PER LEVEL
+  rather than per column, which is more disclosure than the owner was
+  asked for and is not obviously worth it.
+
 - **R-P4-33** (opened at the third read of P4-D17, 2026-08-25). A
   DECIMAL COMMA THE AFFIX RULE HAS SWALLOWED IS NOT DETECTED, AND THE
   ATTEMPT TO DETECT IT WAS WITHDRAWN. `10,5` through `249,5` is read as
@@ -3019,6 +3050,40 @@ code, and this census is not the place to decide whether that may be
 published. And a cell with no form is not POOLED either — `(withheld)`
 means one thing in this format, a group too small to name, and at a
 floor of one there is no such group.
+
+**THE GENERATOR HALF, which is the half the owner asked for.** Both
+roles' twins are written in the published forms. On
+`long_tail_labels` the made-up label of a held-back level is a form's
+spelling instead of `group-N` (G8.3); on `free_text` the invented
+value of a group is a form's spelling instead of the alphabet walk's
+(G9.5 step 7). Three rules make it close:
+
+- **the cells already written pay first**, counted over the twin's own
+  cells, because the published spellings and the made-up variants are
+  already on the page wearing their forms;
+- **a form is offered only where the LENGTH and the WORD COUNT agree**,
+  which is what makes it free: every cell that wore a form was exactly
+  as long as it, so the published length statistics are untouched;
+- **the form is an ASK and not a promise** — the class check, the
+  distinctness check and the four neutrality tests all still run, and
+  where the form cannot satisfy them the walk is taken again without
+  it, so a form costs no value the ordinary rule could have written.
+
+**One thing the build found that the design did not.** Filling a form
+by plain counting leaves every position but the lowest at zero for the
+first few hundred values, so every cell of a 240-row laboratory-code
+twin ended `-0` — and a column whose cells all end alike is not free
+text to the describer, it is a column of numbers wearing an affix. The
+twin reprofiled into a role its source never had. The step is now
+multiplied by a stride sharing no factor with the form's own supply.
+
+**Measured across the ten code systems the owner named**, each written
+twice — as an all-different column, which lands on `free_text`, and as
+a long tail, which lands on the label role. Every one of the twenty
+twins is shaped like its scheme, splits on the hyphen into the number
+of parts its scheme has, and keeps its source's role. R-P4-35 records
+the one case that does not close, which is a numeric column and not
+this decision's.
 
 **THE OWNER RULED FOR THIS** (amendment A-P4-36): may a column that
 publishes nothing today publish its shape, so its twin stops being

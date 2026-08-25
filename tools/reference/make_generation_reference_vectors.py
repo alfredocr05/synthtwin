@@ -2038,6 +2038,28 @@ def place(content, missing, rows, words):
 # ------------------------------------------------------- the four builders
 
 
+def spare_label_rows(level):
+    """How many rows the level's own spelling may cover -- G8.1 step 2.
+
+    The label's own spelling is one more spelling that folds onto the
+    label, and the only further one that KEEPS ITS WRITTEN FORM: a case
+    flip may already be published and a trailing space changes the
+    form.  It is available only where the published and held-back
+    spellings already cover the level's count, since otherwise step 3
+    writes the label itself and that spelling is spoken for.  It is
+    offered to the key naming the LARGEST row count, which is where it
+    covers the most cells.  0 says it is not available.
+    """
+    covered = sum(level["variants"].values())
+    largest = 0
+    for key in level["variants_withheld"]:
+        covered += int(key) * level["variants_withheld"][key]
+        largest = max(largest, int(key))
+    if covered < level["count"]:
+        return 0
+    return largest
+
+
 def _label_content(column):
     """The content list of a label column -- method sections G8.1 and G8.4."""
     content = []
@@ -2052,11 +2074,20 @@ def _label_content(column):
             content.extend([level["label"]] * level["count"])
             used.append(level["label"])
             continue
-        invented = invented_variants(level["label"], used, wanted)
+        spare = spare_label_rows(level)
+        if level["label"] in used:
+            spare = 0
+        invented = invented_variants(
+            level["label"], used, wanted - (1 if spare else 0)
+        )
         supply = iter(invented)
         for key in sorted(withheld, key=int):
             for _ in range(withheld[key]):
-                spelling = next(supply)
+                if spare and int(key) == spare:
+                    spelling = level["label"]
+                    spare = 0
+                else:
+                    spelling = next(supply)
                 content.extend([spelling] * int(key))
                 used.append(spelling)
     for spelling, size in invented_levels(used, column["suppressed_level_counts"]):
@@ -4096,12 +4127,15 @@ def _label_variants():
         suppressed_level_counts=[3, 7], level_ceiling=20,
     )
     return {
-        "why": "the variant allocation of G8.1, the case flips of G8.2 with "
-        "a candidate skipped because a published variant already spells it, "
-        "the trailing-space family a parent with no letters falls straight "
-        "through to, and the neutral stand-in labels of G8.3 at their "
-        "published sizes. A label column consumes no content word, so every "
-        "byte here is fixed by published counts.",
+        "why": "the variant allocation of G8.1, including the label's own "
+        "spelling offered to the largest held-back group of every level its "
+        "spellings already cover; the case flips of G8.2 with a candidate "
+        "skipped because a published variant already spells it; the "
+        "trailing-space family a parent with no letters falls straight "
+        "through to; and the neutral stand-in labels of G8.3 at their "
+        "published sizes, this column publishing no census of written forms. "
+        "A label column consumes no content word, so every byte here is "
+        "fixed by published counts.",
         "column": column,
         "rows": 50,
         "identifier_declared": False,
