@@ -298,7 +298,7 @@ PLAN4_REGIONS = {
         "### P4-D4.5 The fixed-fraction spelling fact "
         "(closes R-P3-12's route)"
     ),
-    "padding": "### P4-D7 The padded-field width fact",
+    "padding": "### P4-D14 The padded-field width fact",
 }
 
 # Groups whose facts are NOT in the version 4 contract matrix, and why.

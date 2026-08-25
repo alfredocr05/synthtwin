@@ -822,7 +822,7 @@ def battery() -> list[Mutation]:
             "figures after the point counted for cells that wrote none",
             edit("visits", fraction_widths={"2": 40}),
         ),
-        # -- the census of padded field widths (P4-D7) ---------------
+        # -- the census of padded field widths (P4-D14) --------------
         Mutation(
             "P5b",
             "field widths counted for cells that wrote no padding",

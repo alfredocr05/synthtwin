@@ -1701,6 +1701,18 @@ Opened by this plan, each a limit accepted rather than work forgotten:
   be reconciled first, and reconciling them changes sentences a shipped
   profile prints. It is its own landing, not a passenger on a landing
   about dates.
+- **R-P4-31** (opened by P4-D17, 2026-08-24). A PERSON WHOSE FILE
+  WRITES DECIMALS WITH A COMMA CANNOT GET A CORRECT DESCRIPTION. P4-D17
+  makes the reading loud; it does not make it right. The proper answer
+  is a `--decimal-comma` declaration on the model of `--day-first` —
+  the person states what their file does, the settings record it, the
+  validator reconstructs it. What stopped it being built beside the
+  remark is that the reading is per COLUMN and not per table: a comma
+  inside an address, a free-text note or a code is not a decimal point,
+  so a declaration that rewrote every comma in the table would corrupt
+  the columns it was not meant for. Which columns it reaches is a
+  decision of its own, and until it is taken the route is the one the
+  remark names: write the column with a decimal point.
 - **R-P4-30** (opened 2026-08-24, from the survey of healthcare code
   columns). A PLAIN NUMERIC CELL CARRIES NO WIDTH FACT, so a code
   column whose values are uniformly wide can still be written at two
@@ -2641,7 +2653,16 @@ otherwise, and the disagreement is recorded rather than settled by
 whichever is convenient. Every landing keeps the suite green, the
 scans clean and the seal current.
 
-### P4-D7 The padded-field width fact
+### The decisions this phase added after its plan was ratified
+
+**These continue the numbering at P4-D14** rather than restarting it.
+Three of them were first written as P4-D7, P4-D8 and P4-D9 — numbers
+this plan had already used for the contract, the generation method and
+the validation method — so for a time the document said two different
+things under each of those names. They were renumbered on 2026-08-24,
+and the numbers they now carry are the ones every artifact refers to.
+
+### P4-D14 The padded-field width fact
 
 The numeric styles machinery gains its second census, carried BESIDE
 the styles block for the reason A-P4-5 gives for the first: among a
@@ -2713,7 +2734,7 @@ and is met exactly.
 finished cells, exactly as the fraction census is, and reported rather
 than met wherever the paragraph above bites.
 
-### P4-D8 The date shapes a spreadsheet actually writes
+### P4-D15 The date shapes a spreadsheet actually writes
 
 Four shapes a person meets constantly are read by this tool as free
 text today, and a column of them loses everything a date column has:
@@ -2798,7 +2819,7 @@ alone. The two-digit and dotted pairs land after it, each with the
 evidence machinery, because each reopens the day-first question and
 the reads that follow should see one of them at a time.
 
-### P4-D9 A number written with a leading zero says it may be a code
+### P4-D16 A number written with a leading zero says it may be a code
 
 A survey of the clinical coding schemes this tool is actually pointed
 at — the ones a diagnosis, a procedure, a laboratory test, a dispensed
@@ -2834,7 +2855,7 @@ distribution, and the sentence says so in as many words. It proposes,
 exactly as the two pointers beside it propose.
 
 **Why leading zeros.** Because it is a fact the producer already reads
-and already publishes a census of (P4-D7), and because nobody writes a
+and already publishes a census of (P4-D14), and because nobody writes a
 MEASUREMENT as `00100`. It is evidence about how the column was
 WRITTEN, not a guess about what it means — which is the line the three
 withdrawn identifier heuristics in this repository's history all
@@ -2848,6 +2869,61 @@ than about spelling, which is a guess of the kind this repository has
 withdrawn three times, and is an owner decision rather than an
 implementation choice. This decision takes the case that can be made
 from a written fact and leaves the rest named.
+
+### P4-D17 A comma inside a number is a choice, and the column says so
+
+**THE ONE PLACE THIS TOOL CAN BE WRONG BY A FACTOR RATHER THAN BY A
+ROUNDING, and it was silent about it.** A column of laboratory values
+written the way most of the world writes them —
+
+    1,795   0,814   2,706
+
+— is read here as one thousand seven hundred and ninety-five, eight
+hundred and fourteen, two thousand seven hundred and six. The
+description then says `role: count`, `integer_valued: true`, "whole
+numbers that count things", and publishes **mean 1830.06** for a column
+whose real mean is 1.83. The ends come out as 814 and 2996 where the
+real ends are 0.814 and 2.996. The twin holds `0814`. The quality
+report says nothing about any of it.
+
+That is not a fidelity gap of the kind the rest of this phase is about.
+It is a wrong number that looks entirely plausible, and somebody would
+have to already know the answer to catch it.
+
+**THE COLUMN CANNOT SETTLE IT, and that is the finding that shapes this
+decision.** A thousands group is exactly three digits, so `12,5` and
+`1,23` prove a decimal comma — but a European column written to three
+decimals has every group exactly three digits long, and is therefore
+indistinguishable from a US column written with thousands separators.
+Evidence does not reach the dangerous case. There is no rule to be
+found here, only a choice.
+
+**The decision.** The choice stands — a comma is read as a thousands
+separator — and every column where that choice was MADE carries note
+NF44, which states the reading, states that many countries write the
+decimal point as a comma, states that such a column has been read as a
+thousand times its real size along with its average, its spread and
+both its ends, and says what to do about it.
+
+**Why a remark and not a refusal.** Refusing every comma-bearing
+numeric column would decline a US column that is read perfectly well,
+and "unsupported column type" is not an outcome this product has.
+Reading by a guess and saying nothing is what it did before. A stated
+choice is the honest third thing, and it is what principle 5 asks for:
+handled by a type path, or declined with an explanation — this is
+handled, with the explanation attached.
+
+**WHAT THIS DOES NOT DO, and it is the larger half.** It does not let a
+person whose file writes decimals with a comma get a correct
+description. Their route today is to rewrite the column with a decimal
+point and run the command again, which the remark tells them. A
+`--decimal-comma` declaration would be the proper answer, on the exact
+model of `--day-first`: the person states what their file does, the
+settings record the declaration, and the validator reconstructs the
+reading. It is not built here because the reading has to be applied per
+COLUMN rather than per table — a comma inside `Apt 1,795` in an address
+column is not a decimal point — and choosing which columns it reaches
+is a decision of its own. Recorded as residual R-P4-31.
 
 ## Acceptance criteria
 
@@ -3893,7 +3969,7 @@ that refuses.
 **What changed.** Version 6 gains `pad_widths`, a sibling of
 `numeric_styles` on `count`, `continuous` and `affixed_number`, stated
 in full at contract section 7.8 (C6-27b to C6-30b) with producer
-obligation PW-P. The decision is P4-D7 above. The generator honours a
+obligation PW-P. The decision is P4-D14 above. The generator honours a
 named width when it writes a padded cell; the report recounts the
 census on the finished cells and names any width the twin did not
 reach; and both ends of G12.8's spelling envelope now read the census,
@@ -4213,3 +4289,86 @@ expectation is that some of these eight are wrong too.
 **Residual R-P4-29 was opened while building this and not by it:** the
 contract's note grammar and `taxonomy.NOTE_ARITY` disagree about five
 forms, one of them in shipped output, and no test compares them.
+
+
+## Amendment A-P4-36 — the owner rules on what a column that publishes nothing may publish (2026-08-24)
+
+**FIVE QUESTIONS WERE PUT TO THE OWNER AND ALL FIVE ARE ANSWERED YES.**
+They were raised by the survey of clinical coding schemes and by the
+measurement of two-numbers-in-one-cell columns, and each was a question
+about the same thing in different clothes: may a column that publishes
+NOTHING today begin to publish something, so that its twin stops being
+nonsense.
+
+**The owner's ground, recorded in their own terms** (2026-08-24):
+
+> we just break privacy if we see all of a row. When we are creating a
+> fake data whatever is there is not real.
+
+> imagine a really rare condition! Less than 11 cases. We should have
+> less than 11 cases of this rare thing in our twin! Why? Because i'm
+> just saying that there is less than eleven thing in the original
+> file, but i know nothing else about that specific row, who is that
+> person/patient. So, even this not common finding should be
+> represented in the twin!
+
+**What is now permitted:**
+
+1. **A `long_tail_labels` column may publish the SHAPE of its values** —
+   length, alphabet and digit counts — so that the stand-ins written for
+   its rare tail are code-shaped rather than `group-N`. `free_text` and
+   `identifier` already publish exactly these facts, so this is the same
+   disclosure those roles already make, reaching a role that makes none.
+2. **The numeric roles may publish a repeat structure**
+   (`n_distinct_by_occurrences`), so a code column's twin stops holding
+   a flat frequency where the real column has a steep one. It publishes
+   no value: it is the shape of who-repeats-how-often.
+3. **A value-based signal may PROPOSE the identifier role.** The
+   standing rule that no rule may DECIDE it from values is unchanged;
+   what is now permitted is a wider set of signals for the pointer P4-D16
+   already carries on padded columns, so that a code column with no
+   leading zeros is told too.
+4. **The percentile ladder's ends may be governed by the small-cell
+   floor**, closing the case where `min` and `max` publish a value one
+   row holds while `--smallest-group 100` is in force.
+5. **A column holding two numbers in one cell may publish a
+   distribution for each side**, so that a blood-pressure column stops
+   being read as text and its twin stops being invented characters.
+
+**THE RARE TAIL IS THE HEART OF IT, and it is a fidelity ruling before
+it is a privacy one.** The owner's position is that a twin which drops
+a rare finding is a twin that misleads: somebody developing a cohort
+query against it writes code that finds nothing where the real table
+has three patients, and they cannot tell the difference between "my
+query is wrong" and "this is rare". A rare thing must therefore be
+REPRESENTED in the twin, at a count under the floor, because that is
+what the real table looks like.
+
+**One thing the owner is told rather than argued with, and then the
+ruling stands.** Their reasoning is that a row's identity needs the
+whole row. That is right about the TWIN — a fake row carrying a rare
+code is not a person, and no amount of staring at it makes one. It is
+not the whole story about the DESCRIPTION file, which is the artifact
+that travels: a description naming a rare value asserts that the real
+table contains at least one instance of it, and for a condition rare
+enough in a small enough population that existence claim can narrow who
+is in the table without any other column being seen. That is what a
+small-cell floor is for, and it is why the default is 11.
+
+**So the ruling is implemented in two halves, which is what lets it be
+taken in full.** By DEFAULT the twin gains the rare tail's SHAPE and
+COUNTS without the description naming the rare values: forty rare codes
+become forty different code-shaped stand-ins at their real counts, so a
+cohort query finds three patients where the real table has three, and
+the twin stops holding `group-14`. Where the owner wants the real rare
+values themselves, `--smallest-group 1` already publishes every one of
+them and the twin reproduces them exactly — measured on a
+251-row diagnosis column: 251 of 251 cells real, zero stand-ins. The
+flag is the owner's to use per table, which is where a judgement about
+one table's population belongs.
+
+**What this LOWERS is stated plainly:** every item above widens what a
+description publishes about a column that publishes nothing today, and
+items 1, 2 and 4 change what is published about columns that already
+publish something. What it buys is the phase's own product goal —
+a twin that code developed against it runs on.

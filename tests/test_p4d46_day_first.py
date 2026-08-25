@@ -287,7 +287,7 @@ def test_the_reading_names_are_words_and_not_format_members() -> None:
 def test_the_pairs_are_every_ambiguous_grammar_and_no_others() -> None:
     """A pair added without a reading is a declaration that lies.
 
-    THE LIST GREW WITH P4-D8 AND THE PROPERTY DID NOT. A dotted date
+    THE LIST GREW WITH P4-D15 AND THE PROPERTY DID NOT. A dotted date
     and a two-figure year say no more about which field is the month
     than a slashed one does, so they are read by this machinery too --
     the same evidence, the same declaration, the same default. What the

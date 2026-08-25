@@ -5077,7 +5077,7 @@ def _padded_widths(
 ) -> "dict[str, int]":
     """How wide the cells written with a redundant zero wrote a field.
 
-    The second width census (P4-D7). A forms map counting two hundred
+    The second width census (P4-D14). A forms map counting two hundred
     and forty `leading_zero` cells cannot say whether the field was
     five figures wide or nine, so a twin honouring that map exactly
     wrote fields of another width and no report could say so.

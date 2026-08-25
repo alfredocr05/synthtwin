@@ -189,7 +189,7 @@ def test_the_supply_counts_cells_a_style_could_have_told_apart() -> None:
     # ...AND A PADDED CELL AT A NAMED FIELD WIDTH SUPPLIES ONE, because
     # the census spends the family: every further spelling of that
     # value is one figure wider and would leave the published width
-    # (method G12.8, plan P4-D7). Without the census the same three
+    # (method G12.8, plan P4-D14). Without the census the same three
     # cells supply three, which is what they did before it existed.
     assert generation._numeric_supply(
         layout, ["00", "00", "00"], {}

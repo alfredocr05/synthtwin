@@ -608,7 +608,7 @@ REMARK_DATES_ALSO_NUMBERS = "remark_dates_also_read_as_numbers"
 REMARK_MONTH_FIRST = "remark_slashed_dates_are_month_first"
 REMARK_SLASHED_EVIDENCE = "remark_slashed_dates_read_against_your_declaration"
 # The century a two-figure year is read into is a GUESS, and this is
-# where the column says so (plan P4-D8, contract NF42).
+# where the column says so (plan P4-D15, contract NF42).
 REMARK_TWO_DIGIT_YEAR = "remark_two_figure_years_are_read_at_a_pivot"
 
 # The two reading names the slashed remark's fifth argument takes. They
@@ -629,8 +629,12 @@ REMARK_NEAR_NUMERIC_LINE = "remark_close_to_the_numeric_line"
 REMARK_ALL_DIFFERENT_NUMBERS = "remark_every_number_is_different"
 # A number written with a leading zero is usually a code, and a column
 # of them is described as quantities unless a person says otherwise
-# (plan P4-D9, contract NF43).
+# (plan P4-D16, contract NF43).
 REMARK_PADDED_NUMBERS = "remark_padded_numbers_may_be_codes"
+# A comma inside a number is read as a thousands separator, which is a
+# CHOICE this package makes and cannot check (plan P4-D17, contract
+# NF44).
+REMARK_GROUP_COMMAS = "remark_commas_read_as_thousands"
 REMARK_SPREAD_OUT_OF_RANGE = "remark_spread_out_of_range"
 REMARK_ALL_DIFFERENT_TEXT = "remark_every_value_is_different"
 
@@ -694,6 +698,7 @@ NOTE_ARITY: "dict[str, int]" = {
     REMARK_NEAR_NUMERIC_LINE: 3,
     REMARK_ALL_DIFFERENT_NUMBERS: 0,
     REMARK_PADDED_NUMBERS: 1,
+    REMARK_GROUP_COMMAS: 1,
     REMARK_SPREAD_OUT_OF_RANGE: 0,
     REMARK_ALL_DIFFERENT_TEXT: 0,
     HEADER_NAMES_BY_OPTION: 0,
@@ -1146,7 +1151,7 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
         )
     if form == REMARK_MONTH_FIRST:
         # THE SENTENCE NAMES NO PUNCTUATION, and that is the change
-        # P4-D8 made to it. The same ambiguity is carried by slashes,
+        # P4-D15 made to it. The same ambiguity is carried by slashes,
         # by dots and by a two-figure year, and a sentence that said
         # "written with slashes" was read by a person holding a dotted
         # column as a statement about some other column.
@@ -1264,6 +1269,29 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
             f"and text: {_whole(arguments, 0)} of its "
             f"{_whole(arguments, 1)} values are "
             f"written as numbers, and the line is at {_whole(arguments, 2)}"
+        )
+    if form == REMARK_GROUP_COMMAS:
+        # THE SENTENCE STATES THE SIZE OF THE ERROR, because the reader
+        # cannot work it out and because it is not small. A column read
+        # the wrong way here is wrong by a factor of a thousand, and
+        # every statistic published about it is wrong by that factor --
+        # so the sentence says the number, says which way it went, and
+        # says what to do. It does not hedge: a person whose file
+        # writes decimals with a comma is holding a description that is
+        # wrong, and telling them gently would be telling them badly.
+        return (
+            f"{_whole(arguments, 0)} of this column's values are "
+            f"written with a comma inside the number, and synthtwin "
+            f"read every comma as a thousands separator -- so `1,795` "
+            f"was read as one thousand seven hundred and ninety-five. "
+            f"MANY COUNTRIES WRITE THE DECIMAL POINT AS A COMMA, and "
+            f"if this table is one of them then `1,795` means 1.795 "
+            f"and every value in this column has been read as a "
+            f"thousand times its real size -- along with this column's "
+            f"average, its spread and both its ends. synthtwin cannot "
+            f"tell the two apart from the values alone. If your file "
+            f"writes decimals with a comma, write them with a point "
+            f"instead and run the command again"
         )
     if form == REMARK_PADDED_NUMBERS:
         # IT DECIDES NOTHING, and says so, on the exact pattern the
@@ -1561,7 +1589,7 @@ class Settings:
     near_threshold_slack: int = 1
     # WHAT THE PERSON SAID ABOUT DATES WHOSE DAY AND MONTH ARE BOTH
     # NUMBERS -- written with slashes, with dots, or with a two-figure
-    # year (plan P4-D4.6, widened by P4-D8) -- AND IT IS NOT AN ORDER
+    # year (plan P4-D4.6, widened by P4-D15) -- AND IT IS NOT AN ORDER
     # SWAP. A swap can reverse a column against its own
     # evidence: ninety-nine ambiguous slashed cells and one cell only
     # the month-first reading can parse would be read backwards, with
@@ -4071,6 +4099,22 @@ def pad_width(text: str) -> int:
     return parsing.pad_width(text)
 
 
+def _group_comma_cells(cells: _Cells) -> int:
+    """How many cells read as a number only by way of a comma.
+
+    Counted off the CELLS, because this is a fact about how the column
+    was written and not about anything the description publishes.
+    """
+    counted = 0
+    for cell in cells.classified:
+        if cell.kind != parsing.NUMBER:
+            continue
+        if not parsing.carries_a_group_comma(cell.text):
+            continue
+        counted = counted + 1
+    return counted
+
+
 def _padded_cells(cells: _Cells) -> int:
     """How many cells of this column were written with a leading zero.
 
@@ -4179,7 +4223,7 @@ def _numeric_details(cells: _Cells, whole: bool) -> dict[str, object]:
         "fraction_widths": _fraction_widths(cells),
         # ...and how wide the ones written with a redundant zero wrote
         # their figure field, which the forms map cannot say either
-        # (P4-D7). A SIBLING for the same reason: version 6 requires
+        # (P4-D14). A SIBLING for the same reason: version 6 requires
         # every value of the forms map to be an integer summing to the
         # numeric count.
         "pad_widths": _pad_widths(cells),
@@ -4244,7 +4288,7 @@ _TWO_DIGIT_YEAR_MEMBERS = (
 SLASHED_PAIRS = (
     ("month-first-date", "day-first-date"),
     ("month-first-datetime", "day-first-datetime"),
-    # ...and the two families of P4-D8 that carry the same ambiguity in
+    # ...and the two families of P4-D15 that carry the same ambiguity in
     # different punctuation. A dotted date and a two-figure year say no
     # more about which field is the month than a slashed one does, so
     # they are read by this same machinery rather than by a rule of
@@ -5440,7 +5484,7 @@ def _decide(
             # guess about the century whichever way the month and day
             # were settled -- by evidence, by a declaration, or by the
             # default -- so the column says so in every one of those
-            # cases (plan P4-D8).
+            # cases (plan P4-D15).
             if format_name in _TWO_DIGIT_YEAR_MEMBERS:
                 remarks = remarks + [note(REMARK_TWO_DIGIT_YEAR)]
             return _Verdict(
@@ -6033,6 +6077,15 @@ def _numeric_verdict(
     padded = _padded_cells(cells)
     if padded:
         remarks = remarks + [note(REMARK_PADDED_NUMBERS, (padded,))]
+    # ...AND A COMMA INSIDE A NUMBER IS A CHOICE, NOT A READING. This
+    # is the one place the package can be wrong by a factor rather than
+    # by a rounding, and it was silent about it: a column of European
+    # lab values written `1,795` was published with an average a
+    # thousand times too large, described as "whole numbers that count
+    # things", and nothing anywhere said so.
+    commas = _group_comma_cells(cells)
+    if commas:
+        remarks = remarks + [note(REMARK_GROUP_COMMAS, (commas,))]
     # A column of counts must be whole and non-negative in EVERY cell
     # whose writer meant a number -- including the ones no format can
     # hold. `(1e999)` is visibly negative and `1e-999` is visibly a

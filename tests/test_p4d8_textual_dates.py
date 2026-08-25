@@ -1,6 +1,6 @@
 """Dates written with a month NAME are read as dates.
 
-Plan decision P4-D8, first of its three families.
+Plan decision P4-D15, first of its three families.
 
 WHAT WAS WRONG. `17 Mar 2024`, `17-Mar-2024`, `Mar 17, 2024` and
 `March 17, 2024` are four of the commonest ways a date is written into

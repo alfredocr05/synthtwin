@@ -622,7 +622,7 @@ def _named_entries() -> "list[Entry]":
         # leading-zero cells force more identities than are published.
         Entry("witness-number-floored", tuple(floored), False, 11),
         # ...and the same map with the padded widths held back, so the
-        # family is open and the envelope still opens upward (P4-D7).
+        # family is open and the envelope still opens upward (P4-D14).
         Entry(
             "witness-number-floored-open", tuple(scattered), False, 11
         ),
@@ -1455,7 +1455,7 @@ def test_the_floored_style_witness_reaches_the_generators_own_twin(
 
     A floored style map naming fifteen leading-zero cells on a column
     publishing nine different values, ALL FIFTEEN WRITTEN TWO FIGURES
-    WIDE. The width census of P4-D7 therefore names that width, and a
+    WIDE. The width census of P4-D14 therefore names that width, and a
     named width spends the leading-zero family: every further spelling
     of a value is one figure wider, so a twin reaching for a second
     would leave the published width. The supply falls to what a column
@@ -1497,7 +1497,7 @@ def test_the_floored_style_witness_reaches_the_generators_own_twin(
     assert taxonomy.SUPPRESSED_LABEL in facts.numeric_styles
     assert facts.pad_widths == {"2": 15}
     # AND THE TWIN WRITES THE CENSUS IT WAS GIVEN: fifteen padded cells,
-    # every one of them two figures wide (P4-D7).
+    # every one of them two figures wide (P4-D14).
     padded = [
         cell for cell in probe.twin.columns[0]
         if cell

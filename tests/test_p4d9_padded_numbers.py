@@ -1,6 +1,6 @@
 """A number written with a leading zero says it may be a code.
 
-Plan decision P4-D9, contract NF43.
+Plan decision P4-D16, contract NF43.
 
 WHAT WAS WRONG. A code column whose values are all digits is described
 as arithmetic: its average, its spread and its ends go into the

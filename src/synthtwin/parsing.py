@@ -676,6 +676,33 @@ def _without_group_separators(text: str) -> "str | None":
     return sign + joined + tail
 
 
+def carries_a_group_comma(text: str) -> bool:
+    """Whether this cell reads as a number ONLY by way of a comma.
+
+    THE ONE AMBIGUITY THIS PACKAGE CANNOT SETTLE FROM A CELL. `1,795`
+    is one thousand seven hundred and ninety-five where a comma groups
+    thousands, and it is 1.795 where a comma is the decimal point --
+    and most of the world writes the second. Nothing in the cell
+    decides it, and a column of three-decimal values written the second
+    way carries no evidence either, because every group is three digits
+    long and that is exactly what a thousands group looks like.
+
+    So this package reads the comma as a thousands separator, which is
+    a choice and not a reading, and it says so wherever it makes one
+    (note NF44). What this answers is where that choice was made.
+
+    Guarantees: accepts text; returns a truth value; raises TypeError
+    if handed anything that is not a string instance. No I/O of any
+    kind.
+    """
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT)
+    body = text.strip()
+    if "," not in body:
+        return False
+    return classify_number(body) == NUMBER
+
+
 def parse_number(text: str) -> "float | None":
     """Read ``text`` as a number, or return None if it is not one.
 
@@ -1599,7 +1626,7 @@ def parse_datetime(text: str, format_name: str) -> "tuple[str, str] | None":
         or format_name == "textual-month-first-date"
     ):
         # A DAY, A MONTH NAME AND A FOUR-FIGURE YEAR, in the order the
-        # member names (plan P4-D8). The name is what makes this pair
+        # member names (plan P4-D15). The name is what makes this pair
         # unambiguous where the slashed pair is not: no evidence and no
         # setting is consulted, because `Mar` cannot be a day.
         fields = _textual_fields(
@@ -1626,7 +1653,7 @@ def parse_datetime(text: str, format_name: str) -> "tuple[str, str] | None":
         format_name == "two-digit-month-first-date"
         or format_name == "two-digit-day-first-date"
     ):
-        # A SLASHED DATE WHOSE YEAR IS TWO FIGURES (plan P4-D8). The
+        # A SLASHED DATE WHOSE YEAR IS TWO FIGURES (plan P4-D15). The
         # century is not in the cell, so it is decided by the pivot
         # `year_of_two_figures` fixes and named in the column's
         # remarks.
@@ -1646,7 +1673,7 @@ def parse_datetime(text: str, format_name: str) -> "tuple[str, str] | None":
         format_name == "dotted-month-first-date"
         or format_name == "dotted-day-first-date"
     ):
-        # THE SAME GRAMMAR WRITTEN WITH DOTS (plan P4-D8). Two dots and
+        # THE SAME GRAMMAR WRITTEN WITH DOTS (plan P4-D15). Two dots and
         # a four-figure year last, which no decimal number satisfies:
         # `17.03` carries one dot and is a number, `17.03.2024` carries
         # two and is not.
