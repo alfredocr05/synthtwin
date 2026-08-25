@@ -126,8 +126,14 @@ def test_the_sentence_states_the_size_of_the_error() -> None:
     said = _comma_remark(_described(values))
     assert said is not None
     assert "thousand times its real size" in said
-    assert "average" in said and "spread" in said
+    assert "every statistic this profile publishes" in said
     assert "write this column with a decimal point" in said
+    # ...AND IT DOES NOT NAME A STATISTIC THE COLUMN MIGHT NOT HAVE,
+    # nor promise one is wrong. A symmetric column's mean is unchanged
+    # by a factor of a thousand applied to every value, so "any average
+    # this profile publishes is wrong" is not universally true. What is
+    # true is that every statistic was computed from the wrong numbers.
+    assert "are wrong with them" not in said
 
 
 def test_a_column_that_settles_it_is_told_so_outright() -> None:
@@ -195,28 +201,35 @@ def test_a_column_with_no_comma_says_nothing() -> None:
     assert _comma_remark(_described(values)) is None
 
 
-def test_the_affix_rule_cannot_swallow_a_decimal_comma() -> None:
-    """THE TRAP AN EARLIER VERSION OF THIS TEST BLESSED.
+def test_a_comma_suffix_is_left_alone_because_it_cannot_be_told_apart() -> None:
+    """WHAT WAS TRIED HERE, AND WHY IT WAS WITHDRAWN.
 
-    `10,5` through `249,5` is a column of European one-decimal values.
-    The affix rule reads it as the number 10 wearing the shared suffix
-    `,5`, so the cores are comma-free and a scan of them finds nothing
-    -- while the column publishes statistics over 10 to 249 for values
-    that run 10.5 to 249.5. This test used to REQUIRE that silence, on
-    the reasoning that nothing had been read as a number; what had
-    happened is that the comma was read as part of an affix, which is
-    worse.
+    `10,5` through `249,5` is European one-decimal data, and the affix
+    rule reads it as the number 10 wearing the shared suffix `,5`. The
+    cores are comma-free, so nothing sees the comma, and the column
+    publishes statistics over 10 to 249 for values running 10.5 to
+    249.5.
 
-    A shared suffix that begins with a comma and is otherwise figures
-    is not an affix any measurement wears. It is the fractional part of
-    a number written the European way, and the column says so.
+    A repair was written that declared such a suffix "not an affix" and
+    counted every cell wearing it as proof of a decimal comma. The
+    third adversarial read killed it, and was right to: `10,5` as a
+    revision identifier with a genuine `,5` suffix is OBSERVATIONALLY
+    IDENTICAL to `10,5` as a European number. The repair asserted one
+    of them and told the person to rewrite their data with a decimal
+    point, which on the other reading corrupts every identifier in the
+    column. It also gave one column two contradictory remarks, because
+    the core scan and the suffix scan disagreed by construction.
+
+    Silence is not good here. It is better than a confident wrong
+    answer that instructs somebody to damage their file, which is what
+    the repair was. The gap is recorded as residual R-P4-33.
     """
     values = [f"{number},5" for number in range(10, 250)]
     document = _described(values)
     assert document["columns"][0]["role"] == "affixed_number"
-    said = _comma_remark(document)
-    assert said is not None, document["columns"][0]["remarks"]
-    assert "CONTAINS VALUES WRITTEN WITH A DECIMAL COMMA" in said
+    # No remark, and in particular NOT one asserting a decimal comma.
+    assert _comma_remark(document) is None
+
 
 
 def test_a_genuine_affixed_column_is_warned_too() -> None:
@@ -302,3 +315,67 @@ def test_a_column_of_names_is_never_told_about_decimals() -> None:
         for number in range(240)
     ]
     assert _comma_remark(_described(addresses, "address")) is None
+
+
+def test_a_version_string_is_not_a_number_of_any_convention() -> None:
+    """A cell of figures, points and commas is not therefore a number.
+
+    `1.2.3,4` carries only the characters a European number carries,
+    and its point before the comma read as PROOF of a decimal comma --
+    so a column of software versions would have been told in capital
+    letters that this file writes decimals with commas. What tells it
+    from `1.234.567,89`, which IS a million and a bit written the
+    German way, is the grouping: a thousands group is three figures.
+    """
+    for text in ("1.2.3,4", "2.3.4,5", "1.2.3.4,5", ".,", ","):
+        assert parsing.comma_reading(text) == parsing.COMMA_NONE, text
+    for text in ("1.234.567,89", "1.234,56", "22.008,28"):
+        assert parsing.comma_reading(text) == parsing.COMMA_DECIMAL, text
+
+
+def test_a_column_of_versions_is_never_told_about_decimals() -> None:
+    """The same guard, as a column somebody would actually hold."""
+    values = [
+        f"{major}.{minor}.{patch},{patch}"
+        for major in range(1, 4)
+        for minor in range(1, 9)
+        for patch in range(1, 11)
+    ]
+    assert _comma_remark(_described(values, "version")) is None
+
+
+def test_a_column_carries_the_remark_at_most_once() -> None:
+    """One column, one sentence about its commas.
+
+    A repair that scanned both the cores and the affix gave one column
+    two NF44 remarks that contradicted each other -- one saying nothing
+    settled the question and the other saying the column settled it.
+    The counts are built in one place now, and this asserts the
+    property rather than trusting that they are.
+    """
+    for values in (
+        [f"{number // 1000},{number % 1000:03d}" for number in
+         range(1000, 1240)],
+        [f"{number},5" for number in range(10, 250)],
+        [f"${number // 1000},{number % 1000:03d}" for number in
+         range(1000, 1240)],
+    ):
+        document = _described(values)
+        found = [
+            remark for remark in document["columns"][0]["remarks"]
+            if "thousands separator" in remark
+        ]
+        assert len(found) <= 1, found
+
+
+def test_the_counts_can_never_exceed_the_column() -> None:
+    """A sentence saying "241 of this column's values" over 240 rows is
+    one a reader stops believing, so the counts are guarded where they
+    are built rather than trusted."""
+    values = [f"{number // 1000},{number % 1000:03d}" for number in
+              range(1000, 1240)]
+    document = _described(values)
+    block = document["columns"][0]
+    said = _comma_remark(document)
+    assert said is not None
+    assert f"{block['n_present']} of this column's values" in said

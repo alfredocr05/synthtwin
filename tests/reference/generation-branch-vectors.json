@@ -58,6 +58,9 @@
         "remarks": [],
         "role": "free_text",
         "sentinel_verdicts": [],
+        "shape_forms": {
+          "(withheld)": 4
+        },
         "statistical_type": "text",
         "structural_role": "data",
         "words": {

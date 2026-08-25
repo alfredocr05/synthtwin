@@ -1727,6 +1727,17 @@ European column carries its own proof as soon as one of its values
 reaches a thousand. What settles nothing is a column every one of whose
 values is under a thousand and written to three figures.
 
+**A CELL OF FIGURES, POINTS AND COMMAS IS NOT THEREFORE A NUMBER.**
+`1.2.3,4` is a software version and carries only those characters, and
+its point before the comma made it proof of a decimal comma — so a
+column of versions would have been told in capital letters that this
+file writes decimals with commas. A body carrying more than one point
+speaks only where the fields those points separate GROUP: the first one
+to three figures, every later one exactly three. That is what tells
+`1.2.3,4` from `1.234.567,89`, which is a million and a bit written the
+German way. A body carrying no figure at all — `.,` — says nothing
+either.
+
 **ONLY A CELL TRYING TO BE A NUMBER MAY SPEAK.** Argument 2 reaches
 every present cell rather than only the numbers, because a cell that
 settles the question is usually not a number this format reads —
@@ -1735,6 +1746,13 @@ cell carrying any character that is not a figure, a point or a comma
 says NOTHING, because without that guard `Hello.World,Foo` is a point
 before a comma and a column of names or addresses would be told, in
 capital letters, that this file writes the decimal point as a comma.
+
+**NEITHER SENTENCE PROMISES A PARTICULAR STATISTIC IS WRONG.** A
+column whose values are symmetric about zero has the same mean under
+either reading, because a factor of a thousand applied to every value
+cancels — so "any average this profile publishes is wrong" is not
+universally true. What is true, and what both sentences say, is that
+every statistic was COMPUTED FROM those numbers.
 
 **NEITHER SENTENCE CLAIMS A STATISTIC THE COLUMN MAY NOT HAVE, AND
 NEITHER SPEAKS FOR THE FILE.** A column that PROVES a decimal comma is
@@ -1747,13 +1765,20 @@ And two proof cells beside two hundred legitimate thousands-grouped
 ones do not make the FILE European: the settled sentence says what it
 saw, that this COLUMN contains such values.
 
-**A SHARED SUFFIX THAT BEGINS WITH A COMMA IS NOT AN AFFIX.** `10,5`
-through `249,5` is a column of European one-decimal values, and the
-affix rule reads it as the number 10 wearing the suffix `,5` — so the
-cores are comma-free and a scan of them finds nothing, while the block
-publishes statistics over 10 to 249 for values running 10.5 to 249.5.
-Such a suffix is the fractional part of a number written the European
-way, and every cell wearing one is counted as proof.
+**A SHARED SUFFIX THAT BEGINS WITH A COMMA IS NOT DECIDED HERE, AND
+THE ATTEMPT TO DECIDE IT WAS WITHDRAWN.** `10,5` through `249,5` is
+read by the affix rule as the number 10 wearing the suffix `,5`, so the
+cores are comma-free, a scan of them finds nothing, and the block
+publishes statistics over 10 to 249 for values running 10.5 to 249.5. A
+clause once stood here saying such a suffix is the fractional part of a
+European number and counting every cell wearing one as proof. It is
+withdrawn: `10,5` as a revision identifier with a genuine `,5` suffix
+is OBSERVATIONALLY IDENTICAL, and the clause asserted one reading and
+told the person to rewrite their file with a decimal point — which on
+the other reading corrupts every identifier in the column. Silence is
+not good here and is not defended as good; it is better than a
+confident wrong answer that instructs somebody to damage their data.
+The gap is residual R-P4-33.
 
 **It counts CELLS and speaks of them, never of "every value".** A
 column of fifty comma-bearing cells beside fifty plain ones is not

@@ -351,6 +351,11 @@ def _matrix_sections() -> "dict[str, dict[str, str]]":
 # under `numeric` in `tests/dispositions.py`.
 PHASE_4_NUMERIC_KEYS = ("fraction_widths", "pad_widths")
 
+# ...and the census of written forms, which version 4's matrix has no
+# row for because version 4 had no such key. It is disposed in the
+# Phase 4 plan (P4-D18) and registered in `tests/dispositions.py`.
+PHASE_4_SHAPE_KEYS = ("shape_forms",)
+
 # ...and the form census a column of dates now carries, for the same
 # reason at one grain finer: version 4 HAS the datetime section, and
 # that section has no row for a key version 4 never published. The
@@ -1085,6 +1090,8 @@ def test_every_key_the_producer_emits_has_a_disposition(
                 table[own] = "EXACT-OBSERVABLE (Phase 4 plan, P4-D4.1)"
             for own in PHASE_4_NUMERIC_KEYS:
                 table[own] = "EXACT-OBSERVABLE (Phase 4 plan, P4-D4.5)"
+            for own in PHASE_4_SHAPE_KEYS:
+                table[own] = "EXACT-OBSERVABLE (Phase 4 plan, P4-D18)"
             for own, said in PHASE_4_DATETIME_KEYS:
                 table[own] = said
             if role == "time_of_day":

@@ -586,6 +586,7 @@ _DIGITS = "whole-number-as-text"
 # producers spell two ways and a consumer reads as two widths. The key
 # grammar is CANONICAL -- no sign, no padding, `0` written as itself.
 _WIDTH = "fraction-width-as-figures"
+_SHAPE_FORM = "a-written-form-carrying-no-figure-and-no-letter"
 _MOMENT_TEXT = "canonical-datetime"
 _OFFSET = "utc-offset"
 _SENTINEL = "numeric-sentinel-spelling"
@@ -795,6 +796,9 @@ PUBLICATION_RULES: "dict[tuple[str, ...], str]" = {
     ("columns", _EACH, "fraction_widths"): _OBJECT,
     ("columns", _EACH, "fraction_widths", _KEY_OF): _WIDTH,
     ("columns", _EACH, "fraction_widths", _ANY_KEY): _FLOORED_ENTRY,
+    ("columns", _EACH, "shape_forms"): _OBJECT,
+    ("columns", _EACH, "shape_forms", _KEY_OF): _SHAPE_FORM,
+    ("columns", _EACH, "shape_forms", _ANY_KEY): _FLOORED_ENTRY,
     ("columns", _EACH, "pad_widths"): _OBJECT,
     ("columns", _EACH, "pad_widths", _KEY_OF): _WIDTH,
     ("columns", _EACH, "pad_widths", _ANY_KEY): _FLOORED_ENTRY,
@@ -1280,6 +1284,8 @@ def _leaf_is_published(
         if not isinstance(value, str) or not parsing.is_digit_text(value):
             return False
         return value == "0" or value[:1] != "0"
+    if kind == _SHAPE_FORM:
+        return _is_shape_form(value)
     if kind == _MOMENT_TEXT:
         return _is_moment(value)
     if kind == _OFFSET:
@@ -1289,6 +1295,37 @@ def _leaf_is_published(
     if kind == _VERSION:
         return isinstance(value, str) and value == _version()
     return False
+
+
+def _is_shape_form(value: object) -> bool:
+    """Whether one key of the form census carries no value of the table.
+
+    THIS IS THE GUARD THAT MAKES THE CENSUS PUBLISHABLE, and it is
+    written as a proof rather than as a spot check. A form is built by
+    replacing every ASCII digit with `9` and every ASCII letter with
+    `A`, so a KEY that still carries any other digit or letter is a key
+    that carries a fragment of somebody's value -- and this refuses it,
+    whatever built it. The marks between them stand as themselves,
+    which is the whole point of the census: the structure is published
+    and the content is not.
+    """
+    if value == taxonomy.SUPPRESSED_LABEL:
+        return True
+    if not isinstance(value, str) or not value:
+        return False
+    if len(value) > parsing.SHAPE_FORM_LIMIT:
+        return False
+    for character in value:
+        if "0" <= character <= "9":
+            if character != parsing.SHAPE_DIGIT:
+                return False
+            continue
+        lower = "a" <= character <= "z"
+        upper = "A" <= character <= "Z"
+        if lower or upper:
+            if character != parsing.SHAPE_LETTER:
+                return False
+    return True
 
 
 def _check_word(

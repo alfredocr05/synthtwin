@@ -256,6 +256,36 @@ def _spelled_styles_table() -> str:
     return fixtures.single_column_table("reading", values)
 
 
+def _shaped_text_table() -> str:
+    """A column of structured codes too many to be categories.
+
+    THE FORM CENSUS HAD NO FREE-TEXT FIXTURE PUBLISHING A NAMED FORM,
+    and a fact no fixture reaches is a fact no test asserts anything
+    about -- which is the whole subject of this file. A laboratory-code
+    column at claims scale is exactly the shape P4-D18 was raised for:
+    far past the categorical ceiling, every value different, and every
+    one of them written the same way. It lands on `free_text`, which
+    publishes no value at all, and its form census is the only thing
+    that says what its twin's cells should look like.
+
+    IT IS TWO COLUMNS for the reason the quarter fixture is: a column
+    of a one-column table cannot be emptied -- the file left behind is
+    no table at all and the reader refuses it before any verdict exists
+    -- so a one-column fixture leaves `axes.quality_state` with no
+    perturbation that can move it.
+    """
+    return fixtures.rows_to_csv(
+        ["lab_code", "region"],
+        [
+            [
+                f"{4000 + number}-{number % 10}",
+                fixtures.REGIONS[number % 4],
+            ]
+            for number in range(240)
+        ],
+    )
+
+
 def _padded_code_table() -> str:
     """A numeric column of fixed-width codes written with leading zeros.
 
@@ -363,6 +393,12 @@ def runs(
         (
             "padded-codes",
             _padded_code_table(),
+            None,
+            reading.FIRST_ROW_AUTOMATIC,
+        ),
+        (
+            "shaped-text",
+            _shaped_text_table(),
             None,
             reading.FIRST_ROW_AUTOMATIC,
         ),
@@ -805,6 +841,27 @@ def _first_record(described: contract.Profile) -> int:
     if described.source.header_source == reading.HEADER_FROM_FILE:
         return 1
     return 0
+
+
+def _reshaped(
+    described: contract.Profile, twin: str, index: int
+) -> str:
+    """Append a figure to every present cell of one column.
+
+    The cell keeps its alphabet band and grows by one character, so
+    what moves is the FORM it was written in: `clinic` becomes
+    `clinic1`, whose form is `AAAAAA9` and not `AAAAAA`.
+    """
+    rows = _rows_of(twin)
+    first = _first_record(described)
+    for row in range(first, len(rows)):
+        if index >= len(rows[row]):
+            continue
+        cell = rows[row][index]
+        if not cell:
+            continue
+        rows[row][index] = f"{cell}1"
+    return _rebuilt(rows)
 
 
 # EVERY BUILDER BELOW TAKES A COLUMN INDEX, not a role. The version
@@ -1775,6 +1832,17 @@ def _column_perturbations(
             f"marked-{name}",
             CLASS_PRESENCE,
             _floor_cells(described, twin, index, "na"),
+        ),
+        # THE FORM WITHOUT THE VALUE (plan P4-D18). A figure appended
+        # to a cell leaves its alphabet band where it was and moves the
+        # FORM it was written in, which is the one thing the form
+        # census answers for -- so this is the edit that makes a
+        # published form miss and disturbs as little else as an edit
+        # can.
+        (
+            f"reshaped-{name}",
+            CLASS_SPELLING,
+            _reshaped(described, twin, index),
         ),
         (
             f"filled-{name}",
@@ -3028,6 +3096,8 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("blanked-recorded_on", "presence.n_present"),
         ),
         "note": (
+            ("reshaped-note", "forms.published.AAAAAA"),
+            ("reshaped-note", "forms.published.AAAAAAAA"),
             # THE LONG-TAIL ROLE (plan P4-D5). It publishes the four
             # shared label keys and no key of its own, so its
             # obligations are the label family's -- and each of them
@@ -3171,6 +3241,82 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
     # field width, which is what binds `numeric.pad_widths` to an
     # executable subcheck; before it, that fact was in the registry and
     # in no check any fixture reached.
+    # THE SHAPED-TEXT FIXTURE (P4-D18). Its free-text column publishes
+    # a named form, which is what binds `free_text.shape_forms` to an
+    # executable subcheck; before it, that fact was in the registry and
+    # in no check any fixture reached.
+    "shaped-text": {
+        "": (
+            ("byte-order-mark", "bytes.byte-order-mark"),
+            ("carriage-returns", "bytes.line-endings"),
+            ("no-terminal-newline", "bytes.terminal-newline"),
+            ("not-utf8", "bytes.utf8"),
+            ("added-column", "columns.n_columns"),
+            ("added-column", "columns.order"),
+            ("added-column", "header.names"),
+            ("added-column", "header.presence"),
+            ("added-row", "rows.n_rows"),
+        ),
+        "lab_code": (
+            ("emptied-lab_code", "axes.quality_state"),
+            ("emptied-lab_code", "axes.role"),
+            ("emptied-lab_code", "axes.statistical_type"),
+            ("one-zero-led-lab_code", "counts.n_all_digits"),
+            ("blanked-lab_code", "counts.n_code_alphabet"),
+            ("one-contradicted-lab_code", "counts.n_contradictory"),
+            ("blanked-lab_code", "counts.n_not_numeric"),
+            ("one-bracketed-lab_code", "counts.n_numeric"),
+            ("one-overflowed-lab_code", "counts.n_out_of_range"),
+            ("blanked-lab_code", "distinct.n_distinct"),
+            ("blanked-lab_code", "distinct.n_distinct_by_occurrences"),
+            ("blanked-lab_code", "distinct.n_distinct_folded"),
+            ("blanked-lab_code", "forms.published.9999-9"),
+            ("lengthened-lab_code", "length.max"),
+            ("lengthened-lab_code", "length.mean"),
+            ("lengthened-lab_code", "length.min"),
+            ("lengthened-lab_code", "length.p50"),
+            ("renamed-lab_code", "position.at"),
+            ("blanked-lab_code", "presence.n_missing"),
+            ("blanked-lab_code", "presence.n_present"),
+            ("lengthened-lab_code", "words.max"),
+            ("lengthened-lab_code", "words.mean"),
+            ("lengthened-lab_code", "words.min"),
+        ),
+        "region": (
+            ("emptied-region", "axes.quality_state"),
+            ("emptied-region", "axes.role"),
+            ("emptied-region", "axes.statistical_type"),
+            ("one-contradicted-region", "counts.n_contradictory"),
+            ("blanked-region", "counts.n_not_numeric"),
+            ("one-bracketed-region", "counts.n_numeric"),
+            ("one-overflowed-region", "counts.n_out_of_range"),
+            ("emptied-region", "distinct.n_distinct"),
+            ("emptied-region", "distinct.n_distinct_folded"),
+            ("marked-region", "levels.east.count"),
+            ("reshaped-region", "levels.east.label"),
+            ("marked-region", "levels.east.variants"),
+            ("reshaped-region", "levels.east.variants_withheld"),
+            ("blanked-region", "levels.north.count"),
+            ("reshaped-region", "levels.north.label"),
+            ("blanked-region", "levels.north.variants"),
+            ("reshaped-region", "levels.north.variants_withheld"),
+            ("marked-region", "levels.set"),
+            ("marked-region", "levels.south.count"),
+            ("reshaped-region", "levels.south.label"),
+            ("marked-region", "levels.south.variants"),
+            ("reshaped-region", "levels.south.variants_withheld"),
+            ("marked-region", "levels.west.count"),
+            ("reshaped-region", "levels.west.label"),
+            ("marked-region", "levels.west.variants"),
+            ("reshaped-region", "levels.west.variants_withheld"),
+            ("renamed-region", "position.at"),
+            ("blanked-region", "presence.n_missing"),
+            ("blanked-region", "presence.n_present"),
+            ("one-bracketed-region", "suppressed.counts"),
+            ("one-bracketed-region", "suppressed.suppressed_levels"),
+            ("one-bracketed-region", "suppressed.suppressed_rows"),
+        ),
+    },
     "padded-codes": {
         "": (
             ("byte-order-mark", "bytes.byte-order-mark"),
@@ -3621,6 +3767,7 @@ FIXTURE_ROLES: "dict[str, dict[str, str]]" = {
         "column_2": "categorical",
     },
     "padded-codes": {"code": "count"},
+    "shaped-text": {"lab_code": "free_text", "region": "categorical"},
     "pooled": {"reading": "continuous"},
     "quarters": {
         "region": "categorical",
@@ -3875,6 +4022,13 @@ SUBCHECK_FACTS: "dict[tuple[str, str], str]" = {
     # on the same terms, and for the same reason only the widths the
     # fixtures publish need a row here (P4-D14).
     ("numeric", "pads.published.5"): "numeric.pad_widths",
+    # The census of written FORMS names one subcheck per published
+    # form, so its subcheck names are decided by the description in
+    # the same way the two width censuses are (P4-D18). Only the forms
+    # the fixtures actually publish need a row.
+    ("label", "forms.published.AAAAAA"): "label.shape_forms",
+    ("label", "forms.published.AAAAAAAA"): "label.shape_forms",
+    ("free_text", "forms.published.9999-9"): "free_text.shape_forms",
     ("numeric", "counts.affix_prefix"): "affixed.affix_prefix",
     ("numeric", "counts.affix_suffix"): "affixed.affix_suffix",
     ("numeric", "counts.n_affixed"): "affixed.n_affixed",

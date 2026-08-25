@@ -461,6 +461,17 @@ KEYS_THAT_CARRY_NO_VALUE = (
     "n_negative",
     "n_occurrences",
     "n_positive",
+    # THE FORM CENSUS IS ADMITTED HERE ON A CHECKED PROPERTY rather
+    # than on a judgement (plan P4-D18). Every other key here carries a
+    # COUNT, which is safe to read at a glance. A form is TEXT, which
+    # is the kind of thing this list exists to keep out -- so it is
+    # admitted only because every ASCII digit of a cell is replaced by
+    # `9` and every ASCII letter by `A` before the key is
+    # built, and because `profile._is_shape_form` refuses any key where
+    # another digit or letter survived, whatever built it. What is
+    # published is where the marks fell; what is not is anything that
+    # stood between them.
+    "shape_forms",
     "n_sign_unknown",
     "n_whole",
     "n_whole_unknown",
@@ -1330,9 +1341,9 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
             f"MANY COUNTRIES WRITE THE DECIMAL POINT AS A COMMA, and "
             f"if this table is one of them then `1,795` means 1.795 "
             f"and each of those values has been read as a thousand "
-            f"times its real size, carrying any average, spread or "
-            f"ends this profile publishes for this column with them. "
-            f"Nothing in this column settles which was meant. If your "
+            f"times its real size, and every statistic this profile "
+            f"publishes about this column was computed from those "
+            f"numbers. Nothing in this column settles which was meant. If your "
             f"file writes decimals with a comma, write this column "
             f"with a decimal point instead and run the command again"
         )
@@ -3955,6 +3966,9 @@ def _text_details(cells: _Cells) -> dict[str, object]:
         },
         "n_all_digits": cells.all_digits,
         "n_code_alphabet": cells.code_alphabet,
+        # ...and the forms its cells were written in, which is what
+        # lets a made-up cell look like one of them (plan P4-D18).
+        "shape_forms": _shape_forms(cells),
         # The shape of repetition, with no value attached to it (plan
         # P2-D4). A free-text column publishes no value, so without this
         # a column of a hundred different notes and one of fifty notes
@@ -4142,30 +4156,62 @@ def pad_width(text: str) -> int:
     return parsing.pad_width(text)
 
 
-def _comma_eaten_by_the_affix(
-    affixed: "_Affixed", cells: _Cells
-) -> "list[Note]":
-    """The comma remark for a column whose 'affix' is a decimal part.
+def _shape_forms(cells: _Cells) -> dict[str, int]:
+    """How many present cells wore each written form, under the floor.
 
-    THE ONE PLACE THE CORE SCAN CANNOT SEE. `10,5` through `249,5` is a
-    column of European one-decimal values, and the affix rule reads it
-    as the number 10 wearing the shared suffix `,5`. The cores are then
-    comma-free, so scanning them finds nothing at all -- while the
-    column publishes statistics over 10 to 249 for values that run 10.5
-    to 249.5.
+    THE FACT THAT LETS A HELD-BACK VALUE HAVE A STAND-IN THAT LOOKS
+    LIKE ONE. A column whose rare values the floor holds back publishes
+    nothing about them, so its twin writes `group-14`: not the right
+    length, not the right alphabet, and on a column of hyphenated codes
+    it even splits into two parts and passes for one. A form says a
+    letter, two figures, a point and a figure -- `A99.9` -- and says
+    nothing whatever about WHICH letter or WHICH figures.
 
-    A shared suffix that BEGINS WITH A COMMA and is otherwise figures
-    is not an affix any measurement wears; it is the fractional part of
-    a number written the European way. Where one is found, every cell
-    wearing it is counted as proof.
+    THE FLOOR GOVERNS A FORM AS IT GOVERNS A LEVEL, and here it does
+    more work than anywhere else: a form shared by fewer than
+    `small_cell_floor` cells is pooled, so a column of prose, where
+    every cell's form is its own, publishes nothing but the pool. The
+    census therefore selects for STRUCTURE without anybody deciding
+    which columns are structured.
+
+    A cell too long to have a form (`parsing.SHAPE_FORM_LIMIT`) is
+    counted into the pool for the same reason.
+
+    Guarantees: accepts a tally of one column; returns a mapping from
+    forms, plus possibly `(withheld)`, to counts that sum to the cells
+    that HAVE a form -- which is at most the column's present cells,
+    and fewer wherever a cell was too long to have one. Determinism: the answer depends only on the
+    tally, and the keys are built in sorted order. Raises nothing. No
+    I/O of any kind.
     """
-    suffix = affixed.suffix
-    if suffix[:1] != ",":
-        return []
-    figures = suffix[1:]
-    if not figures or not parsing.is_digit_text(figures):
-        return []
-    return [note(REMARK_GROUP_COMMAS, (0, affixed.n_affixed))]
+    counts: dict[str, int] = {}
+    withheld = 0
+    for value in cells.present:
+        form = parsing.shape_form(value)
+        if not form:
+            # A CELL WITH NO FORM IS NOT COUNTED AT ALL, and it is not
+            # pooled either. `(withheld)` means ONE thing everywhere in
+            # this format -- a group too small to name -- and at a
+            # floor of one there is no such group, which is a rule the
+            # publication guard enforces. A cell too long to have a
+            # form is not a small group; it is a cell this census has
+            # nothing to say about. Pooling it there put a `(withheld)`
+            # key into a floor-one document that the guard, rightly,
+            # refused to write.
+            continue
+        if form in counts:
+            counts[form] = counts[form] + 1
+            continue
+        counts[form] = 1
+    published_counts: dict[str, int] = {}
+    for form in sorted(counts):
+        if counts[form] >= cells.settings.small_cell_floor:
+            published_counts[form] = counts[form]
+            continue
+        withheld = withheld + counts[form]
+    if withheld:
+        published_counts[SUPPRESSED_LABEL] = withheld
+    return published_counts
 
 
 def _comma_remarks(cells: _Cells) -> "list[Note]":
@@ -5219,7 +5265,6 @@ def _affixed_verdict(
             remarks
             + [note(REMARK_AFFIXED, pair)]
             + _comma_remarks(core_cells)
-            + _comma_eaten_by_the_affix(affixed, cells)
         ),
     )
 
@@ -5692,6 +5737,16 @@ def _decide(
             cells.folded_counts, cells.spellings_by_folded, settings
         )
         details = _level_details(levels)
+        # ...AND THE FORMS THIS ROLE'S CELLS WERE WRITTEN IN (plan
+        # P4-D18). This is the role the census was raised for: a long
+        # tail is precisely a column most of whose values the floor
+        # holds back, so it is the role whose twin is mostly stand-ins,
+        # and a stand-in that looks nothing like the values around it
+        # is what makes a column of codes unusable. The three sibling
+        # label roles do not carry it: a column at or under the
+        # categorical ceiling publishes its levels, so its twin holds
+        # them and has no stand-in to shape.
+        details["shape_forms"] = _shape_forms(cells)
         if levels.suppressed_levels:
             notes = notes + [_pooled_note(levels, settings)]
         if cells.raw_distinct != folded_distinct:

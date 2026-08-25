@@ -229,7 +229,7 @@ def test_the_golden_run_is_the_shape_this_file_says_it_is(
 # twenty-seven more obligations than it did, which is the direction a
 # re-recording must move in.
 GOLDEN_DESCRIPTION_SHA256 = (
-    "cb95aeeced43f55ff0f87376d4295ad91aa3bb53e50ceaacfb359c71d5c00d37"
+    "7dd70dc15896e239b7805c83253848c5083c80000bfabd3ac3daf53939ee6671"
 )
 
 
@@ -921,7 +921,7 @@ def test_the_report_names_the_seed_the_twin_was_built_at(
 # that way: a line where the two values DIFFER may not have moved, and
 # one that did would be this repair reaching further than its own rule.
 GOLDEN_QUALITY_SHA256 = (
-    "eb883c803f5d13bd4f08422ff30552b40b4fcdba2774417c509888b3e328ca5a"
+    "777c7a5251c10cbfa9993c439a14bbe7af0b213886400ceffeea692497068be4"
 )
 
 
