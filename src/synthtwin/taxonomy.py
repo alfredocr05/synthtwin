@@ -4223,26 +4223,34 @@ def _shape_forms(cells: _Cells) -> dict[str, int]:
             counts[form] = counts[form] + 1
             continue
         counts[form] = 1
-    # ...AND A FORM SPELLED LIKE A CELL OF THIS COLUMN IS NOT NAMED
-    # (review round 3 finding 1). The placeholders make a form
-    # unspellable by any cell that HAS one, which is the guarantee this
-    # census rests on -- but a FORMLESS cell is under no such rule. A
-    # column holding `E11.9` eleven times and the literal text `@%%.%`
-    # three times publishes the key `@%%.%`, and that key is the
-    # suppressed value, spelled exactly.
+    # A FORM IS NAMED ON ITS COUNT ALONE, AND NEVER ON WHAT ELSE THE
+    # COLUMN HOLDS. That is a rule this census had for a landing, lost,
+    # and got back, so it is written down rather than left implied.
     #
-    # It costs nothing real: such a cell is formless, so it was in no
-    # count here, and dropping its form drops a key the column can do
-    # without. It cannot be checked by a loader, which holds no cells,
-    # so it is a producer obligation and is stated as one (SF-P2).
-    spelled: dict[str, int] = {}
-    for value in cells.present:
-        spelled[value] = 1
+    # The rule that was tried, twice, is "do not name a form spelled
+    # the same as a present cell". It looks like a privacy rule and it
+    # is the opposite of one. It makes suppression DATA-DEPENDENT, and
+    # a reader can run the dependency backwards: the published levels
+    # of a column wear a form and cover enough rows that SF1 REQUIRES
+    # that key; the key is absent; the only rule that removes it is the
+    # collision rule; therefore a cell is spelled exactly like the key.
+    # A floor-suppressed value, recovered EXACTLY, from published facts
+    # and no side knowledge.
+    #
+    # What it was meant to stop discloses nothing to begin with. The
+    # key `@%%.%` is what ANY letter-figure-figure-point-figure column
+    # publishes; a reader seeing it cannot tell whether some cell is
+    # also spelled that way, and `A99` had two thousand six hundred
+    # preimages when the placeholders were `9` and `A`. So the rule
+    # trades a coincidence that tells nobody anything for a channel
+    # that hands over a suppressed value.
+    #
+    # Round 2's verification refuted it. Round 3's read asked for it
+    # again, on the formless-cell case, and it was BUILT AND REVERTED
+    # -- measured: the same column with and without one odd cell gives
+    # two documents differing only in whether the census is pooled.
     published_counts: dict[str, int] = {}
     for form in sorted(counts):
-        if form in spelled:
-            withheld = withheld + counts[form]
-            continue
         if counts[form] >= cells.settings.small_cell_floor:
             published_counts[form] = counts[form]
             continue

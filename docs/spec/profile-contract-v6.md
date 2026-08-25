@@ -5751,16 +5751,25 @@ maps a written form to the number of present cells written in it, with
 the pooled key `(withheld)` for the forms fewer than
 `small_cell_floor` cells share.
 
-**AND A FORM SPELLED LIKE A CELL OF THE COLUMN IS NOT NAMED (SF-P2).**
-The placeholders make a form unspellable by any cell that HAS one,
-which is the guarantee this census rests on and which a loader can
-check. A FORMLESS cell is under no such rule: a column holding `E11.9`
-eleven times beside the literal text `@%%.%` three times would publish
-the key `@%%.%`, and that key is the suppressed value spelled exactly.
-The producer therefore pools any form spelled like a present cell. A
-loader holds no cells and cannot check it, so it is an obligation and
-not an invariant — and it costs nothing, since such a cell is formless
-and was in no count.
+**A FORM IS NAMED ON ITS COUNT ALONE, AND NEVER ON WHAT ELSE THE
+COLUMN HOLDS.** The guarantee above reaches every cell that HAS a
+form; a FORMLESS cell — one carrying a placeholder — is under no such
+rule, so a column holding `E11.9` eleven times beside the literal text
+`@%%.%` three times publishes the key `@%%.%` while also holding that
+string. **The rule that would stop it is REFUSED, and refused twice**:
+"do not name a form spelled the same as a present cell" makes
+suppression DATA-DEPENDENT, and a reader runs the dependency
+backwards — the published levels wear a form covering enough rows that
+SF1 REQUIRES the key, the key is absent, only the collision rule
+removes it, therefore a cell is spelled exactly like it. That is a
+floor-suppressed value recovered EXACTLY from published facts.
+
+What it would prevent discloses nothing to begin with: `@%%.%` is the
+key ANY letter-figure-figure-point-figure column publishes, and a
+reader cannot tell whether some cell is also spelled that way. The
+coincidence tells nobody anything; the cure hands over a value. **A
+census key is a fact about writing and is never withheld on account of
+another cell.**
 
 **IT STANDS ON ALL FOUR LABEL ROLES BECAUSE SUPPRESSION IS A FACT
 ABOUT THE FLOOR AND NOT ABOUT THE ROLE.** It stood on
@@ -6374,7 +6383,6 @@ document, never the table it describes.
 | RM-P | the `resolution_mix` counts are the counts the source's own cells wore | a 40/60 and a 50/50 split of a hundred cells both satisfy RM1 and RM2 |
 | FW-P | every `fraction_widths` count is the count of source cells written at that fraction width | P5 bounds the total and P6 and P7 the entries; none checks the census's SHAPE |
 | PW-P | every `pad_widths` count is the count of source cells written at that field width | P5b bounds the total and P6b and P7b the entries; none checks the census's SHAPE |
-| SF-P2 | no key of `shape_forms` is spelled the same as any present cell of the column it describes | the placeholders make that impossible for a cell that HAS a form, which a loader can check; a FORMLESS cell is under no such rule, and a loader holds no cells to compare against |
 | SF-P | every `shape_forms` count is the count of source cells written in that form, and the pooled value the count of cells whose form too few shared | SF3 bounds the total from above and SF1 the named entries; none checks the census's SHAPE, and none can see the cells that had no form at all |
 | NG9-P | where the recoverable-distribution arithmetic holds, that clause IS written | a document with no clause holds no *C*, so the converse is untestable |
 | NG13-P | the column publishes a level whose spelling is the stand-in argument 1 names | the argument names a stand-in by number and the level is published folded |

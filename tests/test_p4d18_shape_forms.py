@@ -1307,30 +1307,38 @@ def test_a_column_whose_holes_look_like_values_is_not_accused() -> None:
     ] == []
 
 
-def test_a_form_spelled_like_a_cell_of_the_column_is_not_named() -> None:
-    """THE HALF THE PLACEHOLDERS DO NOT REACH (round 3 finding 1).
+def test_a_census_key_is_never_withheld_on_account_of_another_cell() -> None:
+    """THE RULE THAT LOOKS LIKE PRIVACY AND IS THE OPPOSITE OF IT.
 
-    A cell that HAS a form can never be spelled like any form, because
-    every form carries a placeholder and a cell carrying one is
-    formless. That is the guarantee, and it is checkable.
+    Two reads asked for it: do not name a form spelled the same as a
+    present cell, so that a column holding `E11.9` beside the literal
+    text `@%%.%` does not publish `@%%.%` as a key. It was built twice
+    and reverted twice, and this is the test that keeps it out.
 
-    A FORMLESS cell is under no such rule. A column holding `E11.9`
-    eleven times beside the literal text `@%%.%` three times published
-    the key `@%%.%` -- and that key is the suppressed value, spelled
-    exactly. The producer pools such a form instead of naming it,
-    which costs nothing: the cell was formless and in no count.
+    It makes suppression DATA-DEPENDENT, and a reader runs the
+    dependency backwards: `e11.9` is published covering eleven rows,
+    its form is `@%%.%`, eleven clears the floor, so SF1 REQUIRES that
+    key -- and it is absent. Only the collision rule removes it.
+    Therefore a cell is spelled exactly `@%%.%`. A floor-suppressed
+    value, recovered exactly, from published facts alone.
+
+    What it would prevent discloses nothing: that key is what ANY
+    letter-figure-figure-point-figure column publishes.
+
+    So the two documents below must be THE SAME. If they ever differ,
+    the rule is back and the channel with it.
     """
-    values = ["E11.9"] * 11 + ["@%%.%"] * 3
-    document, _loaded, _folder = _described(values, "dx")
-    forms = document["columns"][0]["shape_forms"]
-    assert "@%%.%" not in forms, forms
-    assert forms == {"(withheld)": 11}, forms
-
-    # ...and an ordinary column is untouched by the rule.
-    document, _loaded, _folder = _described(
-        ["E11.9"] * 60 + ["I10.0"] * 45, "dx"
+    with_it, _loaded, _folder = _described(
+        ["E11.9"] * 11 + ["@%%.%"] * 3, "dx"
     )
-    assert document["columns"][0]["shape_forms"] == {"@%%.%": 105}
+    without, _loaded, _folder = _described(
+        ["E11.9"] * 11 + ["z" * 28] * 3, "dx"
+    )
+    assert with_it["columns"][0]["shape_forms"] == {"@%%.%": 11}
+    assert (
+        with_it["columns"][0]["shape_forms"]
+        == without["columns"][0]["shape_forms"]
+    ), "the census must not depend on what else the column holds"
 
 
 def test_the_debts_are_settled_by_arithmetic_before_any_search() -> None:
