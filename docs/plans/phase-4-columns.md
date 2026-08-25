@@ -1701,6 +1701,28 @@ Opened by this plan, each a limit accepted rather than work forgotten:
   be reconciled first, and reconciling them changes sentences a shipped
   profile prints. It is its own landing, not a passenger on a landing
   about dates.
+- **A RULE THIS DECISION REFUSES, recorded so it is not proposed a
+  third time.** "Do not name a form spelled the same as a present cell
+  of the column" was asked for by the first adversarial read and again
+  by the third, was built both times, and was reverted both times. It
+  looks like a privacy rule and is the opposite of one: it makes
+  suppression DATA-DEPENDENT, so a reader runs the dependency
+  backwards -- the published levels wear a form covering enough rows
+  that SF1 REQUIRES the key, the key is absent, only this rule removes
+  it, therefore a cell is spelled exactly like the key. That is a
+  floor-suppressed value recovered EXACTLY from published facts and no
+  side knowledge, which is measured and not argued: the same column
+  with and without one odd cell gave two documents differing in
+  nothing else.
+
+  What it would prevent discloses nothing to begin with. `@%%.%` is
+  the key ANY letter-figure-figure-point-figure column publishes, and
+  a reader cannot tell whether a cell is also spelled that way -- the
+  same nil content the first read's verification measured for `A99`,
+  which had two thousand six hundred preimages. **A census key is a
+  fact about writing, and is never withheld on account of another
+  cell.** `tests/test_p4d18_shape_forms.py` fails if the rule returns.
+
 - **R-P4-37** (opened by the role-topology guard, 2026-08-25, and NOT
   caused by P4-D18). THE CONTRACT SPECIFIES TWO KEYS ON
   `numeric_unrepresentable` THAT THE PRODUCER HAS NEVER WRITTEN.
@@ -3252,6 +3274,75 @@ disclose, from nothing about their values' writing to the forms those
 values were written in. What it buys is the thing the owner asked for:
 a rare finding REPRESENTED in the twin, at its real count, in the shape
 of the thing it stands for.
+
+### P4-D19 A COLUMN OF CODES WRITTEN IN FIGURES IS NOT PROTECTED BY THE FLOOR (opened 2026-08-25, DECISION PENDING)
+
+**This is a finding first and a proposal second, and the finding is the
+part that matters.**
+
+A diagnosis column spelled `E11.9` takes a label role. Its rare codes
+are held back by `small_cell_floor` and the twin stands in for them.
+That is the protection this phase was built around, and it works.
+
+**A vaccine column spelled `213` takes a NUMBER role, and the floor
+does not reach it.** Measured on 241 rows holding fourteen codes at a
+floor of eleven:
+
+```
+max  = 213    a real code, carried by ONE row
+p95  = 133    a real code, carried by nine rows
+p90  = 110    a real code, carried by eleven rows
+p75  = 33     p50 = 20   real codes
+```
+
+Five real codes published, **two of them below the floor**, and the
+one-row code written in as the column's largest value. The ladder of a
+numeric column is EXACT-OBSERVABLE and floor-free by design -- an
+endpoint is a real cell, which is right for a measurement and wrong for
+a code -- so this is not a defect in any rule. It is a column reaching
+the wrong rule, because nothing in `213` says it is a code.
+
+**THE OWNER RAISED THIS INDEPENDENTLY**, before it was measured: "if
+it's a coding system it should not be treated as a number (even though
+is a number) ... We should know which is the id, which is real numbers,
+which are codes." The measurement says he is right and the cost is
+higher than either of us assumed.
+
+**Why no rule can find these columns.** `250` is a dose or a diagnosis;
+`8` is a vaccine code or a count of visits. What separates them is what
+the column MEANS. Review item P1-R6-F8 withdrew identifier inference on
+exactly that ground after three attempts, each defeated by an ordinary
+column. Nothing has changed that would make a fourth attempt fair.
+
+**The proposal: one declaration, `--code COLUMN`.** It sends the column
+past the numeric, date, clock and affixed rules into the LABEL rules
+that already exist, so it lands on `categorical`, `long_tail_labels` or
+`free_text`, publishes under the floor already in force, and is built
+by a generator branch already written and already reviewed. Measured on
+the same fourteen codes:
+
+| | read as numbers | read as codes |
+|---|---|---|
+| real codes published | 5, including ones held by 1 and 9 rows | 8, every one held by 11 or more |
+| the floor applies | NO | yes |
+| rare codes | published as endpoints | held back and counted |
+| the twin | flattens the counts, invents codes the scheme has no room for | reproduces the real codes at their real counts |
+
+More private AND a better twin, which is the shape of every finding in
+this area: the reading was simply wrong, and correcting it costs
+nothing.
+
+**`--identifier` IS NOT THE ANSWER, though it is the closest thing
+today** and the tool's own help text invites it ("record numbers or
+codes"). It publishes NOTHING, so a repeating code column loses its
+codes entirely: measured, `CVX03` comes back as `A---B`. Right for a
+record number, wrong for a diagnosis.
+
+**WHAT IS NOT DECIDED, and is the owner's to decide.** Whether the tool
+should also SAY, on every run, which columns it read as numbers and how
+to correct it. That is a change to what every existing user sees, and
+it is the difference between a flag people must already know about and
+a tool that tells them. Recorded here; not built.
 
 ## Acceptance criteria
 
