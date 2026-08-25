@@ -1388,3 +1388,53 @@ def test_the_supply_knows_what_the_column_has_already_written() -> None:
     assert generation._usable_room("-@%%", 10, {}, {}, ()) == 0
     # ...and it stops at what was asked for.
     assert generation._usable_room("@%%.%", 12, {}, {}, ()) == 12
+
+
+def test_the_subset_walk_never_lays_one_size_down_twice() -> None:
+    """IT DID, AND IT CRASHED THE CALLER (review round 4 finding 3).
+
+    The walk remembers which size was laid down to reach each sum, and
+    the first version REWROTE a sum when it found a shorter way there
+    -- after a larger sum had already been recorded as resting on it.
+    Reading that chain back returned the same slot twice: `[8,3,3,3,1]`
+    making ten came back as slots `[4, 4, 0]`, which raised an
+    IndexError on one arrangement of sizes and silently underpaid on
+    another.
+
+    Two rules keep it honest: each size is offered against the sums
+    reachable WITHOUT it, and a sum once reached is never rewritten.
+    Together they make the chain strictly decreasing in slot.
+    """
+    picked = generation._subset_making([8, 3, 3, 3, 1], 10, 4)
+    assert picked is not None
+    assert len(picked) == len(set(picked)), picked
+    assert sum([8, 3, 3, 3, 1][slot] for slot in picked) == 10
+
+    # ...and the two arrangements that crashed and underpaid.
+    for sizes, owing in (
+        ((1, 3, 3, 3, 8), {"@-%": 10, "@_%": 8}),
+        ((1, 2, 5, 5, 5, 13), {"@-%": 17, "@_%": 14}),
+        ((3, 2, 2, 1), {"@-%": 4, "@_%": 2}),
+    ):
+        taken = generation._shared_out(sizes, dict(owing), {}, {}, ())
+        settled: dict[str, int] = {}
+        for place in range(len(sizes)):
+            settled[taken[place]] = settled.get(taken[place], 0) + sizes[place]
+        for form in owing:
+            assert settled.get(form) == owing[form], (sizes, settled, owing)
+
+
+def test_a_very_long_tail_costs_the_run_nothing_to_arrange() -> None:
+    """THE GUARD STOOD AFTER THE WORK IT EXISTS TO STOP.
+
+    A hundred thousand held-back levels reached four thousand sums and
+    then rescanned them for every remaining group -- some four hundred
+    million visits -- before the size guard was consulted (review round
+    4 finding 5). The guard comes first now.
+    """
+    began = time.monotonic()
+    taken = generation._shared_out(
+        tuple([10] * 100000), {"@-%": 40960}, {}, {}, ()
+    )
+    assert time.monotonic() - began < 5.0
+    assert len(taken) == 100000
