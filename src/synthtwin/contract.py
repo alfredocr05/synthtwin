@@ -5389,8 +5389,10 @@ def _shape_forms(
                 f"shape_forms -> {name}",
                 where,
                 "a key of that shape",
-                "a written form, in which every figure is 9 and every "
-                "letter is A",
+                "a written form: a figure written '%', a letter "
+                "written '@', and between them only the marks "
+                "- . / _ : # * ( ) [ ] + , -- carrying at least two "
+                "of those three kinds",
             )
         if forms[name] < floor:
             raise _broken(

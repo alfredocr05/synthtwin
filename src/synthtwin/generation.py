@@ -6045,7 +6045,13 @@ def _label_content(
     # publish none, so the debt is empty for them and the neutral
     # `group-N` spelling stands as before.
     owing = _forms_owed(facts, cells)
-    wanted = _shared_out(facts.suppressed_level_counts, owing)
+    wanted = _shared_out(
+        facts.suppressed_level_counts,
+        owing,
+        used,
+        owners,
+        _hole_spellings(column),
+    )
     # Each form's place in its own supply, carried across the whole
     # column so no spelling is walked twice.
     walked: "dict[str, int]" = {}
@@ -6242,7 +6248,11 @@ _SHARE_OUT_PLACES = 256
 
 
 def _shared_out(
-    sizes: "tuple[int, ...]", owing: "dict[str, int]"
+    sizes: "tuple[int, ...]",
+    owing: "dict[str, int]",
+    used: "dict[str, int]",
+    owners: "dict[str, str]",
+    holes: "tuple[str, ...]",
 ) -> "list[str]":
     """Which published form each stand-in is written in, one per size.
 
@@ -6280,8 +6290,26 @@ def _shared_out(
     # it HAS is not an arrangement at all -- the walk exhausts the form
     # and writes neutral spellings, and the census is missed by the
     # cells it was built to meet.
-    supply = {form: _usable_room(form) for form in names}
+    supply = {
+        form: _usable_room(form, len(sizes), used, owners, holes)
+        for form in names
+    }
     chosen: "dict[int, str]" = {}
+    # SETTLE EACH DEBT EXACTLY BY ARITHMETIC BEFORE SEARCHING FOR IT
+    # (review round 3 finding 7). The walk below is a search over
+    # arrangements and a search needs a bound; bounded at twenty
+    # thousand nodes it missed an arrangement the SOURCE ITSELF
+    # exhibits -- twelve levels whose debts of 31 and 74 are reached
+    # only at node 67,208 -- and settled for 41 and 83 instead.
+    #
+    # Which sizes make one debt exactly is a question with an answer,
+    # not a thing to hunt for: it is reachable-sums over the sizes,
+    # and this walks the debts largest first, takes an exact subset
+    # for each and hands the rest on. Where every debt is settled that
+    # way the search is never entered.
+    settled = _settled_by_sums(sizes, places, owing, names, supply)
+    if settled is not None:
+        return settled
     budget = [_SHARE_OUT_NODES]
     # SEARCHING ONLY THE SMALL CASES. Past this many places the search
     # would spend its budget without reaching an answer, and the greedy
@@ -6307,7 +6335,10 @@ def _shared_out(
     # twenty-six spellings thirty-one places.
     every = [form for form in sorted(owing) if owing[form] > 0]
     left = {form: owing[form] for form in every}
-    spare = {form: _form_room(form) for form in every}
+    spare = {
+        form: _usable_room(form, len(sizes), used, owners, holes)
+        for form in every
+    }
     taken: "list[str]" = ["" for _each in sizes]
     for place in places:
         form = _neediest_form(_within_supply(left, spare))
@@ -6328,6 +6359,87 @@ def _within_supply(
         if spare[form] > 0:
             open_still[form] = left[form]
     return open_still
+
+
+def _settled_by_sums(
+    sizes: "tuple[int, ...]",
+    places: "list[int]",
+    owing: "dict[str, int]",
+    names: "list[str]",
+    supply: "dict[str, int]",
+) -> "list[str] | None":
+    """An arrangement settling every debt exactly, or None.
+
+    Each debt in turn, largest first, takes an exact subset of the
+    sizes still going spare. `_subset_making` answers which sizes make
+    one total, by reachable sums rather than by search, so a debt no
+    subset can make is known at once instead of hunted for.
+
+    Not complete, and said so plainly: an exact subset taken for an
+    early debt can leave a later one unreachable where another subset
+    would not have. Where that happens this answers None and the
+    search below runs exactly as it did. What it buys is every case
+    where the debts are settled one at a time, which is the shape a
+    real column has.
+    """
+    spare = [sizes[place] for place in places]
+    where = list(places)
+    taken: "dict[int, str]" = {}
+    ordered = sorted([(0 - owing[form], form) for form in names])
+    for pair in ordered:
+        form = pair[1]
+        picked = _subset_making(spare, owing[form], supply[form])
+        if picked is None:
+            return None
+        for slot in sorted(picked, reverse=True):
+            taken[where[slot]] = form
+            del spare[slot]
+            del where[slot]
+    answer = ["" for _each in sizes]
+    for place in taken:
+        answer[place] = taken[place]
+    return answer
+
+
+def _subset_making(
+    spare: "list[int]", total: int, most: int
+) -> "list[int] | None":
+    """Which of ``spare`` sum to ``total`` in at most ``most`` parts.
+
+    Reachable sums, walked once: `made[sum]` remembers which size was
+    laid down to reach that sum and how many parts it took, so the
+    answer is read back rather than searched for. Fewest parts wins,
+    because a form's supply of distinct spellings is spent one per
+    part.
+    """
+    if total < 1:
+        return []
+    if most < 1:
+        return None
+    made: "dict[int, tuple[int, int, int]]" = {}
+    reached = {0: 0}
+    for slot in range(len(spare)):
+        size = spare[slot]
+        for sum_so_far in sorted(reached, reverse=True):
+            step = sum_so_far + size
+            if step > total:
+                continue
+            parts = reached[sum_so_far] + 1
+            if step in reached and reached[step] <= parts:
+                continue
+            if parts > most:
+                continue
+            reached[step] = parts
+            made[step] = (slot, sum_so_far, parts)
+    if total not in made:
+        return None
+    picked: "list[int]" = []
+    at = total
+    while at:
+        slot, before, _parts = made[at]
+        picked = picked + [slot]
+        at = before
+    return picked
 
 
 def _settles(
@@ -6432,27 +6544,45 @@ def _given_back(
     del chosen[place]
 
 
-def _usable_room(form: str) -> int:
-    """How many spellings of one form a walk could actually write.
+def _usable_room(
+    form: str,
+    wanted: int,
+    used: "dict[str, int]",
+    owners: "dict[str, str]",
+    holes: "tuple[str, ...]",
+) -> int:
+    """How many spellings of one form this walk could still write.
 
     `_form_room` counts the spellings the form HAS; this counts the
-    ones a stand-in may wear. They are not the same number and the
-    search needs the second (review round 2 finding 5's own
-    verification): `-@%%` has two thousand six hundred spellings and
-    NONE of them usable, every one opening with the character a
-    spreadsheet reads as the start of a formula -- so a search told
-    the first number hands that form places it can never fill, and the
-    census is missed by exactly those cells.
+    ones a stand-in may still wear HERE. Three differences, and each
+    was a defect in turn:
 
-    Counted over the walk's own bound rather than the whole supply, so
-    a form of many letters costs this no more than the walk itself
-    would spend on it.
+    - a spelling may be refused outright -- `-@%%` has two thousand
+      six hundred spellings and NOT ONE of them usable, every one
+      opening with the character a spreadsheet reads as the start of a
+      formula (review round 2 finding 5);
+    - a spelling may already be TAKEN by a published label or an
+      earlier stand-in, or fold onto one, so a form whose supply is
+      twenty-six can have one left when twenty-five are spent (review
+      round 3 finding 5);
+    - and a spelling may be one this column reads as absent.
+
+    IT STOPS AT `wanted`. The caller never needs a number larger than
+    the places it has to fill, so a form of many letters costs this the
+    number of stand-ins and not four thousand candidates -- which is
+    what made it a cost on a wide table (round 3 finding 8).
     """
     room = min(_form_room(form), _STAND_IN_STEPS)
     usable = 0
     for step in range(room):
-        if _is_a_usable_stand_in(_filled_form(form, step)):
-            usable = usable + 1
+        if usable >= wanted:
+            return usable
+        candidate = _filled_form(form, step)
+        if candidate in used or parsing.folded(candidate) in owners:
+            continue
+        if not _is_a_usable_stand_in(candidate, holes):
+            continue
+        usable = usable + 1
     return usable
 
 
@@ -6482,7 +6612,7 @@ def _filled_form(form: str, step: int) -> str:
     character stands as itself, because the marks ARE the form. The
     step is taken apart into those positions by plain mixed-radix
     arithmetic, LEFTMOST FIRST, so consecutive steps differ and the
-    form's whole supply is reachable: `A99.9` at step 0 is `A00.0`, at
+    form's whole supply is reachable: `@%%.%` at step 0 is `A00.0`, at
     step 1 `B00.0`, and the form holds 26 x 10 x 10 x 10 spellings
     before any repeats. Past that the spellings come round again, and
     the caller steps past what it has already written.
@@ -11218,9 +11348,9 @@ def _fraction_notes(
         prefix = column.facts.affix_prefix
         suffix = column.facts.affix_suffix
     counted: dict[int, int] = {}
-    for cell in written:
-        if cell == "":
-            continue
+    for cell in _present_of(written, _hole_spellings(column)):
+        # A cell the column's own description reads as absent
+        # is not a present cell (review round 3 finding 4).
         trimmed = parsing.trimmed(cell)
         body = trimmed
         if prefix or suffix:
@@ -11306,9 +11436,9 @@ def _pad_notes(
         prefix = column.facts.affix_prefix
         suffix = column.facts.affix_suffix
     counted: dict[int, int] = {}
-    for cell in written:
-        if cell == "":
-            continue
+    for cell in _present_of(written, _hole_spellings(column)):
+        # A cell the column's own description reads as absent
+        # is not a present cell (review round 3 finding 4).
         trimmed = parsing.trimmed(cell)
         body = trimmed
         if prefix or suffix:
@@ -11419,8 +11549,8 @@ def _form_notes(
         counted[form] = 1
     sense = (
         "The description says how many of this column's cells were "
-        "written in each SHAPE -- every figure of a cell read as `9`, "
-        "every letter as `A`, the marks between them standing -- and "
+        "written in each SHAPE -- every figure of a cell read as `%`, "
+        "every letter as `@`, the marks between them standing -- and "
         "the twin wrote a different number of them that way. Code "
         "developed against the twin that splits a value on a mark, "
         "checks the width of a part, or matches a pattern can behave "
@@ -11857,8 +11987,12 @@ def _style_notes(
     # trade one canonical form for the other.
     for name in ("decimal", "exponent_lower"):
         odd = 0
-        for cell in written:
-            if cell == "" or parsing.numeric_style(cell) != name:
+        for cell in _present_of(written, _hole_spellings(column)):
+            # THE SECONDARY LOOP OWES THE SAME RULE AS THE MAIN ONE
+            # (review round 3 finding 4). One reproduced hole spelled
+            # `1.00` counted as a non-canonical decimal on a column
+            # publishing none.
+            if parsing.numeric_style(cell) != name:
                 continue
             if parsing.classify_number(cell) != parsing.NUMBER:
                 continue
@@ -11917,9 +12051,9 @@ def _magnitude_notes(
     negative = 0
     positive = 0
     sign_unknown = 0
-    for cell in written:
-        if cell == "":
-            continue
+    for cell in _present_of(written, _hole_spellings(column)):
+        # A cell the column's own description reads as absent
+        # is not a present cell (review round 3 finding 4).
         if parsing.classify_number(cell) == parsing.NOT_A_NUMBER:
             continue
         sign = parsing.numeric_sign(cell)
