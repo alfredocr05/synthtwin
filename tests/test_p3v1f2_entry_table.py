@@ -268,18 +268,37 @@ def _shaped_text_table() -> str:
     publishes no value at all, and its form census is the only thing
     that says what its twin's cells should look like.
 
-    IT IS TWO COLUMNS for the reason the quarter fixture is: a column
-    of a one-column table cannot be emptied -- the file left behind is
-    no table at all and the reader refuses it before any verdict exists
-    -- so a one-column fixture leaves `axes.quality_state` with no
-    perturbation that can move it.
+    IT IS THREE COLUMNS. Two for the reason the quarter fixture is: a
+    column of a one-column table cannot be emptied -- the file left
+    behind is no table at all and the reader refuses it before any
+    verdict exists -- so a one-column fixture leaves
+    `axes.quality_state` with no perturbation that can move it.
+
+    THE THIRD IS A CODE COLUMN OF CATEGORIES, and it is here because
+    the census stands on the four LABEL roles too and no other fixture
+    of this file reached one with a form. A form needs at least two of
+    the three kinds -- figure, letter, mark -- so a column of region
+    names publishes nothing; `E11.9` and its rare tail publish
+    `A99.9`, `A99` and `A99.99`, and the tail is what the census was
+    raised for. Five common codes and a tail of rare ones is the
+    diagnosis column a person actually holds.
     """
+    common = ["E11.9", "I10", "Z00.00", "J45.909", "M54.5"]
+    rare = [f"Q{number:02d}.{number % 3}" for number in range(70, 96)]
+    diagnoses: "list[str]" = []
+    for code, count in zip(common, (62, 45, 34, 28, 22)):
+        diagnoses = diagnoses + [code] * count
+    for place, code in enumerate(rare):
+        diagnoses = diagnoses + [code] * (1 if place % 2 else 2)
+    while len(diagnoses) < 240:
+        diagnoses = diagnoses + [common[0]]
     return fixtures.rows_to_csv(
-        ["lab_code", "region"],
+        ["lab_code", "region", "dx_code"],
         [
             [
                 f"{4000 + number}-{number % 10}",
                 fixtures.REGIONS[number % 4],
+                diagnoses[number],
             ]
             for number in range(240)
         ],
@@ -3096,8 +3115,6 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("blanked-recorded_on", "presence.n_present"),
         ),
         "note": (
-            ("reshaped-note", "forms.published.AAAAAA"),
-            ("reshaped-note", "forms.published.AAAAAAAA"),
             # THE LONG-TAIL ROLE (plan P4-D5). It publishes the four
             # shared label keys and no key of its own, so its
             # obligations are the label family's -- and each of them
@@ -3246,6 +3263,53 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
     # executable subcheck; before it, that fact was in the registry and
     # in no check any fixture reached.
     "shaped-text": {
+        "dx_code": (
+            # THE FORM CENSUS ON A LABEL ROLE (plan P4-D18). A
+            # figure appended to every cell moves every form the
+            # column published; the two forms the floor left
+            # standing on the common codes are moved instead by
+            # the edit that pushes a level below the floor.
+            ("emptied-dx_code", "axes.quality_state"),
+            ("emptied-dx_code", "axes.role"),
+            ("emptied-dx_code", "axes.statistical_type"),
+            ("one-contradicted-dx_code", "counts.n_contradictory"),
+            ("blanked-dx_code", "counts.n_not_numeric"),
+            ("one-bracketed-dx_code", "counts.n_numeric"),
+            ("one-overflowed-dx_code", "counts.n_out_of_range"),
+            ("marked-dx_code", "distinct.n_distinct"),
+            ("marked-dx_code", "distinct.n_distinct_folded"),
+            ("marked-dx_code", "forms.published.A99"),
+            ("marked-dx_code", "forms.published.A99.9"),
+            ("reshaped-dx_code", "forms.published.A99.99"),
+            ("reshaped-dx_code", "forms.published.A99.999"),
+            ("marked-dx_code", "levels.e11.9.count"),
+            ("reshaped-dx_code", "levels.e11.9.label"),
+            ("marked-dx_code", "levels.e11.9.variants"),
+            ("reshaped-dx_code", "levels.e11.9.variants_withheld"),
+            ("marked-dx_code", "levels.i10.count"),
+            ("reshaped-dx_code", "levels.i10.label"),
+            ("marked-dx_code", "levels.i10.variants"),
+            ("reshaped-dx_code", "levels.i10.variants_withheld"),
+            ("reshaped-dx_code", "levels.j45.909.count"),
+            ("reshaped-dx_code", "levels.j45.909.label"),
+            ("reshaped-dx_code", "levels.j45.909.variants"),
+            ("reshaped-dx_code", "levels.j45.909.variants_withheld"),
+            ("marked-dx_code", "levels.m54.5.count"),
+            ("reshaped-dx_code", "levels.m54.5.label"),
+            ("marked-dx_code", "levels.m54.5.variants"),
+            ("reshaped-dx_code", "levels.m54.5.variants_withheld"),
+            ("marked-dx_code", "levels.set"),
+            ("marked-dx_code", "levels.z00.00.count"),
+            ("reshaped-dx_code", "levels.z00.00.label"),
+            ("marked-dx_code", "levels.z00.00.variants"),
+            ("reshaped-dx_code", "levels.z00.00.variants_withheld"),
+            ("renamed-dx_code", "position.at"),
+            ("blanked-dx_code", "presence.n_missing"),
+            ("blanked-dx_code", "presence.n_present"),
+            ("marked-dx_code", "suppressed.counts"),
+            ("marked-dx_code", "suppressed.suppressed_levels"),
+            ("marked-dx_code", "suppressed.suppressed_rows"),
+        ),
         "": (
             ("byte-order-mark", "bytes.byte-order-mark"),
             ("carriage-returns", "bytes.line-endings"),
@@ -3767,7 +3831,11 @@ FIXTURE_ROLES: "dict[str, dict[str, str]]" = {
         "column_2": "categorical",
     },
     "padded-codes": {"code": "count"},
-    "shaped-text": {"lab_code": "free_text", "region": "categorical"},
+    "shaped-text": {
+        "lab_code": "free_text",
+        "region": "categorical",
+        "dx_code": "long_tail_labels",
+    },
     "pooled": {"reading": "continuous"},
     "quarters": {
         "region": "categorical",
@@ -3959,6 +4027,26 @@ SUBCHECK_FACTS: "dict[tuple[str, str], str]" = {
     ("label", "counts.n_out_of_range"): "universal.n_out_of_range",
     ("label", "distinct.n_distinct"): "label.n_distinct",
     ("label", "distinct.n_distinct_folded"): "label.n_distinct_folded",
+    ("label", "levels.e11.9.count"): "label.count",
+    ("label", "levels.e11.9.label"): "label.label",
+    ("label", "levels.e11.9.variants"): "label.variants",
+    ("label", "levels.e11.9.variants_withheld"): "label.variants_withheld",
+    ("label", "levels.i10.count"): "label.count",
+    ("label", "levels.i10.label"): "label.label",
+    ("label", "levels.i10.variants"): "label.variants",
+    ("label", "levels.i10.variants_withheld"): "label.variants_withheld",
+    ("label", "levels.j45.909.count"): "label.count",
+    ("label", "levels.j45.909.label"): "label.label",
+    ("label", "levels.j45.909.variants"): "label.variants",
+    ("label", "levels.j45.909.variants_withheld"): "label.variants_withheld",
+    ("label", "levels.m54.5.count"): "label.count",
+    ("label", "levels.m54.5.label"): "label.label",
+    ("label", "levels.m54.5.variants"): "label.variants",
+    ("label", "levels.m54.5.variants_withheld"): "label.variants_withheld",
+    ("label", "levels.z00.00.count"): "label.count",
+    ("label", "levels.z00.00.label"): "label.label",
+    ("label", "levels.z00.00.variants"): "label.variants",
+    ("label", "levels.z00.00.variants_withheld"): "label.variants_withheld",
     ("label", "levels.clinic.count"): "label.count",
     ("label", "levels.clinic.label"): "label.label",
     ("label", "levels.clinic.variants"): "label.variants",
@@ -4026,9 +4114,11 @@ SUBCHECK_FACTS: "dict[tuple[str, str], str]" = {
     # form, so its subcheck names are decided by the description in
     # the same way the two width censuses are (P4-D18). Only the forms
     # the fixtures actually publish need a row.
-    ("label", "forms.published.AAAAAA"): "label.shape_forms",
-    ("label", "forms.published.AAAAAAAA"): "label.shape_forms",
     ("free_text", "forms.published.9999-9"): "free_text.shape_forms",
+    ("label", "forms.published.A99"): "label.shape_forms",
+    ("label", "forms.published.A99.9"): "label.shape_forms",
+    ("label", "forms.published.A99.99"): "label.shape_forms",
+    ("label", "forms.published.A99.999"): "label.shape_forms",
     ("numeric", "counts.affix_prefix"): "affixed.affix_prefix",
     ("numeric", "counts.affix_suffix"): "affixed.affix_suffix",
     ("numeric", "counts.n_affixed"): "affixed.n_affixed",

@@ -1945,30 +1945,182 @@ def invented_variants(parent, used, wanted):
     return produced
 
 
-def invented_levels(used, sizes):
-    """The neutral stand-in labels of method section G8.3.
+SHAPE_FORM_LIMIT = 24
+WITHHELD = "(withheld)"
 
-    ``group-1``, ``group-2``, … in order, each candidate skipped and the
-    number advanced when it collides, raw or folded, with any spelling
-    already used in the column.  They carry no fragment of any real
-    value, are not one of the spellings that mean "no value", do not
-    read as a number or a date, need no quoting, and do not begin with a
-    character a spreadsheet reads as a formula.
+
+def usable_stand_in(candidate):
+    """The four properties the neutral spelling had by construction.
+
+    `group-N` had them for free; a spelling built to look like one of
+    the column's own values does not, so each is asked.  This file
+    answers them WITHOUT the shipped reader, which is the whole point
+    of it -- and it must answer them the same way the reader does on
+    every candidate its own cases produce, or the two write different
+    bytes for a reason that is about this file and not about the
+    method.
+
+    So the range it reasons about is bounded and the bound is
+    ENFORCED: a form carrying a figure could produce a candidate that
+    reads back as a number or as a date, and this file states no
+    reading of either.  A case reaching one raises here rather than
+    quietly disagreeing.
+    """
+    if not candidate:
+        return False
+    if folded(candidate) in NO_VALUE_SPELLINGS:
+        return False
+    for character in candidate:
+        if character == "," or character == '"':
+            return False
+        if character.isdigit():
+            raise AssertionError(
+                "this file reasons only about stand-ins with no figure "
+                f"in them, and {candidate!r} has one: a candidate that "
+                "could read back as a number or a date needs the "
+                "number and date rules answered here, not reasoned "
+                "away"
+            )
+    return candidate[0] not in "=+-@"
+
+
+def written_form(text):
+    """The written form of one cell -- contract C6-31a.
+
+    Every ASCII digit becomes ``9``, every ASCII letter ``A``, and every
+    other character stands as itself.  A cell that is empty or longer
+    than the limit has no form at all.
+    """
+    if not text or len(text) > SHAPE_FORM_LIMIT:
+        return ""
+    built = ""
+    for character in text:
+        if "0" <= character <= "9":
+            built += "9"
+        elif ("a" <= character <= "z") or ("A" <= character <= "Z"):
+            built += "A"
+        else:
+            built += character
+    return built
+
+
+def form_room(form):
+    """How many different spellings one form holds."""
+    room = 1
+    for character in form:
+        if character == "9":
+            room *= 10
+        elif character == "A":
+            room *= 26
+    return room
+
+
+def shares_a_factor(one, other):
+    left, right = one, other
+    while right:
+        left, right = right, left % right
+    return left != 1
+
+
+def stepped_around(step, room):
+    """``step`` moved around ``room`` so every position varies.
+
+    A stride sharing no factor with the room is a one-to-one map onto
+    it, so no two steps below the room collide and consecutive steps
+    land far apart.  Taken in counting order instead, every position
+    but the lowest stays at zero for the first few hundred values and
+    every cell of the column ends alike.
+    """
+    if room < 4:
+        return step % max(room, 1)
+    stride = max(room * 61803 // 100000, 1)
+    while shares_a_factor(stride, room):
+        stride += 1
+    return (step * stride) % room
+
+
+def filled_form(form, step):
+    """One spelling of one form -- contract 7.9.1."""
+    figures = "0123456789"
+    letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    built = ""
+    place = stepped_around(step, form_room(form))
+    for character in form:
+        if character == "9":
+            built += figures[place % 10]
+            place //= 10
+        elif character == "A":
+            built += letters[place % 26]
+            place //= 26
+        else:
+            built += character
+    return built
+
+
+def forms_owed(census, written):
+    """Cells each published form still owes after what is written."""
+    owing = {}
+    for form in sorted(census):
+        if form == WITHHELD:
+            continue
+        owing[form] = census[form]
+    for cell in written:
+        form = written_form(cell)
+        if form in owing and owing[form] > 0:
+            owing[form] -= 1
+    return owing
+
+
+def neediest_form(owing):
+    """The published form owing the most cells, ties by its spelling."""
+    ordered = sorted(
+        (-owing[form], form) for form in sorted(owing) if owing[form] > 0
+    )
+    return ordered[0][1] if ordered else ""
+
+
+def invented_levels(used, sizes, census=None, written=()):
+    """The stand-in labels of method section G8.3.
+
+    Where the column publishes a census of written forms and it still
+    owes cells, the stand-in is one of those forms' spellings; the debt
+    is over the cells the twin has ALREADY WRITTEN, and each stand-in
+    covers its level's size, so the walk chooses only where to settle
+    and settles the largest debt first.  Where the census owes nothing
+    the stand-in is ``group-1``, ``group-2``, … in order.
+
+    Either way each candidate is skipped and the walk advanced when it
+    collides, raw or folded, with any spelling already used in the
+    column, and when it fails one of the four properties the neutral
+    spelling had by construction: it must not be one of the spellings
+    that mean "no value", must read as neither a number nor a date,
+    must carry no comma or quote, and must not begin with a character a
+    spreadsheet reads as a formula.  A collision moves the SPELLING and
+    never the form.
     """
     seen = set(used)
     folds = {folded(text) for text in used}
+    owing = forms_owed(census or {}, written)
     produced = []
-    counter = 1
+    counter = 0
     for size in sizes:
+        form = neediest_form(owing)
         while True:
-            candidate = f"group-{counter}"
             counter += 1
+            if form:
+                candidate = filled_form(form, counter - 1)
+            else:
+                candidate = f"group-{counter}"
             if candidate in seen or folded(candidate) in folds:
+                continue
+            if not usable_stand_in(candidate):
                 continue
             seen.add(candidate)
             folds.add(folded(candidate))
             produced.append((candidate, size))
             break
+        if form:
+            owing[form] = max(0, owing[form] - size)
     return produced
 
 
@@ -2090,7 +2242,12 @@ def _label_content(column):
                     spelling = next(supply)
                 content.extend([spelling] * int(key))
                 used.append(spelling)
-    for spelling, size in invented_levels(used, column["suppressed_level_counts"]):
+    for spelling, size in invented_levels(
+        used,
+        column["suppressed_level_counts"],
+        column.get("shape_forms"),
+        content,
+    ):
         content.extend([spelling] * size)
         used.append(spelling)
     return content
@@ -4125,6 +4282,15 @@ def _label_variants():
         ],
         suppressed_levels=2, suppressed_rows=10,
         suppressed_level_counts=[3, 7], level_ceiling=20,
+        # The forms this column's cells were written in (P4-D18). The
+        # published and made-up variants cover 26 cells of `AAAAA` --
+        # the two five-letter labels and every spelling of them -- and
+        # the twelve `7-11` cells wear three forms too rare to name, so
+        # they are pooled. The census then owes the two stand-ins ten
+        # cells of `AAAAA`, which is exactly what their published sizes
+        # cover, so this case pins the shaped walk as well as the
+        # variant allocation.
+        shape_forms={"AAAAA": 36, "(withheld)": 12},
     )
     return {
         "why": "the variant allocation of G8.1, including the label's own "

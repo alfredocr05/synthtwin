@@ -229,7 +229,7 @@ def test_the_golden_run_is_the_shape_this_file_says_it_is(
 # twenty-seven more obligations than it did, which is the direction a
 # re-recording must move in.
 GOLDEN_DESCRIPTION_SHA256 = (
-    "7dd70dc15896e239b7805c83253848c5083c80000bfabd3ac3daf53939ee6671"
+    "c527236bac66d2b312529a829dc157e753b71ed6bd6a878e4f8424f281819adf"
 )
 
 
@@ -554,7 +554,7 @@ def test_the_same_description_and_seed_give_the_same_twin_twice(
 # which is what says this is the page and not the run: stage 2 changes
 # no wire, no generation rule and no twin byte.
 GOLDEN_REPORT_SHA256 = (
-    "4ae022f7d6c279fa7d89a4305402e311a2e16a35da70e53f0cee4b7bf5536b17"
+    "bfce7e2beb27357faaf7814841bc5ae37169d0096c714e02b206569a73ace866"
 )
 
 
@@ -920,8 +920,17 @@ def test_the_report_names_the_seed_the_twin_was_built_at(
 # window, because the window is no longer what decided it. Read the diff
 # that way: a line where the two values DIFFER may not have moved, and
 # one that did would be this repair reaching further than its own rule.
+# THE CENSUS LOST TWO OBLIGATIONS HERE, DELIBERATELY (plan P4-D18,
+# adversarial round 1). The `note` column published the forms `AAAAAA`
+# and `AAAAAAAA`, and a form carrying only ONE kind of symbol says
+# nothing `length` and the two alphabet counts do not already say: the
+# six and the eight are `length`'s own, and which alphabet is
+# `n_code_alphabet`'s. A form is now published only where at least two
+# of the three kinds -- figure, letter, mark -- appear, so `A9999`
+# stands and `AAAAAA` does not. Fewer obligations here is the point of
+# that rule and not a census that quietly shrank.
 GOLDEN_QUALITY_SHA256 = (
-    "777c7a5251c10cbfa9993c439a14bbe7af0b213886400ceffeea692497068be4"
+    "eb883c803f5d13bd4f08422ff30552b40b4fcdba2774417c509888b3e328ca5a"
 )
 
 

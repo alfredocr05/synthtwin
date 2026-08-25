@@ -1301,13 +1301,15 @@ def _is_shape_form(value: object) -> bool:
     """Whether one key of the form census carries no value of the table.
 
     THIS IS THE GUARD THAT MAKES THE CENSUS PUBLISHABLE, and it is
-    written as a proof rather than as a spot check. A form is built by
-    replacing every ASCII digit with `9` and every ASCII letter with
-    `A`, so a KEY that still carries any other digit or letter is a key
-    that carries a fragment of somebody's value -- and this refuses it,
-    whatever built it. The marks between them stand as themselves,
-    which is the whole point of the census: the structure is published
-    and the content is not.
+    written as a CLOSED ALPHABET rather than as a replacement audit.
+    Asking only that no OTHER figure or letter survived leaves every
+    character that is neither -- a space, a mark nobody writes a code
+    with, a letter no ASCII range reaches -- free to stand in the key,
+    and a column of Japanese clinical text published a key holding the
+    words themselves (review round 1 finding 1). A key is `9`, `A`, and
+    marks from a list this tool owns, or it is refused, whatever built
+    it. The marks are the whole point of the census: the structure is
+    published and the content is not.
     """
     if value == taxonomy.SUPPRESSED_LABEL:
         return True
@@ -1316,15 +1318,12 @@ def _is_shape_form(value: object) -> bool:
     if len(value) > parsing.SHAPE_FORM_LIMIT:
         return False
     for character in value:
-        if "0" <= character <= "9":
-            if character != parsing.SHAPE_DIGIT:
-                return False
+        if character == parsing.SHAPE_DIGIT:
             continue
-        lower = "a" <= character <= "z"
-        upper = "A" <= character <= "Z"
-        if lower or upper:
-            if character != parsing.SHAPE_LETTER:
-                return False
+        if character == parsing.SHAPE_LETTER:
+            continue
+        if character not in parsing.SHAPE_MARKS:
+            return False
     return True
 
 

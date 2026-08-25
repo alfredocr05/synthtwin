@@ -81,29 +81,115 @@ def test_a_form_says_the_shape_and_nothing_else() -> None:
         ("4548-4", "9999-9"),
         ("0002-8215-01", "9999-9999-99"),
         ("120/80", "999/99"),
-        ("00100", "99999"),
+        ("A-1", "A-9"),
     ):
         assert parsing.shape_form(text) == form, text
+    # ...and a cell of ONE kind of symbol has no form, because
+    # `length` and the two alphabet counts already say everything such
+    # a key could say.
+    for uniform in ("00100", "AAAAA", "north", "A", "999999"):
+        assert parsing.shape_form(uniform) == "", uniform
     # ...and a cell too long to be a code has no form at all.
     assert parsing.shape_form("a note about a patient seen today") == ""
 
 
 def test_a_column_of_prose_publishes_no_forms() -> None:
-    """THE SAFETY PROPERTY, and it is the floor doing the work.
+    """THE SAFETY PROPERTY, and the SPACE is what does the work.
 
-    Every cell of a note column has its own form, so no form is shared
-    by enough cells to be named, and the census comes out empty. No
-    rule decides which columns are codes; the floor decides, as it
-    decides everything else.
+    The first version of this test used notes over twenty-four
+    characters, where the length limit hides the question -- so it
+    would have passed with the rule that actually protects prose
+    removed. These notes are SHORT, well inside the limit, and the
+    column still publishes nothing, because a cell holding a space has
+    no form (review round 1, test weakening 1).
     """
-    words = "patient reports mild chest pain on exertion denies fever".split()
+    words = ("pain", "fever", "cough", "rash", "ache")
     rng = random.Random(8)
     notes = [
-        " ".join(rng.choice(words) for _each in range(rng.randint(6, 14)))
+        " ".join(rng.choice(words) for _each in range(rng.randint(2, 3)))
         for _row in range(240)
     ]
+    assert max(len(note) for note in notes) < parsing.SHAPE_FORM_LIMIT
     document, _loaded, _folder = _described(notes, "note")
     assert document["columns"][0]["shape_forms"] == {}
+
+
+def test_a_short_sentence_template_publishes_nothing_either() -> None:
+    """THE LEAK THE CLOSED MARK LIST CLOSES.
+
+    Two hundred and forty different short sentences written to ONE
+    template all share a form, so the floor names it -- and that form
+    said every word's length, where the space fell, where the comma
+    fell and what the sentence ended with. It is a fact about a
+    sentence, which is what this census is not for.
+
+    The rule that closes it is the space, and behind it the closed list
+    of marks: `!` is not one of the thirteen, so this cell would have
+    no form even written without a space.
+    """
+    rng = random.Random(3)
+    letters = "abcdefghijklmnopqrstuvwxyz"
+    sentences = []
+    while len(sentences) < 240:
+        one = "".join(rng.choice(letters) for _each in range(5))
+        two = "".join(rng.choice(letters) for _each in range(4))
+        sentence = f"{one}, {two}!"
+        if sentence not in sentences:
+            sentences = sentences + [sentence]
+    assert max(len(one) for one in sentences) < parsing.SHAPE_FORM_LIMIT
+    document, _loaded, _folder = _described(sentences, "note")
+    assert document["columns"][0]["shape_forms"] == {}
+
+
+def test_a_form_carries_no_letter_of_any_alphabet_and_no_odd_mark() -> None:
+    """THE LEAK ROUND 1 FOUND, AND IT WAS A REAL ONE.
+
+    Replacing the ASCII ranges alone left every other letter standing,
+    so a column of Japanese clinical text published a key holding the
+    words themselves -- a fragment of a value in the one field this
+    census exists to keep free of them. Every letter and every digit is
+    now replaced, over the whole of Unicode, and every other character
+    must be one of thirteen marks this tool owns or the cell has no
+    form at all.
+    """
+    assert parsing.shape_form("患者-1") == "AA-9"
+    assert parsing.shape_form("Ω12") == "A99"
+    assert parsing.shape_form("١٢٣-A") == "999-A"
+    # ...and a character outside the thirteen leaves the cell formless,
+    # whatever it is.
+    for odd in ("a b", "x!y", "a~b", "p&q", "🙂-1", "a\tb", "a'b", 'a"b'):
+        assert parsing.shape_form(odd) == "", odd
+    # The thirteen themselves survive, and nothing else does.
+    assert parsing.shape_form("9-9.9/9_9:9#9*9(9)9[9]9+9,9") == ""  # too long
+    assert parsing.shape_form("A-9./_:") == "A-9./_:"
+    assert parsing.shape_form("1#*()[]+,") == "9#*()[]+,"
+
+
+def test_a_prose_column_whose_forms_are_each_its_own_is_pooled() -> None:
+    """AND THE CONTRACT SAID OTHERWISE, WHICH WAS WRONG.
+
+    The claim was that a column of prose publishes `{}` because every
+    cell's form is its own. That is not what happens to a form nobody
+    else shares: the floor POOLS it, and the census reads
+    `{"(withheld)": n}`. It is the space, not the floor, that makes a
+    prose column publish nothing -- and this pins the distinction, on a
+    column of short different codes where the pooling really does
+    happen.
+    """
+    values = [f"{number:03d}-{number % 7}" for number in range(240)]
+    document, _loaded, _folder = _described(values, "code")
+    forms = document["columns"][0]["shape_forms"]
+    assert forms == {"999-9": 240}, forms
+    # ...and where the forms really do differ, the pool is what holds
+    # them, not an empty census.
+    mixed = [
+        f"{chr(65 + number % 26)}{number:0{2 + number % 20}d}"
+        for number in range(240)
+    ]
+    document, _loaded, _folder = _described(mixed, "code")
+    forms = document["columns"][0]["shape_forms"]
+    assert "(withheld)" in forms, forms
+    assert forms["(withheld)"] > 0
 
 
 def test_a_code_column_publishes_the_forms_it_wore() -> None:
@@ -230,16 +316,64 @@ def test_a_stand_in_keeps_the_four_properties_it_had_for_free() -> None:
     assert generation._is_a_usable_stand_in("A00.0")
 
 
-def test_a_label_role_that_publishes_no_census_is_unchanged() -> None:
-    """The three sibling roles keep the neutral spelling.
+def test_a_categorical_column_with_a_rare_tail_gets_shaped_stand_ins() -> None:
+    """THE CASE THAT WAS LEFT OUT, AND IT IS THE COMMON ONE.
 
-    A column at or under the categorical ceiling publishes its levels,
-    so its twin holds them and has no stand-in to shape.
+    The census first stood on `long_tail_labels` alone, reasoning that
+    the other three label roles publish their levels so their twins
+    hold them and have no stand-in to shape. Running the tool on a
+    patient table is what showed that wrong: a diagnosis column of five
+    common codes and twenty-six rare ones has thirty-one different
+    values, which is UNDER the categorical ceiling for four hundred
+    rows -- so it takes `categorical`, and the floor holds back all
+    twenty-six. Its twin held `group-1` through `group-24`.
+
+    Whether a label role suppresses levels is a fact about the FLOOR,
+    not about the role, so the census stands on all four.
+    """
+    values = []
+    for code, count in zip(
+        ["E11.9", "I10.0", "Z00.00", "J45.90", "M54.50"], (98, 76, 62, 48, 40)
+    ):
+        values = values + [code] * count
+    for number in range(70, 96):
+        values = values + [f"Q{number:02d}.{number % 3}"] * 2
+    random.Random(4).shuffle(values)
+    document, described, folder = _described(values, "dx")
+    block = document["columns"][0]
+    assert block["role"] == "categorical"
+    assert block["shape_forms"], block
+    assert block["suppressed_levels"] > 0
+
+    twin = generation.generate(described, 7)
+    cells = [cell for cell in twin.columns[0] if cell]
+    for cell in cells:
+        assert not cell.startswith("group-"), cell
+    written = fixtures.write(folder, "twin.csv", rendering.twin_csv(twin))
+    outcome = validation.measure(described, f"{written}")
+    missed = [
+        check.subcheck
+        for check in outcome.checks
+        if check.verdict == validation.MISSED
+    ]
+    assert [name for name in missed if name.startswith("forms.")] == []
+
+
+def test_a_column_of_plain_words_publishes_no_census_at_all() -> None:
+    """Because a form of one kind of symbol is not a form.
+
+    Four region names would say `AAAAA` and `AAAA`, and `length`
+    already publishes the four and the five exactly while
+    `n_code_alphabet` already says which alphabet they came from. A key
+    saying only that adds a published fact carrying no information, and
+    the census is not published where it would say nothing.
     """
     values = ["north"] * 60 + ["south"] * 60 + ["east"] * 60 + ["west"] * 60
     document, _loaded, _folder = _described(values, "region")
-    assert document["columns"][0]["role"] == "categorical"
-    assert "shape_forms" not in document["columns"][0]
+    block = document["columns"][0]
+    assert block["role"] == "categorical"
+    assert block["shape_forms"] == {}
+    assert block["suppressed_levels"] == 0
 
 
 # -- what the census found in the walk that was already there ---------
@@ -309,13 +443,16 @@ def test_a_made_up_variant_keeps_the_form_where_one_spelling_is_left() -> None:
 
 
 def test_the_form_keeping_spelling_goes_to_the_largest_held_back_group() -> None:
-    """It is scarce, so it is spent where it pays the most cells.
+    """It is scarce, so it is spent where it covers the most cells.
 
     Two spellings were held back here, one covering three rows and one
-    covering two, and only ONE further spelling keeps the form. Giving
-    it to the two-row group leaves three cells in a form the column
-    never had and the census one short; giving it to the three-row
-    group leaves two, which is exactly what the source pooled.
+    covering two, and only ONE further spelling keeps the form. A
+    trailing space makes a cell FORMLESS, so a spelling reached that
+    way settles nothing at all: giving the form-keeping spelling to the
+    two-row group leaves the census three cells short, and giving it to
+    the three-row group leaves it two short -- which is exactly what
+    the source itself left, its own two trailing-space cells being
+    counted nowhere.
     """
     document, described, _folder = _described(
         _level_with_held_back_spellings(), "dx"
@@ -324,20 +461,37 @@ def test_the_form_keeping_spelling_goes_to_the_largest_held_back_group() -> None
     twin = generation.generate(described, 7)
     counted = _forms_of([cell for cell in twin.columns[0] if cell])
     assert counted["A99.9"] == published["A99.9"]
-    assert counted["A99.9 "] == published["(withheld)"]
+    assert "(withheld)" not in published, published
+    # The two cells the source wrote with a trailing space have no form
+    # and are in no count; the twin's stand for them has none either.
+    assert counted[""] == 2, counted
 
 
-def test_a_multiplicity_key_past_nine_is_read_as_a_number() -> None:
-    """`10` comes after `2`, and the code sorted the key TEXT.
+def test_a_multiplicity_key_is_read_as_a_number_and_it_changes_nothing() -> None:
+    """AND SAYING SO IS THE POINT OF THIS TEST.
 
-    Method G8.1 step 2 says ascending numeric order. Sorting the
-    strings puts `10` first, which two implementations reading one
-    document would disagree about as soon as a spelling covers ten
-    rows.
+    Method G8.1 step 2 says ascending numeric order; the code sorted
+    the key STRINGS, which in general puts `10` before `2`. On a
+    CONFORMING document the two orders agree, because section 5.3 pads
+    a multiplicity key with leading zeros to a uniform width and
+    section 3.1 gives that agreement as the reason for the padding. So
+    this changes no twin's bytes, and the earlier version of this test
+    claimed a live defect by handing the helper keys of unequal width
+    that no document can carry (review round 1, test weakening 8).
+
+    What it pins is that the code now says what the method says, and
+    that the padded case -- the only one a loader admits -- is
+    unaffected.
     """
+    # The unequal-width keys no conforming document holds: the helper
+    # reads them as numbers, which is what the method asks for.
     assert generation._withheld_keys({"10": 1, "2": 1, "9": 3}) == [
         "2", "9", "10",
     ]
+    # ...and the padded keys every conforming document DOES hold sort
+    # the same way under either reading, which is why nothing moved.
+    padded = {"02": 1, "09": 3, "10": 1}
+    assert generation._withheld_keys(padded) == sorted(padded)
 
 
 def test_a_stand_in_that_collides_still_owes_its_form() -> None:
@@ -370,13 +524,13 @@ def test_a_stand_in_that_collides_still_owes_its_form() -> None:
     assert validation.measure(described, f"{written}").census.missed == 0
 
 
-def test_a_stand_in_pays_the_form_owing_the_most_cells() -> None:
+def test_a_stand_in_settles_the_form_owing_the_most_cells() -> None:
     """Two forms, one supply of stand-ins, and a fixed size each.
 
     A stand-in covers its level's size and nothing else, so the walk
-    chooses only WHERE to pay. It pays the largest debt first, which
-    leaves the smallest remainder when the sizes do not divide the
-    debts evenly.
+    chooses only WHERE to settle. It settles the largest debt first,
+    which leaves the smallest remainder when the sizes do not divide
+    the debts evenly.
     """
     owing = {"A99.9": 3, "9999-9": 40, "A99.99": 40}
     assert generation._neediest_form(owing) == "9999-9"
@@ -467,13 +621,34 @@ def test_a_form_is_walked_so_that_every_position_of_it_varies() -> None:
 
 
 def test_a_form_is_offered_only_where_the_length_and_the_words_agree() -> None:
-    """A form fixes a length, which is what makes it assignable at all.
+    """AND THE PREDICATES ARE ASKED OF `_wanted_form`, NOT OF A HELPER.
 
-    Every cell that wore a form was exactly as long as the form, so
-    giving a form to a value the packing put at that length costs the
-    published length statistics nothing. A space survives into a form
-    unchanged, so the word count has to agree too.
+    The first version of this test called `_form_words` and nothing
+    else, so removing either predicate from the offer itself left it
+    green (review round 1, test weakening 3).
+
+    A form fixes a length, so a group carrying a published length END
+    may take only a form of exactly its length; every other group may
+    take any form whose length lies between the two published ends,
+    since those are approximated and an exact count outranks them.
     """
+    owing = {"9999-9": 40, "A99-9": 25, "A9-9": 60}
+    # A length-carrying group takes only its OWN length: at six it can
+    # have neither the five-character form nor the four-character one,
+    # however much either owes.
+    assert generation._wanted_form(owing, 6, 1, True, 4, 9) == "9999-9"
+    assert generation._wanted_form(owing, 5, 1, True, 4, 9) == "A99-9"
+    # ...and a carrier at a length no form has is offered none.
+    assert generation._wanted_form(owing, 7, 1, True, 4, 9) == ""
+    # A group carrying NEITHER end may take any admitted length, and
+    # takes the form owing the most cells whatever its length.
+    assert generation._wanted_form(owing, 6, 1, False, 4, 9) == "A9-9"
+    # ...but not a length the published ends exclude: raising the floor
+    # to five puts the four-character form out of reach.
+    assert generation._wanted_form(owing, 6, 1, False, 5, 9) == "9999-9"
+    # The word count has to agree either way, because a space survives
+    # into a form unchanged.
+    assert generation._wanted_form(owing, 6, 2, False, 4, 9) == ""
     assert generation._form_words("9999-9") == 1
     assert generation._form_words("AAA AAAAA") == 2
 
@@ -576,3 +751,185 @@ def test_the_report_says_which_stand_ins_wore_a_published_form() -> None:
     ]
     for sentence in said:
         assert "neutral labels made up in their place" in sentence, sentence
+
+
+# -- what round 1 showed the walk could not survive -------------------
+
+
+def test_a_form_no_spelling_of_which_is_usable_ends_the_walk() -> None:
+    """IT USED TO RUN FOREVER, on a document the loader had accepted.
+
+    A column of `-A` through `-Z` publishes the form `-A`, and EVERY
+    spelling of that form opens with the character a spreadsheet reads
+    as the start of a formula -- so every candidate was refused and the
+    stand-in walk cycled through the same twenty-six candidates without
+    end. The walk is bounded by the form's own supply and then gives
+    the form up: a neutral spelling in place of a shaped one costs the
+    census a count and says so, where a hang costs the person the run
+    and says nothing.
+    """
+    values = ["steady"] * 20 + [f"-{chr(65 + n)}" for n in range(26)]
+    values = values + [f"{n:025d}" for n in range(194)]
+    _document, described, _folder = _described(values, "code")
+    twin = generation.generate(described, 7)
+    cells = [cell for cell in twin.columns[0] if cell]
+    assert cells
+    for cell in cells:
+        assert cell[0] not in "=+-@", cell
+
+
+def test_a_free_text_form_is_held_to_the_same_four_properties() -> None:
+    """THE HALF THE LABEL WALK HAD AND THE INVENTION WALK DID NOT.
+
+    Every candidate the alphabet walk builds comes from an alphabet
+    with the four hazardous characters taken out, so the class and
+    collision checks were the whole of what a candidate owed. A form is
+    built from the CELL, so it can open with one of them -- and a
+    column of `-000-A` published `-999-A`, whose every spelling opens
+    with the character a spreadsheet reads as the start of a formula.
+    The twin wrote none of them.
+    """
+    values = [f"-{number:03d}-{chr(65 + number % 26)}" for number in range(240)]
+    random.Random(1).shuffle(values)
+    document, described, _folder = _described(values, "code")
+    assert document["columns"][0]["role"] == "free_text"
+    assert document["columns"][0]["shape_forms"] == {"-999-A": 240}
+    twin = generation.generate(described, 7)
+    cells = [cell for cell in twin.columns[0] if cell]
+    assert cells
+    for cell in cells:
+        assert cell[0] not in "=+-@", cell
+
+
+def test_the_four_properties_are_each_asked_and_not_three_of_them() -> None:
+    """Each of the four, including the ones the first test left out."""
+    for refused in ("NA", "n/a", "1234", "2024-03-17", "a,b", 'a"b',
+                    "=SUM(A1)", "+1", "-x", "@here"):
+        assert not generation._is_a_usable_stand_in(refused), refused
+    for allowed in ("A00.0", "X12", "9999-9"):
+        assert generation._is_a_usable_stand_in(allowed), allowed
+
+
+def test_a_walked_form_varies_every_fillable_position_it_has() -> None:
+    """LETTERS TOO, WHICH THE FIRST VERSION OF THIS TEST DID NOT ASK.
+
+    It walked `9999-9`, which has no letter, so a walk that left every
+    letter position constant would have passed it (review round 1, test
+    weakening 5).
+    """
+    for form in ("9999-9", "A99.9", "AA99AA", "A9A9A9"):
+        spellings = [generation._filled_form(form, step) for step in range(240)]
+        assert len(set(spellings)) == 240, form
+        for place in range(len(form)):
+            seen = {spelling[place] for spelling in spellings}
+            if form[place] == "9" or form[place] == "A":
+                assert len(seen) > 1, (form, place)
+            else:
+                assert seen == {form[place]}, (form, place)
+
+
+def test_the_twin_says_so_when_it_cannot_reach_a_published_form() -> None:
+    """THE TWIN'S OWN REPORT OWED THIS AND DID NOT PAY IT.
+
+    Every other exact census this generator writes is recounted off the
+    finished cells and named where it was missed. The form census was
+    checked only by `synthtwin validate` -- run later, and by somebody
+    who might not run it -- so a twin that could not reach a form said
+    nothing about it in the file written beside it.
+
+    The column here publishes a form every spelling of which opens with
+    the character a spreadsheet reads as the start of a formula, so the
+    walk refuses every one and gives the form up. The count is missed,
+    and now it is SAID.
+    """
+    values = ["steady"] * 20 + [f"-{chr(65 + n)}" for n in range(26)]
+    values = values + [f"{n:025d}" for n in range(194)]
+    _document, described, _folder = _described(values, "code")
+    twin = generation.generate(described, 7)
+    said = [note for note in twin.deviations if note.fact == "shape_forms"]
+    assert said, [note.fact for note in twin.deviations]
+    assert "-A" in said[0].published, said[0].published
+    assert "splits a value on a mark" in said[0].note
+
+
+def test_a_twin_that_reaches_every_form_says_nothing_about_them() -> None:
+    """The note is a deviation and not a running commentary."""
+    values = [f"{1000 + number * 13}-{number % 10}" for number in range(240)]
+    random.Random(4).shuffle(values)
+    _document, described, _folder = _described(values, "lab_code")
+    twin = generation.generate(described, 7)
+    assert [
+        note for note in twin.deviations if note.fact == "shape_forms"
+    ] == []
+
+
+def test_the_arrangement_of_forms_is_searched_and_not_only_greedy() -> None:
+    """LARGEST DEBT FIRST IS NOT ENOUGH, and the case is ordinary.
+
+    Two forms owing 76 and 164 cells, and twenty-five stand-ins
+    covering five levels of eight rows and twenty of ten. The source's
+    own arrangement is exact -- two eights and six tens make 76, three
+    eights and fourteen tens make 164 -- so an exact one demonstrably
+    exists. Paying the largest debt first hands every eight to the
+    larger form and reaches neither count.
+    """
+    sizes = tuple(sorted([8] * 5 + [10] * 20))
+    owing = {"AA-99": 76, "AA_99": 164}
+    taken = generation._shared_out(sizes, dict(owing))
+    settled: dict[str, int] = {}
+    for place in range(len(sizes)):
+        form = taken[place]
+        settled[form] = settled.get(form, 0) + sizes[place]
+    assert settled == owing, settled
+
+
+def test_where_no_exact_arrangement_exists_the_walk_still_answers() -> None:
+    """It settles the largest debt first, which is what it always did.
+
+    Three levels of seven rows cannot settle debts of ten and five
+    exactly under any arrangement, so the search finds none and the
+    one-pass rule stands -- and the twin's own report names whatever
+    that leaves unsettled.
+    """
+    taken = generation._shared_out((7, 7, 7), {"A-9": 10, "A_9": 5})
+    assert taken == ["A-9", "A_9", "A-9"]
+    assert generation._shared_out((5,), {}) == [""]
+
+
+def test_a_file_holding_TOO_MANY_of_a_form_misses_it_too() -> None:
+    """THE UPPER HALF OF THE ENVELOPE, WHICH NOTHING EXERCISED.
+
+    Every red case the entry table registers REDUCES a form's count, so
+    removing the validator's `measured <= published + pool` bound left
+    the whole suite green (review round 1, test weakening 4). The
+    envelope is two-sided for a reason: a file writing MORE cells in a
+    published form than the census admits is describing a different
+    column just as surely as one writing fewer, and a person checking a
+    width or a split against it is misled the same way.
+
+    Here the pooled remainder is zero, so the published count is the
+    whole envelope, and one extra cell in that form is outside it.
+    """
+    # Two hundred and thirty cells of one form, and ten that have none
+    # at all, because they hold a space -- so the census names 230 and
+    # pools nothing.
+    values = [f"{1000 + number * 13}-{number % 10}" for number in range(230)]
+    values = values + [f"note {number}" for number in range(10)]
+    random.Random(4).shuffle(values)
+    document, described, folder = _described(values, "lab_code")
+    published = document["columns"][0]["shape_forms"]
+    assert published == {"9999-9": 230}, published
+
+    # A file whose two hundred and forty cells are ALL of that form is
+    # ten above the whole envelope.
+    rows = [[f"{2000 + number}-{number % 10}", "x"] for number in range(240)]
+    written = fixtures.write(
+        folder, "too-many.csv", fixtures.rows_to_csv(["lab_code", "other"], rows)
+    )
+    outcome = validation.measure(described, f"{written}")
+    verdicts = {
+        check.subcheck: check.verdict
+        for check in outcome.checks
+        if check.subcheck.startswith("forms.")
+    }
+    assert verdicts.get("forms.published.9999-9") == validation.MISSED, verdicts

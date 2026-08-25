@@ -1701,6 +1701,30 @@ Opened by this plan, each a limit accepted rather than work forgotten:
   be reconciled first, and reconciling them changes sentences a shipped
   profile prints. It is its own landing, not a passenger on a landing
   about dates.
+- **R-P4-36** (opened at the first read of P4-D18, 2026-08-25, and NOT
+  caused by it). A FREE-TEXT TWIN CAN REPROFILE INTO A LABEL ROLE
+  THROUGH ITS FOLD PARTNERS, AND SAYS NOTHING. A column of twenty
+  values written ten times each, beside five written as two case
+  variants of four rows apiece, is free text: thirty raw spellings,
+  twenty-five folded, and no folded level reaching the long-tail
+  detection line of eleven. The generator answers the folded shortfall
+  by making five of its ten-row groups case variants of four-row
+  groups, which creates folded levels of FOURTEEN rows -- and a
+  column with a level that size, past the categorical ceiling, is
+  `long_tail_labels` to the describer. The twin reprofiles into a role
+  its source never had, with every published count met and no
+  deviation named.
+
+  It is measured at HEAD before this landing as well as after, so the
+  census did not cause it: the partner walk of G9.3 chooses which
+  group answers a fold collision by a cyclic order over the families
+  and never by the SIZES, and the source's folded level sizes are not
+  a published fact on this role. What would close it is a preference
+  in that walk for a pair whose combined size stays under the
+  detection line -- which the settings and `n_rows` give -- with the
+  present walk as the fallback. That is a change inside the free-text
+  packing and is its own landing.
+
 - **R-P4-35** (opened by P4-D18's build, 2026-08-25, and NOT caused by
   it). A FIXED-WIDTH CODE COLUMN WHOSE LARGER CODES NEED NO LEADING
   ZERO LOSES THAT WIDTH ON THE UNPADDED HALF. A vaccine-code column
@@ -3084,6 +3108,45 @@ twins is shaped like its scheme, splits on the hyphen into the number
 of parts its scheme has, and keeps its source's role. R-P4-35 records
 the one case that does not close, which is a numeric column and not
 this decision's.
+
+**THE FIRST ADVERSARIAL READ REJECTED IT, and what it found is worth
+recording in the decision rather than only in a review file.** Twenty-one
+items, seven blocking. Three changed what the census IS:
+
+1. **A form could carry a fragment of a value.** Only the ASCII ranges
+   were replaced, so a column of Japanese clinical text published a key
+   still holding the words. Every DIGIT and every LETTER is now
+   replaced over the whole of Unicode, and every other character must
+   be one of THIRTEEN MARKS this contract names or the cell has no form
+   at all. The key grammar is a CLOSED ALPHABET, which is checkable;
+   "no other figure or letter survived" was not.
+2. **The floor did not keep prose out, and the claim that it did was
+   false.** Two hundred and forty short sentences written to one
+   template share the form `AAAAA, AAAA!`, which names every word's
+   length and where the punctuation falls; and a prose column whose
+   forms really are each its own is POOLED, not empty, so `{}` was
+   never reached by the route the plan claimed. A cell holding a SPACE
+   now has no form, which closes both.
+3. **A form of one kind of symbol says nothing.** `AAAAA` says five
+   letters, and `length` already publishes the five while
+   `n_all_digits` and `n_code_alphabet` already say which alphabet. A
+   cell has a form only where at least TWO of the three kinds -- figure,
+   letter, mark -- appear. A column of four region names publishes
+   nothing; `J1200` keeps `A9999`.
+
+Two were runtime defects that would have reached a person: a form every
+spelling of which opens with the character a spreadsheet reads as the
+start of a formula made the stand-in walk run FOREVER (and, found while
+repairing it, the free-text walk too), and the free-text walk never
+asked the four neutrality properties at all, so a column of `=A00`
+would have written a twin of spreadsheet formulas. Both walks are now
+bounded by the form's own supply and both ask all four.
+
+One was the case this decision exists for, left out: a `categorical`
+column with a rare tail kept `group-N`, because the census stood on
+`long_tail_labels` alone. Whether a label role suppresses levels is a
+fact about the FLOOR and not about the role, so the census stands on
+all four.
 
 **THE OWNER RULED FOR THIS** (amendment A-P4-36): may a column that
 publishes nothing today publish its shape, so its twin stops being
