@@ -594,7 +594,7 @@ def _named_entries() -> "list[Entry]":
         + ["0"] * 13
     )
     # THE SAME COLUMN WITH ITS PADDING SCATTERED, which is what keeps
-    # P3-V7-F4's original property under test after P4-D7. The witness
+    # P3-V7-F4's original property under test after P4-D14. The witness
     # above writes all fifteen padded cells two figures wide, so the
     # width census NAMES that width and the leading-zero family is
     # spent on it. Here the same fifteen cells are written at three
@@ -1535,7 +1535,7 @@ def test_the_floored_style_witness_reaches_the_generators_own_twin(
 def test_the_open_padding_witness_still_opens_the_envelope_upward(
     parity: "tuple[Probe, ...]",
 ) -> None:
-    """P3-V7-F4's original property, kept alive across P4-D7.
+    """P3-V7-F4's original property, kept alive across P4-D14.
 
     THE REGRESSION THIS GUARDS IS STILL REAL. `_numeric_spellings_are_short`
     once asked only whether the supply fell SHORT, so a description

@@ -1061,7 +1061,7 @@ contract:
    widening it to arbitrary strings would be exactly the hole that lets
    a source-derived value into a sentence and be rebuilt successfully.
 
-**The census.** The table holds 44 forms and 64 argument positions. Of
+**The census.** The table holds 44 forms and 65 argument positions. Of
 those, 53 are whole numbers, 3 are package words, 4 are nested forms,
 and 2 are bound affix strings. No position is a string of any other
 kind.
@@ -1677,28 +1677,58 @@ the producer already reads and already publishes a census of (7.8), and
 because nobody writes a MEASUREMENT as `00100`. It is evidence about
 how the column was written, not a guess about what it means.
 
-**NF44. `remark_commas_read_as_thousands`** — arity 1. Argument 1: how
-many of the column's cells read as a number by way of a comma, counted
-off the cells. Carried on a `count` or `continuous` column with at
-least one such cell.
+**NF44. `remark_commas_read_as_thousands`** — arity 2. Argument 1: how
+many cells read as a number by way of a comma that SETTLED NOTHING —
+one comma, exactly three figures after it, no point. Argument 2: how
+many present cells SETTLE the question as a decimal comma — a group
+that is not three figures, a first group longer than three, or a point
+before the comma. Argument 2 is counted over every present cell and not
+only over the numbers, because a cell that settles it is usually not a
+number this format reads. Carried on `count`, `continuous`,
+`affixed_number` (over the cores) and `free_text`, wherever either
+count is not zero.
+
+**It renders two sentences, one per situation.** Where argument 2 is
+zero:
 
 > «1» of this column's values are written with a comma inside the
-> number, and synthtwin read every comma as a thousands separator — so
-> `1,795` was read as one thousand seven hundred and ninety-five. MANY
-> COUNTRIES WRITE THE DECIMAL POINT AS A COMMA, and if this table is
-> one of them then `1,795` means 1.795 and every value in this column
-> has been read as a thousand times its real size — along with this
-> column's average, its spread and both its ends. synthtwin cannot tell
-> the two apart from the values alone. If your file writes decimals
-> with a comma, write them with a point instead and run the command
-> again
+> number that could be read either way, and synthtwin read every one of
+> them with the comma as a thousands separator — so `1,795` was read as
+> one thousand seven hundred and ninety-five. MANY COUNTRIES WRITE THE
+> DECIMAL POINT AS A COMMA, and if this table is one of them then
+> `1,795` means 1.795 and each of those values has been read as a
+> thousand times its real size, carrying this column's average, its
+> spread and its ends with them. Nothing in the column settles which
+> was meant. If your file writes decimals with a comma, write this
+> column with a decimal point instead and run the command again
 
-**THE COLUMN CANNOT SETTLE IT** (plan P4-D17). A thousands group is
-exactly three digits, so `12,5` proves a decimal comma — but a column
-written to three decimals has every group exactly three digits long and
-is indistinguishable from a US column carrying thousands separators.
-Evidence does not reach the dangerous case, so the reading is a CHOICE
-and this form is where the choice is stated.
+and where it is not:
+
+> «2» of this column's values cannot be read with the comma as a
+> thousands separator — a thousands group is exactly three figures and
+> these are not — so THIS FILE WRITES THE DECIMAL POINT AS A COMMA.
+> synthtwin read the comma the other way, as a thousands separator, so
+> `1,795` was read as one thousand seven hundred and ninety-five where
+> the file means 1.795. The «1» value(s) that could be read either way
+> were read a thousand times too large, and this column's average, its
+> spread and its ends are wrong with them. Write this column with a
+> decimal point and run the command again
+
+**A CELL CAN SETTLE IT, AND AN EARLIER WORDING HERE SAID OTHERWISE**
+(plan P4-D17). That wording was wrong in both directions. A point AFTER
+the comma settles it as a thousands separator, and so does a second
+comma: `1,234.56` and `1,234,567` are not ambiguous, and warning such a
+column was a false alarm on a common shape — which is how a true alarm
+stops being read. A first group longer than three settles it the other
+way, because `1000,000` cannot be thousands-grouped at all, so a
+European column carries its own proof as soon as one of its values
+reaches a thousand. What settles nothing is a column every one of whose
+values is under a thousand and written to three figures.
+
+**It counts CELLS and speaks of them, never of "every value".** A
+column of fifty comma-bearing cells beside fifty plain ones is not
+uniformly a thousand times out, and its average is not out by that
+factor either.
 
 **It states the size of the error on purpose.** A column read the wrong
 way here is wrong by a factor of a thousand, and every statistic
@@ -6852,7 +6882,7 @@ this document, and the battery the plan requires turns red on it.
 | nothing-class blocks (`numeric_unrepresentable`, `identifier`, `free_text`) | lengths, word statistics, digit and code-alphabet counts, the whole-number test, the repetition multiset, and on `numeric_unrepresentable` the whole-number and sign counts | no value, no spelling, no fragment of one; the multiplicity map publishes SIZES of unnamed groups under no floor |
 | `empty` columns nobody declared | the absent SPELLINGS their cells wore and the two absence counts, exactly as any column that is not nothing-publishing | floor-governed |
 | `settings` | the rules the run applied, the floor's own value, how many values each declaration named, and which of THIS package's published words were among them | carries no cell, no column and no count of the table; a person's own spelling never enters |
-| `source.header_evidence`, `publication_notes[].note`, `detection_evidence`, `remarks` | sentences of the 44 closed forms: 64 argument positions, of which 55 are whole numbers, 3 package words, 4 nested forms and 2 bound affix strings | the whole numbers are counts the block beside them already publishes, EXCEPT the positions priced at rows 16 and 18 |
+| `source.header_evidence`, `publication_notes[].note`, `detection_evidence`, `remarks` | sentences of the 44 closed forms: 65 argument positions, of which 56 are whole numbers, 3 package words, 4 nested forms and 2 bound affix strings | the whole numbers are counts the block beside them already publishes, EXCEPT the positions priced at rows 16 and 18 |
 | `relationships` | nothing: eight nulls | — |
 
 ### 12.3 The rows, each priced
@@ -7668,7 +7698,7 @@ a padded cell writing at least one zero in front of at least one figure
 ### 14.8 The note grammar — 44 forms
 
 Defined in 4.5.1, which is the authority on every rendering and every
-argument. 64 argument positions: 55 whole numbers, 3 package words, 4
+argument. 65 argument positions: 56 whole numbers, 3 package words, 4
 nested forms, 2 bound affix strings.
 
 | # | form | arity |
@@ -7716,7 +7746,7 @@ nested forms, 2 bound affix strings.
 | NG41 | `header_names_shown_by_a_column` | 1 |
 | NG42 | `remark_two_figure_years_are_read_at_a_pivot` | 0 |
 | NG43 | `remark_padded_numbers_may_be_codes` | 1 |
-| NG44 | `remark_commas_read_as_thousands` | 1 |
+| NG44 | `remark_commas_read_as_thousands` | 2 |
 
 **The package-word vocabulary — 19**, the whole of the second argument
 class (4.5.1): the seventeen `format` members of 14.6, plus `day-first`

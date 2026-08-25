@@ -38,8 +38,16 @@ def _described(values: "list[str]", name: str = "value") -> dict:
 
 
 def _comma_remark(document: dict) -> "str | None":
+    """The comma remark in either of its two wordings.
+
+    The form renders one sentence where the column settled nothing and
+    another where it settled the question itself, so a filter matching
+    only the first would miss exactly the case that matters most.
+    """
     for remark in document["columns"][0]["remarks"]:
         if "comma inside the number" in remark:
+            return remark
+        if "thousands separator" in remark:
             return remark
     return None
 
@@ -47,16 +55,30 @@ def _comma_remark(document: dict) -> "str | None":
 # -- the reading itself -----------------------------------------------
 
 
-def test_which_cells_read_as_a_number_only_through_a_comma() -> None:
-    """The predicate the remark is counted from."""
-    for text in ("1,795", "1,234.56", "0,814", "12,345", "(1,234.50)"):
+def test_what_one_cell_settles_about_its_own_comma() -> None:
+    """THE THREE ANSWERS, and the first read had only two.
+
+    An earlier revision said flatly that no cell could settle the
+    question, which was wrong in both directions and is the finding
+    that rebuilt this rule. A point AFTER the comma settles it as a
+    thousands separator, and so does a second comma -- so a US column
+    was being told it might be a thousand times out when it was not. A
+    group that is not three figures settles it the other way, and so
+    does a first group longer than three, so `1000,000` proves a
+    decimal comma and a European column that reaches a thousand
+    carries its own proof.
+    """
+    for text in ("1,795", "0,814", "-1,795", "+1,795"):
+        assert parsing.comma_reading(text) == parsing.COMMA_EITHER, text
         assert parsing.carries_a_group_comma(text), text
-    # No comma at all, so no choice was made.
-    for text in ("814", "1.795", "", "abc"):
+    for text in ("1,234.56", "1,234,567", "(1,234.50)"):
+        assert parsing.comma_reading(text) == parsing.COMMA_GROUPED, text
         assert not parsing.carries_a_group_comma(text), text
-    # A comma the thousands rule REFUSES: the cell is not a number, so
-    # no choice was made about it either.
-    for text in ("12,5", "1,23", "22.008,28"):
+    for text in ("12,5", "1,23", "1000,000", "22.008,28", "1,7955"):
+        assert parsing.comma_reading(text) == parsing.COMMA_DECIMAL, text
+        assert not parsing.carries_a_group_comma(text), text
+    for text in ("814", "1.795", "", "abc"):
+        assert parsing.comma_reading(text) == parsing.COMMA_NONE, text
         assert not parsing.carries_a_group_comma(text), text
 
 
@@ -105,7 +127,46 @@ def test_the_sentence_states_the_size_of_the_error() -> None:
     assert said is not None
     assert "thousand times its real size" in said
     assert "average" in said and "spread" in said
-    assert "write them with a point instead" in said
+    assert "write this column with a decimal point" in said
+
+
+def test_a_column_that_settles_it_is_told_so_outright() -> None:
+    """THE SHARPEST CASE, and the first revision was silent on it.
+
+    A European column whose values reach a thousand carries its own
+    proof: `1000,000` cannot be thousands-grouped, because a thousands
+    group is exactly three figures. Such a column DECLINES to free text
+    -- those cells are not numbers -- so the person was told "synthtwin
+    could not settle what this column holds" with no mention of the
+    reason sitting in every cell. The sentence now stops saying
+    "nothing settles it" and says the file has settled it.
+    """
+    values = [f"{number / 1000:.3f}".replace(".", ",") for number in
+              range(800, 3000, 9)]
+    values = values + [f"{number}.000".replace(".", ",") for number in
+                       range(1000, 1010)]
+    document = _described(values)
+    said = _comma_remark(document)
+    assert said is not None, document["columns"][0]["remarks"]
+    assert "THIS FILE WRITES THE DECIMAL POINT AS A COMMA" in said
+    assert "cannot be read with the comma as a thousands separator" in said
+
+
+def test_a_settled_thousands_column_is_not_warned() -> None:
+    """The other half of the same correction.
+
+    `1,234.56` is not ambiguous: the point settles the comma's role.
+    Warning such a column that it might be a thousand times out is a
+    false alarm, and a false alarm on a common shape is how a true one
+    stops being read.
+    """
+    values = [
+        f"{number // 1000},{number % 1000:03d}.50"
+        for number in range(1000, 1240)
+    ]
+    document = _described(values)
+    assert document["columns"][0]["role"] in ("count", "continuous")
+    assert _comma_remark(document) is None
 
 
 def test_it_names_no_value_of_the_table() -> None:

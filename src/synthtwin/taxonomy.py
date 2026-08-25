@@ -698,7 +698,7 @@ NOTE_ARITY: "dict[str, int]" = {
     REMARK_NEAR_NUMERIC_LINE: 3,
     REMARK_ALL_DIFFERENT_NUMBERS: 0,
     REMARK_PADDED_NUMBERS: 1,
-    REMARK_GROUP_COMMAS: 1,
+    REMARK_GROUP_COMMAS: 2,
     REMARK_SPREAD_OUT_OF_RANGE: 0,
     REMARK_ALL_DIFFERENT_TEXT: 0,
     HEADER_NAMES_BY_OPTION: 0,
@@ -1271,27 +1271,52 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
             f"written as numbers, and the line is at {_whole(arguments, 2)}"
         )
     if form == REMARK_GROUP_COMMAS:
-        # THE SENTENCE STATES THE SIZE OF THE ERROR, because the reader
-        # cannot work it out and because it is not small. A column read
-        # the wrong way here is wrong by a factor of a thousand, and
-        # every statistic published about it is wrong by that factor --
-        # so the sentence says the number, says which way it went, and
-        # says what to do. It does not hedge: a person whose file
-        # writes decimals with a comma is holding a description that is
-        # wrong, and telling them gently would be telling them badly.
+        # TWO SENTENCES, BECAUSE THERE ARE TWO SITUATIONS AND THEY ARE
+        # not the same news. Argument 1 counts the cells that settled
+        # NOTHING -- a comma with three figures after it and no point,
+        # which reads either way. Argument 2 counts the cells that
+        # settle it as a DECIMAL comma: a group that is not three
+        # figures, a first group longer than three, or a point before
+        # the comma. Where the second is not zero the column has
+        # answered the question itself, and the sentence stops saying
+        # "synthtwin cannot tell" and starts saying "your file has told
+        # it, and the reading is wrong".
+        #
+        # It counts CELLS and speaks of them, never of "every value":
+        # a column of fifty comma-bearing cells beside fifty plain ones
+        # is not uniformly a thousand times out, and its average is not
+        # out by that factor either.
+        settled = _whole(arguments, 1)
+        if arguments[1]:
+            return (
+                f"{settled} of this column's values cannot be read "
+                f"with the comma as a thousands separator -- a "
+                f"thousands group is exactly three figures and these "
+                f"are not -- so THIS FILE WRITES THE DECIMAL POINT AS "
+                f"A COMMA. synthtwin read the comma the other way, as "
+                f"a thousands separator, so `1,795` was read as one "
+                f"thousand seven hundred and ninety-five where the "
+                f"file means 1.795. The "
+                f"{_whole(arguments, 0)} value(s) that could be read "
+                f"either way were read a thousand times too large, "
+                f"and this column's average, its spread and its ends "
+                f"are wrong with them. Write this column with a "
+                f"decimal point and run the command again"
+            )
         return (
             f"{_whole(arguments, 0)} of this column's values are "
-            f"written with a comma inside the number, and synthtwin "
-            f"read every comma as a thousands separator -- so `1,795` "
+            f"written with a comma inside the number that could be "
+            f"read either way, and synthtwin read every one of them "
+            f"with the comma as a thousands separator -- so `1,795` "
             f"was read as one thousand seven hundred and ninety-five. "
             f"MANY COUNTRIES WRITE THE DECIMAL POINT AS A COMMA, and "
             f"if this table is one of them then `1,795` means 1.795 "
-            f"and every value in this column has been read as a "
-            f"thousand times its real size -- along with this column's "
-            f"average, its spread and both its ends. synthtwin cannot "
-            f"tell the two apart from the values alone. If your file "
-            f"writes decimals with a comma, write them with a point "
-            f"instead and run the command again"
+            f"and each of those values has been read as a thousand "
+            f"times its real size, carrying this column's average, "
+            f"its spread and its ends with them. Nothing in the "
+            f"column settles which was meant. If your file writes "
+            f"decimals with a comma, write this column with a decimal "
+            f"point instead and run the command again"
         )
     if form == REMARK_PADDED_NUMBERS:
         # IT DECIDES NOTHING, and says so, on the exact pattern the
@@ -4099,20 +4124,48 @@ def pad_width(text: str) -> int:
     return parsing.pad_width(text)
 
 
-def _group_comma_cells(cells: _Cells) -> int:
-    """How many cells read as a number only by way of a comma.
+def _comma_remarks(cells: _Cells) -> "list[Note]":
+    """The comma remark, or nothing, for any column that can carry it.
 
-    Counted off the CELLS, because this is a fact about how the column
-    was written and not about anything the description publishes.
+    ONE CALL SITE PER ROLE AND ONE RULE BEHIND THEM. The first
+    revision fired this only from the numeric verdict, which left the
+    two columns that need it most silent: a column wearing a currency
+    sign, whose cores are read as quantities exactly as a bare numeric
+    column's cells are; and a column whose European values reach a
+    thousand, which DECLINES to free text precisely because `1000,000`
+    is not a thousands-grouped number -- so the person was told
+    "synthtwin could not settle what this column holds" with no
+    mention of the reason sitting in every cell.
     """
-    counted = 0
+    unsettled, settled = _group_comma_cells(cells)
+    if not unsettled and not settled:
+        return []
+    return [note(REMARK_GROUP_COMMAS, (unsettled, settled))]
+
+
+def _group_comma_cells(cells: _Cells) -> "tuple[int, int]":
+    """The cells a comma left unsettled, and the cells that settled it.
+
+    THE SECOND COUNT IS READ OVER EVERY PRESENT CELL and not only over
+    the numbers, which is the whole reason it exists. `1000,000` is not
+    a number this package reads -- a thousands group cannot be four
+    figures -- so it is a straggler, and a column of European values
+    that reaches a thousand carries its own proof in a cell the numeric
+    census never sees. Counting the proof only among the numbers would
+    have missed exactly the columns that settle the question.
+    """
+    unsettled = 0
+    settled = 0
     for cell in cells.classified:
+        reading = parsing.comma_reading(cell.text)
+        if reading == parsing.COMMA_DECIMAL:
+            settled = settled + 1
+            continue
         if cell.kind != parsing.NUMBER:
             continue
-        if not parsing.carries_a_group_comma(cell.text):
-            continue
-        counted = counted + 1
-    return counted
+        if reading == parsing.COMMA_EITHER:
+            unsettled = unsettled + 1
+    return unsettled, settled
 
 
 def _padded_cells(cells: _Cells) -> int:
@@ -5118,7 +5171,11 @@ def _affixed_verdict(
         evidence=note(EVIDENCE_AFFIXED, pair),
         details=details,
         notes=notes,
-        remarks=remarks + [note(REMARK_AFFIXED, pair)],
+        remarks=(
+            remarks
+            + [note(REMARK_AFFIXED, pair)]
+            + _comma_remarks(core_cells)
+        ),
     )
 
 
@@ -5798,6 +5855,7 @@ def _free_text_verdict(
     notes = notes + [note(NOTE_FREE_TEXT_WITHHELD)]
     if _all_different(cells):
         remarks = remarks + [note(REMARK_ALL_DIFFERENT_TEXT)]
+    remarks = remarks + _comma_remarks(cells)
     return _Verdict(
         role=ROLE_TEXT,
         evidence=evidence,
@@ -6083,9 +6141,7 @@ def _numeric_verdict(
     # lab values written `1,795` was published with an average a
     # thousand times too large, described as "whole numbers that count
     # things", and nothing anywhere said so.
-    commas = _group_comma_cells(cells)
-    if commas:
-        remarks = remarks + [note(REMARK_GROUP_COMMAS, (commas,))]
+    remarks = remarks + _comma_remarks(cells)
     # A column of counts must be whole and non-negative in EVERY cell
     # whose writer meant a number -- including the ones no format can
     # hold. `(1e999)` is visibly negative and `1e-999` is visibly a
