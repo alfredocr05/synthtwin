@@ -3093,7 +3093,7 @@ plausible wrong answer with no error and no warning.
 
 **The decision.** A `long_tail_labels` column and a `free_text` column
 publish `shape_forms`: the count sharing each written form, where a
-form is the cell with every ASCII digit replaced by `9`, every ASCII
+form is the cell with every figure replaced by `%`, every ASCII
 letter replaced by `A`, and every other character standing as itself.
 `E11.9` has the form `A99.9`; a laboratory code `4548-4` has `9999-9`;
 a dispensed-drug code `0002-8215-01` has `9999-9999-99`.
@@ -3266,6 +3266,39 @@ So `tests/test_p4d18_role_topology.py` parses section 6.11's matrix
 and compares it against the loader's own key sets, in both directions,
 for all thirteen roles. **It found a defect on its first run**, older
 than this whole phase and recorded as R-P4-37.
+
+**THE FIFTH AND FINAL READ FOUND THE DEEPEST THING, and it is a rule
+about how much a form may say.**
+
+A form with FEW POSSIBLE SPELLINGS NAMES THE VALUES IT DESCRIBES. `%-`
+is a figure and a hyphen, and exactly ten cells could have worn it:
+`0-` through `9-`. A column holding all ten, nine of them often enough
+to publish, names the nine and holds one back -- and a reader with the
+form and the nine has the tenth exactly. In free text it is worse: a
+hundred values `0-0` through `9-9` all wear `%-%`, which has exactly a
+hundred spellings, so the census hands over the COMPLETE value set of
+the role that promises no value at all.
+
+**A form is named only where it has room for far more cells than the
+column holds values** -- `form_room(form)` at least `n_distinct` plus
+the floor. Measured: both leaks publish `{}`, and no real coding scheme
+moves, because `@%%.%` has room for fifty-two thousand cells against
+forty-five values and a laboratory code has a hundred thousand.
+
+**AND THE TEST IS OVER PUBLISHED FACTS ONLY, which is the whole
+difference between this rule and the one refused twice above.** The
+room is a property of the FORM; `n_distinct` and the floor are already
+on the page. A reader can work out which forms this refuses, so an
+absence they can predict tells them nothing. The collision rule tested
+a HIDDEN fact -- whether some cell was spelled like the key -- and that
+is why its absences spoke.
+
+Two more the same read found: a `--missing-value` declaration reaches
+the WHOLE table, so a stand-in must avoid every spelling ANY column
+publishes as absent -- one column's `group-1` was written into another
+as a present value, and ten obligations missed on a twin whose report
+said nothing. And the `%`/`@` sweep was incomplete for the third time,
+in the census's own binding rule and its own examples.
 
 **THE OWNER RULED FOR THIS** (amendment A-P4-36): may a column that
 publishes nothing today publish its shape, so its twin stops being

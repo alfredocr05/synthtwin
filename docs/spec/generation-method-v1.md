@@ -1827,7 +1827,7 @@ leading segment answer plausibly and wrongly.
   pay: the form owing the most cells, ties broken by the form's own
   spelling ascending.
 - **The form is filled from a counter**, never from a reading. Every
-  `9` takes a figure and every `A` a letter, the step taken apart into
+  `%` takes a figure and every `@` a letter, the step taken apart into
   those positions by mixed-radix arithmetic after being multiplied by a
   stride sharing no factor with the form's own supply — so consecutive
   labels differ in every fillable position, and no two steps below that

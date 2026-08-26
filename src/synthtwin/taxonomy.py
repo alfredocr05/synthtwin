@@ -465,10 +465,11 @@ KEYS_THAT_CARRY_NO_VALUE = (
     # than on a judgement (plan P4-D18). Every other key here carries a
     # COUNT, which is safe to read at a glance. A form is TEXT, which
     # is the kind of thing this list exists to keep out -- so it is
-    # admitted only because every ASCII digit of a cell is replaced by
-    # `9` and every ASCII letter by `A` before the key is
-    # built, and because `profile._is_shape_form` refuses any key where
-    # another digit or letter survived, whatever built it. What is
+    # admitted only because every figure of a cell is replaced by `%`
+    # and every letter by `@` before the key is built -- two
+    # characters no cell that HAS a form may contain -- and because
+    # `profile._is_shape_form` refuses any key holding anything but
+    # those two and thirteen named marks, whatever built it. What is
     # published is where the marks fell; what is not is anything that
     # stood between them.
     "shape_forms",
@@ -4249,8 +4250,34 @@ def _shape_forms(cells: _Cells) -> dict[str, int]:
     # again, on the formless-cell case, and it was BUILT AND REVERTED
     # -- measured: the same column with and without one odd cell gives
     # two documents differing only in whether the census is pooled.
+    # A FORM WHOSE SUPPLY IS SMALL NAMES THE VALUES IT DESCRIBES, and
+    # that is the deepest thing five adversarial reads found here.
+    #
+    # `%-` has exactly TEN cells that could have worn it, `0-` through
+    # `9-`. A column holding all ten, nine of them often enough to
+    # publish, names nine and holds one back -- and a reader with the
+    # form and the nine knows the tenth exactly. Worse in free text: a
+    # hundred values `0-0` through `9-9` all wear `%-%`, which has
+    # exactly a hundred cells, so the census hands over the COMPLETE
+    # value set of a role that promises no value at all.
+    #
+    # THE TEST IS OVER PUBLISHED FACTS ONLY, and that is what makes it
+    # safe where the collision rule was not. `form_room` is a property
+    # of the FORM and `n_distinct` and the floor are already on the
+    # page, so a reader can work out for themselves which forms this
+    # rule would refuse -- and an absence they can predict tells them
+    # nothing. The rule the census refuses twice over, "do not name a
+    # form spelled like a present cell", tested a HIDDEN fact, which
+    # is why its absences spoke.
+    #
+    # `n_distinct` counts the whole column and is therefore at least
+    # the values wearing any one form, so the test errs toward
+    # refusing -- the safe direction.
+    room_needed = cells.raw_distinct + cells.settings.small_cell_floor
     published_counts: dict[str, int] = {}
     for form in sorted(counts):
+        if parsing.form_room(form) < room_needed:
+            continue
         if counts[form] >= cells.settings.small_cell_floor:
             published_counts[form] = counts[form]
             continue
