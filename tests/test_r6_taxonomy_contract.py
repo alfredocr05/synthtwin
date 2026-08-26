@@ -623,7 +623,7 @@ def test_every_present_cell_is_classified_exactly_once(
         + ["", "NA"]
     )
     present = 45
-    classify = _counted(monkeypatch, "classify_number")
+    _counted(monkeypatch, "classify_number")
     record = _Counter(taxonomy._classify)
     monkeypatch.setattr(taxonomy, "_classify", record)
     described = describe(values)

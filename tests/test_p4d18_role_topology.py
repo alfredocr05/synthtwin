@@ -18,7 +18,6 @@ disagree with it.
 """
 
 import pathlib
-import re
 
 from synthtwin import contract
 

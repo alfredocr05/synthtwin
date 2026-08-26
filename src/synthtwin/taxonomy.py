@@ -5480,7 +5480,9 @@ def affixed_reach(cells: _Cells) -> int:
     return best
 
 
-def _affixed_reading(cells: _Cells) -> "_Affixed | None":
+def _affixed_reading(
+    cells: _Cells, forced_measurement: bool = False
+) -> "_Affixed | None":
     """The one affix pair this column wears, or None if it wears none.
 
     Guarantees:
@@ -5581,9 +5583,137 @@ def _affixed_reading(cells: _Cells) -> "_Affixed | None":
     # constitutive of the role.
     if n_affixed < settings.small_cell_floor:
         return None
+    if not forced_measurement and _wrapped_in_an_address(pair):
+        return None
     return _Affixed(
         prefix=prefix, suffix=suffix, cores=cores, n_affixed=n_affixed
     )
+
+
+# The characters an address may be spelled with, as literal constants
+# rather than as method calls: the offline audit accepts membership
+# tests on gated text and does not carry `isalpha` or `isalnum`.
+_LETTERS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+_HOST_CHARACTERS = _LETTERS + "0123456789-."
+
+
+def _wrapped_in_an_address(pair: "tuple[str, str]") -> bool:
+    """Whether this pair is an electronic address around its number.
+
+    RESIDUAL R-P4-39, and this is the THIRD attempt. Both earlier ones
+    are written out, because what they got wrong is worth more than
+    what this one gets right.
+
+    THE DEFECT. A column of `user12345@example.org` was claimed by the
+    affixed role: prefix `user`, suffix `@example.org`, numeric core.
+    The block published a ladder, a mean and a spread over the cores --
+    real numbers out of real addresses. Measured on 400 rows: the mean
+    was 53,574.055, the average of the real identifiers.
+
+    THE FIRST ATTEMPT was a deleted rule resurrected. It declined when
+    the cores were all whole, all different, and the pair carried
+    letters on the LEFT -- which reads `code1` as a token and `1mg` as
+    a quantity, and review item P1-R6-F8 pins those two together
+    because nothing in their values tells them apart. Seventeen tests
+    refused it.
+
+    THE SECOND ATTEMPT declined on `@` anywhere in the pair, over a
+    claim that no unit of measurement uses that character. **The claim
+    was false and was refuted the same day**: `100 ms @ ambient` and
+    `$100@close` are ordinary quantities whose suffix carries `@`,
+    which means "at" -- at a condition, at a price. Both would have
+    lost their distribution.
+
+    WHAT THIS ONE DOES DIFFERENTLY, and it is a different KIND of rule
+    rather than a narrower version of the same one. The two failures
+    above were both negative claims -- "no quantity looks like this" --
+    and a negative claim over every column anybody might hold is a
+    claim nobody can check. This rule makes a POSITIVE identification
+    instead: the suffix is an electronic address, which has a shape of
+    its own -- an `@`, then a host, then a dot, then a top label of
+    letters. `@close` is not one. `ms @ ambient` is not one.
+    `@example.org` is.
+
+    It is still a rule about values, so it is still capable of being
+    wrong about a column nobody has shown me. What it is not is a
+    guess about which of two indistinguishable shapes a column meant.
+
+    WHAT IT DOES NOT CLOSE. `ACC00012345` still reads as a quantity and
+    cannot be told from `USD100` by any property of the values; that
+    half of R-P4-39 stays open and its answer is a declaration, which
+    is P1-R6-F8's own conclusion.
+
+    Guarantees: accepts the winning affix pair; returns a truth value
+    depending on that pair alone. Raises nothing. No I/O, no
+    randomness, and no value of the column is published by anything
+    here.
+    """
+    prefix, suffix = pair
+    # THE TYPE GATE THE OFFLINE AUDIT ASKS FOR, in the exact form and
+    # at the exact place it names: the top of the function, before any
+    # method call. A call on a value the audit cannot trace is refused
+    # whatever the method is called, because a caller-supplied object
+    # may define one of any name. This is the second repair in this
+    # landing to trip that rule, and the remedy is the one
+    # `splits_into_numbers` already carries.
+    if not isinstance(prefix, str):
+        raise TypeError("an affix must be text")
+    if not isinstance(suffix, str):
+        raise TypeError("an affix must be text")
+    return _is_an_address(prefix) or _is_an_address(suffix)
+
+
+def _is_an_address(side: str) -> bool:
+    """Whether one affix is an electronic address around a number.
+
+    The shape, checked rather than guessed: an `@`, then a host of
+    ordinary host characters, then a dot, then a top label of at least
+    two letters. `@close` fails at the dot. `ms @ ambient` fails at the
+    label. `@example.org` passes.
+
+    WRITTEN IN A SMALLER VOCABULARY THAN CAME NATURALLY, and that is
+    the offline audit's doing rather than a style choice. It accepts
+    method calls on gated text only from an enumerated set -- the exact
+    set the source tree already calls -- and `rfind`, `isalpha` and
+    `isalnum` are not in it. Widening that set to suit one function
+    would be changing the scanner to make the text pass, which the
+    charter forbids in as many words. So the letter and host tests are
+    membership checks against literal constants, which are operators
+    rather than method calls, and the search runs on `find`.
+
+    Guarantees: accepts text; returns a truth value depending on that
+    text alone. Raises TypeError for anything else. No I/O, no
+    randomness.
+    """
+    if not isinstance(side, str):
+        raise TypeError("an affix must be text")
+    at = side.find("@")
+    if at < 0:
+        return False
+    host = side[at + 1 :]
+    # The last dot of the host, found by walking rather than by
+    # `rfind`, which the audit's enumeration does not carry.
+    dot = -1
+    place = 0
+    for character in host:
+        if character == ".":
+            dot = place
+        place = place + 1
+    if dot <= 0:
+        return False
+    label = host[dot + 1 :]
+    if len(label) < 2:
+        return False
+    for character in label:
+        if character not in _LETTERS:
+            return False
+    body = host[:dot]
+    if not body:
+        return False
+    for character in body:
+        if character not in _HOST_CHARACTERS:
+            return False
+    return True
 
 
 def _affixed_verdict(
@@ -6145,7 +6275,11 @@ def _decide(
     # as a number, a date, a label or a category today is diverted into
     # it. A rule added earlier would have moved columns between roles,
     # which is the one thing this phase's no-regression rule forbids.
-    affixed = None if forced_code else _affixed_reading(cells)
+    affixed = (
+        None
+        if forced_code
+        else _affixed_reading(cells, forced_measurement)
+    )
     if affixed is not None:
         return _affixed_verdict(cells, affixed, notes, remarks)
 

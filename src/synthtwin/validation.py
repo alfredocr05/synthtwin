@@ -8630,7 +8630,6 @@ def _clock_ladder_checks(
     """
     name = column.name
     measured = _inner_at(block, "clock_percentiles")
-    form = facts.clock_form
     checks: "list[Check]" = []
     for key, expected in (
         ("min", facts.earliest),

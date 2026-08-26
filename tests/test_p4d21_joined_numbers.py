@@ -532,7 +532,7 @@ def test_a_twin_with_the_wrong_pairing_is_caught() -> None:
     wrong -- which is precisely what these checks exist to catch and
     what nothing caught before.
     """
-    from synthtwin import rendering, validation
+    from synthtwin import validation
 
     rng = random.Random(11)
     values: "list[str]" = []
