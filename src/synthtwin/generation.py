@@ -9097,6 +9097,44 @@ def _partner_at(
     return None
 
 
+def _levels_past_the_line(
+    spellings: "list[str]", groups: "tuple[int, ...]", line: int
+) -> int:
+    """How many folded levels of these spellings reach the long-tail line.
+
+    MEASURED ON THE FINISHED SPELLINGS rather than counted inside the
+    walk that made them, and that is deliberate. A count taken in the
+    walk knows only about pairs the walk itself made; this one sees
+    every level however it arose, which is the thing a reader of the
+    twin actually meets. It also keeps `_partner_of` returning one
+    value: three roles ask that function, and a test pins that it is
+    one function.
+
+    Guarantees: accepts the spellings and the row count each covers, in
+    one index space, and the line; returns a count. Raises nothing
+    beyond the type check its own folding does. No I/O.
+    """
+    if line < 1:
+        return 0
+    covered: "dict[str, int]" = {}
+    for index, spelling in enumerate(spellings):
+        if index >= len(groups):
+            break
+        key = parsing.folded(spelling)
+        # Indexed behind an `in` test rather than `.get`: the offline
+        # audit refuses a method call on a value it cannot trace, and
+        # this module reads every one of its own tallies this way.
+        if key in covered:
+            covered[key] = covered[key] + groups[index]
+        else:
+            covered[key] = groups[index]
+    past = 0
+    for key in sorted(covered):
+        if covered[key] >= line:
+            past = past + 1
+    return past
+
+
 def _partner_of(
     index: int,
     folded: int,
@@ -9104,6 +9142,9 @@ def _partner_of(
     families: "list[str]",
     used: "dict[str, int]",
     windows: "list[tuple[int, int | None]]",
+    sizes: "list[int] | None" = None,
+    long_tail_line: int = 0,
+    carried: "dict[int, int] | None" = None,
 ) -> "str | None":
     """The fold-collision partner this value carries, when one is owed.
 
@@ -9173,23 +9214,69 @@ def _partner_of(
     # where eleven would do. Both passes keep the cyclic order the
     # method fixes, so a column whose parents all hold letters, or none
     # of which do, is laid out exactly as it was.
-    for lettered in (True, False):
-        for step in range(folded):
-            parent_place = (place + step) % folded
-            if families[parent_place] != families[index]:
-                continue
-            has_letter = False
-            for character in spellings[parent_place]:
-                if character in _LETTERS:
-                    has_letter = True
-                    break
-            if has_letter != lettered:
-                continue
-            found = _partner_from(
-                parent_place, index, spellings, used, shortest, longest
-            )
-            if found is not None:
-                return found
+    # AND A PARENT THAT KEEPS THE FOLDED LEVEL UNDER THE LONG-TAIL LINE
+    # IS TAKEN BEFORE ONE THAT DOES NOT (residual R-P4-36). A partner
+    # folds onto its parent, so the level the pair makes covers BOTH
+    # their rows -- and a level past the detection line is what makes a
+    # column a long tail of labels rather than free text. Measured
+    # before this pass existed: a column of twenty spellings at ten rows
+    # each beside five at four rows each is free text, and its twin
+    # paired a ten with a four, made a level of fourteen, and reprofiled
+    # as `long_tail_labels` with every published count met and no
+    # deviation named.
+    #
+    # THIS IS A PREFERENCE AND NOT A GUARANTEE, and the difference is
+    # measured rather than hedged. The walk takes partners in index
+    # order and gives each the first parent that fits, which is
+    # first-fit packing: on sizes 1, 2, 2, 2, 2 and 9 it reaches a
+    # largest level of eleven where pairing the nine onto the one
+    # would have reached ten. Doing better means choosing the ORDER
+    # partners are taken in, which decides twin bytes and is bounded by
+    # the same packing problem `_shared_out` met.
+    #
+    # WHAT IS GUARANTEED is the other half: `_levels_past_the_line`
+    # measures the FINISHED spellings, so a crossing is reported
+    # whether this preference avoided it, improved it, or never had a
+    # pairing that could.
+    under_first: "tuple[bool, ...]" = (True, False)
+    if sizes is None or long_tail_line < 1:
+        under_first = (False,)
+    for under in under_first:
+        for lettered in (True, False):
+            for step in range(folded):
+                parent_place = (place + step) % folded
+                if families[parent_place] != families[index]:
+                    continue
+                if under and sizes is not None:
+                    # ACCUMULATED, NOT PAIRWISE. A parent may already
+                    # carry partners from earlier in this walk, and the
+                    # level it makes covers all of them. Measured on
+                    # the shape a reviewer supplied: sizes 1, 2 and 9
+                    # pair as 1+2 and then 1+9, each pairwise sum under
+                    # a line of eleven, while the level they actually
+                    # make is twelve.
+                    already = sizes[parent_place]
+                    if carried is not None and parent_place in carried:
+                        already = carried[parent_place]
+                    if already + sizes[index] >= long_tail_line:
+                        continue
+                has_letter = False
+                for character in spellings[parent_place]:
+                    if character in _LETTERS:
+                        has_letter = True
+                        break
+                if has_letter != lettered:
+                    continue
+                found = _partner_from(
+                    parent_place, index, spellings, used, shortest, longest
+                )
+                if found is not None:
+                    if carried is not None and sizes is not None:
+                        already = sizes[parent_place]
+                        if parent_place in carried:
+                            already = carried[parent_place]
+                        carried[parent_place] = already + sizes[index]
+                    return found
     return None
 
 
@@ -9449,7 +9536,9 @@ def _grouped(
 
 
 def _text_cells(
-    column: contract.ColumnBlock, groups: "tuple[int, ...]"
+    column: contract.ColumnBlock,
+    groups: "tuple[int, ...]",
+    long_tail_line: int = 0,
 ) -> "tuple[list[str], list[Deviation], tuple[int, int]]":
     """Every present cell of a column of free text (method G9.5).
 
@@ -9557,9 +9646,13 @@ def _text_cells(
         budget,
     )
     made: dict[str, int] = {}
+    # How many rows each parent's folded level covers so far, so the
+    # preference below reads the level rather than the pair.
+    carried: "dict[int, int]" = {}
     for index in range(total):
         partner = _partner_of(
-            index, folded, spellings, families, used, windows
+            index, folded, spellings, families, used, windows,
+            list(groups), long_tail_line, carried,
         )
         if partner is not None:
             taken = _take(partner, used)
@@ -9616,6 +9709,41 @@ def _text_cells(
         _settle(owing, spelling, groups[index])
         _spend_length(budget, len(spelling) - lengths[index], groups[index])
         spellings = spellings + [spelling]
+    # THE TWIN CAN REPROFILE INTO A DIFFERENT ROLE, AND NOW IT SAYS SO
+    # (residual R-P4-36). A fold-collision partner folds onto its
+    # parent, so the pair makes a level covering BOTH their rows -- and
+    # a level at or past the long-tail detection line is what makes a
+    # column a long tail of LABELS rather than free text. Where no
+    # pairing this run could make keeps every level under that line, a
+    # person reading the twin back gets a column of a different kind
+    # from the one described, with every published count met.
+    #
+    # WHAT IS FIXED AND WHAT IS NOT. The walk now PREFERS a parent that
+    # keeps the pair under the line, which answers the columns where
+    # such a parent exists. It cannot answer the ones where the sizes
+    # this run laid out leave no such pairing -- the partner groups may
+    # themselves be larger than the line -- because which group is
+    # which size is settled before this walk runs. That half is
+    # residual R-P4-36's own, and it is REPORTED here rather than
+    # passed over, which is the half the residual was opened for: the
+    # column changed kind "and says nothing".
+    crossed = _levels_past_the_line(spellings, groups, long_tail_line)
+    if crossed:
+        notes = notes + [
+            _deviation(
+                column.name,
+                "n_distinct_folded",
+                f"{folded} folded value(s), none of them a published level",
+                f"{crossed} of them cover(s) at least {long_tail_line} rows",
+                "reading this twin back describes this column as a long "
+                "tail of labels rather than as free text, because folding "
+                "its spellings made a group large enough to be published "
+                "as a label. Every count this description publishes is "
+                "still met. What changes is the KIND of column a reader "
+                "sees, so code that dispatches on the column's type "
+                "behaves differently here than on your table.",
+            )
+        ]
     return _grouped(groups, spellings), notes, carriers
 
 
@@ -11197,7 +11325,14 @@ def plan_generation(profile: contract.Profile) -> GenerationPlan:
     words = 0
     everywhere = _every_hole_spelling(profile)
     for column in profile.columns:
-        plan = _plan_column(column, profile.n_rows, everywhere)
+        # THE LONG-TAIL DETECTION LINE reaches the free-text walk from
+        # here, because only the profile carries the settings and only
+        # the walk can act on them (residual R-P4-36).
+        line = max(
+            profile.settings.small_cell_floor,
+            profile.settings.long_tail_minimum_level,
+        )
+        plan = _plan_column(column, profile.n_rows, everywhere, line)
         plans = plans + [plan]
         words = words + plan.content_words + plan.placement_words
     return GenerationPlan(columns=tuple(plans), words_planned=words)
@@ -11207,6 +11342,7 @@ def _plan_column(
     column: contract.ColumnBlock,
     n_rows: int,
     all_holes: "tuple[str, ...]" = (),
+    long_tail_line: int = 0,
 ) -> "_ColumnPlan":
     """One column's plan: its word budget, its layout, its refusals."""
     facts = column.facts
@@ -11260,7 +11396,9 @@ def _plan_column(
         _fold_room(
             column, facts.length.minimum, facts.length.maximum, len(groups)
         )
-        cells, notes, carriers = _text_cells(column, groups)
+        cells, notes, carriers = _text_cells(
+            column, groups, long_tail_line
+        )
     elif isinstance(facts, contract.UnrepresentableFacts):
         groups = _groups_of(facts.n_distinct_by_occurrences)
         cells, notes = _unrepresentable_cells(column, groups)
