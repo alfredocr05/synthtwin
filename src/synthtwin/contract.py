@@ -1593,6 +1593,11 @@ class _Frame:
     n_rows: int
     n_columns: int
     declared: "tuple[str, ...]"
+    # The columns the person named with `--code`. LT1 is stated over
+    # this: the long-tail detection line is a stand-in for a judgement
+    # nobody had made, and a declared code column is one where they
+    # have made it (plan P4-D22).
+    declared_codes: "tuple[str, ...]"
     # The share a role's detection line is drawn at, carried here
     # because one invariant is stated over it: AF3 holds an affixed
     # column's pair to the line its own detection had to clear, and a
@@ -3920,6 +3925,7 @@ def _facts(
             mapping, where, frame.floor, n_present, n_folded
         )
     if role == ROLE_LONG_TAIL:
+        named = mapping["name"] if "name" in mapping else None
         return _long_tail_facts(
             mapping,
             where,
@@ -3927,6 +3933,7 @@ def _facts(
             n_present,
             n_folded,
             _category_ceiling(frame),
+            isinstance(named, str) and named in frame.declared_codes,
         )
     if role == ROLE_DATETIME:
         return _datetime_facts(mapping, where, frame.floor, n_present)
@@ -4338,6 +4345,7 @@ def _long_tail_facts(
     n_present: int,
     n_folded: int,
     ceiling: int,
+    code_declared: bool = False,
 ) -> LabelFacts:
     """A long tail of labels (plan P4-D5).
 
@@ -4359,7 +4367,13 @@ def _long_tail_facts(
     for entry in entries:
         if entry.count >= line:
             covering = covering + 1
-    if covering < 1:
+    # THE DECLARATION LIFTS THE LINE (plan P4-D22), and it is the ONLY
+    # thing that lifts it. The line keeps a column of names or free
+    # comments out of the label roles, so that lowering the floor never
+    # widens which columns publish. Where the person has said `--code`
+    # that judgement is theirs and is made, and holding a laboratory-code
+    # column to the line is what left it publishing nothing at all.
+    if covering < 1 and not code_declared:
         raise _broken(
             "LT1",
             where,
@@ -6530,6 +6544,7 @@ def _validated(document: "dict[str, object]") -> Profile:
             n_rows=n_rows,
             n_columns=n_columns,
             declared=settings.forced_identifiers,
+            declared_codes=settings.forced_codes,
             parse_rate=settings.minimum_parse_rate,
             category_share=settings.categorical_share,
             category_ceiling=settings.categorical_ceiling,

@@ -6,6 +6,29 @@ exists).
 
 ## [Unreleased]
 
+### Changed: a column you name with `--code` now always publishes its codes
+
+- **A code column with many different codes, none repeated much, used to
+  publish nothing at all.** A laboratory-code column of 228 different
+  codes over 400 rows was read as free text -- too many codes to be a
+  set of categories, none repeated often enough to be a long tail -- so
+  the description named none of them and the twin held none of them.
+- **Named with `--code`, it now publishes every code with its row
+  count**, and the twin holds the same codes in the same proportions.
+  On the demonstration table: 228 of 228 laboratory codes and 221 of 221
+  drug codes, at exactly the right counts, where both were zero before.
+- **Why that is worth having: every rollup then comes out right.**
+  Because the twin holds the same codes the same number of times, any
+  grouping of them reproduces exactly -- the leading letters of a
+  diagnosis code, the segment before a dash, the code length. synthtwin
+  knows no coding system and models no hierarchy; it does not have to.
+- **What it discloses.** The twin holds the REAL codes, redistributed
+  across rows, and the description names them. That follows the ruling
+  that nothing is held back for being rare. If you need the old
+  behaviour for a column, do not name it with `--code`.
+- **Nothing changes for a column you do not name.** A column of prose is
+  still read as free text at every setting.
+
 ### Added: blood pressures, and anything else written as two numbers in one cell
 
 - **`--measurement COLUMN` tells synthtwin that a column holds readings

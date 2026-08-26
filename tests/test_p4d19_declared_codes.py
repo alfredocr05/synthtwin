@@ -375,3 +375,114 @@ def test_every_digit_only_system_is_offered_or_needs_no_offer(
             f"{system} is written in digits and would be read as a "
             f"measurement, but nothing offers the question"
         )
+
+
+# -- P4-D22: a declared code column always publishes its codes ---------
+
+
+def _thin_tailed_codes(count: int = 240) -> "list[str]":
+    """A laboratory-code column: many codes, none of them repeated much."""
+    rng = random.Random(21)
+    pool = [
+        f"{rng.randrange(1000, 99999)}-{rng.randrange(0, 9)}"
+        for _each in range(140)
+    ]
+    return [rng.choice(pool) for _each in range(count)]
+
+
+def test_a_thin_tailed_code_column_published_nothing_until_p4d22() -> None:
+    """The defect P4-D22 closes, stated as a test.
+
+    Undeclared, such a column clears neither door to the label roles --
+    too many different codes to be a set of categories, and no code
+    repeated enough to be a long tail -- so it falls to free text, which
+    publishes no value at all and whose twin holds not one real code.
+    """
+    values = _thin_tailed_codes()
+    block = _block(_described(values), "col")
+    assert block["role"] == taxonomy.ROLE_TEXT
+    assert "levels" not in block
+
+
+def test_the_same_column_declared_publishes_every_code() -> None:
+    """Declared, the detection line does not apply and the codes are named."""
+    values = _thin_tailed_codes()
+    block = _block(_described(values, codes=["col"]), "col")
+    assert block["role"] == taxonomy.ROLE_LONG_TAIL
+    named = {level["label"]: level["count"] for level in block["levels"]}
+    counted: "dict[str, int]" = {}
+    for value in values:
+        counted[value] = counted[value] + 1 if value in counted else 1
+    assert named == counted, "the published counts are not the column's own"
+
+
+def test_the_twin_of_a_declared_code_column_holds_the_same_codes() -> None:
+    """Same codes, same counts -- which is what makes every rollup exact."""
+    values = _thin_tailed_codes()
+    document = _described(values, codes=["col"])
+    twin = generation.generate(_loaded(document), 5)
+    made: "dict[str, int]" = {}
+    for cell in twin.columns[0]:
+        made[cell] = made[cell] + 1 if cell in made else 1
+    counted: "dict[str, int]" = {}
+    for value in values:
+        counted[value] = counted[value] + 1 if value in counted else 1
+    assert made == counted
+
+
+@pytest.mark.parametrize(
+    "name,rollup",
+    [
+        ("the exact code", lambda v: v),
+        ("the part before the mark", lambda v: v[: v.find("-")]),
+        ("the part after it", lambda v: v[v.find("-") + 1 :]),
+        ("how long the code is", lambda v: f"{len(v)}"),
+    ],
+)
+def test_every_rollup_of_a_declared_code_column_reproduces(
+    name: str, rollup: "object"
+) -> None:
+    """THE POINT OF P4-D22, and it is worth stating as its own test.
+
+    synthtwin knows no coding system and models no hierarchy. It does
+    not have to: a twin holding the same codes the same number of times
+    reproduces EVERY function of those codes exactly -- the prefix a
+    hierarchy groups by, the suffix a check digit sits in, the length a
+    reader splits on. Hierarchy is not built here; it is a consequence
+    of holding the right values the right number of times.
+    """
+    assert callable(rollup)
+    values = _thin_tailed_codes()
+    document = _described(values, codes=["col"])
+    twin = generation.generate(_loaded(document), 5)
+
+    def counted(cells: "list[str]") -> "dict[str, int]":
+        out: "dict[str, int]" = {}
+        for cell in cells:
+            key = f"{rollup(cell)}"
+            out[key] = out[key] + 1 if key in out else 1
+        return out
+
+    assert counted(values) == counted([cell for cell in twin.columns[0]]), (
+        f"{name} does not come back the same"
+    )
+
+
+def test_the_line_is_lifted_by_the_declaration_and_nothing_else() -> None:
+    """A column of prose is still free text, at every floor.
+
+    The detection line's job is keeping names, addresses and free
+    comments out of the label roles. P4-D22 lifts it for a DECLARED
+    column and for no other, so that job is untouched.
+    """
+    rng = random.Random(8)
+    words = "patient reports mild chest pain on exertion denies fever".split()
+    prose = [
+        " ".join(rng.choice(words) for _each in range(rng.randint(5, 10)))
+        for _row in range(240)
+    ]
+    assert _block(_described(prose), "col")["role"] == taxonomy.ROLE_TEXT
+    assert (
+        _block(_described(prose, floor=11), "col")["role"]
+        == taxonomy.ROLE_TEXT
+    )
