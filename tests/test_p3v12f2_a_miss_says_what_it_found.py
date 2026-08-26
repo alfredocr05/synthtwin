@@ -162,6 +162,18 @@ _PADDED = [f"{index}.20" for index in range(1, 61)]
 # description no longer does (plan P4-D4.5).
 _CANONICAL = [f"{index}.2" for index in range(1, 61)]
 
+# The publication floor every description in this file is built at. Four
+# of the sixteen obligation families the corpus must reach exist only
+# where a floor holds something back -- `label.variants`,
+# `label.variants_withheld`, `label.suppressed_level_counts` and the
+# pooled half of `label.levels` -- and at a floor of one nothing is held
+# back at all (contract invariant C5-S13). A floor of one became the
+# default under the owner ruling recorded as plan amendment A-P4-37, so
+# this file states the floor its corpus was written against instead of
+# inheriting one: eleven, the number the "rare enough that the floor
+# names none of them" tables below are counted against.
+_SMALL_CELL_FLOOR = 11
+
 
 @pytest.fixture(autouse=True)
 def _reinstated(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -240,7 +252,9 @@ def _described(
     read = reading.read_table(
         f"{table}", first_row=reading.FIRST_ROW_AUTOMATIC
     )
-    document = profile.build_document(read, taxonomy.Settings(), [])
+    document = profile.build_document(
+        read, taxonomy.Settings(small_cell_floor=_SMALL_CELL_FLOOR), []
+    )
     written = fixtures.write_profile(folder, f"{name}-profile.json", document)
     return contract.load_profile(f"{written}"), table
 

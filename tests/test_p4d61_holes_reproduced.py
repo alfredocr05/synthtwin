@@ -55,6 +55,14 @@ def _run(
     return document, described, generation.generate(described, 3), folder
 
 
+# THE PROTECTIVE FLOOR, WHICH IS NOT THE DEFAULT ANY MORE (owner ruling,
+# plan amendment A-P4-37). The default floor is 1 and at 1 no spelling
+# is pooled at all, so the one test here that needs a POOLED spelling to
+# exist names the floor that pools it -- eleven, the floor it was
+# written against.
+_STRICT_FLOOR = 11
+
+
 def _numbers(count: int) -> "list[str]":
     return [f"{10 + place % 90}" for place in range(count)]
 
@@ -144,10 +152,23 @@ def test_a_calendar_placeholder_stays_blank() -> None:
 
 
 def test_a_blank_stays_blank_and_a_pooled_spelling_stays_blank() -> None:
-    """Everything the rule does not name is written empty."""
+    """Everything the rule does not name is written empty.
+
+    RUN AT THE PROTECTIVE FLOOR, said out loud since amendment
+    A-P4-37 made 1 the default. `rare` is declared and covers five
+    rows, so a floor of eleven is what pools it out of
+    `missing_by_source` and leaves it as part of the withheld
+    remainder -- which is the second half of what this test pins. At
+    the default floor of 1 it would be published by name and there
+    would be no pooled spelling here to hold anything about.
+    """
     values = _numbers(200) + ["NA"] * 20 + ["rare"] * 5 + [""] * 15
     document, _described, twin, _folder = _run(
-        values, taxonomy.Settings(declared_missing_values=("rare",))
+        values,
+        taxonomy.Settings(
+            declared_missing_values=("rare",),
+            small_cell_floor=_STRICT_FLOOR,
+        ),
     )
     block = document["columns"][0]
     assert block["missing_by_source"] == {"NA": 20}

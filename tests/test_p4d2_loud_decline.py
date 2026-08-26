@@ -87,6 +87,21 @@ NOTHING = rendering._MADE_UP_NOTHING
 
 SEED = 20260819
 
+# The floor these fixtures are read at, said out loud because pooling is
+# what this file's subject rests on: a label column keeps the HELD BACK
+# class only while the floor holds SOME of its spellings back, and
+# reaches EVERYTHING only while the floor holds them ALL back. The
+# product's default floor is now 1 (owner ruling, plan amendment
+# A-P4-37), and at a floor of 1 nothing is ever held back, so a
+# description built at the default reaches neither shape and the classes
+# below would be asserted against a table that has no rare cell in it.
+# Eleven is the floor every fixture in this file was built against -- the
+# `rare` label worn by seven rows, the eleven case spellings worn by two
+# rows each -- and the floor the exact-shape assertions spell out in
+# words ("fewer than 11 rows share"), so it is pinned here rather than
+# taken from whatever the default happens to be.
+SETTINGS = taxonomy.Settings(small_cell_floor=11)
+
 
 # A column no rule reads, for the tests about what a column NOBODY
 # reads says about itself. It has to vary in shape and hold no number:
@@ -112,7 +127,7 @@ def _described(
     table_path = fixtures.write(folder, "table.csv", text)
     table = reading.read_table(str(table_path))
     document = profile.build_document(
-        table, taxonomy.Settings(), declared or []
+        table, SETTINGS, declared or []
     )
     written = fixtures.write_profile(folder, "table-profile.json", document)
     return contract.load_profile(str(written))
@@ -193,8 +208,8 @@ def every_class(tmp_path_factory: pytest.TempPathFactory) -> contract.Profile:
                 f"K{place:04d}",
                 _PROSE[place % len(_PROSE)],
                 # One label is worn by exactly seven rows, which the
-                # default floor of eleven holds back; the other two are
-                # worn by plenty and are published.
+                # floor of eleven `SETTINGS` pins holds back; the other
+                # two are worn by plenty and are published.
                 (
                     "rare"
                     if place < 7
@@ -417,7 +432,7 @@ def test_the_summary_tells_a_person_before_they_generate_anything(
         tmp_path, "table.csv", fixtures.rows_to_csv(header, rows)
     )
     document = profile.build_document(
-        reading.read_table(str(table)), taxonomy.Settings(), []
+        reading.read_table(str(table)), SETTINGS, []
     )
     page = summary.render(document, "")
     # The whole sentence, line for line: "every value in" alone appears
@@ -652,7 +667,7 @@ def test_the_producers_page_and_the_twins_page_agree_on_what_is_invented(
     text = fixtures.rows_to_csv(header, rows)
     table_path = fixtures.write(tmp_path, "table.csv", text)
     table = reading.read_table(str(table_path))
-    document = profile.build_document(table, taxonomy.Settings(), [])
+    document = profile.build_document(table, SETTINGS, [])
     written = fixtures.write_profile(tmp_path, "table-profile.json", document)
     loaded = contract.load_profile(str(written))
     for entry in document["columns"]:
@@ -709,7 +724,7 @@ def test_the_summary_names_the_label_columns_a_twin_would_wholly_invent(
         tmp_path, "table.csv", fixtures.rows_to_csv(header, rows)
     )
     document = profile.build_document(
-        reading.read_table(str(table_path)), taxonomy.Settings(), ["blank"]
+        reading.read_table(str(table_path)), SETTINGS, ["blank"]
     )
     page = summary.render(document, "")
     opened = page.find("If you build a twin from this description")

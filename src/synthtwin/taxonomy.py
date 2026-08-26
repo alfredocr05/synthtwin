@@ -1550,7 +1550,7 @@ class Settings:
     `contradictory_declarations`, called by both.
     """
 
-    small_cell_floor: int = 11
+    small_cell_floor: int = 1
     # How different a column's values have to be before synthtwin SAYS
     # SO. This decides no role. Nothing decides the identifier role but
     # the person who owns the table, so this threshold governs one thing
@@ -3288,7 +3288,7 @@ def _declared_number(
     return False
 
 
-def _split_missing(
+def split_missing(
     values: list[str], settings: Settings
 ) -> "tuple[list[str], list[tuple[str, str]]]":
     """Split values into (present, [(exact spelling, named class), ...]).
@@ -5461,6 +5461,7 @@ def _decide(
     removed: int = 0,
     after_removal: bool = False,
     after_days: bool = False,
+    forced_code: bool = False,
 ) -> _Verdict:
     """Pick the one role, testing the rules in the documented order.
 
@@ -5473,6 +5474,20 @@ def _decide(
     THE ORDER, and there is only one:
 
     0. the person's own declaration -- `identifier`;
+    0b. the person's OTHER declaration -- `--code`, which decides no
+       role by itself and instead SILENCES rules 2, 5, 6, 8 and 9, the
+       five that read a cell as something other than a label. What is
+       left is exactly the five label roles -- `constant`, `binary`,
+       `categorical`, `long_tail_labels`, `free_text` -- which are
+       exactly the five that carry a written-form census, so a declared
+       code column always records the shapes its codes were written in
+       (plan P4-D19). Rule 5's own comment below has asked for this
+       since review item P1-R6-F7: it deleted a rule that guessed codes
+       from width, said that only the owner of the table knows, and
+       named `--identifier` as the way to declare one. `--identifier`
+       publishes NOTHING, which is right for a record number and wrong
+       for a vaccine code, whose distribution is the point. This is the
+       declaration that comment was missing;
     1. no present value at all -- `empty`, settled by the caller;
     2. written as numbers, too few of them holdable -- the
        `numeric_unrepresentable` role;
@@ -5562,8 +5577,11 @@ def _decide(
         # that decides the role and the population the statistics are
         # computed from are one population, which is what STRUCTURAL RULE A
         # already promises.
-        if not after_days and numeric_looking >= strict_needed and (
-            len(cells.numbers) < strict_needed
+        if (
+            not after_days
+            and not forced_code
+            and numeric_looking >= strict_needed
+            and (len(cells.numbers) < strict_needed)
         ):
             remarks = remarks + [
                 note(
@@ -5661,7 +5679,9 @@ def _decide(
         # number and a postal code, and only the person who owns the table
         # knows which. Such a column now lands where the ordinary rules put
         # it, and `--identifier` is how a column of codes is declared.
-        matched = _matching_date_format(present, settings)
+        matched = (
+            None if forced_code else _matching_date_format(present, settings)
+        )
         if matched is not None:
             format_name, pairs, sources, unparsed, evidence = matched
             details = _datetime_details(
@@ -5724,7 +5744,7 @@ def _decide(
         # Falling short here decides nothing but this rule: the column goes
         # on to RULE 7 and may still be a set of categories. Below the line
         # is not a synonym for free text.
-        if numeric_looking >= strict_needed:
+        if numeric_looking >= strict_needed and not forced_code:
             return _numeric_verdict(cells, notes, remarks)
 
         # RULE 7 -- a set of categories: at most the ceiling of different
@@ -5765,7 +5785,7 @@ def _decide(
     # contract's and has a reason: clock text rarely splits as an
     # affixed number, but where both could fire the time reading is the
     # more specific claim.
-    clock = _clock_reading(cells)
+    clock = None if forced_code else _clock_reading(cells)
     if clock is not None:
         return _clock_verdict(cells, clock, notes, remarks)
 
@@ -5778,7 +5798,7 @@ def _decide(
     # as a number, a date, a label or a category today is diverted into
     # it. A rule added earlier would have moved columns between roles,
     # which is the one thing this phase's no-regression rule forbids.
-    affixed = _affixed_reading(cells)
+    affixed = None if forced_code else _affixed_reading(cells)
     if affixed is not None:
         return _affixed_verdict(cells, affixed, notes, remarks)
 
@@ -6502,6 +6522,7 @@ def profile_column(
     n_rows: int,
     settings: Settings,
     forced_identifier: bool = False,
+    forced_code: bool = False,
 ) -> ColumnProfile:
     """Describe one column: its role, its statistics, what was withheld.
 
@@ -6551,7 +6572,7 @@ def profile_column(
     )
     if clashes:
         raise ValueError(f"{CONTRADICTORY_DECLARATION}: {clashes[0]}")
-    present, missing = _split_missing(values, settings)
+    present, missing = split_missing(values, settings)
     # THE one classification of this column's cells. Everything below
     # reads these records; not one line of it reads the column again.
     classified = _classify_all(present)
@@ -6635,7 +6656,7 @@ def profile_column(
     removed_by_days = 0
     judged_over_days = False
     if present and not forced_identifier:
-        trial = _decide(cells, forced_identifier)
+        trial = _decide(cells, forced_identifier, forced_code=forced_code)
         if trial.role == ROLE_TEXT or trial.role == ROLE_DATETIME:
             reading = _remainder_reading(present, settings)
             if reading is not None:
@@ -6681,7 +6702,7 @@ def profile_column(
     removed_by_cores = 0
     judged_over_cores = False
     if present and not forced_identifier:
-        trial = _decide(cells, forced_identifier)
+        trial = _decide(cells, forced_identifier, forced_code=forced_code)
         if trial.role == ROLE_AFFIXED:
             before = len(present)
             classified, missing, verdicts = _cores_judged(
@@ -6748,6 +6769,7 @@ def profile_column(
             removed_by_cores,
             after_removal=judged_over_cores,
             after_days=judged_over_days,
+            forced_code=forced_code,
         )
 
     by_source, by_class, n_blank, n_withheld = _missing_maps(

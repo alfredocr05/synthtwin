@@ -6,6 +6,62 @@ exists).
 
 ## [Unreleased]
 
+### Changed: nothing is held back for being rare, unless you ask for it
+
+- **The smallest group size now defaults to 1 instead of 11** (owner
+  ruling 2026-08-25). Every value your table holds is named in the
+  profile, together with how many rows shared it, so a rare finding
+  reaches your twin instead of being pooled away. The reason is that
+  synthtwin publishes nothing that crosses two columns -- so a named
+  rare value says that somebody in your table had it, and nothing else
+  about them.
+- **`--smallest-group 11` restores the old behaviour in full**, and
+  every rule about what the floor protects still binds at whatever
+  number your description carries. If a review board or a data-use
+  agreement needs groups kept above a size, that is the option.
+- **What to check if you relied on the old default:** a profile made
+  before this release is unaffected -- the floor lives in the document,
+  and every command runs on the number it finds there.
+
+### Added: `--code`, for coding systems written in digits
+
+- **`--code COLUMN` tells synthtwin that a column holds codes rather
+  than measurements.** Vaccine codes, procedure codes, revenue codes,
+  provider numbers, risk-group codes. Its values are still published,
+  because which codes are common is the point of the column; what
+  changes is that synthtwin stops reading them as numbers.
+- **What it fixes.** A column of `08`, `20`, `213` was read as a
+  quantity: the profile published an average, a smallest and a largest
+  -- meaningless for a code, and real codes besides -- and the twin
+  wrote `8` where your table wrote `08`, so code that splits on width
+  broke. Declared, every spelling is kept exactly and counted.
+- **You need it only for a column written in digits alone.** One
+  written with a letter or a dash -- `E11.9`, `0002-8215-01`,
+  `HGNC:5`, `NM_000546.6:c.215C>G` -- is already read as codes.
+- **Measured across eighteen coding systems** -- NDC, CVX, MVX, UDI,
+  MS-DRG, APC, UB-04, NPI, the clinical grouper codes, Elixhauser, Charlson, CMS-HCC, CDPS,
+  HGNC ID, HGVS, OMIM, ClinVar, GA4GH -- all eighteen now survive
+  profile, generate and validate with their written shapes intact. Two
+  of them, CVX and UB-04, lost their leading zeros before this release.
+
+### Added: synthtwin asks you about columns it cannot read
+
+- **A column of digits is a coding system or it is measurements, and
+  the two are written identically.** synthtwin does not guess. When it
+  meets a column of digits that could be codes -- some value padded
+  with a leading zero, or every value the same width -- it stops and
+  asks you, showing you a few of the values.
+- **Your answers are recorded in the profile**, and the exact options
+  to repeat the run without the questions are printed at the end.
+- **It never stops a script.** Where nobody is at the keyboard, it
+  names those columns on screen, says what it assumed, and prints the
+  `--code` line that corrects it. A run whose output is piped to a
+  file counts as scripted even from a terminal.
+- **What it does not reach**, said so silence is not read as
+  clearance: a column of one-to-three digits with no padding, like
+  the clinical grouper codes, are written exactly like a count and raises no question --
+  `--code` still describes it correctly when you say the word.
+
 ### Changed: Phase 3 is closed, without the release it asked for
 
 - **Phase 3 was closed by owner decision on 2026-08-19, and the release

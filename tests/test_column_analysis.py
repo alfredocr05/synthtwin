@@ -11,7 +11,17 @@ import pytest
 import fixtures
 from synthtwin import parsing, profile, taxonomy
 
-SETTINGS = taxonomy.Settings()
+# THE FLOOR THIS FILE IS WRITTEN AGAINST, NAMED RATHER THAN INHERITED.
+# Plan amendment A-P4-37 lowered the default `small_cell_floor` from
+# eleven to one, and at a floor of one NOTHING is held back: no pooled
+# label, no `(withheld)` spelling, no suppressed level, no unpublished
+# sentinel candidate. Every case below whose subject is what a
+# description WITHHOLDS was measured against a floor of eleven, so the
+# floor is stated here instead of being inherited from a default that
+# has since moved. What the default IS is asserted elsewhere; this
+# constant is what the cases below are about.
+SMALL_CELL_FLOOR = 11
+SETTINGS = taxonomy.Settings(small_cell_floor=SMALL_CELL_FLOOR)
 
 
 def describe(
@@ -328,7 +338,12 @@ def test_too_many_values_no_format_can_hold_publish_nothing() -> None:
 def test_a_legitimate_text_code_can_be_kept(  ) -> None:
     values = ["north"] * 40 + ["south"] * 40 + ["NA"] * 40
     assert describe(values).role == taxonomy.ROLE_BINARY
-    kept = describe(values, settings=taxonomy.Settings(kept_values=("NA",)))
+    kept = describe(
+        values,
+        settings=taxonomy.Settings(
+            small_cell_floor=SMALL_CELL_FLOOR, kept_values=("NA",)
+        ),
+    )
     assert kept.role == taxonomy.ROLE_CATEGORICAL
     assert kept.n_present == 120
     assert kept.n_missing == 0
@@ -338,7 +353,10 @@ def test_a_spelling_can_be_declared_missing() -> None:
     values = ["north"] * 40 + ["south"] * 40 + ["unknown"] * 40
     declared = describe(
         values,
-        settings=taxonomy.Settings(declared_missing_values=("unknown",)),
+        settings=taxonomy.Settings(
+            small_cell_floor=SMALL_CELL_FLOOR,
+            declared_missing_values=("unknown",),
+        ),
     )
     assert declared.n_missing == 40
     assert declared.missing_by_class[parsing.MISSING_DECLARED] == 40
@@ -383,7 +401,11 @@ def test_a_withholding_role_publishes_no_missing_spelling() -> None:
         + ["-9.99e2"]
     )
     described = describe(
-        values, settings=taxonomy.Settings(declared_missing_values=("-9.99e2",))
+        values,
+        settings=taxonomy.Settings(
+            small_cell_floor=SMALL_CELL_FLOOR,
+            declared_missing_values=("-9.99e2",),
+        ),
     )
     assert described.role == taxonomy.ROLE_TEXT
     assert described.missing_by_source == {}

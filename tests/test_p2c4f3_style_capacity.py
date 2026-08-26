@@ -148,6 +148,16 @@ BATTERY = (
 LADDER_LEAVES_NO_ROOM = frozenset({"a ladder with no room for a whole number"})
 
 
+# The floor this file describes at, stated rather than inherited. Every
+# claim below is about the ANONYMOUS POOLED REMAINDER of `numeric_styles`
+# -- the `(withheld)` key -- and a style is pooled only when fewer than
+# `small_cell_floor` cells wore it. The default floor is now 1 (owner
+# ruling A-P4-37), at which nothing is ever pooled and the whole subject
+# of this file disappears; 11 is the floor these cases were built for and
+# the one at which a pool exists to compete with a named count.
+SETTINGS = taxonomy.Settings(small_cell_floor=11)
+
+
 def _described(
     folder: pathlib.Path, values: "list[str]"
 ) -> "tuple[dict, contract.Profile]":
@@ -156,7 +166,7 @@ def _described(
         folder, "table.csv", fixtures.single_column_table("amount", values)
     )
     table = reading.read_table(str(path))
-    document = profile.build_document(table, taxonomy.Settings(), [])
+    document = profile.build_document(table, SETTINGS, [])
     target = fixtures.write_profile(folder, "table-profile.json", document)
     return document, contract.load_profile(str(target))
 

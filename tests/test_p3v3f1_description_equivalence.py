@@ -81,6 +81,19 @@ SENTINEL_TEXTS = tuple(f"{value:g}" for value in parsing.NUMERIC_SENTINELS)
 
 _PROSE = fixtures.prose(60)
 
+# THE FLOOR THIS WHOLE FILE ASKS AT, declared rather than inherited.
+# Every pair below is a pair BECAUSE a fact about it is pooled: how many
+# cells of a column are non-blank holes is named per spelling at or
+# above `small_cell_floor` and pooled into one unnamed total under it,
+# and that pooling is what makes two files one description cannot tell
+# apart. Eleven is the floor this battery was measured at; it used to be
+# the default, and plan amendment A-P4-37 (the owner's ruling) moved the
+# default to one, at which nothing is pooled at all (contract invariant
+# C5-S13) and every pair here would be told apart -- which would empty
+# the battery rather than answer it. So the floor is named here and used
+# by every description this file writes. What is asserted is unchanged.
+SETTINGS = taxonomy.Settings(small_cell_floor=11)
+
 
 def _table(rows: "list[list[str]]", names: "list[str]") -> str:
     """One CSV, written the way the twin writer writes one."""
@@ -98,7 +111,7 @@ def _describe(
     table = reading.read_table(
         str(table_path), first_row=reading.FIRST_ROW_AUTOMATIC
     )
-    document = profile.build_document(table, taxonomy.Settings(), [])
+    document = profile.build_document(table, SETTINGS, [])
     written = fixtures.write_profile(folder, f"{stem}-profile.json", document)
     return contract.load_profile(str(written))
 
@@ -484,7 +497,7 @@ def test_the_named_source_threshold_is_the_publication_floor(
     """
     folder = tmp_path / "edge"
     folder.mkdir()
-    floor = taxonomy.Settings().small_cell_floor
+    floor = SETTINGS.small_cell_floor
     seen: dict[int, bool] = {}
     for count in (floor - 1, floor):
         names = ["label", "number"]
@@ -597,10 +610,10 @@ def test_canonical_spelling_stays_checkable_on_every_file(
             f"else, so the census is the only key that may move: {moved}"
         )
     # THE SHORT COLUMN, where the floor pools both facts. Ten cells is
-    # below the default floor of eleven, so neither description names
-    # the decimal form or any width, the two are identical, and the
-    # padded file misses the per-cell obligation against its OWN
-    # description -- the route A-P4-14 does NOT close.
+    # below the floor of eleven this file declares, so neither
+    # description names the decimal form or any width, the two are
+    # identical, and the padded file misses the per-cell obligation
+    # against its OWN description -- the route A-P4-14 does NOT close.
     short_names = ["amount", "tag"]
     short_a = _table(
         [[f"{index}.5", f"t{index % 3}"] for index in range(10)], short_names

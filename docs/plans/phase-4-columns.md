@@ -4807,6 +4807,15 @@ enough in a small enough population that existence claim can narrow who
 is in the table without any other column being seen. That is what a
 small-cell floor is for, and it is why the default is 11.
 
+> **SUPERSEDED ON THE DEFAULT ONLY, 2026-08-25, by amendment A-P4-37.**
+> The owner ruled the default to 1. The paragraph above is left standing
+> because its ANALYSIS is unchanged and is the analysis A-P4-37 answers:
+> the existence claim it describes is real, and the owner ruled that
+> making it is what the tool is for. What is superseded is the last
+> sentence's conclusion about the default, and nothing else here. The
+> floor and every rule written in terms of it still stand at whatever
+> number a description carries.
+
 **So the ruling is implemented in two halves, which is what lets it be
 taken in full.** By DEFAULT the twin gains the rare tail's SHAPE and
 COUNTS without the description naming the rare values: forty rare codes
@@ -4824,3 +4833,295 @@ description publishes about a column that publishes nothing today, and
 items 1, 2 and 4 change what is published about columns that already
 publish something. What it buys is the phase's own product goal —
 a twin that code developed against it runs on.
+
+## Amendment A-P4-37 — the owner drops the small-cell floor to one by default (2026-08-25)
+
+**THE RULING.** The owner ruled that the eleven-row rule is not the
+default any more. `synthtwin profile` writes `small_cell_floor: 1`
+when nobody asks for another, so nothing is held back for being a
+small group unless somebody asks for it to be. `--smallest-group 11`
+restores the old behaviour in full and every word written about what
+the floor protects stands unchanged at the value the document carries.
+
+**THE OWNER'S REASON, in their terms.** "If we are creating a twin,
+that is not true — just knowing that there is a rare disease in the
+dataset does not mean that I know anything about that patient. I just
+know that there is this patient there, and nothing else." A twin whose
+a rare value has been pooled away is not a twin of the table, and
+the tool exists to produce one.
+
+**WHY THE ARGUMENT CARRIES, and the exactly one thing it rests on.**
+synthtwin publishes NO STRUCTURE BETWEEN COLUMNS. Contract section 4.6
+reserves eight cross-column names and invariant S12 keeps every one of
+them empty, so a description says what each column holds one column at
+a time and never which values met in a row. A named rare value
+therefore discloses that somebody in the table had it and discloses
+nothing else about them — not their other columns, not their row. That
+is membership, and the owner ruled that membership is the disclosure
+this tool is for.
+
+**THE LIMIT OF THE RULING, written here so nobody reads it wider.**
+It is a ruling about MARGINAL publication and rests on S12 holding.
+Were a later version to publish anything crossing two columns, this
+argument would not carry to it and the default would have to be
+decided again on its own facts. A reviewer meeting a proposal to
+publish joint structure must reopen this amendment, not cite it.
+
+**WHY THE DIAL SURVIVED RATHER THAN THE MACHINERY BEING DELETED.**
+Deleting it would have taken about seventy code sites, the `(withheld)`
+vocabulary, `suppressed_levels`, and the nine invariants written in
+terms of the floor — for a day-to-day result identical to changing one
+default. It would also have ended the tool's ability to satisfy a
+review board that asks for a small-cell rule, which is a thing this
+tool's users meet. The owner chose the default; the capability stays.
+
+**WHAT IT COST, recorded because it is the interesting part.** The
+change is three constants. It turned 155 tests red, and every one of
+them was a test whose premise was the OLD default rather than a test
+of anything now wrong: they asked what a description withholds without
+saying at what floor. The repair is to make each say so. That is
+better than what stood before, and it is the second time this phase
+that a default nobody had questioned was found to be load-bearing in
+tests that never named it.
+
+**WHAT IT FOUND.** On its first run at the new default the blood
+pressure column's form census went red: `%%/%%` was published at 24
+and the twin wrote 25, `%%/%%%` at 5 and the twin wrote 4. One cell in
+the wrong form, complementary, so a single walk defect. At eleven the
+five-cell form was pooled into `(withheld)` and no review round could
+see it. It is R-P4-38 below.
+
+## Amendment A-P4-38 — `--code`, the second declaration, and the questions that offer it (P4-D19)
+
+**THE DEFECT.** A coding system written in digits alone — CVX `08`,
+MS-DRG `470`, UB-04 `0450`, NPI, OMIM — is written exactly like a
+measurement. It landed on `count`, so its description published an
+average, a smallest, a largest and nine points between, every one of
+them A REAL CODE; and its twin lost the padding, so `08` came back as
+`8` and a reader that splits on width broke.
+
+**WHY NO RULE COULD FIX IT.** `taxonomy._decide` RULE 5 has said so
+since review item P1-R6-F7, in a comment that deleted a rule which
+guessed codes from their width: "Nothing may be routed by the WIDTH of
+its text ... only the person who owns the table knows which. Such a
+column now lands where the ordinary rules put it, and `--identifier`
+is how a column of codes is declared." That sentence named the only
+declaration there was, and `--identifier` PUBLISHES NOTHING — right
+for a record number, wrong for a vaccine code, whose distribution is
+the entire reason the column is in the table. This amendment is the
+declaration that comment was missing.
+
+**WHAT `--code` DOES.** It silences rules 2, 5, 6, 8 and 9 — the five
+that read a cell as something other than a label. What is left is
+`constant`, `binary`, `categorical`, `long_tail_labels` and
+`free_text`, which are exactly the five roles that carry a written-form
+census, so a declared code column always records the shapes its codes
+were written in. It decides no role by itself; it removes readings.
+
+**IT DOES NOT SUPPRESS THE COLUMN, and that is the whole difference
+from `--identifier`.** Every spelling is published with the count of
+rows that wrote it. A column named in both declarations is refused
+rather than ranked: they ask for opposite things and there is no
+reading of the pair that is not a guess.
+
+**THE QUESTIONS (`asking.py`).** Where a column lands on a numeric role
+and is written in digits alone, and either carries a leading zero or is
+of one fixed width of three or more, synthtwin STOPS AND ASKS, showing
+a few of the column's values. Answers are recorded in `forced_codes`,
+and the options that repeat the run without the questions are printed
+at the end.
+
+**ASKING IS NOT ROUTING, and the distinction is the amendment's
+hinge.** This module looks at exactly the evidence the deleted rule
+looked at. A rule that ROUTES on padding is a guess presented as a
+fact, and a wrong guess is silent. Choosing which QUESTION to put is
+not a guess: the person answers, the answer is recorded, and a wrong
+signal costs one skipped question rather than a wrong description.
+
+**IT NEVER HANGS.** Both handles are tested with `os.isatty`, so a run
+whose output is piped is a scripted run even at a terminal. Where
+nobody is there the same columns are named on screen with the `--code`
+line that corrects them, and the run goes on.
+
+**MEASURED ACROSS THE OWNER'S EIGHTEEN SYSTEMS** — NDC, CVX, MVX, UDI,
+MS-DRG, APC, UB-04, NPI, the clinical grouper codes, Elixhauser, Charlson, CMS-HCC, CDPS,
+HGNC ID, HGVS, OMIM, ClinVar, GA4GH. Before: 16 of 18 shapes survived
+the round trip; CVX and UB-04 lost their leading zeros, and eight
+columns published real codes as percentiles. After: 18 of 18, exit code
+0 through profile, generate and validate. Charlson, which genuinely IS
+a number, was left undeclared and correctly stayed a `count` — the one
+column in the sweep that proves the tool must ask rather than guess.
+
+**THE HONEST GAP, named rather than hidden.** the clinical grouper column is one to three
+digits with no padding, which is written exactly like a count, so
+nothing in the values raises the question. `--code` describes it
+correctly; the asking is what stops short. `affixed_number` is not
+asked about either, because `$1,200` and `45%` land there too and no
+signal separates them.
+
+**THE OFFLINE POLICY GAINED TWO NAMES** and each carries its reason in
+the scanner: `os.isatty`, which opens nothing and names no path, and
+`input`, which is cleared where `eval` is not because Python 3's
+`input` returns text and runs nothing.
+
+## Residual R-P4-38 — the length packing does not take the form census as a constraint
+
+Opened 2026-08-25 by A-P4-37, which is what made it visible. On the
+demonstration table's blood pressure column at a floor of 1 the form
+census publishes `%%%/%%` 339, `%%%/%%%` 32, `%%/%%` 24, `%%/%%%` 5;
+the twin writes 339, 32, 25 and 4. It is deterministic — every seed
+tried gives the same one-cell error — so it is not a walk that got
+unlucky.
+
+**THE SYMPTOM IS THE FORM CENSUS AND THE CAUSE IS THE LENGTH PACKING,
+and that took measuring to see.** A form FIXES a length: `%%/%%` is
+five characters and `%%/%%%` is six. Taking the twin's LENGTH census
+rather than its form census:
+
+| length | real | twin |
+| --- | --- | --- |
+| 5 | 24 | 25 |
+| 6 | 344 | 343 |
+| 7 | 32 | 32 |
+
+One cell owed six characters and got five, and the form census merely
+inherits it. The generator is not choosing the wrong form for a cell of
+the right length; it is choosing the wrong length and then having no
+cell left that `%%/%%%` can be written in.
+
+**WHY THE LENGTH PACKING THINKS IT IS RIGHT.** `length` is published as
+`min 5, max 7, mean 6.02, p50 6.0` and NOT as a census. The twin's
+lengths meet every one of those: min 5, max 7, median 6, and a mean of
+`2407 / 400 = 6.0175`, which rounds to the published 6.02. The packing
+has satisfied every length fact the description carries. What it has
+not done is notice that a DIFFERENT fact in the same description
+already determined the answer.
+
+**THE FIX, and why it is the principled one rather than a patch.**
+Where the published form census covers a cell, that cell's length is
+not free: it is `len(form)`. Where the census covers EVERY present cell
+— which it does here, 339 + 32 + 24 + 5 = 400 — the whole length
+multiset is determined, `24x5 + 344x6 + 32x7 = 2408`, and the packing
+should derive it instead of approximating the mean. That total also
+hits `length.mean` exactly rather than within rounding, so honouring
+the census makes the average better, not worse. The general rule: the
+form census constrains the lengths of the cells it covers, and only the
+cells it does not cover are fitted to the published average.
+
+**THE ROOT CAUSE, found by instrumenting the walk rather than reading
+it.** Three readings were wrong before this one, and each is recorded
+because each was measured and refuted:
+
+1. *"The length packing approximates the mean."* It does not. The
+   packing produces `{5:1, 6:390, 7:9}`, whose total is 2408 — the
+   published mean times the row count, EXACTLY. The real column's
+   `{5:24, 6:344, 7:32}` is also 2408. Both satisfy min, max, p50 and
+   mean; the description cannot tell them apart, and the packing is not
+   at fault for choosing one of them.
+2. *"The walk asks for a form and gets another."* It does not. Every
+   one of the 387 asks was honoured; asked and written censuses agree
+   character for character. `_wanted_form` ASKED for 25 of `%%/%%`.
+3. *"A form owing fewer cells than the group covers should be
+   refused."* Built and MEASURED WORSE: `%%/%%` fell to 23 and two
+   cells dropped out of the form alphabet entirely into `!!!!!!`,
+   because refusing leaves the debt unpaid AND loses the group. A
+   two-tier preference — take an exactly-fitting form first, overpay
+   only where nothing fits — changed nothing, for the reason below.
+
+**WHAT IS ACTUALLY WRONG.** At the failing ask the state is
+`%%%/%%` 0, `%%%/%%%` 0, `%%/%%` 1, `%%/%%%` 1, and the group still to
+be written COVERS TWO CELLS. A group is a REPETITION group: its cells
+all hold the same value, so they all wear one form. Two debts of one
+cannot be paid by one group of two, by any choice made at that moment.
+The walk is not choosing badly there — it has already lost, several
+hundred groups earlier, by spending its single-cell groups on debts
+that groups of two could have carried.
+
+**AN EXACT ARRANGEMENT EXISTS**, which is what makes this a defect
+rather than a limit: the column has 374 groups of one cell and 13 of
+two. `339 = 13x2 + 313x1`, then `32`, `24` and `5` come out of the
+remaining 61 single-cell groups, and every debt is met exactly.
+
+**THE FIX IS TO STOP CHOOSING GREEDILY, AND THIS PROJECT HAS ALREADY
+WRITTEN THE MACHINERY.** `_shared_out` settles the same problem for a
+label column's stand-ins, and its own docstring is this residual's
+argument, learned at review round 1 finding 4: "LARGEST DEBT FIRST IS
+NOT ENOUGH, and the case that breaks it is ordinary." It reaches an
+exact arrangement through `_settled_by_sums` and `_subset_making`,
+which answer which subset of the group sizes makes a debt exactly. The
+free-text form walk of `_text_plan` never got that treatment and is
+still first-fit, largest-debt-first. Closing this means routing the
+form debts through the same settlement — subject to the constraints
+the label path does not carry, which are the word count, the length
+band and the two published length ends.
+
+**THIS IS THE SECOND TIME A BLOOD-PRESSURE COLUMN HAS FOUND THIS AREA.**
+Review round 2 finding 9 found the mirror of it — every group held to
+its packed length, so nothing was left to write `%%/%%` or `%%%/%%%` —
+and was closed by giving the walk a length budget to swap within
+(`_length_budget`, `_wanted_form`). That repair let the walk spend the
+average's slack to pay the census. It did not make the census a
+constraint on the packing that runs BEFORE the walk, which is where the
+remaining cell is lost. Not closed.
+
+## Decision P4-D21 — two numbers in one cell, and why it must be declared
+
+**THE COLUMN THE OWNER HAS ASKED ABOUT SINCE THE PHASE OPENED.** A
+blood pressure column holds `120/80`. Every shape fact about it is now
+exact -- residual R-P4-38 closed the last one -- and the values are
+still nonsense: `632/20`, `492/71`. The cell is written from the
+free-text alphabet, so its digits carry no distribution at all. A twin
+whose blood pressures are impossible is not a twin somebody can develop
+against, and it is not one anybody can compute on.
+
+**WHAT IT WOULD TAKE, and it is a fourteenth role.** `joined_numbers`:
+a cell that splits on ONE repeated separator into two or more parts,
+each a plain whole number. The column publishes a numeric block PER
+PART -- the same `NumericFacts` every quantitative role publishes,
+computed over that position -- plus the separator, the part count, and
+the smallest written width of each part, which is what tells a padded
+`007/080` from a plain `95/55`. `AffixedFacts` is the template: it
+already publishes a numeric block over a part of the cell rather than
+the whole of it, and confines the spelling it carries to named fields.
+
+**MEASURED ON A PROTOTYPE, over the demonstration table's 400 rows:**
+
+| | real | twin from the published facts alone |
+| --- | --- | --- |
+| systolic min / median / max | 95 / 133.5 / 175 | 95 / 132.5 / 175 |
+| systolic mean | 134.2 | 133.4 |
+| diastolic min / median / max | 55 / 80 / 105 | 55 / 79 / 105 |
+| diastolic mean | 80.5 | 79.6 |
+
+Those are blood pressures. The role works.
+
+**AND IT MUST NOT BE REACHED FROM THE VALUES. THE NO-REGRESSION CHECK
+IS WHY, and it was run before a line was written.** Asking which
+columns of the existing test tables a value-based rule would claim:
+
+- `visit_date` and `recorded_on` -- `2023-02-12` splits on `-` into
+  three whole numbers. Both are `datetime` today.
+- `seen_at` -- `09:30` splits on `:` into two. It is `time_of_day`.
+- `lab_code` (`1923-1`), `ndc_code` (`00052-0052-52`) and `ndc` -- ALL
+  THREE ARE CODES, and two of them are free text today.
+
+The dates and the clock are saved by rule order: a rule tested after
+them claims only what they declined. THE CODES ARE NOT. A lab code and
+a blood pressure are both digits joined by a separator, and there is
+nothing in either to tell them apart -- exactly the question P4-D19
+answered for a single number, arriving again for two. Claiming
+`lab_code` would publish the smallest and largest of its parts, which
+are fragments of real codes, and would undo the round trip A-P4-38 was
+built to guarantee.
+
+**SO IT IS A DECLARATION, and it composes with the one that exists.**
+The role is reached only by naming the column. The question the tool
+already asks -- put where a column of digits could be a coding system --
+is the same question, and a column of digits JOINED by a separator gets
+it with one more answer offered: measurements written as two numbers.
+`lab_code` answers "codes" and keeps everything A-P4-38 gave it; `bp`
+answers "measurements" and gets its distribution back. One question,
+one place, three answers, and no rule anywhere guesses which.
+
+**NOT BUILT. This decision records the design, the measurement that
+says it works, and the check that says how it must be reached.**

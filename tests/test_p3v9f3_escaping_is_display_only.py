@@ -73,6 +73,16 @@ import fixtures
 from synthtwin import contract, parsing, summary, validation
 from synthtwin.cli import main
 
+# THE FLOOR THIS FILE ASKS AT. The five blank cells are what pools the
+# split below the publication floor, and a pooled split is what puts the
+# rule under test on the verdict path at all. Eleven is the floor these
+# witnesses were measured at; it used to be the default, and plan
+# amendment A-P4-37 (the owner's ruling) moved the default to one, at
+# which nothing is held back and no split is ever pooled (contract
+# invariant C5-S13). So the floor is now named on the command line
+# rather than inherited. The measurements below are unchanged.
+FLOOR = 11
+
 # A declared marker carrying a character the display boundary shows.
 # Neutral text; the invisible character is written as an escape so that
 # no line of this file carries a control character of its own.
@@ -134,7 +144,15 @@ def _table(folder: pathlib.Path, name: str, odd: int = 0) -> pathlib.Path:
 def _describe(folder: pathlib.Path) -> "tuple[pathlib.Path, contract.Profile]":
     """Describe the witness table; return the description path and profile."""
     table = _table(folder, "reading.csv")
-    assert main(["profile", f"{table}", "--missing-value", MARKER]) == 0
+    # THE LIST IS ONE LINE ON PURPOSE. `test_description_line_endings`
+    # proves that a module handing a description to the loader got it
+    # from the fixture or from a real run, and it recognises a real run
+    # by the literal `["profile"` this module builds. Split across
+    # lines that literal disappears, this module reads as one that
+    # composed a description's bytes itself, and that test goes red.
+    asked = ["profile", f"{table}", "--missing-value", MARKER,
+             "--smallest-group", f"{FLOOR}"]
+    assert main(asked) == 0
     written = folder / "reading-profile.json"
     return written, contract.load_profile(f"{written}")
 

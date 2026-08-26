@@ -725,8 +725,15 @@ def test_a_stand_in_number_reaches_its_share_as_a_count() -> None:
     table = fixtures.write(
         folder, "n.csv", fixtures.single_column_table("score", values)
     )
+    # THE FLOOR IS DECLARED: an empty verdict list is what a candidate
+    # too rare to name LOOKS like, and the default smallest group size
+    # became one (owner ruling, plan amendment A-P4-37), at which every
+    # verdict is published outright (contract C5-S13). Eleven is the
+    # floor this case was written against.
     document = profile.build_document(
-        reading.read_table(f"{table}"), taxonomy.Settings(), []
+        reading.read_table(f"{table}"),
+        taxonomy.Settings(small_cell_floor=11),
+        [],
     )
     block = document["columns"][0]
     assert block["n_present"] == 200

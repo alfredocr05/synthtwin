@@ -246,6 +246,11 @@ def _settings(declared: list) -> dict:
         "day_first": False,
         "long_tail_minimum_level": 11,
         "forced_identifiers": declared,
+        # The second declaration (plan P4-D19). The oracle declares no
+        # code column: every case here is built from the generation
+        # method's own text, and none of them turns on the reading a
+        # declaration changes.
+        "forced_codes": [],
     }
 
 

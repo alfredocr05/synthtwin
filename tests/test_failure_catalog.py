@@ -205,6 +205,14 @@ CASES: "dict[str, tuple[object, ...]]" = {
     # precisely because synthtwin cannot account for the text that
     # stood there.
     "publication_guard_stopped": ("publication_notes[].note",),
+    # The two refusals of the column declarations plan P4-D19 added.
+    # The first takes the COLUMN NAME the person typed on the command
+    # line -- theirs already, and the whole subject of the sentence,
+    # since the trouble is that they named it twice. The second takes
+    # nothing at all: a run ended at a question has no particulars, and
+    # the same words are owed to everybody who ends one.
+    "column_declared_twice": ("record_code",),
+    "the_questions_were_not_finished": (),
 }
 
 
@@ -295,6 +303,11 @@ def test_every_message_says_what_happened_and_what_to_do(name: str) -> None:
         "open it",
         "Give a",
         "run the command again",
+        # The same instruction opening a sentence, as "Check"/"check"
+        # and "Make sure"/"make sure" are already paired above. A
+        # message carrying no instruction at all still falls through
+        # every entry here and fails.
+        "Run the command again",
         "try again",
         "use that path",
         # The instruction a refusal about the DESCRIPTION gives, which

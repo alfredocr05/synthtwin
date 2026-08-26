@@ -117,7 +117,12 @@ def test_the_column_at_the_line_is_described_as_numbers() -> None:
 def test_the_deleted_majority_rule_leaves_no_trace_in_the_settings() -> None:
     # A profile has to say what policy produced it, so a threshold that
     # no longer decides anything must not be recorded as though it did.
-    recorded = profile._settings_block(SETTINGS, [])
+    #
+    # The block records two lists of declared columns now -- the record
+    # numbers named with `--identifier` and the codes named with
+    # `--code` (plan P4-D19) -- and this run declares neither: what is
+    # asked about here is the THRESHOLDS, and a declaration is not one.
+    recorded = profile._settings_block(SETTINGS, [], [])
     for gone in (
         "numeric_majority",
         "categorical_repetition",

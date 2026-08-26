@@ -153,6 +153,7 @@ SETTINGS_KEYS = (
     "declaration_matching",
     "declaration_publication",
     "declared_missing_values",
+    "forced_codes",
     "forced_identifiers",
     "identifier_minimum_rows",
     "identifier_uniqueness",
@@ -190,7 +191,23 @@ DECLARATION_KEYS = (
 # written in two modules because the generation and validation paths may
 # not import the profiler's taxonomy at all, and the suite compares them
 # so a change in one cannot pass unnoticed in the other.
-DEFAULT_SMALL_CELL_FLOOR = 11
+DEFAULT_SMALL_CELL_FLOOR = 1
+
+# THE NUMBER BELOW WHICH A PUBLISHED GROUP CAN POINT AT ONE PERSON, and
+# it is NOT the default any more (plan amendment A-P4-37). Until
+# 2026-08-25 these were one number, and every page that discloses what a
+# description carries asked "is the floor below the default?". The owner
+# ruled the default to 1, which made that question always false and
+# silently took the disclosure off every page -- the pages went quiet
+# exactly when they had the most to say.
+#
+# They are two different facts and now have two names. The DEFAULT is
+# what `synthtwin profile` writes when nobody asks for another. This is
+# the line under which a group is small enough that naming it says
+# something about a person, which is a fact about people and did not
+# move when the default did. Every page that tells a reader what a
+# description contains asks about THIS one.
+SMALL_GROUP_NOTICE_LINE = 11
 
 # The eight reserved cross-column names. This version of synthtwin
 # carries no structure between columns and says so in eight named
@@ -1087,6 +1104,13 @@ class SettingsBlock:
     day_first: bool
     long_tail_minimum_level: int
     forced_identifiers: "tuple[str, ...]"
+    # THE SECOND DECLARATION (plan P4-D19). Columns the person named as
+    # holding codes rather than measurements. Unlike the record-number
+    # declaration above this one does not silence a column: it moves it
+    # off the rules that read a cell as a number, a date, a clock time
+    # or a number wearing an affix, and onto the label roles, where the
+    # exact spellings and their counts are what get published.
+    forced_codes: "tuple[str, ...]"
 
 
 @dataclasses.dataclass(frozen=True)
@@ -2996,6 +3020,20 @@ def _settings(value: object) -> SettingsBlock:
             )
         declared = declared + [found]
         place = place + 1
+    declared_codes: list[str] = []
+    code_names = _listing(mapping["forced_codes"], "forced_codes", where)
+    place = 0
+    for name in code_names:
+        found = _text(name, f"forced_codes[{place}]", where)
+        if declared_codes and found <= declared_codes[len(declared_codes) - 1]:
+            raise _out_of_range(
+                "forced_codes",
+                where,
+                f"'{found}'",
+                "names in rising order, each of them once",
+            )
+        declared_codes = declared_codes + [found]
+        place = place + 1
     block = SettingsBlock(
         small_cell_floor=floor,
         identifier_uniqueness=_share(
@@ -3054,6 +3092,7 @@ def _settings(value: object) -> SettingsBlock:
             LONG_TAIL_LINE,
         ),
         forced_identifiers=tuple(declared),
+        forced_codes=tuple(declared_codes),
     )
     # C5-K4 LAST, because it is the one rule here that needs BOTH
     # records: every other check is about one entry and is raised where
@@ -5975,6 +6014,14 @@ def _cross_checks(
                 "S8",
                 "in the block of rules that produced the description",
                 f"'{name}' is named as holding record numbers",
+                "this table has no column of that name",
+            )
+    for name in settings.forced_codes:
+        if name not in places:
+            raise _broken(
+                "S8",
+                "in the block of rules that produced the description",
+                f"'{name}' is named as holding codes",
                 "this table has no column of that name",
             )
     previous = 0

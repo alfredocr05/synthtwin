@@ -66,6 +66,18 @@ def _reinstated(monkeypatch: pytest.MonkeyPatch) -> None:
         exact_equality_wins.reinstate(monkeypatch)
 
 
+# The floor every description in this file is written at. Disclosure is
+# this module's third subject, and a description withholds nothing at a
+# floor of one -- which is what the default became under the owner
+# ruling recorded as plan amendment A-P4-37, and what contract
+# invariant C5-S13 now enforces. So the file says its floor out loud
+# rather than reading it off a default that no longer pools anything:
+# eleven is the number every pooling assertion below was written
+# against, and the number the sub-floor wording prints.
+SMALL_CELL_FLOOR = 11
+SETTINGS = taxonomy.Settings(small_cell_floor=SMALL_CELL_FLOOR)
+
+
 # -- building one whole run -------------------------------------------
 
 
@@ -102,7 +114,7 @@ def _described(
     table_path = fixtures.write(folder, f"{stem}.csv", text)
     table = reading.read_table(str(table_path), first_row=first_row)
     document = profile.build_document(
-        table, taxonomy.Settings(), declared if declared else []
+        table, SETTINGS, declared if declared else []
     )
     written = fixtures.write_profile(folder, f"{stem}-profile.json", document)
     return (

@@ -29,7 +29,13 @@ import pytest
 import fixtures
 from synthtwin import cli, errors, profile, reading, taxonomy
 
-SETTINGS = taxonomy.Settings()
+# The floor this file describes at, stated rather than inherited. The
+# mutations below all turn on something being WITHHELD -- the pooled
+# label of `WITHHELD_LABEL`, and a variant count that never cleared the
+# floor -- and the default floor is now 1 (owner ruling A-P4-37), at
+# which nothing is held back at all. 11 is the floor these scenarios
+# were built for, and the one at which a pooled note exists to leak.
+SETTINGS = taxonomy.Settings(small_cell_floor=11)
 
 # A spelling that stands for a value of somebody's table. Nothing in
 # this package writes it, so finding it in a document means it came
@@ -195,7 +201,10 @@ def test_the_same_mutation_stops_the_command_before_it_writes(
     # file behind.
     _seam_that_names_a_withheld_label(monkeypatch)
     table = fixtures.write(tmp_path, "clinic.csv", fixtures.every_role_table())
-    assert cli.main(["profile", str(table)]) == 1
+    # The same floor `SETTINGS` names, said in the command's own words:
+    # at the default of 1 nothing is withheld, so no pooled note exists
+    # for the mutated seam to leak into.
+    assert cli.main(["profile", str(table), "--smallest-group", "11"]) == 1
     spoken = capsys.readouterr().err
     assert "synthtwin stopped before writing anything" in spoken
     assert "report it to the synthtwin maintainers" in spoken

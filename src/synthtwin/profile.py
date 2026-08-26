@@ -365,7 +365,9 @@ def _declaration_record(spellings: "tuple[str, ...]") -> dict[str, object]:
 
 
 def _settings_block(
-    settings: taxonomy.Settings, forced_identifiers: list[str]
+    settings: taxonomy.Settings,
+    forced_identifiers: list[str],
+    forced_codes: list[str],
 ) -> dict[str, object]:
     """The rules that produced this profile, recorded inside it.
 
@@ -406,6 +408,14 @@ def _settings_block(
         "day_first": settings.day_first,
         "long_tail_minimum_level": settings.long_tail_minimum_level,
         "forced_identifiers": sorted(forced_identifiers),
+        # THE SECOND DECLARATION (plan P4-D19). Named columns are read
+        # as labels and never as numbers, dates, clock times or
+        # numbers wearing an affix, so a coding system written in
+        # digits keeps its exact spellings -- padding included -- and
+        # publishes which codes are common instead of a mean nobody
+        # can use. Unlike `forced_identifiers` it does NOT silence the
+        # column: the distribution is the point of declaring it.
+        "forced_codes": sorted(forced_codes),
     }
 
 
@@ -675,6 +685,8 @@ PUBLICATION_RULES: "dict[tuple[str, ...], str]" = {
     ("settings", "long_tail_minimum_level"): _COUNT,
     ("settings", "forced_identifiers"): _ARRAY,
     ("settings", "forced_identifiers", _EACH): _KNOWN_NAME,
+    ("settings", "forced_codes"): _ARRAY,
+    ("settings", "forced_codes", _EACH): _KNOWN_NAME,
     # How the table was read.
     ("source",): _OBJECT,
     ("source", "encoding"): _WORD,
@@ -1573,6 +1585,7 @@ def build_document(
     table: Table,
     settings: taxonomy.Settings,
     forced_identifiers: list[str],
+    forced_codes: list[str] | None = None,
 ) -> dict[str, object]:
     """Describe a whole table: the profile document, ready to serialize.
 
@@ -1598,6 +1611,7 @@ def build_document(
       rules as any other missing spelling. DECLARATION_PUBLICATION
       above states the scope of the settings rule exactly.
     """
+    declared_codes = [] if forced_codes is None else forced_codes
     columns: list[dict[str, object]] = []
     notes: list[dict[str, str]] = []
     for position, name in enumerate(table.column_names, start=1):
@@ -1608,6 +1622,7 @@ def build_document(
             table.n_rows,
             settings,
             name in forced_identifiers,
+            name in declared_codes,
         )
         columns = columns + [_column_block(described)]
         for note in described.publication_notes:
@@ -1615,7 +1630,9 @@ def build_document(
     document: dict[str, object] = {
         "profile_version": PROFILE_VERSION,
         "created_with": _version(),
-        "settings": _settings_block(settings, forced_identifiers),
+        "settings": _settings_block(
+            settings, forced_identifiers, declared_codes
+        ),
         # How the table was read. It belongs in the profile because the
         # twin has to be written in a form the same tools can open, and
         # it is fixed by the input bytes, so it does not make two runs

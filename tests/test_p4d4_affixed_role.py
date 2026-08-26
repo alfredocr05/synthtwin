@@ -587,8 +587,14 @@ def test_a_snap_never_carries_a_cell_past_a_published_end() -> None:
     table = fixtures.write(
         folder, "v.csv", fixtures.single_column_table("v", values)
     )
+    # THE FLOOR IS DECLARED: the case wants a column whose narrower
+    # fraction width is POOLED, and the default smallest group size
+    # became one (owner ruling, plan amendment A-P4-37), at which
+    # nothing is held back at all (contract C5-S13).
     document = profile.build_document(
-        reading.read_table(f"{table}"), taxonomy.Settings(), []
+        reading.read_table(f"{table}"),
+        taxonomy.Settings(small_cell_floor=11),
+        [],
     )
     column = document["columns"][0]
     assert column["fraction_widths"] == {"1": 50, "(withheld)": 10}
@@ -752,8 +758,15 @@ def test_a_pool_bigger_than_the_forms_left_to_hold_it_is_refused() -> None:
             "amount", [f"{index}" for index in range(1, 241)]
         ),
     )
+    # THE FLOOR IS DECLARED, and this case cannot do without it: the
+    # default smallest group size became one (owner ruling, plan
+    # amendment A-P4-37), at which a pool of ANY size is refused by
+    # C5-S13 before P6 is ever reached -- so the case would be answered
+    # by the wrong rule and would stay green with P6 deleted.
     document = profile.build_document(
-        reading.read_table(f"{table}"), taxonomy.Settings(), []
+        reading.read_table(f"{table}"),
+        taxonomy.Settings(small_cell_floor=11),
+        [],
     )
     column = document["columns"][0]
     column["numeric_styles"] = {"plain": 160, "decimal": 20, "(withheld)": 60}

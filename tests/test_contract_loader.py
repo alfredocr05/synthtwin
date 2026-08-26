@@ -88,12 +88,26 @@ def table_text() -> str:
 
 @pytest.fixture(scope="module")
 def base(tmp_path_factory: pytest.TempPathFactory) -> Document:
-    """The conforming description every mutation starts from."""
+    """The conforming description every mutation starts from.
+
+    THE FLOOR IS DECLARED HERE RATHER THAN LEFT TO THE DEFAULT, which
+    is now one (owner ruling, plan amendment A-P4-37). At a floor of one
+    NOTHING is ever held back -- no pooled `(withheld)` key, no
+    `suppressed_levels`, no `variants_withheld`, no unpublished
+    tally -- and this battery is written against a description that
+    HOLDS THINGS BACK: a whole family of rules here (B4, B5, C5-N3,
+    C5-N4, W5, V1, D3, P2, P6, P6b, P8, SF1, LT1) can only be broken by
+    damaging a pool or a held-back size, and those keys have to exist
+    in the base before a mutation can damage one. Eleven is the floor
+    the battery's arithmetic was sized for, and asking for it keeps
+    every entry exercising the rule it is filed under. The two entries
+    that are ABOUT the floor of one lower it themselves, from here.
+    """
     folder = tmp_path_factory.mktemp("contract")
     path = fixtures.write(folder, "table.csv", table_text())
     table = reading.read_table(str(path))
     document = profile.build_document(
-        table, taxonomy.Settings(), ["record_code"]
+        table, taxonomy.Settings(small_cell_floor=11), ["record_code"]
     )
     return json.loads(json.dumps(document))
 
@@ -374,7 +388,7 @@ def battery() -> list[Mutation]:
         ),
         # THE FLOOR OF ONE, AND WHY THE MUTATION HAS TWO HALVES. At a
         # floor of one there is no group below the floor, so nothing may
-        # be held back; the base is written at the default floor, where
+        # be held back; the base is written at a floor of eleven, where
         # holding something back is ordinary. So the floor is lowered
         # AND something is left held back -- either half on its own is a
         # description the loader is right to accept. The tally is used
@@ -647,8 +661,8 @@ def battery() -> list[Mutation]:
         ),
         Mutation(
             # G2 CAN ONLY BE REACHED UNDER A LOWERED FLOOR, and that is
-            # the rule rather than a gap in the battery: at the default
-            # floor of eleven every published level already covers the
+            # the rule rather than a gap in the battery: at this
+            # document's floor of eleven every published level covers the
             # long-tail line, because the line IS eleven there. At a
             # floor of ten a column may publish levels of ten, none of
             # which reaches the line -- a document claiming a role its

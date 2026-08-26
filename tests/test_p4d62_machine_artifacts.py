@@ -51,6 +51,15 @@ ARTIFACTS = (
 
 ABSENT_TIME = "NaT"
 
+# THE PROTECTIVE FLOOR, WHICH IS NOT THE DEFAULT ANY MORE (owner ruling,
+# plan amendment A-P4-37). The default floor is 1 and at 1 nothing is
+# pooled for being a small group, so the one test here whose subject is
+# POOLING names the floor it is about -- eleven, the floor it was
+# written against and the one a review board asks for. Every other test
+# in this file is about the reading rule rather than the floor, and each
+# runs at whatever floor its own settings carry.
+_STRICT_FLOOR = 11
+
 
 def _described(
     values: "list[str]", settings: "taxonomy.Settings | None" = None
@@ -119,11 +128,18 @@ def test_a_column_of_numbers_keeps_its_distribution() -> None:
 
 
 def test_the_artifacts_are_counted_as_holes_not_published() -> None:
-    """Below the floor they are pooled, like any other hole spelling."""
+    """Below the floor they are pooled, like any other hole spelling.
+
+    THE FLOOR IS SAID OUT LOUD since amendment A-P4-37 made 1 the
+    default: six spellings at one row each are below eleven and above
+    one, so it is a floor of eleven that this rule is stated at.
+    """
     values = [f"{10 + place % 90}" for place in range(114)] + list(
         ARTIFACTS[:6]
     )
-    document, _loaded, _folder = _described(values)
+    document, _loaded, _folder = _described(
+        values, taxonomy.Settings(small_cell_floor=_STRICT_FLOOR)
+    )
     block = document["columns"][0]
     assert block["missing_by_source"] == {}
     assert block["missing_by_class"]["(withheld)"] == 6

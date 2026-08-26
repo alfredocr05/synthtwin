@@ -35,6 +35,17 @@ _CLEAR_THE_SCREEN = "\x1b[2J"
 # two pieces of code, and the second route runs everywhere.
 _A_FILENAME_MAY_CARRY_A_CONTROL = sys.platform != "win32"
 
+# THE PROTECTIVE FLOOR, WHICH IS NOT THE DEFAULT ANY MORE (owner ruling,
+# plan amendment A-P4-37). `synthtwin profile` now writes a floor of 1
+# unless somebody asks for another, and at 1 NOTHING is held back: every
+# value is named together with the count of rows that share it. Eleven
+# is still the floor a review board or a data-use agreement asks for --
+# it is the number `--smallest-group`'s own help names as the one to
+# raise to -- and it is the floor the withholding test below was written
+# against, so that test names it rather than inheriting a default that
+# pools nothing and would leave it comparing a screen with itself.
+_STRICT_FLOOR = "11"
+
 
 def _table(tmp_path: pathlib.Path, text: str = "") -> pathlib.Path:
     return fixtures.write(
@@ -139,8 +150,17 @@ def test_the_disclosure_section_is_printed_every_run(
 def test_no_withheld_value_is_ever_printed(
     tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
+    """What the run holds back reaches neither the screen nor the page.
+
+    RUN AT THE PROTECTIVE FLOOR, and it says so since amendment
+    A-P4-37 made 1 the default. `outlying` is the rare label of the
+    every-role table, about seven of its 240 rows, so it is a value a
+    floor of eleven pools and a floor of 1 publishes on purpose. The
+    other two are withheld at every floor: an identifier's values are
+    never published, and free text is never quoted.
+    """
     table = _table(tmp_path)
-    main(["profile", str(table)])
+    main(["profile", str(table), "--smallest-group", _STRICT_FLOOR])
     printed = capsys.readouterr().out
     written = (tmp_path / "clinic-profile.txt").read_text(encoding="utf-8")
     for text in (printed, written):

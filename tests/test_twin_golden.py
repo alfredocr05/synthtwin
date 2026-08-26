@@ -75,10 +75,16 @@ from synthtwin import (
 # special and no rule depends on it; it is written here in full so a
 # reader can reproduce the run by hand:
 #
-#   synthtwin profile table.csv --identifier record_code
+#   synthtwin profile table.csv --identifier record_code \
+#       --smallest-group 11
 #   synthtwin generate table-profile.json --seed 20260811
 #
 # on a table.csv holding exactly `fixtures.every_role_table()`.
+#
+# The smallest group is asked for rather than left to the default, for
+# the reason the description fixture below gives at length: the shipped
+# default is now one, and at one this run would hold nothing back at
+# all.
 GOLDEN_SEED = 20260811
 
 # The version string is normalized out of the description before the
@@ -103,6 +109,23 @@ def description(tmp_path_factory: pytest.TempPathFactory) -> pathlib.Path:
     the identifier role since Phase 1 review round 6 withdrew inference,
     and a golden that never reached that role would leave the whole
     made-up-value path of the generator unpinned.
+
+    THE SMALLEST GROUP IS DECLARED, AND ELEVEN IS THE RUN THIS FILE
+    PINS. The owner lowered the shipped `small_cell_floor` to one (plan
+    amendment A-P4-37), and at a floor of one nothing is ever held back:
+    no level is pooled, no spelling is withheld, no group is suppressed
+    (contract invariant C5-S13). This golden is the only place where one
+    whole run over a table of every role -- description in, twin, report
+    and quality report out -- is pinned byte for byte, and a run that
+    holds nothing back would leave the pooled and withheld paths of the
+    generator, the report and the census unpinned in every cell of the
+    CI matrix. So the floor these bytes were recorded at is asked for by
+    name: at eleven this description still suppresses levels on two
+    columns and withholds spellings, and the twin, the report and the
+    quality report below are the same bytes they have always been. The
+    floor of one is not left untested by that choice -- it is the
+    subject of `tests/test_p3v5f1_floor_one.py`, which is where it
+    belongs.
     """
     folder = tmp_path_factory.mktemp("twin-golden")
     table_path = fixtures.write(
@@ -110,7 +133,7 @@ def description(tmp_path_factory: pytest.TempPathFactory) -> pathlib.Path:
     )
     table = reading.read_table(str(table_path))
     document = profile.build_document(
-        table, taxonomy.Settings(), ["record_code"]
+        table, taxonomy.Settings(small_cell_floor=11), ["record_code"]
     )
     document["created_with"] = NORMALIZED_VERSION
     target = fixtures.write_profile(folder, "table-profile.json", document)
@@ -228,8 +251,26 @@ def test_the_golden_run_is_the_shape_this_file_says_it_is(
 # a change to the TABLE looks like. The quality report carries
 # twenty-seven more obligations than it did, which is the direction a
 # re-recording must move in.
+#
+# RE-RECORDED FOR THE SECOND DECLARATION (2026-08-24, plan P4-D19), and
+# THIS ONE MOVED ALONE: the twin, the report and the quality report
+# below all held, byte for byte, which is what a change to what the
+# description RECORDS looks like as opposed to a change to what it says
+# about the data. The settings block gained one key -- `forced_codes`,
+# the list of columns declared with `--code`, empty in this run -- and
+# nothing else in the document moved. HOW IT WAS CHECKED: the new
+# document was written out again with that one key deleted from its
+# settings block, and hashed; the result is the digest this one
+# replaces --
+# c527236bac66d2b312529a829dc157e753b71ed6bd6a878e4f8424f281819adf
+# -- so the single added key is the whole of the difference.
+#
+# The floor is a separate matter and did NOT move these bytes: the
+# fixture now ASKS for the eleven that used to be the default (plan
+# amendment A-P4-37 lowered it to one), so the description this file
+# pins describes the same table under the same rules it always did.
 GOLDEN_DESCRIPTION_SHA256 = (
-    "c527236bac66d2b312529a829dc157e753b71ed6bd6a878e4f8424f281819adf"
+    "54bd7d8d761c879b043bfc67ec72a433bcf1a01ce8a30e326709a71f8ab7908d"
 )
 
 

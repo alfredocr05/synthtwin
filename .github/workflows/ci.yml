@@ -616,6 +616,7 @@ jobs:
           wheel required synthtwin/cli.py
           wheel required synthtwin/contract.py
           wheel required synthtwin/errors.py
+          wheel required synthtwin/asking.py
           wheel required synthtwin/generation.py
           wheel required synthtwin/parsing.py
           wheel required synthtwin/paths.py
@@ -644,6 +645,7 @@ jobs:
           sdist required ROOT/src/synthtwin/cli.py
           sdist required ROOT/src/synthtwin/contract.py
           sdist required ROOT/src/synthtwin/errors.py
+          sdist required ROOT/src/synthtwin/asking.py
           sdist required ROOT/src/synthtwin/generation.py
           sdist required ROOT/src/synthtwin/parsing.py
           sdist required ROOT/src/synthtwin/paths.py

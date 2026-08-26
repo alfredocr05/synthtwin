@@ -26,7 +26,14 @@ import pathlib
 import fixtures
 from synthtwin import canonical, profile, reading, taxonomy
 
-SETTINGS = taxonomy.Settings()
+# THE FLOOR IS DECLARED RATHER THAN INHERITED. Every assertion below
+# about what a description holds back -- the pooled spellings, the
+# withheld variants, the suppressed levels -- was written against a
+# floor of eleven, which used to be the default. Plan amendment A-P4-37
+# moved `small_cell_floor`'s default to one, at which nothing is held
+# back at all (contract invariant C5-S13), so this file now says at what
+# floor it is asking. What it asks is unchanged.
+SETTINGS = taxonomy.Settings(small_cell_floor=11)
 FLOOR = SETTINGS.small_cell_floor
 
 

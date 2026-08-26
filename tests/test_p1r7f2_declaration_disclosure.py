@@ -108,12 +108,18 @@ def test_a_declaration_cannot_republish_a_below_floor_label(
     # The reviewer's second route: 99 `common` cells and one rare label.
     # Small-cell suppression keeps the rare spelling out of
     # missing_by_source; the setting used to put it back.
+    #
+    # THE FLOOR IS NAMED HERE BECAUSE THE CASE IS ABOUT THE FLOOR. Since
+    # the owner's ruling (plan amendment A-P4-37) the default is 1, at
+    # which one cell is not below anything and there is no suppression
+    # for the setting to travel around; the run therefore asks the
+    # question at the floor of eleven this route was found under.
     values = ["common"] * 99 + ["rare-label"]
     document, written, summary_text = _run(
         tmp_path,
         "group",
         values,
-        ["--missing-value", "rare-label"],
+        ["--smallest-group", "11", "--missing-value", "rare-label"],
         capsys,
     )
     column = document["columns"][0]
@@ -218,10 +224,14 @@ def test_the_settings_block_still_names_every_setting() -> None:
     # The completeness rule is unchanged: a setting added to Settings and
     # forgotten in the block still fails. Two of the keys now carry a
     # policy record rather than the values, which is the whole change.
+    # The block is built from the settings, the columns declared with
+    # --identifier and the columns declared with --code; both lists are
+    # empty here, which is the ordinary run.
     recorded = profile._settings_block(
         taxonomy.Settings(
             kept_values=("NA", "-999"), declared_missing_values=("unknown",)
         ),
+        [],
         [],
     )
     assert recorded["kept_values"] == {
@@ -254,7 +264,7 @@ def test_the_recorded_shape_can_be_told_from_the_older_one() -> None:
     # rule indistinguishable from one written under this one. It is a
     # record, never a list, so a consumer can tell without guessing --
     # and the document says so in its version as well.
-    recorded = profile._settings_block(taxonomy.Settings(), [])
+    recorded = profile._settings_block(taxonomy.Settings(), [], [])
     assert isinstance(recorded["kept_values"], dict)
     assert isinstance(recorded["declared_missing_values"], dict)
     assert recorded["kept_values"]["values_recorded"] is False

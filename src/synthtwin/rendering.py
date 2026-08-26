@@ -1398,25 +1398,25 @@ def _lowered_floor_lines(profile: contract.Profile) -> "list[str]":
     - Boundary: no value of any table reaches it; it names counts.
     """
     floor = profile.settings.small_cell_floor
-    if floor >= contract.DEFAULT_SMALL_CELL_FLOOR:
+    if floor >= contract.SMALL_GROUP_NOTICE_LINE:
         return []
-    usual = contract.DEFAULT_SMALL_CELL_FLOOR
+    usual = contract.SMALL_GROUP_NOTICE_LINE
     lines = [
         _RULE,
         (
-            f"THIS DESCRIPTION WAS MADE WITH THE SMALLEST GROUP SIZE "
-            f"LOWERED TO {floor}"
+            f"THIS DESCRIPTION NAMES GROUPS AS SMALL AS {floor} ROW(S)"
         ),
         _RULE,
         "",
         (
-            f"synthtwin normally publishes a value only where at least "
-            f"{usual} rows"
+            f"A description holds nothing back for being a small group "
+            f"unless it is asked to. Pooling everything under {usual} rows"
         ),
-        "of the real table shared it. This description publishes values as",
-        f"few as {floor} row(s) shared, together with how many rows that",
-        "is -- and the twin beside this report was built to hold those",
-        "counts exactly, so the twin carries them and so does this page.",
+        f"is what --smallest-group {usual} does, and this description was",
+        f"not made that way: it names values as few as {floor} row(s)",
+        "shared, together with how many rows that is -- and the twin",
+        "beside this report was built to hold those counts exactly, so",
+        "the twin carries them and so does this page.",
         "",
     ]
     # "a group of 1 is 1 people" is not English, so at a floor of one the

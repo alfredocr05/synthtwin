@@ -105,21 +105,27 @@ ID codes and a column of measurements can look identical, and getting
 that wrong either publishes identifiers or destroys a distribution the
 twin exists to reproduce. So no rule anywhere in synthtwin can reach
 that reading from the values in a column -- it comes only from you,
-through `--identifier`, and it is described below with the rest of the
-options.
+through `--identifier` and `--code`, and both are described below with
+the rest of the options. Where synthtwin meets a column it cannot read
+on its own, it asks you rather than guessing.
 
 **Read that last part before you move the profile anywhere.** The
 profile is computed from your real data. It contains no rows of your
 table, and it never contains a value from a column you named with
-`--identifier`, a line of free text, or a label shared by fewer than
-eleven rows -- but it does contain the smallest and largest values of
-your numeric and date columns, the points in between that describe their
-shape, and, for each label it names, the exact spellings your file used
-for that label wherever eleven rows or more wrote it that way. Eleven is
-the default and it is the only number in this paragraph you can change:
-`--smallest-group` moves it, the whole workflow runs on whatever you set,
-and setting it lower publishes smaller groups. What that costs is written
-out under the options below. It is
+`--identifier` or a line of free text -- but it does contain the
+smallest and largest values of your numeric and date columns, the points
+in between that describe their shape, and, for each label, the exact
+spellings your file used for it together with how many rows wrote it
+that way. **By default that includes labels only one row held.** A twin
+is not a twin if a rare finding never reaches it, so synthtwin names
+every value and says how many rows shared it. What a named rare value
+tells anybody is that somebody in your table had it -- synthtwin
+publishes nothing that crosses two columns, so it says nothing about
+who, or about anything else that person's row holds. If your review
+board or a data-use agreement needs groups kept above a size,
+`--smallest-group 11` pools everything under eleven rows and the whole
+workflow runs on the result. What each setting costs is written out
+under the options below. It is
 real-derived material, and your institution's rules for such material
 apply to it. The same is true of every other file a full run produces:
 the profile, the plain-language summary beside it, the twin, the twin's
@@ -167,7 +173,8 @@ Six for `profile`, for the things the rules cannot settle on their own:
 ```
 synthtwin profile my-table.csv --out-dir reports
 synthtwin profile my-table.csv --identifier participant_number
-synthtwin profile my-table.csv --smallest-group 20
+synthtwin profile my-table.csv --code vaccine_code
+synthtwin profile my-table.csv --smallest-group 11
 synthtwin profile my-table.csv --keep-value -999
 synthtwin profile my-table.csv --missing-value NA
 synthtwin profile my-table.csv --first-row data
@@ -183,13 +190,42 @@ that column holds -- and it is the only way a column is ever read that
 way. Repeat it to name more than one column. A name that is not in your
 table stops the run before anything is written.
 
-**`--smallest-group`, and what lowering it costs.** It changes the
-eleven-row rule above, in either direction, and any whole number of 1 or
-more is accepted end to end: `profile`, `generate` and `validate` all run
-on the file it produces. Raising it publishes less. **Lowering it below
-eleven publishes small groups and their counts**, and that is worth
-reading slowly, because the count is the disclosure rather than a route
-to one. At a smallest group size of two, the profile names values that
+`--code` names a column that holds a **coding system** rather than
+measurements -- vaccine codes, procedure codes, revenue codes, provider
+numbers, risk-group codes. Its values are still published, because which
+codes are common is the point of the column; what changes is that
+synthtwin stops reading them as numbers, so `08` stays `08` instead of
+coming back as `8`, and the column gets a count per code instead of an
+average, a smallest and a largest -- which for a code are meaningless
+and are real codes besides. You need it only for a column written in
+**digits alone**: one written with a letter or a dash, like `E11.9` or
+`0002-8215-01`, is already read as codes. Repeat it to name more than
+one column, and use `--identifier` instead for a record number nothing
+should publish.
+
+**synthtwin asks you about this rather than guessing.** A column of
+`08`, `20`, `213` is vaccine codes or it is counts, and the two are
+written identically -- nothing in the values can settle it, so synthtwin
+does not try. When it meets a column of digits that looks like it could
+be codes (some value padded with a leading zero, or every value the same
+width), it stops and asks you, showing you a few of the values. Your
+answers go into the profile, and the exact options to repeat the run
+without the questions are printed at the end. Where nobody is at the
+keyboard -- a script, a pipeline, CI -- it never stops: it names those
+columns on screen, says what it assumed, and prints the `--code` line
+that corrects it.
+
+**`--smallest-group`, and what raising it does.** It changes how many
+rows a group needs before the profile names it. **The default is 1,
+which holds nothing back**: every value your table holds is named,
+together with how many rows shared it, so a rare finding reaches your
+twin. Any whole number of 1 or more is accepted end to end: `profile`, `generate` and `validate` all run
+on the file it produces. Raising it publishes less -- `--smallest-group
+11` pools every group under eleven rows, which is what a review board or
+a data-use agreement usually means by a small-cell rule. **At the
+default of 1 the profile publishes small groups and their counts**, and
+that is worth reading slowly, because the count is the disclosure rather
+than a route to one. At a smallest group size of two, the profile names values that
 two rows shared and says that two rows shared them; at one, it names a
 value one row held and says that one row held it. If one row of your
 table is one person, somebody who already knows one true thing about

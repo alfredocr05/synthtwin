@@ -14,7 +14,16 @@ import pytest
 import fixtures
 from synthtwin import errors, profile, reading, taxonomy
 
-SETTINGS = taxonomy.Settings()
+# THE FLOOR IS DECLARED RATHER THAN INHERITED. Every assertion below
+# about what this document holds back -- the label below the floor, the
+# identifier and free-text values that must not leak, the golden bytes
+# that pin both -- was written against a floor of eleven, which used to
+# be the default. Plan amendment A-P4-37 (the owner's ruling) moved
+# `small_cell_floor`'s default to one, at which nothing is held back at
+# all (contract invariant C5-S13), so this file now says at what floor
+# it is asking. What it asks is unchanged. The default itself is pinned
+# in tests/test_ap311_lowered_floor.py, not here.
+SETTINGS = taxonomy.Settings(small_cell_floor=11)
 
 
 def _document(tmp_path: pathlib.Path, text: str) -> dict:
@@ -223,8 +232,22 @@ def test_nothing_that_varies_between_runs_is_written(
 # description, a different twin, a different report and a different
 # quality report. A change to the generator alone would have moved the
 # last three and left the first.
+#
+# RE-RECORDED 2026-08-25 for the second declaration (plan P4-D19). ONE
+# line moved and no other: the settings block of every document now
+# carries `forced_codes`, which sorts immediately before
+# `forced_identifiers`, and this run declares none, so the line reads
+# `"forced_codes": [],`. That was CHECKED rather than assumed -- parsing
+# these bytes, deleting that one key and serializing again reproduces
+# the previous digest,
+# baf08b55fea0a72d6e0af2faadd3d88ace03b85b577d1f3d4b439e656a537ffe,
+# character for character. The floor this file describes at is unmoved:
+# it is named at the top of the file now rather than inherited from the
+# default, and eleven is the number the previous digest was recorded at.
+# No count, no statistic, no label, no role and no spelling of any
+# column moved.
 GOLDEN_SHA256 = (
-    "baf08b55fea0a72d6e0af2faadd3d88ace03b85b577d1f3d4b439e656a537ffe"
+    "6f2b3b86a061e1e79f62db4af6d56285276e768d3a3ec162e29b80852af92a37"
 )
 
 
