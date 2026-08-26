@@ -5755,3 +5755,47 @@ the independent reference vectors, the offline and provenance scans,
 and the decontamination scanner. Those catch wrong numbers, broken
 boundaries and legal problems. Everything cut above catches documents
 disagreeing with documents.
+
+## Decision P4-D27 — an address is identified, not a quantity ruled out (2026-08-26)
+
+**THE DEFECT, measured.** `user12345@example.org` was read as
+`affixed_number` and published a mean of **53,574.055 over 400 rows —
+the average of the real identifiers**, with the smallest and largest
+being two of them exactly.
+
+**THREE ATTEMPTS. THE FIRST TWO WERE WRONG AND BOTH ARE KEPT AS TESTS.**
+
+| attempt | the rule | how it died |
+|---|---|---|
+| 1 | decline when cores are all whole, all different, and the pair carries letters on the LEFT | reads `code1` as a token and `1mg` as a quantity. Review item P1-R6-F8 pins those two together — *"nothing in the values tells these two columns apart, which is the whole argument"* — and this is the FOURTH rule that tried. Seventeen tests refused it |
+| 2 | decline when the pair carries `@`, since no unit uses it | **the claim was false and was refuted the same day.** `100 ms @ ambient` and `$100@close` are ordinary quantities: `@` means "at" as often as it introduces a host. Both would have lost their distribution |
+| 3 | **identify an ADDRESS** — `@`, a host, a dot, a letter label | what landed |
+
+**WHY THE THIRD IS A DIFFERENT KIND OF RULE and not a narrower version
+of the second.** The first two made NEGATIVE claims — "no quantity
+looks like this" — and a negative claim quantified over every column
+anybody might hold is a claim nobody can check. Both were refuted by
+the first person who looked. The third makes a POSITIVE
+identification: this suffix IS an electronic address, which has a
+shape. `@close` is not one; `ms @ ambient` is not one;
+`@example.org` is.
+
+It is still a rule about values and can still be wrong about a column
+nobody has shown us. What it is no longer is a guess about which of two
+indistinguishable shapes a column meant.
+
+**MEASURED AFTER:** `user12345@example.org` declines;
+`100 ms @ ambient`, `$100@close`, `1mg`, `code1`, `$52000`, `USD100`,
+`Rs52000`, `72.4 kg` and `450 mg` all keep their readings, and `1mg`
+and `code1` are treated ALIKE.
+
+**`--measurement` SILENCES IT.** That guard was DELETED by the edit
+that narrowed attempt 1 into attempt 2 — the parameter stayed
+accepted, stayed passed, and stopped being consulted — and nothing
+caught it until adversarial review. It is now a test.
+
+**HALF OF R-P4-39 STAYS OPEN ON PURPOSE.** `ACC00012345` still reads as
+a quantity and cannot be told from `USD100` by any property of the
+values. Its answer is a declaration, which is P1-R6-F8's own
+conclusion. It is pinned as a PASSING test so the next person to meet
+it does not reopen it, find it easy, and write the fifth defeated rule.

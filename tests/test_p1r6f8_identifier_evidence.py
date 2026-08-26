@@ -34,7 +34,6 @@ somebody says which is which.
 
 import json
 import pathlib
-import re
 import random
 
 import pytest

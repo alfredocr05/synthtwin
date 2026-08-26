@@ -28,7 +28,7 @@ without the same help.
 | branch | `phase-4-plan` (never merged; `main` is pull-request only) |
 | phase | **Phase 4 — comprehensive column handling.** Current. |
 | plan | `docs/plans/phase-4-columns.md` |
-| suite | 3,912 collected / 48 skipped |
+| suite | 3,924 collected / 48 skipped |
 | lint | **183 ruff errors, not yet triaged** — see "What is broken right now" |
 
 ## What is being built right now
@@ -215,3 +215,25 @@ Kept short on purpose. Each of these cost at least half a day.
 | what a description may contain | `docs/spec/profile-contract-v6.md` |
 | what changed, in order | `CHANGELOG.md` |
 | the project in plain language, for an outside reader | `STATUS.md` |
+
+## Owed before the phase closes, by owner instruction (2026-08-26)
+
+**Richer numeric statistics — RULED, five facts.** `skew` and `std`
+already exist and the ladder is eleven rungs. The owner ruled the whole
+list in on 2026-08-26:
+
+1. **A histogram**, and it matters more than the extra rungs: moments
+   and percentiles cannot show two peaks, so a bimodal column yields a
+   smooth twin with every published number correct.
+2. **All 100 percentiles.**
+3. **Kurtosis**, which pairs with skew.
+4. **The count of different numbers** (already planned, R-P4-20).
+5. **The mode**, for columns where one value dominates.
+
+Design notes — bin edges must be chosen by a reproducible RULE since
+the generator has only the description; bin counts fall under the
+small-cell floor while percentiles are exact real values and do not;
+and the generator must MEET the histogram rather than draw from the
+ladder and hope. Fuller notes in the assistant's memory under
+`numeric-depth-revisit`. Build beside the distinct-count and width
+work, which touch the same machinery.

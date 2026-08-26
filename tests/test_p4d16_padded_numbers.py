@@ -27,7 +27,7 @@ import pathlib
 import tempfile
 
 import fixtures
-from synthtwin import contract, profile, reading, taxonomy
+from synthtwin import profile, reading, taxonomy
 
 
 def _described(values: "list[str]", name: str = "code") -> dict:
