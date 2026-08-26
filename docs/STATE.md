@@ -28,7 +28,7 @@ without the same help.
 | branch | `phase-4-plan` (never merged; `main` is pull-request only) |
 | phase | **Phase 4 — comprehensive column handling.** Current. |
 | plan | `docs/plans/phase-4-columns.md` |
-| suite | 3,911 collected / 48 skipped |
+| suite | 3,912 collected / 48 skipped |
 | lint | **183 ruff errors, not yet triaged** — see "What is broken right now" |
 
 ## What is being built right now
@@ -156,6 +156,54 @@ reviewer's ruling of 2026-08-26.
 5. **Never close a residual on a reading.** Build the column it
    describes and run it. Two of two closure claims in the 2026-08-26
    triage were wrong, and one hid a live misdescription.
+
+## How a new conversation gets its bearings — READ THIS IF YOU ARE NEW
+
+**Four things carry this project, and none of them is the contract.**
+The contract is 8,553 lines and the phase plan 5,730: no session reads
+either, which is exactly why freezing them (A-P4-46) costs almost no
+context. What a session can actually hold is about 1,900 lines, and it
+is these:
+
+| what | size | how it reaches you |
+|---|---|---|
+| `CLAUDE.md` | 316 lines | loaded automatically in every conversation here |
+| **this page** | ~200 lines | `CLAUDE.md`'s first instruction is to read it |
+| the assistant's own memory | ~1,300 lines | loaded at session start, outside the repository |
+| **docstrings — 1,204 of them, 15,088 lines** | | read whenever the code is read, which is when it matters |
+
+**The docstrings ARE the specification now.** Every public function's
+docstring states what it promises — accepted inputs, determinism,
+errors, and any boundary it upholds — because the charter has always
+required that. With the contract frozen, they stop being a second copy
+and become the first one. Write them that way: a rule that lives only
+in a frozen document is a rule nobody will meet.
+
+**And the tests are the other half.** A test says what must be true in
+a form that cannot drift. When you would have written a contract
+clause, write a test instead.
+
+## Already tried here, and it does not work
+
+Kept short on purpose. Each of these cost at least half a day.
+
+- **A pronoun cannot be resolved by a regular expression.** Three
+  rounds went into `it`, then number agreement; both broke in both
+  directions. A rule that needs reference resolution must instead
+  demand that the prose NAME the thing.
+- **Widening a ban's noun list reports honest prose.** Name the SHAPE
+  of the claim, never broaden the noun.
+- **A guard that passes is not a guard.** Mutation-verify every new
+  one before believing it; this project has repeatedly produced tests
+  that passed for the wrong reason.
+- **Where a review names one site, there are usually two or three.**
+  Search for siblings rather than repairing the site named.
+- **A count restated in several places will disagree.** Compute it
+  from one source and check every site that states it.
+- **Run the guards AFTER `git add`.** The decontamination scanner
+  walks the TRACKED tree, so an uncommitted file is not scanned.
+- **A repair that prints ambiguous numbers is worse than the silence
+  it replaced.** Withdraw it and record the defect instead.
 
 ## Where the detail lives
 

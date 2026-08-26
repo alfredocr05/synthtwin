@@ -1,3 +1,20 @@
+> **FROZEN 2026-08-26 — the loader is normative, this document is not**
+> (owner ruling, plan amendment A-P4-46.1). This describes the loader
+> and producer as of commit `84dc192`. **Where this document and the
+> code differ, THE CODE IS RIGHT**: `contract.py` enforces the format
+> in executable form, the test suite pins what a description may hold,
+> and the docstrings state each function's promises. This document is
+> no longer edited as part of a landing; it is REGENERATED from the
+> code before the first release, which is a release precondition
+> recorded in the Phase 4 close list.
+>
+> **Why.** One new published fact had to be written in about ten
+> places, and the landing before this ruling was 4,477 lines of which
+> 60 were product code. The audience this document was written for —
+> a stranger reimplementing synthtwin from the specification — does not
+> exist yet, because nothing is released. It will exist at the release,
+> and the regeneration is owed then.
+
 # Profile contract, version 6 — the normative specification
 
 **Status: SHIPPED**, as of the Phase 4 wire flip. `synthtwin profile`

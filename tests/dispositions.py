@@ -97,6 +97,23 @@ import typing
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
 
+# THE SEAL IS PAUSED UNTIL PHASE 4 CLOSES (owner ruling 2026-08-26,
+# plan amendment A-P4-46.2), then re-sealed once over the whole tree.
+#
+# WHAT PAUSING MEANS, exactly: the seal is still WRITTEN and the two
+# passage checks still run, so a landing that edits a governing
+# document and forgets to re-seal is still told. What stops is the
+# obligation to treat every such edit as a counted, reviewed act -- the
+# re-seal becomes a mechanical step at the end of a landing rather than
+# a gate in the middle of one.
+#
+# WHAT IT COSTS, and it is real: four lowerings in this project's
+# history reached a document unnoticed, which is why the seal was built.
+# The trade holds only while nothing is released and every change
+# passes the owner. `PAUSED_UNTIL_PHASE_CLOSE` is read by the close
+# audit, which refuses to close the phase while it is True.
+PAUSED_UNTIL_PHASE_CLOSE = True
+
 GOVERNING = (
     "docs/plans/phase-2-generator.md",
     "docs/plans/phase-3-product.md",

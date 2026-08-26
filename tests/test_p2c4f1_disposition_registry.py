@@ -2042,3 +2042,33 @@ def test_the_registry_reaches_every_key_the_producer_emits() -> None:
         for fact in dispositions.REGISTRY
         if fact.group not in dispositions.GROUPS_OUTSIDE_THE_VERSION_4_MATRIX
     }
+
+
+def test_the_phase_cannot_close_while_the_seal_is_paused() -> None:
+    """A paused control may not outlive the phase that paused it.
+
+    Owner ruling 2026-08-26 (plan amendment A-P4-46.2) paused the
+    counted re-seal for the rest of Phase 4 and required it re-sealed
+    once at the close. `dispositions.PAUSED_UNTIL_PHASE_CLOSE` says so
+    in a comment, and a comment is not a control -- which is the defect
+    this repository has now met often enough to stop writing.
+
+    So the flag is READ. While it is True, no surface may describe
+    Phase 4 as complete: the close is the act that lifts the pause, and
+    a phase that closed with the pause still standing would leave a
+    governing document unsealed with nothing recording it.
+    """
+    if not dispositions.PAUSED_UNTIL_PHASE_CLOSE:
+        return
+    charter = (REPO_ROOT / "CLAUDE.md").read_text(encoding="utf-8")
+    claimed = [
+        line
+        for line in charter.splitlines()
+        if "Phase 4" in line and ("*Complete*" in line or "*Closed*" in line)
+    ]
+    assert not claimed, (
+        "Phase 4 is described as finished while the disposition seal is "
+        "still paused. Re-seal the whole tree and set "
+        "PAUSED_UNTIL_PHASE_CLOSE to False before closing the phase: "
+        + repr(claimed)
+    )
