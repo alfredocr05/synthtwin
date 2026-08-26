@@ -5173,6 +5173,38 @@ def _joined_details(
             if len(value) < smallest:
                 smallest = len(value)
         widths = widths + [smallest]
+    # HOW THE POSITIONS MOVE TOGETHER (plan P4-D23). Two numbers per
+    # PAIR of positions, in the fixed order (1,2), (1,3), ... (2,3), ...
+    # so a reader can find a pair without being told the order:
+    #
+    #   `part_agreements` -- how strongly the two rise and fall
+    #     together, by rank. It is a fact about the PAIRING alone: each
+    #     position's own numbers are already published exactly, so this
+    #     repeats none of them and adds the one thing that was missing.
+    #   `part_above` -- in how many rows the earlier position held the
+    #     larger number. A blood pressure answers "all of them", and
+    #     that is what stops a twin writing a diastolic above its
+    #     systolic.
+    #
+    # Both are aggregates over every row and name no cell.
+    numbers: "list[list[float]]" = []
+    for place in range(joined.n_parts):
+        counted_here: "list[float]" = []
+        for spelling in joined.parts[place]:
+            counted_here = counted_here + [float(spelling)]
+        numbers = numbers + [counted_here]
+    agreements: "list[float]" = []
+    above: "list[int]" = []
+    for first in range(joined.n_parts):
+        for second in range(first + 1, joined.n_parts):
+            agreements = agreements + [
+                round(parsing.rank_agreement(numbers[first], numbers[second]), 4)
+            ]
+            counted = 0
+            for seat in range(joined.n_joined):
+                if numbers[first][seat] > numbers[second][seat]:
+                    counted = counted + 1
+            above = above + [counted]
     return {
         "separator": joined.separator,
         "n_parts": joined.n_parts,
@@ -5180,6 +5212,8 @@ def _joined_details(
         "n_unparsed": joined.n_unparsed,
         "parts": blocks,
         "part_min_widths": widths,
+        "part_agreements": agreements,
+        "part_above": above,
     }
 
 

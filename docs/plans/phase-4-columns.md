@@ -5293,3 +5293,107 @@ tested after every rule that reads a column well, so nothing above it
 is at fault; what is missing is any test that the core is a QUANTITY
 rather than the middle of an opaque token. `--identifier` and `--code`
 both describe such a column correctly today. Not closed.
+
+## Decision P4-D23 — the two numbers of a reading move together (2026-08-26)
+
+**THE OWNER'S WORDS.** "It should somehow move together! And the same
+would be valid for other vitals that follow the same pattern... The
+deal is to find a pattern and know how to deal with this pattern. Then
+it doesn't matter what exactly is coming in."
+
+**IT NEEDED NO NEW QUESTION, and that is the part worth stating.** The
+person has already said `--measurement`. Given that, how the numbers
+move together is not something to ask about: it is something to
+MEASURE. The rule this settles on is the owner's own principle,
+sharpened: **ask only what the data cannot say; measure everything the
+data can.** Whether a column is codes or measurements the data cannot
+say -- so it is asked, in three words, and that question must never
+grow. How its numbers move together the data says plainly -- so it is
+never asked.
+
+**WHAT IS PUBLISHED, two numbers per PAIR of positions.**
+
+- `part_agreements` -- how strongly the two rise and fall together, by
+  RANK. Ranks and not values on purpose: what each position holds is
+  already published exactly, so a rank agreement repeats none of it and
+  adds only what was missing, which is which numbers met in a row.
+- `part_above` -- in how many rows the earlier position held the larger
+  number. A blood pressure answers "all of them", and that is what
+  stops a twin writing a diastolic above its systolic.
+
+Both are aggregates over every row and name no cell.
+
+**MEASURED on 400 correlated readings:**
+
+| | real | twin before | twin after |
+| --- | --- | --- | --- |
+| rank agreement | 0.8343 | -0.0122 | 0.8342 |
+| rows with the first number above | 400 | 392 | 400 |
+| impossible cells | 0 | 8 | 0 |
+| systolic min/median/max | 95/134/175 | exact | exact |
+| diastolic min/median/max | 55/79/105 | exact | exact |
+
+**HOW, and the point is that no published number moves.** Every step
+swaps two rows' numbers within ONE position, so each position keeps its
+multiset to the last cell: its ladder, mean, spread, styles and widths
+are untouched. Only the pairing moves, which is the one thing `parts`
+does not describe.
+
+**EVERY STEP COSTS THE SAME, however long the column.** Scoring a
+pairing from scratch is a sort and a walk, and a walk that scored every
+attempt that way spent FOURTEEN SECONDS on four hundred rows. Nothing
+about a swap needs it: two cells change, two rows change, and the two
+ranks trade places -- which moves the agreement's numerator by exactly
+`(a_i - a_j) * (b_j - b_i)` and its divisor not at all, because neither
+position's ranks have changed as a multiset. Carried and adjusted
+rather than recomputed, the same run takes 0.24 seconds.
+
+**WHAT IT COST, and it is a real cost rather than a rounding.** The
+count of different cells was exact before this and is not always exact
+now. It is reported by the twin rather than swallowed, and R-P4-40
+records why and how to close it.
+
+## Residual R-P4-40 — a joined column's positions repeat more evenly than the real ones did
+
+Opened 2026-08-26 by P4-D23. The count of different CELLS was exact
+while the pairing was free to chase it. It is no longer free: it also
+has to make the positions agree as strongly as the real ones did and
+hold one above the other as often. On 400 readings publishing 324
+different cells the twin reaches 276.
+
+**IT IS NOT THE WALK, and that was measured before concluding it.**
+Weighting the count in ROWS, so that one row out costs more than the
+whole agreement, was built: the agreement fell from 0.834 to 0.559, two
+cells came out impossible, and the count STILL stopped at 317. Both
+facts are individually reachable and they conflict.
+
+**THE CAUSE IS UPSTREAM.** Each position's numbers are drawn to the
+ladder the description publishes, and that draw repeats a value more
+evenly than the real column did -- measured, the real systolic values
+appear 1, 2 and 3 times where the twin's appear 3, 4 and 5 times. Pairs
+drawn from values that repeat more can only be so many, whatever the
+pairing does.
+
+**THE FIX, and it is a description change rather than a walk change.**
+Publish how many DIFFERENT values each position held, beside the ladder
+it already publishes, and have the draw meet it. Both facts are then
+reachable together, because the real column reaches them together with
+its own values. Not closed.
+
+## Residual R-P4-41 — the joined role publishes facts nothing checks
+
+Opened 2026-08-26, and NOT caused by P4-D23: it arrived with the role
+itself (P4-D21). `validation._role_checks` dispatches on the facts type
+and has a builder for every role but this one, where it falls through
+to an empty list. So a joined column's separator, its part count, its
+widths, its per-position rungs and now its two pairing facts are
+PUBLISHED AND UNCHECKED -- a twin of such a column is measured on the
+universal obligations alone, twenty-one of them, and its own report
+neither confirms nor denies anything the role adds.
+
+This is the shape of gap this project's governance exists to prevent: a
+description carrying a fact no reader verifies. It is recorded here
+rather than left to be discovered. Closing it means a `_joined_checks`
+builder on the model of `_affixed_checks`, exact on the counts and the
+separator and windowed on the agreements, which are rounded. Not
+closed.

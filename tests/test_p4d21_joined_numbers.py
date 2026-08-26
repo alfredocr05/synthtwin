@@ -147,18 +147,77 @@ def test_each_position_keeps_its_own_distribution() -> None:
         assert abs(statistics.median(made) - statistics.median(real)) < 2.0
 
 
-def test_the_twin_holds_as_many_different_readings_as_the_table() -> None:
-    """`n_distinct` is exact, and the pairing is what has to meet it.
+def test_the_twin_never_holds_more_readings_than_the_table() -> None:
+    """`n_distinct` bounds the twin, and a shortfall is REPORTED.
 
-    Both positions can be right on their own while the pairs repeat:
-    the first build of this role drew each position in the same order,
-    so a column of 387 different readings came out with 117 in runs
-    like `105/63`, `104/63`.
+    IT WAS EXACT UNTIL THE PAIRING CARRIED FACTS OF ITS OWN (plan
+    P4-D23). With the pairing free, the walk could always reach the
+    published count. It is no longer free: it also has to make the two
+    numbers move together as strongly as the real ones did, and hold
+    the earlier one above the later one as often. For the values a
+    position DRAWS -- which follow the published ladder and so repeat
+    more evenly than the real ones did -- the three cannot always be
+    met at once. Residual R-P4-40 records the cause and its fix.
+
+    What must never happen is a silent shortfall, so this asserts the
+    bound and `test_a_shortfall_in_different_readings_is_reported`
+    asserts that the twin's own report says it.
     """
     values = _readings()
     document, folder = _described(values)
     twin = generation.generate(_loaded(document, folder), 7)
-    assert len(set(twin.columns[0])) == document["columns"][0]["n_distinct"]
+    assert len(set(twin.columns[0])) <= document["columns"][0]["n_distinct"]
+
+
+def test_a_shortfall_in_different_readings_is_reported() -> None:
+    """A twin holding fewer different readings says so on its own page."""
+    values = _readings()
+    document, folder = _described(values)
+    twin = generation.generate(_loaded(document, folder), 7)
+    made = len(set(twin.columns[0]))
+    published = document["columns"][0]["n_distinct"]
+    said = [
+        note for note in twin.deviations if note.fact == "n_distinct"
+    ]
+    if made == published:
+        assert not said, "nothing was given up, so nothing should be said"
+        return
+    assert said, (
+        "the twin holds fewer different readings than the description "
+        "records and its report does not say so"
+    )
+
+
+def test_the_two_numbers_move_together_as_they_did() -> None:
+    """The point of P4-D23, and the reason the pairing is not free.
+
+    Drawn independently the two numbers agreed at about zero where the
+    real column agreed at 0.83, and a twin cell could hold a diastolic
+    above its systolic. Both are facts the description now carries.
+    """
+    rng = random.Random(11)
+    values: "list[str]" = []
+    for _each in range(400):
+        together = rng.gauss(0, 1)
+        top = max(95, min(175, round(133 + 24 * together + rng.gauss(0, 12))))
+        bottom = max(55, min(105, round(80 + 14 * together + rng.gauss(0, 7))))
+        values = values + [f"{top}/{bottom}"]
+    document, folder = _described(values)
+    block = document["columns"][0]
+    assert block["part_agreements"][0] > 0.5, "the fixture is not correlated"
+    twin = generation.generate(_loaded(document, folder), 7)
+    from synthtwin import parsing
+
+    first = [float(_part(cell, 0)) for cell in twin.columns[0]]
+    second = [float(_part(cell, 1)) for cell in twin.columns[0]]
+    made = parsing.rank_agreement(first, second)
+    assert abs(made - block["part_agreements"][0]) < 0.01, (
+        f"the twin's two numbers agree at {made}, not at "
+        f"{block['part_agreements'][0]}"
+    )
+    above = len([1 for a, b in zip(first, second) if a > b])
+    assert above == block["part_above"][0]
+    assert above == 400, "every reading should have its systolic on top"
 
 
 def test_a_padded_position_stays_padded() -> None:
@@ -299,4 +358,15 @@ def test_the_twin_reads_back_as_the_role_it_was_built_for() -> None:
 
     written = fixtures.write(folder, "twin.csv", rendering.twin_csv(twin))
     outcome = validation.measure(described, f"{written}")
-    assert outcome.census.missed == 0, "the twin missed an obligation"
+    # EVERY OBLIGATION BUT THE COUNT OF DIFFERENT READINGS, which the
+    # pairing cannot always meet beside the facts it now also carries
+    # (residual R-P4-40). A shortfall there is reported by the twin and
+    # is asserted by
+    # `test_a_shortfall_in_different_readings_is_reported`; anything
+    # else missing is a defect.
+    missed = [
+        check
+        for check in outcome.checks
+        if check.verdict == "MISSED" and "n_distinct" not in check.subcheck
+    ]
+    assert missed == [], f"the twin missed {missed}"

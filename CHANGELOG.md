@@ -6,6 +6,26 @@ exists).
 
 ## [Unreleased]
 
+### Changed: the two numbers of a reading now move together
+
+- **A blood pressure's two numbers were drawn separately**, so the twin
+  held cells like `111/105` -- a diastolic above its systolic -- and the
+  two numbers had no relationship at all. Measured on 400 readings whose
+  real numbers moved together at 0.83, the twin's moved together at
+  -0.01.
+- **The description now records how the numbers move together** and in
+  how many rows the first sits above the second, and the twin is built
+  to both. On the same 400 readings: 0.8342 against a real 0.8343, 400
+  of 400 rows with the systolic on top, and **no impossible readings**.
+- **Every number in the column is unchanged.** Only which numbers share
+  a cell moves, so each position's smallest, largest, average, spread
+  and widths are exactly what they were.
+- **One thing it can cost, and the twin says so.** The count of
+  different readings was always exact before and is not always exact
+  now, because a twin's numbers repeat more evenly than real ones do and
+  fewer different pairs can be made from them. Where that happens the
+  twin's own report names it.
+
 ### Changed: a column you name with `--code` now always publishes its codes
 
 - **A code column with many different codes, none repeated much, used to

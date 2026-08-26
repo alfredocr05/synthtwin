@@ -477,6 +477,8 @@ AFFIXED_KEYS = NUMERIC_KEYS + (
 JOINED_SEPARATORS = ("/", "-", ":", "|", ";", "_")
 
 JOINED_KEYS = (
+    "part_above",
+    "part_agreements",
     "n_joined",
     "n_parts",
     "n_unparsed",
@@ -1486,6 +1488,18 @@ class JoinedFacts:
     n_joined: int
     n_unparsed: int
     part_min_widths: "tuple[int, ...]"
+    # HOW THE POSITIONS MOVE TOGETHER, one entry per PAIR of positions
+    # in the order (1,2), (1,3), ... (2,3), ... `part_agreements` is
+    # the rank agreement between the two, from -1 to 1, and
+    # `part_above` is the number of rows in which the earlier position
+    # held the larger number.
+    #
+    # THEY ARE FACTS ABOUT THE PAIRING AND NOTHING ELSE. What each
+    # position holds is published exactly in `parts`, so neither of
+    # these repeats a number the block already carries; between them
+    # they say the one thing it did not -- which numbers met in a row.
+    part_agreements: "tuple[float, ...]"
+    part_above: "tuple[int, ...]"
 
 
 @dataclasses.dataclass(frozen=True)
@@ -5888,6 +5902,10 @@ def _joined_facts(
     - J5: every part block is read by the SAME reader every
       quantitative role's block is read by, over `n_joined` values.
     - J6: every published width is at least one character.
+    - J7: every agreement is a rank agreement, so it lies in -1..1, and
+      there is exactly one for each PAIR of positions.
+    - J8: every above-count is a number of rows that split, and there
+      is exactly one for each pair.
     """
     separator = _text(mapping["separator"], "separator", where)
     if len(separator) != 1 or separator not in JOINED_SEPARATORS:
@@ -5945,6 +5963,44 @@ def _joined_facts(
             "parts", where, f"{len(blocks_read)} block(s)",
             f"{n_parts}, one for each number in a cell",
         )
+    pairs = (n_parts * (n_parts - 1)) // 2
+    agreements_read = _listing(
+        mapping["part_agreements"], "part_agreements", where
+    )
+    if len(agreements_read) != pairs:
+        raise _out_of_range(
+            "part_agreements", where, f"{len(agreements_read)}",
+            f"{pairs}, one for each pair of numbers in a cell",
+        )
+    agreements: "list[float]" = []
+    place = 0
+    for value in agreements_read:
+        # J7. An agreement is a rank agreement and cannot leave -1..1.
+        found = _figure(value, f"part_agreements[{place}]", where)
+        if found < -1.0 or found > 1.0:
+            raise _out_of_range(
+                f"part_agreements[{place}]", where, f"{found}",
+                "a number from -1 to 1, as a rank agreement is",
+            )
+        agreements = agreements + [found]
+        place = place + 1
+    above_read = _listing(mapping["part_above"], "part_above", where)
+    if len(above_read) != pairs:
+        raise _out_of_range(
+            "part_above", where, f"{len(above_read)}",
+            f"{pairs}, one for each pair of numbers in a cell",
+        )
+    above: "list[int]" = []
+    place = 0
+    for value in above_read:
+        # J8. A count of rows cannot exceed the rows that split.
+        above = above + [
+            _bounded(
+                value, f"part_above[{place}]", where, 0, n_joined,
+                "the number of values that split into whole numbers",
+            )
+        ]
+        place = place + 1
     blocks: "list[NumericFacts]" = []
     place = 0
     for value in blocks_read:
@@ -5964,6 +6020,8 @@ def _joined_facts(
         n_joined=n_joined,
         n_unparsed=n_unparsed,
         part_min_widths=tuple(widths),
+        part_agreements=tuple(agreements),
+        part_above=tuple(above),
     )
 
 

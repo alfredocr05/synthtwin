@@ -2772,3 +2772,67 @@ def looks_like_a_column_name(text: str) -> bool:
     if not isinstance(text, str):
         raise TypeError(_NOT_TEXT)
     return parse_number(text) is None
+
+
+def _average_ranks(values: "list[float]") -> "list[float]":
+    """The rank of each value, ties sharing the average of their ranks."""
+    # PAIRS SORTED PLAINLY, not a sort with a key of its own: the
+    # offline audit accepts no function handed to a callee it did not
+    # scan, and a tuple sorts on its first member anyway.
+    pairs: "list[tuple[float, int]]" = []
+    for seat in range(len(values)):
+        pairs = pairs + [(values[seat], seat)]
+    pairs = sorted(pairs)
+    ranks = [0.0 for _each in values]
+    at = 0
+    while at < len(pairs):
+        last = at
+        while last + 1 < len(pairs) and pairs[last + 1][0] == pairs[at][0]:
+            last = last + 1
+        shared = (at + last) / 2.0
+        for seat in range(at, last + 1):
+            ranks[pairs[seat][1]] = shared
+        at = last + 1
+    return ranks
+
+
+def rank_agreement(first: "list[float]", second: "list[float]") -> float:
+    """How strongly two positions of a cell move together, -1 to 1.
+
+    Guarantees:
+
+    - Inputs: two equally long lists of the numbers one position held,
+      in row order.
+    - Determinism: a fixed function of them. Nothing here reads a clock
+      or a random source.
+    - Errors raised: none. A position whose values are all the same has
+      no ranks to agree on and answers 0.0.
+    - Boundary: returns ONE number about the whole column. No value of
+      any cell reaches it or leaves it.
+
+    THE RANKS AND NOT THE VALUES, and that is the point rather than a
+    convenience. What each position holds is already published exactly,
+    down to the last cell, so nothing about the values is left to say.
+    What is NOT published is which of them met in a row -- and rank
+    agreement is exactly that and nothing else: it does not move when a
+    position's own numbers change, only when the PAIRING does. So it
+    adds the one fact the description was missing and repeats none it
+    already carries.
+    """
+    if len(first) != len(second) or len(first) < 2:
+        return 0.0
+    left = _average_ranks(first)
+    right = _average_ranks(second)
+    middle = (len(left) - 1) / 2.0
+    top = 0.0
+    spread_left = 0.0
+    spread_right = 0.0
+    for seat in range(len(left)):
+        away_left = left[seat] - middle
+        away_right = right[seat] - middle
+        top = top + away_left * away_right
+        spread_left = spread_left + away_left * away_left
+        spread_right = spread_right + away_right * away_right
+    if spread_left <= 0.0 or spread_right <= 0.0:
+        return 0.0
+    return float(top / ((spread_left * spread_right) ** 0.5))
