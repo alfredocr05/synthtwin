@@ -3857,7 +3857,7 @@ fragment of one stands anywhere in it.
 
 **AND `shape_forms` DOES NOT BREAK F3, WHICH IS WHY IT MAY STAND ON
 THIS ROLE AT ALL.** A form is built by replacing every figure of a
-cell with `9` and every letter with `A` (C6-31a), so the one thing it
+cell with `%` and every letter with `@` (C6-31a), so the one thing it
 cannot carry is a figure or a letter of anybody's value. What survives
 is how many there were and where the marks between them fell:
 `E11.9` and `Z99.1` are one form and the form tells them apart from
@@ -5680,7 +5680,7 @@ and every other character required to be one of THIRTEEN MARKS this
 contract names, standing as itself. A diagnosis code `E11.9` has the
 form `@%%.%`; a laboratory code `4548-4` has `%%%%-%`; a
 dispensed-drug code `0002-8215-01` has `%%%%-%%%%-%%`; a blood
-pressure `120/80` has `999/99`. The marks are the STRUCTURE and the
+pressure `120/80` has `%%%/%%`. The marks are the STRUCTURE and the
 figures and letters are the content, and the form is what is left when
 the content is taken out.
 
@@ -5863,7 +5863,7 @@ leading segment answer plausibly and wrongly. A person developing
 against the twin then finds all three at once against the real file.
 
 **THE FORM IS FILLED FROM A COUNTER AND NEVER FROM A READING.** Every
-`9` of the form takes a figure and every `A` takes a letter, both taken
+`%` of the form takes a figure and every `@` takes a letter, both taken
 off a step that counts stand-ins; every other character of the form
 stands as itself. The form was built by removing every figure and
 letter before it was published, so nothing put back can be a fragment
@@ -5880,7 +5880,7 @@ format's precedence rule is that an exact count outranks an
 approximated average. Holding every group to its assigned length was
 how a blood-pressure column met the ONE form its middle length carried
 and missed the two beside it -- the packing had put almost every group
-at six characters, so no group was left to write `99/99` or `999/999`,
+at six characters, so no group was left to write `%%/%%` or `%%%/%%%`,
 and sixty cells came out of the wide alphabet instead.
 
 **THE CELLS ALREADY WRITTEN PAY THE CENSUS FIRST.** The census counts

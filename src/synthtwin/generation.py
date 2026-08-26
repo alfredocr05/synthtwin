@@ -471,6 +471,15 @@ class _ColumnPlan:
     # filled the groups AROUND those two. So the answer is recorded here
     # rather than assumed again where the bounds are measured.
     carriers: "tuple[int, int]" = _FIRST_TWO
+    # EVERY SPELLING ANY COLUMN OF THIS DOCUMENT CALLS ABSENT. A
+    # declaration made on the command line reaches the WHOLE table, so
+    # a spelling one column publishes among its absent cells means "no
+    # value" in every column -- and the validator reads it that way
+    # (review round 5 finding 3). A stand-in walk that knew only its
+    # own column's holes wrote `group-1` into a second column while a
+    # first published `group-1` as absent, and ten obligations missed
+    # on a twin whose own report said nothing about it.
+    all_holes: "tuple[str, ...]" = ()
 
 
 @dataclasses.dataclass(frozen=True)
@@ -4703,6 +4712,30 @@ def _is_the_same_candidate(spelling: str, candidate: str) -> bool:
     return held == parsing.exact_of_spelling(candidate)
 
 
+def _every_hole_spelling(
+    profile: contract.Profile,
+) -> "tuple[str, ...]":
+    """Every spelling ANY column of this document calls absent.
+
+    A `--missing-value` declaration is made once and reaches the whole
+    table, so a spelling one column publishes among its absent cells
+    means "no value" wherever it appears. The validator reconstructs it
+    that way; a walk that invented spellings knowing only its own
+    column's holes did not, and wrote one column's hole into another
+    column as a present value (review round 5 finding 3).
+
+    Used where a spelling is CHOSEN, never where one is recounted: a
+    recount asks what THIS column's description says, which is the
+    narrower question `_wears_a_published_hole` answers.
+    """
+    found: "list[str]" = []
+    for column in profile.columns:
+        for spelling in _hole_spellings(column):
+            if spelling not in found:
+                found = found + [spelling]
+    return tuple(sorted(found))
+
+
 def _hole_spellings(
     column: contract.ColumnBlock,
 ) -> "tuple[str, ...]":
@@ -6060,7 +6093,7 @@ def _label_content(
         size = facts.suppressed_level_counts[place]
         form = wanted[place]
         number, label = _made_up_label(
-            number, used, owners, form, _hole_spellings(column), walked
+            number, used, owners, form, plan.all_holes, walked
         )
         # WHAT THE LABEL ACTUALLY WEARS, not what it was asked to wear
         # (review round 2 finding 12). The walk gives a form up when
@@ -6666,7 +6699,7 @@ def _filled_form(form: str, step: int) -> str:
     """One spelling of one published form, stepped by ``step``.
 
     THE FORM SAYS THE SHAPE AND THE STEP SAYS WHICH ONE. Every `9` of
-    the form takes a figure and every `A` takes a letter; every other
+    the form takes a figure and every `@` takes a letter; every other
     character stands as itself, because the marks ARE the form. The
     step is taken apart into those positions by plain mixed-radix
     arithmetic, LEFTMOST FIRST, so consecutive steps differ and the
@@ -10617,15 +10650,18 @@ def plan_generation(profile: contract.Profile) -> GenerationPlan:
     """
     plans: list[_ColumnPlan] = []
     words = 0
+    everywhere = _every_hole_spelling(profile)
     for column in profile.columns:
-        plan = _plan_column(column, profile.n_rows)
+        plan = _plan_column(column, profile.n_rows, everywhere)
         plans = plans + [plan]
         words = words + plan.content_words + plan.placement_words
     return GenerationPlan(columns=tuple(plans), words_planned=words)
 
 
 def _plan_column(
-    column: contract.ColumnBlock, n_rows: int
+    column: contract.ColumnBlock,
+    n_rows: int,
+    all_holes: "tuple[str, ...]" = (),
 ) -> "_ColumnPlan":
     """One column's plan: its word budget, its layout, its refusals."""
     facts = column.facts
@@ -10669,6 +10705,7 @@ def _plan_column(
         cells, notes = _unrepresentable_cells(column, groups)
     return _ColumnPlan(
         column=column,
+        all_holes=all_holes,
         content_words=content,
         placement_words=placement,
         layout=layout,

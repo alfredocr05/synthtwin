@@ -683,10 +683,11 @@ def _without_group_separators(text: str) -> "str | None":
 # publish and is not what the form is for.
 SHAPE_FORM_LIMIT = 24
 
-# THE ONLY CHARACTERS A FORM MAY CARRY BESIDE `9` AND `A`, and the list
-# is CLOSED and belongs to this tool (plan P4-D18, review round 1).
-# A cell holding a character the list omits has no form: a space, or
-# a mark no coding scheme uses.
+# THE ONLY CHARACTERS A FORM MAY CARRY BESIDE THE TWO PLACEHOLDERS,
+# and the list
+# is CLOSED and belongs to this tool (plan P4-D18, review round 1). A
+# cell holding a character the list omits has no form: a space, or a
+# mark no coding scheme uses.
 #
 # WHY A CLOSED LIST RATHER THAN "EVERY OTHER CHARACTER STANDS". Because
 # the guarantee this census rests on is that a key carries no fragment
@@ -802,7 +803,7 @@ def shape_form(text: str) -> str:
     `group-14` -- which is not a code, is not the right length, and on
     a column of hyphenated codes even splits into two parts and reads
     as one. A form lets the twin hold something of the right shape
-    without holding anything of the value: `A99.9` says a letter, two
+    without holding anything of the value: `@%%.%` says a letter, two
     figures, a point and a figure, and says nothing about WHICH.
 
     WHAT IT DELIBERATELY WILL NOT DO. A cell has NO FORM when it is
@@ -814,8 +815,8 @@ def shape_form(text: str) -> str:
     and this census is not the place to decide whether that may be
     published. Such a cell answers the empty string.
 
-    Guarantees: accepts any string; returns a form built only from `9`,
-    `A` and `SHAPE_MARKS`, or "" for a cell this census does not
+    Guarantees: accepts any string; returns a form built only from the
+    two placeholders and `SHAPE_MARKS`, or "" for a cell this census does not
     describe. Determinism: the answer depends only on the text. Raises
     TypeError if handed anything that is not a string instance.
     Boundary: no figure and no letter of the cell survives into the
@@ -867,6 +868,29 @@ def shape_form(text: str) -> str:
         # the two.
         return ""
     return form
+
+
+def form_room(name: str) -> int:
+    """How many different cells could have worn this form.
+
+    Every `SHAPE_DIGIT` of it stands for one of ten figures and every
+    `SHAPE_LETTER` for one of fifty-two letters; the marks stand for
+    themselves. So a form is a COUNT of the cells it could have come
+    from, and that count is what says whether naming it tells a reader
+    anything they did not already have.
+
+    Raises TypeError if handed anything that is not a string instance.
+    No I/O of any kind.
+    """
+    if not isinstance(name, str):
+        raise TypeError(_NOT_TEXT)
+    room = 1
+    for character in name:
+        if character == SHAPE_DIGIT:
+            room = room * 10
+        elif character == SHAPE_LETTER:
+            room = room * 52
+    return room
 
 
 def is_a_written_form(name: str) -> bool:

@@ -962,7 +962,14 @@ def test_the_twin_says_so_when_it_cannot_reach_a_published_form() -> None:
     walk refuses every one and gives the form up. The count is missed,
     and now it is SAID.
     """
-    values = ["steady"] * 20 + [f"-{chr(65 + n)}" for n in range(26)]
+    # THE FORM MUST HAVE ROOM TO BE PUBLISHED AT ALL: a form with
+    # fewer possible spellings than the column has values names them,
+    # so it is refused before this rule is reached. `-@%%%` has
+    # fifty-two thousand.
+    values = ["steady"] * 20
+    values = values + [
+        f"-{chr(65 + n % 26)}{n % 1000:03d}" for n in range(26)
+    ]
     values = values + [f"{n:025d}" for n in range(194)]
     _document, described, _folder = _described(values, "code")
     twin = generation.generate(described, 7)
@@ -1126,8 +1133,12 @@ def test_a_form_pass_that_gave_up_under_the_letter_ask_is_put_back() -> None:
     the family cursor's own: put back under the ask, left where it
     stopped without it.
     """
+    # LETTERS EITHER SIDE, so the form has room to be published: a
+    # form with fewer spellings than the column has values names them
+    # and is refused before this rule is reached.
+    letters = "abcdefghijklmnopqrst"
     values = list(dict.fromkeys(
-        [f"{a}-{b}" for a in "0123456789abcdefghij" for b in "0123456789"]
+        [f"{a}-{b}" for a in letters for b in letters]
     ))[:200]
     values = values + [f"X{n:02d}" for n in range(20)]
     values = values + [f"x{n:02d}" for n in range(20)]
@@ -1438,3 +1449,78 @@ def test_a_very_long_tail_costs_the_run_nothing_to_arrange() -> None:
     )
     assert time.monotonic() - began < 5.0
     assert len(taken) == 100000
+
+
+def test_a_form_with_few_possible_spellings_is_not_named() -> None:
+    """THE DEEPEST THING FIVE ADVERSARIAL READS FOUND HERE.
+
+    `%-` has exactly TEN cells that could have worn it, `0-` through
+    `9-`. A column holding all ten, nine of them often enough to
+    publish, names those nine and holds one back -- and a reader with
+    the form and the nine knows the tenth EXACTLY. Worse in free text:
+    a hundred values `0-0` through `9-9` all wear `%-%`, which has
+    exactly a hundred spellings, so the census hands over the complete
+    value set of a role that promises no value at all.
+
+    THE TEST IS OVER PUBLISHED FACTS ONLY, which is what makes it safe
+    where the collision rule was not: `form_room` is a property of the
+    FORM, and `n_distinct` and the floor are already on the page, so a
+    reader can work out for themselves which forms are refused -- and
+    an absence they can predict tells them nothing.
+    """
+    values = []
+    for figure in "012345678":
+        values = values + [f"{figure}-"] * 11
+    values = values + ["9-"]
+    document, _loaded, _folder = _described(values, "code")
+    assert document["columns"][0]["shape_forms"] == {}
+
+    every = [f"{a}-{b}" for a in "0123456789" for b in "0123456789"]
+    document, _loaded, _folder = _described(every, "code")
+    assert document["columns"][0]["role"] == "free_text"
+    assert document["columns"][0]["shape_forms"] == {}
+
+    # ...and every real coding scheme is untouched, because its form
+    # has room for far more cells than the column holds values.
+    assert parsing.form_room("@%%.%") == 52 * 1000
+    assert parsing.form_room("%%%%-%") == 100000
+    assert parsing.form_room("%-") == 10
+    for values, name, wanted in (
+        ([f"{1000 + n * 13}-{n % 10}" for n in range(240)], "lab", "%%%%-%"),
+        ([f"{n % 99999:05d}-{n % 9999:04d}-{n % 99:02d}" for n in range(240)],
+         "ndc", "%%%%%-%%%%-%%"),
+    ):
+        document, _loaded, _folder = _described(values, name)
+        assert wanted in document["columns"][0]["shape_forms"], name
+
+
+def test_a_stand_in_avoids_a_hole_declared_on_another_column() -> None:
+    """A DECLARATION IS MADE ONCE AND REACHES THE WHOLE TABLE.
+
+    One column publishes `group-1` among its absent cells; a second
+    column's stand-in walk, knowing only its OWN column's holes, wrote
+    `group-1` as a present value. The validator reconstructs the
+    declaration document-wide and counted that cell absent -- ten
+    obligations missed on a twin whose own report said nothing about
+    it (review round 5 finding 3).
+    """
+    folder = pathlib.Path(tempfile.mkdtemp())
+    rows = [["group-1", "alpha"] for _each in range(11)] + [["yes", "beta"]]
+    table = fixtures.write(
+        folder, "thing.csv", fixtures.rows_to_csv(["a", "b"], rows)
+    )
+    settings = taxonomy.Settings(declared_missing_values=("group-1",))
+    document = profile.build_document(
+        reading.read_table(f"{table}"), settings, []
+    )
+    written = fixtures.write_profile(folder, "thing.json", document)
+    described = contract.load_profile(f"{written}")
+    twin = generation.generate(described, 7)
+    assert "group-1" not in set(twin.columns[1])
+    twin_file = fixtures.write(folder, "twin.csv", rendering.twin_csv(twin))
+    outcome = validation.measure(described, f"{twin_file}")
+    assert [
+        check.subcheck
+        for check in outcome.checks
+        if check.verdict == validation.MISSED
+    ] == []
