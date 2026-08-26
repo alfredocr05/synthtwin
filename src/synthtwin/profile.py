@@ -368,6 +368,7 @@ def _settings_block(
     settings: taxonomy.Settings,
     forced_identifiers: list[str],
     forced_codes: list[str],
+    forced_measurements: list[str],
 ) -> dict[str, object]:
     """The rules that produced this profile, recorded inside it.
 
@@ -416,6 +417,12 @@ def _settings_block(
         # can use. Unlike `forced_identifiers` it does NOT silence the
         # column: the distribution is the point of declaring it.
         "forced_codes": sorted(forced_codes),
+        # THE THIRD DECLARATION (plan P4-D21). Named columns hold
+        # quantities, including ones written as two or more whole
+        # numbers in one cell -- a blood pressure. Where the column is
+        # written that way it takes the `joined_numbers` role; where it
+        # is not, this decides nothing.
+        "forced_measurements": sorted(forced_measurements),
     }
 
 
@@ -687,6 +694,8 @@ PUBLICATION_RULES: "dict[tuple[str, ...], str]" = {
     ("settings", "forced_identifiers", _EACH): _KNOWN_NAME,
     ("settings", "forced_codes"): _ARRAY,
     ("settings", "forced_codes", _EACH): _KNOWN_NAME,
+    ("settings", "forced_measurements"): _ARRAY,
+    ("settings", "forced_measurements", _EACH): _KNOWN_NAME,
     # How the table was read.
     ("source",): _OBJECT,
     ("source", "encoding"): _WORD,
@@ -787,6 +796,42 @@ PUBLICATION_RULES: "dict[tuple[str, ...], str]" = {
     ("columns", _EACH, "n_used_in_statistics"): _COUNT,
     ("columns", _EACH, "n_left_out_of_statistics"): _COUNT,
     ("columns", _EACH, "numeric_share"): _NUMBER,
+    # THE JOINED-NUMBER ROLE (plan P4-D21). `separator` is a spelling
+    # the table's cells wear, admitted on exactly the terms the affix
+    # pair is; `parts` holds one quantitative block per position, so
+    # every numeric key is repeated one level down. `n_joined`,
+    # `n_parts` and `n_unparsed` answer for the CELLS.
+    ("columns", _EACH, "separator"): _AFFIX,
+    ("columns", _EACH, "n_parts"): _COUNT,
+    ("columns", _EACH, "n_joined"): _COUNT,
+    ("columns", _EACH, "part_min_widths"): _ARRAY,
+    ("columns", _EACH, "part_min_widths", _EACH): _COUNT,
+    ("columns", _EACH, "parts"): _ARRAY,
+    ("columns", _EACH, "parts", _EACH): _OBJECT,
+    ("columns", _EACH, "parts", _EACH, "percentiles"): _OBJECT,
+    ("columns", _EACH, "parts", _EACH, "percentiles", _KEY_OF): _WORD,
+    ("columns", _EACH, "parts", _EACH, "percentiles", _ANY_KEY): _MAYBE_NUMBER,
+    ("columns", _EACH, "parts", _EACH, "mean"): _MAYBE_NUMBER,
+    ("columns", _EACH, "parts", _EACH, "std"): _MAYBE_NUMBER,
+    ("columns", _EACH, "parts", _EACH, "skew"): _MAYBE_NUMBER,
+    ("columns", _EACH, "parts", _EACH, "std_unrepresentable"): _FLAG,
+    ("columns", _EACH, "parts", _EACH, "n_zero"): _COUNT,
+    ("columns", _EACH, "parts", _EACH, "n_negative"): _COUNT,
+    ("columns", _EACH, "parts", _EACH, "n_negative_unrepresentable"): _COUNT,
+    ("columns", _EACH, "parts", _EACH, "n_rows"): _COUNT,
+    ("columns", _EACH, "parts", _EACH, "integer_valued"): _FLAG,
+    ("columns", _EACH, "parts", _EACH, "n_used_in_statistics"): _COUNT,
+    ("columns", _EACH, "parts", _EACH, "n_left_out_of_statistics"): _COUNT,
+    ("columns", _EACH, "parts", _EACH, "numeric_share"): _NUMBER,
+    ("columns", _EACH, "parts", _EACH, "numeric_styles"): _OBJECT,
+    ("columns", _EACH, "parts", _EACH, "numeric_styles", _KEY_OF): _WORD,
+    ("columns", _EACH, "parts", _EACH, "numeric_styles", _ANY_KEY): _FLOORED_ENTRY,
+    ("columns", _EACH, "parts", _EACH, "fraction_widths"): _OBJECT,
+    ("columns", _EACH, "parts", _EACH, "fraction_widths", _KEY_OF): _WIDTH,
+    ("columns", _EACH, "parts", _EACH, "fraction_widths", _ANY_KEY): _FLOORED_ENTRY,
+    ("columns", _EACH, "parts", _EACH, "pad_widths"): _OBJECT,
+    ("columns", _EACH, "parts", _EACH, "pad_widths", _KEY_OF): _WIDTH,
+    ("columns", _EACH, "parts", _EACH, "pad_widths", _ANY_KEY): _FLOORED_ENTRY,
     # The affixed-number role: the pair it publishes, how many cells
     # wore it, and the four counts that answer for the CORES rather
     # than for the cells.
@@ -916,6 +961,14 @@ PUBLICATION_WORDS: "dict[tuple[str, ...], tuple[str, ...]]" = {
         taxonomy.SENTINEL_REASONS
     ),
     ("columns", _EACH, "percentiles", _KEY_OF): taxonomy.LADDER_NAMES,
+    # THE SAME TWO VOCABULARIES ONE LEVEL DOWN (plan P4-D21). A joined
+    # column's `parts` holds one quantitative block per position, and a
+    # block there publishes the same maps a top-level one does -- so the
+    # words admitted in its keys are the same words, named again because
+    # this table is matched on the whole path.
+    ("columns", _EACH, "parts", _EACH, "percentiles", _KEY_OF): (
+        taxonomy.LADDER_NAMES
+    ),
     ("columns", _EACH, "date_percentiles", _KEY_OF): taxonomy.LADDER_NAMES,
     ("columns", _EACH, "clock_percentiles", _KEY_OF): taxonomy.LADDER_NAMES,
     # Read from the one place the two forms are named, so the word a
@@ -925,6 +978,9 @@ PUBLICATION_WORDS: "dict[tuple[str, ...], tuple[str, ...]]" = {
     ("columns", _EACH, "length", _KEY_OF): taxonomy.LENGTH_KEYS,
     ("columns", _EACH, "words", _KEY_OF): taxonomy.WORD_KEYS,
     ("columns", _EACH, "numeric_styles", _KEY_OF): (
+        taxonomy.NUMERIC_STYLES + (taxonomy.SUPPRESSED_LABEL,)
+    ),
+    ("columns", _EACH, "parts", _EACH, "numeric_styles", _KEY_OF): (
         taxonomy.NUMERIC_STYLES + (taxonomy.SUPPRESSED_LABEL,)
     ),
     ("columns", _EACH, "format"): parsing.DATE_FORMATS,
@@ -1434,7 +1490,7 @@ def _affix_notes_are_bound(document: "dict[str, object]") -> None:
     columns = document["columns"] if "columns" in document else None
     if not isinstance(columns, list):
         return
-    pairs: "dict[str, tuple[str, str]]" = {}
+    pairs: "dict[str, dict[int, str]]" = {}
     for block in columns:
         if not isinstance(block, dict):
             continue
@@ -1446,7 +1502,18 @@ def _affix_notes_are_bound(document: "dict[str, object]") -> None:
             and isinstance(prefix, str)
             and isinstance(suffix, str)
         ):
-            pairs[name] = (prefix, suffix)
+            pairs[name] = {0: prefix, 1: suffix}
+        # THE JOINED-NUMBER ROLE BINDS ONE PLACE, NOT TWO (plan
+        # P4-D21). Its sentence names the character its cells are split
+        # on, at argument 3, and that character is published in the same
+        # block under `separator` -- so the binding is the same rule
+        # read against a different key, and the table above is keyed by
+        # POSITION rather than by side so that adding one did not mean
+        # loosening the check to "one of the spellings this column
+        # publishes", which the swap case rules out.
+        separator = block["separator"] if "separator" in block else None
+        if isinstance(name, str) and isinstance(separator, str):
+            pairs[name] = {2: separator}
     for block in columns:
         if not isinstance(block, dict):
             continue
@@ -1502,20 +1569,28 @@ def _no_affix_stands_outside_a_column(sentence: object) -> None:
 
 
 def _one_affix_note_is_bound(
-    sentence: object, column: str, pairs: "dict[str, tuple[str, str]]"
+    sentence: object, column: str, pairs: "dict[str, dict[int, str]]"
 ) -> None:
-    """One sentence, checked against the pair of the column it names."""
+    """One sentence, checked against the spellings its column publishes.
+
+    POSITIONAL, and the table is keyed by position for that reason: a
+    sentence saying cells read `kg`, a number, then `$` misdescribes
+    the column while passing any test that asks only whether the text
+    is one of the two the column carries.
+    """
     if not isinstance(sentence, taxonomy.Note):
         return
     for place, argument in enumerate(sentence.arguments):
         if not taxonomy.takes_a_bound_affix(sentence.form, place):
             continue
         if column not in pairs:
-            # A sentence carrying an affix spelling about a column that
-            # publishes no pair has nothing to be bound to.
+            # A sentence carrying such a spelling about a column that
+            # publishes none has nothing to be bound to.
             raise _refuse(("columns", "[]", "affix argument"))
-        side = pairs[column][0] if place == 0 else pairs[column][1]
-        if argument != side:
+        bound = pairs[column]
+        if place not in bound:
+            raise _refuse(("columns", "[]", "affix argument"))
+        if argument != bound[place]:
             raise _refuse(("columns", "[]", "affix argument"))
 
 
@@ -1586,6 +1661,7 @@ def build_document(
     settings: taxonomy.Settings,
     forced_identifiers: list[str],
     forced_codes: list[str] | None = None,
+    forced_measurements: list[str] | None = None,
 ) -> dict[str, object]:
     """Describe a whole table: the profile document, ready to serialize.
 
@@ -1612,6 +1688,9 @@ def build_document(
       above states the scope of the settings rule exactly.
     """
     declared_codes = [] if forced_codes is None else forced_codes
+    declared_measurements = (
+        [] if forced_measurements is None else forced_measurements
+    )
     columns: list[dict[str, object]] = []
     notes: list[dict[str, str]] = []
     for position, name in enumerate(table.column_names, start=1):
@@ -1623,6 +1702,7 @@ def build_document(
             settings,
             name in forced_identifiers,
             name in declared_codes,
+            name in declared_measurements,
         )
         columns = columns + [_column_block(described)]
         for note in described.publication_notes:
@@ -1631,7 +1711,10 @@ def build_document(
         "profile_version": PROFILE_VERSION,
         "created_with": _version(),
         "settings": _settings_block(
-            settings, forced_identifiers, declared_codes
+            settings,
+            forced_identifiers,
+            declared_codes,
+            declared_measurements,
         ),
         # How the table was read. It belongs in the profile because the
         # twin has to be written in a form the same tools can open, and

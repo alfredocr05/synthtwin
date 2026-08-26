@@ -4449,6 +4449,280 @@ def _core_view(column: "contract.ColumnBlock") -> "contract.ColumnBlock":
     )
 
 
+def _part_view(
+    column: "contract.ColumnBlock", place: int
+) -> "contract.ColumnBlock":
+    """One position of a joined column, as a numeric column of its own.
+
+    The same trick `_core_view` plays for the affixed role, and for the
+    same reason: a joined column has one population PER POSITION, and
+    the numeric machinery is written over one population. A cell
+    reading `120/80` is not itself a number, so the universal counts
+    say the column holds none; the quantitative block for position one
+    answers for the first numbers alone.
+
+    Handing each position over as a column in its own right means the
+    ladder, the mean, the spread, the styles and the widths of every
+    number in the twin are built by exactly the code that builds a
+    plain numeric column. Nothing about the arithmetic is written twice.
+    """
+    facts = column.facts
+    if not isinstance(facts, contract.JoinedFacts):
+        raise _wrong_facts(column.name)
+    return dataclasses.replace(
+        column,
+        statistical_type="continuous",
+        n_present=facts.n_joined,
+        n_numeric=facts.n_joined,
+        n_not_numeric=0,
+        n_out_of_range=0,
+        n_contradictory=0,
+        facts=facts.parts[place],
+    )
+
+
+def _padded_to(text: str, width: int) -> str:
+    """One number written at least `width` characters wide.
+
+    A position whose smallest published width is wider than the number
+    needs was WRITTEN padded -- `007` beside `080` -- so the twin pads
+    it back. A position whose widths differ because its numbers differ
+    publishes the width of its smallest number, and nothing is added.
+    """
+    out = text
+    while len(out) < width:
+        out = "0" + out
+    return out
+
+
+def _joined_written(
+    drawn: "list[list[str]]", facts: "contract.JoinedFacts", row: int
+) -> str:
+    """One cell of a joined column, from the numbers each position drew."""
+    written = ""
+    for place in range(facts.n_parts):
+        if place:
+            written = written + facts.separator
+        held = drawn[place]
+        text = held[row] if row < len(held) else "0"
+        written = written + _padded_to(text, facts.part_min_widths[place])
+    return written
+
+
+def _repaired_pairing(
+    drawn: "list[list[str]]", facts: "contract.JoinedFacts", wanted: int
+) -> "list[list[str]]":
+    """Break enough repeated pairs to reach the published `n_distinct`.
+
+    THE SHUFFLE GETS CLOSE AND NOT EXACT, and `n_distinct` is an exact
+    obligation. On the demonstration table's blood pressure column the
+    shuffle reached 381 different cells where the description publishes
+    387: the positions' own multisets admit both, and which one comes
+    out is an accident of the draw.
+
+    So the accident is corrected. A cell that repeats one already
+    written has its LAST number swapped with some other row's, and the
+    swap is taken only where BOTH rows come out holding a cell nothing
+    else holds. Swapping keeps every position's multiset exactly, so no
+    published number about any position moves -- only the pairing does,
+    which is the thing the description does not constrain.
+
+    IT GOES BOTH WAYS. The shuffle can land above the published count
+    as easily as below -- measured, a column publishing 380 different
+    readings came out with 390 -- so a swap is taken whenever it moves
+    the count CLOSER to the published one, in whichever direction that
+    is. Too many different cells is as wrong as too few: both are a
+    fact the description states exactly and the twin can meet.
+
+    Bounded by construction: every swap taken moves the count strictly
+    closer to the target, a pass that moves nothing ends the walk, and
+    a ceiling on the swaps stops it whatever happens.
+    """
+    last = facts.n_parts - 1
+    if last < 1:
+        return drawn
+    total = facts.n_joined
+    held = [[value for value in column] for column in drawn]
+    written = [_joined_written(held, facts, row) for row in range(total)]
+    seen: "dict[str, int]" = {}
+    for text in written:
+        seen[text] = seen[text] + 1 if text in seen else 1
+
+    def _take(text: str) -> None:
+        seen[text] = seen[text] - 1
+        if seen[text] < 1:
+            del seen[text]
+
+    def _give(text: str) -> None:
+        seen[text] = seen[text] + 1 if text in seen else 1
+
+    # PASSES, NOT ONE WALK. A single pass over the rows leaves the count
+    # short where the row it needed to swap with came earlier than the
+    # row it was looking at; walking again from the top finds it. The
+    # walk stops when a whole pass moves nothing, so it cannot spin.
+    swaps = 0
+    ceiling = total * total + total
+    moving = True
+    while len(seen) != wanted and moving and swaps < ceiling:
+        moving = False
+        row = 0
+        while row < total and len(seen) != wanted:
+            # A row worth moving is one that repeats when there are too
+            # FEW different cells, and any row at all when there are too
+            # many -- the walk goes both ways, because the shuffle can
+            # land on either side of the published count.
+            if len(seen) < wanted and seen[written[row]] < 2:
+                row = row + 1
+                continue
+            other = 0
+            while other < total:
+                if other == row or held[last][other] == held[last][row]:
+                    other = other + 1
+                    continue
+                before = len(seen)
+                keep_row = held[last][row]
+                keep_other = held[last][other]
+                held[last][row] = keep_other
+                held[last][other] = keep_row
+                made_row = _joined_written(held, facts, row)
+                made_other = _joined_written(held, facts, other)
+                _take(written[row])
+                _take(written[other])
+                _give(made_row)
+                _give(made_other)
+                closer = abs(len(seen) - wanted) < abs(before - wanted)
+                if closer:
+                    written[row] = made_row
+                    written[other] = made_other
+                    swaps = swaps + 1
+                    moving = True
+                    break
+                # Put it back, exactly as it was.
+                _take(made_row)
+                _take(made_other)
+                held[last][row] = keep_row
+                held[last][other] = keep_other
+                _give(written[row])
+                _give(written[other])
+                other = other + 1
+            row = row + 1
+    return held
+
+
+def _joined_content(
+    plan: "_ColumnPlan", words: "list[int]"
+) -> "tuple[list[str], list[Deviation]]":
+    """Every present cell of a joined-number column (contract 6.13).
+
+    Each position is built first, by the numeric rules, over that
+    position's view of this column. The separator goes on afterwards,
+    character for character as the description publishes it, and each
+    number is padded back to the smallest width its position was
+    written at.
+
+    THE POSITIONS ARE DRAWN INDEPENDENTLY, and that is a limit worth
+    stating rather than hiding: this format publishes no structure
+    between one position and another, so nothing in the description
+    says that a high first number went with a high second one. The
+    twin's pairs are therefore believable ONE NUMBER AT A TIME. That is
+    the same promise the whole format makes between columns (contract
+    4.6, S12), arriving inside a cell.
+    """
+    column = plan.column
+    facts = column.facts
+    if not isinstance(facts, contract.JoinedFacts):
+        raise _wrong_facts(column.name)
+    notes: "list[Deviation]" = []
+    drawn: "list[list[str]]" = []
+    # EACH POSITION DRAWS ITS OWN WORDS, and that is what makes the
+    # pairs pairs. Handing every position the same list was measured
+    # first and is wrong twice: each drew the same words, so position
+    # two moved in lockstep with position one -- a 400-row column whose
+    # real cells hold 387 different readings came out with 117, in runs
+    # like `105/63`, `104/63`. The marginals were right either way; the
+    # PAIRING was an artefact of the word stream. The plan's word budget
+    # is the sum of what the positions need, so this walks it.
+    at = 0
+    for place in range(facts.n_parts):
+        view = _part_view(column, place)
+        layout, layout_notes, part_content = _numeric_layout(
+            view, facts.parts[place]
+        )
+        part_words: "list[int]" = []
+        step = 0
+        while step < part_content and at + step < len(words):
+            part_words = part_words + [words[at + step]]
+            step = step + 1
+        at = at + part_content
+        part_plan = dataclasses.replace(plan, column=view, layout=layout)
+        values, part_notes = _numeric_content(part_plan, part_words)
+        notes = notes + layout_notes + part_notes
+        # EVERY POSITION AFTER THE FIRST IS SHUFFLED AGAINST IT, and
+        # this is the step that makes a pair a pair. `_numeric_content`
+        # places its values by rule, not by chance -- the words decide
+        # arrangement, not which numbers come out -- so two positions
+        # built from it come out in the SAME order and pair up in
+        # lockstep. Measured: a column whose real cells hold 387
+        # different readings came out with 117, in runs like `105/63`,
+        # `104/63`, while each position's own distribution was right to
+        # the digit.
+        #
+        # A shuffle keeps every position's MULTISET exactly, so every
+        # published number about it -- ladder, mean, spread, styles,
+        # widths -- is untouched, and only the pairing moves. It is the
+        # honest choice among the pairings the description admits: this
+        # format publishes no structure between one position and
+        # another (contract 4.6, S12), so no pairing is asked for, and
+        # the one that also meets the published `n_distinct` is better
+        # than one that does not. A fixed reversal would meet it too and
+        # would invent a strong negative correlation nothing published
+        # says is there.
+        if place:
+            shuffle: "list[int]" = []
+            step = 0
+            while step < len(values) - 1 and at + step < len(words):
+                shuffle = shuffle + [words[at + step]]
+                step = step + 1
+            at = at + max(len(values) - 1, 0)
+            if len(shuffle) >= max(len(values) - 1, 0):
+                order = _arrangement(shuffle, len(values))
+                values = [values[seat] for seat in order]
+        drawn = drawn + [values]
+    drawn = _repaired_pairing(drawn, facts, column.n_distinct)
+    cells: "list[str]" = []
+    for row in range(facts.n_joined):
+        cells = cells + [_joined_written(drawn, facts, row)]
+    # THE CELLS THAT SPLIT NO SUCH WAY -- the stragglers the parse line
+    # tolerated. The description says how MANY there were and nothing
+    # else about them, so they are invented, and invention is what they
+    # are reported as.
+    stragglers = column.n_present - facts.n_joined
+    if stragglers > 0:
+        used: "dict[str, int]" = {cell: 1 for cell in cells}
+        cells = cells + _class_spellings(
+            _CLASS_TEXT,
+            stragglers,
+            1,
+            1,
+            0,
+            used,
+            _hole_spellings(column),
+        )
+        notes = notes + [
+            _deviation(
+                column.name,
+                "n_unparsed",
+                f"{stragglers} value(s) that are not numbers joined this "
+                "way",
+                "made-up text stands in for them",
+                "This column holds some cells that do not split into "
+                "whole numbers. The description records how many and "
+                "nothing else about them, so the twin invents them.",
+            )
+        ]
+    return cells, notes
+
+
 def _affixed_content(
     plan: "_ColumnPlan", words: "list[int]"
 ) -> "tuple[list[str], list[Deviation]]":
@@ -10765,7 +11039,23 @@ def _plan_column(
     cells: list[str] = []
     carriers = _FIRST_TWO
     content = 0
-    if isinstance(facts, contract.AffixedFacts):
+    if isinstance(facts, contract.JoinedFacts):
+        # ONE LAYOUT PER POSITION, so the plan holds none of its own and
+        # `_joined_content` builds each where it builds that position's
+        # numbers. What is settled here is the WORD BUDGET, which the
+        # capacity question needs before any cell exists: it is the sum
+        # of what each position will draw.
+        for place in range(facts.n_parts):
+            _each, each_notes, each_content = _numeric_layout(
+                _part_view(column, place), facts.parts[place]
+            )
+            notes = notes + each_notes
+            content = content + each_content
+            # ...and the words that shuffle this position against the
+            # first, which every position after it needs.
+            if place:
+                content = content + max(facts.n_joined - 1, 0)
+    elif isinstance(facts, contract.AffixedFacts):
         # The layout is the CORES' -- see `_core_view`.
         core = _core_view(column)
         layout, notes, content = _numeric_layout(core, facts.numbers)
@@ -11060,6 +11350,8 @@ def _content_of(
         return _numeric_content(plan, words)
     if kind == "affixed_number":
         return _affixed_content(plan, words)
+    if kind == "joined_numbers":
+        return _joined_content(plan, words)
     if kind == "time_of_day":
         return _clock_content(plan, words)
     if kind == "datetime":

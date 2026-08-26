@@ -155,6 +155,7 @@ SETTINGS_KEYS = (
     "declared_missing_values",
     "forced_codes",
     "forced_identifiers",
+    "forced_measurements",
     "identifier_minimum_rows",
     "identifier_uniqueness",
     "kept_values",
@@ -265,6 +266,10 @@ ROLE_IDENTIFIER = "identifier"
 ROLE_CLOCK = "time_of_day"
 ROLE_AFFIXED = "affixed_number"
 ROLE_LONG_TAIL = "long_tail_labels"
+# THE FOURTEENTH ROLE (plan P4-D21). Two or more whole numbers written
+# in one cell and joined by one repeated separator. Reached only where
+# the person named the column with `--measurement`, never from values.
+ROLE_JOINED = "joined_numbers"
 ROLE_TEXT = "free_text"
 
 # The lower bound of the long-tail detection line (plan P4-D5). The
@@ -287,6 +292,7 @@ ROLES = (
     ROLE_CLOCK,
     ROLE_AFFIXED,
     ROLE_LONG_TAIL,
+    ROLE_JOINED,
     ROLE_TEXT,
 )
 
@@ -322,6 +328,12 @@ AXIS_ROWS = (
     # and a role sharing another's type breaks the totality discipline
     # the axes exist for.
     (ROLE_LONG_TAIL, ROLE_LONG_TAIL, "ok"),
+    # AND SO DOES THIS ONE, for the same reason (plan P4-D21). Fourteen
+    # roles onto fourteen types now. Its shape is neither `count` nor
+    # `continuous`: both name ONE number per cell, and a consumer that
+    # read this column as either would take the whole cell for a value
+    # and find that `120/80` is not one.
+    (ROLE_JOINED, ROLE_JOINED, "ok"),
     (ROLE_TEXT, "text", "ok"),
 )
 
@@ -338,6 +350,7 @@ STATISTICAL_TYPES = (
     "time_of_day",
     "affixed_number",
     "long_tail_labels",
+    "joined_numbers",
     "text",
 )
 
@@ -449,6 +462,27 @@ AFFIXED_KEYS = NUMERIC_KEYS + (
     "n_core_not_numeric",
     "n_core_numeric",
     "n_core_out_of_range",
+)
+
+# The joined-number role's own six. `separator` is the one key of this
+# role that carries a spelling off the table's cells, on exactly the
+# terms `affix_prefix` and `affix_suffix` carry theirs, and the
+# forbidden-key rule is what stops a seventh. `parts` holds one block of
+# NUMERIC_KEYS per position, in cell order, so the ladder and the mean
+# a consumer reads are the same ones every quantitative role publishes.
+# The characters a joined cell may be split on. Fixed and short, and
+# deliberately without the point and the comma: both are written INSIDE
+# numbers this format already reads, and admitting either would make
+# every decimal column a candidate pair.
+JOINED_SEPARATORS = ("/", "-", ":", "|", ";", "_")
+
+JOINED_KEYS = (
+    "n_joined",
+    "n_parts",
+    "n_unparsed",
+    "part_min_widths",
+    "parts",
+    "separator",
 )
 
 UNREPRESENTABLE_KEYS = (
@@ -1111,6 +1145,11 @@ class SettingsBlock:
     # or a number wearing an affix, and onto the label roles, where the
     # exact spellings and their counts are what get published.
     forced_codes: "tuple[str, ...]"
+    # THE THIRD DECLARATION (plan P4-D21). Columns the person named as
+    # holding quantities, including ones written as two or more whole
+    # numbers in one cell. Like `forced_codes` and unlike
+    # `forced_identifiers` it does not silence a column.
+    forced_measurements: "tuple[str, ...]"
 
 
 @dataclasses.dataclass(frozen=True)
@@ -1422,6 +1461,34 @@ class AffixedFacts:
 
 
 @dataclasses.dataclass(frozen=True)
+class JoinedFacts:
+    """Two or more whole numbers written in one cell (contract 6.13).
+
+    TWO POPULATIONS, as `AffixedFacts` has. `parts` holds one
+    quantitative block PER POSITION, each read over that position's
+    numbers alone, so the ladder a consumer reads for the first number
+    is a ladder of first numbers and nothing else. `n_joined` and
+    everything the universal keys count answer for the CELLS.
+
+    `separator` is the one key of this role that carries a spelling of
+    the table, on exactly the terms the affixed role's pair does, and
+    the forbidden-key rule is what confines it to that key.
+
+    `part_min_widths` is what tells a padded position from a plain one:
+    `95` and `133` differ in width because the NUMBERS differ, while a
+    padded position writes `007` and `080` at one width whatever the
+    number. It is a width and never a spelling.
+    """
+
+    parts: "tuple[NumericFacts, ...]"
+    separator: str
+    n_parts: int
+    n_joined: int
+    n_unparsed: int
+    part_min_widths: "tuple[int, ...]"
+
+
+@dataclasses.dataclass(frozen=True)
 class ClockFacts:
     """A column of clock times (contract section 6, the clock role).
 
@@ -1452,6 +1519,7 @@ ColumnFacts = (
     | TextFacts
     | AffixedFacts
     | ClockFacts
+    | JoinedFacts
 )
 
 
@@ -3020,6 +3088,24 @@ def _settings(value: object) -> SettingsBlock:
             )
         declared = declared + [found]
         place = place + 1
+    declared_measurements: list[str] = []
+    measured_names = _listing(
+        mapping["forced_measurements"], "forced_measurements", where
+    )
+    place = 0
+    for name in measured_names:
+        found = _text(name, f"forced_measurements[{place}]", where)
+        if declared_measurements and found <= declared_measurements[
+            len(declared_measurements) - 1
+        ]:
+            raise _out_of_range(
+                "forced_measurements",
+                where,
+                f"'{found}'",
+                "names in rising order, each of them once",
+            )
+        declared_measurements = declared_measurements + [found]
+        place = place + 1
     declared_codes: list[str] = []
     code_names = _listing(mapping["forced_codes"], "forced_codes", where)
     place = 0
@@ -3093,6 +3179,7 @@ def _settings(value: object) -> SettingsBlock:
         ),
         forced_identifiers=tuple(declared),
         forced_codes=tuple(declared_codes),
+        forced_measurements=tuple(declared_measurements),
     )
     # C5-K4 LAST, because it is the one rule here that needs BOTH
     # records: every other check is about one entry and is raised where
@@ -3795,6 +3882,8 @@ def _role_keys(role: str) -> "tuple[str, ...]":
         return NUMERIC_KEYS
     if role == ROLE_CLOCK:
         return CLOCK_KEYS
+    if role == ROLE_JOINED:
+        return JOINED_KEYS
     if role == ROLE_AFFIXED:
         return AFFIXED_KEYS
     if role == ROLE_IDENTIFIER:
@@ -3853,6 +3942,8 @@ def _facts(
         )
     if role == ROLE_CLOCK:
         return _clock_facts(mapping, where, frame, n_present)
+    if role == ROLE_JOINED:
+        return _joined_facts(mapping, where, frame, n_present)
     if role == ROLE_AFFIXED:
         return _affixed_facts(mapping, where, frame, n_present, remarks)
     if role == ROLE_IDENTIFIER:
@@ -5758,6 +5849,110 @@ def _line_count(share: float, total: int) -> int:
     return whole
 
 
+def _joined_facts(
+    mapping: "dict[str, object]",
+    where: str,
+    frame: _Frame,
+    n_present: int,
+) -> JoinedFacts:
+    """Read a joined-number block (contract 6.13, plan P4-D21).
+
+    Six invariants, and each one is a fact the producer cannot have
+    written otherwise:
+
+    - J1: `separator` is ONE character of the admitted list. A longer
+      one, or one outside the list, describes a split this format does
+      not perform.
+    - J2: `n_parts` is at least two. One part is a bare number, which
+      is a different role.
+    - J3: `n_joined` and `n_unparsed` are a partition of the present
+      cells, and `n_joined` clears the detection line -- the role was
+      given because that many cells split this way, so a block claiming
+      it with fewer describes a column the producer would have declined.
+    - J4: `parts` and `part_min_widths` each hold exactly `n_parts`
+      entries, in cell order.
+    - J5: every part block is read by the SAME reader every
+      quantitative role's block is read by, over `n_joined` values.
+    - J6: every published width is at least one character.
+    """
+    separator = _text(mapping["separator"], "separator", where)
+    if len(separator) != 1 or separator not in JOINED_SEPARATORS:
+        raise _out_of_range(
+            "separator", where, f"'{separator}'",
+            "one of the characters this format splits a joined cell on",
+        )
+    n_parts = _bounded(
+        mapping["n_parts"], "n_parts", where, 2, n_present + 2,
+        "at least two numbers in a cell",
+    )
+    n_joined = _bounded(
+        mapping["n_joined"], "n_joined", where, 0, n_present,
+        "the number of values the column holds",
+    )
+    n_unparsed = _bounded(
+        mapping["n_unparsed"], "n_unparsed", where, 0, n_present,
+        "the number of values the column holds",
+    )
+    if n_joined + n_unparsed != n_present:
+        raise _out_of_range(
+            "n_joined", where, f"a total of {n_joined + n_unparsed}",
+            f"a total of {n_present}, the number of values the column "
+            "holds: every present cell either splits this way or does not",
+        )
+    line = _line_count(frame.parse_rate, n_present)
+    if n_joined < line:
+        raise _out_of_range(
+            "n_joined", where, f"{n_joined}",
+            f"at least {line}, the number of this column's values that "
+            "had to split into whole numbers for it to be read this way "
+            "at all",
+        )
+    widths_read = _listing(
+        mapping["part_min_widths"], "part_min_widths", where
+    )
+    if len(widths_read) != n_parts:
+        raise _out_of_range(
+            "part_min_widths", where, f"{len(widths_read)} width(s)",
+            f"{n_parts}, one for each number in a cell",
+        )
+    widths: "list[int]" = []
+    place = 0
+    for value in widths_read:
+        widths = widths + [
+            _bounded(
+                value, f"part_min_widths[{place}]", where, 1, 4096,
+                "a width of at least one character",
+            )
+        ]
+        place = place + 1
+    blocks_read = _listing(mapping["parts"], "parts", where)
+    if len(blocks_read) != n_parts:
+        raise _out_of_range(
+            "parts", where, f"{len(blocks_read)} block(s)",
+            f"{n_parts}, one for each number in a cell",
+        )
+    blocks: "list[NumericFacts]" = []
+    place = 0
+    for value in blocks_read:
+        seat = f"parts[{place}]"
+        block = _mapping(value, seat, where)
+        _keys(block, where, NUMERIC_KEYS, f"the block for {seat}")
+        blocks = blocks + [
+            _numeric_facts(
+                block, f"{where}, {seat}", frame, n_joined, n_joined, 0, 0
+            )
+        ]
+        place = place + 1
+    return JoinedFacts(
+        parts=tuple(blocks),
+        separator=separator,
+        n_parts=n_parts,
+        n_joined=n_joined,
+        n_unparsed=n_unparsed,
+        part_min_widths=tuple(widths),
+    )
+
+
 def _affixed_facts(
     mapping: "dict[str, object]",
     where: str,
@@ -6022,6 +6217,14 @@ def _cross_checks(
                 "S8",
                 "in the block of rules that produced the description",
                 f"'{name}' is named as holding codes",
+                "this table has no column of that name",
+            )
+    for name in settings.forced_measurements:
+        if name not in places:
+            raise _broken(
+                "S8",
+                "in the block of rules that produced the description",
+                f"'{name}' is named as holding measurements",
                 "this table has no column of that name",
             )
     previous = 0

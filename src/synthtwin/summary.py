@@ -77,6 +77,12 @@ _ROLES_WITH_RANGES = (
     # list is about ranges.
     taxonomy.ROLE_CLOCK,
     taxonomy.ROLE_AFFIXED,
+    # AND THE FOURTEENTH ROLE (plan P4-D21). A column of two numbers in
+    # one cell publishes a smallest, a largest and a ladder between them
+    # FOR EACH POSITION, which is what this list is about; its separator
+    # is a spelling and is disclosed with the affixed role's shared text
+    # rather than here.
+    taxonomy.ROLE_JOINED,
 )
 
 # What was decided about a number synthtwin uses as a stand-in for "no

@@ -215,6 +215,11 @@ ROLE_IDENTIFIER = "identifier"
 ROLE_CLOCK = "time_of_day"
 ROLE_AFFIXED = "affixed_number"
 ROLE_LONG_TAIL = "long_tail_labels"
+# THE FOURTEENTH ROLE (plan P4-D21). Two or more whole numbers written
+# in one cell, joined by one repeated separator: `120/80`, `12-05-3`.
+# It is reached ONLY where the person names the column, and never from
+# the values -- see `_joined_reading` for the measurement that says why.
+ROLE_JOINED = "joined_numbers"
 ROLE_TEXT = "free_text"
 
 # The lower bound of the long-tail detection line, and the max below is
@@ -256,6 +261,7 @@ ROLES = (
     ROLE_CLOCK,
     ROLE_AFFIXED,
     ROLE_LONG_TAIL,
+    ROLE_JOINED,
     ROLE_TEXT,
 )
 
@@ -287,6 +293,11 @@ ROLES_PUBLISHING_RANGES = (
     ROLE_DATETIME,
     ROLE_CLOCK,
     ROLE_AFFIXED,
+    # `joined_numbers` is a ranges role with ONE named exception of its
+    # own, the same shape as the affixed role's two: `separator` carries
+    # a character the table's cells wear. No other key of it may carry a
+    # spelling, and the forbidden-key rule is what confines it.
+    ROLE_JOINED,
 )
 ROLES_PUBLISHING_NOTHING = (
     ROLE_UNREPRESENTABLE,
@@ -336,6 +347,7 @@ STATISTICAL_TYPES = (
     ROLE_CLOCK,
     ROLE_AFFIXED,
     ROLE_LONG_TAIL,
+    ROLE_JOINED,
     TYPE_TEXT,
 )
 QUALITY_STATES = (QUALITY_OK, QUALITY_EMPTY, QUALITY_UNREPRESENTABLE)
@@ -378,6 +390,13 @@ ROLE_AXES: "dict[str, tuple[str, str]]" = {
     # name, and it names itself anyway so that every role's type is one
     # row of one table a reader can check.
     ROLE_LONG_TAIL: (ROLE_LONG_TAIL, QUALITY_OK),
+    # AND SO DOES A JOINED-NUMBER COLUMN, for the reason stated just
+    # above (plan P4-D21). The table is a bijection, now fourteen roles
+    # onto fourteen types, and this role's shape is not `continuous`
+    # and not `count`: those name ONE number per cell, and a consumer
+    # that read this column as either would take the whole cell for a
+    # value and find `120/80` is not one.
+    ROLE_JOINED: (ROLE_JOINED, QUALITY_OK),
     ROLE_TEXT: (TYPE_TEXT, QUALITY_OK),
 }
 
@@ -610,6 +629,7 @@ REMARK_OUT_OF_RANGE = "remark_values_out_of_range"
 # every such column's owner and telling none.
 EVIDENCE_CLOCK = "evidence_clock_times"
 EVIDENCE_AFFIXED = "evidence_numbers_wearing_one_affix"
+EVIDENCE_JOINED = "evidence_numbers_joined_in_one_cell"
 REMARK_AFFIXED = "remark_affixed_numbers_may_be_codes"
 REMARK_CONTRADICTORY = "remark_values_contradictory"
 REMARK_RARE_SENTINELS = "remark_rare_sentinels_unnamed"
@@ -692,6 +712,7 @@ NOTE_ARITY: "dict[str, int]" = {
     # How many cells wore the pair, and the pair itself.
     EVIDENCE_CLOCK: 3,
     EVIDENCE_AFFIXED: 3,
+    EVIDENCE_JOINED: 3,
     REMARK_AFFIXED: 3,
     REMARK_CONTRADICTORY: 1,
     REMARK_RARE_SENTINELS: 1,
@@ -1092,6 +1113,12 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
             f"as {_clock_shape(arguments, 1)}, and "
             f"{_whole(arguments, 2)} value(s) are not"
         )
+    if form == EVIDENCE_JOINED:
+        return (
+            f"{_whole(arguments, 0)} value(s) are "
+            f"{_whole(arguments, 1)} whole numbers written in one cell "
+            f"and joined by {parsing.format_example(_affix(arguments, 2))}"
+        )
     if form == EVIDENCE_AFFIXED:
         return (
             f"{_whole(arguments, 2)} value(s) are "
@@ -1457,6 +1484,15 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
 _BOUND_AFFIX_PLACES: "dict[str, tuple[int, ...]]" = {
     EVIDENCE_AFFIXED: (0, 1),
     REMARK_AFFIXED: (0, 1),
+    # THE JOINED-NUMBER SEPARATOR (plan P4-D21), admitted on the same
+    # terms as the two affixes and for the same reason: it is a
+    # spelling THE SAME BLOCK ALREADY PUBLISHES, under the `separator`
+    # key, so the sentence discloses nothing the document does not
+    # hold, and a sentence that could not name the character would not
+    # let anybody recognize their own column. It is one position, and
+    # naming it here rather than testing the value is what keeps
+    # widening this an edit somebody makes on purpose.
+    EVIDENCE_JOINED: (2,),
 }
 
 
@@ -4988,6 +5024,184 @@ def clock_reach(cells: _Cells) -> int:
     return best
 
 
+# THE SEPARATORS A JOINED CELL MAY USE (plan P4-D21). Deliberately a
+# short fixed list, and deliberately NOT the shape alphabet: a character
+# that can join two numbers has to be one nobody writes INSIDE a number,
+# so the point and the comma are absent -- `1.5` and `1,795` are single
+# numbers this package already reads, and letting either join two would
+# turn every decimal column into a pair.
+JOINED_SEPARATORS = ("/", "-", ":", "|", ";", "_")
+
+
+@dataclasses.dataclass(frozen=True)
+class _Joined:
+    """One column's reading as whole numbers joined in a cell."""
+
+    separator: str
+    n_parts: int
+    # One list per position, in row order, holding the text of that
+    # position for every cell that wears the reading.
+    parts: "list[list[str]]"
+    n_joined: int
+    n_unparsed: int
+
+
+def splits_into_wholes(text: str, separator: str) -> "list[str] | None":
+    """The parts of one cell under one separator, or None.
+
+    Every part must be present and written in figures alone. Figures
+    are tested against fixed ASCII rather than `str.isdigit`, for the
+    reason `parsing._is_a_digit` gives: five supported Pythons carry
+    five Unicode databases, and `str.isdigit` is true of characters
+    this package must not read as figures.
+
+    The type gate is the offline audit's: it accepts no method call on
+    a value it cannot trace, and a cell arrives here from a list this
+    function did not build.
+    """
+    if not isinstance(text, str):
+        raise TypeError("a cell must be text")
+    parts: "list[str]" = []
+    current = ""
+    for character in text:
+        if character == separator:
+            parts = parts + [current]
+            current = ""
+            continue
+        if not ("0" <= character <= "9"):
+            return None
+        current = current + character
+    parts = parts + [current]
+    if len(parts) < 2:
+        return None
+    for part in parts:
+        if not part:
+            return None
+    return parts
+
+
+def _joined_reading(cells: _Cells) -> "_Joined | None":
+    """The one joined-number reading this column wears, or None.
+
+    Guarantees:
+
+    - Determinism: separators are tried in a fixed order and every cell
+      is read by `_splits_into_wholes`, a function of the cell alone.
+    - The test is the contract's: at least the parse-line COUNT of
+      present cells split into the SAME number of parts under ONE
+      separator. A count, never a compared share, so no rounding of a
+      division decides a role.
+    - Boundary: reads the classified cells' text and nothing else.
+
+    THIS IS NEVER CONSULTED UNLESS THE PERSON NAMED THE COLUMN, and the
+    reason is a measurement rather than a caution (plan P4-D21). Asked
+    of the columns this project already tests, a rule that read the
+    VALUES would claim `visit_date` (`2023-02-12` is three whole
+    numbers joined by `-`), `seen_at` (`09:30` is two joined by `:`),
+    and -- past every rule order that could save the first two --
+    `lab_code` (`1923-1`) and `ndc_code` (`00052-0052-52`), which are
+    CODES. Claiming those would publish the smallest and largest of
+    their parts, which are fragments of real codes, and would undo the
+    round trip amendment A-P4-38 was built to guarantee. A blood
+    pressure and a lab code are both figures joined by a mark, and
+    nothing in either says which. So the caller asks only under the
+    declaration, exactly as `taxonomy._decide`'s RULE 5 has said since
+    review item P1-R6-F7 that such a thing must be.
+    """
+    present = cells.present
+    n_present = len(present)
+    if n_present == 0:
+        return None
+    needed = _needed(cells.settings.minimum_parse_rate, n_present)
+    for separator in JOINED_SEPARATORS:
+        counted: "dict[int, int]" = {}
+        for value in present:
+            split = splits_into_wholes(value, separator)
+            if split is not None:
+                width = len(split)
+                counted[width] = counted[width] + 1 if width in counted else 1
+        for width in sorted(counted):
+            if counted[width] < needed:
+                continue
+            columns: "list[list[str]]" = [[] for _each in range(width)]
+            worn = 0
+            for value in present:
+                split = splits_into_wholes(value, separator)
+                if split is None or len(split) != width:
+                    continue
+                worn = worn + 1
+                for place in range(width):
+                    columns[place] = columns[place] + [split[place]]
+            return _Joined(
+                separator=separator,
+                n_parts=width,
+                parts=columns,
+                n_joined=worn,
+                n_unparsed=n_present - worn,
+            )
+    return None
+
+
+def _joined_details(
+    joined: _Joined, settings: Settings
+) -> "dict[str, object]":
+    """The published block of a joined-number column.
+
+    EACH POSITION GETS THE NUMERIC BLOCK EVERY QUANTITATIVE ROLE GETS,
+    computed by the same function over a `_Cells` built from that
+    position's text alone. Nothing here does arithmetic of its own: the
+    exactness of the ladder, the mean and the spread is the exactness
+    `_numeric_details` already carries, and a second implementation of
+    it would be a second thing to keep true.
+
+    `min_width` IS WHAT TELLS A PADDED COLUMN FROM A PLAIN ONE. A
+    systolic reading of 95 is written `95` and one of 133 is written
+    `133`, so widths differ because the NUMBERS differ; a padded column
+    writes `007` and `080` at one width whatever the number. Publishing
+    the smallest width each position was written at is enough for the
+    twin to write both correctly, and it is a width rather than a
+    spelling.
+    """
+    blocks: "list[dict[str, object]]" = []
+    widths: "list[int]" = []
+    for place in range(joined.n_parts):
+        text = joined.parts[place]
+        part_cells = _tally(_classify_all(text), len(text), settings)
+        blocks = blocks + [_numeric_details(part_cells, True)]
+        smallest = len(text[0])
+        for value in text:
+            if len(value) < smallest:
+                smallest = len(value)
+        widths = widths + [smallest]
+    return {
+        "separator": joined.separator,
+        "n_parts": joined.n_parts,
+        "n_joined": joined.n_joined,
+        "n_unparsed": joined.n_unparsed,
+        "parts": blocks,
+        "part_min_widths": widths,
+    }
+
+
+def _joined_verdict(
+    cells: _Cells,
+    joined: _Joined,
+    notes: "list[Note]",
+    remarks: "list[Note]",
+) -> _Verdict:
+    """The verdict for a declared column of joined whole numbers."""
+    return _Verdict(
+        role=ROLE_JOINED,
+        evidence=note(
+            EVIDENCE_JOINED,
+            (joined.n_joined, joined.n_parts, joined.separator),
+        ),
+        details=_joined_details(joined, cells.settings),
+        notes=notes,
+        remarks=remarks,
+    )
+
+
 def _clock_reading(cells: _Cells) -> "_Clock | None":
     """The one clock form this column wears, or None if it wears none.
 
@@ -5462,6 +5676,7 @@ def _decide(
     after_removal: bool = False,
     after_days: bool = False,
     forced_code: bool = False,
+    forced_measurement: bool = False,
 ) -> _Verdict:
     """Pick the one role, testing the rules in the documented order.
 
@@ -5559,6 +5774,24 @@ def _decide(
         # user had asked for exactly the opposite (review item P1-R1-F10).
         if forced_identifier and not after_days:
             return _identifier_verdict(cells, notes=notes, remarks=remarks)
+
+        # RULE 0c -- the person's OTHER other declaration (plan P4-D21).
+        # `--measurement` says a column holds quantities, including ones
+        # written as two or more whole numbers in one cell. Where the
+        # column really is written that way it takes the
+        # `joined_numbers` role; where it is not, the declaration
+        # decides nothing and every rule below runs untouched, because a
+        # column of plain numbers is already read as numbers and needs
+        # no help.
+        #
+        # IT IS ASKED ONLY UNDER THE DECLARATION, and `_joined_reading`
+        # carries the measurement that says why: a rule reading the
+        # values would claim this project's own date, clock, lab-code
+        # and drug-code columns.
+        if forced_measurement and not after_days:
+            reading = _joined_reading(cells)
+            if reading is not None:
+                return _joined_verdict(cells, reading, notes, remarks)
 
         # RULE 2 -- numeric intent that nothing can hold. Tested before any
         # rule that publishes a value, because the alternative is a column
@@ -6523,6 +6756,7 @@ def profile_column(
     settings: Settings,
     forced_identifier: bool = False,
     forced_code: bool = False,
+    forced_measurement: bool = False,
 ) -> ColumnProfile:
     """Describe one column: its role, its statistics, what was withheld.
 
@@ -6656,7 +6890,12 @@ def profile_column(
     removed_by_days = 0
     judged_over_days = False
     if present and not forced_identifier:
-        trial = _decide(cells, forced_identifier, forced_code=forced_code)
+        trial = _decide(
+            cells,
+            forced_identifier,
+            forced_code=forced_code,
+            forced_measurement=forced_measurement,
+        )
         if trial.role == ROLE_TEXT or trial.role == ROLE_DATETIME:
             reading = _remainder_reading(present, settings)
             if reading is not None:
@@ -6702,7 +6941,12 @@ def profile_column(
     removed_by_cores = 0
     judged_over_cores = False
     if present and not forced_identifier:
-        trial = _decide(cells, forced_identifier, forced_code=forced_code)
+        trial = _decide(
+            cells,
+            forced_identifier,
+            forced_code=forced_code,
+            forced_measurement=forced_measurement,
+        )
         if trial.role == ROLE_AFFIXED:
             before = len(present)
             classified, missing, verdicts = _cores_judged(
@@ -6770,6 +7014,7 @@ def profile_column(
             after_removal=judged_over_cores,
             after_days=judged_over_days,
             forced_code=forced_code,
+            forced_measurement=forced_measurement,
         )
 
     by_source, by_class, n_blank, n_withheld = _missing_maps(

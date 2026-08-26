@@ -5123,5 +5123,61 @@ it with one more answer offered: measurements written as two numbers.
 answers "measurements" and gets its distribution back. One question,
 one place, three answers, and no rule anywhere guesses which.
 
-**NOT BUILT. This decision records the design, the measurement that
-says it works, and the check that says how it must be reached.**
+## Amendment A-P4-39 — the fourteenth role is built (P4-D21)
+
+**BUILT AND MEASURED.** `--measurement COLUMN` gives a column the
+`joined_numbers` role where its cells really are whole numbers joined
+by one repeated mark. On the demonstration table's 400 blood pressures:
+
+| | real | twin |
+| --- | --- | --- |
+| systolic min / median / max | 95 / 133.5 / 175 | 95 / 133.5 / 175 |
+| systolic mean, spread | 134.2, 24.0 | 134.3, 24.0 |
+| diastolic min / median / max | 55 / 80 / 105 | 55 / 80 / 105 |
+| diastolic mean, spread | 80.5, 14.1 | 80.2, 14.0 |
+| different readings | 387 | 387 |
+
+Twin cells read `145/66`, `160/102`, `103/74`. The whole workflow
+returns exit code 0, and the description carries not one of the 387
+whole cells the real column holds.
+
+**HOW IT IS BUILT, and the point is that almost none of it is new.**
+Each position is handed to the numeric machinery as a column in its own
+right -- `_part_view`, which is `_core_view`'s trick for the affixed
+role -- so the ladder, the mean, the spread, the styles and the widths
+of every number in the twin are computed by exactly the code that
+builds a plain numeric column. The separator goes on afterwards and is
+bound by the same rule the affix pair is bound by. `part_min_widths` is
+what tells a padded position from a plain one.
+
+**TWO THINGS THE BUILD FOUND THAT THE DESIGN DID NOT.**
+
+1. *The positions came out in lockstep.* `_numeric_content` places its
+   values by rule, not by chance -- the words decide arrangement, not
+   which numbers appear -- so two positions built from it come out in
+   the same order and pair up together. A column of 387 different
+   readings came out with 117, in runs like `105/63`, `104/63`, while
+   each position's own distribution was right to the digit. Every
+   position after the first is now shuffled against it, which keeps its
+   multiset exactly and moves only the pairing.
+2. *The shuffle lands near the published count and not on it, in either
+   direction.* 381 where 387 was published; 390 where 380 was. So the
+   pairing is repaired afterwards, by swapping last numbers between
+   rows while that moves the count of different cells CLOSER to the
+   published one. Swapping preserves every position's multiset, so no
+   published number about any position moves -- only the pairing, which
+   is the one thing the description does not constrain.
+
+**THE LIMIT, stated rather than hidden.** The positions are drawn
+independently, so a twin cell is believable ONE NUMBER AT A TIME: a
+`101/98` can occur, where a real reading would not put a diastolic that
+close to its systolic. This format publishes no structure between one
+position and another, exactly as it publishes none between columns
+(contract 4.6, S12), so there is nothing in the description that says
+otherwise and this version invents nothing.
+
+**THE ASKING GAINED ONE ANSWER, not a second question.** A column of
+digits joined by a mark gets the question a column of plain digits
+gets, with `[4] measurements written as two numbers` offered beside
+codes and record numbers. One question, one place, four answers, and no
+rule anywhere guesses which.

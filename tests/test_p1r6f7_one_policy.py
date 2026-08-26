@@ -122,7 +122,7 @@ def test_the_deleted_majority_rule_leaves_no_trace_in_the_settings() -> None:
     # numbers named with `--identifier` and the codes named with
     # `--code` (plan P4-D19) -- and this run declares neither: what is
     # asked about here is the THRESHOLDS, and a declaration is not one.
-    recorded = profile._settings_block(SETTINGS, [], [])
+    recorded = profile._settings_block(SETTINGS, [], [], [])
     for gone in (
         "numeric_majority",
         "categorical_repetition",

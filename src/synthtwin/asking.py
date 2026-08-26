@@ -49,16 +49,29 @@ NUMERIC_ROLES = (
     taxonomy.ROLE_UNREPRESENTABLE,
 )
 
+# THE ROLES A COLUMN OF JOINED NUMBERS LANDS ON UNDECLARED (plan
+# P4-D21). `120/80` is not a number, not a date and not a clock time,
+# so it falls to free text -- or, where few enough readings repeat, to
+# a label role. Both are asked about, because both are what a blood
+# pressure column looks like when nobody has said what it is.
+JOINED_ROLES = (
+    taxonomy.ROLE_TEXT,
+    taxonomy.ROLE_LONG_TAIL,
+    taxonomy.ROLE_CATEGORICAL,
+)
+
 # The two readings a person is offered, and the third that already had
 # an option. The words are the ones the help screen uses.
 ANSWER_MEASUREMENT = "measurement"
 ANSWER_CODE = "code"
 ANSWER_IDENTIFIER = "identifier"
+ANSWER_JOINED = "joined"
 
 # Why a column was worth asking about. Each is shown to the person, so
 # each says what was SEEN and not what it was taken to mean.
 BECAUSE_PADDED = "padded"
 BECAUSE_FIXED_WIDTH = "fixed-width"
+BECAUSE_JOINED = "two-numbers"
 
 # A fixed-width all-digit column is asked about from three digits up.
 # Below that the shape is too common to mean anything: a column of `1`
@@ -119,6 +132,32 @@ def why_worth_asking(values: "list[str]") -> "str | None":
         only = sorted(widths)[0]
         if only >= _NARROWEST_FIXED_WIDTH:
             return BECAUSE_FIXED_WIDTH
+    return None
+
+
+def why_joined_is_worth_asking(values: "list[str]") -> "str | None":
+    """The reason to ask whether a column holds joined numbers.
+
+    Every present cell splits, on ONE separator, into the same number
+    of whole numbers -- two or more. That is what a blood pressure
+    looks like, and it is also exactly what a laboratory code looks
+    like, which is why this raises a QUESTION and decides nothing.
+    """
+    if not values:
+        return None
+    for separator in taxonomy.JOINED_SEPARATORS:
+        parts = 0
+        for value in values:
+            split = taxonomy.splits_into_wholes(value, separator)
+            if split is None:
+                parts = 0
+                break
+            if parts and len(split) != parts:
+                parts = 0
+                break
+            parts = len(split)
+        if parts >= 2:
+            return BECAUSE_JOINED
     return None
 
 
@@ -191,7 +230,10 @@ def questions_for(
             continue
         name = f"{block['name']}"
         role = f"{block['role']}"
-        if role not in NUMERIC_ROLES or name in already:
+        if name in already:
+            position = position + 1
+            continue
+        if role not in NUMERIC_ROLES and role not in JOINED_ROLES:
             position = position + 1
             continue
         if position >= len(table_columns):
@@ -200,7 +242,10 @@ def questions_for(
         present, _absent = taxonomy.split_missing(
             table_columns[position], settings
         )
-        reason = why_worth_asking(present)
+        if role in JOINED_ROLES:
+            reason = why_joined_is_worth_asking(present)
+        else:
+            reason = why_worth_asking(present)
         if reason is not None:
             asked = asked + [
                 Question(name, role, reason, _examples(present))
