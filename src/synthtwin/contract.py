@@ -476,6 +476,24 @@ AFFIXED_KEYS = NUMERIC_KEYS + (
 # every decimal column a candidate pair.
 JOINED_SEPARATORS = ("/", "-", ":", "|", ";", "_")
 
+
+def _is_a_joined_separator(text: str) -> bool:
+    """Whether this is a whole separator a joined cell may be split on.
+
+    One mark of the list above, with at most one space before it and at
+    most one after (plan P4-D24). A pressure charted `120 / 80` is the
+    same reading as `120/80`, and the spacing is part of what the twin
+    writes back.
+    """
+    if not text or len(text) > 3:
+        return False
+    core = text
+    if core[0] == " ":
+        core = core[1:]
+    if core and core[len(core) - 1] == " ":
+        core = core[: len(core) - 1]
+    return core in JOINED_SEPARATORS
+
 JOINED_KEYS = (
     "part_above",
     "part_agreements",
@@ -5908,10 +5926,11 @@ def _joined_facts(
       is exactly one for each pair.
     """
     separator = _text(mapping["separator"], "separator", where)
-    if len(separator) != 1 or separator not in JOINED_SEPARATORS:
+    if not _is_a_joined_separator(separator):
         raise _out_of_range(
             "separator", where, f"'{separator}'",
-            "one of the characters this format splits a joined cell on",
+            "one of the marks this format splits a joined cell on, with "
+            "at most one space on each side of it",
         )
     n_parts = _bounded(
         mapping["n_parts"], "n_parts", where, 2, n_present + 2,

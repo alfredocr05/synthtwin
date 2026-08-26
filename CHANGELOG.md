@@ -6,6 +6,17 @@ exists).
 
 ## [Unreleased]
 
+### Added: two more ways a reading can be written
+
+- **`120 / 80`, with spaces around the mark**, is now read as the same
+  reading as `120/80`. It used to be treated as free text, which
+  publishes nothing. The twin writes the spacing your table used.
+- **`1:1.5`, with a decimal in one of the numbers** -- an I:E ratio --
+  is now read. A number in a cell could only be whole before.
+- **A signed number is still not read this way**, deliberately: a
+  leading minus cannot be told from the mark the cell might be split
+  on, so `-3/-4` is left alone rather than split on its own signs.
+
 ### Changed: the two numbers of a reading now move together
 
 - **A blood pressure's two numbers were drawn separately**, so the twin

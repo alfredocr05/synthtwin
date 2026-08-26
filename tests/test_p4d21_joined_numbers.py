@@ -370,3 +370,96 @@ def test_the_twin_reads_back_as_the_role_it_was_built_for() -> None:
         if check.verdict == "MISSED" and "n_distinct" not in check.subcheck
     ]
     assert missed == [], f"the twin missed {missed}"
+
+
+# -- P4-D24: the two shapes the first build could not read -------------
+
+
+def test_a_reading_written_with_spaces_round_its_mark_is_read() -> None:
+    """`120 / 80` is the same reading as `120/80`.
+
+    It was read as free text, which publishes nothing: the mark alone
+    did not match and no rule looked further.
+    """
+    rng = random.Random(3)
+    values = [
+        f"{rng.randrange(95, 176)} / {rng.randrange(55, 106)}"
+        for _each in range(240)
+    ]
+    document, _folder = _described(values)
+    block = document["columns"][0]
+    assert block["role"] == taxonomy.ROLE_JOINED
+    assert block["separator"] == " / "
+    assert block["n_parts"] == 2
+
+
+def test_the_twin_writes_the_spacing_back() -> None:
+    """The separator published is the separator written."""
+    rng = random.Random(3)
+    values = [
+        f"{rng.randrange(95, 176)} / {rng.randrange(55, 106)}"
+        for _each in range(240)
+    ]
+    document, folder = _described(values)
+    twin = generation.generate(_loaded(document, folder), 5)
+    for cell in twin.columns[0]:
+        assert " / " in cell, cell
+
+
+def test_a_position_carrying_a_decimal_point_is_read() -> None:
+    """An I:E ratio of `1:1.5` has a decimal in its second number."""
+    rng = random.Random(4)
+    values = [
+        f"1:{rng.choice(['1.0', '1.5', '2.0', '2.5', '3.0'])}"
+        for _each in range(240)
+    ]
+    document, _folder = _described(values)
+    block = document["columns"][0]
+    assert block["role"] == taxonomy.ROLE_JOINED
+    assert block["n_parts"] == 2
+    assert block["parts"][1]["integer_valued"] is False
+
+
+def test_the_twin_keeps_the_decimal() -> None:
+    rng = random.Random(4)
+    values = [
+        f"1:{rng.choice(['1.0', '1.5', '2.0', '2.5', '3.0'])}"
+        for _each in range(240)
+    ]
+    document, folder = _described(values)
+    twin = generation.generate(_loaded(document, folder), 5)
+    for cell in twin.columns[0]:
+        assert "." in cell.split(":")[1], cell
+
+
+@pytest.mark.parametrize(
+    "text,separator,expected",
+    [
+        ("120/80", "/", ["120", "80"]),
+        ("120 / 80", " / ", ["120", "80"]),
+        ("1:1.5", ":", ["1", "1.5"]),
+        ("1: 2", ": ", ["1", "2"]),
+        ("1.5.2/3", "/", None),
+        ("a/b", "/", None),
+        ("120/", "/", None),
+        (".5/2", "/", None),
+        ("5./2", "/", None),
+    ],
+)
+def test_what_counts_as_a_number_in_a_position(
+    text: str, separator: str, expected: "list[str] | None"
+) -> None:
+    """Figures, and at most one point with figures on both sides.
+
+    No sign, because a leading minus cannot be told from the mark a
+    cell might be split on.
+    """
+    assert taxonomy.splits_into_wholes(text, separator) == expected
+
+
+def test_a_column_of_negative_numbers_is_not_claimed() -> None:
+    """`-3/-4` would split on its own minus signs, so it is refused."""
+    values = [f"-{place}/-{place + 1}" for place in range(1, 200)]
+    document, _folder = _described(values)
+    block = document["columns"][0]
+    assert block["role"] != taxonomy.ROLE_JOINED
