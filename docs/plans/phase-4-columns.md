@@ -5728,3 +5728,30 @@ classes in the producer, on the model of `_BOUND_AFFIX_PLACES`, whose
 own comment gives the reason such a table is written out rather than
 inferred. That is a product change and belongs with L10's method work,
 not at the end of a landing about an unrelated claim.
+
+## Amendment A-P4-46 — the contract is frozen, the seal is paused, and review is aimed (owner ruling 2026-08-26)
+
+**THE OWNER'S WORDS.** "This building looks as a public service full of
+people verifying a work and really few really working on what matters."
+
+**THE MEASUREMENT THAT PROVED THEM RIGHT.** The landing before this one
+was 4,477 lines, of which **60 were product code — 1.3 per cent**. The
+rest: 2,032 lines of regenerated seal data, 1,121 of guard code, 649 of
+review records, 473 of plans and contract. One new published fact has
+to be written in about ten places, a design chosen so a stranger could
+audit and rebuild the tool. **Nobody has the tool.** It is not
+released, there are no strangers, and the owner is the only reader, so
+the cost is being paid for a benefit that does not exist yet.
+
+| # | ruling | what it costs |
+|---|---|---|
+| **A-P4-46.1** | **The version 6 contract is FROZEN.** It carries a header saying it describes the loader as of a named commit, that the LOADER is normative where they differ, and that it is regenerated before release. It is not edited per landing. | The document drifts from the code. That is acceptable while nothing ships and unacceptable the moment something does, so the re-derivation is a release precondition and is written into the close list. |
+| **A-P4-46.2** | **The disposition seal is PAUSED** until Phase 4 closes, then re-sealed once over the whole tree. | A governing sentence could be weakened without a counted re-seal. Four such lowerings are in this project's history, which is why the seal exists — the trade holds only because every change passes the owner and nothing is released. |
+| **A-P4-46.3** | **Review keeps FIVE rounds and gains a target.** It runs on the MACHINERY — the producer, the generator, the validator, and anything that decides what a description publishes or a twin holds. It does NOT run on the contract, the seal, the plans, or on guards that check documents against documents. Stop early when items stop being about output. | A defect in a document-checking guard now reaches the owner instead of a reviewer. That is the intended trade: the reviewer's time buys correctness of OUTPUT, which is the product. |
+| **A-P4-46.4** | **No new guard is built unless a false thing actually shipped.** The seventh claim family was built against a sentence nobody had written. | A class of future defect goes uncaught until it happens once. |
+
+**WHAT IS NOT CUT, and the list is short on purpose:** the test suite,
+the independent reference vectors, the offline and provenance scans,
+and the decontamination scanner. Those catch wrong numbers, broken
+boundaries and legal problems. Everything cut above catches documents
+disagreeing with documents.
