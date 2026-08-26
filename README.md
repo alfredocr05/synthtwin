@@ -192,7 +192,8 @@ way. Repeat it to name more than one column. A name that is not in your
 table stops the run before anything is written.
 
 `--measurement` names a column that holds **measurements written as two
-or more whole numbers in one cell** -- a blood pressure such as `120/80`.
+or more numbers in one cell** -- a blood pressure such as `120/80`, a
+ventilator ratio such as `1:1.5`.
 synthtwin reads each number separately and publishes a range and an
 average for each one, so the twin's cells hold believable readings
 instead of digits in the right shape. Without it such a column is
@@ -514,6 +515,18 @@ all five, not to the profile alone. What synthtwin does give you is
 an architecture in which the real table never has to move, plus a
 written account, in `SECURITY.md` and in the run's own report, of
 exactly which real facts each file carries.
+
+**What that settles, and what it does not.** The thing synthtwin buys
+you is that your rows never have to travel: you develop your analysis
+against a table worked out from a description, so the real table stays
+inside the environment that already holds it and never reaches an
+assistant. That is a strong claim and it is the one to make. What it
+does not buy is a finding about your obligations -- being synthetic is
+not by itself the answer to a privacy rule, to your institution's own
+rules, or to an approval your study needed, and the five files above
+are the reason. Whether an obligation is met is for the people who set
+it to say, and what this project gives them to decide with is the
+written account of exactly which real facts each file carries.
 
 ## Honest limits
 

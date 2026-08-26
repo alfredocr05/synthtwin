@@ -266,7 +266,7 @@ ROLE_IDENTIFIER = "identifier"
 ROLE_CLOCK = "time_of_day"
 ROLE_AFFIXED = "affixed_number"
 ROLE_LONG_TAIL = "long_tail_labels"
-# THE FOURTEENTH ROLE (plan P4-D21). Two or more whole numbers written
+# THE FOURTEENTH ROLE (plan P4-D21). Two or more numbers written
 # in one cell and joined by one repeated separator. Reached only where
 # the person named the column with `--measurement`, never from values.
 ROLE_JOINED = "joined_numbers"
@@ -1482,7 +1482,7 @@ class AffixedFacts:
 
 @dataclasses.dataclass(frozen=True)
 class JoinedFacts:
-    """Two or more whole numbers written in one cell (contract 6.13).
+    """Two or more numbers written in one cell (contract 6.15).
 
     TWO POPULATIONS, as `AffixedFacts` has. `parts` holds one
     quantitative block PER POSITION, each read over that position's

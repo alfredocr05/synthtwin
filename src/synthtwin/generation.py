@@ -14009,6 +14009,29 @@ def _approximations(
         return _numeric_approximations(
             _core_view(column), facts.numbers, plan, cores
         )
+    if isinstance(facts, contract.JoinedFacts):
+        # THIS ROLE REPORTS NO APPROXIMATION, AND THAT IS A KNOWN
+        # DEFECT rather than a decision -- residual R-P4-44. A twin of
+        # a joined column carries a report saying it gave nothing up
+        # while every position's ladder is approximated by
+        # construction, which is the same defect the affixed branch
+        # above records and repairs one role earlier.
+        #
+        # A BRANCH THAT MEASURED EACH POSITION WAS BUILT HERE AND
+        # WITHDRAWN, and what it cost is why: `_part_view` hands a
+        # position the WHOLE CELL's distinctness counts, so the report
+        # printed per-position comparisons of facts the profile
+        # publishes for no position; the renderer has no way to say
+        # WHICH position a record belongs to, so both printed as "this
+        # column" with `percentiles.p01` appearing twice at different
+        # values; an unsplit stand-in `text-1` splits on `-` and was
+        # measured into position two; and `part_agreements`, the one
+        # fact this role's own decision calls approximated, was not
+        # measured at all. Measured on three columns before the
+        # withdrawal. A report that prints ambiguous numbers is worse
+        # than one that prints none, so the honest state is the silent
+        # one until the role's landing does it properly.
+        return []
     if isinstance(facts, contract.NumericFacts):
         return _numeric_approximations(column, facts, plan, written)
     if isinstance(facts, contract.ClockFacts):

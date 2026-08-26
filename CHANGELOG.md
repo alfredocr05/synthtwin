@@ -63,7 +63,7 @@ exists).
 ### Added: blood pressures, and anything else written as two numbers in one cell
 
 - **`--measurement COLUMN` tells synthtwin that a column holds readings
-  written as two or more whole numbers joined by a mark** -- `120/80`.
+  written as two or more numbers joined by a mark** -- `120/80`.
   It reads each number separately and publishes a range and an average
   for each, so the twin's cells hold believable readings.
 - **What it fixes.** Such a column was described as text, which

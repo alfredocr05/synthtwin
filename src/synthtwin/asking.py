@@ -139,16 +139,20 @@ def why_joined_is_worth_asking(values: "list[str]") -> "str | None":
     """The reason to ask whether a column holds joined numbers.
 
     Every present cell splits, on ONE separator, into the same number
-    of whole numbers -- two or more. That is what a blood pressure
-    looks like, and it is also exactly what a laboratory code looks
-    like, which is why this raises a QUESTION and decides nothing.
+    of NUMBERS -- two or more, each of which may carry one decimal
+    point, which is what a ventilator ratio of `1:1.5` needs. This
+    docstring said "whole numbers" until 2026-08-26 while the function
+    it describes returned its reason for `1:1.5`. That is what a blood
+    pressure looks like, and it is also exactly what a laboratory code
+    looks like, which is why this raises a QUESTION and decides
+    nothing.
     """
     if not values:
         return None
     for separator in taxonomy.JOINED_SEPARATORS:
         parts = 0
         for value in values:
-            split = taxonomy.splits_into_wholes(value, separator)
+            split = taxonomy.splits_into_numbers(value, separator)
             if split is None:
                 parts = 0
                 break

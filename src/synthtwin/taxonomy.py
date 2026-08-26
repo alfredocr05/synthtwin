@@ -215,7 +215,7 @@ ROLE_IDENTIFIER = "identifier"
 ROLE_CLOCK = "time_of_day"
 ROLE_AFFIXED = "affixed_number"
 ROLE_LONG_TAIL = "long_tail_labels"
-# THE FOURTEENTH ROLE (plan P4-D21). Two or more whole numbers written
+# THE FOURTEENTH ROLE (plan P4-D21). Two or more numbers written
 # in one cell, joined by one repeated separator: `120/80`, `12-05-3`.
 # It is reached ONLY where the person names the column, and never from
 # the values -- see `_joined_reading` for the measurement that says why.
@@ -1114,9 +1114,17 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
             f"{_whole(arguments, 2)} value(s) are not"
         )
     if form == EVIDENCE_JOINED:
+        # NUMBERS, NOT *WHOLE* NUMBERS, and the word was wrong on the
+        # page a person reads until 2026-08-26. `splits_into_numbers`
+        # admits a decimal part -- that is what lets an I:E ratio be
+        # read at all, and the changelog offers `1:1.5` as a feature --
+        # so a column of `1:2.0` and `1:2.5` published "2 whole numbers"
+        # of cells whose second number is not whole. Measured on 400
+        # such rows before the repair. Contract NF47 carries the same
+        # correction.
         return (
             f"{_whole(arguments, 0)} value(s) are "
-            f"{_whole(arguments, 1)} whole numbers written in one cell "
+            f"{_whole(arguments, 1)} numbers written in one cell "
             f"and joined by {parsing.format_example(_affix(arguments, 2))}"
         )
     if form == EVIDENCE_AFFIXED:
@@ -5046,7 +5054,12 @@ JOINED_TAILINGS = ("", " ", " ")
 
 @dataclasses.dataclass(frozen=True)
 class _Joined:
-    """One column's reading as whole numbers joined in a cell."""
+    """One column's reading as numbers joined in a cell.
+
+    NOT *whole* numbers: a part may carry one decimal point, which is
+    what lets a ventilator ratio be read. Every surface said "whole"
+    until 2026-08-26, including the sentence a person reads.
+    """
 
     separator: str
     n_parts: int
@@ -5085,7 +5098,7 @@ def _reads_as_one_number(text: str) -> bool:
     return True
 
 
-def splits_into_wholes(text: str, separator: str) -> "list[str] | None":
+def splits_into_numbers(text: str, separator: str) -> "list[str] | None":
     """The parts of one cell under one separator, or None.
 
     ``separator`` is the WHOLE separator, mark and any spaces around
@@ -5094,7 +5107,11 @@ def splits_into_wholes(text: str, separator: str) -> "list[str] | None":
 
     A part may carry a decimal point, which an I:E ratio of `1:1.5`
     needs and which the first build of this role refused, sending the
-    column to free text where it published nothing.
+    column to free text where it published nothing. **This function was
+    called `splits_into_wholes` until 2026-08-26**, and the name was
+    the origin of a false sentence on six surfaces: a reader who
+    trusted it wrote "whole numbers" into the profile, the front page,
+    the changelog and the contract, of a reading that accepts `1:1.5`.
 
     The type gate is the offline audit's: it accepts no method call on
     a value it cannot trace, and a cell arrives here from a list this
@@ -5135,7 +5152,7 @@ def _joined_reading(cells: _Cells) -> "_Joined | None":
     Guarantees:
 
     - Determinism: separators are tried in a fixed order and every cell
-      is read by `_splits_into_wholes`, a function of the cell alone.
+      is read by `_splits_into_numbers`, a function of the cell alone.
     - The test is the contract's: at least the parse-line COUNT of
       present cells split into the SAME number of parts under ONE
       separator. A count, never a compared share, so no rounding of a
@@ -5171,7 +5188,7 @@ def _joined_reading(cells: _Cells) -> "_Joined | None":
     for separator in tried:
         counted: "dict[int, int]" = {}
         for value in present:
-            split = splits_into_wholes(value, separator)
+            split = splits_into_numbers(value, separator)
             if split is not None:
                 width = len(split)
                 counted[width] = counted[width] + 1 if width in counted else 1
@@ -5181,7 +5198,7 @@ def _joined_reading(cells: _Cells) -> "_Joined | None":
             columns: "list[list[str]]" = [[] for _each in range(width)]
             worn = 0
             for value in present:
-                split = splits_into_wholes(value, separator)
+                split = splits_into_numbers(value, separator)
                 if split is None or len(split) != width:
                     continue
                 worn = worn + 1
@@ -5874,7 +5891,7 @@ def _decide(
 
         # RULE 0c -- the person's OTHER other declaration (plan P4-D21).
         # `--measurement` says a column holds quantities, including ones
-        # written as two or more whole numbers in one cell. Where the
+        # written as two or more numbers in one cell. Where the
         # column really is written that way it takes the
         # `joined_numbers` role; where it is not, the declaration
         # decides nothing and every rule below runs untouched, because a

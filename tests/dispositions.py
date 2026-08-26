@@ -108,6 +108,15 @@ GOVERNING = (
     "docs/plans/phase-4-columns.md",
     "docs/spec/profile-contract-v4.md",
     "docs/spec/profile-contract-v5.md",
+    # VERSION 6 JOINS AT ITS FIRST SHIPPED LANDING, not at a
+    # ratification that never came. It was carried as a draft "under
+    # adversarial review" while `PROFILE_VERSION` was already 6 in both
+    # the producer and the loader -- so the document that governs every
+    # description this tree writes was the one document outside the
+    # seal, and a disposition quietly lowered in it moved nothing red.
+    # Found at the third adversarial read of the obligations landing,
+    # 2026-08-26.
+    "docs/spec/profile-contract-v6.md",
     "docs/spec/generation-method-v1.md",
     "docs/spec/validation-method-v1.md",
 )

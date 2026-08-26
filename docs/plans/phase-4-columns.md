@@ -3310,7 +3310,7 @@ values were written in. What it buys is the thing the owner asked for:
 a rare finding REPRESENTED in the twin, at its real count, in the shape
 of the thing it stands for.
 
-### P4-D19 A COLUMN OF CODES WRITTEN IN FIGURES IS NOT PROTECTED BY THE FLOOR (opened 2026-08-25, DECISION PENDING)
+### P4-D19 A COLUMN OF CODES WRITTEN IN FIGURES IS NOT PROTECTED BY THE FLOOR (opened 2026-08-25, TAKEN 2026-08-25 by amendment A-P4-38)
 
 **This is a finding first and a proposal second, and the finding is the
 part that matters.**
@@ -5138,8 +5138,11 @@ one place, three answers, and no rule anywhere guesses which.
 ## Amendment A-P4-39 — the fourteenth role is built (P4-D21)
 
 **BUILT AND MEASURED.** `--measurement COLUMN` gives a column the
-`joined_numbers` role where its cells really are whole numbers joined
-by one repeated mark. On the demonstration table's 400 blood pressures:
+`joined_numbers` role where its cells really are numbers joined by one
+repeated mark — each of which may carry one decimal point, so a
+ventilator ratio `1:1.5` is read. This paragraph said "whole numbers"
+until 2026-08-26, and an implementer following it would have refused a
+case the shipped producer accepts. On the demonstration table's 400 blood pressures:
 
 | | real | twin |
 | --- | --- | --- |
@@ -5550,7 +5553,16 @@ document yields the sentence naming every option to bring back.
 were folded into version 6 after it was declared, each time on the
 argument that no version 6 document exists outside this repository.
 That argument is the owner's to accept or withdraw, which is why this
-is restated rather than fixed. Not closed.
+is restated rather than fixed.
+
+**CLOSED BY RULING 2026-08-26, amendment A-P4-41 — and closed by
+RULING rather than by measurement, which the register says out loud
+because the behaviour it describes is unchanged.** The owner accepted
+the argument: version 6 is extended in place until the first release.
+The contract sentence is amended to bind from that release on. What a
+person holding an older description on this branch still gets is the
+plain missing-key refusal, and the route is to describe the table
+again.
 
 ## Residual R-P4-4 — RESTATED, and one half of it is a silent misreading (2026-08-26)
 
@@ -5616,3 +5628,103 @@ claims were wrong, and one of them was hiding a live misreading. A
 residual is cheap to keep and expensive to close wrongly, so nothing
 here is closed on a reading — only on a measurement, and only where the
 work is done.
+
+
+## The lean record — amendments are rows from here (owner ruling 2026-08-26)
+
+**THE OWNER'S WORDS.** "Why we are spending so much time in
+documentation that no one will ever read? Let's save on this! ... put
+our work on what matters."
+
+**THE ACCOUNTING THAT WAS PUT IN FRONT OF THEM.** Phase 4 in its first
+eight days produced 58,231 lines: 13,613 of product code (23 per cent),
+14,013 of tests, and 29,237 of documents ABOUT the code (51 per cent).
+Thirty-nine amendments at a median of fifty-two lines are 53 per cent
+of this plan by themselves. The version 6 contract is 8,390 lines
+against version 4's 2,822, and the rewrite that produced it added no
+capability at all.
+
+**FROM HERE AN AMENDMENT IS A ROW** — date, what changed, why, what it
+cost. The decision is kept and the essay is not. Recorded once here
+rather than per amendment, the rest of the same ruling: review records
+become item lists rather than transcripts; the contract document is no
+longer hand-maintained beside the code, since the loader is the
+executable specification and the document-against-code guards are what
+catch drift; a written method clause is owed only for branches that do
+ARITHMETIC, because the spec-first-with-frozen-vectors rule of the
+charter was written for the NUMERIC CORE and this phase had been
+applying it to every column TYPE; and the validation method's Phase 4
+addendum is not written, its tests being its specification.
+
+**WHAT THE RULING DOES NOT TOUCH, and it is the half that matters.**
+The tests. The independent reference vectors for the number machinery,
+which catch the one class of defect tests cannot -- code agreeing with
+itself. The claim inventory. The decontamination scan. Cutting any of
+those costs fidelity rather than prose, and none of them is
+documentation however much it looks like it.
+
+| # | date | what changed | why | what it cost |
+|---|---|---|---|---|
+| **A-P4-40** | 2026-08-26 | The documentation regime above. THIS LOWERS what is written and lowers nothing that is checked. | 23 per cent of eight days' output was the product; the phase was spending its time on prose nobody reads. | Roughly six days come off the close sequence. A second implementer gets less prose and the same executable specification; where the contract is now silent, the loader and the guards are the authority, and the note grammar is the worked example of that -- four shipped sentences had no clause at all and no reader had noticed. |
+| **A-P4-41** | 2026-08-26 | Version 6 is EXTENDED IN PLACE until the first release rather than bumped whenever a key is added. Closes R-P4-23 BY RULING. | Nothing outside this repository holds a version 6 description, nothing is released and nothing is tagged, so the migration message the bump would buy has no reader. The owner declined to spend the phase on it. | A description written earlier on this branch, before `pad_widths`, `forced_codes` or `forced_measurements`, gets the loader's plain missing-key refusal instead of the sentence naming which options to supply again. The route is to describe the table once more. The contract's own "filling any slot advances `profile_version`" is amended to bind from the first release on, and Phase 5 bumps the number when it fills the relationship slots. |
+
+## Residuals R-P4-42 and R-P4-43 — the joined role's own gaps (2026-08-26)
+
+Both were opened by the fourth adversarial read of the obligations
+landing, and **neither was caused by it**: they arrived with the role
+(P4-D21, P4-D23, P4-D25) and were invisible until section 9.4a wrote
+the role's dispositions down and a reviewer held the code to them.
+
+| # | what is open | why it is not closed here | what closes it |
+|---|---|---|---|
+| **R-P4-42** | The rank-agreement window is fixed by plan P4-D25 and appears in NEITHER method specification. The generation method has no joined-agreement clause and the validation method has no Phase 4 text at all. | Writing it is stage L10's work, where the method amendments are owed together; writing one clause here would leave the other eleven branches undocumented and imply the rest were covered. | L10, with the other method amendments. |
+| **R-P4-43** | `validation._joined_part_checks` checks each position's two endpoints and its whole-number test, and NOT its styles or its fraction census — while section 9.4a disposes the position's whole quantitative block. A checked file whose first position rewrites `200` as `200.0` keeps every checked number and passes. | It is a validator widening with its own red cases, and it belongs beside L7's distinctness work where the joined role is already being opened. | L7, or its own landing. |
+
+**R-P4-44, added after the fifth read: THE TWIN'S REPORT NAMES NO
+APPROXIMATION OF THIS ROLE.** `_approximations` returns an empty list
+for it, so the report says the twin gave nothing up while every
+position's ladder is approximated. A branch measuring each position
+was BUILT AND WITHDRAWN in the same landing, and what it cost is the
+reason this residual exists rather than a repair: `_part_view` hands a
+position the whole CELL's distinctness counts, so the report compared
+facts the profile publishes for no position; the renderer cannot say
+which position a record belongs to, so both printed as "this column"
+with `percentiles.p01` twice at different values; an unsplit stand-in
+`text-1` splits on `-` and was measured into position two; and
+`part_agreements` was not measured at all. **A report printing
+ambiguous numbers is worse than one printing none**, which is why the
+silent state is the one that stands until this role's landing does it
+properly. Measured on three columns before the withdrawal.
+
+**A fourth gap is recorded here and NOT given a number, because it is a
+defect rather than a limit:** a THREE-part joined column cannot honour
+every published pair. The repair walk permutes only the LAST position,
+so on a column like `1-100-50` … `100-1-50` the pair (1,2) is never
+scored or moved, and its published agreement and above-count are
+missed. Two-part columns — every blood pressure, every ratio — are
+unaffected, which is why five reads did not meet it. It belongs to
+P4-D23's walk and is L7's to fix, since L7 reopens that walk anyway.
+
+## Residual R-P4-45 — the note grammar's class split is guarded by the seal, not by arithmetic (2026-08-26)
+
+Opened at the fifth adversarial read. `test_every_stated_count_of_the_
+grammar_is_the_same_count` derives the form count, the position count,
+the package-word vocabulary and the bound-affix positions from the
+clauses and the producer's own tables, and checks the four-way class
+breakdown only for SUMMING and for agreeing wherever it is repeated.
+
+**So a breakdown falsified CONSISTENTLY at every site passes it** — 66
+whole positions and 4 package words becoming 65 and 5 everywhere at
+once keeps the total at 79 and the bound count at 5.
+
+**It is recorded rather than closed for two reasons, and the second is
+the one that matters.** The realistic failure is a site left behind
+when the others move, which is exactly what happened when NF45-NF48
+landed, and that this catches. And the contract joined the disposition
+seal in the same landing, so a coordinated edit of three breakdown
+sentences moves three sealed passages and cannot land without a counted
+re-seal a reviewer reads. Closing it properly means a table of argument
+classes in the producer, on the model of `_BOUND_AFFIX_PLACES`, whose
+own comment gives the reason such a table is written out rather than
+inferred. That is a product change and belongs with L10's method work,
+not at the end of a landing about an unrelated claim.

@@ -139,6 +139,29 @@ description is ever governed by two. What a producer writes for that
 key, and what a loader does with any other integer, is the version
 rule and the refusal in the loader section.
 
+**1.7a Version 6 is extended in place until the first release**
+(owner ruling 2026-08-26, plan amendment A-P4-41). Four keys and a role
+were added to version 6 after it was declared -- `pad_widths`,
+`forced_codes`, `forced_measurements`, the census of written forms, and
+the joined-numbers role -- each time on the argument that no version 6
+description exists outside this repository. The owner accepted that
+argument rather than spending a version bump on it, and the rule it
+suspends is stated here so no reader has to infer it: **a change that
+adds a key or a member advances `profile_version` FROM THE FIRST
+RELEASE ON**, and until that release version 6 is a moving target
+inside this repository alone.
+
+**What that costs, stated rather than discovered.** A description
+written earlier on this branch is stamped 6, as is the reader, so the
+version integers MATCH and the loader gives a plain missing-key refusal
+instead of the message naming which options to supply again. Measured:
+removing `forced_codes` from a current document yields "The description
+has no entry called 'forced_codes'... make the description again",
+where a version 5 document yields the sentence naming every option to
+bring back. The route is to describe the table once more. **This
+suspension does not reach section 4.6's reserved slots**, whose filling
+is a structural change and advances the version whenever it happens.
+
 **1.8 The older documents keep their sealed text.** Versions 4 and 5
 stay in the tree and keep governing the descriptions written under
 them. Neither is ever edited to change what it requires — a person
@@ -574,7 +597,7 @@ claim.
 | `declaration_matching` | string | exactly `exact_number_when_it_reads_as_one_else_spelling` | the one rule that says which cells a declared value matches: a declared value that reads as a number this format can hold matches every cell holding that EXACT NUMBER, whatever either is spelled like, so `-999` covers a file that writes `-999.00`; any other declared value matches by spelling, after trimming and case folding |
 | `declaration_publication` | string | exactly `settings_counts_only_columns_unchanged` | what this block publishes about a declaration and what it does not: counts and synthtwin's own words here, and the columns unchanged |
 | `declared_missing_values` | object | exactly the five keys below | the declaration record for `--missing-value` |
-| `forced_measurements` | array of strings | — | the names the person passed to `--measurement`, sorted ascending, pairwise distinct. A column named here whose cells hold two or more whole numbers joined by one repeated separator takes the `joined_numbers` role of section 6.15; a column named here whose cells do not are read by the ordinary rules, so the declaration decides nothing on its own. A name may not appear in more than one of the three declaration arrays |
+| `forced_measurements` | array of strings | — | the names the person passed to `--measurement`, sorted ascending, pairwise distinct. A column named here whose cells hold two or more numbers joined by one repeated separator takes the `joined_numbers` role of section 6.15; a column named here whose cells do not are read by the ordinary rules, so the declaration decides nothing on its own. A name may not appear in more than one of the three declaration arrays |
 | `forced_codes` | array of strings | — | the names the person passed to `--code`, sorted ascending, pairwise distinct. A column named here is read as LABELS: the rules that read a cell as a number, a date, a clock time or a number wearing an affix are silenced for it, so the roles left are the five that publish spellings. Unlike `forced_identifiers` this does NOT suppress the column — its distribution is why it was declared. A name may not appear in both arrays |
 | `forced_identifiers` | array of strings | — | the names the person passed to `--identifier`, sorted ascending, pairwise distinct |
 | `identifier_minimum_rows` | integer | ≥ 0 | below this many rows nothing is said about a column being all-different, because in a short column almost every measurement is. It decides no role |
@@ -1043,7 +1066,7 @@ contract:
    would read as a fact about the column. `true` and `false` are
    refused.
 2. **One of this package's own words.** The membership is closed at
-   NINETEEN and is written out rather than gathered, because a tuple
+   TWENTY-ONE and is written out rather than gathered, because a tuple
    written out is what stops a spelling of somebody's table from
    becoming an argument:
 
@@ -1055,8 +1078,12 @@ contract:
    `iso-month`, `iso-mixed`, `month-first-datetime`,
    `day-first-datetime` — the seventeen `format` members — and
    `day-first`, `month-first`, the two reading names the
-   day-and-month remark needs. No other string is a word of this
-   class.
+   day-and-month remark needs, and `hours_and_minutes`,
+   `hours_minutes_and_seconds`, the two clock words NF46 names a form
+   by. No other string is a word of this class. **The two clock words
+   are NOT `format` members** and never stand at a `format` key; a
+   consumer that admitted only the nineteen would refuse NF46, which
+   the shipped producer has written since the clock role landed.
 
    **Membership is not enough; the position is bound too** (NG18).
    A `format` member stands only where a form's argument table below
@@ -1075,11 +1102,17 @@ contract:
    string into another — a string assembled that way is a plain string
    with no origin, which the guard refuses.
 4. **A bound affix string.** Admitted under a binding, never as a free
-   string, and only at the two positions the affixed-column remark
-   fixes. **The binding is POSITIONAL.** Argument 1 conforms only when
-   it is character-for-character the `affix_prefix`, and argument 2
-   only when it is character-for-character the `affix_suffix`, of the
-   column block NAMED BY THE NOTE'S OWN SIBLING `column` FIELD.
+   string, and only at FIVE positions: the two the affixed-column
+   remark NF35 fixes, the two NF48 fixes on the same terms, and the
+   ONE separator position of NF47. **The binding is POSITIONAL.** On
+   NF35 and NF48, argument 1 conforms only when it is
+   character-for-character the `affix_prefix`, and argument 2 only when
+   it is character-for-character the `affix_suffix`, of the column
+   block NAMED BY THE NOTE'S OWN SIBLING `column` FIELD. On NF47,
+   argument 3 conforms only when it is character-for-character that
+   block's `separator`. **A consumer that admitted only NF35's two
+   would refuse NF47 and NF48**, which the shipped producer has
+   written since the joined and affixed roles landed.
 
    Position is part of the binding, and a membership test is not
    enough: a rule reading "must equal the `affix_prefix` or the
@@ -1112,10 +1145,16 @@ contract:
    widening it to arbitrary strings would be exactly the hole that lets
    a source-derived value into a sentence and be rebuilt successfully.
 
-**The census.** The table holds 44 forms and 65 argument positions: 56 whole numbers, 3 package words, 4 nested forms and 2 bound affix strings. Of
-those, 53 are whole numbers, 3 are package words, 4 are nested forms,
-and 2 are bound affix strings. No position is a string of any other
-kind.
+**The census.** The table holds 48 forms and 79 argument positions.
+Of those, 66 are whole numbers, 4 are package words, 4 are nested
+forms, and 5 are bound affix strings. No position is a string of any
+other kind.
+
+**This paragraph stated the count twice and the two disagreed** — 56
+whole numbers in one sentence and 53 in the next, which sum to 65 and
+62 against the same total. It was written that way before this phase
+and no guard compared them, which is the same silence that let four
+whole forms ship undefined. It states the count ONCE now.
 
 **Notation.** «*k*» marks where argument *k* is written into the
 rendering. Renderings are given character for character, including the
@@ -1176,7 +1215,16 @@ followed (review round 2 finding 15). They are one sentence again.
 
 ---
 
-##### B. The detection-evidence forms (ten forms)
+##### B. The detection-evidence forms (fourteen forms)
+
+**Its members are NF7 through NF16, and NF45 through NF48.** The second
+group arrived with the four roles Phase 4 added and is written at the
+foot of this section rather than among the first ten, because a form
+number is an IDENTIFIER and not a position: renumbering twenty-eight
+forms to keep one section contiguous would move every reference to them
+in this document, in the plans and in the tests, and a renumber of that
+size has already eaten one repair in this phase. Nothing else in this
+document depends on a section's numbers running without a gap.
 
 **NF7. `evidence_every_value_absent`** — arity 0.
 
@@ -1264,6 +1312,68 @@ folding. Argument 4: the categorical ceiling. Argument 5: rows.
 
 > you told synthtwin that this column holds record numbers rather than
 > measurements
+
+**NF45. `evidence_long_tail_of_labels`** — arity 5. Argument 1:
+different values, counted after trimming and case folding. Argument 2:
+the categorical ceiling. Argument 3: rows. Argument 4: the detection
+line a level had to cover, which is the recorded floor or eleven,
+whichever is larger. Argument 5: how many folded levels covered it.
+**The sentence names argument 5 before argument 4**, which is the one
+place in this section where the rendering order and the argument order
+differ; it is written out below rather than left to be inferred.
+
+> there are «1» different values, more than the «2» a set of categories
+> may have in a table of «3» rows -- but «5» level(s) of it are shared
+> by at least «4» rows each, so this column is a long tail of labels
+> rather than free text
+
+**NF46. `evidence_clock_times`** — arity 3. Argument 1: present cells
+that read as clock times under the winning form. Argument 2: a package
+word naming that form, and it is one of the two clock words of 14.6 —
+never a `format` member. Argument 3: present cells that do not.
+Argument 2 is written through this fixed table:
+
+| «2» | rendered as |
+|---|---|
+| `hours_and_minutes` | hours and minutes, `09:30` |
+| `hours_minutes_and_seconds` | hours, minutes and seconds, `09:30:00` |
+
+> «1» value(s) are clock times written as «2-rendered», and «3»
+> value(s) are not
+
+**NF47. `evidence_numbers_joined_in_one_cell`** — arity 3. Argument 1:
+present cells the joined reading accepted. Argument 2: how many
+numbers each such cell holds — **numbers and not WHOLE numbers**, and
+the distinction is not pedantry: the reading admits a decimal part, so
+a column of `1:1.5` is read by this role, and a sentence saying "2
+whole numbers" of it is false on the page a person reads. The producer
+function was itself called `splits_into_wholes` until 2026-08-26, and
+the name was where the false sentence came from.
+Argument 3: the separator, a BOUND AFFIX
+STRING — the fourth argument class — bound by identity to the
+`separator` key of the block this evidence sentence stands on, so the
+sentence names no spelling the block does not already publish.
+
+> «1» value(s) are «2» numbers written in one cell and joined by «3»
+
+**NF48. `evidence_numbers_wearing_one_affix`** — arity 3. Argument 1:
+the prefix. Argument 2: the suffix. Both are BOUND AFFIX STRINGS, bound
+POSITIONALLY to `affix_prefix` and `affix_suffix` of the block this
+sentence stands on — the positional binding that review item P4-X5-F8
+required, so a swapped pair cannot render a sentence that misdescribes
+the column. Argument 3: present cells wearing the pair. **Three
+renderings, selected by which sides are empty**, because a column
+wearing only a suffix has no prefix to name and a sentence that named
+one would describe a shape no cell has:
+
+> where both sides are written: «3» value(s) are written as «1», a
+> number, then «2»
+>
+> where only the prefix is written: «3» value(s) are written as «1»
+> followed by a number
+>
+> where only the suffix is written: «3» value(s) are written as a
+> number followed by «2»
 
 ---
 
@@ -1961,7 +2071,7 @@ names:
 
 | id | statement |
 |---|---|
-| NG14 | the form is one of the 44 in section 4.5.1 |
+| NG14 | the form is one of the 48 in section 4.5.1 |
 | NG15 | the argument count equals that form's arity |
 | NG16 | every argument is of one of C6-119's four classes |
 | NG17 | re-rendering the form with those arguments writes the leaf's text character for character |
@@ -5144,10 +5254,17 @@ unwritable.
 
 ### 6.15 `joined_numbers`
 
-**What the role is.** A column whose cells each hold TWO OR MORE whole
+**What the role is.** A column whose cells each hold TWO OR MORE
 numbers written in one cell and joined by one repeated separator: a
 blood pressure `120/80`, a ventilator ratio `1:1.5`, a pressure charted
 `120 / 80`. Each position is described as a quantity of its own.
+
+**A part is not required to be WHOLE**, and this document said it was
+until 2026-08-26 while offering `1:1.5` as an example in the same
+sentence. A part is one or more ASCII figures which may carry at most
+one decimal point, and that point may be neither the first character
+nor the last; a part with no figure, two points, an exponent or a sign
+is refused and the cell is not read by this role.
 
 **IT IS REACHED BY DECLARATION AND NEVER FROM THE VALUES**, and the
 reason is a measurement rather than a caution (plan P4-D21). A rule
@@ -6510,7 +6627,7 @@ month-first parsed.
 | NG11 | on `remark_affixed_numbers_may_be_codes`: argument 3 equals the named block's `n_affixed` |
 | NG12 | argument 1 is character-for-character that block's `affix_prefix` and argument 2 its `affix_suffix`, AT THOSE POSITIONS, not merely as members of the pair |
 | NG13 | on `remark_a_label_is_a_built_in_stand_in`: argument 1 is 1, 2 or 3 |
-| NG14 | for every form: one of the 44 the note grammar enumerates |
+| NG14 | for every form: one of the 48 the note grammar enumerates |
 | NG15 | the argument count equals that form's arity |
 | NG16 | every argument is of one of the four argument classes |
 | NG17 | re-rendering the form with those arguments writes the leaf's text character for character |
@@ -6704,6 +6821,42 @@ the cores and over `n_core_numeric` in place of `n_numeric`.
 | `numeric_styles`, `fraction_widths`, `pad_widths` | EXACT-OBSERVABLE against the same three recount identities, read over the cores |
 | `n_distinct`, `n_distinct_folded` | as on `count` and `continuous` above, the numeric mechanism supplying the spellings over the cores while the affix pair is constant across every counted cell |
 | `n_rows` (echo) | LOADER-ONLY |
+
+### 9.4a The joined role: `joined_numbers`
+
+**Section 9 asserted completeness over all fourteen roles and had no
+table for this one.** The role landed with plan P4-D21 and its pairing
+facts with P4-D23; eight published facts stood with no disposition at
+all, so an institutional reader following the promised exhaustive
+inventory found no treatment for the separator, the positional
+statistics or the within-cell pairing aggregates. Opened and closed
+together on 2026-08-26.
+
+| field | disposition |
+|---|---|
+| `separator` | EXACT-OBSERVABLE. The twin writes the same mark with the same spacing around it, so a reader splitting on it reads the twin as it reads the table (P4-D24) |
+| `n_parts` | EXACT-OBSERVABLE over the SPLIT cells. The `n_joined` cells hold this many numbers each; the `n_unparsed` cells are counted stand-ins and hold none, so a rule stated over every PRESENT cell would be false of them |
+| `n_joined`, `n_unparsed` | EXACT-OBSERVABLE. Counts of the cells the reading took and the cells it did not; the unsplit remainder is written as counted stand-ins |
+| `parts[]` | EACH POSITION CARRIES A QUANTITATIVE BLOCK AND TAKES 9.4's DISPOSITIONS, because the generator hands each position to the same machinery: its endpoints and ladder rungs, its moments, its sign and zero counts and its censuses are disposed exactly as `count` and `continuous` are. **What the VALIDATOR checks of a position is narrower than what this row disposes** — the two endpoints and the whole-number test, not the styles or the fraction census — so a checked file may carry a position whose spellings disagree with the description and pass. That gap is residual R-P4-43 and is named here rather than left for a reader to infer from a green report |
+| `part_min_widths` | EXACT-OBSERVABLE per position — the SMALLEST written width of that position's cells, one number per position and no maximum. A count of characters, never a value. The key names what it holds: there is no published upper width for a position |
+| `part_above` | EXACT-OBSERVABLE per PAIR. It is a number of rows, and a row out of it is a cell holding a reading that cannot happen — a diastolic above its systolic — so it is pinned rather than windowed |
+| `part_agreements` | APPROXIMATED per pair. It is published rounded and reached by a walk that stops when it is close enough. **The twin's report does NOT name it** — see R-P4-44 above; the quality report does. **The window is fixed by plan P4-D25 and NOT by either method specification**, which carry no joined-agreement clause at all — recorded here rather than stated as though a specification held it (residual R-P4-42) |
+
+**NO APPROXIMATED FACT OF THIS ROLE REACHES THE TWIN'S REPORT, and
+that is a defect this document states rather than a rule it makes**
+(residual R-P4-44). `_approximations` returns an empty list for the
+role, so a twin of a joined column carries a report saying "This twin
+has no approximated fact at all" while every position's ladder and
+both pairing aggregates are approximated by construction. The same
+defect was found and repaired one role earlier, on `affixed_number`,
+and was not carried across.
+
+**What this role does NOT hold exactly, stated here rather than left to
+be discovered.** The count of different CELLS is not always reached:
+each position is drawn to its own published ladder, that draw repeats a
+value more evenly than the real column did, and fewer different pairs
+can be made from values that repeat more. Residual R-P4-40 prices it
+and names the description change that would close it.
 
 ### 9.5 The label roles: `constant`, `binary`, `categorical`, `long_tail_labels`
 
@@ -7442,11 +7595,11 @@ this document, and the battery the plan requires turns red on it.
 | `sentinel_verdicts` | the candidate as text — a stand-in number, or a calendar placeholder's ISO day — with occurrence count, verdict and reason | `(withheld)` on a nothing-publishing column |
 | labels-class blocks (`constant`, `binary`, `categorical`, `long_tail_labels`) | folded label spellings with row counts; each label's exact spellings under `variants`; how many levels were held back and how many rows they cover (`suppressed_levels`, `suppressed_rows`) and the ascending sizes of those levels (`suppressed_level_counts`); and the census of WRITTEN FORMS its cells wore (`shape_forms`) | every named spelling floor-governed; the three held-back facts publish SIZES and COUNTS of unnamed groups, floor-free; the form census floor-governed with a `(withheld)` pool, and every key of it built only from `%`, `@` and thirteen named marks -- characters no cell that HAS a form may contain |
 | `level_ceiling`, on `categorical` | the effective category cap the run applied, computed from `categorical_ceiling`, `categorical_share`, `categorical_floor` and `n_rows` | publishes nothing the settings block and `n_rows` do not already publish |
-| ranges-class blocks (`count`, `continuous`, `datetime`, `time_of_day`, `affixed_number`) | endpoints and the eleven ladder rungs, which are exact values of real cells; moments and shape statistics; sign and zero counts; the style census, the fraction-width census, the FIELD-WIDTH census and the offset map; `resolution_mix`; the affix pair | endpoints and rungs FLOOR-FREE under the ranges-class endpoint policy; the four maps floor-governed with a `(withheld)` pool; the affix pair floor-governed by its own detection rule |
+| ranges-class blocks (`count`, `continuous`, `datetime`, `time_of_day`, `affixed_number`, `joined_numbers`) | endpoints and the eleven ladder rungs, which are exact values of real cells; moments and shape statistics; sign and zero counts; the style census, the fraction-width census, the FIELD-WIDTH census and the offset map; `resolution_mix`; the affix pair; and on `joined_numbers` the separator, the part and split counts, each position's written-width bounds, and the two pairing aggregates | endpoints and rungs FLOOR-FREE under the ranges-class endpoint policy; the four maps floor-governed with a `(withheld)` pool; the affix pair floor-governed by its own detection rule; the separator floor-governed by the role's own detection rule, and the pairing aggregates FLOOR-FREE — they are computed over every row and name no cell |
 | nothing-class blocks (`numeric_unrepresentable`, `identifier`, `free_text`) | lengths, word statistics, digit and code-alphabet counts, the whole-number test, the repetition multiset, on `numeric_unrepresentable` the whole-number and sign counts, and on `free_text` the census of WRITTEN FORMS its cells wore (`shape_forms`) | no value, no spelling, no fragment of one — the form census included, whose every key is built from `%`, `@` and thirteen named marks -- characters no cell that has a form may contain, so a key can carry no letter and no figure of any cell; the multiplicity map publishes SIZES of unnamed groups under no floor, the form census under the floor with a `(withheld)` pool |
 | `empty` columns nobody declared | the absent SPELLINGS their cells wore and the two absence counts, exactly as any column that is not nothing-publishing | floor-governed |
 | `settings` | the rules the run applied, the floor's own value, how many values each declaration named, and which of THIS package's published words were among them | carries no cell, no column and no count of the table; a person's own spelling never enters |
-| `source.header_evidence`, `publication_notes[].note`, `detection_evidence`, `remarks` | sentences of the 44 closed forms: 65 argument positions, of which 56 are whole numbers, 3 package words, 4 nested forms and 2 bound affix strings | the whole numbers are counts the block beside them already publishes, EXCEPT the positions priced at rows 16 and 18 |
+| `source.header_evidence`, `publication_notes[].note`, `detection_evidence`, `remarks` | sentences of the 48 closed forms: 79 argument positions, of which 66 are whole numbers, 4 package words, 4 nested forms and 5 bound affix strings | the whole numbers are counts the block beside them already publishes, EXCEPT the positions priced at rows 16 and 18 |
 | `relationships` | nothing: eight nulls | — |
 
 ### 12.3 The rows, each priced
@@ -8104,7 +8257,7 @@ ten name their own shape.
 | bucket | roles | count |
 |---|---|---|
 | labels | `constant`, `binary`, `categorical`, `long_tail_labels` | 4 |
-| ranges | `count`, `continuous`, `datetime`, `time_of_day`, `affixed_number` | 5 |
+| ranges | `count`, `continuous`, `datetime`, `time_of_day`, `affixed_number`, `joined_numbers` | 6 |
 | nothing | `numeric_unrepresentable`, `identifier`, `free_text` | 3 |
 | no value-publishing class | `empty` | 1 |
 
@@ -8288,11 +8441,11 @@ way, with one difference: the width is at least TWO (`2`, `3`, `10`),
 a padded cell writing at least one zero in front of at least one figure
 (C6-29b). `(withheld)` is again the only non-numeric key permitted.
 
-### 14.8 The note grammar — 44 forms
+### 14.8 The note grammar — 48 forms
 
 Defined in 4.5.1, which is the authority on every rendering and every
-argument. 65 argument positions: 56 whole numbers, 3 package words, 4
-nested forms, 2 bound affix strings.
+argument. 79 argument positions: 66 whole numbers, 4 package words, 4
+nested forms, 5 bound affix strings.
 
 | # | form | arity |
 |---|---|---|
@@ -8340,11 +8493,21 @@ nested forms, 2 bound affix strings.
 | NG42 | `remark_two_figure_years_are_read_at_a_pivot` | 0 |
 | NG43 | `remark_padded_numbers_may_be_codes` | 1 |
 | NG44 | `remark_commas_read_as_thousands` | 2 |
+| NG45 | `evidence_long_tail_of_labels` | 5 |
+| NG46 | `evidence_clock_times` | 3 |
+| NG47 | `evidence_numbers_joined_in_one_cell` | 3 |
+| NG48 | `evidence_numbers_wearing_one_affix` | 3 |
 
-**The package-word vocabulary — 19**, the whole of the second argument
+**The package-word vocabulary — 21**, the whole of the second argument
 class (4.5.1): the seventeen `format` members of 14.6, plus `day-first`
 and `month-first`, the two reading names the day-and-month remark
-needs.
+needs, plus `hours_and_minutes` and `hours_minutes_and_seconds`, the
+two clock words NF46 names a form by. **The count read nineteen and
+omitted the two clock words until 2026-08-26**, while the shipped
+producer had carried twenty-one since the clock role landed -- so a
+producer written to this document would have refused the clock
+evidence sentence the tool writes. The two clock words are NOT
+`format` members and never appear in a `format` key.
 No other string is a word of this class, and membership alone does not
 admit a word: a `format` member stands only at `evidence_dates`
 argument 3 or `said_read_as_dates` argument 2, and `day-first` or

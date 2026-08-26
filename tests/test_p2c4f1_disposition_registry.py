@@ -121,9 +121,11 @@ PLAN4 = REPO_ROOT / "docs" / "plans" / "phase-4-columns.md"
 PLAN4 = REPO_ROOT / "docs" / "plans" / "phase-4-columns.md"
 VALIDATION = REPO_ROOT / "docs" / "spec" / "validation-method-v1.md"
 CONTRACT5 = REPO_ROOT / "docs" / "spec" / "profile-contract-v5.md"
+CONTRACT6 = REPO_ROOT / "docs" / "spec" / "profile-contract-v6.md"
 RELATIVE = {
     "docs/spec/profile-contract-v4.md": CONTRACT,
     "docs/spec/profile-contract-v5.md": CONTRACT5,
+    "docs/spec/profile-contract-v6.md": CONTRACT6,
     "docs/spec/generation-method-v1.md": METHOD,
     "docs/spec/validation-method-v1.md": VALIDATION,
     "docs/plans/phase-2-generator.md": PLAN,
@@ -327,6 +329,67 @@ def test_no_passage_of_a_governing_document_is_unsealed() -> None:
     )
 
 
+def test_no_sealed_passage_has_been_deleted_from_its_document() -> None:
+    """The seal is checked in BOTH directions, and one was missing.
+
+    ROUND 4 ITEM 1. `_unsealed` asks whether every passage of a
+    document is in the seal. That catches a passage WRITTEN or CHANGED
+    -- an edit changes the digest, so the new text is unsealed -- and
+    it does not catch a passage DELETED. A deleted obligation simply
+    orphans its digest, the remaining passages are all still known, and
+    nothing turns red.
+
+    So a governing obligation could be removed inside a large repair
+    without anybody deciding to remove it, which is precisely what this
+    seal exists to prevent and what its own docstring claims it does.
+    Measured before the repair: deleting the `part_above` disposition
+    row left zero unsealed passages.
+
+    THE CURE IS RE-SEALING, exactly as it is for a written passage: a
+    counted edit whose diff shows one line per passage, so a reviewer
+    reads "one obligation removed" off it.
+    """
+    orphaned: dict[str, str] = {}
+    for name, path in sorted(RELATIVE.items()):
+        # COUNTED, NOT SET-COMPARED, and round 5 is why. Both the seal
+        # generator and the first draft of this check reduced passages
+        # to a SET, so a document carrying the same sentence twice --
+        # and the contract carries many, an exactness row repeated
+        # under two roles being the plain case -- could lose one copy
+        # with nothing to notice. The forward check saw no unknown
+        # passage and this one saw no orphaned digest.
+        #
+        # The seal cannot hold multiplicity: it is a set of digests by
+        # construction. So the COUNT of passages is held beside it, and
+        # a document that loses a repeated sentence changes its count
+        # while its set stands still.
+        held = [
+            dispositions.digest(passage)
+            for passage in dispositions.passages(path)
+        ]
+        gone = [
+            sealed
+            for sealed in disposition_seal.SEALED[name]
+            if sealed not in set(held)
+        ]
+        if gone:
+            orphaned[name] = f"{len(gone)} sealed passage(s) no longer present"
+            continue
+        counted = disposition_seal.COUNTED.get(name)
+        if counted is not None and counted != len(held):
+            orphaned[name] = (
+                f"{counted} passages were sealed and the document now "
+                f"holds {len(held)}, so a REPEATED sentence was added "
+                "or removed while the set of distinct ones stood still"
+            )
+    assert not orphaned, (
+        "these documents no longer contain passages the seal holds, so "
+        "an obligation was removed without being re-sealed -- run "
+        "`.venv/bin/python tools/dispositions/seal.py --write` and read "
+        f"the counted diff before believing it: {orphaned}"
+    )
+
+
 def test_the_seal_covers_every_governing_document_and_is_not_empty() -> None:
     """The vacuity floor for the seal.
 
@@ -373,10 +436,11 @@ def test_no_fourth_governing_document_can_appear_unsealed() -> None:
         "generation-method-v1.md",
         "profile-contract-v4.md",
         "profile-contract-v5.md",
-        # The version 6 contract, DRAFT under adversarial review. Listed
-        # here so the tree stays green while the rounds run, on the
-        # precedent of the Phase 4 plan; it joins GOVERNING and the seal
-        # at its ratification.
+        # The version 6 contract, which GOVERNS: `PROFILE_VERSION` is 6
+        # in the producer and the loader, and every description this
+        # tree writes is a version 6 one. It was carried here as a
+        # draft for longer than that was true, and joined GOVERNING and
+        # the seal on 2026-08-26.
         "profile-contract-v6.md",
         "validation-method-v1.md",
     ], specifications

@@ -1,6 +1,6 @@
 """P2-D11: the repository-wide claim inventory, asserted rather than kept.
 
-FOUR FAMILIES OF CLAIM LIVE HERE. The first is the RECORD claim, and it
+SEVEN FAMILIES OF CLAIM LIVE HERE. The first is the RECORD claim, and it
 is what this file was written for; it is described immediately below.
 The second arrived with review item P2-C1-F7 and is described under
 "THE SECOND FAMILY" further down: what the twin CARRIES, which phase
@@ -11,10 +11,21 @@ and how many files a run leaves behind, counted from the product and
 checked against every surface. The fourth arrived with the owner's
 ruling of 2026-08-14 and is described under "THE FOURTH FAMILY" at the
 foot: a confidentiality guarantee this product deliberately stopped
-making, which no surface may go on making for it. They share this file
-because they share a failure mode -- true text going stale on a surface
-nobody re-read -- and because a reader who trusts one of these
-sentences has no way to tell which family it came from.
+making, which no surface may go on making for it. The fifth counts
+which wire version synthtwin speaks, and the sixth what the description
+keeps of the words a person typed. The seventh arrived with the owner's
+instruction of 2026-08-26: an EXEMPTION FROM AN OBLIGATION, which being
+synthetic does not grant and which no surface here may say it does.
+They share this file because they share a failure mode -- true text
+going stale on a surface nobody re-read -- and because a reader who
+trusts one of these sentences has no way to tell which family it came
+from.
+
+THE COUNT IN THE SENTENCE ABOVE SAID "FOUR" UNTIL 2026-08-26, while six
+families stood in the file. The fifth and sixth were added without it
+moving. That is this file's own failure mode landing on this file, it
+is recorded rather than quietly corrected, and it is why the seventh
+carries a test that counts the family headings.
 
 WHAT WENT WRONG, AND WHY A TEST IS THE ONLY REPAIR THAT HOLDS. synthtwin
 said, in eight places, that the twin holds no record of yours: twice in
@@ -213,6 +224,12 @@ SURFACES = (
 # the disposition seal's own governing set, so the next governing
 # document cannot be left out by being forgotten.
 DEFENCE_SURFACES = SURFACES + (
+    # Round 1 item 4: the working-state page CLAUDE.md makes the
+    # mandatory first read, and the plain-language status page, were
+    # both outside every ban -- while STATE.md itself asserts that the
+    # seventh family guards this rule.
+    "docs/STATE.md",
+    "STATUS.md",
     "docs/plans/phase-2-generator.md",
     "docs/plans/phase-3-product.md",
     "docs/plans/phase-4-columns.md",
@@ -6246,3 +6263,699 @@ def test_the_derivation_reads_the_producer_and_not_a_list() -> None:
     # claim enter a place by naming a condition.
     assert set(_clean_rooms()) | set(_STATED_LIMITS) == set(_clean_places())
     assert not set(_clean_rooms()) & set(_STATED_LIMITS)
+
+
+# ---------------------------------------------------------------------
+# THE SEVENTH FAMILY: AN EXEMPTION THE TWIN DOES NOT GRANT
+# (owner instruction 2026-08-26)
+# ---------------------------------------------------------------------
+#
+# WHAT THE OWNER SAID, AND WHY IT IS A TEST. Describing the product, the
+# owner wrote that synthtwin lets people develop statistical code with
+# an assistant "without HIPAA constraints (because is synthetic)". The
+# first half of that thought is exactly what this tool is for. The
+# second half is a claim about somebody's OBLIGATIONS, and it is one
+# this project is in no position to make: the charter's own limits say
+# all five files a run leaves behind carry facts computed from real
+# data, and at the default floor of one every value in the table is
+# named in the description with the number of rows that held it.
+#
+# No surface here has ever made that claim -- a search for it before
+# this family was written returned nothing, which is why the repair is
+# a guard and not a correction. What is being fixed is the VACUUM: the
+# sentence is the one that comes naturally to anybody describing a
+# synthetic twin, it is one clause away from every true sentence here
+# about privacy, and it is the sentence a review board stops on. The
+# charter and the front page now state the honest form; this keeps them
+# stating it.
+#
+# WHY COMPOSITIONAL, LIKE THE FOURTH AND NOT LIKE THE FIRST. The claim
+# has no settled phrasing. "Not subject to", "does not apply", "removes
+# the need for", "falls outside", "without needing" are five ways to
+# say it and there is no reason to think a sixth will not be written.
+# The fourth family learned this at review round 4 -- a ban anchored on
+# one sentence shape catches one sentence shape -- so this one fires on
+# a PAIR, in one statement:
+#
+#   * it NAMES an obligation regime, in any of the ways English names a
+#     privacy rule, an institution's own rules, an ethics approval, a
+#     data-use agreement or a compliance requirement; and
+#   * it makes an EXEMPTION claim about it -- does not apply, is not
+#     subject to, is exempt from, removes the need for, falls outside.
+#
+# Neither half alone is a defect, and both halves alone are required
+# here: the charter NAMES those regimes in order to say they still
+# bind, and ordinary English about what this product refuses to do uses
+# the exemption words constantly.
+#
+# AND THE CURE IS A WINDOW, on the fourth family's own precedent and
+# for its reason: a passage that names a regime, states the exemption
+# and then refuses it -- "still applies", "apply to all five", "is not
+# a finding that", "for the people who set it" -- is the honest
+# paragraph this instruction requires rather than the claim it bans,
+# and this repository writes exactly that way. What a surface may not
+# do is state the exemption with no refusal anywhere near it.
+#
+# MEASURED BEFORE LANDING: zero statements on the whole governed tree
+# match the pair, and all six wordings in `_EXEMPTIONS_THAT_MUST_TRIP`
+# are caught. The vacuity floor below is that measurement, kept.
+
+_OBLIGATION_NAMES = (
+    r"\bprivacy (?:rules?|laws?|regulations?|requirements?|polic(?:y|ies))\b",
+    r"\bdata[- ]protection (?:rules?|laws?|regulations?)\b",
+    r"\bhealth[- ]information (?:privacy )?(?:rules?|laws?)\b",
+    r"\b(?:your |the )?institution'?s? (?:own )?(?:rules?|policies|requirements?)\b",
+    r"\binstitutional (?:rules?|policies|requirements?|approval)\b",
+    r"\breview board\b",
+    r"\bethics (?:review|committee|approval)\b",
+    r"\bdata[- ]use agreements?\b",
+    r"\bgoverning (?:rules?|regulations?)\b",
+    r"\bcompliance (?:rules?|requirements?|obligations?)\b",
+    r"\bhuman[- ]subjects?\b",
+    r"\brules? for real-derived material\b",
+    # Round 1 item 3: ordinary prose the first list missed.
+    r"\bregulatory (?:rules?|requirements?|obligations?|constraints?)\b",
+    r"\binstitutional polic(?:y|ies)\b",
+    r"\b(?:the )?review board'?s? (?:jurisdiction|remit|reach)\b",
+    r"\bethics (?:board|oversight)\b",
+    r"\bapprovals? (?:is|are) (?:needed|required|necessary)\b",
+    # NOT a bare `approval`, and the reason is measured rather than
+    # argued. A draft used the bare noun to catch "approval is
+    # unnecessary when the table is synthetic", and the contract's own
+    # honest sentence -- "a privacy approval given for an earlier
+    # description does not cover a marked row", which says an
+    # obligation reaches FURTHER than a reader might think -- was
+    # reported as the banned claim. The shape is named instead of the
+    # noun widened.
+    r"\bapprovals? (?:is|are) (?:unnecessary|not needed|not required)\b",
+)
+
+# The claim that an obligation has been LIFTED. Deliberately not here:
+# any wording about what the TOOL does not guarantee. "Offers no formal
+# privacy guarantee" is a true sentence this repository is required to
+# carry, and a ban that caught it would be a ban nobody could satisfy.
+_EXEMPTION_MARKS = (
+    r"\b(?:does|do) not apply\b",
+    r"\bno longer applies?\b",
+    r"\bstops? applying\b",
+    r"\bnot subject to\b",
+    r"\bexempt from\b",
+    r"\bexempts? (?:you|your|the user)\b",
+    r"\bremoves? the need for\b",
+    r"\bwithout (?:needing|requiring|the need for)\b",
+    r"\bfrees? (?:you|your team) from\b",
+    r"\bfalls? outside\b",
+    r"\bnot covered by\b",
+    r"\bno (?:approval|review|oversight|permission) (?:is )?(?:needed|required)\b",
+    r"\bside[- ]steps?\b",
+    # Round 1 item 3: ordinary prose the first list missed.
+    r"\bneed not comply\b",
+    r"\bneed not (?:be )?(?:seek|obtain|follow|meet)\b",
+    r"\bis unnecessary\b",
+    r"\b(?:is|are|falls?|sits?) outside\b",
+    r"\bdoes not (?:govern|bind|apply to|extend to)\b",
+    r"\bdo not (?:govern|bind|apply to|extend to)\b",
+    r"\b(?:is|are) not governed by\b",
+    r"\b(?:is|are) not (?:required|necessary)\b",
+    r"\bno .{0,24}?(?:review|approval|oversight) is (?:necessary|needed|required)\b",
+    r"\bobviates? the need\b",
+    r"\b(?:is|are) beyond\b",
+    # Round 3 item 4.
+    r"\bdoes not need\b",
+    r"\bdo not need\b",
+    r"\bcan be skipped\b",
+    r"\b(?:is|are) exempt under\b",
+    r"\blets? you ignore\b",
+    r"\bignore .{0,30}?(?:rules?|requirements?|policy|policies)\b",
+    # Round 4.
+    r"\bceases? to apply\b",
+    r"\b(?:is|are) excluded from\b",
+    r"\b(?:is|are) inapplicable\b",
+    r"\bno longer (?:binds?|governs?|reaches?|covers?)\b",
+    r"\bare exempt\b",
+    r"\bis exempt\b",
+)
+
+_STILL_BOUND_MARKS = (
+    r"\bapply to all five\b",
+    r"\bstill (?:applies|apply)\b",
+    r"\bstill bound\b",
+    r"\bdoes not (?:lift|remove|settle|answer)\b",
+    r"\bis not (?:a substitute|an answer|a finding)\b",
+    r"\bno sentence here may\b",
+    r"\bnot a finding that\b",
+    r"\bfor the people who set it\b",
+)
+
+# The six wordings measured against this guard when it was written. They
+# are the vacuity floor: a change that stops any of them tripping has
+# narrowed the ban to a shape, which is the defect the fourth family
+# spent a review round learning.
+_EXEMPTIONS_THAT_MUST_TRIP = (
+    "the twin is synthetic, so your institution's rules do not apply.",
+    (
+        "because the twin is fake, health-information privacy laws "
+        "are not subject to this workflow."
+    ),
+    "working on the twin removes the need for ethics approval.",
+    "a synthetic table falls outside data-protection regulations.",
+    "you can share the twin without needing institutional approval.",
+    "the quality report is exempt from compliance requirements.",
+    # Round 1 finding 3, each measured walking past the first draft.
+    "synthetic twins are exempt from regulatory requirements.",
+    "synthetic files need not comply with institutional policy.",
+    "synthetic output is outside the review board's jurisdiction.",
+    "approval is unnecessary when the table is synthetic.",
+    # Round 1 finding 2: the claim split across a statement boundary,
+    # which is how the fourth family was walked past at its round 4.
+    (
+        "data-use agreements govern source tables. they do not apply "
+        "to synthetic twins."
+    ),
+    # ROUND 2. Every one of these walked past the round-1 repair, and
+    # the list is kept whole rather than sampled: each is a different
+    # way English carries the claim, and the round-1 lesson is that a
+    # ban narrows to the shapes its floor happens to hold.
+    "a privacy rule governs the source table. it does not apply to it.",
+    "a privacy rule governs the source. this does not apply.",
+    (
+        "a data-use agreement governs the source table. the agreement "
+        "does not apply."
+    ),
+    (
+        "privacy rules govern source data. synthetic output is treated "
+        "differently. those rules do not apply."
+    ),
+    (
+        "privacy rules govern source tables. they still apply to the "
+        "source, but do not apply to synthetic twins."
+    ),
+    "the twin is exempt from data-use agreements. privacy rules still apply.",
+    "approval is not required when the table is synthetic.",
+    "no ethics review is necessary for synthetic data.",
+    "synthetic files are not governed by institutional policy.",
+    "regulatory requirements do not extend to synthetic twins.",
+    "using synthetic data obviates the need for ethics approval.",
+    "synthetic output is beyond the review board's jurisdiction.",
+    # ROUND 3 item 4, and the bare-pronoun carry of round 3 item 5.
+    "synthetic data does not need ethics review.",
+    "institutional approval can be skipped for synthetic data.",
+    "synthetic files are exempt under the privacy policy.",
+    "synthetic data lets you ignore institutional rules.",
+    (
+        "the twin is exempt from data-use agreements. it still applies "
+        "a publication floor."
+    ),
+    # ROUND 4.
+    "privacy rules cease to apply to synthetic twins.",
+    "synthetic records are excluded from institutional policy.",
+    "institutional policy is inapplicable to synthetic records.",
+    (
+        "the twin is exempt from data-use agreements. the generator "
+        "has deterministic rules. they still apply."
+    ),
+    # ROUND 5: number agreement settled nothing. Both of these were
+    # reproduced against the repair it replaced.
+    (
+        "the twin is exempt from data-use agreements. its output "
+        "formats have rules, and they still apply."
+    ),
+)
+
+# SENTENCES THAT MUST NOT TRIP IT, kept beside the floor because a ban
+# is two-sided and the round-1 repair proved it: a widening that caught
+# one more attack reported this repository's own honest prose.
+_HONEST_AND_MUST_NOT_TRIP = (
+    (
+        "this contract does not cover institutional requirements; consult "
+        "your institution."
+    ),
+    (
+        "no review is required by the package installer; institutional "
+        "requirements may govern generated files."
+    ),
+    (
+        "a privacy approval given for an earlier description does not cover "
+        "a marked row."
+    ),
+    (
+        "being synthetic is not by itself the answer to a privacy rule "
+        "or to your institution's own rules."
+    ),
+    (
+        "a reader might think the twin means privacy rules do not "
+        "apply. privacy rules still apply, and the five files are why."
+    ),
+    # ROUND 3 item 5, the other direction: a bare `it` two statements
+    # later belongs to the package, not to the rules.
+    (
+        "privacy rules govern generated files. this package reads csv. "
+        "it does not apply to parquet."
+    ),
+    (
+        "privacy rules govern generated files. these converters read "
+        "csv files. they do not apply to parquet."
+    ),
+    (
+        "privacy policy and institutional approval do not apply to "
+        "synthetic twins. privacy policy still applies."
+    ),
+)
+
+
+def _marks_in(patterns: "tuple[str, ...]", statement: str) -> "list[str]":
+    """Every pattern of ``patterns`` that appears in one statement."""
+    return [mark for mark in patterns if re.search(mark, statement)]
+
+
+# THE OBLIGATION THIS IS ALL ABOUT, in the words a following statement
+# uses to refer back to one. Round 1 items 2 and 5 are one defect
+# seen from two sides: a claim may be carried into the NEXT statement
+# ("Data-use agreements govern source tables. They do not apply to
+# synthetic twins."), and a cure may be granted by an UNRELATED
+# sentence that merely contains "still applies" within reach. Both are
+# fixed by requiring the carrying or curing statement to be ABOUT the
+# obligation -- naming one again, or referring to it with a pronoun and
+# nothing else in between that changes the subject.
+#
+# A BARE PRONOUN CANNOT RESOLVE A REFERENCE, and round 3 item 5 showed
+# the cost of pretending otherwise in both directions at once. "The twin
+# is exempt from data-use agreements. It still applies a publication
+# floor." cured a real claim with an `it` that meant the twin; and
+# "Privacy rules govern generated files. This package reads CSV. It does
+# not apply to Parquet." reported one, with an `it` that meant the
+# package. A comment beside the list claimed the bare pronouns were gone
+# while the list held them, which is its own defect and is why the split
+# below is written out rather than described.
+#
+# SO THE SET IS SPLIT AND USED ASYMMETRICALLY, on the principle that the
+# two directions have different costs. A vague reference may CARRY a
+# claim into the very next statement, where a reader would carry it too
+# -- a false report there is caught by the person reading the failure.
+# A vague reference may never EXCUSE one, and may never reach across an
+# intervening statement, because a guard that can be talked out of a
+# finding by an ambiguous pronoun is not a guard.
+_REFERS_BACK_PLAINLY = (
+    r"\bsuch (?:rules?|requirements?|obligations?|agreements?|approvals?)\b",
+    (
+        r"\b(?:that|this|the) "
+        r"(?:rule|requirement|obligation|agreement|approval)s?\b"
+    ),
+    r"\bthose (?:rules?|requirements?|obligations?|agreements?|approvals?)\b",
+)
+
+# Admitted only in the statement immediately after the naming, and only
+# when finding a claim -- never when excusing one.
+_REFERS_BACK_VAGUELY = (
+    r"\bit\b",
+    r"\bthis\b",
+    # ROUND 4 moved these two down from the plain set. A plural pronoun
+    # is no less ambiguous than a singular one at distance: "The twin
+    # is exempt from data-use agreements. The generator has
+    # deterministic rules. They still apply." excused a real claim, and
+    # "Privacy rules govern generated files. These converters read CSV
+    # files. They do not apply to Parquet." reported an honest one.
+    # Both used `they`, and both are fixed by the same rule that fixed
+    # `it`: a bare pronoun reaches the next statement and no further,
+    # and never excuses anything.
+    r"\bthey\b",
+    r"\bthem\b",
+)
+
+def _last_mark_at(patterns: "tuple[str, ...]", statement: str) -> int:
+    """Where the LAST of these patterns matches, or -1 for none.
+
+    Positions are what makes the in-statement cure directional. A first
+    draft tried to do this by slicing the statement at the matching
+    pattern's own text, which cannot work: the pattern is a regular
+    expression and not the words it matched, so the slice was always
+    the whole statement and the direction was never tested.
+    """
+    best = -1
+    for mark in patterns:
+        for found in re.finditer(mark, statement):
+            best = max(best, found.start())
+    return best
+
+
+def _about_the_obligation(statement: str, *, vaguely: bool = False) -> bool:
+    """Whether this statement is about an obligation already named.
+
+    ``vaguely`` admits a bare pronoun, which only the carry does and
+    only in the statement immediately after the naming.
+    """
+    back = _REFERS_BACK_PLAINLY + (_REFERS_BACK_VAGUELY if vaguely else ())
+    return bool(_marks_in(_OBLIGATION_NAMES, statement) or _marks_in(back, statement))
+
+
+def _carried_exemption(after: "list[str]") -> "tuple[str, str, int] | None":
+    """The exemption a FOLLOWING statement claims about the obligation.
+
+    Read while they stay within `_CURE_WINDOW` of the naming, which is
+    the same reach the cure is allowed. A statement that is not about
+    the obligation carries nothing -- that requirement is what keeps
+    this from colliding with unrelated prose, the price the fourth
+    family measured for the same mechanism.
+    """
+    reached = 0
+    for step, statement in enumerate(after):
+        reached = reached + len(statement)
+        if reached > _CURE_WINDOW:
+            return None
+        if not _about_the_obligation(statement, vaguely=step == 0):
+            continue
+        lifted = _marks_in(_EXEMPTION_MARKS, statement)
+        if not lifted:
+            continue
+        # DIRECTIONAL HERE TOO. "They still apply to the source, but do
+        # not apply to synthetic twins" carries the claim in its last
+        # clause, and a cure mark standing anywhere in the statement
+        # used to discard the whole of it.
+        if _last_mark_at(_STILL_BOUND_MARKS, statement) > _last_mark_at(
+            _EXEMPTION_MARKS, statement
+        ):
+            return None
+        return (statement, lifted[0], step)
+    return None
+
+
+def _cured_after(statements: "list[str]", named: "list[str]") -> bool:
+    """Whether a following statement withdraws the exemption.
+
+    IT MUST BE ABOUT THE OBLIGATION. Round 1 item 5: "The twin is
+    exempt from data-use agreements. Cross-column facts are absent. The
+    small-group publication rule still applies." cured a real defect
+    with a sentence about something else entirely, purely because it
+    fell inside the window.
+    """
+    reached = 0
+    for step, statement in enumerate(statements):
+        reached = reached + len(statement)
+        if reached > _CURE_WINDOW:
+            return False
+        # THE SAME REGIME, not merely some regime. "The twin is exempt
+        # from data-use agreements. Privacy rules still apply." used to
+        # cure: preserving one obligation erased an exemption claimed
+        # over a different one.
+        #
+        # AND A BARE PRONOUN CURES ONLY IN THE VERY NEXT STATEMENT, the
+        # same reach it is given to carry. "...do not apply. They still
+        # apply, and the five files are why." is the honest paragraph
+        # this repository writes and must pass; "...exempt from
+        # data-use agreements. The generator has deterministic rules.
+        # They still apply." is a bridge, and the `they` there belongs
+        # to the generator.
+        # A CURE MUST NAME THE REGIME. No pronoun rule survived
+        # contact: round 4 showed a bare `it` excusing a claim and
+        # reporting an honest sentence; round 5 broke the
+        # number-agreement repair in both directions too -- "Its output
+        # formats have rules, and they still apply" agrees in number
+        # with `agreements` and refers to the formats, while "Privacy
+        # policy and institutional approval do not apply... They still
+        # apply" withdraws the claim and was reported.
+        #
+        # No regular expression resolves reference, so the guard stops
+        # pretending to. What it asks instead is that a passage
+        # withdrawing an exemption SAY WHICH RULES still apply, which
+        # is a demand on prose this repository can meet and is better
+        # writing than the pronoun anyway.
+        same = set(_marks_in(_OBLIGATION_NAMES, statement)) & set(named)
+        if not same and not _marks_in(_REFERS_BACK_PLAINLY, statement):
+            continue
+        if _marks_in(_STILL_BOUND_MARKS, statement):
+            return True
+    return False
+
+
+def _grants_an_exemption(text: str) -> "list[tuple[str, str, str]]":
+    """Every statement claiming an obligation has stopped binding.
+
+    Guarantees:
+
+    - Inputs: one surface's text, lowercased and space-collapsed by
+      `_text`.
+    - Determinism: a fixed function of that text; nothing is read here.
+    - Errors raised: none.
+    - Boundary: pure text; opens nothing.
+    """
+    found: list[tuple[str, str, str]] = []
+    at = 0
+    statements = _STATEMENT_END.split(text)
+    for index, statement in enumerate(statements):
+        start = text.find(statement, at)
+        at = start + len(statement)
+        named = _marks_in(_OBLIGATION_NAMES, statement)
+        if not named:
+            continue
+        lifted = _marks_in(_EXEMPTION_MARKS, statement)
+        said = statement
+        if lifted:
+            # THE CURE IS DIRECTIONAL, on the fourth family's precedent:
+            # a withdrawal AFTER the claim cures it, and one BEFORE it
+            # does not, because a promise that follows a disclaimer is
+            # still a promise.
+            if _last_mark_at(_STILL_BOUND_MARKS, statement) > _last_mark_at(
+                _EXEMPTION_MARKS, statement
+            ):
+                continue
+            after = statements[index + 1 :]
+        else:
+            carried = _carried_exemption(statements[index + 1 :])
+            if carried is None:
+                continue
+            said = f"{statement}; {carried[0]}"
+            lifted = [carried[1]]
+            # START AFTER THE STATEMENT THAT CARRIED IT. Handing the
+            # cure walk the carrying statement let its own cure mark --
+            # the one the directional check had just dismissed -- excuse
+            # the claim it carries.
+            after = statements[index + 2 + carried[2] :]
+        if _cured_after(after, named):
+            continue
+        found.append((said, named[0], lifted[0]))
+    return found
+
+
+def test_no_public_surface_says_the_twin_lifts_an_obligation() -> None:
+    """No surface treats being synthetic as an answer to an obligation.
+
+    The negative half of the seventh family, over every governed
+    surface including the plans -- a promise about what somebody no
+    longer has to do is normative wherever it is written, which is the
+    reach the fourth family established for exactly this reason.
+    """
+    offenders: list[str] = []
+    for relative in DEFENCE_SURFACES:
+        for statement, named, lifted in _grants_an_exemption(_text(relative)):
+            offenders.append(
+                f"{relative}: {named!r} declared lifted by {lifted!r}\n"
+                f"    {statement[:200]!r}"
+            )
+    assert not offenders, (
+        "a surface says an obligation stopped applying because the twin "
+        "is synthetic. Being synthetic is not a finding about anybody's "
+        "obligations, and this repository may not make one:\n"
+        + "\n".join(offenders)
+    )
+
+
+def test_the_seventh_family_would_notice_the_exemption_it_bans() -> None:
+    """The vacuity floor: every measured wording still trips the ban."""
+    missed = [
+        wording
+        for wording in _EXEMPTIONS_THAT_MUST_TRIP
+        if not _grants_an_exemption(wording)
+    ]
+    assert not missed, (
+        "the exemption ban has been narrowed to a shape and these "
+        "wordings now walk past it: " + repr(missed)
+    )
+
+
+def test_the_seventh_family_lets_a_surface_refuse_the_exemption() -> None:
+    """Naming a regime to say it STILL binds is not the banned claim.
+
+    Without this the guard would forbid the honest paragraph the
+    instruction asks for, and the charter could not state its own
+    limit.
+    """
+    honest = (
+        "being synthetic is not by itself the answer to a privacy rule "
+        "or to your institution's own rules, and whether an obligation "
+        "is met is for the people who set it to say."
+    )
+    assert not _grants_an_exemption(honest)
+    # The cure reaches across a statement boundary, as the fourth
+    # family's does, because that is how this repository writes. Every
+    # string here is LOWERCASE because `_text` lowercases every surface
+    # before this function sees it, and these stand in for its output.
+    # THE CURE NAMES THE REGIME. A pronoun will not do, and three
+    # rounds of trying to make one work is why: no regular expression
+    # resolves reference, and every rule that pretended to broke in
+    # both directions. Saying which rules still apply is a demand on
+    # prose this repository can meet, and is better writing.
+    across = (
+        "a reader might think the twin means privacy rules do not "
+        "apply. privacy rules still apply, and the five files are why."
+    )
+    assert not _grants_an_exemption(across)
+    # And the pronoun form is now REPORTED rather than silently
+    # excused, which is the safe direction to fail in.
+    assert _grants_an_exemption(
+        "a reader might think the twin means privacy rules do not "
+        "apply. they still apply, and the five files are why."
+    )
+
+
+def test_no_honest_sentence_trips_the_exemption_ban() -> None:
+    """The other side of the floor: what the ban must NOT refuse.
+
+    Round 1's repair widened the obligation names to a bare `approval`
+    and immediately reported this contract's own sentence about an
+    earlier approval not covering a marked row -- a sentence saying an
+    obligation reaches FURTHER, which is the opposite of the claim.
+    Round 2 found the same shape latent in "does not cover". Both live
+    here now so a future widening meets them.
+    """
+    refused = [
+        wording
+        for wording in _HONEST_AND_MUST_NOT_TRIP
+        if _grants_an_exemption(wording)
+    ]
+    assert not refused, (
+        "the ban has been widened until it refuses honest prose: "
+        + repr(refused)
+    )
+
+
+def test_an_unrelated_sentence_does_not_cure_the_exemption() -> None:
+    """Round 1 item 5: the cure was proximity, not meaning.
+
+    A real claim followed within reach by a sentence about something
+    else entirely was excused, purely because "still applies" fell
+    inside the window. The cure now has to be ABOUT the obligation.
+    """
+    excused = (
+        "the twin is exempt from data-use agreements. cross-column "
+        "facts are absent. the small-group publication rule still "
+        "applies."
+    )
+    assert _grants_an_exemption(excused), (
+        "an unrelated sentence containing a cure mark is excusing a "
+        "real claim again"
+    )
+
+
+def test_a_disclaimer_before_the_claim_does_not_cure_it() -> None:
+    """The cure is DIRECTIONAL, on the fourth family's precedent.
+
+    Round 1 item 5, second half: a statement whose first clause
+    preserves the obligation and whose last clause lifts it was skipped
+    whole, because a cure mark stood anywhere in it.
+    """
+    both = (
+        "privacy rules still apply to the source, but synthetic "
+        "outputs are exempt from those privacy rules."
+    )
+    assert _grants_an_exemption(both), (
+        "a promise that follows a disclaimer is still a promise"
+    )
+
+
+def test_the_family_headings_match_the_count_the_docstring_states() -> None:
+    """The count in the header moves when a family is added.
+
+    THIS FILE'S OWN FAILURE MODE LANDED ON THIS FILE: the header said
+    four while six families stood below it, because the fifth and sixth
+    were added without it moving. A number in prose beside a list that
+    grows is exactly what this inventory refuses everywhere else.
+    """
+    source = pathlib.Path(__file__).read_text(encoding="utf-8")
+    headings = re.findall(r"^# THE ([A-Z]+) FAMILY:", source, re.MULTILINE)
+    # The first TWO families are described in the module docstring
+    # rather than under banners of their own -- the second at "THE
+    # SECOND FAMILY:" inside it -- so five banners is the whole set
+    # and the header states seven. Both halves are asserted, because
+    # it is their DISAGREEMENT that this test exists to catch.
+    named = ("THIRD", "FOURTH", "FIFTH", "SIXTH", "SEVENTH")
+    assert tuple(headings) == named, headings
+    assert "SEVEN FAMILIES OF CLAIM LIVE HERE" in source, (
+        "a family was added or removed without the header's count "
+        f"moving; the banners now read {headings}"
+    )
+    # AND A BANNER IS NOT A FAMILY. Round 1 item 10: deleting a
+    # family's guard, its constants and its tests while leaving the
+    # banner standing passed this test, which asserted one hard-coded
+    # tuple against one hard-coded sentence and nothing about whether
+    # the family still did anything. Every banner must now be followed
+    # by at least one test of its own before the next banner starts.
+    regions = re.split(r"^# THE [A-Z]+ FAMILY:", source, flags=re.MULTILINE)
+    empty = [
+        name
+        for name, body in zip(headings, regions[1:], strict=True)
+        if "\ndef test_" not in body
+    ]
+    assert not empty, (
+        "these families have a banner and no test of their own, so the "
+        f"banner is documentation rather than a guard: {empty}"
+    )
+
+
+def test_the_state_page_states_the_suite_size_it_was_written_against(
+    request: pytest.FixtureRequest,
+) -> None:
+    """`docs/STATE.md` cannot drift from the suite behind its back.
+
+    ROUND 1 ITEM 9. The page's whole value is that it is current,
+    and its stated rule -- that it moves in the same commit as the work
+    it describes -- was a PROMISE with nothing behind it. One landing
+    that adds a test without touching the page leaves a number that
+    reads as fact and is not.
+
+    It cannot enforce the rule in general: no test knows whether a
+    residual was really closed. It can enforce the one part that is
+    mechanically checkable, which is the count, and that is enough to
+    make somebody open the file.
+
+    ONLY ON A WHOLE-SUITE RUN. A filtered or subset run collects fewer
+    tests and would fail for a reason that is not a defect, so the
+    check stands down below the floor rather than reporting a number
+    nobody should act on.
+    """
+    # A WHOLE-SUITE RUN IS DETECTED, NOT GUESSED AT. Round 2 item 10:
+    # a literal floor of three thousand called a large subset a whole
+    # run and failed it, and would skip for ever if the suite ever
+    # shrank below the number. What actually distinguishes the two is
+    # whether anything was SELECTED -- a path, a keyword or a marker --
+    # so that is what is asked.
+    option = request.config.option
+    selected = (
+        getattr(option, "keyword", "")
+        or getattr(option, "markexpr", "")
+        or getattr(option, "last_failed", False)
+        or list(request.config.args) != list(request.config.getini("testpaths"))
+    )
+    if selected:
+        pytest.skip("a selected run; the stated count describes the whole suite")
+    collected = request.session.testscollected
+    page = (
+        pathlib.Path(__file__).resolve().parents[1] / "docs" / "STATE.md"
+    ).read_text(encoding="utf-8")
+    # The page states what a run COLLECTS, not what passes: a failing
+    # run collects the same tests, and a number that moved only when
+    # the suite was green would be a number that goes stale exactly
+    # when somebody most needs it. The first draft of this pattern read
+    # "passed" and did not match the page it guards, which is the
+    # failure this comment exists to stop repeating.
+    stated = re.search(r"\|\s*suite\s*\|\s*([\d,]+)\s+collected", page)
+    assert stated is not None, (
+        "docs/STATE.md no longer states its suite size as "
+        "'| suite | N collected / ... |', which is the one shape this "
+        "check can read"
+    )
+    written = int(stated.group(1).replace(",", ""))
+    assert written == collected, (
+        f"docs/STATE.md says {written:,} tests and this run collected "
+        f"{collected:,}. The page moves in the same commit as the work "
+        "it describes -- update it rather than this number."
+    )
