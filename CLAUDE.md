@@ -6,6 +6,16 @@ Historical note: the project's working name changed to `synthtwin` before
 the first commit, after the original name was found taken on PyPI; older
 private planning documents may use the previous name.
 
+> **Before doing anything else, read `docs/STATE.md`.** This brief says
+> what the project IS and what it is held to; it deliberately says
+> nothing about what is half-built this week, because a charter that
+> tracked the working state would go stale every day. `docs/STATE.md`
+> is the one page that does track it: where the work stands, what the
+> owner has already decided and must not be re-asked, what is waiting
+> on them, and what is broken right now. It moves in the same commit as
+> the work it describes, so a landing that leaves it untouched is not
+> finished.
+
 ## The goal
 
 Researchers who hold sensitive tabular data cannot paste it into an AI
@@ -150,6 +160,26 @@ though it existed:
   printed on the screen and written beside the profile, it repeats the
   real labels the profile publishes, and a rule that named four files
   told a reader by omission that the fifth was free to travel.
+- **The twin changes where your rows go; it does not change which rules
+  you are under.** What synthtwin buys is worth stating exactly,
+  because it is a strong claim and it is the defensible one: you
+  develop your analysis against a table whose every value was worked
+  out from a description rather than taken from your rows, so the real
+  table never has to leave the environment that already holds it and
+  never has to reach an assistant. What it does NOT buy is a finding
+  about anybody's obligations. The five files above carry facts
+  computed from real data, and at the default floor of one a column
+  whose role publishes values names every one of them with the rows
+  that held it, while the roles that publish none still publish counts
+  and shapes measured from real cells - so whether a privacy rule, an
+  institution's own rules, or a study's approval is satisfied is a
+  question for the people who set
+  it, answered with the written account of which real facts each file
+  carries and never with the word "synthetic". A sentence on any
+  surface here that treats being synthetic as the answer to an
+  obligation is a defect and not a shorthand, and the seventh family of
+  the claim inventory in `tests/test_claim_inventory.py` turns the
+  suite red on it.
 - The offline guarantee is a property of the code, verified by source
   audit and scans - it is not an OS-level sandbox. Institutions that
   require enforcement run the tool inside their own network-isolated

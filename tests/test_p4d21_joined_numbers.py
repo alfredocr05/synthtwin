@@ -454,7 +454,7 @@ def test_what_counts_as_a_number_in_a_position(
     No sign, because a leading minus cannot be told from the mark a
     cell might be split on.
     """
-    assert taxonomy.splits_into_wholes(text, separator) == expected
+    assert taxonomy.splits_into_numbers(text, separator) == expected
 
 
 def test_a_column_of_negative_numbers_is_not_claimed() -> None:

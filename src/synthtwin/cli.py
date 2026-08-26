@@ -926,7 +926,7 @@ _WHY_SHOWN = {
         "rarely is"
     ),
     asking.BECAUSE_JOINED: (
-        "every value is two or more whole numbers joined by one mark, "
+        "every value is two or more numbers joined by one mark, "
         "which is how a blood pressure is written and also how a "
         "laboratory code is"
     ),

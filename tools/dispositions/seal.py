@@ -81,6 +81,17 @@ MIDDLE = '''}
 JUDGMENT: "dict[str, str]" = {
 '''
 
+COUNTS = '''}
+
+# HOW MANY PASSAGES EACH DOCUMENT HELD WHEN IT WAS SEALED, which the
+# set of digests above cannot say. A governing document may carry the
+# same sentence twice -- an exactness row repeated under two roles is
+# the ordinary case -- and removing one copy leaves the SET unchanged,
+# so neither direction of the passage check could see it. The count
+# moves when a repeated sentence is added or removed.
+COUNTED: "dict[str, int]" = {
+'''
+
 
 def _render() -> str:
     """The whole seal file, as text, from the tree as it stands."""
@@ -97,6 +108,10 @@ def _render() -> str:
         body.append(f'    "{relative}": (\n')
         body.extend(f'        "{mark}",\n' for mark in marks)
         body.append("    ),\n")
+    body.append(COUNTS)
+    for relative in dispositions.GOVERNING:
+        held = dispositions.passages(dispositions.REPO_ROOT / relative)
+        body.append(f'    "{relative}": {len(held)},\n')
     body.append(MIDDLE)
     for surface, mark in sorted(
         dispositions.judgment(dispositions.REGISTRY).items()
