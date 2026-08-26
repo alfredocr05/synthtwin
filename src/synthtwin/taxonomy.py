@@ -5032,6 +5032,17 @@ def clock_reach(cells: _Cells) -> int:
 # turn every decimal column into a pair.
 JOINED_SEPARATORS = ("/", "-", ":", "|", ";", "_")
 
+# THE SPACINGS A JOINED CELL MAY PUT AROUND ITS MARK (plan P4-D24). A
+# pressure charted `120 / 80` is the same reading as `120/80` and was
+# read as free text, which publishes nothing: the mark alone did not
+# match and no rule looked further. The whole separator -- mark and
+# spaces together -- is what a cell is split on and what the
+# description publishes, so a twin writes back the spacing the table
+# used. Only these three: a mark with no spaces, with one on each side,
+# and with one after it, which is how a person writes a ratio.
+JOINED_SPACINGS = ("", " ", "")
+JOINED_TAILINGS = ("", " ", " ")
+
 
 @dataclasses.dataclass(frozen=True)
 class _Joined:
@@ -5046,14 +5057,44 @@ class _Joined:
     n_unparsed: int
 
 
+def _reads_as_one_number(text: str) -> bool:
+    """Whether one part of a joined cell is a plain number.
+
+    Figures, and at most one point with figures on both sides of it.
+    No sign, because a leading minus cannot be told from the mark a
+    cell might be split on. Figures are tested against fixed ASCII
+    rather than `str.isdigit`, for the reason `parsing._is_a_digit`
+    gives: five supported Pythons carry five Unicode databases, and
+    `str.isdigit` is true of characters this package must not read as
+    figures.
+    """
+    if not text:
+        return False
+    points = 0
+    for character in text:
+        if character == ".":
+            points = points + 1
+            continue
+        if not ("0" <= character <= "9"):
+            return False
+    if points > 1:
+        return False
+    if points == 1:
+        if text[0] == "." or text[len(text) - 1] == ".":
+            return False
+    return True
+
+
 def splits_into_wholes(text: str, separator: str) -> "list[str] | None":
     """The parts of one cell under one separator, or None.
 
-    Every part must be present and written in figures alone. Figures
-    are tested against fixed ASCII rather than `str.isdigit`, for the
-    reason `parsing._is_a_digit` gives: five supported Pythons carry
-    five Unicode databases, and `str.isdigit` is true of characters
-    this package must not read as figures.
+    ``separator`` is the WHOLE separator, mark and any spaces around
+    it, so `120 / 80` splits on `" / "` and its twin is written back
+    the same way (plan P4-D24).
+
+    A part may carry a decimal point, which an I:E ratio of `1:1.5`
+    needs and which the first build of this role refused, sending the
+    column to free text where it published nothing.
 
     The type gate is the offline audit's: it accepts no method call on
     a value it cannot trace, and a cell arrives here from a list this
@@ -5061,21 +5102,29 @@ def splits_into_wholes(text: str, separator: str) -> "list[str] | None":
     """
     if not isinstance(text, str):
         raise TypeError("a cell must be text")
+    if not separator:
+        return None
     parts: "list[str]" = []
     current = ""
-    for character in text:
-        if character == separator:
+    at = 0
+    while at < len(text):
+        matched = True
+        for step in range(len(separator)):
+            if at + step >= len(text) or text[at + step] != separator[step]:
+                matched = False
+                break
+        if matched:
             parts = parts + [current]
             current = ""
+            at = at + len(separator)
             continue
-        if not ("0" <= character <= "9"):
-            return None
-        current = current + character
+        current = current + text[at]
+        at = at + 1
     parts = parts + [current]
     if len(parts) < 2:
         return None
     for part in parts:
-        if not part:
+        if not _reads_as_one_number(part):
             return None
     return parts
 
@@ -5113,7 +5162,13 @@ def _joined_reading(cells: _Cells) -> "_Joined | None":
     if n_present == 0:
         return None
     needed = _needed(cells.settings.minimum_parse_rate, n_present)
-    for separator in JOINED_SEPARATORS:
+    tried: "list[str]" = []
+    for mark in JOINED_SEPARATORS:
+        for spacing in range(len(JOINED_SPACINGS)):
+            tried = tried + [
+                JOINED_SPACINGS[spacing] + mark + JOINED_TAILINGS[spacing]
+            ]
+    for separator in tried:
         counted: "dict[int, int]" = {}
         for value in present:
             split = splits_into_wholes(value, separator)
@@ -5167,7 +5222,15 @@ def _joined_details(
     for place in range(joined.n_parts):
         text = joined.parts[place]
         part_cells = _tally(_classify_all(text), len(text), settings)
-        blocks = blocks + [_numeric_details(part_cells, True)]
+        # WHETHER THIS POSITION IS WHOLE IS ASKED, not assumed. It was
+        # assumed while a part could only be figures; a part may carry a
+        # point now (plan P4-D24), and an I:E ratio's second number is
+        # `1.5`.
+        whole_here = True
+        for spelling in text:
+            if "." in spelling:
+                whole_here = False
+        blocks = blocks + [_numeric_details(part_cells, whole_here)]
         smallest = len(text[0])
         for value in text:
             if len(value) < smallest:

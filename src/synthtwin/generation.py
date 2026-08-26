@@ -4568,14 +4568,35 @@ def _repaired_pairing(
     total = facts.n_joined
     if total < 2 or facts.n_parts < 2:
         return drawn
+    # WHERE THE WALK STARTS IS CHOSEN BY WHAT IT IS WALKING TOWARDS.
+    # Rank for rank is where the agreement is 1; it is the right place
+    # to start for a blood pressure, whose numbers agree at 0.83, and
+    # the WORST place to start for a column whose numbers agree at zero
+    # -- measured, a pulmonary-artery column publishing -0.009 was left
+    # at 0.216, because the walk could not travel the whole way inside
+    # its try ceiling. So a low target starts from a shuffle, which is
+    # already near it, and a strongly negative one starts from rank
+    # against rank.
+    wanted_agreement = 0.0
+    for value in facts.part_agreements:
+        wanted_agreement = wanted_agreement + value
+    if facts.part_agreements:
+        wanted_agreement = wanted_agreement / float(len(facts.part_agreements))
     held: "list[list[str]]" = []
     for column in drawn:
-        pairs: "list[tuple[int, str]]" = []
+        pairs: "list[tuple[float, str]]" = []
         for spelling in column:
-            pairs = pairs + [(int(spelling), spelling)]
+            pairs = pairs + [(float(spelling), spelling)]
         pairs = sorted(pairs)
         held = held + [[pair[1] for pair in pairs]]
     last = facts.n_parts - 1
+    if wanted_agreement < -0.4:
+        held[last] = [
+            held[last][total - 1 - seat] for seat in range(total)
+        ]
+    elif wanted_agreement < 0.4 and len(words) >= max(total - 1, 0):
+        order = _arrangement(words, total)
+        held[last] = [held[last][seat] for seat in order]
     numbers: "list[list[float]]" = []
     ranks: "list[list[float]]" = []
     for place in range(facts.n_parts):
@@ -4649,9 +4670,17 @@ def _repaired_pairing(
         for index in range(len(seats)):
             place = seats[index]
             first = firsts[index]
-            out = out + abs(
-                aboves[index] - facts.part_above[place]
-            ) / float(total)
+            # A ROW OF THIS ONE OUTWEIGHS THE WHOLE AGREEMENT, and it
+            # should: `part_above` is an exact count that a pairing can
+            # always meet, and one row out of it is one cell holding a
+            # reading that cannot happen -- a diastolic at or above its
+            # systolic. Measured at the same weight as the others, the
+            # walk sold a row of it for a thousandth of agreement and a
+            # blood-pressure twin came out with one impossible cell.
+            # The count of different cells is NOT weighted this way,
+            # because that one cannot always be met (R-P4-40) and a
+            # walk that insists on it wrecks everything else.
+            out = out + float(abs(aboves[index] - facts.part_above[place]))
             divisor = (spread[first] * spread[last]) ** 0.5
             agreed = tops[index] / divisor if divisor > 0.0 else 0.0
             out = out + abs(agreed - facts.part_agreements[place])

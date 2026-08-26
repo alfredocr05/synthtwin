@@ -5397,3 +5397,53 @@ rather than left to be discovered. Closing it means a `_joined_checks`
 builder on the model of `_affixed_checks`, exact on the counts and the
 separator and windowed on the agreements, which are rounded. Not
 closed.
+
+## Decision P4-D24 — the two shapes the joined role could not read (2026-08-26)
+
+**FOUND BY A SURVEY, not by a report.** Twenty-one shapes of real
+clinical column were profiled to see which fall to free text and so
+publish nothing. Two of the eleven that did are readings this role was
+built for and could not read:
+
+- **A mark with spaces around it.** A pressure charted `120 / 80` is
+  the same reading as `120/80`. The mark alone did not match and no
+  rule looked further, so the column was free text and published
+  nothing at all.
+- **A position carrying a decimal point.** An I:E ratio of `1:1.5` has
+  a decimal in its second number, and a part could only be figures.
+
+**WHAT CHANGED.** The separator is now the WHOLE separator -- the mark
+and any spaces around it -- so a column publishes `" / "` and its twin
+writes the spacing the table used. Three spacings are read: the bare
+mark, one space on each side, and one after it, which is how a person
+writes a ratio. And a position may carry at most one point, with
+figures on both sides of it.
+
+**WHAT IS STILL REFUSED, and on purpose.** No sign. A leading minus
+cannot be told from the mark a cell might be split on, so `-3/-4` is
+not claimed -- it would split on its own signs. The suite asserts it.
+
+**MEASURED, three vital shapes end to end:**
+
+| column | separator | agreement published / twin | rows above |
+| --- | --- | --- | --- |
+| arterial pressure `120 / 80` | `" / "` | 0.8307 / 0.8304 | 300 / 300 |
+| I:E ratio `1:1.5` | `":"` | 0.0 / 0.0 | 0 / 0 |
+| pulmonary pressure `29/7` | `"/"` | -0.009 / -0.0094 | 298 / 298 |
+
+**TWO THINGS THE BUILD FOUND.**
+
+1. *Where the walk starts decides whether it arrives.* Rank for rank is
+   where the agreement is 1 -- the right start for a blood pressure at
+   0.83 and the worst for a pulmonary column at -0.009, which was left
+   at 0.216 because the walk could not travel that far inside its try
+   ceiling. The start is now chosen by the target: a low one begins
+   from a shuffle, a strongly negative one from rank against rank.
+2. *An exact count must outweigh a rounded statistic.* Scored the same
+   way, the walk sold a row of `part_above` for a thousandth of
+   agreement, and a blood-pressure twin came out with one cell holding
+   a diastolic at or above its systolic. One row of that count now
+   outweighs the whole agreement. The count of DIFFERENT cells is
+   deliberately not weighted that way: it cannot always be met
+   (R-P4-40), and a walk that insists on it wrecks everything else --
+   built, measured, and recorded there.
