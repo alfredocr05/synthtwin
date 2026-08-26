@@ -12,7 +12,17 @@ import pytest
 import fixtures
 from synthtwin import parsing, profile, taxonomy
 
-SETTINGS = taxonomy.Settings()
+# THE FLOOR THIS FILE IS WRITTEN AGAINST, NAMED RATHER THAN INHERITED.
+# Plan amendment A-P4-37 lowered the default `small_cell_floor` from
+# eleven to one, and at a floor of one NOTHING is held back: no pooled
+# label, no `(withheld)` spelling, no suppressed level, no unpublished
+# sentinel candidate. Every case below whose subject is what a
+# description WITHHOLDS was measured against a floor of eleven, so the
+# floor is stated here instead of being inherited from a default that
+# has since moved. What the default IS is asserted elsewhere; this
+# constant is what the cases below are about.
+SMALL_CELL_FLOOR = 11
+SETTINGS = taxonomy.Settings(small_cell_floor=SMALL_CELL_FLOOR)
 
 
 def describe(

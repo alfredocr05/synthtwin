@@ -35,7 +35,19 @@ import pytest
 import fixtures
 from synthtwin import cli, parsing, profile, reading, taxonomy
 
-SETTINGS = taxonomy.Settings()
+# THE SMALLEST GROUP EVERY CASE HERE IS DESCRIBED AT, DECLARED BECAUSE
+# IT IS NO LONGER THE DEFAULT. The owner lowered the shipped
+# `small_cell_floor` to one (plan amendment A-P4-37), and the floor is
+# not only about what a description withholds: the affixed-number rule
+# claims a column only when at least `small_cell_floor` of its cells
+# are affixed, so at a floor of one a column of FIVE cells is claimed
+# by it. The short-column case below is written about a column NO rule
+# claims -- which is the whole of item F8 -- and at a floor of one there
+# is no such column to write about. Eleven is the floor this file's
+# examples were sized against, so it is asked for once here rather than
+# left to a default that has moved beneath them. The floor of one is
+# the subject of `tests/test_p3v5f1_floor_one.py`.
+SETTINGS = taxonomy.Settings(small_cell_floor=11)
 
 # The reviewer's column: three distinct values whose exact sample
 # standard deviation is larger than the largest finite binary64 number

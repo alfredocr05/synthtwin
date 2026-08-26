@@ -135,11 +135,19 @@ def test_a_column_with_no_padded_cell_publishes_an_empty_census() -> None:
 
 
 def test_a_width_too_thinly_shared_is_held_back() -> None:
-    """The floor governs a width as it governs a form."""
+    """The floor governs a width as it governs a form.
+
+    THE FLOOR IS DECLARED, because holding back is what is asked about.
+    The default smallest group size became one (owner ruling, plan
+    amendment A-P4-37), and at a floor of one nothing is held back at
+    all (contract C5-S13) -- so the floor this case means is named.
+    """
     values = [f"{number:05d}" for number in range(200)] + [
         f"{number:09d}" for number in range(200, 205)
     ]
-    document, _loaded, _folder = _described(values)
+    document, _loaded, _folder = _described(
+        values, taxonomy.Settings(small_cell_floor=11)
+    )
     block = document["columns"][0]
     assert block["pad_widths"] == {"5": 200, "(withheld)": 5}
 

@@ -6893,6 +6893,7 @@ def _wanted_form(
     shortest: int,
     longest: int,
     budget: "list[int]",
+    covering: int = 1,
 ) -> str:
     """Which published form this group is offered, or "" for none.
 
@@ -6936,7 +6937,7 @@ def _wanted_form(
     spelling. A group no form fits is written the way every free-text
     value was written before this rule, and the empty string says so.
     """
-    fits: "list[tuple[int, str]]" = []
+    fits: "list[tuple[int, int, str]]" = []
     for form in sorted(owing):
         if owing[form] < 1:
             continue
@@ -6949,10 +6950,76 @@ def _wanted_form(
             continue
         elif not _length_affords(len(form) - length, budget):
             continue
-        fits = fits + [(0 - owing[form], form)]
+        # A GROUP COVERS ITS OWN NUMBER OF CELLS AND GIVES THEM ALL TO
+        # ONE FORM, so a form owing FEWER cells than this group covers
+        # is overpaid by the difference. Such a form is offered LAST
+        # rather than refused: refusing it outright was built and
+        # measured WORSE -- the debt went unpaid AND the group fell out
+        # of the form alphabet into ordinary text (residual R-P4-38).
+        snug = 0 if owing[form] >= covering else 1
+        fits = fits + [(snug, 0 - owing[form], form)]
     if not fits:
         return ""
-    return sorted(fits)[0][1]
+    return sorted(fits)[0][2]
+
+
+def _form_asks(
+    owing: "dict[str, int]",
+    groups: "tuple[int, ...]",
+    lengths: "list[int]",
+    counts: "list[int]",
+    carriers: "tuple[int, int]",
+    shortest: int,
+    longest: int,
+    budget: "list[int]",
+) -> "list[str]":
+    """One form asked of each group, decided LARGEST GROUP FIRST.
+
+    WHY THE ORDER IS THE WHOLE RULE, and it is the lesson `_shared_out`
+    already carries for a label column's stand-ins (review round 1
+    finding 4): largest debt first is not enough. A group is a
+    REPETITION group -- every cell of it holds the same value, so every
+    cell of it wears one form -- and a walk that spends its single-cell
+    groups early arrives at the last debts holding only groups too big
+    to pay them.
+
+    THE ORDINARY CASE IS A BLOOD PRESSURE COLUMN (residual R-P4-38).
+    The demonstration table's has 374 groups of one cell and 13 of two,
+    against form debts of 339, 32, 24 and 5. Taken in file order the
+    walk reached `%%/%%` owing 1 and `%%/%%%` owing 1 while holding a
+    group of TWO, which can pay neither, and paid one of them twice --
+    a published census of 24 met with 25, at every seed. Taken largest
+    group first the thirteen twos go to the 339, whose remainder 313
+    and the debts 32, 24 and 5 come to exactly the 374 single-cell
+    groups left over, and every count is met.
+
+    THIS DECIDES THE ASK ONLY. The debt and the length budget are still
+    settled in the walk against the spelling actually WRITTEN, because
+    a form is an ask and not a promise, and a cell that comes back
+    wearing something else must be counted as what it wears.
+    """
+    total = len(groups)
+    asks = ["" for _each in range(total)]
+    left = dict(owing)
+    spare = list(budget)
+    order = sorted([(0 - groups[place], place) for place in range(total)])
+    for pair in order:
+        place = pair[1]
+        form = _wanted_form(
+            left,
+            lengths[place],
+            counts[place],
+            place in carriers,
+            shortest,
+            longest,
+            spare,
+            groups[place],
+        )
+        asks[place] = form
+        if form:
+            left[form] = max(0, left[form] - groups[place])
+            _spend_length(spare, len(form) - lengths[place], groups[place])
+    return asks
 
 
 def _length_affords(moved: int, budget: "list[int]") -> bool:
@@ -9025,6 +9092,18 @@ def _text_cells(
     # a licence. A form of another length is offered only while the
     # projected total stays inside it.
     budget = _length_budget(facts, groups, lengths)
+    # WHICH FORM EACH GROUP IS ASKED FOR, decided before the walk and in
+    # order of how many cells a group covers (residual R-P4-38).
+    form_asks = _form_asks(
+        owing,
+        groups,
+        lengths,
+        counts,
+        carriers,
+        facts.length.minimum,
+        facts.length.maximum,
+        budget,
+    )
     made: dict[str, int] = {}
     for index in range(total):
         partner = _partner_of(
@@ -9038,11 +9117,19 @@ def _text_cells(
             continue
         kind = _CLASSES[kinds[index]]
         band = _BANDS[bands[index]]
-        key = f"{kind}/{band}/{lengths[index]}/{counts[index]}"
-        spelling = _made_up_cell(
-            kind, band, lengths[index], counts[index],
-            asks[index], states, used,
-            _wanted_form(
+        # THE PRE-DECIDED ASK, RE-ASKED WHERE IT HAS GONE STALE. The
+        # order-aware pass above cannot know which groups will take a
+        # fold-collision partner instead of a made-up spelling, because
+        # that depends on `used`, which this walk is what fills. Where a
+        # partner has already settled the debt this group was going to
+        # settle, the pre-decided form is no longer owed anything and
+        # asking for it would write a form the column does not owe. The
+        # live rules answer instead, exactly as they did before the
+        # order-aware pass existed.
+        asked_form = form_asks[index]
+        stale = asked_form not in owing or owing[asked_form] < 1
+        if asked_form and stale:
+            asked_form = _wanted_form(
                 owing,
                 lengths[index],
                 counts[index],
@@ -9050,7 +9137,13 @@ def _text_cells(
                 facts.length.minimum,
                 facts.length.maximum,
                 budget,
-            ),
+                groups[index],
+            )
+        key = f"{kind}/{band}/{lengths[index]}/{counts[index]}"
+        spelling = _made_up_cell(
+            kind, band, lengths[index], counts[index],
+            asks[index], states, used,
+            asked_form,
             _hole_spellings(column),
         )
         if spelling is None:

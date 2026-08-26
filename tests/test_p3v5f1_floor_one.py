@@ -25,7 +25,7 @@ repair was asked for "everywhere the floor governs, not at the fields
 the reviewer listed", and a list of five field names would have been
 exactly the mistake that left them unenforced. So no list is written
 down here. `test_the_floor_governs_only_positions_the_loader_refuses`
-DESCRIBES ONE TABLE TWICE with the real producer -- at the default floor
+DESCRIBES ONE TABLE TWICE with the real producer -- at a floor of eleven
 and at a floor of one -- and reads the floor-governed positions off the
 difference between the two documents. Every position that moves is then
 grafted back into the floor-one document and the loader must refuse it.
@@ -75,7 +75,18 @@ from synthtwin import (
     validation,
 )
 
-_DEFAULT = taxonomy.Settings().small_cell_floor
+# THE STRICT FLOOR THIS FILE MEASURES AGAINST, named here rather than
+# read off `taxonomy.Settings()`. The owner lowered the default
+# smallest group size to 1 (plan amendment A-P4-37), so the default
+# floor now holds nothing back at all -- and a derivation that
+# describes one table "at the default floor and at one" would be
+# describing it twice the same way and reading an empty difference.
+# Eleven is the floor every derivation below was measured on, which
+# is why the prose reads "floor-eleven" throughout, so eleven is
+# what this file asks for. It must stay above one for any of it to
+# mean anything.
+_STRICT = 11
+assert _STRICT > 1
 
 
 # -- describing one table at two floors -------------------------------
@@ -154,7 +165,7 @@ def _whole_field(path: tuple) -> tuple:
     The graft below moves a FIELD and not a leaf -- a whole
     `missing_by_source`, a whole `levels` list, a whole `utc_offsets` --
     so what lands in the floor-one document is a thing the producer
-    really wrote at the default floor, with its own arithmetic intact.
+    really wrote at the strict floor, with its own arithmetic intact.
     A refusal is then about the invariant and not about a total the test
     broke while building its witness.
     """
@@ -236,7 +247,7 @@ def test_the_floor_governs_only_positions_the_loader_refuses(
 ) -> None:
     """The derivation, run rather than written down.
 
-    Describe one table at the default floor and at one; every position
+    Describe one table at a floor of eleven and at one; every position
     that moves is a position the floor governs; put the floor-eleven
     writing of it back into the floor-one document and the loader must
     refuse it. Nothing here names a field.
@@ -246,7 +257,7 @@ def test_the_floor_governs_only_positions_the_loader_refuses(
     a graft that happened to break some unrelated total would report the
     invariant enforced when it was not.
     """
-    strict = _described(tmp_path / "strict", _DEFAULT)
+    strict = _described(tmp_path / "strict", _STRICT)
     loose = _described(tmp_path / "loose", 1)
     for name, document in (("strict", strict), ("loose", loose)):
         written = fixtures.write_profile(tmp_path, f"{name}.json", document)
@@ -329,7 +340,7 @@ def test_every_tally_the_floor_zeroes_is_refused_when_it_is_not_zero(
 ) -> None:
     """The shape the pooled-remainder walk cannot see, derived on its own.
 
-    A count that the producer writes NONZERO at the default floor and
+    A count that the producer writes NONZERO at a floor of eleven and
     ZERO at a floor of one is a tally of what the floor held back, and
     it says so in its own field name rather than under the pooled
     remainder's word -- so no walk for that word finds it. That class is
@@ -341,7 +352,7 @@ def test_every_tally_the_floor_zeroes_is_refused_when_it_is_not_zero(
     were already tied to something: a suppressed count with no sizes
     beside it breaks B4.
     """
-    strict = _described(tmp_path / "strict", _DEFAULT)
+    strict = _described(tmp_path / "strict", _STRICT)
     loose = _described(tmp_path / "loose", 1)
     left = _walked(strict, ())
     right = _walked(loose, ())
@@ -411,7 +422,7 @@ def test_every_pooled_remainder_is_refused_by_the_half_that_writes(
     where a spelling map used to say it. Neither half names a field it
     does not have to.
     """
-    strict = _described(tmp_path / "strict", _DEFAULT)
+    strict = _described(tmp_path / "strict", _STRICT)
     loose = _described(tmp_path / "loose", 1)
     profile.check_publication(loose)
     remainders = [
@@ -450,7 +461,7 @@ def test_the_prose_positions_really_are_prose(
     silently narrower than it reads.
     """
     loose = _described(tmp_path, 1)
-    strict = _described(tmp_path / "strict", _DEFAULT)
+    strict = _described(tmp_path / "strict", _STRICT)
     for document in (strict, loose):
         for path, value in _walked(document, ()).items():
             if not _is_prose(path):
@@ -506,7 +517,7 @@ def test_each_field_round_six_got_past_the_loader_is_refused(
     the reviewer measured these five on the shipped loader and they are
     the record of what was open.
     """
-    strict = _described(tmp_path / "strict", _DEFAULT)
+    strict = _described(tmp_path / "strict", _STRICT)
     loose = _described(tmp_path / "loose", 1)
     held = _column(strict, column)[field]
     assert held != _column(loose, column)[field], (
@@ -574,7 +585,7 @@ def test_a_remainder_of_zero_is_not_a_remainder() -> None:
     assert contract._held_back_in({contract.WITHHELD: 0}, ()) == []
 
 
-@pytest.mark.parametrize("floor", (_DEFAULT, 2))
+@pytest.mark.parametrize("floor", (_STRICT, 2))
 def test_a_remainder_above_a_floor_of_one_is_left_alone(
     tmp_path: pathlib.Path, floor: int
 ) -> None:
@@ -595,9 +606,9 @@ def test_a_remainder_above_a_floor_of_one_is_left_alone(
             entry = block.get(field, {})
             if isinstance(entry, dict) and contract.WITHHELD in entry:
                 pooled = pooled + entry[contract.WITHHELD]
-    if floor == _DEFAULT:
+    if floor == _STRICT:
         assert pooled > 0, (
-            "the witness table pools nothing at the default floor, so "
+            "the witness table pools nothing at the strict floor, so "
             "this test would pass on a loader that refused every pool"
         )
 
@@ -760,6 +771,20 @@ def test_the_floor_one_report_does_not_claim_nothing_is_withheld(
     The report printed the absolute sentence and then eighty-three
     WITHHELD lines. This asserts both halves: that the file really does
     withhold, and that the page no longer says it does not.
+
+    WHERE THE BOUNDED SENTENCE IS READ, since amendment A-P4-37. The
+    half of this test that reads what a floor of one DOES buy used to
+    read it out of the "SMALLEST GROUP SIZE LOWERED TO 1" section, which
+    `quality._lowered_floor_lines` prints only where the floor is below
+    the default. The owner lowered the default to 1 (A-P4-37), so a
+    floor of one is no longer a lowering and that section is rightly
+    absent: it exists to warn a reader that THIS description publishes
+    smaller groups than synthtwin usually does, which is no longer true
+    of a floor of one. The same bounded promise is made in the
+    withholding rule at the foot of every report, by
+    `quality._floor_gate_lines`, and that is where it is read now: both
+    halves of it, the "nothing is held back THIS WAY" and the naming of
+    which way, so a report that dropped either still goes red here.
     """
     text, withheld = _deviating(tmp_path, 1)
     assert withheld > 0, (
@@ -775,19 +800,23 @@ def test_the_floor_one_report_does_not_claim_nothing_is_withheld(
             f"the report says {absolute!r} on a page that withholds "
             f"{withheld} obligation(s)"
         )
-    assert "nothing is held back FOR BEING A SMALL GROUP" in text, (
+    assert "held back this way at all" in text, (
         "the report no longer tells the reader what a floor of one does "
         "buy them"
     )
+    assert "being a group too small to name" in text, (
+        "the report says nothing is held back this way without saying "
+        "which way, which is the absolute claim again in fewer words"
+    )
 
 
-@pytest.mark.parametrize("floor", (_DEFAULT, 2, 1))
+@pytest.mark.parametrize("floor", (_STRICT, 2, 1))
 def test_no_page_claims_nothing_is_withheld_at_any_floor(
     tmp_path: pathlib.Path, floor: int
 ) -> None:
     """The same shape, looked for in all three written pages.
 
-    Read at the default floor and at a lowered one, because the
+    Read at a strict floor and at lower ones, because the
     lowered-floor sections are the ones written most recently and least
     often read.
     """
@@ -864,7 +893,7 @@ def test_a_table_stamped_in_utc_runs_the_whole_workflow(
     The witness table's `stamped_at` column ends in `Z`, so this is the
     end-to-end form of the test above.
     """
-    document = _described(tmp_path, _DEFAULT)
+    document = _described(tmp_path, _STRICT)
     offsets = _column(document, "stamped_at")["utc_offsets"]
     assert "Z" in offsets, (
         "the witness table's times are no longer stamped in UTC, so this "

@@ -99,12 +99,24 @@ def _words(path: pathlib.Path) -> str:
 def _described(
     folder: pathlib.Path, values: "list[str]"
 ) -> "tuple[dict, contract.Profile]":
-    """Write a one-column table, describe it, and load the description."""
+    """Write a one-column table, describe it, and load the description.
+
+    THE FLOOR IS NAMED, NOT TAKEN FROM THE DEFAULT. Two of the style
+    questions below are about the `(withheld)` remainder -- what a
+    description does with a spelling too few cells share to publish --
+    and a remainder exists only above a floor. Since the owner's ruling
+    (plan amendment A-P4-37) the default floor is 1, at which nothing
+    is ever pooled and no `(withheld)` key is written at all, so every
+    description here is built at the floor of eleven these cases were
+    written against.
+    """
     path = fixtures.write(
         folder, "table.csv", fixtures.single_column_table("amount", values)
     )
     document = profile.build_document(
-        reading.read_table(str(path)), taxonomy.Settings(), []
+        reading.read_table(str(path)),
+        taxonomy.Settings(small_cell_floor=11),
+        [],
     )
     target = fixtures.write_profile(folder, "table-profile.json", document)
     return document, contract.load_profile(str(target))

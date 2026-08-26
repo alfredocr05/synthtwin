@@ -11,7 +11,20 @@ import pytest
 import fixtures
 from synthtwin import parsing, taxonomy
 
-SETTINGS = taxonomy.Settings()
+# THE SMALLEST GROUP THIS FILE DESCRIBES COLUMNS AT, DECLARED BECAUSE
+# IT IS NO LONGER THE DEFAULT. The owner lowered the shipped
+# `small_cell_floor` to one (plan amendment A-P4-37), and at a floor of
+# one nothing is ever held back: no level is pooled, no spelling is
+# withheld, no sentinel candidate goes unpublished (contract invariant
+# C5-S13). Several rules of this file are about exactly that holding
+# back -- a constant below the floor, labels below the floor, the floor
+# under the binary role, a sentinel too rare to name -- and they cannot
+# be exercised at all at a floor of one. Eleven is the floor every case
+# below was written against, so it is asked for once here rather than
+# left to a default that has moved beneath them. The floor of one has a
+# file of its own (`tests/test_p3v5f1_floor_one.py`); this one is about
+# the roles and their statistics.
+SETTINGS = taxonomy.Settings(small_cell_floor=11)
 
 
 def describe(

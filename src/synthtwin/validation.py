@@ -3776,6 +3776,7 @@ def measure(description: contract.Profile, path: str) -> Outcome:
         )
     try:
         declared = _declared_here(description, table)
+        declared_codes = _declared_codes_here(description, table)
         # TWO DESCRIPTIONS, ALWAYS BOTH, AND WHAT EACH ONE DECIDES
         # (V2.1 and V2.4; review item P3-V2-A1). The first is the file's
         # OWN description -- what `synthtwin profile` would write about
@@ -3796,10 +3797,13 @@ def measure(description: contract.Profile, path: str) -> Outcome:
         # which of its own checks run, so nothing about the file decides
         # which of these is built.
         redescribed = profile.build_document(
-            table, settings_for(description), declared
+            table, settings_for(description), declared, declared_codes
         )
         over_the_split = profile.build_document(
-            table, settings_over_the_split(description), declared
+            table,
+            settings_over_the_split(description),
+            declared,
+            declared_codes,
         )
     except MemoryError as error:
         raise errors.ProfileError(
@@ -4047,6 +4051,32 @@ def _declared_here(
     return [
         name
         for name in description.settings.forced_identifiers
+        if name in table.column_names
+    ]
+
+
+def _declared_codes_here(
+    description: contract.Profile, table: reading.Table
+) -> "list[str]":
+    """The declared code columns the measured file actually carries.
+
+    The same rule as `_declared_here` above, for the other declaration
+    (plan P4-D19), and it is needed for the same reason. Describing the
+    measured file is how its obligations are checked, and a description
+    made WITHOUT the declaration reads a coding system written in
+    digits as a quantity -- so every declared code column reported its
+    role as MISSED against a twin that was correct in every cell. What
+    is being checked is whether the file matches the description; both
+    sides must therefore be described under the same declarations.
+
+    A declared name the measured file does not carry is dropped, for
+    the reason `_declared_here` gives: a column that is not there
+    cannot be classified as anything, and a wrong name must stay a
+    reportable MISSED verdict rather than stop the run.
+    """
+    return [
+        name
+        for name in description.settings.forced_codes
         if name in table.column_names
     ]
 

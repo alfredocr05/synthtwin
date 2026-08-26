@@ -207,7 +207,7 @@ disposed individually, in the disposition matrix.
 | **absent** | a cell counted as holding no value. Every absent cell is counted in one of the six absence classes C6-N3 fixes — five of them naming a reason a cell was read as holding no value, the sixth being the remainder the floor pools — and `n_missing` counts them |
 | **raw identity** | a present cell's text exactly as the file spells it. `n_distinct` counts raw identities |
 | **folded identity** | a present cell's text after trimming and a Unicode `casefold()`. `n_distinct_folded` counts folded identities, and every published label is a folded identity |
-| **the floor** | `settings.small_cell_floor`, the smallest number of rows a published group may cover. Its value is in the document and the document is the only place it is fixed: it is at least 1, and 11 is what `synthtwin profile` writes when nobody asks for another. The settings section states the range, and what a floor below the default gives up |
+| **the floor** | `settings.small_cell_floor`, the smallest number of rows a published group may cover. Its value is in the document and the document is the only place it is fixed: it is at least 1, and 1 is what `synthtwin profile` writes when nobody asks for another (owner ruling 2026-08-25). The settings section states the range, and what each floor gives up |
 | **withheld** | held back by the floor and pooled into a counted remainder, never named |
 | **the ladder** | the fixed eleven rungs `min`, `p01`, `p05`, `p10`, `p25`, `p50`, `p75`, `p90`, `p95`, `p99`, `max`, in that order |
 
@@ -574,6 +574,7 @@ claim.
 | `declaration_matching` | string | exactly `exact_number_when_it_reads_as_one_else_spelling` | the one rule that says which cells a declared value matches: a declared value that reads as a number this format can hold matches every cell holding that EXACT NUMBER, whatever either is spelled like, so `-999` covers a file that writes `-999.00`; any other declared value matches by spelling, after trimming and case folding |
 | `declaration_publication` | string | exactly `settings_counts_only_columns_unchanged` | what this block publishes about a declaration and what it does not: counts and synthtwin's own words here, and the columns unchanged |
 | `declared_missing_values` | object | exactly the five keys below | the declaration record for `--missing-value` |
+| `forced_codes` | array of strings | — | the names the person passed to `--code`, sorted ascending, pairwise distinct. A column named here is read as LABELS: the rules that read a cell as a number, a date, a clock time or a number wearing an affix are silenced for it, so the roles left are the five that publish spellings. Unlike `forced_identifiers` this does NOT suppress the column — its distribution is why it was declared. A name may not appear in both arrays |
 | `forced_identifiers` | array of strings | — | the names the person passed to `--identifier`, sorted ascending, pairwise distinct |
 | `identifier_minimum_rows` | integer | ≥ 0 | below this many rows nothing is said about a column being all-different, because in a short column almost every measurement is. It decides no role |
 | `identifier_uniqueness` | number | 0.0 ≤ x ≤ 1.0 | how different a column's values have to be before synthtwin SAYS SO. It decides no role: nothing decides the identifier role but the person who owns the table |
@@ -775,19 +776,43 @@ description was written from.
 
 #### The remaining settings invariants
 
-**Invariant S8.** Every name in `forced_identifiers` is the `name` of
-some column block. A name that matches no column is a refusal: it
-means the profile and the schema disagree about which columns were
-declared.
+**Invariant S8.** Every name in `forced_identifiers` AND every name in
+`forced_codes` is the `name` of some column block. A name that matches
+no column is a refusal: it means the profile and the schema disagree
+about which columns were declared. The two arrays are checked
+separately and by the same rule, so a misspelt `--code` name is
+refused exactly as a misspelt `--identifier` name is — and for the
+same reason, which is that a description in which a coding system was
+quietly read as a quantity must not be produced by a typo.
 
 **Invariant S9.** `categorical_floor <= categorical_ceiling`.
 
 #### The floor, its minimum, and what a floor of one means
 
 **The smallest permitted `small_cell_floor` is ONE** (owner ruling
-2026-08-14; plan amendment A-P3-11). **THIS IS LOWER THAN THE DEFAULT
-AND THE REASON IS STATED.** The floor `synthtwin profile` writes when
-nobody asks for another is 11. It was once also the smallest a loader
+2026-08-14; plan amendment A-P3-11), **AND SINCE 2026-08-25 IT IS ALSO
+THE DEFAULT** (owner ruling; plan P4-D20). The floor `synthtwin
+profile` writes when nobody asks for another is 1, so nothing is held
+back unless somebody asks for it to be.
+
+**THE RULING AND ITS REASON, in the owner's terms.** synthtwin
+publishes no structure between columns — section 4.6's eight reserved
+names are all empty, and invariant S12 keeps them that way — so a
+description says what each column holds ONE COLUMN AT A TIME and never
+which values met in a row. What a named rare value therefore discloses
+is that somebody in the table had it, and nothing else about them: not
+their other columns, not which row they are. The owner ruled that this
+is the disclosure the tool is for, that a rare finding must reach the
+twin or the twin is not one, and that the pooling be available to
+anybody whose review board asks for it rather than imposed on
+everybody. **What is given up is stated below unchanged**, and
+`--smallest-group 11` restores every word of it.
+
+**WHAT THE RULING DOES NOT REACH, named so nobody reads it wider than
+it is.** It is a ruling about MARGINAL publication. Were a later
+version to publish anything that crosses two columns, the argument
+above would not carry to it, and the default would have to be decided
+again on its own facts. It was once also the smallest a loader
 would accept, and under that rule `synthtwin profile --smallest-group
 2` accepted the number, wrote the description, and told the person to
 hand that file to `synthtwin generate` — which then refused it and
@@ -4910,7 +4935,7 @@ floor-invariant.
 **Why the detection line is a `max`, and never falls below eleven.**
 `long_tail_minimum_level` has exactly one permitted value in this
 contract, the integer `11` (section 4.4), and a loader refuses any
-other. At the default floor of `11` the two terms coincide. Raising
+other. At a floor of `11` the two terms coincide. Raising
 the floor raises the detection line with it, because publishing a
 floor-clearing spelling is CONSTITUTIVE of this role: a level too
 small to be published must not be the level that made a column
@@ -6038,7 +6063,7 @@ a document, so no document can violate it.
 | S5 | `source.used_fallback_encoding` is true exactly when `source.encoding == "latin-1"` | yes |
 | S6 | `source.header_by_convention` true implies `source.header_source == "file"`; generated names are not a convention about somebody's first record | yes |
 | S7 | `values_recorded` is `false` in both declaration records — neither carries the text the person typed; `true` is refused, naming an older profile that recorded spellings under this key | yes |
-| S8 | every name in `settings.forced_identifiers` is some column's `name`; a name matching no column means the profile and the schema disagree | yes |
+| S8 | every name in `settings.forced_identifiers` and every name in `settings.forced_codes` is some column's `name`; a name matching no column means the profile and the schema disagree | yes |
 | S9 | `settings.categorical_floor <= settings.categorical_ceiling` | yes |
 | S10 | every `publication_notes[i].column` is some column's `name` | yes |
 | S11 | `publication_notes` is grouped by column in schema order, and within one column in producer emission order; the grouping is decidable, the within-column order canonical bytes a loader does not re-derive | yes |
@@ -7111,14 +7136,17 @@ version 5 document reads "version 5":
 > line, and how dates whose day and month are both numbers were read —
 > so this file cannot be read back exactly. Please make the description again by running
 > 'synthtwin profile' on your table, giving it every option you gave
-> the first time: --keep-value, --missing-value, --identifier,
+> the first time: --keep-value, --missing-value, --identifier, --code,
 > --smallest-group, --first-row and --day-first. Every one of them
 > changes what the description PUBLISHES about your table, so any
 > option you leave out can put something into the new description that
 > the old one held back: without the --smallest-group you gave, a
 > value that fewer rows share can be named; without the --identifier
 > you gave, a column of record numbers is described like any other
-> column; without the --missing-value you gave, a stand-in is read as
+> column; without the --code you gave, a column of codes is described
+> as measurements, so its smallest and largest values — which are real
+> codes — are published and its twin loses any leading zeros; without
+> the --missing-value you gave, a stand-in is read as
 > a real reading, and the stand-in itself can be published as the
 > column's smallest value; without the --keep-value you gave, a word
 > you had counted as an ordinary value becomes a gap, which can change
@@ -7135,7 +7163,11 @@ version 5 document reads "version 5":
 > the new description before either file goes anywhere, and use the
 > description exactly as synthtwin writes it.
 
-**Why it names six options and prices each.** The message names EVERY
+**Why it names seven options and prices each.** `--code` joined them on
+2026-08-25 with the declaration itself (plan amendment A-P4-38): a
+re-run without it moves a column off the label roles and back onto the
+numeric ones, and the new description publishes a ladder of real codes
+the old one never named. The message names EVERY
 option of `synthtwin profile` that changes what the description
 publishes about the table, and says of each what leaving it out can put
 into the new description. A person who ran with no options loses nothing
@@ -7996,11 +8028,11 @@ cells, defined in 6.11. Not reproduced here; a matrix is not a list.
 
 ### 14.3 Settings and declarations
 
-**`settings` keys — 17** (4.4), in the ascending code-point order every
+**`settings` keys — 18** (4.4), in the ascending code-point order every
 object of a canonical document takes: `categorical_ceiling`,
 `categorical_floor`, `categorical_share`, `day_first`,
 `declaration_matching`, `declaration_publication`,
-`declared_missing_values`, `forced_identifiers`,
+`declared_missing_values`, `forced_codes`, `forced_identifiers`,
 `identifier_minimum_rows`, `identifier_uniqueness`, `kept_values`,
 `long_tail_minimum_level`, `minimum_parse_rate`,
 `near_threshold_slack`, `sentinel_minimum_share`,

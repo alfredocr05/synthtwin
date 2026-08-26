@@ -132,6 +132,19 @@ from synthtwin import (
 
 SEED = 20260813
 
+# The floor every fixture below is described at. The sites this file
+# walks include the ones a description reaches only by POOLING -- the
+# withheld variant keys, the suppressed group, the withheld offsets
+# corner -- and at a floor of one nothing is pooled at all, so those
+# sites would simply not exist and the table would be walked with the
+# holes unnoticed. A floor of one became the default under the owner
+# ruling recorded as plan amendment A-P4-37 (contract invariant C5-S13
+# enforces that it withholds nothing), so this file states the floor it
+# means instead of inheriting one: eleven, the number every fixture
+# docstring here counts against.
+SMALL_CELL_FLOOR = 11
+SETTINGS = taxonomy.Settings(small_cell_floor=SMALL_CELL_FLOOR)
+
 # The shipped corner listings, taken before anything here can replace
 # them, so the reinstatement below stands in for exactly one binding.
 _SHIPPED_CORNER_LISTINGS = validation._corner_listings
@@ -191,7 +204,7 @@ def _described(
     table_path = fixtures.write(folder, f"{stem}.csv", text)
     table = reading.read_table(str(table_path), first_row=first_row)
     document = profile.build_document(
-        table, taxonomy.Settings(), declared if declared else []
+        table, SETTINGS, declared if declared else []
     )
     written = fixtures.write_profile(folder, f"{stem}-profile.json", document)
     return contract.load_profile(str(written))

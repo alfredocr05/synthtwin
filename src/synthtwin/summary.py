@@ -20,7 +20,7 @@ Imports here stay within the allowlist (plan D6.2): this module imports
 only from this package.
 """
 
-from synthtwin import parsing, taxonomy
+from synthtwin import contract, parsing, taxonomy
 
 _ROLE_WORDS = {
     taxonomy.ROLE_EMPTY: "no values at all",
@@ -942,18 +942,20 @@ def _lowered_floor_lines(floor: int) -> list[str]:
     - Errors raised: none.
     - Boundary: no value of the table reaches it.
     """
-    if floor >= taxonomy.Settings().small_cell_floor:
+    if floor >= contract.SMALL_GROUP_NOTICE_LINE:
         return []
-    usual = taxonomy.Settings().small_cell_floor
+    usual = contract.SMALL_GROUP_NOTICE_LINE
     lines = [
         (
-            "  THE SMALLEST GROUP SIZE WAS LOWERED FOR THIS PROFILE, TO "
-            f"{floor}."
+            "  THIS PROFILE NAMES GROUPS AS SMALL AS "
+            f"{floor} ROW(S)."
         ),
         "",
-        f"  synthtwin normally leaves a value out unless at least {usual}",
-        "  rows share it. This profile names values that as few as",
-        f"  {floor} row(s) share, and says how many rows that is.",
+        "  A profile leaves nothing out for being a small group unless it",
+        f"  is asked to. Leaving out a value unless {usual} rows share it",
+        f"  is what --smallest-group {usual} does, and this profile was not",
+        f"  made that way: it names values that as few as {floor} row(s)",
+        "  share, and says how many rows that is.",
         "",
     ]
     # "a group of 1 is 1 people" is not English, so at a floor of one the

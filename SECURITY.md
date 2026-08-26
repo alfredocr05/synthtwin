@@ -162,9 +162,18 @@ Stated here so that no reader has to discover them independently:
   surface of this project may describe it as present before it is.
 - **The profile is computed from real data.** It holds no row of the
   table, but it is not anonymous: it publishes labels that at least
-  `small_cell_floor` rows share (11 by default), the smallest and
-  largest values of numeric columns and the points between them, and
-  counts about groups nobody is named in. Handle it under your
+  `small_cell_floor` rows share, the smallest and largest values of
+  numeric columns and the points between them, and counts about groups
+  nobody is named in. **`small_cell_floor` is 1 by default** (owner
+  ruling 2026-08-25), so by default it publishes every label the table
+  holds together with how many rows shared it - including a label one
+  row held. What that discloses is that somebody in the table had that
+  value: this version publishes nothing that crosses two columns, so it
+  says nothing about who, or about anything else in that person's row.
+  Where your review board or a data-use agreement requires that no
+  published group can point at one person, `--smallest-group 11` pools
+  everything below eleven rows and the whole workflow runs on the
+  result. Handle it under your
   institution's rules for real-derived material - together with the
   plain-language summary beside it, the twin, the twin's report and the
   quality report, per the entry above. Profile version 4 widened what it

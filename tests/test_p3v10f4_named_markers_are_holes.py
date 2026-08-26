@@ -100,9 +100,19 @@ def _counts(report: str) -> "dict[str, int]":
 
 
 def _described(
-    folder: pathlib.Path, table: pathlib.Path
+    folder: pathlib.Path, table: pathlib.Path, floor: "int | None" = None
 ) -> "tuple[pathlib.Path, contract.Profile]":
-    assert main(["profile", f"{table}"]) == 0
+    """Describe one table; `floor` names a small-cell floor when it matters.
+
+    The runs this file is really about are made with no options at
+    all, which is the plainest run the product has. The two cases below whose SUBJECT
+    is a pooled spelling have to say at what floor a spelling is pooled:
+    since the owner's ruling (plan amendment A-P4-37) the default is 1,
+    at which nothing is held back and no spelling is ever pooled, so
+    those two name the floor of eleven they were written against.
+    """
+    options = [] if floor is None else ["--smallest-group", f"{floor}"]
+    assert main(["profile", f"{table}"] + options) == 0
     written = folder / f"{table.stem}-profile.json"
     return written, contract.load_profile(f"{written}")
 
@@ -155,10 +165,10 @@ def test_the_measurement_side_stops_pinning_only_the_named_words(
         if spelling and spelling != MARKER:
             assert spelling in split.kept_values
     # ...and so is this one, on a description no column of which names
-    # it. Five cells sit below the publication floor of eleven, so the
-    # spelling is pooled and named nowhere.
+    # it. Five cells sit below the publication floor of eleven this run
+    # declares, so the spelling is pooled and named nowhere.
     pooled = _table(tmp_path, "pooled.csv", 5)
-    _elsewhere, other = _described(tmp_path, pooled)
+    _elsewhere, other = _described(tmp_path, pooled, floor=11)
     assert other.columns[0].missing_by_source == {}
     assert MARKER in validation.settings_over_the_split(other).kept_values
 
@@ -232,13 +242,17 @@ def test_what_is_still_open_is_two_counts_and_no_more(
     """Residual R-P3-11, pinned at its size so it cannot grow.
 
     Six cells spelled `n/a` and six spelled `N/A` are twelve holes of one
-    built-in word under two spellings, and at the default floor of eleven
-    NEITHER spelling reaches the floor, so the column names no source at
-    all. `missing_by_class` still names twelve non-blank holes, which is
-    the weaker publication amendment A-P3-5 clause 1 lets the two
-    presence counts be read over -- so those two are still measured by
-    blankness and still miss. Nothing else does: every obligation that
-    needs the spellings falls back to the file's own description.
+    built-in word under two spellings, and at the floor of eleven this
+    run declares NEITHER spelling reaches the floor, so the column names
+    no source at all. The floor is declared rather than assumed because
+    the default is 1 since the owner's ruling (plan amendment A-P4-37),
+    and at 1 both spellings are published and this residual is not
+    reachable at all. `missing_by_class` still names twelve non-blank
+    holes, which is the weaker publication amendment A-P3-5 clause 1
+    lets the two presence counts be read over -- so those two are still
+    measured by blankness and still miss. Nothing else does: every
+    obligation that needs the spellings falls back to the file's own
+    description.
     """
     values = [f"{10 + index * 3}.5" for index in range(60)]
     values = values + ["n/a"] * 6 + ["N/A"] * 6
@@ -247,7 +261,7 @@ def test_what_is_still_open_is_two_counts_and_no_more(
         "split.csv",
         fixtures.single_column_table("reading", values),
     )
-    written, description = _described(tmp_path, table)
+    written, description = _described(tmp_path, table, floor=11)
     column = description.columns[0]
     assert column.missing_by_source == {}
     assert column.n_missing_withheld == 12

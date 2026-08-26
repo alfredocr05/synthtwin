@@ -48,6 +48,14 @@ from synthtwin import (
 FAR = "9999-12-31"
 NEAR = "1900-01-01"
 
+# THE PROTECTIVE FLOOR, WHICH IS NOT THE DEFAULT ANY MORE (owner ruling,
+# plan amendment A-P4-37). The default floor is 1, at which no verdict
+# is ever held back and `n_sentinel_candidates_unpublished` is always
+# zero, so the one test here whose subject is the PUBLICATION FLOOR
+# names the floor it is about -- eleven, the floor it was written
+# against and the one the numeric half's own rule was stated at.
+_STRICT_FLOOR = 11
+
 
 def _described(
     values: "list[str]", settings: "taxonomy.Settings | None" = None
@@ -222,8 +230,17 @@ def test_a_declared_placeholder_is_data_and_says_so() -> None:
 
 
 def test_a_placeholder_below_the_floor_is_counted_and_not_named() -> None:
-    """The publication rule the numeric half carries, over a day."""
-    document, _loaded, _folder = _described(_dates(235) + [FAR] * 5)
+    """The publication rule the numeric half carries, over a day.
+
+    FIVE ROWS IS BELOW A FLOOR OF ELEVEN and above the default floor of
+    1, which since amendment A-P4-37 publishes every candidate by name,
+    so the floor this rule is stated at is named here rather than
+    inherited.
+    """
+    document, _loaded, _folder = _described(
+        _dates(235) + [FAR] * 5,
+        taxonomy.Settings(small_cell_floor=_STRICT_FLOOR),
+    )
     block = document["columns"][0]
     assert block["sentinel_verdicts"] == []
     assert block["n_sentinel_candidates_unpublished"] == 1

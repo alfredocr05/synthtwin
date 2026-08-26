@@ -55,7 +55,14 @@ import fixtures
 from synthtwin import profile, taxonomy
 from synthtwin.cli import main
 
-FLOOR = taxonomy.Settings().small_cell_floor
+# THE FLOOR THIS FILE ASKS ITS QUESTIONS AT, NAMED RATHER THAN ASSUMED.
+# Every sentence checked below is about what a description holds back,
+# and holding back is a function of the floor: since the owner's ruling
+# (plan amendment A-P4-37) the DEFAULT floor is 1, at which nothing is
+# withheld at all and the paragraph has no work to do. So each run made
+# here declares the floor of eleven these cases were written against,
+# and `_run` passes it to the command with every profile.
+FLOOR = taxonomy.Settings(small_cell_floor=11).small_cell_floor
 SENTINEL = "-999"
 
 
@@ -68,7 +75,9 @@ def _run(
     """Profile one column through the command; return document, JSON, summary."""
     text = fixtures.single_column_table(name, values)
     table = fixtures.write(tmp_path, f"{name}.csv", text)
-    assert main(["profile", f"{table}"] + options) == 0
+    assert main(
+        ["profile", f"{table}", "--smallest-group", f"{FLOOR}"] + options
+    ) == 0
     written = (tmp_path / f"{name}-profile.json").read_text(encoding="utf-8")
     summary_text = (tmp_path / f"{name}-profile.txt").read_text(
         encoding="utf-8"

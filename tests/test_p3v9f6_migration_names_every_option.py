@@ -15,10 +15,12 @@ THE ONE THAT MATTERS IS `--smallest-group`, AND IT IS MEASURED BELOW,
 not argued. A first run with `--smallest-group 20` over a table holding
 a declared marker in twelve cells publishes nothing about that marker:
 twelve is under the floor the person chose, so the spelling is pooled
-and unnamed. Following the retired advice re-runs at the DEFAULT floor
-of eleven, twelve clears it, and the new description names the marker
-character for character. The old file withheld a word of the person's
-own; the new one publishes it; nothing warned them. The plan called the
+and unnamed. Following the retired advice re-runs at whatever the
+DEFAULT floor is -- eleven when this was written, one since plan
+amendment A-P4-37 -- and twelve clears either of them, so the new
+description names the marker character for character. The old file
+withheld a word of the person's own; the new one publishes it;
+nothing warned them. The plan called the
 result merely "different".
 
 `--identifier` is the same shape and reaches further -- a column named
@@ -301,6 +303,17 @@ def test_the_loader_really_raises_this_message(
 _MARKER = "MARKERWORD"
 _RAISED_FLOOR = 20
 
+# THE FLOOR THE POOLING MEASUREMENTS BELOW ARE MADE AT, GIVEN RATHER
+# THAN INHERITED. Plan amendment A-P4-37 lowered the DEFAULT floor from
+# eleven to one, and at a floor of one nothing is held back at all:
+# every spelling clears it, so no run pools anything. Two of the
+# disclosures below turn on a handful of cells being POOLED in the
+# first run, so both runs of each name this floor -- which is exactly
+# what the message tells the person to do, give the same
+# `--smallest-group` you gave the first time. The floor is then held
+# still and the disclosure measured is the one option left out.
+_STATED_FLOOR = 11
+
 
 def _numbers(count: int) -> "list[str]":
     """Decimals whose written form is already the canonical one."""
@@ -353,9 +366,11 @@ def test_leaving_out_the_floor_publishes_what_the_first_run_withheld(
     Sixty readings and twelve cells wearing a word of the person's own.
     Described once at `--smallest-group 20`, the word is under the floor
     and the description names it nowhere. Described again with only the
-    two options the retired message listed -- so at the default floor of
-    eleven -- twelve clears it and the description carries the word,
-    character for character.
+    two options the retired message listed -- so at the DEFAULT floor,
+    whatever it is, which is the point: the person who follows that
+    advice gives no floor at all. Twelve cleared the eleven this was
+    written against and clears the one plan amendment A-P4-37 lowered it
+    to, so the description carries the word, character for character.
 
     That is a disclosure and not a difference: the file the person is
     about to hand on now holds a word their first file held back.
@@ -446,10 +461,17 @@ def test_leaving_out_the_missing_value_publishes_the_stand_in_number(
     """The fourth disclosure, and the floor does not stop this one either.
 
     Sixty readings and five cells holding `-100`, named as "no value".
-    Named, the five are absent; five is below the floor, so no field of
-    the description holds the number. Left out, `-100` is a reading and
-    it is the smallest one, so the description publishes it as the
-    column's minimum -- and a percentile is published whatever its count.
+    Named, the five are absent; five is below the floor the run gives,
+    so no field of the description holds the number. Left out, `-100`
+    is a reading and it is the smallest one, so the description
+    publishes it as the column's minimum -- and a percentile is
+    published whatever its count.
+
+    Both runs give `--smallest-group 11`, because the pooling half of
+    this measurement needs a floor five cells fall under and plan
+    amendment A-P4-37 lowered the default to one. Naming it in both
+    runs is what the message under test asks of the person and leaves
+    `--missing-value` as the only thing that differs between them.
     """
     stand_in = "-100"
     values = _numbers(60) + [stand_in] * 5
@@ -457,7 +479,10 @@ def test_leaving_out_the_missing_value_publishes_the_stand_in_number(
         tmp_path,
         "named",
         values,
-        taxonomy.Settings(declared_missing_values=(stand_in,)),
+        taxonomy.Settings(
+            small_cell_floor=_STATED_FLOOR,
+            declared_missing_values=(stand_in,),
+        ),
         [],
     )
     column = named["columns"][0]
@@ -468,7 +493,11 @@ def test_leaving_out_the_missing_value_publishes_the_stand_in_number(
     )
     assert stand_in not in json.dumps(named)
     forgotten = _described(
-        tmp_path, "forgotten", values, taxonomy.Settings(), []
+        tmp_path,
+        "forgotten",
+        values,
+        taxonomy.Settings(small_cell_floor=_STATED_FLOOR),
+        [],
     )
     forgotten_column = forgotten["columns"][0]
     assert forgotten_column["n_present"] == 65
@@ -506,17 +535,19 @@ def test_leaving_out_the_keep_value_publishes_a_whole_distribution(
         tmp_path,
         "kept",
         values,
-        taxonomy.Settings(kept_values=(word,)),
+        taxonomy.Settings(
+            small_cell_floor=_STATED_FLOOR, kept_values=(word,)
+        ),
         [],
     )
     column = kept["columns"][0]
     # WHAT THIS COLUMN IS HAS MOVED, AND THE MOVE IS RECORDED HERE
     # RATHER THAN WORKED AROUND. Until plan P4-D5 the kept column was
     # free text and published NOT ONE value of itself, the word
-    # included. Twelve cells share that word, which clears the default
-    # publication floor of eleven, so the column is now a long tail of
-    # labels and the word IS published -- as a label of the column,
-    # with its count.
+    # included. Twelve cells share that word, which clears the
+    # publication floor of eleven both runs here give, so the column is
+    # now a long tail of labels and the word IS published -- as a label
+    # of the column, with its count.
     #
     # That is a real narrowing of what this option buys, and P4-D5
     # prices it in the open under owner decision 1: columns that today
@@ -534,7 +565,11 @@ def test_leaving_out_the_keep_value_publishes_a_whole_distribution(
         "published nowhere when the word is named as real data"
     )
     forgotten = _described(
-        tmp_path, "forgotten-keep", values, taxonomy.Settings(), []
+        tmp_path,
+        "forgotten-keep",
+        values,
+        taxonomy.Settings(small_cell_floor=_STATED_FLOOR),
+        [],
     )
     forgotten_column = forgotten["columns"][0]
     assert forgotten_column["role"] == "continuous"

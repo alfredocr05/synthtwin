@@ -91,7 +91,16 @@ from synthtwin import (
     validation,
 )
 
-_FLOOR = taxonomy.Settings().small_cell_floor
+# THE PUBLICATION FLOOR THIS FILE IS WRITTEN AT, declared rather than
+# taken from the default. Route 3 is a statement ABOUT the floor -- a
+# declared spelling worn by fewer cells than it is pooled, unnamed, into
+# the withheld remainder -- so a witness for it only exists where the
+# floor is above one. The shipped default is 1 since the owner ruling of
+# 2026-08-25 (plan amendment A-P4-37), and at a floor of 1 nothing is
+# ever held back at all (contract invariant C5-S13), so every witness
+# below names the floor it is built against and every route is measured
+# under the same rules it was written under.
+_FLOOR = 11
 
 # The shipped rules, held before any patch replaces their names, so that
 # a reinstatement can build on them instead of calling itself.
@@ -518,7 +527,7 @@ def test_the_rescued_word_is_read_out_of_the_settings_block(
         tmp_path,
         "rescued",
         fixtures.single_column_table("reading", _numbers(200) + ["n/a"]),
-        taxonomy.Settings(kept_values=("n/a",)),
+        taxonomy.Settings(small_cell_floor=_FLOOR, kept_values=("n/a",)),
     )
     assert _kept_the_version_four_way(case.described) == ()
     assert validation.kept_spellings(case.described) == ("n/a",)
@@ -543,6 +552,7 @@ def test_a_rescued_number_needs_no_sentinel_verdict_to_come_back(
     """
     case = _numeric(
         tmp_path, "kept-number", ["-999"] * 12, taxonomy.Settings(
+            small_cell_floor=_FLOOR,
             kept_values=("-999",)
         )
     )
@@ -555,6 +565,7 @@ def test_a_rescued_number_needs_no_sentinel_verdict_to_come_back(
     # the same, so nothing is flagged there either (contract 5 C5-16).
     absent = _numeric(
         tmp_path, "kept-number-absent", [], taxonomy.Settings(
+            small_cell_floor=_FLOOR,
             kept_values=("-999",)
         )
     )
@@ -580,7 +591,7 @@ def test_the_kept_side_of_the_head_count_is_gone(
         fixtures.single_column_table(
             "grade", ["alpha"] * 30 + ["bravo"] * 30 + ["n/a"] * 12
         ),
-        taxonomy.Settings(kept_values=("n/a",)),
+        taxonomy.Settings(small_cell_floor=_FLOOR, kept_values=("n/a",)),
     )
     assert case.described.settings.kept_values.n_declared == 1
     assert validation.unrebuildable_columns(case.described) == {}
@@ -605,6 +616,7 @@ def test_a_named_built_in_word_comes_back_where_no_column_names_it(
     """
     mine = _free_text(
         tmp_path, "text-vocab", ["n/a"] * 12, taxonomy.Settings(
+            small_cell_floor=_FLOOR,
             declared_missing_values=("n/a",)
         )
     )
@@ -620,6 +632,7 @@ def test_a_named_built_in_word_comes_back_where_no_column_names_it(
     # section 7.1's limit, which no version of the format closes.
     theirs = _free_text(
         tmp_path, "text-own", ["ZZZ"] * 12, taxonomy.Settings(
+            small_cell_floor=_FLOOR,
             declared_missing_values=("ZZZ",)
         )
     )
@@ -643,6 +656,7 @@ def test_a_named_stand_in_number_comes_back_as_a_declaration(
     """
     case = _numeric(
         tmp_path, "declared-number", ["-999"] * 12, taxonomy.Settings(
+            small_cell_floor=_FLOOR,
             declared_missing_values=("-999",)
         )
     )
@@ -681,7 +695,10 @@ def test_every_stand_in_spelling_denotes_its_own_member(
             tmp_path,
             stem,
             [f"{value:.1f}"] * 12,
-            taxonomy.Settings(declared_missing_values=(f"{value:g}",)),
+            taxonomy.Settings(
+                small_cell_floor=_FLOOR,
+                declared_missing_values=(f"{value:g}",),
+            ),
         )
         assert case.described.columns[0].missing_by_class.declared_missing == 12
         assert validation.unrebuildable_columns(case.described) == {}
@@ -703,6 +720,7 @@ def test_the_head_count_asks_only_about_words_of_your_own(
     """
     case = _numeric(
         tmp_path, "vocab-pooled", ["n/a"] * 5, taxonomy.Settings(
+            small_cell_floor=_FLOOR,
             declared_missing_values=("n/a",)
         )
     )
@@ -738,6 +756,7 @@ def test_the_structural_test_matches_at_the_producers_own_identity(
     """
     numeric = _numeric(
         tmp_path, "spelled-out", ["-999.0"] * 12, taxonomy.Settings(
+            small_cell_floor=_FLOOR,
             declared_missing_values=("-999",)
         )
     )
@@ -749,6 +768,7 @@ def test_the_structural_test_matches_at_the_producers_own_identity(
     assert validation.unrebuildable_columns(numeric.described) == {}
     textual = _numeric(
         tmp_path, "cased", ["N/A"] * 12, taxonomy.Settings(
+            small_cell_floor=_FLOOR,
             declared_missing_values=(" N/A ",)
         )
     )
@@ -776,6 +796,7 @@ def test_the_structural_test_is_not_asked_where_the_class_empties_it(
     """
     case = _free_text(
         tmp_path, "class-empty", ["n/a"] * 12, taxonomy.Settings(
+            small_cell_floor=_FLOOR,
             declared_missing_values=("n/a",)
         )
     )
@@ -834,7 +855,7 @@ def test_the_structural_test_is_what_routes_where_the_head_is_level(
         "level-head",
         ["XX"] * 12,
         ["XX"] * 4 + [" XX "] * 4 + ["xx"] * 4,
-        taxonomy.Settings(declared_missing_values=("XX",)),
+        taxonomy.Settings(small_cell_floor=_FLOOR, declared_missing_values=("XX",)),
     )
     described = case.described
     named, back = _the_head_count(described)
@@ -901,7 +922,10 @@ def test_the_head_count_is_what_routes_the_shipped_witness(
         tmp_path,
         "masked",
         [" XX "] * 12 + ["XX"] * 12 + ["YY"] * 5,
-        taxonomy.Settings(declared_missing_values=("XX", "YY")),
+        taxonomy.Settings(
+            small_cell_floor=_FLOOR,
+            declared_missing_values=("XX", "YY"),
+        ),
     )
     described = case.described
     column = described.columns[0]
@@ -950,10 +974,14 @@ def test_the_two_limits_contract_five_states_are_still_the_two(
         tmp_path,
         "pooled",
         ["rare1"] * 3 + ["rare2"] * 3 + ["rare3"] * 3,
-        taxonomy.Settings(declared_missing_values=("rare1", "rare2", "rare3")),
+        taxonomy.Settings(
+            small_cell_floor=_FLOOR,
+            declared_missing_values=("rare1", "rare2", "rare3"),
+        ),
     )
     text = _free_text(
         tmp_path, "own-word", ["ZZZ"] * 12, taxonomy.Settings(
+            small_cell_floor=_FLOOR,
             declared_missing_values=("ZZZ",)
         )
     )
@@ -987,6 +1015,7 @@ def test_the_over_fire_of_the_head_count_stays_and_says_whose_words(
     """
     case = _numeric(
         tmp_path, "never-here", ["XX"] * 12, taxonomy.Settings(
+            small_cell_floor=_FLOOR,
             declared_missing_values=("XX", "NEVERHERE")
         )
     )
@@ -1020,6 +1049,7 @@ def test_the_quiet_exit_zero_construction_still_exists_on_what_is_left(
     """
     case = _free_text(
         tmp_path, "quiet", ["ZZZ"] * 12, taxonomy.Settings(
+            small_cell_floor=_FLOOR,
             declared_missing_values=("ZZZ",)
         )
     )
@@ -1054,6 +1084,7 @@ def test_the_twin_of_a_description_that_still_cannot_be_read_moves_with_it(
     """
     open_route = _free_text(
         tmp_path, "still-open", ["ZZZ"] * 12, taxonomy.Settings(
+            small_cell_floor=_FLOOR,
             declared_missing_values=("ZZZ",)
         )
     )
@@ -1061,7 +1092,7 @@ def test_the_twin_of_a_description_that_still_cannot_be_read_moves_with_it(
         tmp_path,
         "now-closed",
         fixtures.single_column_table("reading", _numbers(200) + ["n/a"]),
-        taxonomy.Settings(kept_values=("n/a",)),
+        taxonomy.Settings(small_cell_floor=_FLOOR, kept_values=("n/a",)),
     )
     for case, stem, moves in (
         (open_route, "still-open", True),

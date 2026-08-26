@@ -41,6 +41,17 @@ from synthtwin import (
 )
 
 
+# The publication floor these fixtures were counted against. A floor of
+# one became the default under the owner ruling recorded as plan
+# amendment A-P4-37 -- contract invariant C5-S13 says that at a floor of
+# one nothing whatever is held back -- and pooling is a SUBJECT here:
+# the counts below are the counts a description publishes when a form
+# carried by fewer than eleven cells is pooled into `(withheld)`. So the
+# floor is stated rather than inherited, and it is the eleven every
+# docstring in this file counts against.
+SMALL_CELL_FLOOR = 11
+
+
 def _described(
     folder: pathlib.Path, values: "list[str]"
 ) -> "tuple[dict, contract.Profile]":
@@ -49,7 +60,9 @@ def _described(
         folder, "table.csv", fixtures.single_column_table("amount", values)
     )
     table = reading.read_table(str(path))
-    document = profile.build_document(table, taxonomy.Settings(), [])
+    document = profile.build_document(
+        table, taxonomy.Settings(small_cell_floor=SMALL_CELL_FLOOR), []
+    )
     target = fixtures.write_profile(folder, "table-profile.json", document)
     return document, contract.load_profile(str(target))
 

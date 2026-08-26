@@ -53,8 +53,16 @@ def _described(
     table = fixtures.write(
         folder, "thing.csv", fixtures.rows_to_csv([name, "other"], rows)
     )
+    # THE FLOOR IS DECLARED HERE, because this whole file's subject is
+    # what a HELD-BACK value gets written in its place. The default
+    # smallest group size became one (owner ruling, plan amendment
+    # A-P4-37), and at a floor of one nothing is held back at all
+    # (contract C5-S13) -- so a case about pooling has to say the floor
+    # it means. Eleven is the floor these cases were written against.
     document = profile.build_document(
-        reading.read_table(f"{table}"), taxonomy.Settings(), []
+        reading.read_table(f"{table}"),
+        taxonomy.Settings(small_cell_floor=11),
+        [],
     )
     written = fixtures.write_profile(folder, "thing.json", document)
     return document, contract.load_profile(f"{written}"), folder
@@ -746,7 +754,8 @@ def test_a_column_of_prose_is_written_exactly_as_it_was_before() -> None:
     # taken out altogether.
     offer = generation._wanted_form
     generation._wanted_form = (
-        lambda owing, length, words, carrier, shortest, longest, budget: ""
+        lambda owing, length, words, carrier, shortest, longest, budget,
+        covering=1: ""
     )
     try:
         without = generation.generate(described, 7)
@@ -1509,7 +1518,13 @@ def test_a_stand_in_avoids_a_hole_declared_on_another_column() -> None:
     table = fixtures.write(
         folder, "thing.csv", fixtures.rows_to_csv(["a", "b"], rows)
     )
-    settings = taxonomy.Settings(declared_missing_values=("group-1",))
+    # THE FLOOR IS DECLARED: the walk under test runs only where a
+    # level is HELD BACK, and the default smallest group size became
+    # one (owner ruling, plan amendment A-P4-37), at which nothing is
+    # held back and the second column writes no stand-in to test.
+    settings = taxonomy.Settings(
+        declared_missing_values=("group-1",), small_cell_floor=11
+    )
     document = profile.build_document(
         reading.read_table(f"{table}"), settings, []
     )
