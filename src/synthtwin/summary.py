@@ -362,6 +362,46 @@ def _missing_spelling_words(
     return spellings
 
 
+def _width_lines(column: "dict[str, object]") -> "list[str]":
+    """How wide this column was read to be, in words (residual R-P4-26).
+
+    THE PROFILE PUBLISHES TWO WIDTH CENSUSES AND SAID NEITHER OF THEM
+    OUT LOUD. `pad_widths` records how many characters the cells
+    written with a leading zero were written in, and `fraction_widths`
+    how many figures came after the point. The twin honours both, and
+    the twin's report names either one the twin could not reach -- but
+    where they are HONOURED, no surface said in words that a column of
+    five-figure codes was read as five figures wide and that the twin
+    keeps it. A person reading this page found out only by opening the
+    JSON, or by not finding out.
+
+    A width is a fact about the WRITING and never a value: it is a
+    count of characters, and this line names counts and nothing else.
+    """
+    said: "list[str]" = []
+    for key, words in (
+        ("pad_widths", "written with a leading zero"),
+        ("fraction_widths", "written after the point"),
+    ):
+        if key not in column:
+            continue
+        census = _map_of(column[key])
+        if not census:
+            continue
+        parts: "list[str]" = []
+        for width in sorted(census):
+            if width == taxonomy.SUPPRESSED_LABEL:
+                continue
+            parts = parts + [
+                f"{width} character(s) in {_count_of(census[width])} cell(s)"
+            ]
+        if parts:
+            said = said + [
+                f"    figures {words}: {_listed(parts)}"
+            ]
+    return said
+
+
 def _column_lines(column: dict[str, object], floor: int) -> list[str]:
     """The block of lines describing one column."""
     role = _text_of(column["role"])
@@ -378,6 +418,7 @@ def _column_lines(column: dict[str, object], floor: int) -> list[str]:
     if spellings:
         lines = lines + [f"    counted as missing: {_listed(spellings)}"]
     lines = lines + _sentinel_lines(column)
+    lines = lines + _width_lines(column)
     if role in _ROLES_WITH_LABELS:
         levels = _list_of(column["levels"])
         shown = [

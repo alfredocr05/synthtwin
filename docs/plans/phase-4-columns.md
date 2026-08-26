@@ -685,7 +685,9 @@ these are codes rather than measurements — the same
 tell-the-person-both-ways posture the all-different text remark
 already takes, firing on every column the role claims rather than on a
 guessable subset. The all-different remark additionally extends to
-this role verbatim. What this misroute can NOT do, by the
+this role in NF32's wording -- the NUMBERS form, not NF34's text form,
+which would say this column publishes no distribution when it
+publishes one over its cores (residual R-P4-21, corrected 2026-08-26). What this misroute can NOT do, by the
 no-regression rule: it cannot take a column away from any rule that
 handles it today — `V1`/`V2`/`V3` visit labels stay categorical,
 because categorical runs first.
@@ -1650,7 +1652,7 @@ Opened by this plan, each a limit accepted rather than work forgotten:
   a second implementer in another language something to reproduce.
   The vectors and their committed failing mutants are owed before this
   phase closes. Priced and accepted, not waived.
-- **R-P4-22** (opened by amendment A-P4-19, 2026-08-21). CONTRACT
+- **R-P4-22 — CLOSED 2026-08-26, C6-117 states the carried declaration** (opened by amendment A-P4-19, 2026-08-21). CONTRACT
   C6-117 must state that a whole-cell declaration carried across an
   affix pair protects the candidate NUMBER, hence every spelling of it
   in that column. The code does that today and a test pins it; the
@@ -1822,7 +1824,7 @@ Opened by this plan, each a limit accepted rather than work forgotten:
   of R-P4-31: a person who says what their file does needs no
   heuristic, and no heuristic here can be right. Until then the column
   is silent, which is not good and is not defended as good.
-- **R-P4-32** (opened at the first read of P4-D17, 2026-08-24, and NOT
+- **R-P4-32 — CLOSED 2026-08-26, the exponent is split off before the groups are counted** (opened at the first read of P4-D17, 2026-08-24, and NOT
   caused by it). A GROUPED NUMBER CARRYING AN EXPONENT AND NO POINT IS
   MISROUTED. `1,001e2` is admitted by the documented grammar — valid
   group separators, an optional exponent — but the separator rule takes
@@ -1916,7 +1918,7 @@ Opened by this plan, each a limit accepted rather than work forgotten:
   Closing this means letting the value stage see what fields the
   census asks for, which reaches into the stage P4-D7 deliberately
   left alone.
-- **R-P4-26** (opened by amendment A-P4-34, 2026-08-24). NEITHER WIDTH
+- **R-P4-26 — CLOSED 2026-08-26, the summary names both width censuses** (opened by amendment A-P4-34, 2026-08-24). NEITHER WIDTH
   CENSUS IS DISCLOSED IN PLAIN LANGUAGE. The profile publishes
   `fraction_widths` and now `pad_widths`, the twin honours both, and
   the twin's report names either one the twin could not reach. What no
@@ -1966,7 +1968,7 @@ Opened by this plan, each a limit accepted rather than work forgotten:
   the rule bites. That is a property of the rule rather than a gap, but
   a reader of the contract should be told that G2 is a lowered-floor
   rule, and version 6 does not say so.
-- **R-P4-21** (opened by amendment A-P4-17, 2026-08-21). THE CONTRACT
+- **R-P4-21 — CLOSED 2026-08-26, the contract names NF32** (opened by amendment A-P4-17, 2026-08-21). THE CONTRACT
   STILL SAYS BOTH THINGS about which all-different remark the affixed
   role carries. Version 6 section 4.5 must state the form, and
   P4-D4.1's "verbatim" sentence and `r5a2.md`'s must be corrected to
@@ -5577,3 +5579,40 @@ recorded only inside a review log until now.
 **This deserves its own defect line rather than a decline**, and the
 misreading half is the first thing a reader of this residual should
 meet. Not closed.
+
+## The residual triage of 2026-08-26, and what it settled
+
+**THE OWNER ASKED FOR ALL THE OPEN RESIDUALS TO BE CLOSED.** All of
+them were verified against the shipped code, each by building the
+column it describes and running it, rather than by reading. What came
+back changes the shape of the request and is recorded here so nobody
+re-asks it blind:
+
+| verdict | count | what it means |
+| --- | --- | --- |
+| DELIBERATE | 15 | a scope decline the plan priced ON PURPOSE. Not a defect; "closing" it means building a feature nobody has asked for |
+| LARGE | 11 | a real landing each — a contract clause, a reference vector, a new construction |
+| OWNER | 7 | the residual itself poses a question only the owner can answer |
+| SMALL | 4 | a contained fix. All four are now closed |
+| STALE | 0 | two were claimed and BOTH were refuted |
+
+**THE TWO STALE CLAIMS WERE REFUTED, and that is the most useful thing
+the exercise produced.** Every STALE verdict was put to an agent whose
+only job was to make the described behaviour happen again, with the
+burden of proof on STALE. Both failed:
+
+- R-P4-4 was said to be closed by P4-D15. P4-D15 landed a proper SUBSET
+  of each family it names, and the remainder includes a EUROPEAN
+  `dd.mm.yy` COLUMN READ AS A QUANTITY, with a published mean of 15.39
+  over day-and-month numbers and a twin holding months 25, 44, 00 and
+  93. That is a silent misdescription found only because the closure
+  was challenged.
+- R-P4-23 was said to be closed by the version flip. The flip reset the
+  defect rather than closing it, and the re-check found the contract
+  drift that P4-D26 fixes.
+
+**WHAT IT SAYS ABOUT CLOSING RESIDUALS AT ALL.** Two of two closure
+claims were wrong, and one of them was hiding a live misreading. A
+residual is cheap to keep and expensive to close wrongly, so nothing
+here is closed on a reading — only on a measurement, and only where the
+work is done.

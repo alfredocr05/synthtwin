@@ -644,6 +644,16 @@ def _without_group_separators(text: str) -> "str | None":
     digits after a first group of one to three digits. '1,234,567.89'
     becomes '1234567.89'; '1,23' and '12,3456' are refused, because
     accepting them would turn a mistyped value into a plausible number.
+
+    AN EXPONENT IS TAKEN OFF FIRST, and it was not until 2026-08-26
+    (residual R-P4-32). `1,001e2` is admitted by the documented grammar
+    -- valid group separators, an optional exponent -- and `1,001` and
+    `1001e2` are both read as numbers, but the pair together was not:
+    with no point, everything after the last comma was taken as a
+    group, `001e2` is not three figures, and the cell was not a number
+    at all. The affix rule could then claim the column and publish a
+    mean over the mantissas. The exponent is split off before the
+    groups are counted and put back after.
     """
     if not isinstance(text, str):
         raise TypeError(_NOT_TEXT)
@@ -654,6 +664,31 @@ def _without_group_separators(text: str) -> "str | None":
     if text[0] == "+" or text[0] == "-":
         sign = text[0]
         body = text[1:]
+    # The exponent, if this cell carries one, kept aside while the
+    # groups are counted. Only a well-formed one is taken: figures,
+    # after an optional sign, after a single `e` or `E`. Anything else
+    # stays in the body and is refused by the group rule as before.
+    exponent = ""
+    for marker in ("e", "E"):
+        # The LAST place the marker stands, found by walking rather than
+        # by `rfind`: the offline audit clears an enumerated set of
+        # string methods and `rfind` is not in it.
+        at = -1
+        seat = 0
+        while seat < len(body):
+            if body[seat] == marker:
+                at = seat
+            seat = seat + 1
+        if at <= 0:
+            continue
+        after = body[at + 1 :]
+        digits = after
+        if digits and (digits[0] == "+" or digits[0] == "-"):
+            digits = digits[1:]
+        if digits and _all_ascii_digits(digits):
+            exponent = body[at:]
+            body = body[:at]
+        break
     point = body.find(".")
     if point < 0:
         head = body
@@ -673,7 +708,7 @@ def _without_group_separators(text: str) -> "str | None":
         if not _all_ascii_digits(group) or len(group) != 3:
             return None
         joined = joined + group
-    return sign + joined + tail
+    return sign + joined + tail + exponent
 
 
 # The longest cell a shape form is taken of. A form is a fact about the
