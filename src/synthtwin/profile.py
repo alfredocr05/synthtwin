@@ -806,6 +806,13 @@ PUBLICATION_RULES: "dict[tuple[str, ...], str]" = {
     ("columns", _EACH, "n_joined"): _COUNT,
     ("columns", _EACH, "part_min_widths"): _ARRAY,
     ("columns", _EACH, "part_min_widths", _EACH): _COUNT,
+    # How the positions move together, one pair at a time. An agreement
+    # runs from -1 to 1 and is a number like any other statistic this
+    # format publishes; a count of rows is a count.
+    ("columns", _EACH, "part_agreements"): _ARRAY,
+    ("columns", _EACH, "part_agreements", _EACH): _NUMBER,
+    ("columns", _EACH, "part_above"): _ARRAY,
+    ("columns", _EACH, "part_above", _EACH): _COUNT,
     ("columns", _EACH, "parts"): _ARRAY,
     ("columns", _EACH, "parts", _EACH): _OBJECT,
     ("columns", _EACH, "parts", _EACH, "percentiles"): _OBJECT,

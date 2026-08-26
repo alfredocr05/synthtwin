@@ -202,6 +202,14 @@ code such as `00052-0052-52` are written exactly the same way and are
 codes, so name those with `--code`. A column of plain single numbers
 needs nothing.
 
+**The numbers move together, and you are not asked about that.** How
+strongly a reading's two numbers rise and fall together, and whether the
+first is always the larger, are things your data says plainly -- so
+synthtwin measures them and builds the twin to match, rather than asking
+you. On a real blood-pressure column that is the difference between a
+twin of believable readings and one holding a diastolic above its
+systolic.
+
 `--code` names a column that holds a **coding system** rather than
 measurements -- vaccine codes, procedure codes, revenue codes, provider
 numbers, risk-group codes. Its values are still published, because which

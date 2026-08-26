@@ -4509,103 +4509,231 @@ def _joined_written(
     return written
 
 
+def _ranks_of(values: "list[float]") -> "list[float]":
+    """The rank of each value, ties sharing the average of their ranks."""
+    pairs: "list[tuple[float, int]]" = []
+    for seat in range(len(values)):
+        pairs = pairs + [(values[seat], seat)]
+    pairs = sorted(pairs)
+    ranks = [0.0 for _each in values]
+    at = 0
+    while at < len(pairs):
+        last = at
+        while last + 1 < len(pairs) and pairs[last + 1][0] == pairs[at][0]:
+            last = last + 1
+        shared = (at + last) / 2.0
+        for seat in range(at, last + 1):
+            ranks[pairs[seat][1]] = shared
+        at = last + 1
+    return ranks
+
+
 def _repaired_pairing(
-    drawn: "list[list[str]]", facts: "contract.JoinedFacts", wanted: int
+    drawn: "list[list[str]]",
+    facts: "contract.JoinedFacts",
+    wanted: int,
+    words: "list[int]",
 ) -> "list[list[str]]":
-    """Break enough repeated pairs to reach the published `n_distinct`.
+    """Choose WHICH numbers meet in a row, to the facts published.
 
-    THE SHUFFLE GETS CLOSE AND NOT EXACT, and `n_distinct` is an exact
-    obligation. On the demonstration table's blood pressure column the
-    shuffle reached 381 different cells where the description publishes
-    387: the positions' own multisets admit both, and which one comes
-    out is an accident of the draw.
+    WHAT EACH POSITION HOLDS IS ALREADY EXACT when this is reached, and
+    nothing here changes it. Every step swaps two rows' numbers within
+    ONE position, so each position keeps its multiset to the last cell
+    and every published number about it -- ladder, mean, spread, styles,
+    widths -- is untouched. What moves is only the pairing, which is the
+    one thing `parts` does not describe.
 
-    So the accident is corrected. A cell that repeats one already
-    written has its LAST number swapped with some other row's, and the
-    swap is taken only where BOTH rows come out holding a cell nothing
-    else holds. Swapping keeps every position's multiset exactly, so no
-    published number about any position moves -- only the pairing does,
-    which is the thing the description does not constrain.
+    IT STARTS RANK FOR RANK, largest with largest, where the agreement
+    is 1 and the earlier position is above the later one as often as it
+    can be. Both are usually ABOVE what the description publishes, and
+    swaps bring them down to it. Starting from a shuffle was built
+    first and was worse: it begins far from every target at once.
 
-    IT GOES BOTH WAYS. The shuffle can land above the published count
-    as easily as below -- measured, a column publishing 380 different
-    readings came out with 390 -- so a swap is taken whenever it moves
-    the count CLOSER to the published one, in whichever direction that
-    is. Too many different cells is as wrong as too few: both are a
-    fact the description states exactly and the twin can meet.
+    WHY THIS IS NEEDED. Drawn independently, the two numbers of a blood
+    pressure agreed at -0.02 where the real column agreed at 0.83, and
+    a twin cell could hold a diastolic above its systolic. The numbers
+    were right one at a time and the pairs were not readings.
 
-    Bounded by construction: every swap taken moves the count strictly
-    closer to the target, a pass that moves nothing ends the walk, and
-    a ceiling on the swaps stops it whatever happens.
+    EVERY STEP COSTS THE SAME, however long the column. Scoring a
+    pairing from scratch is a sort and a walk, and a walk that scored
+    every attempt that way spent fourteen seconds on four hundred rows.
+    Nothing about a swap needs it: two cells change, so the count of
+    different cells moves by what those two were and are; two rows
+    change, so the above-count moves by those two; and the two ranks
+    trade places, which moves the agreement's numerator by exactly
+    `(a_i - a_j) * (b_j - b_i)` and moves its divisor not at all,
+    because neither position's ranks have changed as a MULTISET. So
+    every quantity here is carried and adjusted, never recomputed.
     """
-    last = facts.n_parts - 1
-    if last < 1:
-        return drawn
     total = facts.n_joined
-    held = [[value for value in column] for column in drawn]
-    written = [_joined_written(held, facts, row) for row in range(total)]
+    if total < 2 or facts.n_parts < 2:
+        return drawn
+    held: "list[list[str]]" = []
+    for column in drawn:
+        pairs: "list[tuple[int, str]]" = []
+        for spelling in column:
+            pairs = pairs + [(int(spelling), spelling)]
+        pairs = sorted(pairs)
+        held = held + [[pair[1] for pair in pairs]]
+    last = facts.n_parts - 1
+    numbers: "list[list[float]]" = []
+    ranks: "list[list[float]]" = []
+    for place in range(facts.n_parts):
+        counted_here: "list[float]" = []
+        for spelling in held[place]:
+            counted_here = counted_here + [float(spelling)]
+        numbers = numbers + [counted_here]
+        ranks = ranks + [_ranks_of(counted_here)]
+    middle = (total - 1) / 2.0
+    # The divisor of every agreement, which no swap can move.
+    spread: "list[float]" = []
+    for place in range(facts.n_parts):
+        summed = 0.0
+        for row in range(total):
+            away = ranks[place][row] - middle
+            summed = summed + away * away
+        spread = spread + [summed]
+    # The pairs this walk can move are the ones the last position is in.
+    seats: "list[int]" = []
+    firsts: "list[int]" = []
+    seat = 0
+    for first in range(facts.n_parts):
+        for second in range(first + 1, facts.n_parts):
+            if second == last:
+                seats = seats + [seat]
+                firsts = firsts + [first]
+            seat = seat + 1
+    tops: "list[float]" = []
+    aboves: "list[int]" = []
+    for index in range(len(seats)):
+        first = firsts[index]
+        summed = 0.0
+        counted = 0
+        for row in range(total):
+            summed = summed + (ranks[first][row] - middle) * (
+                ranks[last][row] - middle
+            )
+            if numbers[first][row] > numbers[last][row]:
+                counted = counted + 1
+        tops = tops + [summed]
+        aboves = aboves + [counted]
+    cells: "list[str]" = []
     seen: "dict[str, int]" = {}
-    for text in written:
+    for row in range(total):
+        text = _joined_written(held, facts, row)
+        cells = cells + [text]
         seen[text] = seen[text] + 1 if text in seen else 1
 
-    def _take(text: str) -> None:
-        seen[text] = seen[text] - 1
-        if seen[text] < 1:
-            del seen[text]
+    def _away() -> float:
+        """How far this pairing is from every pairing fact published.
 
-    def _give(text: str) -> None:
-        seen[text] = seen[text] + 1 if text in seen else 1
+        THE THREE ARE SCALED TO THEIR OWN SIZES, and the reason is a
+        measurement rather than a preference. Weighting the count of
+        different cells in ROWS -- one row out costing a whole unit --
+        was built and was worse at everything: the agreement fell from
+        0.834 to 0.559, two cells came out impossible, and the count it
+        was chasing STILL stopped short, at 317 of 324. It stops short
+        because it cannot be reached: each position's numbers are drawn
+        to the ladder the description publishes, which repeats a value
+        more evenly than the real column did, and pairs drawn from
+        values that repeat more can only be so many. Spending the
+        agreement on it buys nothing and costs the readings.
 
-    # PASSES, NOT ONE WALK. A single pass over the rows leaves the count
-    # short where the row it needed to swap with came earlier than the
-    # row it was looking at; walking again from the top finds it. The
-    # walk stops when a whole pass moves nothing, so it cannot spin.
-    swaps = 0
-    ceiling = total * total + total
-    moving = True
-    while len(seen) != wanted and moving and swaps < ceiling:
-        moving = False
-        row = 0
-        while row < total and len(seen) != wanted:
-            # A row worth moving is one that repeats when there are too
-            # FEW different cells, and any row at all when there are too
-            # many -- the walk goes both ways, because the shuffle can
-            # land on either side of the published count.
-            if len(seen) < wanted and seen[written[row]] < 2:
-                row = row + 1
-                continue
-            other = 0
-            while other < total:
-                if other == row or held[last][other] == held[last][row]:
-                    other = other + 1
-                    continue
-                before = len(seen)
-                keep_row = held[last][row]
-                keep_other = held[last][other]
-                held[last][row] = keep_other
-                held[last][other] = keep_row
-                made_row = _joined_written(held, facts, row)
-                made_other = _joined_written(held, facts, other)
-                _take(written[row])
-                _take(written[other])
-                _give(made_row)
-                _give(made_other)
-                closer = abs(len(seen) - wanted) < abs(before - wanted)
-                if closer:
-                    written[row] = made_row
-                    written[other] = made_other
-                    swaps = swaps + 1
-                    moving = True
-                    break
-                # Put it back, exactly as it was.
-                _take(made_row)
-                _take(made_other)
-                held[last][row] = keep_row
-                held[last][other] = keep_other
-                _give(written[row])
-                _give(written[other])
-                other = other + 1
-            row = row + 1
+        So the count of different cells is scaled against the column's
+        rows, where it competes fairly and yields where it cannot win,
+        and the shortfall is REPORTED by the caller rather than paid
+        for. Residual R-P4-40 records the cause, which is upstream of
+        this walk.
+        """
+        out = abs(len(seen) - wanted) / float(total)
+        for index in range(len(seats)):
+            place = seats[index]
+            first = firsts[index]
+            out = out + abs(
+                aboves[index] - facts.part_above[place]
+            ) / float(total)
+            divisor = (spread[first] * spread[last]) ** 0.5
+            agreed = tops[index] / divisor if divisor > 0.0 else 0.0
+            out = out + abs(agreed - facts.part_agreements[place])
+        return out
+
+    away = _away()
+    tries = 0
+    at = 0
+    ceiling = 200 * total
+    while away > 0.0005 and tries < ceiling and len(words) >= 2:
+        tries = tries + 1
+        if at + 1 >= len(words):
+            at = 0
+        one = _bounded(words[at], total)
+        two = _bounded(words[at + 1], total)
+        at = at + 2
+        if one == two or held[last][one] == held[last][two]:
+            continue
+        kept_tops = [value for value in tops]
+        kept_aboves = [value for value in aboves]
+        for index in range(len(seats)):
+            first = firsts[index]
+            tops[index] = tops[index] + (
+                ranks[first][one] - ranks[first][two]
+            ) * (ranks[last][two] - ranks[last][one])
+            for row in (one, two):
+                if numbers[first][row] > numbers[last][row]:
+                    aboves[index] = aboves[index] - 1
+        held[last][one], held[last][two] = held[last][two], held[last][one]
+        numbers[last][one], numbers[last][two] = (
+            numbers[last][two],
+            numbers[last][one],
+        )
+        ranks[last][one], ranks[last][two] = (
+            ranks[last][two],
+            ranks[last][one],
+        )
+        for index in range(len(seats)):
+            first = firsts[index]
+            for row in (one, two):
+                if numbers[first][row] > numbers[last][row]:
+                    aboves[index] = aboves[index] + 1
+        made_one = _joined_written(held, facts, one)
+        made_two = _joined_written(held, facts, two)
+        for gone in (cells[one], cells[two]):
+            seen[gone] = seen[gone] - 1
+            if seen[gone] < 1:
+                del seen[gone]
+        for made in (made_one, made_two):
+            seen[made] = seen[made] + 1 if made in seen else 1
+        now = _away()
+        # AN EQUAL SWAP IS TAKEN, NOT ONLY A BETTER ONE. Three facts are
+        # being met at once and they pull against each other: a swap
+        # that breaks a repeated cell often costs a little agreement and
+        # gains it back two swaps later. Taking only strict improvements
+        # stops on the first ridge -- measured, it left a column of 324
+        # different readings at 276 while the agreement was already
+        # right. Equal moves let the walk cross the ridge, and the try
+        # ceiling is what stops it wandering.
+        if now <= away:
+            away = now
+            cells[one] = made_one
+            cells[two] = made_two
+            continue
+        # Put every carried quantity back, exactly as it was.
+        for made in (made_one, made_two):
+            seen[made] = seen[made] - 1
+            if seen[made] < 1:
+                del seen[made]
+        for back in (cells[one], cells[two]):
+            seen[back] = seen[back] + 1 if back in seen else 1
+        held[last][one], held[last][two] = held[last][two], held[last][one]
+        numbers[last][one], numbers[last][two] = (
+            numbers[last][two],
+            numbers[last][one],
+        )
+        ranks[last][one], ranks[last][two] = (
+            ranks[last][two],
+            ranks[last][one],
+        )
+        tops = kept_tops
+        aboves = kept_aboves
     return held
 
 
@@ -4677,18 +4805,39 @@ def _joined_content(
         # than one that does not. A fixed reversal would meet it too and
         # would invent a strong negative correlation nothing published
         # says is there.
-        if place:
-            shuffle: "list[int]" = []
-            step = 0
-            while step < len(values) - 1 and at + step < len(words):
-                shuffle = shuffle + [words[at + step]]
-                step = step + 1
-            at = at + max(len(values) - 1, 0)
-            if len(shuffle) >= max(len(values) - 1, 0):
-                order = _arrangement(shuffle, len(values))
-                values = [values[seat] for seat in order]
         drawn = drawn + [values]
-    drawn = _repaired_pairing(drawn, facts, column.n_distinct)
+    # WHICH NUMBERS MEET IN A ROW. The words the shuffle used to spend
+    # are spent here instead: the pairing is chosen to the facts the
+    # description publishes about it rather than left to chance.
+    spare: "list[int]" = []
+    step = at
+    while step < len(words):
+        spare = spare + [words[step]]
+        step = step + 1
+    drawn = _repaired_pairing(drawn, facts, column.n_distinct, spare)
+    # WHAT THE PAIRING COULD NOT REACH IS SAID, not swallowed. The count
+    # of different cells is a fact of the real column that a pairing of
+    # THESE numbers may be unable to meet (residual R-P4-40), and a twin
+    # that quietly holds fewer is a twin whose own report should say so.
+    made_cells: "dict[str, int]" = {}
+    for row in range(facts.n_joined):
+        text = _joined_written(drawn, facts, row)
+        made_cells[text] = 1
+    if len(made_cells) != column.n_distinct:
+        notes = notes + [
+            _deviation(
+                column.name,
+                "n_distinct",
+                f"{column.n_distinct} different value(s)",
+                f"{len(made_cells)} different value(s)",
+                "Each number in this column's cells follows the "
+                "description exactly. Which numbers meet in a cell is "
+                "chosen to the facts the description publishes about "
+                "that, and those cannot always be met together: numbers "
+                "drawn to a published ladder repeat more evenly than the "
+                "real ones did, so fewer different pairs can be made.",
+            )
+        ]
     cells: "list[str]" = []
     for row in range(facts.n_joined):
         cells = cells + [_joined_written(drawn, facts, row)]
