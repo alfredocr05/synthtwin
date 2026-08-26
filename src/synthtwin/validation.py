@@ -249,6 +249,13 @@ ENVELOPE_DATETIME_DISTINCT = "docs/spec/generation-method-v1.md G12.5"
 # in the same landing as the construction it bounds.
 ENVELOPE_CLOCK_RUNG = "docs/spec/generation-method-v1.md G12.9"
 ENVELOPE_CLOCK_DISTINCT = "docs/spec/generation-method-v1.md G12.9"
+# The window a joined column's rank agreement is met inside. It is
+# published rounded to four figures and reached by a walk that stops
+# once it is close enough, so it is approximated and not exact -- and
+# the window says by how much, rather than leaving a reader to guess
+# from a number that nearly matches (plan P4-D25).
+ENVELOPE_JOINED_AGREEMENT = "docs/plans/phase-4-columns.md P4-D25"
+_AGREEMENT_SLACK = 0.02
 
 ENVELOPE_TEXT_SHAPE = "docs/spec/generation-method-v1.md G12.6"
 ENVELOPE_LABEL_DISTINCT = "docs/spec/generation-method-v1.md G12.7"
@@ -6476,6 +6483,8 @@ def _role_checks(
 ) -> "list[Check]":
     """Everything the column's own role adds."""
     facts = column.facts
+    if isinstance(facts, contract.JoinedFacts):
+        return _joined_checks(column, facts, block)
     if isinstance(facts, contract.ClockFacts):
         return _clock_checks(column, facts, block)
     if isinstance(facts, contract.AffixedFacts):
@@ -6501,6 +6510,194 @@ def _role_checks(
     if isinstance(facts, contract.UnrepresentableFacts):
         return _unrepresentable_checks(column, facts, block)
     return []
+
+
+def _at_place(
+    block: "dict[str, object]", key: str, place: int
+) -> "object | None":
+    """One entry of a list a re-described block carries, or None."""
+    if key not in block:
+        return None
+    held = block[key]
+    if not isinstance(held, list) or place >= len(held):
+        return None
+    found: object = held[place]
+    return found
+
+
+def _joined_checks(
+    column: contract.ColumnBlock,
+    facts: contract.JoinedFacts,
+    block: "dict[str, object]",
+) -> "list[Check]":
+    """A column of two or more numbers written in one cell.
+
+    THIS ROLE HAD NO CHECKS AT ALL UNTIL NOW (residual R-P4-41, closed
+    by plan P4-D25). `_role_checks` dispatches on the facts type and
+    fell through to an empty list for this one, so a joined column's
+    separator, its part count, its widths, its per-position numbers and
+    its two pairing facts were PUBLISHED AND UNCHECKED: a twin of such
+    a column was measured on the universal obligations alone, and its
+    report neither confirmed nor denied anything the role adds. A
+    description carrying a fact no reader verifies is the shape of gap
+    this project's controls exist to prevent.
+
+    FOUR KINDS OF OBLIGATION, and each is checked the way its own kind
+    allows:
+
+    - the separator, the part count and the counts of split and unsplit
+      cells are EXACT, and both sides print;
+    - each position's smallest and largest written width is exact;
+    - each PAIR's above-count is exact -- it is a number of rows, and a
+      row out of it is one cell holding a reading that cannot happen;
+    - each pair's rank agreement is APPROXIMATED, so it is checked
+      inside a stated window rather than pinned. It is published
+      rounded and reached by a walk that stops when it is close enough.
+    """
+    name = column.name
+    checks: "list[Check]" = []
+    found = _text_at(block, "separator")
+    checks = checks + [
+        _exact(
+            name,
+            "joined.separator",
+            "shape.separator",
+            facts.separator,
+            found,
+        )
+    ]
+    for field, published in (
+        ("n_parts", facts.n_parts),
+        ("n_joined", facts.n_joined),
+        ("n_unparsed", facts.n_unparsed),
+    ):
+        measured = _count_at(block, field)
+        checks = checks + [
+            _exact(
+                name,
+                f"joined.{field}",
+                f"counts.{field}",
+                _shown_count(published),
+                None if measured is None else _shown_count(measured),
+            )
+        ]
+    for place in range(len(facts.part_min_widths)):
+        held = _at_place(block, "part_min_widths", place)
+        seen = (
+            held
+            if isinstance(held, int) and not isinstance(held, bool)
+            else None
+        )
+        checks = checks + [
+            _exact(
+                name,
+                f"joined.part_min_widths[{place}]",
+                f"widths.number {place + 1}",
+                _shown_count(facts.part_min_widths[place]),
+                None if seen is None else _shown_count(seen),
+            )
+        ]
+    for place in range(len(facts.part_above)):
+        held = _at_place(block, "part_above", place)
+        seen = (
+            held
+            if isinstance(held, int) and not isinstance(held, bool)
+            else None
+        )
+        checks = checks + [
+            _exact(
+                name,
+                f"joined.part_above[{place}]",
+                f"together.rows one above the other, pair {place + 1}",
+                _shown_count(facts.part_above[place]),
+                None if seen is None else _shown_count(seen),
+            )
+        ]
+    for place in range(len(facts.part_agreements)):
+        agreed = facts.part_agreements[place]
+        found_agreement = _at_place(block, "part_agreements", place)
+        measured_agreement: "float | None" = None
+        if isinstance(found_agreement, (int, float)) and not isinstance(
+            found_agreement, bool
+        ):
+            measured_agreement = float(found_agreement)
+        checks = checks + [
+            _within(
+                name,
+                f"joined.part_agreements[{place}]",
+                f"together.how strongly they move, pair {place + 1}",
+                f"{agreed}",
+                measured_agreement,
+                (agreed - _AGREEMENT_SLACK, agreed + _AGREEMENT_SLACK),
+                ENVELOPE_JOINED_AGREEMENT,
+                agreed,
+            )
+        ]
+    checks = checks + _joined_part_checks(column, facts, block)
+    return checks
+
+
+def _joined_part_checks(
+    column: contract.ColumnBlock,
+    facts: contract.JoinedFacts,
+    block: "dict[str, object]",
+) -> "list[Check]":
+    """Each position's own numbers, position by position.
+
+    The two ENDS of a position's ladder are exact -- they are values
+    the column really held -- and its average is approximated, so it is
+    checked inside the window every published average is checked
+    inside. Whether a position is whole is exact.
+    """
+    name = column.name
+    checks: "list[Check]" = []
+    for place in range(len(facts.parts)):
+        numbers = facts.parts[place]
+        held = _at_place(block, "parts", place)
+        seen = held if isinstance(held, dict) else None
+        inner: "dict[str, object]" = {}
+        if seen is not None:
+            for key in seen:
+                if isinstance(key, str):
+                    inner[key] = seen[key]
+        rungs = _inner_at(inner, "percentiles") if inner else None
+        for end in ("min", "max"):
+            published = numbers.percentiles.rungs[
+                0 if end == "min" else len(numbers.percentiles.rungs) - 1
+            ]
+            measured = None
+            if rungs is not None and end in rungs:
+                value = rungs[end]
+                if isinstance(value, (int, float)) and not isinstance(
+                    value, bool
+                ):
+                    measured = float(value)
+            checks = checks + [
+                _exact(
+                    name,
+                    f"joined.parts[{place}].{end}",
+                    f"ends.number {place + 1} {end}",
+                    "nothing" if published is None else f"{published}",
+                    None
+                    if measured is None
+                    else ("nothing" if published is None else f"{measured}"),
+                )
+            ]
+        truth = None
+        if inner and "integer_valued" in inner:
+            value = inner["integer_valued"]
+            if isinstance(value, bool):
+                truth = value
+        checks = checks + [
+            _exact(
+                name,
+                f"joined.parts[{place}].integer_valued",
+                f"type.number {place + 1} is whole",
+                "yes" if numbers.integer_valued else "no",
+                None if truth is None else ("yes" if truth else "no"),
+            )
+        ]
+    return checks
 
 
 # -- the numeric roles ------------------------------------------------

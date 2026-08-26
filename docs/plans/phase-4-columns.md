@@ -5380,7 +5380,15 @@ it already publishes, and have the draw meet it. Both facts are then
 reachable together, because the real column reaches them together with
 its own values. Not closed.
 
-## Residual R-P4-41 — the joined role publishes facts nothing checks
+## Residual R-P4-41 — CLOSED by decision P4-D25 (2026-08-26)
+
+`validation._joined_checks` is built. Every fact the role adds is now
+checked. The obligations a single joined column sets went from 21 to
+35; on a three-vital table the role went from contributing nothing to
+87 obligations, of which 83 held and 2 landed inside their stated
+window. The record of the gap is kept below.
+
+## Residual R-P4-41 (the record of the gap)
 
 Opened 2026-08-26, and NOT caused by P4-D23: it arrived with the role
 itself (P4-D21). `validation._role_checks` dispatches on the facts type
@@ -5395,8 +5403,30 @@ This is the shape of gap this project's governance exists to prevent: a
 description carrying a fact no reader verifies. It is recorded here
 rather than left to be discovered. Closing it means a `_joined_checks`
 builder on the model of `_affixed_checks`, exact on the counts and the
-separator and windowed on the agreements, which are rounded. Not
-closed.
+separator and windowed on the agreements, which are rounded. CLOSED,
+see above.
+
+## Decision P4-D25 — the joined role is checked like every other (2026-08-26)
+
+**WHAT WAS MISSING.** `_role_checks` dispatches on the facts type and
+had a builder for every role but this one, where it fell through to an
+empty list. So a joined column published a separator, a part count,
+per-position widths and numbers, and two pairing facts -- and NOTHING
+verified any of them.
+
+**FOUR KINDS OF OBLIGATION, each checked as its kind allows.** The
+separator, the part count and the split and unsplit counts are exact
+and both sides print. Each position's smallest written width is exact.
+Each PAIR's above-count is exact -- it is a number of rows, and a row
+out of it is one cell holding a reading that cannot happen. Each pair's
+rank agreement is APPROXIMATED, published rounded to four figures and
+reached by a walk that stops when it is close enough, so it is checked
+inside a stated window of 0.02 rather than pinned.
+
+**REMOVAL SENSITIVITY IS ASKED AND ANSWERED.** A check nobody can fail
+is worth nothing, so the suite builds a file holding every number the
+twin holds with only the PAIRING shuffled, and asserts it is caught. It
+is, on `part_agreements`. It passed everything before.
 
 ## Decision P4-D24 — the two shapes the joined role could not read (2026-08-26)
 
