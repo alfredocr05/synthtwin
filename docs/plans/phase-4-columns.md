@@ -4964,7 +4964,17 @@ the scanner: `os.isatty`, which opens nothing and names no path, and
 `input`, which is cleared where `eval` is not because Python 3's
 `input` returns text and runs nothing.
 
-## Residual R-P4-38 — the length packing does not take the form census as a constraint
+## Residual R-P4-38 — CLOSED by amendment A-P4-39 (2026-08-26)
+
+The form census is met exactly, at every seed tried, on the column that
+opened it. What closed it is the fix this entry argued for: the walk
+that gives forms to groups now takes the groups LARGEST FIRST, so the
+groups covering several cells go to the debts large enough to hold
+them and the single-cell groups settle the remainders. The entry below
+is kept whole, because the three readings it refutes are the useful
+part of it and each cost a build to refute.
+
+## Residual R-P4-38 (the record of how it was found)
 
 Opened 2026-08-25 by A-P4-37, which is what made it visible. On the
 demonstration table's blood pressure column at a floor of 1 the form
@@ -5062,7 +5072,7 @@ and was closed by giving the walk a length budget to swap within
 (`_length_budget`, `_wanted_form`). That repair let the walk spend the
 average's slack to pay the census. It did not make the census a
 constraint on the packing that runs BEFORE the walk, which is where the
-remaining cell is lost. Not closed.
+remaining cell is lost. CLOSED, see above.
 
 ## Decision P4-D21 — two numbers in one cell, and why it must be declared
 
