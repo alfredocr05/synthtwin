@@ -5191,3 +5191,105 @@ digits joined by a mark gets the question a column of plain digits
 gets, with `[4] measurements written as two numbers` offered beside
 codes and record numbers. One question, one place, four answers, and no
 rule anywhere guesses which.
+
+## Decision P4-D22 — a declared code column always publishes its codes (2026-08-26)
+
+**THE OWNER'S QUESTION.** "Knowing all the different values in a column,
+counting and reproducing in the twin in the same proportion — would
+that be sufficient? Can we look for patterns in codes that would bring
+the real statistical finding?"
+
+**THE ANSWER IS YES, AND IT IS STRONGER THAN THE QUESTION.** A twin
+holding the same codes the same number of times reproduces EVERY
+function of those codes exactly, including ones this package knows
+nothing about. Measured on a diagnosis column of 29 codes over 400
+rows, real against twin:
+
+| rollup | identical | groups |
+| --- | --- | --- |
+| the exact code | yes | 29 |
+| the three-character prefix | yes | 29 |
+| the leading letter (the chapter a hierarchy groups by) | yes | 6 |
+| the code length | yes | 4 |
+| whether it carries a point | yes | 2 |
+
+The chapter counts come back `M: 77, Q: 69, E: 68, I: 66, J: 63` on
+both sides, and synthtwin has no idea what a chapter is. **Hierarchy is
+not modelled and does not need to be: it is a consequence of holding
+the right values the right number of times.** The owner's judgement
+that reproducing check digits and hierarchies would be "another
+monster, and different for each database" is right, and the monster
+does not have to be fought.
+
+**WHAT STOPPED IT WORKING.** Only a column that reaches a LABEL role
+publishes its values, and there are two doors: few enough different
+values to be a set of categories, or one value repeated as often as the
+long-tail detection line asks. A laboratory-code column of 228
+different codes over 400 rows, none repeated more than six times,
+clears NEITHER — so it fell to free text and published nothing at all,
+and its twin held not one real code. `--code` could not rescue it: that
+declaration silences the rules reading a cell as a NUMBER, and this
+column was never being read as one. It was already at the bottom.
+
+**THE CHANGE.** Where a column is declared with `--code`, the long-tail
+detection line does not apply to it — in the producer (`_decide` rule
+9b) and in the loader (invariant LT1), which had to learn it together
+or the producer would write a document its own loader refused.
+
+**WHY THE LINE COULD GO, and why only for a declared column.** Its job
+is keeping names, addresses and free comments out of the label roles,
+so that lowering the publication floor never widens WHICH columns
+publish. That job is a stand-in for a judgement nobody had made. Where
+the person has said `--code`, they have made it, and the stand-in has
+nothing left to stand in for. An undeclared column is untouched at
+every floor, which the suite asserts.
+
+**MEASURED, on the demonstration table:**
+
+| column | different codes | in the twin | counts exact |
+| --- | --- | --- | --- |
+| diagnosis | 29 | 29 | 29 |
+| laboratory code | 228 | 228 | 228 |
+| drug code | 221 | 221 | 221 |
+
+Before this decision the last two published nothing. Exit code 0
+through profile, generate and validate.
+
+**WHAT IT DISCLOSES, said plainly.** The twin now holds the REAL codes,
+redistributed across rows, and the description names all of them. That
+is the owner's ruling of 2026-08-25 (amendment A-P4-37) applied where
+it was not reaching: a rare value is named, because a twin whose rare
+values were pooled away is not a twin. It is a visible change in what
+leaves the building and is recorded here as one.
+
+**THE COST OF THE DECLARATION, which is the same cost every declaration
+carries.** A column of prose named with `--code` WILL be published as
+labels. synthtwin cannot tell, so it does what it is told. What
+protects a column of prose is that nothing declares it by itself.
+
+**A SURVEY THE OWNER ASKED FOR, and what it found.** Twenty-one shapes
+of real clinical column were profiled to see which fall to free text
+and so publish nothing. ELEVEN do: laboratory codes, drug codes,
+accession numbers, opaque unique identifiers, reference ranges, phone
+numbers, postal codes with a suffix, gene variants, device identifiers,
+a pressure written with spaces around its mark — and ONE column of
+genuine prose. Ten of the eleven are structured data the tool could
+read. This decision reaches eight of them; the two number-pair shapes
+are P4-D21's, once its two shape gaps are closed. Two further readings
+in that survey are wrong rather than absent and are recorded as
+R-P4-39: an address column of the form `user12345@example.org` is read
+as a number wearing an affix, so the AVERAGE of real user numbers is
+published; and procedure, concept and barcode columns written in digits
+alone are read as counts unless declared.
+
+## Residual R-P4-39 — an address-shaped column is read as a number wearing an affix
+
+Opened 2026-08-26 by the free-text survey of P4-D22. A column of
+`user12345@example.org` is claimed by the affixed-number rule: prefix
+`user`, suffix `@example.org`, numeric core. The block then publishes a
+ladder, a mean and a spread over the CORES, which are real numbers out
+of real addresses and mean nothing as a quantity. The affix rule is
+tested after every rule that reads a column well, so nothing above it
+is at fault; what is missing is any test that the core is a QUANTITY
+rather than the middle of an opaque token. `--identifier` and `--code`
+both describe such a column correctly today. Not closed.

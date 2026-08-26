@@ -6057,8 +6057,35 @@ def _decide(
     # holds repeated labels worth publishing -- so it claims only what
     # would otherwise have been free text, which is the one thing this
     # phase's no-regression rule allows.
+    # THE DECLARATION LIFTS THE LINE, AND ONLY THE DECLARATION (plan
+    # P4-D22). The lower bound above is doing one job: keeping a column
+    # of names, addresses or free comments out of the label roles, so
+    # that lowering the publication floor never widens WHICH columns
+    # publish. That job is a stand-in for a judgement nobody had made.
+    # Where the person has said `--code`, they have made it, and the
+    # stand-in has nothing left to stand in for.
+    #
+    # WHAT IT COSTS TO LEAVE IT IN PLACE, measured on a 400-row table.
+    # A laboratory-code column of 228 different codes, none repeated
+    # more than six times, clears neither door: it is past the
+    # categorical ceiling and no level reaches eleven rows. So it fell
+    # to free text and published NOTHING -- not one code, not one count
+    # -- and its twin held not one real code. `--code` could not help
+    # it, because `--code` silences the rules that read a cell as a
+    # NUMBER and this column was never being read as one; it was
+    # already at the bottom.
+    #
+    # WHAT IT BUYS. With the codes published at their counts, the twin
+    # holds the same codes in the same proportions -- and then EVERY
+    # rollup of that column reproduces exactly, including ones this
+    # package knows nothing about. Measured on a diagnosis column: the
+    # exact codes, the three-character prefixes, the chapter letters
+    # and the code lengths all come back identical, and synthtwin has
+    # no idea what a chapter is. Hierarchy is not modelled; it is a
+    # consequence of holding the right values the right number of
+    # times.
     covering = _levels_covering(cells.folded_counts, settings)
-    if covering > 0:
+    if covering > 0 or forced_code:
         levels = _levels(
             cells.folded_counts, cells.spellings_by_folded, settings
         )

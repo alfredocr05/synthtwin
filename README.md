@@ -215,6 +215,17 @@ and are real codes besides. You need it only for a column written in
 one column, and use `--identifier` instead for a record number nothing
 should publish.
 
+**Naming a column here also makes it publish at all.** A column of many
+different codes, none of them repeated much -- a laboratory code, a drug
+code, a gene variant -- is otherwise read as free text, which publishes
+no value whatever. Named with `--code` it publishes every code with the
+number of rows that held it, and the twin holds the same codes in the
+same proportions. That is what makes counting on the twin come out
+right: because it holds the same codes the same number of times, **every
+rollup of that column reproduces exactly** -- the prefix a hierarchy
+groups by, the segment a reader splits on, the length. synthtwin knows
+no coding system and does not need to.
+
 **synthtwin asks you about this rather than guessing.** A column of
 `08`, `20`, `213` is vaccine codes or it is counts, and the two are
 written identically -- nothing in the values can settle it, so synthtwin
