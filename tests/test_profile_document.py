@@ -247,7 +247,7 @@ def test_nothing_that_varies_between_runs_is_written(
 # No count, no statistic, no label, no role and no spelling of any
 # column moved.
 GOLDEN_SHA256 = (
-    "6f2b3b86a061e1e79f62db4af6d56285276e768d3a3ec162e29b80852af92a37"
+    "b5e8f450c8b8c192002314a1da3455fdb266225bcff41997806b09c3b8112e74"
 )
 
 

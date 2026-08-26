@@ -174,6 +174,7 @@ Six for `profile`, for the things the rules cannot settle on their own:
 synthtwin profile my-table.csv --out-dir reports
 synthtwin profile my-table.csv --identifier participant_number
 synthtwin profile my-table.csv --code vaccine_code
+synthtwin profile my-table.csv --measurement blood_pressure
 synthtwin profile my-table.csv --smallest-group 11
 synthtwin profile my-table.csv --keep-value -999
 synthtwin profile my-table.csv --missing-value NA
@@ -189,6 +190,17 @@ that column's description. It takes a column name -- any column, whatever
 that column holds -- and it is the only way a column is ever read that
 way. Repeat it to name more than one column. A name that is not in your
 table stops the run before anything is written.
+
+`--measurement` names a column that holds **measurements written as two
+or more whole numbers in one cell** -- a blood pressure such as `120/80`.
+synthtwin reads each number separately and publishes a range and an
+average for each one, so the twin's cells hold believable readings
+instead of digits in the right shape. Without it such a column is
+described as text and its twin carries no readings at all. Use it only
+where the numbers are quantities: a lab code such as `1923-1` and a drug
+code such as `00052-0052-52` are written exactly the same way and are
+codes, so name those with `--code`. A column of plain single numbers
+needs nothing.
 
 `--code` names a column that holds a **coding system** rather than
 measurements -- vaccine codes, procedure codes, revenue codes, provider

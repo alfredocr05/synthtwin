@@ -3777,6 +3777,7 @@ def measure(description: contract.Profile, path: str) -> Outcome:
     try:
         declared = _declared_here(description, table)
         declared_codes = _declared_codes_here(description, table)
+        declared_measured = _declared_measured_here(description, table)
         # TWO DESCRIPTIONS, ALWAYS BOTH, AND WHAT EACH ONE DECIDES
         # (V2.1 and V2.4; review item P3-V2-A1). The first is the file's
         # OWN description -- what `synthtwin profile` would write about
@@ -3797,13 +3798,18 @@ def measure(description: contract.Profile, path: str) -> Outcome:
         # which of its own checks run, so nothing about the file decides
         # which of these is built.
         redescribed = profile.build_document(
-            table, settings_for(description), declared, declared_codes
+            table,
+            settings_for(description),
+            declared,
+            declared_codes,
+            declared_measured,
         )
         over_the_split = profile.build_document(
             table,
             settings_over_the_split(description),
             declared,
             declared_codes,
+            declared_measured,
         )
     except MemoryError as error:
         raise errors.ProfileError(
@@ -4077,6 +4083,26 @@ def _declared_codes_here(
     return [
         name
         for name in description.settings.forced_codes
+        if name in table.column_names
+    ]
+
+
+def _declared_measured_here(
+    description: contract.Profile, table: reading.Table
+) -> "list[str]":
+    """The declared measurement columns the measured file carries.
+
+    The third declaration (plan P4-D21), on the rule the two above
+    carry and for the reason they carry it: describing the measured
+    file is how its obligations are checked, and a description made
+    WITHOUT the declaration reads `120/80` as free text -- so every
+    declared column reported its role MISSED against a twin whose every
+    cell was right. Both sides must be described under the same
+    declarations.
+    """
+    return [
+        name
+        for name in description.settings.forced_measurements
         if name in table.column_names
     ]
 

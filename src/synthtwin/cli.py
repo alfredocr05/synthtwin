@@ -439,6 +439,7 @@ class _Options:
     floor_chosen: bool
     identifiers: list[str]
     codes: list[str]
+    measurements: list[str]
     kept_values: list[str]
     missing_values: list[str]
     first_row: str
@@ -615,6 +616,25 @@ def _parse_arguments(argv: "list[str] | None") -> _Options:
         ),
     )
     parser.add_argument(
+        "--measurement",
+        action="append",
+        default=None,
+        metavar="COLUMN",
+        help=(
+            "name a column that holds MEASUREMENTS written as two or "
+            "more whole numbers in one cell -- a blood pressure such as "
+            "120/80, a score written 12-5. synthtwin reads each number "
+            "separately and publishes a range and an average for each "
+            "one, so the twin's cells hold believable readings instead "
+            "of digits in the right shape. Use it only where the "
+            "numbers are QUANTITIES: a lab code such as 1923-1 and a "
+            "drug code such as 00052-0052-52 are written exactly the "
+            "same way and are codes, so name those with --code instead. "
+            "A column of plain single numbers needs nothing: it is "
+            "already read as numbers. May be given more than once"
+        ),
+    )
+    parser.add_argument(
         "--keep-value",
         action="append",
         default=None,
@@ -733,6 +753,7 @@ def _parse_arguments(argv: "list[str] | None") -> _Options:
         )
     named = args.identifier if args.identifier is not None else []
     code_named = args.code if args.code is not None else []
+    measured_named = args.measurement if args.measurement is not None else []
     kept = args.keep_value if args.keep_value is not None else []
     declared_missing = (
         args.missing_value if args.missing_value is not None else []
@@ -751,6 +772,7 @@ def _parse_arguments(argv: "list[str] | None") -> _Options:
         floor_chosen=args.smallest_group is not None,
         identifiers=list(named),
         codes=list(code_named),
+        measurements=list(measured_named),
         kept_values=list(kept),
         missing_values=list(declared_missing),
         first_row=f"{args.first_row}",
@@ -887,9 +909,11 @@ _ANSWER_KEYS = {
     "1": asking.ANSWER_MEASUREMENT,
     "2": asking.ANSWER_CODE,
     "3": asking.ANSWER_IDENTIFIER,
+    "4": asking.ANSWER_JOINED,
     "m": asking.ANSWER_MEASUREMENT,
     "c": asking.ANSWER_CODE,
     "i": asking.ANSWER_IDENTIFIER,
+    "j": asking.ANSWER_JOINED,
 }
 
 _WHY_SHOWN = {
@@ -900,6 +924,11 @@ _WHY_SHOWN = {
     asking.BECAUSE_FIXED_WIDTH: (
         "every value is the same number of digits, which a measurement "
         "rarely is"
+    ),
+    asking.BECAUSE_JOINED: (
+        "every value is two or more whole numbers joined by one mark, "
+        "which is how a blood pressure is written and also how a "
+        "laboratory code is"
     ),
 }
 
@@ -955,9 +984,31 @@ def _the_question(question: asking.Question, place: int, total: int) -> str:
     """One column's question, as the person sees it."""
     shown = _shown_examples(question.examples)
     why = _WHY_SHOWN[question.reason]
-    return (
+    head = (
         f"\n  Column {place} of {total}: '{_shown(question.name)}'\n"
         f"    values look like: {shown}\n"
+    )
+    if question.reason == asking.BECAUSE_JOINED:
+        # A COLUMN OF JOINED NUMBERS IS THE SAME QUESTION WITH ONE MORE
+        # ANSWER (plan P4-D21). Read as text it publishes no reading at
+        # all, so the reading it is missing is what the first answer
+        # offers; the other two are the answers a code column and a
+        # record number need, and they are the readings that make a
+        # laboratory code come back whole.
+        return (
+            f"{head}"
+            f"    synthtwin cannot read this on its own, so its twin "
+            f"would hold no readings at all. It is written as {why}.\n"
+            f"    What does this column hold?\n"
+            f"      [4] measurements written as two numbers -- read each "
+            f"number separately, so the twin holds believable readings\n"
+            f"      [2] codes -- keep every value exactly as written, and "
+            f"publish which ones are common\n"
+            f"      [3] record numbers -- publish none of its values\n"
+            f"      [1] leave it as text -- publish no value of it"
+        )
+    return (
+        f"{head}"
         f"    synthtwin read this as a MEASUREMENT, and would publish an "
         f"average, a smallest and a largest for it. But {why}.\n"
         f"    What does this column hold?\n"
@@ -1029,12 +1080,15 @@ def _read_one_answer() -> "str | None":
             return asking.ANSWER_MEASUREMENT
         if typed in _ANSWER_KEYS:
             return _ANSWER_KEYS[typed]
-        _say("    Please type 1, 2 or 3, or press Enter to keep 1.")
+        _say(
+            "    Please type one of the numbers offered, or press Enter "
+            "to keep the reading synthtwin made."
+        )
 
 
 def _put_the_questions(
     questions: "list[asking.Question]",
-) -> "tuple[list[str], list[str]] | None":
+) -> "tuple[list[str], list[str], list[str]] | None":
     """Put every question; return the columns named as codes and as IDs.
 
     None where the person ended the run at a prompt: Ctrl-C and Ctrl-D
@@ -1044,16 +1098,18 @@ def _put_the_questions(
     total = len(questions)
     _say(
         f"\n{'=' * 66}\n"
-        f"{total} COLUMN(S) COULD BE CODES RATHER THAN MEASUREMENTS\n"
+        f"{total} COLUMN(S) CAN BE READ MORE THAN ONE WAY\n"
         f"{'=' * 66}\n"
         f"synthtwin cannot tell a coding system from a measurement -- "
         f"they are written identically, and only you know which these "
-        f"are. Your answers are recorded in the profile, and the exact "
+        f"are. Press Enter to keep the reading it made. Your answers "
+        f"are recorded in the profile, and the exact "
         f"options to repeat this run without typing are printed at the "
         f"end."
     )
     codes: list[str] = []
     identifiers: list[str] = []
+    measurements: list[str] = []
     place = 0
     for question in questions:
         place = place + 1
@@ -1065,11 +1121,15 @@ def _put_the_questions(
             codes = codes + [question.name]
         elif answer == asking.ANSWER_IDENTIFIER:
             identifiers = identifiers + [question.name]
-    return codes, identifiers
+        elif answer == asking.ANSWER_JOINED:
+            measurements = measurements + [question.name]
+    return codes, identifiers, measurements
 
 
 def _how_to_repeat(
-    forced_codes: "list[str]", forced_identifiers: "list[str]"
+    forced_codes: "list[str]",
+    forced_identifiers: "list[str]",
+    forced_measurements: "list[str]",
 ) -> str:
     """The options that repeat this run without asking anything."""
     parts: list[str] = []
@@ -1077,6 +1137,8 @@ def _how_to_repeat(
         parts = parts + [f"--code {_shown(name)}"]
     for name in sorted(forced_identifiers):
         parts = parts + [f"--identifier {_shown(name)}"]
+    for name in sorted(forced_measurements):
+        parts = parts + [f"--measurement {_shown(name)}"]
     flags = _joined(parts, " ")
     return (
         f"\nTO REPEAT THIS RUN WITHOUT THE QUESTIONS, add:\n  "
@@ -1179,6 +1241,7 @@ def _run_profile(
     floor_chosen: bool,
     forced_identifiers: list[str],
     forced_codes: list[str],
+    forced_measurements: list[str],
     kept_values: list[str],
     missing_values: list[str],
     first_row: str,
@@ -1265,13 +1328,35 @@ def _run_profile(
     # distribution, so there is no reading of the pair that is not a
     # guess about which the person meant (the rule `profile_column`
     # applies to a value declared both data and missing).
+    unknown_measured = [
+        name for name in forced_measurements if name not in read.column_names
+    ]
+    if unknown_measured:
+        _warn(
+            errors.unknown_column_named(
+                "holding measurements",
+                unknown_measured[0],
+                read.column_names,
+            )
+        )
+        return 2
+
+    # A column named in two declarations at once is refused rather than
+    # ranked: they ask for different readings and there is no reading of
+    # the pair that is not a guess about which the person meant.
     both = [name for name in forced_codes if name in forced_identifiers]
+    both = both + [
+        name for name in forced_measurements if name in forced_identifiers
+    ]
+    both = both + [
+        name for name in forced_measurements if name in forced_codes
+    ]
     if both:
         _warn(errors.column_declared_twice(both[0]))
         return 2
 
     document = profile.build_document(
-        read, settings, forced_identifiers, forced_codes
+        read, settings, forced_identifiers, forced_codes, forced_measurements
     )
 
     # THE ONE QUESTION THE VALUES CANNOT SETTLE (plan P4-D19). Asked
@@ -1291,14 +1376,21 @@ def _run_profile(
             if given is None:
                 _warn(errors.the_questions_were_not_finished())
                 return 1
-            new_codes, new_identifiers = given
-            if new_codes or new_identifiers:
+            new_codes, new_identifiers, new_measured = given
+            if new_codes or new_identifiers or new_measured:
                 forced_codes = sorted(forced_codes + new_codes)
                 forced_identifiers = sorted(
                     forced_identifiers + new_identifiers
                 )
+                forced_measurements = sorted(
+                    forced_measurements + new_measured
+                )
                 document = profile.build_document(
-                    read, settings, forced_identifiers, forced_codes
+                    read,
+                    settings,
+                    forced_identifiers,
+                    forced_codes,
+                    forced_measurements,
                 )
             answered = True
         else:
@@ -1351,8 +1443,14 @@ def _run_profile(
     # has a reminder line of its own after the "Written:" confirmation
     # and reading the two in that order leaves the pointer beside the
     # block it points at.
-    if answered and (forced_codes or forced_identifiers):
-        _say(_how_to_repeat(forced_codes, forced_identifiers))
+    if answered and (
+        forced_codes or forced_identifiers or forced_measurements
+    ):
+        _say(
+            _how_to_repeat(
+                forced_codes, forced_identifiers, forced_measurements
+            )
+        )
     kept_of_yours = summary.words_of_your_own(document)
     if kept_of_yours:
         _warn(_declared_words_notice(kept_of_yours))
@@ -2091,6 +2189,7 @@ def main(argv: "list[str] | None" = None) -> int:
             options.floor_chosen,
             options.identifiers,
             options.codes,
+            options.measurements,
             options.kept_values,
             options.missing_values,
             options.first_row,

@@ -6,6 +6,30 @@ exists).
 
 ## [Unreleased]
 
+### Added: blood pressures, and anything else written as two numbers in one cell
+
+- **`--measurement COLUMN` tells synthtwin that a column holds readings
+  written as two or more whole numbers joined by a mark** -- `120/80`.
+  It reads each number separately and publishes a range and an average
+  for each, so the twin's cells hold believable readings.
+- **What it fixes.** Such a column was described as text, which
+  publishes no value at all, so its twin held cells like `632/20`: the
+  right shape and an impossible reading. Measured on 400 rows, the twin
+  now reproduces systolic 95 / 133.5 / 175 against a real 95 / 133.5 /
+  175, diastolic 55 / 80 / 105 against 55 / 80 / 105, and the same
+  number of different readings the real column held.
+- **synthtwin asks about these columns too**, with one more answer
+  offered. The same question that separates a code column from a
+  measurement separates a blood pressure from a lab code.
+- **Why you have to say so.** `120/80` and a lab code `1923-1` are
+  written identically, so nothing in the values can tell them apart. A
+  rule that guessed would have claimed lab codes and drug codes and
+  published fragments of them as numeric ranges.
+- **One limit, stated plainly:** the two numbers are drawn
+  independently, so a twin cell is believable one number at a time. The
+  description publishes no link between them, and this version invents
+  none.
+
 ### Changed: nothing is held back for being rare, unless you ask for it
 
 - **The smallest group size now defaults to 1 instead of 11** (owner

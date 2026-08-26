@@ -7137,7 +7137,8 @@ version 5 document reads "version 5":
 > so this file cannot be read back exactly. Please make the description again by running
 > 'synthtwin profile' on your table, giving it every option you gave
 > the first time: --keep-value, --missing-value, --identifier, --code,
-> --smallest-group, --first-row and --day-first. Every one of them
+> --measurement, --smallest-group, --first-row and --day-first. Every
+> one of them
 > changes what the description PUBLISHES about your table, so any
 > option you leave out can put something into the new description that
 > the old one held back: without the --smallest-group you gave, a
@@ -7146,6 +7147,9 @@ version 5 document reads "version 5":
 > column; without the --code you gave, a column of codes is described
 > as measurements, so its smallest and largest values — which are real
 > codes — are published and its twin loses any leading zeros; without
+> the --measurement you gave, a column of readings written as two
+> numbers in one cell, such as a blood pressure, is described as text
+> and its twin holds no readings at all; without
 > the --missing-value you gave, a stand-in is read as
 > a real reading, and the stand-in itself can be published as the
 > column's smallest value; without the --keep-value you gave, a word
@@ -7162,6 +7166,11 @@ version 5 document reads "version 5":
 > run it again for you. Read the summary page synthtwin writes beside
 > the new description before either file goes anywhere, and use the
 > description exactly as synthtwin writes it.
+
+**Why it names eight options and prices each.** `--measurement` joined
+them on 2026-08-26 with the fourteenth role (plan P4-D21): a re-run
+without it describes a column of readings as free text, which publishes
+no reading at all.
 
 **Why it names seven options and prices each.** `--code` joined them on
 2026-08-25 with the declaration itself (plan amendment A-P4-38): a

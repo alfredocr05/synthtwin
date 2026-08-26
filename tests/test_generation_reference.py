@@ -251,6 +251,10 @@ def _settings(declared: list) -> dict:
         # method's own text, and none of them turns on the reading a
         # declaration changes.
         "forced_codes": [],
+        # The third declaration (plan P4-D21). The oracle declares no
+        # measurement column: every case here is built from the
+        # generation method's own text.
+        "forced_measurements": [],
     }
 
 

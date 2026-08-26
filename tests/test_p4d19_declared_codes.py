@@ -273,7 +273,7 @@ def _fill_systems() -> None:
         lambda i: rng.choice(
             [
                 "CHF", "VALV", "PULMCIRC", "PERIVASC", "HTN", "PARA",
-                "NEURO", "CHRNLUNG", "DM", "HYPOTHY", "RENLFAIL", "LIVER",
+                "NRO", "CHRNLUNG", "DM", "HYPOTHY", "RENLFAIL", "LIVER",
             ]
         ),
         12,

@@ -270,7 +270,7 @@ def test_the_golden_run_is_the_shape_this_file_says_it_is(
 # amendment A-P4-37 lowered it to one), so the description this file
 # pins describes the same table under the same rules it always did.
 GOLDEN_DESCRIPTION_SHA256 = (
-    "54bd7d8d761c879b043bfc67ec72a433bcf1a01ce8a30e326709a71f8ab7908d"
+    "10fcc7707e3f3dd2efa8163d94ac3f301e63ce9e2f3837559d9401162c84aa22"
 )
 
 
