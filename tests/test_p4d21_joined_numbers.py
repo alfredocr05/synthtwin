@@ -463,3 +463,100 @@ def test_a_column_of_negative_numbers_is_not_claimed() -> None:
     document, _folder = _described(values)
     block = document["columns"][0]
     assert block["role"] != taxonomy.ROLE_JOINED
+
+
+# -- P4-D25: the role's own facts are checked --------------------------
+
+
+def _measured(values: "list[str]") -> "object":
+    from synthtwin import rendering, validation
+
+    document, folder = _described(values)
+    described = _loaded(document, folder)
+    twin = generation.generate(described, 7)
+    written = fixtures.write(folder, "twin.csv", rendering.twin_csv(twin))
+    return validation.measure(described, f"{written}")
+
+
+def test_every_fact_this_role_publishes_is_checked() -> None:
+    """The hole R-P4-41 named, closed and held closed.
+
+    `validation._role_checks` dispatches on the facts type and fell
+    through to an EMPTY LIST for this role, so a joined column's
+    separator, part count, widths, per-position numbers and pairing
+    facts were published and verified by nothing. A twin was measured
+    on the universal obligations alone.
+
+    Every key the role adds is named here, so a key added later without
+    a check turns this red.
+    """
+    outcome = _measured(_readings())
+    checked = {check.fact for check in outcome.checks}
+    owed = {
+        "joined.separator",
+        "joined.n_parts",
+        "joined.n_joined",
+        "joined.n_unparsed",
+        "joined.part_min_widths[0]",
+        "joined.part_min_widths[1]",
+        "joined.part_above[0]",
+        "joined.part_agreements[0]",
+        "joined.parts[0].min",
+        "joined.parts[0].max",
+        "joined.parts[0].integer_valued",
+        "joined.parts[1].min",
+        "joined.parts[1].max",
+        "joined.parts[1].integer_valued",
+    }
+    missing = sorted(owed - checked)
+    assert missing == [], f"these facts are published and unchecked: {missing}"
+
+
+def test_the_checks_are_met_by_the_twin_the_generator_builds() -> None:
+    """A check nobody can pass is as useless as no check at all."""
+    outcome = _measured(_readings())
+    failed = [
+        check.fact
+        for check in outcome.checks
+        if check.verdict == "MISSED" and check.fact.startswith("joined.")
+    ]
+    assert failed == [], f"the twin misses its own role's facts: {failed}"
+
+
+def test_a_twin_with_the_wrong_pairing_is_caught() -> None:
+    """The checks bite: a file whose numbers do not move together fails.
+
+    Removal sensitivity, asked the way this project asks it. The cells
+    are rebuilt with the second number shuffled against the first, so
+    every number is still present exactly and only the PAIRING is
+    wrong -- which is precisely what these checks exist to catch and
+    what nothing caught before.
+    """
+    from synthtwin import rendering, validation
+
+    rng = random.Random(11)
+    values: "list[str]" = []
+    for _each in range(400):
+        together = rng.gauss(0, 1)
+        top = max(95, min(175, round(133 + 24 * together + rng.gauss(0, 12))))
+        bottom = max(55, min(105, round(80 + 14 * together + rng.gauss(0, 7))))
+        values = values + [f"{top}/{bottom}"]
+    document, folder = _described(values)
+    described = _loaded(document, folder)
+    twin = generation.generate(described, 7)
+    firsts = [cell.split("/")[0] for cell in twin.columns[0]]
+    seconds = [cell.split("/")[1] for cell in twin.columns[0]]
+    rng.shuffle(seconds)
+    spoiled = [f"{firsts[row]}/{seconds[row]}" for row in range(len(firsts))]
+    text = "bp\n" + "\n".join(spoiled) + "\n"
+    written = fixtures.write(folder, "spoiled.csv", text)
+    outcome = validation.measure(described, f"{written}")
+    caught = [
+        check.fact
+        for check in outcome.checks
+        if check.verdict == "MISSED" and "part_agreements" in check.fact
+    ]
+    assert caught, (
+        "a file whose two numbers do not move together as the "
+        "description says passed every check"
+    )
