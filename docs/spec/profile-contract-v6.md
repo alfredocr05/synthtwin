@@ -4402,6 +4402,20 @@ role: a person protecting `-999 mg` names that spelling and not `-999`.
 C6-117 binds this pass with the rest — a value named with `--keep-value`
 is data, and no judged pass may read it as a hole.
 
+**AND A WHOLE-CELL DECLARATION CARRIED ACROSS THE PAIR PROTECTS THE
+CANDIDATE NUMBER, HENCE EVERY SPELLING OF IT IN THIS COLUMN**
+(residual R-P4-22, closed 2026-08-26). The code has done this since
+A-P4-19 and a test pins it; this document was silent, and a reader
+following the declaration-matching rule alone would expect a rescue
+granular to the SPELLING, which the wire cannot represent. It cannot
+because what a column publishes about a stand-in candidate is the
+NUMBER and its count, with no room for "this spelling of it was
+declared and that one was not". So the declaration is carried at the
+number: naming `-999` protects `-999` wherever it appears in this
+column, in any spelling of that number, and naming `-999 mg` protects
+the cell spelled that way. That is wider than a spelling-granular rule
+would be and is stated here so nobody reads the narrower one into it.
+
 #### C6-6. Added keys: twenty-three
 
 Seven of this role's own, and the sixteen a `count` or `continuous`
@@ -4606,8 +4620,21 @@ are codes rather than measurements. What the misroute cannot do is take
 a column away from a rule that handles it already: `V1`, `V2`, `V3`
 visit labels stay `categorical`, because `categorical` runs first.
 
-The code-shaped all-different remark reaches this role on its own
-trigger, in the wording section 4.5 fixes and no other; and the block
+**The all-different remark this role carries is NF32, the NUMBERS
+form, and this clause names it** (residual R-P4-21, closed 2026-08-26).
+The contract said "the wording section 4.5 fixes" without saying WHICH
+of the two all-different forms, and the plainest-language parts of the
+plan and of the derivation notes said the remark extends to this role
+"verbatim", which reads as NF34, the TEXT form. The shipped producer
+emits NF32 and is right to: NF34 says "nothing from this column is
+published either way -- no value of it, and no distribution", which is
+FALSE of an affixed column, whose distribution is published over its
+cores. A false sentence in the plainest-language part of a document is
+the one thing that may not stand, so the text catches up with the code
+rather than the other way round.
+
+The remark reaches this role on its own trigger, in NF32's wording and
+no other; and the block
 carries the universal `detection_evidence` sentence and any other
 remark whose trigger it meets, each built from the closed grammar of
 section 4.5 under the publication guard.

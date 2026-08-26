@@ -379,3 +379,46 @@ def test_the_counts_can_never_exceed_the_column() -> None:
     said = _comma_remark(document)
     assert said is not None
     assert f"{block['n_present']} of this column's values" in said
+
+
+# -- R-P4-32: a grouped number carrying an exponent --------------------
+
+
+def test_a_grouped_number_with_an_exponent_is_a_number() -> None:
+    """The misroute R-P4-32 named, closed.
+
+    `1,001` is a number and `1001e2` is a number; the pair together was
+    not. With no decimal point, everything after the last comma was
+    taken as a thousands group, `001e2` is not three figures, and the
+    cell read as text -- after which the affix rule could claim the
+    column and publish a mean over the mantissas.
+    """
+    for text in ("1,001e2", "1,001E2", "1,001e-3", "1,001E+3"):
+        assert parsing.classify_number(text) == parsing.NUMBER, text
+
+
+def test_the_exponent_does_not_rescue_a_bad_grouping() -> None:
+    """Taking the exponent off must not widen what counts as grouped."""
+    for text in ("1,23e2", "12,3456e2", "1,001e", "1,001ee2", "1,001e2.5"):
+        assert parsing.classify_number(text) != parsing.NUMBER, text
+
+
+def test_the_column_reads_as_numbers_and_not_as_an_affix() -> None:
+    """The consequence the residual priced: a mean over the mantissas."""
+    import random
+
+    rng = random.Random(2)
+    values = [
+        f"{rng.randrange(1, 9)},{rng.randrange(0, 999):03d}e2"
+        for _each in range(240)
+    ]
+    folder = pathlib.Path(tempfile.mkdtemp())
+    table = fixtures.write(
+        folder, "t.csv", fixtures.single_column_table("v", values)
+    )
+    block = profile.build_document(
+        reading.read_table(f"{table}"), taxonomy.Settings(), [], [], []
+    )["columns"][0]
+    assert block["role"] == taxonomy.ROLE_COUNT
+    truth = sum(float(v.replace(",", "")) for v in values) / len(values)
+    assert abs(block["mean"] - truth) < 1.0
