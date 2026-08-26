@@ -5477,3 +5477,103 @@ not claimed -- it would split on its own signs. The suite asserts it.
    deliberately not weighted that way: it cannot always be met
    (R-P4-40), and a walk that insists on it wrecks everything else --
    built, measured, and recorded there.
+
+## Decision P4-D26 — the contract catches up with the producer, and a guard keeps it there (2026-08-26)
+
+**HOW IT WAS FOUND, and it is the uncomfortable part.** The owner asked
+for the open residuals to be closed. A triage was run over all of them,
+and two came back STALE — already fixed, close them. Both were then
+put to an adversarial re-check whose only job was to refute a STALE
+verdict, and BOTH WERE REFUTED. One of the refutations found this.
+
+**WHAT IT FOUND.** The producer wrote NINETEEN settings keys. C6-20's
+membership rule said seventeen. Section 14's key list said eighteen.
+And the fourteenth role, `joined_numbers`, together with
+`part_agreements`, `part_above`, `part_min_widths` and
+`forced_measurements`, appeared ZERO TIMES in the governing contract.
+So every description the tool wrote was a document THIS CONTRACT DOES
+NOT DESCRIBE — which is the one thing C6-20 exists to make impossible,
+and a consumer written from the contract would have refused every one
+of them.
+
+**WHOSE FAULT, said plainly: this session's.** `--code` (A-P4-38)
+corrected the key list and not the membership clause. `--measurement`
+and the fourteenth role (A-P4-39) corrected neither. Both landings ran
+every check clean and a green suite while doing it.
+
+**WHY NOTHING CAUGHT IT.** The suite held the contract to itself and
+the code to itself. The disposition seal notices changed PROSE, the
+role-topology guard compares the matrix to the loader, and the
+publication guard compares a document to the producer's own tables —
+but NOTHING ASKED WHETHER THE CODE WRITES WHAT THE CONTRACT DESCRIBES.
+A missing name is invisible to every guard that reads only one side.
+
+**WHAT IS BUILT.** The contract now describes what ships: a
+`forced_measurements` row and the count corrected to nineteen in both
+places; the fourteenth role in the role vocabulary, the rule order, the
+axis table, the publication-class table and the forbidden-key matrix,
+which grew a `jnd` column and seven rows and now stands at sixty-four
+rows and one hundred and twenty-three marked cells; and a new section
+6.15 stating the role's eight keys and its invariants J1 to J8.
+
+**AND THE GUARD THAT WOULD HAVE CAUGHT IT**, in
+`tests/test_p4d26_contract_describes_the_producer.py`. Six tests, all
+about NAMES AND COUNTS rather than meaning, because a name the producer
+emits that the contract never mentions is a defect whatever it means:
+every settings key named in the contract; the membership count in words
+equal to the producer's; the key list's count and members; every role
+named; every key of every role named; and the role count stated in
+prose. A fifteenth role that reaches the code without reaching the
+contract now turns five of them red.
+
+## Residual R-P4-23 — RESTATED to the half that survives (2026-08-26)
+
+The adversarial re-check refuted the claim that A-P4-33 closed this.
+Its **second clause is now closed by P4-D26**: descriptions this branch
+writes ARE described by the version 6 contract, because the contract
+was corrected to describe them.
+
+**Its first clause is live and is not closed.** A description written
+earlier on this branch — before `pad_widths`, `forced_codes` or
+`forced_measurements` were added — is stamped `profile_version: 6`, as
+is the reader, so the version numbers MATCH and the loader gives a
+plain missing-key refusal instead of the migration message that names
+which options to re-supply. Measured: removing `forced_codes` from a
+current document yields "The description has no entry called
+'forced_codes'... make the description again", where a version 5
+document yields the sentence naming every option to bring back.
+
+**The proper fix is a version bump**, and the contract says so itself:
+"Filling any slot advances `profile_version`". Four keys and a role
+were folded into version 6 after it was declared, each time on the
+argument that no version 6 document exists outside this repository.
+That argument is the owner's to accept or withdraw, which is why this
+is restated rather than fixed. Not closed.
+
+## Residual R-P4-4 — RESTATED, and one half of it is a silent misreading (2026-08-26)
+
+The adversarial re-check refuted the claim that P4-D15 closed this.
+P4-D15 landed a proper SUBSET of each family and nothing narrowed the
+residual, so it stands for the remainder — and the remainder is worse
+than the original wording admits.
+
+**A EUROPEAN `dd.mm.yy` COLUMN IS NOT DECLINED. IT IS MISDESCRIBED AS A
+QUANTITY.** Measured on 400 rows of `19.08.24`, `13.10.24`, `07.04.24`:
+the column is read as `affixed_number` with suffix `.24`, and publishes
+a MEAN OF 15.39 over day-and-month numbers. Its twin holds `19.25.24`,
+`26.44.24`, `17.00.24`, `20.93.24` — months 25, 44, 00 and 93. Both its
+notes offer `--identifier`; neither mentions a date. That is P4-D17's
+own stated failure class, a wrong number that looks entirely plausible,
+inside a family this residual names. Where the same spelling spans more
+than one year the suffix stops being constant and the column falls to
+free text with a generic remark, not the competing-readings remark this
+residual promises.
+
+**Two further halves stand.** Excel's `dd-mmm-yy` (`17-Mar-24`) still
+declines, because the textual-month reader requires a four-figure year.
+And unpadded dotted `1.2.2024` declines by design (C6-22), a cost
+recorded only inside a review log until now.
+
+**This deserves its own defect line rather than a decline**, and the
+misreading half is the first thing a reader of this residual should
+meet. Not closed.

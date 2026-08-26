@@ -108,7 +108,7 @@ places — a defining section, version 4's universal-key table, version
 4's appendix, and a shipped constant — so every round found another
 site superseded in one place and left live in another. At the worst,
 version 4's universal-key table pinned `role` at ten names and the
-absence map at five keys while version 6 introduces thirteen roles and
+absence map at five keys while version 6 introduces fourteen roles and
 six absence classes, so three of its own roles and one of its own
 absence classes were unwritable in the very document that introduces
 them. None of that was a review failure: a reviewer reads what the
@@ -574,6 +574,7 @@ claim.
 | `declaration_matching` | string | exactly `exact_number_when_it_reads_as_one_else_spelling` | the one rule that says which cells a declared value matches: a declared value that reads as a number this format can hold matches every cell holding that EXACT NUMBER, whatever either is spelled like, so `-999` covers a file that writes `-999.00`; any other declared value matches by spelling, after trimming and case folding |
 | `declaration_publication` | string | exactly `settings_counts_only_columns_unchanged` | what this block publishes about a declaration and what it does not: counts and synthtwin's own words here, and the columns unchanged |
 | `declared_missing_values` | object | exactly the five keys below | the declaration record for `--missing-value` |
+| `forced_measurements` | array of strings | — | the names the person passed to `--measurement`, sorted ascending, pairwise distinct. A column named here whose cells hold two or more whole numbers joined by one repeated separator takes the `joined_numbers` role of section 6.15; a column named here whose cells do not are read by the ordinary rules, so the declaration decides nothing on its own. A name may not appear in more than one of the three declaration arrays |
 | `forced_codes` | array of strings | — | the names the person passed to `--code`, sorted ascending, pairwise distinct. A column named here is read as LABELS: the rules that read a cell as a number, a date, a clock time or a number wearing an affix are silenced for it, so the roles left are the five that publish spellings. Unlike `forced_identifiers` this does NOT suppress the column — its distribution is why it was declared. A name may not appear in both arrays |
 | `forced_identifiers` | array of strings | — | the names the person passed to `--identifier`, sorted ascending, pairwise distinct |
 | `identifier_minimum_rows` | integer | ≥ 0 | below this many rows nothing is said about a column being all-different, because in a short column almost every measurement is. It decides no role |
@@ -586,11 +587,23 @@ claim.
 | `sentinel_outlier_iqr_multiple` | number | ≥ 0.0 | how many interquartile ranges beyond the quartiles of the column's other numbers a stand-in candidate must lie to count as an outlier |
 | `small_cell_floor` | integer | ≥ 1 | the disclosure floor: the smallest number of rows a group may cover and still be NAMED anywhere in this description |
 
-**C6-20 (membership).** All seventeen keys are REQUIRED. No other key
+**C6-20 (membership).** All NINETEEN keys are REQUIRED. No other key
 may appear under `settings`; a loader refuses one that does, naming
-it. A block of sixteen keys or of eighteen — one of the seventeen
+it. A block of eighteen keys or of twenty — one of the nineteen
 skipped, or a key of somebody's own added — is a document this
-contract does not describe. **No settings key exists for the affix
+contract does not describe.
+
+**THE COUNT WAS WRONG IN THREE PLACES AT ONCE and is corrected here
+(2026-08-26).** This clause said seventeen, the key list of section
+14 said eighteen, and the producer wrote nineteen. Two declarations
+reached the code without fully reaching this document — `forced_codes`
+by amendment A-P4-38, which corrected the list and not this clause,
+and `forced_measurements` by A-P4-39, which corrected neither — so
+every description the tool wrote was a document THIS CONTRACT DOES NOT
+DESCRIBE, which is the one thing C6-20 exists to make impossible. It
+was found by an adversarial re-check of an unrelated residual rather
+than by a guard, and residual R-P4-42 records that nothing compares
+this count with the producer's. **No settings key exists for the affix
 rule, the clock rule or the calendar-placeholder pass**: those rules
 read `minimum_parse_rate`, `small_cell_floor`,
 `sentinel_outlier_iqr_multiple` and `sentinel_minimum_share`, which
@@ -2016,8 +2029,8 @@ guess is what fails silently.
 |---|---|---|---|---|
 | `name` | string | non-empty after trimming | the column's name | EXACT-OBSERVABLE when a header is written, else EXACT-CONTROL |
 | `position` | integer | `1 .. n_columns` | the column's one-based place in the schema | EXACT-CONTROL |
-| `role` | string | one of the thirteen role names fixed by the table in section 5.2 | the type path the taxonomy chose | EXACT-CONTROL |
-| `statistical_type` | string | one of the thirteen statistical types fixed by the table in section 5.2 | the shape of the column's values | EXACT-CONTROL |
+| `role` | string | one of the fourteen role names fixed by the table in section 5.2 | the type path the taxonomy chose | EXACT-CONTROL |
+| `statistical_type` | string | one of the fourteen statistical types fixed by the table in section 5.2 | the shape of the column's values | EXACT-CONTROL |
 | `quality_state` | string | `ok`, `empty`, `unrepresentable` | whether the column has usable values at all | EXACT-CONTROL |
 | `structural_role` | string | `data`, `identifier` | whether the column was declared to hold record numbers or codes | EXACT-CONTROL |
 | `n_present` | integer ≥ 0 | ≤ `n_rows` | how many cells hold a value | EXACT-OBSERVABLE |
@@ -2048,7 +2061,7 @@ section 5.2 binds each of them and neither can drift: invariant A4
 admits no `quality_state` but the three the table's third column
 carries, and invariant A1 with the declaration rule fixes
 `structural_role` at exactly `data` and `identifier`. Section 5.2 names
-the thirteen roles a second time, as the order its rules are tested in;
+the fourteen roles a second time, as the order its rules are tested in;
 invariant A5 requires the table to be total over the vocabulary, so a
 name in one list and not the other is a defect that invariant names.
 
@@ -2079,7 +2092,7 @@ Three axes stand beside `role` in every column block:
 `statistical_type`, `quality_state` and `structural_role`. **The
 generator dispatches on the axes, never on `role`** (plan P2-D3). The
 first two are derived by the fixed rule in the table below, which is
-total over the thirteen roles and admits no other combination. The
+total over the fourteen roles and admits no other combination. The
 third is derived by the declaration rule stated after it.
 
 | `role` | `statistical_type` | `quality_state` |
@@ -2097,10 +2110,11 @@ third is derived by the declaration rule stated after it.
 | `time_of_day` | `time_of_day` | `ok` |
 | `affixed_number` | `affixed_number` | `ok` |
 | `long_tail_labels` | `long_tail_labels` | `ok` |
+| `joined_numbers` | `joined_numbers` | `ok` |
 
-**Thirteen rows, thirteen statistical types, one row each.** The table
+**Fourteen rows, fourteen statistical types, one row each.** The table
 is a bijection: no two roles answer the same `statistical_type`, and
-every one of the thirteen types is reached by exactly one role. The
+every one of the fourteen types is reached by exactly one role. The
 row order above is presentational; what is normative is the set of
 rows, and invariant A4 is what a loader enforces against it.
 
@@ -2109,13 +2123,13 @@ case where the role name and the shape of the values are not the same
 fact.** An `empty` column has no shape to report and no usable values;
 a `numeric_unrepresentable` column was written as numbers and holds
 none this format can carry; an `identifier` column holds codes; and
-`free_text` holds text. The other nine name their own shape. The table
+`free_text` holds text. The other ten name their own shape. The table
 is written out row by row rather than derived from the role string,
 because a mapping a reader can check is worth more than one line of
 cleverness.
 
-**C6-19.** `time_of_day`, `affixed_number` and `long_tail_labels` each
-name themselves. That is a stated cost rather than an oversight: for
+**C6-19.** `time_of_day`, `affixed_number`, `long_tail_labels` and
+`joined_numbers` each name themselves. That is a stated cost rather than an oversight: for
 these three the shape axis buys nothing over the role name, and the
 axes' value here is the totality discipline, not extra information.
 Each carries `quality_state` `ok`, and each carries `structural_role`
@@ -2147,7 +2161,7 @@ declared one.
 `statistical_type` is `code` or `unknown`, and `role` is `identifier`
 or `empty`.
 
-**A2 and A3 stay narrow across all thirteen roles, and here is why they
+**A2 and A3 stay narrow across all fourteen roles, and here is why they
 are still total.** Both quantify over the types `code` and `unknown`
 and the roles `identifier` and `empty`, and the three roles this
 version adds widen neither set: the declaration is decided at rule 2 of
@@ -2163,7 +2177,7 @@ naming the column and the three values, because a combination outside
 the table is a document whose axes and role disagree, and the generator
 dispatches on the axes.
 
-**Invariant A5.** The table above is total over the thirteen roles:
+**Invariant A5.** The table above is total over the fourteen roles:
 every role of the vocabulary has a row, and no role has two. An axis a
 column sometimes lacks is an axis nobody can dispatch on.
 
@@ -2177,7 +2191,7 @@ comparisons.
 
 #### The rule order: which role claims a column
 
-**C6-1.** The role vocabulary has thirteen members. Which one a column
+**C6-1.** The role vocabulary has fourteen members. Which one a column
 takes is decided by testing these rules in order, first match wins:
 
 1. `empty`;
@@ -2494,13 +2508,15 @@ implementation. `date_percentiles` rungs are never null.
 
 ## 6. The roles, one section each
 
-There are **thirteen** roles. In the order section 5.2's rules test
+There are **fourteen** roles. In the order section 5.2's rules test
 them, they are `empty`, `identifier`, `numeric_unrepresentable`,
 `constant`, `binary`, `datetime`, `count`, `continuous`,
 `categorical`, `time_of_day`, `affixed_number`, `long_tail_labels`,
-`free_text` — thirteen roles in twelve rules, because `count` and
-`continuous` are decided by one rule that then chooses between the
-two. This is the same thirteen the axis table of section 5.2 carries,
+`joined_numbers`, `free_text` — fourteen roles in thirteen rules,
+because `count` and `continuous` are decided by one rule that then
+chooses between the two. `joined_numbers`, like `identifier`, is
+reached only where the person declared the column and never from the
+values (section 6.15). This is the same fourteen the axis table of section 5.2 carries,
 and invariant A5 requires the two to name the same roles.
 
 **This section does not fix the ORDER the rules are tested in.** That
@@ -3985,18 +4001,18 @@ takes an argument that any value of the table could fill.
 
 **C6-50.** A role publishes through one channel, and the channel —
 not the branch that happened to build the block — decides what may
-appear in the output. Every one of the thirteen roles sits in exactly
+appear in the output. Every one of the fourteen roles sits in exactly
 one row of the table below:
 
 | class | roles | what the class means |
 |---|---|---|
 | labels | `constant`, `binary`, `categorical`, `long_tail_labels` | the values themselves appear, folded, with counts, and only when at least `small_cell_floor` rows share them |
-| ranges | `count`, `continuous`, `datetime`, `time_of_day`, `affixed_number` | no spelling appears; order statistics computed from the values do. ONE named exception, C6-9's, confined by section 6.11 to `affix_prefix` and `affix_suffix` |
+| ranges | `count`, `continuous`, `datetime`, `time_of_day`, `affixed_number`, `joined_numbers` | no spelling appears; order statistics computed from the values do. TWO named exceptions, each confined by section 6.11 to its own keys: C6-9's, at `affix_prefix` and `affix_suffix`, and section 6.15's, at `separator` |
 | nothing | `numeric_unrepresentable`, `identifier`, `free_text` | no value, no spelling, no fragment of one, anywhere — not in levels, not in `missing_by_source`, not in the evidence, not in a remark, not in a publication note, not in a sentinel verdict |
 | **no value-publishing class** | `empty` | it has no value to publish, and it is NOT thereby a nothing-publishing column (C6-51) |
 
 The three value-publishing classes carry exactly twelve of the
-thirteen roles, each in exactly one row. Membership is a property of
+fourteen roles, each in exactly one row. Membership is a property of
 the whole block, on the same reasoning C6-49 gives: a class stated
 per field is a class the next field escapes.
 
@@ -4038,7 +4054,7 @@ and the column publishes that word with the count 11, which the twin
 then writes in all eleven rows under C6-115.
 
 **Why this is stated at length rather than assumed.** Reading the
-class table as a three-way partition of all thirteen roles puts
+class table as a three-way partition of all fourteen roles puts
 `empty` in the nothing class, and the reasoning that gets there is
 sound-sounding: a column with no values discloses none. The
 conclusion breaks a shipped fact. `ROLES_PUBLISHING_LABELS`,
@@ -4085,7 +4101,7 @@ arriving outside the override, and it costs nothing while A3 holds.
 role-specific — is FORBIDDEN on that role**, and a loader refuses an
 unknown key naming both the key and the column. "Forbidden" is the
 half of a contract a loader can only enforce if it is written down,
-so it is written down here, once, in one place, for all thirteen
+so it is written down here, once, in one place, for all fourteen
 roles.
 
 The listing for a role is the twenty-two universal keys of section
@@ -4098,73 +4114,81 @@ is FORBIDDEN in the sense section 2.1 fixes: the key is absent from
 every block of that role, and a loader refuses a document carrying
 it.
 
-The thirteen columns, abbreviated for width: `emp` `empty`, `unr`
+The fourteen columns, abbreviated for width: `emp` `empty`, `unr`
 `numeric_unrepresentable`, `con` `constant`, `bin` `binary`, `cat`
 `categorical`, `ltl` `long_tail_labels`, `dtm` `datetime`, `tod`
 `time_of_day`, `cnt` `count`, `ctn` `continuous`, `afx`
-`affixed_number`, `idn` `identifier`, `txt` `free_text`.
+`affixed_number`, `idn` `identifier`, `txt` `free_text`, `jnd`
+`joined_numbers`.
 
-| key | emp | unr | con | bin | cat | ltl | dtm | tod | cnt | ctn | afx | idn | txt |
-|---|:--:|:--:|:--:|:--:|:--:|:--:|:--:|:--:|:--:|:--:|:--:|:--:|:--:|
-| `levels` | | | ● | ● | ● | ● | | | | | | | |
-| `suppressed_levels` | | | ● | ● | ● | ● | | | | | | | |
-| `suppressed_rows` | | | ● | ● | ● | ● | | | | | | | |
-| `suppressed_level_counts` | | | ● | ● | ● | ● | | | | | | | |
-| `level_ceiling` | | | | | ● | | | | | | | | |
-| `format` | | | | | | | ● | | | | | | |
-| `resolution` | | | | | | | ● | | | | | | |
-| `resolution_mix` | | | | | | | ● | | | | | | |
-| `time_precision` | | | | | | | ● | | | | | | |
-| `subsecond_digits` | | | | | | | ● | | | | | | |
-| `datetimes_read_at` | | | | | | | ● | | | | | | |
-| `earliest` | | | | | | | ● | ● | | | | | |
-| `latest` | | | | | | | ● | ● | | | | | |
-| `earliest_utc_offset` | | | | | | | ● | | | | | | |
-| `latest_utc_offset` | | | | | | | ● | | | | | | |
-| `date_percentiles` | | | | | | | ● | | | | | | |
-| `utc_offsets` | | | | | | | ● | | | | | | |
-| `n_unparsed` | | | | | | | ● | ● | | | | | |
-| `clock_form` | | | | | | | | ● | | | | | |
-| `clock_percentiles` | | | | | | | | ● | | | | | |
-| `percentiles` | | | | | | | | | ● | ● | ● | | |
-| `mean` | | | | | | | | | ● | ● | ● | | |
-| `std` | | | | | | | | | ● | ● | ● | | |
-| `skew` | | | | | | | | | ● | ● | ● | | |
-| `std_unrepresentable` | | | | | | | | | ● | ● | ● | | |
-| `n_zero` | | | | | | | | | ● | ● | ● | | |
-| `n_negative` | | ● | | | | | | | ● | ● | ● | | |
-| `n_negative_unrepresentable` | | | | | | | | | ● | ● | ● | | |
-| `n_used_in_statistics` | | | | | | | | | ● | ● | ● | | |
-| `n_left_out_of_statistics` | | | | | | | | | ● | ● | ● | | |
-| `numeric_share` | | | | | | | | | ● | ● | ● | | |
-| `integer_valued` | | | | | | | | | ● | ● | ● | | |
-| `n_rows` (echo) | | | | | | | | | ● | ● | ● | | |
-| `numeric_styles` | | | | | | | | | ● | ● | ● | | |
-| `fraction_widths` | | | | | | | | | ● | ● | ● | | |
-| `pad_widths` | | | | | | | | | ● | ● | ● | | |
-| `affix_prefix` | | | | | | | | | | | ● | | |
-| `affix_suffix` | | | | | | | | | | | ● | | |
-| `n_affixed` | | | | | | | | | | | ● | | |
-| `n_core_numeric` | | | | | | | | | | | ● | | |
-| `n_core_out_of_range` | | | | | | | | | | | ● | | |
-| `n_core_contradictory` | | | | | | | | | | | ● | | |
-| `n_core_not_numeric` | | | | | | | | | | | ● | | |
-| `n_whole` | | ● | | | | | | | | | | | |
-| `n_fraction` | | ● | | | | | | | | | | | |
-| `n_whole_unknown` | | ● | | | | | | | | | | | |
-| `n_positive` | | ● | | | | | | | | | | | |
-| `n_sign_unknown` | | ● | | | | | | | | | | | |
-| `min_length` | | ● | | | | | | | | | | ● | |
-| `max_length` | | ● | | | | | | | | | | ● | |
-| `all_whole_numbers` | | | | | | | | | | | | ● | |
-| `length` | | | | | | | | | | | | | ● |
-| `words` | | | | | | | | | | | | | ● |
-| `n_all_digits` | | | | | | | | | | | | ● | ● |
-| `n_code_alphabet` | | | | | | | | | | | | ● | ● |
-| `n_distinct_by_occurrences` | | ● | | | | | | | | | | ● | ● |
-| `shape_forms` | | | ● | ● | ● | ● | | | | | | | ● |
+| key | emp | unr | con | bin | cat | ltl | dtm | tod | cnt | ctn | afx | idn | txt | jnd |
+|---|:--:|:--:|:--:|:--:|:--:|:--:|:--:|:--:|:--:|:--:|:--:|:--:|:--:|:--:|
+| `levels` | | | ● | ● | ● | ● | | | | | | | | |
+| `suppressed_levels` | | | ● | ● | ● | ● | | | | | | | | |
+| `suppressed_rows` | | | ● | ● | ● | ● | | | | | | | | |
+| `suppressed_level_counts` | | | ● | ● | ● | ● | | | | | | | | |
+| `level_ceiling` | | | | | ● | | | | | | | | | |
+| `format` | | | | | | | ● | | | | | | | |
+| `resolution` | | | | | | | ● | | | | | | | |
+| `resolution_mix` | | | | | | | ● | | | | | | | |
+| `time_precision` | | | | | | | ● | | | | | | | |
+| `subsecond_digits` | | | | | | | ● | | | | | | | |
+| `datetimes_read_at` | | | | | | | ● | | | | | | | |
+| `earliest` | | | | | | | ● | ● | | | | | | |
+| `latest` | | | | | | | ● | ● | | | | | | |
+| `earliest_utc_offset` | | | | | | | ● | | | | | | | |
+| `latest_utc_offset` | | | | | | | ● | | | | | | | |
+| `date_percentiles` | | | | | | | ● | | | | | | | |
+| `utc_offsets` | | | | | | | ● | | | | | | | |
+| `n_unparsed` | | | | | | | ● | ● | | | | | | ● |
+| `clock_form` | | | | | | | | ● | | | | | | |
+| `clock_percentiles` | | | | | | | | ● | | | | | | |
+| `percentiles` | | | | | | | | | ● | ● | ● | | | |
+| `mean` | | | | | | | | | ● | ● | ● | | | |
+| `std` | | | | | | | | | ● | ● | ● | | | |
+| `skew` | | | | | | | | | ● | ● | ● | | | |
+| `std_unrepresentable` | | | | | | | | | ● | ● | ● | | | |
+| `n_zero` | | | | | | | | | ● | ● | ● | | | |
+| `n_negative` | | ● | | | | | | | ● | ● | ● | | | |
+| `n_negative_unrepresentable` | | | | | | | | | ● | ● | ● | | | |
+| `n_used_in_statistics` | | | | | | | | | ● | ● | ● | | | |
+| `n_left_out_of_statistics` | | | | | | | | | ● | ● | ● | | | |
+| `numeric_share` | | | | | | | | | ● | ● | ● | | | |
+| `integer_valued` | | | | | | | | | ● | ● | ● | | | |
+| `n_rows` (echo) | | | | | | | | | ● | ● | ● | | | |
+| `numeric_styles` | | | | | | | | | ● | ● | ● | | | |
+| `fraction_widths` | | | | | | | | | ● | ● | ● | | | |
+| `pad_widths` | | | | | | | | | ● | ● | ● | | | |
+| `affix_prefix` | | | | | | | | | | | ● | | | |
+| `affix_suffix` | | | | | | | | | | | ● | | | |
+| `n_affixed` | | | | | | | | | | | ● | | | |
+| `n_core_numeric` | | | | | | | | | | | ● | | | |
+| `n_core_out_of_range` | | | | | | | | | | | ● | | | |
+| `n_core_contradictory` | | | | | | | | | | | ● | | | |
+| `n_core_not_numeric` | | | | | | | | | | | ● | | | |
+| `n_whole` | | ● | | | | | | | | | | | | |
+| `n_fraction` | | ● | | | | | | | | | | | | |
+| `n_whole_unknown` | | ● | | | | | | | | | | | | |
+| `n_positive` | | ● | | | | | | | | | | | | |
+| `n_sign_unknown` | | ● | | | | | | | | | | | | |
+| `min_length` | | ● | | | | | | | | | | ● | | |
+| `max_length` | | ● | | | | | | | | | | ● | | |
+| `all_whole_numbers` | | | | | | | | | | | | ● | | |
+| `length` | | | | | | | | | | | | | ● | |
+| `words` | | | | | | | | | | | | | ● | |
+| `n_all_digits` | | | | | | | | | | | | ● | ● | |
+| `n_code_alphabet` | | | | | | | | | | | | ● | ● | |
+| `n_distinct_by_occurrences` | | ● | | | | | | | | | | ● | ● | |
+| `shape_forms` | | | ● | ● | ● | ● | | | | | | | ● | |
+| `n_joined` | | | | | | | | | | | | | | ● |
+| `n_parts` | | | | | | | | | | | | | | ● |
+| `part_above` | | | | | | | | | | | | | | ● |
+| `part_agreements` | | | | | | | | | | | | | | ● |
+| `part_min_widths` | | | | | | | | | | | | | | ● |
+| `parts` | | | | | | | | | | | | | | ● |
+| `separator` | | | | | | | | | | | | | | ● |
 
-**Fifty-seven rows, one hundred and fifteen marked cells**, distributed
+**Sixty-four rows, one hundred and twenty-three marked cells**, distributed
 `empty` 0, `numeric_unrepresentable` 9, `constant` 5, `binary` 5,
 `categorical` 6, `long_tail_labels` 5, `datetime` 13, `time_of_day`
 5, `count` 16, `continuous` 16, `affixed_number` 23, `identifier` 6,
@@ -5090,6 +5114,80 @@ on this role there may be many of them: their number is bounded by
 nothing but `n_rows`. No cap is imposed, because a cap would contract
 a domain this format has promised, and B4's equalities would then be
 unwritable.
+
+### 6.15 `joined_numbers`
+
+**What the role is.** A column whose cells each hold TWO OR MORE whole
+numbers written in one cell and joined by one repeated separator: a
+blood pressure `120/80`, a ventilator ratio `1:1.5`, a pressure charted
+`120 / 80`. Each position is described as a quantity of its own.
+
+**IT IS REACHED BY DECLARATION AND NEVER FROM THE VALUES**, and the
+reason is a measurement rather than a caution (plan P4-D21). A rule
+reading the values would claim a date (`2023-02-12` is three whole
+numbers joined by `-`), a clock time (`09:30` is two joined by `:`),
+and — past any rule order that could save those two — a laboratory code
+(`1923-1`) and a drug code (`00052-0052-52`), which are CODES.
+Claiming those would publish the smallest and largest of their parts,
+which are fragments of real codes. A blood pressure and a laboratory
+code are both figures joined by a mark and nothing in either says
+which, so the person says which, with `--measurement`.
+
+**The eight keys this role adds**, and no ninth; the forbidden-key
+matrix of 6.11 is what stops one:
+
+| key | type | range | meaning |
+| --- | --- | --- | --- |
+| `separator` | string | one mark of `/ - : \| ; _`, with at most one space on each side | the whole text a cell is split on, written as the table wrote it |
+| `n_parts` | integer | ≥ 2 | how many numbers a cell holds. One is a bare number, which is another role |
+| `n_joined` | integer | ≥ the detection line, ≤ `n_present` | present cells that split this way |
+| `n_unparsed` | integer | ≥ 0 | present cells that did not. `n_joined + n_unparsed == n_present` |
+| `parts` | array of objects | exactly `n_parts` | one quantitative block per position, in cell order, each carrying exactly the keys of 6.7 and read over that position's numbers alone |
+| `part_min_widths` | array of integers | exactly `n_parts`, each ≥ 1 | the smallest number of characters each position was written in. It is what tells a padded position (`007` beside `080`) from a plain one, and it is a width and never a spelling |
+| `part_agreements` | array of numbers | exactly one per PAIR of positions, each −1 ≤ x ≤ 1 | how strongly two positions rise and fall together, by RANK, in the order (1,2), (1,3), … (2,3), … |
+| `part_above` | array of integers | exactly one per pair, each ≤ `n_joined` | in how many rows the earlier position held the larger number |
+
+**WHY THE LAST TWO ARE HERE AT ALL, and why they are about the PAIRING
+and nothing else.** What each position holds is published exactly in
+`parts`, so a description carrying only those says nothing about which
+numbers met in a row — and a twin built from it draws each position
+independently. Measured on four hundred readings whose real numbers
+agreed at 0.83, such a twin agreed at −0.01 and held cells with a
+diastolic at or above its systolic. Rank agreement is used rather than
+agreement between values precisely because it repeats nothing `parts`
+already carries: it does not move when a position's own numbers change,
+only when the pairing does.
+
+**Both are aggregates over every row and name no cell**, so this role
+publishes exactly one spelling of the table — `separator` — on the same
+terms `affixed_number` publishes its pair.
+
+**The invariants a loader checks (J1–J8).**
+
+| # | rule | checkable |
+| --- | --- | --- |
+| J1 | `separator` is one admitted mark with at most one space on each side | yes |
+| J2 | `n_parts` ≥ 2 | yes |
+| J3 | `n_joined + n_unparsed == n_present`, and `n_joined` clears the detection line the role's own reading had to clear | yes |
+| J4 | `parts` and `part_min_widths` each hold exactly `n_parts` entries | yes |
+| J5 | every entry of `parts` carries exactly the keys of 6.7 and satisfies that section's invariants over `n_joined` values | yes |
+| J6 | every published width is at least one character | yes |
+| J7 | `part_agreements` holds exactly one entry per pair of positions, each from −1 to 1 | yes |
+| J8 | `part_above` holds exactly one entry per pair, each at most `n_joined` | yes |
+
+**Publication class: RANGES** (6.10). No spelling of the table appears
+except `separator`, and the forbidden-key rule is what confines it to
+that key.
+
+**What a twin owes, and the one thing it may not always reach.** Each
+position's numbers follow that position's published block exactly, and
+the pairing is chosen to meet `part_agreements`, `part_above` and the
+column's own `n_distinct`. The three cannot always be met together:
+numbers drawn to a published ladder repeat more evenly than a real
+column's do, so fewer different pairs can be made from them. Where the
+count of different cells falls short the twin REPORTS it. Residual
+R-P4-40 records the cause and the fix, which is a description change
+and not a generation one.
 
 ---
 
@@ -6091,7 +6189,7 @@ and it names six: `missing_by_class`, `utc_offsets`, `numeric_styles`,
 | id | statement | loader? |
 |---|---|---|
 | X1 | `n_present + n_missing == n_rows`, the DOCUMENT's `n_rows`, never the per-column echo, a different quantity | yes |
-| X2 | `n_numeric + n_not_numeric + n_out_of_range + n_contradictory == n_present`. The four classify the complete present CELL on all thirteen roles; on `affixed_number` they stand BESIDE its four core counts, never in place of them | yes |
+| X2 | `n_numeric + n_not_numeric + n_out_of_range + n_contradictory == n_present`. The four classify the complete present CELL on all fourteen roles; on `affixed_number` they stand BESIDE its four core counts, never in place of them | yes |
 | X3 | `n_distinct_folded <= n_distinct <= n_present` | yes |
 | X4 | `n_distinct == 0` ⇔ `n_present == 0` ⇔ `n_distinct_folded == 0` | yes |
 | X5 | `1 <= position <= n_columns` | yes |
@@ -6125,8 +6223,8 @@ and it names six: `missing_by_class`, `utc_offsets`, `numeric_styles`,
 | A1 | `structural_role == "identifier"` if and only if `name` appears in `settings.forced_identifiers` | yes |
 | A2 | `statistical_type == "code"` implies `structural_role == "identifier"`: there is no route to the `identifier` role but the declaration | yes |
 | A3 | `structural_role == "identifier"` implies `statistical_type` is `code` or `unknown`, and `role` is `identifier` or `empty` | yes |
-| A4 | the triple (`role`, `statistical_type`, `quality_state`) is exactly one row of 5.2's thirteen-row table; refused rather than repaired, naming the column and its three values | yes |
-| A5 | that table is total over the thirteen roles: every role of the vocabulary has a row, and no role has two | contract |
+| A4 | the triple (`role`, `statistical_type`, `quality_state`) is exactly one row of 5.2's fourteen-row table; refused rather than repaired, naming the column and its three values | yes |
+| A5 | that table is total over the fourteen roles: every role of the vocabulary has a row, and no role has two | contract |
 
 ### 8.6 The label roles — B, and the six that restrict them
 
@@ -6426,7 +6524,7 @@ Taken from plan section P2-D6. Every published fact carries exactly
 ONE of the six dispositions section 2.2 fixes, and this section says
 which, fact by fact, and what each promises about the twin. A
 completeness assertion enumerates every key the producer emits for
-every one of the thirteen roles, plus every top-level key, and FAILS
+every one of the fourteen roles, plus every top-level key, and FAILS
 when any key has no disposition here. It must pass against this matrix
 as written; it may not acquire exceptions during implementation.
 
@@ -7296,7 +7394,7 @@ description without reading the rest of this document.
 about the table has a row in this section, and every other key of this
 format publishes no fact about the table. Completeness is asserted over
 the WHOLE document — every top-level key, every settings key, every
-column block of every one of the thirteen roles, and every sentence
+column block of every one of the fourteen roles, and every sentence
 form of section 4.5 — and not over the facts one version added. A key
 or a sentence argument added to this format that reaches no row here,
 and that is not shown to publish nothing of the table, is a defect in
@@ -7688,8 +7786,8 @@ on the axes and a document whose axes and role disagree would route a
 column somewhere its own `role` says it does not belong.
 
 **13.10 Thirteen roles.** Earlier plan and task text said "the nine
-roles" while listing ten, and the count is now thirteen. The reason it
-is thirteen is not that a shipped tuple has thirteen entries — no
+roles" while listing ten, and the count is now fourteen. The reason it
+is fourteen is not that a shipped tuple has fourteen entries — no
 version 6 producer exists yet, and the shipped tuple still has ten. It
 is that the ratified Phase 4 plan's delta adds exactly three roles —
 `time_of_day`, `affixed_number`, `long_tail_labels` — to the ten this
@@ -7965,10 +8063,11 @@ authority; the set of rows, not this order, is normative.
 | `time_of_day` | `time_of_day` | `ok` |
 | `affixed_number` | `affixed_number` | `ok` |
 | `long_tail_labels` | `long_tail_labels` | `ok` |
+| `joined_numbers` | `joined_numbers` | `ok` |
 
 Four roles answer something other than their own name — `empty`,
 `numeric_unrepresentable`, `identifier` and `free_text` — and the other
-nine name their own shape.
+ten name their own shape.
 
 **`quality_state` — 3:** `ok`, `empty`, `unrepresentable`.
 **`structural_role` — 2:** `data`, `identifier`.
@@ -8037,11 +8136,12 @@ cells, defined in 6.11. Not reproduced here; a matrix is not a list.
 
 ### 14.3 Settings and declarations
 
-**`settings` keys — 18** (4.4), in the ascending code-point order every
+**`settings` keys — 19** (4.4), in the ascending code-point order every
 object of a canonical document takes: `categorical_ceiling`,
 `categorical_floor`, `categorical_share`, `day_first`,
 `declaration_matching`, `declaration_publication`,
 `declared_missing_values`, `forced_codes`, `forced_identifiers`,
+`forced_measurements`,
 `identifier_minimum_rows`, `identifier_uniqueness`, `kept_values`,
 `long_tail_minimum_level`, `minimum_parse_rate`,
 `near_threshold_slack`, `sentinel_minimum_share`,
