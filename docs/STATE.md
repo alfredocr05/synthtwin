@@ -28,7 +28,7 @@ without the same help.
 | branch | `phase-4-plan` (never merged; `main` is pull-request only) |
 | phase | **Phase 4 — comprehensive column handling.** Current. |
 | plan | `docs/plans/phase-4-columns.md` |
-| suite | 3,975 collected / 48 skipped |
+| suite | 3,982 collected / 48 skipped |
 | lint | clean (`ruff check .`), under the rule set pinned in `pyproject.toml` |
 
 ## What is being built right now
@@ -146,8 +146,33 @@ are still ahead. The gap list itself is at the foot of this page.
   own; this one publishes twelve, its twin holds eleven, and the
   generator reports the miss. No other case's cells moved.
 
-  One role remains: `joined_numbers`. It has a method section (G6B), so
-  it is blocked on nothing but the work.
+  **And the fourth, which closes the residual: `joined_numbers`.**
+  `joined_readings` pins the pairing walk — the only search in the
+  method. It was designed against the vacuity check: the first draft
+  published an agreement of 0.9983, which a rank-for-rank start already
+  meets, so removing the walk changed nothing and the case would have
+  proved nothing. The committed column publishes 0.4323 and with the
+  walk withdrawn six of its twelve cells move. Withdrawing each of the
+  walk's rules in turn shows it pins six of them — the walk itself, the
+  cursor restart, the threshold's value, accept-on-equal, that a try
+  ceiling exists, and the `part_above` term — and not five others,
+  which are named in the section rather than left implied.
+
+  Measuring that corrected a false claim in the method: G6B.4 said the
+  zero-based rank origin writes different cells. It does not — rank
+  agreement is translation-invariant, so one-based ranks with their own
+  middle write identical bytes. What had been measured was ranks moved
+  with the middle left behind, which is a defect rather than the other
+  convention.
+
+  Writing it validated the section: the walk is 237 lines in the
+  generator, the oracle's is written from G6B.4's text alone, and the
+  two write the same bytes.
+
+  **R-P4-17 is CLOSED** — all four roles Phase 4 added have a frozen
+  case with a failing mutant. The stated limit stands: three of the
+  four method sections were written from the shipped implementation, so
+  they buy reviewability rather than independence.
 
 * **THE THREE REMAINING ROLES HAD NO METHOD SECTION AT ALL — found
   2026-08-27, and now written.** The oracle's whole value is that it
