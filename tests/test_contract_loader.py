@@ -832,6 +832,11 @@ def battery() -> list[Mutation]:
             edit("visits", value_histogram={"0": 3}),
         ),
         Mutation(
+            "Q16",
+            "tails no sample of that many values could have",
+            edit("visits", kurtosis=900.0),
+        ),
+        Mutation(
             "P1", "forms that do not account for the numbers",
             edit("visits", numeric_styles={"plain": 228}),
         ),

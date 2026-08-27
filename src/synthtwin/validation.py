@@ -7133,6 +7133,7 @@ def _moment_checks(
         ("mean", facts.mean),
         ("std", facts.std),
         ("skew", facts.skew),
+        ("kurtosis", facts.kurtosis),
     )
     checks: list[Check] = []
     windows = _windows_of(column, facts)
@@ -7150,6 +7151,11 @@ def _moment_checks(
         # cannot fail is the vacuity V3.4 refuses by name.
         if field == "skew" and _skew_admits_every_value(column, facts):
             continue
+        # AND THE SAME FOR THE TAIL WEIGHT, for the same reason: where
+        # its window is the whole range every sample of this size can
+        # take, a comparison against it admits every file there is.
+        if field == "kurtosis" and _tails_admit_every_value(column, facts):
+            continue
         found = _number_at(block, field)
         checks = checks + [
             _within(
@@ -7164,6 +7170,30 @@ def _moment_checks(
             )
         ]
     return checks
+
+
+def _tails_admit_every_value(
+    column: "contract.ColumnBlock", facts: "contract.NumericFacts"
+) -> bool:
+    """Whether this description's kurtosis window is the whole range.
+
+    The counterpart of `_skew_admits_every_value`. Where G12.3a's finite
+    fallback stands, the window IS every value the statistic can take
+    -- 1 to `n - 2 + 1/(n - 1)` -- and a comparison against it admits
+    every file there is, which is the vacuity V3.4 refuses by name. It
+    becomes a listing entry on such a description and never a check.
+    """
+    if facts.kurtosis is None:
+        return False
+    windows = _windows_of(column, facts)
+    if "kurtosis" not in windows:
+        return False
+    used = facts.n_used_in_statistics
+    if used < 4:
+        return False
+    ceiling = used - 2 + 1 / (used - 1)
+    low, high = windows["kurtosis"]
+    return low <= 1.0 and high >= ceiling
 
 
 def _moment_windows(
@@ -7211,6 +7241,41 @@ def _moment_windows(
         cubed_high / (high_end**3),
     ]
     found["skew"] = (max(-reach, min(ends)), min(reach, max(ends)))
+    if numbers < 4:
+        return found
+    # THE TAIL WEIGHT, on the same terms one moment along (G12.3a). Two
+    # things differ from the cube above and both are easy to miss.
+    #
+    # THE FOURTH POWER DOES NOT KEEP THE ORDER: a rank's window
+    # straddling the mean has its SMALLEST fourth power in the middle
+    # and not at either end, so the low end of its contribution is zero
+    # there rather than one of the two ends raised.
+    #
+    # AND THE SPREAD ENTERS TO THE FOURTH POWER, not the third, because
+    # that is what makes the ratio free of the column's units.
+    ceiling = numbers - 2 + 1 / (numbers - 1)
+    low_fourths: "list[float]" = []
+    high_fourths: "list[float]" = []
+    for rank in range(numbers):
+        below = lows[rank] - mean_high
+        above = highs[rank] - mean_low
+        nearest = 0.0
+        if below > 0.0:
+            nearest = below
+        if above < 0.0:
+            nearest = -above
+        furthest = max(-below, above, 0.0)
+        low_fourths = low_fourths + [nearest**4]
+        high_fourths = high_fourths + [furthest**4]
+    tails_low = math.fsum(low_fourths) / numbers
+    tails_high = math.fsum(high_fourths) / numbers
+    if low_end <= 0.0:
+        found["kurtosis"] = (1.0, ceiling)
+        return found
+    found["kurtosis"] = (
+        max(1.0, tails_low / (high_end**4)),
+        min(ceiling, tails_high / (low_end**4)),
+    )
     return found
 
 

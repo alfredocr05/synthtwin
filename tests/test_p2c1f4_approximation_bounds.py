@@ -359,6 +359,11 @@ PHASE_4_NUMERIC_KEYS = ("fraction_widths", "pad_widths")
 # plan (P4-D4.7).
 PHASE_4_HISTOGRAM_KEYS = ("value_histogram",)
 
+# ...and the kurtosis, the owner's own second ask of 2026-08-26. It is
+# APPROXIMATED as the skewness beside it is, under a window method
+# G12.3a states, and the Phase 4 plan disposes it (P4-D4.8).
+PHASE_4_MOMENT_KEYS = ("kurtosis",)
+
 # ...and the census of written forms, which version 4's matrix has no
 # row for because version 4 had no such key. It is disposed in the
 # Phase 4 plan (P4-D18) and registered in `tests/dispositions.py`.
@@ -506,9 +511,16 @@ def test_every_approximated_fact_of_every_role_is_measured(
         measured = [
             record.fact for record in twin.outcomes[place].approximations
         ]
-        assert measured == list(
-            APPROXIMATED.get(column.role, ())
-        ), f"{column.name} ({column.role})"
+        owed = list(APPROXIMATED.get(column.role, ()))
+        # THE VERSION 4 MATRIX HAS NO ROW FOR THE KURTOSIS, because
+        # version 4 published no such key; the Phase 4 plan disposes it
+        # APPROXIMATED (P4-D4.8) and the registry carries it, exactly as
+        # it does for the other keys that arrived after that matrix was
+        # written. It is measured immediately after the skewness, which
+        # is the order the description writes the moments in.
+        if "skew" in owed:
+            owed.insert(owed.index("skew") + 1, "kurtosis")
+        assert measured == owed, f"{column.name} ({column.role})"
 
 
 def test_a_role_with_no_approximated_fact_measures_none(
@@ -1110,6 +1122,8 @@ def test_every_key_the_producer_emits_has_a_disposition(
                 table[own] = "EXACT-OBSERVABLE (Phase 4 plan, P4-D4.5)"
             for own in PHASE_4_HISTOGRAM_KEYS:
                 table[own] = "EXACT-OBSERVABLE (Phase 4 plan, P4-D4.7)"
+            for own in PHASE_4_MOMENT_KEYS:
+                table[own] = "APPROXIMATED (Phase 4 plan, P4-D4.8)"
             for own in PHASE_4_SHAPE_KEYS:
                 table[own] = "EXACT-OBSERVABLE (Phase 4 plan, P4-D18)"
             for own, said in PHASE_4_DATETIME_KEYS:
@@ -1146,6 +1160,8 @@ def test_the_completeness_assertion_refuses_a_key_nobody_disposed(
             table[own] = "EXACT-OBSERVABLE (Phase 4 plan, P4-D4.5)"
         for own in PHASE_4_HISTOGRAM_KEYS:
             table[own] = "EXACT-OBSERVABLE (Phase 4 plan, P4-D4.7)"
+        for own in PHASE_4_MOMENT_KEYS:
+            table[own] = "APPROXIMATED (Phase 4 plan, P4-D4.8)"
         names = _emitted_names(block) + ["a_field_nobody_disposed"]
         assert _undisposed(names, table, universal) == [
             "a_field_nobody_disposed"

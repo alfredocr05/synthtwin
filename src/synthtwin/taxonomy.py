@@ -2050,15 +2050,17 @@ def _parts(value: float) -> "tuple[int, int]":
     fraction, exponent = math.frexp(value)
     return int(math.ldexp(fraction, SIGNIFICAND_BITS)), exponent
 
-def _totals(numbers: list[float]) -> "tuple[int, int, int, int]":
-    """The exact sums of the values, of their squares, and of their cubes.
+def _totals(numbers: list[float]) -> "tuple[int, int, int, int, int]":
+    """The exact sums of the values and of their squares, cubes and
+    fourth powers.
 
-    Returns ``(total, squares, cubes, base)``, where the values are
-    ``a_1 ... a_n`` measured in units of ``2 ** base``:
+    Returns ``(total, squares, cubes, fourths, base)``, where the values
+    are ``a_1 ... a_n`` measured in units of ``2 ** base``:
     ``sum(x) == total * 2 ** base``,
-    ``sum(x * x) == squares * 2 ** (2 * base)`` and
-    ``sum(x * x * x) == cubes * 2 ** (3 * base)``. All four are whole
-    numbers and all three sums are EXACT -- that is the whole point of
+    ``sum(x * x) == squares * 2 ** (2 * base)``,
+    ``sum(x * x * x) == cubes * 2 ** (3 * base)`` and
+    ``sum(x ** 4) == fourths * 2 ** (4 * base)``. All five are whole
+    numbers and all four sums are EXACT -- that is the whole point of
     the module docstring's one rule.
 
     Values are added up in groups sharing one power of two, and each
@@ -2083,6 +2085,7 @@ def _totals(numbers: list[float]) -> "tuple[int, int, int, int]":
     ones: dict[int, int] = {}
     squares: dict[int, int] = {}
     cubes: dict[int, int] = {}
+    fourths: dict[int, int] = {}
     smallest = SIGNIFICAND_BITS
     started = False
     for value in numbers:
@@ -2099,13 +2102,16 @@ def _totals(numbers: list[float]) -> "tuple[int, int, int, int]":
             ones[exponent] = ones[exponent] + significand
             squares[exponent] = squares[exponent] + square
             cubes[exponent] = cubes[exponent] + square * significand
+            fourths[exponent] = fourths[exponent] + square * square
         else:
             ones[exponent] = significand
             squares[exponent] = square
             cubes[exponent] = square * significand
+            fourths[exponent] = square * square
     total = 0
     total_squares = 0
     total_cubes = 0
+    total_fourths = 0
     # Sorted, so that the order the groups are added in is a property of
     # the values and not of the rows -- the sum is the same either way,
     # and this way a reader can see that it is.
@@ -2116,7 +2122,16 @@ def _totals(numbers: list[float]) -> "tuple[int, int, int, int]":
         total_cubes = total_cubes + (
             cubes[exponent] << (shift + shift + shift)
         )
-    return total, total_squares, total_cubes, smallest - SIGNIFICAND_BITS
+        total_fourths = total_fourths + (
+            fourths[exponent] << (shift + shift + shift + shift)
+        )
+    return (
+        total,
+        total_squares,
+        total_cubes,
+        total_fourths,
+        smallest - SIGNIFICAND_BITS,
+    )
 
 
 def published(value: float) -> "float | None":
@@ -2403,9 +2418,10 @@ def _moments(numbers: list[float]) -> dict[str, "float | None"]:
         "mean": None,
         "std": None,
         "skew": None,
+        "kurtosis": None,
         "std_unrepresentable": False,
     }
-    total, squares, cubes, base = _totals(numbers)
+    total, squares, cubes, fourths, base = _totals(numbers)
     numerator, denominator = _over_two(total, count, base)
     moments["mean"] = published(_rounded_ratio(numerator, denominator))
     if count < 2:
@@ -2451,6 +2467,40 @@ def _moments(numbers: list[float]) -> dict[str, "float | None"]:
     )
     size = _rounded_root(shape * shape, spread * spread * spread)
     moments["skew"] = published(-size if shape < 0 else size)
+    if count < 4:
+        return moments
+
+    # n to the fourth times the fourth central moment, cleared of its
+    # denominator, and the kurtosis is its ratio to the spread squared
+    # (plan P4-D4.8, owner instruction 2026-08-26).
+    #
+    # THE k-TH MOMENT ASKS FOR k VALUES, which is why this waits for
+    # four where the skewness waits for three. Over three points a
+    # fourth moment cannot tell a heavy tail from a light one: it is
+    # pinned inside a span narrower than the difference the fact is
+    # published to report.
+    #
+    # WHAT IS PUBLISHED IS THE MOMENT RATIO AND NOT THE EXCESS, so the
+    # normal curve reads 3 here rather than 0. That is the same choice
+    # the skewness beside it makes -- both are the plain moment
+    # measures -- and a reader who wants the excess subtracts three.
+    #
+    # NO OVERFLOW GUARD, and that is a measurement rather than an
+    # oversight. The standard deviation carries `std_unrepresentable`
+    # because a spread can be larger than this format holds. A moment
+    # RATIO cannot: for any n values the kurtosis lies between 1 and
+    # `n - 2 + 1 / (n - 1)`, so it is bounded by the row count and no
+    # column can push it out of range. The exact arithmetic above never
+    # rounds on the way, so nothing overflows in the middle either.
+    tails = (
+        count * count * count * fourths
+        - 4 * count * count * total * cubes
+        + 6 * count * total * total * squares
+        - 3 * total * total * total * total
+    )
+    moments["kurtosis"] = published(
+        _rounded_ratio(tails, spread * spread)
+    )
     return moments
 
 

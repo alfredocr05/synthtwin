@@ -700,6 +700,12 @@
         "detection_evidence": "written by hand in this method specification's own neutral vocabulary; no value here comes from any table.",
         "fraction_widths": {},
         "integer_valued": false,
+        "kurtosis": {
+          "decimal": "2.5",
+          "exact": "5/2",
+          "float64": 2.5,
+          "proof": "nearest"
+        },
         "mean": {
           "decimal": "1000000000000",
           "exact": "1000000000000",
@@ -1682,6 +1688,12 @@
         "detection_evidence": "written by hand in this method specification's own neutral vocabulary; no value here comes from any table.",
         "fraction_widths": {},
         "integer_valued": true,
+        "kurtosis": {
+          "decimal": "2.5",
+          "exact": "5/2",
+          "float64": 2.5,
+          "proof": "nearest"
+        },
         "mean": {
           "decimal": "4.25",
           "exact": "17/4",

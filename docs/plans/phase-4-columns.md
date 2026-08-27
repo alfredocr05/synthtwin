@@ -828,6 +828,56 @@ the refusal stays reserved for descriptions no source could satisfy.
 The always-printed width deviation retires with the invention. THIS
 RAISES fidelity for these columns and closes residual R-P2-1.
 
+### P4-D4.8 The kurtosis (owner instruction 2026-08-26)
+
+The numeric roles publish `kurtosis` beside `skew`: **how heavy this
+column's tails are**, which is what tells somebody whether outlier
+handling will behave the same way on the twin as on the real table. The
+owner asked for it by name -- "one number, pairs with skew" -- and it
+costs exactly that.
+
+**IT IS THE MOMENT RATIO AND NOT THE EXCESS**, so a normal curve reads
+3 here rather than 0. That is the choice `skew` beside it already makes
+-- both are the plain moment measures -- and a reader wanting the
+excess subtracts three. Publishing the excess instead would leave two
+neighbouring fields on two conventions, which is how a reader ends up
+subtracting three from the wrong one.
+
+**THE k-TH MOMENT ASKS FOR k VALUES.** The skewness waits for three;
+this waits for four. Over three points a fourth moment cannot tell a
+heavy tail from a light one -- it is pinned inside a span narrower than
+the difference the fact exists to report -- so below four values the
+field is `null`, exactly as `skew` is below three.
+
+**IT COSTS NO NEW ARITHMETIC AND NO OVERFLOW GUARD.** The exact
+integer totals of plan P1-D11 already carry the sums of the values,
+their squares and their cubes; this adds the sum of their fourth
+powers, and the kurtosis is then the exact ratio
+`(n^3*T4 - 4n^2*T1*T3 + 6n*T1^2*T2 - 3*T1^4) / (n*T2 - T1^2)^2`,
+rounded once. The standard deviation carries `std_unrepresentable`
+because a spread can be larger than binary64 holds; **a moment RATIO
+cannot**, because for any `n` values the kurtosis lies between 1 and
+`n - 2 + 1/(n - 1)`. It is bounded by the row count, so no column can
+push it out of range and no flag is owed. Verified against the extreme
+configuration -- one value apart from `n - 1` equal ones -- at four,
+five, eight and twenty values, where the computed kurtosis equals that
+bound exactly.
+
+**THE DISPOSITION IS APPROXIMATED, as `skew` is, and its window is the
+skewness window one moment along** (method G12.3a): the average fourth
+deviation bounded by the per-rank windows, over the population spread
+to the FOURTH power, intersected with the sample bounds above. One
+thing differs from the cube and is stated because it is easy to miss:
+**the fourth power does not keep the order**. Cubing a window's two
+ends leaves them the ends; raising them to the fourth does not, because
+a window straddling the mean has its smallest fourth power in the
+middle. So each rank's low end is zero where its window straddles the
+mean.
+
+Measured on four columns -- gaussian, heavy-tailed, uniform and counts
+-- every twin's kurtosis fell inside its window and every window
+covered the published value.
+
 ### P4-D4.7 The value histogram (owner instruction 2026-08-26)
 
 The numeric roles publish `value_histogram`: **the count falling in

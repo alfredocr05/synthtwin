@@ -444,6 +444,7 @@ NUMERIC_KEYS = (
     "n_zero",
     "numeric_share",
     "numeric_styles",
+    "kurtosis",
     "percentiles",
     "skew",
     "std",
@@ -982,6 +983,11 @@ INVARIANTS = {
     "Q11": (
         "the zeroes are not more than the values that read as numbers"
     ),
+    "Q16": (
+        "the weight of a column's tails is given when four or more "
+        "values are not all the same one, is left out when they are, "
+        "and lies where every sample of that many values must"
+    ),
     "Q15": (
         "the shape of a column's numbers accounts for every value the "
         "statistics used and for no more, names each of its stretches "
@@ -1445,6 +1451,12 @@ class NumericFacts:
     mean: "float | None"
     std: "float | None"
     skew: "float | None"
+    # HOW HEAVY THIS COLUMN'S TAILS ARE (plan P4-D4.8). The moment
+    # ratio and not the excess, so a normal curve reads 3 here rather
+    # than 0 -- the same measure the skewness beside it uses. Undefined,
+    # and written as null, below four values or where every value is
+    # the same one.
+    kurtosis: "float | None"
     std_unrepresentable: bool
     n_zero: int
     n_negative: int
@@ -5044,6 +5056,7 @@ def _numeric_facts(
     mean = _figure_or_nothing(mapping["mean"], "mean", where)
     std = _figure_or_nothing(mapping["std"], "std", where)
     skew = _figure_or_nothing(mapping["skew"], "skew", where)
+    kurtosis = _figure_or_nothing(mapping["kurtosis"], "kurtosis", where)
     unrepresentable = _truth(
         mapping["std_unrepresentable"], "std_unrepresentable", where
     )
@@ -5161,6 +5174,45 @@ def _numeric_facts(
                 "this format holds it"
             ),
         )
+    # INVARIANT Q16, the kurtosis's own, and it is the shape of Q5 one
+    # moment further along. A column whose values are all one value has
+    # no tails to weigh; a column of four or more values that are not
+    # all one has tails, and leaving the weight out is a description
+    # holding something back that it measured.
+    if flat and kurtosis is not None:
+        raise _broken(
+            "Q16",
+            where,
+            f"the weight of the tails is given as {kurtosis}",
+            "every value the statistics used is the same",
+        )
+    if not flat and used >= 4 and kurtosis is None:
+        raise _broken(
+            "Q16",
+            where,
+            "the weight of the tails is left out",
+            (
+                f"the statistics used {used} values and they are not all "
+                f"the same"
+            ),
+        )
+    # AND IT LIES WHERE EVERY SAMPLE OF THAT SIZE MUST. The moment
+    # ratio of `n` values is at least 1 and at most `n - 2 + 1/(n - 1)`,
+    # whatever the values are -- the upper end reached exactly when one
+    # value stands apart from `n - 1` equal ones. A number outside that
+    # is not a kurtosis of this column at any spelling.
+    if kurtosis is not None and used >= 4:
+        ceiling = used - 2 + 1 / (used - 1)
+        if kurtosis < 1.0 or kurtosis > ceiling:
+            raise _broken(
+                "Q16",
+                where,
+                f"the weight of the tails is given as {kurtosis}",
+                (
+                    f"a weight between 1 and {ceiling}, which is where "
+                    f"every {used}-value sample lies"
+                ),
+            )
     exact = (n_numeric + n_out_of_range + n_contradictory) / n_present
     if share != exact:
         raise _broken(
@@ -5202,6 +5254,7 @@ def _numeric_facts(
         mean=mean,
         std=std,
         skew=skew,
+        kurtosis=kurtosis,
         std_unrepresentable=unrepresentable,
         n_zero=n_zero,
         n_negative=n_negative,
