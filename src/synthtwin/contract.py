@@ -445,6 +445,7 @@ NUMERIC_KEYS = (
     "numeric_share",
     "numeric_styles",
     "kurtosis",
+    "n_distinct_values",
     "percentiles",
     "skew",
     "std",
@@ -983,6 +984,11 @@ INVARIANTS = {
     "Q11": (
         "the zeroes are not more than the values that read as numbers"
     ),
+    "Q17": (
+        "a column of numbers holds no more different numbers than it "
+        "holds different spellings, and holds at least one wherever "
+        "its statistics used a value"
+    ),
     "Q16": (
         "the weight of a column's tails is given when four or more "
         "values are not all the same one, is left out when they are, "
@@ -1457,6 +1463,11 @@ class NumericFacts:
     # and written as null, below four values or where every value is
     # the same one.
     kurtosis: "float | None"
+    # HOW MANY DIFFERENT NUMBERS, as distinct from how many different
+    # SPELLINGS (plan P4-D4.9, closing residual R-P4-20). `n_distinct`
+    # on the column block counts spellings, so `1` and `01` are two of
+    # them and one number; this counts the numbers.
+    n_distinct_values: int
     std_unrepresentable: bool
     n_zero: int
     n_negative: int
@@ -5186,6 +5197,21 @@ def _numeric_facts(
             f"the weight of the tails is given as {kurtosis}",
             "every value the statistics used is the same",
         )
+    # AND BELOW FOUR VALUES IT IS NOT THERE AT ALL (item P4-K-R1-F3).
+    # Q16 refused a MISSING weight at four values and up, and never
+    # refused a PRESENT one below four -- so a description could carry
+    # a tail weight for three values, which the producer never writes
+    # and which no three points can support.
+    if not flat and used < 4 and kurtosis is not None:
+        raise _broken(
+            "Q16",
+            where,
+            f"the weight of the tails is given as {kurtosis}",
+            (
+                f"the statistics used {used} value(s), and a fourth "
+                f"moment asks for four"
+            ),
+        )
     if not flat and used >= 4 and kurtosis is None:
         raise _broken(
             "Q16",
@@ -5249,12 +5275,43 @@ def _numeric_facts(
     padded = _padded_widths(mapping, where, frame.floor, styles)
     _pool_holds_both(where, frame.floor, styles, widths, padded)
     histogram = _value_histogram(mapping, where, frame.floor, used, ladder)
+    values = _whole(mapping["n_distinct_values"], "n_distinct_values", where, 0)
+    # INVARIANT Q17. A block cannot hold more different numbers than it
+    # holds numeric CELLS, and a block whose statistics used a value
+    # holds at least one number. Both halves matter: the first is what
+    # stops a description claiming a fidelity no twin could give it,
+    # and the second is what stops a column of numbers saying it holds
+    # none.
+    #
+    # THE BOUND IS AGAINST THE CELL COUNT AND NOT AGAINST `n_distinct`,
+    # which would be the tighter statement on a whole column. This
+    # function is asked the same question at three grains -- a column,
+    # one part of a joined column, and the cores of an affixed one --
+    # and only the first of the three has a spelling count that counts
+    # the same cells. A bound that is true at one grain and quietly
+    # false at the other two is worse than a looser one true at all
+    # three.
+    if values > n_numeric:
+        raise _broken(
+            "Q17",
+            where,
+            f"{values} different number(s)",
+            f"{n_numeric} cell(s) that read as a number",
+        )
+    if used > 0 and values < 1:
+        raise _broken(
+            "Q17",
+            where,
+            "no different numbers at all",
+            f"the {used} value(s) the statistics used",
+        )
     return NumericFacts(
         percentiles=ladder,
         mean=mean,
         std=std,
         skew=skew,
         kurtosis=kurtosis,
+        n_distinct_values=values,
         std_unrepresentable=unrepresentable,
         n_zero=n_zero,
         n_negative=n_negative,

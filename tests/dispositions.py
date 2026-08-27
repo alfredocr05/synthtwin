@@ -327,6 +327,9 @@ PLAN4_REGIONS = {
     "padding": "### P4-D14 The padded-field width fact",
     "histogram": "### P4-D4.7 The value histogram (owner instruction 2026-08-26)",
     "kurtosis": "### P4-D4.8 The kurtosis (owner instruction 2026-08-26)",
+    "value-count": (
+        "### P4-D4.9 The count of different numbers (closes R-P4-20)"
+    ),
     "forms": "### P4-D18 A held-back value gets a stand-in that looks like one",
 }
 
@@ -352,6 +355,7 @@ FACTS_OUTSIDE_THE_VERSION_4_MATRIX = (
     ("numeric", "pad_widths"),
     ("numeric", "value_histogram"),
     ("numeric", "kurtosis"),
+    ("numeric", "n_distinct_values"),
     ("datetime", "resolution_mix"),
     ("free_text", "shape_forms"),
     ("label", "shape_forms"),
@@ -569,6 +573,21 @@ REGISTRY += _facts("numeric", APPROXIMATED, "mean", "std", "skew")
 # because version 4 published no such key, so it is registered here
 # against the Phase 4 plan the way the other later keys are.
 REGISTRY += (
+    # Plan P4-D4.9. REPORT-ONLY, and the reason is the one residual
+    # R-P4-20 itself gave: what was missing was a PUBLISHED count of
+    # different numbers, and the twin's ability to hold it is the
+    # snap's business rather than this fact's. The generator recounts
+    # the twin's own cells and NAMES the shortfall, so nothing is
+    # silent; what the description does not do is hold the twin to a
+    # count its own value-merging can make unreachable.
+    Fact(
+        "numeric",
+        "n_distinct_values",
+        REPORT_ONLY,
+        plan_words="how many different NUMBERS the column holds",
+        plan_region="value-count",
+        aliases=("value count", "different numbers"),
+    ),
     Fact(
         "numeric",
         "kurtosis",

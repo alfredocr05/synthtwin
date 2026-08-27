@@ -4623,6 +4623,30 @@ def _value_histogram(cells: _Cells, numbers: "list[float]") -> dict[str, int]:
     return published_counts
 
 
+def _distinct_numbers(cells: _Cells) -> int:
+    """How many different NUMBERS this column's numeric cells hold.
+
+    Guarantees: accepts a tally of one column; returns a count of at
+    least zero, never more than the count of different spellings.
+    Determinism: the answer depends only on the multiset of cells.
+    Raises nothing. No I/O of any kind.
+    """
+    # READ OFF THE RECORD, never asked of the text again. Every cell
+    # already carries the exact number it denotes -- `_classify`
+    # computed it once, which is structural rule A's whole point -- so
+    # calling `exact_of_spelling` here would classify all over again.
+    # A test counts how often a numeric column is read that way, and
+    # it is right to: the first draft of this asked twice per cell.
+    seen: "dict[tuple[int, tuple[str, ...], int], int]" = {}
+    for cell in cells.classified:
+        if cell.kind != parsing.NUMBER:
+            continue
+        if cell.exact is None:
+            continue
+        seen[cell.exact] = 1
+    return len(seen)
+
+
 def _numeric_details(cells: _Cells, whole: bool) -> dict[str, object]:
     """The published description of a numeric column."""
     numbers = cells.numbers
@@ -4630,6 +4654,24 @@ def _numeric_details(cells: _Cells, whole: bool) -> dict[str, object]:
     details: dict[str, object] = {
         "percentiles": _quantiles(numbers),
         "value_histogram": _value_histogram(cells, numbers),
+        # HOW MANY DIFFERENT NUMBERS, as distinct from how many
+        # different SPELLINGS (plan P4-D4.9, closing residual R-P4-20).
+        # `n_distinct` counts spellings and the contract defines it that
+        # way on every role, so `1` and `01` are two of them and one
+        # number. Nothing published bound the number count, and a twin
+        # could meet the spelling count with the leading-zero family
+        # while holding fewer numbers than the real column: measured on
+        # a 200-row column of tightly clustered values, the twin held
+        # all 166 published spellings and 163 numbers, with no
+        # deviation raised anywhere. A reader grouping rows by value
+        # met three groups that were not there.
+        #
+        # COUNTED BY THE EXACT NUMBER EACH CELL ALREADY CARRIES, which
+        # is how this module decides which cells are the same value.
+        # It is the exact number and not the rounded one, so two
+        # spellings that round together but denote different numbers
+        # count as two.
+        "n_distinct_values": _distinct_numbers(cells),
         "n_zero": len([value for value in numbers if value == 0.0]),
         # Every cell whose sign the text settles, not only the ones the
         # statistics could use. The sign of `(1e999)` ruled the count

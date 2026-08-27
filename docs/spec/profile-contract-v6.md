@@ -159,7 +159,7 @@ rule and the refusal in the loader section.
 **1.7a Version 6 is extended in place until the first release**
 (owner ruling 2026-08-26, plan amendment A-P4-41). Keys and a role
 were added to version 6 after it was declared -- `kurtosis`,
-`value_histogram`, `pad_widths`,
+`n_distinct_values`, `value_histogram`, `pad_widths`,
 `forced_codes`, `forced_measurements`, the census of written forms,
 `min_length` and `max_length` on the unrepresentable role,
 `value_histogram` on the numeric roles, and the joined-numbers role -- each time on the argument that no version 6
@@ -381,6 +381,15 @@ none may be inferred from another:
   values were used or where every value used is the same one, and
   invariant Q16 holds it between 1 and `n - 2 + 1/(n - 1)`, which is
   where every sample of `n` values lies whatever the values are.
+- `n_distinct_values` counts NUMBERS where `n_distinct` beside it
+  counts SPELLINGS, and the difference is the whole reason it exists.
+  `1` and `01` are two spellings and one number, so the two keys can
+  differ on any column whose values wear more than one form, and a
+  consumer reading `n_distinct` as a count of values is reading the
+  wrong key. Two spellings denote the same number exactly when the
+  canonical triple `sign * digits * 10 ** power` — the digits stripped
+  of both leading and trailing zeros — is equal, which is the same rule
+  section 7.5 states for comparing a declared value with a cell.
 - `value_histogram` writes BIN NUMBERS by that same grammar and in that
   same order. Its keys are bin numbers and not widths: the method
   divides the range between a column's published `min` and `max` into a
@@ -3696,6 +3705,7 @@ consumer off the role name.
 | `std` | number or `null` | ≥ 0 when a number | the sample standard deviation, divided by n−1 | APPROXIMATED |
 | `skew` | number or `null` | — | the moment-based skewness | APPROXIMATED |
 | `kurtosis` | number or `null` | Q16 below | the moment-based kurtosis, not the excess: a normal curve reads 3 | APPROXIMATED |
+| `n_distinct_values` | whole number | Q17 below | how many different NUMBERS the column holds, as distinct from how many different spellings | REPORT-ONLY |
 | `std_unrepresentable` | boolean | — | true when the exact spread is larger than binary64 can hold | EXACT-OBSERVABLE |
 | `n_zero` | integer ≥ 0 | — | parsed values equal to zero | EXACT-OBSERVABLE |
 | `n_negative` | integer ≥ 0 | — | present cells whose notation settles a negative sign, including ones no statistic could use | EXACT-OBSERVABLE |
@@ -4308,6 +4318,7 @@ The fourteen columns, abbreviated for width: `emp` `empty`, `unr`
 | `std` | | | | | | | | | ● | ● | ● | | | |
 | `skew` | | | | | | | | | ● | ● | ● | | | |
 | `kurtosis` | | | | | | | | | ● | ● | ● | | | |
+| `n_distinct_values` | | | | | | | | | ● | ● | ● | | | |
 | `std_unrepresentable` | | | | | | | | | ● | ● | ● | | | |
 | `n_zero` | | | | | | | | | ● | ● | ● | | | |
 | `n_negative` | | ● | | | | | | | ● | ● | ● | | | |
@@ -4350,7 +4361,7 @@ The fourteen columns, abbreviated for width: `emp` `empty`, `unr`
 | `parts` | | | | | | | | | | | | | | ● |
 | `separator` | | | | | | | | | | | | | | ● |
 
-**Sixty-six rows, one hundred and twenty-nine marked cells**, distributed
+**Sixty-seven rows, one hundred and thirty-two marked cells**, distributed
 `empty` 0, `numeric_unrepresentable` 9, `constant` 5, `binary` 5,
 `categorical` 6, `long_tail_labels` 5, `datetime` 13, `time_of_day`
 5, `count` 16, `continuous` 16, `affixed_number` 23, `identifier` 6,
@@ -4597,6 +4608,7 @@ block carries, the quantitative ones computed over the CORES.
 | `std` | number or `null` | ≥ 0 when a number | sample standard deviation of the parsed CORES, divided by n−1 | APPROXIMATED, as on `count` |
 | `skew` | number or `null` | — | moment-based skewness of the parsed CORES | APPROXIMATED, as on `count` |
 | `kurtosis` | number or `null` | Q16 | moment-based kurtosis of the parsed CORES | APPROXIMATED, as on `count` |
+| `n_distinct_values` | whole number | Q17 | how many different NUMBERS the CORES hold | REPORT-ONLY |
 | `std_unrepresentable` | boolean | — | true when the CORES' exact spread exceeds binary64 | EXACT-OBSERVABLE |
 | `n_zero` | integer ≥ 0 | — | parsed CORES equal to zero | EXACT-OBSERVABLE |
 | `n_negative` | integer ≥ 0 | — | CORES whose notation settles a negative sign, including ones no statistic could use | EXACT-OBSERVABLE |

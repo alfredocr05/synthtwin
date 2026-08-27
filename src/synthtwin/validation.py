@@ -377,6 +377,14 @@ _NOT_CHECKABLE_RESOLUTION_MIX = (
     "to write them the same way: a file that writes them all one way "
     "misses no obligation this description makes"
 )
+_NOT_CHECKABLE_VALUE_COUNT = (
+    "the description records how many different NUMBERS the real "
+    "column holds, as distinct from how many different ways of writing "
+    "them, and it asks no file to hold that many: where a twin's own "
+    "values merge, its report names the shortfall. A file holding a "
+    "different count of numbers misses no obligation this description "
+    "makes"
+)
 _NOT_CHECKABLE_HISTOGRAM = (
     "the description records the SHAPE of the real column's numbers -- "
     "how many of them fall between each pair of edges -- and the twin "
@@ -5928,6 +5936,24 @@ def _distinctness_checks(
     return checks
 
 
+def _quantitative_of(
+    facts: object,
+) -> "contract.NumericFacts | None":
+    """The numeric block of a column, whichever role carries it.
+
+    Three roles publish a ladder: the two numeric ones directly, the
+    affixed role over its CORES, and a joined column over each of its
+    parts. Only the first two are asked here, because a joined column's
+    parts each carry their own block and are checked in their own
+    right.
+    """
+    if isinstance(facts, contract.NumericFacts):
+        return facts
+    if isinstance(facts, contract.AffixedFacts):
+        return facts.numbers
+    return None
+
+
 def _lesser_or_held(
     name: str,
     fact: str,
@@ -7231,8 +7257,17 @@ def _moment_windows(
         [(highs[rank] - mean_low) ** 3 for rank in range(numbers)]
     ) / numbers
     reach = (numbers - 2) / math.sqrt(numbers - 1)
+    ceiling = numbers - 2 + 1 / (numbers - 1)
     if low_end <= 0.0:
         found["skew"] = (-reach, reach)
+        # AND THE TAIL WEIGHT'S OWN FALLBACK IN THE SAME BREATH (item
+        # P4-K-R1-F2). Returning here without it left the validator
+        # calling the kurtosis WITHHELD -- telling a reader that
+        # re-describing the file would not publish it -- on a
+        # description that publishes it and a generator that draws its
+        # full window.
+        if numbers >= 4:
+            found["kurtosis"] = (1.0, ceiling)
         return found
     ends = [
         cubed_low / (low_end**3),
@@ -7253,7 +7288,11 @@ def _moment_windows(
     #
     # AND THE SPREAD ENTERS TO THE FOURTH POWER, not the third, because
     # that is what makes the ratio free of the column's units.
-    ceiling = numbers - 2 + 1 / (numbers - 1)
+    # EACH DEVIATION IS DIVIDED BY THE SPREAD BEFORE IT IS RAISED, for
+    # the reason the generator's own window states: raising first is the
+    # same number in exact arithmetic and not the same computation in
+    # binary64, and a hundred ordinary values around 1e79 made this
+    # raise `OverflowError` where a report was owed (item P4-K-R1-F1).
     low_fourths: "list[float]" = []
     high_fourths: "list[float]" = []
     for rank in range(numbers):
@@ -7265,17 +7304,21 @@ def _moment_windows(
         if above < 0.0:
             nearest = -above
         furthest = max(-below, above, 0.0)
-        low_fourths = low_fourths + [nearest**4]
-        high_fourths = high_fourths + [furthest**4]
+        near = nearest / high_end
+        far = furthest / low_end
+        low_fourths = low_fourths + [near**4]
+        high_fourths = high_fourths + [far**4]
     tails_low = math.fsum(low_fourths) / numbers
     tails_high = math.fsum(high_fourths) / numbers
-    if low_end <= 0.0:
+    if not math.isfinite(tails_low) or not math.isfinite(tails_high):
         found["kurtosis"] = (1.0, ceiling)
         return found
-    found["kurtosis"] = (
-        max(1.0, tails_low / (high_end**4)),
-        min(ceiling, tails_high / (low_end**4)),
-    )
+    lowest = max(1.0, tails_low)
+    highest = min(ceiling, tails_high)
+    if lowest > highest:
+        found["kurtosis"] = (highest, lowest)
+        return found
+    found["kurtosis"] = (lowest, highest)
     return found
 
 
@@ -10308,7 +10351,13 @@ def _listings(
                     "numeric.value_histogram",
                     "",
                     _NOT_CHECKABLE_HISTOGRAM,
-                )
+                ),
+                Listing(
+                    column.name,
+                    "numeric.n_distinct_values",
+                    "",
+                    _NOT_CHECKABLE_VALUE_COUNT,
+                ),
             ]
         if isinstance(facts, contract.NumericFacts) and not _ladder_points(
             facts.percentiles.rungs

@@ -559,9 +559,29 @@ def test_the_crowded_ladder_of_p2c5f3_writes_its_published_map(
         other = [
             note
             for note in twin.deviations
-            if note.fact != "fraction_widths"
+            if note.fact not in ("fraction_widths", "n_distinct_values")
         ]
         assert other == [], seed
+        # AND THE SECOND THING IT CANNOT ALWAYS CARRY, which this
+        # column is the clearest demonstration of in the suite (plan
+        # P4-D4.9, closing residual R-P4-20). At seeds 3 and 17 the
+        # twin writes `-46` AND `-46.0`: two spellings of ONE number.
+        # The published count of different SPELLINGS is met exactly --
+        # the assertion four lines above proves it -- while the column
+        # holds seven numbers where the description publishes eight.
+        # Until `n_distinct_values` existed nothing anywhere said so,
+        # and a reader grouping these rows by value met seven groups
+        # with every check green.
+        numbers = len({parsing.exact_of_spelling(cell) for cell in present})
+        spoken_values = [
+            note
+            for note in twin.deviations
+            if note.fact == "n_distinct_values"
+        ]
+        if numbers != column["n_distinct_values"]:
+            assert spoken_values, seed
+        else:
+            assert spoken_values == [], seed
         # ...AND THE WIDTH THAT WENT UNPLACED IS NAMED, which is the
         # half a filter alone does not assert. A test that only
         # subtracts the deviation it expects would stay green if the
