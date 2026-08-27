@@ -3064,15 +3064,10 @@ def notation_reading(text):
 OVERFLOW_FIGURES = 310
 UNDERFLOW_PLACES = 327
 
-# The zero run takes a floor of its own, which the width floor does not
-# imply: the fraction spelling's FIGURE BODY grows as the walk
-# enumerates distinct values, so a zero run sized as whatever the asked
-# width leaves shrinks as the body grows and the value climbs back up.
-# 324 zeros underflows for a body of any length; 323 does not.  This is
-# a guard rather than a repair -- only nine distinct unholdable
-# fractions fit at the floor width, so no description reaches a tenth
-# there -- and it is stated so the spelling is unholdable by itself.
-UNDERFLOW_ZEROS = 324
+# The zero run is no longer a constant at all: it grows until the value
+# underflows, which is the only rule two implementations can agree on
+# without sharing a magic number, and the only one that does not write
+# some bodies wider than the description asks.
 
 # The six shapes a wide cell may take and what each one answers for --
 # method section G10.5 step 1's own table. The sign column names the
@@ -3186,7 +3181,7 @@ SHAPE_NARROWEST = {
     "too_large": 1,
     "too_small": 1,
     "whole_in_range": 1,
-    "fraction_in_range": 3,
+    "fraction_in_range": 2,
 }
 
 
@@ -3214,6 +3209,11 @@ def _unrepresentable_spelling(shape, sign, order, asked):
         body = str(order + 1)
         return lead + "0" * max(room - len(body), 0) + body
     if shape == "fraction_in_range":
+        # The leading zero is optional to the parser, so `.5` is a
+        # holdable TWO-character fraction and the narrowest this shape
+        # can write; nine of them exist at that width.
+        if room == 2:
+            return lead + "." + str((order % 9) + 1)
         body = f"{order + 1}.5"
         return lead + "0" * max(room - len(body), 0) + body
     if shape == "too_large":
@@ -3228,8 +3228,17 @@ def _unrepresentable_spelling(shape, sign, order, asked):
                 "freezes no case that asks for more"
             )
         figures = str(order + 1)
-        zeros = max(room - 2 - len(figures), UNDERFLOW_ZEROS)
-        return lead + "0." + "0" * zeros + figures
+        zeros = max(room - 2 - len(figures), 1)
+        candidate = lead + "0." + "0" * zeros + figures
+        # The zero run grows until the value actually underflows.  A
+        # single floor cannot answer this: behind 323 zeros the body
+        # `10` underflows and the body `9` does not, and a six-figure
+        # body needs only 319, so a floor high enough for the worst body
+        # writes every better one wider than the description asks.
+        while float(candidate) != 0.0:
+            zeros = zeros + 1
+            candidate = lead + "0." + "0" * zeros + figures
+        return candidate
     raise AssertionError(f"{shape!r} is not one of the six shapes of G10.5")
 
 
