@@ -9142,9 +9142,6 @@ def _partner_of(
     families: "list[str]",
     used: "dict[str, int]",
     windows: "list[tuple[int, int | None]]",
-    sizes: "list[int] | None" = None,
-    long_tail_line: int = 0,
-    carried: "dict[int, int] | None" = None,
 ) -> "str | None":
     """The fold-collision partner this value carries, when one is owed.
 
@@ -9214,69 +9211,23 @@ def _partner_of(
     # where eleven would do. Both passes keep the cyclic order the
     # method fixes, so a column whose parents all hold letters, or none
     # of which do, is laid out exactly as it was.
-    # AND A PARENT THAT KEEPS THE FOLDED LEVEL UNDER THE LONG-TAIL LINE
-    # IS TAKEN BEFORE ONE THAT DOES NOT (residual R-P4-36). A partner
-    # folds onto its parent, so the level the pair makes covers BOTH
-    # their rows -- and a level past the detection line is what makes a
-    # column a long tail of labels rather than free text. Measured
-    # before this pass existed: a column of twenty spellings at ten rows
-    # each beside five at four rows each is free text, and its twin
-    # paired a ten with a four, made a level of fourteen, and reprofiled
-    # as `long_tail_labels` with every published count met and no
-    # deviation named.
-    #
-    # THIS IS A PREFERENCE AND NOT A GUARANTEE, and the difference is
-    # measured rather than hedged. The walk takes partners in index
-    # order and gives each the first parent that fits, which is
-    # first-fit packing: on sizes 1, 2, 2, 2, 2 and 9 it reaches a
-    # largest level of eleven where pairing the nine onto the one
-    # would have reached ten. Doing better means choosing the ORDER
-    # partners are taken in, which decides twin bytes and is bounded by
-    # the same packing problem `_shared_out` met.
-    #
-    # WHAT IS GUARANTEED is the other half: `_levels_past_the_line`
-    # measures the FINISHED spellings, so a crossing is reported
-    # whether this preference avoided it, improved it, or never had a
-    # pairing that could.
-    under_first: "tuple[bool, ...]" = (True, False)
-    if sizes is None or long_tail_line < 1:
-        under_first = (False,)
-    for under in under_first:
-        for lettered in (True, False):
-            for step in range(folded):
-                parent_place = (place + step) % folded
-                if families[parent_place] != families[index]:
-                    continue
-                if under and sizes is not None:
-                    # ACCUMULATED, NOT PAIRWISE. A parent may already
-                    # carry partners from earlier in this walk, and the
-                    # level it makes covers all of them. Measured on
-                    # the shape a reviewer supplied: sizes 1, 2 and 9
-                    # pair as 1+2 and then 1+9, each pairwise sum under
-                    # a line of eleven, while the level they actually
-                    # make is twelve.
-                    already = sizes[parent_place]
-                    if carried is not None and parent_place in carried:
-                        already = carried[parent_place]
-                    if already + sizes[index] >= long_tail_line:
-                        continue
-                has_letter = False
-                for character in spellings[parent_place]:
-                    if character in _LETTERS:
-                        has_letter = True
-                        break
-                if has_letter != lettered:
-                    continue
-                found = _partner_from(
-                    parent_place, index, spellings, used, shortest, longest
-                )
-                if found is not None:
-                    if carried is not None and sizes is not None:
-                        already = sizes[parent_place]
-                        if parent_place in carried:
-                            already = carried[parent_place]
-                        carried[parent_place] = already + sizes[index]
-                    return found
+    for lettered in (True, False):
+        for step in range(folded):
+            parent_place = (place + step) % folded
+            if families[parent_place] != families[index]:
+                continue
+            has_letter = False
+            for character in spellings[parent_place]:
+                if character in _LETTERS:
+                    has_letter = True
+                    break
+            if has_letter != lettered:
+                continue
+            found = _partner_from(
+                parent_place, index, spellings, used, shortest, longest
+            )
+            if found is not None:
+                return found
     return None
 
 
@@ -9646,13 +9597,9 @@ def _text_cells(
         budget,
     )
     made: dict[str, int] = {}
-    # How many rows each parent's folded level covers so far, so the
-    # preference below reads the level rather than the pair.
-    carried: "dict[int, int]" = {}
     for index in range(total):
         partner = _partner_of(
-            index, folded, spellings, families, used, windows,
-            list(groups), long_tail_line, carried,
+            index, folded, spellings, families, used, windows
         )
         if partner is not None:
             taken = _take(partner, used)
@@ -9735,13 +9682,15 @@ def _text_cells(
                 "n_distinct_folded",
                 f"{folded} folded value(s), none of them a published level",
                 f"{crossed} of them cover(s) at least {long_tail_line} rows",
-                "reading this twin back describes this column as a long "
-                "tail of labels rather than as free text, because folding "
-                "its spellings made a group large enough to be published "
-                "as a label. Every count this description publishes is "
-                "still met. What changes is the KIND of column a reader "
-                "sees, so code that dispatches on the column's type "
-                "behaves differently here than on your table.",
+                "folding this twin's spellings made a group of cells "
+                "large enough that describing the twin again may call "
+                "this column a long tail of labels rather than free "
+                "text. Whether it does depends on how the twin is read "
+                "-- which words are called missing, and what share of "
+                "the rows a set of categories may cover -- so this "
+                "names what the twin HOLDS rather than predicting what "
+                "a later reading will say about it. Code that "
+                "dispatches on a column's type is what this reaches.",
             )
         ]
     return _grouped(groups, spellings), notes, carriers

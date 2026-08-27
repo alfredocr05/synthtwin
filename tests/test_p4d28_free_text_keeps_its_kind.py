@@ -11,20 +11,28 @@ THE CAUSE. A fold-collision partner folds onto its parent, so the pair
 makes a level covering BOTH their rows. The walk that chose the parent
 did so by a cyclic order over the families and never by the SIZES.
 
-THE REPAIR IS IN TWO HALVES, and the second exists because the first
-cannot always work:
+THE REPAIR IS THE REPORT, and a preference in the walk was built and
+WITHDRAWN. The residual asked for the fold-collision walk to prefer a
+parent that keeps the pair under the line. That was built, then
+extended to read the accumulated LEVEL after a reviewer supplied sizes
+whose pairwise sums pass and whose level does not -- and then MEASURED:
+across 150 randomly built free-text columns carrying fold collisions,
+none crossed the line and the preference changed no outcome, while on
+the two shapes where crossings do happen it could not prevent them.
+Machinery whose only measured effect is invisible does not belong in a
+walk three roles share.
 
-* the walk now PREFERS a parent that keeps the pair under the line,
-  which answers every column where such a parent exists;
-* where the sizes this run laid out leave NO such pairing -- the
-  partner groups may themselves be larger than the line, and which
-  group is which size is settled before this walk runs -- the twin's
-  report NAMES the change. That is the half the residual was opened
-  for: the column changed kind "and says nothing".
+So what is pinned here is the half that works: `_levels_past_the_line`
+measures the FINISHED spellings, and the twin NAMES the change. That
+is the residual's own complaint -- the column changed kind "and says
+nothing".
 
-Both halves are pinned here, and so is the honest limit: the first
-column below still reprofiles, because no pairing of its groups can
-stay under the line.
+AND THE SENTENCE SAYS ONLY WHAT IT KNOWS. An earlier wording asserted
+that reading the twin back DOES describe it as a long tail of labels,
+and that every published count is still met. A reviewer showed both can
+be false: declared missing words and the categorical share change what
+a later reading sees, and under some declarations the twin reprofiles
+as free text after all. The sentence now names what the twin HOLDS.
 """
 
 import collections
@@ -108,13 +116,14 @@ def _small_sizes() -> "list[str]":
     return rows
 
 
-def test_the_walk_keeps_the_twin_free_text_where_a_pairing_exists(
+def test_a_column_of_small_groups_keeps_its_kind(
     tmp_path: pathlib.Path,
 ) -> None:
-    """THE FIRST HALF. Small groups pair with small groups.
+    """An ordinary free-text column stays free text, and says nothing.
 
-    Before the preference the walk took parents in a cyclic order and
-    could pile a partner onto a group large enough to cross the line.
+    This is the common case, and the point of pinning it is that the
+    sentence below must NOT fire on it: a report that fires on every
+    free-text column tells nobody anything.
     """
     source, again, largest, notes = _round_trip(
         tmp_path, "small", _small_sizes()
@@ -130,11 +139,7 @@ def test_the_walk_keeps_the_twin_free_text_where_a_pairing_exists(
 def test_a_column_no_pairing_can_answer_says_so(
     tmp_path: pathlib.Path,
 ) -> None:
-    """THE SECOND HALF, and the honest limit beside it.
-
-    This column still reprofiles: its partner groups are themselves
-    larger than the line, and which group is which size is settled
-    before the walk runs. What it no longer does is stay silent.
+    """THE REPAIR. This column reprofiles, and now says so.
 
     The assertion is deliberately on BOTH facts. A later change that
     fixed the reprofiling would turn the first half of this test red,
@@ -153,7 +158,14 @@ def test_a_column_no_pairing_can_answer_says_so(
     said = [note for note in notes if "long tail of labels" in note.note]
     assert said, "the twin changed kind and said nothing"
     assert said[0].column == "comment"
-    assert "behaves differently here than on your table" in said[0].note
+    assert said[0].fact == "n_distinct_folded"
+    # THE SENTENCE HEDGES ON PURPOSE. It says a later reading MAY call
+    # this a long tail, because whether it does depends on how the twin
+    # is read -- a reviewer built a case where declared missing words
+    # make it read back as free text after all. A wording that asserted
+    # the outcome would be false there.
+    assert "may call this column" in said[0].note
+    assert "Code that dispatches on a column's type" in said[0].note
 
 
 def _cumulative_sizes() -> "list[str]":
@@ -177,28 +189,19 @@ def _cumulative_sizes() -> "list[str]":
 def test_a_parent_taking_two_partners_is_counted_by_its_level(
     tmp_path: pathlib.Path,
 ) -> None:
-    """THE PREFERENCE READS THE LEVEL, NOT THE PAIR.
+    """A PARENT TAKING TWO PARTNERS IS STILL REPORTED.
 
-    A reviewer supplied this shape against a first draft that compared
-    only `parent + partner`: two partners landed on one parent, each
-    pairwise sum under the line, and the level they made was twelve.
-    The accumulated check brings it to eleven.
-
-    ELEVEN IS STILL AT THE LINE, and this test says so rather than
-    pretending otherwise. The walk takes partners in index order and
-    gives each the first parent that fits -- first-fit packing --
-    where taking the largest partner first would have reached ten.
-    What is GUARANTEED is that the twin says so, which is the
-    assertion below.
+    A reviewer supplied this shape against a walk-side preference that
+    compared only `parent + partner`. That preference is gone -- it was
+    measured across 150 columns and changed nothing -- so what answers
+    this shape is the same thing that answers every other: the report
+    reads the FINISHED spellings, so it sees the level however the walk
+    happened to build it.
     """
     source, again, largest, notes = _round_trip(
         tmp_path, "cumulative", _cumulative_sizes()
     )
     assert source == taxonomy.ROLE_TEXT
-    assert largest <= 11, (
-        "the accumulated check regressed: a parent took partners "
-        f"summing to {largest}"
-    )
     if again != taxonomy.ROLE_TEXT:
         assert [note for note in notes if "long tail of labels" in note.note], (
             "the twin changed kind and said nothing"
