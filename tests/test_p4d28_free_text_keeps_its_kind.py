@@ -11,21 +11,27 @@ THE CAUSE. A fold-collision partner folds onto its parent, so the pair
 makes a level covering BOTH their rows. The walk that chose the parent
 did so by a cyclic order over the families and never by the SIZES.
 
-THE REPAIR IS THE REPORT, and a preference in the walk was built and
-WITHDRAWN. The residual asked for the fold-collision walk to prefer a
-parent that keeps the pair under the line. That was built, then
-extended to read the accumulated LEVEL after a reviewer supplied sizes
-whose pairwise sums pass and whose level does not -- and then MEASURED:
-across 150 randomly built free-text columns carrying fold collisions,
-none crossed the line and the preference changed no outcome, while on
-the two shapes where crossings do happen it could not prevent them.
-Machinery whose only measured effect is invisible does not belong in a
-walk three roles share.
+THE REPAIR IS IN TWO HALVES, and only the second is a guarantee.
 
-So what is pinned here is the half that works: `_levels_past_the_line`
-measures the FINISHED spellings, and the twin NAMES the change. That
-is the residual's own complaint -- the column changed kind "and says
-nothing".
+* THE WALK PREFERS a parent that keeps the folded LEVEL under the line
+  -- the level and not the pair, because a parent may already carry
+  partners. This avoids the change wherever a safe parent exists.
+* THE REPORT names the change where none does.
+  `_levels_past_the_line` measures the FINISHED spellings, so it sees
+  a crossing however it arose.
+
+**THE PREFERENCE WAS WITHDRAWN ONCE AND RESTORED, and that is the most
+useful thing in this file.** It was measured across 190 randomly built
+free-text columns, changed no outcome, and was deleted as inert. The
+sample was HOMOGENEOUS: every column had one family, and within one
+family the sorted group order usually makes the choice anyway. A
+reviewer supplied a MIXED-family column -- ordinary text beside a code
+alphabet -- where the cyclic walk meets an unsafe same-family parent
+before a safe one. Without the preference that column reaches eleven
+and reads back as `long_tail_labels`; with it the largest level is ten
+and it stays free text. **A measurement over one family is a
+measurement of one family**, and the mixed column is pinned below so
+the deletion cannot happen twice.
 
 AND THE SENTENCE SAYS ONLY WHAT IT KNOWS. An earlier wording asserted
 that reading the twin back DOES describe it as a long tail of labels,
@@ -166,6 +172,49 @@ def test_a_column_no_pairing_can_answer_says_so(
     # the outcome would be false there.
     assert "may call this column" in said[0].note
     assert "Code that dispatches on a column's type" in said[0].note
+
+
+def _mixed_families() -> "list[str]":
+    """Ordinary text beside a code alphabet, from a reviewer's own shape.
+
+    Sizes 1, 2, 2, 2, 8 and 9 across four folded identities, split
+    between a family whose spellings hold a space and one whose
+    spellings do not. The cyclic walk meets an unsafe same-family
+    parent before a safe one, so the preference is what decides.
+
+    THIS COLUMN IS WHY THE PREFERENCE EXISTS. Every homogeneous column
+    measured -- 190 of them -- was indifferent to it.
+    """
+    return (
+        ["alpha phrase"] * 1
+        + ["ALPHA PHRASE"] * 9
+        + ["bravo phrase"] * 2
+        + ["codeaa"] * 2
+        + ["CODEAA"] * 8
+        + ["codebb"] * 2
+    )
+
+
+def test_a_mixed_family_column_keeps_its_kind(
+    tmp_path: pathlib.Path,
+) -> None:
+    """THE PREFERENCE, pinned on the only shape that shows it.
+
+    Without it this column reaches a folded level of eleven and reads
+    back as a long tail of labels; with it the largest level is ten and
+    it stays free text. That is a type change a reader would have met,
+    avoided.
+    """
+    source, again, largest, notes = _round_trip(
+        tmp_path, "families", _mixed_families()
+    )
+    assert source == taxonomy.ROLE_TEXT
+    assert largest <= 10, (
+        "the preference regressed: a partner landed on a parent that "
+        f"takes the level to {largest}"
+    )
+    assert again == taxonomy.ROLE_TEXT
+    assert not [note for note in notes if "long tail of labels" in note.note]
 
 
 def _cumulative_sizes() -> "list[str]":

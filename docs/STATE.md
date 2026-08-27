@@ -28,7 +28,7 @@ without the same help.
 | branch | `phase-4-plan` (never merged; `main` is pull-request only) |
 | phase | **Phase 4 — comprehensive column handling.** Current. |
 | plan | `docs/plans/phase-4-columns.md` |
-| suite | 3,928 collected / 48 skipped |
+| suite | 3,929 collected / 48 skipped |
 | lint | **183 ruff errors, not yet triaged** — see "What is broken right now" |
 
 ## What is being built right now
