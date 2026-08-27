@@ -478,6 +478,369 @@
         "2670401546021029124"
       ]
     },
+    "joined_readings": {
+      "cells": [
+        "33/40",
+        "37/31",
+        "46/25",
+        "39/37",
+        "35/29",
+        "57/45",
+        "26/35",
+        "26/27",
+        "24/25",
+        "30/26",
+        "38/45",
+        "50/25"
+      ],
+      "column": {
+        "detection_evidence": "written by hand in this method specification's own neutral vocabulary; no value here comes from any table.",
+        "missing_by_class": {
+          "(blank)": 0,
+          "(date-sentinel)": 0,
+          "(declared-missing)": 0,
+          "(numeric-sentinel)": 0,
+          "(text-code)": 0,
+          "(withheld)": 0
+        },
+        "missing_by_source": {},
+        "n_contradictory": 0,
+        "n_distinct": 12,
+        "n_distinct_folded": 12,
+        "n_joined": 12,
+        "n_missing": 0,
+        "n_missing_blank": 0,
+        "n_missing_withheld": 0,
+        "n_not_numeric": 12,
+        "n_numeric": 0,
+        "n_out_of_range": 0,
+        "n_parts": 2,
+        "n_present": 12,
+        "n_sentinel_candidates_unpublished": 0,
+        "n_unparsed": 0,
+        "name": "column_1",
+        "part_above": [
+          7
+        ],
+        "part_agreements": [
+          {
+            "decimal": "0.4323",
+            "exact": "4323/10000",
+            "float64": 0.4323,
+            "proof": "nearest"
+          }
+        ],
+        "part_min_widths": [
+          2,
+          2
+        ],
+        "parts": [
+          {
+            "fraction_widths": {},
+            "integer_valued": true,
+            "kurtosis": {
+              "decimal": "2.645135996997432",
+              "exact": "330641999624679/125000000000000",
+              "float64": 2.645135996997432,
+              "proof": "nearest"
+            },
+            "mean": {
+              "decimal": "36.666666666666664",
+              "exact": "4583333333333333/125000000000000",
+              "float64": 36.666666666666664,
+              "proof": "nearest"
+            },
+            "n_distinct_values": 9,
+            "n_left_out_of_statistics": 0,
+            "n_negative": 0,
+            "n_negative_unrepresentable": 0,
+            "n_rows": 12,
+            "n_used_in_statistics": 12,
+            "n_zero": 0,
+            "numeric_share": {
+              "decimal": "1",
+              "exact": "1",
+              "float64": 1.0,
+              "proof": "nearest"
+            },
+            "numeric_styles": {
+              "plain": 12
+            },
+            "pad_widths": {},
+            "percentiles": {
+              "max": {
+                "decimal": "57",
+                "exact": "57",
+                "float64": 57.0,
+                "proof": "nearest"
+              },
+              "min": {
+                "decimal": "24",
+                "exact": "24",
+                "float64": 24.0,
+                "proof": "nearest"
+              },
+              "p01": {
+                "decimal": "24",
+                "exact": "24",
+                "float64": 24.0,
+                "proof": "nearest"
+              },
+              "p05": {
+                "decimal": "24",
+                "exact": "24",
+                "float64": 24.0,
+                "proof": "nearest"
+              },
+              "p10": {
+                "decimal": "24.2",
+                "exact": "121/5",
+                "float64": 24.2,
+                "proof": "nearest"
+              },
+              "p25": {
+                "decimal": "29",
+                "exact": "29",
+                "float64": 29.0,
+                "proof": "nearest"
+              },
+              "p50": {
+                "decimal": "36.5",
+                "exact": "73/2",
+                "float64": 36.5,
+                "proof": "nearest"
+              },
+              "p75": {
+                "decimal": "40",
+                "exact": "40",
+                "float64": 40.0,
+                "proof": "nearest"
+              },
+              "p90": {
+                "decimal": "50.8",
+                "exact": "254/5",
+                "float64": 50.8,
+                "proof": "nearest"
+              },
+              "p95": {
+                "decimal": "54.25",
+                "exact": "217/4",
+                "float64": 54.25,
+                "proof": "nearest"
+              },
+              "p99": {
+                "decimal": "56.45",
+                "exact": "1129/20",
+                "float64": 56.45,
+                "proof": "nearest"
+              }
+            },
+            "skew": {
+              "decimal": "0.5765321212279275",
+              "exact": "230612848491171/400000000000000",
+              "float64": 0.5765321212279275,
+              "proof": "nearest"
+            },
+            "std": {
+              "decimal": "10.236595077850778",
+              "exact": "5118297538925389/500000000000000",
+              "float64": 10.236595077850778,
+              "proof": "nearest"
+            },
+            "std_unrepresentable": false,
+            "value_histogram": {}
+          },
+          {
+            "fraction_widths": {},
+            "integer_valued": true,
+            "kurtosis": {
+              "decimal": "1.685945422653337",
+              "exact": "1685945422653337/1000000000000000",
+              "float64": 1.685945422653337,
+              "proof": "nearest"
+            },
+            "mean": {
+              "decimal": "32.916666666666664",
+              "exact": "4114583333333333/125000000000000",
+              "float64": 32.916666666666664,
+              "proof": "nearest"
+            },
+            "n_distinct_values": 5,
+            "n_left_out_of_statistics": 0,
+            "n_negative": 0,
+            "n_negative_unrepresentable": 0,
+            "n_rows": 12,
+            "n_used_in_statistics": 12,
+            "n_zero": 0,
+            "numeric_share": {
+              "decimal": "1",
+              "exact": "1",
+              "float64": 1.0,
+              "proof": "nearest"
+            },
+            "numeric_styles": {
+              "plain": 12
+            },
+            "pad_widths": {},
+            "percentiles": {
+              "max": {
+                "decimal": "45",
+                "exact": "45",
+                "float64": 45.0,
+                "proof": "nearest"
+              },
+              "min": {
+                "decimal": "25",
+                "exact": "25",
+                "float64": 25.0,
+                "proof": "nearest"
+              },
+              "p01": {
+                "decimal": "25",
+                "exact": "25",
+                "float64": 25.0,
+                "proof": "nearest"
+              },
+              "p05": {
+                "decimal": "25",
+                "exact": "25",
+                "float64": 25.0,
+                "proof": "nearest"
+              },
+              "p10": {
+                "decimal": "25",
+                "exact": "25",
+                "float64": 25.0,
+                "proof": "nearest"
+              },
+              "p25": {
+                "decimal": "25",
+                "exact": "25",
+                "float64": 25.0,
+                "proof": "nearest"
+              },
+              "p50": {
+                "decimal": "30",
+                "exact": "30",
+                "float64": 30.0,
+                "proof": "nearest"
+              },
+              "p75": {
+                "decimal": "40",
+                "exact": "40",
+                "float64": 40.0,
+                "proof": "nearest"
+              },
+              "p90": {
+                "decimal": "44.5",
+                "exact": "89/2",
+                "float64": 44.5,
+                "proof": "nearest"
+              },
+              "p95": {
+                "decimal": "45",
+                "exact": "45",
+                "float64": 45.0,
+                "proof": "nearest"
+              },
+              "p99": {
+                "decimal": "45",
+                "exact": "45",
+                "float64": 45.0,
+                "proof": "nearest"
+              }
+            },
+            "skew": {
+              "decimal": "0.43445149772021224",
+              "exact": "5430643721502653/12500000000000000",
+              "float64": 0.43445149772021224,
+              "proof": "nearest"
+            },
+            "std": {
+              "decimal": "7.821396449755148",
+              "exact": "1955349112438787/250000000000000",
+              "float64": 7.821396449755148,
+              "proof": "nearest"
+            },
+            "std_unrepresentable": false,
+            "value_histogram": {}
+          }
+        ],
+        "position": 1,
+        "quality_state": "ok",
+        "remarks": [],
+        "role": "joined_numbers",
+        "sentinel_verdicts": [],
+        "separator": "/",
+        "statistical_type": "joined_numbers",
+        "structural_role": "data"
+      },
+      "content": [
+        "24/25",
+        "26/27",
+        "26/35",
+        "30/26",
+        "33/40",
+        "35/29",
+        "37/31",
+        "38/45",
+        "39/37",
+        "46/25",
+        "50/25",
+        "57/45"
+      ],
+      "csv_bytes": "33/40\n37/31\n46/25\n39/37\n35/29\n57/45\n26/35\n26/27\n24/25\n30/26\n38/45\n50/25\n",
+      "float64": [],
+      "why": "the first frozen case for the joined role, and the one that pins the PAIRING WALK of G6B.4 -- the only search in this method, and the only place where synthtwin reproduces structure between two quantities at all. Each position is built by the numeric rules over its own view, and the walk then decides which number of one meets which of the other, moving only the LAST position so that neither position's multiset can change. IT IS NOT A COLUMN THE WALK CAN IGNORE, and it was chosen against that check rather than assumed. A first draft published an agreement of 0.9983, which a rank-for-rank start already meets, so removing the walk entirely changed no committed byte: that case pinned the sort and the start rule and nothing else. This column publishes 0.4323, holds the earlier position above the later in only seven of twelve rows, and repeats values in both positions. WHAT IT PINS, MEASURED RULE BY RULE. Withdrawn one at a time, these move its cells: the walk itself, six; the restart of the reserve cursor at word zero, six; the VALUE of the 0.4 threshold, eleven, because moving it to 0.9 pulls this column into the permutation branch; accept-on-equal against strict improvement, five; that a try ceiling EXISTS at all, five; and the `part_above` term of the distance, five. FIVE RULES IT DOES NOT REACH, which stand on the method's word alone: the ceiling's exact value, since 100*T writes what 200*T writes; the skip when both drawn seats hold one spelling; the 0.0005 stop, since even 0.0 writes the same bytes; that a start rule exists AT ALL, since deleting both branches is identical at an agreement of 0.4323; and the scaling of the distinct-cell term. The rank ORIGIN is in neither list on purpose: it is not byte-determining in either direction, so no case can pin it. AND THE WALK DOES NOT CONVERGE ON THIS COLUMN, which the case freezes rather than hides. The twin meets `part_above` exactly, seven of twelve, and reaches a rank agreement of 0.2226 against the 0.4323 published: it stops at its try ceiling, never on distance. The twin's own report does not name the agreement (residual R-P4-44); `synthtwin validate` does.",
+      "word_budget": {
+        "content": 31,
+        "placement": 11
+      },
+      "words": [
+        "15748752049046439706",
+        "1052754991355682497",
+        "4631623576966815744",
+        "12064659840558517754",
+        "10657191057255707380",
+        "10378248564851026865",
+        "10021198239630938960",
+        "6883748916460414070",
+        "18067353361653053739",
+        "11892363277122465327",
+        "602886262687784400",
+        "8704353156322424958",
+        "6379347427865422855",
+        "3598830946331392386",
+        "10329267094791843675",
+        "6649749446851944564",
+        "9555332664539838988",
+        "1525621960858135254",
+        "2224251045539429228",
+        "16128073529113414212",
+        "2556883604043696129",
+        "3134567652162207724",
+        "7622991860140729128",
+        "4021366232906136322",
+        "16488111908451590613",
+        "11196021744312784249",
+        "11554654619999588298",
+        "7340016323151300764",
+        "14290091057079116538",
+        "6838773607184501349",
+        "2127311776424462157",
+        "16897824151333146762",
+        "12419665989193173379",
+        "5574751419839220782",
+        "448177247989247182",
+        "2572030107802451391",
+        "7226625725583478954",
+        "4675396337978475975",
+        "5276709886071411467",
+        "4587383225195023053",
+        "3413080460610791867",
+        "3363974449913449302"
+      ]
+    },
     "leap_second_endpoint": {
       "cells": [
         "2016-12-31T23:34:46",

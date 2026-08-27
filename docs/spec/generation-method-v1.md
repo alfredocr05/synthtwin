@@ -1702,15 +1702,23 @@ reproduces every published pairing fact. What it targets is the pairs
 involving the last position; what it reaches on those is bounded by
 `0.0005` or by the try ceiling, whichever stops it first.
 
-**4. The distance.** Ranks are ZERO-BASED: the smallest value of a
-position takes rank `0` and the largest takes rank `T - 1`, with tied
-values sharing the average of the ranks they span. Saying only "ties
-share the average" leaves the origin open, and the one-based
-convention is at least as common — it writes different cells, so it is
-pinned here. The middle is `m = (T - 1) / 2`, which is the mean of
-those ranks, and the divisors `spread[p] = Σ_rows (rank[p][r] − m)²`
-are computed once and never move, because no swap changes a position's
-multiset of ranks. Then:
+**4. The distance.** Ranks here are ZERO-BASED — the smallest value of
+a position takes rank `0` and the largest `T - 1`, with tied values
+sharing the average of the ranks they span — and the middle is
+`m = (T - 1) / 2`, the mean of those ranks. The divisors
+`spread[p] = Σ_rows (rank[p][r] − m)²` are computed once and never
+move, because no swap changes a position's multiset of ranks.
+
+**The ORIGIN is a convention and not a byte-determining rule, and an
+earlier revision of this passage claimed otherwise.** Every use of a
+rank here is a deviation from the middle, and the whole expression is
+translation-invariant: an implementation using one-based ranks WITH
+their own middle `(T + 1) / 2` computes the same deviations, the same
+spreads, the same numerators, the same distance, and writes the same
+cells. What must not be done is to move the ranks and leave the middle
+where it was — that is not the other convention, it is a defect, and
+measuring it was how the false claim got in. Either convention is
+conforming provided its middle matches it. Then:
 
 ```
 away =  |distinct_cells − wanted| / T
@@ -4489,10 +4497,11 @@ fail.
 **Two committed JSON files, and ONE oracle** (review item P2-C3-F3).
 `tests/reference/generation-reference-vectors.json` carries the nine
 cases G14.3 names first and
-`tests/reference/generation-branch-vectors.json` carries the ten it
+`tests/reference/generation-branch-vectors.json` carries the eleven it
 names after them (five, until owner decision 11 added the
 pooled-spelling case; then the month-span case of plan P4-D4.3, and
-then the long-tail, clock and affixed cases of residual R-P4-17). This sentence carried the
+then the long-tail, clock, affixed and joined cases of residual
+R-P4-17). This sentence carried the
 count `six` while the file held seven, which is the same drift G14.3's
 own warning is about, and it is written here as a growth list so the
 next case has an obvious place to be recorded. Both are written by
@@ -4579,9 +4588,9 @@ item P2-C3-F3), and one more for the published end the ordinal space
 cannot hold (review item P2-C4-C3), and the pooled remainder written by
 its own value beside a whole number wider than the fixed-point window
 (owner decision 11), and one for the second SPAN resolution when it was
-added (plan P4-D4.3 item 2), and three for three of the four roles
-Phase 4 added (residual R-P4-17). **All nineteen are required.** The
-first nine are the first committed file and the last ten the second
+added (plan P4-D4.3 item 2), and four for the four roles Phase 4 added
+(residual R-P4-17, now closed). **All twenty are required.** The
+first nine are the first committed file and the last eleven the second
 (G14.2). **The table below is the inventory itself, and it was short of
 the count above by one row from the day the pooled-spelling case was
 added** (review item P4-DATE4-F3): an implementer who built exactly the
@@ -4609,6 +4618,7 @@ case passed, which is the failure the count exists to prevent:
 | `long_tail_levels` | G8.1 to G8.4 reached through `long_tail_labels`: the ADMISSION of a folded count above the categorical ceiling, and the G8.3 stand-ins taken as words because a form census covers the held-back rows. It pins admission and routing into the shared label machinery, not a generator branch of the role's own |
 | `clock_ladder` | G7A end to end on a column with NO SLACK: eleven seconds hold its eleven parsed cells, so the all-different repair must place every interior rank on the one ordinal left for it, and a stand-in stands beside them |
 | `affixed_brackets` | G6A's core view: the CELL class counts and the CORE class counts are not the same set, and only the second reaches G5 and G6. The pair is two-sided with differing characters, so the order of the wrap is pinned too |
+| `joined_readings` | G6B.4's PAIRING WALK, the only search in this method: each position built by the numeric rules over its own view, and the last position then walked, from a rank-for-rank start, toward a published agreement of 0.4323 that it does not reach |
 
 Each case is small enough to read by hand — at most a few dozen cells —
 because a vector nobody can check by hand is a vector nobody checks.
@@ -4826,9 +4836,70 @@ was overwriting the field with a count of the finished cells, which
 puts a fact about the twin where a profiler publishes a fact about the
 table. A case may now publish its own, and this one does.
 
-**One role remains open**: `joined_numbers`. It has a method section
-(G6B), so it is buildable; until it is frozen the count above stays at
-nineteen with a known gap rather than pretending to cover the phase.
+**Why the twentieth exists** (2026-08-27; residual R-P4-17, and it
+closes it). `joined_readings` pins G6B.4's pairing walk — the only
+SEARCH in this method, and the only place synthtwin reproduces
+structure between two quantities at all.
+
+**It was designed against a vacuity check rather than assumed to
+work.** The first draft published an agreement of 0.9983, and a
+rank-for-rank start already agrees at about 1.0, so the walk found
+nothing to do: removing step 5 entirely left every committed byte where
+it was, and the case would have pinned only the sort and the start
+rule. The committed column publishes **0.4323** instead, holds the
+earlier position above the later in only seven of twelve rows, and
+repeats values in both positions; measured with step 5 withdrawn, six
+of its twelve cells move, and that is the mutant.
+
+**And writing it validated the section.** The walk is 237 lines in the
+shipped generator; the oracle's is written from G6B.4's text alone —
+the sort key, the binary64 sequential mean, the two thresholds, the
+last position moving, the three-term distance and its scaling, the
+zero-based ranks, the fixed divisors, the `0.0005` stop, the `200 * T`
+ceiling, two words a try from a cursor that restarts at zero, the skip
+conditions, accept-on-equal and the exact restore — and it writes the
+same bytes. A section that could not be reimplemented from its own
+words would have shown here.
+
+**WHAT ONE CASE PINS IS NOT THE WHOLE WALK, and the difference is
+measured rather than left to be assumed.** The committed column was
+chosen against that check: a first draft published an agreement of
+0.9983, which a rank-for-rank start already meets, so withdrawing the
+walk entirely changed no byte and the case pinned the sort and the
+start rule and nothing else. The committed one publishes **0.4323**,
+holds the earlier position above the later in only seven of twelve
+rows, and repeats values in both positions.
+
+Withdrawn one at a time, these move its cells, and are pinned:
+
+| rule of G6B.4 | cells moved |
+|---|---|
+| the walk itself (step 5) | 6 |
+| the reserve cursor's restart at word zero | 6 |
+| the `0.4` threshold's VALUE — moving it to `0.9` pulls this column into the permutation branch | 11 |
+| accept-on-equal against strict improvement | 5 |
+| that a try ceiling EXISTS (`200 * T` down to `1 * T`) | 5 |
+| the `part_above` term of the distance | 5 |
+
+**And these do not move its cells, so they stand on this document's
+word alone:** the ceiling's exact VALUE (`100 * T` writes the same
+bytes as `200 * T`); the skip when both drawn seats hold one spelling;
+the `0.0005` stop (even `0.0` writes the same bytes, because this
+column never stops on distance); that a start rule exists AT ALL
+(deleting both branches is identical, because an agreement of 0.4323
+takes neither); and the scaling of the distinct-cell term.
+
+The rank origin is absent from both lists on purpose: as stated in
+G6B.4 step 4 it is not byte-determining in either direction, so no case
+can pin it and none should claim to.
+
+Reaching the five unpinned rules needs further columns shaped for them.
+Saying so is the rule about silent coverage: a case that claims a whole
+search and holds up part of one is the failure the frozen files exist
+to prevent.
+
+**All four roles Phase 4 added now have a frozen case**, which is what
+residual R-P4-17 asked for.
 
 ### G14.4 What the vectors do NOT freeze
 

@@ -2044,8 +2044,70 @@ Opened by this plan, each a limit accepted rather than work forgotten:
   and the shipped generator reports the miss. No other case's cells
   moved.
 
-  One role remains: `joined_numbers`. It has a method section (G6B), so
-  it is buildable and blocked on nothing but the work.
+  **AND THE FOURTH, WHICH CLOSES THIS RESIDUAL: `joined_numbers`.**
+  `joined_readings` pins G6B.4's pairing walk -- the only SEARCH in the
+  method, and the only place synthtwin reproduces structure between two
+  quantities at all.
+
+  It was designed against the vacuity check rather than assumed to
+  work. The first draft published an agreement of 0.9983, and a
+  rank-for-rank start already agrees at about 1.0, so removing the walk
+  entirely left every committed byte where it was: the case would have
+  pinned the sort and the start rule and nothing else. The committed
+  column publishes 0.4323 -- just above the start rule's 0.4 threshold
+  -- holds the earlier position above the later in only seven of twelve
+  rows, and repeats values in both positions. With step 5 withdrawn six
+  of its twelve cells move, and that is the mutant.
+
+  **What it pins was then measured rule by rule, twice, because the
+  first measurement was wrong.** Withdrawn one at a time, six rules
+  move its cells: the walk itself (six cells), the cursor restart
+  (six), the VALUE of the 0.4 threshold (eleven, since 0.9 pulls this
+  column into the permutation branch), accept-on-equal (five), that a
+  try ceiling exists at all (five), and the `part_above` term (five).
+  Five do NOT and are named in the section rather than left implied:
+  the ceiling's exact value, the same-spelling skip, the 0.0005 stop,
+  that a start rule exists AT ALL, and the scaling of the
+  distinct-cell term.
+
+  **The rank ORIGIN belongs in neither list, and finding that out
+  corrected a false claim in the method.** G6B.4 said the zero-based
+  origin writes different cells and is pinned here. It does not: rank
+  agreement is translation-invariant, so an implementation using
+  one-based ranks WITH their own middle of (T+1)/2 writes identical
+  bytes -- verified. What I had measured was ranks moved and the
+  middle left where it was, which is not the other convention but a
+  defect, and it produced a two-cell difference that looked like
+  evidence. The reviewer caught it. The section now says the origin is
+  a convention that must be paired with its own middle, and no case
+  claims to pin it.
+
+  **One reviewer finding was checked and does not hold.** It reported
+  that both parts publish an empty `value_histogram` where the
+  profiler would emit twelve bins each, making the case unproducible.
+  That is true at the DEFAULT small-cell floor of one. These vectors
+  are recorded at a floor of ELEVEN, where a twelve-row column puts
+  every bin under the floor and the census is withheld whole: measured
+  at both floors, floor one gives nine and five bins and floor eleven
+  gives `{}` for both parts, which is what the case publishes.
+
+  **Writing it validated the section it was built from.** The walk is
+  237 lines in the shipped generator. The oracle's is written from
+  G6B.4's text alone -- the sort key, the binary64 sequential mean, the
+  two thresholds, the last position moving, the three-term distance and
+  the scaling of each term, the zero-based ranks, the fixed divisors,
+  the 0.0005 stop, the 200*T ceiling, two words a try from a cursor
+  that restarts at zero, the skip conditions, accept-on-equal and the
+  exact restore -- and it writes the same bytes. A section that could
+  not be reimplemented from its own words would have failed here, and
+  four of the five gaps the reviewer found in that section were exactly
+  such gaps, found before this was attempted.
+
+  **R-P4-17 IS CLOSED.** All four roles Phase 4 added have a frozen
+  case with a committed failing mutant. The limit stated above stands:
+  three of the four method sections were written from the shipped
+  implementation, so they buy reviewability rather than independence,
+  and that is recorded in the sections themselves.
 
   **A LIMIT OF THIS RECOVERY, STATED.** These sections were written by
   reading the shipped generator, which is the inverse of the order this

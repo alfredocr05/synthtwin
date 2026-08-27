@@ -4250,6 +4250,282 @@ def clock_repair(ordinal, last, ceiling):
     return ordinal
 
 
+def _field_value(published):
+    """The binary64 a published field stands for.
+
+    Every float this file publishes is written as a field -- its exact
+    decimal, its rational, and the binary64 it rounds to -- so that the
+    proof layer can show the rounding. Arithmetic takes the binary64,
+    because that is the number the shipped code holds.
+    """
+    if isinstance(published, dict):
+        return published[FLOAT64]
+    return float(published)
+
+
+def joined_part_view(column, place):
+    """One position of a joined column, as a numeric column (G6B.2).
+
+    The same trick the affixed core view plays, for the same reason: a
+    cell reading `120/80` is not itself a number, so the universal
+    counts say the column holds none, while the block for a position
+    answers for that position's numbers alone.  Distinctness is NOT
+    swapped -- the numeric machinery reads the whole column's, which is
+    what the shipped part view leaves in place.
+    """
+    view = dict(column)
+    view.update(column["parts"][place])
+    view["n_present"] = column["n_joined"]
+    view["n_numeric"] = column["n_joined"]
+    view["n_not_numeric"] = 0
+    view["n_out_of_range"] = 0
+    view["n_contradictory"] = 0
+    return view
+
+
+def joined_ranks(values):
+    """Zero-based ranks, ties sharing the average of the ranks they span.
+
+    G6B.4 step 4 pins the ORIGIN as well as the tie rule: the smallest
+    value takes rank 0 and the largest takes `T - 1`.  The one-based
+    convention is at least as common and writes different cells.
+    """
+    order = sorted(range(len(values)), key=lambda seat: values[seat])
+    ranks = [0.0] * len(values)
+    at = 0
+    while at < len(order):
+        last = at
+        while (
+            last + 1 < len(order)
+            and values[order[last + 1]] == values[order[at]]
+        ):
+            last = last + 1
+        shared = (at + last) / 2.0
+        for seat in range(at, last + 1):
+            ranks[order[seat]] = shared
+        at = last + 1
+    return ranks
+
+
+def joined_cell(held, column, row):
+    """One finished cell: each position padded, the separator between."""
+    written = ""
+    for place in range(column["n_parts"]):
+        if place:
+            written = written + column["separator"]
+        text = held[place][row]
+        width = column["part_min_widths"][place]
+        while len(text) < width:
+            text = "0" + text
+        written = written + text
+    return written
+
+
+def joined_part_budget(column, place):
+    """The content words one position of a joined column draws (G4.3)."""
+    view = joined_part_view(column, place)
+    view["role"] = "continuous"
+    content, _placement = word_budget(view, column["n_joined"])
+    return content
+
+
+def _joined_content(column):
+    """The content list of a joined column -- method section G6B.
+
+    Each position is built by the numeric rules over its own view, the
+    reserve is what remains, and the pairing walk then decides which
+    number of one position meets which of the next.
+    """
+    n_parts = column["n_parts"]
+    n_joined = column["n_joined"]
+    words = list(column["_content_words"])
+    at = 0
+    drawn = []
+    for place in range(n_parts):
+        view = joined_part_view(column, place)
+        budget = joined_part_budget(column, place)
+        view["_content_words"] = words[at: at + budget]
+        view["_rungs"] = column["_rungs"][place]
+        at = at + budget
+        values, _chain, _missed = _numeric_content(view)
+        drawn.append(values)
+    # THE RESERVE is everything the positions did not take: G4.3 sets
+    # aside `max(n_joined - 1, 0)` for every position after the first.
+    reserve = words[at:]
+    # WHAT THE WALK IS ASKED FOR is not the whole column's count where
+    # any cell did not split: the stand-ins built afterwards are all one
+    # spelling and add exactly one.
+    invented = 1 if column["n_present"] > n_joined else 0
+    wanted = max(column["n_distinct"] - invented, 0)
+    held = repaired_pairing(drawn, column, wanted, reserve)
+    content = [joined_cell(held, column, row) for row in range(n_joined)]
+    stragglers = column["n_present"] - n_joined
+    if stragglers:
+        raise AssertionError(
+            "this case builds no stand-ins; a joined column with cells "
+            "that did not split needs the walk of G6B.5 and a case of "
+            "its own"
+        )
+    return content
+
+
+def repaired_pairing(drawn, column, wanted, words):
+    """Which numbers meet in a row -- method section G6B.4.
+
+    Written from that section and from nothing else.  Every step swaps
+    two rows' numbers within ONE position, so each position keeps its
+    multiset and only the pairing moves.
+    """
+    total = column["n_joined"]
+    last = column["n_parts"] - 1
+    agreements = column["part_agreements"]
+    above_targets = column["part_above"]
+    # STEP 2's mean, computed the way the shipped code computes it: a
+    # binary64 running sum in published order, divided once.  The
+    # mathematical mean is not enough -- three agreements of -0.4 sum
+    # to -1.2000000000000002 and the quotient falls the other side of
+    # the threshold.
+    # A published binary64 arrives here as a FIELD -- the exact decimal
+    # beside the value it rounds to -- so the value is taken out before
+    # any arithmetic. Doing it any other way would compute the mean
+    # from the exact rationals, which is not what the shipped code
+    # does and not what G6B.4 step 2 says.
+    running = 0.0
+    for value in agreements:
+        running = running + _field_value(value)
+    average = running / float(len(agreements)) if agreements else 0.0
+    # STEP 1: each position sorted by (value, spelling).
+    held = []
+    for place in range(column["n_parts"]):
+        pairs = sorted((float(text), text) for text in drawn[place])
+        held.append([pair[1] for pair in pairs])
+    # STEP 2's three starts.
+    if average < -0.4:
+        held[last] = [held[last][total - 1 - seat] for seat in range(total)]
+    elif average < 0.4 and len(words) >= max(total - 1, 0):
+        order = permutation(total, list(words[: max(total - 1, 0)]))
+        held[last] = [held[last][seat] for seat in order]
+    numbers = [[float(text) for text in held[place]]
+               for place in range(column["n_parts"])]
+    ranks = [joined_ranks(numbers[place])
+             for place in range(column["n_parts"])]
+    middle = (total - 1) / 2.0
+    spread = []
+    for place in range(column["n_parts"]):
+        summed = 0.0
+        for row in range(total):
+            away_from = ranks[place][row] - middle
+            summed = summed + away_from * away_from
+        spread.append(summed)
+    # STEP 3: only the pairs whose LATER member is the last position.
+    seats = []
+    firsts = []
+    seat = 0
+    for first in range(column["n_parts"]):
+        for second in range(first + 1, column["n_parts"]):
+            if second == last:
+                seats.append(seat)
+                firsts.append(first)
+            seat = seat + 1
+    tops = []
+    aboves = []
+    for index in range(len(seats)):
+        first = firsts[index]
+        summed = 0.0
+        counted = 0
+        for row in range(total):
+            summed = summed + (ranks[first][row] - middle) * (
+                ranks[last][row] - middle
+            )
+            if numbers[first][row] > numbers[last][row]:
+                counted = counted + 1
+        tops.append(summed)
+        aboves.append(counted)
+    cells = []
+    seen = {}
+    for row in range(total):
+        text = joined_cell(held, column, row)
+        cells.append(text)
+        seen[text] = seen.get(text, 0) + 1
+
+    def distance():
+        out = abs(len(seen) - wanted) / float(total)
+        for index in range(len(seats)):
+            place = seats[index]
+            first = firsts[index]
+            out = out + float(abs(aboves[index] - above_targets[place]))
+            divisor = (spread[first] * spread[last]) ** 0.5
+            agreed = tops[index] / divisor if divisor > 0.0 else 0.0
+            out = out + abs(agreed - _field_value(agreements[place]))
+        return out
+
+    away = distance()
+    tries = 0
+    at = 0
+    ceiling = 200 * total
+    while away > 0.0005 and tries < ceiling and len(words) >= 2:
+        tries = tries + 1
+        # STEP 5's cursor: it starts again at reserve word ZERO, even
+        # where the permutation already consumed some, and returns
+        # there whenever fewer than two words remain.
+        if at + 1 >= len(words):
+            at = 0
+        one = bounded(words[at], total)
+        two = bounded(words[at + 1], total)
+        at = at + 2
+        if one == two or held[last][one] == held[last][two]:
+            continue
+        kept_tops = list(tops)
+        kept_aboves = list(aboves)
+        for index in range(len(seats)):
+            first = firsts[index]
+            tops[index] = tops[index] + (
+                ranks[first][one] - ranks[first][two]
+            ) * (ranks[last][two] - ranks[last][one])
+            for row in (one, two):
+                if numbers[first][row] > numbers[last][row]:
+                    aboves[index] = aboves[index] - 1
+        held[last][one], held[last][two] = held[last][two], held[last][one]
+        numbers[last][one], numbers[last][two] = (
+            numbers[last][two], numbers[last][one])
+        ranks[last][one], ranks[last][two] = (
+            ranks[last][two], ranks[last][one])
+        for index in range(len(seats)):
+            first = firsts[index]
+            for row in (one, two):
+                if numbers[first][row] > numbers[last][row]:
+                    aboves[index] = aboves[index] + 1
+        made_one = joined_cell(held, column, one)
+        made_two = joined_cell(held, column, two)
+        for gone in (cells[one], cells[two]):
+            seen[gone] = seen[gone] - 1
+            if seen[gone] < 1:
+                del seen[gone]
+        for made in (made_one, made_two):
+            seen[made] = seen.get(made, 0) + 1
+        now = distance()
+        # AN EQUAL SWAP IS TAKEN, not only a better one.
+        if now <= away:
+            away = now
+            cells[one] = made_one
+            cells[two] = made_two
+            continue
+        for made in (made_one, made_two):
+            seen[made] = seen[made] - 1
+            if seen[made] < 1:
+                del seen[made]
+        for back in (cells[one], cells[two]):
+            seen[back] = seen.get(back, 0) + 1
+        held[last][one], held[last][two] = held[last][two], held[last][one]
+        numbers[last][one], numbers[last][two] = (
+            numbers[last][two], numbers[last][one])
+        ranks[last][one], ranks[last][two] = (
+            ranks[last][two], ranks[last][one])
+        tops = kept_tops
+        aboves = kept_aboves
+    return held
+
+
 def affixed_core_view(column):
     """An affixed column as the numeric machinery must see it (G6A.2).
 
@@ -5301,6 +5577,109 @@ def _affixed_brackets():
     }
 
 
+def _joined_readings():
+    """Two numbers in one cell, and the walk that decides which meet."""
+    first_ladder, first_claims, first_rungs = _ladder_fields({
+        "min": "24", "p01": "24", "p05": "24", "p10": "24.2",
+        "p25": "29", "p50": "36.5", "p75": "40", "p90": "50.8",
+        "p95": "54.25", "p99": "56.45", "max": "57",
+    })
+    second_ladder, second_claims, second_rungs = _ladder_fields({
+        "min": "25", "p01": "25", "p05": "25", "p10": "25",
+        "p25": "25", "p50": "30", "p75": "40", "p90": "44.5",
+        "p95": "45", "p99": "45", "max": "45",
+    })
+    claims = {}
+    for place, ladder_claims in ((0, first_claims), (1, second_claims)):
+        for key, value in ladder_claims.items():
+            claims[("column", "parts", place, "percentiles") + key] = value
+    parts = []
+    for place, ladder, moments in (
+        (0, first_ladder, (
+            ("mean", "36.666666666666664"),
+            ("std", "10.236595077850778"),
+            ("skew", "0.5765321212279275"),
+            ("kurtosis", "2.645135996997432"),
+            ("numeric_share", "1"))),
+        (1, second_ladder, (
+            ("mean", "32.916666666666664"),
+            ("std", "7.821396449755148"),
+            ("skew", "0.43445149772021224"),
+            ("kurtosis", "1.685945422653337"),
+            ("numeric_share", "1"))),
+    ):
+        block = {
+            "percentiles": ladder, "n_rows": 12, "n_zero": 0,
+            "n_negative": 0, "n_negative_unrepresentable": 0,
+            "n_used_in_statistics": 12, "n_left_out_of_statistics": 0,
+            "integer_valued": True, "numeric_styles": {"plain": 12},
+            "fraction_widths": {}, "pad_widths": {},
+            "std_unrepresentable": False, "value_histogram": {},
+            "n_distinct_values": 9 if place == 0 else 5,
+        }
+        for name, text in moments:
+            field, claim = nearest_field(text)
+            block[name] = field
+            claims[("column", "parts", place, name)] = claim
+        parts.append(block)
+    agreement, agreement_claim = nearest_field("0.4323")
+    claims[("column", "part_agreements", 0)] = agreement_claim
+    column = _universal(
+        "column_1", "joined_numbers", "joined_numbers", "data", "ok",
+        n_present=12, n_missing=0, n_distinct=12, n_distinct_folded=12,
+        n_numeric=0, n_not_numeric=12, n_out_of_range=0, n_contradictory=0,
+        parts=parts, separator="/", n_parts=2, n_joined=12, n_unparsed=0,
+        part_min_widths=[2, 2], part_agreements=[agreement],
+        part_above=[7],
+    )
+    return {
+        "why": "the first frozen case for the joined role, and the one "
+        "that pins the PAIRING WALK of G6B.4 -- the only search in this "
+        "method, and the only place where synthtwin reproduces "
+        "structure between two quantities at all. Each position is "
+        "built by the numeric rules over its own view, and the walk "
+        "then decides which number of one meets which of the other, "
+        "moving only the LAST position so that neither position's "
+        "multiset can change. "
+        "IT IS NOT A COLUMN THE WALK CAN IGNORE, and it was chosen "
+        "against that check rather than assumed. A first draft "
+        "published an agreement of 0.9983, which a rank-for-rank start "
+        "already meets, so removing the walk entirely changed no "
+        "committed byte: that case pinned the sort and the start rule "
+        "and nothing else. This column publishes 0.4323, holds the "
+        "earlier position above the later in only seven of twelve "
+        "rows, and repeats values in both positions. "
+        "WHAT IT PINS, MEASURED RULE BY RULE. Withdrawn one at a time, "
+        "these move its cells: the walk itself, six; the restart of "
+        "the reserve cursor at word zero, six; the VALUE of the 0.4 "
+        "threshold, eleven, because moving it to 0.9 pulls this column "
+        "into the permutation branch; accept-on-equal against strict "
+        "improvement, five; that a try ceiling EXISTS at all, five; "
+        "and the `part_above` term of the distance, five. "
+        "FIVE RULES IT DOES NOT REACH, which stand on the method\'s "
+        "word alone: the ceiling\'s exact value, since 100*T writes "
+        "what 200*T writes; the skip when both drawn seats hold one "
+        "spelling; the 0.0005 stop, since even 0.0 writes the same "
+        "bytes; that a start rule exists AT ALL, since deleting both "
+        "branches is identical at an agreement of 0.4323; and the "
+        "scaling of the distinct-cell term. The rank ORIGIN is in "
+        "neither list on purpose: it is not byte-determining in either "
+        "direction, so no case can pin it. "
+        "AND THE WALK DOES NOT CONVERGE ON THIS COLUMN, which the case "
+        "freezes rather than hides. The twin meets `part_above` "
+        "exactly, seven of twelve, and reaches a rank agreement of "
+        "0.2226 against the 0.4323 published: it stops at its try "
+        "ceiling, never on distance. The twin\'s own report does not "
+        "name the agreement (residual R-P4-44); `synthtwin validate` "
+        "does.",
+        "column": column,
+        "rows": 12,
+        "identifier_declared": False,
+        "rungs": [first_rungs, second_rungs],
+        "claims": claims,
+    }
+
+
 BRANCH_CASE_BUILDERS = {
     "free_text_joint": _free_text_joint,
     "numeric_pooled_spelling": _numeric_pooled_spelling,
@@ -5312,6 +5691,7 @@ BRANCH_CASE_BUILDERS = {
     "long_tail_levels": _long_tail_levels,
     "clock_ladder": _clock_ladder,
     "affixed_brackets": _affixed_brackets,
+    "joined_readings": _joined_readings,
 }
 
 CASE_SETS = {
@@ -5387,6 +5767,22 @@ GIVEN_WORDS = {
     # budget and its whole budget: the role consumes no content word,
     # so every cell of the twin is fixed by published counts and these
     # decide only the ORDER the rows come out in.
+    "joined_readings": (
+        15748752049046439706, 1052754991355682497, 4631623576966815744,
+        12064659840558517754, 10657191057255707380, 10378248564851026865,
+        10021198239630938960, 6883748916460414070, 18067353361653053739,
+        11892363277122465327, 602886262687784400, 8704353156322424958,
+        6379347427865422855, 3598830946331392386, 10329267094791843675,
+        6649749446851944564, 9555332664539838988, 1525621960858135254,
+        2224251045539429228, 16128073529113414212, 2556883604043696129,
+        3134567652162207724, 7622991860140729128, 4021366232906136322,
+        16488111908451590613, 11196021744312784249, 11554654619999588298,
+        7340016323151300764, 14290091057079116538, 6838773607184501349,
+        2127311776424462157, 16897824151333146762, 12419665989193173379,
+        5574751419839220782, 448177247989247182, 2572030107802451391,
+        7226625725583478954, 4675396337978475975, 5276709886071411467,
+        4587383225195023053, 3413080460610791867, 3363974449913449302,
+    ),
     "affixed_brackets": (
         17639521920205238616, 13505086616814382279, 15108206413291935612,
         2648109655521823620, 13957488783681493234, 440424866904614487,
@@ -5572,6 +5968,15 @@ def word_budget(column, rows):
     if role == "time_of_day":
         parsed = column["n_present"] - column["n_unparsed"]
         return max(parsed - 2, 0), placement
+    if role == "joined_numbers":
+        # G4.3: each position's numeric budget, plus a reserve of
+        # `max(n_joined - 1, 0)` for every position after the first.
+        total = 0
+        for place in range(column["n_parts"]):
+            total = total + joined_part_budget(column, place)
+            if place:
+                total = total + max(column["n_joined"] - 1, 0)
+        return total, placement
     if role == "affixed_number":
         # G4.3: the numeric budget read over the CORES.  The pair is
         # fixed text and costs no word.
@@ -5624,13 +6029,33 @@ INTEGER_COLUMN_KEYS = frozenset({
     # the CORES rather than over the cells.
     "n_affixed", "n_core_numeric", "n_core_not_numeric",
     "n_core_out_of_range", "n_core_contradictory",
+    # The joined role's own whole numbers (contract 6.13, method
+    # G6B.1): how many positions, and how many cells split that way.
+    # `part_above` and `part_min_widths` are ARRAYS and are named only
+    # in INTEGER_COLUMN_ARRAYS -- naming `part_above` here as well let
+    # a scalar stand where an array belongs and the proof layer
+    # certified it. `part_agreements` is a binary64 and is proved as
+    # one.
+    "n_parts", "n_joined",
 })
 INTEGER_COLUMN_MAPS = frozenset({
     "missing_by_class", "missing_by_source", "numeric_styles", "utc_offsets",
     "variants", "variants_withheld", "n_distinct_by_occurrences",
     "fraction_widths", "pad_widths", "resolution_mix", "shape_forms",
 })
-INTEGER_COLUMN_ARRAYS = frozenset({"suppressed_level_counts"})
+# The whole-number keys a NUMERIC PART of a joined column may carry
+# (contract 6.7 read at that depth).  It is deliberately narrower than
+# INTEGER_COLUMN_KEYS: a part is a block of numbers, so the universal
+# census keys, the label keys and the joined block's own keys have no
+# place inside one.
+NUMERIC_PART_KEYS = frozenset({
+    "n_rows", "n_zero", "n_negative", "n_negative_unrepresentable",
+    "n_used_in_statistics", "n_left_out_of_statistics",
+    "n_distinct_values",
+})
+INTEGER_COLUMN_ARRAYS = frozenset({
+    "suppressed_level_counts", "part_min_widths", "part_above",
+})
 # The two blocks of a free-text column whose own two ends are whole
 # numbers while the statistics beside them are proved binary64 values.
 INTEGER_COLUMN_ENDS = frozenset({"length", "words"})
@@ -5702,6 +6127,30 @@ def whole_number_fields(document):
             ):
                 allowed.add(path)
                 continue
+            # ONE POSITION OF A JOINED COLUMN is a numeric block of its
+            # own (method G6B.1), so its whole numbers are the same
+            # whole numbers a column carries, one level deeper.
+            # ONE POSITION OF A JOINED COLUMN is a numeric block of its
+            # own (method G6B.1), so its whole numbers are the column's
+            # whole numbers one level deeper -- and ONLY those. The
+            # lengths are exact rather than `>=`: a review found that a
+            # loose rule certified `parts[0]["n_rows"]` replaced by a
+            # mapping, and a key belonging to the joined block itself
+            # written inside a part.
+            if (
+                len(inside) == 3
+                and inside[0] == "parts"
+                and inside[2] in NUMERIC_PART_KEYS
+            ):
+                allowed.add(path)
+                continue
+            if (
+                len(inside) == 4
+                and inside[0] == "parts"
+                and inside[2] in INTEGER_COLUMN_MAPS
+            ):
+                allowed.add(path)
+                continue
         raise AssertionError(
             f"{_where(path)} publishes the whole number {value!r} at a place "
             "this document has no rule for. Name the field among the "
@@ -5743,6 +6192,8 @@ def build_case(name):
         content = _clock_content(working)
     elif column["role"] == "affixed_number":
         content = _affixed_content(working)
+    elif column["role"] == "joined_numbers":
+        content = _joined_content(working)
     elif column["role"] in ("count", "continuous"):
         content, chain, _missed = _numeric_content(working)
     elif column["role"] == "identifier":

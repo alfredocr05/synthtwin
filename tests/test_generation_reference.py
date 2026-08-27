@@ -160,6 +160,11 @@ BRANCH_CASES = (
     "clock_ladder",
     "free_text_joint",
     "identifier_edge_spacing",
+    # THE FOURTH AND LAST OF THE ROLES PHASE 4 ADDED (residual
+    # R-P4-17). It pins the pairing walk of G6B.4, the only search in
+    # the method and the only place synthtwin reproduces structure
+    # between two quantities at all.
+    "joined_readings",
     "leap_second_endpoint",
     # THE FIRST FROZEN CASE FOR A ROLE PHASE 4 ADDED (residual
     # R-P4-17). Every other case here exercises a role Phase 1 to 3
@@ -202,6 +207,7 @@ SEEDS = {
     "long_tail_levels": 117,
     "clock_ladder": 118,
     "affixed_brackets": 119,
+    "joined_readings": 120,
 }
 
 # The cases whose column was declared with --identifier, which the
@@ -1187,6 +1193,38 @@ def _the_cell_counts_as_if_they_were_the_cores(column):
     return core
 
 
+def _the_sorted_start_and_no_walk(drawn, column, wanted, words):
+    """G6B.4 step 5 withdrawn: the sorted start kept, the walk removed.
+
+    Steps 1 and 2 still run -- each position sorted, and the last one
+    reversed, permuted or left rank for rank by the mean of the
+    published agreements -- and nothing after them.
+
+    The walk moves a rank-for-rank pairing, which agrees at about 1.0,
+    TOWARD the agreement the column published. It does not arrive: on
+    this column it stops at its try ceiling at 0.2226 against a
+    published 0.4323, and calling that reaching the target would be a
+    claim the committed bytes contradict.
+    """
+    total = column["n_joined"]
+    last = column["n_parts"] - 1
+    running = 0.0
+    for value in column["part_agreements"]:
+        running = running + gen._field_value(value)
+    agreements = column["part_agreements"]
+    average = running / float(len(agreements)) if agreements else 0.0
+    held = []
+    for place in range(column["n_parts"]):
+        pairs = sorted((float(text), text) for text in drawn[place])
+        held.append([pair[1] for pair in pairs])
+    if average < -0.4:
+        held[last] = [held[last][total - 1 - seat] for seat in range(total)]
+    elif average < 0.4 and len(words) >= max(total - 1, 0):
+        order = gen.permutation(total, list(words[: max(total - 1, 0)]))
+        held[last] = [held[last][seat] for seat in order]
+    return held
+
+
 # Each row: the case, the branch it exists for, and the rule the method
 # rules out put back in its place.
 CASE_MUTANTS = {
@@ -1230,6 +1268,20 @@ CASE_MUTANTS = {
         attribute="identifier_family",
         replacement=_every_band_from_the_figures,
         outcome="recount n_all_digits as 12 and the case publishes 4",
+    ),
+    "joined_readings": Mutant(
+        branch="G6B.4 step 5, the pairing walk itself; the mutant keeps "
+        "the sorted start of steps 1 and 2 and removes the search "
+        "after it. A rank-for-rank start pairs largest with largest "
+        "and agrees at about 1.0, while this column publishes 0.4323 "
+        "and holds the earlier position above the later in only seven "
+        "of twelve rows, so the walk has real work here -- measured, "
+        "six of its twelve cells move. The walk does NOT reach the "
+        "published agreement even so: it stops at its try ceiling at "
+        "0.2226, which the case records rather than hides",
+        attribute="repaired_pairing",
+        replacement=_the_sorted_start_and_no_walk,
+        outcome=CHANGES_THE_CELLS,
     ),
     "affixed_brackets": Mutant(
         branch="G6A.2's core view, which hands the numeric machinery "
