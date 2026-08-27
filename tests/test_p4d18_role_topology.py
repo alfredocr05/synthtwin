@@ -75,15 +75,18 @@ def _matrix() -> "tuple[dict[str, set[str]], int, int]":
 # cannot be mistaken for something this landing did, and held so it
 # cannot GROW (residual R-P4-37, opened 2026-08-25).
 #
-# The contract states `min_length` and `max_length` on
-# `numeric_unrepresentable` in four places -- the added-keys table of
-# 6.2, invariant U5, producer obligation U-P, and this matrix -- and
-# the producer has never emitted either. A producer written to the
-# contract therefore writes a block the shipped loader refuses for an
-# unknown key. It predates the form census entirely and closing it is
-# a decision about that role's format, not about this one.
-INHERITED = {("numeric_unrepresentable", "max_length"),
-             ("numeric_unrepresentable", "min_length")}
+# THE ONE EXCEPTION THIS GUARD HELD IS GONE (residual R-P4-37, closed
+# 2026-08-26). The contract stated `min_length` and `max_length` on
+# `numeric_unrepresentable` in four places and the producer wrote
+# neither, so a producer written to the contract emitted a block the
+# shipped loader refused. This guard found it on its first run, held it
+# as a NAMED exception so it could not be mistaken for new and could
+# not grow, and the exception is now empty because the facts are built.
+#
+# IT STAYS AS AN EMPTY SET rather than being deleted: the guard reads
+# it in both directions, and a future disagreement should have to be
+# added here on purpose by somebody who writes down why.
+INHERITED: "set[tuple[str, str]]" = set()
 
 
 def test_the_matrix_and_the_loader_agree_role_by_role() -> None:

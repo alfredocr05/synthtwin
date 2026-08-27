@@ -3001,19 +3001,52 @@ names so that a stand-in cannot accidentally parse as a date and change
 ### G10.5 The `numeric_unrepresentable` role
 
 The column publishes `n_whole`, `n_fraction`, `n_whole_unknown`,
-`n_positive`, `n_negative`, `n_sign_unknown`, `n_out_of_range` and
-`n_distinct_by_occurrences`, and publishes **no width and no magnitude
-fact** (P2-D4, verified against the producer: two columns of overflowing
-values, one about 400 characters wide and one about 4,000, publish
-identically). Width fidelity is withdrawn; one canonical invented width
-is used and disclosed (R-P2-1).
+`n_positive`, `n_negative`, `n_sign_unknown`, `n_out_of_range`,
+`n_distinct_by_occurrences` and — since revision 4 — the two widths
+`min_length` and `max_length`, the character counts of the narrowest
+and the widest value the real column holds. It publishes no magnitude
+fact of any other kind.
 
-**The canonical width is 400 significant digits.** A 400-digit whole
-number is far outside binary64's range, so it classifies as out of range
-and as whole; a fraction written as `0.` followed by 399 zeros and one
-non-zero digit is far below the smallest subnormal, so it classifies as
-out of range and as a fraction. The width is invented, it is the same
-for every such column, and the report says so in those words.
+**REVISION 4 RETIRES THE CANONICAL INVENTED WIDTH** (residual R-P2-1,
+closed). Revisions 1 to 3 published no width at all for this role and
+wrote every such column at one invented width of 400 significant
+digits, the same for every column and disclosed in the report as
+invented. That was measurably wrong for the product's one job: two
+columns of overflowing values, one about 400 characters wide and one
+about 4,000, described identically, and a twin built from either
+description held cells of a width neither table had. Code that measures
+how wide the written values are — a column width, a fixed-width read, a
+check on the length of a field — reads a different answer on the twin
+from the one it reads on the real table, and nothing in the description
+let the generator do better.
+
+**The two published widths are the width window, and both ends are
+carried where the column's own shapes can carry them.** The rule has
+three parts and they apply in this order.
+
+* **Every group is asked for a width.** By default a group is asked for
+  `max_length`. One group is asked for `min_length` instead: the FIRST
+  group, in the packing order of step 3, whose shape can be written at
+  that width. Choosing the floor carrier by shape rather than by
+  position matters — a column whose one narrow-capable group comes
+  first would otherwise carry no floor at all. A column of a single
+  group, or one whose two published widths are equal, asks every group
+  for `max_length` and there is nothing to choose.
+* **A shape may have a floor of its own, and the floor wins.** A whole
+  number is out of binary64's range only past about 1.8e308, and a
+  fraction is below its smallest subnormal only past about 5e-324, so
+  the too-large shape is written at no fewer than **310 figures** and
+  the too-small shape at no fewer than **325 decimal places** whatever
+  width it was asked for. A value narrow enough for the format to hold
+  is a value of a different kind from the one the description publishes,
+  so the shape's floor takes precedence over the asked width and the
+  report names the widening in those words. The other four shapes have
+  no floor: contradictory notation, ordinary text and the two in-range
+  shapes are written at exactly the width they are asked for.
+* **The asked width is the width of the WHOLE CELL.** A minus sign, a
+  leading `0.` and a trailing figure are all spent inside it, so a group
+  asked for 400 characters writes a cell 400 characters long and not
+  401 or 402.
 
 Construction, in this fixed order, so the counts land exactly:
 
@@ -3080,12 +3113,20 @@ Construction, in this fixed order, so the counts land exactly:
    first group too large to fit is not conforming — on three negative
    rows in one group beside two positive groups of two it writes two
    negatives (P2-C1-F1).
-4. In-range cells are written as `1`, `-1`, `0.5`, `-0.5` and their
-   distinct variants from the leading-zero family, since no ladder and
-   no statistic is published for this role.
+4. In-range cells are written from the leading-zero family — a run of
+   zeros carrying a whole number or a fraction — padded to the width
+   the group was asked for, since no ladder and no statistic is
+   published for this role. **What separates one spelling of a shape
+   from the next is its VALUE and not its width**: the in-range whole
+   shape writes `1`, `2`, `3` and so on behind the zeros, and the
+   in-range fraction shape writes `1.5`, `2.5`, `3.5`. Distinguishing
+   them by adding a zero instead — which revision 3 did, having no
+   width to hold to — makes every group after the first one character
+   wider than the width it was asked for, so a column published as at
+   most 372 characters wide holds a 373-character cell.
 5. The repetition pattern is `n_distinct_by_occurrences`, exactly as in
    G9.5 step 1; the capacity rule and its refusal (G9.4) apply, with the
-   digit alphabet over the canonical width.
+   digit alphabet over the width each group was asked for.
 6. **Every one of `n_whole`, `n_fraction`, `n_whole_unknown`,
    `n_positive`, `n_negative` and `n_sign_unknown` is recounted from the
    finished cells** and named in the report where it was missed, under
@@ -3103,6 +3144,19 @@ Construction, in this fixed order, so the counts land exactly:
    recounted the same way on every role (G10.2). A miss on this path is
    never silent, and a miss the search could have avoided is a defect
    rather than a deviation.
+7. **AND BOTH PUBLISHED WIDTHS ARE RECOUNTED THE SAME WAY** (revision
+   4). Nothing in steps 1 to 5 promises them: the in-range shapes take
+   the width they were asked for, the out-of-range shapes take whatever
+   keeps them out of range, and a fold-collision partner (G9.3) is
+   spelled to fold onto its parent rather than to fit a width. So the
+   character counts of the narrowest and the widest finished cell are
+   measured and compared to `min_length` and `max_length` **for
+   equality, not for containment**. A twin whose narrowest cell is
+   WIDER than the narrowest in the real table has not held the
+   published fact, and a check written as "no narrower than the floor"
+   passes a column published at 250 whose twin starts at 310. Either
+   end that does not match is a NAMED deviation carrying the twin's own
+   count beside the published one. A miss on this path is never silent.
 
 ## G11. The all-different obligation
 
@@ -3231,8 +3285,10 @@ variants (G8.2) and withheld levels (G8.3); identifier duplicates and
 the three distinctness facts they cost (G9.6); a word count brought down
 to what its own length carries on a group carrying NEITHER published
 word extreme, the two carrying groups being settled by a refusal instead
-(G9.5 step 6, P2-C5-F4); the invented canonical width of an unrepresentable column
-(G10.5); the out-of-range cells all written too large (G10.3); and the
+(G9.5 step 6, P2-C5-F4); a published width of an unrepresentable column
+that no shape of that column can be written at, which revision 4 names
+as a deviation rather than making a width up for (G10.5); the
+out-of-range cells all written too large (G10.3); and the
 form census of a column of dates read under the joint ISO reading,
 which the twin does not reproduce (G7.5, contract C6-25, plan P4-D4.3).
 
@@ -3686,8 +3742,14 @@ its own cells could have carried two lands outside it.
 
 ## G13. Residuals this method carries
 
-- **R-P2-1** — unrepresentable values have no published width; one
-  canonical width (400 digits) is invented and disclosed.
+- **R-P2-1 — CLOSED in revision 4.** Unrepresentable values now publish
+  `min_length` and `max_length`, and the twin carries both ends where
+  the column's own shapes can be written at them (G10.5). What remains
+  is not a residual but a named deviation: where a shape's own floor —
+  310 figures for a value too large to hold, 325 places for one too
+  small — is wider than the published width, the twin writes the floor
+  and the report says the published width was not held. The invented
+  400-digit canonical width this residual was opened for is gone.
 - **R-P2-2** — absent-value spellings and classes are not reproduced.
 - **R-P2-7** — the twin keeps a datetime column's precision and offset
   state but not the source's lexical date family; a month-first table

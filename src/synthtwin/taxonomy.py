@@ -2980,6 +2980,43 @@ def affixed_split(text: str) -> "tuple[str, str, str] | None":
     return prefix, core, suffix
 
 
+def _numeric_looking_widths(cells: _Cells) -> "tuple[int, int]":
+    """The shortest and longest NUMERIC-LOOKING cell, in characters.
+
+    Producer obligation U-P: both are measured over the cells whose
+    writer meant a number -- the ones `_numeric_looking` counts -- and
+    never over the whole present population. This role tolerates a
+    slack of cells that are not numeric notation at all, and such a
+    straggler's length published as a bound would be read as magnitude
+    by anybody who trusted the pair.
+
+    Each is a count of characters of the cell's text AS THE FILE SPELLS
+    IT, so a padded cell counts its zeros and a signed one counts its
+    sign.
+
+    Guarantees: accepts the tally; returns a pair with the smaller
+    first, both at least 1. Where the role is reached with no
+    numeric-looking cell at all -- which the detection line makes
+    impossible, and which is answered here rather than left to raise --
+    both come back as 1. Raises nothing. No I/O.
+    """
+    widths: "list[int]" = []
+    for cell in cells.classified:
+        if cell.kind == parsing.NOT_A_NUMBER:
+            continue
+        widths = widths + [len(cell.text)]
+    if not widths:
+        return (1, 1)
+    shortest = widths[0]
+    longest = widths[0]
+    for width in widths:
+        if width < shortest:
+            shortest = width
+        if width > longest:
+            longest = width
+    return (max(shortest, 1), max(longest, 1))
+
+
 def _numeric_looking(cells: _Cells) -> int:
     """The cells whose writer meant a number, however it came out."""
     return (
@@ -6077,6 +6114,25 @@ def _decide(
                     (numeric_looking, n_present, len(cells.numbers)),
                 ),
                 details={
+                    # THE TWO WIDTH FACTS, at last (residual R-P4-37).
+                    # The contract has stated them on this role in four
+                    # places since version 6 -- the added-keys table,
+                    # invariant U5, producer obligation U-P and the
+                    # forbidden-key matrix -- and the producer never
+                    # wrote either, so a producer written to the
+                    # contract emitted a block the shipped loader
+                    # refused. The role-topology guard carried the
+                    # disagreement as a NAMED exception; that exception
+                    # is deleted with this.
+                    #
+                    # MEASURED OVER THE NUMERIC-LOOKING CELLS ONLY,
+                    # which is what U-P requires and why they are not
+                    # taken off `cells.present`: this role tolerates a
+                    # slack of stragglers that are not numeric notation
+                    # at all, and a straggler's length published as a
+                    # bound would be read as magnitude.
+                    "min_length": _numeric_looking_widths(cells)[0],
+                    "max_length": _numeric_looking_widths(cells)[1],
                     "n_negative": cells.n_negative,
                     "n_positive": cells.n_positive,
                     "n_sign_unknown": cells.n_sign_unknown,

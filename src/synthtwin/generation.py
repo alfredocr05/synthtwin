@@ -256,6 +256,35 @@ _FIRST_TWO = (0, 1)
 # wide publish identically, and the report says so in those words.
 _CANONICAL_WIDTH = 400
 
+# THE FEWEST FIGURES THAT KEEP A VALUE OUT OF BINARY64 (residual
+# R-P4-37). This role exists for numbers the format cannot hold, so a
+# twin cell written narrow enough to BE holdable would reprofile as an
+# ordinary numeric column -- the description would be describing a
+# different kind of column from the one the twin holds. Binary64's
+# largest finite value is about 1.8e308, so a whole numeral needs three
+# hundred and ten figures to be certain of passing it; the smallest
+# positive subnormal is about 5e-324, so a fraction needs three hundred
+# and twenty-five places to be certain of falling under it.
+#
+# THESE ARE FLOORS AND NOT THE WIDTH. Where the description publishes a
+# wider one, the published width is used and these do not bind.
+# THE TWO SHAPE FLOORS, MEASURED AND NOT ASSUMED. Both are counts of
+# the ROOM a value has after its sign, because a minus sign buys no
+# magnitude: a value written 310 characters wide with a leading minus
+# carries 309 figures and 1e309 is the first that leaves binary64's
+# range, so a floor applied to the whole cell rather than to its room
+# writes a holdable value into a column described as holding none.
+#
+# 309 figures is the first whole number past the largest binary64
+# (about 1.8e308) and 326 characters is the first `0.`-and-zeros
+# fraction below the smallest subnormal (about 4.9e-324); each floor
+# here carries one character past its measured edge. The fraction floor
+# was 325 while the fraction spelling ran two characters wider than the
+# width it was given, and correcting that arithmetic without correcting
+# this number wrote representable values at the floor.
+_OVERFLOW_FIGURES = 310
+_UNDERFLOW_PLACES = 327
+
 # The three bands a stratum of a column of numbers sits in, in the fixed
 # order of method G5.2, which is the sorted order of the column's own
 # values.
@@ -296,6 +325,35 @@ class Deviation:
     fact: str
     published: str
     achieved: str
+    note: str
+
+
+@dataclasses.dataclass(frozen=True)
+class Remark:
+    """One thing the twin's own cells HOLD, where no published fact was
+    missed to produce it.
+
+    THIS TYPE EXISTS BECAUSE THE OTHER TWO WOULD BOTH LIE (review item
+    P4-G2-R4-F1). A `Deviation` says a published fact could not be met
+    and an `Approximation` says one was met within its bound; a twin
+    can also hold something a reader must know about that is NEITHER --
+    a property of the finished cells that every published fact being
+    met exactly does nothing to prevent. Filing such a thing as a
+    deviation names a fact that WAS met and prints it beside a
+    different quantity, so the report tells a reader an exact fact
+    failed when it succeeded.
+
+    `subject` names what was measured IN THE TWIN, in the twin's own
+    terms, and is deliberately not a description key: nothing here is a
+    published fact, so borrowing a published fact's name is the defect
+    this type was added to remove. `held` is what the cells hold and
+    `note` is one plain sentence saying what it means for somebody
+    developing code against the twin.
+    """
+
+    column: str
+    subject: str
+    held: str
     note: str
 
 
@@ -381,6 +439,9 @@ class ColumnOutcome:
     placement_words: int
     deviations: "tuple[Deviation, ...]"
     approximations: "tuple[Approximation, ...]"
+    # WHAT THIS COLUMN'S TWIN HOLDS THAT IS NEITHER (item P4-G2-R4-F1).
+    # Not a missed fact and not an approximated one -- see `Remark`.
+    remarks: "tuple[Remark, ...]" = ()
 
 
 @dataclasses.dataclass(frozen=True)
@@ -416,6 +477,7 @@ class Twin:
     outcomes: "tuple[ColumnOutcome, ...]"
     deviations: "tuple[Deviation, ...]"
     approximations: "tuple[Approximation, ...]"
+    remarks: "tuple[Remark, ...]"
     words_drawn: int
     seed: int
 
@@ -464,6 +526,7 @@ class _ColumnPlan:
     layout: "_NumericLayout | None"
     cells: "tuple[str, ...]"
     notes: "tuple[Deviation, ...]"
+    remarks: "tuple[Remark, ...]" = ()
     # WHICH TWO GROUPS CARRY THE PUBLISHED LENGTH AND WORD ENDS. On a
     # column of free text the allocation settles this rather than
     # inheriting it (review item P2-C4-F2), and the two ends of every
@@ -575,6 +638,11 @@ def _deviation(
         achieved=achieved,
         note=note,
     )
+
+
+def _remark(column: str, subject: str, held: str, note: str) -> Remark:
+    """One thing the twin holds that no published fact was missed for."""
+    return Remark(column=column, subject=subject, held=held, note=note)
 
 
 def _flipped_case(character: str) -> str:
@@ -9532,7 +9600,7 @@ def _text_cells(
     column: contract.ColumnBlock,
     groups: "tuple[int, ...]",
     long_tail_line: int = 0,
-) -> "tuple[list[str], list[Deviation], tuple[int, int]]":
+) -> "tuple[list[str], list[Deviation], tuple[int, int], list[Remark]]":
     """Every present cell of a column of free text (method G9.5).
 
     The text is MADE UP. This module never samples, quotes, templates
@@ -9727,13 +9795,14 @@ def _text_cells(
     # some declarations the twin reads back as free text after all. So
     # the sentence names what the twin HOLDS.
     crossed = _levels_past_the_line(spellings, groups, long_tail_line)
+    remarks: "list[Remark]" = []
     if crossed:
-        notes = notes + [
-            _deviation(
+        remarks = remarks + [
+            _remark(
                 column.name,
-                "n_distinct_folded",
-                f"{folded} folded value(s), none of them a published level",
-                f"{crossed} of them cover(s) at least {long_tail_line} rows",
+                "folded groups of cells at or past the long-tail line",
+                f"{crossed} group(s) of cells that fold together cover at "
+                f"least {long_tail_line} row(s) each",
                 "folding this twin's spellings made a group of cells "
                 "large enough that describing the twin again may call "
                 "this column a long tail of labels rather than free "
@@ -9742,10 +9811,13 @@ def _text_cells(
                 "the rows a set of categories may cover -- so this "
                 "names what the twin HOLDS rather than predicting what "
                 "a later reading will say about it. Code that "
-                "dispatches on a column's type is what this reaches.",
+                "dispatches on a column's type is what this reaches. "
+                "Every count your description publishes about this "
+                "column is still met exactly; this is a property of the "
+                "spellings, not a fact the twin missed.",
             )
         ]
-    return _grouped(groups, spellings), notes, carriers
+    return _grouped(groups, spellings), notes, carriers, remarks
 
 
 def _shape_choices(total: int) -> "list[tuple[int, int]]":
@@ -10833,11 +10905,23 @@ def _unrepresentable_cells(
 ) -> "tuple[list[str], list[Deviation]]":
     """Every present cell of a column of numbers that cannot be held.
 
-    The description publishes no width and no magnitude for this role --
-    two columns of overflowing values, one about four hundred characters
-    wide and one about four thousand, publish identically -- so one
-    canonical width is made up, used for every such column, and named in
-    the report in those words.
+    THE DESCRIPTION PUBLISHES A WIDTH NOW (residual R-P4-37), and this
+    docstring said the opposite until 2026-08-26. `min_length` and
+    `max_length` were stated by the contract on this role in four
+    places and written by the producer in none, so the twin used one
+    made-up canonical width for every such column -- four hundred
+    figures for a source of three hundred and twenty -- and said so in
+    the report rather than being right.
+
+    THE PUBLISHED WIDTH IS USED WHERE IT KEEPS THE VALUE
+    UNHOLDABLE, and that condition is the whole subtlety. This role
+    exists for numbers binary64 cannot hold; a cell written narrow
+    enough to BE holdable would make the twin reprofile as an ordinary
+    numeric column, so the description would describe a different kind
+    of column from the one the twin holds. Where the published width
+    is below the floor its kind needs, the floor is used and the
+    difference is NAMED -- which is the same report as before, now
+    raised only where it is true.
 
     What IS published is packed exactly wherever any packing exists
     (review item P2-C1-F1): how many values are whole, how many are
@@ -10857,13 +10941,21 @@ def _unrepresentable_cells(
     families = [
         f"{kinds[index]}/{signs[index]}" for index in range(len(groups))
     ]
-    # NO PUBLISHED LENGTH AT ALL on this role (residual R-P2-1), so the
-    # fold-collision partners of method G9.3 are held to no length
-    # window: edge spacing may run on as far as the collisions need,
-    # and nothing a person can recount on the twin moves when it does.
+    # THE FOLD-COLLISION PARTNERS OF METHOD G9.3 ARE HELD TO NO LENGTH
+    # WINDOW: edge spacing may run on as far as the collisions need.
+    # This role now DOES publish a length window -- `min_length` and
+    # `max_length`, added when the twin stopped making up a canonical
+    # width -- so the older reason for the open window ("no published
+    # length at all", residual R-P2-1) is retired and the reason is
+    # stated afresh: a partner is a RESPELLING of a value already
+    # written, built to fold onto it, and the two published widths are
+    # measured across the finished cells rather than promised per
+    # spelling. Where a partner does take the twin outside the
+    # published window, the recount below measures it and says so.
     windows: list[tuple[int, int | None]] = [
         (1, None) for _each in groups
     ]
+    asked = _wide_widths(facts, kinds, signs)
     for index in range(len(groups)):
         partner = _partner_of(
             index, folded, spellings, families, used, windows
@@ -10872,7 +10964,9 @@ def _unrepresentable_cells(
             spellings = spellings + [_take(partner, used)]
             continue
         spelling = _wide_number(
-            kinds[index], signs[index], states, used, _hole_spellings(column)
+            kinds[index], signs[index], states, used,
+            _hole_spellings(column),
+            _wide_width(kinds[index], asked[index], signs[index]),
         )
         if spelling is None:
             raise errors.ProfileError(
@@ -10884,18 +10978,227 @@ def _unrepresentable_cells(
                 )
             )
         spellings = spellings + [spelling]
-    notes = [
-        _deviation(
-            column.name,
-            "width",
-            "no width at all: the description publishes none",
-            f"every value written {_CANONICAL_WIDTH} figures wide",
-            "The description of a column like this carries no width, so "
-            "the twin uses one made-up width for every such column and "
-            "says so here rather than implying the real one was this wide.",
-        )
-    ]
+    notes: "list[Deviation]" = []
+    # ONLY A WIDTH PAST THE PUBLISHED CEILING IS A WIDENING (item
+    # P4-G3-F1). The test was once "not equal to `max_length`", which
+    # became wrong the moment the holdable kinds started taking the
+    # published FLOOR: a cell written at the floor is inside the window
+    # the description publishes, and filing it as a deviation told the
+    # reader the twin was "wider than your table here" about a cell
+    # that is narrower than the ceiling and no wider than the widest.
+    widened = sorted(
+        {
+            _wide_width(kinds[index], asked[index], signs[index])
+            for index in range(len(groups))
+            if _wide_width(kinds[index], asked[index], signs[index])
+            > facts.max_length
+        }
+    )
+    if widened:
+        notes = notes + [
+            _deviation(
+                column.name,
+                "max_length",
+                f"{facts.max_length} character(s)",
+                f"written {widened[0]} figure(s) wide instead",
+                "A value this narrow is one this file format CAN hold, "
+                "and this column is described as holding numbers it "
+                "cannot. Writing the published width would have made "
+                "the twin read back as an ordinary column of numbers, "
+                "so the twin is wider than your table here and says so "
+                "rather than changing what kind of column this is.",
+            )
+        ]
+    # AND THE TWO PUBLISHED WIDTHS ARE RECOUNTED OFF THE FINISHED
+    # SPELLINGS (item P4-G3-F1). Nothing above promises them: the
+    # holdable kinds take the floor, the unholdable ones take whatever
+    # keeps them unholdable, and a fold-collision partner is spelled to
+    # fold rather than to fit. So the twin's own narrowest and widest
+    # cells are measured here and named where they fall outside the
+    # window the description publishes. A check that cannot fail is a
+    # defect; this one fails on a column that reaches the deviation
+    # above, which is exactly the case it exists for.
+    notes = notes + _wide_width_notes(column.name, facts, spellings, kinds)
     return _grouped(groups, spellings), notes
+
+
+def _wide_width_notes(
+    name: str,
+    facts: contract.UnrepresentableFacts,
+    spellings: "list[str]",
+    kinds: "list[int]",
+) -> "list[Deviation]":
+    """Where the twin's own cells fall outside the published widths.
+
+    THE TWO WIDTHS ARE MEASURED OVER THE NUMERIC-LOOKING CELLS AND NOT
+    OVER ALL OF THEM, because that is what the producer publishes
+    (P4-D4.4): this role tolerates a slack of ordinary-text stragglers
+    whose lengths are facts about text rather than about the numbers
+    the role exists for, and the producer leaves them out. Measuring
+    them back in here would compare the twin's shortest word against
+    the description's shortest NUMERAL and report a miss on a column
+    that has none. Notation that conflicts with itself is numeric-
+    looking and IS counted, on both sides.
+
+    Guarantees: accepts a column name, the loaded facts, the finished
+    spellings and each one's kind; returns a list of deviations, empty
+    when the numeric-looking cells match both published widths. Raises
+    nothing. No I/O.
+    """
+    widths: "list[int]" = []
+    for index in range(len(spellings)):
+        if index < len(kinds) and kinds[index] == 5:
+            continue
+        widths = widths + [len(spellings[index])]
+    if not widths:
+        return []
+    shortest = widths[0]
+    longest = widths[0]
+    for width in widths:
+        if width < shortest:
+            shortest = width
+        if width > longest:
+            longest = width
+    # BOTH ENDS ARE CHECKED FOR EQUALITY AND NOT MERELY FOR CONTAINMENT.
+    # `min_length` is the width of the shortest value in your table, not
+    # a floor the twin may sit above: a twin whose narrowest cell is
+    # wider than your narrowest does not hold the published fact, and an
+    # earlier version of this check tested only `shortest <
+    # min_length` and so passed a column published at 250 whose twin
+    # started at 310.
+    notes: "list[Deviation]" = []
+    if shortest != facts.min_length:
+        notes = notes + [
+            _deviation(
+                name,
+                "min_length",
+                f"{facts.min_length} character(s)",
+                f"the twin's shortest value is {shortest} character(s)",
+                "the narrowest value written in this column of the twin "
+                "is not as narrow as the narrowest in your table. A "
+                "value narrow enough for this file format to hold is "
+                "not one this column can carry, so where the twin "
+                "cannot go that narrow it stays wide rather than "
+                "changing what kind of column this is. Code that "
+                "measures how wide the written values are -- a column "
+                "width, a fixed-width read, a check on the length of a "
+                "field -- meets a different width here.",
+            )
+        ]
+    if longest != facts.max_length:
+        notes = notes + [
+            _deviation(
+                name,
+                "max_length",
+                f"{facts.max_length} character(s)",
+                f"the twin's longest value is {longest} character(s)",
+                "the widest value written in this column of the twin is "
+                "not as wide as the widest in your table. Code that "
+                "measures how wide the written values are meets a "
+                "different width here.",
+            )
+        ]
+    return notes
+
+
+def _wide_widths(
+    facts: contract.UnrepresentableFacts,
+    kinds: "list[int]",
+    signs: "list[bool]",
+) -> "list[int]":
+    """The width EVERY group of this column is asked to write at.
+
+    BOTH PUBLISHED ENDS ARE CARRIED WHERE THERE ARE GROUPS TO CARRY
+    THEM (item P4-G3-F1), the way the text and record-number roles
+    carry theirs: one group is asked for `max_length` and a second for
+    `min_length`, so a person recounting the twin's widest and narrowest
+    written value finds the two the description publishes. Asking every
+    group for the ceiling -- which is what this method did before the
+    two facts existed -- meant a column published as 320 to 400
+    characters wide had no 320-character cell anywhere in its twin.
+
+    A column with one group has nothing to carry the second end with,
+    and its two published widths are equal unless a fold-collision
+    partner respelled it; either way the recount names what the twin
+    ends up holding.
+
+    WHICH group carries the floor is not free either. Three of the five
+    kinds can be written at any width -- the two leading-zero families
+    and contradictory notation -- while the two that stand for numbers
+    outside binary64's range have a floor of their own, below which
+    they stop being unholdable at all. So the floor is given to the
+    first group AFTER the first whose kind can actually write it, and
+    where no group can, the recount says the published width was not
+    held rather than this method pretending it was.
+
+    Guarantees: accepts the loaded facts and every group's kind;
+    returns one width per group, each at least 1. Raises nothing.
+    No I/O.
+    """
+    if not kinds:
+        return []
+    ceiling = max(facts.max_length, 1)
+    floor = max(facts.min_length, 1)
+    asked = [ceiling for _each in kinds]
+    if len(kinds) < 2 or floor == ceiling:
+        return asked
+    # THE FLOOR CARRIER IS CHOSEN BY KIND AND NOT BY POSITION. An
+    # earlier revision looked only past the first group, so a column
+    # whose one narrow-capable group happened to come first carried no
+    # floor at all and reported a miss it did not have to have.
+    for index in range(len(kinds)):
+        if _carries_a_width(kinds[index], floor, signs[index]):
+            asked[index] = floor
+            return asked
+    return asked
+
+
+def _carries_a_width(kind: int, width: int, negative: bool = False) -> bool:
+    """Whether one kind can be written at exactly ``width``.
+
+    TWO OF THE SIX KINDS CANNOT CARRY A WIDTH AT ALL, and asking them
+    to is how a floor carrier gets chosen that does not carry it.
+    Contradictory notation is the fixed construction of method G10.3
+    and ordinary text is a stand-in spelling drawn by the text rule;
+    both are settled by rules that know nothing about this column's
+    published widths, so neither is eligible however wide the ask. Of
+    the four that are, the two out-of-range kinds have a floor of their
+    own and can carry only a width at or above it.
+
+    Guarantees: accepts a kind and a width; returns whether that kind
+    written at that ask comes out at exactly that width. Raises
+    nothing. No I/O.
+    """
+    if kind == 0 or kind == 5:
+        return False
+    return _wide_width(kind, width, negative) == width
+
+
+def _wide_width(kind: int, asked: int, negative: bool = False) -> int:
+    """The width one kind of unholdable value is actually written at.
+
+    The width the group was ASKED for, where that keeps the value out
+    of binary64, and the kind's own floor where it does not -- a value
+    written narrow enough for this file format to hold is a different
+    kind of column from the one the twin holds, so the floor wins and
+    the caller names the difference. Kinds that carry no magnitude --
+    contradictory notation, and the two leading-zero families, which
+    are the cells of this column the format CAN hold -- take the asked
+    width unconditionally, because nothing about their width decides
+    whether they are holdable.
+
+    Guarantees: accepts a kind and the width its group was asked for;
+    returns a width of at least 1. Raises nothing. No I/O.
+    """
+    asked = max(asked, 1)
+    sign = 0
+    if negative:
+        sign = 1
+    if kind == 1:
+        return max(asked, _OVERFLOW_FIGURES + sign)
+    if kind == 2:
+        return max(asked, _UNDERFLOW_PLACES + sign)
+    return asked
 
 
 def _wide_shape_words(kind: int, negative: bool) -> str:
@@ -11072,8 +11375,9 @@ def _spread_pairs(kinds: int, width: int) -> int:
 def _wide_number(
     kind: int, negative: bool, states: "dict[str, list[int]]",
     used: "dict[str, int]", holes: "tuple[str, ...]",
+    width: int = _CANONICAL_WIDTH,
 ) -> "str | None":
-    """One value at the canonical width, of one kind and one sign.
+    """One value at the asked width, of one kind and one sign.
 
     Every index writes a different spelling, so the walk ends: at most
     one index per piece of text already written in this column can be
@@ -11091,19 +11395,46 @@ def _wide_number(
         steps = steps + 1
         index = state[0]
         state[0] = state[0] + 1
+        # THE ASKED WIDTH IS THE WIDTH OF THE WHOLE CELL, sign and
+        # decimal point included (item P4-G3-F1). Each arm below spends
+        # `room` on the part it varies and lets the fixed characters --
+        # the minus sign, the leading `0.`, the trailing figure -- take
+        # the rest, so a group asked for 400 characters writes 400. The
+        # fraction arm used to count only its zeros and its figures and
+        # so came out two characters wide of every width it was given.
+        room = width - len(lead)
         if kind == 0:
             candidate = _contradictory_spelling(index + 1)
         elif kind == 1:
-            figures = _spelling_at(_DIGITS, _CANONICAL_WIDTH - 1, index // 9)
+            figures = _spelling_at(_DIGITS, max(room - 1, 0), index // 9)
             candidate = f"{lead}{(index % 9) + 1}{figures}"
         elif kind == 2:
             figures = f"{index + 1}"
-            zeros = max(_CANONICAL_WIDTH - len(figures), 1)
+            zeros = max(room - 2 - len(figures), 1)
             candidate = f"{lead}0.{'0' * zeros}{figures}"
         elif kind == 3:
-            candidate = f"{lead}{'0' * index}1"
+            # THE LEADING ZEROS ARE THE WIDTH, AND THE DIGITS ARE THE
+            # DIFFERENCE (item P4-G3-F1). These two kinds are the cells
+            # of this column that ARE holdable numbers, and they used to
+            # accept `width` and ignore it -- writing `1` and `0.5` into
+            # a column whose description publishes that nothing in it is
+            # shorter than hundreds of characters. Padding with zeros
+            # changes neither the value nor the kind, so the asked width
+            # is taken here.
+            #
+            # WHAT SEPARATES ONE SPELLING FROM THE NEXT IS THE VALUE AND
+            # NOT THE WIDTH. An earlier revision added `index` zeros for
+            # distinctness, which made every group after the first one
+            # character wider than the width it was asked for -- so a
+            # column published as at most 372 characters had a
+            # 373-character cell in its twin, reported as a miss on
+            # every column with two such groups. Counting up in the
+            # digits instead leaves the width fixed.
+            body = f"{index + 1}"
+            candidate = f"{lead}{'0' * max(room - len(body), 0)}{body}"
         elif kind == 4:
-            candidate = f"{lead}{'0' * index}0.5"
+            body = f"{index + 1}.5"
+            candidate = f"{lead}{'0' * max(room - len(body), 0)}{body}"
         else:
             candidate = _text_spelling(index + 1, used, holes)
         if _unused(candidate, used):
@@ -11352,6 +11683,7 @@ def _plan_column(
     notes: list[Deviation] = []
     groups: tuple[int, ...] = ()
     cells: list[str] = []
+    remarks: "list[Remark]" = []
     carriers = _FIRST_TWO
     content = 0
     if isinstance(facts, contract.JoinedFacts):
@@ -11397,7 +11729,7 @@ def _plan_column(
         _fold_room(
             column, facts.length.minimum, facts.length.maximum, len(groups)
         )
-        cells, notes, carriers = _text_cells(
+        cells, notes, carriers, remarks = _text_cells(
             column, groups, long_tail_line
         )
     elif isinstance(facts, contract.UnrepresentableFacts):
@@ -11411,6 +11743,7 @@ def _plan_column(
         layout=layout,
         cells=tuple(cells),
         notes=tuple(notes),
+        remarks=tuple(remarks),
         carriers=carriers,
     )
 
@@ -11722,6 +12055,7 @@ def generate(profile: contract.Profile, seed: int) -> Twin:
     outcomes: list[ColumnOutcome] = []
     deviations: list[Deviation] = []
     approximated: list[Approximation] = []
+    remarked: "list[Remark]" = []
     drawn = 0
     for step in range(len(plan.columns)):
         each = plan.columns[step]
@@ -11790,6 +12124,11 @@ def generate(profile: contract.Profile, seed: int) -> Twin:
         notes = notes + _bound_notes(measured)
         approximated = approximated + measured
         deviations = deviations + notes
+        # WHAT THIS COLUMN HOLDS THAT MISSED NOTHING (P4-G2-R4-F1).
+        # Carried beside the deviations rather than among them: these
+        # are properties of the finished cells, and every published
+        # fact of the column can be met exactly while one is true.
+        remarked = remarked + list(each.remarks)
         outcomes = outcomes + [
             ColumnOutcome(
                 name=column.name,
@@ -11806,6 +12145,7 @@ def generate(profile: contract.Profile, seed: int) -> Twin:
                 placement_words=each.placement_words,
                 deviations=tuple(notes),
                 approximations=tuple(measured),
+                remarks=each.remarks,
             )
         ]
     rows = [
@@ -11821,6 +12161,7 @@ def generate(profile: contract.Profile, seed: int) -> Twin:
         outcomes=tuple(outcomes),
         deviations=tuple(deviations),
         approximations=tuple(approximated),
+        remarks=tuple(remarked),
         words_drawn=drawn,
         seed=seed,
     )

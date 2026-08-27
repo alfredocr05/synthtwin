@@ -513,6 +513,12 @@ UNREPRESENTABLE_KEYS = (
     "n_sign_unknown",
     "n_whole",
     "n_whole_unknown",
+    # THE TWO WIDTH FACTS (residual R-P4-37). Stated on this role by
+    # the contract in four places since version 6 and never written by
+    # the producer, so a producer written to the contract emitted a
+    # block this loader refused for an unknown key.
+    "min_length",
+    "max_length",
 )
 
 IDENTIFIER_KEYS = (
@@ -1321,12 +1327,27 @@ class EmptyFacts:
 class UnrepresentableFacts:
     """A column of numbers too large or too small to hold (6.2).
 
-    There is no width fact and no magnitude fact here, and the omission
-    is load-bearing: two columns of overflowing values, one about four
-    hundred characters wide and one about four thousand, publish
-    identically.
+    THE TWO WIDTH FACTS ARE HERE NOW (residual R-P4-37), and the
+    docstring said the opposite until 2026-08-26: "there is no width
+    fact and no magnitude fact here, and the omission is load-bearing".
+    That was never true of the CONTRACT, which has stated
+    `min_length` and `max_length` on this role in four places since
+    version 6; it was true only of the producer, which never wrote
+    them, and of this loader, which refused them. The consequence was
+    that a twin of a twenty-figure identifier column came out at one
+    made-up canonical width, so code checking `len(x)` behaved
+    differently on the twin than on the real table.
+
+    WHAT THE PAIR COSTS, kept from the old docstring because it is the
+    honest half of it: for decimal numerals a length bounds a
+    magnitude, so `max_length` states the order of magnitude of the
+    largest withheld numeral. That is one cell's worth of floor-free
+    fact, and section 12 prices it. What it buys is a twin whose
+    invented digit strings are the width the real ones were.
     """
 
+    min_length: int
+    max_length: int
     n_whole: int
     n_fraction: int
     n_whole_unknown: int
@@ -4081,7 +4102,18 @@ def _unrepresentable_facts(
         None,
     )
     _pattern_closes(pairs, where, "U3", n_distinct, n_present)
+    smallest = _whole(mapping["min_length"], "min_length", where, 1)
+    largest = _whole(mapping["max_length"], "max_length", where, 1)
+    if smallest > largest:
+        raise _broken(
+            "U5",
+            where,
+            f"the shortest value is {smallest} character(s)",
+            f"the longest is {largest}",
+        )
     return UnrepresentableFacts(
+        min_length=smallest,
+        max_length=largest,
         n_whole=n_whole,
         n_fraction=n_fraction,
         n_whole_unknown=n_whole_unknown,

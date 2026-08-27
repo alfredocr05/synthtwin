@@ -3045,12 +3045,24 @@ def notation_reading(text):
 # ------------------------------------------ the unrepresentable column
 
 
-# The canonical invented width of method section G10.5: a 400-digit
-# whole number is far outside binary64's range, and a fraction written
-# as `0.` followed by 399 zeros and one non-zero digit is far below the
-# smallest subnormal. The width is invented, it is the same for every
-# such column, and the report says so in those words (residual R-P2-1).
-CANONICAL_WIDTH = 400
+# The two shape floors of method section G10.5, revision 4. A whole
+# number leaves binary64's range past about 1.8e308 and a fraction
+# falls below its smallest subnormal past about 5e-324, so a value
+# written narrower than these stops being unholdable at all -- which
+# would make the twin a different kind of column from the one the
+# description publishes. Where a group's asked width is below the floor
+# of the shape it takes, the floor wins and the report names it.
+#
+# THE CANONICAL INVENTED WIDTH OF REVISIONS 1 TO 3 IS GONE (residual
+# R-P2-1, closed). The role now publishes `min_length` and
+# `max_length`, so there is a width to write at and no width to invent.
+# Both are counts of the ROOM a value has AFTER its sign, because a
+# minus sign buys no magnitude: 309 figures is the first whole number
+# past the largest binary64 and 326 characters is the first
+# `0.`-and-zeros fraction below the smallest subnormal, and each floor
+# carries one character past that measured edge.
+OVERFLOW_FIGURES = 310
+UNDERFLOW_PLACES = 327
 
 # The six shapes a wide cell may take and what each one answers for --
 # method section G10.5 step 1's own table. The sign column names the
@@ -3077,34 +3089,113 @@ WHOLE_ORDER = (WHOLE_YES, WHOLE_NO, WHOLE_UNSETTLED)
 SIGN_ORDER = (SIGN_POSITIVE, SIGN_NEGATIVE, SIGN_UNSETTLED)
 
 
-def _unrepresentable_spelling(shape, sign, order):
+def _shape_floor(shape):
+    """The narrowest width one shape may be written at -- G10.5.
+
+    Four of the six shapes have no floor at all: contradictory
+    notation, ordinary text and the two in-range shapes say nothing
+    about magnitude, so nothing about their width decides what they
+    are.
+    """
+    if shape == "too_large":
+        return OVERFLOW_FIGURES
+    if shape == "too_small":
+        return UNDERFLOW_PLACES
+    return 1
+
+
+def _unrepresentable_width(shape, asked, sign=None):
+    """The width one shape is actually written at -- G10.5.
+
+    The width the group was ASKED for, or the shape's own floor where
+    the asked width falls below it.  A negative value spends one
+    character on its sign, and the floors are counts of the room AFTER
+    that sign, so a negative cell's floor is one character wider.
+    """
+    floor = _shape_floor(shape)
+    if floor <= 1:
+        return asked
+    if sign == SIGN_NEGATIVE:
+        floor = floor + 1
+    return max(asked, floor)
+
+
+def _unrepresentable_widths(column, shapes_taken, signs_taken):
+    """The width EVERY group of the column is asked for -- G10.5.
+
+    Both published ends are carried where the column's shapes can carry
+    them: every group is asked for ``max_length``, and the FIRST group
+    whose shape can be written at ``min_length`` is asked for that
+    instead.  The floor carrier is chosen by SHAPE and not by position,
+    so a column whose one narrow-capable group comes first still
+    carries the floor.
+    """
+    ceiling = max(column["max_length"], 1)
+    floor = max(column["min_length"], 1)
+    asked = [ceiling] * len(shapes_taken)
+    if len(shapes_taken) < 2 or floor == ceiling:
+        return asked
+    for index, shape in enumerate(shapes_taken):
+        if _carries_a_width(shape, floor, signs_taken[index]):
+            asked[index] = floor
+            return asked
+    return asked
+
+
+def _carries_a_width(shape, width, sign=None):
+    """Whether one shape can be written at exactly ``width`` -- G10.5.
+
+    Contradictory notation is the fixed construction of G10.3 and
+    ordinary text is a stand-in drawn by the text rule; both are
+    settled by rules that know nothing about the published widths, so
+    neither may be chosen to carry one.  Of the four that may, the two
+    out-of-range shapes can carry only a width at or above their floor.
+    """
+    if shape in ("contradictory", "ordinary_text"):
+        return False
+    return _unrepresentable_width(shape, width, sign) == width
+
+
+def _unrepresentable_spelling(shape, sign, order, asked):
     """The ``order``-th spelling of one shape -- method section G10.5 step 4.
 
-    In-range cells are written as ``1``, ``-1``, ``0.5``, ``-0.5`` and
-    their distinct variants from the leading-zero family, since no
-    ladder and no statistic is published for this role.  The two
-    out-of-range shapes are written at the canonical width, and the
-    contradictory shape is the construction of G10.3.
+    In-range cells come from the leading-zero family padded to the
+    width the group was asked for, since no ladder and no statistic is
+    published for this role.  **What separates one spelling from the
+    next is its VALUE and not its width** -- the whole shape counts up
+    ``1``, ``2``, ``3`` behind the zeros and the fraction shape counts
+    up ``1.5``, ``2.5``, ``3.5`` -- because adding a zero for
+    distinctness instead makes every group after the first one
+    character wider than the width it was asked for.
+
+    THE ASKED WIDTH IS THE WIDTH OF THE WHOLE CELL.  The minus sign,
+    the leading ``0.`` and the trailing figure are all spent inside it.
     """
     lead = "-" if sign == SIGN_NEGATIVE else ""
+    width = _unrepresentable_width(shape, asked, sign)
+    room = width - len(lead)
     if shape == "contradictory":
         return f"(-{order + 1})"
     if shape == "whole_in_range":
-        return lead + "0" * order + "1"
+        body = str(order + 1)
+        return lead + "0" * max(room - len(body), 0) + body
     if shape == "fraction_in_range":
-        return lead + "0" * order + "0.5"
+        body = f"{order + 1}.5"
+        return lead + "0" * max(room - len(body), 0) + body
     if shape == "too_large":
         return lead + enumerated_spelling(
-            DIGITS, CANONICAL_WIDTH, order, _not_a_leading_zero
+            DIGITS, room, order, _not_a_leading_zero
         )
     if shape == "too_small":
         if order >= 9:
             raise AssertionError(
-                "the ninth too-small spelling at the canonical width is the "
-                "last one this file states, and the method fixes no further "
-                "one. It freezes no case that asks for more"
+                "the ninth too-small spelling at one width is the last one "
+                "this file states, and the method fixes no further one. It "
+                "freezes no case that asks for more"
             )
-        return lead + "0." + "0" * (CANONICAL_WIDTH - 1) + str(order + 1)
+        figures = str(order + 1)
+        zeros = max(room - 2 - len(figures), 1)
+        return lead + "0." + "0" * zeros + figures
     raise AssertionError(f"{shape!r} is not one of the six shapes of G10.5")
 
 
@@ -3191,16 +3282,24 @@ def _unrepresentable_content(column):
         (notation, whole): shape
         for shape, notation, whole, _signs in UNREPRESENTABLE_SHAPES
     }
+    # THE SHAPE EVERY GROUP TAKES IS SETTLED BEFORE ANY WIDTH IS
+    # CHOSEN, because which group carries the published floor depends on
+    # what shape it took (G10.5 revision 4).
+    shapes_taken = [shapes[(cell[0], cell[1])] for cell in cells]
+    signs_taken = [cell[2] for cell in cells]
+    asked = _unrepresentable_widths(column, shapes_taken, signs_taken)
     content = []
     spent = {}
     used = []
-    for size, cell in zip(groups, cells):
+    for index, (size, cell) in enumerate(zip(groups, cells)):
         notation, whole, sign = cell
         shape = shapes[(notation, whole)]
         if shape == "ordinary_text":
             spelling = text_stand_ins(used, 1)[0]
         else:
-            spelling = _unrepresentable_spelling(shape, sign, spent.get(shape, 0))
+            spelling = _unrepresentable_spelling(
+                shape, sign, spent.get(shape, 0), asked[index]
+            )
             spent[shape] = spent.get(shape, 0) + 1
         used.append(spelling)
         content.extend([spelling] * size)
@@ -4450,6 +4549,18 @@ def _unrepresentable_joint():
         n_whole=2, n_fraction=1, n_whole_unknown=3,
         n_positive=0, n_negative=3, n_sign_unknown=3,
         n_distinct_by_occurrences={"1": 2, "2": 2},
+        # THE TWO PUBLISHED WIDTHS OF REVISION 4 (P4-D4.4, closing
+        # R-P2-1), and they are the widths a REAL column of these cells
+        # would publish rather than any convenient pair. Three of this
+        # column's six cells carry the contradictory construction of
+        # G10.3, which is four characters long and which the producer
+        # counts -- notation that conflicts with itself is numeric-
+        # LOOKING even though it settles no value -- so the narrowest
+        # numeric-looking cell here is four characters and the
+        # description says four. Publishing a wider floor would freeze
+        # a description no table could produce.
+        min_length=4,
+        max_length=400,
     )
     return {
         "why": "the six-row column of G10.5 step 2, whose three published "
