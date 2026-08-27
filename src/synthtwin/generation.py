@@ -10982,10 +10982,22 @@ def _unrepresentable_cells(
     # measured across the finished cells rather than promised per
     # spelling. Where a partner does take the twin outside the
     # published window, the recount below measures it and says so.
-    windows: list[tuple[int, int | None]] = [
-        (1, None) for _each in groups
-    ]
     asked = _wide_widths(facts, kinds, signs)
+    # AND THE PARTNER IS HELD TO THE WIDTH ITS GROUP WAS ASKED FOR
+    # (plan P4-D4.4's width-pinned clause; review item P4-G3-R5-F4).
+    # This role published no length at all until revision 4, so a
+    # partner was held to no window and its edge spacing ran on as far
+    # as the collision needed. Now that both ends are published that is
+    # a fidelity leak: a column of two 310-figure values folding
+    # together, published as 310 to 312 characters wide, wrote a parent
+    # at 310 and a partner at 311 and held no 312-character cell at
+    # all -- the partner consumed the group the ceiling was assigned
+    # to. The window is the group's own ask at both ends, so the
+    # spacing lands the partner exactly where the description says a
+    # cell of this column sits.
+    windows: list[tuple[int, int | None]] = [
+        (asked[index], asked[index]) for index in range(len(groups))
+    ]
     for index in range(len(groups)):
         partner = _partner_of(
             index, folded, spellings, families, used, windows

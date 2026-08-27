@@ -3047,6 +3047,27 @@ three parts and they apply in this order.
   leading `0.` and a trailing figure are all spent inside it, so a group
   asked for 400 characters writes a cell 400 characters long and not
   401 or 402.
+* **A shape may only be asked for a width it can actually write.** Two
+  of the six write at a width of their own whatever they are given —
+  contradictory notation is the fixed construction of G10.3 and
+  ordinary text is a stand-in drawn by the text rule — so neither may
+  be chosen to carry either published end. Of the four that may, each
+  has a narrowest spelling as well as a magnitude floor: the in-range
+  fraction needs three characters (`1.5`) however narrow the ask.
+  **And the floor is only assigned when some OTHER group can still
+  carry the ceiling**: a column with exactly one carrying group must
+  spend it on the ceiling, because the groups that carry nothing land
+  where they land and that is where the floor already is.
+* **A FOLD-COLLISION PARTNER IS HELD TO ITS GROUP'S ASKED WIDTH**
+  (revision 4). A partner (G9.3) is a respelling of a value already
+  written — a case flip, edge spacing, or both — and while this role
+  published no length at all its spacing was held to no window and ran
+  on as far as the collision needed. Now that both ends are published,
+  a partner free of the window consumes the group the ceiling was
+  assigned to: two 310-figure values folding together, published as 310
+  to 312 characters wide, wrote a parent at 310 and a partner at 311
+  and held no 312-character cell anywhere. The window is the group's
+  own ask at both ends.
 
 Construction, in this fixed order, so the counts land exactly:
 
