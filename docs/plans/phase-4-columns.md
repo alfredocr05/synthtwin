@@ -1997,6 +1997,23 @@ Opened by this plan, each a limit accepted rather than work forgotten:
     400-row all-different columns held 375 to 385 of 378 to 388 and
     every one reported the shortfall.
 
+  **CLOSED FOR A SECOND ROLE, 2026-08-27: `time_of_day` has a vector.**
+  `clock_ladder` is written from G7A alone in the oracle that never
+  imports synthtwin, and the shipped generator reproduces its twelve
+  cells exactly. It is deliberately a column with NO SLACK: its ends
+  are `08:00:00` and `08:00:10`, the eleven ordinals between them
+  inclusive are exactly as many as the cells that parsed, and it
+  publishes every value different -- so the all-different repair of
+  G7A.4, which is EXACT for this role, has nowhere to give. Its mutant
+  withdraws the step-up and keeps the clamp, and the same column then
+  writes `08:00:01` and `08:00:06` twice each; measured against the
+  SHIPPED generator with the same edit, it does the same, which is how
+  the case was designed rather than hoped for.
+
+  Two roles remain: `affixed_number` and `joined_numbers`. Both now
+  have a method section (G6A and G6B), so both are buildable, and
+  neither is blocked on anything but the work.
+
   **A LIMIT OF THIS RECOVERY, STATED.** These sections were written by
   reading the shipped generator, which is the inverse of the order this
   repository requires and the inverse of what R-P4-17 asks for. A
@@ -6214,6 +6231,47 @@ documentation however much it looks like it.
 |---|---|---|---|---|
 | **A-P4-40** | 2026-08-26 | The documentation regime above. THIS LOWERS what is written and lowers nothing that is checked. | 23 per cent of eight days' output was the product; the phase was spending its time on prose nobody reads. | Roughly six days come off the close sequence. A second implementer gets less prose and the same executable specification; where the contract is now silent, the loader and the guards are the authority, and the note grammar is the worked example of that -- four shipped sentences had no clause at all and no reader had noticed. |
 | **A-P4-41** | 2026-08-26 | Version 6 is EXTENDED IN PLACE until the first release rather than bumped whenever a key is added. Closes R-P4-23 BY RULING. | Nothing outside this repository holds a version 6 description, nothing is released and nothing is tagged, so the migration message the bump would buy has no reader. The owner declined to spend the phase on it. | A description written earlier on this branch, before `pad_widths`, `forced_codes` or `forced_measurements`, gets the loader's plain missing-key refusal instead of the sentence naming which options to supply again. The route is to describe the table once more. The contract's own "filling any slot advances `profile_version`" is amended to bind from the first release on, and Phase 5 bumps the number when it fills the relationship slots. |
+
+## Residual R-P4-51 — a joined column of three or more positions reproduces only the pairs its last position is in
+
+Opened 2026-08-27, by the adversarial review of method section G6B, and
+confirmed by measurement. The pairing walk moves ONLY the last
+position and scores only the pairs whose later member is that position.
+At two positions there is exactly one pair and it is that pair, so
+nothing shows. At three or more, every pair among the earlier positions
+is neither moved nor scored: those positions keep the ascending order
+the walk sorted them into, so their agreement comes out at `+1`
+whatever the description published.
+
+**Measured.** A 100-row three-position column of 25 copies each of
+`1/4/10`, `2/3/20`, `3/2/30`, `4/1/40`, whose first two positions are
+perfectly anti-correlated:
+
+| pair | published | twin |
+|---|---|---|
+| (1,2) | −1.0 | **+1.0** — the exact opposite |
+| (1,3) | +1.0 | −0.144 |
+| (2,3) | −1.0 | −0.144 |
+
+**What saves it from being silent is the quality report.** The twin's
+own report names none of these, which is R-P4-44's split and not this
+residual. `synthtwin validate`, run on that twin against that
+description, returns `part_agreements[0]`, `[1]` and `[2]` all MISSED
+and `part_above[0]` MISSED as well. So a person is told — through the
+command that exists to tell them — and nothing is quietly wrong.
+
+**Why it is a residual and not a defect.** The walk is honest about
+what it is: a one-position walk. Making it move more than one position
+is a different search with a different cost, and its objective would
+have to arbitrate between pairs that can pull against each other in
+ways two positions never do. That is design work, not a repair, and
+pricing it belongs with L7's joined-role work where R-P4-40, R-P4-42
+and R-P4-43 already sit.
+
+**What was done now** is to stop the documents claiming otherwise.
+Method G6B step 3 states the bound, prints the measured table, and says
+in terms that nothing in that section may be read as saying the walk
+reproduces every published pairing fact.
 
 ## Residuals R-P4-42 and R-P4-43 — the joined role's own gaps (2026-08-26)
 

@@ -147,6 +147,12 @@ REQUIRED_CASES = (
 # 11's pooled-spelling case), which are the second committed file of the
 # same oracle.
 BRANCH_CASES = (
+    # THE SECOND FROZEN CASE FOR A ROLE PHASE 4 ADDED (residual
+    # R-P4-17), and the first for a role whose method section did not
+    # exist until 2026-08-27. Eleven seconds hold eleven parsed cells,
+    # so the all-different repair of G7A.4 has no slack and every
+    # interior rank must land on the one ordinal left for it.
+    "clock_ladder",
     "free_text_joint",
     "identifier_edge_spacing",
     "leap_second_endpoint",
@@ -189,6 +195,7 @@ SEEDS = {
     "numeric_pooled_spelling": 115,
     "month_span": 116,
     "long_tail_levels": 117,
+    "clock_ladder": 118,
 }
 
 # The cases whose column was declared with --identifier, which the
@@ -1147,6 +1154,18 @@ def _one_style_for_the_whole_map(published):
     }
 
 
+def _clamp_without_the_step(ordinal, last, ceiling):
+    """G7A.4's repair with its step-up withdrawn: the clamp alone.
+
+    The clamp keeps a rank inside the published `latest` and does
+    nothing whatever about two ranks landing on one time, so a column
+    with no slack between its ends comes out holding a time twice.
+    """
+    if ordinal > ceiling:
+        ordinal = ceiling
+    return ordinal
+
+
 # Each row: the case, the branch it exists for, and the rule the method
 # rules out put back in its place.
 CASE_MUTANTS = {
@@ -1190,6 +1209,17 @@ CASE_MUTANTS = {
         attribute="identifier_family",
         replacement=_every_band_from_the_figures,
         outcome="recount n_all_digits as 12 and the case publishes 4",
+    ),
+    "clock_ladder": Mutant(
+        branch="G7A.4's all-different repair, which steps a rank that "
+        "landed on the previous rank's time up to the next ordinal "
+        "before clamping it to the published latest; the mutant keeps "
+        "the clamp and withdraws the step, and this column has no "
+        "slack to absorb it -- eleven seconds for eleven parsed cells "
+        "-- so two times come out written twice",
+        attribute="clock_repair",
+        replacement=_clamp_without_the_step,
+        outcome=CHANGES_THE_CELLS,
     ),
     "long_tail_levels": Mutant(
         branch="G8.3's stand-in walk, which enumerates a form's "

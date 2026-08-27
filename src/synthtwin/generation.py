@@ -5197,15 +5197,41 @@ def _unaffixed_spellings(
             built = built + [spelling]
             used[spelling] = 1
         step = step + wanted + 1
+    seat = 0
     while len(built) < count:
-        # A last resort that cannot wear the pair whatever it is: a
-        # spelling of this package's own, made distinct by its place.
-        made = f"(no pair {len(built)})"
-        if not _wears(made, pair) and made not in used:
-            used[made] = 1
-            built = built + [made]
-        else:
-            built = built + [f"(no pair {len(built)}{len(used)})"]
+        # A last resort, reached only where the walk above exhausts its
+        # ceiling: a spelling of this package's own, made distinct by
+        # its place.
+        #
+        # IT OWES THE HOLE REFUSAL THE WALK ABOVE OWES, and it was not
+        # keeping it. A spelling this column publishes as a HOLE is
+        # read back as no value at all, so writing one as a PRESENT
+        # cell moves the twin's own missing counts against the
+        # description it was built from -- the same defect
+        # `_unaffixed_numbers` records having been repaired for, in the
+        # same class of cell and for the same reason. Reaching this
+        # branch needs a column whose every candidate wears the pair,
+        # and no such column was built from the profiler while the
+        # refusal was added, so it is recorded as a GUARD rather than
+        # as a demonstrated repair.
+        #
+        # WEARING THE PAIR IS PREFERRED AGAINST AND NOT REFUSED, and
+        # that is deliberate. A pair can be any text -- a column of
+        # `(1)` and `(2)` wears `(` and `)` -- so a rule that refused
+        # every spelling wearing it would refuse every spelling this
+        # branch can make and never finish. The first spelling that
+        # avoids all three is taken; past a bound, the pair alone is
+        # conceded, because a repeated cell and a cell read as absent
+        # are both worse than a cell counted in the wrong class.
+        made = f"(no pair {seat})"
+        conceded = seat >= count * 4 + 64
+        seat = seat + 1
+        if made in used or _is_a_hole_spelling(made, holes):
+            continue
+        if _wears(made, pair) and not conceded:
+            continue
+        used[made] = 1
+        built = built + [made]
     return built
 
 

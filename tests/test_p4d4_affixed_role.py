@@ -954,3 +954,36 @@ def test_a_declaration_carried_across_the_pair_protects_the_number() -> None:
         assert len(verdicts) == 1, named
         assert verdicts[0]["reason"] == "kept_by_you", named
         assert verdicts[0]["n_occurrences"] == 22, named
+
+
+def test_the_last_resort_straggler_refuses_a_published_hole() -> None:
+    """A present cell may never be spelled the way a hole is spelled.
+
+    `_unaffixed_spellings` walks candidates and refuses three things: a
+    spelling already written, one that WEARS the affix pair, and one
+    this column publishes as a hole. Where every candidate wears the
+    pair the walk exhausts its ceiling and falls through to a last
+    resort of the package's own -- and that branch kept only two of the
+    three, so it could write a published hole as a PRESENT cell. The
+    twin's own description then reads that cell as absent and its
+    missing counts move against the description it was built from,
+    which is the defect `_unaffixed_numbers` already records having
+    been repaired for, in the same class of cell.
+
+    Reaching this branch from the profiler was not achieved while the
+    refusal was added, so this pins the branch directly rather than
+    through a described column, and the rule it pins is the one the two
+    sibling walks already keep.
+    """
+    holes = ("(no pair 0)", "(no pair 1)")
+    built = generation._unaffixed_spellings(
+        generation._CLASS_TEXT, 3, 1, 1, ("text-", ""), {}, holes
+    )
+    assert len(built) == 3
+    assert len(set(built)) == 3, "the last resort repeated a cell"
+    written_as_a_hole = [cell for cell in built if cell in holes]
+    assert not written_as_a_hole, (
+        "these present cells are spelled exactly the way this column "
+        f"publishes a hole, so its twin reads them as absent: "
+        f"{written_as_a_hole}"
+    )

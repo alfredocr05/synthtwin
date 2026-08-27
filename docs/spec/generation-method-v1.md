@@ -1542,6 +1542,32 @@ The plain-number stragglers are written as WHOLE NUMBERS counting up
 from 1, skipping every refused spelling, because nothing else about
 them is published: the ladder and every moment belong to the cores.
 
+**The walk for the other three classes is BOUNDED, and what happens
+past the bound is part of the method.** It asks the class builder for
+progressively larger batches and keeps the survivors, and it stops
+after `count * 8 + 64` steps. A column can exhaust it — one whose every
+candidate wears the pair, such as a prefix of `text-` against text
+stand-ins spelled `text-1`, `text-2` — and past that point the cells
+are written from a last resort of this method's own: `(no pair 0)`,
+`(no pair 1)`, and so on by their place.
+
+That last resort **owes the same hole refusal the walk owes**. A
+spelling this column publishes as a hole is read back as no value at
+all, so writing one as a PRESENT cell moves the twin's own missing
+counts against the description it was built from. It also refuses a
+spelling already written. It PREFERS not to wear the pair rather than
+refusing to, and that is deliberate: a pair can be any text — a column
+of `(1)` and `(2)` wears `(` and `)` — so a rule that refused every
+spelling wearing the pair would refuse every spelling this branch can
+make and never finish. Past a bound of `count * 4 + 64` the pair alone
+is conceded, because a repeated cell and a cell read as absent are both
+worse than a cell counted in the wrong class.
+
+This branch kept only two of the three refusals until 2026-08-27, and
+no column reaching it was built from the profiler while the third was
+added, so it is recorded as a guard rather than as a demonstrated
+repair.
+
 ## G6B. Joined-number columns (`joined_numbers`)
 
 Added by Phase 4; like G6A and G7A this section was written after the
@@ -1620,8 +1646,16 @@ Write `T` for `n_joined` and `last` for `n_parts - 1`.
 spelling)` ascending, value being the spelling read as a number. This
 is the rank-for-rank start: largest with largest.
 
-**2. Choose the start.** Let `A` be the ARITHMETIC MEAN of
-`part_agreements` (0 when there are none). Then
+**2. Choose the start.** Let `A` be the mean of `part_agreements`, and
+compute it EXACTLY THIS WAY: start at binary64 `0.0`, add each
+published agreement in the order the key lists them, then divide once
+by how many there are (`A` is `0.0` when there are none). The
+mathematical mean is not enough to reproduce bytes, because the
+thresholds below are compared against this value: three positions
+publishing `-0.4, -0.4, -0.4` give a mathematical mean of exactly
+`-0.4`, which takes the permutation branch, while the sequential sum
+gives `-0.4000000000000001`, which takes the reversal — and the two
+write different cells. Then
 
 - `A < -0.4`: the LAST position is reversed, seat `i` taking seat
   `T - 1 - i`;
@@ -1634,12 +1668,49 @@ A low target starts from a shuffle because it is already near it, and a
 strongly negative one from rank against rank, because the walk cannot
 travel the whole way inside its try ceiling.
 
-**3. Only the last position moves** for the rest of the walk. The pairs
-the walk can change are exactly those whose later member is `last`.
+**3. Only the last position moves** for the rest of the walk, and the
+pairs the walk scores are exactly those whose later member is `last`.
 
-**4. The distance.** With ranks taken about the middle
-`m = (T - 1) / 2` — ties sharing the average of their ranks — and the
-fixed divisors `spread[p] = Σ_rows (rank[p][r] − m)²`:
+**THIS IS A REAL BOUND ON WHAT THE ROLE REPRODUCES, and it is not
+visible at two positions.** With `n_parts` of 2 there is one pair and
+it is that pair, so everything below is targeted. With THREE OR MORE,
+every pair among the earlier positions is neither moved nor scored:
+those positions are left in the ascending order step 1 sorted them
+into, so their agreement comes out at `+1` whatever the description
+published, and no term of the distance ever notices.
+
+Measured on a 100-row three-position column built from 25 copies each
+of `1/4/10`, `2/3/20`, `3/2/30` and `4/1/40` — whose first two
+positions are perfectly anti-correlated, published `-1.0`:
+
+| pair | published | twin |
+|---|---|---|
+| (1,2) | −1.0 | **+1.0** |
+| (1,3) | +1.0 | −0.144 |
+| (2,3) | −1.0 | −0.144 |
+
+The twin's own report names none of them (residual R-P4-44, which is
+about the report vehicle and not about this). **`synthtwin validate`
+does**: the same twin checked against its own description returns
+`part_agreements[0]`, `[1]` and `[2]` all MISSED, together with
+`part_above[0]`. So the shortfall reaches a person, through the quality
+report rather than through the twin's report — and it is a shortfall,
+not a rounding. This is residual R-P4-51.
+
+Nothing in this section may therefore be read as saying the walk
+reproduces every published pairing fact. What it targets is the pairs
+involving the last position; what it reaches on those is bounded by
+`0.0005` or by the try ceiling, whichever stops it first.
+
+**4. The distance.** Ranks are ZERO-BASED: the smallest value of a
+position takes rank `0` and the largest takes rank `T - 1`, with tied
+values sharing the average of the ranks they span. Saying only "ties
+share the average" leaves the origin open, and the one-based
+convention is at least as common — it writes different cells, so it is
+pinned here. The middle is `m = (T - 1) / 2`, which is the mean of
+those ranks, and the divisors `spread[p] = Σ_rows (rank[p][r] − m)²`
+are computed once and never move, because no swap changes a position's
+multiset of ranks. Then:
 
 ```
 away =  |distinct_cells − wanted| / T
@@ -1652,8 +1723,9 @@ where `agreement[pair] = (Σ_rows (rank[first][r] − m)(rank[last][r] − m))
 
 **The three terms are scaled differently on purpose, and each scale is
 a measurement.** `part_above` is an exact count a pairing can always
-meet, and one row out of it is one cell holding a reading that cannot
-happen — at equal weight the walk sold a row of it for a thousandth of
+meet FOR A SCORED PAIR — an unscored pair is not reached at all, per
+step 3 — and one row out of it is one cell holding a reading that
+cannot happen — at equal weight the walk sold a row of it for a thousandth of
 agreement and produced an impossible cell, so it carries FULL WEIGHT
 PER ROW. The count of different cells is divided by `T`, because that
 one cannot always be met: each position's numbers are drawn to the
@@ -1677,8 +1749,11 @@ published, 119 achieved" while the recount in the same report said 120.
 **5. The walk.** While `away > 0.0005`, fewer than `200 * T` tries have
 been made, and at least two reserve words exist:
 
-- take the next two reserve words, restarting at the first whenever
-  fewer than two remain;
+- take the next two reserve words, **counting from reserve word ZERO
+  even when the permutation of step 2 already consumed some** — the
+  walk does not continue after them, it starts again at the beginning
+  of the reserve and reads the same words a second time — and
+  restarting at word zero again whenever fewer than two remain;
 - `i = bounded(w1, T)`, `j = bounded(w2, T)` by G3.4b;
 - if `i == j`, or the last position holds the same spelling at both,
   the try is spent and nothing moves;
@@ -4414,10 +4489,10 @@ fail.
 **Two committed JSON files, and ONE oracle** (review item P2-C3-F3).
 `tests/reference/generation-reference-vectors.json` carries the nine
 cases G14.3 names first and
-`tests/reference/generation-branch-vectors.json` carries the eight it
+`tests/reference/generation-branch-vectors.json` carries the nine it
 names after them (five, until owner decision 11 added the
 pooled-spelling case; then the month-span case of plan P4-D4.3, and
-then the long-tail case of residual R-P4-17). This sentence carried the
+then the long-tail and clock cases of residual R-P4-17). This sentence carried the
 count `six` while the file held seven, which is the same drift G14.3's
 own warning is about, and it is written here as a growth list so the
 next case has an obvious place to be recorded. Both are written by
@@ -4504,9 +4579,9 @@ item P2-C3-F3), and one more for the published end the ordinal space
 cannot hold (review item P2-C4-C3), and the pooled remainder written by
 its own value beside a whole number wider than the fixed-point window
 (owner decision 11), and one for the second SPAN resolution when it was
-added (plan P4-D4.3 item 2), and one for the first of the roles Phase 4
-added (residual R-P4-17). **All seventeen are required.** The
-first nine are the first committed file and the last eight the second
+added (plan P4-D4.3 item 2), and two for the first two of the roles
+Phase 4 added (residual R-P4-17). **All eighteen are required.** The
+first nine are the first committed file and the last nine the second
 (G14.2). **The table below is the inventory itself, and it was short of
 the count above by one row from the day the pooled-spelling case was
 added** (review item P4-DATE4-F3): an implementer who built exactly the
@@ -4532,6 +4607,7 @@ case passed, which is the failure the count exists to prevent:
 | `month_span` | G7.1's month ordinal and G7.5's `month/month` cell form: the second resolution that names a SPAN rather than an instant, whose canonical form is its own cell text |
 | `numeric_pooled_spelling` | owner decision 11's pooled remainder written by its own value, beside a whole number wider than the fixed-point window |
 | `long_tail_levels` | G8.1 to G8.4 reached through `long_tail_labels`: the ADMISSION of a folded count above the categorical ceiling, and the G8.3 stand-ins taken as words because a form census covers the held-back rows. It pins admission and routing into the shared label machinery, not a generator branch of the role's own |
+| `clock_ladder` | G7A end to end on a column with NO SLACK: eleven seconds hold its eleven parsed cells, so the all-different repair must place every interior rank on the one ordinal left for it, and a stand-in stands beside them |
 
 Each case is small enough to read by hand — at most a few dozen cells —
 because a vector nobody can check by hand is a vector nobody checks.
@@ -4697,13 +4773,31 @@ on a table of this exact shape. Correcting it left every frozen cell
 unchanged, which is worth recording: what was wrong was the
 DESCRIPTION's producibility, not the transform under it.
 
-**The three that remain open.** `time_of_day` and `joined_numbers` had
-no method section in this document at all until G7A and G4.3's rows
-were written, which is why no vector for them could be built from the
-specification: there was nothing to build from. `affixed_number` had a
-single passing mention. Those sections are the blocking work for the
-remaining three cases, and until they are frozen the count above stays
-at seventeen with a known gap rather than pretending to cover the phase.
+**Why the eighteenth exists** (2026-08-27; residual R-P4-17).
+`time_of_day` and `joined_numbers` had no section in this document at
+all, and `affixed_number` a single passing mention, so no vector for
+any of the three could be built from the specification -- there was
+nothing to build from. G6A, G6B, G7A and G4.3's rows are that work, and
+`clock_ladder` is the first case they make possible.
+
+It is deliberately a column with NO SLACK. Its ends are `08:00:00` and
+`08:00:10`; the eleven ordinals between them inclusive are exactly as
+many as the cells that parsed; and it publishes every value different.
+So G7A.4's all-different repair -- EXACT for this role where every
+other shape's distinctness falls to an envelope -- has nowhere to give:
+each interior rank must land on the one ordinal left for it. Its mutant
+withdraws the STEP-UP and keeps the clamp, and the same column then
+comes out holding `08:00:01` and `08:00:06` twice each, so the repair
+is doing the work here rather than merely being present. The case also
+carries one cell that is not a clock time, which puts a stand-in beside
+the parsed cells (G7A.5), and it reads its ladder in SECONDS OF DAY --
+the form's own unit -- which is the whole of what separates this role
+from the date role whose transform it borrows.
+
+**Two roles remain open**: `affixed_number` and `joined_numbers`. Both
+now have a method section (G6A, G6B), so both are buildable; until they
+are frozen the count above stays at eighteen with a known gap rather
+than pretending to cover the phase.
 
 ### G14.4 What the vectors do NOT freeze
 

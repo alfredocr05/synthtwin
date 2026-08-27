@@ -1678,6 +1678,56 @@ def precision_form(ordinal, resolution, time_precision, subsecond_digits):
     return stem + "." + "0" * subsecond_digits
 
 
+CLOCK_STEP = {"hh-mm": 60, "hh-mm-ss": 1}
+CLOCK_CAPACITY = {"hh-mm": 24 * 60, "hh-mm-ss": 24 * 60 * 60}
+
+
+def clock_ordinal_of(text, form):
+    """One clock cell as its place in its form's own unit (G7A.1).
+
+    Minutes of day for `hh-mm`, seconds of day for `hh-mm-ss`.  The
+    reader is deliberately exact and NOTHING is trimmed first: what this
+    role publishes are the cells themselves, character for character.
+    """
+    if form not in CLOCK_STEP:
+        raise AssertionError(f"{form!r} is not one of the two clock forms")
+    wanted = 8 if form == "hh-mm-ss" else 5
+    if len(text) != wanted:
+        raise AssertionError(f"{text!r} is not a cell of form {form}")
+    fields = text.split(":")
+    if len(fields) != (3 if form == "hh-mm-ss" else 2):
+        raise AssertionError(f"{text!r} is not a cell of form {form}")
+    numbers = []
+    for field in fields:
+        if len(field) != 2 or not field.isdigit():
+            raise AssertionError(f"{text!r} is not a cell of form {form}")
+        numbers.append(int(field))
+    if numbers[0] > 23:
+        raise AssertionError(f"{text!r} has an hour above 23")
+    for rest in numbers[1:]:
+        if rest > 59:
+            raise AssertionError(f"{text!r} has a field above 59")
+    if form == "hh-mm":
+        return numbers[0] * 60 + numbers[1]
+    return numbers[0] * 3600 + numbers[1] * 60 + numbers[2]
+
+
+def clock_spelling_of(ordinal, form):
+    """The one spelling of one ordinal in one form (G7A.1).
+
+    The inverse of `clock_ordinal_of`, zero-padded to two digits a
+    field, so a producer and a generator cannot spell one time two ways.
+    """
+    if form not in CLOCK_STEP:
+        raise AssertionError(f"{form!r} is not one of the two clock forms")
+    if ordinal < 0 or ordinal >= CLOCK_CAPACITY[form]:
+        raise AssertionError(f"{ordinal} is outside the space of {form}")
+    if form == "hh-mm":
+        return "%02d:%02d" % (ordinal // 60, ordinal % 60)
+    rest = ordinal % 3600
+    return "%02d:%02d:%02d" % (ordinal // 3600, rest // 60, rest % 60)
+
+
 def interpolated_ordinal(position, denominator, rungs):
     """One interior rank's ordinal -- the transform of method section G7.3.
 
@@ -4171,6 +4221,69 @@ def _universal(name, role, statistical_type, structural_role, quality_state, **f
     return block
 
 
+def clock_repair(ordinal, last, ceiling):
+    """G7A.4's all-different repair: step up, THEN clamp.
+
+    The order is the rule and not an accident.  Stepping up is what
+    makes two ranks that interpolated onto one time different -- the
+    later one takes the next ordinal, which is what the source column
+    itself did -- and the clamp is what keeps that step inside the
+    published `latest`.  Clamping first and stepping after would carry
+    a rank past the published end.
+    """
+    if ordinal <= last:
+        ordinal = last + 1
+    if ordinal > ceiling:
+        ordinal = ceiling
+    return ordinal
+
+
+def _clock_content(column):
+    """The content list of a clock column -- method section G7A.
+
+    The same stratified inverse transform the date role uses, with the
+    ladder read in the form's OWN unit, plus the one repair that belongs
+    to this role alone: where the column's values were all different, so
+    are the twin's, because a closed finite space of times has a place
+    for each of them.
+    """
+    form = column["clock_form"]
+    parsed = column["n_present"] - column["n_unparsed"]
+    rungs = [
+        clock_ordinal_of(column["clock_percentiles"][key], form)
+        for key in LADDER_KEYS
+    ]
+    # G7A.4's condition, stated on the published counts alone.  The
+    # obligation is EXACT for this role where every other shape's
+    # distinctness falls to an envelope.
+    apart = column["n_distinct"] - column["n_unparsed"] >= parsed
+    ceiling = clock_ordinal_of(column["latest"], form)
+    last = clock_ordinal_of(column["earliest"], form)
+    words = iter(column["_content_words"])
+    content = []
+    for rank in range(parsed):
+        # The two ends are the published TEXT and not a re-spelling of
+        # an ordinal, and neither costs a word.
+        if rank == 0:
+            content.append(column["earliest"])
+            continue
+        if rank == parsed - 1 and parsed >= 2:
+            content.append(column["latest"])
+            continue
+        ordinal = interpolated_ordinal(
+            rank * TWO64 + next(words), parsed * TWO64, rungs
+        )
+        if apart:
+            ordinal = clock_repair(ordinal, last, ceiling)
+        last = ordinal
+        content.append(clock_spelling_of(ordinal, form))
+    # G7A.5.  The stand-ins this file builds are `text-N`, which reads
+    # as a clock time in NEITHER form, so the exclusion that belongs to
+    # this role is met by construction rather than by a search.
+    content.extend(text_stand_ins(content, column["n_unparsed"]))
+    return content
+
+
 def _date_only():
     column = _universal(
         "column_1", "datetime", "datetime", "data", "ok",
@@ -4978,6 +5091,52 @@ NAMED_CASE_BUILDERS = {
     "quarter": _quarter,
 }
 
+def _clock_ladder():
+    """A clock column whose span is exactly as wide as its values."""
+    column = _universal(
+        "column_1", "time_of_day", "time_of_day", "data", "ok",
+        n_present=12, n_missing=0, n_distinct=12, n_distinct_folded=12,
+        n_numeric=0, n_not_numeric=12, n_out_of_range=0, n_contradictory=0,
+        clock_form="hh-mm-ss",
+        clock_percentiles={
+            "min": "08:00:00", "p01": "08:00:00", "p05": "08:00:00",
+            "p10": "08:00:01", "p25": "08:00:02", "p50": "08:00:05",
+            "p75": "08:00:07", "p90": "08:00:09", "p95": "08:00:09",
+            "p99": "08:00:09", "max": "08:00:10",
+        },
+        earliest="08:00:00", latest="08:00:10", n_unparsed=1,
+        detection_evidence=(
+            "11 value(s) are clock times written as hours, minutes and "
+            "seconds, `09:30:00`, and 1 value(s) are not"
+        ),
+    )
+    return {
+        "why": "the first frozen case for the clock role, and the one "
+        "that reaches its own repair rather than only its ladder. "
+        "ELEVEN SECONDS HOLD ELEVEN PARSED CELLS: the ends are "
+        "`08:00:00` and `08:00:10`, the eleven ordinals between them "
+        "inclusive are exactly as many as the cells that parsed, and "
+        "the column publishes every value different. So the all-"
+        "different obligation of G7A.4 -- EXACT for this role where "
+        "every other shape's distinctness falls to an envelope -- has "
+        "no slack at all: each interior rank must land on the one "
+        "ordinal left for it. Measured against the shipped generator "
+        "with the step-up removed, the same column comes out holding "
+        "`08:00:01` and `08:00:06` twice each, so the repair is doing "
+        "the work here and not merely present.\n\n"
+        "It also carries a cell that is not a clock time at all, which "
+        "is what makes `n_unparsed` non-zero and puts a stand-in "
+        "beside the parsed cells (G7A.5). The two ends are the "
+        "published TEXT and cost no word, so the budget is the nine "
+        "interior ranks, and the ladder is read in SECONDS OF DAY -- "
+        "the form's own unit -- which is the whole of what makes this "
+        "role different from the date role it borrows its transform "
+        "from.",
+        "column": column,
+        "rows": 12,
+    }
+
+
 BRANCH_CASE_BUILDERS = {
     "free_text_joint": _free_text_joint,
     "numeric_pooled_spelling": _numeric_pooled_spelling,
@@ -4987,6 +5146,7 @@ BRANCH_CASE_BUILDERS = {
     "numeric_point_free_styles": _numeric_point_free_styles,
     "unrepresentable_joint": _unrepresentable_joint,
     "long_tail_levels": _long_tail_levels,
+    "clock_ladder": _clock_ladder,
 }
 
 CASE_SETS = {
@@ -5062,6 +5222,15 @@ GIVEN_WORDS = {
     # budget and its whole budget: the role consumes no content word,
     # so every cell of the twin is fixed by published counts and these
     # decide only the ORDER the rows come out in.
+    "clock_ladder": (
+        17168193686452184398, 17294964732501811759, 5119971829015185418,
+        3974762115987730418, 9783861565524925563, 676574683570638621,
+        12408121771224495461, 17120944728125855256, 8074603130316608142,
+        16171205420250064347, 1348050307520104417, 14805382045011159389,
+        12528853194802204718, 7870325075990001275, 8800084849072185159,
+        11241460431909986162, 9287835057163713957, 11122896599893611155,
+        15231939135091175662, 12051230916723616950,
+    ),
     "long_tail_levels": (
         16141117999568644869, 2912390137437105406, 11142961259136265613,
         6649429050765924510, 9469698730514687439, 5579144964475137875,
@@ -5222,6 +5391,13 @@ def word_budget(column, rows):
     if role == "datetime":
         parsed = column["n_present"] - column["n_unparsed"]
         return max(parsed - 2, 0), placement
+    # The clock role budgets by the same shape and for the same reason
+    # (G4.3, G7A.4): both ends are pinned by fixed rule and cost no
+    # word, every stand-in is stepped past its neighbours and costs
+    # none, and each rank between the ends takes exactly one.
+    if role == "time_of_day":
+        parsed = column["n_present"] - column["n_unparsed"]
+        return max(parsed - 2, 0), placement
     if role in ("count", "continuous"):
         numeric = column["n_numeric"]
         negatives = column["n_negative"] - column["n_negative_unrepresentable"]
@@ -5378,6 +5554,8 @@ def build_case(name):
     chain = []
     if column["role"] == "datetime":
         content = _datetime_content(working)
+    elif column["role"] == "time_of_day":
+        content = _clock_content(working)
     elif column["role"] in ("count", "continuous"):
         content, chain, _missed = _numeric_content(working)
     elif column["role"] == "identifier":
