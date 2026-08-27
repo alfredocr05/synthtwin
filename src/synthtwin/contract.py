@@ -5052,6 +5052,7 @@ def _numeric_facts(
     n_numeric: int,
     n_out_of_range: int,
     n_contradictory: int,
+    echoes: "int | None" = None,
 ) -> NumericFacts:
     """A column of counts or of continuous values (contract 6.7).
 
@@ -5093,7 +5094,22 @@ def _numeric_facts(
         mapping["integer_valued"], "integer_valued", where
     )
     echoed = _whole_row_count(mapping["n_rows"], "n_rows", where)
-    if echoed != frame.n_rows:
+    # WHICH ROW COUNT A BLOCK OF NUMBERS ECHOES. For a column it is the
+    # table's, which is what Q1 says. For one POSITION of a joined
+    # column it is not: that block describes only the cells that split,
+    # so the profiler writes `n_joined` there and every other count in
+    # the block is measured over those same cells.
+    #
+    # Comparing a position against the TABLE's row count made the tool
+    # write a file it then refused to read. Measured: a 200-row column
+    # of joined readings with ONE cell that does not split is published
+    # with `n_joined` 199, and `load_profile` raised Q1 against it --
+    # telling the user the file "has been changed since it was written"
+    # and to make it again, which produces the same file. Every joined
+    # column carrying any unparsed cell was unreadable this way; with
+    # none, the two counts coincide and nothing showed.
+    wanted = frame.n_rows if echoes is None else echoes
+    if echoed != wanted:
         raise _broken(
             "Q1",
             where,
@@ -6297,7 +6313,14 @@ def _joined_facts(
         _keys(block, where, NUMERIC_KEYS, f"the block for {seat}")
         blocks = blocks + [
             _numeric_facts(
-                block, f"{where}, {seat}", frame, n_joined, n_joined, 0, 0
+                block,
+                f"{where}, {seat}",
+                frame,
+                n_joined,
+                n_joined,
+                0,
+                0,
+                echoes=n_joined,
             )
         ]
         place = place + 1

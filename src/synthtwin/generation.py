@@ -4880,13 +4880,23 @@ def _joined_content(
     number is padded back to the smallest width its position was
     written at.
 
-    THE POSITIONS ARE DRAWN INDEPENDENTLY, and that is a limit worth
-    stating rather than hiding: this format publishes no structure
-    between one position and another, so nothing in the description
-    says that a high first number went with a high second one. The
-    twin's pairs are therefore believable ONE NUMBER AT A TIME. That is
-    the same promise the whole format makes between columns (contract
-    4.6, S12), arriving inside a cell.
+    THE POSITIONS ARE DRAWN INDEPENDENTLY AND THEN PAIRED ON PURPOSE.
+    This docstring said the opposite for a landing -- that the format
+    publishes no structure between one position and another, so the
+    pairs are believable one number at a time -- and `_repaired_pairing`
+    below it has always contradicted that. The format DOES publish
+    structure between positions: `part_agreements` says how strongly
+    two positions rise and fall together by rank, and `part_above` how
+    often the earlier stands above the later. Both are facts of the
+    real column and both are walked toward here.
+
+    So the limit worth stating is the narrower true one: the agreement
+    is APPROXIMATED against a fixed window (plan P4-D25) rather than
+    met, and THE TWIN'S OWN REPORT DOES NOT NAME IT -- the quality
+    report does (residuals R-P4-42, R-P4-44). This is also the one
+    place structure between two quantities is reproduced at all, and it
+    lives inside a cell: it says nothing about any other column, so the
+    one-column-wide bound stated in the brief is unaffected.
     """
     column = plan.column
     facts = column.facts
@@ -4930,13 +4940,14 @@ def _joined_content(
         # A shuffle keeps every position's MULTISET exactly, so every
         # published number about it -- ladder, mean, spread, styles,
         # widths -- is untouched, and only the pairing moves. It is the
-        # honest choice among the pairings the description admits: this
-        # format publishes no structure between one position and
-        # another (contract 4.6, S12), so no pairing is asked for, and
-        # the one that also meets the published `n_distinct` is better
-        # than one that does not. A fixed reversal would meet it too and
-        # would invent a strong negative correlation nothing published
-        # says is there.
+        # honest choice among the pairings the description admits, and
+        # a pairing IS asked for: `part_agreements` and `part_above`
+        # publish how the positions moved together, so the walk in
+        # `_repaired_pairing` has targets rather than a free choice,
+        # and among pairings that reach them the one also meeting the
+        # published `n_distinct` is better than one that does not. A
+        # fixed reversal would meet the count too and would invent a
+        # strong negative agreement the description contradicts.
         drawn = drawn + [values]
     # WHICH NUMBERS MEET IN A ROW. The words the shuffle used to spend
     # are spent here instead: the pairing is chosen to the facts the
@@ -4946,7 +4957,25 @@ def _joined_content(
     while step < len(words):
         spare = spare + [words[step]]
         step = step + 1
-    drawn = _repaired_pairing(drawn, facts, column.n_distinct, spare)
+    # WHAT THE PAIRING IS ASKED FOR IS NOT THE WHOLE COLUMN'S COUNT,
+    # where any cell did not split. Those cells are replaced by
+    # stand-ins built after the pairing, and they are all ONE spelling
+    # (`_class_spellings` at a budget of one), which no joined cell
+    # wears -- so they add exactly one to the count of different cells,
+    # however many of them there are.
+    #
+    # Handing the pairing the whole-column figure compared unlike
+    # quantities and made the report say a fact was missed when the
+    # column met it: 99 paired cells that are necessarily all different,
+    # plus one stand-in, meet a published 100, and the twin was
+    # nevertheless told it had reached 99 of 100. The recount at the end
+    # of generation, which measures the FINISHED cells, said 100 in the
+    # same report.
+    invented = 1 if column.n_present > facts.n_joined else 0
+    wanted = column.n_distinct - invented
+    if wanted < 0:
+        wanted = 0
+    drawn = _repaired_pairing(drawn, facts, wanted, spare)
     # WHAT THE PAIRING COULD NOT REACH IS SAID, not swallowed. The count
     # of different cells is a fact of the real column that a pairing of
     # THESE numbers may be unable to meet (residual R-P4-40), and a twin
@@ -4955,12 +4984,12 @@ def _joined_content(
     for row in range(facts.n_joined):
         text = _joined_written(drawn, facts, row)
         made_cells[text] = 1
-    if len(made_cells) != column.n_distinct:
+    if len(made_cells) != wanted:
         notes = notes + [
             _deviation(
                 column.name,
                 "n_distinct",
-                f"{column.n_distinct} different value(s)",
+                f"{wanted} different value(s)",
                 f"{len(made_cells)} different value(s)",
                 "Each number in this column's cells follows the "
                 "description exactly. Which numbers meet in a cell is "
@@ -6214,8 +6243,25 @@ def _clock_content(
             # tighter than the ranks are numerous, and stepping the
             # later one up by a minute is what the source column itself
             # did. Bounded by the last rank, which is pinned to the
-            # published latest: the room test above is what guarantees
-            # there is a place for every one of them.
+            # published latest.
+            #
+            # WHAT GUARANTEES A PLACE FOR EVERY ONE OF THEM IS THE
+            # SPAN, and not `_clock_room` -- that check is the FORM's
+            # capacity, which is a different quantity and a weaker one.
+            # On any description the profiler wrote the span is enough:
+            # every parsed cell lies between the two published ends, so
+            # the different parsed cells number at most `hi - lo + 1`,
+            # and `n_unparsed` counts unparsed CELLS while `n_distinct`
+            # counts each unparsed spelling once, so
+            # `n_distinct - n_unparsed` cannot exceed that width. A
+            # HAND-WRITTEN description can break it -- ends eleven
+            # minutes apart asking for a hundred different values -- and
+            # then the clamp below binds, the twin holds fewer times
+            # than published, and the recount reports the shortfall
+            # against `n_distinct` rather than passing it over.
+            # Measured on exactly that column: 11 different times
+            # written, `n_distinct` reported at 11, 8 of the 11 rungs
+            # reported moved. See method G7A.3.
             if ordinal <= last:
                 ordinal = last + 1
             if ordinal > ceiling:

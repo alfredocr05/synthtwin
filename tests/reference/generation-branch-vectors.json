@@ -360,7 +360,6 @@
         "role": "long_tail_labels",
         "sentinel_verdicts": [],
         "shape_forms": {
-          "(withheld)": 11,
           "@@@@-@@": 29
         },
         "statistical_type": "long_tail_labels",
@@ -434,7 +433,7 @@
       ],
       "csv_bytes": "OUXE-GD\nLQMJ-FW\nMAZH-OY\nNote Alpha\nBKMY-IC\nIHYA-ZQ\nSNYL-VK\nDELV-AH\nAAAA-AA\nNote Alpha\nNote Alpha\nOUXE-GD\nIHYA-ZQ\nNKLG-XA\nJRKZ-HT\nNote Alpha\nDELV-AH\nYAYP-CX\nHXLC-QO\nJRKZ-HT\nNote Alpha\nTXKK-EN\nNote Alpha\nGNZD-HM\nCUYW-RE\nNKLG-XA\nYAYP-CX\nNote Alpha\nNote Alpha\nSNYL-VK\nWGZS-KS\nNote Alpha\nVWMU-BQ\nXQLR-TU\nNote Alpha\nRDMN-MI\nQTZO-DG\nXQLR-TU\nNote Alpha\nTXKK-EN\n",
       "float64": [],
-      "why": "the first frozen case for a role Phase 4 added, and the one that proves a long tail of labels reaches G8.1 to G8.4 at all. It carries more rows in its held-back levels than in its published ones -- twenty-five against fifteen -- which is the shape a long tail has and a column of categories cannot: its nine folded identities stand above the ceiling of eight this column passed. The variant allocation of G8.1 offers each level's own spelling to its largest held-back group, the case flips of G8.2 answer the one level carrying a published variant, and the five suppressed levels take the neutral stand-ins of G8.3 at their published sizes. A label column consumes no content word, so every byte here is fixed by published counts.",
+      "why": "the first frozen case for a role Phase 4 added, and the one that proves a long tail of labels reaches G8.1 to G8.4 at all. It carries far more rows in its held-back levels than in its published one -- twenty-nine against eleven -- which is the shape a long tail has and a column of categories cannot: its twenty-one folded identities stand above the ceiling of twenty this column passed, and that is the admission a rename to `categorical` could not survive. At a floor of eleven, forty rows leave room for exactly one published level; the other twenty cover one or two rows each and are held back. The case flips of G8.2 answer the one level carrying a published variant, and the twenty suppressed levels take the neutral stand-ins of G8.3 at their published sizes -- as words rather than as numbered labels, because the form census names a letters-and-hyphen form for all twenty-nine held-back rows. A label column consumes no content word, so every byte here is fixed by published counts. What this case does NOT prove is a generator branch of its own: a long tail is admitted by rules the categorical role would fail and is then written by the shared G8 machinery, so what is pinned here is admission and routing, and the cells are the label path's.",
       "word_budget": {
         "content": 0,
         "placement": 39

@@ -1951,8 +1951,73 @@ Opened by this plan, each a limit accepted rather than work forgotten:
   `joined_numbers` -- and this one was chosen first because it costs
   least: contract 6.6 gives a long tail the label roles' own keys and
   no key of its own, so the oracle's existing label machinery reaches
-  it. The other three each need their method section implemented from
-  the specification.
+  it.
+
+  **AND THE REASON THE OTHER THREE COULD NOT BE STARTED, found
+  2026-08-27 while starting them: THEY HAVE NO METHOD SECTION.** The
+  oracle's whole value is that it implements
+  `docs/spec/generation-method-v1.md` and imports nothing from `src/`.
+  Measured against that document: `time_of_day` appeared in it zero
+  times, `joined_numbers` zero times, `affixed_number` once, in a
+  sentence about a different key. Every one of the fifteen `clock`
+  mentions belonged to the DATETIME role's timezone clock. There was
+  nothing to implement from, which is why no vector for those roles
+  could be written -- not effort, absence.
+
+  Two further gaps in the same document made the same three roles
+  unbuildable even where their behaviour could be guessed:
+
+  * **G4.3's draw budget listed seven role groups and omitted all four
+    Phase 4 roles.** An independent implementer computing a word budget
+    from it gets the wrong number for those columns, and because one
+    stream feeds every column in order, a wrong budget shifts every
+    LATER column at the same seed. This is the failure the document
+    names as the one thing it exists to prevent, in the same paragraph
+    where it records the last time it happened.
+  * **G11's all-different table omitted the same four**, and its list
+    of instances where the obligation cannot hold was one short.
+
+  All three are now written, each measured rather than transcribed:
+
+  * **G7A, a full method section for `time_of_day`** -- the two forms
+    and their ordinal units, the reader's five refusals, the capacity
+    refusal, the interpolation in the shape of G7.3, the step-and-clamp
+    all-different repair and the stand-in walk.
+  * **G4.3 gained four rows.** `max(P - 2, 0)` for the clock role was
+    checked on eight described columns spanning `n_unparsed` of 0, 1,
+    30 and 50 and a three-cell column; the affixed rule -- the numeric
+    budget read over the CORES -- on three; the joined rule -- each
+    position's numeric budget plus a reserve of `max(n_joined - 1, 0)`
+    for every position after the first -- on five, at two and three
+    positions. The reserve's PURPOSE was mis-stated in the first draft
+    of that paragraph and corrected against the code: it is not spent
+    inside any position but afterwards, once, on the pairing.
+  * **G11 gained the four rows and a fourth instance**: joined-number
+    columns, where the pairing cannot reach the published count. Six
+    400-row all-different columns held 375 to 385 of 378 to 388 and
+    every one reported the shortfall.
+
+  **A LIMIT OF THIS RECOVERY, STATED.** These sections were written by
+  reading the shipped generator, which is the inverse of the order this
+  repository requires and the inverse of what R-P4-17 asks for. A
+  specification transcribed from an implementation, and an oracle then
+  written from that specification by the same author, share whatever
+  the implementation got wrong. What the recovery does buy is that the
+  behaviour is now WRITTEN DOWN and reviewable, and that the next three
+  vectors have a document to be built from. It does not buy
+  independence, and no sentence anywhere may say it does.
+
+  **One overclaim was found and removed while writing G7A.** The
+  generator held that its capacity refusal `_clock_room` "guarantees
+  there is a place for every one of them". It does not: it tests the
+  FORM's capacity (1,440 minutes or 86,400 seconds), not the span
+  between the published ends. A hand-written description with ends
+  eleven minutes apart asking for a hundred different values passes the
+  refusal, and the twin then holds 11 different times, reporting
+  `n_distinct` at 11 with 8 of the 11 rungs moved -- honest, but not
+  what the comment claimed. On a description the PROFILER wrote the
+  claim does hold, and G7A.3 now carries the proof of why
+  (`n_distinct - n_unparsed <= hi - lo + 1`) rather than the assertion.
 - **R-P4-22 — CLOSED 2026-08-26, C6-117 states the carried declaration** (opened by amendment A-P4-19, 2026-08-21). CONTRACT
   C6-117 must state that a whole-cell declaration carried across an
   affix pair protects the candidate NUMBER, hence every spelling of it
@@ -5785,6 +5850,58 @@ rather than recomputed, the same run takes 0.24 seconds.
 count of different cells was exact before this and is not always exact
 now. It is reported by the twin rather than swallowed, and R-P4-40
 records why and how to close it.
+
+## Two joined-role defects, found and fixed 2026-08-27
+
+Both were found while writing the joined role's missing method section
+(R-P4-17), and the first is why the second went unseen for the whole
+phase. Neither is a residual: both are closed, each with a test that
+turns red when its own fix is reverted.
+
+**1. The tool wrote a profile it could not read.** Each POSITION of a
+joined column describes only the cells that split, so the profiler
+writes `n_joined` as that block's `n_rows`. Invariant Q1 compared it
+against the TABLE's row count. The two are equal exactly when no cell
+failed to split — so a clean joined column was fine, and **every joined
+column carrying even one unparsed cell was refused by the loader that
+had just been handed the profiler's own output**. Measured at 200 rows:
+`n_unparsed` of 1 or 2 refused; 0 accepted; 3 or more falls out of the
+role entirely, which is why the window is narrow and why it survived.
+
+The refusal message is the part that matters most. It told the user the
+description "has been changed since it was written" and to make it
+again by running `synthtwin profile` — which produces the same file. A
+message that blames the user's file for the tool's own defect and then
+sends them in a circle is worse than a crash, and this is the rule of
+the road about errors speaking human, failing.
+
+Fixed in the loader: a block of numbers now echoes the row count of
+whatever it describes — the table's for a column, `n_joined` for a
+position — rather than the table's in both cases.
+
+**2. A column that MET its published count was told it missed.** Cells
+that did not split are replaced, after the pairing, by stand-ins that
+are all ONE spelling (a budget of one), which no joined cell wears — so
+they add exactly one to the number of different cells however many of
+them there are. The pairing was nevertheless handed the WHOLE column's
+`n_distinct` as its target and its result compared against that same
+figure. Measured: a 120-cell column whose twin held 120 different cells
+reported a deviation reading "120 published, 119 achieved", while the
+recount over the finished cells in the same report said 120.
+
+Fixed by asking the pairing for `n_distinct` less what the stand-ins
+will contribute, and comparing its result against that. The two figures
+in the report now agree in kind.
+
+**How they were found.** Not by the suite, which was green throughout,
+and not by reading the code with defects in mind. They came out of
+writing down what the role does for an independent implementer: the
+first surfaced when a fixture needed a joined column with an unparsed
+cell and no such profile could be loaded, the second the moment the
+first was fixed and such a column could be generated at all. This is
+the argument R-P4-17 makes — that specifying a role independently finds
+what checking it against itself cannot — arriving from the other
+direction.
 
 ## Residual R-P4-40 — a joined column's positions repeat more evenly than the real ones did
 

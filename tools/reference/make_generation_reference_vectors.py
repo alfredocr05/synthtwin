@@ -4655,28 +4655,49 @@ def _long_tail_levels():
         # refused, and rightly.
         suppressed_level_counts=[1] * 11 + [2] * 9,
         # THE FORM CENSUS IS WHAT LETS THE STAND-INS BE WORDS (P4-D18).
-        # Without it the five suppressed levels take the neutral labels
-        # of G8.3, which carry a figure -- and a candidate that could
-        # read back as a number or a date is one this file refuses to
-        # reason about rather than reason around. The census names a
-        # letters-and-hyphen form wide enough to cover the twenty-five
+        # Without it the twenty suppressed levels take the neutral
+        # labels of G8.3, which carry a figure -- and a candidate that
+        # could read back as a number or a date is one this file
+        # refuses to reason about rather than reason around. The census
+        # names a letters-and-hyphen form covering all twenty-nine
         # held-back rows, so every stand-in this case builds is a word.
-        shape_forms={"@@@@-@@": 29, "(withheld)": 11},
+        #
+        # IT COVERS TWENTY-NINE OF FORTY CELLS AND NOT ALL FORTY, and
+        # that is the census a profiler writes rather than a rounding
+        # of it. The eleven published cells are spelled `Note Alpha`,
+        # and a cell holding a SPACE has no form at all -- nor would it
+        # if the space were closed up, because a form carries two of
+        # the three kinds and letters alone are one. So those eleven
+        # are not counted, not pooled, and above all not `(withheld)`:
+        # that key means one thing in this format, a group too small to
+        # name, and eleven cells at a floor of eleven are not that. An
+        # earlier draft of this case wrote `"(withheld)": 11` here,
+        # which no profiler could produce; the real one was measured on
+        # a table of this exact shape and reads `{"@@@@-@@": 29}`.
+        shape_forms={"@@@@-@@": 29},
     )
     return {
         "why": "the first frozen case for a role Phase 4 added, and the "
         "one that proves a long tail of labels reaches G8.1 to G8.4 at "
-        "all. It carries more rows in its held-back levels than in its "
-        "published ones -- twenty-five against fifteen -- which is the "
-        "shape a long tail has and a column of categories cannot: its "
-        "nine folded identities stand above the ceiling of eight this "
-        "column passed. The variant allocation of G8.1 offers each "
-        "level's own spelling to its largest held-back group, the case "
-        "flips of G8.2 answer the one level carrying a published "
-        "variant, and the five suppressed levels take the neutral "
-        "stand-ins of G8.3 at their published sizes. A label column "
-        "consumes no content word, so every byte here is fixed by "
-        "published counts.",
+        "all. It carries far more rows in its held-back levels than in "
+        "its published one -- twenty-nine against eleven -- which is "
+        "the shape a long tail has and a column of categories cannot: "
+        "its twenty-one folded identities stand above the ceiling of "
+        "twenty this column passed, and that is the admission a rename "
+        "to `categorical` could not survive. At a floor of eleven, "
+        "forty rows leave room for exactly one published level; the "
+        "other twenty cover one or two rows each and are held back. "
+        "The case flips of G8.2 answer the one level carrying a "
+        "published variant, and the twenty suppressed levels take the "
+        "neutral stand-ins of G8.3 at their published sizes -- as "
+        "words rather than as numbered labels, because the form census "
+        "names a letters-and-hyphen form for all twenty-nine held-back "
+        "rows. A label column consumes no content word, so every byte "
+        "here is fixed by published counts. What this case does NOT "
+        "prove is a generator branch of its own: a long tail is "
+        "admitted by rules the categorical role would fail and is then "
+        "written by the shared G8 machinery, so what is pinned here is "
+        "admission and routing, and the cells are the label path's.",
         "column": column,
         "rows": 40,
         "identifier_declared": False,
