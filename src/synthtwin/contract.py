@@ -982,6 +982,12 @@ INVARIANTS = {
     "Q11": (
         "the zeroes are not more than the values that read as numbers"
     ),
+    "Q15": (
+        "the shape of a column's numbers accounts for every value the "
+        "statistics used and for no more, names each of its stretches "
+        "by number, holds back none of them where the smallest group "
+        "size is one, and holds back all of them otherwise"
+    ),
     "I2": (
         "the repetition pattern accounts for every different value and "
         "every row that holds one"
@@ -5190,7 +5196,7 @@ def _numeric_facts(
     widths = _fraction_widths(mapping, where, frame.floor, styles)
     padded = _padded_widths(mapping, where, frame.floor, styles)
     _pool_holds_both(where, frame.floor, styles, widths, padded)
-    histogram = _value_histogram(mapping, where, frame.floor, used)
+    histogram = _value_histogram(mapping, where, frame.floor, used, ladder)
     return NumericFacts(
         percentiles=ladder,
         mean=mean,
@@ -5336,6 +5342,7 @@ def _value_histogram(
     where: str,
     floor: int,
     used: int,
+    ladder: NumberLadder,
 ) -> "dict[str, int]":
     """How many of a column's numbers fall in each published bin.
 
@@ -5356,44 +5363,31 @@ def _value_histogram(
     bin number, a bin at or below zero, a named bin below the floor,
     and for a sum that is not the count of values used.
     """
-    found = mapping.get("value_histogram")
-    if found is None:
-        found = {}
-    if not isinstance(found, dict):
-        raise _wrong_type(
-            "value_histogram", where, found, "a block of named entries"
-        )
-    counts: "dict[str, int]" = {}
+    # READ THE SAME WAY ITS SIBLING CENSUSES ARE, through `_counts`,
+    # which is where the type of the block and the type of every entry
+    # are settled. Reaching for `mapping.get` instead put a method call
+    # on a value the offline audit cannot trace, and the audit is right
+    # to refuse it: a caller-supplied object may define `get` to do
+    # anything at all.
+    counts = _counts(mapping["value_histogram"], "value_histogram", where, 1)
     total = 0
-    for key in sorted(found):
-        entry = found[key]
-        if not isinstance(entry, int) or isinstance(entry, bool):
-            raise _wrong_type(
-                f"value_histogram[{key}]", where, entry, "a whole number"
-            )
-        if entry < 1:
-            raise _broken(
-                "Q15",
-                where,
-                f"the bin named {key!r} counts {entry} cell(s)",
-                "every published bin counts at least one",
-            )
+    for key in sorted(counts):
+        entry = counts[key]
         if key != WITHHELD:
             if not _is_bin_key(key):
                 raise _broken(
                     "Q15",
                     where,
-                    f"{key!r} stands where a bin number belongs",
+                    "a key of the histogram is not a bin number",
                     "a bin number written plainly, from 0 upwards",
                 )
             if entry < floor:
                 raise _broken(
                     "Q15",
                     where,
-                    f"bin {key} counts {entry} cell(s)",
+                    f"a bin of the histogram counts {entry} cell(s)",
                     f"the publication floor of {floor}",
                 )
-        counts[key] = entry
         total = total + entry
     if counts and total != used:
         raise _broken(
@@ -5402,7 +5396,43 @@ def _value_histogram(
             f"the bins of the histogram count {total} value(s)",
             f"the {used} value(s) the statistics used",
         )
+    # AND AT A FLOOR OF ONE AN EMPTY HISTOGRAM IS IMPOSSIBLE. Every bin
+    # that holds anything holds at least one value, so no bin can fall
+    # below a floor of one and the census is always publishable. An
+    # empty object there is a description built at a HIGHER floor and
+    # handed over as though it were this one -- a position the floor
+    # moves that nothing else in the document records, which is the gap
+    # `tests/test_p3v5f1_floor_one.py` exists to close.
+    #
+    # The one honest empty at a floor of one is a column whose ends
+    # this format cannot hold, or whose ends are finite and whose WIDTH
+    # is not: the bins then have no width to divide and the producer
+    # publishes none.
+    if not counts and used > 0 and floor <= 1 and _has_width(ladder):
+        raise _broken(
+            "Q15",
+            where,
+            "the histogram is empty",
+            (
+                "a bin for every value, since at a smallest group size "
+                "of one no bin can be held back"
+            ),
+        )
     return counts
+
+
+def _has_width(ladder: NumberLadder) -> bool:
+    """Whether a ladder's two ends leave a width the bins can divide."""
+    lowest = ladder.minimum
+    highest = ladder.maximum
+    if lowest is None or highest is None:
+        return False
+    if lowest - lowest != 0.0 or highest - highest != 0.0:
+        return False
+    reach = highest - lowest
+    if reach - reach != 0.0:
+        return False
+    return reach > 0.0
 
 
 def _is_bin_key(key: object) -> bool:
