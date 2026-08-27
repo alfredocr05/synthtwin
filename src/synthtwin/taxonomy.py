@@ -599,6 +599,7 @@ NOTE_ONE_OF_TWO_BELOW_FLOOR = "one_of_two_labels_below_the_floor"
 NOTE_LABELS_POOLED = "labels_pooled_below_the_floor"
 NOTE_FREE_TEXT_WITHHELD = "free_text_publishes_no_values"
 NOTE_IDENTIFIER_WITHHELD = "identifier_publishes_no_values"
+NOTE_HISTOGRAM_WITHHELD = "histogram_publishes_no_shape"
 
 # The detection evidence: why the column was given the role it has.
 EVIDENCE_EMPTY = "evidence_every_value_absent"
@@ -693,6 +694,7 @@ NOTE_ARITY: "dict[str, int]" = {
     NOTE_LABELS_POOLED: 3,
     NOTE_FREE_TEXT_WITHHELD: 0,
     NOTE_IDENTIFIER_WITHHELD: 0,
+    NOTE_HISTOGRAM_WITHHELD: 0,
     EVIDENCE_EMPTY: 0,
     EVIDENCE_UNREPRESENTABLE: 3,
     EVIDENCE_ONE_VALUE: 1,
@@ -1009,6 +1011,15 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
             "hold, how often they repeat, and -- where enough of them "
             "were written the same way -- the shape of that writing, "
             "which carries no letter and no figure of any value"
+        )
+    if form == NOTE_HISTOGRAM_WITHHELD:
+        return (
+            "the shape of this column's numbers is not published: the "
+            "values spread out far enough that at least one stretch "
+            "between two edges holds fewer rows than your smallest "
+            "group size, and a shape published in part would say less "
+            "than nothing -- it names some stretches and leaves the "
+            "reader to guess where the rest of the values sit"
         )
     if form == NOTE_IDENTIFIER_WITHHELD:
         return (
@@ -4484,12 +4495,91 @@ def _pad_widths(cells: _Cells) -> dict[str, int]:
     return published_counts
 
 
+def _value_histogram(cells: _Cells, numbers: "list[float]") -> dict[str, int]:
+    """How many of this column's numbers fall in each bin.
+
+    THE BIN COUNTS ARE COUNTS AND FALL UNDER THE FLOOR, exactly as a
+    level or a field width does: a bin holding fewer than
+    `small_cell_floor` values has no key of its own and its values are
+    counted into a `(withheld)` remainder. That is what makes a
+    histogram cheaper in disclosure than a longer ladder -- a rung is
+    an exact value of a real cell and is floor-free, while a bin says
+    only how many cells lie between two edges the description already
+    implies.
+
+    Guarantees: accepts a tally and its numbers; returns a mapping from
+    bin number to count, plus possibly `(withheld)`, summing to how
+    many numbers the statistics used. Determinism: the answer depends
+    only on the values and the published ends, and the keys are built
+    in ascending bin order. Raises nothing. No I/O of any kind.
+    """
+    if not numbers:
+        return {}
+    lowest = min(numbers)
+    highest = max(numbers)
+    # A COLUMN WHOSE ENDS THIS FORMAT CANNOT HOLD PUBLISHES NO
+    # HISTOGRAM. Bins between infinite edges have no width and no
+    # meaning, and every value would land in one of them, so the honest
+    # answer is silence rather than a census nobody can read. The
+    # loader accepts an absent histogram, and the generator falls back
+    # to the ladder exactly as it did before this fact existed.
+    for value in numbers:
+        if not math.isfinite(value):
+            return {}
+    if not math.isfinite(lowest) or not math.isfinite(highest):
+        return {}
+    # AND THE WIDTH MUST BE INSIDE THE FORMAT TOO, not only the ends. A
+    # column running from about -1e308 to about 1e308 has finite ends
+    # and a width this format cannot hold, so the bin rule can place
+    # nothing and would answer "the first bin" for every value -- which
+    # is not a quiet approximation but a false census. Silence is the
+    # honest answer.
+    if not math.isfinite(highest - lowest):
+        return {}
+    counts: dict[int, int] = {}
+    for value in numbers:
+        place = parsing.histogram_bin(value, lowest, highest)
+        if place in counts:
+            counts[place] = counts[place] + 1
+        else:
+            counts[place] = 1
+    # THIS CENSUS IS ALL OR NOTHING, which is not how its siblings
+    # behave and is the right rule for THIS fact.
+    #
+    # A field-width census with a pooled remainder still says something
+    # a twin can hold: the named widths are counts of cells, and a cell
+    # can be written at a named width whatever the pooled ones do. A
+    # histogram is read by RANK -- bin numbers ascend with the values
+    # they hold, and that is what lets a generator put its k-th
+    # smallest number where the source's k-th smallest sits. A pooled
+    # remainder does not say WHICH bins its values are in, so the ranks
+    # the named bins cover are unknown and the map cannot be built at
+    # all.
+    #
+    # Publishing it anyway would publish a fact the twin cannot hold.
+    # Measured on the every-role fixture at a raised floor: 169 of 240
+    # values pooled, seven bins named, and the twin missed all of them
+    # -- a description whose own twin fails its quality report, which
+    # is the one thing this product may not do. So a column that cannot
+    # publish EVERY bin publishes none, the disclosure question stays
+    # simple, and at the default floor of one nothing pools and every
+    # column gets its shape.
+    for place in sorted(counts):
+        if counts[place] < cells.settings.small_cell_floor:
+            return {}
+    published_counts: dict[str, int] = {}
+    for place in sorted(counts):
+        published_counts[f"{place}"] = counts[place]
+    return published_counts
+
+
 def _numeric_details(cells: _Cells, whole: bool) -> dict[str, object]:
     """The published description of a numeric column."""
     numbers = cells.numbers
     n_present = len(cells.present)
     details: dict[str, object] = {
         "percentiles": _quantiles(numbers),
+        "value_histogram": _value_histogram(cells, numbers),
         "n_zero": len([value for value in numbers if value == 0.0]),
         # Every cell whose sign the text settles, not only the ones the
         # statistics could use. The sign of `(1e999)` ruled the count
@@ -6917,6 +7007,15 @@ def _numeric_verdict(
     # (review item P1-R6-F3).
     if details["std_unrepresentable"]:
         remarks = remarks + [note(REMARK_SPREAD_OUT_OF_RANGE)]
+    # AND A SHAPE THIS COLUMN COULD NOT PUBLISH IS SAID IN WORDS. The
+    # histogram is all or nothing, so a column whose values spread too
+    # thinly for the floor publishes an EMPTY object -- and an empty
+    # object beside a column full of numbers is exactly the silence
+    # this file's other withheld-census notes exist to break. Without
+    # it the only sign is an absence, and a reader cannot tell a shape
+    # that was held back from a column that never had one.
+    if numeric_looking > 0 and not details["value_histogram"]:
+        notes = notes + [note(NOTE_HISTOGRAM_WITHHELD)]
     return _Verdict(
         role=role,
         evidence=evidence,

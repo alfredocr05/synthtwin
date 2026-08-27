@@ -325,6 +325,7 @@ PLAN4_REGIONS = {
         "(closes R-P3-12's route)"
     ),
     "padding": "### P4-D14 The padded-field width fact",
+    "histogram": "### P4-D4.7 The value histogram (owner instruction 2026-08-26)",
     "forms": "### P4-D18 A held-back value gets a stand-in that looks like one",
 }
 
@@ -348,6 +349,7 @@ GROUPS_OUTSIDE_THE_VERSION_4_MATRIX = ("affixed", "clock")
 FACTS_OUTSIDE_THE_VERSION_4_MATRIX = (
     ("numeric", "fraction_widths"),
     ("numeric", "pad_widths"),
+    ("numeric", "value_histogram"),
     ("datetime", "resolution_mix"),
     ("free_text", "shape_forms"),
     ("label", "shape_forms"),
@@ -680,6 +682,22 @@ REGISTRY += [
         plan_words="the count sharing each field width",
         plan_region="padding",
         aliases=("padding census", "field-width census"),
+    ),
+    # Plan P4-D4.7. REPORT-ONLY, and the reason is worth stating where
+    # a reader meets it. The twin's shape FOLLOWS this census -- on a
+    # 300-row column of two populations the empty stretch went from
+    # about a hundred twin values to sixteen -- but it is not held to
+    # it exactly, because meeting a bin count exactly means the CELL
+    # ALLOCATION following the histogram, and that allocation is
+    # G5.2's even share over the distinctness budget. Upgrading this to
+    # EXACT-OBSERVABLE is residual R-P4-49 and its own landing.
+    Fact(
+        "numeric",
+        "value_histogram",
+        REPORT_ONLY,
+        plan_words="the count falling in each bin",
+        plan_region="histogram",
+        aliases=("value histogram", "binned counts"),
     ),
     Fact(
         "numeric",

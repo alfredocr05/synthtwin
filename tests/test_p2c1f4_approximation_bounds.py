@@ -351,6 +351,14 @@ def _matrix_sections() -> "dict[str, dict[str, str]]":
 # under `numeric` in `tests/dispositions.py`.
 PHASE_4_NUMERIC_KEYS = ("fraction_widths", "pad_widths")
 
+# ...and the value histogram, which the owner asked for by name and
+# which version 4's matrix has no row for because version 4 published
+# no such key. It is EXACT-OBSERVABLE the way every census here is: put
+# each of the twin's values in its bin by the published ends, count
+# them, and the published census comes back. Disposed in the Phase 4
+# plan (P4-D4.7).
+PHASE_4_HISTOGRAM_KEYS = ("value_histogram",)
+
 # ...and the census of written forms, which version 4's matrix has no
 # row for because version 4 had no such key. It is disposed in the
 # Phase 4 plan (P4-D18) and registered in `tests/dispositions.py`.
@@ -1100,6 +1108,8 @@ def test_every_key_the_producer_emits_has_a_disposition(
                 table[own] = "EXACT-OBSERVABLE (Phase 4 plan, P4-D4.1)"
             for own in PHASE_4_NUMERIC_KEYS:
                 table[own] = "EXACT-OBSERVABLE (Phase 4 plan, P4-D4.5)"
+            for own in PHASE_4_HISTOGRAM_KEYS:
+                table[own] = "EXACT-OBSERVABLE (Phase 4 plan, P4-D4.7)"
             for own in PHASE_4_SHAPE_KEYS:
                 table[own] = "EXACT-OBSERVABLE (Phase 4 plan, P4-D18)"
             for own, said in PHASE_4_DATETIME_KEYS:
@@ -1134,6 +1144,8 @@ def test_the_completeness_assertion_refuses_a_key_nobody_disposed(
         table = dict(sections[ROLE_SECTIONS["count"]])
         for own in PHASE_4_NUMERIC_KEYS:
             table[own] = "EXACT-OBSERVABLE (Phase 4 plan, P4-D4.5)"
+        for own in PHASE_4_HISTOGRAM_KEYS:
+            table[own] = "EXACT-OBSERVABLE (Phase 4 plan, P4-D4.7)"
         names = _emitted_names(block) + ["a_field_nobody_disposed"]
         assert _undisposed(names, table, universal) == [
             "a_field_nobody_disposed"

@@ -157,10 +157,11 @@ key, and what a loader does with any other integer, is the version
 rule and the refusal in the loader section.
 
 **1.7a Version 6 is extended in place until the first release**
-(owner ruling 2026-08-26, plan amendment A-P4-41). Four keys and a role
+(owner ruling 2026-08-26, plan amendment A-P4-41). Keys and a role
 were added to version 6 after it was declared -- `pad_widths`,
-`forced_codes`, `forced_measurements`, the census of written forms, and
-the joined-numbers role -- each time on the argument that no version 6
+`forced_codes`, `forced_measurements`, the census of written forms,
+`min_length` and `max_length` on the unrepresentable role,
+`value_histogram` on the numeric roles, and the joined-numbers role -- each time on the argument that no version 6
 description exists outside this repository. The owner accepted that
 argument rather than spending a version bump on it, and the rule it
 suspends is stated here so no reader has to infer it: **a change that
@@ -372,6 +373,20 @@ none may be inferred from another:
   census of padding to write a padded key. A `pad_widths` object
   carrying the widths `2`, `5` and `10` is written in the order `10`,
   `2`, `5`.
+- `value_histogram` writes BIN NUMBERS by that same grammar and in that
+  same order. Its keys are bin numbers and not widths: the method
+  divides the range between a column's published `min` and `max` into a
+  fixed number of equal bins, and each key says how many of the values
+  the statistics used fall in that bin. The bins ascend with the values
+  they hold, which is what lets a consumer read the object as a shape;
+  **this census is all or nothing**: where any bin holds fewer cells
+  than the publication floor, the column publishes no histogram at all
+  rather than a partial one. A field-width census with a pooled
+  remainder still says something a consumer can use, because a cell can
+  be written at a named width whatever the pooled ones do; a histogram
+  is read by RANK, and a remainder does not say which bins its values
+  are in. Where the object is present its counts account for every
+  value the statistics used and for no more.
 - a multiplicity map — `n_distinct_by_occurrences` and
   `variants_withheld` — pads its row-count keys with leading zeros to a
   uniform width, and section 5.3, which states that key form, gives
@@ -1162,7 +1177,7 @@ contract:
    widening it to arbitrary strings would be exactly the hole that lets
    a source-derived value into a sentence and be rebuilt successfully.
 
-**The census.** The table holds 48 forms and 79 argument positions.
+**The census.** The table holds 49 forms and 79 argument positions.
 Of those, 66 are whole numbers, 4 are package words, 4 are nested
 forms, and 5 are bound affix strings. No position is a string of any
 other kind.
@@ -1181,7 +1196,7 @@ table is given with the form.
 
 ---
 
-##### A. The withheld-value notes (six forms)
+##### A. The withheld-value notes (seven forms)
 
 **NF1. `no_values_unrepresentable`** — arity 0.
 
@@ -1229,6 +1244,14 @@ followed (review round 2 finding 15). They are one sentence again.
 > published anywhere in its description: only how many there are, how
 > long they are, how often they repeat, and what synthtwin decided
 > about them
+
+**NF49. `histogram_publishes_no_shape`** — arity 0.
+
+> the shape of this column's numbers is not published: the values
+> spread out far enough that at least one stretch between two edges
+> holds fewer rows than your smallest group size, and a shape published
+> in part would say less than nothing — it names some stretches and
+> leaves the reader to guess where the rest of the values sit
 
 ---
 
@@ -2088,7 +2111,7 @@ names:
 
 | id | statement |
 |---|---|
-| NG14 | the form is one of the 48 in section 4.5.1 |
+| NG14 | the form is one of the 49 in section 4.5.1 |
 | NG15 | the argument count equals that form's arity |
 | NG16 | every argument is of one of C6-119's four classes |
 | NG17 | re-rendering the form with those arguments writes the leaf's text character for character |
@@ -3676,6 +3699,7 @@ consumer off the role name.
 | `numeric_styles` | object | section 7.5 | how many cells were written in each spelling style, under the floor | EXACT-OBSERVABLE against the recount identity of section 7.5.7 |
 | `fraction_widths` | object | C6-28 to C6-30 below | how many `decimal`-styled cells were written at each fraction width, under the floor | EXACT-OBSERVABLE, under the producer obligation FW-P |
 | `pad_widths` | object | C6-27b to C6-30b below | how many `leading_zero`-styled cells wrote each field width, under the floor | EXACT-OBSERVABLE, under the producer obligation PW-P |
+| `value_histogram` | object | C6-31 below | how many of the values the statistics used fall in each of the fixed bins between `min` and `max`; published only when EVERY bin clears the floor | REPORT-ONLY |
 
 Sixteen keys. Every one is present in every block of these two roles —
 this format has no optional keys — and every key not listed here or in
@@ -4286,6 +4310,7 @@ The fourteen columns, abbreviated for width: `emp` `empty`, `unr`
 | `numeric_styles` | | | | | | | | | ● | ● | ● | | | |
 | `fraction_widths` | | | | | | | | | ● | ● | ● | | | |
 | `pad_widths` | | | | | | | | | ● | ● | ● | | | |
+| `value_histogram` | | | | | | | | | ● | ● | ● | | | |
 | `affix_prefix` | | | | | | | | | | | ● | | | |
 | `affix_suffix` | | | | | | | | | | | ● | | | |
 | `n_affixed` | | | | | | | | | | | ● | | | |
@@ -4315,7 +4340,7 @@ The fourteen columns, abbreviated for width: `emp` `empty`, `unr`
 | `parts` | | | | | | | | | | | | | | ● |
 | `separator` | | | | | | | | | | | | | | ● |
 
-**Sixty-four rows, one hundred and twenty-three marked cells**, distributed
+**Sixty-five rows, one hundred and twenty-six marked cells**, distributed
 `empty` 0, `numeric_unrepresentable` 9, `constant` 5, `binary` 5,
 `categorical` 6, `long_tail_labels` 5, `datetime` 13, `time_of_day`
 5, `count` 16, `continuous` 16, `affixed_number` 23, `identifier` 6,
@@ -4573,6 +4598,7 @@ block carries, the quantitative ones computed over the CORES.
 | `numeric_styles` | object | section 7.5 | CORES per spelling style, under the floor | EXACT-OBSERVABLE, recount identity of section 7.5.7 |
 | `fraction_widths` | object | C6-27 to C6-30 | `decimal`-styled CORES per fraction width, under the floor | EXACT-OBSERVABLE |
 | `pad_widths` | object | C6-27b to C6-30b | `leading_zero`-styled CORES per field width, under the floor | EXACT-OBSERVABLE |
+| `value_histogram` | object | C6-31 | the CORES falling in each bin between the core ends; published only when every bin clears the floor | REPORT-ONLY |
 
 **The block is forty-five keys**: the twenty-two universal keys of
 section 5.1 and the twenty-three above — a `count` block's sixteen
@@ -6644,7 +6670,7 @@ month-first parsed.
 | NG11 | on `remark_affixed_numbers_may_be_codes`: argument 3 equals the named block's `n_affixed` |
 | NG12 | argument 1 is character-for-character that block's `affix_prefix` and argument 2 its `affix_suffix`, AT THOSE POSITIONS, not merely as members of the pair |
 | NG13 | on `remark_a_label_is_a_built_in_stand_in`: argument 1 is 1, 2 or 3 |
-| NG14 | for every form: one of the 48 the note grammar enumerates |
+| NG14 | for every form: one of the 49 the note grammar enumerates |
 | NG15 | the argument count equals that form's arity |
 | NG16 | every argument is of one of the four argument classes |
 | NG17 | re-rendering the form with those arguments writes the leaf's text character for character |
@@ -7616,7 +7642,7 @@ this document, and the battery the plan requires turns red on it.
 | nothing-class blocks (`numeric_unrepresentable`, `identifier`, `free_text`) | lengths, word statistics, digit and code-alphabet counts, the whole-number test, the repetition multiset, on `numeric_unrepresentable` the whole-number and sign counts, and on `free_text` the census of WRITTEN FORMS its cells wore (`shape_forms`) | no value, no spelling, no fragment of one — the form census included, whose every key is built from `%`, `@` and thirteen named marks -- characters no cell that has a form may contain, so a key can carry no letter and no figure of any cell; the multiplicity map publishes SIZES of unnamed groups under no floor, the form census under the floor with a `(withheld)` pool |
 | `empty` columns nobody declared | the absent SPELLINGS their cells wore and the two absence counts, exactly as any column that is not nothing-publishing | floor-governed |
 | `settings` | the rules the run applied, the floor's own value, how many values each declaration named, and which of THIS package's published words were among them | carries no cell, no column and no count of the table; a person's own spelling never enters |
-| `source.header_evidence`, `publication_notes[].note`, `detection_evidence`, `remarks` | sentences of the 48 closed forms: 79 argument positions, of which 66 are whole numbers, 4 package words, 4 nested forms and 5 bound affix strings | the whole numbers are counts the block beside them already publishes, EXCEPT the positions priced at rows 16 and 18 |
+| `source.header_evidence`, `publication_notes[].note`, `detection_evidence`, `remarks` | sentences of the 49 closed forms: 79 argument positions, of which 66 are whole numbers, 4 package words, 4 nested forms and 5 bound affix strings | the whole numbers are counts the block beside them already publishes, EXCEPT the positions priced at rows 16 and 18 |
 | `relationships` | nothing: eight nulls | — |
 
 ### 12.3 The rows, each priced
@@ -8458,7 +8484,7 @@ way, with one difference: the width is at least TWO (`2`, `3`, `10`),
 a padded cell writing at least one zero in front of at least one figure
 (C6-29b). `(withheld)` is again the only non-numeric key permitted.
 
-### 14.8 The note grammar — 48 forms
+### 14.8 The note grammar — 49 forms
 
 Defined in 4.5.1, which is the authority on every rendering and every
 argument. 79 argument positions: 66 whole numbers, 4 package words, 4
@@ -8514,6 +8540,7 @@ nested forms, 5 bound affix strings.
 | NG46 | `evidence_clock_times` | 3 |
 | NG47 | `evidence_numbers_joined_in_one_cell` | 3 |
 | NG48 | `evidence_numbers_wearing_one_affix` | 3 |
+| NG49 | `histogram_publishes_no_shape` | 0 |
 
 **The package-word vocabulary — 21**, the whole of the second argument
 class (4.5.1): the seventeen `format` members of 14.6, plus `day-first`
@@ -8549,6 +8576,7 @@ form to one of those four paths.
 | `numeric_styles` | the pooled count of cells whose spelling STYLE was used by too few rows to name |
 | `fraction_widths` | the pooled count of `decimal`-styled cells whose fraction WIDTH was used by too few rows to name |
 | `pad_widths` | the pooled count of `leading_zero`-styled cells whose FIELD WIDTH was used by too few rows to name |
+| `value_histogram` | never written: a column that cannot publish every bin publishes no histogram at all, because a pooled remainder does not say which bins its values are in and the census is read by rank |
 | `shape_forms` | the pooled count of cells whose WRITTEN FORM was worn by too few rows to name |
 
 One token, one meaning: a group too small to name, counted rather than

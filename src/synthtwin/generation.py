@@ -5559,6 +5559,10 @@ def _stratum_values(
         word = words[taken]
         taken = taken + 1
         numerator = layout.starts[place] * _WORD_SCALE + layout.sizes[place] * word
+        # THE LADDER FIXES THE SEGMENT AND THE HISTOGRAM SHAPES IT
+        # (method G5.4a). A ladder cannot describe a gap and a bin
+        # cannot say where a rung falls, so each answers the half it
+        # can.
         found = _interpolated(rungs, numerator, numbers * _WORD_SCALE)
         if facts.integer_valued:
             found = _whole_valued(found)
@@ -13538,7 +13542,10 @@ def _figure(value: float) -> str:
 
 
 def _numeric_window(
-    rungs: "tuple[float, ...]", held: int, widest: int, slack: float
+    rungs: "tuple[float, ...]",
+    held: int,
+    widest: int,
+    slack: float,
 ) -> "tuple[list[float], list[float], list[float]]":
     """The window every RANK of a column of numbers sits in (method G12.2).
 
