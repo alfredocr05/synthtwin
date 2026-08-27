@@ -560,3 +560,86 @@ def test_a_twin_with_the_wrong_pairing_is_caught() -> None:
         "a file whose two numbers do not move together as the "
         "description says passed every check"
     )
+
+
+# -- the round trip, and the count the pairing is asked for -----------
+
+
+def _one_cell_that_does_not_split(count: int = 200) -> "list[str]":
+    """A believable joined column with a single cell that is not one."""
+    return _readings(count - 1, seed=5) + ["no reading"]
+
+
+def test_a_column_with_an_unparsed_cell_is_readable_by_its_own_loader() -> (
+    None
+):
+    """`synthtwin profile` must never write a file it cannot read.
+
+    Each POSITION of a joined column describes only the cells that
+    split, so the profiler writes `n_joined` as that block's row count.
+    Q1 compared it against the TABLE's row count instead, and the two
+    differ by exactly the cells that did not split -- so every joined
+    column carrying even one unparsed cell was refused by the loader
+    that had just been handed the profiler's own output. The message it
+    raised told the user the file had been changed since it was written
+    and to make it again, which produces the same file.
+
+    With no unparsed cell the two counts coincide, which is why nothing
+    showed this until a column carried one.
+    """
+    document, folder = _described(_one_cell_that_does_not_split())
+    column = document["columns"][0]
+    assert column["role"] == "joined_numbers"
+    assert column["n_unparsed"] >= 1, "this fixture must carry a straggler"
+    assert column["parts"][0]["n_rows"] == column["n_joined"], (
+        "a position describes the cells that split, so it echoes n_joined"
+    )
+    assert column["parts"][0]["n_rows"] != document["n_rows"], (
+        "if these agreed the fixture would not reach the rule under test"
+    )
+
+    described = _loaded(document, folder)
+    twin = generation.generate(described, 6)
+    written = [cell for cell in twin.columns[0] if cell]
+    assert len(written) == column["n_present"]
+
+
+def test_the_pairing_is_asked_for_the_count_the_pairs_can_carry() -> None:
+    """A column that MEETS its published count is not told it missed.
+
+    The cells that did not split are replaced afterwards by stand-ins
+    that are all ONE spelling, which no joined cell wears, so they add
+    exactly one to the count of different cells however many there are.
+    The pairing is therefore asked for `n_distinct - 1` where any such
+    cell exists, and comparing its result against the whole column's
+    `n_distinct` compares unlike quantities: a column of 120 cells that
+    held 120 different ones was told by its own report that it held 119.
+    """
+    seen: "dict[str, int]" = {}
+    values: "list[str]" = []
+    rng = random.Random(3)
+    while len(values) < 119:
+        cell = f"{rng.randrange(95, 176)}/{rng.randrange(55, 106)}"
+        if cell in seen:
+            continue
+        seen[cell] = 1
+        values = values + [cell]
+    document, folder = _described(values + ["no reading"])
+    assert document["columns"][0]["role"] == "joined_numbers"
+    described = _loaded(document, folder)
+    published = described.columns[0].n_distinct
+    twin = generation.generate(described, 4)
+    written = [cell for cell in twin.columns[0] if cell]
+    assert len(set(written)) == published, (
+        "this fixture must reach a twin that MEETS the published count, "
+        "or it cannot show a report claiming otherwise"
+    )
+    missed = [
+        note
+        for note in twin.deviations
+        if note.fact == "n_distinct"
+    ]
+    assert not missed, (
+        "the column holds every different value the description "
+        f"publishes, and its own report says it missed: {missed}"
+    )

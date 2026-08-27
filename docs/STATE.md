@@ -28,7 +28,7 @@ without the same help.
 | branch | `phase-4-plan` (never merged; `main` is pull-request only) |
 | phase | **Phase 4 — comprehensive column handling.** Current. |
 | plan | `docs/plans/phase-4-columns.md` |
-| suite | 3,958 collected / 48 skipped |
+| suite | 3,960 collected / 48 skipped |
 | lint | clean (`ruff check .`), under the rule set pinned in `pyproject.toml` |
 
 ## What is being built right now
@@ -67,8 +67,91 @@ are still ahead. The gap list itself is at the foot of this page.
   **Three roles remain**: `affixed_number`, `time_of_day`,
   `joined_numbers`. This one was cheapest because a long tail carries
   the label roles' keys and no key of its own, so the oracle's existing
-  label machinery reached it. The others each need their method
-  section implemented from the specification.
+  label machinery reached it.
+
+  **Adversarial review then rejected the committed vector, and the
+  HIGH item was right.** It published a form census of
+  `{"@@@@-@@": 29, "(withheld)": 11}` — a census no profiler can
+  write, because the eleven published cells are spelled `Note Alpha`
+  and a cell holding a SPACE has no form at all, while `(withheld)`
+  means a group too small to name, which eleven cells at a floor of
+  eleven are not. The true census was measured against the profiler on
+  a table of that exact shape and reads `{"@@@@-@@": 29}`. Correcting
+  it left **every frozen cell unchanged**: what was wrong was the
+  description's producibility, not the transform. Two stale figures in
+  the case's own prose, left from an earlier draft, were corrected in
+  the same pass, and the reviewer's fair point that the case pins
+  admission and routing rather than a generator branch of the role's
+  own is now stated in G14.3 at that width.
+
+* **THE THREE REMAINING ROLES HAD NO METHOD SECTION AT ALL — found
+  2026-08-27, and now written.** The oracle's whole value is that it
+  implements `docs/spec/generation-method-v1.md` and imports nothing
+  from `src/`. In that document `time_of_day` appeared zero times,
+  `joined_numbers` zero times, and `affixed_number` once in a sentence
+  about a different key; all fifteen `clock` mentions belonged to the
+  datetime role's timezone clock. There was nothing to build a vector
+  from. Two neighbouring gaps compounded it: **G4.3's draw budget
+  omitted all four Phase 4 roles** — and because one stream feeds every
+  column in order, a wrong budget shifts every later column at the same
+  seed, which is the failure that document names as the one thing it
+  exists to prevent — and **G11's all-different table omitted the same
+  four** while its list of instances ran one short.
+
+  Now written and each one measured, not transcribed: **G7A**, a full
+  section for `time_of_day`; **four rows in G4.3**, the clock rule
+  checked on eight described columns, the affixed rule on three and the
+  joined rule on five at two and three positions; and **G11's four rows
+  plus a fourth instance** — joined-number columns, where the pairing
+  cannot reach the published count, measured at 375–385 of 378–388
+  across six columns with every shortfall reported.
+
+  **The limit of this, stated:** these sections were written by reading
+  the shipped generator, which is the inverse of the order this
+  repository requires. A specification transcribed from an
+  implementation, and an oracle later written from it by the same
+  author, share whatever the implementation got wrong. What it buys is
+  that the behaviour is written down and reviewable and that the next
+  three vectors have a document to be built from. It does not buy
+  independence.
+
+  Writing G7A also removed an overclaim from the generator: the
+  capacity refusal `_clock_room` does not "guarantee a place for every
+  one of them" — it tests the FORM's capacity, not the span between the
+  published ends. A hand-written description with ends eleven minutes
+  apart asking for a hundred different values passes it, and the twin
+  then holds 11 different times and reports the shortfall. On a
+  profiler-written description the claim does hold, and G7A.3 now
+  carries the proof instead of the assertion.
+
+* **TWO JOINED-ROLE DEFECTS, FOUND AND FIXED 2026-08-27.** Both came
+  out of writing that role's missing method section, not out of the
+  suite, which was green throughout.
+
+  **The tool wrote a profile it could not read.** A POSITION of a
+  joined column describes only the cells that split, so the profiler
+  writes `n_joined` as that block's row count; invariant Q1 compared it
+  against the TABLE's row count. Those agree exactly when no cell
+  failed to split, so **every joined column carrying even one unparsed
+  cell was refused by the loader that had just been handed the
+  profiler's own output** — and the refusal told the user their
+  description "has been changed since it was written" and to make it
+  again, which produces the same file. Measured at 200 rows:
+  `n_unparsed` of 1 or 2 refused, 0 accepted, 3 or more leaves the role
+  entirely, which is why the window is narrow and why it survived the
+  phase. A block of numbers now echoes the row count of whatever it
+  describes.
+
+  **A column that met its published count was told it missed.** Cells
+  that did not split are replaced, after the pairing, by stand-ins that
+  are all one spelling, so they add exactly one to the number of
+  different cells however many there are. The pairing was handed the
+  whole column's `n_distinct` anyway and compared against it: a
+  120-cell column whose twin held 120 different cells reported "120
+  published, 119 achieved", while the recount in the same report said
+  120. The pairing is now asked for the count the pairs can carry.
+
+  Each fix has a test that turns red when that fix alone is reverted.
 
 * **THE FINER PERCENTILE LADDER IS DESIGNED AND NOT BUILT (plan
   P4-D4.10), and the measurement behind it is the useful part.** The
