@@ -1542,6 +1542,172 @@ The plain-number stragglers are written as WHOLE NUMBERS counting up
 from 1, skipping every refused spelling, because nothing else about
 them is published: the ladder and every moment belong to the cores.
 
+## G6B. Joined-number columns (`joined_numbers`)
+
+Added by Phase 4; like G6A and G7A this section was written after the
+implementation shipped, which is the wrong order and is recorded in
+G13. It is the longest of the three because this role's pairing walk is
+byte-determining and nothing outside it fixes the answer.
+
+### G6B.1 What the profile supplies
+
+A joined column holds cells such as `120/80`: two or more NUMBERS
+written in one cell with a fixed separator between them. Published:
+
+| key | what it holds |
+|---|---|
+| `parts` | one full numeric block per POSITION — the same block G5 and G6 consume, measured over the cells that split |
+| `separator` | the exact text between two positions |
+| `n_parts` | how many positions |
+| `n_joined` | how many cells split that way |
+| `n_unparsed` | how many present cells did not |
+| `part_min_widths` | the smallest written width of each position |
+| `part_agreements` | one number per PAIR of positions, each −1 to 1, in the order (1,2), (1,3), … (2,3), … — how strongly the two rise and fall together BY RANK |
+| `part_above` | one count per pair — how often the earlier position stands above the later |
+
+**`part_agreements` and `part_above` make this the one role in
+synthtwin today that publishes structure between two quantities and
+reproduces it.** The structure lives INSIDE a cell, between the
+positions of one column; it says nothing about any other column, so the
+one-column-wide bound stated elsewhere is unaffected.
+
+Each position's block describes only the `n_joined` cells that split,
+so it echoes `n_joined` as its own `n_rows` — NOT the table's. A
+reader checking that block against the table's row count refuses every
+column with an unparsed cell; the two coincide only when `n_unparsed`
+is zero, which is why that defect survived a whole phase.
+
+### G6B.2 Each position is a numeric column
+
+Each position is built by G5 and G6 unchanged, over a view of the
+column carrying that position's block and `n_joined` as its present
+count. Its word budget is G5.3's, and G4.3 states the whole: the sum
+over positions, plus a RESERVE of `max(n_joined - 1, 0)` for every
+position after the first, drawn after all the positional words.
+
+A finished cell is then
+
+```
+cell = pad(v[0], part_min_widths[0]) + separator
+     + pad(v[1], part_min_widths[1]) + separator + …
+```
+
+where `pad` adds leading zeros until the text is that many characters
+wide and never truncates.
+
+### G6B.3 Why a pairing step exists at all
+
+`_numeric_content` places its values by RULE and not by chance — the
+words decide arrangement, not which numbers come out — so two positions
+built from it emerge in the same order and pair up in lockstep.
+Measured: a 400-row column whose real cells held 387 different readings
+came out with 117, in runs of near-neighbours, while each position's
+own published distribution was right to the digit. Drawn independently
+and left alone, two positions of a reading agreed at −0.02 where the
+real column agreed at 0.83, and a twin cell could hold a second number
+above a first that no real cell ever did.
+
+Every step below swaps two rows' numbers within ONE position, so each
+position keeps its multiset to the last cell and every number published
+about it — ladder, mean, spread, styles, widths — is untouched. Only
+the pairing moves.
+
+### G6B.4 The pairing walk, step by step
+
+Write `T` for `n_joined` and `last` for `n_parts - 1`.
+
+**1. Sort.** Each position's spellings are ordered by `(value,
+spelling)` ascending, value being the spelling read as a number. This
+is the rank-for-rank start: largest with largest.
+
+**2. Choose the start.** Let `A` be the ARITHMETIC MEAN of
+`part_agreements` (0 when there are none). Then
+
+- `A < -0.4`: the LAST position is reversed, seat `i` taking seat
+  `T - 1 - i`;
+- `-0.4 <= A < 0.4` and at least `max(T - 1, 0)` reserve words exist:
+  the last position is permuted by `permutation(T)` of G3.4c, drawn
+  from the reserve;
+- otherwise: it is left rank for rank.
+
+A low target starts from a shuffle because it is already near it, and a
+strongly negative one from rank against rank, because the walk cannot
+travel the whole way inside its try ceiling.
+
+**3. Only the last position moves** for the rest of the walk. The pairs
+the walk can change are exactly those whose later member is `last`.
+
+**4. The distance.** With ranks taken about the middle
+`m = (T - 1) / 2` — ties sharing the average of their ranks — and the
+fixed divisors `spread[p] = Σ_rows (rank[p][r] − m)²`:
+
+```
+away =  |distinct_cells − wanted| / T
+      + Σ_pairs |above[pair] − part_above[pair]|
+      + Σ_pairs |agreement[pair] − part_agreements[pair]|
+```
+
+where `agreement[pair] = (Σ_rows (rank[first][r] − m)(rank[last][r] − m))
+/ sqrt(spread[first] * spread[last])`, taken as 0 when the divisor is 0.
+
+**The three terms are scaled differently on purpose, and each scale is
+a measurement.** `part_above` is an exact count a pairing can always
+meet, and one row out of it is one cell holding a reading that cannot
+happen — at equal weight the walk sold a row of it for a thousandth of
+agreement and produced an impossible cell, so it carries FULL WEIGHT
+PER ROW. The count of different cells is divided by `T`, because that
+one cannot always be met: each position's numbers are drawn to the
+published ladder, which repeats a value more evenly than the real
+column did, and pairs drawn from values that repeat more can only be so
+many. Weighting it per row instead was built and was worse at
+everything — the agreement fell from 0.834 to 0.559, two impossible
+cells appeared, and the count it was chasing still stopped at 317 of
+324. So it competes fairly, yields where it cannot win, and the
+shortfall is REPORTED (G11, instance 4; residual R-P4-40).
+
+**`wanted` is not the column's `n_distinct`.** Cells that did not split
+are replaced after the walk by stand-ins that are all ONE spelling,
+which no joined cell wears, so they add exactly one to the number of
+different cells however many there are. The walk is therefore asked for
+`n_distinct - 1` where any such cell exists and `n_distinct` where none
+does. Comparing the walk's result against the whole column's figure
+instead made a 120-cell column holding 120 different cells report "120
+published, 119 achieved" while the recount in the same report said 120.
+
+**5. The walk.** While `away > 0.0005`, fewer than `200 * T` tries have
+been made, and at least two reserve words exist:
+
+- take the next two reserve words, restarting at the first whenever
+  fewer than two remain;
+- `i = bounded(w1, T)`, `j = bounded(w2, T)` by G3.4b;
+- if `i == j`, or the last position holds the same spelling at both,
+  the try is spent and nothing moves;
+- otherwise swap the last position's seats `i` and `j`, recompute
+  `away`, and **accept when the new distance is less than OR EQUAL to
+  the old**; otherwise restore every carried quantity exactly.
+
+**An equal swap is taken, and that is not a detail.** Three facts are
+being met at once and they pull against each other: a swap that breaks
+a repeated cell often costs a little agreement and gains it back two
+swaps later. Taking only strict improvements stops on the first ridge —
+measured, it left a column of 324 different readings at 276 while the
+agreement was already right. Equal moves let the walk cross the ridge,
+and the try ceiling is what stops it wandering.
+
+**The reserve is DRAWN whether or not it is used.** The walk may
+consume none of its words — it can begin already inside 0.0005 of every
+target and stop — but the words are drawn from the stream regardless,
+because that is what fixes the budget and therefore where the next
+column starts.
+
+### G6B.5 The cells that did not split
+
+`n_present - n_joined` cells wore no such shape. The description says
+HOW MANY and nothing else, so they are invented as ordinary text at a
+budget of one distinct spelling, stepped past every cell already
+written and every spelling this column publishes as a hole, and the
+invention is REPORTED as a deviation of `n_unparsed`.
+
 ## G7. Datetime columns
 
 ### G7.1 The ordinal space
