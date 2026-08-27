@@ -381,6 +381,20 @@ none may be inferred from another:
   values were used or where every value used is the same one, and
   invariant Q16 holds it between 1 and `n - 2 + 1/(n - 1)`, which is
   where every sample of `n` values lies whatever the values are.
+- `mode` and `mode_count` are the number this column held most often
+  and how many cells held the commonest number. They are published
+  TOGETHER or not at all, which invariant Q18 enforces: a value with no
+  count says a number dominated without saying by how much, and a count
+  with no value says it without saying which. Two rules bound them.
+  The **tie rule**: where several numbers share the largest count, the
+  SMALLEST of them is the mode — deterministic, and naming no value the
+  ladder does not already publish one of. The **floor rule**: the pair
+  is published only where the count clears the small-cell floor AND
+  reaches two, because a mode held by one cell is not a mode at all —
+  every value ties there, and the tie rule would publish the column's
+  smallest number under a name saying it dominates. Identity is the
+  canonical triple, as for `n_distinct_values` below: two spellings of
+  one number are one value here.
 - `n_distinct_values` counts NUMBERS where `n_distinct` beside it
   counts SPELLINGS, and the difference is the whole reason it exists.
   `1` and `01` are two spellings and one number, so the two keys can
@@ -3706,6 +3720,8 @@ consumer off the role name.
 | `skew` | number or `null` | — | the moment-based skewness | APPROXIMATED |
 | `kurtosis` | number or `null` | Q16 below | the moment-based kurtosis, not the excess: a normal curve reads 3 | APPROXIMATED |
 | `n_distinct_values` | whole number | Q17 below | how many different NUMBERS the column holds, as distinct from how many different spellings | REPORT-ONLY |
+| `mode` | number or null | Q18 below | the number the column held most often, or null where the pair is withheld | REPORT-ONLY |
+| `mode_count` | whole number | Q18 below | how many cells held the commonest number, and nought exactly where `mode` is null | REPORT-ONLY |
 | `std_unrepresentable` | boolean | — | true when the exact spread is larger than binary64 can hold | EXACT-OBSERVABLE |
 | `n_zero` | integer ≥ 0 | — | parsed values equal to zero | EXACT-OBSERVABLE |
 | `n_negative` | integer ≥ 0 | — | present cells whose notation settles a negative sign, including ones no statistic could use | EXACT-OBSERVABLE |
@@ -4319,6 +4335,8 @@ The fourteen columns, abbreviated for width: `emp` `empty`, `unr`
 | `skew` | | | | | | | | | ● | ● | ● | | | |
 | `kurtosis` | | | | | | | | | ● | ● | ● | | | |
 | `n_distinct_values` | | | | | | | | | ● | ● | ● | | | |
+| `mode` | | | | | | | | | ● | ● | ● | | | |
+| `mode_count` | | | | | | | | | ● | ● | ● | | | |
 | `std_unrepresentable` | | | | | | | | | ● | ● | ● | | | |
 | `n_zero` | | | | | | | | | ● | ● | ● | | | |
 | `n_negative` | | ● | | | | | | | ● | ● | ● | | | |
@@ -4361,7 +4379,7 @@ The fourteen columns, abbreviated for width: `emp` `empty`, `unr`
 | `parts` | | | | | | | | | | | | | | ● |
 | `separator` | | | | | | | | | | | | | | ● |
 
-**Sixty-seven rows, one hundred and thirty-two marked cells**, distributed
+**Sixty-nine rows, one hundred and thirty-eight marked cells**, distributed
 `empty` 0, `numeric_unrepresentable` 9, `constant` 5, `binary` 5,
 `categorical` 6, `long_tail_labels` 5, `datetime` 13, `time_of_day`
 5, `count` 16, `continuous` 16, `affixed_number` 23, `identifier` 6,
@@ -4609,6 +4627,8 @@ block carries, the quantitative ones computed over the CORES.
 | `skew` | number or `null` | — | moment-based skewness of the parsed CORES | APPROXIMATED, as on `count` |
 | `kurtosis` | number or `null` | Q16 | moment-based kurtosis of the parsed CORES | APPROXIMATED, as on `count` |
 | `n_distinct_values` | whole number | Q17 | how many different NUMBERS the CORES hold | REPORT-ONLY |
+| `mode` | number or null | Q18 | the number the CORES held most often | REPORT-ONLY |
+| `mode_count` | whole number | Q18 | how many cores held it | REPORT-ONLY |
 | `std_unrepresentable` | boolean | — | true when the CORES' exact spread exceeds binary64 | EXACT-OBSERVABLE |
 | `n_zero` | integer ≥ 0 | — | parsed CORES equal to zero | EXACT-OBSERVABLE |
 | `n_negative` | integer ≥ 0 | — | CORES whose notation settles a negative sign, including ones no statistic could use | EXACT-OBSERVABLE |

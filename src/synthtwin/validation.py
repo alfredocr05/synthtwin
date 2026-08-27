@@ -385,6 +385,15 @@ _NOT_CHECKABLE_VALUE_COUNT = (
     "different count of numbers misses no obligation this description "
     "makes"
 )
+_NOT_CHECKABLE_MODE = (
+    "the description records which number the real column held most "
+    "often and how many cells held it, and it asks no file to hold "
+    "that many: a twin divides its cells between values by the even "
+    "share the distinctness facts fix, and the only value given a "
+    "group of its own sized to a published count is zero. A file whose "
+    "commonest number differs, or whose count of it differs, misses no "
+    "obligation this description makes"
+)
 _NOT_CHECKABLE_HISTOGRAM = (
     "the description records the SHAPE of the real column's numbers -- "
     "how many of them fall between each pair of edges -- and the twin "
@@ -10357,6 +10366,20 @@ def _listings(
                     "numeric.n_distinct_values",
                     "",
                     _NOT_CHECKABLE_VALUE_COUNT,
+                ),
+            ]
+        # THE MODE PAIR, LISTED and never silent (plan P4-D4.11). It is
+        # published on every column of this role that has one, so its
+        # listing does not hang off the histogram beside it; a column
+        # with no dominant value publishes no pair and gets no listing.
+        if isinstance(facts, contract.NumericFacts) and facts.mode is not None:
+            listings = listings + [
+                Listing(column.name, "numeric.mode", "", _NOT_CHECKABLE_MODE),
+                Listing(
+                    column.name,
+                    "numeric.mode_count",
+                    "",
+                    _NOT_CHECKABLE_MODE,
                 ),
             ]
         if isinstance(facts, contract.NumericFacts) and not _ladder_points(

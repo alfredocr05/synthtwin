@@ -270,7 +270,7 @@ def test_the_golden_run_is_the_shape_this_file_says_it_is(
 # amendment A-P4-37 lowered it to one), so the description this file
 # pins describes the same table under the same rules it always did.
 GOLDEN_DESCRIPTION_SHA256 = (
-    "b4947b19641156681f5a73536c2028d23a0dce35efbd32c2f4200fcbc2a7efb4"
+    "21b0cf0a92fbf0d5911a288e47eff11e0c2048b2eac77015ce3cbeb3165dee0a"
 )
 
 
@@ -971,7 +971,7 @@ def test_the_report_names_the_seed_the_twin_was_built_at(
 # stands and `AAAAAA` does not. Fewer obligations here is the point of
 # that rule and not a census that quietly shrank.
 GOLDEN_QUALITY_SHA256 = (
-    "49055cba8b773a43f2e57cbf883d900f210fb3f0f51fb81ece87114025be0f57"
+    "c64524c74ef3bc0269fea995f5a6674e535e9e22c0dba53a53cdca4c0ce55087"
 )
 
 

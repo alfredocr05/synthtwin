@@ -327,6 +327,9 @@ PLAN4_REGIONS = {
     "padding": "### P4-D14 The padded-field width fact",
     "histogram": "### P4-D4.7 The value histogram (owner instruction 2026-08-26)",
     "kurtosis": "### P4-D4.8 The kurtosis (owner instruction 2026-08-26)",
+    "mode": (
+        "### P4-D4.11 The mode (owner instruction 2026-08-26, fifth ask)"
+    ),
     "value-count": (
         "### P4-D4.9 The count of different numbers (closes R-P4-20)"
     ),
@@ -356,6 +359,8 @@ FACTS_OUTSIDE_THE_VERSION_4_MATRIX = (
     ("numeric", "value_histogram"),
     ("numeric", "kurtosis"),
     ("numeric", "n_distinct_values"),
+    ("numeric", "mode"),
+    ("numeric", "mode_count"),
     ("datetime", "resolution_mix"),
     ("free_text", "shape_forms"),
     ("label", "shape_forms"),
@@ -587,6 +592,41 @@ REGISTRY += (
         plan_words="how many different NUMBERS the column holds",
         plan_region="value-count",
         aliases=("value count", "different numbers"),
+    ),
+    # THE MODE PAIR (plan P4-D4.11). REPORT-ONLY, and it was written
+    # APPROXIMATED first, which was wrong and was caught by the golden
+    # twin the way three facts before it were.
+    #
+    # The reasoning that failed: both halves are readable off a file,
+    # so they looked checkable. They are -- but a CHECK is an
+    # obligation, and the generator does not carve a stratum for the
+    # mode, so a twin cannot meet the count. Sixty-three tests went red
+    # on that, "a twin of its own description misses nothing" among
+    # them, which is the product's headline claim.
+    #
+    # So the rule this repository already learned holds here too: a
+    # fact whose exactness needs a change to how cells are ALLOTTED is
+    # REPORT-ONLY until that change lands, and the quality report LISTS
+    # it rather than holding a file to it. Measured on a 300-row dose
+    # column publishing a count of 179, the twin holds 180 with the
+    # value itself exactly right. The stratum that would make the pair
+    # EXACT is designed in P4-D4.11 on the model of the zero stratum,
+    # whose published count the twin already meets to the cell.
+    Fact(
+        "numeric",
+        "mode",
+        REPORT_ONLY,
+        plan_words="the number the column held most often",
+        plan_region="mode",
+        aliases=("mode", "commonest number"),
+    ),
+    Fact(
+        "numeric",
+        "mode_count",
+        REPORT_ONLY,
+        plan_words="how many cells held the commonest number",
+        plan_region="mode",
+        aliases=("mode count",),
     ),
     Fact(
         "numeric",

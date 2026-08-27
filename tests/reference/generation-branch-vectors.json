@@ -43,6 +43,8 @@
           "(withheld)": 0
         },
         "missing_by_source": {},
+        "mode": null,
+        "mode_count": 0,
         "n_affixed": 12,
         "n_contradictory": 0,
         "n_core_contradictory": 0,
@@ -550,6 +552,8 @@
               "float64": 36.666666666666664,
               "proof": "nearest"
             },
+            "mode": null,
+            "mode_count": 0,
             "n_distinct_values": 9,
             "n_left_out_of_statistics": 0,
             "n_negative": 0,
@@ -665,6 +669,8 @@
               "float64": 32.916666666666664,
               "proof": "nearest"
             },
+            "mode": null,
+            "mode_count": 0,
             "n_distinct_values": 5,
             "n_left_out_of_statistics": 0,
             "n_negative": 0,
@@ -1341,6 +1347,8 @@
           "(withheld)": 0
         },
         "missing_by_source": {},
+        "mode": null,
+        "mode_count": 0,
         "n_contradictory": 0,
         "n_distinct": 3,
         "n_distinct_folded": 3,
@@ -1615,6 +1623,8 @@
           "(withheld)": 0
         },
         "missing_by_source": {},
+        "mode": null,
+        "mode_count": 0,
         "n_contradictory": 0,
         "n_distinct": 3,
         "n_distinct_folded": 3,

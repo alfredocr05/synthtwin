@@ -4214,6 +4214,16 @@ def _universal(name, role, statistical_type, structural_role, quality_state, **f
     # once they exist, because it is a fact about them.
     if "percentiles" in block and "n_distinct_values" not in block:
         block["n_distinct_values"] = 0
+    # ...and the MODE PAIR beside it (contract Q18, plan P4-D4.11), on
+    # the same three roles.  Both keys are always present on a block
+    # that carries a ladder; a withheld mode is `null` beside a count
+    # of nought, which is what a column with no dominant value
+    # publishes and what every case in this file publishes, because
+    # none of them turns on the fact.  It is REPORT-ONLY and steers no
+    # rule of the method, so it costs no word and moves no cell.
+    if "percentiles" in block and "mode" not in block:
+        block["mode"] = None
+        block["mode_count"] = 0
     # The census of which form each parsed date wore (contract C6-25),
     # on every column of dates and on no other role.  A column read
     # under one format wore that format in every cell that parsed, so
@@ -5616,6 +5626,15 @@ def _joined_readings():
             "fraction_widths": {}, "pad_widths": {},
             "std_unrepresentable": False, "value_histogram": {},
             "n_distinct_values": 9 if place == 0 else 5,
+            # Each position carries the mode pair like any block of
+            # numbers (contract Q18). Both positions of this column
+            # repeat values, so a real profile of it would publish a
+            # mode; this case publishes the withheld pair because the
+            # fact is REPORT-ONLY, steers no rule of the method and
+            # moves no cell, and a case that turns on nothing should
+            # publish nothing about it.
+            "mode": None,
+            "mode_count": 0,
         }
         for name, text in moments:
             field, claim = nearest_field(text)
@@ -6024,6 +6043,10 @@ INTEGER_COLUMN_KEYS = frozenset({
     "min_length", "max_length", "n_all_digits", "n_code_alphabet", "count",
     "n_occurrences", "n_whole", "n_fraction", "n_whole_unknown",
     "n_positive", "n_sign_unknown",
+    # How many cells held the commonest number (contract Q18). The
+    # mode's VALUE beside it is a published binary64 and is proved as
+    # one, or `null` where the pair is withheld.
+    "mode_count",
     # The affixed role's own five counts (contract 6.12, method G6A.1):
     # how many cells wore the pair, and the four class counts read over
     # the CORES rather than over the cells.
@@ -6051,7 +6074,7 @@ INTEGER_COLUMN_MAPS = frozenset({
 NUMERIC_PART_KEYS = frozenset({
     "n_rows", "n_zero", "n_negative", "n_negative_unrepresentable",
     "n_used_in_statistics", "n_left_out_of_statistics",
-    "n_distinct_values",
+    "n_distinct_values", "mode_count",
 })
 INTEGER_COLUMN_ARRAYS = frozenset({
     "suppressed_level_counts", "part_min_widths", "part_above",

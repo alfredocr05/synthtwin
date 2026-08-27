@@ -791,6 +791,12 @@ PUBLICATION_RULES: "dict[tuple[str, ...], str]" = {
     ("columns", _EACH, "skew"): _MAYBE_NUMBER,
     ("columns", _EACH, "kurtosis"): _MAYBE_NUMBER,
     ("columns", _EACH, "n_distinct_values"): _COUNT,
+    # THE MODE PAIR (plan P4-D4.11). The value is a published number
+    # like a ladder rung and may be absent, which is what the withheld
+    # pair looks like; the count is a count, and is nought exactly when
+    # the value is absent.
+    ("columns", _EACH, "mode"): _MAYBE_NUMBER,
+    ("columns", _EACH, "mode_count"): _COUNT,
     ("columns", _EACH, "std_unrepresentable"): _FLAG,
     ("columns", _EACH, "n_zero"): _COUNT,
     ("columns", _EACH, "n_negative_unrepresentable"): _COUNT,
@@ -826,6 +832,8 @@ PUBLICATION_RULES: "dict[tuple[str, ...], str]" = {
     ("columns", _EACH, "parts", _EACH, "skew"): _MAYBE_NUMBER,
     ("columns", _EACH, "parts", _EACH, "kurtosis"): _MAYBE_NUMBER,
     ("columns", _EACH, "parts", _EACH, "n_distinct_values"): _COUNT,
+    ("columns", _EACH, "parts", _EACH, "mode"): _MAYBE_NUMBER,
+    ("columns", _EACH, "parts", _EACH, "mode_count"): _COUNT,
     ("columns", _EACH, "parts", _EACH, "std_unrepresentable"): _FLAG,
     ("columns", _EACH, "parts", _EACH, "n_zero"): _COUNT,
     ("columns", _EACH, "parts", _EACH, "n_negative"): _COUNT,

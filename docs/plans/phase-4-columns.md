@@ -828,6 +828,105 @@ the refusal stays reserved for descriptions no source could satisfy.
 The always-printed width deviation retires with the invention. THIS
 RAISES fidelity for these columns and closes residual R-P2-1.
 
+### P4-D4.11 The mode (owner instruction 2026-08-26, fifth ask)
+
+The owner's fifth ask was "the mode, for columns where one value
+dominates". This decision records what was MEASURED about it before any
+code was written, because the histogram taught the lesson that a
+published fact nothing consumes does not improve a twin.
+
+**THE GAP IS REAL AND IT WAS MEASURED.** Five three-hundred-row numeric
+columns were described and generated, and the twin's count of the
+column's most frequent value compared with the real one:
+
+| column | mode | held by | twin holds |
+|---|---|---|---|
+| continuous, no repeats | 45.238 | 1 cell | 0 |
+| integer counts 0–10 | 8 | 39 cells (13%) | 28 |
+| scores 1–5 | 3 | 144 cells (48%) | 120 |
+| a dose with one common value | 10 | 179 cells (60%) | 180 |
+| laboratory values | 101.7 | 4 cells (1.3%) | 0 |
+
+Where a value genuinely dominates the twin is **17 to 28 per cent
+short** of it, which is the fidelity gap the owner named. The two rows
+whose mode is held by one and four cells are the shape a floor must
+exclude, and the dose row shows the existing machinery landing within
+one cell when the distinctness budget is small enough to force it.
+
+**AND IT IS CONSUMABLE, which the histogram was not.** The generator
+already meets one value at one published count exactly: G5.2's ZERO
+STRATUM, whose size is `n_zero` and whose value is `0`. Measured on
+three columns publishing `n_zero` of 0, 30 and 120, the twin wrote
+exactly 0, 30 and 120 zeros. A MODE STRATUM is that same shape with a
+different value, so the mechanism this fact needs is one the method
+already has and has proved — unlike `value_histogram`, which needed the
+allotment itself to change (R-P4-49) and ended REPORT-ONLY.
+
+**THE TWO KEYS AND THEIR DISPOSITION.** `mode` is the number the
+column held most often, and `mode_count` is how many cells held the
+commonest number. Both are **REPORT-ONLY** until the generator carves
+the stratum described below.
+
+They were written APPROXIMATED first, and that was wrong. Both halves
+are readable off a file, so they looked checkable — and they are, but a
+CHECK is an OBLIGATION, and a generator that carves no stratum for the
+mode cannot meet the count. Sixty-three tests went red on it, "a twin
+of its own description misses nothing" among them, which is the
+product's headline claim. This is the fourth fact in this phase to walk
+into that trap, and the rule that came out of the first three holds
+here: a fact whose exactness needs a change to how cells are ALLOTTED
+is REPORT-ONLY until that change lands, and the quality report LISTS it
+rather than holding a file to it. Measured today on a 300-row dose
+column publishing a count of 179, the twin holds 180 with the value
+itself exactly right.
+
+**The shape it must take.**
+
+1. **What is published**: the mode's exact value and the count of cells
+   that held it, on the roles that carry a ladder — the same three that
+   carry `n_distinct_values`, read over the CORES on `affixed_number`
+   and per position on `joined_numbers`.
+2. **The floor governs the COUNT, not the value.** An exact value is
+   not a new disclosure class here: the ladder already publishes eleven
+   of them. What is new is "this value was held by N cells", so the
+   pair is published only where `N` clears the small-cell floor, and
+   withheld whole otherwise. A column of all-different values has no
+   mode worth the name and publishes none.
+3. **The tie rule must be written and not left to an implementation.**
+   Where several values share the largest count, the SMALLEST of them
+   is the mode. It is deterministic, it discloses nothing the ladder
+   does not, and it gives an independent implementer one answer.
+4. **The generator must MEET it**, by a stratum of its own sized to the
+   published count, laid beside the zero stratum in the fixed order of
+   G5.2. Where the mode IS zero the zero stratum already is the mode
+   stratum and no second one is made.
+5. **It changes the strata count, so it changes the WORD BUDGET**, and
+   a change to the budget shifts every later column at the same seed.
+   That is D12's changelogged regeneration event, not a silent move.
+
+**Both feasibility questions are now answered, by measurement and by
+argument, before any code.**
+
+*Can the count exceed what the strata leave room for?* Not on a
+description the PROFILER wrote. Every stratum other than the mode's
+needs at least one cell, so the carve needs
+`mode_count <= K - (S - 1)`. The real column held `mode_count` cells of
+the mode and at least one of each other different value, so
+`mode_count <= K - (distinct - 1)`, and `S <= distinct` because a
+stratum with no cell in it is not a value (P2-C1-F5). The inequality
+therefore holds by construction. Measured across forty described
+columns of four shapes — small integers, five-point scores, a dose with
+one common value, and a Gaussian — not one came within reach of it. A
+HAND-WRITTEN description can still break it, and that is a refusal to
+write, on the model of the clock role's capacity refusal.
+
+*What if the mode is one of the two pinned endpoints?* **It commonly
+is: ten of those forty columns, one in four.** So this is not an edge
+case to discover in the field but a case the rule must name: where the
+mode equals the published `min` or `max`, that endpoint's own stratum
+is sized to `mode_count` and no second stratum is made — exactly as the
+zero stratum absorbs the mode when the mode is zero.
+
 ### P4-D4.10 The finer percentile ladder — DESIGNED, NOT BUILT
 
 The owner's second ask of 2026-08-26 was "every p value (1 to 100)".
