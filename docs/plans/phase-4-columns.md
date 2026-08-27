@@ -1887,6 +1887,44 @@ Opened by this plan, each a limit accepted rather than work forgotten:
   the columns it was not meant for. Which columns it reaches is a
   decision of its own, and until it is taken the route is the one the
   remark names: write the column with a decimal point.
+  **MEASURED 2026-08-27, and it changes what closing R-P4-30 means.**
+  The twin misses `pad_widths` on a real dental-code column, and the
+  cause is neither of the two shares named below. Measured on 300 rows
+  of `D` plus four figures, 85 distinct codes: the description
+  publishes `pad_widths {4: 97}` and `numeric_styles {plain: 203,
+  leading_zero: 97}`, and the twin writes all 97 leading zeros but only
+  78 of them at four figures. The other 19 come out five figures wide
+  (`D06247`), because a leading zero on a value that already has four
+  figures makes a five-figure field.
+
+  **The style walks are not at fault and neither is the padding walk.**
+  `_padded_style_swaps` already moves the padded style onto values a
+  published width can hold. The twin drew only 78 values below 1000,
+  and 97 are needed; no assignment of 78 small values fills 97 narrow
+  fields. **The defect is in the VALUE DRAW.**
+
+  And the draw is not disobeying anything it was told. Its ladder is
+  honoured closely — source rungs `p25 = 852`, `p50 = 3898` against
+  twin `920` and `4005` — but 1000 sits in the gap between two rungs,
+  and an eleven-rung ladder does not say how many cells lie below a
+  point inside a gap. The source has 97 there and the twin has 78, and
+  both ladders are right.
+
+  **So R-P4-30 has a second route to closure that costs no new
+  disclosure at all:** `pad_widths {4: 97}` ALREADY says that 97 cells
+  hold values of at most three figures. That is an exact magnitude
+  constraint the draw could honour directly, and it needs no wider
+  census. The width census over unpadded cells (below) remains what
+  R-P4-35 needs; this one does not depend on it.
+
+  **And it is the same shortfall the owner's numeric-depth work
+  addresses** (all 100 percentiles and a histogram, ruled in
+  2026-08-26): a hundred rungs, or binned counts, pin how many cells
+  sit below 1000 far more tightly than eleven rungs can. Built first,
+  that work shrinks this residual as a side effect — which is an
+  argument for its sequencing, not a substitute for the constraint
+  above.
+
 - **R-P4-30** (opened 2026-08-24, from the survey of healthcare code
   columns). A PLAIN NUMERIC CELL CARRIES NO WIDTH FACT, so a code
   column whose values are uniformly wide can still be written at two
