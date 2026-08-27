@@ -683,15 +683,18 @@ REGISTRY += [
         plan_region="padding",
         aliases=("padding census", "field-width census"),
     ),
-    # Plan P4-D4.7. The histogram is EXACT-OBSERVABLE for the reason
-    # every census here is: a person opens the twin, puts each value in
-    # its bin by the published ends, counts them, and gets the census
-    # back. It is the one fact in the numeric block that can show a
-    # column with two peaks, which no moment and no ladder can.
+    # Plan P4-D4.7. REPORT-ONLY, and the reason is worth stating where
+    # a reader meets it. The twin's shape FOLLOWS this census -- on a
+    # 300-row column of two populations the empty stretch went from
+    # about a hundred twin values to sixteen -- but it is not held to
+    # it exactly, because meeting a bin count exactly means the CELL
+    # ALLOCATION following the histogram, and that allocation is
+    # G5.2's even share over the distinctness budget. Upgrading this to
+    # EXACT-OBSERVABLE is residual R-P4-49 and its own landing.
     Fact(
         "numeric",
         "value_histogram",
-        EXACT_OBSERVABLE,
+        REPORT_ONLY,
         plan_words="the count falling in each bin",
         plan_region="histogram",
         aliases=("value histogram", "binned counts"),

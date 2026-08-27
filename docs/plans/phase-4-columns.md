@@ -876,6 +876,47 @@ them. Method G12.2's window is measured through that same rule, because
 that window's own definition is the construction's arithmetic rather
 than a second reading of it.
 
+**THIS DECISION LANDS THE FACT AND NOT YET THE FIDELITY, deliberately,
+and the reason is a measurement.** The census is published, carried,
+disposed and listed; the TWIN is not changed by it at all. Consuming it
+is **residual R-P4-49** and its own landing.
+
+The first attempt did consume it, by bending the value walk inside each
+ladder segment toward the published shape. It worked -- on the 300-row
+column of two peaks the empty stretch fell from about a hundred twin
+values to sixteen -- and it fought every other fact in the block. Each
+of these was measured, not feared:
+
+* placing by histogram alone moved every interior rung, and the
+  validator refused the twin of its own description;
+* method G12.2's window is derived from plain interpolation, so a
+  BETTER twin came out of bounds -- spread 30.21 against a published
+  30.73, refused by a window ending at 28.05 -- until the window was
+  measured through the same rule;
+* bending values moves them off whole numbers, and `numeric_styles`
+  counts cells written without a point: a column publishing `plain: 20,
+  decimal: 31` came out `decimal: 51`;
+* and it still did not MEET the census, because a bin count is a
+  statement about how many cells hold each value, and cells are
+  allotted by G5.2's even share over the distinctness budget. Measured
+  on a 229-value count column: the source's bins hold 15 to 28 cells
+  apiece and the twin's hold 22 or 23.
+
+That last one is the whole of it. Bending values inside a fixed
+allotment is drawing from the ladder and hoping; **the census is met by
+the ALLOTMENT following it** -- one stratum per published bin, sized by
+that bin's count -- which places the values in their bins by
+construction and subsumes the bending. That is a change to the core of
+the numeric method and it is not a rider on the fact that names it.
+
+**IT IS ALL OR NOTHING, unlike its sibling censuses.** A field-width
+census with a pooled remainder still says something a twin can hold: a
+cell can be written at a named width whatever the pooled ones do. A
+histogram is read by RANK, and a pooled remainder does not say which
+bins its values are in, so the ranks the named bins cover are unknown
+and no map can be built. A column that cannot publish every bin
+publishes none. At the default floor of one nothing pools.
+
 **WHAT IT DOES NOT CLOSE.** A published median is an INTERPOLATED
 statistic and a bin counts real cells, so on a column whose median
 falls in an empty stretch the two facts pull against each other and the
@@ -1825,6 +1866,32 @@ Opened by this plan, each a limit accepted rather than work forgotten:
   detection line -- which the settings and `n_rows` give -- with the
   present walk as the fallback. That is a change inside the free-text
   packing and is its own landing.
+
+- **R-P4-49** (opened with P4-D4.7, 2026-08-27). THE TWIN FOLLOWS THE
+  VALUE HISTOGRAM AND IS NOT HELD TO IT. Cells are allotted to values
+  by G5.2's even share over the distinctness budget, which never sees
+  the histogram: measured on a 229-value count column, the source's
+  bins hold 15 to 28 cells apiece and the twin's hold 22 or 23. The
+  shape is much closer than it was -- on a 300-row column of two
+  populations the empty stretch fell from about a hundred twin values
+  to sixteen -- but the counts are not met, so the census is
+  REPORT-ONLY.
+
+  Closing it means the allotment rule reading this census: one stratum
+  per published bin, sized by that bin's count. That is a change to the
+  core of the numeric method, interacting with the sign bands, the zero
+  stratum and the distinctness budgets, and it is its own landing. It
+  would also subsume the value-placement half, since a stratum sized by
+  its bin sits in that bin by construction.
+
+  **A HALF-MEASURE WAS BUILT AND WITHDRAWN, and the withdrawal is the
+  useful part of this entry.** Bending the value walk inside each
+  ladder segment toward the shape improved it a great deal -- the
+  bimodal column's empty stretch fell from about a hundred twin values
+  to sixteen -- and it broke the rungs, then the G12.2 window, then the
+  style map, and still missed the bin counts, because none of that
+  touches the allotment. Whoever takes R-P4-49 should start at the
+  allotment and not at the values.
 
 - **R-P4-47** (opened by adversarial round 7 of the width work,
   2026-08-27). ON A COLUMN OF ONE PUBLISHED WIDTH THAT ALSO FOLDS, THE

@@ -1749,10 +1749,7 @@ def _segment(numerator: int, denominator: int) -> int:
 
 
 def _interpolated(
-    rungs: "tuple[float, ...]",
-    numerator: int,
-    denominator: int,
-    shaped: "float | None" = None,
+    rungs: "tuple[float, ...]", numerator: int, denominator: int
 ) -> float:
     """One value from the ladder by the convex form (method G5.3).
 
@@ -1775,11 +1772,6 @@ def _interpolated(
     above = 100 * numerator - _PCT[step] * denominator
     span = (_PCT[step + 1] - _PCT[step]) * denominator
     share = math.ldexp((above << 53) // span, -53)
-    # THE HISTOGRAM BENDS THE LINE INSIDE THE SEGMENT and never moves
-    # its ends (method G5.4a). Where it cannot answer, the straight
-    # share above is what this method always used.
-    if shaped is not None:
-        share = shaped
     rest = 1 - share
     first = rest * low
     second = share * high
@@ -5534,7 +5526,6 @@ def _stratum_values(
     notes: list[Deviation] = []
     taken = 0
     values: list[float] = []
-    blocks, covered = _histogram_ranks(facts.value_histogram)
     for place in range(total):
         band = layout.bands[place]
         pinned = place == 0 or (place == total - 1 and total >= 2)
@@ -5572,172 +5563,12 @@ def _stratum_values(
         # (method G5.4a). A ladder cannot describe a gap and a bin
         # cannot say where a rung falls, so each answers the half it
         # can.
-        denominator = numbers * _WORD_SCALE
-        found = _interpolated(
-            rungs,
-            numerator,
-            denominator,
-            _histogram_share(
-                blocks,
-                covered,
-                _segment(numerator, denominator),
-                numerator,
-                denominator,
-            ),
-        )
+        found = _interpolated(rungs, numerator, numbers * _WORD_SCALE)
         if facts.integer_valued:
             found = _whole_valued(found)
         values = values + [found]
     repaired, repair_notes = _sign_repairs(column, facts, layout, rungs, values)
     return repaired, notes + repair_notes
-
-
-def _histogram_ranks(
-    histogram: "dict[str, int]",
-) -> "tuple[list[tuple[int, int, int]], int]":
-    """Every published bin as (bin number, first rank, last rank).
-
-    THE HISTOGRAM IS A SORTED FACT, which is what makes it usable here
-    at all: bin numbers ascend with the values they hold, so the counts
-    read in bin order give each bin the block of sorted positions its
-    values occupy. A twin that puts its k-th smallest number in the bin
-    holding the k-th smallest source number has the source's shape.
-
-    The `(withheld)` remainder has no bin and no edges, so it takes no
-    ranks: those positions fall back to the ladder, which is what the
-    method did for every position before the histogram existed.
-
-    Guarantees: accepts a published histogram; returns the bins in
-    ascending order with the half-open rank block each covers, and the
-    total ranks they account for. Raises nothing. No I/O of any kind.
-    """
-    # A HISTOGRAM THAT DOES NOT ACCOUNT FOR EVERY VALUE PLACES NONE OF
-    # THEM, and this is the guard that was missing when this rule was
-    # first written. A bin below the publication floor has no key, and
-    # its values join a `(withheld)` remainder with no edges -- so the
-    # named bins describe SOME of the column while saying nothing about
-    # where the rest sit among them. Reading the named bins as though
-    # they were the whole column packs every value into the few ranks
-    # they cover: measured on a 240-row column at a raised floor, 169
-    # of its values were pooled, the seven named bins sat in the middle
-    # of the range, and the twin's mean came out 51.83 against a
-    # published 49.25 and a window ending at 51.25. The ladder answers
-    # the whole column instead, exactly as it did before this fact
-    # existed.
-    if contract.WITHHELD in histogram:
-        return [], 0
-    numbered: "list[tuple[int, int]]" = []
-    for key in sorted(histogram):
-        numbered = numbered + [(int(key), histogram[key])]
-    blocks: "list[tuple[int, int, int]]" = []
-    at = 0
-    for place, count in sorted(numbered):
-        blocks = blocks + [(place, at, at + count)]
-        at = at + count
-    return blocks, at
-
-
-def _histogram_place(
-    blocks: "list[tuple[int, int, int]]",
-    covered: int,
-    rank: float,
-) -> "float | None":
-    """Where on the published scale the value at one sorted rank sits.
-
-    Answered as a share of the distance between the two published
-    ends, so the caller can compare two ranks without ever building a
-    value. The bins ascend with the values they hold, so the counts
-    read in bin order give each bin the block of sorted positions its
-    values occupy; a rank inside a bin sits proportionally inside that
-    bin's own share of the range.
-
-    Returns None where the published bins do not account for this rank
-    -- an empty histogram, or a position sitting in a `(withheld)`
-    remainder that has no bin and no edges.
-
-    Guarantees: accepts the bins, their rank total and a rank; returns
-    a share from zero to one, or None. Raises nothing. No I/O.
-    """
-    if not blocks or covered < 1:
-        return None
-    if rank < 0:
-        rank = 0.0
-    if rank > covered:
-        rank = float(covered)
-    for place, first, last in blocks:
-        if rank >= last and last < covered:
-            continue
-        if last <= first:
-            return None
-        step = (rank - first) / (last - first)
-        if step < 0.0:
-            step = 0.0
-        if step > 1.0:
-            step = 1.0
-        return (place + step) / parsing.HISTOGRAM_BINS
-    return None
-
-
-def _histogram_share(
-    blocks: "list[tuple[int, int, int]]",
-    covered: int,
-    step: int,
-    numerator: int,
-    denominator: int,
-) -> "float | None":
-    """How far along ONE LADDER SEGMENT the histogram puts a stratum.
-
-    THE LADDER KEEPS ITS RUNGS AND THE HISTOGRAM SHAPES WHAT LIES
-    BETWEEN THEM (method G5.4a), and the two halves of that sentence
-    are both repairs of something measured.
-
-    Placing values by the histogram ALONE moved every interior rung:
-    on a 400-row column the worst was `p99`, published at 79.507 and
-    written at 78.380, and the validator refused the twin of its own
-    description. A rung is a published fact with a two-sided bound and
-    a histogram bin is thirty-two times coarser than the range, so a
-    bin can never say where inside itself a rung falls.
-
-    Interpolating the LADDER alone is what the method did before, and
-    it cannot describe a gap: a column of two populations with nothing
-    between them yields a twin that fills the space evenly, meeting the
-    ladder, the mean, the spread and the skew exactly, because none of
-    those facts can tell.
-
-    So the segment ENDS come from the ladder, exactly as they always
-    did, and this returns only the share of the way between them --
-    read off the histogram where it can answer, which is what bends the
-    line inside the segment into the shape the column actually has. At
-    a segment end the share is zero or one whatever the histogram says,
-    so no rung moves.
-
-    Returns None where the histogram cannot answer for this segment,
-    and the caller then takes the straight share it always took.
-
-    Guarantees: accepts the bins, their rank total, a ladder segment
-    and a stratum's position; returns a share from zero to one, or
-    None. Raises nothing. No I/O of any kind.
-    """
-    if not blocks or covered < 1 or denominator < 1:
-        return None
-    low = (_PCT[step] * covered) / 100
-    high = (_PCT[step + 1] * covered) / 100
-    if not high > low:
-        return None
-    here = (numerator * covered) / denominator
-    at_low = _histogram_place(blocks, covered, low)
-    at_high = _histogram_place(blocks, covered, high)
-    at_here = _histogram_place(blocks, covered, here)
-    if at_low is None or at_high is None or at_here is None:
-        return None
-    if not at_high > at_low:
-        return None
-    share = (at_here - at_low) / (at_high - at_low)
-    if share < 0.0:
-        return 0.0
-    if share > 1.0:
-        return 1.0
-    return share
 
 
 def _sign_fallback(band: str, rungs: "tuple[float, ...] | None") -> float:
@@ -13710,44 +13541,11 @@ def _figure(value: float) -> str:
     return f"{value}"
 
 
-def _shaped(
-    rungs: "tuple[float, ...]",
-    numerator: int,
-    denominator: int,
-    blocks: "list[tuple[int, int, int]]",
-    covered: int,
-) -> float:
-    """One value from the ladder, bent inside its segment by the shape.
-
-    THE ONE PLACE THIS RULE IS WRITTEN. The generator builds its values
-    through here and method G12.2's window is measured through here, so
-    the window is the construction's own arithmetic rather than a
-    second reading of it -- which is what that window's own docstring
-    has always promised. When the histogram began shaping values and
-    only the generator knew, the window stayed centred on what plain
-    interpolation would have produced and called a BETTER twin
-    out of bounds: a 300-row column of two populations came out with a
-    spread of 30.21 against a published 30.73, and was refused by a
-    window ending at 28.05.
-    """
-    return _interpolated(
-        rungs,
-        numerator,
-        denominator,
-        _histogram_share(
-            blocks, covered, _segment(numerator, denominator),
-            numerator, denominator,
-        ),
-    )
-
-
 def _numeric_window(
     rungs: "tuple[float, ...]",
     held: int,
     widest: int,
     slack: float,
-    blocks: "list[tuple[int, int, int]] | None" = None,
-    covered: int = 0,
 ) -> "tuple[list[float], list[float], list[float]]":
     """The window every RANK of a column of numbers sits in (method G12.2).
 
@@ -13765,10 +13563,8 @@ def _numeric_window(
     with, so the window is the construction's own arithmetic rather than
     a second reading of it.
     """
-    if blocks is None:
-        blocks = []
     if held < 2:
-        value = _shaped(rungs, 0, 1, blocks, covered)
+        value = _interpolated(rungs, 0, 1)
         return ([value - slack], [value + slack], [value])
     denominator = held * (held - 1)
     span = (widest + 2) * (held - 1)
@@ -13778,24 +13574,15 @@ def _numeric_window(
     for rank in range(held):
         middle = rank * held
         lows = lows + [
-            _shaped(
-                rungs, max(0, middle - span), denominator, blocks, covered
-            )
-            - slack
+            _interpolated(rungs, max(0, middle - span), denominator) - slack
         ]
         highs = highs + [
-            _shaped(
-                rungs,
-                min(denominator, middle + span),
-                denominator,
-                blocks,
-                covered,
+            _interpolated(
+                rungs, min(denominator, middle + span), denominator
             )
             + slack
         ]
-        middles = middles + [
-            _shaped(rungs, middle, denominator, blocks, covered)
-        ]
+        middles = middles + [_interpolated(rungs, middle, denominator)]
     return (lows, highs, middles)
 
 
@@ -14019,13 +13806,7 @@ def _numeric_approximations(
     slack = 0.0
     if facts.integer_valued or _whole_demand(facts) > 0:
         slack = 0.5
-    # THE SAME SHAPE THE VALUES WERE BUILT WITH (method G12.2). The
-    # window is measured through the construction's own rule, so a
-    # histogram that bends the values bends the window with them.
-    blocks, covered = _histogram_ranks(facts.value_histogram)
-    lows, highs, middles = _numeric_window(
-        rungs, held, widest, slack, blocks, covered
-    )
+    lows, highs, middles = _numeric_window(rungs, held, widest, slack)
     found: list[Approximation] = []
     for step in range(1, 10):
         percent = _PCT[step]

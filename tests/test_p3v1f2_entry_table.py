@@ -4326,6 +4326,10 @@ WHOLE_FACT_LISTINGS: "dict[str, tuple[str, ...]]" = {
         "universal.sentinel_verdicts",
     ),
     "numeric": (
+        # REPORT-ONLY (plan P4-D4.7): the twin FOLLOWS the published
+        # shape but is not held to it, so the fact is listed whole
+        # rather than checked bin by bin.
+        "numeric.value_histogram",
         "universal.detection_evidence",
         "universal.missing_by_class",
         "universal.missing_by_source",

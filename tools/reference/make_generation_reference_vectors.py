@@ -4059,6 +4059,17 @@ def _universal(name, role, statistical_type, structural_role, quality_state, **f
     # naming no padded cells takes a census of none.
     if "numeric_styles" in block and "pad_widths" not in block:
         block["pad_widths"] = {}
+    # The value histogram (contract C6-31, plan P4-D4.7), on the three
+    # roles that carry a ladder.  It is REPORT-ONLY: the twin is not
+    # held to it, so the cells this oracle freezes do not depend on it,
+    # and every case here publishes the EMPTY census -- which is what a
+    # column publishes when its bins cannot all clear the floor, and
+    # what these hand-authored cases would publish if they had a source
+    # column too thin to fill thirty-two bins.  A case that wanted the
+    # census would have to state a shape a real column of its own
+    # values could have, and none of these cases is about the shape.
+    if "percentiles" in block and "value_histogram" not in block:
+        block["value_histogram"] = {}
     # The census of which form each parsed date wore (contract C6-25),
     # on every column of dates and on no other role.  A column read
     # under one format wore that format in every cell that parsed, so

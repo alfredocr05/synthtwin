@@ -599,6 +599,7 @@ NOTE_ONE_OF_TWO_BELOW_FLOOR = "one_of_two_labels_below_the_floor"
 NOTE_LABELS_POOLED = "labels_pooled_below_the_floor"
 NOTE_FREE_TEXT_WITHHELD = "free_text_publishes_no_values"
 NOTE_IDENTIFIER_WITHHELD = "identifier_publishes_no_values"
+NOTE_HISTOGRAM_WITHHELD = "histogram_publishes_no_shape"
 
 # The detection evidence: why the column was given the role it has.
 EVIDENCE_EMPTY = "evidence_every_value_absent"
@@ -693,6 +694,7 @@ NOTE_ARITY: "dict[str, int]" = {
     NOTE_LABELS_POOLED: 3,
     NOTE_FREE_TEXT_WITHHELD: 0,
     NOTE_IDENTIFIER_WITHHELD: 0,
+    NOTE_HISTOGRAM_WITHHELD: 0,
     EVIDENCE_EMPTY: 0,
     EVIDENCE_UNREPRESENTABLE: 3,
     EVIDENCE_ONE_VALUE: 1,
@@ -1009,6 +1011,15 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
             "hold, how often they repeat, and -- where enough of them "
             "were written the same way -- the shape of that writing, "
             "which carries no letter and no figure of any value"
+        )
+    if form == NOTE_HISTOGRAM_WITHHELD:
+        return (
+            "the shape of this column's numbers is not published: the "
+            "values spread out far enough that at least one stretch "
+            "between two edges holds fewer rows than your smallest "
+            "group size, and a shape published in part would say less "
+            "than nothing -- it names some stretches and leaves the "
+            "reader to guess where the rest of the values sit"
         )
     if form == NOTE_IDENTIFIER_WITHHELD:
         return (
@@ -4532,15 +4543,33 @@ def _value_histogram(cells: _Cells, numbers: "list[float]") -> dict[str, int]:
             counts[place] = counts[place] + 1
         else:
             counts[place] = 1
-    published_counts: dict[str, int] = {}
-    withheld = 0
+    # THIS CENSUS IS ALL OR NOTHING, which is not how its siblings
+    # behave and is the right rule for THIS fact.
+    #
+    # A field-width census with a pooled remainder still says something
+    # a twin can hold: the named widths are counts of cells, and a cell
+    # can be written at a named width whatever the pooled ones do. A
+    # histogram is read by RANK -- bin numbers ascend with the values
+    # they hold, and that is what lets a generator put its k-th
+    # smallest number where the source's k-th smallest sits. A pooled
+    # remainder does not say WHICH bins its values are in, so the ranks
+    # the named bins cover are unknown and the map cannot be built at
+    # all.
+    #
+    # Publishing it anyway would publish a fact the twin cannot hold.
+    # Measured on the every-role fixture at a raised floor: 169 of 240
+    # values pooled, seven bins named, and the twin missed all of them
+    # -- a description whose own twin fails its quality report, which
+    # is the one thing this product may not do. So a column that cannot
+    # publish EVERY bin publishes none, the disclosure question stays
+    # simple, and at the default floor of one nothing pools and every
+    # column gets its shape.
     for place in sorted(counts):
-        if counts[place] >= cells.settings.small_cell_floor:
-            published_counts[f"{place}"] = counts[place]
-        else:
-            withheld = withheld + counts[place]
-    if withheld:
-        published_counts[SUPPRESSED_LABEL] = withheld
+        if counts[place] < cells.settings.small_cell_floor:
+            return {}
+    published_counts: dict[str, int] = {}
+    for place in sorted(counts):
+        published_counts[f"{place}"] = counts[place]
     return published_counts
 
 
@@ -6978,6 +7007,15 @@ def _numeric_verdict(
     # (review item P1-R6-F3).
     if details["std_unrepresentable"]:
         remarks = remarks + [note(REMARK_SPREAD_OUT_OF_RANGE)]
+    # AND A SHAPE THIS COLUMN COULD NOT PUBLISH IS SAID IN WORDS. The
+    # histogram is all or nothing, so a column whose values spread too
+    # thinly for the floor publishes an EMPTY object -- and an empty
+    # object beside a column full of numbers is exactly the silence
+    # this file's other withheld-census notes exist to break. Without
+    # it the only sign is an absence, and a reader cannot tell a shape
+    # that was held back from a column that never had one.
+    if numeric_looking > 0 and not details["value_histogram"]:
+        notes = notes + [note(NOTE_HISTOGRAM_WITHHELD)]
     return _Verdict(
         role=role,
         evidence=evidence,
