@@ -4590,6 +4590,99 @@ def _label_variants():
     }
 
 
+def _long_tail_levels():
+    """The FIRST frozen vector for any role Phase 4 added (R-P4-17).
+
+    Every case in this oracle before it exercises a role Phase 1 to 3
+    built. The four roles Phase 4 added -- `long_tail_labels`,
+    `affixed_number`, `time_of_day` and `joined_numbers` -- had no
+    independent vector at all, so their generator branches were checked
+    only against themselves: a second implementer in another language
+    had nothing to reproduce, and a defect written into the
+    implementation would have been written into its own proof.
+
+    THIS ROLE IS THE ONE THAT COSTS LEAST TO PROVE, and that is why it
+    goes first rather than because it is the most interesting. Contract
+    6.6 states that a long tail "adds no key of its own": it publishes
+    the label roles' four keys and nothing else, and the generator
+    dispatches on `LabelFacts`, which both label roles share. So the
+    method this case pins is G8.1 to G8.4 exactly as `label_variants`
+    pins it -- what is NEW is that the role reaches those sections at
+    all, which nothing outside the implementation had said.
+
+    The shape is a long tail's own: many levels, each covering few
+    rows, with more held back than published. A categorical column of
+    the same counts would have been refused the role by its ceiling,
+    so this case cannot be mistaken for the one above it.
+    """
+    column = _universal(
+        "column_1", "long_tail_labels", "long_tail_labels", "data", "ok",
+        # EVERY LEVEL'S VARIANTS AND HELD-BACK GROUPS SUM TO ITS COUNT,
+        # which is the arithmetic G8.1 is stated over: a level of five
+        # rows whose own spelling is published twice owes three more
+        # spellings, and `variants_withheld` counts them by GROUP SIZE
+        # -- `{"1": 3}` is three groups of one row, not one group of
+        # three.
+        # WHAT MAKES THIS COLUMN A LONG TAIL AND NOT A SET OF
+        # CATEGORIES (invariant LT2): it holds MORE folded identities
+        # than the categorical ceiling of twenty. That is the whole
+        # shape of the role, and the first four drafts of this case did
+        # not have it -- they were categorical columns wearing the
+        # name, and the loader said so.
+        #
+        # The floor these vectors are recorded at is ELEVEN, so a
+        # PUBLISHED level covers eleven rows or more (invariant B5) and
+        # a published VARIANT does too. With forty rows that leaves
+        # room for exactly one published level; the other twenty cover
+        # one or two rows each and are held back. One level named,
+        # twenty suppressed -- which is what a long tail looks like
+        # from the inside.
+        n_present=40, n_missing=0, n_distinct=21, n_distinct_folded=21,
+        n_numeric=0, n_not_numeric=40, n_out_of_range=0, n_contradictory=0,
+        levels=[
+            {
+                "label": "note alpha", "count": 11,
+                "variants": {"Note Alpha": 11}, "variants_withheld": {},
+            },
+        ],
+        suppressed_levels=20, suppressed_rows=29,
+        # NO `level_ceiling`: contract 6.6 gives a long tail the four
+        # SHARED label keys and not categorical's own fifth. Its
+        # invariant -- folded distinctness at or under the ceiling --
+        # is exactly what this role breaks by definition, so the
+        # ceiling it passed is recorded in its evidence sentence
+        # instead. Writing it here was the first thing the loader
+        # refused, and rightly.
+        suppressed_level_counts=[1] * 11 + [2] * 9,
+        # THE FORM CENSUS IS WHAT LETS THE STAND-INS BE WORDS (P4-D18).
+        # Without it the five suppressed levels take the neutral labels
+        # of G8.3, which carry a figure -- and a candidate that could
+        # read back as a number or a date is one this file refuses to
+        # reason about rather than reason around. The census names a
+        # letters-and-hyphen form wide enough to cover the twenty-five
+        # held-back rows, so every stand-in this case builds is a word.
+        shape_forms={"@@@@-@@": 29, "(withheld)": 11},
+    )
+    return {
+        "why": "the first frozen case for a role Phase 4 added, and the "
+        "one that proves a long tail of labels reaches G8.1 to G8.4 at "
+        "all. It carries more rows in its held-back levels than in its "
+        "published ones -- twenty-five against fifteen -- which is the "
+        "shape a long tail has and a column of categories cannot: its "
+        "nine folded identities stand above the ceiling of eight this "
+        "column passed. The variant allocation of G8.1 offers each "
+        "level's own spelling to its largest held-back group, the case "
+        "flips of G8.2 answer the one level carrying a published "
+        "variant, and the five suppressed levels take the neutral "
+        "stand-ins of G8.3 at their published sizes. A label column "
+        "consumes no content word, so every byte here is fixed by "
+        "published counts.",
+        "column": column,
+        "rows": 40,
+        "identifier_declared": False,
+    }
+
+
 def _identifier_fold_collisions():
     column = _universal(
         "column_1", "identifier", "code", "identifier", "ok",
@@ -4872,6 +4965,7 @@ BRANCH_CASE_BUILDERS = {
     "month_span": _month_span,
     "numeric_point_free_styles": _numeric_point_free_styles,
     "unrepresentable_joint": _unrepresentable_joint,
+    "long_tail_levels": _long_tail_levels,
 }
 
 CASE_SETS = {
@@ -4892,9 +4986,10 @@ CASE_SET_ACCOUNTS = {
     "tests/reference/generation-branch-vectors.json: one transform, one proof "
     "layer, two files, because a committed fixture must stay under the "
     "provenance manifest's byte cap and these nine already spend most of it.",
-    BRANCH_PART: "The seven cases method section G14.3 adds for the branches "
-    "its first nine leave unexercised (review items P2-C3-F3 and P2-C4-C3, "
-    "owner decision 11, and plan P4-D4.3): "
+    BRANCH_PART: "The eight cases method section G14.3 adds for the "
+    "branches its first nine leave unexercised (review items P2-C3-F3 and "
+    "P2-C4-C3, owner decision 11, plan P4-D4.3, and residual R-P4-17 for "
+    "the last of them): "
     "the joint class-and-sign packing of an unrepresentable column, the joint "
     "class-and-alphabet packing of free text, a fold collision no case change "
     "can build, the literal decimal, leading-zero and leading-plus style "
@@ -4941,6 +5036,25 @@ GIVEN_WORDS = {
         6117593865009646518, 11054268929625209901, 3587914545536121365,
         2793628182718251330, 9295060879584016278, 10009843322027634450,
         18435849063748089958, 18148993397754231745,
+    ),
+    # Thirty-nine words, which is a forty-row label column's placement
+    # budget and its whole budget: the role consumes no content word,
+    # so every cell of the twin is fixed by published counts and these
+    # decide only the ORDER the rows come out in.
+    "long_tail_levels": (
+        16141117999568644869, 2912390137437105406, 11142961259136265613,
+        6649429050765924510, 9469698730514687439, 5579144964475137875,
+        12872973492368199229, 7223177790597929199, 3344454729737302937,
+        10285472521140763709, 15899452662498998082, 5815724960036124325,
+        41521252156152542, 16244079925127836306, 16602194588370141660,
+        15590272638216937006, 12261121709717609306, 5959776043330656727,
+        8749314566909052889, 1838166636128818935, 16830835450031427436,
+        2394200286403428241, 13014561226645067534, 13850225979970345509,
+        1491081199983217612, 7888999454250188185, 754576511652955794,
+        13319788797896474011, 1161974799008428245, 14280985510514793536,
+        7512075171393035397, 472393997099740481, 13756099177883521641,
+        629654845121351311, 3416056298896993148, 17989065697282896171,
+        15281512689324940288, 17576893266494880556, 5388882302899227045,
     ),
     "label_variants": (
         11963376127784481471, 8811798785216892889, 9273867820551118783,

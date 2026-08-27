@@ -28,7 +28,7 @@ without the same help.
 | branch | `phase-4-plan` (never merged; `main` is pull-request only) |
 | phase | **Phase 4 — comprehensive column handling.** Current. |
 | plan | `docs/plans/phase-4-columns.md` |
-| suite | 3,951 collected / 48 skipped |
+| suite | 3,958 collected / 48 skipped |
 | lint | clean (`ruff check .`), under the rule set pinned in `pyproject.toml` |
 
 ## What is being built right now
@@ -47,6 +47,29 @@ are still ahead. The gap list itself is at the foot of this page.
   rounds; the preference was deleted once as inert on 190 homogeneous
   columns and restored when a reviewer produced a MIXED-family column
   where it decides the role a reader sees.
+* **THE FIRST FROZEN VECTOR FOR A PHASE 4 ROLE EXISTS (residual
+  R-P4-17, partly closed).** Before it, every case in either frozen
+  file exercised a role Phase 1 to 3 built, so all four Phase 4 roles
+  were checked against the implementation alone — a defect written into
+  the generator would have been written into its own proof.
+  `long_tail_levels` is written from contract 6.6 and method G8.1 to
+  G8.4 in the oracle that never imports synthtwin, and the shipped
+  generator reproduces its cells.
+
+  **Writing it independently is what found the mistakes**, which is the
+  argument that residual makes, demonstrated: five drafts refused by
+  the loader and one by the vacuity check, each for a fact about the
+  role the implementation knew and I did not — the axis pair, a key
+  the role may not carry, what folded distinctness counts, what the
+  floor does to a published level, and finally that the first four
+  drafts were categorical columns wearing the name.
+
+  **Three roles remain**: `affixed_number`, `time_of_day`,
+  `joined_numbers`. This one was cheapest because a long tail carries
+  the label roles' keys and no key of its own, so the oracle's existing
+  label machinery reached it. The others each need their method
+  section implemented from the specification.
+
 * **THE FINER PERCENTILE LADDER IS DESIGNED AND NOT BUILT (plan
   P4-D4.10), and the measurement behind it is the useful part.** The
   owner asked for "every p value (1 to 100)". Reconstructing R-P4-30's

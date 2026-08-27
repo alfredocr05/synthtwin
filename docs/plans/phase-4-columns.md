@@ -1916,6 +1916,43 @@ Opened by this plan, each a limit accepted rather than work forgotten:
   a second implementer in another language something to reproduce.
   The vectors and their committed failing mutants are owed before this
   phase closes. Priced and accepted, not waived.
+
+  **PARTLY CLOSED 2026-08-27: `long_tail_labels` now has one.** Before
+  it, every case in either frozen file exercised a role Phase 1 to 3
+  built -- so all four Phase 4 roles were checked against the
+  implementation alone, and a defect written into the generator would
+  have been written into its own proof. `long_tail_levels` is written
+  from contract 6.6 and method G8.1 to G8.4 in the oracle that never
+  imports synthtwin, and the shipped generator reproduces its cells.
+
+  **WRITING IT INDEPENDENTLY IS WHAT FOUND THE MISTAKES**, which is the
+  argument this residual makes, demonstrated. Five drafts were refused
+  by the loader and one by the vacuity check, each for a fact about the
+  role that the implementation knew and I did not:
+
+  * the axis pair is `long_tail_labels`/`long_tail_labels`, not
+    `categorical` (A4);
+  * `level_ceiling` is categorical's own key and a long tail may not
+    carry it (6.6);
+  * folded distinctness counts LABELS, not spellings (B2);
+  * a published level covers at least the floor, so at a floor of
+    eleven a forty-row column has room for exactly one (B5);
+  * and a long tail must hold MORE folded identities than the
+    categorical ceiling -- the first four drafts were categorical
+    columns wearing the name (LT2).
+
+  The committed mutant starts G8.3's stand-in walk one spelling along.
+  An earlier one turned the level ORDER over and the vacuity check
+  refused it: the stand-in comes from a running counter and not from a
+  level's size, so reordering changed no byte and named a branch this
+  case does not hold up.
+
+  **THREE ROLES REMAIN** -- `affixed_number`, `time_of_day` and
+  `joined_numbers` -- and this one was chosen first because it costs
+  least: contract 6.6 gives a long tail the label roles' own keys and
+  no key of its own, so the oracle's existing label machinery reaches
+  it. The other three each need their method section implemented from
+  the specification.
 - **R-P4-22 — CLOSED 2026-08-26, C6-117 states the carried declaration** (opened by amendment A-P4-19, 2026-08-21). CONTRACT
   C6-117 must state that a whole-cell declaration carried across an
   affix pair protects the candidate NUMBER, hence every spelling of it

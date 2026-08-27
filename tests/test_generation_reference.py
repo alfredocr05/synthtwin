@@ -120,6 +120,7 @@ def _generator():
 gen = _generator()
 
 
+
 def _document() -> dict:
     return json.loads(VECTORS.read_text(encoding="utf-8"))
 
@@ -141,7 +142,7 @@ REQUIRED_CASES = (
     "quarter",
 )
 
-# The seven that section adds for the branches those nine leave
+# The eight that section adds for the branches those nine leave
 # unexercised (review items P2-C3-F3 and P2-C4-C3, and owner decision
 # 11's pooled-spelling case), which are the second committed file of the
 # same oracle.
@@ -149,6 +150,12 @@ BRANCH_CASES = (
     "free_text_joint",
     "identifier_edge_spacing",
     "leap_second_endpoint",
+    # THE FIRST FROZEN CASE FOR A ROLE PHASE 4 ADDED (residual
+    # R-P4-17). Every other case here exercises a role Phase 1 to 3
+    # built; the four Phase 4 roles had no independent vector at all,
+    # so their generator branches were checked only against
+    # themselves. This is one of the four.
+    "long_tail_levels",
     # The month, added with the second SPAN resolution (plan P4-D4.3
     # item 2). A new transform reaching the twin without an independent
     # frozen case is a transform the generator and the validator agree
@@ -181,6 +188,7 @@ SEEDS = {
     "leap_second_endpoint": 114,
     "numeric_pooled_spelling": 115,
     "month_span": 116,
+    "long_tail_levels": 117,
 }
 
 # The cases whose column was declared with --identifier, which the
@@ -994,6 +1002,47 @@ def _a_one_digit_exponent(digits, decpt, marker):
     return f"{body}{marker}{'-' if power < 0 else '+'}{abs(power)}"
 
 
+def _levels_from_the_second_spelling(used, sizes, census=None, written=()):
+    """G8.3's stand-in walk, started one spelling along.
+
+    The method enumerates a form's spellings IN ORDER and takes the
+    first that survives the collision skips and the four neutrality
+    tests. This starts at the second instead. Every other property of
+    the walk is left exactly as stated -- the skips, the tests, the
+    debt the census owes -- so what moves is which spelling each
+    suppressed level gets, and nothing else.
+
+    An earlier mutant here turned the LEVEL ORDER over instead, and the
+    vacuity check caught it: the spelling comes from a running counter
+    and not from the level's size, so reordering the levels changed no
+    byte and the branch it named was not one this case holds up.
+    """
+    seen = set(used)
+    folds = {gen.folded(text) for text in used}
+    owing = gen.forms_owed(census or {}, written)
+    produced: list = []
+    counter = 0
+    for size in sizes:
+        form = gen.neediest_form(owing)
+        while True:
+            counter += 1
+            if form:
+                candidate = gen.filled_form(form, counter)
+            else:
+                candidate = f"group-{counter + 1}"
+            if candidate in seen or gen.folded(candidate) in folds:
+                continue
+            if not gen.usable_stand_in(candidate):
+                continue
+            seen.add(candidate)
+            folds.add(gen.folded(candidate))
+            produced.append((candidate, size))
+            break
+        if form:
+            owing[form] = max(0, owing[form] - size)
+    return produced
+
+
 def _spaces_before_flips(parent, used, wanted):
     """G8.2's order turned over: the trailing spaces before the case flips."""
     produced: list = []
@@ -1141,6 +1190,16 @@ CASE_MUTANTS = {
         attribute="identifier_family",
         replacement=_every_band_from_the_figures,
         outcome="recount n_all_digits as 12 and the case publishes 4",
+    ),
+    "long_tail_levels": Mutant(
+        branch="G8.3's stand-in walk, which enumerates a form's "
+        "spellings IN ORDER and takes the first that survives the "
+        "collision skips; the mutant starts one spelling along, so "
+        "every one of the twenty suppressed levels gets a different "
+        "stand-in",
+        attribute="invented_levels",
+        replacement=_levels_from_the_second_spelling,
+        outcome=CHANGES_THE_CELLS,
     ),
     "label_variants": Mutant(
         branch="G8.2's order, case flips before trailing spaces; the "
