@@ -2200,6 +2200,32 @@ Opened by this plan, each a limit accepted rather than work forgotten:
   the columns it was not meant for. Which columns it reaches is a
   decision of its own, and until it is taken the route is the one the
   remark names: write the column with a decimal point.
+- **R-P4-30** (opened 2026-08-24, from the survey of healthcare code
+  columns). A PLAIN NUMERIC CELL CARRIES NO WIDTH FACT, so a code
+  column whose values are uniformly wide can still be written at two
+  lengths. `pad_widths` censuses the cells written with a leading zero
+  and nothing censuses the rest — but a column of dental codes is
+  `D0120`, `D1110`, `D2740`: some cores wear a leading zero and some do
+  not, and ALL of them are four figures wide. The twin honours the
+  padded census exactly and writes the plain cores at whatever width
+  their drawn value needs, so `D0185` appears beside `D185` and a
+  person checking how long a code is meets both.
+
+  Two things are tangled here and only one is closed. The generator's
+  own share — a value wearing the padded style on some cells and
+  another style on the rest — is narrowed by the whole-value exchange
+  of A-P4-34, which now moves a value's cells together or not at all;
+  what survives is the case where no whole value fits the count left,
+  and leaving THAT alone is worse, because the identity walk then
+  spends leading zeros instead and wrote one number at four widths on
+  the same column.
+
+  The other share is not the generator's. It is that the description
+  never said the column's cells were all one width, because only the
+  padded ones were counted. Closing it means censusing the field width
+  of EVERY whole-number cell rather than only the padded ones — which
+  is a wider disclosure than P4-D7 asked for and an owner decision,
+  not an implementation choice.
   **MEASURED 2026-08-27, and it changes what closing R-P4-30 means.**
   The twin misses `pad_widths` on a real dental-code column, and the
   cause is neither of the two shares named below. Measured on 300 rows
@@ -2238,32 +2264,6 @@ Opened by this plan, each a limit accepted rather than work forgotten:
   argument for its sequencing, not a substitute for the constraint
   above.
 
-- **R-P4-30** (opened 2026-08-24, from the survey of healthcare code
-  columns). A PLAIN NUMERIC CELL CARRIES NO WIDTH FACT, so a code
-  column whose values are uniformly wide can still be written at two
-  lengths. `pad_widths` censuses the cells written with a leading zero
-  and nothing censuses the rest — but a column of dental codes is
-  `D0120`, `D1110`, `D2740`: some cores wear a leading zero and some do
-  not, and ALL of them are four figures wide. The twin honours the
-  padded census exactly and writes the plain cores at whatever width
-  their drawn value needs, so `D0185` appears beside `D185` and a
-  person checking how long a code is meets both.
-
-  Two things are tangled here and only one is closed. The generator's
-  own share — a value wearing the padded style on some cells and
-  another style on the rest — is narrowed by the whole-value exchange
-  of A-P4-34, which now moves a value's cells together or not at all;
-  what survives is the case where no whole value fits the count left,
-  and leaving THAT alone is worse, because the identity walk then
-  spends leading zeros instead and wrote one number at four widths on
-  the same column.
-
-  The other share is not the generator's. It is that the description
-  never said the column's cells were all one width, because only the
-  padded ones were counted. Closing it means censusing the field width
-  of EVERY whole-number cell rather than only the padded ones — which
-  is a wider disclosure than P4-D7 asked for and an owner decision,
-  not an implementation choice.
 - **R-P4-28** (opened by amendment A-P4-34, 2026-08-24, at the second
   adversarial read). THE FRACTION CENSUS IS NOT ALWAYS MET EITHER, and
   it was not this landing that made it so. A column of eleven padded
