@@ -28,7 +28,7 @@ without the same help.
 | branch | `phase-4-plan` (never merged; `main` is pull-request only) |
 | phase | **Phase 4 — comprehensive column handling.** Current. |
 | plan | `docs/plans/phase-4-columns.md` |
-| suite | 3,934 collected / 48 skipped |
+| suite | 3,936 collected / 48 skipped |
 | lint | clean (`ruff check .`), under the rule set pinned in `pyproject.toml` |
 
 ## What is being built right now
@@ -53,19 +53,30 @@ are still ahead. The gap list itself is at the foot of this page.
   made-up 400-figure width. Measured across 93 randomly built
   unrepresentable columns: both published widths held exactly on all
   93, every one reads back as `numeric_unrepresentable`, and no width
-  miss anywhere in the sweep was silent. This moved the method spec
+  miss anywhere in that trial was silent. This moved the method spec
   (G10.5 revision 4), the independent reference oracle, and the frozen
   `unrepresentable_joint` vector with it.
 
-  **One thing found in this gap is worth carrying forward as a habit,
-  not as a fact.** Tightening the fraction spelling to its asked width
-  looked safe and was not: the underflow floor of 325 had been
-  calibrated against the two-character error being corrected, so the
-  correction alone wrote REPRESENTABLE values into a column described
-  as holding none. It was caught by probing every kind at every index
-  rather than by reading the diff. When a number in this codebase looks
-  like a constant, check what it was measured against before moving
-  anything it touches.
+  **Two things found in this gap are worth carrying forward as habits,
+  not as facts.**
+
+  *A constant is a measurement in disguise.* Tightening the fraction
+  spelling to its asked width looked safe and was not: the underflow
+  floor of 325 had been calibrated against the two-character error
+  being corrected, so the correction alone wrote REPRESENTABLE values
+  into a column described as holding none. It was caught by probing
+  every kind at every index rather than by reading the diff. When a
+  number here looks like a constant, check what it was measured against
+  before moving anything it touches.
+
+  *A randomised trial shows a defect present and never shows one
+  absent.* Having found that defect, I ran 300 built columns, saw the
+  state was never reached, and wrote in a landed commit that it was
+  unreachable. It is reachable: a reviewer supplied a column of 271
+  distinct fractions -- more than seven times the distinct values any
+  of my columns held -- whose twin holds 48 representable cells against
+  a published zero. The trial was not wrong; the conclusion drawn from
+  it was. Say what a trial covered, not what it implies.
 
 **L0 of the close sequence** — the owner said "Go. Lean 15" on
 2026-08-26. Landed here: the note-grammar guard (contract 4.5.1 against
