@@ -4121,7 +4121,7 @@ def exact_triple(text):
     return (sign, tuple(body), power)
 
 
-def _distinct_numbers_of(content):
+def _distinct_numbers_of(content, prefix="", suffix=""):
     """How many different NUMBERS a list of finished cells holds.
 
     The exact number a spelling denotes, by the same canonical triple
@@ -4134,7 +4134,19 @@ def _distinct_numbers_of(content):
     """
     seen = set()
     for cell in content:
-        found = exact_triple(cell)
+        body = cell
+        if prefix or suffix:
+            # ON THE AFFIXED ROLE THE NUMBERS ARE THE CORES, so the
+            # pair comes off before the cell is read.  A cell that does
+            # not wear the pair is a straggler and is not one of this
+            # column's numbers at all.
+            if not body.startswith(prefix):
+                continue
+            if not body.endswith(suffix):
+                continue
+            body = body[len(prefix): len(body) - len(suffix)] if suffix \
+                else body[len(prefix):]
+        found = exact_triple(body)
         if found is None:
             continue
         seen.add(found)
@@ -4236,6 +4248,54 @@ def clock_repair(ordinal, last, ceiling):
     if ordinal > ceiling:
         ordinal = ceiling
     return ordinal
+
+
+def affixed_core_view(column):
+    """An affixed column as the numeric machinery must see it (G6A.2).
+
+    THE ROLE HAS TWO POPULATIONS and the profile publishes facts about
+    both.  The universal class counts answer for the CELLS -- a cell
+    reading `[12]` is not itself a number, so such a column publishes
+    `n_numeric` of 0 -- while the quantitative block answers for the
+    CORES, the text left when the pair comes off.  An implementer who
+    reads one set as the other builds a column of nothing at all.
+
+    So the cores are handed over as a column in their own right, with
+    the CORE class counts standing where the cell counts were.  Every
+    rule of G5 and G6 then applies unchanged.  Distinctness is NOT
+    swapped: `n_distinct_folded` stays the count over the written
+    cells, which is what the shipped generator's own core view leaves
+    in place, and the numeric spelling budget is read from it.
+    """
+    core = dict(column)
+    core["n_numeric"] = column["n_core_numeric"]
+    core["n_not_numeric"] = column["n_core_not_numeric"]
+    core["n_out_of_range"] = column["n_core_out_of_range"]
+    core["n_contradictory"] = column["n_core_contradictory"]
+    core["n_present"] = column["n_affixed"]
+    return core
+
+
+def _affixed_content(column):
+    """The content list of an affixed column -- method section G6A.
+
+    The cores first, by the numeric rules over the core view, then the
+    pair character for character as published.  A case whose every
+    present cell wore the pair has no stragglers, and this file builds
+    only such a case: the straggler walk of G6A.3 is a second branch
+    with its own refusals and belongs to a case of its own.
+    """
+    core = affixed_core_view(column)
+    cores, _chain, _missed = _numeric_content(core)
+    prefix = column["affix_prefix"]
+    suffix = column["affix_suffix"]
+    stragglers = column["n_present"] - column["n_affixed"]
+    if stragglers:
+        raise AssertionError(
+            "this case builds no stragglers; a column with cells that "
+            "wore no pair needs the walk of G6A.3 and a case of its own"
+        )
+    return [prefix + core_text + suffix for core_text in cores]
 
 
 def _clock_content(column):
@@ -5137,6 +5197,110 @@ def _clock_ladder():
     }
 
 
+def _affixed_brackets():
+    """A column of numbers each written inside a bracket pair."""
+    ladder, ladder_claims, rungs = _ladder_fields({
+        "min": "12", "p01": "12.33", "p05": "13.65", "p10": "15.3",
+        "p25": "20.25", "p50": "28.5", "p75": "36.75", "p90": "41.7",
+        "p95": "43.35", "p99": "44.67", "max": "45",
+    })
+    claims = {
+        ("column", "percentiles") + key: value
+        for key, value in ladder_claims.items()
+    }
+    moments = {}
+    for name, text in (
+        ("mean", "28.5"),
+        ("std", "10.816653826391969"),
+        ("skew", "0"),
+        ("kurtosis", "1.7832167832167831"),
+        ("numeric_share", "1"),
+    ):
+        field, claim = nearest_field(text)
+        moments[name] = field
+        claims[("column", name)] = claim
+    column = _universal(
+        "column_1", "affixed_number", "affixed_number", "data", "ok",
+        n_present=12, n_missing=0, n_distinct=12, n_distinct_folded=12,
+        # THE CELL COUNTS, and they are the ones an implementer is most
+        # likely to hand to the numeric machinery by mistake.  A cell
+        # reading `[12]` is NOT a number, so this column publishes no
+        # numeric cells at all and twelve cells of ordinary text.
+        n_numeric=0, n_not_numeric=12, n_out_of_range=0, n_contradictory=0,
+        # ...and the CORE counts beside them, which are what G5 and G6
+        # actually consume (G6A.1, G6A.2).
+        n_affixed=12, n_core_numeric=12, n_core_not_numeric=0,
+        n_core_out_of_range=0, n_core_contradictory=0,
+        affix_prefix="[", affix_suffix="]",
+        percentiles=ladder, std_unrepresentable=False,
+        n_zero=0, n_negative=0, n_negative_unrepresentable=0,
+        n_used_in_statistics=12, n_left_out_of_statistics=0,
+        # THE SOURCE COLUMN HELD TWELVE DIFFERENT NUMBERS, and this
+        # says so. The twin built from it holds eleven -- values drawn
+        # to a published ladder repeat more evenly than real ones did --
+        # so this case is the one place in either file where a
+        # conforming generator MISSES `n_distinct_values` and has to
+        # say so, which is what that fact being REPORT-ONLY means.
+        n_distinct_values=12,
+        integer_valued=True, n_rows=12, numeric_styles={"plain": 12},
+        # THE REMARK THIS ROLE MUST CARRY (contract invariant AF-R).
+        # A block of this role with no remark, or with any other
+        # sentence in its place, is refused by the loader: the reader
+        # of a profile must be told that the numbers described as
+        # quantities came out of cells wearing shared text, and told
+        # what to run if they are codes instead. The oracle discovered
+        # this by being refused, which is the argument residual
+        # R-P4-17 makes.
+        remarks=[
+            "12 of this column's values are written as '[', a number, "
+            "then ']', and synthtwin described those numbers as "
+            "quantities: their average, their spread and their ends "
+            "are in this profile. If these are codes rather than "
+            "measurements, run the command again with --identifier and "
+            "no value of this column will be published at all"
+        ],
+        **moments,
+    )
+    return {
+        "why": "the first frozen case for the affixed role, and the one "
+        "that pins the rule the role exists for: A COLUMN OF THIS ROLE "
+        "PUBLISHES TWO SETS OF CLASS COUNTS AND THEY ARE NOT THE SAME "
+        "SET. The universal counts answer for the CELLS, and a cell "
+        "reading `[12]` is not a number, so this column publishes "
+        "`n_numeric` of nought and twelve cells of ordinary text. The "
+        "quantitative block answers for the CORES, and there "
+        "`n_core_numeric` is twelve. An implementer who hands the "
+        "numeric machinery the cell counts builds a column of no cells "
+        "at all, which is what this case's mutant does and why it stops "
+        "the oracle rather than moving its bytes. "
+        "The pair is TWO-SIDED and its two characters differ, so the "
+        "committed bytes pin the order of the wrap: `[` before the core "
+        "and `]` after it, character for character as published, with "
+        "no trimming and no normalization of either side. Every present "
+        "cell wore the pair, so this case has no stragglers -- the walk "
+        "of G6A.3, with its ceiling and its three refusals, is a second "
+        "branch and belongs to a case of its own. The word budget is "
+        "the numeric one read over the cores (G4.3): ten content words "
+        "for twelve cells, which is what the shipped generator plans "
+        "for this column as well. "
+        "AND IT IS THE ONE CASE IN EITHER FILE WHERE A CONFORMING "
+        "GENERATOR MISSES A PUBLISHED FACT AND SAYS SO. Its source "
+        "column held twelve different numbers and it publishes twelve; "
+        "the twin holds eleven, because values drawn to a published "
+        "ladder repeat more evenly than real ones did, and `23` comes "
+        "out twice. `n_distinct_values` is REPORT-ONLY for exactly this "
+        "reason (residual R-P4-20), and the shipped generator reports "
+        "it: twelve published, eleven achieved. Every other case "
+        "carrying that key publishes the figure its own twin reaches, "
+        "so none of them can exercise the miss.",
+        "column": column,
+        "rows": 12,
+        "identifier_declared": False,
+        "rungs": rungs,
+        "claims": claims,
+    }
+
+
 BRANCH_CASE_BUILDERS = {
     "free_text_joint": _free_text_joint,
     "numeric_pooled_spelling": _numeric_pooled_spelling,
@@ -5147,6 +5311,7 @@ BRANCH_CASE_BUILDERS = {
     "unrepresentable_joint": _unrepresentable_joint,
     "long_tail_levels": _long_tail_levels,
     "clock_ladder": _clock_ladder,
+    "affixed_brackets": _affixed_brackets,
 }
 
 CASE_SETS = {
@@ -5222,6 +5387,15 @@ GIVEN_WORDS = {
     # budget and its whole budget: the role consumes no content word,
     # so every cell of the twin is fixed by published counts and these
     # decide only the ORDER the rows come out in.
+    "affixed_brackets": (
+        17639521920205238616, 13505086616814382279, 15108206413291935612,
+        2648109655521823620, 13957488783681493234, 440424866904614487,
+        10392828958468768899, 307661453259722614, 10328600741271277179,
+        18028049770950982553, 2493915044553599588, 16250571819090705811,
+        3648116078256326511, 12380433607203903270, 11280011279662351746,
+        6666421730586177324, 2346116348095104722, 3316129054665061780,
+        4395871943553304390, 17732992366768506823, 9781242035145962743,
+    ),
     "clock_ladder": (
         17168193686452184398, 17294964732501811759, 5119971829015185418,
         3974762115987730418, 9783861565524925563, 676574683570638621,
@@ -5398,6 +5572,12 @@ def word_budget(column, rows):
     if role == "time_of_day":
         parsed = column["n_present"] - column["n_unparsed"]
         return max(parsed - 2, 0), placement
+    if role == "affixed_number":
+        # G4.3: the numeric budget read over the CORES.  The pair is
+        # fixed text and costs no word.
+        return word_budget(
+            {**affixed_core_view(column), "role": "continuous"}, rows
+        )
     if role in ("count", "continuous"):
         numeric = column["n_numeric"]
         negatives = column["n_negative"] - column["n_negative_unrepresentable"]
@@ -5439,6 +5619,11 @@ INTEGER_COLUMN_KEYS = frozenset({
     "min_length", "max_length", "n_all_digits", "n_code_alphabet", "count",
     "n_occurrences", "n_whole", "n_fraction", "n_whole_unknown",
     "n_positive", "n_sign_unknown",
+    # The affixed role's own five counts (contract 6.12, method G6A.1):
+    # how many cells wore the pair, and the four class counts read over
+    # the CORES rather than over the cells.
+    "n_affixed", "n_core_numeric", "n_core_not_numeric",
+    "n_core_out_of_range", "n_core_contradictory",
 })
 INTEGER_COLUMN_MAPS = frozenset({
     "missing_by_class", "missing_by_source", "numeric_styles", "utc_offsets",
@@ -5556,6 +5741,8 @@ def build_case(name):
         content = _datetime_content(working)
     elif column["role"] == "time_of_day":
         content = _clock_content(working)
+    elif column["role"] == "affixed_number":
+        content = _affixed_content(working)
     elif column["role"] in ("count", "continuous"):
         content, chain, _missed = _numeric_content(working)
     elif column["role"] == "identifier":
@@ -5578,8 +5765,21 @@ def build_case(name):
     # of one number, and a case whose cells hold both publishes one
     # number for the two.  Computed only where the role carries the
     # key, which is the three that carry a ladder.
-    if "n_distinct_values" in column:
-        column["n_distinct_values"] = _distinct_numbers_of(content)
+    # A CASE MAY PUBLISH ITS OWN, and where it does that figure stands.
+    # The placeholder is 0, which no conforming block can carry: Q17
+    # requires at least one different number wherever the statistics
+    # used a value, and every column reaching here used one. So a
+    # non-zero figure is one the case CHOSE, describing the source
+    # column it stands for, and overwriting it would publish a fact
+    # about the twin where a profiler publishes a fact about the table
+    # -- which is how a case comes to describe a different column from
+    # the one its own account names.
+    if column.get("n_distinct_values") == 0:
+        column["n_distinct_values"] = _distinct_numbers_of(
+            content,
+            column.get("affix_prefix", ""),
+            column.get("affix_suffix", ""),
+        )
     cells = place(content, column["n_missing"], rows, words[content_words:])
     one_column = True
     csv_bytes = "".join(

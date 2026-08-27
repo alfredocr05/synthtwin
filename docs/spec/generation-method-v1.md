@@ -4489,10 +4489,10 @@ fail.
 **Two committed JSON files, and ONE oracle** (review item P2-C3-F3).
 `tests/reference/generation-reference-vectors.json` carries the nine
 cases G14.3 names first and
-`tests/reference/generation-branch-vectors.json` carries the nine it
+`tests/reference/generation-branch-vectors.json` carries the ten it
 names after them (five, until owner decision 11 added the
 pooled-spelling case; then the month-span case of plan P4-D4.3, and
-then the long-tail and clock cases of residual R-P4-17). This sentence carried the
+then the long-tail, clock and affixed cases of residual R-P4-17). This sentence carried the
 count `six` while the file held seven, which is the same drift G14.3's
 own warning is about, and it is written here as a growth list so the
 next case has an obvious place to be recorded. Both are written by
@@ -4579,9 +4579,9 @@ item P2-C3-F3), and one more for the published end the ordinal space
 cannot hold (review item P2-C4-C3), and the pooled remainder written by
 its own value beside a whole number wider than the fixed-point window
 (owner decision 11), and one for the second SPAN resolution when it was
-added (plan P4-D4.3 item 2), and two for the first two of the roles
-Phase 4 added (residual R-P4-17). **All eighteen are required.** The
-first nine are the first committed file and the last nine the second
+added (plan P4-D4.3 item 2), and three for three of the four roles
+Phase 4 added (residual R-P4-17). **All nineteen are required.** The
+first nine are the first committed file and the last ten the second
 (G14.2). **The table below is the inventory itself, and it was short of
 the count above by one row from the day the pooled-spelling case was
 added** (review item P4-DATE4-F3): an implementer who built exactly the
@@ -4608,6 +4608,7 @@ case passed, which is the failure the count exists to prevent:
 | `numeric_pooled_spelling` | owner decision 11's pooled remainder written by its own value, beside a whole number wider than the fixed-point window |
 | `long_tail_levels` | G8.1 to G8.4 reached through `long_tail_labels`: the ADMISSION of a folded count above the categorical ceiling, and the G8.3 stand-ins taken as words because a form census covers the held-back rows. It pins admission and routing into the shared label machinery, not a generator branch of the role's own |
 | `clock_ladder` | G7A end to end on a column with NO SLACK: eleven seconds hold its eleven parsed cells, so the all-different repair must place every interior rank on the one ordinal left for it, and a stand-in stands beside them |
+| `affixed_brackets` | G6A's core view: the CELL class counts and the CORE class counts are not the same set, and only the second reaches G5 and G6. The pair is two-sided with differing characters, so the order of the wrap is pinned too |
 
 Each case is small enough to read by hand — at most a few dozen cells —
 because a vector nobody can check by hand is a vector nobody checks.
@@ -4794,10 +4795,40 @@ the parsed cells (G7A.5), and it reads its ladder in SECONDS OF DAY --
 the form's own unit -- which is the whole of what separates this role
 from the date role whose transform it borrows.
 
-**Two roles remain open**: `affixed_number` and `joined_numbers`. Both
-now have a method section (G6A, G6B), so both are buildable; until they
-are frozen the count above stays at eighteen with a known gap rather
-than pretending to cover the phase.
+**Why the nineteenth exists** (2026-08-27; residual R-P4-17).
+`affixed_brackets` pins the rule its role exists for. A column of this
+role publishes TWO SETS of class counts and they are not the same set:
+the universal counts answer for the CELLS, and a cell reading `[12]` is
+not a number, so such a column publishes `n_numeric` of nought and
+twelve cells of ordinary text; the quantitative block answers for the
+CORES, where `n_core_numeric` is twelve. Its mutant hands the numeric
+machinery the cell counts, and the oracle then stops at the WORD
+BUDGET — G4.3 reads that over the cores too, so cell counts ask for no
+content words at all and no cell can be built.
+
+Writing it independently found a fact about the role the oracle did not
+have: **a block of this role must carry its own REMARK**, the sentence
+naming the shared text, saying how many cells wore it, and naming
+`--identifier` as the route for a column of codes (contract AF-R). The
+loader refused the case until it was there, which is the argument this
+residual makes, arriving for the third time.
+
+**It is also the one case in either file where a conforming generator
+MISSES a published fact and says so.** Its source column held twelve
+different numbers and it publishes twelve; the twin holds eleven,
+because values drawn to a published ladder repeat more evenly than real
+ones did, so `23` comes out twice. `n_distinct_values` is REPORT-ONLY
+for exactly that reason (residual R-P4-20), and the shipped generator
+reports it — twelve published, eleven achieved. Every other case
+carrying that key publishes the figure its OWN TWIN reaches, so none of
+them can exercise the miss: an adversarial read found that the oracle
+was overwriting the field with a count of the finished cells, which
+puts a fact about the twin where a profiler publishes a fact about the
+table. A case may now publish its own, and this one does.
+
+**One role remains open**: `joined_numbers`. It has a method section
+(G6B), so it is buildable; until it is frozen the count above stays at
+nineteen with a known gap rather than pretending to cover the phase.
 
 ### G14.4 What the vectors do NOT freeze
 

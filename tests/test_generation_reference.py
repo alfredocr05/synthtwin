@@ -147,6 +147,11 @@ REQUIRED_CASES = (
 # 11's pooled-spelling case), which are the second committed file of the
 # same oracle.
 BRANCH_CASES = (
+    # THE THIRD FROZEN CASE FOR A ROLE PHASE 4 ADDED (residual
+    # R-P4-17). It pins the rule the affixed role exists for: the
+    # universal class counts answer for the CELLS and the quantitative
+    # block for the CORES, and they are not the same set.
+    "affixed_brackets",
     # THE SECOND FROZEN CASE FOR A ROLE PHASE 4 ADDED (residual
     # R-P4-17), and the first for a role whose method section did not
     # exist until 2026-08-27. Eleven seconds hold eleven parsed cells,
@@ -196,6 +201,7 @@ SEEDS = {
     "month_span": 116,
     "long_tail_levels": 117,
     "clock_ladder": 118,
+    "affixed_brackets": 119,
 }
 
 # The cases whose column was declared with --identifier, which the
@@ -1166,6 +1172,21 @@ def _clamp_without_the_step(ordinal, last, ceiling):
     return ordinal
 
 
+def _the_cell_counts_as_if_they_were_the_cores(column):
+    """G6A.2's core view withdrawn: the CELL counts handed over instead.
+
+    An affixed column publishes `n_numeric` about its CELLS. On the
+    bracket case no cell is itself a number, so that count is nought
+    and handing it to the numeric machinery builds no values at all.
+    That is a property of the CASE and not of the role: a column whose
+    pair is `0` holds cells such as `0191` that wear the pair and read
+    as numbers too, so this substitution is not nought everywhere.
+    """
+    core = dict(column)
+    core["n_present"] = column["n_affixed"]
+    return core
+
+
 # Each row: the case, the branch it exists for, and the rule the method
 # rules out put back in its place.
 CASE_MUTANTS = {
@@ -1209,6 +1230,23 @@ CASE_MUTANTS = {
         attribute="identifier_family",
         replacement=_every_band_from_the_figures,
         outcome="recount n_all_digits as 12 and the case publishes 4",
+    ),
+    "affixed_brackets": Mutant(
+        branch="G6A.2's core view, which hands the numeric machinery "
+        "the CORE class counts and not the cell counts; the mutant "
+        "hands over the cell counts. On THIS column no cell is itself "
+        "a number -- every one wears a bracket pair -- so the cell "
+        "count is nought and the column comes out with nothing in it. "
+        "The oracle stops at the WORD BUDGET, which is the first place "
+        "the swap shows: G4.3 reads that budget over the cores too, so "
+        "a nought cell count asks for no content words at all. This is "
+        "a property of the CASE and not of the role: a column whose "
+        "pair is `0` can hold cells such as `0191` that wear the pair "
+        "AND read as numbers, so an affixed column's cell `n_numeric` "
+        "is not nought in general",
+        attribute="affixed_core_view",
+        replacement=_the_cell_counts_as_if_they_were_the_cores,
+        outcome="asks for 0 content words",
     ),
     "clock_ladder": Mutant(
         branch="G7A.4's all-different repair, which steps a rank that "
