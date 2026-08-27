@@ -828,6 +828,19 @@ def _deviation_lines(twin: generation.Twin) -> "list[str]":
             "method reproduces exactly was reproduced exactly.",
             "",
         ]
+    # A TWIN CAN MEET EVERY FACT AND STILL HOLD SOMETHING WORTH KNOWING
+    # (P4-G2-R4-F1), and this section is the wrong place to describe it
+    # -- these are not missed facts. So it is pointed at, not restated.
+    if twin.remarks:
+        lines = lines + [
+            "Separately from anything above: this twin holds something a",
+            f"reader should know about in {len(twin.remarks)} case(s), "
+            f"where no",
+            "published fact was missed to produce it. Each one is named in",
+            "its own column's block further down, under 'What the twin",
+            "holds'.",
+            "",
+        ]
     for deviation in twin.deviations:
         lines = lines + [
             f"'{_shown(deviation.column)}' -- {_shown(deviation.fact)}",
@@ -1307,6 +1320,19 @@ def _column_lines(
         ]
     for remark in column.remarks:
         lines = lines + [f"  Note from the description: {_shown(remark)}"]
+    # WHAT THIS COLUMN'S TWIN HOLDS THAT MISSED NOTHING (P4-G2-R4-F1).
+    # These are NOT deviations and must never be printed as though they
+    # were: every published fact of the column can be met exactly while
+    # one of them is true, so a heading saying a fact could not be held
+    # would tell the reader an exact fact failed when it succeeded. The
+    # label therefore names the twin rather than the description, and
+    # the sentence beside it says which is which.
+    for held in outcome.remarks:
+        lines = lines + [
+            f"  What the twin holds -- {_shown(held.subject)}:",
+            f"    {_shown(held.held)}",
+            f"    {_shown(held.note)}",
+        ]
     for note in notes:
         lines = lines + [f"  Held back from the description: {_shown(note)}"]
     lines = lines + _missing_lines(column, floor)

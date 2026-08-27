@@ -356,6 +356,16 @@ PHASE_4_NUMERIC_KEYS = ("fraction_widths", "pad_widths")
 # Phase 4 plan (P4-D18) and registered in `tests/dispositions.py`.
 PHASE_4_SHAPE_KEYS = ("shape_forms",)
 
+# ...and the two WIDTHS the unrepresentable role gained when the twin
+# stopped making up a canonical width for it. Version 4's matrix has no
+# row for them under that role because the role published no length at
+# all when the matrix was written. Both are EXACT-OBSERVABLE in the
+# strict sense this repository means by it: the generator recounts the
+# narrowest and widest value it actually wrote and files a deviation
+# naming whichever end it did not land on, so neither is ever missed
+# silently. The Phase 4 plan disposes them (P4-D4.4).
+PHASE_4_WIDTH_KEYS = ("min_length", "max_length")
+
 # ...and the form census a column of dates now carries, for the same
 # reason at one grain finer: version 4 HAS the datetime section, and
 # that section has no row for a key version 4 never published. The
@@ -1094,6 +1104,9 @@ def test_every_key_the_producer_emits_has_a_disposition(
                 table[own] = "EXACT-OBSERVABLE (Phase 4 plan, P4-D18)"
             for own, said in PHASE_4_DATETIME_KEYS:
                 table[own] = said
+            if role == "numeric_unrepresentable":
+                for own in PHASE_4_WIDTH_KEYS:
+                    table[own] = "EXACT-OBSERVABLE (Phase 4 plan, P4-D4.4)"
             if role == "time_of_day":
                 # The datetime section it borrows disposes the DATE
                 # ladder and the offset fields, none of which this role

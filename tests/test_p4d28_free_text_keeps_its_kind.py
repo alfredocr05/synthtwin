@@ -63,11 +63,15 @@ def _write(folder: pathlib.Path, name: str, values: "list[str]") -> pathlib.Path
 
 def _round_trip(
     folder: pathlib.Path, name: str, values: "list[str]"
-) -> "tuple[str, str, int, list[generation.Deviation]]":
+) -> "tuple[str, str, int, list[generation.Remark], list[generation.Deviation]]":
     """Describe a column, build its twin, and describe the twin again.
 
     Returns the source role, the role the TWIN reads back as, the
-    largest folded level the twin holds, and the twin's deviations.
+    largest folded level the twin holds, the twin's REMARKS -- things
+    it holds that no published fact was missed for -- and its
+    deviations, which are the published facts it could not meet. The
+    crossing this file is about is a remark and never a deviation, and
+    both are returned so a test can assert that.
     """
     table = _write(folder, name, values)
     document = profile.build_document(
@@ -90,6 +94,7 @@ def _round_trip(
         document["columns"][0]["role"],
         again["columns"][0]["role"],
         max(folded.values()),
+        list(twin.remarks),
         list(twin.deviations),
     )
 
@@ -131,7 +136,7 @@ def test_a_column_of_small_groups_keeps_its_kind(
     sentence below must NOT fire on it: a report that fires on every
     free-text column tells nobody anything.
     """
-    source, again, largest, notes = _round_trip(
+    source, again, largest, held, notes = _round_trip(
         tmp_path, "small", _small_sizes()
     )
     assert source == taxonomy.ROLE_TEXT
@@ -139,6 +144,7 @@ def test_a_column_of_small_groups_keeps_its_kind(
         "the twin of a free-text column reads back as "
         f"{again}, at a largest folded level of {largest}"
     )
+    assert not [one for one in held if "long tail of labels" in one.note]
     assert not [note for note in notes if "long tail of labels" in note.note]
 
 
@@ -152,7 +158,7 @@ def test_a_column_no_pairing_can_answer_says_so(
     which is the right way to find out that the report is no longer
     needed -- rather than leaving a sentence nobody can trigger.
     """
-    source, again, largest, notes = _round_trip(
+    source, again, largest, held, notes = _round_trip(
         tmp_path, "mixed", _mixed_sizes()
     )
     assert source == taxonomy.ROLE_TEXT
@@ -161,10 +167,21 @@ def test_a_column_no_pairing_can_answer_says_so(
     # reprofile as something else while the sentence went on saying
     # this.
     assert again == taxonomy.ROLE_LONG_TAIL and largest >= 11
-    said = [note for note in notes if "long tail of labels" in note.note]
+    said = [one for one in held if "long tail of labels" in one.note]
     assert said, "the twin changed kind and said nothing"
     assert said[0].column == "comment"
-    assert said[0].fact == "n_distinct_folded"
+    # IT IS A REMARK AND NOT A DEVIATION, and this is the assertion a
+    # reviewer opened item P4-G2-R4-F1 over. The sentence was once filed
+    # as a deviation of `n_distinct_folded` -- a published fact that
+    # this very column MEETS EXACTLY -- so the report printed it under
+    # "a published fact could not be held exactly", beside a published
+    # value measuring a different quantity. Two things are pinned: no
+    # deviation carries this sentence, and the fact it used to borrow
+    # is met.
+    assert not [note for note in notes if "long tail of labels" in note.note]
+    assert not [note for note in notes if note.fact == "n_distinct_folded"], (
+        "the crossing is filed against a fact this twin meets exactly"
+    )
     # THE SENTENCE HEDGES ON PURPOSE. It says a later reading MAY call
     # this a long tail, because whether it does depends on how the twin
     # is read -- a reviewer built a case where declared missing words
@@ -172,6 +189,9 @@ def test_a_column_no_pairing_can_answer_says_so(
     # the outcome would be false there.
     assert "may call this column" in said[0].note
     assert "Code that dispatches on a column's type" in said[0].note
+    # AND IT SAYS SO IN SO MANY WORDS. A reader meeting this sentence
+    # must not be left wondering whether their twin lost a count.
+    assert "still met exactly" in said[0].note
 
 
 def _mixed_families() -> "list[str]":
@@ -205,7 +225,7 @@ def test_a_mixed_family_column_keeps_its_kind(
     it stays free text. That is a type change a reader would have met,
     avoided.
     """
-    source, again, largest, notes = _round_trip(
+    source, again, largest, held, notes = _round_trip(
         tmp_path, "families", _mixed_families()
     )
     assert source == taxonomy.ROLE_TEXT
@@ -214,7 +234,7 @@ def test_a_mixed_family_column_keeps_its_kind(
         f"takes the level to {largest}"
     )
     assert again == taxonomy.ROLE_TEXT
-    assert not [note for note in notes if "long tail of labels" in note.note]
+    assert not [one for one in held if "long tail of labels" in one.note]
 
 
 def _cumulative_sizes() -> "list[str]":
@@ -238,23 +258,41 @@ def _cumulative_sizes() -> "list[str]":
 def test_a_parent_taking_two_partners_is_counted_by_its_level(
     tmp_path: pathlib.Path,
 ) -> None:
-    """A PARENT TAKING TWO PARTNERS IS STILL REPORTED.
+    """A PARENT TAKING TWO PARTNERS IS COUNTED BY ITS WHOLE LEVEL.
 
     A reviewer supplied this shape against a walk-side preference that
-    compared only `parent + partner`. That preference is gone -- it was
-    measured across 150 columns and changed nothing -- so what answers
-    this shape is the same thing that answers every other: the report
-    reads the FINISHED spellings, so it sees the level however the walk
-    happened to build it.
+    compared only `parent + partner`: every PAIRWISE sum here is under
+    the line and the level the three of them make is not. The answer is
+    the ACCUMULATOR -- the walk reads what a candidate parent has
+    already taken, not just its own size.
+
+    **THIS TEST USED TO PIN NOTHING** (review item P4-G2-R4-F3). It
+    asserted only, and only conditionally, that some sentence existed,
+    so it stayed green with the accumulator removed; its docstring also
+    still said the preference "is gone" after it had been restored. The
+    numbers below are the mutation-sensitive assertion it lacked:
+
+    * with the accumulator, this column's folded levels are 2, 2, 3, 11
+    * with every call handed an empty carried map, they are 2, 2, 2, 12
+
+    So the largest level is asserted EXACTLY. A change that stops the
+    walk accumulating moves it to twelve and turns this red, which is
+    the whole point of the shape.
     """
-    source, again, largest, notes = _round_trip(
+    source, again, largest, held, _notes = _round_trip(
         tmp_path, "cumulative", _cumulative_sizes()
     )
     assert source == taxonomy.ROLE_TEXT
-    if again != taxonomy.ROLE_TEXT:
-        assert [note for note in notes if "long tail of labels" in note.note], (
-            "the twin changed kind and said nothing"
-        )
+    assert largest == 11, (
+        "the accumulated check regressed: a parent took a partner "
+        f"without counting what it already carried, and the level is "
+        f"{largest} rather than 11"
+    )
+    # The crossing is unavoidable on this shape, so the sentence is
+    # owed -- unconditionally, unlike the version this replaced.
+    said = [one for one in held if "long tail of labels" in one.note]
+    assert said, "the twin holds a level at the line and said nothing"
+    assert again == taxonomy.ROLE_LONG_TAIL
 
 
 def test_the_report_is_not_raised_when_nothing_crossed(
@@ -266,8 +304,9 @@ def test_the_report_is_not_raised_when_nothing_crossed(
     together with the two above, this pins that the sentence tracks the
     OUTCOME rather than firing on every free-text column.
     """
-    _source, again, _largest, notes = _round_trip(
+    _source, again, _largest, held, notes = _round_trip(
         tmp_path, "quiet", _small_sizes()
     )
     assert again == taxonomy.ROLE_TEXT
+    assert not held, f"a quiet column remarked anyway: {held}"
     assert not [note for note in notes if "long tail of labels" in note.note]

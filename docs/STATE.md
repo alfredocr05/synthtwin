@@ -29,9 +29,33 @@ without the same help.
 | phase | **Phase 4 — comprehensive column handling.** Current. |
 | plan | `docs/plans/phase-4-columns.md` |
 | suite | 3,929 collected / 48 skipped |
-| lint | **183 ruff errors, not yet triaged** — see "What is broken right now" |
+| lint | clean (`ruff check .`), under the rule set pinned in `pyproject.toml` |
 
 ## What is being built right now
+
+**THE PHASE 4 GAP RUN**, under the owner's standing authorization of
+2026-08-26 ("feel free to move through all the gaps without my
+consent", review aimed at machinery only). Gaps 1, 2 and 3 have
+landed; gaps 4 to 7, the richer number family and the worked examples
+are still ahead. The gap list itself is at the foot of this page.
+
+* **Gap 1 — the address rule.** An affixed-number column no longer
+  reads an e-mail address as a number wrapped in affixes.
+* **Gap 2 — the fold-collision partner walk.** The walk prefers a
+  parent that keeps the folded level under the long-tail line, and
+  where a crossing happens anyway the report NAMES it. Four adversarial
+  rounds; the preference was deleted once as inert on 190 homogeneous
+  columns and restored when a reviewer produced a MIXED-family column
+  where it decides the role a reader sees.
+* **Gap 3 — the two width facts, closing residual R-P2-1.** The
+  unrepresentable role publishes `min_length` and `max_length`, and the
+  twin carries both ends instead of writing every such column at one
+  made-up 400-figure width. Measured across 93 randomly built
+  unrepresentable columns: both published widths held exactly on all
+  93, every one reads back as `numeric_unrepresentable`, and no width
+  miss anywhere in the sweep was silent. This moved the method spec
+  (G10.5 revision 4), the independent reference oracle, and the frozen
+  `unrepresentable_joint` vector with it.
 
 **L0 of the close sequence** — the owner said "Go. Lean 15" on
 2026-08-26. Landed here: the note-grammar guard (contract 4.5.1 against
@@ -121,15 +145,17 @@ reviewer's ruling of 2026-08-26.
 
 ## What is broken right now
 
-- **183 ruff errors on this tree.** The tree as of `af2da86`
-  (2026-08-20, the last commit CI saw) lints clean under the same ruff
-  and the same config; the 84 commits since introduced them. 120 are
-  quoted type annotations, which is a deliberate style in this codebase
-  and probably wants a `select` list rather than 120 edits. **Nothing
-  has run CI since 2026-08-20**, so no commit message claiming "every
-  check clean" since then covered lint -- including the one that added
-  this file, which reported a scanner run made while this file was
-  still untracked.
+- **Lint is clean and CI is running again.** Both were broken and both
+  were fixed in this gap run: `pyproject.toml` now pins the ruff rule
+  set (the 183 errors were 120 quoted type annotations, a deliberate
+  style here, plus tooling import order), and CI had not run for 86
+  commits. When it did, all three of its failures were checks that had
+  outlived their rules -- a column count, a suppressed-level count and
+  an inverted membership test -- and not product defects. The lesson
+  worth keeping: **no commit message may claim "every check clean"
+  unless the checks actually ran on the STAGED tree**, because the
+  scanners walk the tracked tree and will silently skip a file you have
+  not added yet.
 - The open defects of Phase 4 are the residual register at the foot of
   `docs/plans/phase-4-columns.md`. The 2026-08-26 triage sorted them:
   15 deliberate scope declines, 11 real landings, 7 owner questions.
