@@ -325,6 +325,7 @@ PLAN4_REGIONS = {
         "(closes R-P3-12's route)"
     ),
     "padding": "### P4-D14 The padded-field width fact",
+    "histogram": "### P4-D4.7 The value histogram (owner instruction 2026-08-26)",
     "forms": "### P4-D18 A held-back value gets a stand-in that looks like one",
 }
 
@@ -348,6 +349,7 @@ GROUPS_OUTSIDE_THE_VERSION_4_MATRIX = ("affixed", "clock")
 FACTS_OUTSIDE_THE_VERSION_4_MATRIX = (
     ("numeric", "fraction_widths"),
     ("numeric", "pad_widths"),
+    ("numeric", "value_histogram"),
     ("datetime", "resolution_mix"),
     ("free_text", "shape_forms"),
     ("label", "shape_forms"),
@@ -680,6 +682,19 @@ REGISTRY += [
         plan_words="the count sharing each field width",
         plan_region="padding",
         aliases=("padding census", "field-width census"),
+    ),
+    # Plan P4-D4.7. The histogram is EXACT-OBSERVABLE for the reason
+    # every census here is: a person opens the twin, puts each value in
+    # its bin by the published ends, counts them, and gets the census
+    # back. It is the one fact in the numeric block that can show a
+    # column with two peaks, which no moment and no ladder can.
+    Fact(
+        "numeric",
+        "value_histogram",
+        EXACT_OBSERVABLE,
+        plan_words="the count falling in each bin",
+        plan_region="histogram",
+        aliases=("value histogram", "binned counts"),
     ),
     Fact(
         "numeric",

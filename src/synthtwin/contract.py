@@ -433,6 +433,7 @@ DATETIME_KEYS = (
 NUMERIC_KEYS = (
     "fraction_widths",
     "pad_widths",
+    "value_histogram",
     "integer_valued",
     "mean",
     "n_left_out_of_statistics",
@@ -1450,6 +1451,12 @@ class NumericFacts:
     numeric_styles: "dict[str, int]"
     fraction_widths: "dict[str, int]"
     pad_widths: "dict[str, int]"
+    # HOW MANY OF THIS COLUMN'S NUMBERS FALL IN EACH OF THE THIRTY-TWO
+    # EQUAL BINS between its published ends (plan P4-D4.7). A ladder and
+    # the moments cannot show two peaks; this can, and it is the one
+    # fact in this block a person plotting a distribution or fitting a
+    # mixture is actually reading.
+    value_histogram: "dict[str, int]"
 
 
 @dataclasses.dataclass(frozen=True)
@@ -5183,6 +5190,7 @@ def _numeric_facts(
     widths = _fraction_widths(mapping, where, frame.floor, styles)
     padded = _padded_widths(mapping, where, frame.floor, styles)
     _pool_holds_both(where, frame.floor, styles, widths, padded)
+    histogram = _value_histogram(mapping, where, frame.floor, used)
     return NumericFacts(
         percentiles=ladder,
         mean=mean,
@@ -5200,6 +5208,7 @@ def _numeric_facts(
         numeric_styles=styles,
         fraction_widths=widths,
         pad_widths=padded,
+        value_histogram=histogram,
     )
 
 
@@ -5320,6 +5329,94 @@ def _fraction_widths(
         "P5",
         "a fraction may be written to no figures at all",
     )
+
+
+def _value_histogram(
+    mapping: "dict[str, object]",
+    where: str,
+    floor: int,
+    used: int,
+) -> "dict[str, int]":
+    """How many of a column's numbers fall in each published bin.
+
+    INVARIANT Q15: the bins account for EVERY value the statistics
+    used, and for no more. A histogram that counted fewer would let a
+    twin place the missing ones anywhere it liked while the description
+    looked complete; one that counted more would describe a column
+    nobody has. The `(withheld)` remainder is part of the sum, because
+    a bin below the floor is a bin whose values were counted and whose
+    edges were not named.
+
+    THE KEYS ARE BIN NUMBERS, canonically written and inside the fixed
+    range the method sets. A key outside it is a description this
+    version cannot place, and the loader is normative, so it refuses
+    rather than guessing which bin was meant.
+
+    Raises ProfileError for a wrong type, a key that is not a canonical
+    bin number, a bin at or below zero, a named bin below the floor,
+    and for a sum that is not the count of values used.
+    """
+    found = mapping.get("value_histogram")
+    if found is None:
+        found = {}
+    if not isinstance(found, dict):
+        raise _wrong_type(
+            "value_histogram", where, found, "a block of named entries"
+        )
+    counts: "dict[str, int]" = {}
+    total = 0
+    for key in sorted(found):
+        entry = found[key]
+        if not isinstance(entry, int) or isinstance(entry, bool):
+            raise _wrong_type(
+                f"value_histogram[{key}]", where, entry, "a whole number"
+            )
+        if entry < 1:
+            raise _broken(
+                "Q15",
+                where,
+                f"the bin named {key!r} counts {entry} cell(s)",
+                "every published bin counts at least one",
+            )
+        if key != WITHHELD:
+            if not _is_bin_key(key):
+                raise _broken(
+                    "Q15",
+                    where,
+                    f"{key!r} stands where a bin number belongs",
+                    "a bin number written plainly, from 0 upwards",
+                )
+            if entry < floor:
+                raise _broken(
+                    "Q15",
+                    where,
+                    f"bin {key} counts {entry} cell(s)",
+                    f"the publication floor of {floor}",
+                )
+        counts[key] = entry
+        total = total + entry
+    if counts and total != used:
+        raise _broken(
+            "Q15",
+            where,
+            f"the bins of the histogram count {total} value(s)",
+            f"the {used} value(s) the statistics used",
+        )
+    return counts
+
+
+def _is_bin_key(key: object) -> bool:
+    """Whether ``key`` names a bin this version of the method has."""
+    if not isinstance(key, str):
+        return False
+    if not key:
+        return False
+    for character in key:
+        if character not in "0123456789":
+            return False
+    if key != "0" and key[:1] == "0":
+        return False
+    return 0 <= int(key) < parsing.HISTOGRAM_BINS
 
 
 def _padded_widths(

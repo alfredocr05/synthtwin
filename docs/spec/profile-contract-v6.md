@@ -157,10 +157,11 @@ key, and what a loader does with any other integer, is the version
 rule and the refusal in the loader section.
 
 **1.7a Version 6 is extended in place until the first release**
-(owner ruling 2026-08-26, plan amendment A-P4-41). Four keys and a role
+(owner ruling 2026-08-26, plan amendment A-P4-41). Keys and a role
 were added to version 6 after it was declared -- `pad_widths`,
-`forced_codes`, `forced_measurements`, the census of written forms, and
-the joined-numbers role -- each time on the argument that no version 6
+`forced_codes`, `forced_measurements`, the census of written forms,
+`min_length` and `max_length` on the unrepresentable role,
+`value_histogram` on the numeric roles, and the joined-numbers role -- each time on the argument that no version 6
 description exists outside this repository. The owner accepted that
 argument rather than spending a version bump on it, and the rule it
 suspends is stated here so no reader has to infer it: **a change that
@@ -372,6 +373,18 @@ none may be inferred from another:
   census of padding to write a padded key. A `pad_widths` object
   carrying the widths `2`, `5` and `10` is written in the order `10`,
   `2`, `5`.
+- `value_histogram` writes BIN NUMBERS by that same grammar and in that
+  same order. Its keys are bin numbers and not widths: the method
+  divides the range between a column's published `min` and `max` into a
+  fixed number of equal bins, and each key says how many of the values
+  the statistics used fall in that bin. The bins ascend with the values
+  they hold, which is what lets a consumer read the object as a shape;
+  a bin holding fewer cells than the publication floor has no key and
+  its cells join the `(withheld)` remainder, exactly as a level or a
+  field width does. **A histogram carrying a `(withheld)` remainder
+  describes only part of its column**, so a consumer may not read the
+  named bins as the whole of it. The counts, with the remainder,
+  account for every value the statistics used and for no more.
 - a multiplicity map — `n_distinct_by_occurrences` and
   `variants_withheld` — pads its row-count keys with leading zeros to a
   uniform width, and section 5.3, which states that key form, gives
@@ -3676,6 +3689,7 @@ consumer off the role name.
 | `numeric_styles` | object | section 7.5 | how many cells were written in each spelling style, under the floor | EXACT-OBSERVABLE against the recount identity of section 7.5.7 |
 | `fraction_widths` | object | C6-28 to C6-30 below | how many `decimal`-styled cells were written at each fraction width, under the floor | EXACT-OBSERVABLE, under the producer obligation FW-P |
 | `pad_widths` | object | C6-27b to C6-30b below | how many `leading_zero`-styled cells wrote each field width, under the floor | EXACT-OBSERVABLE, under the producer obligation PW-P |
+| `value_histogram` | object | C6-31 below | how many of the values the statistics used fall in each of the fixed bins between `min` and `max`, under the floor | EXACT-OBSERVABLE |
 
 Sixteen keys. Every one is present in every block of these two roles —
 this format has no optional keys — and every key not listed here or in
@@ -4286,6 +4300,7 @@ The fourteen columns, abbreviated for width: `emp` `empty`, `unr`
 | `numeric_styles` | | | | | | | | | ● | ● | ● | | | |
 | `fraction_widths` | | | | | | | | | ● | ● | ● | | | |
 | `pad_widths` | | | | | | | | | ● | ● | ● | | | |
+| `value_histogram` | | | | | | | | | ● | ● | ● | | | |
 | `affix_prefix` | | | | | | | | | | | ● | | | |
 | `affix_suffix` | | | | | | | | | | | ● | | | |
 | `n_affixed` | | | | | | | | | | | ● | | | |
@@ -4315,7 +4330,7 @@ The fourteen columns, abbreviated for width: `emp` `empty`, `unr`
 | `parts` | | | | | | | | | | | | | | ● |
 | `separator` | | | | | | | | | | | | | | ● |
 
-**Sixty-four rows, one hundred and twenty-three marked cells**, distributed
+**Sixty-five rows, one hundred and twenty-six marked cells**, distributed
 `empty` 0, `numeric_unrepresentable` 9, `constant` 5, `binary` 5,
 `categorical` 6, `long_tail_labels` 5, `datetime` 13, `time_of_day`
 5, `count` 16, `continuous` 16, `affixed_number` 23, `identifier` 6,
@@ -4573,6 +4588,7 @@ block carries, the quantitative ones computed over the CORES.
 | `numeric_styles` | object | section 7.5 | CORES per spelling style, under the floor | EXACT-OBSERVABLE, recount identity of section 7.5.7 |
 | `fraction_widths` | object | C6-27 to C6-30 | `decimal`-styled CORES per fraction width, under the floor | EXACT-OBSERVABLE |
 | `pad_widths` | object | C6-27b to C6-30b | `leading_zero`-styled CORES per field width, under the floor | EXACT-OBSERVABLE |
+| `value_histogram` | object | C6-31 | the CORES falling in each bin between the core ends, under the floor | EXACT-OBSERVABLE |
 
 **The block is forty-five keys**: the twenty-two universal keys of
 section 5.1 and the twenty-three above — a `count` block's sixteen
@@ -8549,6 +8565,7 @@ form to one of those four paths.
 | `numeric_styles` | the pooled count of cells whose spelling STYLE was used by too few rows to name |
 | `fraction_widths` | the pooled count of `decimal`-styled cells whose fraction WIDTH was used by too few rows to name |
 | `pad_widths` | the pooled count of `leading_zero`-styled cells whose FIELD WIDTH was used by too few rows to name |
+| `value_histogram` | the pooled count of values whose BIN holds too few of them to name; a histogram carrying it describes only part of its column |
 | `shape_forms` | the pooled count of cells whose WRITTEN FORM was worn by too few rows to name |
 
 One token, one meaning: a group too small to name, counted rather than

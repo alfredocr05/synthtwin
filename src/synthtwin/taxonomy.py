@@ -4484,12 +4484,73 @@ def _pad_widths(cells: _Cells) -> dict[str, int]:
     return published_counts
 
 
+def _value_histogram(cells: _Cells, numbers: "list[float]") -> dict[str, int]:
+    """How many of this column's numbers fall in each bin.
+
+    THE BIN COUNTS ARE COUNTS AND FALL UNDER THE FLOOR, exactly as a
+    level or a field width does: a bin holding fewer than
+    `small_cell_floor` values has no key of its own and its values are
+    counted into a `(withheld)` remainder. That is what makes a
+    histogram cheaper in disclosure than a longer ladder -- a rung is
+    an exact value of a real cell and is floor-free, while a bin says
+    only how many cells lie between two edges the description already
+    implies.
+
+    Guarantees: accepts a tally and its numbers; returns a mapping from
+    bin number to count, plus possibly `(withheld)`, summing to how
+    many numbers the statistics used. Determinism: the answer depends
+    only on the values and the published ends, and the keys are built
+    in ascending bin order. Raises nothing. No I/O of any kind.
+    """
+    if not numbers:
+        return {}
+    lowest = min(numbers)
+    highest = max(numbers)
+    # A COLUMN WHOSE ENDS THIS FORMAT CANNOT HOLD PUBLISHES NO
+    # HISTOGRAM. Bins between infinite edges have no width and no
+    # meaning, and every value would land in one of them, so the honest
+    # answer is silence rather than a census nobody can read. The
+    # loader accepts an absent histogram, and the generator falls back
+    # to the ladder exactly as it did before this fact existed.
+    for value in numbers:
+        if not math.isfinite(value):
+            return {}
+    if not math.isfinite(lowest) or not math.isfinite(highest):
+        return {}
+    # AND THE WIDTH MUST BE INSIDE THE FORMAT TOO, not only the ends. A
+    # column running from about -1e308 to about 1e308 has finite ends
+    # and a width this format cannot hold, so the bin rule can place
+    # nothing and would answer "the first bin" for every value -- which
+    # is not a quiet approximation but a false census. Silence is the
+    # honest answer.
+    if not math.isfinite(highest - lowest):
+        return {}
+    counts: dict[int, int] = {}
+    for value in numbers:
+        place = parsing.histogram_bin(value, lowest, highest)
+        if place in counts:
+            counts[place] = counts[place] + 1
+        else:
+            counts[place] = 1
+    published_counts: dict[str, int] = {}
+    withheld = 0
+    for place in sorted(counts):
+        if counts[place] >= cells.settings.small_cell_floor:
+            published_counts[f"{place}"] = counts[place]
+        else:
+            withheld = withheld + counts[place]
+    if withheld:
+        published_counts[SUPPRESSED_LABEL] = withheld
+    return published_counts
+
+
 def _numeric_details(cells: _Cells, whole: bool) -> dict[str, object]:
     """The published description of a numeric column."""
     numbers = cells.numbers
     n_present = len(cells.present)
     details: dict[str, object] = {
         "percentiles": _quantiles(numbers),
+        "value_histogram": _value_histogram(cells, numbers),
         "n_zero": len([value for value in numbers if value == 0.0]),
         # Every cell whose sign the text settles, not only the ones the
         # statistics could use. The sign of `(1e999)` ruled the count

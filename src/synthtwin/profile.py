@@ -603,6 +603,7 @@ _DIGITS = "whole-number-as-text"
 # producers spell two ways and a consumer reads as two widths. The key
 # grammar is CANONICAL -- no sign, no padding, `0` written as itself.
 _WIDTH = "fraction-width-as-figures"
+_BIN = "histogram-bin-number"
 _SHAPE_FORM = "a-written-form-a-cell-could-not-be-spelled-with"
 _MOMENT_TEXT = "canonical-datetime"
 _OFFSET = "utc-offset"
@@ -839,6 +840,9 @@ PUBLICATION_RULES: "dict[tuple[str, ...], str]" = {
     ("columns", _EACH, "parts", _EACH, "pad_widths"): _OBJECT,
     ("columns", _EACH, "parts", _EACH, "pad_widths", _KEY_OF): _WIDTH,
     ("columns", _EACH, "parts", _EACH, "pad_widths", _ANY_KEY): _FLOORED_ENTRY,
+    ("columns", _EACH, "parts", _EACH, "value_histogram"): _OBJECT,
+    ("columns", _EACH, "parts", _EACH, "value_histogram", _KEY_OF): _BIN,
+    ("columns", _EACH, "parts", _EACH, "value_histogram", _ANY_KEY): _FLOORED_ENTRY,
     # The affixed-number role: the pair it publishes, how many cells
     # wore it, and the four counts that answer for the CORES rather
     # than for the cells.
@@ -866,6 +870,9 @@ PUBLICATION_RULES: "dict[tuple[str, ...], str]" = {
     ("columns", _EACH, "pad_widths"): _OBJECT,
     ("columns", _EACH, "pad_widths", _KEY_OF): _WIDTH,
     ("columns", _EACH, "pad_widths", _ANY_KEY): _FLOORED_ENTRY,
+    ("columns", _EACH, "value_histogram"): _OBJECT,
+    ("columns", _EACH, "value_histogram", _KEY_OF): _BIN,
+    ("columns", _EACH, "value_histogram", _ANY_KEY): _FLOORED_ENTRY,
     # The counts every numeric-looking column carries, and the ones a
     # column of numbers nothing can hold carries in their place.
     ("columns", _EACH, "n_negative"): _COUNT,
@@ -1359,6 +1366,18 @@ def _leaf_is_published(
         if not isinstance(value, str) or not parsing.is_digit_text(value):
             return False
         return value == "0" or value[:1] != "0"
+    if kind == _BIN:
+        # A BIN NUMBER IS NOT A WIDTH, and it has its own name here so
+        # a refusal says which kind of key it met. The grammar is the
+        # same canonical decimal one, and the range is fixed by the
+        # method rather than by the column.
+        if value == taxonomy.SUPPRESSED_LABEL:
+            return True
+        if not isinstance(value, str) or not parsing.is_digit_text(value):
+            return False
+        if value != "0" and value[:1] == "0":
+            return False
+        return 0 <= int(value) < parsing.HISTOGRAM_BINS
     if kind == _SHAPE_FORM:
         return _is_shape_form(value)
     if kind == _MOMENT_TEXT:

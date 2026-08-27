@@ -52,7 +52,7 @@ def _matrix() -> "tuple[dict[str, set[str]], int, int]":
     """Every marked cell of section 6.11, read out of the document."""
     text = CONTRACT.read_text(encoding="utf-8")
     start = text.index("### 6.11 The forbidden-key matrix")
-    body = text[start : text.index("\n**Sixty-four rows", start)]
+    body = text[start : text.index("\n**Sixty-five rows", start)]
     marked: "dict[str, set[str]]" = {role: set() for role in COLUMNS}
     rows = 0
     cells = 0
@@ -125,11 +125,11 @@ def test_the_matrix_totals_are_the_numbers_the_matrix_holds() -> None:
     _marked, rows, cells = _matrix()
     said = CONTRACT.read_text(encoding="utf-8")
     assert (
-        "**Sixty-four rows, one hundred and twenty-three marked cells**"
+        "**Sixty-five rows, one hundred and twenty-six marked cells**"
         in said
     )
-    assert rows == 64, rows
-    assert cells == 123, cells
+    assert rows == 65, rows
+    assert cells == 126, cells
 
 
 def test_the_form_census_stands_on_exactly_five_roles() -> None:
