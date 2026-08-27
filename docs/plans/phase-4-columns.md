@@ -5808,16 +5808,20 @@ four rows each: source `free_text`, twin `long_tail_labels`, a folded
 level of fourteen against a detection line of eleven, **and nothing on
 any surface saying so**.
 
-**THE RESIDUAL'S OWN PROPOSED FIX WAS BUILT, EXTENDED, MEASURED AND
-WITHDRAWN.** It asked for the fold-collision walk to prefer a parent
-that keeps the pair under the line.
+**THE RESIDUAL'S OWN PROPOSED FIX WAS BUILT, WITHDRAWN AND RESTORED,
+and the middle step is the one worth recording.**
 
 | step | what happened |
 |---|---|
-| built | preferred a parent whose PAIR stays under the line |
-| extended | a reviewer supplied sizes 1, 2 and 9 — pairwise sums of 3 and 10 both pass, and the level they make is twelve. The check moved to the accumulated LEVEL, reaching eleven |
-| **measured** | **across 150 randomly built free-text columns carrying fold collisions, NONE crossed the line and the preference changed NO outcome.** On the residual's own column no safe pairing exists; on the reviewer's it reaches eleven where optimal is ten — still crossing, so a reader sees no difference |
-| withdrawn | machinery whose only measured effect is invisible does not belong in a walk THREE roles share |
+| built | the fold-collision walk prefers a parent keeping the pair under the line |
+| extended | a reviewer supplied sizes 1, 2 and 9 — pairwise sums of 3 and 10 both pass, and the level they make is twelve. The check moved to the accumulated LEVEL |
+| **withdrawn** | measured across **190 randomly built free-text columns**: zero crossings, zero outcomes changed. Removed as inert |
+| **RESTORED** | **the sample was homogeneous.** Every column had ONE family, and within one family the sorted group order usually makes the walk's choice anyway. A reviewer supplied a MIXED-family column — ordinary text beside a code alphabet, sizes 1/2/2/2/8/9 — where the cyclic walk meets an unsafe same-family parent before a safe one. Without the preference: folded level ELEVEN, twin reads back as `long_tail_labels`. With it: level TEN, twin stays free text. Reproduced both ways |
+
+**A MEASUREMENT OVER ONE FAMILY IS A MEASUREMENT OF ONE FAMILY.** The
+190 data points made the deletion feel evidenced; what they actually
+measured was a space the generator could not leave. Before calling a
+control inert, ask what the sample could not contain.
 
 **WHAT ANSWERS THE RESIDUAL IS THE REPORT.**
 `_levels_past_the_line` measures the FINISHED spellings and raises a

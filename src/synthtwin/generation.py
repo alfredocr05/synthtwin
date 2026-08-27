@@ -9142,6 +9142,9 @@ def _partner_of(
     families: "list[str]",
     used: "dict[str, int]",
     windows: "list[tuple[int, int | None]]",
+    sizes: "list[int] | None" = None,
+    long_tail_line: int = 0,
+    carried: "dict[int, int] | None" = None,
 ) -> "str | None":
     """The fold-collision partner this value carries, when one is owed.
 
@@ -9211,22 +9214,61 @@ def _partner_of(
     # where eleven would do. Both passes keep the cyclic order the
     # method fixes, so a column whose parents all hold letters, or none
     # of which do, is laid out exactly as it was.
-    for lettered in (True, False):
-        for step in range(folded):
-            parent_place = (place + step) % folded
-            if families[parent_place] != families[index]:
-                continue
-            has_letter = False
-            for character in spellings[parent_place]:
-                if character in _LETTERS:
-                    has_letter = True
-                    break
-            if has_letter != lettered:
-                continue
-            found = _partner_from(
-                parent_place, index, spellings, used, shortest, longest
-            )
-            if found is not None:
+    # AND A PARENT THAT KEEPS THE FOLDED LEVEL UNDER THE LONG-TAIL LINE
+    # IS TAKEN FIRST (residual R-P4-36). A partner folds onto its
+    # parent, so the level the pair makes covers BOTH their rows, and a
+    # level at the detection line is what makes a reader call a column
+    # a long tail of LABELS rather than free text.
+    #
+    # THE LEVEL, NOT THE PAIR. A parent may already carry partners from
+    # earlier in this walk. Sizes 1, 2 and 9 give pairwise sums of 3
+    # and 10, both under a line of eleven, and a level of twelve.
+    #
+    # THIS PASS WAS WITHDRAWN ONCE AND RESTORED, and the reason is
+    # worth keeping. It was measured across 190 randomly built
+    # free-text columns and changed no outcome, so it was removed as
+    # inert -- and the sample was HOMOGENEOUS. Within one family the
+    # sorted group order usually makes the choice for it. ACROSS
+    # families the cyclic walk can meet an unsafe same-family parent
+    # before a safe one, and then this pass decides: on twenty-four
+    # rows of `alpha phrase`/`codeaa` shapes, sizes 1, 2, 2, 2, 8 and
+    # 9 split between an ordinary-text family and a code-alphabet one,
+    # the walk without it reaches eleven and the twin reads back as
+    # `long_tail_labels`; with it the largest level is ten and the twin
+    # reads back as free text. A measurement over one family is a
+    # measurement of one family.
+    under_first: "tuple[bool, ...]" = (True, False)
+    if sizes is None or long_tail_line < 1:
+        under_first = (False,)
+    for under in under_first:
+        for lettered in (True, False):
+            for step in range(folded):
+                parent_place = (place + step) % folded
+                if families[parent_place] != families[index]:
+                    continue
+                if under and sizes is not None:
+                    already = sizes[parent_place]
+                    if carried is not None and parent_place in carried:
+                        already = carried[parent_place]
+                    if already + sizes[index] >= long_tail_line:
+                        continue
+                has_letter = False
+                for character in spellings[parent_place]:
+                    if character in _LETTERS:
+                        has_letter = True
+                        break
+                if has_letter != lettered:
+                    continue
+                found = _partner_from(
+                    parent_place, index, spellings, used, shortest, longest
+                )
+                if found is None:
+                    continue
+                if carried is not None and sizes is not None:
+                    already = sizes[parent_place]
+                    if parent_place in carried:
+                        already = carried[parent_place]
+                    carried[parent_place] = already + sizes[index]
                 return found
     return None
 
@@ -9597,9 +9639,13 @@ def _text_cells(
         budget,
     )
     made: dict[str, int] = {}
+    # How many rows each parent's folded level covers so far, so the
+    # preference reads the level rather than the pair.
+    carried: "dict[int, int]" = {}
     for index in range(total):
         partner = _partner_of(
-            index, folded, spellings, families, used, windows
+            index, folded, spellings, families, used, windows,
+            list(groups), long_tail_line, carried,
         )
         if partner is not None:
             taken = _take(partner, used)
@@ -9659,21 +9705,27 @@ def _text_cells(
     # THE TWIN CAN REPROFILE INTO A DIFFERENT ROLE, AND NOW IT SAYS SO
     # (residual R-P4-36). A fold-collision partner folds onto its
     # parent, so the pair makes a level covering BOTH their rows -- and
-    # a level at or past the long-tail detection line is what makes a
-    # column a long tail of LABELS rather than free text. Where no
-    # pairing this run could make keeps every level under that line, a
-    # person reading the twin back gets a column of a different kind
-    # from the one described, with every published count met.
+    # a level at the long-tail detection line is what makes a reader
+    # call a column a long tail of LABELS rather than free text.
     #
-    # WHAT IS FIXED AND WHAT IS NOT. The walk now PREFERS a parent that
-    # keeps the pair under the line, which answers the columns where
-    # such a parent exists. It cannot answer the ones where the sizes
-    # this run laid out leave no such pairing -- the partner groups may
-    # themselves be larger than the line -- because which group is
-    # which size is settled before this walk runs. That half is
-    # residual R-P4-36's own, and it is REPORTED here rather than
-    # passed over, which is the half the residual was opened for: the
-    # column changed kind "and says nothing".
+    # TWO THINGS ANSWER IT, and only the second is a guarantee. The
+    # walk above PREFERS a parent that keeps the LEVEL under the line,
+    # which avoids the change wherever a safe parent exists -- and
+    # across families, which is where it decides, it does. Where no
+    # safe parent exists at all, as on the column this residual was
+    # opened for, the change happens and is NAMED here. That was the
+    # residual's complaint: the column changed kind "and says nothing".
+    #
+    # MEASURED ON THE FINISHED SPELLINGS rather than counted inside the
+    # walk, so a crossing is seen however it arose -- including one no
+    # walk-side rule could have anticipated. It also keeps
+    # `_partner_of` returning one value, which a test pins.
+    #
+    # THE SENTENCE HEDGES ON PURPOSE. Whether a later reading really
+    # calls this a long tail depends on how the twin is read: declared
+    # missing words and the categorical share both move it, and under
+    # some declarations the twin reads back as free text after all. So
+    # the sentence names what the twin HOLDS.
     crossed = _levels_past_the_line(spellings, groups, long_tail_line)
     if crossed:
         notes = notes + [
