@@ -1772,6 +1772,46 @@ Opened by this plan, each a limit accepted rather than work forgotten:
   present walk as the fallback. That is a change inside the free-text
   packing and is its own landing.
 
+- **R-P4-47** (opened by adversarial round 7 of the width work,
+  2026-08-27). ON A COLUMN OF ONE PUBLISHED WIDTH THAT ALSO FOLDS, THE
+  TWIN KEEPS THE FOLD AND MISSES THE WIDTH. `N + " "` beside `" " + N`
+  publishes `min_length = max_length = 311` with two values folding to
+  one. A fold partner is reached by adding edge spacing, and spacing
+  only lengthens, so a partner of a cell already 311 characters wide is
+  312. The walk asks for the pinned width first and retries with the
+  window open, so the FOLD is kept — a published count met exactly —
+  and the width miss is named in the report.
+
+  **That trade is deliberate and it is not the best available answer.**
+  A count is an obligation and a width is a preference, so keeping the
+  fold is right; but the source column shows a third option the twin
+  does not take. Its own two cells are `X + " "` and `" " + X` at ONE
+  width, because the PARENT carries a space too. A parent that will
+  take partners at its own pinned width could be written with one
+  fewer figure and a trailing space, and then both cells fit. That is
+  the shape of plan P4-D4.4's own words — "a fold partner may shorten
+  its digit body to make room for edge spacing inside the pinned
+  length" — applied to the parent rather than the partner. Closing it
+  means the parent walk knowing which of its groups will be asked for
+  partners at which widths, which is a change to `_unrepresentable_
+  cells`' ordering and its own landing.
+
+- **R-P4-48** (opened by the same round). A COLUMN CAN HOLD MORE
+  DISTINCT UNHOLDABLE FRACTIONS AT ONE WIDTH THAN THE TWIN CAN WRITE.
+  The twin spells a too-small value as `0.`, a run of zeros and a
+  figure body, so at 327 characters only nine distinct ones exist —
+  the body has one character and the zero run is fixed by the need to
+  underflow. A real column reaches twenty-five at that width by using
+  another spelling family altogether: `0…0NNe-400` is 327 characters,
+  parses as out of range, and there are as many as the digits allow.
+  The twin writes the twenty-fifth one character wider and names the
+  `max_length` miss.
+
+  Closing it means the wide-value walk gaining scientific notation as
+  a spelling family, which is a new family for the capacity rule and
+  the recount both, and is its own landing. **Not a defect in the
+  width rule**: every published count is met and the miss is reported.
+
 - **R-P4-35** (opened by P4-D18's build, 2026-08-25, and NOT caused by
   it). A FIXED-WIDTH CODE COLUMN WHOSE LARGER CODES NEED NO LEADING
   ZERO LOSES THAT WIDTH ON THE UNPADDED HALF. A vaccine-code column

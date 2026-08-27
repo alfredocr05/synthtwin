@@ -48,6 +48,7 @@ the reviewer's whole column, which is what a person meets.
 """
 
 import csv
+import importlib.util
 import math
 import pathlib
 
@@ -443,3 +444,67 @@ def test_this_role_never_publishes_a_two_character_ceiling(
     assert (source["min_length"], source["max_length"]) == (2, 310)
     assert (again["min_length"], again["max_length"]) == (2, 310)
     assert not [note for note in notes if note.fact == "min_length"]
+
+
+def _oracle():
+    """The independent reference implementation, loaded from its path.
+
+    It never imports synthtwin and implements the method specification
+    from that document alone, which is the whole point of comparing
+    against it.
+    """
+    where = (
+        pathlib.Path(__file__).resolve().parent.parent
+        / "tools"
+        / "reference"
+        / "make_generation_reference_vectors.py"
+    )
+    spec = importlib.util.spec_from_file_location("oracle_for_widths", where)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_the_oracle_agrees_past_the_ninth_fraction(tmp_path: pathlib.Path) -> None:
+    """THE TWO IMPLEMENTATIONS AGREE WHERE THEY USED TO PART (P4-G3-R7-F3).
+
+    The reference tool refused to write a tenth too-small spelling at
+    one width -- a limit written when the zero run was whatever the
+    asked width left over, so the first two-character figure body had
+    no stated answer. The run now grows until the value underflows,
+    which answers every order, and a generator that kept going while
+    the oracle refused is a disagreement the frozen vectors could never
+    show, because no frozen case asks for ten.
+
+    Compared here directly instead: forty orders at four widths and
+    both signs.
+    """
+    oracle = _oracle()
+    mismatched: "list[tuple]" = []
+    for width in (327, 328, 330, 400):
+        for negative in (False, True):
+            states: "dict[str, list[int]]" = {}
+            used: "dict[str, int]" = {}
+            for order in range(40):
+                mine = generation._wide_number(
+                    2,
+                    negative,
+                    states,
+                    used,
+                    (),
+                    generation._wide_width(2, width, negative),
+                )
+                sign = (
+                    oracle.SIGN_NEGATIVE if negative else oracle.SIGN_POSITIVE
+                )
+                theirs = oracle._unrepresentable_spelling(
+                    "too_small", sign, order, width
+                )
+                if mine != theirs:
+                    mismatched = mismatched + [
+                        (width, negative, order, len(mine), len(theirs))
+                    ]
+    assert mismatched == [], (
+        "the two implementations do not write the same too-small "
+        f"spelling: {mismatched[:4]}"
+    )
