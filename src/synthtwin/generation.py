@@ -294,17 +294,20 @@ _UNDERFLOW_PLACES = 327
 # out 5e-324: the smallest subnormal there is, a value binary64 HOLDS,
 # inside a column described as holding none.
 #
-# **THIS IS A GUARD AND NOT A REPAIR, and the difference is worth the
-# sentence.** That state is not reachable through the walk above today.
-# Instrumented over 2,303 real calls across 300 randomly built
-# unrepresentable columns, the too-small spelling was asked for widths
-# from 327 to 400 and reached index 16, and NOT ONE call would have
-# written a representable value without this floor -- because only nine
-# distinct unholdable fractions fit at 327 characters in the first
-# place, so no real description asks for a tenth at that width. The
-# floor is here so that the spelling is unholdable BY ITSELF rather
-# than by an argument about what its caller happens to ask for, since
-# the caller's width rule changed twice in one day.
+# **THIS IS A REPAIR, AND THE CLAIM THAT IT WAS ONLY A GUARD WAS
+# WRONG.** It was written here first as a precaution, on the strength
+# of a randomised trial over 300 built columns holding at most 40
+# distinct values each, in which the state was never reached. A
+# reviewer then supplied the column that trial was too shallow to
+# contain: 271 distinct fractions at widths 327 and 328, which a real
+# table holds perfectly well. Without this floor that column's twin
+# holds 48 cells binary64 DOES represent against a published count of
+# zero, and reprofiles with `n_out_of_range` down from 542 to 494.
+#
+# The measurement that produced the wrong conclusion is worth keeping
+# beside the one that corrected it: a randomised trial shows a defect
+# present and never shows one absent, and the shape it does not build
+# is the shape it tells you nothing about.
 #
 # 324 zeros is the measured floor and it holds for a body of any
 # length: the largest body of every length from one to six digits
@@ -9838,9 +9841,10 @@ def _text_cells(
                 "names what the twin HOLDS rather than predicting what "
                 "a later reading will say about it. Code that "
                 "dispatches on a column's type is what this reaches. "
-                "Every count your description publishes about this "
-                "column is still met exactly; this is a property of the "
-                "spellings, not a fact the twin missed.",
+                "Nothing was given up to produce it: this is a property "
+                "of the twin's spellings and not a published fact the "
+                "twin failed to meet. Where a fact WAS missed, this "
+                "report names it separately, above.",
             )
         ]
     return _grouped(groups, spellings), notes, carriers, remarks
@@ -11172,10 +11176,26 @@ def _wide_widths(
     # earlier revision looked only past the first group, so a column
     # whose one narrow-capable group happened to come first carried no
     # floor at all and reported a miss it did not have to have.
+    #
+    # AND IT IS ONLY CHOSEN IF SOMETHING IS LEFT TO CARRY THE CEILING
+    # (review item P4-G3-R5-F2). Two of the six kinds write at a width
+    # of their own whatever they are asked for, so a column of one
+    # contradictory group beside one in-range group has exactly ONE
+    # group that can carry a width at all. Handing that group the floor
+    # spends the only carrier on the end the contradictory group was
+    # going to land on anyway -- `(-1)` is four characters, and a column
+    # published as 4 to 400 then held no cell wider than four. The
+    # single carrier keeps the ceiling instead, and the floor arrives on
+    # its own.
     for index in range(len(kinds)):
-        if _carries_a_width(kinds[index], floor, signs[index]):
-            asked[index] = floor
-            return asked
+        if not _carries_a_width(kinds[index], floor, signs[index]):
+            continue
+        for other in range(len(kinds)):
+            if other == index:
+                continue
+            if _carries_a_width(kinds[other], ceiling, signs[other]):
+                asked[index] = floor
+                return asked
     return asked
 
 
@@ -11197,7 +11217,22 @@ def _carries_a_width(kind: int, width: int, negative: bool = False) -> bool:
     """
     if kind == 0 or kind == 5:
         return False
+    if width < _WIDE_NARROWEST[kind] + int(negative):
+        return False
     return _wide_width(kind, width, negative) == width
+
+
+# THE NARROWEST CELL EACH KIND CAN WRITE, before its sign. The two
+# in-range kinds have no magnitude floor but they DO have a shortest
+# spelling: the whole one is a single figure and the fraction one is
+# `1.5`, three characters, because it must carry a point and a figure
+# on each side of it. `_wide_width` knew nothing about this and so
+# reported that the fraction kind could carry a width of one, which
+# made it the chosen carrier for a published floor it then missed by
+# two characters (review item P4-G3-R5-F3). The two out-of-range kinds
+# are governed by their own floors above and the two uncarryable kinds
+# never reach this table.
+_WIDE_NARROWEST = (1, 1, 1, 1, 3, 1)
 
 
 def _wide_width(kind: int, asked: int, negative: bool = False) -> int:

@@ -31,19 +31,20 @@ takes a floor of its own, measured -- the largest figure body of every
 length from one to six digits underflows behind 324 zeros, and behind
 323 none of them does.
 
-That state is **NOT reachable through the generator today, and this
-file says so rather than implying a bug it did not find.**
-Instrumented over 2,303 real calls across 300 randomly built
-unrepresentable columns, the too-small spelling was asked for widths
-from 327 to 400 and reached index 16, and not one call would have
-written a representable value without the floor -- because only nine
-distinct unholdable fractions fit at 327 characters, so no real
-description asks for a tenth at that width. The floor is defence in
-depth: it makes the spelling unholdable BY ITSELF rather than by an
-argument about what its caller happens to ask for, and the caller's
-width rule changed twice in one day. The test below therefore asserts
-the SPELLING's own guarantee, where the guard is mutation-sensitive,
-and does not pretend a round trip would catch it.
+**THIS FILE FIRST SAID THAT STATE WAS UNREACHABLE, AND IT WAS WRONG.**
+The claim rested on a randomised trial over 300 built columns holding
+at most 40 distinct values each, in which the too-small spelling never
+reached an index that mattered. Such a trial shows a defect present and
+never shows one absent, and the shape it does not build is the shape it
+tells you nothing about. A reviewer supplied that shape: 271
+distinct fractions at widths 327 and 328, which a real table can hold
+perfectly well. Without the zero-run floor, that column's twin holds 48
+cells binary64 CAN represent against a published count of zero, and
+reprofiles with `n_out_of_range` down from 542 to 494.
+
+Both tests below are therefore kept and both are mutation-sensitive:
+one on the SPELLING, which is where the guarantee belongs, and one on
+the reviewer's whole column, which is what a person meets.
 """
 
 import csv
@@ -131,6 +132,42 @@ def test_the_fraction_spelling_is_unholdable_at_every_index(
         "the fraction spelling produced values this file format can "
         f"hold: {[cell[:12] + '...' for cell in holdable[:3]]}"
     )
+
+
+def test_the_reviewers_column_holds_its_published_class_counts(
+    tmp_path: pathlib.Path,
+) -> None:
+    """THE COLUMN A SWEEP OF 300 DID NOT CONTAIN (item P4-G3-R5-F1).
+
+    271 distinct fractions across two widths, every one of them below
+    the smallest subnormal. The walk enumerates far enough that the
+    figure body reaches three characters, which is what eats the zero
+    run. Without the floor this twin holds 48 representable cells
+    against a published zero.
+
+    The published `max_length` is NOT held here and that is correct
+    rather than a second defect: holding it would mean writing a value
+    this format can hold. The twin comes out one character wider and
+    the report names it, which is the trade this whole file is about.
+    """
+    values: list[str] = []
+    for figure in range(1, 25):
+        values = values + ["0." + f"{figure}".zfill(325)] * 2
+    for figure in range(1, 248):
+        values = values + ["0." + f"{figure}".zfill(326)] * 2
+    source, cells, again, notes = _round_trip(tmp_path, "deep", values)
+    assert source["role"] == taxonomy.ROLE_UNREPRESENTABLE
+    assert source["n_distinct"] == 271
+    assert source["n_numeric"] == 0
+    assert _holdable(cells) == []
+    # THE CLASS COUNTS, which is what the defect actually cost.
+    assert again["n_out_of_range"] == source["n_out_of_range"]
+    assert again["n_numeric"] == 0
+    assert again["role"] == taxonomy.ROLE_UNREPRESENTABLE
+    # And the width it could not hold is NAMED rather than faked.
+    longest = max(len(cell) for cell in cells)
+    if longest != source["max_length"]:
+        assert "max_length" in {note.fact for note in notes}
 
 
 def test_a_column_of_many_fractions_keeps_its_kind(

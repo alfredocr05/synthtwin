@@ -3145,10 +3145,20 @@ def _unrepresentable_widths(column, shapes_taken, signs_taken):
     asked = [ceiling] * len(shapes_taken)
     if len(shapes_taken) < 2 or floor == ceiling:
         return asked
+    # The floor is only assigned if something ELSE can still carry the
+    # ceiling.  Contradictory notation and ordinary text write at a
+    # width of their own whatever they are asked for, so a column with
+    # exactly one carrying shape must spend it on the ceiling: the
+    # other shapes land where they land, and that is the floor.
     for index, shape in enumerate(shapes_taken):
-        if _carries_a_width(shape, floor, signs_taken[index]):
-            asked[index] = floor
-            return asked
+        if not _carries_a_width(shape, floor, signs_taken[index]):
+            continue
+        for other, another in enumerate(shapes_taken):
+            if other == index:
+                continue
+            if _carries_a_width(another, ceiling, signs_taken[other]):
+                asked[index] = floor
+                return asked
     return asked
 
 
@@ -3163,7 +3173,21 @@ def _carries_a_width(shape, width, sign=None):
     """
     if shape in ("contradictory", "ordinary_text"):
         return False
+    if width < SHAPE_NARROWEST[shape] + (1 if sign == SIGN_NEGATIVE else 0):
+        return False
     return _unrepresentable_width(shape, width, sign) == width
+
+
+# The narrowest cell each carrying shape can write, before its sign.
+# The in-range fraction needs three characters (`1.5`) whatever it is
+# asked for, so a rule that only checked magnitude floors named it the
+# carrier for widths it then missed.
+SHAPE_NARROWEST = {
+    "too_large": 1,
+    "too_small": 1,
+    "whole_in_range": 1,
+    "fraction_in_range": 3,
+}
 
 
 def _unrepresentable_spelling(shape, sign, order, asked):
@@ -3245,6 +3269,33 @@ def _unrepresentable_recount(column, content):
                 "EXACT-OBSERVABLE, so the construction above is wrong; do not "
                 "move the published fact to meet it."
             )
+    # AND THE TWO PUBLISHED WIDTHS, which this postcondition did not
+    # cover when they were added (review item P4-G3-R5-F4). An oracle
+    # that recounts nine facts and not the two the landing is ABOUT
+    # certifies a carrier failure as correct: the two-cell case whose
+    # only carrying shape was spent on the wrong end passed here
+    # unchallenged. The population is the numeric-looking cells, which
+    # is every shape but ordinary text, matching the producer.
+    numeric_looking = [
+        cell
+        for cell in content
+        if NOTATION_TEXT not in notation_reading(cell)
+    ]
+    if numeric_looking:
+        widths = [len(cell) for cell in numeric_looking]
+        for name, value in (
+            ("min_length", min(widths)),
+            ("max_length", max(widths)),
+        ):
+            if column[name] != value:
+                raise AssertionError(
+                    f"the cells this oracle built recount {name} as {value!r} "
+                    f"and the case publishes {column[name]!r}. The two widths "
+                    "are EXACT-OBSERVABLE, so either the width rule above is "
+                    "wrong or this case publishes a width no real column of "
+                    "these cells could; do not move the published fact to "
+                    "meet the construction."
+                )
 
 
 def _unrepresentable_content(column):

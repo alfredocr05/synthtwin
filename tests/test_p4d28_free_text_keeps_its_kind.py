@@ -191,7 +191,21 @@ def test_a_column_no_pairing_can_answer_says_so(
     assert "Code that dispatches on a column's type" in said[0].note
     # AND IT SAYS SO IN SO MANY WORDS. A reader meeting this sentence
     # must not be left wondering whether their twin lost a count.
-    assert "still met exactly" in said[0].note
+    #
+    # THE FIRST WORDING OF THIS SENTENCE WAS ITSELF A FALSE CLAIM, which
+    # is why the assertion below is shaped the way it is. It said "every
+    # count your description publishes about this column is still met
+    # exactly" -- a statement about the WHOLE COLUMN, made by a sentence
+    # that knows only about the fold. A reviewer built a 240-row column
+    # that raises this remark while three deviations on the same column
+    # report missed word counts and a missed shape census, so the report
+    # said both. The sentence now claims only what it can know: that the
+    # crossing itself cost no published fact.
+    assert "Nothing was given up to produce it" in said[0].note
+    assert "still met exactly" not in said[0].note, (
+        "the remark is claiming again that every count of the column is "
+        "met, which it cannot know and which a reviewer disproved"
+    )
 
 
 def _mixed_families() -> "list[str]":
@@ -310,3 +324,52 @@ def test_the_report_is_not_raised_when_nothing_crossed(
     assert again == taxonomy.ROLE_TEXT
     assert not held, f"a quiet column remarked anyway: {held}"
     assert not [note for note in notes if "long tail of labels" in note.note]
+
+
+def _remarking_and_deviating() -> "list[str]":
+    """A column that raises a remark AND misses published facts.
+
+    A reviewer's own shape (item P4-G3-R5-F3). The remark half is the
+    fold crossing; the deviation half is that this column's word counts
+    and shape census cannot all be met at once. Both halves matter: a
+    fixture that only remarked could not catch the claim below.
+    """
+    rows: list[str] = []
+    for index in range(20):
+        rows = rows + [f"longer ordinary phrase number {index:02d} here"] * 10
+    rows = rows + ["code20"] * 4 + ["CODE20"] * 4
+    for index in range(21, 25):
+        rows = rows + [f"memo item {index}"] * 4
+        rows = rows + [f"MEMO ITEM {index}"] * 4
+    random.Random(3).shuffle(rows)
+    return rows
+
+
+def test_a_remark_never_claims_a_fact_it_cannot_know(
+    tmp_path: pathlib.Path,
+) -> None:
+    """A REMARK SPEAKS FOR ITSELF AND NOT FOR THE WHOLE COLUMN.
+
+    `Remark` was added because filing the fold crossing as a
+    `Deviation` told a reader an exact fact had failed when it
+    succeeded. Its first wording then made the mirror-image mistake: it
+    said every count of the column was still met exactly -- a claim
+    about facts it knows nothing about -- and a reviewer produced this
+    column, where that sentence stands beside three deviations saying
+    the opposite.
+
+    So this test asserts the two halves TOGETHER. A future fixture that
+    stopped deviating would make the second assertion vacuous, and the
+    first is what catches that.
+    """
+    _source, _again, _largest, held, notes = _round_trip(
+        tmp_path, "both", _remarking_and_deviating()
+    )
+    assert held, "the fixture no longer remarks, so it pins nothing"
+    assert notes, "the fixture no longer deviates, so it pins nothing"
+    for remark in held:
+        assert "still met exactly" not in remark.note
+        assert "every count" not in remark.note.lower(), (
+            "a remark is claiming something about facts it cannot see, "
+            f"beside {len(notes)} deviation(s) on the same column"
+        )
