@@ -954,9 +954,29 @@ jobs:
               problems.append(f"unexpected relationship manifest: {related}")
           elif any(value is not None for value in related.values()):
               problems.append("the relationship manifest claims structure it has none of")
+          # AT THE DEFAULT FLOOR OF ONE, THE RARE LABEL IS PUBLISHED,
+          # and this step asserts that rather than its opposite. It
+          # used to refuse the string `outlying` anywhere in an output
+          # file, which was right while the floor defaulted to eleven
+          # and that label was pooled away. Plan amendment A-P4-37
+          # dropped the default to ONE on the owner's ruling -- every
+          # value a table holds is named with the rows that shared it,
+          # so a rare finding reaches the twin -- and this check went on
+          # asserting the old rule for as long as ci.yml did not run.
+          #
+          # THE SUPPRESSION GUARANTEE IS NOT LOST BY INVERTING THIS. It
+          # is carried by 52 tests at a RAISED floor
+          # (tests/test_p1r7f2_disclosure_is_true.py and
+          # tests/test_p2c1f3_publication_guard.py), which is where a
+          # floor-dependent rule belongs: this step runs one command at
+          # one floor and can only ever check that one.
           for text in (json.dumps(document), summary):
-              if "outlying" in text:
-                  problems.append("a below-floor label reached an output file")
+              if "outlying" not in text:
+                  problems.append(
+                      "the rare label is missing from an output file: at "
+                      "the default floor of one nothing is pooled away, "
+                      "so every label a table holds should be named"
+                  )
               if "R00007" in text:
                   problems.append("an identifier value reached an output file")
           if problems:

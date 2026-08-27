@@ -5800,7 +5800,7 @@ values. Its answer is a declaration, which is P1-R6-F8's own
 conclusion. It is pinned as a PASSING test so the next person to meet
 it does not reopen it, find it easy, and write the fifth defeated rule.
 
-## Decision P4-D28 — a free-text twin keeps its kind, or says it did not (closes R-P4-36, 2026-08-26)
+## Decision P4-D28 — a free-text twin says when it changed kind (closes R-P4-36, 2026-08-26)
 
 **REPRODUCED FIRST**, because a residual closes on a measurement and
 never on a reading. Twenty spellings at ten rows each beside five at
@@ -5808,34 +5808,38 @@ four rows each: source `free_text`, twin `long_tail_labels`, a folded
 level of fourteen against a detection line of eleven, **and nothing on
 any surface saying so**.
 
-**THE RESIDUAL'S OWN PROPOSED FIX DOES NOT WORK ALONE, which measuring
-showed and reading would not have.** It asked for a preference in the
-fold-collision walk for a parent that keeps the pair under the line. On
-that column EVERY pairing crosses it: the partner groups are themselves
-larger than the line, and which group is which size is settled before
-the walk runs.
+**THE RESIDUAL'S OWN PROPOSED FIX WAS BUILT, EXTENDED, MEASURED AND
+WITHDRAWN.** It asked for the fold-collision walk to prefer a parent
+that keeps the pair under the line.
 
-**SO THE REPAIR IS TWO HALVES, and only the second is a guarantee.**
+| step | what happened |
+|---|---|
+| built | preferred a parent whose PAIR stays under the line |
+| extended | a reviewer supplied sizes 1, 2 and 9 — pairwise sums of 3 and 10 both pass, and the level they make is twelve. The check moved to the accumulated LEVEL, reaching eleven |
+| **measured** | **across 150 randomly built free-text columns carrying fold collisions, NONE crossed the line and the preference changed NO outcome.** On the residual's own column no safe pairing exists; on the reviewer's it reaches eleven where optimal is ten — still crossing, so a reader sees no difference |
+| withdrawn | machinery whose only measured effect is invisible does not belong in a walk THREE roles share |
 
-| half | what it does | what it is worth |
-|---|---|---|
-| the preference | `_partner_of` takes the group sizes and the line, and prefers a parent whose LEVEL — not whose pair — stays under it | answers every column where such a parent exists. It is first-fit packing: on sizes 1, 2, 2, 2, 2 and 9 it reaches eleven where taking the largest partner first would reach ten. Doing better means choosing the ORDER partners are taken in, which decides twin bytes and meets the same packing problem `_shared_out` did |
-| the report | `_levels_past_the_line` measures the FINISHED spellings and raises a deviation naming the change | **always correct**, because it reads the outcome rather than the walk. It sees a crossing however it arose |
+**WHAT ANSWERS THE RESIDUAL IS THE REPORT.**
+`_levels_past_the_line` measures the FINISHED spellings and raises a
+deviation naming the change. It reads the outcome rather than the walk,
+so it sees a crossing however it arose — including ones no walk-side
+rule could have anticipated.
 
-**THE ACCUMULATED CHECK CAME FROM ADVERSARIAL REVIEW.** A first draft
-compared `parent + partner` and missed a parent taking TWO partners:
-sizes 1, 2 and 9 give pairwise sums of 3 and 10, both under a line of
-eleven, and a level of twelve. Reproduced, then closed by carrying a
-running total per parent.
+**AND THE SENTENCE SAYS ONLY WHAT IT KNOWS.** A first wording asserted
+that reading the twin back DOES describe it as a long tail, and that
+every published count is still met. Adversarial review showed both can
+be false: declared missing words and the categorical share change what
+a later reading sees, and under some declarations the twin reads back
+as free text after all. The sentence now names what the twin HOLDS and
+says a later reading MAY call it a long tail.
 
-**AND THE MEASUREMENT MOVED OUT OF THE WALK FOR A BETTER REASON THAN
-THE ONE IT WAS ASKED FOR.** The first draft had `_partner_of` return a
-pair so the walk could report crossings, which broke a test pinning
-that "`_partner_of` is one function, and all three roles ask it".
-Measuring the finished spellings instead keeps the single return value
-AND catches crossings the walk did not make.
+**A SIDE EFFECT WORTH KEEPING.** The first draft had `_partner_of`
+return a pair so the walk could count crossings, which broke a test
+pinning that "`_partner_of` is one function, and all three roles ask
+it". Measuring the finished spellings keeps the single return value and
+catches more.
 
-**WHAT IS NOT CLOSED:** the packing. A column whose sizes leave no good
-pairing still reprofiles, and now says so. That is R-P4-36's own
-complaint answered — the column changed kind "and says nothing" — with
-the packing left as the honest remainder rather than claimed as fixed.
+**WHAT IS NOT CLOSED:** the packing. A column whose group sizes leave
+no good pairing still reprofiles, and now says so. That is the
+residual's complaint answered — the column changed kind "and says
+nothing" — with the packing left as the honest remainder.
