@@ -3047,6 +3047,22 @@ three parts and they apply in this order.
   leading `0.` and a trailing figure are all spent inside it, so a group
   asked for 400 characters writes a cell 400 characters long and not
   401 or 402.
+* **THE TOO-SMALL SHAPE'S ZERO RUN GROWS UNTIL ITS VALUE UNDERFLOWS,
+  and is not a fixed count.** That shape spends its width on `0.`, a
+  run of zeros and a figure body, and the body grows as the walk
+  enumerates distinct values — so a run sized as whatever the width
+  leaves shrinks as the body grows, and the value climbs back up until
+  it is a value binary64 holds. A fixed floor high enough for the worst
+  body is safe and writes every better body too wide: behind 323 zeros
+  the body `10` underflows and the body `9` does not, and a six-figure
+  body needs only 319. The rule is therefore the question itself, asked
+  of each candidate spelling, which is also the only form two
+  implementations can agree on without sharing a constant.
+* **The in-range fraction's narrowest spelling is `.5`, two
+  characters.** The leading zero is optional, so a column whose
+  narrowest numeric-looking cell is two characters has a shape that can
+  carry that floor; at that width the body is the point and one figure,
+  which gives nine distinct spellings.
 * **A shape may only be asked for a width it can actually write.** Two
   of the six write at a width of their own whatever they are given —
   contradictory notation is the fixed construction of G10.3 and

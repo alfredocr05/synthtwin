@@ -309,10 +309,16 @@ _UNDERFLOW_PLACES = 327
 # present and never shows one absent, and the shape it does not build
 # is the shape it tells you nothing about.
 #
-# 324 zeros is the measured floor and it holds for a body of any
-# length: the largest body of every length from one to six digits
-# underflows behind 324 zeros, and behind 323 none of them does.
-_UNDERFLOW_ZEROS = 324
+# **AND THE REPAIR IS NOT A CONSTANT, which the first two attempts at
+# it both were.** 324 zeros is where the largest body of every length
+# underflows, so a constant of 324 is safe -- and it writes every
+# BETTER body a character wider than the description asks, because what
+# decides is the value and so the figures decide it too: behind 323
+# zeros the body `10` underflows and the body `9` does not, and a
+# six-figure body needs only 319. The rule at the spelling below is
+# therefore the question itself, asked of each candidate, which is also
+# the only form two implementations can agree on without sharing a
+# number.
 
 # The three bands a stratum of a column of numbers sits in, in the fixed
 # order of method G5.2, which is the sorted order of the column's own
@@ -11270,10 +11276,14 @@ def _carries_a_width(kind: int, width: int, negative: bool = False) -> bool:
 # on each side of it. `_wide_width` knew nothing about this and so
 # reported that the fraction kind could carry a width of one, which
 # made it the chosen carrier for a published floor it then missed by
-# two characters (review item P4-G3-R5-F3). The two out-of-range kinds
-# are governed by their own floors above and the two uncarryable kinds
-# never reach this table.
-_WIDE_NARROWEST = (1, 1, 1, 1, 3, 1)
+# two characters (review item P4-G3-R5-F3). The entry was then 3, for
+# `1.5`, and that was still one too many: the parser accepts a fraction
+# written with no leading zero, so `.5` is a holdable TWO-character
+# fraction, and a column whose narrowest cell is `.5` had no group able
+# to carry its published floor (item P4-G3-R6-F3). The two out-of-range
+# kinds are governed by their own floors above and the two uncarryable
+# kinds never reach this table.
+_WIDE_NARROWEST = (1, 1, 1, 1, 2, 1)
 
 
 def _wide_width(kind: int, asked: int, negative: bool = False) -> int:
@@ -11511,9 +11521,22 @@ def _wide_number(
             figures = _spelling_at(_DIGITS, max(room - 1, 0), index // 9)
             candidate = f"{lead}{(index % 9) + 1}{figures}"
         elif kind == 2:
+            # THE ZERO RUN GROWS UNTIL THE VALUE ACTUALLY UNDERFLOWS,
+            # rather than to a fixed floor (review item P4-G3-R6-F2). A
+            # single number cannot answer this: what decides is the
+            # value, so the FIGURES decide it too. Behind 323 zeros the
+            # body `10` underflows and the body `9` does not, and a
+            # six-figure body needs only 319 -- so a floor high enough
+            # for the worst body writes every better one wider than the
+            # description asks. The rule is the question itself, asked
+            # of each spelling, which is also the only form two
+            # implementations can agree on without sharing a constant.
             figures = f"{index + 1}"
-            zeros = max(room - 2 - len(figures), _UNDERFLOW_ZEROS)
+            zeros = max(room - 2 - len(figures), 1)
             candidate = f"{lead}0.{'0' * zeros}{figures}"
+            while float(candidate) != 0.0:
+                zeros = zeros + 1
+                candidate = f"{lead}0.{'0' * zeros}{figures}"
         elif kind == 3:
             # THE LEADING ZEROS ARE THE WIDTH, AND THE DIGITS ARE THE
             # DIFFERENCE (item P4-G3-F1). These two kinds are the cells
@@ -11535,8 +11558,20 @@ def _wide_number(
             body = f"{index + 1}"
             candidate = f"{lead}{'0' * max(room - len(body), 0)}{body}"
         elif kind == 4:
-            body = f"{index + 1}.5"
-            candidate = f"{lead}{'0' * max(room - len(body), 0)}{body}"
+            # `.5` IS A FRACTION THIS FORMAT HOLDS, and leaving it out
+            # cost a published width (review item P4-G3-R6-F3). The
+            # ordinary body is `1.5`, `2.5`, `3.5` behind a run of
+            # zeros, which needs three characters -- so a column whose
+            # narrowest numeric-looking cell is the two characters `.5`
+            # had no group able to carry that floor and missed it. The
+            # leading zero is optional to the parser, so at two
+            # characters the body is the point and one figure, which
+            # gives nine distinct spellings there.
+            if room == 2:
+                candidate = f"{lead}.{(index % 9) + 1}"
+            else:
+                body = f"{index + 1}.5"
+                candidate = f"{lead}{'0' * max(room - len(body), 0)}{body}"
         else:
             candidate = _text_spelling(index + 1, used, holes)
         if _unused(candidate, used):

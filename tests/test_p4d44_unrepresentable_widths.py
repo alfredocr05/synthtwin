@@ -334,3 +334,60 @@ def test_a_collision_inside_one_width_keeps_its_fold(
     longest = max(len(cell) for cell in cells)
     if longest != source["max_length"]:
         assert "max_length" in {note.fact for note in notes}
+
+
+def test_the_zero_run_is_no_wider_than_the_value_needs(
+    tmp_path: pathlib.Path,
+) -> None:
+    """A FIXED UNDERFLOW FLOOR WRITES GOOD BODIES TOO WIDE (P4-G3-R6-F2).
+
+    The zero run was a constant, 324, chosen as the point where the
+    largest body of every length underflows. But what decides is the
+    VALUE, so the figures decide it too: behind 323 zeros the body `10`
+    underflows and the body `9` does not, and a six-figure body needs
+    only 319. A floor high enough for the worst body therefore wrote
+    every better one a character wider than the description asked, and
+    this column -- ten fractions all exactly 327 characters -- came out
+    holding a 328.
+
+    The run now grows until the value underflows, asked of each
+    spelling. Both halves are asserted: the width is held AND nothing
+    became representable.
+    """
+    values: list[str] = []
+    for figure in range(1, 10):
+        values = values + ["0." + "0" * 324 + f"{figure}"] * 8
+    values = values + ["0." + "0" * 323 + "10"] * 8
+    source, cells, again, notes = _round_trip(tmp_path, "tenwide", values)
+    assert source["role"] == taxonomy.ROLE_UNREPRESENTABLE
+    assert source["min_length"] == source["max_length"] == 327
+    assert _holdable(cells) == []
+    assert sorted({len(cell) for cell in cells}) == [327], (
+        "the zero run is wider than the value needs: the twin holds "
+        f"{sorted({len(cell) for cell in cells})}"
+    )
+    assert not [note for note in notes if note.fact == "max_length"]
+
+
+def test_a_fraction_with_no_leading_zero_can_carry_the_floor(
+    tmp_path: pathlib.Path,
+) -> None:
+    """`.5` IS TWO CHARACTERS AND THIS FORMAT HOLDS IT (P4-G3-R6-F3).
+
+    The in-range fraction shape wrote `1.5`, `2.5`, `3.5` behind a run
+    of zeros, so the narrowest cell it could produce was three
+    characters -- and the table of narrowest spellings said so. A
+    column whose narrowest numeric-looking cell is the two characters
+    `.5` therefore had no group able to carry its published floor and
+    missed it. The parser accepts a fraction with no leading zero, so
+    at two characters the body is the point and one figure.
+    """
+    values = [".5"] * 100 + ["9" * 310] * 100
+    source, cells, again, notes = _round_trip(tmp_path, "pointfive", values)
+    assert source["role"] == taxonomy.ROLE_UNREPRESENTABLE
+    assert (source["min_length"], source["max_length"]) == (2, 310)
+    assert (again["min_length"], again["max_length"]) == (2, 310), (
+        "the two-character floor was not carried: the twin holds "
+        f"{sorted({len(cell) for cell in cells})}"
+    )
+    assert not [note for note in notes if note.fact == "min_length"]
