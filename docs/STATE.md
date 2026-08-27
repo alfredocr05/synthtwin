@@ -28,7 +28,7 @@ without the same help.
 | branch | `phase-4-plan` (never merged; `main` is pull-request only) |
 | phase | **Phase 4 — comprehensive column handling.** Current. |
 | plan | `docs/plans/phase-4-columns.md` |
-| suite | 3,960 collected / 48 skipped |
+| suite | 3,968 collected / 48 skipped |
 | lint | clean (`ruff check .`), under the rule set pinned in `pyproject.toml` |
 
 ## What is being built right now
@@ -83,6 +83,53 @@ are still ahead. The gap list itself is at the foot of this page.
   the same pass, and the reviewer's fair point that the case pins
   admission and routing rather than a generator branch of the role's
   own is now stated in G14.3 at that width.
+
+* **A JOINED COLUMN OF THREE OR MORE POSITIONS REPRODUCES ONLY THE
+  PAIRS ITS LAST POSITION IS IN (residual R-P4-51, opened
+  2026-08-27).** The pairing walk moves only the last position and
+  scores only the pairs whose later member is that position. At two
+  positions there is exactly one pair and it is that one, so nothing
+  showed. At three, the pairs among the earlier positions are neither
+  moved nor scored, and they come out at `+1` whatever was published.
+  Measured on a three-position column whose first two positions are
+  perfectly anti-correlated: published −1.0, twin **+1.0** — the exact
+  opposite — with the other two pairs also missed.
+
+  **A person is still told.** The twin's own report names none of them
+  (that is R-P4-44's split, not this), but `synthtwin validate` on that
+  twin returns all three `part_agreements` and `part_above[0]` MISSED.
+  So the shortfall reaches the command that exists to report it, and
+  the documents no longer claim the walk reproduces every published
+  pairing fact — method G6B states the bound and prints the table.
+
+  It is a residual and not a defect: moving more than one position is a
+  different search whose objective would have to arbitrate between
+  pairs that pull against each other, which is design work priced with
+  L7's joined-role items.
+
+* **A last-resort straggler could be spelled the way a hole is
+  spelled.** Where every candidate wears the affix pair, the affixed
+  role's straggler walk exhausts its ceiling and falls through to
+  cells of the package's own — and that branch kept two of the walk's
+  three refusals, missing the one that forbids a spelling the column
+  publishes as a HOLE. A present cell spelled that way is read as
+  absent by the twin's own description. Fixed, with the branch pinned
+  directly; reaching it from the profiler was not achieved while the
+  refusal was added, so it is recorded as a guard rather than as a
+  demonstrated repair.
+
+* **A SECOND PHASE 4 ROLE NOW HAS A FROZEN VECTOR: `time_of_day`.**
+  `clock_ladder` is written from method section G7A alone, in the
+  oracle that never imports synthtwin, and the shipped generator
+  reproduces its twelve cells exactly. It is a column with no slack —
+  ends eleven seconds apart, eleven parsed cells, every value published
+  different — so the all-different repair, which is EXACT for this
+  role, must place each interior rank on the one ordinal left for it.
+  Its mutant withdraws the step-up and the same column then writes two
+  times twice, in the oracle and in the shipped generator alike.
+
+  Two roles remain: `affixed_number` and `joined_numbers`. Both now
+  have a method section, so neither is blocked on anything but work.
 
 * **THE THREE REMAINING ROLES HAD NO METHOD SECTION AT ALL — found
   2026-08-27, and now written.** The oracle's whole value is that it
