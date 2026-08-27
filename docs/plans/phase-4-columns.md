@@ -828,6 +828,63 @@ the refusal stays reserved for descriptions no source could satisfy.
 The always-printed width deviation retires with the invention. THIS
 RAISES fidelity for these columns and closes residual R-P2-1.
 
+### P4-D4.10 The finer percentile ladder — DESIGNED, NOT BUILT
+
+The owner's second ask of 2026-08-26 was "every p value (1 to 100)".
+This decision records what was measured about it and what shape it has
+to take, so whoever builds it starts from the measurement rather than
+from the sentence.
+
+**IT IS THE FIX FOR R-P4-30, and that is the measurement worth having.**
+The dental-code column measured under R-P4-30 loses padded field widths
+because the twin draws too few values below 1000: the source holds 97
+there and the twin 78, while each column's own rungs come out as
+published, because
+1000 falls in the GAP between the `p25` and `p50` rungs and an
+eleven-rung ladder says nothing about how many cells lie inside a gap.
+Reconstructing that column from its rungs alone:
+
+* from ELEVEN rungs — 79 cells below 1000 against a true 97, an error
+  of −18, which is the defect R-P4-30 opened over;
+* from ONE HUNDRED AND ONE rungs — 97 cells, an error of ZERO.
+
+So the owner's ask and that residual are one piece of work, and the
+finer ladder is not a refinement of a working thing but the repair of a
+measured one.
+
+**IT MUST LAND AS ONE FACT AND NOT AS A HUNDRED AND ONE KEYS**, and
+this is the constraint that decides the shape. Every published rung is
+an obligation with its own subcheck, and every executable subcheck owes
+a REGISTERED RED CASE — a perturbation shown to make that subcheck, and
+not merely its neighbour, report MISSED. The entry table carries 99
+such cases for eleven rungs today. At a hundred and one rungs that is
+about nine hundred, each needing a perturbation that genuinely moves
+one named percentile: not mechanical work, and work that cannot be done
+honestly at that scale. Registering cases that do not fire is exactly
+what that guard exists to prevent.
+
+So the finer ladder is published as a SINGLE key — the ninety percents
+`percentiles` does not already name — disposed once. The fidelity comes
+from the GENERATOR INTERPOLATING IT, not from checking it: the eleven
+named rungs keep their own exact obligations and are met more closely
+because the line between them bends where the real column bends.
+
+**AND THIS IS WHY IT WILL WORK WHERE THE HISTOGRAM DID NOT** (P4-D4.7,
+R-P4-49). The histogram asked the twin to hold counts per bin, and
+counts come from the ALLOTMENT, which never saw it. A ladder asks the
+twin to place values, and placing values by interpolating a ladder is
+precisely what `_stratum_values` already does. The finer ladder needs
+no new mechanism at all — only a longer list in the one it uses.
+
+**WHAT IT COSTS, stated once.** A rung is an exact value of a real
+cell, floor-free by the contract's own disposition. Eleven rungs name
+up to eleven real values; a hundred and one name up to a hundred and
+one. On a 400-row column that is a quarter of the column named. The
+owner's ruling of 2026-08-24 (A-P4-36) says yes to disclosure of this
+kind and their reasoning holds, but this is a step change in degree
+rather than a repeat of that question, and it is the one thing to put
+in front of them before the key is written.
+
 ### P4-D4.9 The count of different numbers (closes R-P4-20)
 
 The numeric roles publish `n_distinct_values`: **how many different

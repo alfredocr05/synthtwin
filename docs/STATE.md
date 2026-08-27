@@ -47,6 +47,29 @@ are still ahead. The gap list itself is at the foot of this page.
   rounds; the preference was deleted once as inert on 190 homogeneous
   columns and restored when a reviewer produced a MIXED-family column
   where it decides the role a reader sees.
+* **THE FINER PERCENTILE LADDER IS DESIGNED AND NOT BUILT (plan
+  P4-D4.10), and the measurement behind it is the useful part.** The
+  owner asked for "every p value (1 to 100)". Reconstructing R-P4-30's
+  own dental-code column from its rungs alone: from eleven rungs, 79
+  cells below 1000 against a true 97 — which IS that residual's defect,
+  measured independently — and from a hundred and one rungs, 97, an
+  error of zero. The owner's ask and R-P4-30 are one piece of work.
+
+  **It must land as ONE key, not as 101.** Every published rung owes a
+  registered red case: a perturbation shown to make THAT subcheck
+  report MISSED. The entry table carries 99 of them for eleven rungs;
+  at 101 that is about nine hundred, which cannot be done honestly.
+  And it will work where the histogram did not, because a ladder asks
+  the twin to PLACE VALUES and interpolating a ladder is what
+  `_stratum_values` already does — no new mechanism, only a longer
+  list in the one it uses.
+
+  **One thing for the owner before the key is written:** a rung is an
+  exact value of a real cell. 101 rungs name up to 101 of them; on a
+  400-row column that is a quarter of the column named. Their 2026-08-24
+  ruling covers disclosure of this kind, but this is a step change in
+  degree rather than a repeat of that question.
+
 * **THE COUNT OF DIFFERENT NUMBERS IS PUBLISHED (plan P4-D4.9),
   closing residual R-P4-20.** `n_distinct` counts SPELLINGS on every
   role -- `1` and `01` are two of them and one number -- so nothing
