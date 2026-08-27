@@ -828,6 +828,60 @@ the refusal stays reserved for descriptions no source could satisfy.
 The always-printed width deviation retires with the invention. THIS
 RAISES fidelity for these columns and closes residual R-P2-1.
 
+### P4-D4.7 The value histogram (owner instruction 2026-08-26)
+
+The numeric roles publish `value_histogram`: **the count falling in
+each bin** of a fixed division of the range between the column's
+published `min` and `max`. The owner asked for it by name on
+2026-08-26, ahead of the extra percentile rungs, and the reason they
+gave is the reason it is built first.
+
+**A LADDER AND THE MOMENTS CANNOT SHOW TWO PEAKS.** A column of two
+populations -- treated and untreated, with nothing between them -- has
+the same mean, the same spread, the same skew and the same eleven rungs
+as one smooth population. Measured on a 300-row column of two peaks
+before this fact existed: the source leaves fifteen of the thirty-two
+bins empty and the twin filled every one of them, while meeting the
+ladder, the mean, the spread and the skew exactly and raising no
+deviation, because none of those facts can tell. Anybody plotting a
+distribution or fitting a mixture gets a different answer on the twin,
+and nothing in the report says so.
+
+**THE BIN EDGES ARE A RULE AND NOT A CHOICE.** The generator holds only
+the description, so whatever picks the edges has to be reproducible
+from the description alone: thirty-two equal bins between the published
+ends need no fact the description does not already carry. The count is
+fixed rather than fitted to the column for the same reason a canonical
+width was wrong -- two implementations must agree without consulting
+the values.
+
+**THE BIN COUNTS FALL UNDER THE FLOOR, and a partial histogram places
+nothing.** A bin below `small_cell_floor` has no key and its cells join
+the `(withheld)` remainder, exactly as a level or a field width does;
+that is what makes a histogram cheaper in disclosure than a longer
+ladder, since a rung is an exact value of a real cell and is
+floor-free while a bin says only how many cells lie between two edges
+the description already implies. Where a remainder exists the named
+bins describe only PART of the column, so the generator may not read
+them as the whole of it and falls back to the ladder for that column.
+
+**THE LADDER KEEPS ITS RUNGS AND THE HISTOGRAM SHAPES WHAT LIES BETWEEN
+THEM.** A rung is a published fact with a two-sided bound and a bin is
+thirty-two times coarser than the range, so a bin can never say where
+inside itself a rung falls; placing values by the histogram alone moved
+every interior rung and the validator refused the twin of its own
+description. So the segment ends come from the ladder exactly as they
+always did, and the histogram decides only the share of the way between
+them. Method G12.2's window is measured through that same rule, because
+that window's own definition is the construction's arithmetic rather
+than a second reading of it.
+
+**WHAT IT DOES NOT CLOSE.** A published median is an INTERPOLATED
+statistic and a bin counts real cells, so on a column whose median
+falls in an empty stretch the two facts pull against each other and the
+twin cannot hold both exactly. That tension is named where it happens
+rather than hidden.
+
 ### P4-D4.5 The fixed-fraction spelling fact (closes R-P3-12's route)
 
 The numeric styles machinery gains one fact, carried BESIDE the styles
@@ -1907,8 +1961,8 @@ Opened by this plan, each a limit accepted rather than work forgotten:
   honoured closely — source rungs `p25 = 852`, `p50 = 3898` against
   twin `920` and `4005` — but 1000 sits in the gap between two rungs,
   and an eleven-rung ladder does not say how many cells lie below a
-  point inside a gap. The source has 97 there and the twin has 78, and
-  both ladders are right.
+  point inside a gap. The source holds 97 below that point and the twin
+  holds 78, while each column's own rungs come out as published.
 
   **So R-P4-30 has a second route to closure that costs no new
   disclosure at all:** `pad_widths {4: 97}` ALREADY says that 97 cells
@@ -5596,7 +5650,9 @@ A missing name is invisible to every guard that reads only one side.
 places; the fourteenth role in the role vocabulary, the rule order, the
 axis table, the publication-class table and the forbidden-key matrix,
 which grew a `jnd` column and seven rows and now stands at sixty-four
-rows and one hundred and twenty-three marked cells; and a new section
+rows and one hundred and twenty-three marked cells (sixty-five and
+one hundred and twenty-six since P4-D4.7 added the histogram); and a
+new section
 6.15 stating the role's eight keys and its invariants J1 to J8.
 
 **AND THE GUARD THAT WOULD HAVE CAUGHT IT**, in

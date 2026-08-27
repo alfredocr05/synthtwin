@@ -2871,3 +2871,77 @@ def rank_agreement(first: "list[float]", second: "list[float]") -> float:
     if spread_left <= 0.0 or spread_right <= 0.0:
         return 0.0
     return float(top / ((spread_left * spread_right) ** 0.5))
+
+
+# HOW MANY BINS A HISTOGRAM OF NUMBERS HAS, and it is a fixed count on
+# purpose (plan P4-D4.7, owner instruction 2026-08-26). The generator
+# holds only the description, so whatever picks the bin edges has to be
+# reproducible from the description alone; a rule that consulted the
+# values would be a rule the generator cannot run. Thirty-two equal
+# bins between the published minimum and maximum need no fact the
+# description does not already carry, and a column with fewer values
+# than bins simply writes fewer keys, because an empty bin has no key.
+#
+# WHY A HISTOGRAM AND NOT MORE RUNGS. Moments and percentiles cannot
+# show two peaks: a column of two populations -- treated and untreated
+# -- has the same mean, spread, skew and ladder as one smooth
+# population at eleven rungs, so a twin built from those facts is
+# smooth where the real column is not, and anybody plotting a
+# distribution or fitting a mixture gets a different answer on the
+# twin. Nothing else in the numeric block fixes that.
+HISTOGRAM_BINS = 32
+
+
+def histogram_bin(value: float, lowest: float, highest: float) -> int:
+    """Which of the `HISTOGRAM_BINS` bins one value falls in.
+
+    The bins are equal in width and half-open at the top -- a value on
+    a shared edge belongs to the LOWER bin -- except the last, which is
+    closed so the published maximum has somewhere to go. A column whose
+    values are all one number has no width to divide and everything
+    falls in the first bin.
+
+    THE RULE LIVES HERE because three modules must agree on it: the
+    producer that counts the bins, the loader that checks the count,
+    and the generator that has to land its values in them. A rule
+    two of them shared and the third re-derived is a rule that comes
+    apart.
+
+    Guarantees: accepts a value and the two published ends; returns a
+    bin number from zero to `HISTOGRAM_BINS - 1`. Raises nothing. No
+    I/O of any kind.
+    """
+    # A NUMBER THIS FORMAT CANNOT HOLD HAS NO PLACE ON A SCALE. An
+    # infinite end makes every division by the range a NaN, and a NaN
+    # is not a bin number; a column reaching that state publishes no
+    # histogram at all, and this returns the first bin so the rule is
+    # TOTAL rather than raising into a caller with no answer.
+    #
+    # `x - x` IS THE TEST, and it is written that way because this
+    # module imports nothing -- not even `math` -- and is the one place
+    # the producer, the loader and the generator all read this rule
+    # from. It is zero for every finite number, and NaN for an infinity
+    # and for a NaN, and NaN is equal to nothing including itself.
+    if value - value != 0.0:
+        return 0
+    if lowest - lowest != 0.0 or highest - highest != 0.0:
+        return 0
+    if not highest > lowest:
+        return 0
+    # AND THE SUBTRACTION ITSELF CAN LEAVE THE FORMAT even where both
+    # ends are inside it: a column running from about -1e308 to about
+    # 1e308 has finite ends and an infinite WIDTH, and dividing one
+    # overflow by another gives a NaN. Every derived quantity is
+    # therefore tested the same way the inputs were.
+    reach = highest - lowest
+    if reach - reach != 0.0 or not reach > 0.0:
+        return 0
+    share = (value - lowest) / reach
+    if share - share != 0.0:
+        return 0
+    place = int(share * HISTOGRAM_BINS)
+    if place < 0:
+        return 0
+    if place >= HISTOGRAM_BINS:
+        return HISTOGRAM_BINS - 1
+    return place
