@@ -260,3 +260,31 @@ def test_no_width_miss_is_ever_silent(tmp_path: pathlib.Path) -> None:
         if longest != source["max_length"]:
             assert "max_length" in named, name
         assert _holdable(cells) == [], name
+
+
+def test_a_fold_partner_does_not_eat_the_ceiling(
+    tmp_path: pathlib.Path,
+) -> None:
+    """THE WIDTH-PINNED PARTNER CLAUSE (plan P4-D4.4, item P4-G3-R5-F4).
+
+    A fold-collision partner is a respelling of a value already
+    written, and while this role published no length at all its edge
+    spacing was held to no window. Once both ends are published, a
+    partner free of the window consumes the group the ceiling was
+    assigned to: this column's parent lands at 310 and its partner used
+    to land at 311, so no cell held the published 312.
+    """
+    base = "9" * 310
+    values = [base] * 100 + [base + "  "] * 100
+    source, cells, again, notes = _round_trip(tmp_path, "partner", values)
+    assert source["role"] == taxonomy.ROLE_UNREPRESENTABLE
+    assert (source["min_length"], source["max_length"]) == (310, 312)
+    assert source["n_distinct"] == 2
+    assert source["n_distinct_folded"] == 1, (
+        "the fixture no longer collides, so it pins nothing"
+    )
+    assert (again["min_length"], again["max_length"]) == (310, 312), (
+        "the partner is not being held to the width its group was asked "
+        f"for: the twin holds {sorted({len(cell) for cell in cells})}"
+    )
+    assert not [note for note in notes if note.fact == "max_length"]
