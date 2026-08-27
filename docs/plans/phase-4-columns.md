@@ -1907,8 +1907,8 @@ Opened by this plan, each a limit accepted rather than work forgotten:
   honoured closely — source rungs `p25 = 852`, `p50 = 3898` against
   twin `920` and `4005` — but 1000 sits in the gap between two rungs,
   and an eleven-rung ladder does not say how many cells lie below a
-  point inside a gap. The source has 97 there and the twin has 78, and
-  both ladders are right.
+  point inside a gap. The source holds 97 below that point and the twin
+  holds 78, while each column's own rungs come out as published.
 
   **So R-P4-30 has a second route to closure that costs no new
   disclosure at all:** `pad_widths {4: 97}` ALREADY says that 97 cells
