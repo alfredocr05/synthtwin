@@ -832,7 +832,8 @@
           "proof": "nearest"
         },
         "std_unrepresentable": false,
-        "structural_role": "data"
+        "structural_role": "data",
+        "value_histogram": {}
       },
       "content": [
         "1e-05",
@@ -1811,7 +1812,8 @@
           "proof": "nearest"
         },
         "std_unrepresentable": false,
-        "structural_role": "data"
+        "structural_role": "data",
+        "value_histogram": {}
       },
       "content": [
         "-8",

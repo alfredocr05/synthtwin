@@ -828,6 +828,101 @@ the refusal stays reserved for descriptions no source could satisfy.
 The always-printed width deviation retires with the invention. THIS
 RAISES fidelity for these columns and closes residual R-P2-1.
 
+### P4-D4.7 The value histogram (owner instruction 2026-08-26)
+
+The numeric roles publish `value_histogram`: **the count falling in
+each bin** of a fixed division of the range between the column's
+published `min` and `max`. The owner asked for it by name on
+2026-08-26, ahead of the extra percentile rungs, and the reason they
+gave is the reason it is built first.
+
+**A LADDER AND THE MOMENTS CANNOT SHOW TWO PEAKS.** A column of two
+populations -- treated and untreated, with nothing between them -- has
+the same mean, the same spread, the same skew and the same eleven rungs
+as one smooth population. Measured on a 300-row column of two peaks
+before this fact existed: the source leaves fifteen of the thirty-two
+bins empty and the twin filled every one of them, while meeting the
+ladder, the mean, the spread and the skew exactly and raising no
+deviation, because none of those facts can tell. Anybody plotting a
+distribution or fitting a mixture gets a different answer on the twin,
+and nothing in the report says so.
+
+**THE BIN EDGES ARE A RULE AND NOT A CHOICE.** The generator holds only
+the description, so whatever picks the edges has to be reproducible
+from the description alone: thirty-two equal bins between the published
+ends need no fact the description does not already carry. The count is
+fixed rather than fitted to the column for the same reason a canonical
+width was wrong -- two implementations must agree without consulting
+the values.
+
+**THE BIN COUNTS FALL UNDER THE FLOOR, and a partial histogram places
+nothing.** A bin below `small_cell_floor` has no key and its cells join
+the `(withheld)` remainder, exactly as a level or a field width does;
+that is what makes a histogram cheaper in disclosure than a longer
+ladder, since a rung is an exact value of a real cell and is
+floor-free while a bin says only how many cells lie between two edges
+the description already implies. Where a remainder exists the named
+bins describe only PART of the column, so the generator may not read
+them as the whole of it and falls back to the ladder for that column.
+
+**THE LADDER KEEPS ITS RUNGS AND THE HISTOGRAM SHAPES WHAT LIES BETWEEN
+THEM.** A rung is a published fact with a two-sided bound and a bin is
+thirty-two times coarser than the range, so a bin can never say where
+inside itself a rung falls; placing values by the histogram alone moved
+every interior rung and the validator refused the twin of its own
+description. So the segment ends come from the ladder exactly as they
+always did, and the histogram decides only the share of the way between
+them. Method G12.2's window is measured through that same rule, because
+that window's own definition is the construction's arithmetic rather
+than a second reading of it.
+
+**THIS DECISION LANDS THE FACT AND NOT YET THE FIDELITY, deliberately,
+and the reason is a measurement.** The census is published, carried,
+disposed and listed; the TWIN is not changed by it at all. Consuming it
+is **residual R-P4-49** and its own landing.
+
+The first attempt did consume it, by bending the value walk inside each
+ladder segment toward the published shape. It worked -- on the 300-row
+column of two peaks the empty stretch fell from about a hundred twin
+values to sixteen -- and it fought every other fact in the block. Each
+of these was measured, not feared:
+
+* placing by histogram alone moved every interior rung, and the
+  validator refused the twin of its own description;
+* method G12.2's window is derived from plain interpolation, so a
+  BETTER twin came out of bounds -- spread 30.21 against a published
+  30.73, refused by a window ending at 28.05 -- until the window was
+  measured through the same rule;
+* bending values moves them off whole numbers, and `numeric_styles`
+  counts cells written without a point: a column publishing `plain: 20,
+  decimal: 31` came out `decimal: 51`;
+* and it still did not MEET the census, because a bin count is a
+  statement about how many cells hold each value, and cells are
+  allotted by G5.2's even share over the distinctness budget. Measured
+  on a 229-value count column: the source's bins hold 15 to 28 cells
+  apiece and the twin's hold 22 or 23.
+
+That last one is the whole of it. Bending values inside a fixed
+allotment is drawing from the ladder and hoping; **the census is met by
+the ALLOTMENT following it** -- one stratum per published bin, sized by
+that bin's count -- which places the values in their bins by
+construction and subsumes the bending. That is a change to the core of
+the numeric method and it is not a rider on the fact that names it.
+
+**IT IS ALL OR NOTHING, unlike its sibling censuses.** A field-width
+census with a pooled remainder still says something a twin can hold: a
+cell can be written at a named width whatever the pooled ones do. A
+histogram is read by RANK, and a pooled remainder does not say which
+bins its values are in, so the ranks the named bins cover are unknown
+and no map can be built. A column that cannot publish every bin
+publishes none. At the default floor of one nothing pools.
+
+**WHAT IT DOES NOT CLOSE.** A published median is an INTERPOLATED
+statistic and a bin counts real cells, so on a column whose median
+falls in an empty stretch the two facts pull against each other and the
+twin cannot hold both exactly. That tension is named where it happens
+rather than hidden.
+
 ### P4-D4.5 The fixed-fraction spelling fact (closes R-P3-12's route)
 
 The numeric styles machinery gains one fact, carried BESIDE the styles
@@ -1771,6 +1866,32 @@ Opened by this plan, each a limit accepted rather than work forgotten:
   detection line -- which the settings and `n_rows` give -- with the
   present walk as the fallback. That is a change inside the free-text
   packing and is its own landing.
+
+- **R-P4-49** (opened with P4-D4.7, 2026-08-27). THE TWIN FOLLOWS THE
+  VALUE HISTOGRAM AND IS NOT HELD TO IT. Cells are allotted to values
+  by G5.2's even share over the distinctness budget, which never sees
+  the histogram: measured on a 229-value count column, the source's
+  bins hold 15 to 28 cells apiece and the twin's hold 22 or 23. The
+  shape is much closer than it was -- on a 300-row column of two
+  populations the empty stretch fell from about a hundred twin values
+  to sixteen -- but the counts are not met, so the census is
+  REPORT-ONLY.
+
+  Closing it means the allotment rule reading this census: one stratum
+  per published bin, sized by that bin's count. That is a change to the
+  core of the numeric method, interacting with the sign bands, the zero
+  stratum and the distinctness budgets, and it is its own landing. It
+  would also subsume the value-placement half, since a stratum sized by
+  its bin sits in that bin by construction.
+
+  **A HALF-MEASURE WAS BUILT AND WITHDRAWN, and the withdrawal is the
+  useful part of this entry.** Bending the value walk inside each
+  ladder segment toward the shape improved it a great deal -- the
+  bimodal column's empty stretch fell from about a hundred twin values
+  to sixteen -- and it broke the rungs, then the G12.2 window, then the
+  style map, and still missed the bin counts, because none of that
+  touches the allotment. Whoever takes R-P4-49 should start at the
+  allotment and not at the values.
 
 - **R-P4-47** (opened by adversarial round 7 of the width work,
   2026-08-27). ON A COLUMN OF ONE PUBLISHED WIDTH THAT ALSO FOLDS, THE
@@ -5596,7 +5717,9 @@ A missing name is invisible to every guard that reads only one side.
 places; the fourteenth role in the role vocabulary, the rule order, the
 axis table, the publication-class table and the forbidden-key matrix,
 which grew a `jnd` column and seven rows and now stands at sixty-four
-rows and one hundred and twenty-three marked cells; and a new section
+rows and one hundred and twenty-three marked cells (sixty-five and
+one hundred and twenty-six since P4-D4.7 added the histogram); and a
+new section
 6.15 stating the role's eight keys and its invariants J1 to J8.
 
 **AND THE GUARD THAT WOULD HAVE CAUGHT IT**, in

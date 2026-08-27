@@ -28,7 +28,7 @@ without the same help.
 | branch | `phase-4-plan` (never merged; `main` is pull-request only) |
 | phase | **Phase 4 — comprehensive column handling.** Current. |
 | plan | `docs/plans/phase-4-columns.md` |
-| suite | 3,942 collected / 48 skipped |
+| suite | 3,943 collected / 48 skipped |
 | lint | clean (`ruff check .`), under the rule set pinned in `pyproject.toml` |
 
 ## What is being built right now
@@ -47,6 +47,31 @@ are still ahead. The gap list itself is at the foot of this page.
   rounds; the preference was deleted once as inert on 190 homogeneous
   columns and restored when a reviewer produced a MIXED-family column
   where it decides the role a reader sees.
+* **THE VALUE HISTOGRAM IS PUBLISHED (plan P4-D4.7), and the twin does
+  not yet hold it.** The owner asked for it first, ahead of the extra
+  percentile rungs, because moments and percentiles cannot show two
+  peaks: measured on a 300-row column of two populations, the source
+  leaves fifteen of the thirty-two bins empty and the twin fills every
+  one of them while meeting the ladder, the mean, the spread and the
+  skew exactly and raising no deviation, because none of those facts
+  can tell.
+
+  What landed is the FACT: produced, published, carried through the
+  loader under invariant Q15, in the contract's key tables and
+  forbidden-key matrix, disposed REPORT-ONLY, listed by the validator,
+  and said in words when a column cannot publish it. The twin's cells
+  are byte-identical and the report gained exactly two lines, both of
+  them the new note.
+
+  **Consuming it is R-P4-49 and starts at the ALLOTMENT, not the
+  values.** A version that bent the value walk toward the shape was
+  built and withdrawn: it helped a great deal (the bimodal column's
+  empty stretch fell from about a hundred twin values to sixteen) and
+  it broke the rungs, then method G12.2's window, then the style map,
+  and still missed the bin counts -- because a bin count says how many
+  cells hold each value, and cells are allotted by G5.2's even share.
+  The withdrawal is written up in the plan under R-P4-49.
+
 * **Gap 3 is DONE, through six adversarial rounds.** Round 5 found six
   things and round 6 found four more, all reproduced and repaired here.
 

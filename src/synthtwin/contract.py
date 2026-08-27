@@ -433,6 +433,7 @@ DATETIME_KEYS = (
 NUMERIC_KEYS = (
     "fraction_widths",
     "pad_widths",
+    "value_histogram",
     "integer_valued",
     "mean",
     "n_left_out_of_statistics",
@@ -981,6 +982,12 @@ INVARIANTS = {
     "Q11": (
         "the zeroes are not more than the values that read as numbers"
     ),
+    "Q15": (
+        "the shape of a column's numbers accounts for every value the "
+        "statistics used and for no more, names each of its stretches "
+        "by number, holds back none of them where the smallest group "
+        "size is one, and holds back all of them otherwise"
+    ),
     "I2": (
         "the repetition pattern accounts for every different value and "
         "every row that holds one"
@@ -1450,6 +1457,12 @@ class NumericFacts:
     numeric_styles: "dict[str, int]"
     fraction_widths: "dict[str, int]"
     pad_widths: "dict[str, int]"
+    # HOW MANY OF THIS COLUMN'S NUMBERS FALL IN EACH OF THE THIRTY-TWO
+    # EQUAL BINS between its published ends (plan P4-D4.7). A ladder and
+    # the moments cannot show two peaks; this can, and it is the one
+    # fact in this block a person plotting a distribution or fitting a
+    # mixture is actually reading.
+    value_histogram: "dict[str, int]"
 
 
 @dataclasses.dataclass(frozen=True)
@@ -5183,6 +5196,7 @@ def _numeric_facts(
     widths = _fraction_widths(mapping, where, frame.floor, styles)
     padded = _padded_widths(mapping, where, frame.floor, styles)
     _pool_holds_both(where, frame.floor, styles, widths, padded)
+    histogram = _value_histogram(mapping, where, frame.floor, used, ladder)
     return NumericFacts(
         percentiles=ladder,
         mean=mean,
@@ -5200,6 +5214,7 @@ def _numeric_facts(
         numeric_styles=styles,
         fraction_widths=widths,
         pad_widths=padded,
+        value_histogram=histogram,
     )
 
 
@@ -5320,6 +5335,118 @@ def _fraction_widths(
         "P5",
         "a fraction may be written to no figures at all",
     )
+
+
+def _value_histogram(
+    mapping: "dict[str, object]",
+    where: str,
+    floor: int,
+    used: int,
+    ladder: NumberLadder,
+) -> "dict[str, int]":
+    """How many of a column's numbers fall in each published bin.
+
+    INVARIANT Q15: the bins account for EVERY value the statistics
+    used, and for no more. A histogram that counted fewer would let a
+    twin place the missing ones anywhere it liked while the description
+    looked complete; one that counted more would describe a column
+    nobody has. The `(withheld)` remainder is part of the sum, because
+    a bin below the floor is a bin whose values were counted and whose
+    edges were not named.
+
+    THE KEYS ARE BIN NUMBERS, canonically written and inside the fixed
+    range the method sets. A key outside it is a description this
+    version cannot place, and the loader is normative, so it refuses
+    rather than guessing which bin was meant.
+
+    Raises ProfileError for a wrong type, a key that is not a canonical
+    bin number, a bin at or below zero, a named bin below the floor,
+    and for a sum that is not the count of values used.
+    """
+    # READ THE SAME WAY ITS SIBLING CENSUSES ARE, through `_counts`,
+    # which is where the type of the block and the type of every entry
+    # are settled. Reaching for `mapping.get` instead put a method call
+    # on a value the offline audit cannot trace, and the audit is right
+    # to refuse it: a caller-supplied object may define `get` to do
+    # anything at all.
+    counts = _counts(mapping["value_histogram"], "value_histogram", where, 1)
+    total = 0
+    for key in sorted(counts):
+        entry = counts[key]
+        if key != WITHHELD:
+            if not _is_bin_key(key):
+                raise _broken(
+                    "Q15",
+                    where,
+                    "a key of the histogram is not a bin number",
+                    "a bin number written plainly, from 0 upwards",
+                )
+            if entry < floor:
+                raise _broken(
+                    "Q15",
+                    where,
+                    f"a bin of the histogram counts {entry} cell(s)",
+                    f"the publication floor of {floor}",
+                )
+        total = total + entry
+    if counts and total != used:
+        raise _broken(
+            "Q15",
+            where,
+            f"the bins of the histogram count {total} value(s)",
+            f"the {used} value(s) the statistics used",
+        )
+    # AND AT A FLOOR OF ONE AN EMPTY HISTOGRAM IS IMPOSSIBLE. Every bin
+    # that holds anything holds at least one value, so no bin can fall
+    # below a floor of one and the census is always publishable. An
+    # empty object there is a description built at a HIGHER floor and
+    # handed over as though it were this one -- a position the floor
+    # moves that nothing else in the document records, which is the gap
+    # `tests/test_p3v5f1_floor_one.py` exists to close.
+    #
+    # The one honest empty at a floor of one is a column whose ends
+    # this format cannot hold, or whose ends are finite and whose WIDTH
+    # is not: the bins then have no width to divide and the producer
+    # publishes none.
+    if not counts and used > 0 and floor <= 1 and _has_width(ladder):
+        raise _broken(
+            "Q15",
+            where,
+            "the histogram is empty",
+            (
+                "a bin for every value, since at a smallest group size "
+                "of one no bin can be held back"
+            ),
+        )
+    return counts
+
+
+def _has_width(ladder: NumberLadder) -> bool:
+    """Whether a ladder's two ends leave a width the bins can divide."""
+    lowest = ladder.minimum
+    highest = ladder.maximum
+    if lowest is None or highest is None:
+        return False
+    if lowest - lowest != 0.0 or highest - highest != 0.0:
+        return False
+    reach = highest - lowest
+    if reach - reach != 0.0:
+        return False
+    return reach > 0.0
+
+
+def _is_bin_key(key: object) -> bool:
+    """Whether ``key`` names a bin this version of the method has."""
+    if not isinstance(key, str):
+        return False
+    if not key:
+        return False
+    for character in key:
+        if character not in "0123456789":
+            return False
+    if key != "0" and key[:1] == "0":
+        return False
+    return 0 <= int(key) < parsing.HISTOGRAM_BINS
 
 
 def _padded_widths(

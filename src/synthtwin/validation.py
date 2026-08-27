@@ -377,6 +377,15 @@ _NOT_CHECKABLE_RESOLUTION_MIX = (
     "to write them the same way: a file that writes them all one way "
     "misses no obligation this description makes"
 )
+_NOT_CHECKABLE_HISTOGRAM = (
+    "the description records the SHAPE of the real column's numbers -- "
+    "how many of them fall between each pair of edges -- and the twin "
+    "follows that shape without being held to it: meeting a bin's "
+    "count exactly would mean the cells being allotted to values by "
+    "the histogram, and they are allotted by the even share the "
+    "distinctness facts fix. A file whose numbers fall in different "
+    "bins misses no obligation this description makes"
+)
 _NOT_CHECKABLE_HEADERLESS_ORDER = (
     "the description says the column names were generated, so the file "
     "carries no header line and nothing in it can evidence the order "
@@ -10223,6 +10232,19 @@ def _listings(
                 ),
             ]
             listings = listings + _endpoint_listings(column, facts, corners)
+        if isinstance(facts, contract.NumericFacts) and facts.value_histogram:
+            # REPORT-ONLY, and LISTED rather than silent (P4-D4.7). A
+            # published fact that appears in no check and no listing is
+            # one a reader cannot tell was never measured, which is the
+            # defect review item P3-V1-F3 opened.
+            listings = listings + [
+                Listing(
+                    column.name,
+                    "numeric.value_histogram",
+                    "",
+                    _NOT_CHECKABLE_HISTOGRAM,
+                )
+            ]
         if isinstance(facts, contract.NumericFacts) and not _ladder_points(
             facts.percentiles.rungs
         ):
