@@ -4336,6 +4336,7 @@ WHOLE_FACT_LISTINGS: "dict[str, tuple[str, ...]]" = {
         # REPORT-ONLY (plan P4-D4.7): the twin FOLLOWS the published
         # shape but is not held to it, so the fact is listed whole
         # rather than checked bin by bin.
+        "numeric.n_distinct_values",
         "numeric.value_histogram",
         "universal.detection_evidence",
         "universal.missing_by_class",
@@ -5480,3 +5481,5 @@ def test_the_vacuity_floor_counts_classes_per_disposition(
             f"{disposition} fact, which is a listing or input-side entry "
             f"dressed as a check"
         )
+
+

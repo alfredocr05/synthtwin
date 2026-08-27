@@ -28,7 +28,7 @@ without the same help.
 | branch | `phase-4-plan` (never merged; `main` is pull-request only) |
 | phase | **Phase 4 — comprehensive column handling.** Current. |
 | plan | `docs/plans/phase-4-columns.md` |
-| suite | 3,944 collected / 48 skipped |
+| suite | 3,951 collected / 48 skipped |
 | lint | clean (`ruff check .`), under the rule set pinned in `pyproject.toml` |
 
 ## What is being built right now
@@ -47,6 +47,22 @@ are still ahead. The gap list itself is at the foot of this page.
   rounds; the preference was deleted once as inert on 190 homogeneous
   columns and restored when a reviewer produced a MIXED-family column
   where it decides the role a reader sees.
+* **THE COUNT OF DIFFERENT NUMBERS IS PUBLISHED (plan P4-D4.9),
+  closing residual R-P4-20.** `n_distinct` counts SPELLINGS on every
+  role -- `1` and `01` are two of them and one number -- so nothing
+  bound the number count at all, and a twin could meet every
+  distinctness fact it was given while holding fewer numbers than the
+  real column. Measured: a 200-row column of tightly clustered values
+  held all 166 published spellings and 163 numbers with NO deviation
+  anywhere; the demonstration report now names the same gap on its own
+  `reading` column, 178 published against 165 held.
+
+  It is REPORT-ONLY, and that is R-P4-20's own framing: what was
+  missing is a PUBLISHED count. The twin is not held to it -- the
+  kept-sentinel fixture publishes 49 and holds 44 -- and the generator
+  NAMES the shortfall, which is precisely what nobody was told before.
+  Narrowing the shortfall is the snap's business (P4-D4.5).
+
 * **THE KURTOSIS IS PUBLISHED AND CHECKED (plan P4-D4.8).** The owner's
   second ask of 2026-08-26, and it cost what they said it would: one
   number. It rides the exact integer totals Phase 1 already computes --

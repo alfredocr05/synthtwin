@@ -648,6 +648,10 @@ _LISTING_WORDS = {
         "which written form each of your dates wore, and how many wore "
         "each"
     ),
+    "numeric.n_distinct_values": (
+        "how many different numbers your column holds, as distinct from "
+        "how many different ways of writing them"
+    ),
     "numeric.value_histogram": (
         "the shape of your numbers -- how many of them fall between "
         "each pair of edges"

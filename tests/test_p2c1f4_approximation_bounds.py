@@ -364,6 +364,12 @@ PHASE_4_HISTOGRAM_KEYS = ("value_histogram",)
 # G12.3a states, and the Phase 4 plan disposes it (P4-D4.8).
 PHASE_4_MOMENT_KEYS = ("kurtosis",)
 
+# ...and the count of different NUMBERS, the owner's fourth ask and the
+# close of residual R-P4-20. EXACT-OBSERVABLE with a named deviation,
+# exactly as `n_distinct` beside it is; disposed in the Phase 4 plan
+# (P4-D4.9).
+PHASE_4_VALUE_COUNT_KEYS = ("n_distinct_values",)
+
 # ...and the census of written forms, which version 4's matrix has no
 # row for because version 4 had no such key. It is disposed in the
 # Phase 4 plan (P4-D18) and registered in `tests/dispositions.py`.
@@ -1124,6 +1130,8 @@ def test_every_key_the_producer_emits_has_a_disposition(
                 table[own] = "EXACT-OBSERVABLE (Phase 4 plan, P4-D4.7)"
             for own in PHASE_4_MOMENT_KEYS:
                 table[own] = "APPROXIMATED (Phase 4 plan, P4-D4.8)"
+            for own in PHASE_4_VALUE_COUNT_KEYS:
+                table[own] = "REPORT-ONLY (Phase 4 plan, P4-D4.9)"
             for own in PHASE_4_SHAPE_KEYS:
                 table[own] = "EXACT-OBSERVABLE (Phase 4 plan, P4-D18)"
             for own, said in PHASE_4_DATETIME_KEYS:
@@ -1162,6 +1170,8 @@ def test_the_completeness_assertion_refuses_a_key_nobody_disposed(
             table[own] = "EXACT-OBSERVABLE (Phase 4 plan, P4-D4.7)"
         for own in PHASE_4_MOMENT_KEYS:
             table[own] = "APPROXIMATED (Phase 4 plan, P4-D4.8)"
+        for own in PHASE_4_VALUE_COUNT_KEYS:
+            table[own] = "REPORT-ONLY (Phase 4 plan, P4-D4.9)"
         names = _emitted_names(block) + ["a_field_nobody_disposed"]
         assert _undisposed(names, table, universal) == [
             "a_field_nobody_disposed"

@@ -12245,6 +12245,7 @@ def generate(profile: contract.Profile, seed: int) -> Twin:
             list(each.notes)
             + notes
             + _recount_notes(column, counted)
+            + _value_count_notes(column, written)
             + _form_notes(column, written)
             + _class_notes(column, written)
             + _alphabet_notes(column, written)
@@ -12343,6 +12344,85 @@ def _folded_excess_reason(column: contract.ColumnBlock) -> str:
         "how often a value repeats is not a fact this column's rule "
         "holds on to."
     )
+
+
+def _value_count_notes(
+    column: contract.ColumnBlock, written: "list[str]"
+) -> "list[Deviation]":
+    """Name a shortfall in how many different NUMBERS the twin holds.
+
+    THE COUNT NOTHING BOUND UNTIL NOW (residual R-P4-20, closed by plan
+    P4-D4.9). `n_distinct` counts SPELLINGS, and the contract defines
+    it that way on every role, so `1` and `01` are two of them and one
+    number. A twin could therefore meet every published distinctness
+    count with the leading-zero family while holding fewer NUMBERS than
+    the real column, and nothing said so: measured on a 200-row column
+    of tightly clustered values, the twin held all 166 published
+    spellings and 163 numbers, with no deviation raised anywhere. A
+    reader grouping rows by value met three groups that were not there.
+
+    COUNTED WITH `parsing.exact_of_spelling`, which is the rule the
+    producer counts by too -- it reads it under its own name and adds
+    nothing. The two sides have to agree about which cells are the same
+    value, and a second way of asking is how they come to disagree.
+    This module cannot reach the producer at all (the profiler is not
+    in the generator's import graph), which is exactly why the rule
+    lives in `parsing`, where both can read it.
+
+    Guarantees: accepts a column block and its written cells; returns a
+    list of deviations, empty where the twin holds the published count.
+    Raises nothing. No I/O of any kind.
+    """
+    facts = _quantitative_facts(column)
+    if facts is None:
+        return []
+    published = facts.n_distinct_values
+    if published < 1:
+        return []
+    prefix = ""
+    suffix = ""
+    if isinstance(column.facts, contract.AffixedFacts):
+        prefix = column.facts.affix_prefix
+        suffix = column.facts.affix_suffix
+    seen: "dict[tuple[int, tuple[str, ...], int], int]" = {}
+    for cell in _present_of(written, _hole_spellings(column)):
+        # THE TRIMMED TEXT STAYS TRACED, and the body is derived from
+        # it by slicing rather than by reassignment: the offline audit
+        # refuses a method call on a value it cannot follow back to an
+        # allowlisted rule, and it is right to. This is the shape
+        # `_pad_notes` uses for the same reason.
+        trimmed = parsing.trimmed(cell)
+        body = trimmed
+        if prefix or suffix:
+            if not trimmed.startswith(prefix):
+                continue
+            if not trimmed.endswith(suffix):
+                continue
+            body = trimmed[len(prefix) : len(trimmed) - len(suffix)]
+            if not body:
+                continue
+        found = parsing.exact_of_spelling(body)
+        if found is None:
+            continue
+        seen[found] = 1
+    counted = len(seen)
+    if counted == published:
+        return []
+    return [
+        _deviation(
+            column.name,
+            "n_distinct_values",
+            f"{published} different number(s)",
+            f"{counted}",
+            "The description says how many DIFFERENT NUMBERS this "
+            "column holds, which is not the same as how many different "
+            "ways of writing them: `1` and `01` are two spellings of "
+            "one number. The twin holds a different count of numbers, "
+            "so code that groups rows by this column's value, joins on "
+            "it, or counts its categories meets a different number of "
+            "groups than it would on your table.",
+        )
+    ]
 
 
 def _recount_notes(
@@ -14017,6 +14097,29 @@ def _tails_window(
     ceiling = held - 2 + 1 / (held - 1)
     floor_mean = _mean_of(lows)
     ceiling_mean = _mean_of(highs)
+    spread = _moments_of(middles)
+    root = 0.0
+    if spread[1] is not None and held >= 2:
+        root = spread[1] * math.sqrt((held - 1) / held)
+    low_root = max(0.0, root - reach)
+    high_root = root + reach
+    if low_root <= 0.0 or not math.isfinite(high_root):
+        return (1.0, ceiling)
+    # EACH DEVIATION IS DIVIDED BY THE SPREAD BEFORE IT IS RAISED, and
+    # that ordering is the whole of this repair (review item
+    # P4-K-R1-F1). Raising first and dividing after is the same number
+    # in exact arithmetic and NOT the same computation in binary64: a
+    # perfectly ordinary column of a hundred values around 1e79 has
+    # deviations whose fourth power is not a number this format holds,
+    # and the validator raised `OverflowError` instead of writing a
+    # report at all. The ratio is bounded by the row count -- that part
+    # of the argument was right -- but the way to it was not.
+    #
+    # THE SPREAD ENTERS TO THE FOURTH POWER and not the second. The
+    # skewness divides an average CUBED deviation by the spread cubed;
+    # the kurtosis divides an average FOURTH deviation by the spread to
+    # the fourth. Squaring instead put a gaussian column's window at
+    # 107 to 298 around a published 3.
     low_fourths: "list[float]" = []
     high_fourths: "list[float]" = []
     for rank in range(held):
@@ -14030,33 +14133,27 @@ def _tails_window(
         if above < 0.0:
             nearest = -above
         furthest = max(-below, above, 0.0)
-        low_fourths = low_fourths + [
-            nearest * nearest * nearest * nearest / held
-        ]
-        high_fourths = high_fourths + [
-            furthest * furthest * furthest * furthest / held
-        ]
-    lowest_tails = _summed(low_fourths)
-    highest_tails = _summed(high_fourths)
-    spread = _moments_of(middles)
-    root = 0.0
-    if spread[1] is not None and held >= 2:
-        root = spread[1] * math.sqrt((held - 1) / held)
-    low_root = max(0.0, root - reach)
-    high_root = root + reach
-    # THE SPREAD ENTERS TO THE FOURTH POWER and not the second. The
-    # skewness divides an average CUBED deviation by the spread cubed;
-    # the kurtosis divides an average FOURTH deviation by the spread to
-    # the fourth, because that is what makes the ratio free of the
-    # column's units. Squaring instead put a gaussian column's window
-    # at 107 to 298 around a published 3.
-    low_fourth = low_root * low_root * low_root * low_root
-    high_fourth = high_root * high_root * high_root * high_root
-    if low_fourth <= 0 or not math.isfinite(high_fourth):
+        near = nearest / high_root
+        far = furthest / low_root
+        low_fourths = low_fourths + [near * near * near * near / held]
+        high_fourths = high_fourths + [far * far * far * far / held]
+    lowest = _summed(low_fourths)
+    highest = _summed(high_fourths)
+    if not math.isfinite(lowest) or not math.isfinite(highest):
         return (1.0, ceiling)
-    lowest = lowest_tails / high_fourth
-    highest = highest_tails / low_fourth
-    return (max(1.0, lowest), min(ceiling, highest))
+    # AND THE TWO ENDS ARE ORDERED BEFORE THEY ARE RETURNED. On the
+    # four-value extreme the two clamps can cross by one unit in the
+    # last place, and a window whose low end is above its high end
+    # excludes the very statistic it was drawn for (item P4-K-R1-F5).
+    lowest = max(1.0, lowest)
+    highest = min(ceiling, highest)
+    # AND THE TWO ENDS ARE ORDERED BEFORE THEY ARE RETURNED. On the
+    # four-value extreme the two clamps can cross by one unit in the
+    # last place, and a window whose low end is above its high end
+    # excludes the very statistic it was drawn for.
+    if lowest > highest:
+        return (highest, lowest)
+    return (lowest, highest)
 
 
 def _written_ordinal(

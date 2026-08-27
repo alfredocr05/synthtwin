@@ -270,7 +270,7 @@ def test_the_golden_run_is_the_shape_this_file_says_it_is(
 # amendment A-P4-37 lowered it to one), so the description this file
 # pins describes the same table under the same rules it always did.
 GOLDEN_DESCRIPTION_SHA256 = (
-    "927f6ea4d84cf645c4bd4efbc9f8eebf3c2fd48202a396dc18c2d7c11ea1ecd9"
+    "b4947b19641156681f5a73536c2028d23a0dce35efbd32c2f4200fcbc2a7efb4"
 )
 
 
@@ -595,7 +595,7 @@ def test_the_same_description_and_seed_give_the_same_twin_twice(
 # which is what says this is the page and not the run: stage 2 changes
 # no wire, no generation rule and no twin byte.
 GOLDEN_REPORT_SHA256 = (
-    "8a02be25572af91b8e0e8229aaffdcfb80901a8182f27612e2b43eacd12020a6"
+    "45d73b40dc87708a671491e7a17259e41ba24d9cadab13c758a4c8db4daf0206"
 )
 
 
@@ -971,7 +971,7 @@ def test_the_report_names_the_seed_the_twin_was_built_at(
 # stands and `AAAAAA` does not. Fewer obligations here is the point of
 # that rule and not a census that quietly shrank.
 GOLDEN_QUALITY_SHA256 = (
-    "a5c467417a1d1b82299ae29edf79b3a4ea7927207fea816c5f8de1a23b16a75c"
+    "49055cba8b773a43f2e57cbf883d900f210fb3f0f51fb81ece87114025be0f57"
 )
 
 

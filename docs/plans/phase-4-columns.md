@@ -828,6 +828,68 @@ the refusal stays reserved for descriptions no source could satisfy.
 The always-printed width deviation retires with the invention. THIS
 RAISES fidelity for these columns and closes residual R-P2-1.
 
+### P4-D4.9 The count of different numbers (closes R-P4-20)
+
+The numeric roles publish `n_distinct_values`: **how many different
+NUMBERS the column holds**, as distinct from how many different
+spellings. The owner asked for it as the fourth item of 2026-08-26 and
+residual R-P4-20 had it open since round 3 of the Phase 4 review; they
+are the same fact.
+
+**`n_distinct` COUNTS SPELLINGS, and the contract defines it that way
+on every role.** So `1` and `01` are two of them and one number, and
+nothing published bound the number count at all. A twin could
+therefore meet every distinctness count it was given while holding
+fewer numbers than the real column — R-P4-20's own words were that "a
+reader grouping rows by value can find three groups where the real
+table had thirty-one, with every check green".
+
+**MEASURED, because the residual said it and a residual is not a
+measurement.** On a 200-row column of tightly clustered values the twin
+held all 166 published spellings and 163 numbers, and raised NO
+deviation of any kind. The same gap is now visible in the frozen
+reference vectors, which is where it should have been all along:
+`numeric_decimal_styles` holds 24 spellings and 20 numbers,
+`numeric_integer` 12 and 8, and `numeric_point_free_styles` three
+spellings of ONE number.
+
+**COUNTED BY `parsing.exact_of_spelling`**, which was made public for
+exactly this reason and is what the producer already decides value
+identity with. It is the EXACT number and not the rounded one, so two
+spellings that round to one binary64 value but denote different numbers
+count as two. The generator recounts the twin's own cells with the same
+rule and names the shortfall; the independent oracle implements the
+contract's canonical triple from its own statement, and the two were
+compared on 222 spellings — including the `01E+16` and `1e+16` pair the
+whole fact turns on — with no disagreement.
+
+**THE DISPOSITION IS REPORT-ONLY, and residual R-P4-20's own words are
+why.** What it said was missing is a PUBLISHED count of different
+numbers — "closing it means publishing a count of different values that
+no spelling can buy". That is what this decision does. It does not make
+the twin hold more numbers than before, and it does not hold the twin
+to a count its own value-merging can make unreachable: measured on the
+kept-sentinel column of `tests/test_p3v4f1_kept_values.py`, the
+description publishes 49 different numbers and the twin holds 44.
+
+**WHAT IS NOT SILENT IS THE POINT.** The generator recounts the twin's
+own cells with the same rule the producer counts by and NAMES the
+shortfall in the report, so a reader is told the twin holds fewer
+groups than the real column — which is precisely what nobody was told
+before. The validator lists the fact rather than checking it, with the
+sentence saying why.
+
+Narrowing the shortfall itself is the snap's own business and stays
+where P4-D4.5 put it.
+
+**INVARIANT Q17** holds the count against the number of numeric CELLS
+rather than against `n_distinct`, which would be the tighter statement
+on a whole column. The loader is asked the same question at three
+grains — a column, one part of a joined column, and the cores of an
+affixed one — and only the first has a spelling count over the same
+cells. A bound true at one grain and quietly false at the other two is
+worse than a looser one true at all three.
+
 ### P4-D4.8 The kurtosis (owner instruction 2026-08-26)
 
 The numeric roles publish `kurtosis` beside `skew`: **how heavy this
@@ -1916,6 +1978,29 @@ Opened by this plan, each a limit accepted rather than work forgotten:
   detection line -- which the settings and `n_rows` give -- with the
   present walk as the fallback. That is a change inside the free-text
   packing and is its own landing.
+
+- **R-P4-50** (found by adversarial review of the kurtosis, 2026-08-27,
+  and NOT caused by it). THE GENERATOR'S OWN MOMENT RECOUNT LOSES
+  FINITE MOMENTS ON EXTREME COLUMNS, so the report omits them in
+  silence. `_moments_of` squares each deviation before scaling it, so a
+  column whose spread the format CAN hold still overflows on the way to
+  it: on `[-1e300, -1e-300, 1e-300, 1e300]` the producer publishes
+  `std = 8.16e299`, `skew = 0` and `kurtosis = 2.0` from exact integer
+  arithmetic, and the recount returns none of the three. On four
+  subnormals it publishes `kurtosis = 1.64` and the recount returns
+  nothing again.
+
+  **THIS PREDATES THE KURTOSIS and is not its defect**: the same column
+  loses `std` and `skew` in the same place and always has. What the
+  kurtosis did was make it visible, because a reviewer went looking.
+  The report simply carries no approximation for those facts, which
+  reads as "not measured" rather than as a wrong number -- so nothing
+  is misstated, and something is missing.
+
+  Closing it means the recount scaling its deviations before it squares
+  them, the way the producer's exact arithmetic effectively does. That
+  is one function, and it moves what three published facts report on
+  extreme columns, so it wants its own landing and its own goldens.
 
 - **R-P4-49** (opened with P4-D4.7, 2026-08-27). THE TWIN FOLLOWS THE
   VALUE HISTOGRAM AND IS NOT HELD TO IT. Cells are allotted to values

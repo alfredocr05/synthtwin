@@ -4015,6 +4015,82 @@ def _ladder_fields(texts):
     return published, claims, rungs
 
 
+def exact_triple(text):
+    """The exact number one spelling denotes, as `(sign, digits, power)`.
+
+    THE CONTRACT'S OWN FORM, implemented here from that statement and
+    never imported: a decimal spelling denotes `sign * digits * 10 **
+    power`, and writing the digits stripped of BOTH leading and
+    trailing zeros makes the triple canonical -- two spellings denote
+    the same number exactly when their triples are equal.  Zero has one
+    triple, `(0, (), 0)`, which is what makes `0` and `-0` one number.
+
+    Returns None for a spelling that is not a plain decimal number,
+    which is every cell of a role that does not carry a ladder.
+    """
+    body = text.strip()
+    if not body:
+        return None
+    sign = 1
+    if body[:1] == "+":
+        body = body[1:]
+    elif body[:1] == "-":
+        sign = -1
+        body = body[1:]
+    power = 0
+    for marker in ("e", "E"):
+        if marker in body:
+            body, _, exponent = body.partition(marker)
+            if not exponent:
+                return None
+            try:
+                power = int(exponent)
+            except ValueError:
+                return None
+            break
+    if "." in body:
+        whole, _, part = body.partition(".")
+        if "." in part:
+            return None
+        power = power - len(part)
+        body = whole + part
+    if not body:
+        return None
+    for character in body:
+        if character not in "0123456789":
+            return None
+    # Strip the trailing zeros into the power, then the leading ones,
+    # which is what makes two spellings of one number one triple.
+    while body and body[-1:] == "0":
+        body = body[:-1]
+        power = power + 1
+    while body and body[:1] == "0":
+        body = body[1:]
+    if not body:
+        return (0, (), 0)
+    return (sign, tuple(body), power)
+
+
+def _distinct_numbers_of(content):
+    """How many different NUMBERS a list of finished cells holds.
+
+    The exact number a spelling denotes, by the same canonical triple
+    the contract states -- `sign * digits * 10 ** power`, the digits
+    stripped of leading and trailing zeros -- so two spellings that
+    round to one binary64 value but denote different numbers count as
+    two, and two spellings of one number count as one.  Implemented
+    here from that statement and not imported, like everything else in
+    this file.
+    """
+    seen = set()
+    for cell in content:
+        found = exact_triple(cell)
+        if found is None:
+            continue
+        seen.add(found)
+    return len(seen)
+
+
 def _universal(name, role, statistical_type, structural_role, quality_state, **facts):
     block = {
         "name": name,
@@ -4070,6 +4146,12 @@ def _universal(name, role, statistical_type, structural_role, quality_state, **f
     # values could have, and none of these cases is about the shape.
     if "percentiles" in block and "value_histogram" not in block:
         block["value_histogram"] = {}
+    # ...and how many different NUMBERS the block holds (contract Q17,
+    # plan P4-D4.9), on those same three roles.  The figure is a
+    # placeholder here and is replaced by a count of the FINISHED cells
+    # once they exist, because it is a fact about them.
+    if "percentiles" in block and "n_distinct_values" not in block:
+        block["n_distinct_values"] = 0
     # The census of which form each parsed date wore (contract C6-25),
     # on every column of dates and on no other role.  A column read
     # under one format wore that format in every cell that parsed, so
@@ -5040,6 +5122,7 @@ INTEGER_COLUMN_KEYS = frozenset({
     "n_numeric", "n_not_numeric", "n_out_of_range", "n_contradictory",
     "n_sentinel_candidates_unpublished", "n_zero", "n_negative",
     "n_negative_unrepresentable", "n_used_in_statistics",
+    "n_distinct_values",
     "n_left_out_of_statistics", "n_rows", "suppressed_levels",
     "suppressed_rows", "level_ceiling", "subsecond_digits", "n_unparsed",
     "min_length", "max_length", "n_all_digits", "n_code_alphabet", "count",
@@ -5175,6 +5258,15 @@ def build_case(name):
             f"{name} built {len(content)} present cells and the column "
             f"publishes {column['n_present']}"
         )
+    # HOW MANY DIFFERENT NUMBERS the finished content holds (contract
+    # Q17, plan P4-D4.9).  Counted off the cells this oracle built,
+    # because it is a fact ABOUT those cells and a hand-written figure
+    # would be a second answer: `01E+16` and `1e+16` are two spellings
+    # of one number, and a case whose cells hold both publishes one
+    # number for the two.  Computed only where the role carries the
+    # key, which is the three that carry a ladder.
+    if "n_distinct_values" in column:
+        column["n_distinct_values"] = _distinct_numbers_of(content)
     cells = place(content, column["n_missing"], rows, words[content_words:])
     one_column = True
     csv_bytes = "".join(
