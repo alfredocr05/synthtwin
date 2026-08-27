@@ -28,7 +28,7 @@ without the same help.
 | branch | `phase-4-plan` (never merged; `main` is pull-request only) |
 | phase | **Phase 4 — comprehensive column handling.** Current. |
 | plan | `docs/plans/phase-4-columns.md` |
-| suite | 3,943 collected / 48 skipped |
+| suite | 3,944 collected / 48 skipped |
 | lint | clean (`ruff check .`), under the rule set pinned in `pyproject.toml` |
 
 ## What is being built right now
@@ -47,6 +47,23 @@ are still ahead. The gap list itself is at the foot of this page.
   rounds; the preference was deleted once as inert on 190 homogeneous
   columns and restored when a reviewer produced a MIXED-family column
   where it decides the role a reader sees.
+* **THE KURTOSIS IS PUBLISHED AND CHECKED (plan P4-D4.8).** The owner's
+  second ask of 2026-08-26, and it cost what they said it would: one
+  number. It rides the exact integer totals Phase 1 already computes --
+  one more power added to the same sums -- and it is APPROXIMATED under
+  a window that is the skewness window one moment along, checked by the
+  generator's report and by the validator, with red cases registered so
+  the check can be shown to fail.
+
+  Three things worth not rediscovering. It is the MOMENT RATIO and not
+  the excess, so a normal curve reads 3 here (the same convention
+  `skew` beside it uses). It needs FOUR values, as the skewness needs
+  three. And it needs **no overflow guard**, unlike the spread: a
+  moment ratio lies between 1 and `n - 2 + 1/(n - 1)` for any n values,
+  so the row count bounds it -- verified against the extreme
+  configuration at four, five, eight and twenty values, where the
+  computed value equals that bound exactly.
+
 * **THE VALUE HISTOGRAM IS PUBLISHED (plan P4-D4.7), and the twin does
   not yet hold it.** The owner asked for it first, ahead of the extra
   percentile rungs, because moments and percentiles cannot show two

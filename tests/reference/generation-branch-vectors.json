@@ -440,6 +440,7 @@
           "1": 11
         },
         "integer_valued": true,
+        "kurtosis": null,
         "mean": {
           "decimal": "5",
           "exact": "5",
@@ -707,6 +708,12 @@
           "(withheld)": 1
         },
         "integer_valued": false,
+        "kurtosis": {
+          "decimal": "2.5",
+          "exact": "5/2",
+          "float64": 2.5,
+          "proof": "nearest"
+        },
         "mean": {
           "decimal": "1e+19",
           "exact": "10000000000000000000",

@@ -326,6 +326,7 @@ PLAN4_REGIONS = {
     ),
     "padding": "### P4-D14 The padded-field width fact",
     "histogram": "### P4-D4.7 The value histogram (owner instruction 2026-08-26)",
+    "kurtosis": "### P4-D4.8 The kurtosis (owner instruction 2026-08-26)",
     "forms": "### P4-D18 A held-back value gets a stand-in that looks like one",
 }
 
@@ -350,6 +351,7 @@ FACTS_OUTSIDE_THE_VERSION_4_MATRIX = (
     ("numeric", "fraction_widths"),
     ("numeric", "pad_widths"),
     ("numeric", "value_histogram"),
+    ("numeric", "kurtosis"),
     ("datetime", "resolution_mix"),
     ("free_text", "shape_forms"),
     ("label", "shape_forms"),
@@ -562,6 +564,20 @@ REGISTRY += _facts(
     "integer_valued",
 )
 REGISTRY += _facts("numeric", APPROXIMATED, "mean", "std", "skew")
+# Plan P4-D4.8. APPROXIMATED as the skewness beside it is, under the
+# window method G12.3a states. Version 4's matrix has no row for it,
+# because version 4 published no such key, so it is registered here
+# against the Phase 4 plan the way the other later keys are.
+REGISTRY += (
+    Fact(
+        "numeric",
+        "kurtosis",
+        APPROXIMATED,
+        plan_words="how heavy this column's tails are",
+        plan_region="kurtosis",
+        aliases=("tail weight", "moment ratio"),
+    ),
+)
 # THE AFFIXED ROLE'S OWN FACTS. Its quantitative block is the numeric
 # block read over the cores and is registered above under `numeric`;
 # these are the five it adds, and every one is a count or a spelling a

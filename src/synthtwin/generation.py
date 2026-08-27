@@ -13470,8 +13470,8 @@ def _mean_of(values: "list[float]") -> float:
 
 def _moments_of(
     values: "list[float]",
-) -> "tuple[float, float | None, float | None]":
-    """The three moments the description publishes, from the twin's cells.
+) -> "tuple[float, float | None, float | None, float | None]":
+    """The four moments the description publishes, from the twin's cells.
 
     The FORMULAS are the profiler's, so that the two numbers the report
     puts side by side are the same statistic: the arithmetic mean; the
@@ -13490,15 +13490,15 @@ def _moments_of(
     held = len(values)
     mean = _mean_of(values)
     if held < 2:
-        return (mean, None, None)
+        return (mean, None, None, None)
     spread = _summed(
         [(value - mean) * (value - mean) / held for value in values]
     )
     if not math.isfinite(spread) or spread <= 0:
-        return (mean, 0.0 if spread == 0 else None, None)
+        return (mean, 0.0 if spread == 0 else None, None, None)
     deviation = math.sqrt(spread) * math.sqrt(held / (held - 1))
     if held < 3:
-        return (mean, deviation, None)
+        return (mean, deviation, None, None)
     root = math.sqrt(spread)
     shape = _summed(
         [
@@ -13509,7 +13509,23 @@ def _moments_of(
             for value in values
         ]
     )
-    return (mean, deviation, shape)
+    if held < 4:
+        return (mean, deviation, shape, None)
+    # The weight of the tails, recounted the same way and scaled the
+    # same way: each deviation is divided by the population spread
+    # before it is raised, so a column whose spread the format can hold
+    # cannot overflow on the way to its own kurtosis either.
+    tails = _summed(
+        [
+            ((value - mean) / root)
+            * ((value - mean) / root)
+            * ((value - mean) / root)
+            * ((value - mean) / root)
+            / held
+            for value in values
+        ]
+    )
+    return (mean, deviation, shape, tails)
 
 
 def _rung_of(ordered: "list[float]", percent: int) -> float:
@@ -13838,7 +13854,7 @@ def _numeric_approximations(
                 covers_published=_inside(rung, lowest, highest),
             )
         ]
-    mean, deviation, shape = _moments_of(values)
+    mean, deviation, shape, tails = _moments_of(values)
     if facts.mean is not None:
         lowest = _mean_of(lows)
         highest = _mean_of(highs)
@@ -13897,6 +13913,21 @@ def _numeric_approximations(
                 covers_published=_inside(facts.skew, lowest, highest),
             )
         ]
+    if facts.kurtosis is not None and tails is not None and held >= 4:
+        lowest, highest = _tails_window(lows, highs, middles, reach, held)
+        found = found + [
+            Approximation(
+                column=column.name,
+                fact="kurtosis",
+                published=_figure(facts.kurtosis),
+                achieved=_figure(tails),
+                lowest=_figure(lowest),
+                highest=_figure(highest),
+                inside=_inside(tails, lowest, highest),
+                note="how heavy this column's tails are",
+                covers_published=_inside(facts.kurtosis, lowest, highest),
+            )
+        ]
     return found + _numeric_cardinalities(column, plan, written)
 
 
@@ -13949,6 +13980,83 @@ def _shape_window(
     lowest = lowest_shape / (low_cube if lowest_shape < 0 else high_cube)
     highest = highest_shape / (high_cube if highest_shape < 0 else low_cube)
     return (max(-ceiling, lowest), min(ceiling, highest))
+
+
+def _tails_window(
+    lows: "list[float]",
+    highs: "list[float]",
+    middles: "list[float]",
+    reach: float,
+    held: int,
+) -> "tuple[float, float]":
+    """The two ends of the kurtosis bound (method G12.3a).
+
+    THE SAME SHAPE AS THE SKEWNESS BOUND, one moment further along.
+    Kurtosis is a ratio too, so its bound comes from the bounds of its
+    two parts: the average FOURTH deviation is bounded by taking the
+    fourth power of the ends of each rank's own window, and the
+    population spread is bounded by the same displacement `reach` that
+    bounds the standard deviation. The ratio is then taken with the
+    signs division needs.
+
+    THE FOURTH POWER DOES NOT KEEP THE ORDER, which is the one place
+    this differs from the cube. Cubing a window's two ends leaves them
+    the ends; raising them to the fourth does not, because a window
+    straddling zero has its SMALLEST fourth power in the middle. So the
+    low end of each rank's contribution is zero where the window
+    straddles the mean, and the high end is the larger of the two ends
+    raised to the fourth.
+
+    Every sample of `held` values has a kurtosis between 1 and
+    `held - 2 + 1 / (held - 1)`, whatever the values are -- the top
+    reached exactly when one value stands apart from `held - 1` equal
+    ones -- so the window is intersected with that. The bound is
+    finite on both sides even where the spread's own lower end reaches
+    zero, which is what the contract asks an approximated fact for.
+    """
+    ceiling = held - 2 + 1 / (held - 1)
+    floor_mean = _mean_of(lows)
+    ceiling_mean = _mean_of(highs)
+    low_fourths: "list[float]" = []
+    high_fourths: "list[float]" = []
+    for rank in range(held):
+        below = lows[rank] - ceiling_mean
+        above = highs[rank] - floor_mean
+        # THE WINDOW MAY STRADDLE THE MEAN, and then no displacement
+        # inside it is forced to be away from zero at all.
+        nearest = 0.0
+        if below > 0.0:
+            nearest = below
+        if above < 0.0:
+            nearest = -above
+        furthest = max(-below, above, 0.0)
+        low_fourths = low_fourths + [
+            nearest * nearest * nearest * nearest / held
+        ]
+        high_fourths = high_fourths + [
+            furthest * furthest * furthest * furthest / held
+        ]
+    lowest_tails = _summed(low_fourths)
+    highest_tails = _summed(high_fourths)
+    spread = _moments_of(middles)
+    root = 0.0
+    if spread[1] is not None and held >= 2:
+        root = spread[1] * math.sqrt((held - 1) / held)
+    low_root = max(0.0, root - reach)
+    high_root = root + reach
+    # THE SPREAD ENTERS TO THE FOURTH POWER and not the second. The
+    # skewness divides an average CUBED deviation by the spread cubed;
+    # the kurtosis divides an average FOURTH deviation by the spread to
+    # the fourth, because that is what makes the ratio free of the
+    # column's units. Squaring instead put a gaussian column's window
+    # at 107 to 298 around a published 3.
+    low_fourth = low_root * low_root * low_root * low_root
+    high_fourth = high_root * high_root * high_root * high_root
+    if low_fourth <= 0 or not math.isfinite(high_fourth):
+        return (1.0, ceiling)
+    lowest = lowest_tails / high_fourth
+    highest = highest_tails / low_fourth
+    return (max(1.0, lowest), min(ceiling, highest))
 
 
 def _written_ordinal(

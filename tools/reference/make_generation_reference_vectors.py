@@ -4288,7 +4288,7 @@ def _numeric_integer():
     }
     moments = {}
     for name, text in (("mean", "4.25"), ("std", "14.5"), ("skew", "0.5"),
-                       ("numeric_share", "1")):
+                       ("kurtosis", "2.5"), ("numeric_share", "1")):
         field, claim = nearest_field(text)
         moments[name] = field
         claims[("column", name)] = claim
@@ -4352,7 +4352,8 @@ def _numeric_pooled_spelling():
     }
     moments = {}
     for name, text in (("mean", "1e+19"), ("std", "3e+19"),
-                       ("skew", "3"), ("numeric_share", "1")):
+                       ("skew", "3"), ("kurtosis", "2.5"),
+                       ("numeric_share", "1")):
         field, claim = nearest_field(text)
         moments[name] = field
         claims[("column", name)] = claim
@@ -4410,7 +4411,8 @@ def _numeric_decimal_styles():
     }
     moments = {}
     for name, text in (("mean", "1000000000000"), ("std", "3000000000000"),
-                       ("skew", "4.5"), ("numeric_share", "1")):
+                       ("skew", "4.5"), ("kurtosis", "2.5"),
+                       ("numeric_share", "1")):
         field, claim = nearest_field(text)
         moments[name] = field
         claims[("column", name)] = claim
@@ -4577,6 +4579,8 @@ def _numeric_point_free_styles():
         n_present=33, n_missing=0, n_distinct=3, n_distinct_folded=3,
         n_numeric=33, n_not_numeric=0, n_out_of_range=0, n_contradictory=0,
         percentiles=ladder, std_unrepresentable=False, skew=None,
+        # No spread, so no tails to weigh: null, as the skewness is.
+        kurtosis=None,
         n_zero=0, n_negative=0, n_negative_unrepresentable=0,
         n_used_in_statistics=33, n_left_out_of_statistics=0,
         integer_valued=True, n_rows=33,
