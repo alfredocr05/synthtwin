@@ -290,54 +290,47 @@ def test_a_fold_partner_does_not_eat_the_ceiling(
     assert not [note for note in notes if note.fact == "max_length"]
 
 
-def test_a_pinned_window_never_refuses_a_column(
+def test_a_collision_inside_one_width_keeps_its_fold(
     tmp_path: pathlib.Path,
 ) -> None:
-    """THE REFUSAL THE PINNED WINDOW COULD HAVE CAUSED, and why it does not.
+    """THE SHAPE AN ARGUMENT OF MINE SAID COULD NOT EXIST.
 
-    Pinning a partner to its group's width means a parent that already
-    fills that width has no partner at all, and generation refuses
-    rather than searching on. Refusing a description a real table
-    produced would be a worse defect than the width miss the pinning
-    fixed.
+    Pinning a fold partner to its group's width means a parent that
+    already fills that width has no partner reachable by spacing, since
+    spacing only LENGTHENS. I argued that could never bite here: a
+    partner differs from its parent in case or in edge spacing, a
+    numeral holds no letter, so every collision on this role is spacing
+    -- which changes the width -- so a colliding column always
+    publishes two different widths.
 
-    It cannot happen on this role, and the reason is structural rather
-    than statistical: a partner differs from its parent in case, in
-    edge spacing, or in both, and a NUMERAL HOLDS NO LETTER -- so every
-    collision here is edge spacing, which changes the width by the
-    spaces it adds. A colliding column therefore always publishes two
-    different widths, and its groups are asked for different widths.
+    **The last step is false, and a reviewer supplied the
+    counterexample.** Spacing changes the width by the NUMBER of spaces
+    and not by where they go, so `N + " "` and `" " + N` are two raw
+    values of one width folding to one identity. Under the pin alone
+    that column lost its fold: it published a folded count of 1 and its
+    twin held 2, a published count given up to hold a width, which is
+    the wrong way round.
 
-    The columns below are the ones that would break it if anything
-    could: equal published widths with no collision, and a five-deep
-    collision where every partner must land on its own pinned width.
+    So the pin falls back to an open window, and this test pins the
+    ORDER of the two: the fold is the obligation, the width is the
+    preference, and the width that could not be held is named.
     """
-    equal_width = ["9" * 330] * 40 + ["9" * 329 + "8"] * 40
-    source, _cells, again, _notes = _round_trip(tmp_path, "equal", equal_width)
+    body = "9" * 310
+    values = [body + " "] * 100 + [" " + body] * 100
+    source, cells, again, notes = _round_trip(tmp_path, "onewidth", values)
     assert source["role"] == taxonomy.ROLE_UNREPRESENTABLE
+    # The premise the old argument denied: one width, and a collision.
     assert source["min_length"] == source["max_length"]
-    assert source["n_distinct"] == source["n_distinct_folded"], (
-        "the fixture collides after all, which the argument above says "
-        "cannot happen at one published width"
+    assert source["n_distinct"] == 2
+    assert source["n_distinct_folded"] == 1, (
+        "the fixture no longer collides, so it pins nothing"
     )
-    assert again["role"] == taxonomy.ROLE_UNREPRESENTABLE
-
-    base = "9" * 330
-    deep = (
-        [base] * 40
-        + [base + " "] * 40
-        + [base + "  "] * 40
-        + [base + "   "] * 40
-        + [base + "    "] * 40
+    # THE FOLD IS KEPT. This is the assertion that was failing.
+    assert again["n_distinct_folded"] == 1, (
+        "the twin gave up the published folded count to hold a width"
     )
-    source, cells, again, _notes = _round_trip(tmp_path, "deepfold", deep)
-    assert source["n_distinct"] == 5
-    assert source["n_distinct_folded"] == 1, "the fixture no longer collides"
-    assert source["min_length"] != source["max_length"], (
-        "a colliding column published one width, which the argument "
-        "above says cannot happen"
-    )
-    assert (again["min_length"], again["max_length"]) == (
-        source["min_length"],
-        source["max_length"],
-    )
+    assert not [note for note in notes if note.fact == "n_distinct_folded"]
+    # AND THE WIDTH IT COULD NOT HOLD IS NAMED, not faked.
+    longest = max(len(cell) for cell in cells)
+    if longest != source["max_length"]:
+        assert "max_length" in {note.fact for note in notes}

@@ -47,13 +47,19 @@ are still ahead. The gap list itself is at the foot of this page.
   rounds; the preference was deleted once as inert on 190 homogeneous
   columns and restored when a reviewer produced a MIXED-family column
   where it decides the role a reader sees.
-* **Gap 3 is DONE and self-verified rather than review-ratified**, and
-  the difference matters to whoever picks this up. Codex round 5 found
-  six things, all reproduced and repaired here. **Round 6 could not be
-  obtained: six consecutive runs ended without writing a verdict**, at
-  four packet sizes down to 154 lines. That is the intermittent stall
-  the owner described, now persistent. If you can get codex to complete
-  a run, gap 3's repairs are what to point it at first.
+* **Gap 3 is DONE, through six adversarial rounds.** Round 5 found six
+  things and round 6 found four more, all reproduced and repaired here.
+
+  **A NOTE ON THE REVIEWER'S FAILURE MODE, because it cost real time
+  and it will happen again.** `codex exec -o FILE` writes the verdict
+  file LATE -- after the process has already exited and after the task
+  notification says it completed. Six runs looked like the stall the
+  owner described; every one of them had in fact written its verdict,
+  and I relaunched over the top of four of them. One landed commit
+  claimed "round 6 could not be obtained", which was false. **Check for
+  the verdict file again a few minutes after the run reports done,
+  before concluding anything about a stall**, and never relaunch on the
+  strength of an immediate check alone.
 * **Gap 3 — the two width facts, closing residual R-P2-1.** The
   unrepresentable role publishes `min_length` and `max_length`, and the
   twin carries both ends instead of writing every such column at one

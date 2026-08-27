@@ -10996,27 +10996,41 @@ def _unrepresentable_cells(
     # spacing lands the partner exactly where the description says a
     # cell of this column sits.
     #
-    # AND THIS CANNOT REFUSE A COLUMN, which is worth an argument rather
-    # than a trial because the failure it would cause is a refusal of a
-    # description a real table produced. A pinned window has no partner
-    # where the parent already fills it, since spacing only LENGTHENS.
-    # That needs a fold collision inside ONE width -- and on this role
-    # there is no such thing. A partner differs from its parent in case,
-    # in edge spacing, or in both; the values here are numerals and a
-    # numeral holds no letter, so case buys nothing and every collision
-    # on this role is edge spacing, which changes the width by exactly
-    # the spaces it adds. So a colliding column always publishes two
-    # DIFFERENT widths, its groups are asked for different widths, and
-    # the parent never fills its partner's window. Measured beside the
-    # argument, over 220 built columns seeded with collisions and
-    # holding up to 260 distinct values: zero refusals.
+    # A COLLISION INSIDE ONE WIDTH IS REAL, AND AN ARGUMENT HERE SAID IT
+    # WAS NOT. That argument ran: a partner differs from its parent in
+    # case or in edge spacing; a numeral holds no letter; so every
+    # collision on this role is spacing, which changes the width; so a
+    # colliding column always publishes two different widths. The last
+    # step is false. Spacing changes the width by the number of spaces
+    # and NOT by where they go, so `N + " "` and `" " + N` are two raw
+    # values of one width that fold to one identity -- a column a real
+    # table produces, publishing `min_length == max_length` and a folded
+    # count below its distinct count. That is why the pin above falls
+    # back rather than standing alone.
     windows: list[tuple[int, int | None]] = [
         (asked[index], asked[index]) for index in range(len(groups))
+    ]
+    # THE PIN IS A PREFERENCE AND THE FOLD IS THE OBLIGATION, and this
+    # order is a repair rather than a nicety (review item P4-G3-R6-F1).
+    # Pinning alone lost the collision it was pinning: a column of
+    # `N + " "` beside `" " + N` publishes ONE width and two values that
+    # fold to one, and a partner reached only by adding a space cannot
+    # land on the width its parent already fills. The published folded
+    # count then came out 2 against a published 1 -- a fact given up to
+    # hold a width, which is the wrong way round. So the walk asks for
+    # the pinned width first and, where no partner exists at it, asks
+    # again with the window open.
+    open_windows: list[tuple[int, int | None]] = [
+        (1, None) for _each in groups
     ]
     for index in range(len(groups)):
         partner = _partner_of(
             index, folded, spellings, families, used, windows
         )
+        if partner is None:
+            partner = _partner_of(
+                index, folded, spellings, families, used, open_windows
+            )
         if partner is not None:
             spellings = spellings + [_take(partner, used)]
             continue
