@@ -164,6 +164,22 @@ def edit(_column: str, **changes: object) -> Change:
     return change
 
 
+def lower_a_finer_rung(_column: str, _rung: str) -> Change:
+    """Push one rung of the finer ladder below the one before it.
+
+    The finer rungs are ninety, so a mutation that rewrote the whole
+    map would be a hundred lines of fixture; this reaches into the
+    block the producer wrote and moves ONE of them, which is what
+    invariant Q19's joint walk is about.
+    """
+    def change(document: Document) -> None:
+        block = at(document, _column)
+        finer = dict(block["percentiles_between"])
+        finer[_rung] = -1.0e9
+        block["percentiles_between"] = finer
+    return change
+
+
 def drop(_column: str, _key: str) -> Change:
     """Take one key out of a column's block."""
     def change(document: Document) -> None:
@@ -306,6 +322,15 @@ def flat_ladder(name: str) -> Change:
     def change(document: Document) -> None:
         block = at(document, name)
         block["percentiles"] = {rung: 5.0 for rung in contract.LADDER_KEYS}
+        # THE FINER RUNGS GO FLAT WITH THEM (plan P4-D4.10). They are
+        # part of the same ladder, so leaving them where they were says
+        # a column whose named rungs are all 5 holds a value of 0 at
+        # the second percentile -- which invariant Q19 refuses, and the
+        # refusal a reader would then see is Q19's rather than the one
+        # this mutation exists to reach.
+        block["percentiles_between"] = {
+            rung: 5.0 for rung in contract.FINER_LADDER_KEYS
+        }
     return change
 
 
@@ -840,6 +865,11 @@ def battery() -> list[Mutation]:
             "Q16",
             "tails no sample of that many values could have",
             edit("visits", kurtosis=900.0),
+        ),
+        Mutation(
+            "Q19",
+            "a finer rung below the rung before it",
+            lower_a_finer_rung("visits", "p02"),
         ),
         Mutation(
             "Q18",

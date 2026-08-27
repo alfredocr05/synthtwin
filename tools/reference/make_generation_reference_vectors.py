@@ -94,6 +94,23 @@ TWO64 = 1 << 64
 # as the method holds them (G5.1): 0.99 has no exact binary spelling and
 # the nearest one moves a rung onto the wrong pair of neighbours.
 PCT = (0, 1, 5, 10, 25, 50, 75, 90, 95, 99, 100)
+
+# The hundred and one percents a column of NUMBERS interpolates over
+# (method G5.3 at revision 2, plan P4-D4.10).  A date or clock ladder
+# keeps the eleven above: each of those is a selection ladder over
+# values that cannot be averaged, and the finer one is a numeric fact.
+PCT_FINE = tuple(range(101))
+PERCENTS_BY_LENGTH = {len(PCT): PCT, len(PCT_FINE): PCT_FINE}
+
+
+def percents_of(ladder):
+    """Which percents a ladder of this many rungs stands at."""
+    if len(ladder) not in PERCENTS_BY_LENGTH:
+        raise AssertionError(
+            f"a ladder of {len(ladder)} rungs stands at no percents this "
+            "method knows: it is eleven rungs or a hundred and one"
+        )
+    return PERCENTS_BY_LENGTH[len(ladder)]
 LADDER_KEYS = (
     "min", "p01", "p05", "p10", "p25", "p50", "p75", "p90", "p95", "p99", "max",
 )
@@ -761,7 +778,7 @@ def permutation(count, words):
     return order
 
 
-def ladder_segment(numerator, denominator):
+def ladder_segment(numerator, denominator, percents=PCT):
     """The unique ``j`` in ``0 .. 9`` with ``PCT[j]*D <= 100*N < PCT[j+1]*D``.
 
     Scanned upward from zero and stopped at the first that holds, as
@@ -769,8 +786,12 @@ def ladder_segment(numerator, denominator):
     increasing, so the segment is unique.
     """
     scaled = 100 * numerator
-    for index in range(10):
-        if PCT[index] * denominator <= scaled < PCT[index + 1] * denominator:
+    for index in range(len(percents) - 1):
+        if (
+            percents[index] * denominator
+            <= scaled
+            < percents[index + 1] * denominator
+        ):
             return index
     raise AssertionError(
         f"{numerator}/{denominator} falls in no ladder segment; the position "
@@ -864,7 +885,7 @@ def can_carry_point_free(index, sizes, bands, ladder, integer_valued):
         return True
     if not (index == 0 or (index == total - 1 and total >= 2)):
         return True
-    end = ladder[0] if index == 0 else ladder[10]
+    end = ladder[0] if index == 0 else ladder[-1]
     return point_free_spelling(end, integer_valued) is not None
 
 
@@ -1029,13 +1050,16 @@ def ladder_at(ladder, position, denominator):
     with, so a share of the distribution is read by the construction's
     own arithmetic rather than by a second reading of it.
     """
-    segment = ladder_segment(position, denominator)
+    percents = percents_of(ladder)
+    segment = ladder_segment(position, denominator, percents)
     return convex_interpolation(
-        position, denominator, ladder[segment], ladder[segment + 1]
+        position, denominator, ladder[segment], ladder[segment + 1], percents
     )["clamped"]
 
 
-def convex_interpolation(position, denominator, low, high):
+def convex_interpolation(
+    position, denominator, low, high, percents=PCT
+):
     """The stratified inverse transform of method section G5.3.
 
     ``position / denominator`` is the exact place inside the
@@ -1050,9 +1074,9 @@ def convex_interpolation(position, denominator, low, high):
     its answer: the difference form the method rejects and the convex
     form it requires part company at exactly these intermediates.
     """
-    segment = ladder_segment(position, denominator)
-    above = 100 * position - PCT[segment] * denominator
-    width = (PCT[segment + 1] - PCT[segment]) * denominator
+    segment = ladder_segment(position, denominator, percents)
+    above = 100 * position - percents[segment] * denominator
+    width = (percents[segment + 1] - percents[segment]) * denominator
     scaled = (above << SIGNIFICAND_BITS) // width
     if not 0 <= scaled <= (1 << SIGNIFICAND_BITS) - 1:
         raise AssertionError(
@@ -1454,7 +1478,7 @@ def whole_number_values(
                     ladder_at(ladder, starts[index], numeric),
                     ladder_at(ladder, starts[index] + sizes[index], numeric),
                 )
-                ends = (ladder[0], ladder[10])
+                ends = (ladder[0], ladder[-1])
             moved = whole_inside(
                 values[index], bands[index], share, ends, total + 1, taken
             )
@@ -3903,7 +3927,13 @@ def _numeric_content(column):
         )
     folded_budget = numbers_class_budget(column, column["n_distinct_folded"])
     values_wanted = min(numeric, folded_budget)
-    ladder = [column["_rungs"][key] for key in LADDER_KEYS]
+    # THE HUNDRED AND ONE RUNGS IN PERCENT ORDER (method G5.3 at
+    # revision 2, plan P4-D4.10). The named eleven and the ninety
+    # between them are one ladder, and a column of numbers interpolates
+    # over the whole of it: an eleven-rung ladder says nothing about
+    # how many cells lie inside a gap, which is what made a twin put
+    # too few values where the real column crowded them.
+    ladder = [column["_rungs"][key] for key in ALL_LADDER_KEYS]
     integer_valued = column["integer_valued"]
     effective = _effective_style_map(column["numeric_styles"])
     demand = min(
@@ -3950,21 +3980,26 @@ def _numeric_content(column):
             values.append(ladder[0])
             continue
         if index == total - 1 and total >= 2:
-            values.append(ladder[10])
+            values.append(ladder[-1])
             continue
         if bands[index] == "zero":
             values.append(0.0)
             continue
         position = starts[index] * TWO64 + size * next(words)
         denominator = numeric * TWO64
-        segment = ladder_segment(position, denominator)
+        percents = percents_of(ladder)
+        segment = ladder_segment(position, denominator, percents)
         record = convex_interpolation(
-            position, denominator, ladder[segment], ladder[segment + 1]
+            position,
+            denominator,
+            ladder[segment],
+            ladder[segment + 1],
+            percents,
         )
         value = record["clamped"]
         if integer_valued:
             value = integer_rule(value)
-        value, repaired = class_repair(value, bands[index], ladder[0], ladder[10])
+        value, repaired = class_repair(value, bands[index], ladder[0], ladder[-1])
         record["stratum"] = index
         record["value"] = value
         record["repaired"] = repaired
@@ -3975,7 +4010,7 @@ def _numeric_content(column):
     for index in range(total):
         if index == 0 or (index == total - 1 and total >= 2):
             values[index], _ = class_repair(
-                values[index], bands[index], ladder[0], ladder[10]
+                values[index], bands[index], ladder[0], ladder[-1]
             )
     # The VALUES step of G6.4 is taken before the styles, because the map
     # and the values are one question: a point-free quota needs cells
@@ -4053,16 +4088,120 @@ def _straggler_cells(column, used):
 
 
 def _ladder_fields(texts):
-    """A published ladder as eleven proved binary64 fields."""
+    """A published ladder, both halves, as proved binary64 fields.
+
+    Returns the eleven NAMED rungs, the claims for all hundred and one,
+    the hundred and one rung VALUES keyed by name, and the ninety finer
+    rungs as their own published block (plan P4-D4.10).  The two halves
+    are built together because they are one ladder: a case that got its
+    named rungs from here and its finer ones from somewhere else could
+    publish a pair that goes down between them, which is exactly what
+    the loader's Q19 refuses.
+    """
     published = {}
     claims = {}
     rungs = {}
     for key in LADDER_KEYS:
         field, claim = nearest_field(texts[key])
         published[key] = field
+        claims[("percentiles", key)] = claim
+        rungs[key] = field[FLOAT64]
+    finer, finer_claims, finer_rungs = _finer_ladder_fields(texts)
+    for key in FINER_LADDER_KEYS:
+        claims[("percentiles_between", key)] = finer_claims[(key,)]
+        rungs[key] = finer_rungs[key]
+    return published, claims, rungs, finer
+
+
+FINER_LADDER_KEYS = tuple(
+    f"p{percent:02d}"
+    for percent in range(1, 100)
+    if percent not in (1, 5, 10, 25, 50, 75, 90, 95, 99)
+)
+
+
+# The hundred and one rung names in PERCENT ORDER, which is the order
+# a ladder is walked in and the order `PCT_FINE` stands in.
+_NAME_AT_PERCENT = {
+    0: "min", 1: "p01", 5: "p05", 10: "p10", 25: "p25", 50: "p50",
+    75: "p75", 90: "p90", 95: "p95", 99: "p99", 100: "max",
+}
+ALL_LADDER_KEYS = tuple(
+    _NAME_AT_PERCENT[percent]
+    if percent in _NAME_AT_PERCENT
+    else f"p{percent:02d}"
+    for percent in range(101)
+)
+
+
+def _finer_ladder_fields(texts):
+    """The ninety rungs the named ladder does not carry (plan P4-D4.10).
+
+    THEY ARE PUT ON THE STRAIGHT LINE BETWEEN THE NAMED RUNGS, and that
+    choice is the point rather than a convenience.  A case exists to
+    pin the TRANSFORM, and the transform is what the generator does
+    with whatever ladder it is handed.  Placing the finer rungs where
+    the eleven-rung ladder already implied they were says: this column
+    carries no information the coarse ladder did not, so any difference
+    in the committed cells is the arithmetic of interpolating a longer
+    list and nothing else.
+
+    WHAT THAT MEANS THIS FILE DOES NOT YET PIN, said plainly because an
+    earlier draft of this docstring named a `numeric_bent_ladder` case
+    that does not exist.  Every finer ladder frozen here lies on the
+    straight line, so reverting the whole mechanism from a hundred and
+    one rungs to eleven moves the cells of exactly ONE case.  These
+    vectors therefore check that the length dispatch is consistent
+    between the two implementations; they do NOT check the fidelity
+    mechanism on a ladder that bends, which is where the fact earns its
+    keep.  A bent case is owed.
+
+    Each value is written to SIX DECIMAL PLACES, rounded DOWN, and
+    both halves of that are needed.  Six places because the point on
+    the line is not always a finite decimal -- the gaps between named
+    percents are 1, 4, 5, 15 and 25 wide, and a fifteenth is a
+    repeating decimal -- so a rung has to be written to some number of
+    places to be published and proved at all.  Down rather than to
+    nearest because flooring is MONOTONE: a non-decreasing sequence
+    stays non-decreasing through it, so the hundred and one rungs
+    cannot come out of order and fail the loader's own Q19.
+    """
+    named = {
+        0: "min", 1: "p01", 5: "p05", 10: "p10", 25: "p25", 50: "p50",
+        75: "p75", 90: "p90", 95: "p95", 99: "p99", 100: "max",
+    }
+    points = sorted(named)
+    published = {}
+    claims = {}
+    rungs = {}
+    for key in FINER_LADDER_KEYS:
+        percent = int(key[1:])
+        under = max(point for point in points if point < percent)
+        over = min(point for point in points if point > percent)
+        low = decimal_to_fraction(texts[named[under]])
+        high = decimal_to_fraction(texts[named[over]])
+        share = fractions.Fraction(percent - under, over - under)
+        exact = low + share * (high - low)
+        text = _floored_decimal_text(exact, 6)
+        field, claim = nearest_field(text)
+        published[key] = field
         claims[(key,)] = claim
         rungs[key] = field[FLOAT64]
     return published, claims, rungs
+
+
+def _floored_decimal_text(value, places):
+    """One rational written to ``places`` decimals, rounded DOWN.
+
+    Python's ``//`` floors toward negative infinity for a negative
+    numerator as well, which is what makes this monotone over the whole
+    line and not only over its positive half.
+    """
+    scale = 10 ** places
+    scaled = (value.numerator * scale) // value.denominator
+    sign = "-" if scaled < 0 else ""
+    digits = f"{abs(scaled)}".rjust(places + 1, "0")
+    return f"{sign}{digits[:-places]}.{digits[-places:]}"
 
 
 def exact_triple(text):
@@ -4818,13 +4957,13 @@ def _mixed_parsed_unparsed():
 
 
 def _numeric_integer():
-    ladder, ladder_claims, rungs = _ladder_fields({
+    ladder, ladder_claims, rungs, finer = _ladder_fields({
         "min": "-8", "p01": "-7.75", "p05": "-7", "p10": "-6.5",
         "p25": "-3.25", "p50": "2.5", "p75": "2.5", "p90": "16.25",
         "p95": "21.5", "p99": "29.75", "max": "34",
     })
     claims = {
-        ("column", "percentiles") + key: value
+        ("column",) + key: value
         for key, value in ladder_claims.items()
     }
     moments = {}
@@ -4837,7 +4976,7 @@ def _numeric_integer():
         "column_1", "continuous", "continuous", "data", "ok",
         n_present=20, n_missing=2, n_distinct=12, n_distinct_folded=12,
         n_numeric=20, n_not_numeric=0, n_out_of_range=0, n_contradictory=0,
-        percentiles=ladder, std_unrepresentable=False,
+        percentiles=ladder, percentiles_between=finer, std_unrepresentable=False,
         n_zero=4, n_negative=6, n_negative_unrepresentable=0,
         n_used_in_statistics=20, n_left_out_of_statistics=0,
         integer_valued=True, n_rows=22, numeric_styles={"plain": 20},
@@ -4881,14 +5020,14 @@ def _numeric_pooled_spelling():
       decision 10 lifted the sixteen-figure ceiling that used to send it
       back with a decimal point, so it is written in figures here.
     """
-    ladder, ladder_claims, rungs = _ladder_fields({
+    ladder, ladder_claims, rungs, finer = _ladder_fields({
         "min": "0.5", "p01": "4", "p05": "4", "p10": "4",
         "p25": "4", "p50": "4", "p75": "4",
         "p90": "4", "p95": "4", "p99": "4",
         "max": "1e+20",
     })
     claims = {
-        ("column", "percentiles") + key: value
+        ("column",) + key: value
         for key, value in ladder_claims.items()
     }
     moments = {}
@@ -4902,7 +5041,7 @@ def _numeric_pooled_spelling():
         "column_1", "continuous", "continuous", "data", "ok",
         n_present=12, n_missing=0, n_distinct=3, n_distinct_folded=3,
         n_numeric=12, n_not_numeric=0, n_out_of_range=0, n_contradictory=0,
-        percentiles=ladder, std_unrepresentable=False,
+        percentiles=ladder, percentiles_between=finer, std_unrepresentable=False,
         n_zero=0, n_negative=0, n_negative_unrepresentable=0,
         n_used_in_statistics=12, n_left_out_of_statistics=0,
         integer_valued=False, n_rows=12,
@@ -4940,14 +5079,14 @@ def _numeric_pooled_spelling():
 
 
 def _numeric_decimal_styles():
-    ladder, ladder_claims, rungs = _ladder_fields({
+    ladder, ladder_claims, rungs, finer = _ladder_fields({
         "min": "1e-05", "p01": "0.0001", "p05": "0.001", "p10": "0.01",
         "p25": "1", "p50": "5", "p75": "1000000000000000",
         "p90": "1000000000000000", "p95": "1000000000000000",
         "p99": "1000000000000000", "max": "1e+16",
     })
     claims = {
-        ("column", "percentiles") + key: value
+        ("column",) + key: value
         for key, value in ladder_claims.items()
     }
     moments = {}
@@ -4961,7 +5100,7 @@ def _numeric_decimal_styles():
         "column_1", "continuous", "continuous", "data", "ok",
         n_present=25, n_missing=0, n_distinct=24, n_distinct_folded=23,
         n_numeric=25, n_not_numeric=0, n_out_of_range=0, n_contradictory=0,
-        percentiles=ladder, std_unrepresentable=False,
+        percentiles=ladder, percentiles_between=finer, std_unrepresentable=False,
         n_zero=0, n_negative=0, n_negative_unrepresentable=0,
         n_used_in_statistics=25, n_left_out_of_statistics=0,
         integer_valued=False, n_rows=25,
@@ -5219,9 +5358,9 @@ def _identifier_whole_numbers():
 
 
 def _numeric_point_free_styles():
-    ladder, ladder_claims, rungs = _ladder_fields({key: "5" for key in LADDER_KEYS})
+    ladder, ladder_claims, rungs, finer = _ladder_fields({key: "5" for key in LADDER_KEYS})
     claims = {
-        ("column", "percentiles") + key: value
+        ("column",) + key: value
         for key, value in ladder_claims.items()
     }
     moments = {}
@@ -5233,7 +5372,7 @@ def _numeric_point_free_styles():
         "column_1", "count", "count", "data", "ok",
         n_present=33, n_missing=0, n_distinct=3, n_distinct_folded=3,
         n_numeric=33, n_not_numeric=0, n_out_of_range=0, n_contradictory=0,
-        percentiles=ladder, std_unrepresentable=False, skew=None,
+        percentiles=ladder, percentiles_between=finer, std_unrepresentable=False, skew=None,
         # No spread, so no tails to weigh: null, as the skewness is.
         kurtosis=None,
         n_zero=0, n_negative=0, n_negative_unrepresentable=0,
@@ -5485,13 +5624,13 @@ def _clock_ladder():
 
 def _affixed_brackets():
     """A column of numbers each written inside a bracket pair."""
-    ladder, ladder_claims, rungs = _ladder_fields({
+    ladder, ladder_claims, rungs, finer = _ladder_fields({
         "min": "12", "p01": "12.33", "p05": "13.65", "p10": "15.3",
         "p25": "20.25", "p50": "28.5", "p75": "36.75", "p90": "41.7",
         "p95": "43.35", "p99": "44.67", "max": "45",
     })
     claims = {
-        ("column", "percentiles") + key: value
+        ("column",) + key: value
         for key, value in ladder_claims.items()
     }
     moments = {}
@@ -5518,7 +5657,7 @@ def _affixed_brackets():
         n_affixed=12, n_core_numeric=12, n_core_not_numeric=0,
         n_core_out_of_range=0, n_core_contradictory=0,
         affix_prefix="[", affix_suffix="]",
-        percentiles=ladder, std_unrepresentable=False,
+        percentiles=ladder, percentiles_between=finer, std_unrepresentable=False,
         n_zero=0, n_negative=0, n_negative_unrepresentable=0,
         n_used_in_statistics=12, n_left_out_of_statistics=0,
         # THE SOURCE COLUMN HELD TWELVE DIFFERENT NUMBERS, and this
@@ -5589,12 +5728,12 @@ def _affixed_brackets():
 
 def _joined_readings():
     """Two numbers in one cell, and the walk that decides which meet."""
-    first_ladder, first_claims, first_rungs = _ladder_fields({
+    first_ladder, first_claims, first_rungs, first_finer = _ladder_fields({
         "min": "24", "p01": "24", "p05": "24", "p10": "24.2",
         "p25": "29", "p50": "36.5", "p75": "40", "p90": "50.8",
         "p95": "54.25", "p99": "56.45", "max": "57",
     })
-    second_ladder, second_claims, second_rungs = _ladder_fields({
+    second_ladder, second_claims, second_rungs, second_finer = _ladder_fields({
         "min": "25", "p01": "25", "p05": "25", "p10": "25",
         "p25": "25", "p50": "30", "p75": "40", "p90": "44.5",
         "p95": "45", "p99": "45", "max": "45",
@@ -5602,16 +5741,16 @@ def _joined_readings():
     claims = {}
     for place, ladder_claims in ((0, first_claims), (1, second_claims)):
         for key, value in ladder_claims.items():
-            claims[("column", "parts", place, "percentiles") + key] = value
+            claims[("column", "parts", place) + key] = value
     parts = []
-    for place, ladder, moments in (
-        (0, first_ladder, (
+    for place, ladder, finer_block, moments in (
+        (0, first_ladder, first_finer, (
             ("mean", "36.666666666666664"),
             ("std", "10.236595077850778"),
             ("skew", "0.5765321212279275"),
             ("kurtosis", "2.645135996997432"),
             ("numeric_share", "1"))),
-        (1, second_ladder, (
+        (1, second_ladder, second_finer, (
             ("mean", "32.916666666666664"),
             ("std", "7.821396449755148"),
             ("skew", "0.43445149772021224"),
@@ -5619,7 +5758,8 @@ def _joined_readings():
             ("numeric_share", "1"))),
     ):
         block = {
-            "percentiles": ladder, "n_rows": 12, "n_zero": 0,
+            "percentiles": ladder,
+            "percentiles_between": finer_block, "n_rows": 12, "n_zero": 0,
             "n_negative": 0, "n_negative_unrepresentable": 0,
             "n_used_in_statistics": 12, "n_left_out_of_statistics": 0,
             "integer_valued": True, "numeric_styles": {"plain": 12},

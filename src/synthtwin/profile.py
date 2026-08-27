@@ -786,6 +786,10 @@ PUBLICATION_RULES: "dict[tuple[str, ...], str]" = {
     ("columns", _EACH, "percentiles"): _OBJECT,
     ("columns", _EACH, "percentiles", _KEY_OF): _WORD,
     ("columns", _EACH, "percentiles", _ANY_KEY): _MAYBE_NUMBER,
+    # The ninety rungs the ladder above does not name (plan P4-D4.10).
+    ("columns", _EACH, "percentiles_between"): _OBJECT,
+    ("columns", _EACH, "percentiles_between", _KEY_OF): _WORD,
+    ("columns", _EACH, "percentiles_between", _ANY_KEY): _MAYBE_NUMBER,
     ("columns", _EACH, "mean"): _MAYBE_NUMBER,
     ("columns", _EACH, "std"): _MAYBE_NUMBER,
     ("columns", _EACH, "skew"): _MAYBE_NUMBER,
@@ -832,6 +836,11 @@ PUBLICATION_RULES: "dict[tuple[str, ...], str]" = {
     ("columns", _EACH, "parts", _EACH, "skew"): _MAYBE_NUMBER,
     ("columns", _EACH, "parts", _EACH, "kurtosis"): _MAYBE_NUMBER,
     ("columns", _EACH, "parts", _EACH, "n_distinct_values"): _COUNT,
+    ("columns", _EACH, "parts", _EACH, "percentiles_between"): _OBJECT,
+    ("columns", _EACH, "parts", _EACH, "percentiles_between", _KEY_OF): _WORD,
+    (
+        "columns", _EACH, "parts", _EACH, "percentiles_between", _ANY_KEY
+    ): _MAYBE_NUMBER,
     ("columns", _EACH, "parts", _EACH, "mode"): _MAYBE_NUMBER,
     ("columns", _EACH, "parts", _EACH, "mode_count"): _COUNT,
     ("columns", _EACH, "parts", _EACH, "std_unrepresentable"): _FLAG,
@@ -987,6 +996,11 @@ PUBLICATION_WORDS: "dict[tuple[str, ...], tuple[str, ...]]" = {
         taxonomy.SENTINEL_REASONS
     ),
     ("columns", _EACH, "percentiles", _KEY_OF): taxonomy.LADDER_NAMES,
+    # The ninety rungs the ladder does not name (plan P4-D4.10), whose
+    # words come from the same one place for the same reason.
+    ("columns", _EACH, "percentiles_between", _KEY_OF): (
+        taxonomy.FINER_LADDER_NAMES
+    ),
     # THE SAME TWO VOCABULARIES ONE LEVEL DOWN (plan P4-D21). A joined
     # column's `parts` holds one quantitative block per position, and a
     # block there publishes the same maps a top-level one does -- so the
@@ -994,6 +1008,9 @@ PUBLICATION_WORDS: "dict[tuple[str, ...], tuple[str, ...]]" = {
     # this table is matched on the whole path.
     ("columns", _EACH, "parts", _EACH, "percentiles", _KEY_OF): (
         taxonomy.LADDER_NAMES
+    ),
+    ("columns", _EACH, "parts", _EACH, "percentiles_between", _KEY_OF): (
+        taxonomy.FINER_LADDER_NAMES
     ),
     ("columns", _EACH, "date_percentiles", _KEY_OF): taxonomy.LADDER_NAMES,
     ("columns", _EACH, "clock_percentiles", _KEY_OF): taxonomy.LADDER_NAMES,

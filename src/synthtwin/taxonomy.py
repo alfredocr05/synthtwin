@@ -203,6 +203,26 @@ LADDER = (
     ("max", 100, 100),
 )
 
+# THE NINETY PERCENTS THE LADDER ABOVE DOES NOT NAME (plan P4-D4.10,
+# the owner's second numeric ask of 2026-08-26: "every p value 1 to
+# 100"). Together with `LADDER` these are the whole hundred and one
+# rungs: nought and a hundred are the two ends, `LADDER` names nine
+# more between them, and this names the rest.
+#
+# THEY ARE ONE FACT AND NOT NINETY. Every rung `percentiles` names is
+# an obligation with its own subcheck, and every executable subcheck
+# owes a registered red case that makes THAT subcheck report missed;
+# the entry table carries ninety-nine such cases for eleven rungs, and
+# a hundred and one rungs would need about nine hundred. So the finer
+# ladder is published under one key, disposed once, and its fidelity
+# comes from the GENERATOR INTERPOLATING IT rather than from checking
+# it rung by rung.
+FINER_LADDER = tuple(
+    (f"p{percent:02d}", percent, 100)
+    for percent in range(1, 100)
+    if percent not in (1, 5, 10, 25, 50, 75, 90, 95, 99)
+)
+
 ROLE_EMPTY = "empty"
 ROLE_UNREPRESENTABLE = "numeric_unrepresentable"
 ROLE_CONSTANT = "constant"
@@ -546,6 +566,7 @@ DATETIMES_READ_AT = (READ_AT_LOCAL, READ_AT_UTC)
 # (its length and its word count). Every key of a published summary of
 # that shape is one of these words.
 LADDER_NAMES = tuple([name for name, _num, _den in LADDER])
+FINER_LADDER_NAMES = tuple([name for name, _num, _den in FINER_LADDER])
 LENGTH_KEYS = ("min", "max", "mean", "p50")
 WORD_KEYS = ("min", "max", "mean")
 
@@ -2320,6 +2341,33 @@ def _quantiles(numbers: list[float]) -> dict[str, "float | None"]:
     ordered = sorted(numbers)
     ladder: dict[str, float | None] = {}
     for label, num, den in LADDER:
+        ladder[label] = published(_quantile(ordered, num, den))
+    return ladder
+
+
+def _finer_quantiles(numbers: list[float]) -> dict[str, "float | None"]:
+    """The ninety rungs `_quantiles` does not name (plan P4-D4.10).
+
+    Computed by exactly the rule beside it, at the other ninety
+    percents, so the hundred and one rungs of the two together are one
+    ladder measured one way, and not two of them that might disagree.
+
+    WHY THIS EXISTS, in one measurement. An eleven-rung ladder says
+    nothing about how many cells lie INSIDE a gap between two rungs, so
+    a twin drawn from it puts too few values where the real column
+    crowded them. Reconstructing one dental-code column from its rungs
+    alone: from eleven rungs, 79 cells below 1000 against a true 97 --
+    the defect residual R-P4-30 opened over -- and from a hundred and
+    one rungs, 97 exactly.
+
+    Guarantees: accepts the numbers the statistics used; returns ninety
+    published values, each `None` exactly where the eleven-rung ladder
+    beside it would be. Determinism: a function of the multiset.
+    Raises nothing. No I/O of any kind.
+    """
+    ordered = sorted(numbers)
+    ladder: dict[str, float | None] = {}
+    for label, num, den in FINER_LADDER:
         ladder[label] = published(_quantile(ordered, num, den))
     return ladder
 
@@ -4725,6 +4773,10 @@ def _numeric_details(cells: _Cells, whole: bool) -> dict[str, object]:
     n_present = len(cells.present)
     details: dict[str, object] = {
         "percentiles": _quantiles(numbers),
+        # THE OTHER NINETY RUNGS (plan P4-D4.10). One key, one
+        # disposition, and the fidelity comes from the generator
+        # interpolating them rather than from checking each.
+        "percentiles_between": _finer_quantiles(numbers),
         "value_histogram": _value_histogram(cells, numbers),
         # HOW MANY DIFFERENT NUMBERS, as distinct from how many
         # different SPELLINGS (plan P4-D4.9, closing residual R-P4-20).
