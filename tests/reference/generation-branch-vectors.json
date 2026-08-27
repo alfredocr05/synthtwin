@@ -1,6 +1,219 @@
 {
   "case_set": "The eight cases method section G14.3 adds for the branches its first nine leave unexercised (review items P2-C3-F3 and P2-C4-C3, owner decision 11, plan P4-D4.3, and residual R-P4-17 for the last of them): the joint class-and-sign packing of an unrepresentable column, the joint class-and-alphabet packing of free text, a fold collision no case change can build, the literal decimal, leading-zero and leading-plus style placements, the published end whose seconds field is 60, which the ordinal space cannot hold and the endpoint-fields route writes exactly, the pooled remainder written by its own value beside a whole number wider than the fixed-point window, and the month, which is the second resolution naming a SPAN rather than an instant. They are computed by the same oracle and the same proof layer as tests/reference/generation-reference-vectors.json, and live in their own file only because a committed fixture must stay under the provenance manifest's byte cap.",
   "cases": {
+    "affixed_brackets": {
+      "cells": [
+        "[23]",
+        "[42]",
+        "[34]",
+        "[33]",
+        "[28]",
+        "[12]",
+        "[20]",
+        "[23]",
+        "[29]",
+        "[45]",
+        "[38]",
+        "[17]"
+      ],
+      "column": {
+        "affix_prefix": "[",
+        "affix_suffix": "]",
+        "detection_evidence": "written by hand in this method specification's own neutral vocabulary; no value here comes from any table.",
+        "fraction_widths": {},
+        "integer_valued": true,
+        "kurtosis": {
+          "decimal": "1.7832167832167831",
+          "exact": "17832167832167831/10000000000000000",
+          "float64": 1.7832167832167831,
+          "proof": "nearest"
+        },
+        "mean": {
+          "decimal": "28.5",
+          "exact": "57/2",
+          "float64": 28.5,
+          "proof": "nearest"
+        },
+        "missing_by_class": {
+          "(blank)": 0,
+          "(date-sentinel)": 0,
+          "(declared-missing)": 0,
+          "(numeric-sentinel)": 0,
+          "(text-code)": 0,
+          "(withheld)": 0
+        },
+        "missing_by_source": {},
+        "n_affixed": 12,
+        "n_contradictory": 0,
+        "n_core_contradictory": 0,
+        "n_core_not_numeric": 0,
+        "n_core_numeric": 12,
+        "n_core_out_of_range": 0,
+        "n_distinct": 12,
+        "n_distinct_folded": 12,
+        "n_distinct_values": 12,
+        "n_left_out_of_statistics": 0,
+        "n_missing": 0,
+        "n_missing_blank": 0,
+        "n_missing_withheld": 0,
+        "n_negative": 0,
+        "n_negative_unrepresentable": 0,
+        "n_not_numeric": 12,
+        "n_numeric": 0,
+        "n_out_of_range": 0,
+        "n_present": 12,
+        "n_rows": 12,
+        "n_sentinel_candidates_unpublished": 0,
+        "n_used_in_statistics": 12,
+        "n_zero": 0,
+        "name": "column_1",
+        "numeric_share": {
+          "decimal": "1",
+          "exact": "1",
+          "float64": 1.0,
+          "proof": "nearest"
+        },
+        "numeric_styles": {
+          "plain": 12
+        },
+        "pad_widths": {},
+        "percentiles": {
+          "max": {
+            "decimal": "45",
+            "exact": "45",
+            "float64": 45.0,
+            "proof": "nearest"
+          },
+          "min": {
+            "decimal": "12",
+            "exact": "12",
+            "float64": 12.0,
+            "proof": "nearest"
+          },
+          "p01": {
+            "decimal": "12.33",
+            "exact": "1233/100",
+            "float64": 12.33,
+            "proof": "nearest"
+          },
+          "p05": {
+            "decimal": "13.65",
+            "exact": "273/20",
+            "float64": 13.65,
+            "proof": "nearest"
+          },
+          "p10": {
+            "decimal": "15.3",
+            "exact": "153/10",
+            "float64": 15.3,
+            "proof": "nearest"
+          },
+          "p25": {
+            "decimal": "20.25",
+            "exact": "81/4",
+            "float64": 20.25,
+            "proof": "nearest"
+          },
+          "p50": {
+            "decimal": "28.5",
+            "exact": "57/2",
+            "float64": 28.5,
+            "proof": "nearest"
+          },
+          "p75": {
+            "decimal": "36.75",
+            "exact": "147/4",
+            "float64": 36.75,
+            "proof": "nearest"
+          },
+          "p90": {
+            "decimal": "41.7",
+            "exact": "417/10",
+            "float64": 41.7,
+            "proof": "nearest"
+          },
+          "p95": {
+            "decimal": "43.35",
+            "exact": "867/20",
+            "float64": 43.35,
+            "proof": "nearest"
+          },
+          "p99": {
+            "decimal": "44.67",
+            "exact": "4467/100",
+            "float64": 44.67,
+            "proof": "nearest"
+          }
+        },
+        "position": 1,
+        "quality_state": "ok",
+        "remarks": [
+          "12 of this column's values are written as '[', a number, then ']', and synthtwin described those numbers as quantities: their average, their spread and their ends are in this profile. If these are codes rather than measurements, run the command again with --identifier and no value of this column will be published at all"
+        ],
+        "role": "affixed_number",
+        "sentinel_verdicts": [],
+        "skew": {
+          "decimal": "0",
+          "exact": "0",
+          "float64": 0.0,
+          "proof": "nearest"
+        },
+        "statistical_type": "affixed_number",
+        "std": {
+          "decimal": "10.816653826391969",
+          "exact": "10816653826391969/1000000000000000",
+          "float64": 10.816653826391969,
+          "proof": "nearest"
+        },
+        "std_unrepresentable": false,
+        "structural_role": "data",
+        "value_histogram": {}
+      },
+      "content": [
+        "[12]",
+        "[17]",
+        "[20]",
+        "[23]",
+        "[23]",
+        "[28]",
+        "[29]",
+        "[33]",
+        "[34]",
+        "[38]",
+        "[42]",
+        "[45]"
+      ],
+      "csv_bytes": "[23]\n[42]\n[34]\n[33]\n[28]\n[12]\n[20]\n[23]\n[29]\n[45]\n[38]\n[17]\n",
+      "float64": [],
+      "why": "the first frozen case for the affixed role, and the one that pins the rule the role exists for: A COLUMN OF THIS ROLE PUBLISHES TWO SETS OF CLASS COUNTS AND THEY ARE NOT THE SAME SET. The universal counts answer for the CELLS, and a cell reading `[12]` is not a number, so this column publishes `n_numeric` of nought and twelve cells of ordinary text. The quantitative block answers for the CORES, and there `n_core_numeric` is twelve. An implementer who hands the numeric machinery the cell counts builds a column of no cells at all, which is what this case's mutant does and why it stops the oracle rather than moving its bytes. The pair is TWO-SIDED and its two characters differ, so the committed bytes pin the order of the wrap: `[` before the core and `]` after it, character for character as published, with no trimming and no normalization of either side. Every present cell wore the pair, so this case has no stragglers -- the walk of G6A.3, with its ceiling and its three refusals, is a second branch and belongs to a case of its own. The word budget is the numeric one read over the cores (G4.3): ten content words for twelve cells, which is what the shipped generator plans for this column as well. AND IT IS THE ONE CASE IN EITHER FILE WHERE A CONFORMING GENERATOR MISSES A PUBLISHED FACT AND SAYS SO. Its source column held twelve different numbers and it publishes twelve; the twin holds eleven, because values drawn to a published ladder repeat more evenly than real ones did, and `23` comes out twice. `n_distinct_values` is REPORT-ONLY for exactly this reason (residual R-P4-20), and the shipped generator reports it: twelve published, eleven achieved. Every other case carrying that key publishes the figure its own twin reaches, so none of them can exercise the miss.",
+      "word_budget": {
+        "content": 10,
+        "placement": 11
+      },
+      "words": [
+        "17639521920205238616",
+        "13505086616814382279",
+        "15108206413291935612",
+        "2648109655521823620",
+        "13957488783681493234",
+        "440424866904614487",
+        "10392828958468768899",
+        "307661453259722614",
+        "10328600741271277179",
+        "18028049770950982553",
+        "2493915044553599588",
+        "16250571819090705811",
+        "3648116078256326511",
+        "12380433607203903270",
+        "11280011279662351746",
+        "6666421730586177324",
+        "2346116348095104722",
+        "3316129054665061780",
+        "4395871943553304390",
+        "17732992366768506823",
+        "9781242035145962743"
+      ]
+    },
     "clock_ladder": {
       "cells": [
         "text-1",

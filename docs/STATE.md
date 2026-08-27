@@ -28,7 +28,7 @@ without the same help.
 | branch | `phase-4-plan` (never merged; `main` is pull-request only) |
 | phase | **Phase 4 — comprehensive column handling.** Current. |
 | plan | `docs/plans/phase-4-columns.md` |
-| suite | 3,968 collected / 48 skipped |
+| suite | 3,975 collected / 48 skipped |
 | lint | clean (`ruff check .`), under the rule set pinned in `pyproject.toml` |
 
 ## What is being built right now
@@ -128,8 +128,26 @@ are still ahead. The gap list itself is at the foot of this page.
   Its mutant withdraws the step-up and the same column then writes two
   times twice, in the oracle and in the shipped generator alike.
 
-  Two roles remain: `affixed_number` and `joined_numbers`. Both now
-  have a method section, so neither is blocked on anything but work.
+  **And a third the same day: `affixed_number`.** `affixed_brackets`
+  pins the rule that role exists for — its universal class counts
+  answer for the CELLS, its quantitative block for the CORES, and only
+  the second set reaches the numeric rules. The mutant hands over the
+  cell counts and the oracle stops at the word budget, which G4.3 reads
+  over the cores too. Writing it independently found a role fact the
+  documents alone did not carry, for the third time: a block of this
+  role must carry its own REMARK, and the loader refused the case until
+  it was there.
+
+  Its adversarial read also found a rule the oracle had wrong for every
+  case carrying `n_distinct_values`: that fact is about the SOURCE
+  column, and the oracle was overwriting it with a count of the twin's
+  own cells — so no frozen case could exercise a miss of it, which is
+  the one thing it being REPORT-ONLY is for. A case may now publish its
+  own; this one publishes twelve, its twin holds eleven, and the
+  generator reports the miss. No other case's cells moved.
+
+  One role remains: `joined_numbers`. It has a method section (G6B), so
+  it is blocked on nothing but the work.
 
 * **THE THREE REMAINING ROLES HAD NO METHOD SECTION AT ALL — found
   2026-08-27, and now written.** The oracle's whole value is that it

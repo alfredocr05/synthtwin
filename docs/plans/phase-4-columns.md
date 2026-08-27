@@ -2010,9 +2010,42 @@ Opened by this plan, each a limit accepted rather than work forgotten:
   SHIPPED generator with the same edit, it does the same, which is how
   the case was designed rather than hoped for.
 
-  Two roles remain: `affixed_number` and `joined_numbers`. Both now
-  have a method section (G6A and G6B), so both are buildable, and
-  neither is blocked on anything but the work.
+  **AND FOR A THIRD, the same day: `affixed_number`.**
+  `affixed_brackets` pins the rule that role exists for. A column of it
+  publishes TWO SETS of class counts and they are not the same set: the
+  universal counts answer for the CELLS, and a cell reading `[12]` is
+  not a number, so the column publishes `n_numeric` of nought and
+  twelve cells of ordinary text, while the quantitative block answers
+  for the CORES where `n_core_numeric` is twelve. The mutant hands the
+  numeric machinery the cell counts and the oracle stops at the word
+  budget, which G4.3 reads over the cores as well. The pair is
+  two-sided with differing characters, so the order of the wrap is
+  pinned by the committed bytes too.
+
+  **Writing it independently found a role fact the oracle did not
+  have, for the third time.** A block of this role must carry its own
+  REMARK -- the sentence naming the shared text, saying how many cells
+  wore it, and naming `--identifier` as the route for a column of
+  codes (AF-R). The loader refused the case until it was there. The
+  long-tail case was refused six times for facts of that kind, the
+  clock case needed its own capacity and repair rules, and this one
+  needed the remark: three roles, three sets of obligations the
+  implementation knew and a reader of the documents alone did not.
+
+  **And the adversarial read of it found a rule the oracle had wrong
+  for every case that carries the key.** `n_distinct_values` is a fact
+  about the SOURCE column, and the oracle was overwriting each case's
+  published figure with a count of the twin's own finished cells --
+  putting a fact about the twin where a profiler publishes a fact about
+  the table. It made the frozen files unable to exercise a miss of that
+  fact at all, which is the one thing it being REPORT-ONLY is for
+  (R-P4-20). A case may now publish its own figure; `affixed_brackets`
+  does, at twelve, its twin holds eleven because `23` comes out twice,
+  and the shipped generator reports the miss. No other case's cells
+  moved.
+
+  One role remains: `joined_numbers`. It has a method section (G6B), so
+  it is buildable and blocked on nothing but the work.
 
   **A LIMIT OF THIS RECOVERY, STATED.** These sections were written by
   reading the shipped generator, which is the inverse of the order this
