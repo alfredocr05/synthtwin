@@ -3221,12 +3221,15 @@ def _unrepresentable_spelling(shape, sign, order, asked):
             DIGITS, room, order, _not_a_leading_zero
         )
     if shape == "too_small":
-        if order >= 9:
-            raise AssertionError(
-                "the ninth too-small spelling at one width is the last one "
-                "this file states, and the method fixes no further one. It "
-                "freezes no case that asks for more"
-            )
+        # THE NINTH-SPELLING LIMIT IS GONE, and removing it is the whole
+        # point of the rule below (review item P4-G3-R7-F3).  It was
+        # written when the zero run was whatever the width left over, so
+        # a tenth spelling -- the first whose figure body is two
+        # characters -- had no stated answer and this oracle refused
+        # rather than guess.  The run now grows until the value
+        # underflows, which answers every order, so refusing at nine
+        # would make this oracle disagree with a conforming generator on
+        # the first column that asks for ten.
         figures = str(order + 1)
         zeros = max(room - 2 - len(figures), 1)
         candidate = lead + "0." + "0" * zeros + figures
