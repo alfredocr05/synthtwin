@@ -986,14 +986,43 @@ uses half as many. The coarse ladder reaches twenty-seven by
 INTERPOLATING ACROSS the plateaus — inventing values the column does
 not hold — and that accident is what was meeting the spelling count.
 
-**THE REPAIR, which is bounded and has precedent.** The headroom is
-there: twenty-four distinct rungs against twelve used. Where a
-stratum's value equals its predecessor's and the ladder can supply a
-higher distinct value inside that stratum's own span, it must take it —
-the same step-and-clamp repair the clock role already uses (G7A.4) and
-that residual R-P4-51's neighbours describe. It belongs in
-`_stratum_values`, with its own red case, and it is the one thing
-between this fact and landing.
+**THE REPAIR I PROPOSED DOES NOT WORK, and finding that out is the
+useful part of this entry.** The obvious fix is the clock role's
+step-and-clamp (G7A.4): where a stratum's value equals its
+predecessor's, step it to the next distinct value the ladder can supply
+INSIDE that stratum's own span. It was built and measured, and it moved
+a value in **none** of thirty numeric columns of three shapes. The
+reason is plain once seen: a collapse means the stratum's whole span
+IS one plateau, so there is no higher rung inside it to step onto. The
+code was dead and is removed.
+
+Stepping OUTSIDE the span was measured too, since it is the obvious
+next move. It raises the distinct count from 12 to 20 and destroys the
+thing the finer ladder was built for: the threshold errors go from nil
+to −68, −82 and −56 cells. It is not a trade worth making.
+
+**SO THE BLOCKER IS THE ALLOTMENT, AND IT IS ALREADY OPEN AS
+R-P4-49.** Look at what the column asks for. Two hundred and thirty
+cells hold twenty-seven numbers: five of them about forty cells each,
+the other twenty-two about one cell each. G5.2 divides the cells into
+strata by an EVEN SPLIT, so twenty-seven strata of eight or nine cells
+— a shape that can represent neither "forty cells of one value" nor
+"one cell of another". No ladder can repair that, because the ladder
+decides WHICH values a stratum takes and the allotment decides HOW MANY
+CELLS each gets.
+
+The finer ladder makes the twin land on the right values — the
+plateaus, which are real values of the column — where the eleven-rung
+ladder interpolated across them and manufactured values the column does
+not hold. What it cannot do is give those values their real
+multiplicities, and `numeric_styles`' one-form-per-stratum rule then
+runs short.
+
+**What this fact is waiting on, therefore, is R-P4-49**: the allotment
+following the published shape. Until that lands, the finer ladder helps
+every column whose values are spread and hurts every column whose
+values are heavily repeated, and the second is not a trade this project
+makes with an EXACT fact.
 
 **BUILT 2026-08-27, on the owner's instruction to build it.** The
 disclosure question below was put to them and they answered by asking
