@@ -28,7 +28,7 @@ without the same help.
 | branch | `phase-4-plan` (never merged; `main` is pull-request only) |
 | phase | **Phase 4 — comprehensive column handling.** Current. |
 | plan | `docs/plans/phase-4-columns.md` |
-| suite | 3,982 collected / 48 skipped |
+| suite | 3,997 collected / 48 skipped |
 | lint | clean (`ruff check .`), under the rule set pinned in `pyproject.toml` |
 
 ## What is being built right now
@@ -213,6 +213,36 @@ are still ahead. The gap list itself is at the foot of this page.
   then holds 11 different times and reports the shortfall. On a
   profiler-written description the claim does hold, and G7A.3 now
   carries the proof instead of the assertion.
+
+* **THE MODE IS PUBLISHED (the owner's fifth numeric ask), and it is
+  REPORT-ONLY.** `mode` is the number a column held most often and
+  `mode_count` is how many cells held it, governed by the small-cell
+  floor and by a two-cell minimum, tied by the smallest, and identified
+  by the exact number so two spellings of one number are one value.
+  Invariant Q18 refuses a half-published pair.
+
+  **It was measured before it was built**, because the histogram taught
+  that a fact nothing consumes does not improve a twin. On five 300-row
+  columns the twin was 17 to 28 per cent short of the real count of a
+  dominant value — the gap the owner named. And the mechanism to close
+  it already exists and is proven: G5.2's ZERO STRATUM meets one value
+  at one published count exactly, measured at counts of 0, 30 and 120.
+
+  **But it is not EXACT yet, and the first draft said it was.** Written
+  as a CHECK, it turned sixty-three tests red — "a twin of its own
+  description misses nothing" among them, the product's headline claim
+  — because a check is an obligation and the generator carves no
+  stratum for the mode. That is the fourth fact this phase to walk into
+  the trap, and the rule from the first three applies: REPORT-ONLY, and
+  the quality report LISTS it rather than holding a file to it. Adding
+  it moved no twin byte, which is what REPORT-ONLY should mean.
+
+  The stratum that would make it exact is designed in P4-D4.11, with
+  both its feasibility questions already settled: the count can never
+  exceed what the strata leave room for on a profiler-written
+  description (proved, 40 columns measured), and the mode sits at a
+  published endpoint one time in four, so that is a named rule rather
+  than a case to discover later.
 
 * **TWO JOINED-ROLE DEFECTS, FOUND AND FIXED 2026-08-27.** Both came
   out of writing that role's missing method section, not out of the
@@ -565,7 +595,9 @@ list in on 2026-08-26:
 2. **All 100 percentiles.**
 3. **Kurtosis**, which pairs with skew.
 4. **The count of different numbers** (already planned, R-P4-20).
-5. **The mode**, for columns where one value dominates.
+5. **The mode**, for columns where one value dominates. **PUBLISHED
+   2026-08-27 (plan P4-D4.11), REPORT-ONLY until the generator carves
+   its stratum.**
 
 Design notes — bin edges must be chosen by a reproducible RULE since
 the generator has only the description; bin counts fall under the

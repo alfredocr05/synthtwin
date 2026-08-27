@@ -721,6 +721,8 @@
           "(withheld)": 0
         },
         "missing_by_source": {},
+        "mode": null,
+        "mode_count": 0,
         "n_contradictory": 0,
         "n_distinct": 24,
         "n_distinct_folded": 23,
@@ -1710,6 +1712,8 @@
           "(withheld)": 2
         },
         "missing_by_source": {},
+        "mode": null,
+        "mode_count": 0,
         "n_contradictory": 0,
         "n_distinct": 12,
         "n_distinct_folded": 12,

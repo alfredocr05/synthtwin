@@ -4336,6 +4336,11 @@ WHOLE_FACT_LISTINGS: "dict[str, tuple[str, ...]]" = {
         # REPORT-ONLY (plan P4-D4.7): the twin FOLLOWS the published
         # shape but is not held to it, so the fact is listed whole
         # rather than checked bin by bin.
+        # REPORT-ONLY (plan P4-D4.11): the pair is listed for the
+        # same reason, since no stratum is sized to a published count
+        # except the zero one.
+        "numeric.mode",
+        "numeric.mode_count",
         "numeric.n_distinct_values",
         "numeric.value_histogram",
         "universal.detection_evidence",

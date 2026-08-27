@@ -446,6 +446,13 @@ NUMERIC_KEYS = (
     "numeric_styles",
     "kurtosis",
     "n_distinct_values",
+    # The mode PAIR (plan P4-D4.11). Both keys are always present on a
+    # column of this role; a withheld mode is `null` beside a count of
+    # nought, never an absent key, so a reader never has to tell "this
+    # column had no dominant value" from "this description was written
+    # by something older".
+    "mode",
+    "mode_count",
     "percentiles",
     "skew",
     "std",
@@ -989,6 +996,12 @@ INVARIANTS = {
         "holds different spellings, and holds at least one wherever "
         "its statistics used a value"
     ),
+    "Q18": (
+        "the commonest number of a column and the count of cells that "
+        "held it are published together or not at all, and where they "
+        "are published at least two cells held it and no more cells "
+        "than the column has numbers"
+    ),
     "Q16": (
         "the weight of a column's tails is given when four or more "
         "values are not all the same one, is left out when they are, "
@@ -1468,6 +1481,10 @@ class NumericFacts:
     # on the column block counts spellings, so `1` and `01` are two of
     # them and one number; this counts the numbers.
     n_distinct_values: int
+    # The number the column held most often and how many cells held it,
+    # or None beside 0 where the pair was withheld (plan P4-D4.11).
+    mode: "float | None"
+    mode_count: int
     std_unrepresentable: bool
     n_zero: int
     n_negative: int
@@ -5292,6 +5309,39 @@ def _numeric_facts(
     _pool_holds_both(where, frame.floor, styles, widths, padded)
     histogram = _value_histogram(mapping, where, frame.floor, used, ladder)
     values = _whole(mapping["n_distinct_values"], "n_distinct_values", where, 0)
+    # THE MODE PAIR, and its own invariant (plan P4-D4.11, contract
+    # Q18). The two keys stand or fall together: a value with no count
+    # says "this number dominated" without saying by how much, and a
+    # count with no value says a number dominated without saying which,
+    # so a block carrying one and not the other is refused. Where the
+    # pair is published the count is at least two -- one cell is not a
+    # mode, every value ties there -- and no more than the numeric
+    # cells the block holds.
+    mode = _figure_or_nothing(mapping["mode"], "mode", where)
+    mode_count = _whole(mapping["mode_count"], "mode_count", where, 0)
+    if (mode is None) != (mode_count == 0):
+        raise _broken(
+            "Q18",
+            where,
+            "the number this column held most often"
+            + (" is not published" if mode is None else f" is {mode}"),
+            f"the count of cells that held it is {mode_count}",
+        )
+    if mode is not None:
+        if mode_count < 2:
+            raise _broken(
+                "Q18",
+                where,
+                f"the commonest number {mode} is published",
+                f"only {mode_count} cell(s) held it",
+            )
+        if mode_count > n_numeric:
+            raise _broken(
+                "Q18",
+                where,
+                f"{mode_count} cells held the commonest number",
+                f"{n_numeric} values read as a number",
+            )
     # INVARIANT Q17. A block cannot hold more different numbers than it
     # holds numeric CELLS, and a block whose statistics used a value
     # holds at least one number. Both halves matter: the first is what
@@ -5328,6 +5378,8 @@ def _numeric_facts(
         skew=skew,
         kurtosis=kurtosis,
         n_distinct_values=values,
+        mode=mode,
+        mode_count=mode_count,
         std_unrepresentable=unrepresentable,
         n_zero=n_zero,
         n_negative=n_negative,

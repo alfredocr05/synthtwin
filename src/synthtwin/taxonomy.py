@@ -4647,6 +4647,78 @@ def _distinct_numbers(cells: _Cells) -> int:
     return len(seen)
 
 
+def _mode_of(cells: _Cells) -> "tuple[float | None, int]":
+    """The number this column held most often, and how many cells held it.
+
+    THE VALUE IS AN IDENTITY QUESTION AND THE ANSWER IS THE EXACT ONE.
+    Cells are grouped by the canonical triple each already carries --
+    the same key `_distinct_numbers` counts with, and the same one the
+    declared-value and sentinel rules compare by -- so two spellings of
+    one number are one value here, and two numbers that round to one
+    binary64 are two. Grouping by the rounded `value` would make one
+    mode out of two different numbers.
+
+    THE TIE RULE IS THE SMALLEST, and it is written down rather than
+    left to whatever a mapping iterates in. Where several numbers share
+    the largest count the smallest of them is the mode: it is
+    deterministic, it names no value the ladder does not already
+    publish one of, and it gives an independent implementer one answer
+    (plan P4-D4.11).
+
+    Guarantees: accepts a tally of one column; returns the mode's own
+    published value and its count, or `(None, 0)` where the column
+    holds no number at all. The floor is NOT applied here -- this
+    answers what the column held, and `_numeric_details` decides what
+    may be published. Determinism: the answer depends only on the
+    multiset of cells. Raises nothing. No I/O of any kind.
+    """
+    counts: "dict[tuple[int, tuple[str, ...], int], int]" = {}
+    values: "dict[tuple[int, tuple[str, ...], int], float]" = {}
+    for cell in cells.classified:
+        if cell.kind != parsing.NUMBER:
+            continue
+        if cell.exact is None or cell.value is None:
+            continue
+        if cell.exact in counts:
+            counts[cell.exact] = counts[cell.exact] + 1
+        else:
+            counts[cell.exact] = 1
+        values[cell.exact] = cell.value
+    if not counts:
+        return None, 0
+    most = 0
+    for key in counts:
+        if counts[key] > most:
+            most = counts[key]
+    smallest: "float | None" = None
+    for key in counts:
+        if counts[key] != most:
+            continue
+        found = values[key]
+        if smallest is None or found < smallest:
+            smallest = found
+    return smallest, most
+
+
+def _mode_published(cells: _Cells, floor: int) -> dict[str, object]:
+    """The mode pair a column may publish, or the withheld pair.
+
+    Two bounds, and each is a rule rather than a preference. A mode
+    held by fewer cells than the SMALL-CELL FLOOR is a small group and
+    the floor exists for exactly that. A mode held by ONE cell is not a
+    mode at all: every value ties, and the tie rule would publish the
+    column's smallest number under a name that says it dominates.
+
+    Guarantees: accepts a tally and a floor of zero or more; returns
+    either both keys with a number and a count, or both keys withheld.
+    Determinism: a function of the two. Raises nothing. No I/O.
+    """
+    value, count = _mode_of(cells)
+    if value is None or count < 2 or count < floor:
+        return {"mode": None, "mode_count": 0}
+    return {"mode": value, "mode_count": count}
+
+
 def _numeric_details(cells: _Cells, whole: bool) -> dict[str, object]:
     """The published description of a numeric column."""
     numbers = cells.numbers
@@ -4672,6 +4744,27 @@ def _numeric_details(cells: _Cells, whole: bool) -> dict[str, object]:
         # spellings that round together but denote different numbers
         # count as two.
         "n_distinct_values": _distinct_numbers(cells),
+        # THE NUMBER THIS COLUMN HELD MOST OFTEN, and how many cells
+        # held it (plan P4-D4.11, the owner's fifth numeric ask of
+        # 2026-08-26: "the mode, for columns where one value
+        # dominates").
+        #
+        # THE FLOOR GOVERNS THE COUNT AND NOT THE VALUE. An exact value
+        # is not a new disclosure class on this role -- the ladder
+        # already publishes eleven of them -- so what the floor is
+        # asked about is the new fact, "this number was held by N
+        # cells". Below the floor the PAIR is withheld whole rather
+        # than the count alone, because a value published without its
+        # count would say "this was the commonest number" and that is
+        # the same fact in fewer words.
+        #
+        # A COLUMN WHOSE VALUES ARE ALL DIFFERENT HAS NO MODE WORTH THE
+        # NAME, and publishing the smallest of three hundred ties would
+        # be an arbitrary real value dressed as a statistic. Measured:
+        # a 300-row continuous column's most frequent value was held by
+        # one cell, and a laboratory column's by four. Two is the least
+        # a mode can mean, and the floor is the other bound.
+        **_mode_published(cells, cells.settings.small_cell_floor),
         "n_zero": len([value for value in numbers if value == 0.0]),
         # Every cell whose sign the text settles, not only the ones the
         # statistics could use. The sign of `(1e999)` ruled the count

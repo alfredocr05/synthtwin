@@ -369,6 +369,11 @@ PHASE_4_MOMENT_KEYS = ("kurtosis",)
 # exactly as `n_distinct` beside it is; disposed in the Phase 4 plan
 # (P4-D4.9).
 PHASE_4_VALUE_COUNT_KEYS = ("n_distinct_values",)
+# Plan P4-D4.11. The mode pair takes the same disposition as the value
+# count beside it and for the same reason: the generator carves no
+# stratum sized to a published count except the zero one, so no file is
+# held to the pair and the quality report LISTS it.
+PHASE_4_MODE_KEYS = ("mode", "mode_count")
 
 # ...and the census of written forms, which version 4's matrix has no
 # row for because version 4 had no such key. It is disposed in the
@@ -1132,6 +1137,8 @@ def test_every_key_the_producer_emits_has_a_disposition(
                 table[own] = "APPROXIMATED (Phase 4 plan, P4-D4.8)"
             for own in PHASE_4_VALUE_COUNT_KEYS:
                 table[own] = "REPORT-ONLY (Phase 4 plan, P4-D4.9)"
+            for own in PHASE_4_MODE_KEYS:
+                table[own] = "REPORT-ONLY (Phase 4 plan, P4-D4.11)"
             for own in PHASE_4_SHAPE_KEYS:
                 table[own] = "EXACT-OBSERVABLE (Phase 4 plan, P4-D18)"
             for own, said in PHASE_4_DATETIME_KEYS:
@@ -1172,6 +1179,8 @@ def test_the_completeness_assertion_refuses_a_key_nobody_disposed(
             table[own] = "APPROXIMATED (Phase 4 plan, P4-D4.8)"
         for own in PHASE_4_VALUE_COUNT_KEYS:
             table[own] = "REPORT-ONLY (Phase 4 plan, P4-D4.9)"
+        for own in PHASE_4_MODE_KEYS:
+            table[own] = "REPORT-ONLY (Phase 4 plan, P4-D4.11)"
         names = _emitted_names(block) + ["a_field_nobody_disposed"]
         assert _undisposed(names, table, universal) == [
             "a_field_nobody_disposed"

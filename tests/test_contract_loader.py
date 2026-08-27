@@ -842,6 +842,12 @@ def battery() -> list[Mutation]:
             edit("visits", kurtosis=900.0),
         ),
         Mutation(
+            "Q18",
+            "a commonest number held by more cells than the column has "
+            "numbers",
+            edit("visits", mode=1.0, mode_count=900),
+        ),
+        Mutation(
             "P1", "forms that do not account for the numbers",
             edit("visits", numeric_styles={"plain": 228}),
         ),
