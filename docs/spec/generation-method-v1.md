@@ -659,12 +659,60 @@ Then `c[S - 1] + g[S - 1] = K`.
 
 ### G5.3 The value of each stratum: pinned ends, stratified inverse transform, no word for a zero
 
+**REVISION 2 (2026-08-27, plan P4-D4.10): the ladder a column of
+numbers interpolates over is a HUNDRED AND ONE rungs, not eleven.**
+
+The measurement that forced it. An eleven-rung ladder says nothing
+about how many cells lie INSIDE a gap between two rungs, so a twin
+drawn from it puts too few values where the real column crowded them.
+Four hundred rows, a threshold at 1000, and the share of the column
+below that threshold varied — the error in the twin's count of cells
+below it:
+
+| share below the threshold | eleven rungs | hundred and one |
+|---|---|---|
+| 11% | −2 | **0** |
+| 24% | −9 | **0** |
+| 37% | −31 | **0** |
+| 62% | −39 | **0** |
+| 85% | −37 | **0** |
+
+The eleven-rung error grows with the distance from a named rung and
+reaches thirty-nine cells, a tenth of the column; the finer ladder is
+EXACT at every one of them. That is residual R-P4-30's defect, and this
+is its repair.
+
+**The first measurement of this table read `+2` in the right-hand
+column at every share, and that was not the method — it was a defect in
+this landing.** Eight places reached for `L[10]` meaning the top of the
+ladder, which on a hundred-and-one-rung ladder is `p10`; with them
+fixed the column reads nought. A constant error across five very
+different shapes should have been read as a structural fault rather
+than as a property, and it is written down here because the next person
+to see a suspiciously flat residual should look for one.
+
+**WHY THIS WORKED WHERE THE HISTOGRAM DID NOT** (G13, R-P4-49). The
+histogram asked the twin to hold a COUNT per bin, and counts come from
+the allotment, which never saw it. A ladder asks the twin to PLACE a
+value, and placing values by interpolating a ladder is what this
+section already does. No new mechanism was added: the list got longer.
+
+**WHAT DID NOT CHANGE, stated because it was tried and reverted.** The
+LAYOUT — how many strata a band gets and which can carry a point-free
+spelling (G5.2, G6.4) — still reads the eleven NAMED rungs. Handing it
+the finer ladder as well changes the strata counts, so a column comes
+out a different shape rather than the same shape more finely placed,
+and the fidelity this revision buys is in placement.
+
 For each stratum `s`, in ascending `s`:
 
 - **`s == 0`**: the value is `L[0]` — the published `min`, used exactly
   as published. No word.
-- **`s == S - 1` and `S >= 2`**: the value is `L[10]` — the published
-  `max`, exactly. No word.
+- **`s == S - 1` and `S >= 2`**: the value is `L[-1]` — the published
+  `max`, exactly. No word. (The LAST rung, named by its position and
+  not by the number ten: the ladder a column of numbers interpolates
+  over has a hundred and one rungs, and code that reached for `L[10]`
+  as the top of it read `p10` instead — see the revision note below.)
 - **the zero stratum** (when it exists and is neither of the above): the
   value is exactly `0`. No word.
 - **any other stratum**: one word `w` is drawn, and the value is
@@ -677,7 +725,7 @@ For each stratum `s`, in ascending `s`:
   which places the stratum's uniform inside the stratum's own share of
   the distribution: `N_s / D` lies in `[c[s]/K, (c[s]+g[s])/K)`.
 
-  Find the ladder segment `j` — the unique `j` in `0 .. 9` with
+  Find the ladder segment `j` — the unique `j` with
 
   ```
   PCT[j] * D  <=  100 * N_s  <  PCT[j+1] * D
@@ -685,7 +733,21 @@ For each stratum `s`, in ascending `s`:
 
   scanning `j` upward from 0 and stopping at the first that holds. Where
   two adjacent rungs share a probability this cannot happen (the
-  probabilities are strictly increasing), so the segment is unique. Then
+  probabilities are strictly increasing), so the segment is unique.
+
+  **`PCT` HERE IS THE HUNDRED AND ONE PERCENTS `0 .. 100`, AND `L` IS
+  THE HUNDRED AND ONE RUNGS** — the eleven the description names and
+  the ninety of `percentiles_between` beside them, merged in percent
+  order and filled by G5.1's rule over the whole of it (revision 2,
+  plan P4-D4.10). A DATE or CLOCK column keeps the eleven of G7.3 and
+  G7A.4: each of those is a selection ladder over values that cannot be
+  averaged, and the finer ladder is a fact about numbers.
+
+  Which percents a ladder stands at follows from HOW MANY RUNGS IT
+  HAS, so an implementation cannot pair a ladder with the wrong
+  percents; doing so reads `L[j]` for a `j` chosen against the other
+  scale, which on a hundred-and-one-rung ladder means never reading
+  above the tenth percentile. Then
 
   ```
   A = 100 * N_s - PCT[j] * D                 (exact, 0 <= A < B)

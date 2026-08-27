@@ -158,6 +158,29 @@ _WORD_SCALE = 18446744073709551616
 # of neighbours in a large column (method G5.1).
 _PCT = (0, 1, 5, 10, 25, 50, 75, 90, 95, 99, 100)
 
+# THE HUNDRED AND ONE PERCENTS OF THE FINER LADDER (plan P4-D4.10).
+# The named eleven above are what a DATE or CLOCK column's ladder
+# stands at, and what the report walks when it names a rung; a column
+# of numbers interpolates over all hundred and one, because that is
+# where the fidelity comes from -- an eleven-rung ladder says nothing
+# about how many cells lie inside a gap.
+_PCT_FINE = tuple(range(101))
+
+# Which percents a ladder stands at is decided by HOW MANY RUNGS IT
+# HAS, so the seventeen places that interpolate need no argument added
+# and cannot be given a ladder and the wrong percents for it.
+_PERCENTS_BY_LENGTH = {len(_PCT): _PCT, len(_PCT_FINE): _PCT_FINE}
+
+
+def _percents_of(rungs: "tuple[float, ...]") -> "tuple[int, ...]":
+    """The percents a ladder of this many rungs stands at."""
+    if len(rungs) not in _PERCENTS_BY_LENGTH:
+        raise AssertionError(
+            f"a ladder of {len(rungs)} rungs stands at no percents this "
+            "method knows: it is eleven rungs or a hundred and one"
+        )
+    return _PERCENTS_BY_LENGTH[len(rungs)]
+
 # The eleven rungs by name, in ladder order, which is the order `_PCT`
 # is in. A ladder read out of a document is a MAPPING, so a walk over
 # it needs the order written down; taking the mapping's own order would
@@ -1701,6 +1724,48 @@ def _recounted(
 # -- the ladder (method G5.3) -----------------------------------------
 
 
+def _merged_rungs(
+    facts: contract.NumericFacts,
+) -> "tuple[float, ...] | None":
+    """A column of numbers' ladder at its full hundred and one rungs.
+
+    The eleven the description NAMES and the ninety beside them are one
+    ladder measured one way (contract Q19), and this is where the two
+    are put back together, in percent order, before G5.1's filling rule
+    is applied to the whole of it.
+
+    WHY THE GENERATOR USES ALL OF THEM. An eleven-rung ladder says
+    nothing about how many cells lie inside a gap between two rungs, so
+    a twin drawn from it puts too few values where the real column
+    crowded them. Measured on one dental-code column: from eleven
+    rungs, 79 cells below 1000 against a true 97 -- residual R-P4-30 --
+    and from a hundred and one, 97 exactly. No new mechanism was needed
+    for it, which is the whole reason this fact works where the
+    histogram did not: placing values by interpolating a ladder is
+    already what the value construction does, and this hands it a
+    longer list.
+
+    Guarantees: accepts a numeric block; returns a hundred and one
+    non-decreasing rungs, or None where the ladder holds nothing
+    anywhere. Determinism: a function of the published rungs. Raises
+    nothing. No I/O of any kind.
+    """
+    named: "dict[int, float | None]" = {}
+    for index in range(len(contract.LADDER_PERCENTS)):
+        named[contract.LADDER_PERCENTS[index]] = facts.percentiles.rungs[index]
+    finer: "dict[int, float | None]" = {}
+    for index in range(len(contract.FINER_LADDER_KEYS)):
+        name = contract.FINER_LADDER_KEYS[index]
+        finer[int(name[1:])] = facts.percentiles_between[index]
+    whole: "list[float | None]" = []
+    for percent in range(101):
+        if percent in named:
+            whole = whole + [named[percent]]
+        else:
+            whole = whole + [finer[percent]]
+    return _filled_rungs(tuple(whole))
+
+
 def _filled_rungs(
     rungs: "tuple[float | None, ...]",
 ) -> "tuple[float, ...] | None":
@@ -1733,19 +1798,26 @@ def _filled_rungs(
     return tuple(filled)
 
 
-def _segment(numerator: int, denominator: int) -> int:
+def _segment(
+    numerator: int, denominator: int, percents: "tuple[int, ...]" = _PCT
+) -> int:
     """The ladder segment a stratum's share falls in (method G5.3).
 
     The unique step with ``PCT[j] * D <= 100 * N < PCT[j+1] * D``,
     scanning upward from zero and stopping at the first that holds. The
     probabilities strictly increase, so the answer is unique.
+
+    ``percents`` is the eleven of a date or clock ladder by default and
+    the hundred and one of a numeric one where that is passed; the
+    scan is the same either way and only its length changes.
     """
     scaled = 100 * numerator
-    for step in range(10):
-        below = _PCT[step] * denominator <= scaled
-        if below and scaled < _PCT[step + 1] * denominator:
+    last = len(percents) - 2
+    for step in range(last + 1):
+        below = percents[step] * denominator <= scaled
+        if below and scaled < percents[step + 1] * denominator:
             return step
-    return 9
+    return last
 
 
 def _interpolated(
@@ -1766,11 +1838,12 @@ def _interpolated(
     segment by one unit in the last place, and the published ends are
     facts a recount would catch.
     """
-    step = _segment(numerator, denominator)
+    percents = _percents_of(rungs)
+    step = _segment(numerator, denominator, percents)
     low = rungs[step]
     high = rungs[step + 1]
-    above = 100 * numerator - _PCT[step] * denominator
-    span = (_PCT[step + 1] - _PCT[step]) * denominator
+    above = 100 * numerator - percents[step] * denominator
+    span = (percents[step + 1] - percents[step]) * denominator
     share = math.ldexp((above << 53) // span, -53)
     rest = 1 - share
     first = rest * low
@@ -2226,7 +2299,7 @@ def _published_ends(
     """
     rungs = facts.percentiles.rungs
     low = rungs[0]
-    high = rungs[10]
+    high = rungs[-1]
     if low is None or high is None:
         found = sorted(values)
         if not found:
@@ -2285,9 +2358,19 @@ def _segment_bounds(
             found[value] = whole
         return found
     total = len(layout.sizes)
-    # Read out once, past the null test above, so the interpolation
-    # takes the finite ladder this function has already established.
-    settled_rungs = tuple(rung for rung in rungs if rung is not None)
+    # BOUNDED BY THE LADDER THE VALUES WERE BUILT FROM, which is the
+    # merged hundred and one and not the named eleven (plan P4-D4.10).
+    # A stretch taken from the coarse line is wider than the segment a
+    # value actually came from, so a snap the fine segment forbids was
+    # permitted: with a named `p25` of 0.6 and `p50` of 100.6 but a
+    # fine `p26` of 0.7, a value drawn from `[0.6, 0.7]` was bounded by
+    # roughly `[0.6, 4.6]` and could be written `1.` -- moving a value
+    # across a bend, which is the one thing the finer ladder exists to
+    # get right. The named ladder stands in only where the merged one
+    # holds nothing anywhere.
+    settled_rungs = _merged_rungs(facts)
+    if settled_rungs is None:
+        settled_rungs = tuple(rung for rung in rungs if rung is not None)
     for place in range(total):
         value = values[place]
         span: "tuple[float, float]" = (value, value)
@@ -3660,7 +3743,7 @@ def _carrier_flags(
         if not pinned or rungs is None:
             flags = flags + [True]
             continue
-        end = rungs[0] if place == 0 else rungs[10]
+        end = rungs[0] if place == 0 else rungs[-1]
         flags = flags + [_carries_plainly(end, whole_column)]
     return flags
 
@@ -3939,7 +4022,7 @@ def _free_whole(
     the starting point settle the question.
     """
     lowest = max(low, float(rungs[0]))
-    highest = min(high, float(rungs[10]))
+    highest = min(high, float(rungs[-1]))
     if band == _BAND_POSITIVE:
         lowest = max(lowest, 1.0)
     if band == _BAND_NEGATIVE:
@@ -4076,7 +4159,7 @@ def _reach_held(
             flags = flags + [True]
             continue
         if pinned:
-            end = rungs[0] if place == 0 else rungs[10]
+            end = rungs[0] if place == 0 else rungs[-1]
             held[end] = 1
             flags = flags + [_carries_plainly(end, whole_column)]
             continue
@@ -4455,6 +4538,15 @@ def _numeric_layout(
     # which cells the cell step can then reach.
     quotas = _style_quotas(facts.numeric_styles)
     demand = min(_whole_demand(facts), numbers)
+    # THE LAYOUT READS THE NAMED LADDER AND NOT THE FINER ONE, and the
+    # line between them is the whole design of plan P4-D4.10. How many
+    # strata a band gets, and which of them can carry a point-free
+    # spelling, is fixed by the DISTINCTNESS facts and by the eleven
+    # rungs a reader can name; the finer ladder buys fidelity in where
+    # a value is PLACED, which is the step below. Handing it to the
+    # carrier-band decision as well was tried and changes the strata
+    # counts, so a column comes out with a different shape rather than
+    # the same shape more finely placed.
     rungs = _filled_rungs(facts.percentiles.rungs)
     if demand > 0:
         negative_strata, positive_strata = _carrier_bands(
@@ -5505,7 +5597,7 @@ def _numeric_content(
     if not isinstance(facts, contract.NumericFacts) or layout is None:
         raise _wrong_facts(column.name)
     notes: list[Deviation] = []
-    rungs = _filled_rungs(facts.percentiles.rungs)
+    rungs = _merged_rungs(facts)
     if len([rung for rung in facts.percentiles.rungs if rung is None]) > 0:
         notes = notes + [
             _deviation(
@@ -5587,7 +5679,7 @@ def _stratum_values(
         if band == _BAND_ZERO:
             values = values + [0.0]
             if pinned and rungs is not None:
-                published = rungs[0] if place == 0 else rungs[10]
+                published = rungs[0] if place == 0 else rungs[-1]
                 if published != 0.0:
                     notes = notes + [
                         _deviation(
@@ -5605,7 +5697,7 @@ def _stratum_values(
             if rungs is None:
                 values = values + [_sign_fallback(band, None)]
             else:
-                values = values + [rungs[0] if place == 0 else rungs[10]]
+                values = values + [rungs[0] if place == 0 else rungs[-1]]
             continue
         if rungs is None:
             values = values + [_sign_fallback(band, None)]
@@ -5635,7 +5727,7 @@ def _sign_fallback(band: str, rungs: "tuple[float, ...] | None") -> float:
     if band == _BAND_POSITIVE:
         if rungs is None:
             return 1.0
-        return min(rungs[10], 1.0)
+        return min(rungs[-1], 1.0)
     return 0.0
 
 
@@ -5894,7 +5986,7 @@ def _whole_enough(
                         column.n_numeric,
                     ),
                 )
-                ends = (rungs[0], rungs[10])
+                ends = (rungs[0], rungs[-1])
             want = _whole_inside(
                 moved[place],
                 band,
@@ -13956,7 +14048,7 @@ def _numeric_approximations(
         ]
     )
     held = len(values)
-    rungs = _filled_rungs(facts.percentiles.rungs)
+    rungs = _merged_rungs(facts)
     if held < 1 or rungs is None:
         return _numeric_cardinalities(column, plan, written)
     layout = plan.layout

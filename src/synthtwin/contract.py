@@ -446,6 +446,8 @@ NUMERIC_KEYS = (
     "numeric_styles",
     "kurtosis",
     "n_distinct_values",
+    # The ninety rungs the named ladder does not carry (plan P4-D4.10).
+    "percentiles_between",
     # The mode PAIR (plan P4-D4.11). Both keys are always present on a
     # column of this role; a withheld mode is `null` beside a count of
     # nought, never an absent key, so a reader never has to tell "this
@@ -559,6 +561,27 @@ WORD_KEYS = ("max", "mean", "min")
 
 # The eleven rungs, in ladder order. The order is the rule: a ladder is
 # checked non-decreasing by walking it in exactly this sequence.
+# THE NINETY RUNGS THE LADDER DOES NOT NAME (plan P4-D4.10). Built
+# from the same rule the producer builds them by, so the names a
+# description carries and the names this loader admits cannot drift:
+# every percent from 1 to 99 that `LADDER_KEYS` does not already name.
+FINER_LADDER_KEYS = tuple(
+    f"p{percent:02d}"
+    for percent in range(1, 100)
+    if percent not in (1, 5, 10, 25, 50, 75, 90, 95, 99)
+)
+
+# The percent each of the hundred and one rungs stands at, in ladder
+# order, which is what the joint monotone check of Q19 walks.
+LADDER_PERCENTS = (0, 1, 5, 10, 25, 50, 75, 90, 95, 99, 100)
+
+# What each of those percents is CALLED in the document, so a refusal
+# names the rung the way the description spells it.
+_LADDER_NAME_AT = {
+    0: "min", 1: "p01", 5: "p05", 10: "p10", 25: "p25", 50: "p50",
+    75: "p75", 90: "p90", 95: "p95", 99: "p99", 100: "max",
+}
+
 LADDER_KEYS = (
     "min",
     "p01",
@@ -995,6 +1018,11 @@ INVARIANTS = {
         "a column of numbers holds no more different numbers than it "
         "holds different spellings, and holds at least one wherever "
         "its statistics used a value"
+    ),
+    "Q19": (
+        "the ninety finer rungs of a column of numbers are named "
+        "exactly, each holds a number or nothing, and the hundred and "
+        "one rungs of the named ladder and this one together never go down"
     ),
     "Q18": (
         "the commonest number of a column and the count of cells that "
@@ -1467,6 +1495,10 @@ class NumericFacts:
     """
 
     percentiles: NumberLadder
+    # The ninety rungs `percentiles` does not name, in percent
+    # order (plan P4-D4.10, contract Q19). One fact, no subcheck
+    # of its own, consumed by the generator's interpolation.
+    percentiles_between: "tuple[float | None, ...]"
     mean: "float | None"
     std: "float | None"
     skew: "float | None"
@@ -2602,6 +2634,65 @@ def _multiplicity_totals(
 
 
 # -- the eleven rungs ------------------------------------------------
+
+
+def _finer_ladder(
+    value: object, key: str, where: str, ladder: NumberLadder
+) -> "tuple[float | None, ...]":
+    """The ninety rungs the named ladder does not carry (contract Q19).
+
+    They are ONE FACT and not ninety: no rung here has a subcheck of
+    its own, and the fidelity they buy comes from the generator
+    interpolating them rather than from a file being held to each
+    (plan P4-D4.10).
+
+    What IS checked is the shape a consumer relies on. The keys are
+    exactly the ninety percents, every entry is a number or null, and
+    -- the half that matters -- the HUNDRED AND ONE rungs of this and
+    the named ladder together never go down. Checking the ninety alone
+    would let a finer rung sit outside the named pair it lies between,
+    and a generator interpolating that ladder would then place a value
+    outside two rungs the description publishes as exact.
+
+    Guarantees: accepts the value under ``key`` and the named ladder
+    beside it; returns the ninety rungs in percent order. Raises
+    ProfileError for a value that is not a block (R15), for keys that
+    are not exactly the ninety (L4), for an entry that is neither a
+    number nor null (R15), and for Q19. No I/O of any kind.
+    """
+    mapping = _mapping(value, key, where)
+    _keys(mapping, where, FINER_LADDER_KEYS, "every finer ladder")
+    finer: "dict[int, float | None]" = {}
+    rungs: list[float | None] = []
+    for name in FINER_LADDER_KEYS:
+        rung = _figure_or_nothing(mapping[name], f"{key} -> {name}", where)
+        rungs = rungs + [rung]
+        finer[int(name[1:])] = rung
+    # THE JOINT WALK, over all hundred and one rungs in percent order.
+    named: "dict[int, float | None]" = {}
+    for index in range(len(LADDER_PERCENTS)):
+        named[LADDER_PERCENTS[index]] = ladder.rungs[index]
+    previous: "float | None" = None
+    previous_percent = 0
+    for percent in range(101):
+        if percent in named:
+            rung = named[percent]
+            shown = f"percentiles -> {_LADDER_NAME_AT[percent]}"
+        else:
+            rung = finer[percent]
+            shown = f"{key} -> p{percent:02d}"
+        if rung is None:
+            continue
+        if previous is not None and rung < previous:
+            raise _broken(
+                "Q19",
+                where,
+                f"the rung at {previous_percent} per cent is {previous}",
+                f"{shown} is {rung}",
+            )
+        previous = rung
+        previous_percent = percent
+    return tuple(rungs)
 
 
 def _number_ladder(
@@ -5082,6 +5173,9 @@ def _numeric_facts(
     the contract says so rather than pretending otherwise.
     """
     ladder = _number_ladder(mapping["percentiles"], "percentiles", where)
+    finer = _finer_ladder(
+        mapping["percentiles_between"], "percentiles_between", where, ladder
+    )
     mean = _figure_or_nothing(mapping["mean"], "mean", where)
     std = _figure_or_nothing(mapping["std"], "std", where)
     skew = _figure_or_nothing(mapping["skew"], "skew", where)
@@ -5373,6 +5467,7 @@ def _numeric_facts(
         )
     return NumericFacts(
         percentiles=ladder,
+        percentiles_between=finer,
         mean=mean,
         std=std,
         skew=skew,

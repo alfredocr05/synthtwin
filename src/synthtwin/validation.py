@@ -385,6 +385,15 @@ _NOT_CHECKABLE_VALUE_COUNT = (
     "different count of numbers misses no obligation this description "
     "makes"
 )
+_NOT_CHECKABLE_FINER_LADDER = (
+    "the description records the ninety percentile rungs its named "
+    "ladder does not carry, as ONE fact rather than ninety: no file is "
+    "held to any of them, and holding one to each would mean ninety "
+    "obligations whose red cases could not honestly be written. What "
+    "they buy is where a twin PLACES its values, which the eleven "
+    "named rungs beside them are still checked for. A file whose finer "
+    "rungs differ misses no obligation this description makes"
+)
 _NOT_CHECKABLE_MODE = (
     "the description records which number the real column held most "
     "often and how many cells held it, and it asks no file to hold "
@@ -10372,6 +10381,15 @@ def _listings(
         # published on every column of this role that has one, so its
         # listing does not hang off the histogram beside it; a column
         # with no dominant value publishes no pair and gets no listing.
+        if isinstance(facts, contract.NumericFacts):
+            listings = listings + [
+                Listing(
+                    column.name,
+                    "numeric.percentiles_between",
+                    "",
+                    _NOT_CHECKABLE_FINER_LADDER,
+                ),
+            ]
         if isinstance(facts, contract.NumericFacts) and facts.mode is not None:
             listings = listings + [
                 Listing(column.name, "numeric.mode", "", _NOT_CHECKABLE_MODE),

@@ -381,6 +381,25 @@ none may be inferred from another:
   values were used or where every value used is the same one, and
   invariant Q16 holds it between 1 and `n - 2 + 1/(n - 1)`, which is
   where every sample of `n` values lies whatever the values are.
+- `percentiles_between` holds the ninety percents `percentiles` does
+  not name, so the two together are the hundred and one rungs from 0 to
+  100. It is ONE FACT: no rung of it has a subcheck of its own, and no
+  file is held to any of them. What invariant Q19 requires is the shape
+  a consumer relies on — the keys are exactly those ninety, each entry
+  is a number or null, and **the hundred and one rungs of the named
+  ladder and this one together never go down**. That last clause is the one that matters:
+  checking the ninety alone would let a finer rung sit outside the
+  named pair it lies between, and a generator interpolating that ladder
+  would then place a value outside two rungs the description publishes
+  as exact.
+
+  What it buys is not a check but FIDELITY. An eleven-rung ladder says
+  nothing about how many values lie inside a gap between two rungs, so
+  a twin drawn from one puts too few where the real column crowded
+  them. Measured on 400-row columns with a threshold at 1000: where the
+  threshold fell mid-gap the eleven-rung twin was thirty-nine cells out
+  of the count below it, a tenth of the column, and the finer twin was
+  exact.
 - `mode` and `mode_count` are the number this column held most often
   and how many cells held the commonest number. They are published
   TOGETHER or not at all, which invariant Q18 enforces: a value with no
@@ -3715,6 +3734,7 @@ consumer off the role name.
 | key | JSON type | range | meaning | disposition |
 |---|---|---|---|---|
 | `percentiles` | ladder object | section 5.6 | the eleven-rung ladder over the PARSED values | `min` and `max` EXACT-OBSERVABLE; the nine interior rungs APPROXIMATED |
+| `percentiles_between` | object of ninety rungs | Q19 below | the ninety rungs the named ladder does not carry: every percent from 1 to 99 it does not name | REPORT-ONLY, one fact and not ninety |
 | `mean` | number or `null` | — | the arithmetic mean of the parsed values | APPROXIMATED |
 | `std` | number or `null` | ≥ 0 when a number | the sample standard deviation, divided by n−1 | APPROXIMATED |
 | `skew` | number or `null` | — | the moment-based skewness | APPROXIMATED |
@@ -4330,6 +4350,7 @@ The fourteen columns, abbreviated for width: `emp` `empty`, `unr`
 | `clock_form` | | | | | | | | ● | | | | | | |
 | `clock_percentiles` | | | | | | | | ● | | | | | | |
 | `percentiles` | | | | | | | | | ● | ● | ● | | | |
+| `percentiles_between` | | | | | | | | | ● | ● | ● | | | |
 | `mean` | | | | | | | | | ● | ● | ● | | | |
 | `std` | | | | | | | | | ● | ● | ● | | | |
 | `skew` | | | | | | | | | ● | ● | ● | | | |
@@ -4379,7 +4400,7 @@ The fourteen columns, abbreviated for width: `emp` `empty`, `unr`
 | `parts` | | | | | | | | | | | | | | ● |
 | `separator` | | | | | | | | | | | | | | ● |
 
-**Sixty-nine rows, one hundred and thirty-eight marked cells**, distributed
+**Seventy rows, one hundred and forty-one marked cells**, distributed
 `empty` 0, `numeric_unrepresentable` 9, `constant` 5, `binary` 5,
 `categorical` 6, `long_tail_labels` 5, `datetime` 13, `time_of_day`
 5, `count` 16, `continuous` 16, `affixed_number` 23, `identifier` 6,
@@ -4622,6 +4643,7 @@ block carries, the quantitative ones computed over the CORES.
 | `n_core_contradictory` | integer ≥ 0 | ≤ `n_affixed` | CORES written in numeric notation whose meaning conflicts with itself | EXACT-OBSERVABLE |
 | `n_core_not_numeric` | integer ≥ 0 | ≤ `n_affixed` | CORES that are not numeric notation at all | EXACT-OBSERVABLE |
 | `percentiles` | ladder of numbers | section 5.6 | the eleven-rung ladder over the parsed CORES | ends EXACT-OBSERVABLE, nine interior rungs APPROXIMATED, as on `count` |
+| `percentiles_between` | object of ninety rungs | Q19 | the same ninety rungs read over the CORES | REPORT-ONLY, as on `count` |
 | `mean` | number or `null` | — | arithmetic mean of the parsed CORES | APPROXIMATED, as on `count` |
 | `std` | number or `null` | ≥ 0 when a number | sample standard deviation of the parsed CORES, divided by n−1 | APPROXIMATED, as on `count` |
 | `skew` | number or `null` | — | moment-based skewness of the parsed CORES | APPROXIMATED, as on `count` |

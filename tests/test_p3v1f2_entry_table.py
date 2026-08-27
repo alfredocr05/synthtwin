@@ -4341,6 +4341,9 @@ WHOLE_FACT_LISTINGS: "dict[str, tuple[str, ...]]" = {
         # except the zero one.
         "numeric.mode",
         "numeric.mode_count",
+        # REPORT-ONLY (plan P4-D4.10): one fact, ninety rungs, no file
+        # held to any of them.
+        "numeric.percentiles_between",
         "numeric.n_distinct_values",
         "numeric.value_histogram",
         "universal.detection_evidence",
