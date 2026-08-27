@@ -391,3 +391,55 @@ def test_a_fraction_with_no_leading_zero_can_carry_the_floor(
         f"{sorted({len(cell) for cell in cells})}"
     )
     assert not [note for note in notes if note.fact == "min_length"]
+
+
+def test_this_role_never_publishes_a_two_character_ceiling(
+    tmp_path: pathlib.Path,
+) -> None:
+    """WHY THE NARROW FRACTION FORM NEEDS NO MORE THAN NINE SPELLINGS.
+
+    `.1` through `.9` are nine distinct two-character fractions, and a
+    tenth does not exist -- the family reports itself spent and
+    generation refuses with a plain message. That would be a poor
+    outcome, so it is worth knowing it cannot arise, and worth knowing
+    it HERE rather than as a remark somebody has to re-derive.
+
+    The mechanism: a cell is unrepresentable only by being very wide,
+    so a column whose widest numeric-looking cell is two characters
+    holds nothing this format cannot hold and takes another role
+    entirely. Only ONE group is ever asked for the floor, so the narrow
+    form is asked for at most one spelling per column.
+
+    A previous argument of mine about this role's widths turned out to
+    be false (see the same-width collision test above), so this one is
+    written as a test rather than a comment: if the premise ever stops
+    holding, this goes red instead of going unnoticed.
+    """
+    for name, values in (
+        ("twochar", [".5"] * 100 + [".7"] * 100),
+        ("twocharmix", [".5"] * 80 + ["12"] * 80 + ["-1"] * 80),
+        ("twocharcontra", [".5"] * 80 + ["(1)"] * 80),
+    ):
+        table = tmp_path / f"{name}.csv"
+        with table.open("w", newline="", encoding="utf-8") as handle:
+            writer = csv.writer(handle)
+            writer.writerow(["reading"])
+            for value in values:
+                writer.writerow([value])
+        column = profile.build_document(
+            reading.read_table(f"{table}"), taxonomy.Settings(), []
+        )["columns"][0]
+        assert column["role"] != taxonomy.ROLE_UNREPRESENTABLE, (
+            f"{name} took the unrepresentable role with a two-character "
+            "ceiling, so the narrow fraction form can be asked for more "
+            "spellings than it has"
+        )
+    # And the control: one wide cell IS what makes the role, and its
+    # narrow floor is then carried by the two-character form.
+    source, _cells, again, notes = _round_trip(
+        tmp_path, "control", [".5"] * 60 + ["9" * 310] * 60
+    )
+    assert source["role"] == taxonomy.ROLE_UNREPRESENTABLE
+    assert (source["min_length"], source["max_length"]) == (2, 310)
+    assert (again["min_length"], again["max_length"]) == (2, 310)
+    assert not [note for note in notes if note.fact == "min_length"]
