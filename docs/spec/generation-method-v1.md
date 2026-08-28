@@ -529,15 +529,130 @@ feasibility rule 4), `M` is raised to the smallest value that satisfies
 them, and the report names the raised distinct count beside the
 published one.
 
-Within the negatives, the `G` cells are divided into `M_neg` strata by
-the even split
+#### G5.2a How a band's cells divide between its strata
+
+The zero stratum, when it exists, has size `Z`. Each of the other two
+bands divides its own cells among its own strata by the rule below.
+Write `C` for the band's cell count (`G` for the negatives, `P` for the
+positives), `M` for its stratum count (`M_neg` or `M_pos`), and `lo`
+for the rank its first cell stands at in the sorted column — `0` for
+the negatives and `G + Z` for the positives.
+
+**THE EVEN SPLIT IS THE FALLBACK AND NO LONGER THE RULE.** Where there
+is no ladder, or where `M >= C`, the cells divide evenly:
 
 ```
-size of stratum i = floor((i + 1) * G / M_neg) - floor(i * G / M_neg)
+size of stratum i = floor((i + 1) * C / M) - floor(i * C / M)
 ```
 
-for `i = 0 .. M_neg - 1`, and the positives likewise over `P` and
-`M_pos`. The zero stratum, when it exists, has size `Z`.
+for `i = 0 .. M - 1`. That is what this clause said for every column
+until 2026-08-28, and residual R-P4-49 is what it cost: an even split
+gives every value the same number of cells, so a column of 230 cells
+holding 27 numbers — five of them about forty cells each, the other
+twenty-two about one — became 27 strata of eight or nine, a shape that
+can represent neither. The ladder decides WHICH values a twin holds and
+the split decides HOW MANY CELLS each of them gets, and no ladder,
+however fine, can repair the second.
+
+**OTHERWISE THE SIZES FOLLOW THE LADDER'S OWN SHAPE**, which is what
+the hundred-and-one-rung ladder of G5.1 knows and the eleven named
+rungs do not: a value standing at seventeen of the rungs stands at
+seventeen per cent of the column, because the rungs stand at the
+percentiles.
+
+**1. Read the ladder at every rank of the band.** For `i = 0 .. C - 1`,
+
+```
+v[i] = Interpolate(Ladder, (lo + i) * 2**53, K * 2**53)
+```
+
+by the convex form of G5.3, with the integer-valued rule of G5.4
+applied to it where `integer_valued` is published true — the same value
+the twin would hold at that rank. `K` is the column's numeric cell
+count, and the scale is the one G5.3 uses, so nothing rounds here that
+does not round there.
+
+**2. Take the runs.** A RUN is a maximal block of consecutive ranks
+whose values are equal, compared as binary64 numbers. Write the runs in
+rank order as lengths `L[0..R-1]` and values `H[0..R-1]`. A run is a
+PLATEAU of the ladder: the cells that hold one value.
+
+**3. Make the run count equal `M`.** Interpolating a ladder over a
+column's ranks puts a one-rank TRANSITION between each pair of real
+plateaus — a value the column does not hold, standing between two it
+does — so `R` is usually larger than `M` and never exactly it by
+accident.
+
+While `R > M`, join one adjacent pair `(j, j+1)` into a single run of
+length `L[j] + L[j+1]` keeping the value `H[j]`. The pair is chosen by
+the SMALLEST of this key, and the leftmost pair wins a tie:
+
+```
+( min(L[j], L[j+1]),  0 if Whole(H[j]) == Whole(H[j+1]) else 1,  Gap(j) )
+
+Gap(j) = |H[j+1] - H[j]| / (|H[j+1]| + |H[j]|), and 0 where that
+         denominator is 0
+```
+
+`Whole(x)` is true where `x` is a whole number. **All three parts of
+the key earn their place, and each was measured against a witness that
+the other two get wrong:**
+
+- **the smaller side smallest** — absorb the least. A transition is one
+  rank wide and a plateau is many, so this takes the artifact into the
+  real value beside it and never the reverse. Choosing instead the pair
+  of fewest cells joins two transitions, which are two different values
+  and neither spurious, and loses a value the column holds.
+- **both whole or both fractional next** — which cells can be written
+  without a point is `numeric_styles`, an EXACT-OBSERVABLE fact, and a
+  whole value's nearest neighbour is very often the fraction just below
+  it: `4` and `3.875` are closer than `4` and `5`. Choosing by distance
+  alone walked a column's whole-number plateaus into fractional ones
+  and left a published `plain` count of 38 written as 28.
+- **nearest in value last**, measured RELATIVELY against the pair's own
+  size, so a column of thousands and a column of thousandths are judged
+  the same way.
+
+While `R < M`, divide the longest run in two — leftmost on a tie — into
+lengths `floor(L/2)` and `L - floor(L/2)`, both keeping its value. The
+two strata then hold the same value, and the leading-zero family of
+G6.5 is what gives the second of them a spelling of its own.
+
+**4. The sizes are the run lengths**, in rank order. Each is at least
+one and they sum to `C`, because every run is at least one rank long
+and the joins and divisions above preserve the total.
+
+A stratum whose rank range lies inside one plateau takes that plateau's
+value whatever word G5.3 draws for it, which is what makes a repeated
+value's count exact rather than approximate.
+
+#### G5.2b How many strata each band gets
+
+`M_neg` and `M_pos` are fixed in G5.2 above, and the share between them
+follows the ladder rather than the cells wherever there is one. Where
+`G > 0` and `P > 0`, write `A_neg` and `A_pos` for the number of RUNS
+step 2 above finds in each band — how many different values the ladder
+gives that band — and replace the cell counts in G5.2's formula with
+them:
+
+```
+M_neg = (2 * M_rest * A_neg + (A_neg + A_pos)) // (2 * (A_neg + A_pos))
+then clamp M_neg into [1, M_rest - 1]
+```
+
+falling back to `G` and `P` where there is no ladder or where
+`A_neg + A_pos` is zero.
+
+**CELLS ARE THE WRONG THING TO FOLLOW HERE, and this clause followed
+them until 2026-08-28.** Two bands holding the same number of cells
+need not hold the same number of values, and a stratum count is about
+values. Measured on one column: thirteen negative cells holding TWO
+values, forty-eight positive cells holding five, and seven strata
+between them — the cell share gave the negatives one, so ten cells of
+`-30` and three of `-55.5` collapsed into a single value and took ten
+of the eighteen point-free cells the style map publishes with them.
+Following the ladder gives the negatives two, which is what the column
+holds.
 
 **The carrier step: the cells a published point-free count needs**
 (P2-C4-F3). Three of the six styles of G6.1 — `plain`, `leading_zero`
