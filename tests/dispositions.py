@@ -330,6 +330,9 @@ PLAN4_REGIONS = {
     "mode": (
         "### P4-D4.11 The mode (owner instruction 2026-08-26, fifth ask)"
     ),
+    "finer-ladder": (
+        "### P4-D4.10 The finer percentile ladder"
+    ),
     "value-count": (
         "### P4-D4.9 The count of different numbers (closes R-P4-20)"
     ),
@@ -361,6 +364,7 @@ FACTS_OUTSIDE_THE_VERSION_4_MATRIX = (
     ("numeric", "n_distinct_values"),
     ("numeric", "mode"),
     ("numeric", "mode_count"),
+    ("numeric", "percentiles_between"),
     ("datetime", "resolution_mix"),
     ("free_text", "shape_forms"),
     ("label", "shape_forms"),
@@ -592,6 +596,30 @@ REGISTRY += (
         plan_words="how many different NUMBERS the column holds",
         plan_region="value-count",
         aliases=("value count", "different numbers"),
+    ),
+    # THE FINER LADDER (plan P4-D4.10). REPORT-ONLY, and for a reason
+    # unlike every other REPORT-ONLY fact here: not because a twin
+    # cannot meet it, but because it is ONE FACT and holding a file to
+    # it would mean ninety subchecks, each owing a registered red case
+    # that makes THAT subcheck report missed. The entry table carries
+    # ninety-nine such cases for eleven rungs; a hundred and one rungs
+    # would need about nine hundred, and registering cases that do not
+    # fire is exactly what that guard exists to prevent.
+    #
+    # The fidelity it buys is REAL and is not bought by checking. The
+    # generator interpolates over all hundred and one rungs, and the
+    # eleven NAMED rungs keep their own exact obligations and are met
+    # more closely because the line between them now bends where the
+    # real column bends. Measured on a 400-row column with a threshold
+    # at 1000: the eleven-rung twin was thirty-nine cells out where the
+    # threshold fell mid-gap, and the finer twin exact.
+    Fact(
+        "numeric",
+        "percentiles_between",
+        REPORT_ONLY,
+        plan_words="the ninety rungs the named ladder does not carry",
+        plan_region="finer-ladder",
+        aliases=("finer ladder", "the other ninety rungs"),
     ),
     # THE MODE PAIR (plan P4-D4.11). REPORT-ONLY, and it was written
     # APPROXIMATED first, which was wrong and was caught by the golden

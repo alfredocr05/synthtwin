@@ -374,6 +374,10 @@ PHASE_4_VALUE_COUNT_KEYS = ("n_distinct_values",)
 # stratum sized to a published count except the zero one, so no file is
 # held to the pair and the quality report LISTS it.
 PHASE_4_MODE_KEYS = ("mode", "mode_count")
+# Plan P4-D4.10. The finer ladder is REPORT-ONLY as ONE fact: no rung
+# of it has a subcheck, and the fidelity comes from the generator
+# interpolating it rather than from a file being held to any of them.
+PHASE_4_FINER_LADDER_KEYS = ("percentiles_between",)
 
 # ...and the census of written forms, which version 4's matrix has no
 # row for because version 4 had no such key. It is disposed in the
@@ -1139,6 +1143,8 @@ def test_every_key_the_producer_emits_has_a_disposition(
                 table[own] = "REPORT-ONLY (Phase 4 plan, P4-D4.9)"
             for own in PHASE_4_MODE_KEYS:
                 table[own] = "REPORT-ONLY (Phase 4 plan, P4-D4.11)"
+            for own in PHASE_4_FINER_LADDER_KEYS:
+                table[own] = "REPORT-ONLY (Phase 4 plan, P4-D4.10)"
             for own in PHASE_4_SHAPE_KEYS:
                 table[own] = "EXACT-OBSERVABLE (Phase 4 plan, P4-D18)"
             for own, said in PHASE_4_DATETIME_KEYS:
@@ -1181,6 +1187,8 @@ def test_the_completeness_assertion_refuses_a_key_nobody_disposed(
             table[own] = "REPORT-ONLY (Phase 4 plan, P4-D4.9)"
         for own in PHASE_4_MODE_KEYS:
             table[own] = "REPORT-ONLY (Phase 4 plan, P4-D4.11)"
+        for own in PHASE_4_FINER_LADDER_KEYS:
+            table[own] = "REPORT-ONLY (Phase 4 plan, P4-D4.10)"
         names = _emitted_names(block) + ["a_field_nobody_disposed"]
         assert _undisposed(names, table, universal) == [
             "a_field_nobody_disposed"

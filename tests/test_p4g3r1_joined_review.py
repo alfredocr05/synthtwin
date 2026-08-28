@@ -383,16 +383,26 @@ def test_both_pages_say_the_same_thing_about_the_same_twin() -> None:
     }
     assert approximated == {"part_agreements[1]", "part_agreements[2]"}
 
+    # A SCORED PAIR CARRIES THE ENVELOPE WHERE IT IS WINDOWED, and a
+    # pair that hits its published value exactly is HELD and carries
+    # none -- the citation travels with the lesser verdict, not with
+    # every scored pair. What must never happen is the reverse: an
+    # UNSCORED pair carrying G12.9, which is the section that excludes
+    # it.
     windowed = {
         check.fact
         for check in outcome.checks
         if "part_agreements" in check.fact
         and check.citation == validation.ENVELOPE_JOINED_AGREEMENT
     }
-    assert windowed == {
+    assert windowed, "no pair was windowed at all, so this pins nothing"
+    assert windowed <= {
         "joined.part_agreements[1]",
         "joined.part_agreements[2]",
-    }, "the quality report windows a pair the twin's report does not"
+    }, (
+        "the quality report cites the joined-agreement envelope for a "
+        f"pair the pairing walk never moves: {windowed}"
+    )
 
     unscored = [
         check

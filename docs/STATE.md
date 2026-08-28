@@ -28,7 +28,7 @@ without the same help.
 | branch | `phase-4-plan` (never merged; `main` is pull-request only) |
 | phase | **Phase 4 — comprehensive column handling.** Current. |
 | plan | `docs/plans/phase-4-columns.md` |
-| suite | 4,076 collected / 48 skipped |
+| suite | 4,077 collected / 48 skipped |
 | lint | clean (`ruff check .`), under the rule set pinned in `pyproject.toml` |
 
 ## What is being built right now
@@ -691,6 +691,85 @@ to nothing at all" three lines before calling its difference a plain
 MISS — one reads as no obligation, the other as an obligation, and an
 implementer following the first would recreate the verdict weakening
 round 3 withdrew.
+
+**ROUND 8, THE LAST AUTHORIZED ONE: three items, all real.**
+
+* **`_recounted` was still asking the old question.** A comment beside
+  `_wears_this_hole` claimed three callers shared one identity and only
+  two of them did — I wrote the claim without checking the third. On a
+  declared column publishing the hole `-999`, a present cell written
+  `-999,0` was counted PRESENT by the recount and ABSENT by a
+  re-description; the collision was detected, the recount was
+  unchanged, and the presence lines — which need both — stayed silent.
+* **The R-P4-54 refusal was CLI-only.** `build_document` is a public
+  entry point and accepted the pair, so the wrong verdicts were one
+  call away for anybody not going through the command line. The
+  refusal now sits at the producer.
+* **The refusal's own test could not detect the refusal's removal** —
+  it called only the message formatter. The same non-red shape earlier
+  rounds rejected, written by me again.
+
+**THREE THINGS ABOUT MY OWN WORK IN THIS ROUND, kept because they are
+the useful part.** I built the loader invariant S8b, and my own test
+for something else then refused a CORRECT description with it: a SAFE
+declaration (`--missing-value -999`) matches a cell spelled `-999,0` by
+NUMBER on a declared column, so an ambiguous hole spelling has a third
+source I had not thought of, and the document cannot tell the three
+apart. S8b is withdrawn with that witness written where it stood. I
+also added a built-in-missing-word shortcut to the shared hole
+identity, which broke a `--keep-value` rescue — the helper beside it
+warns against exactly that in its own docstring, and I wrote past it;
+an existing test caught it. And my first witness for the recount fix
+did not discriminate, because the colliding cell had the SAME TEXT as
+the hole: both identities match there. The fixture now makes the two
+spellings differ while the numbers agree, and the mutation turns it
+red.
+
+**Where this landing stands.** Eight adversarial rounds, forty-five
+items, every one a real defect. What ended the structural problem was
+not another repair but NARROWING what the feature accepts: a declared
+value whose number depends on the grammar is refused beside
+`--decimal-comma`. The reviewer had been pointing at that for two
+rounds before I took it.
+
+## THE FINER LADDER IS MERGED AND THE ALLOTMENT IS NOT — READ THIS FIRST
+
+**Branch `phase-4-allotment`. The suite is RED on purpose, and the red
+is the point.** The owner ruled on 2026-08-28 that statistical fidelity
+is the priority, which answers R-P4-49: the hundred-and-one-rung ladder
+goes in, and `numeric_styles` may become approximate to pay for it.
+
+The ladder is merged onto the decimal-comma landing and the merge's own
+fallout is repaired — the frozen vectors outgrew the fixture-size cap
+(raised, with the reason written where the number is), the two new
+facts had no plain-language name in the not-checkable census, three red
+cases named perturbations that no longer make their check miss, and an
+internal check raised a built-in the offline audit cannot trace.
+
+**FOUR TESTS THEN FAIL, and every one of them is the symptom R-P4-49
+names.** The plan predicted it in as many words: the finer ladder helps
+a column whose values are SPREAD and hurts one whose values are heavily
+REPEATED, because it places the twin on the column's real plateaus
+while `G5.2` still shares the cells out by an EVEN SPLIT. A column of
+230 cells holding 27 numbers — five of them about forty cells each, the
+rest about one — gets 27 strata of eight or nine, which can represent
+neither. The four:
+
+* `test_p2c4f3_style_capacity` and `test_p2c5f3_style_reach` — named
+  style counts stop coming out exactly;
+* `test_p3v7f2_corner_parity` — `n_distinct` returns an
+  AUTHORIZED-DEVIATION where it was HELD;
+* `test_p4d18_shape_forms` — a long-tail code column loses cells, 215
+  where 230 are published.
+
+**WHAT CLOSES THEM IS THE ALLOTMENT, and that is the next landing.**
+The sizes of the strata must follow the published shape instead of an
+even share — and the finer ladder is exactly what supplies that shape,
+because a value that occupies seventeen of the hundred and one rungs
+occupies seventeen per cent of the column. The ladder both fixes WHICH
+values the twin holds and, once the allotment reads it, HOW MANY cells
+each of them gets. Until that lands, do not re-record the five goldens:
+they will move again.
 
 ## What is broken right now
 
