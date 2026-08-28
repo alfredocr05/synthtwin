@@ -28,7 +28,7 @@ without the same help.
 | branch | `phase-4-plan` (never merged; `main` is pull-request only) |
 | phase | **Phase 4 — comprehensive column handling.** Current. |
 | plan | `docs/plans/phase-4-columns.md` |
-| suite | 4,003 collected / 48 skipped |
+| suite | 4,076 collected / 48 skipped |
 | lint | clean (`ruff check .`), under the rule set pinned in `pyproject.toml` |
 
 ## What is being built right now
@@ -95,10 +95,19 @@ are still ahead. The gap list itself is at the foot of this page.
   perfectly anti-correlated: published −1.0, twin **+1.0** — the exact
   opposite — with the other two pairs also missed.
 
-  **A person is still told.** The twin's own report names none of them
-  (that is R-P4-44's split, not this), but `synthtwin validate` on that
-  twin returns all three `part_agreements` and `part_above[0]` MISSED.
-  So the shortfall reaches the command that exists to report it, and
+  **A person is told by BOTH pages, and that took two review rounds.**
+  The twin's own report names them and so does `synthtwin validate`,
+  and the two agree about which pair is which: the pairs the walk moves
+  are approximated against G12.9's window, and the pair it never moves
+  is a plain MISS on both -- a deviation in the twin's report and an
+  exact check with no citation in the quality report. It named none of
+  them until R-P4-44 closed; then the two pages disagreed until
+  P4-G3-R2-F3, one calling a pair unscored while the other handed it
+  the window of the section that excludes it; and then a round briefly
+  EXCUSED it as an AUTHORIZED-DEVIATION, which P4-G3-R3-F2 withdrew
+  because G12.9 withholds the window and not the obligation. So the
+  shortfall reaches the command that
+  exists to report it, and
   the documents no longer claim the walk reproduces every published
   pairing fact — method G6B states the bound and prints the table.
 
@@ -482,7 +491,206 @@ reviewer's ruling of 2026-08-26.
 | **R-P4-42 — CLOSED 2026-08-27** | the window was cited as `docs/plans/phase-4-columns.md P4-D25` while every other envelope of the method cites a section of it, so an implementer working from the specification could not find it and a reader could not find the rule a verdict rests on. It is now **G12.9** of the generation method — the two-sided 0.02 window, why it is a window and not an exactness, and what it does NOT excuse — and the report cites that | closed |
 | **R-P4-43 — CLOSED 2026-08-27** | it checked a position's endpoints, average and whole-number test and not its styles or either width census. Each position now carries the style identity read over its own numbers, named per position. The residual's own example had gone stale — `200` rewritten as `200.0` is already caught — so the red case is half a position zero-padded, which moves the census and leaves the widths held | closed |
 | **R-P4-44 — CLOSED 2026-08-27** | the report now names every approximated fact of every position — nine rungs and four moments each — and the rank agreement beside them, against G12.9's window. All four faults that withdrew the first attempt are answered by name: no per-position count the profile publishes for no position (distinctness is suppressed for a position and a test pins that), every record names its position in the identifier AND in the sentence, a cell counts for a position only where it splits into exactly the published pieces AND every piece reads as a number (the hyphen-separator trap, with its own red case), and `part_agreements` is measured. Twenty-seven records where the role named none | closed |
-| (unnumbered) | a THREE-part column cannot honour its (1,2) pair — the repair walk permutes only the last position. Two-part columns are unaffected, which is why five reads did not meet it | L7 |
+| **R-P4-51 — OPEN, and now VISIBLE** | a THREE-part column cannot honour its (1,2) pair — the pairing walk moves only the last position. Two-part columns are unaffected, which is why five reads did not meet it. It is not closed, but it no longer hides: G12.9 states that its window does not reach such a pair, and the twin's report names an unscored pair that missed as a DEVIATION with no closeness claimed for it, instead of dressing it as an approximation inside a window the method denies applying | L7 |
+
+**THE REVIEW OF THE LANDING THAT CLOSED THREE OF THESE RETURNED A
+REJECT (round P4-G3-R1, 2026-08-27), and every finding it made was
+real.** Six were code and are fixed here; the two remaining were the
+public documents saying the old state, corrected with them. What they
+were is worth keeping, because four of the six were the same shape —
+**two places computing one quantity, and only one of them changed**:
+
+* the twin's report and the profiler each implemented the rank-
+  agreement convention. They agreed on every column whose positions
+  both varied and disagreed where one did not: the profiler answers
+  `0.0`, the report answered "no number at all", so a twin that met the
+  fact EXACTLY was told it had missed. The report now delegates;
+* the validator's style check counted a cell into a position on its
+  piece count alone, where the profiler requires every piece to read as
+  a number. A real 2,000-row source with twenty `1.00/` cells profiles
+  soundly and was then told it MISSED three style facts of its own
+  description — the outcome R-P4-43's vacuity rule exists to prevent;
+* the window `0.02` and the rounding of a published agreement were each
+  written twice, and the two sides measured at different precisions, so
+  `0.020018` was outside for one command and inside for the other. Both
+  now come from one place, `parsing`, which is the module both sides
+  may import;
+* **two bounds cited method sections that did not exist.** The clock
+  role's rung and distinctness envelopes cited `G12.9` from the day the
+  role landed, when the method stopped at G12.8; once G12.9 was written
+  for the JOINED role they began to resolve — to the wrong rule, which
+  is worse than dangling, and ten lines of the demonstration quality
+  report were sending readers to it. The kurtosis bound cited a
+  `G12.3a` that was never written. All three sections now exist
+  (G12.3a, G12.10, G12.11), and
+  `tests/test_method_citations_resolve.py` refuses any citation naming
+  a section the method does not define. **That guard immediately found
+  a third one the reviewer had missed**: a comment claiming the
+  histogram shapes the interpolated value, citing a `G5.4a` that does
+  not exist, in code that reads no histogram at all.
+
+**TWO ADVERSARIAL ROUNDS ON THIS WORK, BOTH REJECT, SEVENTEEN ITEMS,
+ALL REAL.** Round 1's four-of-six pattern was one fact written in two
+places. Round 2 found the SAME pattern four more times, three of them
+in the repairs themselves:
+
+* the decimal-comma swap ran before the measuring, so a correct twin's
+  own report said it held 0 numeric cells against a published 200 and
+  named 2 approximated facts where the same column undeclared names 15;
+* the scored/unscored pair rule was fixed in the generator and not the
+  validator, so the twin's report called a pair unscored while the
+  quality report handed that same pair the window of the section that
+  excludes it;
+* the role test was written twice, said `NumericFacts` in both, and so
+  dropped `numeric_unrepresentable` from a feature about how a number
+  is spelled;
+* a missed `part_above` reached the quality report and nothing else --
+  measured, 12 of 12 three-position twins missed one and the twin's own
+  report was silent on all 12.
+
+**The rule that came out of it, and it is sharper than "put it in one
+place".** Where an architectural boundary separates the two readers --
+the validator may not import the generator -- the shared thing has to
+move to a module BELOW both: `parsing.RANK_AGREEMENT_WINDOW`,
+`contract.scored_pairs`, `contract.a_decimal_comma_reaches`. It feels
+like putting a generation concern in the wrong file. Do it anyway.
+
+**And a test shape worth reusing:** generate, validate, then assert the
+two pages name the same facts. Every item above showed up as those two
+disagreeing, and no single-page test saw any of them.
+
+**Round 2 also caught a process fault worth keeping.** The new test
+files were UNTRACKED, so the decontamination scanner -- which walks the
+TRACKED tree -- had never read them, and the "clean" result could not
+be credited. Adding them found a denied word in two. *Never report a
+scanner clean on files the scanner does not walk.*
+
+**ROUND 3 REJECTED THE REPAIRS AGAIN, and its sharpest item was that I
+had WEAKENED A VERDICT.** To keep a three-position twin from missing
+facts nothing aims at, I made the unscored pair's agreement and its
+above-count AUTHORIZED-DEVIATIONs citing G12.9. That was wrong twice
+over: G12.9 withholds the WINDOW, not the obligation, and
+AUTHORIZED-DEVIATION is drawn from a registry of corners a ratified
+plan or the owner authorizes, reached through `corners_of` -- emitting
+it straight from the check bypassed that classifier. The reviewer's
+witness settles it: describe 120 cells `r/r/1000` and check
+`r/(121-r)/1000` against it, and every marginal value, width, style and
+moment holds while the early pair is turned inside out. Under the
+excusing rule that file passed every verdict-bearing obligation. It is
+withdrawn: both are exact checks again, a three-position twin MISSES
+them, and that is residual R-P4-51 appearing in the report, which is
+where an open residual belongs.
+
+**Round 3 also found that the swap had moved the defect onto the
+HOLES.** A column whose missing spelling is `.` had its twenty absent
+cells written as `,` -- 200 present cells against a published 180, the
+role re-describing as `long_tail_labels`, seven obligations missed, and
+the twin's own report silent because it recounts before the swap. The
+swap now leaves every published `missing_by_source` spelling alone.
+
+**And three of the tests written for round 2 could not go red.** Each
+is rebuilt to call the thing it claims to protect: the role-name list
+is held to the fact-type predicate column by column over a description
+carrying every role; the walk's starting rule is pinned by REPLACING
+`contract.scored_pairs` and watching the twin's cells move (on a forged
+description, because sixty ordinary three-position columns were
+measured and none put the two averaging rules on opposite sides of the
+threshold); and the citation census is now derived by PARSING the
+module with `ast` rather than by the same regex that reads the
+citations. All three mutations the reviewer named now turn them red.
+
+**ROUNDS 4 AND 5 REJECTED IT AGAIN; twenty-eight items across five
+rounds and every one of them a real defect.** The two that matter most
+to a reader of this page:
+
+* **A generated value could be turned into a hole.** A column whose
+  published "no value" word is `7,5`, values 7.0-7.9, generates present
+  cells spelled `7.5`; the comma swap makes the two one spelling. The
+  twin held 60 cells spelled `7,5` against a published 42 and its own
+  report, recounting the cells from BEFORE the swap, called it correct.
+  The generator now RECOUNTS the cells as written and MEASURES them as
+  described -- the same split the profiler and the validator make --
+  and `_recount_notes`, which had never covered presence at all, names
+  the shortfall.
+* **A declared missing value was read under the wrong grammar.**
+  `--decimal-comma amount --missing-value 1,234` read the cells with
+  the comma (1.234) and the declaration ordinarily (1234). The matching
+  rule matches a number-shaped declaration BY NUMBER only, so every
+  cell the person had explicitly called "no value" was counted as a
+  measurement, and presence, ladder, moments and role all moved with
+  them in silence.
+
+**AND THE ROLE BOUNDARY IN R-P4-52 WAS FALSE.** The profiler swaps a
+declared column's cells BEFORE it chooses a role, so `constant` and
+`binary` -- chosen before the numeric roles -- are read with the comma
+too. The tool was telling those columns' owners their numbers were
+"NOT read" that way, about a description whose profiler had read
+exactly that way, while the twin's own report claimed 0 numeric cells
+against a published 60. There are two questions here and they now have
+two names: `DECIMAL_COMMA_HONOURED_ROLES` (where the DESCRIPTION
+differs) and `a_decimal_comma_reaches` (where the GENERATOR must spell
+the numbers itself). A test asserts the second is inside the first.
+
+**A repair of my own was caught by a golden digest**, and the sentence
+that caught it is worth keeping: *a report that says less than it did
+is a defect even when nothing crashed*. Narrowing the new presence
+notes to unconditional holes, I returned early and took the
+distinctness notes with me -- the demonstration report silently lost
+two lines it had always carried.
+
+**ROUND 6: EIGHT MORE, ALL REAL, AND THE FEATURE'S REAL SHAPE FINALLY
+SHOWED.** Four of the eight were one thing said four ways: **a
+per-column reading has to reach every place that reads a DECLARATION
+as a number, and the value declarations are table-wide.**
+
+* `--decimal-comma amount --keep-value -999,0` read the cells as the
+  stand-in and the KEPT declaration under the ordinary grammar, where
+  it is no number at all — so the outlier pass carried off forty cells
+  the person had explicitly said to keep. The tally now carries the
+  reading, as `_Cell` carries `numeric_text`, and the stand-in
+  judgement and the calendar-placeholder pass both ask it.
+* `--keep-value 1,234 --missing-value 1,2340` is one number on a
+  declared column and two everywhere else. Tested under one grammar the
+  pair looked innocent and was accepted, and the missing declaration
+  then quietly defeated the keep declaration. The contradiction check
+  now tests under both readings where either is in play.
+* the described-domain view translated HOLES too, so a hole spelled
+  `-9,99` became `-999`, read as a number, and the twin's own report
+  claimed 200 numeric cells against a published 180 with eleven false
+  deviations after it — moments and rungs computed over twenty values
+  the column does not have. Its CELLS were right the whole time.
+* the presence guard was column-wide, so one judged `-999` silenced a
+  genuine collision on an unconditional `7,5` in the same column. It is
+  per SPELLING now, because the two cases point the same way and only
+  the spelling tells them apart.
+
+**R-P4-54 IS CLOSED BY A REFUSAL, and the paragraph that stood here
+claiming it could be left open was refuted in the next round.** I had
+written that the consequence was conservative — obligations withheld,
+never a wrong verdict. That covered one direction only. Declare `1,234`
+and `1234` as missing beside a declared column: the ordinary grammar
+folds them into one and the comma grammar keeps them apart, the
+table-wide recovery looks complete, the column stays checkable, and the
+SOURCE FILE is then told it missed presence, role and its numbers
+against a description correct about all three. So a declared value
+whose number depends on the grammar is now REFUSED beside
+`--decimal-comma`. The loader cannot restate that refusal in full: the
+SETTINGS BLOCK carries no spelling of the person's own, only how many
+values were declared and which of this package's own words were among
+them (C5-16). A spelling the person typed does reach the description
+where a column publishes it among its absent cells and the floor
+allows — so a partial check is possible and is NOT built, because it
+would have to tell a declared hole from a judged one and a wrong
+refusal there costs more than the gap. The command line is the gate; a
+comment sits where the invariant would.
+
+**Two documents had also outgrown the code** and are corrected: the
+plan and the contract still named three honoured roles when the
+profiler honours five, and the method said an unscored pair was "held
+to nothing at all" three lines before calling its difference a plain
+MISS — one reads as no obligation, the other as an obligation, and an
+implementer following the first would recreate the verdict weakening
+round 3 withdrew.
 
 ## What is broken right now
 

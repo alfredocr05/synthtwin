@@ -1672,7 +1672,8 @@ def _groups_of(pattern: "dict[str, int]") -> "tuple[int, ...]":
 
 
 def _recounted(
-    cells: "list[str]", holes: "tuple[str, ...]"
+    cells: "list[str]", holes: "tuple[str, ...]",
+    decimal_comma: bool = False,
 ) -> "tuple[int, int, int, int]":
     """Recount a written column: present, absent, different, folded.
 
@@ -1684,10 +1685,21 @@ def _recounted(
     will not count, and a recount that called it present would report
     a count the twin does not hold.
     """
+    # THE SAME IDENTITY THE REST OF THIS MODULE USES (review item
+    # P4-G3-R8-F1). A comment beside `_wears_this_hole` claimed three
+    # callers shared one rule and only two of them did -- this was the
+    # third, still asking the ordinary grammar. A declared column that
+    # publishes the hole `-999` and writes a present cell `-999,0`
+    # then had that cell counted PRESENT here and ABSENT by a
+    # re-description: the collision was detected, the recount was
+    # unchanged, and the presence lines below -- which need both --
+    # stayed silent while the quality report named the loss.
     present = [
         cell
         for cell in cells
-        if cell != "" and not _wears_a_published_hole(cell, holes)
+        if cell != "" and not _wears_any_published_hole(
+            cell, holes, decimal_comma
+        )
     ]
     folded = {parsing.folded(cell) for cell in present}
     return (
@@ -4680,11 +4692,24 @@ def _repaired_pairing(
     # its try ceiling. So a low target starts from a shuffle, which is
     # already near it, and a strongly negative one starts from rank
     # against rank.
+    # OVER THE PAIRS THIS WALK CAN MOVE, and no others (review item
+    # P4-G3-R2-F6). The choice below decides where the LAST position
+    # starts, and the last position is the only one that moves -- so a
+    # pair between two earlier positions cannot be helped by any answer
+    # here, and letting its target into the average lets a fact nothing
+    # can reach decide the starting point for the facts that can. Three
+    # positions whose early pair wants -1 while both last-position
+    # pairs want +1 averaged to a third, took the shuffled start, and
+    # missed two targets that rank-against-rank meets outright.
+    scored_seats = contract.scored_pairs(facts.n_parts)
     wanted_agreement = 0.0
-    for value in facts.part_agreements:
-        wanted_agreement = wanted_agreement + value
-    if facts.part_agreements:
-        wanted_agreement = wanted_agreement / float(len(facts.part_agreements))
+    counted_seats = 0
+    for seat in scored_seats:
+        if seat < len(facts.part_agreements):
+            wanted_agreement = wanted_agreement + facts.part_agreements[seat]
+            counted_seats = counted_seats + 1
+    if counted_seats:
+        wanted_agreement = wanted_agreement / float(counted_seats)
     held: "list[list[str]]" = []
     for column in drawn:
         pairs: "list[tuple[float, str]]" = []
@@ -4890,10 +4915,17 @@ def _joined_content(
     often the earlier stands above the later. Both are facts of the
     real column and both are walked toward here.
 
-    So the limit worth stating is the narrower true one: the agreement
-    is APPROXIMATED against a fixed window (plan P4-D25) rather than
-    met, and THE TWIN'S OWN REPORT DOES NOT NAME IT -- the quality
-    report does (residuals R-P4-42, R-P4-44). This is also the one
+    So the limit worth stating is the narrower true one: on the pairs
+    this walk MOVES the agreement is APPROXIMATED against the window of
+    method G12.9 rather than met, and on the pairs it does not move --
+    any pair between two earlier positions of a three-or-more-position
+    cell -- NO WINDOW is promised -- which is not the
+    same as no obligation: the published value is still a fact the twin
+    either carries or does not, and a miss is named as a miss on both
+    reports with no range beside it (residual R-P4-51; review item
+    P4-G3-R7-F4). Both are
+    named on both pages: the twin's own report and the quality report
+    (R-P4-42 and R-P4-44, closed 2026-08-27). This is also the one
     place structure between two quantities is reproduced at all, and it
     lives inside a cell: it says nothing about any other column, so the
     one-column-wide bound stated in the brief is unaffected.
@@ -5235,7 +5267,206 @@ def _unaffixed_spellings(
     return built
 
 
-def _absent_cells(column: contract.ColumnBlock) -> "list[str]":
+def _wears_any_published_hole(
+    cell: str, holes: "tuple[str, ...]", decimal_comma: bool
+) -> bool:
+    """Whether one written cell wears ANY of this column's hole
+    spellings, under this column's own reading.
+
+    The plural of `_wears_this_hole`, kept beside it so no caller has
+    to write the loop and get the identity subtly different -- which is
+    exactly what happened while there were three loops and two rules.
+    """
+    # THE BUILT-IN WORDS ARE DELIBERATELY NOT CONSULTED, and adding
+    # them here broke a rescued spelling: `--keep-value NA` makes `NA`
+    # a real value of a real column, and a twin that writes it writes a
+    # PRESENT cell. `_wears_a_published_hole` says so in its own
+    # docstring and this helper was written past it -- forty cells of a
+    # rescued spelling were recounted absent, and the column reported
+    # 80 present against a published 120.
+    for hole in holes:
+        if _wears_this_hole(cell, hole, decimal_comma):
+            return True
+    return False
+
+
+def _wears_this_hole(
+    cell: str, hole: str, decimal_comma: bool
+) -> bool:
+    """Whether one written cell wears one published hole spelling.
+
+    ONE IDENTITY FOR A QUESTION THREE PLACES WERE ASKING THREE WAYS
+    (review item P4-G3-R7-F2). The described-domain view asked `cell ==
+    hole`; the excess count asked the same; and `_recounted` asked
+    `_wears_a_published_hole`, which folds and compares NUMBERS. On an
+    ordinary column those agree often enough to hide the difference. On
+    a declared one they do not: a column publishing the hole `7,50`
+    whose generated value 7.5 is written `7,5` has the two recognised
+    as one number by a re-description and as two different texts by the
+    exact guards -- so the quality report reported lost presence and
+    the twin's report stayed silent.
+
+    The rule is the one the profiler uses to decide what a declaration
+    matches: the same NUMBER where the spelling reads as one under this
+    column's grammar, and the same folded spelling otherwise.
+
+    Guarantees: accepts a cell, a published hole spelling and whether
+    the column was declared; returns whether the cell wears that hole.
+    Determinism: a fixed function of the three. Raises nothing. No I/O.
+    """
+    if cell == hole:
+        return True
+    read_cell = cell
+    read_hole = hole
+    if decimal_comma:
+        read_cell = parsing.written_with_a_decimal_comma(cell)
+        read_hole = parsing.written_with_a_decimal_comma(hole)
+    held = parsing.exact_of_spelling(read_hole)
+    if held is not None:
+        return parsing.exact_of_spelling(read_cell) == held
+    return parsing.folded(parsing.trimmed(cell)) == parsing.folded(
+        parsing.trimmed(hole)
+    )
+
+
+def _declared_a_decimal_comma(
+    column: contract.ColumnBlock, profile: contract.Profile
+) -> bool:
+    """Whether this column was named `--decimal-comma`.
+
+    Asked in four places and written once, which is the rule this whole
+    landing kept learning: the writeback, the described-domain view,
+    the judged-candidate identity and the hole guard must agree, and
+    four copies of one loop would not.
+    """
+    for name in profile.settings.forced_decimal_commas:
+        if name == column.name:
+            return True
+    return False
+
+
+def _read_as_described(
+    column: contract.ColumnBlock,
+    profile: contract.Profile,
+    spelled: "list[str]",
+) -> "list[str]":
+    """One column's finished cells, in the reading its description used.
+
+    The inverse of what the profiler did to the real file, applied to
+    the twin: on a column named `--decimal-comma` every point is
+    dropped and every comma becomes one, so the cells read here are
+    numbers in the same sense the published facts are. On every other
+    column this returns the cells unchanged.
+
+    IT ASKS ONLY WHETHER THE COLUMN WAS DECLARED, and not what role it
+    took (review item P4-G3-R5-F2). The profiler translates before it
+    chooses a role, so a declared column reads with the comma whatever
+    role it ends up with -- including `constant` and `binary`, which
+    are chosen BEFORE the numeric roles and which
+    `a_decimal_comma_reaches` deliberately excludes, because that
+    predicate answers a different question: whether the generator has
+    to SPELL this column's numbers, which it does only where it wrote
+    them as numbers in the first place.
+
+    Guarantees: accepts one column's block, the loaded description and
+    the cells as they leave; returns as many cells in the same order.
+    Determinism: a fixed function of the three. Raises nothing. No I/O.
+    """
+    if not _declared_a_decimal_comma(column, profile):
+        return spelled
+    # A HOLE IS NOT A NUMBER AND IS LEFT ALONE (review item
+    # P4-G3-R6-F3), which is the order the profiler works in and the
+    # rule the writeback beside this one already follows. Translating a
+    # hole turns `-9,99` -- a spelling this column publishes among its
+    # ABSENT cells -- into `-999`, which reads as a number; the twin
+    # then reported 200 numeric cells against a published 180, with
+    # eleven false deviations after it, including moments and rungs
+    # computed over twenty values the column does not have.
+    holes = _hole_spellings(column)
+    read: "list[str]" = []
+    for cell in spelled:
+        keep = not cell
+        for hole in holes:
+            if _wears_this_hole(cell, hole, True):
+                keep = True
+        if keep:
+            read = read + [cell]
+            continue
+        read = read + [parsing.written_with_a_decimal_comma(cell)]
+    return read
+
+
+def _spelled_with_a_decimal_comma(
+    column: contract.ColumnBlock,
+    profile: contract.Profile,
+    content: "list[str]",
+) -> "list[str]":
+    """Write a declared column's numbers with a comma for the point.
+
+    THE INVERSE OF THE READING, and exact rather than approximately so.
+    The profiler read this column by dropping every `.` and turning
+    every `,` into a point; a twin's numeric cell carries no thousands
+    separator at all -- the forms the method writes are the plain, the
+    decimal and the leading-zero ones -- so turning its single point
+    back into a comma restores exactly what the reading consumed. The
+    grouping marks of the real column are NOT restored, because nothing
+    published says where they fell, and making them up would be a
+    spelling the description never claimed.
+
+    WHY ONLY THE PLAIN NUMERIC ROLES. The swap is applied where the
+    cells were written by the numeric machinery and are therefore
+    numbers this method spelled. A declared column that fell short of
+    the parse line is described by a label or text role, its cells are
+    spellings rather than numbers, and rewriting a character inside one
+    of those would corrupt a value the description publishes exactly.
+    The affixed and joined roles are excluded for the same reason and
+    are named as residual R-P4-52: their cells carry a number inside a
+    larger spelling, and which of that spelling's marks is a decimal
+    point is a question this declaration does not answer.
+
+    Guarantees: accepts one column's block, the loaded description and
+    the cells just written; returns the cells, unchanged unless the
+    column was named in `settings.forced_decimal_commas`. Determinism:
+    a fixed function of those three. Raises nothing. No I/O.
+    """
+    if not _declared_a_decimal_comma(column, profile):
+        return content
+    if not contract.a_decimal_comma_reaches(column):
+        return content
+    # A CELL THAT IS NOT A NUMBER IS LEFT EXACTLY AS IT WAS (review
+    # item P4-G3-R3-F1). The swap runs over the finished column, which
+    # carries this column's ABSENT cells as well as its numbers, and
+    # `_absent_cells` promises to reproduce each published
+    # `missing_by_source` spelling character for character. A hole
+    # spelled `.` is not a decimal point in a number; turning it into
+    # `,` writes a twin whose two hundred cells are all present against
+    # a published one hundred and eighty, re-describes as
+    # `long_tail_labels` rather than `continuous`, and misses seven
+    # obligations -- while the twin's own report, which recounts the
+    # cells BEFORE this swap, says nothing at all. The two pages of one
+    # run disagreeing is the shape this whole round keeps finding.
+    holes = _hole_spellings(column)
+    spelled: "list[str]" = []
+    for cell in content:
+        if not isinstance(cell, str):
+            raise errors.ProfileError(_INTERNAL_NOT_TEXT)
+        keep = not cell
+        for hole in holes:
+            if cell == hole:
+                keep = True
+        if keep:
+            spelled = spelled + [cell]
+            continue
+        swapped = ""
+        for letter in cell:
+            swapped = swapped + ("," if letter == "." else letter)
+        spelled = spelled + [swapped]
+    return spelled
+
+
+def _absent_cells(
+    column: contract.ColumnBlock, decimal_comma: bool = False
+) -> "list[str]":
     """Every absent cell of one column, as the text it is written with.
 
     THE VERSION 6 WRITE RULE (contract C6-115, plan P4-D6.1). Version 5
@@ -5274,7 +5505,7 @@ def _absent_cells(column: contract.ColumnBlock) -> "list[str]":
     """
     written: list[str] = []
     for spelling in sorted(column.missing_by_source):
-        if _a_judged_pass_put_it_there(column, spelling):
+        if _a_judged_pass_put_it_there(column, spelling, decimal_comma):
             continue
         for _each in range(column.missing_by_source[spelling]):
             written = written + [spelling]
@@ -5284,7 +5515,9 @@ def _absent_cells(column: contract.ColumnBlock) -> "list[str]":
 
 
 def _a_judged_pass_put_it_there(
-    column: contract.ColumnBlock, spelling: str
+    column: contract.ColumnBlock,
+    spelling: str,
+    decimal_comma: bool = False,
 ) -> bool:
     """Whether a judged pass is what made cells of this spelling absent.
 
@@ -5299,24 +5532,40 @@ def _a_judged_pass_put_it_there(
             continue
         if verdict.candidate == contract.WITHHELD:
             continue
-        if _is_the_same_candidate(spelling, verdict.candidate):
+        if _is_the_same_candidate(
+            spelling, verdict.candidate, decimal_comma
+        ):
             return True
     return False
 
 
-def _is_the_same_candidate(spelling: str, candidate: str) -> bool:
+def _is_the_same_candidate(
+    spelling: str, candidate: str, decimal_comma: bool = False
+) -> bool:
     """Whether a hole spelling denotes one judged candidate.
 
     A day is compared as its canonical spelling and a number as the
     NUMBER it denotes, which is how the producer counted the
-    candidate's own rows in the first place.
+    candidate's own rows in the first place -- AND THEREFORE UNDER THE
+    COLUMN'S OWN GRAMMAR (review item P4-G3-R7-F3). A declared column
+    whose forty outlier cells are spelled `-999,0` has them read as
+    minus nine hundred and ninety-nine and publishes a verdict naming
+    that number; asked ordinarily, `-999,0` is no number at all, the
+    spelling matched no candidate, and `_absent_cells` reproduced
+    `-999,0` where the contract's write rule asks for empty cells --
+    which then makes a later stand-in judgement contingent on the
+    twin's own distribution, the very thing the rule exists to
+    prevent.
     """
     if candidate in parsing.calendar_placeholders():
         for name in parsing.DATE_FORMATS:
             if parsing.placeholder_day_of(spelling, name) == candidate:
                 return True
         return False
-    held = parsing.exact_of_spelling(spelling)
+    read = spelling
+    if decimal_comma:
+        read = parsing.written_with_a_decimal_comma(spelling)
+    held = parsing.exact_of_spelling(read)
     if held is None:
         return False
     return held == parsing.exact_of_spelling(candidate)
@@ -5614,10 +5863,15 @@ def _stratum_values(
         word = words[taken]
         taken = taken + 1
         numerator = layout.starts[place] * _WORD_SCALE + layout.sizes[place] * word
-        # THE LADDER FIXES THE SEGMENT AND THE HISTOGRAM SHAPES IT
-        # (method G5.4a). A ladder cannot describe a gap and a bin
-        # cannot say where a rung falls, so each answers the half it
-        # can.
+        # THE LADDER FIXES THE SEGMENT AND THE VALUE INSIDE IT
+        # (method G5.3). This comment used to say the histogram shaped
+        # the value and to cite a "G5.4a" that was never written, and
+        # it was wrong on both counts: `_interpolated` reads the rungs
+        # and the drawn word and nothing else, and G5.4 is the integer
+        # rule. `value_histogram` is REPORT-ONLY precisely BECAUSE
+        # nothing consumes it -- a comment saying it shapes a value
+        # here would send the next implementer looking for a
+        # dependency the twin does not have.
         found = _interpolated(rungs, numerator, numbers * _WORD_SCALE)
         if facts.integer_valued:
             found = _whole_valued(found)
@@ -12295,7 +12549,9 @@ def generate(profile: contract.Profile, seed: int) -> Twin:
                 f"{column.n_present}. This means a mistake in synthtwin; "
                 f"please report it. Nothing has been written."
             )
-        content = content + _absent_cells(column)
+        content = content + _absent_cells(
+            column, _declared_a_decimal_comma(column, profile)
+        )
         places: list[int] = []
         if each.placement_words > 0:
             places = [
@@ -12311,32 +12567,109 @@ def generate(profile: contract.Profile, seed: int) -> Twin:
         drawn = drawn + len(places)
         order = _arrangement(places, profile.n_rows)
         written = [content[order[place]] for place in range(profile.n_rows)]
-        columns = columns + [tuple(written)]
-        counted = _recounted(written, _hole_spellings(column))
+        # THE OTHER HALF OF THE DECLARATION (plan P4-D26), and it is
+        # applied to the CELLS HANDED OUT and to nothing this loop then
+        # measures. A column read with the comma as its decimal point
+        # and written back with a point hands a person cells their own
+        # tools read as thousands separators -- the very defect the
+        # declaration exists to prevent, arriving one step later.
+        #
+        # IT WAS APPLIED TOO EARLY ONCE AND THE REPORT WENT BLIND
+        # (review item P4-G3-R2-F1). Swapping before the measuring
+        # meant every recount below read `221,39` with the ordinary
+        # parser, found no number in it, and wrote a report saying the
+        # twin held 0 numeric cells against a published 200, 200
+        # not-numeric against a published 0, and two approximated facts
+        # where the same column undeclared names fifteen. Every one of
+        # those was false: the cells are exactly what was asked for.
+        # `1,234` would have been worse than false -- silently measured
+        # as one thousand two hundred and thirty-four.
+        #
+        # So the twin is MEASURED in the spelling its description was
+        # made from, which is the same spelling `validate` re-describes
+        # it in, and only the bytes that leave differ.
+        spelled = _spelled_with_a_decimal_comma(column, profile, written)
+        columns = columns + [tuple(spelled)]
+        # THE CELLS IN THE READING THE DESCRIPTION WAS MADE FROM, which
+        # is what every measurement below owes (review item
+        # P4-G3-R5-F2). THE SWAP AND THE READING ARE NOT THE SAME
+        # QUESTION and treating them as one was the defect: the twin
+        # SPELLS a column's numbers with a comma only where the numeric
+        # machinery wrote them, but the profiler READ every declared
+        # column that way, whatever role it took.
+        #
+        # A column of sixty cells all spelled `1,5` takes the CONSTANT
+        # role -- chosen before the numeric roles -- and publishes
+        # `n_numeric: 60`, because the profiler read them as sixty
+        # copies of one and a half. Its twin writes `1,5` sixty times,
+        # which is exactly right and which `synthtwin validate`
+        # confirmed; and the twin's OWN report read those cells with
+        # the ordinary parser, found no number in any of them, and said
+        # the twin held 0 numeric cells against a published 60. Both
+        # pages of one run, disagreeing, with the wrong one being the
+        # page that had the cells in its hand.
+        #
+        # One rule covers every role: take the cells as they LEAVE and
+        # read them the way the description was made. On a numeric role
+        # that undoes the swap and gives back the point form; on a
+        # constant or a label it translates the published spelling; on
+        # an undeclared column it changes nothing at all.
+        measured = _read_as_described(column, profile, spelled)
+        # COUNTED ON THE CELLS AS WRITTEN, and measured on the cells as
+        # DESCRIBED, which is the same split the profiler makes and the
+        # validator now makes (review item P4-G3-R4-F1). Presence is
+        # decided from the spelling a file HOLDS; what a number is, is
+        # decided from the spelling its description was made from.
+        #
+        # Counting the pre-swap cells hid a collision the swap itself
+        # creates. A column whose published hole is `7,5` and whose
+        # values run from 7.0 to 7.9 generates present cells spelled
+        # `7.5`; without the declaration that is a different spelling
+        # from the hole and nothing collides, and the swap makes the
+        # two the same. Measured on such a column the twin held SIXTY
+        # cells spelled `7,5` against a published forty-two, so
+        # eighteen values became holes -- and the recount, reading the
+        # cells from before the swap, called it all correct.
+        #
+        # The collision is REPORTED and not steered around, which is
+        # the position R-P2-13 already takes for a generated value that
+        # lands on a stand-in: distorting a distribution to protect a
+        # re-profiling artifact is the worse trade.
+        counted = _recounted(
+            spelled,
+            _hole_spellings(column),
+            _declared_a_decimal_comma(column, profile),
+        )
         notes = (
             list(each.notes)
             + notes
-            + _recount_notes(column, counted)
-            + _value_count_notes(column, written)
+            + _recount_notes(
+                column,
+                counted,
+                spelled,
+                _declared_a_decimal_comma(column, profile),
+            )
+            + _value_count_notes(column, measured)
             + _form_notes(column, written)
-            + _class_notes(column, written)
+            + _class_notes(column, measured)
             + _alphabet_notes(column, written)
-            + _extreme_notes(column, written)
+            + _extreme_notes(column, measured)
             + _width_notes(column, written)
-            + _fraction_notes(column, written)
-            + _pad_notes(column, written)
-            + _whole_notes(column, written)
-            + _magnitude_notes(column, written)
-            + _style_notes(column, written)
-            + _mix_notes(column, written)
+            + _fraction_notes(column, measured)
+            + _pad_notes(column, measured)
+            + _whole_notes(column, measured)
+            + _magnitude_notes(column, measured)
+            + _style_notes(column, measured)
+            + _mix_notes(column, measured)
+            + _agreement_notes(column, written)
         )
         # Every APPROXIMATED fact of this column, measured on the cells
         # just written and checked against both ends of the bound
         # method G12 fixes for it. One that landed outside its bound is
         # a fact the twin did not hold, so it joins the deviations too.
-        measured = _approximations(column, each, written)
-        notes = notes + _bound_notes(measured)
-        approximated = approximated + measured
+        approximated_here = _approximations(column, each, measured)
+        notes = notes + _bound_notes(approximated_here)
+        approximated = approximated + approximated_here
         deviations = deviations + notes
         # WHAT THIS COLUMN HOLDS THAT MISSED NOTHING (P4-G2-R4-F1).
         # Carried beside the deviations rather than among them: these
@@ -12358,7 +12691,7 @@ def generate(profile: contract.Profile, seed: int) -> Twin:
                 content_words=each.content_words,
                 placement_words=each.placement_words,
                 deviations=tuple(notes),
-                approximations=tuple(measured),
+                approximations=tuple(approximated_here),
                 remarks=each.remarks,
             )
         ]
@@ -12497,8 +12830,57 @@ def _value_count_notes(
     ]
 
 
+def _unconditional_hole_excess(
+    column: contract.ColumnBlock,
+    spelled: "list[str]",
+    decimal_comma: bool = False,
+) -> int:
+    """How many extra cells wear a hole spelling no judgement can undo.
+
+    Per SPELLING, because a column-wide flag cannot tell the two cases
+    apart and they point the same way (review item P4-G3-R6-F4). Both a
+    real collision and a judged sentinel that will not re-fire make the
+    recount hold MORE absent cells than the description publishes, so
+    "did any judged pass touch this column" answers the wrong question:
+    it let one judged `-999` silence a genuine collision on an
+    unconditional `7,5` in the same column.
+
+    A JUDGED spelling is one whose absence was decided by the stand-in
+    or calendar-placeholder pass, on the REAL column's distribution.
+    Re-describing the twin runs that judgement again on the twin's
+    distribution, where it may not fire -- so extra cells wearing such
+    a spelling prove nothing and are not counted here. An
+    UNCONDITIONAL spelling -- a declared word, or one of the
+    vocabulary's own -- is absent whatever any judgement does, so an
+    extra cell wearing it is a value the twin has lost.
+
+    Guarantees: accepts one column's block and its finished cells;
+    returns how many cells beyond the published counts wear an
+    unconditional hole spelling, never below zero. Determinism: a fixed
+    function of the two. Raises nothing. No I/O.
+    """
+    excess = 0
+    for spelling in _hole_spellings(column):
+        if _a_judged_pass_put_it_there(column, spelling, decimal_comma):
+            continue
+        published = 0
+        for key in sorted(column.missing_by_source):
+            if key == spelling:
+                published = column.missing_by_source[key]
+        worn = 0
+        for cell in spelled:
+            if _wears_this_hole(cell, spelling, decimal_comma):
+                worn = worn + 1
+        if worn > published:
+            excess = excess + (worn - published)
+    return excess
+
+
 def _recount_notes(
-    column: contract.ColumnBlock, counted: "tuple[int, int, int, int]"
+    column: contract.ColumnBlock,
+    counted: "tuple[int, int, int, int]",
+    spelled: "list[str]",
+    decimal_comma: bool = False,
 ) -> "list[Deviation]":
     """Name every distinctness count the written column did not reach.
 
@@ -12509,6 +12891,84 @@ def _recount_notes(
     facts owner decision 6 gives up are measured.
     """
     notes: list[Deviation] = []
+    # PRESENCE FIRST, because a cell counted on the wrong side of it
+    # moves every other count with it (review item P4-G3-R4-F1). On
+    # nearly every column these two are exact by construction -- the
+    # placement writes exactly `n_present` values and `n_missing`
+    # holes -- so this says nothing at all. What it catches is a cell
+    # whose written spelling turns out to be one this column publishes
+    # among its ABSENT ones, which the placement cannot foresee: a
+    # column whose hole is `7,5` and whose values run from 7.0 to 7.9,
+    # declared `--decimal-comma`, writes present cells spelled `7,5`
+    # and a re-description reads them as holes. `synthtwin validate`
+    # reported that and the twin's own report did not, which is the
+    # two pages of one run disagreeing about what happened.
+    # ONLY WHERE THE HOLE IS UNCONDITIONAL, because the recount is
+    # broader than the profiler for one kind of hole (review item
+    # P4-G3-R5-F3). A spelling a JUDGED pass made absent -- a numeric
+    # stand-in or a calendar placeholder -- is absent because that
+    # pass's outlier and share tests fired on the REAL column's
+    # distribution. Re-describing the twin runs those tests again on
+    # the twin's distribution, where they may not fire, and then the
+    # cell is present. `_recounted` calls every published hole spelling
+    # absent unconditionally, so a note built on it alone would tell a
+    # reader "describing the twin again finds fewer present cells" on
+    # an ordinary undeclared column where describing it again finds no
+    # such thing.
+    #
+    # So the presence notes are raised only where every published hole
+    # spelling is one no judgement can undo: a declared word, or one of
+    # the vocabulary's own. Where a judged pass is in play the recount
+    # cannot speak for the re-description and this stays silent, which
+    # is the same reticence `_absent_cells` already shows.
+    #
+    # THE GUARD SKIPS THESE TWO NOTES AND NOTHING ELSE. A first version
+    # returned early here and took the DISTINCTNESS notes with it: the
+    # demonstration report lost two lines it had always carried, which
+    # the golden digest caught with the sentence it carries for exactly
+    # this -- a report that says less than it did is a defect even when
+    # nothing crashed.
+    # ASKED OF EVERY PUBLISHED HOLE SPELLING, and the notes are stayed
+    # only where a judged one could account for the whole difference
+    # (review item P4-G3-R6-F4). A column-wide flag let ONE judged
+    # sentinel silence a collision on a different, unconditional hole:
+    # a declared `7,5` that generated values collide with, beside a
+    # judged `-999` that has nothing to do with it. The quality report
+    # named the collision and the twin's own report did not.
+    #
+    # A judged pass can only ADD absences when the twin is described
+    # again, never remove them, so where the recount finds FEWER holes
+    # than published no judgement can account for it.
+    collided = (
+        _unconditional_hole_excess(column, spelled, decimal_comma) > 0
+    )
+    if collided and counted[0] != column.n_present:
+        notes = notes + [
+            _deviation(
+                column.name,
+                "n_present",
+                f"{column.n_present}",
+                f"{counted[0]}",
+                "Describing the twin again reads a different number of "
+                "cells as holding a value than the description records. "
+                "A cell whose written spelling is one this column "
+                "publishes among its absent ones is read as absent, "
+                "whatever it was built to be.",
+            )
+        ]
+    if collided and counted[1] != column.n_missing:
+        notes = notes + [
+            _deviation(
+                column.name,
+                "n_missing",
+                f"{column.n_missing}",
+                f"{counted[1]}",
+                "Describing the twin again reads a different number of "
+                "cells as empty than the description records. Code that "
+                "counts missing values sees this number here and the "
+                "published one on your table.",
+            )
+        ]
     # WHICH WAY the count went decides which sentence is true. A twin
     # holding FEWER different values ran out of ways to write one; a
     # twin holding MORE was never told how often a value repeats, which
@@ -13980,10 +14440,25 @@ def _agreement_approximations(
 ) -> "list[Approximation]":
     """How strongly two positions moved together, measured (G12.9).
 
-    The window is the method's, cited rather than invented here: two
-    hundredths either side of the published value. `part_above` beside
-    it carries no window and is not an approximation at all -- a row of
-    it is a reading that cannot happen -- so it is not measured here.
+    WHICH PAIRS THE WINDOW REACHES, and it is not all of them (review
+    item P4-G3-R1-F3). The pairing walk of G6B.4 moves the LAST
+    position and no other, so a pair is aimed at only where the last
+    position is one of its two. Those pairs are APPROXIMATED and owe
+    the method's two hundredths either side.
+
+    A pair between two EARLIER positions is neither moved nor scored.
+    G12.9 says so in as many words and says such a pair "is not an
+    approximation of anything": it can come out at `+1` against a
+    published `-1`, which is fifty times the window. Dressing it as an
+    approximated fact would print the method's range beside it and tell
+    a reader the twin was held to a bound the method expressly denies
+    applying. So where such a pair misses, it is a DEVIATION -- a
+    published fact the twin did not meet, named with no window claimed
+    for it -- and that is residual R-P4-51 in the report rather than in
+    a document the reader may never open.
+
+    `part_above` beside them carries no window either, and is not
+    measured here at all: a row of it is a reading that cannot happen.
     """
     found: "list[Approximation]" = []
     columns: "list[list[float]]" = []
@@ -13994,73 +14469,186 @@ def _agreement_approximations(
             if value is not None:
                 numbers = numbers + [value]
         columns = columns + [numbers]
+    scored = contract.scored_pairs(facts.n_parts)
     seat = 0
     for first in range(facts.n_parts):
         for second in range(first + 1, facts.n_parts):
             if seat >= len(facts.part_agreements):
                 break
             published = facts.part_agreements[seat]
-            achieved = _rank_agreement(columns[first], columns[second])
-            lowest = published - _AGREEMENT_REACH
-            highest = published + _AGREEMENT_REACH
-            found = found + [
-                Approximation(
-                    column=column.name,
-                    fact=f"part_agreements[{seat}]",
-                    published=_figure(published),
-                    achieved="nothing" if achieved is None else _figure(achieved),
-                    lowest=_figure(lowest),
-                    highest=_figure(highest),
-                    inside=(
-                        False
-                        if achieved is None
-                        else _inside(achieved, lowest, highest)
-                    ),
-                    note=(
-                        f"how strongly {_position_words(first)} and "
-                        f"{_position_words(second)} rise and fall together"
-                    ),
-                    covers_published=True,
-                )
-            ]
+            # AT THE PRECISION THE DESCRIPTION PUBLISHES, because the
+            # published value is rounded there and a fact cannot be
+            # inside its window for one command and outside it for the
+            # other. The profiler rounds what it publishes; anything
+            # measuring a twin against it rounds the same way.
+            achieved = round(
+                _rank_agreement(columns[first], columns[second]),
+                parsing.RANK_AGREEMENT_PLACES,
+            )
+            moving = f"how strongly {_position_words(first)} and " + (
+                f"{_position_words(second)} rise and fall together"
+            )
+            if seat in scored:
+                lowest = published - _AGREEMENT_REACH
+                highest = published + _AGREEMENT_REACH
+                found = found + [
+                    Approximation(
+                        column=column.name,
+                        fact=f"part_agreements[{seat}]",
+                        published=_figure(published),
+                        achieved=_figure(achieved),
+                        lowest=_figure(lowest),
+                        highest=_figure(highest),
+                        inside=_inside(achieved, lowest, highest),
+                        note=moving,
+                        covers_published=True,
+                    )
+                ]
             seat = seat + 1
     return found
 
 
-def _rank_agreement(
-    first: "list[float]", second: "list[float]"
-) -> "float | None":
+def _agreement_notes(
+    column: contract.ColumnBlock, written: "list[str]"
+) -> "list[Deviation]":
+    """A pair of positions the pairing walk never aimed at, where it
+    came out somewhere other than the description says (R-P4-51).
+
+    WHY THIS IS NOT AN APPROXIMATION, which is where it was filed
+    first (review item P4-G3-R1-F3). The walk of G6B.4 moves the LAST
+    position of a cell and no other, so a pair is aimed at only where
+    the last position is one of its two. G12.9 states this and states
+    what follows from it: a pair between two earlier positions "is not
+    an approximation of anything" and can come out at `+1` against a
+    published `-1`, fifty times the window. Filing it as approximated
+    prints the method's range beside it, which tells a reader the twin
+    was held to a bound the method expressly denies applying to it --
+    the report would be citing a promise to excuse the one case the
+    promise excludes.
+
+    So it is what it is: a published fact the twin did not meet, named
+    with no window claimed for it. A pair that happens to land on its
+    published value met it and needs no line, the same as every other
+    exact fact of the report.
+    """
+    facts = column.facts
+    if not isinstance(facts, contract.JoinedFacts):
+        return []
+    columns: "list[list[float]]" = []
+    for place in range(facts.n_parts):
+        numbers: "list[float]" = []
+        for text in _joined_position_numbers(written, facts, place):
+            value = parsing.parse_number(text)
+            if value is not None:
+                numbers = numbers + [value]
+        columns = columns + [numbers]
+    scored = contract.scored_pairs(facts.n_parts)
+    found: "list[Deviation]" = []
+    # `part_above` FIRST, and for EVERY pair, because it is exact on
+    # the pairs the walk moves and merely unaimed-at on the rest --
+    # either way a miss is a fact the twin does not carry and the
+    # reader has to be told (review item P4-G3-R2-F3). This report
+    # named it on NO pair at all: measured over twelve random
+    # three-position columns, twelve of twelve missed the count
+    # between their two earlier positions and the twin's own report
+    # was silent on all twelve, while `synthtwin validate` on the same
+    # twin reported it every time. The two pages of one run must not
+    # disagree about whether something happened.
+    seat = 0
+    for first in range(facts.n_parts):
+        for second in range(first + 1, facts.n_parts):
+            if seat >= len(facts.part_above):
+                break
+            held = 0
+            for row in range(min(len(columns[first]), len(columns[second]))):
+                if columns[first][row] > columns[second][row]:
+                    held = held + 1
+            published_above = facts.part_above[seat]
+            if held != published_above:
+                aimed = (
+                    ""
+                    if seat in scored
+                    else (
+                        " This tool builds the pairing by moving the "
+                        "last position of a cell, so a pair between two "
+                        "earlier positions is not aimed at and this "
+                        "count is whatever the arrangement left."
+                    )
+                )
+                found = found + [
+                    Deviation(
+                        column=column.name,
+                        fact=f"part_above[{seat}]",
+                        published=f"{published_above}",
+                        achieved=f"{held}",
+                        note=(
+                            f"how many rows hold {_position_words(first)} "
+                            f"above {_position_words(second)}.{aimed} "
+                            "Code you write against this twin must not "
+                            "rely on how often one of these two is the "
+                            "larger"
+                        ),
+                    )
+                ]
+            seat = seat + 1
+    seat = 0
+    for first in range(facts.n_parts):
+        for second in range(first + 1, facts.n_parts):
+            if seat >= len(facts.part_agreements):
+                break
+            if seat in scored:
+                seat = seat + 1
+                continue
+            published = facts.part_agreements[seat]
+            achieved = round(
+                _rank_agreement(columns[first], columns[second]),
+                parsing.RANK_AGREEMENT_PLACES,
+            )
+            if achieved != published:
+                found = found + [
+                    Deviation(
+                        column=column.name,
+                        fact=f"part_agreements[{seat}]",
+                        published=_figure(published),
+                        achieved=_figure(achieved),
+                        note=(
+                            f"how strongly {_position_words(first)} and "
+                            f"{_position_words(second)} rise and fall "
+                            "together. This tool builds the pairing by "
+                            "moving the last position of a cell, so a "
+                            "pair between two earlier positions is not "
+                            "aimed at and no closeness is promised for "
+                            "it. Code you write against this twin must "
+                            "not rely on these two rising and falling "
+                            "together as they do in your table"
+                        ),
+                    )
+                ]
+            seat = seat + 1
+    return found
+
+
+def _rank_agreement(first: "list[float]", second: "list[float]") -> float:
     """The rank agreement of two positions, by the method's own rule.
 
-    Zero-based ranks with ties sharing the average of the ranks they
-    span, taken about `(T - 1) / 2` -- the convention G6B.4 step 4
-    fixes -- so the number measured here and the number the pairing
-    walk aimed at are the same number.
+    THIS IS A DELEGATION AND THAT IS THE POINT (review item
+    P4-G3-R1-F1). It used to be a second implementation of the
+    convention G6B.4 step 4 fixes -- zero-based average ranks taken
+    about `(T - 1) / 2` -- written out beside the profiler's own. The
+    two agreed on every column whose positions both varied and
+    disagreed on the one case neither author thought about: where a
+    position holds one value repeated, there are no ranks to agree on,
+    the profiler answers `0.0`, and this answered "no number at all".
+    So a column of `1/2, 1/3, 1/4` published agreement `0.0`, the
+    pairing walk aimed at `0.0` and hit it, the validator measured
+    `0.0` and passed the file -- and the twin's own report printed
+    "nothing", called it outside the window and raised a deviation
+    against a fact the twin had met exactly.
+
+    Two implementations of one convention are two chances to disagree,
+    and the fix is not to correct the copy but to stop keeping one.
     """
-    total = len(first)
-    if total != len(second) or total < 2:
-        return None
-    # THE RANKS THE PAIRING WALK ITSELF USES (G6B.4 step 4), read from
-    # the one place they are computed rather than worked out again: the
-    # number this measures and the number the walk aimed at have to be
-    # the same number, and two implementations of one convention are
-    # two chances to disagree.
-    left = _ranks_of(first)
-    right = _ranks_of(second)
-    middle = (total - 1) / 2.0
-    top = 0.0
-    spread_left = 0.0
-    spread_right = 0.0
-    for row in range(total):
-        away_left = left[row] - middle
-        away_right = right[row] - middle
-        top = top + away_left * away_right
-        spread_left = spread_left + away_left * away_left
-        spread_right = spread_right + away_right * away_right
-    divisor = (spread_left * spread_right) ** 0.5
-    if not divisor > 0.0:
-        return None
-    return top / divisor
+    return parsing.rank_agreement(first, second)
 
 
 _INTERNAL_NOT_TEXT = "internal check: a twin's cell was not text"
@@ -14070,7 +14658,7 @@ _INTERNAL_NOT_TEXT = "internal check: a twin's cell was not text"
 # The validator holds a checked file to the same number, and the two
 # must not drift: a report that promised one reach while the check used
 # another would call a twin sound and a file of the same numbers not.
-_AGREEMENT_REACH = 0.02
+_AGREEMENT_REACH = parsing.RANK_AGREEMENT_WINDOW
 
 _POSITION_WORDS = (
     "the first number in each cell",

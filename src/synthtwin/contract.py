@@ -154,6 +154,7 @@ SETTINGS_KEYS = (
     "declaration_publication",
     "declared_missing_values",
     "forced_codes",
+    "forced_decimal_commas",
     "forced_identifiers",
     "forced_measurements",
     "identifier_minimum_rows",
@@ -759,8 +760,11 @@ INVARIANTS = {
         "instead"
     ),
     "S8": (
-        "every column named as holding record numbers is a column of "
-        "this table"
+        "every column named in a declaration is a column of this table"
+    ),
+    "S8a": (
+        "no column is named as writing its numbers with a comma and "
+        "also as holding codes or record numbers"
     ),
     "S9": (
         "the smallest number of categories allowed is not larger than "
@@ -1208,6 +1212,126 @@ class SettingsBlock:
     # numbers in one cell. Like `forced_codes` and unlike
     # `forced_identifiers` it does not silence a column.
     forced_measurements: "tuple[str, ...]"
+    # THE FOURTH DECLARATION (plan P4-D26). Columns the person named as
+    # writing their numbers with a comma where this tool's default
+    # reading expects a point. It is unlike the three above it in what
+    # it answers: they say WHAT a column holds and are three answers to
+    # one question, so no column may carry two of them. This one says
+    # HOW the numbers of a column are spelled, which is a different
+    # question, and a column declared a measurement may perfectly well
+    # also be declared to spell its numbers with a comma -- that pairing
+    # is the commonest true thing a person has to say about a European
+    # file, and refusing it would refuse the case this declaration was
+    # built for.
+    forced_decimal_commas: "tuple[str, ...]"
+
+
+# TWO QUESTIONS, TWO NAMES, because a first version asked one and
+# answered the other (review item P4-G3-R5-F2).
+#
+# THIS is the roles on which the declaration is HONOURED -- where the
+# published description differs because it was made. The profiler
+# swaps every declared column's cells BEFORE it chooses a role, so a
+# column of `1,5` cells reads as ones and a halves whatever role it
+# ends up with, `constant` and `binary` included; those two are chosen
+# before the numeric roles and were missing from the first version of
+# this list, so the command line told a person their numbers were "NOT
+# read" with the comma about a description whose profiler had read
+# exactly that way.
+#
+# It is used by the one caller holding a description rather than a
+# loaded profile: the command line, which must say when a declaration
+# landed somewhere it cannot help. Its COMPLEMENT is what gets the
+# warning.
+DECIMAL_COMMA_HONOURED_ROLES = (
+    "binary",
+    "constant",
+    "continuous",
+    "count",
+    "numeric_unrepresentable",
+)
+
+
+def a_decimal_comma_reaches(column: "ColumnBlock") -> bool:
+    """Whether the GENERATOR must spell this column's numbers with a
+    comma, and whether the validator must read them back that way.
+
+    THE NARROWER OF THE TWO QUESTIONS, and not the same one
+    `DECIMAL_COMMA_HONOURED_ROLES` answers. A declaration is HONOURED
+    on more roles than this: the profiler reads every declared column
+    with the comma, so a `constant` column of `1,5` publishes ones and
+    a halves. But that column's twin writes the published SPELLING,
+    `1,5`, straight out -- there is nothing for a swap to do, and
+    swapping would corrupt it. This predicate is about the cells the
+    numeric machinery WRITES as numbers, which are the only ones the
+    twin spells itself.
+
+    It reaches the plain numeric roles and the unrepresentable one,
+    whose cells are numbers too large or too small for this format to
+    hold but are numbers all the same, spelled by the same rules.
+
+    It does NOT reach the label and text roles: those publish spellings
+    the file itself held, and swapping a character inside one of them
+    would rewrite a value the description publishes exactly. It does
+    not reach the affixed or joined roles either, and that is residual
+    R-P4-52: their cells carry a number inside a larger spelling -- an
+    affix around it, or a separator between several -- and which mark
+    of that spelling is a decimal point is a question this declaration
+    does not answer.
+
+    IT LIVES HERE BECAUSE FOUR PLACES ASK IT (review item P4-G3-R2-F2).
+    The profiler's censuses, the generator's writeback, the validator's
+    cell reading and the refusal that turns away a declaration it
+    cannot honour must all agree about which columns are reached, and
+    the validator may not import the generator. A first version wrote
+    the test twice, said `NumericFacts` in both, and silently dropped
+    the unrepresentable role from a feature whose whole subject is how
+    a number is spelled.
+
+    Guarantees: accepts one column's block; returns whether the swap
+    applies. Determinism: a fixed function of the block. Raises
+    nothing. No I/O of any kind.
+    """
+    return isinstance(column.facts, (NumericFacts, UnrepresentableFacts))
+
+
+def scored_pairs(n_parts: int) -> "tuple[int, ...]":
+    """The seats of `part_agreements` the pairing walk actually aims at.
+
+    The seats run over the pairs `(first, second)` with `first <
+    second`, in that order, which is the order the profiler writes them
+    in. Method G6B.4's walk moves a cell's LAST position and no other,
+    so a pair is aimed at exactly where the last position is one of its
+    two: for two positions the only pair, for three seats 1 and 2, for
+    four seats 2, 4 and 5.
+
+    IT LIVES HERE BECAUSE TWO MODULES NEED IT AND NEITHER MAY IMPORT
+    THE OTHER (review item P4-G3-R2-F3). The generator decides which
+    pairs it approximates; the validator decides which pairs it holds
+    to G12.9's window. They were written separately, only one was
+    corrected, and the twin's own report then called a pair unscored
+    while the quality report handed the same pair the window of the
+    section that excludes it. The validator may not import the
+    generator, so the rule sits in the module that owns `JoinedFacts`
+    and that both already read.
+
+    Guarantees: accepts the published part count; returns the seats in
+    rising order. Determinism: a fixed function of that one number.
+    Raises nothing. No I/O of any kind.
+
+    Built by list concatenation rather than by a set, because the
+    offline audit refuses a method call on a value it cannot trace and
+    that is the rule keeping this package's surface readable.
+    """
+    last = n_parts - 1
+    found: "list[int]" = []
+    seat = 0
+    for first in range(n_parts):
+        for second in range(first + 1, n_parts):
+            if first == last or second == last:
+                found = found + [seat]
+            seat = seat + 1
+    return tuple(found)
 
 
 @dataclasses.dataclass(frozen=True)
@@ -3217,6 +3341,24 @@ def _settings(value: object) -> SettingsBlock:
             )
         declared_measurements = declared_measurements + [found]
         place = place + 1
+    declared_commas: list[str] = []
+    comma_names = _listing(
+        mapping["forced_decimal_commas"], "forced_decimal_commas", where
+    )
+    place = 0
+    for name in comma_names:
+        found = _text(name, f"forced_decimal_commas[{place}]", where)
+        if declared_commas and found <= declared_commas[
+            len(declared_commas) - 1
+        ]:
+            raise _out_of_range(
+                "forced_decimal_commas",
+                where,
+                f"'{found}'",
+                "names in rising order, each of them once",
+            )
+        declared_commas = declared_commas + [found]
+        place = place + 1
     declared_codes: list[str] = []
     code_names = _listing(mapping["forced_codes"], "forced_codes", where)
     place = 0
@@ -3291,6 +3433,7 @@ def _settings(value: object) -> SettingsBlock:
         forced_identifiers=tuple(declared),
         forced_codes=tuple(declared_codes),
         forced_measurements=tuple(declared_measurements),
+        forced_decimal_commas=tuple(declared_commas),
     )
     # C5-K4 LAST, because it is the one rule here that needs BOTH
     # records: every other check is about one entry and is raised where
@@ -6661,6 +6804,62 @@ def _cross_checks(
                 "in the block of rules that produced the description",
                 f"'{name}' is named as holding measurements",
                 "this table has no column of that name",
+            )
+    for name in settings.forced_decimal_commas:
+        if name not in places:
+            raise _broken(
+                "S8",
+                "in the block of rules that produced the description",
+                f"'{name}' is named as writing its numbers with a comma",
+                "this table has no column of that name",
+            )
+    # AND NOT BESIDE A DECLARATION THAT WOULD SILENCE IT (review item
+    # P4-G3-R3-F3). The contract forbids the overlap and nothing
+    # enforced it, so a hand-written description could name a column
+    # both a code and a decimal-comma column and be accepted -- and the
+    # generator would then quietly not apply the comma, because a code
+    # column carries no numeric facts. The command line refuses the
+    # pair; a document carrying it is a document this contract does not
+    # describe, and the loader is where that is settled.
+    # S8b WAS BUILT HERE AND WITHDRAWN, and the reason is worth the
+    # space because it looks enforceable and is not (review item
+    # P4-G3-R8-F2).
+    #
+    # The thought was: on a column named `--decimal-comma`, an absent
+    # spelling whose number depends on the reading came either from a
+    # judged pass -- and then one of that column's own stand-in
+    # verdicts names its number -- or from a declared value, which the
+    # producer now refuses. Refuse the rest.
+    #
+    # THERE IS A THIRD SOURCE. A declaration the producer ALLOWS,
+    # because its own number does not depend on the grammar, can still
+    # match a cell whose spelling does: `--missing-value -999` is safe,
+    # and on a declared column it matches cells spelled `-999,0` by
+    # NUMBER, which is what the matching rule says it should do. That
+    # column then publishes `-999,0` among its absent spellings,
+    # legitimately, with no verdict to account for it -- and the rule
+    # above turned it away. A correct description, refused.
+    #
+    # The three sources cannot be told apart from the document,
+    # because a declaration is unrecoverable from it: the settings
+    # block carries no spelling a person typed (C5-16). So the
+    # producer is the gate, `profile.build_document` is where it
+    # stands, and every path this package offers goes through it.
+    for name in settings.forced_decimal_commas:
+        for other, what in (
+            (settings.forced_codes, "holding codes"),
+            (settings.forced_identifiers, "holding record numbers"),
+        ):
+            if name not in other:
+                continue
+            raise _broken(
+                "S8a",
+                "in the block of rules that produced the description",
+                f"'{name}' is named as writing its numbers with a "
+                f"comma and also as {what}",
+                "a column read as codes or as record numbers is not "
+                "read as numbers at all, so the comma reading could "
+                "never be used",
             )
     previous = 0
     place = 0

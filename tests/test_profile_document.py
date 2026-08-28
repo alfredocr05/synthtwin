@@ -246,8 +246,24 @@ def test_nothing_that_varies_between_runs_is_written(
 # default, and eleven is the number the previous digest was recorded at.
 # No count, no statistic, no label, no role and no spelling of any
 # column moved.
+#
+# RE-RECORDED 2026-08-27 for the FOURTH declaration (plan P4-D26). ONE
+# line moved and no other: the settings block of every document now
+# carries `forced_decimal_commas`, the columns declared with
+# `--decimal-comma`, which sorts immediately after `forced_codes`, and
+# this run declares none, so the line reads
+# `"forced_decimal_commas": [],`. CHECKED rather than assumed, by the
+# procedure the previous re-recording used: building these bytes,
+# deleting that one key and serializing again reproduces the previous
+# digest,
+# d130e910e7c539c82cf8a307d3d1e6374b32911a7834d707343f34c9cae4bf46,
+# character for character. No count, no statistic, no label, no role
+# and no spelling of any column moved, and the TWIN's own digest in
+# tests/test_twin_golden.py did not move at all -- which is what says
+# this is a change to what a description RECORDS and not to what it
+# says about the data.
 GOLDEN_SHA256 = (
-    "d130e910e7c539c82cf8a307d3d1e6374b32911a7834d707343f34c9cae4bf46"
+    "dbbb8934a4473073b33c635e05ee17dc060db9a70db669fe6ef3a026e2bab770"
 )
 
 

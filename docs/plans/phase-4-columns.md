@@ -2501,6 +2501,200 @@ Opened by this plan, each a limit accepted rather than work forgotten:
   105050. `1,001.0e2` works, because the point happens to split the
   grouped head before the exponent. The defect is in the separator
   rule's reading of the tail and predates every landing of this phase.
+### P4-D26 The decimal comma, and which columns a declaration reaches
+
+The owner ruled the case IN on 2026-08-26: "this will be open source
+that will be used by anyone. So, yes, someone can have decimals with
+commas." R-P4-31 already says what the answer looks like — a
+`--decimal-comma` declaration on the model of `--day-first` — and names
+the one thing that stopped it being built: **the reading is per COLUMN
+and not per table.** A comma inside an address, a free-text note or a
+code is not a decimal point, so a declaration that rewrote every comma
+in the table would corrupt the columns it was not meant for.
+
+**THE DECISION: it takes column names, exactly as the three
+declarations beside it do.** `--identifier`, `--code` and
+`--measurement` each name the columns they reach, are recorded in the
+settings by name, and are refused for a column the table does not hold
+or that another declaration already claims. `--decimal-comma` is the
+fourth of that family and is built on the same plumbing:
+
+```
+synthtwin profile table.csv --decimal-comma weight --decimal-comma dose
+```
+
+This is not a new shape of answer. It is the shape this project has
+taken three times, and taking it a fourth time is what closes the
+question R-P4-31 left open rather than making up a fifth kind of
+declaration for one reading.
+
+**What it must do, and the half that is easy to forget.** The profiler
+reads the named columns' cells with a comma as the decimal point, so
+`1,5` is one and a half and not fifteen. That is the half everyone
+thinks of. The other half is that **the twin must write them back the
+same way**: a column declared this way and reproduced with points
+gives a person cells their own tools will read as thousands separators,
+which is the defect this decision exists to prevent, arriving one step
+later. So the declaration is recorded in the description, and the
+generator spells that column's numbers with a comma.
+
+**What it must NOT do.** It may not guess. A column not named keeps
+today's reading, whatever its commas look like, and the loud remark
+P4-D17 already writes stays exactly as it is for such a column. No
+heuristic decides that a column "looks like" it uses decimal commas:
+R-P4-31's own words are that a person who says what their file does
+needs no heuristic, and no heuristic here can be right.
+
+**LANDED 2026-08-27, and R-P4-31 is CLOSED.** All four halves are
+built: `--decimal-comma` names columns and is refused for a name the
+table does not hold; the settings block records
+`forced_decimal_commas` as its twentieth key; the twin spells the
+declared column's numbers with a comma; and the validator re-describes
+a checked file under the declaration. Measured on a 200-row column of
+European quantities: undeclared it is described as free text and every
+number is lost; declared it is `continuous` from 2.89 to 300.23, the
+twin writes `221,39`, and the twin misses none of its 54 obligations.
+A second column of ADDRESSES, full of commas and not named, is
+untouched — which is the per-column rule R-P4-31 asked for, pinned.
+
+**THE CONFLICT RULE IS NOT THE THREE DECLARATIONS' RULE, and taking it
+literally would have refused the case this exists for.** The decision
+above says the fourth is refused "for a column another declaration
+already claims", by analogy with the three. But the three are three
+answers to ONE question — what does this column hold — and no column
+may carry two. This one answers a different question: how are its
+numbers spelled. `--measurement dose --decimal-comma dose` is coherent
+and is the commonest true thing a person has to say about a European
+file, so it is ALLOWED. What is refused is `--identifier` and `--code`
+beside it, and for a reason that is about the person rather than about
+tidiness: both silence the numeric reading, so synthtwin would take the
+instruction and ignore it, and a declaration a tool quietly ignores is
+worse than one it refuses, because only the refusal is visible.
+
+**WHAT THE FIRST BUILD OF IT GOT WRONG, recorded because the lesson
+generalizes.** The reading was swapped and the CENSUSES were not. `1,5`
+carries no point, so its style counted as the `plain` form; the column
+published `plain` for all 200 cells beside `integer_valued: false`; and
+the twin wrote `222` for a column running from 2.89 to 300.23 — the
+fraction gone altogether, a worse failure than the comma confusion this
+decision exists to prevent. A cell now carries its file spelling and
+its NUMERIC spelling as two fields, because they answer two questions
+and one field got one of them wrong. The same shape appeared again on
+the validator, which measures a file two ways and had been given the
+declaration for only one of them.
+
+- **R-P4-54 — CLOSED 2026-08-28 BY REFUSING THE PAIR, and the
+  argument for leaving it open was refuted first.** `--keep-value` and
+  `--missing-value` name VALUES and reach every column;
+  `--decimal-comma` names COLUMNS. A spelling whose number depends on
+  which grammar reads it therefore means one thing on a declared
+  column and another everywhere else, and `settings` has one place to
+  record what a declared value is.
+
+  **I CARRIED THIS AS A RESIDUAL FOR ONE ROUND ON THE ARGUMENT THAT
+  THE CONSEQUENCE WAS CONSERVATIVE — obligations withheld rather than
+  checked, never a wrong verdict — AND THAT ARGUMENT WAS WRONG.** It
+  covered only the direction where the ordinary grammar counts MORE
+  declarations than the comma one. The reverse happens too: declare
+  `1,234` and `1234` as missing, and the ordinary grammar folds them
+  into one while the comma grammar keeps them apart, so the
+  table-wide recovery looks complete, the column stays checkable, and
+  the file is rebuilt with only one of the two. The source file then
+  receives MISSED verdicts on presence, on its role and on its
+  numbers, against a description correct about all three. A wrong
+  verdict, not a withheld one.
+
+  **So the pair is refused**, on the predicate
+  `parsing.reads_as_two_numbers`: a declared value whose number
+  differs between the two readings cannot stand beside
+  `--decimal-comma`. What a person loses is the ability to name a "no
+  value" word that is itself grammar-dependent. What they keep is
+  every word that is not — `NA`, `unknown`, `-999`, and any spelling
+  that reads the same way either way, which is what a "no value" word
+  almost always is.
+
+  **THE LOADER CANNOT RESTATE THIS REFUSAL IN FULL, and the reason is
+  a fact about the format.** The SETTINGS BLOCK carries no spelling a
+  person typed, only how many values were declared and which of this
+  package's own words were among them (C5-16 and the disclosure rule
+  it serves) — so a declaration is unrecoverable from that block. A
+  spelling the person typed DOES reach the description by another
+  route: `missing_by_source` carries it character for
+  character where a column publishes it among its absent cells and at
+  least `small_cell_floor` rows share it.
+
+  So a partial check is possible, and it is deliberately NOT built. It
+  would have to tell a declared hole from a judged one — a column
+  whose outliers are spelled `-999,0` publishes an ambiguous spelling
+  legitimately — and a refusal that got that wrong would turn away a
+  correct description. The command line is the gate for every document
+  this tool writes; a hand-written one carrying the pair is the
+  remaining hole, and it is written down here rather than closed by a
+  rule that might be worse than the gap.
+
+- **R-P4-53 (opened 2026-08-27, and it is NOT about the decimal
+  comma).** A HOLE SPELLED AS A NUMBER IS COUNTED BY THE STYLE RECOUNT
+  AND NOT BY THE DESCRIPTION. A column whose declared missing value is
+  `-9.99` publishes `numeric_styles` over its 180 present cells; the
+  validator's own recount walks every written cell, finds `-9.99` reads
+  as a number, and counts 200. The file that was described is then told
+  it missed `numeric.numeric_styles`.
+
+  Found while checking the decimal-comma writeback and MEASURED to be
+  independent of it: the same column with points and no declaration
+  misses the same obligation. It is a pre-existing disagreement between
+  which cells the description counts and which the recount counts.
+
+  **ITS WIDTH, stated exactly rather than generally.** It reaches a
+  column that publishes a `numeric_styles` census -- a quantitative
+  column -- whose declared "no value" word reads as a number. It does
+  NOT reach every column whose hole happens to be numeric: 180 copies
+  of the label `A` beside twenty `-9.99` cells declared missing make a
+  CONSTANT column, which publishes no style census, so the recount
+  never runs and there is nothing to disagree about. An earlier draft
+  of this entry said "any column" and was wrong at that width.
+
+  Not fixed here, because the fix is to the recount's population and
+  that is a change to a check every quantitative column runs.
+
+- **R-P4-52 (opened here, 2026-08-27).** THE SWAP REACHES THE ROLES
+  WHOSE CELLS ARE NUMBERS AND NO OTHERS. Two questions with two
+  answers, and an earlier revision of this entry ran them together
+  (review item P4-G3-R6-F6). The declaration is HONOURED on `binary`,
+  `constant`, `continuous`, `count` and `numeric_unrepresentable` --
+  the profiler swaps a declared column's cells before it chooses a
+  role, so the two roles chosen ahead of the numeric ones read with the
+  comma too. The GENERATOR must spell the numbers itself on a narrower
+  set: `continuous`, `count` and `numeric_unrepresentable`, whose cells
+  it writes as numbers. A constant column's twin writes the published
+  spelling straight out. The unrepresentable role is IN, and it was
+  left out of the first build by a type test that said `NumericFacts`
+  and meant "written as a number" — its cells are numbers too large or
+  too small for this format to hold, spelled by the same rules, so a
+  declared column landing there would otherwise have been read with the
+  comma and written back with a point, and its published width measured
+  on a spelling the twin never writes.
+
+  What stays OUT is every role whose cells carry a number inside a
+  larger spelling — the affixed and joined roles — and every role that
+  publishes spellings the file itself held. `1,5/2,5` declared both a
+  measurement and a decimal-comma column has two readings and nothing
+  published chooses between them; `EUR 1,5` has a core and a suffix and
+  nothing says which mark is the point.
+
+  **IT FAILS LOUDLY RATHER THAN SILENTLY**, which is the half a first
+  build left out. Which columns the declaration reaches depends on the
+  ROLE the values take, and that is not known until the table has been
+  read — so the refusals that can be made early are made early, and
+  where a declaration lands on a role it cannot help, `synthtwin
+  profile` says so on the screen, naming the column and the role, and
+  says the numbers were NOT read with the comma. Principle 5 forbids a
+  silent miscast and a declaration quietly not applied is one.
+
+  What would close this is a decision about how a separator, an affix
+  and a decimal comma are told apart inside one cell, which is its own
+  owner question and not one to guess at.
+
 - **R-P4-31** (opened by P4-D17, 2026-08-24). A PERSON WHOSE FILE
   WRITES DECIMALS WITH A COMMA CANNOT GET A CORRECT DESCRIPTION. P4-D17
   makes the reading loud; it does not make it right. The proper answer
@@ -6447,9 +6641,12 @@ perfectly anti-correlated:
 | (1,3) | +1.0 | −0.144 |
 | (2,3) | −1.0 | −0.144 |
 
-**What saves it from being silent is the quality report.** The twin's
-own report names none of these, which is R-P4-44's split and not this
-residual. `synthtwin validate`, run on that twin against that
+**BOTH REPORTS NAME THESE, and this paragraph said otherwise until
+2026-08-28** (R-P4-44 closed; review item P4-G3-R6-F7). The twin's own
+report names the scored pairs as approximations against G12.9's window
+and the unscored pair as a deviation with no closeness claimed for it,
+and it names a missed `part_above` beside them. `synthtwin validate`,
+run on that twin against that
 description, returns `part_agreements[0]`, `[1]` and `[2]` all MISSED
 and `part_above[0]` MISSED as well. So a person is told — through the
 command that exists to tell them — and nothing is quietly wrong.

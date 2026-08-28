@@ -360,11 +360,18 @@ a second number above a first that no real cell ever did.
 This is an exception to the one-column-wide bound stated elsewhere in
 this repository, and it is a narrow one: the structure lives INSIDE a
 cell, between the positions of one column, and says nothing about any
-other column. `part_agreements` is APPROXIMATED against a fixed window
-(plan P4-D25) rather than met exactly -- measured on a 400-row column
-published at 0.9613, the twin reached 0.8994 while `part_above` came
-out exact -- and **the twin's own report does not name that fact**; the
-quality report does (residuals R-P4-42 and R-P4-44). The count of
+other column. `part_agreements` is APPROXIMATED against the fixed window
+of G12.9 on the pairs the walk SCORES. On the pairs it does not score,
+NO WINDOW IS PROMISED -- which is not the same as no obligation, and
+this passage said "held to nothing at all" until 2026-08-28, which
+reads as both (review item P4-G3-R6-F7). The published value is still
+a fact the twin either carries or does not: an unscored pair can come
+out at `+1` against a published `-1`, and that is a plain MISS, named
+as such by both reports, with no range printed beside it and G12.9
+cited for nothing. Measured on a 400-row two-position
+column published at 0.9613, the twin reached 0.8994 while `part_above`
+came out exact. BOTH reports name these facts and measure them
+(R-P4-42 and R-P4-44, closed 2026-08-27). The count of
 different CELLS is a separate fact a pairing of these numbers may be
 unable to meet, and the twin's report DOES say so (residual R-P4-40).
 
@@ -1646,10 +1653,26 @@ Write `T` for `n_joined` and `last` for `n_parts - 1`.
 spelling)` ascending, value being the spelling read as a number. This
 is the rank-for-rank start: largest with largest.
 
-**2. Choose the start.** Let `A` be the mean of `part_agreements`, and
-compute it EXACTLY THIS WAY: start at binary64 `0.0`, add each
-published agreement in the order the key lists them, then divide once
-by how many there are (`A` is `0.0` when there are none). The
+**2. Choose the start.** Let `A` be the mean of the SCORED entries of
+`part_agreements` -- the seats whose pair contains the last position,
+as step 3 defines them -- and compute it EXACTLY THIS WAY: start at
+binary64 `0.0`, add each scored published agreement in the order the
+key lists them, then divide once by how many were added (`A` is `0.0`
+when there are none).
+
+**SCORED AND NOT ALL, and this clause said "all" until 2026-08-27.**
+This step chooses where the LAST position starts, and step 3 moves the
+last position and nothing else -- so a pair between two earlier
+positions cannot be brought closer to its target by any answer here,
+and letting its published value into the mean lets a fact the walk
+cannot reach decide the start for the facts it can. Three positions
+publishing `-0.68, 0.4, 0.4` average `0.04` over every entry and take
+the permutation branch, and average `0.4` over the two scored entries
+and are left rank for rank, which already meets both scored targets.
+For a two-position column the two rules are the same rule, because its
+only pair is scored.
+
+The
 mathematical mean is not enough to reproduce bytes, because the
 thresholds below are compared against this value: three positions
 publishing `-0.4, -0.4, -0.4` give a mathematical mean of exactly
@@ -1689,13 +1712,17 @@ positions are perfectly anti-correlated, published `-1.0`:
 | (1,3) | +1.0 | −0.144 |
 | (2,3) | −1.0 | −0.144 |
 
-The twin's own report names none of them (residual R-P4-44, which is
-about the report vehicle and not about this). **`synthtwin validate`
-does**: the same twin checked against its own description returns
+The twin's own report names them (R-P4-44, closed 2026-08-27) -- the
+two the walk scores as approximations against G12.9's window, and the
+unscored pair as a deviation with no closeness claimed for it, which is
+what G12.9's last paragraph obliges. **`synthtwin validate`** agrees: the same twin checked against its own description returns
 `part_agreements[0]`, `[1]` and `[2]` all MISSED, together with
-`part_above[0]`. So the shortfall reaches a person, through the quality
-report rather than through the twin's report — and it is a shortfall,
-not a rounding. This is residual R-P4-51.
+`part_above[0]`. So the shortfall reaches a person through BOTH pages
+— and it is a shortfall, not a rounding. The clause that stood here
+until 2026-08-28 said it reached them "through the quality report
+rather than through the twin's report", which contradicted the
+paragraph above it and had been false since R-P4-44 closed (review item
+P4-G3-R6-F7). This is residual R-P4-51.
 
 Nothing in this section may therefore be read as saying the walk
 reproduces every published pairing fact. What it targets is the pairs
@@ -4207,6 +4234,85 @@ describes it at all. A column whose published ladder is so coarse that
 `E` reaches its own spread is told so by a wide bound rather than by a
 bound that cannot be printed.
 
+### G12.3a The bound on `kurtosis`
+
+`kurtosis` is APPROXIMATED and until this section existed its bound was
+written only in code and in a plan. Three places cited "method G12.3a"
+and no such section existed, so an implementer working from this
+document alone could not know how close a twin has to come, and a
+reader of a report that counts this fact among its approximations could
+not find the rule its range rests on. That is review item P4-G3-R1-F4,
+and this closes it.
+
+The notation is G12.3's: `V`, `K`, `A[k]`, `B[k]`, `R[k]` and the
+displacement `E` all carry the meanings fixed there. The formula
+bounded is the profiler's own — the average FOURTH deviation over the
+FOURTH power of the POPULATION standard deviation. It is undefined for
+`K < 4`, matching the contract's Q16; where the published field is null
+the twin owes nothing and the fact is not measured.
+
+**The range every sample lies in.** Whatever `K` values a column holds,
+
+```
+1   <=   kurtosis   <=   K - 2 + 1 / (K - 1)
+```
+
+the top reached exactly when one value stands apart from `K - 1` equal
+ones. The published bound is always intersected with this, so it is
+finite on both sides for every column — including one whose spread
+window reaches zero, where the quotient alone would not be.
+
+**The quotient.** The spread moves by at most `E`, exactly as in
+G12.3, so with `S` the twin's own population standard deviation:
+
+```
+S_low  = max(0, S - E)          S_high = S + E
+```
+
+and, writing `m_low` and `m_high` for the means of `A` and `B`,
+
+```
+below[k]    = A[k] - m_high
+above[k]    = B[k] - m_low
+nearest[k]  = below[k]         if below[k] > 0
+              -above[k]        if above[k] < 0
+              0                otherwise
+furthest[k] = max(-below[k], above[k], 0)
+```
+
+```
+(1/K) * sum (nearest[k]  / S_high)^4   <=   kurtosis(V)
+kurtosis(V)   <=   (1/K) * sum (furthest[k] / S_low )^4
+```
+
+**THE FOURTH POWER DOES NOT KEEP THE ORDER, and that is the one place
+this differs from the cube of G12.3.** Cubing a window's two ends
+leaves them the ends. Raising them to the fourth does not, because a
+window that STRADDLES the mean has its smallest fourth power in the
+middle and not at either end. So the low end of a rank's contribution
+is zero wherever its window straddles the mean, which is what
+`nearest[k]` says, and the high end is the further of the two ends.
+
+**Each deviation is divided by the spread BEFORE it is raised**, and
+that ordering is part of the method rather than an implementation
+detail. Raising first and dividing after is the same number in exact
+arithmetic and NOT the same computation in binary64: an ordinary column
+of a hundred values around `1e79` has deviations whose fourth power is
+not a number the format holds, and an implementation that raised first
+could not produce a bound at all.
+
+**The spread enters to the FOURTH power** and not the second — the
+skewness divides an average cubed deviation by the spread cubed, and
+this divides an average fourth deviation by the spread to the fourth.
+Squaring instead puts a gaussian column's window at 107 to 298 around
+a published 3, which is a bound that binds nothing.
+
+Where `S_low` is zero, or either end is not finite, the bound is the
+sample range above and nothing narrower. The two ends are ORDERED
+before they are published: on a four-value column the two clamps can
+cross by one unit in the last place, and a window whose low end sits
+above its high end excludes the very statistic it was drawn for.
+
 ### G12.4 The bound on the nine interior datetime rungs
 
 Let `P = n_present - n_unparsed` be the number of twin cells that read
@@ -4435,12 +4541,21 @@ close a twin has to come, and a reader of a quality report could not
 find the rule the verdict rests on. That is residual R-P4-42, and this
 closes it.
 
-**The window.** For each published pair, the twin's own rank agreement
-must lie within **0.02** of the published value, two-sided:
+**The window.** For each SCORED pair -- and "scored" is defined at the
+end of this section, where it also says what the window does not
+reach -- the twin's own rank agreement must lie within **0.02** of the
+published value, two-sided:
 
 ```
 |agreement(twin) - part_agreements[pair]|  <=  0.02
 ```
+
+Both sides are measured at the precision the description PUBLISHES the
+agreement at, which is four decimal places. A twin measured raw can sit
+outside a window that the same twin, re-described, sits inside -- an
+agreement of `0.020018` against a published `0.0` is one such -- and a
+fact cannot be inside its window for one command and outside it for
+another.
 
 `part_above` beside it carries NO window. It is a count of rows and the
 walk of G6B.4 weights one row of it above the whole agreement, so a
@@ -4462,6 +4577,79 @@ scored and can come out at `+1` against a published `-1` — far outside
 this window, and not an approximation of anything. That is residual
 R-P4-51, it is named in G6B.4 step 3, and this envelope must never be
 read as covering it.
+
+### G12.10 The envelope on a clock column's interior rungs
+
+`clock_percentiles` is APPROXIMATED and its bound was cited as "G12.9"
+from the day the clock role landed — a section that did not exist then,
+and that when it was later written turned out to be about something
+else entirely. So a reader who followed the citation first found
+nothing and then found a rule about rank agreement between the
+positions of a joined column, with a window of `0.02` that means
+nothing for a time of day. That is review item P4-G3-R1-F5, and this
+section and G12.11 close it.
+
+**THIS IS A WINDOW ON THE FILE'S OWN RUNG AND NOT A MARGIN AROUND THE
+PUBLISHED VALUE.** It is the same shape as G12.4's for dates, in this
+role's own space: whole-number arithmetic throughout, in the ordinal
+unit the published `clock_form` sets — minutes of the day where the
+form is the one without seconds, seconds of the day otherwise. The unit
+matters and is not a presentation choice: the construction interpolates
+and FLOORS in that unit, and a window drawn in seconds around a
+minute-form column lands part way through a minute the construction
+cannot write.
+
+Let `P = n_present - n_unparsed` be the number of cells that read back
+as clock times, `Ladder` the published eleven rungs converted to
+ordinals, and `Ladder(r, P)` its interpolation at rank `r` of `P`. Then
+rank `r` of the twin, read back and converted to ordinals, satisfies
+
+```
+r = 0        :  ordinal = Ladder[min]
+r = P - 1    :  ordinal = Ladder[max]                    (for P >= 2)
+otherwise    :  Ladder(r, P) - 1  <=  ordinal  <=  Ladder(r + 1, P)
+```
+
+The two ends are then multiplied into seconds, because the measured
+side is read in the FILE's own form and the two have to meet in one
+space. The first and last ranks are EXACT: the twin writes the
+published ends themselves.
+
+The lower end subtracts one whole unit because the interpolation
+floors, so a value the construction writes for rank `r` can sit one
+unit below the un-floored ladder value there. The upper end is the
+ladder at rank `r + 1` because the construction never writes a value
+for rank `r` above the value it would write for the rank after it.
+
+### G12.11 The envelope on a clock column's two distinctness counts
+
+The same two ends the date role's envelope has (G12.5), in this role's
+ordinal space, and it carries the same citation defect this section
+closes with G12.10.
+
+```
+separate  =  how many of the P rank windows of G12.10 pairwise fail to overlap
+room      =  latest - earliest + 1        (in the form's own ordinal unit)
+
+lower  =  min(separate + n_unparsed, upper)
+upper  =  min(n_present, room + n_unparsed)
+```
+
+The LOWER end counts ranks whose windows do not overlap — two ranks
+that cannot hold the same time are two identities the twin must
+carry — plus every stand-in, each spelled differently from every other
+cell. The UPPER end is how many different times the published range
+holds at all, plus those stand-ins, and never more than the column has
+cells.
+
+**IT NEED NOT CONTAIN THE PUBLISHED COUNT, and on an ordinary column it
+does not.** A column of two hundred and forty rows over a hundred and
+twenty different times publishes a hundred and twenty, while the
+construction writes a value per RANK and so tends to hold more. That is
+what an explicit cardinality bound is for, and it is why this role's
+two distinctness counts are approximated rather than exact: a bound
+that had to contain the published value would be a promise the
+construction cannot keep.
 
 ## G13. Residuals this method carries
 

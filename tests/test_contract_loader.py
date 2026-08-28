@@ -368,6 +368,20 @@ def battery() -> list[Mutation]:
             ),
         ),
         Mutation(
+            # ONE COLUMN, TWO READINGS THAT CANNOT BOTH BE ACTED ON.
+            # `amount` is a real continuous column of this fixture, so
+            # the name resolves and S8 is satisfied; what is wrong is
+            # that a column read as codes is not read as numbers at
+            # all, so the comma declaration could never be used and
+            # would be recorded and silently ignored (plan P4-D26).
+            "S8a", "one column named as codes and as writing commas",
+            edit_in(
+                "settings",
+                forced_codes=["amount"],
+                forced_decimal_commas=["amount"],
+            ),
+        ),
+        Mutation(
             "S9", "more categories allowed at the floor than at the ceiling",
             edit_in("settings", categorical_floor=2000),
         ),

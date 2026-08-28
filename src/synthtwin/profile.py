@@ -364,11 +364,45 @@ def _declaration_record(spellings: "tuple[str, ...]") -> dict[str, object]:
     }
 
 
+def _named_once(names: "list[str]") -> "list[str]":
+    """One declaration's column names, in rising order, each of them once.
+
+    THE TOOL WROTE A DESCRIPTION IT COULD NOT READ (review item
+    P4-G3-R2-F7). Every declaration takes `--option NAME` and may be
+    given more than once, so a person who types `--code dose --code
+    dose` -- by repeating a line, or by pasting a command twice -- got
+    a settings array holding `dose` twice. The contract requires these
+    names to rise and to be distinct, so the loader then REFUSED the
+    file, with a message telling the person to make the description
+    again by running the same command, which reproduces the same file.
+    They had done nothing wrong and had no way out of the loop.
+
+    It is fixed HERE, in the producer, rather than in the command-line
+    layer, because every path that builds a description passes through
+    this block and the fault is in what gets WRITTEN. Saying a thing
+    twice is not an error a person needs to be told about: they asked
+    for the column to be read one way, and it is.
+
+    This predates the fourth declaration and reached all four.
+
+    Guarantees: accepts the names as given; returns them sorted with
+    repeats removed. Determinism: a fixed function of the input.
+    Raises nothing. No I/O of any kind.
+    """
+    once: "list[str]" = []
+    for name in sorted(names):
+        if once and once[len(once) - 1] == name:
+            continue
+        once = once + [name]
+    return once
+
+
 def _settings_block(
     settings: taxonomy.Settings,
     forced_identifiers: list[str],
     forced_codes: list[str],
     forced_measurements: list[str],
+    forced_decimal_commas: list[str],
 ) -> dict[str, object]:
     """The rules that produced this profile, recorded inside it.
 
@@ -408,7 +442,7 @@ def _settings_block(
         "near_threshold_slack": settings.near_threshold_slack,
         "day_first": settings.day_first,
         "long_tail_minimum_level": settings.long_tail_minimum_level,
-        "forced_identifiers": sorted(forced_identifiers),
+        "forced_identifiers": _named_once(forced_identifiers),
         # THE SECOND DECLARATION (plan P4-D19). Named columns are read
         # as labels and never as numbers, dates, clock times or
         # numbers wearing an affix, so a coding system written in
@@ -416,13 +450,23 @@ def _settings_block(
         # publishes which codes are common instead of a mean nobody
         # can use. Unlike `forced_identifiers` it does NOT silence the
         # column: the distribution is the point of declaring it.
-        "forced_codes": sorted(forced_codes),
+        "forced_codes": _named_once(forced_codes),
         # THE THIRD DECLARATION (plan P4-D21). Named columns hold
         # quantities, including ones written as two or more whole
         # numbers in one cell -- a blood pressure. Where the column is
         # written that way it takes the `joined_numbers` role; where it
         # is not, this decides nothing.
-        "forced_measurements": sorted(forced_measurements),
+        "forced_measurements": _named_once(forced_measurements),
+        # THE FOURTH DECLARATION (plan P4-D26). The columns a person
+        # said write their numbers with a comma for the point. It is
+        # recorded because two readers downstream need it and neither
+        # can work it out: the generator has to SPELL those numbers the
+        # same way, or a twin hands a person cells their own tools read
+        # as thousands separators; and the validator has to re-describe
+        # a checked file under the declaration it was described under,
+        # or every number of the column reads differently and the whole
+        # column comes back missed.
+        "forced_decimal_commas": _named_once(forced_decimal_commas),
     }
 
 
@@ -697,6 +741,8 @@ PUBLICATION_RULES: "dict[tuple[str, ...], str]" = {
     ("settings", "forced_codes", _EACH): _KNOWN_NAME,
     ("settings", "forced_measurements"): _ARRAY,
     ("settings", "forced_measurements", _EACH): _KNOWN_NAME,
+    ("settings", "forced_decimal_commas"): _ARRAY,
+    ("settings", "forced_decimal_commas", _EACH): _KNOWN_NAME,
     # How the table was read.
     ("source",): _OBJECT,
     ("source", "encoding"): _WORD,
@@ -1700,6 +1746,8 @@ def build_document(
     forced_identifiers: list[str],
     forced_codes: list[str] | None = None,
     forced_measurements: list[str] | None = None,
+    forced_decimal_commas: list[str] | None = None,
+    declarations_are_reconstructed: bool = False,
 ) -> dict[str, object]:
     """Describe a whole table: the profile document, ready to serialize.
 
@@ -1729,6 +1777,42 @@ def build_document(
     declared_measurements = (
         [] if forced_measurements is None else forced_measurements
     )
+    # The columns a person said write their numbers with a comma for
+    # the point (plan P4-D26). Named columns only: a comma inside an
+    # address or a note is not a decimal point, and no rule here can
+    # tell the difference, which is why the declaration exists.
+    declared_commas = (
+        [] if forced_decimal_commas is None else forced_decimal_commas
+    )
+    # REFUSED AT THE PRODUCER, so that every path is covered and not
+    # only the command line (R-P4-54; review item P4-G3-R8-F2). A
+    # declared value whose number depends on which grammar reads it
+    # means one thing on a declared column and another everywhere
+    # else, and the settings block has one place to record it -- so a
+    # description carrying the pair can tell a correct file it missed
+    # its own presence, role and numbers. `build_document` is a public
+    # entry point; the CLI refusal alone left that one call away.
+    #
+    # `declarations_are_reconstructed` says these declarations came
+    # from a DESCRIPTION rather than from a person, which is what the
+    # validator hands over: it reads back the spellings a column
+    # published among its absent cells so that it can take the checked
+    # file the way the description was made. Those are not a person's
+    # words and were gated when the description was written, and one of
+    # them can legitimately be a spelling whose number depends on the
+    # grammar -- `--missing-value -999` is safe and matches a cell
+    # spelled `-999,0` by NUMBER on a declared column, which is what
+    # the matching rule says it should do. Refusing the reconstruction
+    # turned away a correct description while checking a correct file.
+    if declared_commas and not declarations_are_reconstructed:
+        for spelling in (
+            list(settings.kept_values)
+            + list(settings.declared_missing_values)
+        ):
+            if parsing.reads_as_two_numbers(spelling):
+                raise ValueError(
+                    f"{taxonomy.AMBIGUOUS_DECLARED_VALUE}: {spelling}"
+                )
     columns: list[dict[str, object]] = []
     notes: list[dict[str, str]] = []
     for position, name in enumerate(table.column_names, start=1):
@@ -1741,6 +1825,7 @@ def build_document(
             name in forced_identifiers,
             name in declared_codes,
             name in declared_measurements,
+            name in declared_commas,
         )
         columns = columns + [_column_block(described)]
         for note in described.publication_notes:
@@ -1753,6 +1838,7 @@ def build_document(
             forced_identifiers,
             declared_codes,
             declared_measurements,
+            declared_commas,
         ),
         # How the table was read. It belongs in the profile because the
         # twin has to be written in a form the same tools can open, and

@@ -247,8 +247,8 @@ ENVELOPE_DATETIME_DISTINCT = "docs/spec/generation-method-v1.md G12.5"
 # The clock role's two, cited and never restated. Both point at the
 # clause the generation method carries for this role, which is written
 # in the same landing as the construction it bounds.
-ENVELOPE_CLOCK_RUNG = "docs/spec/generation-method-v1.md G12.9"
-ENVELOPE_CLOCK_DISTINCT = "docs/spec/generation-method-v1.md G12.9"
+ENVELOPE_CLOCK_RUNG = "docs/spec/generation-method-v1.md G12.10"
+ENVELOPE_CLOCK_DISTINCT = "docs/spec/generation-method-v1.md G12.11"
 # The window a joined column's rank agreement is met inside. It is
 # published rounded to four figures and reached by a walk that stops
 # once it is close enough, so it is approximated and not exact -- and
@@ -259,7 +259,13 @@ ENVELOPE_CLOCK_DISTINCT = "docs/spec/generation-method-v1.md G12.9"
 # other envelope here names a section of the generation method, and an
 # implementer working from that method alone could not find this one.
 ENVELOPE_JOINED_AGREEMENT = "docs/spec/generation-method-v1.md G12.9"
-_AGREEMENT_SLACK = 0.02
+# READ FROM THE ONE PLACE IT IS WRITTEN, never copied here (review
+# item P4-G3-R1-F6). This module may not import the generator, so a
+# second `0.02` used to sit here beside the generator's own with
+# nothing binding them: a later hand could move one and leave the
+# other, and then the twin's report and this check would disagree
+# about whether the very same numbers were sound.
+_AGREEMENT_SLACK = parsing.RANK_AGREEMENT_WINDOW
 
 ENVELOPE_TEXT_SHAPE = "docs/spec/generation-method-v1.md G12.6"
 ENVELOPE_LABEL_DISTINCT = "docs/spec/generation-method-v1.md G12.7"
@@ -3815,6 +3821,7 @@ def measure(description: contract.Profile, path: str) -> Outcome:
         declared = _declared_here(description, table)
         declared_codes = _declared_codes_here(description, table)
         declared_measured = _declared_measured_here(description, table)
+        declared_commas = _declared_commas_here(description, table)
         # TWO DESCRIPTIONS, ALWAYS BOTH, AND WHAT EACH ONE DECIDES
         # (V2.1 and V2.4; review item P3-V2-A1). The first is the file's
         # OWN description -- what `synthtwin profile` would write about
@@ -3840,6 +3847,8 @@ def measure(description: contract.Profile, path: str) -> Outcome:
             declared,
             declared_codes,
             declared_measured,
+            declared_commas,
+            True,
         )
         over_the_split = profile.build_document(
             table,
@@ -3847,6 +3856,8 @@ def measure(description: contract.Profile, path: str) -> Outcome:
             declared,
             declared_codes,
             declared_measured,
+            declared_commas,
+            True,
         )
     except MemoryError as error:
         raise errors.ProfileError(
@@ -4140,6 +4151,28 @@ def _declared_measured_here(
     return [
         name
         for name in description.settings.forced_measurements
+        if name in table.column_names
+    ]
+
+
+def _declared_commas_here(
+    description: contract.Profile, table: reading.Table
+) -> "list[str]":
+    """The declared decimal-comma columns the measured file carries.
+
+    The fourth declaration (plan P4-D26), on the rule the three above
+    carry and for the reason they carry it: describing the measured
+    file is how its obligations are checked, and both sides must be
+    described under the same declarations. A description made WITHOUT
+    this one reads a twin's `221,39` as free text where the twin's own
+    description says `continuous` -- so a twin whose every cell is
+    exactly what was asked for reports its role, its ladder and its
+    moments all MISSED. The declaration is recorded in the description
+    precisely so this side can recover it.
+    """
+    return [
+        name
+        for name in description.settings.forced_decimal_commas
         if name in table.column_names
     ]
 
@@ -4861,7 +4894,21 @@ def _column_checks(
         return _nothing_stands_here(
             description, column, table.column_names, headed
         )
+    # THE ONE PLACE A DECLARED COLUMN'S CELLS ARE READ (plan P4-D26),
+    # so every check below sees the spelling the DESCRIPTION was made
+    # from rather than the file's own characters.
+    #
+    # The validator has two ways of measuring and both must agree. One
+    # re-describes the file with the profiler's own producer and is
+    # handed the declaration; the other recounts cells here, in
+    # helpers of its own. Handing the declaration to only the first
+    # left `221,39` reading as a number to one and as free text to the
+    # other, and a twin whose every cell was exactly what the
+    # description asked for came back with its style census MISSED.
     block = _column_at(redescribed, column.position)
+    cells = _cells_read_as_declared(
+        description, column, cells, block if block is not None else {}
+    )
     split = _column_at(over_the_split, column.position)
     return _obligations(
         description,
@@ -5516,6 +5563,64 @@ def _nothing_left_to_measure(
             continue
         filled = filled + [check]
     return filled
+
+
+def _cells_read_as_declared(
+    description: contract.Profile,
+    column: contract.ColumnBlock,
+    cells: "list[str]",
+    block: "dict[str, object]",
+) -> "list[str]":
+    """One column's cells in the spelling its description was made from.
+
+    Unchanged unless the column was named `--decimal-comma`, and then
+    swapped by the profiler's OWN function -- the same call
+    `taxonomy._classify` makes -- because the two sides comparing
+    different translations of one cell would be the very disagreement
+    this exists to remove.
+
+    Applied only where the description gives the column a plain numeric
+    role. The declaration changes what a NUMBER means; a column
+    described by a label or text role publishes spellings, and swapping
+    a character inside one of those would rewrite a value the
+    description publishes exactly.
+
+    Guarantees: accepts the description, one column's block and its
+    cells; returns cells of the same length in the same order.
+    Determinism: a fixed function of the three. Raises nothing. No I/O.
+    """
+    named = False
+    for name in description.settings.forced_decimal_commas:
+        if name == column.name:
+            named = True
+    if not named:
+        return cells
+    if not contract.a_decimal_comma_reaches(column):
+        return cells
+    # A HOLE IS DECIDED ON THE FILE'S OWN TEXT AND IS LEFT ALONE, which
+    # is the order the profiler works in (review item P4-G3-R2-F5). It
+    # settles which cells are "no value" from the spelling the file
+    # holds, and only then reads what remains as numbers. Translating a
+    # hole first turns `7,5` -- a word this description names as "no
+    # value" -- into `7.5`, which every census downstream then counts
+    # as a number the column never held: the source file itself came
+    # back MISSING its own style obligation, with twenty numbers in a
+    # recount of a column published as holding one hundred and eighty.
+    holes = _holes_by_the_description(
+        block,
+        cells,
+        kept_spellings(description),
+        declared_spellings(description),
+    )
+    swapped: "list[str]" = []
+    for place in range(len(cells)):
+        if holes[place]:
+            swapped = swapped + [cells[place]]
+            continue
+        swapped = swapped + [
+            parsing.written_with_a_decimal_comma(cells[place])
+        ]
+    return swapped
 
 
 def _cells_of(
@@ -6647,6 +6752,17 @@ def _joined_checks(
                 None if seen is None else _shown_count(seen),
             )
         ]
+    # `part_above` IS EXACT ON EVERY PAIR, and a round of this review
+    # briefly made it otherwise (item P4-G3-R3-F2). It is a count of
+    # rows; the ratified plan, the contract and G12.9 itself all say a
+    # twin either holds it or has missed it. A twin of a three-position
+    # column DOES miss it, on every column measured -- and that is
+    # residual R-P4-51 showing in the report, which is where an open
+    # residual belongs. Excusing it here would let a file that is not a
+    # twin at all satisfy every verdict-bearing obligation: describe
+    # 120 cells `r/r/1000` and check `r/(121-r)/1000` against it, and
+    # every marginal fact still holds while the early pair is turned
+    # inside out.
     for place in range(len(facts.part_above)):
         held = _at_place(block, "part_above", place)
         seen = (
@@ -6663,6 +6779,15 @@ def _joined_checks(
                 None if seen is None else _shown_count(seen),
             )
         ]
+    # WHICH PAIRS THE WINDOW REACHES, and it is not all of them (review
+    # item P4-G3-R2-F3). The generator was corrected to score only the
+    # pairs the pairing walk moves, and this side was left windowing
+    # every pair -- so on a three-position column the twin's own report
+    # called pair (1,2) an unscored deviation with no window while this
+    # report handed the same pair G12.9's range and G12.9's name, which
+    # is the section that excludes it. One landing, two readers, and
+    # only one of them changed.
+    scored = contract.scored_pairs(facts.n_parts)
     for place in range(len(facts.part_agreements)):
         agreed = facts.part_agreements[place]
         found_agreement = _at_place(block, "part_agreements", place)
@@ -6671,16 +6796,25 @@ def _joined_checks(
             found_agreement, bool
         ):
             measured_agreement = float(found_agreement)
+        fact = f"joined.part_agreements[{place}]"
+        subcheck = f"together.how strongly they move, pair {place + 1}"
+        if place in scored:
+            checks = checks + [
+                _within(
+                    name,
+                    fact,
+                    subcheck,
+                    f"{agreed}",
+                    measured_agreement,
+                    (agreed - _AGREEMENT_SLACK, agreed + _AGREEMENT_SLACK),
+                    ENVELOPE_JOINED_AGREEMENT,
+                    agreed,
+                )
+            ]
+            continue
         checks = checks + [
-            _within(
-                name,
-                f"joined.part_agreements[{place}]",
-                f"together.how strongly they move, pair {place + 1}",
-                f"{agreed}",
-                measured_agreement,
-                (agreed - _AGREEMENT_SLACK, agreed + _AGREEMENT_SLACK),
-                ENVELOPE_JOINED_AGREEMENT,
-                agreed,
+            _unscored_agreement(
+                name, fact, subcheck, agreed, measured_agreement
             )
         ]
     checks = checks + _joined_part_checks(
@@ -6692,19 +6826,86 @@ def _joined_checks(
     return checks
 
 
+def _unscored_agreement(
+    name: str,
+    fact: str,
+    subcheck: str,
+    published: float,
+    measured: "float | None",
+) -> Check:
+    """A pair between two positions the pairing walk never moves.
+
+    CHECKED EXACTLY, and a disagreement is a MISS.
+
+    WHAT G12.9 WITHHOLDS IS THE WINDOW AND NOT THE OBLIGATION, and a
+    round of this review read it as both (item P4-G3-R3-F2). The
+    section says such a pair "is not an approximation of anything",
+    which settles that no two-hundredths range may be printed beside
+    it and that citing G12.9 for one would cite the section that
+    excludes it. It does NOT say the published value stops being a fact
+    the file either carries or does not.
+
+    So this is an exact check with no citation, and a twin of a
+    three-position column misses it -- which is residual R-P4-51
+    appearing in the report, where an open residual belongs. The
+    alternative was tried and withdrawn: AUTHORIZED-DEVIATION is drawn
+    from the registry of corners a ratified plan or an owner
+    authorizes, reached through `corners_of`, and emitting it straight
+    from here bypassed that classifier to excuse a miss on the
+    strength of a section that authorizes nothing. It also let a file
+    that is not a twin pass: describe 120 cells `r/r/1000` and check
+    `r/(121-r)/1000` against it -- every marginal value, width, style
+    and moment holds, both scored pairs against the constant third
+    position hold, and only the early pair is turned inside out.
+    """
+    if measured is None:
+        return _withheld(name, fact, subcheck, _GATE_CLOSED)
+    # NEGATIVE ZERO IS ZERO, and the two sides must not disagree about
+    # that (review item P4-G3-R4-F2). An agreement of a few
+    # ten-thousandths below zero rounds to `-0.0`, which is EQUAL to
+    # `0.0` as a number and different from it as text. The generator
+    # compares the numbers and stays silent; this used to compare the
+    # spellings and report MISSED, so one page of a run said a fact was
+    # held and the other said it was not, over a difference that is not
+    # one. Adding zero maps `-0.0` to `0.0` and moves nothing else.
+    return _exact(
+        name, fact, subcheck, f"{published + 0.0}", f"{measured + 0.0}"
+    )
+
+
 def _position_cells(
     cells: "list[str]", separator: str, parts: int, place: int
 ) -> "list[str]":
     """The numbers one POSITION of a joined column wrote.
 
-    A cell that does not split into exactly the published number of
-    positions is a stand-in the parse line tolerated, and it belongs to
-    no position, so it is left out rather than counted into one.
+    A cell that is not a joined cell belongs to no position and is left
+    out rather than counted into one. THE TEST IS THE PROFILER'S OWN
+    and both halves of it matter (review item P4-G3-R1-F2): the cell
+    splits into exactly the published number of pieces AND every piece
+    reads as a number. Counting on the piece count alone let a stand-in
+    through whenever it happened to carry the right number of
+    separators -- `1.00/` splits into two pieces, so its `1.00` was
+    measured into the first position and its blank second piece into
+    the second.
+
+    That is not a cosmetic difference, because the cells this walks are
+    a REAL FILE's. A source of two thousand rows carrying twenty cells
+    written `1.00/` profiles soundly as a joined column at the parse
+    line, and its first position was then reported MISSED on three
+    style facts it had never broken. A check that reports real data as
+    missed is worse than no check, and R-P4-43 asks for a check whose
+    red case is a file that genuinely differs.
     """
     found: "list[str]" = []
     for cell in cells:
         pieces = _cut_at_separator(cell, separator)
         if len(pieces) != parts:
+            continue
+        every = True
+        for piece in pieces:
+            if parsing.parse_number(piece) is None:
+                every = False
+        if not every:
             continue
         found = found + [pieces[place]]
     return found
