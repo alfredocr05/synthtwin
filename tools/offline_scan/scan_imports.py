@@ -649,6 +649,23 @@ _ALLOWED_MODULE_ATTRS: "dict[str, frozenset[str]]" = {
             "exit",
             "platform",
             "stderr",
+            # THE ONE HANDLE THIS PROJECT READS FROM (plan P4-D19).
+            # `synthtwin profile` asks the person who owns the table
+            # which of its digit columns are coding systems, because
+            # `taxonomy._decide` RULE 5 records that the values cannot
+            # settle it. Asking needs the terminal, and the terminal is
+            # reached through this name.
+            #
+            # WHY IT IS SAFE TO CLEAR, said at its size. This policy
+            # exists to keep synthtwin off the network and out of
+            # dynamically built code. A terminal is neither: `stdin` is
+            # a local handle to the person already running the command,
+            # it carries no address, and nothing read from it is
+            # executed -- the answers become names in `forced_codes`,
+            # compared against the table's own column names, and a name
+            # that matches no column is refused. The two `stdin`
+            # members reached are `isatty` and `readline`.
+            "stdin",
             "stdout",
             "version_info",
         }
@@ -1204,7 +1221,13 @@ _SYS_BANNED = (
     "sys.path_importer_cache",
 )
 
-_OS_ALLOWED_EXACT = {"os.fspath", "os.getcwd", "os.lstat"}
+# `os.isatty` joins them for plan P4-D19: `synthtwin profile` asks the
+# person which digit columns are coding systems, and asking is only
+# right where somebody is at the keyboard. It takes a file descriptor
+# and returns a bool -- it opens nothing, names no path, and reads no
+# content -- and it is reachable in ONE attribute step, which
+# `sys.stdin.isatty` is not.
+_OS_ALLOWED_EXACT = {"os.fspath", "os.getcwd", "os.lstat", "os.isatty"}
 
 # Attribute names that are known to name modules when reached through
 # another module's namespace (allowed modules re-export several of
@@ -1279,8 +1302,15 @@ _MODULE_ATTR_BLOCK = {
 # built-in constructors, plain data helpers, and the exception types
 # product code may raise. Nothing on this list can start a program,
 # open a connection, load code, or reach an attribute by computed name.
+# `input` IS CLEARED HERE AND `eval` IS NOT, and the difference is the
+# whole reason this list can hold it (plan P4-D19). Python 2's `input`
+# evaluated what it read, which is why a policy against dynamic code
+# would refuse it; Python 3's returns the line as text and runs
+# nothing. What synthtwin does with that text is compare it to the
+# words `1`, `2`, `3` and to the table's own column names.
 _ALLOWED_CALL_BUILTINS = {
     "abs",
+    "input",
     "all",
     "any",
     "bool",

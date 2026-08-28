@@ -9,9 +9,20 @@ import json
 
 import pytest
 
+import fixtures
 from synthtwin import parsing, profile, taxonomy
 
-SETTINGS = taxonomy.Settings()
+# THE FLOOR THIS FILE IS WRITTEN AGAINST, NAMED RATHER THAN INHERITED.
+# Plan amendment A-P4-37 lowered the default `small_cell_floor` from
+# eleven to one, and at a floor of one NOTHING is held back: no pooled
+# label, no `(withheld)` spelling, no suppressed level, no unpublished
+# sentinel candidate. Every case below whose subject is what a
+# description WITHHOLDS was measured against a floor of eleven, so the
+# floor is stated here instead of being inherited from a default that
+# has since moved. What the default IS is asserted elsewhere; this
+# constant is what the cases below are about.
+SMALL_CELL_FLOOR = 11
+SETTINGS = taxonomy.Settings(small_cell_floor=SMALL_CELL_FLOOR)
 
 
 def describe(
@@ -115,6 +126,26 @@ def test_the_category_ceiling_is_a_share_of_the_values_present() -> None:
 # -- F2: a percentile ladder must rest on the cells it is computed from
 
 
+def _leaves_equal_to(node: object, number: float, text: str) -> list[str]:
+    """Every leaf of a block that holds this value, by either spelling."""
+    found: list[str] = []
+    if isinstance(node, dict):
+        for key in node:
+            if key == text:
+                found = found + [f"key {key!r}"]
+            found = found + _leaves_equal_to(node[key], number, text)
+    elif isinstance(node, list):
+        for item in node:
+            found = found + _leaves_equal_to(item, number, text)
+    elif isinstance(node, bool):
+        pass
+    elif isinstance(node, (int, float)) and float(node) == number:
+        found = found + [f"value {node!r}"]
+    elif isinstance(node, str) and node == text:
+        found = found + [f"value {node!r}"]
+    return found
+
+
 def test_a_ladder_is_never_built_from_a_handful_of_cells() -> None:
     """A ladder must rest on the cells it is computed from.
 
@@ -122,18 +153,26 @@ def test_a_ladder_is_never_built_from_a_handful_of_cells() -> None:
     cleared the deleted majority rule, so the column was described as a
     count whose eleven rungs were all one row's exact value. With one
     line at 0.99 (review item P1-R6-F7) the column is not written as
-    numbers often enough to be named for them either, so it lands on
-    free text -- which publishes no value and no ladder. The property
-    the test exists for is unchanged: no rung of any ladder is ever that
-    one row's value.
+    numbers often enough to be named for them either. Since plan P4-D5
+    it lands on the long-tail role, because fifty cells share one
+    spelling and that clears the publication floor; before that rule it
+    landed on free text. NEITHER publishes a ladder, and the property
+    the test exists for is unchanged and is asserted below: no rung of
+    any ladder is ever that one row's value, and the one row's value is
+    published nowhere, because ONE cell is far under the floor.
     """
     values = (
-        ["1e999"] * 50 + ["7"] + [f"note {index} here" for index in range(49)]
+        ["1e999"] * 50 + ["7"] + fixtures.prose(49)
     )
     described = describe(values)
-    assert described.role == taxonomy.ROLE_TEXT
+    assert described.role == taxonomy.ROLE_LONG_TAIL
     assert "percentiles" not in described.details
-    assert "7" not in whole_block(described).replace('"7"', "")
+    # The one real number must not be published as a VALUE. Searching
+    # the block for the character `7` cannot say that -- it matches the
+    # 7 inside a count of 47 or a length of 27 -- so the check is on
+    # what the block actually holds: no leaf equal to that value, by
+    # either spelling.
+    assert not _leaves_equal_to(described.details, 7.0, "7")
 
 
 def test_the_unrepresentable_evidence_states_what_the_column_shows() -> None:
@@ -166,7 +205,7 @@ def test_a_majority_numeric_column_publishes_nothing_and_says_why() -> None:
     """
     described = describe(
         [str(index) for index in range(60)]
-        + [f"note {index} here" for index in range(40)]
+        + fixtures.prose(40)
     )
     assert described.role == taxonomy.ROLE_TEXT
     assert "percentiles" not in described.details
@@ -233,10 +272,24 @@ def test_a_stray_space_changes_nothing_now_the_width_rule_is_gone() -> None:
 def test_the_free_text_remark_names_both_readings(
     values: list[str],
 ) -> None:
-    """Naming only --identifier tells a price column to withhold itself."""
+    """Naming only --identifier tells a price column to withhold itself.
+
+    Both fixtures are read by the affixed-number rule now -- a price and
+    a percentage ARE numbers wearing shared text -- so the column gets
+    its distribution instead of being declined. The sentence this test
+    is about survived the move: it still names `--identifier`, and it
+    still says "measurement", because the reason for saying both is the
+    same one. A column of codes must be able to recognize itself.
+    """
     described = describe(values)
-    assert described.role == taxonomy.ROLE_TEXT
+    assert described.role != taxonomy.ROLE_IDENTIFIER
     remark = " ".join(described.remarks)
     assert "--identifier" in remark
     assert "measurement" in remark
-    assert "plain numbers" in remark
+    # AND NOT THE FREE-TEXT PATH'S ADVICE. "Write them as plain
+    # numbers" is what a reader is told when nothing of their column
+    # was published; these two columns publish a full distribution, so
+    # the same sentence would send them to rewrite a table to obtain
+    # what they already have.
+    assert "write them as plain numbers" not in remark
+    assert "Nothing from this column is published" not in remark

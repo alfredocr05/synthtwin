@@ -40,6 +40,14 @@ _NOT_TEXT = (
 # folding (plan P1-D4). Every one of them is reported per column, by
 # spelling, so a reader can see exactly where the missing values came
 # from.
+#
+# THE MEMBER IS WRITTEN IN THE VOCABULARY'S OWN SPELLING, which for the
+# first ten is lower case and for the seven spreadsheet literals is the
+# form a spreadsheet writes (contract 14.4 lists all eighteen). BOTH
+# sides of a folded comparison are folded, so the member's own capitals
+# cost nothing at the comparison and are what a document records --
+# which is what a producer written from the contract emits and what
+# this loader must accept.
 MISSING_TEXTS = (
     "",
     "-",
@@ -51,12 +59,98 @@ MISSING_TEXTS = (
     "nan",
     "none",
     "null",
+    # THE SEVEN SPREADSHEET ERROR LITERALS (plan P4-D6.2). Each is a
+    # machine artifact whose folded form collides with no human word,
+    # which is the criterion that keeps `unknown` and `missing` OUT: a
+    # human word carries meaning somewhere, and a column where it does
+    # would be hollowed by reading it as absence. What these buy is
+    # stated plainly in the decision: a column of numbers with a few
+    # artifact cells stops losing its whole distribution to the parse
+    # line, so the twin of it is a column of numbers rather than free
+    # text.
+    "#DIV/0!",
+    "#N/A",
+    "#NAME?",
+    "#NULL!",
+    "#NUM!",
+    "#REF!",
+    "#VALUE!",
 )
+
+# ...and the ONE member matched byte for byte instead.
+#
+# WHY IT IS NOT IN THE LIST ABOVE, which is the whole of the owner
+# ruling of 2026-08-19 that admitted it. The list is compared after
+# trimming and case folding, and this literal's folded form is a
+# person's name -- so a folded member would read a name column's cells
+# as absence and hollow it in silence. Compared raw, the collision
+# cannot arise: a cell reads as absent here only if it is exactly these
+# three characters, with no spaces around them and the capitals as
+# written.
+#
+# ONE OPERATION, APPLIED IDENTICALLY WHEREVER THE VOCABULARY IS
+# CONSULTED. `is_missing_text` below is that operation, and everything
+# that asks the vocabulary a question asks it through
+# `missing_text_matches` beside it -- recognition, the recording of a
+# declaration, the published-vocabulary guards and the validator's
+# reconstruction alike. A second reading of this rule anywhere is how
+# the exception becomes a hole.
+MISSING_TEXTS_EXACT = ("NaT",)
 
 # Numbers that are conventionally used to mean "no value". They count
 # as missing only when they are also distribution outliers; the rule is
 # in taxonomy.py, and every candidate's fate is reported either way.
 NUMERIC_SENTINELS = (-9999.0, -999.0, 9999.0)
+
+# Dates conventionally used to mean "no value" -- the placeholder a
+# person types into an open-ended row. They count as missing only when
+# they are also distribution outliers, by the same rule the numbers
+# above are judged under, transposed to day ordinals; the rule is in
+# taxonomy.py and every candidate's fate is reported either way.
+#
+# THEIR IDENTITY IS THE WRITTEN CALENDAR DAY (plan amendment A-P4-1
+# item 3). A cell matches a placeholder when its own written fields,
+# under the column's own format, denote that day: no shared-clock
+# normalization and no offset arithmetic enters the question, because
+# the placeholder is a writing convention and the writer typed that
+# day.
+CALENDAR_PLACEHOLDERS = ("1900-01-01", "9999-12-31")
+
+
+def calendar_placeholders() -> "tuple[str, ...]":
+    """The built-in placeholder days, as canonical ISO spellings.
+
+    Guarantees: returns the same tuple on every call, of this package's
+    own constants. Raises nothing. No I/O of any kind.
+    """
+    return CALENDAR_PLACEHOLDERS
+
+
+def placeholder_day_of(text: str, format_name: str) -> "str | None":
+    """The placeholder day a cell denotes under one format, or None.
+
+    THE WRITTEN DAY AND NOTHING ELSE. The cell is read under the
+    column's own format and its DATE part is compared with the
+    placeholder; any time of day and any offset the cell carries are
+    not consulted, because a placeholder is a writing convention rather
+    than an instant and the person typed a day.
+
+    Guarantees: accepts a cell's text and a format member; returns the
+    placeholder it denotes or None; raises TypeError if handed anything
+    that is not a string instance. No I/O of any kind.
+    """
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT)
+    if not isinstance(format_name, str):
+        raise TypeError(_NOT_TEXT)
+    found = parse_datetime(text, format_name)
+    if found is None:
+        return None
+    written = found[0][0:10]
+    for candidate in CALENDAR_PLACEHOLDERS:
+        if written == candidate:
+            return candidate
+    return None
 
 # The date and time formats, in the order they are tried. The first
 # format that parses at least the required share of a column's values
@@ -64,18 +158,46 @@ NUMERIC_SENTINELS = (-9999.0, -999.0, 9999.0)
 DATE_FORMATS = (
     "iso-date",
     "iso-datetime",
+    "slashed-iso-date",
+    "iso-month",
     "compact-date",
     "month-first-date",
     "day-first-date",
+    "textual-day-first-date",
+    "textual-month-first-date",
+    "dotted-month-first-date",
+    "dotted-day-first-date",
+    "two-digit-month-first-date",
+    "two-digit-day-first-date",
+    "month-first-datetime",
+    "day-first-datetime",
     "year-quarter",
+    # LAST, AND THAT IS THE RULE RATHER THAN A PLACE IN A LIST. The
+    # single-format pass runs first and its verdict stands wherever it
+    # clears -- a column of ninety-nine ISO dates and one datetime cell
+    # is a date column with one unparsed cell, as it is today. Only
+    # where NO single format clears does the joint reading get a turn,
+    # which is what putting it after every other member means.
+    "iso-mixed",
 )
 
 _FORMAT_EXAMPLES = {
     "iso-date": "2024-03-17",
     "iso-datetime": "2024-03-17 14:05:00",
+    "slashed-iso-date": "2024/03/17",
+    "iso-month": "2024-03",
+    "iso-mixed": "2024-03-17 and 2024-03-17 14:05:00 together",
     "compact-date": "20240317",
     "month-first-date": "03/17/2024 (month first)",
     "day-first-date": "17/03/2024 (day first)",
+    "textual-day-first-date": "17 Mar 2024",
+    "textual-month-first-date": "Mar 17, 2024",
+    "dotted-month-first-date": "03.17.2024 (month first)",
+    "dotted-day-first-date": "17.03.2024 (day first)",
+    "two-digit-month-first-date": "03/17/24 (month first)",
+    "two-digit-day-first-date": "17/03/24 (day first)",
+    "month-first-datetime": "03/17/2024 14:05 (month first)",
+    "day-first-datetime": "17/03/2024 14:05 (day first)",
     "year-quarter": "2024-Q1",
 }
 
@@ -380,11 +502,55 @@ def is_missing_text(text: str) -> bool:
 
     Guarantees: accepts text; returns a truth value; raises TypeError
     if handed anything that is not a string instance. The comparison is
-    against MISSING_TEXTS after trimming and case folding. No I/O.
+    against MISSING_TEXTS after trimming and case folding, and against
+    MISSING_TEXTS_EXACT byte for byte. No I/O.
     """
     if not isinstance(text, str):
         raise TypeError(_NOT_TEXT)
-    return text.strip().casefold() in MISSING_TEXTS
+    if text in MISSING_TEXTS_EXACT:
+        return True
+    body = folded(text)
+    for member in MISSING_TEXTS:
+        if body == folded(member):
+            return True
+    return False
+
+
+def missing_text_matches(spelling: str, member: str) -> bool:
+    """Whether one spelling names one member of the built-in vocabulary.
+
+    THE ONE OPERATION (plan P4-D6.2, owner ruling 2026-08-19). Every
+    side that has to agree about what a member names asks this: the
+    recording of a declaration, the guards over the published
+    vocabulary, and the validator's reconstruction of what a
+    description was written under. The rule is the member's own -- a
+    folded member matches after trimming and case folding, and the
+    exact member matches byte for byte -- so the exception cannot come
+    apart from the rule it excepts by living in two places.
+
+    Guarantees: accepts two strings; returns a truth value; raises
+    TypeError if handed anything that is not a string instance. No I/O
+    of any kind.
+    """
+    if not isinstance(spelling, str):
+        raise TypeError(_NOT_TEXT)
+    if not isinstance(member, str):
+        raise TypeError(_NOT_TEXT)
+    if member in MISSING_TEXTS_EXACT:
+        return spelling == member
+    return folded(spelling) == folded(member)
+
+
+def built_in_missing_texts() -> "tuple[str, ...]":
+    """Every built-in spelling of "no value", both matching rules over.
+
+    Sorted, and the empty spelling is in it: a caller that wants the
+    NAMEABLE half filters it out, as the ones that publish do.
+
+    Guarantees: returns the same tuple on every call, of this package's
+    own constants. Raises nothing. No I/O of any kind.
+    """
+    return tuple(sorted(MISSING_TEXTS + MISSING_TEXTS_EXACT))
 
 
 def _all_ascii_digits(text: str) -> bool:
@@ -478,6 +644,16 @@ def _without_group_separators(text: str) -> "str | None":
     digits after a first group of one to three digits. '1,234,567.89'
     becomes '1234567.89'; '1,23' and '12,3456' are refused, because
     accepting them would turn a mistyped value into a plausible number.
+
+    AN EXPONENT IS TAKEN OFF FIRST, and it was not until 2026-08-26
+    (residual R-P4-32). `1,001e2` is admitted by the documented grammar
+    -- valid group separators, an optional exponent -- and `1,001` and
+    `1001e2` are both read as numbers, but the pair together was not:
+    with no point, everything after the last comma was taken as a
+    group, `001e2` is not three figures, and the cell was not a number
+    at all. The affix rule could then claim the column and publish a
+    mean over the mantissas. The exponent is split off before the
+    groups are counted and put back after.
     """
     if not isinstance(text, str):
         raise TypeError(_NOT_TEXT)
@@ -488,6 +664,31 @@ def _without_group_separators(text: str) -> "str | None":
     if text[0] == "+" or text[0] == "-":
         sign = text[0]
         body = text[1:]
+    # The exponent, if this cell carries one, kept aside while the
+    # groups are counted. Only a well-formed one is taken: figures,
+    # after an optional sign, after a single `e` or `E`. Anything else
+    # stays in the body and is refused by the group rule as before.
+    exponent = ""
+    for marker in ("e", "E"):
+        # The LAST place the marker stands, found by walking rather than
+        # by `rfind`: the offline audit clears an enumerated set of
+        # string methods and `rfind` is not in it.
+        at = -1
+        seat = 0
+        while seat < len(body):
+            if body[seat] == marker:
+                at = seat
+            seat = seat + 1
+        if at <= 0:
+            continue
+        after = body[at + 1 :]
+        digits = after
+        if digits and (digits[0] == "+" or digits[0] == "-"):
+            digits = digits[1:]
+        if digits and _all_ascii_digits(digits):
+            exponent = body[at:]
+            body = body[:at]
+        break
     point = body.find(".")
     if point < 0:
         head = body
@@ -507,7 +708,425 @@ def _without_group_separators(text: str) -> "str | None":
         if not _all_ascii_digits(group) or len(group) != 3:
             return None
         joined = joined + group
-    return sign + joined + tail
+    return sign + joined + tail + exponent
+
+
+# The longest cell a shape form is taken of. A form is a fact about the
+# WRITING of a value, and on a short cell it is a fact about a code; on
+# a long one it would start to be a fact about a sentence -- word
+# lengths, where the commas fall -- which is a different thing to
+# publish and is not what the form is for.
+SHAPE_FORM_LIMIT = 24
+
+# THE ONLY CHARACTERS A FORM MAY CARRY BESIDE THE TWO PLACEHOLDERS,
+# and the list
+# is CLOSED and belongs to this tool (plan P4-D18, review round 1). A
+# cell holding a character the list omits has no form: a space, or a
+# mark no coding scheme uses.
+#
+# WHY A CLOSED LIST RATHER THAN "EVERY OTHER CHARACTER STANDS". Because
+# the guarantee this census rests on is that a key carries no fragment
+# of anybody's value, and "replace the ASCII letters and figures" does
+# not give it: a column of Japanese clinical text published a key still
+# holding the words themselves, since no ASCII rule reached them. That
+# is a leak in the one field these roles have for saying what their
+# values look like. A closed list is checkable -- a key holds `9`, `A`
+# and marks from this string, or it is refused -- and what it costs is
+# a form for cells nobody was going to read as codes anyway.
+#
+# THE SPACE IS EXCLUDED ON ITS OWN GROUND, not as an oversight. Two
+# hundred and forty different short sentences written to one template
+# all share the form `AAAAA, AAAA!`, and that names every word's
+# length, where the spaces fall and where the punctuation falls -- a
+# fact about a sentence, which is what the length limit was already
+# there to keep out. Without a space, the cells that share a form are
+# the cells written to a scheme.
+SHAPE_MARKS = "-./_:#*()[]+,"
+
+# THE TWO PLACEHOLDERS, AND WHY THEY ARE NOT `9` AND `A` (review round
+# 2 finding 1). They were, and they read beautifully, and they were
+# wrong: a form built from `9`, `A` and marks is a string a CELL can
+# also be spelled with, so a form could BE a value. Every form of
+# length one to three over that alphabet -- all 1230 of them -- was its
+# own form. `A99` is a real diagnosis code, so a column holding three
+# patients coded `A99` had that code held back by the floor and
+# published straight back as a census key.
+#
+# THE PROPERTY THESE TWO BUY, and it holds without looking at any data.
+# A form carries at least one placeholder, because a form needs two of
+# the three kinds and two of the three ARE the placeholders. A cell
+# that HAS a form carries only letters, digits and marks. Neither
+# placeholder is any of those. So NO CELL THAT HAS A FORM CAN BE
+# SPELLED THE SAME AS ANY FORM -- in any column, in any table.
+#
+# Both are already outside `SHAPE_MARKS`, so no cell loses a form it
+# had before: the only thing that changes is how a key is spelled.
+# `%` and `@` are what a number-format language calls a digit and a
+# text placeholder, so the pair is not invented here. The cost is
+# read-ability -- `@%%.%` is not `A99.9` -- and it is paid in prose,
+# in the sentence the report prints beside every form it names.
+SHAPE_DIGIT = "%"
+SHAPE_LETTER = "@"
+
+
+def _is_a_digit(character: str) -> bool:
+    """Whether one character is a figure `0` to `9`.
+
+    THE RANGE IS FIXED HERE AND NOT ASKED OF THE INTERPRETER (review
+    round 2 finding 14). It was `str.isdigit`, which answers out of the
+    Unicode database the running Python carries -- and this package
+    supports five of them. U+16AC0 TANGSA DIGIT ZERO is a digit on
+    3.11 and not on 3.10; U+1E4D0 NAG MUNDARI LETTER O is a letter on
+    3.12 and not on 3.11; U+10D50 GARAY CAPITAL A is a letter on 3.14
+    and not on 3.13. So the same table produced a different census, a
+    different profile and a different twin on two supported
+    interpreters -- and, measured, a twin built on one and validated on
+    another was reported as MISSING two exact counts it in fact held.
+
+    A cell holding any character outside these ranges has no form at
+    all, which is the `else` branch of `shape_form`. That costs a
+    column of non-ASCII codes its census -- and it was going to lose it
+    anyway, because a twin can only write the alphabets G9.1 gives it
+    and none of them holds a letter outside ASCII, so the band check
+    refuses every spelling of such a form. What is bought is a census
+    that says the same thing on every interpreter this package runs on.
+    """
+    if not isinstance(character, str):
+        raise TypeError(_NOT_TEXT)
+    return "0" <= character <= "9"
+
+
+def _is_a_letter(character: str) -> bool:
+    """Whether one character is a letter `a` to `z` or `A` to `Z`.
+
+    The range is fixed here for the reason `_is_a_digit` gives: a
+    census that asks the interpreter what a letter is answers
+    differently on different supported interpreters.
+    """
+    if not isinstance(character, str):
+        raise TypeError(_NOT_TEXT)
+    return ("a" <= character <= "z") or ("A" <= character <= "Z")
+
+
+def shape_form(text: str) -> str:
+    """The shape of one cell: its figures and letters, its marks kept.
+
+    Every FIGURE `0`-`9` becomes `SHAPE_DIGIT`, every LETTER `a`-`z`
+    or `A`-`Z` becomes `SHAPE_LETTER`, and every other character must
+    be one of `SHAPE_MARKS` and stands as itself, because the marks are
+    the STRUCTURE and the letters and figures are the content. A
+    diagnosis code `E11.9` has the form `@%%.%`; a laboratory code
+    `4548-4` has `%%%%-%`; a blood pressure `120/80` has `%%%/%%`; a
+    dispensed-drug code `0002-8215-01` has `%%%%-%%%%-%%`.
+
+    A CELL HOLDING ANYTHING ELSE HAS NO FORM -- a letter of another
+    alphabet, a space, a mark this list leaves out, a placeholder. The
+    two rules that narrow it were each learned from a defect. Letting
+    an unreplaced character STAND let a column of Japanese clinical
+    text publish a key holding the words (review round 1 finding 1);
+    asking the INTERPRETER what a letter is made the census depend on
+    which Unicode database it carries, and five supported versions
+    disagree (round 2 finding 14).
+
+    AND A FORM CARRIES TWO OF THE THREE KINDS, or it is not a form.
+    `@@@@@` says five letters, which `length` and the two alphabet
+    counts already say between them; what a form is FOR is the ORDER
+    of the kinds and where the marks fall between them.
+
+    WHAT THIS IS FOR. A column whose values the disclosure floor holds
+    back publishes nothing about them today, so its twin holds
+    `group-14` -- which is not a code, is not the right length, and on
+    a column of hyphenated codes even splits into two parts and reads
+    as one. A form lets the twin hold something of the right shape
+    without holding anything of the value: `@%%.%` says a letter, two
+    figures, a point and a figure, and says nothing about WHICH.
+
+    WHAT IT DELIBERATELY WILL NOT DO. A cell has NO FORM when it is
+    empty, when it is longer than `SHAPE_FORM_LIMIT`, or when it holds
+    any character that is neither a letter, nor a digit, nor one of
+    `SHAPE_MARKS` -- a space among them. On a note or an address a form
+    would carry where the spaces and the commas fall and how long each
+    word is, which is a fact about a sentence rather than about a code,
+    and this census is not the place to decide whether that may be
+    published. Such a cell answers the empty string.
+
+    Guarantees: accepts any string; returns a form built only from the
+    two placeholders and `SHAPE_MARKS`, or "" for a cell this census does not
+    describe. Determinism: the answer depends only on the text. Raises
+    TypeError if handed anything that is not a string instance.
+    Boundary: no figure and no letter of the cell survives into the
+    answer -- only how many there were, and where the marks between
+    them fell. No I/O of any kind.
+    """
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT)
+    if not text or len(text) > SHAPE_FORM_LIMIT:
+        return ""
+    form = ""
+    kinds = 0
+    figures = 0
+    letters = 0
+    marks = 0
+    for character in text:
+        if character == SHAPE_DIGIT or character == SHAPE_LETTER:
+            # A CELL CARRYING A PLACEHOLDER HAS NO FORM. This is what
+            # makes the disjointness above a property and not a hope:
+            # without it a cell spelled `@%%` would have the form
+            # `@%%` and be its own form again.
+            return ""
+        if _is_a_digit(character):
+            form = form + SHAPE_DIGIT
+            figures = 1
+        elif _is_a_letter(character):
+            form = form + SHAPE_LETTER
+            letters = 1
+        elif character in SHAPE_MARKS:
+            form = form + character
+            marks = 1
+        else:
+            return ""
+    kinds = figures + letters + marks
+    if kinds < 2:
+        # A FORM OF ONE KIND OF SYMBOL SAYS NOTHING NEW, so it is not a
+        # form. `AAAAA` says five letters and `99999` says five
+        # figures -- and `length` already publishes the five exactly,
+        # while `n_all_digits` and `n_code_alphabet` already publish
+        # which alphabet the cell was drawn from. Naming those adds a
+        # published fact that carries no information and costs a
+        # disclosure line, and it made a column of four region names
+        # publish a census nobody could use.
+        #
+        # WHAT A FORM IS FOR is the ORDER of the kinds and where the
+        # marks fall between them: `A9999` says a letter and then four
+        # figures, which no other published fact says; `9999-9` says
+        # where the hyphen is. Two kinds is exactly the line between
+        # the two.
+        return ""
+    return form
+
+
+def form_room(name: str) -> int:
+    """How many different cells could have worn this form.
+
+    Every `SHAPE_DIGIT` of it stands for one of ten figures and every
+    `SHAPE_LETTER` for one of fifty-two letters; the marks stand for
+    themselves. So a form is a COUNT of the cells it could have come
+    from, and that count is what says whether naming it tells a reader
+    anything they did not already have.
+
+    Raises TypeError if handed anything that is not a string instance.
+    No I/O of any kind.
+    """
+    if not isinstance(name, str):
+        raise TypeError(_NOT_TEXT)
+    room = 1
+    for character in name:
+        if character == SHAPE_DIGIT:
+            room = room * 10
+        elif character == SHAPE_LETTER:
+            room = room * 52
+    return room
+
+
+def is_a_written_form(name: str) -> bool:
+    """Whether ``name`` is a written form: THE one definition of it.
+
+    The producer builds a form (`shape_form`), the loader admits a
+    census key, and the publication guard refuses one -- and those three
+    were three separate readings of the same rule, which is how the
+    loader and the guard came to accept `AAAA`, `9999` and `----`,
+    keys the producer can never write and every recount then misses
+    (review round 2 finding 2). There is one definition now and the
+    other two call it.
+
+    A form is one to `SHAPE_FORM_LIMIT` characters, every one of them a
+    placeholder or a mark from the closed list, carrying at least TWO
+    of the three kinds -- figure, letter, mark. Two kinds, because a
+    key of one kind says nothing `length` and the two alphabet counts
+    do not already say.
+
+    Guarantees: accepts any string; answers only from the characters.
+    Raises TypeError if handed anything that is not a string instance.
+    No I/O of any kind.
+    """
+    if not isinstance(name, str):
+        raise TypeError(_NOT_TEXT)
+    if not name or len(name) > SHAPE_FORM_LIMIT:
+        return False
+    figures = 0
+    letters = 0
+    marks = 0
+    for character in name:
+        if character == SHAPE_DIGIT:
+            figures = 1
+        elif character == SHAPE_LETTER:
+            letters = 1
+        elif character in SHAPE_MARKS:
+            marks = 1
+        else:
+            return False
+    return figures + letters + marks >= 2
+
+
+# What one cell says about the comma inside it.
+COMMA_NONE = "no-comma"
+COMMA_GROUPED = "proves-a-thousands-separator"
+COMMA_DECIMAL = "proves-a-decimal-comma"
+COMMA_EITHER = "reads-either-way"
+
+
+def _groups_by_threes(body: str, mark: str) -> bool:
+    """Whether the fields ``mark`` separates read as thousands groups.
+
+    The first field is one to three figures and every later one is
+    exactly three, which is what tells `1.234.567,89` -- a million and
+    a bit, written the German way -- from `1.2.3,4`, which is a version
+    identifier and no number at all.
+    """
+    fields: "list[str]" = []
+    current = ""
+    for character in body:
+        if character == mark:
+            fields = fields + [current]
+            current = ""
+            continue
+        current = current + character
+    fields = fields + [current]
+    head = fields[0]
+    if not head or len(head) > 3 or not _all_ascii_digits(head):
+        return False
+    for field in fields[1:]:
+        if len(field) != 3 or not _all_ascii_digits(field):
+            return False
+    return True
+
+
+def comma_reading(text: str) -> str:
+    """What one cell settles about the comma it carries, if anything.
+
+    `1,795` is one thousand seven hundred and ninety-five where a comma
+    groups thousands, and 1.795 where a comma is the decimal point --
+    and most of the world writes the second. THAT ONE CELL SETTLES
+    NOTHING. But many cells do, and an earlier revision of this package
+    said flatly that none could, which was wrong in both directions:
+
+    - A POINT AFTER THE COMMA settles it as a thousands separator, and
+      so does a SECOND COMMA. `1,234.56` and `1,234,567` are not
+      ambiguous at all, and a column of them was being told it might be
+      a thousand times out when it was not.
+    - A GROUP THAT IS NOT THREE FIGURES settles it as a decimal comma
+      -- `12,5`, `1,23` -- and so does a FIRST GROUP OF MORE THAN THREE
+      figures, because `1000,000` cannot be thousands-grouped at all.
+      A point BEFORE a comma settles it the same way: `22.008,28` is
+      grouped with points.
+
+    So a three-decimal European column DOES carry evidence as soon as
+    one of its values reaches a thousand, and a column that reaches
+    none is the one that settles nothing. The difference is the whole
+    of what NF44 has to say to a person.
+
+    Guarantees: accepts text; answers one of the four constants above.
+    Determinism: the answer depends only on the text. Raises TypeError
+    if handed anything that is not a string instance. Boundary: no
+    figure of the cell travels out through it. No I/O of any kind.
+    """
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT)
+    body = text.strip()
+    if body[:1] == "(" and body[len(body) - 1 : len(body)] == ")":
+        body = body[1 : len(body) - 1].strip()
+    if body[:1] == "+" or body[:1] == "-":
+        body = body[1:]
+    # NOTHING BUT FIGURES, POINTS AND COMMAS MAY SPEAK HERE, and this
+    # guard is the whole reason the second count is safe to publish. A
+    # cell is evidence about how NUMBERS are written only if it is
+    # trying to be a number: without this, `Hello.World,Foo` -- a point
+    # before a comma -- was read as proof of a decimal comma, and a
+    # column of names or addresses would have been told in capital
+    # letters that this file writes the decimal point as a comma. A
+    # false alarm in a loud sentence is worse than no sentence, which
+    # is the same lesson the first read taught about `1,234.56`.
+    # AN EXPONENT IS PART OF THE NUMBER AND NOT PART OF THE QUESTION.
+    # `1,001e2` is a spelling the documented grammar admits, and
+    # reading the exponent as ordinary characters made the whole cell
+    # answer "no comma" -- so a column of them was neither read as
+    # numbers nor warned about. The mantissa is what the comma sits in,
+    # so the mantissa is what is classified.
+    # The two marks are written out rather than walked: this audit
+    # accepts a data method only where what it is handed is a literal
+    # or a value it watched being built, and a loop variable is
+    # neither.
+    at_mark = body.find("e")
+    if at_mark < 0:
+        at_mark = body.find("E")
+    if at_mark >= 0:
+        exponent = body[at_mark + 1 :]
+        if exponent[:1] == "+" or exponent[:1] == "-":
+            exponent = exponent[1:]
+        if exponent and _all_ascii_digits(exponent):
+            body = body[:at_mark]
+    commas = 0
+    points = 0
+    figures = 0
+    for character in body:
+        if character == ",":
+            commas = commas + 1
+            continue
+        if character == ".":
+            points = points + 1
+            continue
+        if not ("0" <= character <= "9"):
+            return COMMA_NONE
+        figures = figures + 1
+    # AT LEAST ONE FIGURE, and where there is more than one point they
+    # must GROUP. A software version `1.2.3,4` carries only figures,
+    # points and commas, and its point before a comma read as PROOF of
+    # a decimal comma -- so a column of versions would have been told
+    # in capital letters that this file writes decimals with commas.
+    # But `1.234.567,89` is how German writes a million and a bit, and
+    # refusing every second point would have silenced exactly the
+    # convention this note exists for. What tells them apart is the
+    # grouping: a thousands group is three figures, so `234` and `567`
+    # are one and `2` and `3` are not.
+    if not figures:
+        return COMMA_NONE
+    if points > 1:
+        # The grouping is asked of the part BEFORE the comma, which is
+        # where the points sit in `1.234.567,89`; the figures after it
+        # are the fraction and group nothing.
+        before = body[: body.find(",")]
+        if not _groups_by_threes(before, "."):
+            return COMMA_NONE
+    if not commas:
+        return COMMA_NONE
+    if commas > 1:
+        return COMMA_GROUPED
+    at = body.find(",")
+    point = body.find(".")
+    if point >= 0:
+        return COMMA_GROUPED if point > at else COMMA_DECIMAL
+    head = body[:at]
+    tail = body[at + 1 :]
+    if not _all_ascii_digits(head) or not _all_ascii_digits(tail):
+        return COMMA_NONE
+    if len(tail) != 3 or len(head) > 3 or not head:
+        return COMMA_DECIMAL
+    return COMMA_EITHER
+
+
+def carries_a_group_comma(text: str) -> bool:
+    """Whether this cell reads as a number and settles nothing about it.
+
+    The cells NF44 counts: a number this package read by treating a
+    comma as a thousands separator, where the cell itself did not
+    settle that the comma was one. A cell that settles it either way is
+    not a choice and is not counted.
+    """
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT)
+    if comma_reading(text) != COMMA_EITHER:
+        return False
+    return classify_number(text.strip()) == NUMBER
 
 
 def parse_number(text: str) -> "float | None":
@@ -660,6 +1279,101 @@ def numeric_style(text: str) -> str:
     return STYLE_PLAIN
 
 
+def fraction_width(text: str) -> int:
+    """How many figures one `decimal`-styled cell writes after its point.
+
+    THE CORE IS THE ONE `numeric_style` READS, and that is the whole
+    reason this lives beside it rather than anywhere else. A width taken
+    off the raw text and a form taken off the unwrapped core are two
+    readings of the same cell, and the census would then name a width
+    for a cell the styles map counted under another form -- so the
+    brackets come off here exactly as they come off there, and the
+    thousands separators with them.
+
+    A point with nothing after it is a width of ZERO, not no width:
+    `12.` is a decimal-styled cell and the census must be able to say
+    how many figures it wrote, which is none.
+
+    Guarantees:
+
+    - Inputs: the text of one cell, exactly as the file spells it.
+      Sensible only for a cell `numeric_style` calls `decimal`; a cell
+      of any other form has no point to read and answers 0.
+    - Determinism: the answer depends only on the text.
+    - Errors raised: TypeError if handed anything that is not a string
+      instance, through `trimmed`.
+    - Boundary: the answer is a COUNT of characters. No figure of the
+      cell, and no magnitude, travels out through it. No I/O of any
+      kind.
+    """
+    body = trimmed(text)
+    if body[:1] == "(" and body[len(body) - 1 : len(body)] == ")":
+        body = trimmed(body[1 : len(body) - 1])
+    core = ""
+    for character in body:
+        if character != ",":
+            core = core + character
+    seen = False
+    width = 0
+    for character in core:
+        if seen:
+            width = width + 1
+        elif character == ".":
+            seen = True
+    return width
+
+
+def pad_width(text: str) -> int:
+    """How wide the figure field of one zero-padded cell is written.
+
+    THE FACT A FORMS MAP CANNOT SAY, and the reason a census of it has
+    to exist at all. `numeric_styles` counts how many cells began with
+    a redundant zero; it cannot say whether they were written five
+    figures wide or nine. A code column of five-figure cells and a
+    record number nine figures wide are both "leading_zero" to that
+    map, so a twin honouring the map exactly can still write a field of
+    another width -- and a person whose code reads a fixed-width code,
+    slices it, or joins on it is holding a twin their code cannot run
+    against.
+
+    THE CORE IS THE ONE `numeric_style` READS, for the reason it is in
+    `fraction_width`: a width taken off the raw text and a form taken
+    off the unwrapped core are two readings of the same cell.
+
+    THE SIGN IS NOT A FIGURE. `-000123` writes six figures, as
+    `000123` does, because the width a person sees in a code column is
+    the field, not the character count.
+
+    Guarantees:
+
+    - Inputs: the text of one cell, exactly as the file spells it.
+      Sensible only for a cell whose value is whole; a cell carrying a
+      point answers the figures BEFORE it, which is what padding is
+      written into.
+    - Determinism: the answer depends only on the text.
+    - Errors raised: TypeError if handed anything that is not a string
+      instance, through `trimmed`.
+    - Boundary: the answer is a COUNT of characters. No figure of the
+      cell, and no magnitude, travels out through it. No I/O of any
+      kind.
+    """
+    body = trimmed(text)
+    if body[:1] == "(" and body[len(body) - 1 : len(body)] == ")":
+        body = trimmed(body[1 : len(body) - 1])
+    core = ""
+    for character in body:
+        if character != ",":
+            core = core + character
+    if core[:1] == "-" or core[:1] == "+":
+        core = core[1:]
+    width = 0
+    for character in core:
+        if character == ".":
+            return width
+        width = width + 1
+    return width
+
+
 def classify_number(text: str) -> str:
     """Say, once, what a cell is numerically.
 
@@ -769,6 +1483,268 @@ def _canonical_date(year: str, month: str, day: str) -> "str | None":
     return f"{year}-{month}-{day}"
 
 
+def _padded_field(field: str) -> "str | None":
+    """One or two ASCII digits, written as two, or None.
+
+    THE FIELD IS PADDED RATHER THAN REFUSED (plan amendment A-P4-1
+    item 1). A table that writes `3/5/2024` is writing the same day as
+    one that writes `03/05/2024`, and the earlier reader refused the
+    first over a leading zero nobody typed. What is published is the
+    canonical day either way, so the two spell one date and not two.
+    """
+    if not isinstance(field, str):
+        raise TypeError(_NOT_TEXT)
+    if len(field) < 1 or len(field) > 2:
+        return None
+    if not _all_ascii_digits(field):
+        return None
+    if len(field) == 1:
+        return f"0{field}"
+    return field
+
+
+def _slashed_fields(body: str) -> "tuple[str, str, str] | None":
+    """The three fields of a year-last slashed date, each at its width.
+
+    The year is FOUR figures and comes last; the two fields before it
+    are one or two figures each. That grammar is what keeps the four
+    families apart: `slashed-iso-date` leads with a four-figure year,
+    the compact family is eight figures and no delimiter, and no
+    spelling can satisfy two of the three.
+
+    Guarantees: accepts a string; returns the month-or-day field, the
+    day-or-month field and the year, padded to two, two and four
+    figures, or None where the text is not this grammar. Raises
+    TypeError if handed anything that is not a string instance. No I/O.
+    """
+    if not isinstance(body, str):
+        raise TypeError(_NOT_TEXT)
+    return _delimited_fields(body, "/", 4)
+
+
+# The month names this package reads, in calendar order, each as the
+# three-letter abbreviation and the full word. ENGLISH ONLY, and that
+# is a limit rather than an oversight: a name read in one language and
+# not another would give one table its dates and the next table beside
+# it free text, which is worse than reading neither. Matched with the
+# folding rule the rest of this module uses, so `MAR`, `Mar` and `mar`
+# are one name.
+_MONTH_NAMES = (
+    ("jan", "january"),
+    ("feb", "february"),
+    ("mar", "march"),
+    ("apr", "april"),
+    ("may", "may"),
+    ("jun", "june"),
+    ("jul", "july"),
+    ("aug", "august"),
+    ("sep", "september"),
+    ("oct", "october"),
+    ("nov", "november"),
+    ("dec", "december"),
+)
+
+
+def month_of_name(word: str) -> "str | None":
+    """The month a written name stands for, as two figures, or None.
+
+    Guarantees: accepts any string; answers `01` through `12` for a
+    name in this package's English vocabulary, abbreviated or written
+    in full, whatever its case; answers None for everything else.
+    Raises TypeError if handed anything that is not a string instance.
+    No I/O of any kind.
+    """
+    if not isinstance(word, str):
+        raise TypeError(_NOT_TEXT)
+    # THE PACKAGE HAS ONE FOLDING OPERATION AND THIS IS IT. An earlier
+    # revision reached for `.lower()`, which is not the same rule:
+    # Unicode case folding maps the long s to `s`, so `ſep` folds to
+    # `sep` and lower-casing leaves it alone. The contract says CASE
+    # FOLDING, and a second spelling of "the same word" living in one
+    # function is how an exception comes apart from the rule it excepts
+    # -- this repository has paid for that four times over.
+    name = folded(word)
+    if not name:
+        return None
+    place = 0
+    for short, whole in _MONTH_NAMES:
+        place = place + 1
+        if name == short or name == whole:
+            if place < 10:
+                return f"0{place}"
+            return f"{place}"
+    return None
+
+
+def _carries_space(field: str) -> bool:
+    """Whether one field of a textual date carries space of its own.
+
+    Written as a function of its own, with the type gate at the top,
+    because the offline audit traces a value it can read as a string
+    and refuses a method call on anything else -- and a field sliced
+    out of a body inside a loop is not something it can follow.
+    """
+    if not isinstance(field, str):
+        raise TypeError(_NOT_TEXT)
+    return field != field.strip()
+
+
+def _textual_fields(
+    body: str, comma_after_middle: bool
+) -> "tuple[str, str, str] | None":
+    """The three fields of a date written with a month NAME.
+
+    THE SEPARATOR IS ONE CHARACTER AND THE SAME ONE BOTH TIMES -- a
+    space or a hyphen -- because `17 Mar-2024` is not a shape anybody
+    writes, and admitting it would let this member reach for spellings
+    the next member is meant to have.
+
+    THE COMMA BELONGS TO ONE SHAPE AND NOT THE OTHER, which is what
+    ``comma_after_middle`` decides. `Mar 17, 2024` is written with one
+    because the comma follows a DAY; `17 Mar, 2024` puts a comma after
+    a month name, which no writer does and no member of this contract
+    owns. Stripping it before either member was consulted let the
+    day-first member accept a spelling the contract does not describe,
+    so a column of them became a date column under a grammar nobody
+    had written down.
+
+    Guarantees: accepts a string; returns the first field, the middle
+    field and the last field exactly as written, or None where the text
+    is not this grammar. Raises TypeError if handed anything that is
+    not a string instance. No I/O of any kind.
+    """
+    if not isinstance(body, str):
+        raise TypeError(_NOT_TEXT)
+    for mark in (" ", "-"):
+        marks: list[int] = []
+        place = 0
+        for character in body:
+            if character == mark:
+                marks = marks + [place]
+            place = place + 1
+        if len(marks) != 2:
+            continue
+        first = body[0 : marks[0]]
+        middle = body[marks[0] + 1 : marks[1]]
+        last = body[marks[1] + 1 :]
+        if middle[len(middle) - 1 : len(middle)] == ",":
+            if not comma_after_middle:
+                continue
+            middle = middle[0 : len(middle) - 1]
+        if not first or not middle or not last:
+            continue
+        # NO FIELD CARRIES SPACE OF ITS OWN, which is what makes "one
+        # separator character, the same one both times" true rather
+        # than nearly true. `month_of_name` trims before it matches, so
+        # a middle field of ` Mar` answered `03` and `17- Mar-2024` was
+        # read as a date under a grammar that permits no such spelling.
+        # The day and year fields were never exposed to this -- both
+        # ask for ASCII digits and a space is not one -- so the guard
+        # is written over all three rather than over the one that
+        # happened to need it.
+        if _carries_space(first):
+            continue
+        if _carries_space(middle):
+            continue
+        if _carries_space(last):
+            continue
+        return first, middle, last
+    return None
+
+
+def _delimited_fields(
+    body: str, mark: str, year_width: int, padded_only: bool = False
+) -> "tuple[str, str, str] | None":
+    """Three year-last fields split on one delimiter, each at its width.
+
+    The generalization of `_slashed_fields` over the delimiter and the
+    width of the year, which is what keeps the dotted and two-digit
+    families reading by the same rule as the slashed one rather than by
+    a second copy of it. The year comes LAST and is exactly
+    ``year_width`` figures; the two fields before it are one or two
+    figures each.
+
+    THAT GRAMMAR IS WHAT KEEPS THE FAMILIES APART. A four-figure year
+    after slashes is the `month-first-date` pair; a two-figure year
+    after slashes is the two-digit pair; a four-figure year after dots
+    is the dotted pair; and no spelling satisfies two of them.
+
+    ``padded_only`` REFUSES A ONE-FIGURE FIELD, and it exists for the
+    dotted family alone. `1.2.2024` is how a version identifier is
+    written, and it is also, character for character, how an unpadded
+    dotted date is written -- so a column of versions cleared the date
+    line, became a `datetime` column, published endpoints and a ladder
+    it had no business publishing, and handed back a twin of ISO days
+    where the real column held version numbers. Nothing about the cell
+    settles which it is. What does settle it, well enough to be worth a
+    rule, is the PADDING: a dotted date is written `17.03.2024` in the
+    places that write dotted dates, and a version is not written
+    `01.02.2024` anywhere. The unpadded dotted date is therefore read
+    as text, which is what it was before this family existed, and the
+    version column keeps its own values.
+
+    Guarantees: accepts strings and a positive width; returns the
+    first field, the second field and the year, the first two padded to
+    two figures and the year exactly as written, or None where the text
+    is not this grammar. Raises TypeError if handed anything that is
+    not a string instance. No I/O of any kind.
+    """
+    if not isinstance(body, str):
+        raise TypeError(_NOT_TEXT)
+    if not isinstance(mark, str):
+        raise TypeError(_NOT_TEXT)
+    marks: list[int] = []
+    place = 0
+    for character in body:
+        if character == mark:
+            marks = marks + [place]
+        place = place + 1
+    if len(marks) != 2:
+        return None
+    year = body[marks[1] + 1 :]
+    if len(year) != year_width or not _all_ascii_digits(year):
+        return None
+    written_first = body[0 : marks[0]]
+    written_second = body[marks[0] + 1 : marks[1]]
+    if padded_only and (
+        len(written_first) != 2 or len(written_second) != 2
+    ):
+        return None
+    first = _padded_field(written_first)
+    second = _padded_field(written_second)
+    if first is None or second is None:
+        return None
+    return first, second, year
+
+
+# The year a two-figure year stands for, split at the POSIX pivot: 00
+# to 68 are this century, 69 to 99 the last one.
+TWO_DIGIT_YEAR_PIVOT = 68
+
+
+def year_of_two_figures(year: str) -> str:
+    """The four-figure year a two-figure year is read as.
+
+    THIS IS A GUESS AND THE PACKAGE SAYS SO WHEREVER IT MAKES ONE. A
+    two-figure year does not carry its century: `24` is 2024 in most
+    tables and 1924 in a table of birth dates, and nothing in the cell
+    settles which. The pivot is the POSIX one because it is the
+    convention the tools around this one already use, so a person who
+    knows any of them knows this. The column's remarks name the rule
+    wherever this family is read, so nobody meets it by surprise.
+
+    Guarantees: accepts a string of exactly two ASCII digits; returns
+    four figures. Raises TypeError if handed anything that is not a
+    string instance. No I/O of any kind.
+    """
+    if not isinstance(year, str):
+        raise TypeError(_NOT_TEXT)
+    figures = int(year)
+    if figures <= TWO_DIGIT_YEAR_PIVOT:
+        return f"20{year}"
+    return f"19{year}"
+
+
 def _parse_clock(text: str) -> "str | None":
     """Return 'HH:MM:SS' for a time of day, or None.
 
@@ -801,6 +1777,145 @@ def _parse_clock(text: str) -> "str | None":
     if int(hours) > 23 or int(minutes) > 59 or int(seconds) > 60:
         return None
     return f"{hours}:{minutes}:{seconds}"
+
+
+# THE TWO FORMS A COLUMN OF CLOCK VALUES CAN WEAR, and the names the
+# profile publishes them under. They are this package's own words, not
+# anybody's text: a document naming one of them says which shape the
+# column's cells had and nothing about what any cell said.
+CLOCK_HH_MM = "hh-mm"
+CLOCK_HH_MM_SS = "hh-mm-ss"
+CLOCK_FORMS = (CLOCK_HH_MM, CLOCK_HH_MM_SS)
+
+# How many different values each form can spell, which is the whole of
+# what a column of that form can hold: a day has 1,440 minutes and
+# 86,400 seconds. The generator needs it to know whether a published
+# count of different values is reachable at all.
+CLOCK_CAPACITY = {CLOCK_HH_MM: 1440, CLOCK_HH_MM_SS: 86400}
+
+# The unit each form counts in, seconds per step: a minute for `hh-mm`
+# and a second for `hh-mm-ss`.
+_CLOCK_STEP = {CLOCK_HH_MM: 60, CLOCK_HH_MM_SS: 1}
+
+
+def clock_form(text: str) -> "str | None":
+    """Which of the two clock forms one cell wears, or None.
+
+    EXACTLY `HH:MM` OR `HH:MM:SS`, and the word exactly is the rule
+    rather than a summary of it. Two ASCII digits in every field, hours
+    at most 23, minutes and seconds at most 59, nothing before and
+    nothing after. Four shapes a reader might expect are refused, and
+    each is refused on purpose:
+
+    - a FRACTIONAL part. A reading that dropped it would describe every
+      such cell approximately while publishing an exact ladder;
+    - a LEAP SECOND, `23:59:60`. The ordinal space this role counts in
+      has no faithful point for it, and making one up would put a value
+      in the twin that no clock shows;
+    - a SINGLE-DIGIT hour, `9:30`. The published spellings are
+      fixed-width, so a column of them could not be written back;
+    - anything else around the digits -- a date, an offset, a name.
+
+    A column of cells this refuses takes a later rule, which is where
+    such a column already goes today.
+
+    NOTHING COMES OFF FIRST, and that is the fifth refusal rather than
+    an oversight. Every other reader in this module trims its cell
+    before looking at it; this one may not, because what it publishes
+    are the CELLS THEMSELVES -- the two endpoints and eleven ladder
+    rungs are values some row of the table wore, character for
+    character. Trimming would let a column of ` 09:30 ` cells publish
+    `09:30`, a string no row of that table holds, and the ladder would
+    stop being a selection of real cells. So a cell with a space, a
+    tab or a no-break space around it is a cell this role does not
+    read, and it is counted with the rest.
+
+    Guarantees:
+
+    - Inputs: the text of one cell, exactly as the file spells it, and
+      exactly as it is judged.
+    - Determinism: the answer depends only on the text.
+    - Errors raised: TypeError if handed anything that is not a string
+      instance.
+    - Boundary: the answer is one of two words of this module's own
+      vocabulary, or nothing, so no spelling of any cell travels out
+      through it. No I/O of any kind.
+    """
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT)
+    body = text
+    hours = _digits_at(body, 0, 2)
+    if hours is None or len(body) < 5 or body[2] != ":":
+        return None
+    minutes = _digits_at(body, 3, 2)
+    if minutes is None:
+        return None
+    if int(hours) > 23 or int(minutes) > 59:
+        return None
+    if len(body) == 5:
+        return CLOCK_HH_MM
+    if len(body) != 8 or body[5] != ":":
+        return None
+    seconds = _digits_at(body, 6, 2)
+    if seconds is None or int(seconds) > 59:
+        return None
+    return CLOCK_HH_MM_SS
+
+
+def clock_ordinal(text: str, form: str) -> "int | None":
+    """Where one cell stands in its own form's unit, or None.
+
+    Minutes of day for `hh-mm`, seconds of day for `hh-mm-ss` -- the
+    unit the form itself sets, so every ordinal has a spelling in that
+    form and no value the generator interpolates is ever truncated or
+    widened to fit a cell.
+
+    None where the cell does not wear the form asked about, which is
+    how a cell of the OTHER form is counted unparsed rather than
+    silently re-read.
+
+    Guarantees: accepts one cell's text and one of `CLOCK_FORMS`;
+    returns a whole number below that form's capacity, or nothing.
+    Determinism: a function of the two. Errors raised: TypeError
+    through `trimmed`; ValueError for a form this module does not know.
+    Boundary: the answer is a COUNT. No I/O of any kind.
+    """
+    if form not in _CLOCK_STEP:
+        raise ValueError(_NOT_TEXT)
+    if clock_form(text) != form:
+        return None
+    body = text
+    hours = int(body[0:2])
+    minutes = int(body[3:5])
+    if form == CLOCK_HH_MM:
+        return hours * 60 + minutes
+    return (hours * 3600) + (minutes * 60) + int(body[6:8])
+
+
+def clock_spelling(ordinal: int, form: str) -> str:
+    """The one spelling of one ordinal in one form.
+
+    The inverse of `clock_ordinal` and the only way a clock value is
+    written, so a producer and a generator cannot spell the same moment
+    two ways.
+
+    Guarantees: accepts a whole number below the form's capacity and
+    one of `CLOCK_FORMS`; returns fixed-width text. Determinism: a
+    function of the two. Errors raised: ValueError for an unknown form
+    or an ordinal outside the form's space. Boundary: the text is built
+    from the number handed in. No I/O of any kind.
+    """
+    if form not in _CLOCK_STEP:
+        raise ValueError(_NOT_TEXT)
+    if isinstance(ordinal, bool) or not isinstance(ordinal, int):
+        raise ValueError(_NOT_TEXT)
+    if ordinal < 0 or ordinal >= CLOCK_CAPACITY[form]:
+        raise ValueError(_NOT_TEXT)
+    if form == CLOCK_HH_MM:
+        return f"{ordinal // 60:02d}:{ordinal % 60:02d}"
+    hours = ordinal // 3600
+    rest = ordinal % 3600
+    return f"{hours:02d}:{rest // 60:02d}:{rest % 60:02d}"
 
 
 def _split_offset(text: str) -> "tuple[str, str] | None":
@@ -894,6 +2009,37 @@ def parse_datetime(text: str, format_name: str) -> "tuple[str, str] | None":
         if clock is None:
             return None
         return f"{date_part} {clock}", split[1]
+    if format_name == "iso-mixed":
+        # THE JOINT ISO READING. A cell conforms when EITHER ISO member
+        # reads it, and a whole date is read at the family's finest
+        # resolution -- midnight of that day -- because the column is
+        # described at that resolution and a date-form cell has no
+        # other place in it.
+        found = parse_datetime(text, "iso-datetime")
+        if found is not None:
+            return found
+        whole = parse_datetime(text, "iso-date")
+        if whole is None:
+            return None
+        return f"{whole[0]} 00:00:00", whole[1]
+    if format_name == "slashed-iso-date":
+        # THE YEAR LEADS, WHICH IS WHAT MAKES IT UNAMBIGUOUS. A slashed
+        # date whose first field is four figures cannot be read the
+        # other way round -- there is no calendar in which the day or
+        # the month is a four-figure number -- so this form joins the
+        # table without the day-first question the two-figure slashed
+        # forms carry (plan P4-D4.3 item 1).
+        if len(body) != 10 or body[4] != "/" or body[7] != "/":
+            return None
+        year = _digits_at(body, 0, 4)
+        month = _digits_at(body, 5, 2)
+        day = _digits_at(body, 8, 2)
+        if year is None or month is None or day is None:
+            return None
+        canonical = _canonical_date(year, month, day)
+        if canonical is None:
+            return None
+        return canonical, ""
     if format_name == "compact-date":
         if len(body) != 8 or not _all_ascii_digits(body):
             return None
@@ -901,14 +2047,83 @@ def parse_datetime(text: str, format_name: str) -> "tuple[str, str] | None":
         if canonical is None:
             return None
         return canonical, ""
+    if (
+        format_name == "textual-day-first-date"
+        or format_name == "textual-month-first-date"
+    ):
+        # A DAY, A MONTH NAME AND A FOUR-FIGURE YEAR, in the order the
+        # member names (plan P4-D15). The name is what makes this pair
+        # unambiguous where the slashed pair is not: no evidence and no
+        # setting is consulted, because `Mar` cannot be a day.
+        fields = _textual_fields(
+            body, format_name == "textual-month-first-date"
+        )
+        if fields is None:
+            return None
+        first, middle, last = fields
+        if len(last) != 4 or not _all_ascii_digits(last):
+            return None
+        if format_name == "textual-day-first-date":
+            day = _padded_field(first)
+            month = month_of_name(middle)
+        else:
+            month = month_of_name(first)
+            day = _padded_field(middle)
+        if day is None or month is None:
+            return None
+        canonical = _canonical_date(last, month, day)
+        if canonical is None:
+            return None
+        return canonical, ""
+    if (
+        format_name == "two-digit-month-first-date"
+        or format_name == "two-digit-day-first-date"
+    ):
+        # A SLASHED DATE WHOSE YEAR IS TWO FIGURES (plan P4-D15). The
+        # century is not in the cell, so it is decided by the pivot
+        # `year_of_two_figures` fixes and named in the column's
+        # remarks.
+        fields = _delimited_fields(body, "/", 2)
+        if fields is None:
+            return None
+        first, second, short = fields
+        year = year_of_two_figures(short)
+        if format_name == "two-digit-month-first-date":
+            canonical = _canonical_date(year, first, second)
+        else:
+            canonical = _canonical_date(year, second, first)
+        if canonical is None:
+            return None
+        return canonical, ""
+    if (
+        format_name == "dotted-month-first-date"
+        or format_name == "dotted-day-first-date"
+    ):
+        # THE SAME GRAMMAR WRITTEN WITH DOTS (plan P4-D15). Two dots and
+        # a four-figure year last, which no decimal number satisfies:
+        # `17.03` carries one dot and is a number, `17.03.2024` carries
+        # two and is not.
+        fields = _delimited_fields(body, ".", 4, True)
+        if fields is None:
+            return None
+        first, second, year = fields
+        if format_name == "dotted-month-first-date":
+            canonical = _canonical_date(year, first, second)
+        else:
+            canonical = _canonical_date(year, second, first)
+        if canonical is None:
+            return None
+        return canonical, ""
     if format_name == "month-first-date" or format_name == "day-first-date":
-        if len(body) != 10 or body[2] != "/" or body[5] != "/":
+        # PADDED OR NOT, AND THE FAMILIES STILL DO NOT OVERLAP (plan
+        # amendment A-P4-1 item 1). The ten-character rule retired here
+        # and here only: the year still has to be four figures and
+        # still has to come last, which is what keeps `3/5/2024` out of
+        # every other member's reach.
+        fields = _slashed_fields(body)
+        if fields is None:
             return None
-        first = _digits_at(body, 0, 2)
-        second = _digits_at(body, 3, 2)
-        year = _digits_at(body, 6, 4)
-        if first is None or second is None or year is None:
-            return None
+        first, second, year = fields
         if format_name == "month-first-date":
             canonical = _canonical_date(year, first, second)
         else:
@@ -916,6 +2131,66 @@ def parse_datetime(text: str, format_name: str) -> "tuple[str, str] | None":
         if canonical is None:
             return None
         return canonical, ""
+    if (
+        format_name == "month-first-datetime"
+        or format_name == "day-first-datetime"
+    ):
+        # A SLASHED DATE, ONE SPACE, THEN A CLOCK (plan amendment
+        # A-P4-1 item 2). The date half is the same grammar the two
+        # date-only slashed members read, padded or not; the clock half
+        # is the time-of-day role's own two forms and nothing wider, so
+        # a stamp this reads is one whose two halves are each already
+        # read somewhere in this module.
+        mark = 0
+        place = 0
+        for character in body:
+            if character == " ":
+                mark = place
+            place = place + 1
+        if mark < 1:
+            return None
+        fields = _slashed_fields(body[0:mark])
+        if fields is None:
+            return None
+        first, second, year = fields
+        if format_name == "month-first-datetime":
+            date_part = _canonical_date(year, first, second)
+        else:
+            date_part = _canonical_date(year, second, first)
+        if date_part is None:
+            return None
+        # THE CLOCK HALF IS THE TIME-OF-DAY ROLE'S OWN TWO FORMS AND
+        # NOTHING WIDER, which is what the amendment fixes and what
+        # keeps these two members from quietly accepting a fractional
+        # second the contract's row for them does not mention.
+        if clock_form(body[mark + 1 :]) is None:
+            return None
+        clock = _parse_clock(body[mark + 1 :])
+        if clock is None:
+            return None
+        return f"{date_part} {clock}", ""
+    if format_name == "iso-month":
+        # A MONTH NAMES A SPAN, WHICH IS WHY IT HAS A SPACE OF ITS OWN
+        # (plan P4-D4.3 item 2). `2024-03` is not a day and turning it
+        # into one would put a value in the column that no cell holds,
+        # so the canonical form IS the text and it sorts as text.
+        if len(body) != 7 or body[4] != "-":
+            return None
+        year = _digits_at(body, 0, 4)
+        month = _digits_at(body, 5, 2)
+        if year is None or month is None:
+            return None
+        if int(month) < 1 or int(month) > 12:
+            return None
+        # THE YEAR IS ONE THE CALENDAR HAS. `_valid_date` refuses year
+        # zero for every reader that names a day, and the two SPAN
+        # readers have to refuse it for the same reason: the contract's
+        # canonical form runs from `0001` up, and a producer that
+        # published `0000-01` would write a description its own loader
+        # is meant to refuse (review item P4-DATE3-F4).
+        if int(year) < 1:
+            return None
+        return f"{year}-{month}", ""
     if format_name == "year-quarter":
         if len(body) != 7 or body[4] != "-":
             return None
@@ -926,8 +2201,139 @@ def parse_datetime(text: str, format_name: str) -> "tuple[str, str] | None":
         quarter = body[6]
         if year is None or quarter < "1" or quarter > "4":
             return None
+        # The same year rule, and it was missing here before the month
+        # made it visible (review item P4-DATE3-F4).
+        if int(year) < 1:
+            return None
         return f"{year}-Q{quarter}", ""
     return None
+
+
+EXACTLY_ZERO: "tuple[int, tuple[str, ...], int]" = (0, (), 0)
+
+_ASCII_ZERO = ord("0")
+
+
+def _exact_digits(text: str) -> "tuple[int, tuple[str, ...], int]":
+    """The canonical triple of a spelling ALREADY READ AS A NUMBER.
+
+    Asked only about text the reader of record has classified as a
+    number this format can hold, which is what lets the scan below be
+    arithmetic over the characters rather than a second opinion about
+    what the cell is: nothing here decides whether a spelling is a
+    number, so nothing here can disagree with the answer already given.
+
+    Guarantees: accepts text the reader has accepted; returns the
+    canonical triple denoting exactly that number; raises TypeError if
+    handed anything that is not a string instance. No I/O of any kind.
+    """
+    body = trimmed(text)
+    negative = False
+    if body[:1] == "(" and body[len(body) - 1 : len(body)] == ")":
+        # Accounting parentheses mean negative, and the reader has
+        # already refused a sign inside them, so nothing can say
+        # "negative" twice here.
+        negative = True
+        body = trimmed(body[1 : len(body) - 1])
+    if body[:1] == "-":
+        negative = True
+        body = body[1:]
+    elif body[:1] == "+":
+        body = body[1:]
+    # One pass over the characters. The digits are collected in order
+    # with the leading zeros left out, the decimal places are counted,
+    # and the exponent is added up after the `e`. A thousands separator
+    # is none of those things and contributes nothing to the value, so
+    # it falls through every branch, which is exactly right.
+    digits: list[str] = []
+    places = 0
+    after_point = False
+    in_exponent = False
+    exponent_negative = False
+    magnitude = 0
+    for character in body:
+        if in_exponent:
+            if character == "-":
+                exponent_negative = True
+            elif "0" <= character <= "9" and len(digits):
+                # The exponent is added up only while a digit that is
+                # not a leading zero has been seen. That keeps `0e`
+                # followed by a thousand nines cheap -- such a spelling
+                # is zero whatever its exponent says -- and it is why
+                # the magnitude below stays small: a spelling this
+                # format can hold, whose digits are not all zeros, has
+                # an exponent within a few hundred of the number of
+                # digits written.
+                magnitude = magnitude * 10 + (ord(character) - _ASCII_ZERO)
+        elif "0" <= character <= "9":
+            if after_point:
+                places = places + 1
+            if character != "0" or len(digits):
+                digits += [character]
+        elif character == ".":
+            after_point = True
+        elif character == "e" or character == "E":
+            in_exponent = True
+    if not len(digits):
+        return EXACTLY_ZERO
+    if exponent_negative:
+        power = -places - magnitude
+    else:
+        power = -places + magnitude
+    kept = len(digits)
+    while kept > 0 and digits[kept - 1] == "0":
+        kept = kept - 1
+        power = power + 1
+    return (-1 if negative else 1, tuple(digits[:kept]), power)
+
+
+def exact_of_accepted_number(
+    text: str,
+) -> "tuple[int, tuple[str, ...], int]":
+    """The same triple, for text the reader has ALREADY accepted.
+
+    The entry point below classifies first, which is right for a caller
+    holding an arbitrary spelling. A caller that has just asked
+    `classify_number` itself and got NUMBER would be paying for that
+    answer twice, and one such caller reads every cell of every
+    column -- so the two doors are both here rather than one of them
+    being a private name somebody reaches around.
+
+    Guarantees: accepts text the reader has accepted; returns the
+    canonical triple denoting exactly that number; raises TypeError if
+    handed anything that is not a string instance. No I/O of any kind.
+    """
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT)
+    return _exact_digits(text)
+
+
+def exact_of_spelling(text: str) -> "tuple[int, tuple[str, ...], int] | None":
+    """The exact number a spelling denotes, or None when it denotes none.
+
+    THE RULE OF RECORD FOR "ARE THESE TWO SPELLINGS ONE NUMBER", and it
+    lives here because every module imports this one. It decides FIRST,
+    through `classify_number`, whether the text is a number this format
+    can hold: nothing is exact about a spelling the rest of the tool
+    refuses, and asking that question a second way is how two parts of
+    one program come to disagree about what a value is.
+
+    Two texts give equal triples exactly when they denote the same
+    number, and unequal triples exactly when they denote different
+    numbers, HOWEVER CLOSE the binary64 values they round to. That is
+    the whole point: `-999` and `-999.00000000000001` are two numbers a
+    person can tell apart, and a comparison made after rounding calls
+    them one.
+
+    Guarantees: accepts any text; returns the canonical triple or None;
+    raises TypeError if handed anything that is not a string instance.
+    No I/O of any kind.
+    """
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT)
+    if classify_number(text) != NUMBER:
+        return None
+    return _exact_digits(text)
 
 
 def token_count(text: str) -> int:
@@ -965,11 +2371,15 @@ WHOLE_UNKNOWN = "unknown"
 MISSING_BLANK = "(blank)"
 MISSING_TEXT_CODE = "(text-code)"
 MISSING_NUMERIC_SENTINEL = "(numeric-sentinel)"
+MISSING_DATE_SENTINEL = "(date-sentinel)"
 MISSING_DECLARED = "(declared-missing)"
 MISSING_WITHHELD = "(withheld)"
 
+# In code-point order, which is the order the contract enumerates them
+# in and the order every total walk over them takes.
 MISSING_CLASSES = (
     MISSING_BLANK,
+    MISSING_DATE_SENTINEL,
     MISSING_DECLARED,
     MISSING_NUMERIC_SENTINEL,
     MISSING_TEXT_CODE,
@@ -978,6 +2388,7 @@ MISSING_CLASSES = (
 
 # How finely a datetime column states its time of day.
 PRECISION_QUARTER = "quarter"
+PRECISION_MONTH = "month"
 PRECISION_DATE = "date"
 PRECISION_MINUTE = "minute"
 PRECISION_SECOND = "second"
@@ -991,6 +2402,10 @@ PRECISION_ORDER = (
     PRECISION_SECOND,
     PRECISION_MINUTE,
     PRECISION_DATE,
+    # A MONTH IS COARSER THAN A DAY AND FINER THAN A QUARTER, so it
+    # sits between them: three months make a quarter and a month holds
+    # twenty-eight days or more (plan P4-D4.3 item 2).
+    PRECISION_MONTH,
     PRECISION_QUARTER,
 )
 
@@ -1291,14 +2706,41 @@ def instant_key(canonical: str, offset: str) -> "int | None":
 
 
 def _clock_of(text: str, format_name: str) -> "str | None":
-    """The time-of-day part of an iso-datetime cell, offset removed."""
+    """The time-of-day part of an iso-datetime cell, offset removed.
+
+    THE JOINT READING IS ANSWERED CELL BY CELL. Under `iso-mixed` some
+    cells carry a time of day and some are whole dates, so the question
+    is asked of the cell rather than of the column: a whole date is
+    shorter than the guard below and answers None, which is the same
+    answer it gives under any date-only form.
+    """
     if not isinstance(text, str):
         raise TypeError(_NOT_TEXT)
     if not isinstance(format_name, str):
         raise TypeError(_NOT_TEXT)
-    if format_name != "iso-datetime":
-        return None
     body = text.strip()
+    if (
+        format_name == "month-first-datetime"
+        or format_name == "day-first-datetime"
+    ):
+        # THE SLASHED STAMPS ANSWER FROM THEIR OWN TEXT. Their date
+        # half is not ten characters wide, so the ISO cut below finds
+        # nothing; the clock is what stands after the one space, and it
+        # is the time-of-day role's own two forms, so the same answer
+        # comes back here as the reader accepted.
+        if parse_datetime(text, format_name) is None:
+            return None
+        mark = 0
+        place = 0
+        for character in body:
+            if character == " ":
+                mark = place
+            place = place + 1
+        if mark < 1:
+            return None
+        return body[mark + 1 :]
+    if format_name != "iso-datetime" and format_name != "iso-mixed":
+        return None
     if len(body) < 16:
         return None
     split = _split_offset(body[11:])
@@ -1325,6 +2767,8 @@ def datetime_precision(text: str, format_name: str) -> str:
         raise TypeError(_NOT_TEXT)
     if format_name == "year-quarter":
         return PRECISION_QUARTER
+    if format_name == "iso-month":
+        return PRECISION_MONTH
     clock = _clock_of(text, format_name)
     if clock is None:
         return PRECISION_DATE
@@ -1363,3 +2807,141 @@ def looks_like_a_column_name(text: str) -> bool:
     if not isinstance(text, str):
         raise TypeError(_NOT_TEXT)
     return parse_number(text) is None
+
+
+def _average_ranks(values: "list[float]") -> "list[float]":
+    """The rank of each value, ties sharing the average of their ranks."""
+    # PAIRS SORTED PLAINLY, not a sort with a key of its own: the
+    # offline audit accepts no function handed to a callee it did not
+    # scan, and a tuple sorts on its first member anyway.
+    pairs: "list[tuple[float, int]]" = []
+    for seat in range(len(values)):
+        pairs = pairs + [(values[seat], seat)]
+    pairs = sorted(pairs)
+    ranks = [0.0 for _each in values]
+    at = 0
+    while at < len(pairs):
+        last = at
+        while last + 1 < len(pairs) and pairs[last + 1][0] == pairs[at][0]:
+            last = last + 1
+        shared = (at + last) / 2.0
+        for seat in range(at, last + 1):
+            ranks[pairs[seat][1]] = shared
+        at = last + 1
+    return ranks
+
+
+def rank_agreement(first: "list[float]", second: "list[float]") -> float:
+    """How strongly two positions of a cell move together, -1 to 1.
+
+    Guarantees:
+
+    - Inputs: two equally long lists of the numbers one position held,
+      in row order.
+    - Determinism: a fixed function of them. Nothing here reads a clock
+      or a random source.
+    - Errors raised: none. A position whose values are all the same has
+      no ranks to agree on and answers 0.0.
+    - Boundary: returns ONE number about the whole column. No value of
+      any cell reaches it or leaves it.
+
+    THE RANKS AND NOT THE VALUES, and that is the point rather than a
+    convenience. What each position holds is already published exactly,
+    down to the last cell, so nothing about the values is left to say.
+    What is NOT published is which of them met in a row -- and rank
+    agreement is exactly that and nothing else: it does not move when a
+    position's own numbers change, only when the PAIRING does. So it
+    adds the one fact the description was missing and repeats none it
+    already carries.
+    """
+    if len(first) != len(second) or len(first) < 2:
+        return 0.0
+    left = _average_ranks(first)
+    right = _average_ranks(second)
+    middle = (len(left) - 1) / 2.0
+    top = 0.0
+    spread_left = 0.0
+    spread_right = 0.0
+    for seat in range(len(left)):
+        away_left = left[seat] - middle
+        away_right = right[seat] - middle
+        top = top + away_left * away_right
+        spread_left = spread_left + away_left * away_left
+        spread_right = spread_right + away_right * away_right
+    if spread_left <= 0.0 or spread_right <= 0.0:
+        return 0.0
+    return float(top / ((spread_left * spread_right) ** 0.5))
+
+
+# HOW MANY BINS A HISTOGRAM OF NUMBERS HAS, and it is a fixed count on
+# purpose (plan P4-D4.7, owner instruction 2026-08-26). The generator
+# holds only the description, so whatever picks the bin edges has to be
+# reproducible from the description alone; a rule that consulted the
+# values would be a rule the generator cannot run. Thirty-two equal
+# bins between the published minimum and maximum need no fact the
+# description does not already carry, and a column with fewer values
+# than bins simply writes fewer keys, because an empty bin has no key.
+#
+# WHY A HISTOGRAM AND NOT MORE RUNGS. Moments and percentiles cannot
+# show two peaks: a column of two populations -- treated and untreated
+# -- has the same mean, spread, skew and ladder as one smooth
+# population at eleven rungs, so a twin built from those facts is
+# smooth where the real column is not, and anybody plotting a
+# distribution or fitting a mixture gets a different answer on the
+# twin. Nothing else in the numeric block fixes that.
+HISTOGRAM_BINS = 32
+
+
+def histogram_bin(value: float, lowest: float, highest: float) -> int:
+    """Which of the `HISTOGRAM_BINS` bins one value falls in.
+
+    The bins are equal in width and half-open at the top -- a value on
+    a shared edge belongs to the LOWER bin -- except the last, which is
+    closed so the published maximum has somewhere to go. A column whose
+    values are all one number has no width to divide and everything
+    falls in the first bin.
+
+    THE RULE LIVES HERE because three modules must agree on it: the
+    producer that counts the bins, the loader that checks the count,
+    and the generator that has to land its values in them. A rule
+    two of them shared and the third re-derived is a rule that comes
+    apart.
+
+    Guarantees: accepts a value and the two published ends; returns a
+    bin number from zero to `HISTOGRAM_BINS - 1`. Raises nothing. No
+    I/O of any kind.
+    """
+    # A NUMBER THIS FORMAT CANNOT HOLD HAS NO PLACE ON A SCALE. An
+    # infinite end makes every division by the range a NaN, and a NaN
+    # is not a bin number; a column reaching that state publishes no
+    # histogram at all, and this returns the first bin so the rule is
+    # TOTAL rather than raising into a caller with no answer.
+    #
+    # `x - x` IS THE TEST, and it is written that way because this
+    # module imports nothing -- not even `math` -- and is the one place
+    # the producer, the loader and the generator all read this rule
+    # from. It is zero for every finite number, and NaN for an infinity
+    # and for a NaN, and NaN is equal to nothing including itself.
+    if value - value != 0.0:
+        return 0
+    if lowest - lowest != 0.0 or highest - highest != 0.0:
+        return 0
+    if not highest > lowest:
+        return 0
+    # AND THE SUBTRACTION ITSELF CAN LEAVE THE FORMAT even where both
+    # ends are inside it: a column running from about -1e308 to about
+    # 1e308 has finite ends and an infinite WIDTH, and dividing one
+    # overflow by another gives a NaN. Every derived quantity is
+    # therefore tested the same way the inputs were.
+    reach = highest - lowest
+    if reach - reach != 0.0 or not reach > 0.0:
+        return 0
+    share = (value - lowest) / reach
+    if share - share != 0.0:
+        return 0
+    place = int(share * HISTOGRAM_BINS)
+    if place < 0:
+        return 0
+    if place >= HISTOGRAM_BINS:
+        return HISTOGRAM_BINS - 1
+    return place

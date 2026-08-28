@@ -106,6 +106,10 @@ _TYPE_WORDS = {
     "count": "whole numbers that count things",
     "continuous": "measured numbers",
     "categorical": "a set of categories",
+    "long_tail_labels": (
+        "many different values, some of them repeated often enough to "
+        "name"
+    ),
     "code": "record numbers or codes (you named this column)",
     "text": "free text",
 }
@@ -474,6 +478,221 @@ def _invented_columns(profile: contract.Profile) -> "frozenset[str]":
     return frozenset(made_up)
 
 
+# THE THREE INVENTION CLASSES (plan P4-D2). A column belongs to at most
+# one of them, and the class decides which sentence its block carries.
+#
+# WHY THREE AND NOT ONE. A single sentence would be false at both edges.
+# "Every value here is invented" is false of a category column that
+# carries its published labels and made up only the withheld tail; and
+# an invention sentence about an EMPTY column is false of a twin that
+# holds no present cell of it at all. So the classes are drawn where the
+# truth changes, and a column that belongs to none of them gets no
+# sentence rather than a hedged one.
+_MADE_UP_NOTHING = ""
+_MADE_UP_EVERYTHING = "everything"
+_MADE_UP_HELD_BACK = "held-back"
+_MADE_UP_UNCARRIED = "uncarried"
+
+
+def _held_back_cells(facts: contract.LabelFacts) -> int:
+    """How many cells of a label column's twin are neutral stand-ins.
+
+    Two kinds, counted together because a reader meets them as one
+    thing: the rows of every level the floor held back entirely, and
+    the rows inside a published level whose SPELLING the floor held
+    back. The second reads its counts through `contract.occurrence_size`
+    because a repetition map's keys are row counts written as text, and
+    that function is the one reader of them.
+    """
+    total = facts.suppressed_rows
+    for level in facts.levels:
+        for key in sorted(level.variants_withheld):
+            size = contract.occurrence_size(key)
+            if size is None:
+                continue
+            total = total + size * level.variants_withheld[key]
+    return total
+
+
+def _made_up_class(column: contract.ColumnBlock) -> str:
+    """Which invention class this column is in (plan P4-D2, A-P4-2).
+
+    THE ROLE OPENS A CLASS; THE CELLS SETTLE IT (plan amendment A-P4-2,
+    review item P4-C1-F3). Reading the role alone put a label column
+    whose every level the floor held back into the partly-invented
+    class -- and such a column has no published spelling at all, so
+    every present cell of its twin is a neutral stand-in and the page
+    told the reader there were values of theirs beside them when there
+    were none. The count the plan asks for is a count of CELLS, so the
+    edge is decided by cells: a column all of whose present cells are
+    invented is in the everything class however its role publishes.
+    """
+    # A column with no present cell has no invented cell either, so it
+    # is in no class whatever its role says -- the empty-column carve-out
+    # the plan states, and the reason this test comes first.
+    if not column.n_present:
+        return _MADE_UP_NOTHING
+    if column.structural_role == "identifier" or column.role in (
+        "free_text",
+        "numeric_unrepresentable",
+    ):
+        return _MADE_UP_EVERYTHING
+    facts = column.facts
+    if isinstance(facts, contract.LabelFacts):
+        return _how_much(column, _held_back_cells(facts), _MADE_UP_HELD_BACK)
+    return _how_much(column, _uncarried_cells(column), _MADE_UP_UNCARRIED)
+
+
+def _how_much(
+    column: contract.ColumnBlock, invented: int, partly: str
+) -> str:
+    """No invented cell, some of them, or the whole column (A-P4-2)."""
+    if not invented:
+        return _MADE_UP_NOTHING
+    if invented >= column.n_present:
+        return _MADE_UP_EVERYTHING
+    return partly
+
+
+def _uncarried_cells(column: contract.ColumnBlock) -> int:
+    """How many cells the description counts but carries no value for.
+
+    On a numeric column these are the three classes beside the numbers
+    themselves -- out of range, contradictory, and not a number at all --
+    which the twin writes as counted stand-ins. On a datetime column it
+    is the cells that did not read as dates. It is deliberately NOT the
+    four universal counts on a datetime column: a written date is not a
+    number, so those counts describe every cell of it and would name the
+    whole column invented.
+    """
+    facts = column.facts
+    if isinstance(facts, contract.DatetimeFacts):
+        return facts.n_unparsed
+    if isinstance(facts, contract.NumericFacts):
+        return (
+            column.n_out_of_range
+            + column.n_contradictory
+            + column.n_not_numeric
+        )
+    return 0
+
+
+def _made_up_lines(column: contract.ColumnBlock, floor: int) -> "list[str]":
+    """What this column's twin cells are, said once and unconditionally.
+
+    Plan P4-D2 item 1. Before this section existed the only place a
+    report said a cell was invented was inside the spreadsheet warning,
+    and only when a cell there began with a formula character -- so a
+    reader of an ordinary free-text column met a twin full of made-up
+    text and no sentence anywhere saying so. The sentence is now a
+    property of the CLASS, not of what the cells happen to look like.
+    """
+    made_up = _made_up_class(column)
+    # WHAT THESE SENTENCES MAY NOT SAY (review item P4-C1-F1). An
+    # earlier wording had the invented cells "meet its counts, lengths
+    # and shapes" -- an achievement claim, and one this same page can
+    # contradict two sections higher up, because a twin does not always
+    # meet every published fact and the deviation list is where it says
+    # so. A column of record numbers whose length range cannot supply
+    # the distinct values it owes is the standing example: three
+    # distinctness facts are reported missed there, by the owner's own
+    # ruling. So the sentences below say what the cells were built to
+    # meet, never what they met, and send the reader to the section that
+    # answers the second question.
+    if made_up == _MADE_UP_EVERYTHING:
+        return [
+            (
+                f"  synthtwin MADE UP all {column.n_present} of this "
+                f"column's present value(s)."
+            ),
+            "  They were built to meet the facts your description",
+            "  publishes and nothing else; the sections above name every",
+            "  such fact the twin could not meet. A number you compute",
+            "  from these cells describes synthtwin's invention and says",
+            "  nothing about your table.",
+        ]
+    if made_up == _MADE_UP_HELD_BACK:
+        facts = column.facts
+        if not isinstance(facts, contract.LabelFacts):
+            return []
+        held = _held_back_cells(facts)
+        return [
+            (
+                f"  synthtwin MADE UP {held} of this column's "
+                f"{column.n_present} present value(s):"
+            ),
+            (
+                f"  the labels and spellings fewer than {floor} rows share "
+                f"are not in"
+            ),
+            "  your description, so the twin carries neutral stand-ins at",
+            (
+                f"  their counts instead. The other "
+                f"{column.n_present - held} are value(s) your"
+            ),
+            "  description publishes. A number you compute from the",
+            "  made-up cells describes synthtwin's invention and says",
+            "  nothing about your table.",
+        ]
+    if made_up == _MADE_UP_UNCARRIED:
+        uncarried = _uncarried_cells(column)
+        return [
+            (
+                f"  synthtwin MADE UP {uncarried} of this column's "
+                f"{column.n_present} present value(s):"
+            ),
+            "  your description counts those cells but carries no value",
+            "  for them, so the twin writes counted stand-ins in their",
+            (
+                f"  place. The other {column.n_present - uncarried} were "
+                f"built from the facts your"
+            ),
+            "  description publishes. A number you compute from the",
+            "  made-up cells describes synthtwin's invention and says",
+            "  nothing about your table.",
+        ]
+    return []
+
+
+def _made_up_totals(profile: contract.Profile) -> "tuple[int, int]":
+    """How many columns are invented outright, and how many in part."""
+    whole = 0
+    part = 0
+    for column in profile.columns:
+        made_up = _made_up_class(column)
+        if made_up == _MADE_UP_EVERYTHING:
+            whole = whole + 1
+        elif made_up in (_MADE_UP_HELD_BACK, _MADE_UP_UNCARRIED):
+            part = part + 1
+    return whole, part
+
+
+def made_up_warning(profile: contract.Profile) -> str:
+    """The one screen line naming what this twin invented (P4-D2 item 2).
+
+    Guarantees:
+
+    - Inputs: a loaded description; no file, no table, no clock.
+    - Determinism: a fixed function of the description.
+    - Errors raised: none.
+    - Boundary: names counts and no value of any column, so it is safe
+      on every surface the report itself is safe on.
+
+    It counts BOTH kinds. A line that counted only the columns invented
+    outright would read "0 of 1" over a twin whose one column carries
+    invented labels, which is the shape of sentence this phase exists to
+    remove.
+    """
+    whole, part = _made_up_totals(profile)
+    total = len(profile.columns)
+    return (
+        f"{whole} of this twin's {total} column(s) hold nothing but values "
+        f"synthtwin made up, and {part} more column(s) hold some made-up "
+        f"cells beside values your description publishes. The report says "
+        f"which, and how many, column by column."
+    )
+
+
 def _formula_lines(
     profile: contract.Profile, twin: generation.Twin
 ) -> "list[str]":
@@ -607,6 +826,19 @@ def _deviation_lines(twin: generation.Twin) -> "list[str]":
         lines = lines + [
             "Nothing was given up in this run: every published fact this",
             "method reproduces exactly was reproduced exactly.",
+            "",
+        ]
+    # A TWIN CAN MEET EVERY FACT AND STILL HOLD SOMETHING WORTH KNOWING
+    # (P4-G2-R4-F1), and this section is the wrong place to describe it
+    # -- these are not missed facts. So it is pointed at, not restated.
+    if twin.remarks:
+        lines = lines + [
+            "Separately from anything above: this twin holds something a",
+            f"reader should know about in {len(twin.remarks)} case(s), "
+            f"where no",
+            "published fact was missed to produce it. Each one is named in",
+            "its own column's block further down, under 'What the twin",
+            "holds'.",
             "",
         ]
     for deviation in twin.deviations:
@@ -883,6 +1115,14 @@ def _by_reason_lines(
             "a number this column used as a stand-in for 'no value'",
         ),
         (classes.text_code, "a code such as NA that reads as 'no value'"),
+        # THE SIXTH REASON, and its line was missing entirely (review
+        # item P4-HOLE-F5): a column with twelve placeholder cells
+        # printed a reason table adding to nothing while the block
+        # beside it counted twelve absent.
+        (
+            classes.date_sentinel,
+            "a date this column used as a stand-in for 'no value'",
+        ),
     ]
     lines: list[str] = []
     for count, reason in reasons:
@@ -920,10 +1160,38 @@ def _sentinel_lines(column: contract.ColumnBlock) -> "list[str]":
     """
     if not column.sentinel_verdicts:
         return []
-    lines = [
-        "  Numbers this column used as stand-ins for 'no value', and what",
-        "  synthtwin decided about each. The twin does not reproduce them:",
-    ]
+    # THE CANDIDATES ARE OF TWO KINDS AND THE PAGE SAYS SO (review item
+    # P4-HOLE-F5). A placeholder day is not a number, and a section
+    # headed "numbers this column used" that then prints `9999-12-31`
+    # tells its reader the wrong thing about what the column held.
+    days = 0
+    numbers = 0
+    for verdict in column.sentinel_verdicts:
+        if verdict.candidate in parsing.calendar_placeholders():
+            days = days + 1
+        else:
+            numbers = numbers + 1
+    if numbers and days:
+        opening = (
+            "  Values this column used as stand-ins for 'no value' -- "
+            "numbers and"
+        )
+        lines = [
+            opening,
+            "  dates both -- and what synthtwin decided about each. The",
+            "  twin does not reproduce them:",
+        ]
+    elif days:
+        lines = [
+            "  Dates this column used as stand-ins for 'no value', and what",
+            "  synthtwin decided about each. The twin does not reproduce",
+            "  them:",
+        ]
+    else:
+        lines = [
+            "  Numbers this column used as stand-ins for 'no value', and what",
+            "  synthtwin decided about each. The twin does not reproduce them:",
+        ]
     for verdict in column.sentinel_verdicts:
         decision = verdict.verdict
         if decision in _VERDICT_WORDS:
@@ -933,7 +1201,7 @@ def _sentinel_lines(column: contract.ColumnBlock) -> "list[str]":
             because = _REASON_WORDS[because]
         named = f"{_shown(verdict.candidate)}"
         if verdict.candidate == contract.WITHHELD:
-            named = "a number not named here"
+            named = "a value not named here"
         lines = lines + [
             (
                 f"    {named} in "
@@ -941,25 +1209,64 @@ def _sentinel_lines(column: contract.ColumnBlock) -> "list[str]":
                 f"because {_shown(because)}"
             )
         ]
+    if days and not numbers:
+        return lines + [
+            "  A date the twin worked out can land on one of those days by",
+            "  ordinary interpolation. Describing the twin again would",
+            "  count that cell absent, exactly as your own column's cells",
+            "  were counted.",
+        ]
     return lines + [
-        "  A number the twin worked out can land on one of those spellings",
+        "  A value the twin worked out can land on one of those spellings",
         "  by arithmetic alone. Describing the twin again would count that",
         "  cell absent, exactly as your own column's cells were counted.",
     ]
 
 
+# The date readings whose own spelling IS what the twin writes. A
+# column read under one of these gets the same text back, so telling
+# its reader that the spelling changed would be a false warning
+# (review item P4-DATE3-F5).
+_SPELLINGS_THE_TWIN_KEEPS = (
+    "iso-date",
+    "iso-datetime",
+    "iso-month",
+    "year-quarter",
+)
+
+
 def _datetime_lines(column: contract.ColumnBlock) -> "list[str]":
-    """The date spelling the twin does not keep (residual R-P2-7)."""
+    """The date spelling the twin does not keep (residual R-P2-7).
+
+    ...OR DOES, AND THE TWO CASES SAY DIFFERENT THINGS. The twin writes
+    the international form. Where the column was already read in it --
+    a column of ISO dates, of ISO stamps, of months, of quarters --
+    nothing about the spelling changed and the reader is told so;
+    telling such a reader to change an explicit format would send them
+    to fix code that is not broken (review item P4-DATE3-F5).
+    """
     facts = column.facts
     if not isinstance(facts, contract.DatetimeFacts):
         return []
-    return [
+    lines = [
         "  The twin writes this column's dates in the international form",
-        "  (2024-03-15, or 2024-Q1 for a column of quarters), at the same",
-        "  precision your table had and with an offset only where the",
+        "  (2024-03-15; 2024-03 for a column of months, 2024-Q1 for a",
+        "  column of quarters), at the same precision your table had and",
+        "  with an offset only where the description records one.",
+    ]
+    if facts.parser_family in _SPELLINGS_THE_TWIN_KEEPS:
+        return lines + [
+            (
+                f"  Your table's own spelling was read as "
+                f"'{_shown(facts.parser_family)}', which IS that form, so"
+            ),
+            "  code that reads these dates with an explicit format needs no",
+            "  change for the twin.",
+        ]
+    return lines + [
         (
-            f"  description records one. Your table's own spelling was read "
-            f"as '{_shown(facts.parser_family)}', and it is NOT kept:"
+            f"  Your table's own spelling was read as "
+            f"'{_shown(facts.parser_family)}', and it is NOT kept:"
         ),
         "  code that reads dates with an explicit format needs that format",
         "  changed for the twin.",
@@ -1000,6 +1307,10 @@ def _column_lines(
             f"{column.n_missing}."
         ),
     ]
+    # WHAT THE CELLS ARE comes before how the column was read, because a
+    # reader who stops after three lines has met the one fact that
+    # decides whether anything below is worth computing on (plan P4-D2).
+    lines = lines + _made_up_lines(column, floor)
     if column.detection_evidence:
         lines = lines + [
             (
@@ -1009,6 +1320,19 @@ def _column_lines(
         ]
     for remark in column.remarks:
         lines = lines + [f"  Note from the description: {_shown(remark)}"]
+    # WHAT THIS COLUMN'S TWIN HOLDS THAT MISSED NOTHING (P4-G2-R4-F1).
+    # These are NOT deviations and must never be printed as though they
+    # were: every published fact of the column can be met exactly while
+    # one of them is true, so a heading saying a fact could not be held
+    # would tell the reader an exact fact failed when it succeeded. The
+    # label therefore names the twin rather than the description, and
+    # the sentence beside it says which is which.
+    for held in outcome.remarks:
+        lines = lines + [
+            f"  What the twin holds -- {_shown(held.subject)}:",
+            f"    {_shown(held.held)}",
+            f"    {_shown(held.note)}",
+        ]
     for note in notes:
         lines = lines + [f"  Held back from the description: {_shown(note)}"]
     lines = lines + _missing_lines(column, floor)
@@ -1100,25 +1424,25 @@ def _lowered_floor_lines(profile: contract.Profile) -> "list[str]":
     - Boundary: no value of any table reaches it; it names counts.
     """
     floor = profile.settings.small_cell_floor
-    if floor >= contract.DEFAULT_SMALL_CELL_FLOOR:
+    if floor >= contract.SMALL_GROUP_NOTICE_LINE:
         return []
-    usual = contract.DEFAULT_SMALL_CELL_FLOOR
+    usual = contract.SMALL_GROUP_NOTICE_LINE
     lines = [
         _RULE,
         (
-            f"THIS DESCRIPTION WAS MADE WITH THE SMALLEST GROUP SIZE "
-            f"LOWERED TO {floor}"
+            f"THIS DESCRIPTION NAMES GROUPS AS SMALL AS {floor} ROW(S)"
         ),
         _RULE,
         "",
         (
-            f"synthtwin normally publishes a value only where at least "
-            f"{usual} rows"
+            f"A description holds nothing back for being a small group "
+            f"unless it is asked to. Pooling everything under {usual} rows"
         ),
-        "of the real table shared it. This description publishes values as",
-        f"few as {floor} row(s) shared, together with how many rows that",
-        "is -- and the twin beside this report was built to hold those",
-        "counts exactly, so the twin carries them and so does this page.",
+        f"is what --smallest-group {usual} does, and this description was",
+        f"not made that way: it names values as few as {floor} row(s)",
+        "shared, together with how many rows that is -- and the twin",
+        "beside this report was built to hold those counts exactly, so",
+        "the twin carries them and so does this page.",
         "",
     ]
     # "a group of 1 is 1 people" is not English, so at a floor of one the
@@ -1308,10 +1632,17 @@ def report(profile: contract.Profile, twin: generation.Twin) -> str:
         "COLUMN BY COLUMN: WHAT ONLY THE DESCRIPTION HOLDS",
         _RULE,
         "",
-        "The twin reproduces the values and the counts. What it cannot",
-        "carry -- how your table wrote the cells it left empty, what was",
-        "held back as too rare to publish, how synthtwin read each column --",
-        "is recorded here, once per column.",
+        # THIS PREAMBLE USED TO SAY, FLATLY, THAT THE TWIN REPRODUCES THE
+        # VALUES (review item P4-C1-F2). It does where your description
+        # publishes values; where it publishes none the cells are
+        # synthtwin's own, and a page that says both without saying which
+        # is which hands the reader two answers to one question.
+        "Where your description publishes values, the twin writes them and",
+        "reproduces the counts. Where it publishes none, the cells are",
+        "synthtwin's own -- each block below says which of its cells are",
+        "which. What no twin can carry -- how your table wrote the cells it",
+        "left empty, what was held back as too rare to publish, how",
+        "synthtwin read each column -- is recorded here, once per column.",
         "",
     ]
     # The description's columns and the twin's outcomes are the same
@@ -1325,7 +1656,34 @@ def report(profile: contract.Profile, twin: generation.Twin) -> str:
             _notes_for(profile, column.name),
             profile.settings.small_cell_floor,
         )
+    # The count of what this twin invented, after the blocks that name it
+    # column by column and before the page turns to what the report is
+    # not (plan P4-D2 item 2). It prints on every run, whatever the
+    # count is, for the reason the spreadsheet count prints on every run:
+    # a number nobody sees until somebody suspects it is a number nobody
+    # sees.
+    whole, part = _made_up_totals(profile)
     lines = lines + [
+        _RULE,
+        "HOW MUCH OF THIS TWIN SYNTHTWIN MADE UP",
+        _RULE,
+        "",
+        (
+            f"{whole} of the {len(profile.columns)} column(s) hold nothing "
+            f"but values"
+        ),
+        (
+            f"synthtwin made up. {part} more column(s) hold some made-up "
+            f"cells beside"
+        ),
+        "values your description publishes. The column blocks above say which",
+        "columns those are and how many cells each one holds.",
+        "",
+        "Values synthtwin made up were built to meet the facts your",
+        "description publishes and nothing else; where the twin could not",
+        "meet one, the sections above name it. They are not your data, and",
+        "a number computed from them is a number about synthtwin.",
+        "",
         _RULE,
         "WHAT THIS REPORT IS NOT, AND WHAT TO RUN FOR THE OTHER THING",
         _RULE,

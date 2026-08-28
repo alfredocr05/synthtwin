@@ -1635,6 +1635,11 @@ def ordinal_of(text, resolution):
     if resolution == "quarter":
         year, quarter = text.split("-Q")
         return 4 * (int(year) - 1970) + (int(quarter) - 1)
+    if resolution == "month":
+        # G7.1's month row: twelve to the year, from the same origin
+        # the quarter counts from.  A month names a SPAN, so it has a
+        # space of its own and no day is consulted.
+        return 12 * (int(text[0:4]) - 1970) + (int(text[5:7]) - 1)
     date_text = text[:10]
     year, month, day = (int(part) for part in date_text.split("-"))
     days = days_from_civil(year, month, day)
@@ -1651,6 +1656,9 @@ def precision_form(ordinal, resolution, time_precision, subsecond_digits):
         year = 1970 + ordinal // 4
         quarter = ordinal % 4 + 1
         return f"{year:04d}-Q{quarter}"
+    if resolution == "month":
+        year = 1970 + ordinal // 12
+        return f"{year:04d}-{ordinal % 12 + 1:02d}"
     if resolution == "date":
         year, month, day = civil_from_days(ordinal)
         return f"{year:04d}-{month:02d}-{day:02d}"
@@ -1668,6 +1676,56 @@ def precision_form(ordinal, resolution, time_precision, subsecond_digits):
     # digits the finest cell carried and nothing about their values, so
     # any other digits would be an invented fact.
     return stem + "." + "0" * subsecond_digits
+
+
+CLOCK_STEP = {"hh-mm": 60, "hh-mm-ss": 1}
+CLOCK_CAPACITY = {"hh-mm": 24 * 60, "hh-mm-ss": 24 * 60 * 60}
+
+
+def clock_ordinal_of(text, form):
+    """One clock cell as its place in its form's own unit (G7A.1).
+
+    Minutes of day for `hh-mm`, seconds of day for `hh-mm-ss`.  The
+    reader is deliberately exact and NOTHING is trimmed first: what this
+    role publishes are the cells themselves, character for character.
+    """
+    if form not in CLOCK_STEP:
+        raise AssertionError(f"{form!r} is not one of the two clock forms")
+    wanted = 8 if form == "hh-mm-ss" else 5
+    if len(text) != wanted:
+        raise AssertionError(f"{text!r} is not a cell of form {form}")
+    fields = text.split(":")
+    if len(fields) != (3 if form == "hh-mm-ss" else 2):
+        raise AssertionError(f"{text!r} is not a cell of form {form}")
+    numbers = []
+    for field in fields:
+        if len(field) != 2 or not field.isdigit():
+            raise AssertionError(f"{text!r} is not a cell of form {form}")
+        numbers.append(int(field))
+    if numbers[0] > 23:
+        raise AssertionError(f"{text!r} has an hour above 23")
+    for rest in numbers[1:]:
+        if rest > 59:
+            raise AssertionError(f"{text!r} has a field above 59")
+    if form == "hh-mm":
+        return numbers[0] * 60 + numbers[1]
+    return numbers[0] * 3600 + numbers[1] * 60 + numbers[2]
+
+
+def clock_spelling_of(ordinal, form):
+    """The one spelling of one ordinal in one form (G7A.1).
+
+    The inverse of `clock_ordinal_of`, zero-padded to two digits a
+    field, so a producer and a generator cannot spell one time two ways.
+    """
+    if form not in CLOCK_STEP:
+        raise AssertionError(f"{form!r} is not one of the two clock forms")
+    if ordinal < 0 or ordinal >= CLOCK_CAPACITY[form]:
+        raise AssertionError(f"{ordinal} is outside the space of {form}")
+    if form == "hh-mm":
+        return "%02d:%02d" % (ordinal // 60, ordinal % 60)
+    rest = ordinal % 3600
+    return "%02d:%02d:%02d" % (ordinal // 3600, rest // 60, rest % 60)
 
 
 def interpolated_ordinal(position, denominator, rungs):
@@ -1937,30 +1995,198 @@ def invented_variants(parent, used, wanted):
     return produced
 
 
-def invented_levels(used, sizes):
-    """The neutral stand-in labels of method section G8.3.
+SHAPE_FORM_LIMIT = 24
+WITHHELD = "(withheld)"
+# The two placeholders and the closed mark list, held here so this
+# file's own reading of a form is written out rather than imported --
+# which is the whole point of an oracle.
+SHAPE_DIGIT = "%"
+SHAPE_LETTER = "@"
+SHAPE_MARKS = "-./_:#*()[]+,"
 
-    ``group-1``, ``group-2``, … in order, each candidate skipped and the
-    number advanced when it collides, raw or folded, with any spelling
-    already used in the column.  They carry no fragment of any real
-    value, are not one of the spellings that mean "no value", do not
-    read as a number or a date, need no quoting, and do not begin with a
-    character a spreadsheet reads as a formula.
+
+def usable_stand_in(candidate):
+    """The four properties the neutral spelling had by construction.
+
+    `group-N` had them for free; a spelling built to look like one of
+    the column's own values does not, so each is asked.  This file
+    answers them WITHOUT the shipped reader, which is the whole point
+    of it -- and it must answer them the same way the reader does on
+    every candidate its own cases produce, or the two write different
+    bytes for a reason that is about this file and not about the
+    method.
+
+    So the range it reasons about is bounded and the bound is
+    ENFORCED: a form carrying a figure could produce a candidate that
+    reads back as a number or as a date, and this file states no
+    reading of either.  A case reaching one raises here rather than
+    quietly disagreeing.
+    """
+    if not candidate:
+        return False
+    if folded(candidate) in NO_VALUE_SPELLINGS:
+        return False
+    for character in candidate:
+        if character == "," or character == '"':
+            return False
+        if character.isdigit():
+            raise AssertionError(
+                "this file reasons only about stand-ins with no figure "
+                f"in them, and {candidate!r} has one: a candidate that "
+                "could read back as a number or a date needs the "
+                "number and date rules answered here, not reasoned "
+                "away"
+            )
+    return candidate[0] not in "=+-@"
+
+
+def written_form(text):
+    """The written form of one cell -- contract C6-31a.
+
+    Every ASCII digit becomes ``9``, every ASCII letter ``A``, and every
+    other character stands as itself.  A cell that is empty or longer
+    than the limit has no form at all.
+    """
+    if not text or len(text) > SHAPE_FORM_LIMIT:
+        return ""
+    built = ""
+    figures = letters = marks = 0
+    for character in text:
+        if character in (SHAPE_DIGIT, SHAPE_LETTER):
+            return ""
+        if character.isdigit():
+            built += SHAPE_DIGIT
+            figures = 1
+        elif character.isalpha():
+            built += SHAPE_LETTER
+            letters = 1
+        elif character in SHAPE_MARKS:
+            built += character
+            marks = 1
+        else:
+            return ""
+    if figures + letters + marks < 2:
+        return ""
+    return built
+
+
+def form_room(form):
+    """How many different spellings one form holds."""
+    room = 1
+    for character in form:
+        if character == SHAPE_DIGIT:
+            room *= 10
+        elif character == SHAPE_LETTER:
+            room *= 26
+    return room
+
+
+def shares_a_factor(one, other):
+    left, right = one, other
+    while right:
+        left, right = right, left % right
+    return left != 1
+
+
+def stepped_around(step, room):
+    """``step`` moved around ``room`` so every position varies.
+
+    A stride sharing no factor with the room is a one-to-one map onto
+    it, so no two steps below the room collide and consecutive steps
+    land far apart.  Taken in counting order instead, every position
+    but the lowest stays at zero for the first few hundred values and
+    every cell of the column ends alike.
+    """
+    if room < 4:
+        return step % max(room, 1)
+    stride = max(room * 61803 // 100000, 1)
+    while shares_a_factor(stride, room):
+        stride += 1
+    return (step * stride) % room
+
+
+def filled_form(form, step):
+    """One spelling of one form -- contract 7.9.1."""
+    figures = "0123456789"
+    letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    built = ""
+    place = stepped_around(step, form_room(form))
+    for character in form:
+        if character == SHAPE_DIGIT:
+            built += figures[place % 10]
+            place //= 10
+        elif character == SHAPE_LETTER:
+            built += letters[place % 26]
+            place //= 26
+        else:
+            built += character
+    return built
+
+
+def forms_owed(census, written):
+    """Cells each published form still owes after what is written."""
+    owing = {}
+    for form in sorted(census):
+        if form == WITHHELD:
+            continue
+        owing[form] = census[form]
+    for cell in written:
+        form = written_form(cell)
+        if form in owing and owing[form] > 0:
+            owing[form] -= 1
+    return owing
+
+
+def neediest_form(owing):
+    """The published form owing the most cells, ties by its spelling."""
+    ordered = sorted(
+        (-owing[form], form) for form in sorted(owing) if owing[form] > 0
+    )
+    return ordered[0][1] if ordered else ""
+
+
+def invented_levels(used, sizes, census=None, written=()):
+    """The stand-in labels of method section G8.3.
+
+    Where the column publishes a census of written forms and it still
+    owes cells, the stand-in is one of those forms' spellings; the debt
+    is over the cells the twin has ALREADY WRITTEN, and each stand-in
+    covers its level's size, so the walk chooses only where to settle
+    and settles the largest debt first.  Where the census owes nothing
+    the stand-in is ``group-1``, ``group-2``, … in order.
+
+    Either way each candidate is skipped and the walk advanced when it
+    collides, raw or folded, with any spelling already used in the
+    column, and when it fails one of the four properties the neutral
+    spelling had by construction: it must not be one of the spellings
+    that mean "no value", must read as neither a number nor a date,
+    must carry no comma or quote, and must not begin with a character a
+    spreadsheet reads as a formula.  A collision moves the SPELLING and
+    never the form.
     """
     seen = set(used)
     folds = {folded(text) for text in used}
+    owing = forms_owed(census or {}, written)
     produced = []
-    counter = 1
+    counter = 0
     for size in sizes:
+        form = neediest_form(owing)
         while True:
-            candidate = f"group-{counter}"
             counter += 1
+            if form:
+                candidate = filled_form(form, counter - 1)
+            else:
+                candidate = f"group-{counter}"
             if candidate in seen or folded(candidate) in folds:
+                continue
+            if not usable_stand_in(candidate):
                 continue
             seen.add(candidate)
             folds.add(folded(candidate))
             produced.append((candidate, size))
             break
+        if form:
+            owing[form] = max(0, owing[form] - size)
     return produced
 
 
@@ -2030,6 +2256,28 @@ def place(content, missing, rows, words):
 # ------------------------------------------------------- the four builders
 
 
+def spare_label_rows(level):
+    """How many rows the level's own spelling may cover -- G8.1 step 2.
+
+    The label's own spelling is one more spelling that folds onto the
+    label, and the only further one that KEEPS ITS WRITTEN FORM: a case
+    flip may already be published and a trailing space changes the
+    form.  It is available only where the published and held-back
+    spellings already cover the level's count, since otherwise step 3
+    writes the label itself and that spelling is spoken for.  It is
+    offered to the key naming the LARGEST row count, which is where it
+    covers the most cells.  0 says it is not available.
+    """
+    covered = sum(level["variants"].values())
+    largest = 0
+    for key in level["variants_withheld"]:
+        covered += int(key) * level["variants_withheld"][key]
+        largest = max(largest, int(key))
+    if covered < level["count"]:
+        return 0
+    return largest
+
+
 def _label_content(column):
     """The content list of a label column -- method sections G8.1 and G8.4."""
     content = []
@@ -2044,14 +2292,28 @@ def _label_content(column):
             content.extend([level["label"]] * level["count"])
             used.append(level["label"])
             continue
-        invented = invented_variants(level["label"], used, wanted)
+        spare = spare_label_rows(level)
+        if level["label"] in used:
+            spare = 0
+        invented = invented_variants(
+            level["label"], used, wanted - (1 if spare else 0)
+        )
         supply = iter(invented)
         for key in sorted(withheld, key=int):
             for _ in range(withheld[key]):
-                spelling = next(supply)
+                if spare and int(key) == spare:
+                    spelling = level["label"]
+                    spare = 0
+                else:
+                    spelling = next(supply)
                 content.extend([spelling] * int(key))
                 used.append(spelling)
-    for spelling, size in invented_levels(used, column["suppressed_level_counts"]):
+    for spelling, size in invented_levels(
+        used,
+        column["suppressed_level_counts"],
+        column.get("shape_forms"),
+        content,
+    ):
         content.extend([spelling] * size)
         used.append(spelling)
     return content
@@ -2833,12 +3095,29 @@ def notation_reading(text):
 # ------------------------------------------ the unrepresentable column
 
 
-# The canonical invented width of method section G10.5: a 400-digit
-# whole number is far outside binary64's range, and a fraction written
-# as `0.` followed by 399 zeros and one non-zero digit is far below the
-# smallest subnormal. The width is invented, it is the same for every
-# such column, and the report says so in those words (residual R-P2-1).
-CANONICAL_WIDTH = 400
+# The two shape floors of method section G10.5, revision 4. A whole
+# number leaves binary64's range past about 1.8e308 and a fraction
+# falls below its smallest subnormal past about 5e-324, so a value
+# written narrower than these stops being unholdable at all -- which
+# would make the twin a different kind of column from the one the
+# description publishes. Where a group's asked width is below the floor
+# of the shape it takes, the floor wins and the report names it.
+#
+# THE CANONICAL INVENTED WIDTH OF REVISIONS 1 TO 3 IS GONE (residual
+# R-P2-1, closed). The role now publishes `min_length` and
+# `max_length`, so there is a width to write at and no width to invent.
+# Both are counts of the ROOM a value has AFTER its sign, because a
+# minus sign buys no magnitude: 309 figures is the first whole number
+# past the largest binary64 and 326 characters is the first
+# `0.`-and-zeros fraction below the smallest subnormal, and each floor
+# carries one character past that measured edge.
+OVERFLOW_FIGURES = 310
+UNDERFLOW_PLACES = 327
+
+# The zero run is no longer a constant at all: it grows until the value
+# underflows, which is the only rule two implementations can agree on
+# without sharing a magic number, and the only one that does not write
+# some bodies wider than the description asks.
 
 # The six shapes a wide cell may take and what each one answers for --
 # method section G10.5 step 1's own table. The sign column names the
@@ -2865,34 +3144,154 @@ WHOLE_ORDER = (WHOLE_YES, WHOLE_NO, WHOLE_UNSETTLED)
 SIGN_ORDER = (SIGN_POSITIVE, SIGN_NEGATIVE, SIGN_UNSETTLED)
 
 
-def _unrepresentable_spelling(shape, sign, order):
+def _shape_floor(shape):
+    """The narrowest width one shape may be written at -- G10.5.
+
+    Four of the six shapes have no floor at all: contradictory
+    notation, ordinary text and the two in-range shapes say nothing
+    about magnitude, so nothing about their width decides what they
+    are.
+    """
+    if shape == "too_large":
+        return OVERFLOW_FIGURES
+    if shape == "too_small":
+        return UNDERFLOW_PLACES
+    return 1
+
+
+def _unrepresentable_width(shape, asked, sign=None):
+    """The width one shape is actually written at -- G10.5.
+
+    The width the group was ASKED for, or the shape's own floor where
+    the asked width falls below it.  A negative value spends one
+    character on its sign, and the floors are counts of the room AFTER
+    that sign, so a negative cell's floor is one character wider.
+    """
+    floor = _shape_floor(shape)
+    if floor <= 1:
+        return asked
+    if sign == SIGN_NEGATIVE:
+        floor = floor + 1
+    return max(asked, floor)
+
+
+def _unrepresentable_widths(column, shapes_taken, signs_taken):
+    """The width EVERY group of the column is asked for -- G10.5.
+
+    Both published ends are carried where the column's shapes can carry
+    them: every group is asked for ``max_length``, and the FIRST group
+    whose shape can be written at ``min_length`` is asked for that
+    instead.  The floor carrier is chosen by SHAPE and not by position,
+    so a column whose one narrow-capable group comes first still
+    carries the floor.
+    """
+    ceiling = max(column["max_length"], 1)
+    floor = max(column["min_length"], 1)
+    asked = [ceiling] * len(shapes_taken)
+    if len(shapes_taken) < 2 or floor == ceiling:
+        return asked
+    # The floor is only assigned if something ELSE can still carry the
+    # ceiling.  Contradictory notation and ordinary text write at a
+    # width of their own whatever they are asked for, so a column with
+    # exactly one carrying shape must spend it on the ceiling: the
+    # other shapes land where they land, and that is the floor.
+    for index, shape in enumerate(shapes_taken):
+        if not _carries_a_width(shape, floor, signs_taken[index]):
+            continue
+        for other, another in enumerate(shapes_taken):
+            if other == index:
+                continue
+            if _carries_a_width(another, ceiling, signs_taken[other]):
+                asked[index] = floor
+                return asked
+    return asked
+
+
+def _carries_a_width(shape, width, sign=None):
+    """Whether one shape can be written at exactly ``width`` -- G10.5.
+
+    Contradictory notation is the fixed construction of G10.3 and
+    ordinary text is a stand-in drawn by the text rule; both are
+    settled by rules that know nothing about the published widths, so
+    neither may be chosen to carry one.  Of the four that may, the two
+    out-of-range shapes can carry only a width at or above their floor.
+    """
+    if shape in ("contradictory", "ordinary_text"):
+        return False
+    if width < SHAPE_NARROWEST[shape] + (1 if sign == SIGN_NEGATIVE else 0):
+        return False
+    return _unrepresentable_width(shape, width, sign) == width
+
+
+# The narrowest cell each carrying shape can write, before its sign.
+# The in-range fraction needs three characters (`1.5`) whatever it is
+# asked for, so a rule that only checked magnitude floors named it the
+# carrier for widths it then missed.
+SHAPE_NARROWEST = {
+    "too_large": 1,
+    "too_small": 1,
+    "whole_in_range": 1,
+    "fraction_in_range": 2,
+}
+
+
+def _unrepresentable_spelling(shape, sign, order, asked):
     """The ``order``-th spelling of one shape -- method section G10.5 step 4.
 
-    In-range cells are written as ``1``, ``-1``, ``0.5``, ``-0.5`` and
-    their distinct variants from the leading-zero family, since no
-    ladder and no statistic is published for this role.  The two
-    out-of-range shapes are written at the canonical width, and the
-    contradictory shape is the construction of G10.3.
+    In-range cells come from the leading-zero family padded to the
+    width the group was asked for, since no ladder and no statistic is
+    published for this role.  **What separates one spelling from the
+    next is its VALUE and not its width** -- the whole shape counts up
+    ``1``, ``2``, ``3`` behind the zeros and the fraction shape counts
+    up ``1.5``, ``2.5``, ``3.5`` -- because adding a zero for
+    distinctness instead makes every group after the first one
+    character wider than the width it was asked for.
+
+    THE ASKED WIDTH IS THE WIDTH OF THE WHOLE CELL.  The minus sign,
+    the leading ``0.`` and the trailing figure are all spent inside it.
     """
     lead = "-" if sign == SIGN_NEGATIVE else ""
+    width = _unrepresentable_width(shape, asked, sign)
+    room = width - len(lead)
     if shape == "contradictory":
         return f"(-{order + 1})"
     if shape == "whole_in_range":
-        return lead + "0" * order + "1"
+        body = str(order + 1)
+        return lead + "0" * max(room - len(body), 0) + body
     if shape == "fraction_in_range":
-        return lead + "0" * order + "0.5"
+        # The leading zero is optional to the parser, so `.5` is a
+        # holdable TWO-character fraction and the narrowest this shape
+        # can write; nine of them exist at that width.
+        if room == 2:
+            return lead + "." + str((order % 9) + 1)
+        body = f"{order + 1}.5"
+        return lead + "0" * max(room - len(body), 0) + body
     if shape == "too_large":
         return lead + enumerated_spelling(
-            DIGITS, CANONICAL_WIDTH, order, _not_a_leading_zero
+            DIGITS, room, order, _not_a_leading_zero
         )
     if shape == "too_small":
-        if order >= 9:
-            raise AssertionError(
-                "the ninth too-small spelling at the canonical width is the "
-                "last one this file states, and the method fixes no further "
-                "one. It freezes no case that asks for more"
-            )
-        return lead + "0." + "0" * (CANONICAL_WIDTH - 1) + str(order + 1)
+        # THE NINTH-SPELLING LIMIT IS GONE, and removing it is the whole
+        # point of the rule below (review item P4-G3-R7-F3).  It was
+        # written when the zero run was whatever the width left over, so
+        # a tenth spelling -- the first whose figure body is two
+        # characters -- had no stated answer and this oracle refused
+        # rather than guess.  The run now grows until the value
+        # underflows, which answers every order, so refusing at nine
+        # would make this oracle disagree with a conforming generator on
+        # the first column that asks for ten.
+        figures = str(order + 1)
+        zeros = max(room - 2 - len(figures), 1)
+        candidate = lead + "0." + "0" * zeros + figures
+        # The zero run grows until the value actually underflows.  A
+        # single floor cannot answer this: behind 323 zeros the body
+        # `10` underflows and the body `9` does not, and a six-figure
+        # body needs only 319, so a floor high enough for the worst body
+        # writes every better one wider than the description asks.
+        while float(candidate) != 0.0:
+            zeros = zeros + 1
+            candidate = lead + "0." + "0" * zeros + figures
+        return candidate
     raise AssertionError(f"{shape!r} is not one of the six shapes of G10.5")
 
 
@@ -2932,6 +3331,33 @@ def _unrepresentable_recount(column, content):
                 "EXACT-OBSERVABLE, so the construction above is wrong; do not "
                 "move the published fact to meet it."
             )
+    # AND THE TWO PUBLISHED WIDTHS, which this postcondition did not
+    # cover when they were added (review item P4-G3-R5-F4). An oracle
+    # that recounts nine facts and not the two the landing is ABOUT
+    # certifies a carrier failure as correct: the two-cell case whose
+    # only carrying shape was spent on the wrong end passed here
+    # unchallenged. The population is the numeric-looking cells, which
+    # is every shape but ordinary text, matching the producer.
+    numeric_looking = [
+        cell
+        for cell in content
+        if NOTATION_TEXT not in notation_reading(cell)
+    ]
+    if numeric_looking:
+        widths = [len(cell) for cell in numeric_looking]
+        for name, value in (
+            ("min_length", min(widths)),
+            ("max_length", max(widths)),
+        ):
+            if column[name] != value:
+                raise AssertionError(
+                    f"the cells this oracle built recount {name} as {value!r} "
+                    f"and the case publishes {column[name]!r}. The two widths "
+                    "are EXACT-OBSERVABLE, so either the width rule above is "
+                    "wrong or this case publishes a width no real column of "
+                    "these cells could; do not move the published fact to "
+                    "meet the construction."
+                )
 
 
 def _unrepresentable_content(column):
@@ -2979,16 +3405,24 @@ def _unrepresentable_content(column):
         (notation, whole): shape
         for shape, notation, whole, _signs in UNREPRESENTABLE_SHAPES
     }
+    # THE SHAPE EVERY GROUP TAKES IS SETTLED BEFORE ANY WIDTH IS
+    # CHOSEN, because which group carries the published floor depends on
+    # what shape it took (G10.5 revision 4).
+    shapes_taken = [shapes[(cell[0], cell[1])] for cell in cells]
+    signs_taken = [cell[2] for cell in cells]
+    asked = _unrepresentable_widths(column, shapes_taken, signs_taken)
     content = []
     spent = {}
     used = []
-    for size, cell in zip(groups, cells):
+    for index, (size, cell) in enumerate(zip(groups, cells)):
         notation, whole, sign = cell
         shape = shapes[(notation, whole)]
         if shape == "ordinary_text":
             spelling = text_stand_ins(used, 1)[0]
         else:
-            spelling = _unrepresentable_spelling(shape, sign, spent.get(shape, 0))
+            spelling = _unrepresentable_spelling(
+                shape, sign, spent.get(shape, 0), asked[index]
+            )
             spent[shape] = spent.get(shape, 0) + 1
         used.append(spelling)
         content.extend([spelling] * size)
@@ -3631,6 +4065,94 @@ def _ladder_fields(texts):
     return published, claims, rungs
 
 
+def exact_triple(text):
+    """The exact number one spelling denotes, as `(sign, digits, power)`.
+
+    THE CONTRACT'S OWN FORM, implemented here from that statement and
+    never imported: a decimal spelling denotes `sign * digits * 10 **
+    power`, and writing the digits stripped of BOTH leading and
+    trailing zeros makes the triple canonical -- two spellings denote
+    the same number exactly when their triples are equal.  Zero has one
+    triple, `(0, (), 0)`, which is what makes `0` and `-0` one number.
+
+    Returns None for a spelling that is not a plain decimal number,
+    which is every cell of a role that does not carry a ladder.
+    """
+    body = text.strip()
+    if not body:
+        return None
+    sign = 1
+    if body[:1] == "+":
+        body = body[1:]
+    elif body[:1] == "-":
+        sign = -1
+        body = body[1:]
+    power = 0
+    for marker in ("e", "E"):
+        if marker in body:
+            body, _, exponent = body.partition(marker)
+            if not exponent:
+                return None
+            try:
+                power = int(exponent)
+            except ValueError:
+                return None
+            break
+    if "." in body:
+        whole, _, part = body.partition(".")
+        if "." in part:
+            return None
+        power = power - len(part)
+        body = whole + part
+    if not body:
+        return None
+    for character in body:
+        if character not in "0123456789":
+            return None
+    # Strip the trailing zeros into the power, then the leading ones,
+    # which is what makes two spellings of one number one triple.
+    while body and body[-1:] == "0":
+        body = body[:-1]
+        power = power + 1
+    while body and body[:1] == "0":
+        body = body[1:]
+    if not body:
+        return (0, (), 0)
+    return (sign, tuple(body), power)
+
+
+def _distinct_numbers_of(content, prefix="", suffix=""):
+    """How many different NUMBERS a list of finished cells holds.
+
+    The exact number a spelling denotes, by the same canonical triple
+    the contract states -- `sign * digits * 10 ** power`, the digits
+    stripped of leading and trailing zeros -- so two spellings that
+    round to one binary64 value but denote different numbers count as
+    two, and two spellings of one number count as one.  Implemented
+    here from that statement and not imported, like everything else in
+    this file.
+    """
+    seen = set()
+    for cell in content:
+        body = cell
+        if prefix or suffix:
+            # ON THE AFFIXED ROLE THE NUMBERS ARE THE CORES, so the
+            # pair comes off before the cell is read.  A cell that does
+            # not wear the pair is a straggler and is not one of this
+            # column's numbers at all.
+            if not body.startswith(prefix):
+                continue
+            if not body.endswith(suffix):
+                continue
+            body = body[len(prefix): len(body) - len(suffix)] if suffix \
+                else body[len(prefix):]
+        found = exact_triple(body)
+        if found is None:
+            continue
+        seen.add(found)
+    return len(seen)
+
+
 def _universal(name, role, statistical_type, structural_role, quality_state, **facts):
     block = {
         "name": name,
@@ -3641,6 +4163,7 @@ def _universal(name, role, statistical_type, structural_role, quality_state, **f
         "structural_role": structural_role,
         "missing_by_class": {
             "(blank)": 0,
+            "(date-sentinel)": 0,
             "(declared-missing)": 0,
             "(numeric-sentinel)": 0,
             "(text-code)": 0,
@@ -3661,12 +4184,450 @@ def _universal(name, role, statistical_type, structural_role, quality_state, **f
         "remarks": [],
     }
     block.update(facts)
+    # The census of fraction widths (contract C6-27 to C6-30), on the
+    # three roles that carry a forms map and on no other: a block that
+    # publishes no forms map has no decimal cells to take a census of,
+    # and a loader refuses a key its role does not carry.  A block that
+    # names no `decimal` cells publishes an empty census, which is what
+    # every case here but two does.
+    if "numeric_styles" in block and "fraction_widths" not in block:
+        block["fraction_widths"] = {}
+    # ...and the same for the census of field widths (P4-D14), which is
+    # that map's sibling and empty for every case here but one: a block
+    # naming no padded cells takes a census of none.
+    if "numeric_styles" in block and "pad_widths" not in block:
+        block["pad_widths"] = {}
+    # The value histogram (contract C6-31, plan P4-D4.7), on the three
+    # roles that carry a ladder.  It is REPORT-ONLY: the twin is not
+    # held to it, so the cells this oracle freezes do not depend on it,
+    # and every case here publishes the EMPTY census -- which is what a
+    # column publishes when its bins cannot all clear the floor, and
+    # what these hand-authored cases would publish if they had a source
+    # column too thin to fill thirty-two bins.  A case that wanted the
+    # census would have to state a shape a real column of its own
+    # values could have, and none of these cases is about the shape.
+    if "percentiles" in block and "value_histogram" not in block:
+        block["value_histogram"] = {}
+    # ...and how many different NUMBERS the block holds (contract Q17,
+    # plan P4-D4.9), on those same three roles.  The figure is a
+    # placeholder here and is replaced by a count of the FINISHED cells
+    # once they exist, because it is a fact about them.
+    if "percentiles" in block and "n_distinct_values" not in block:
+        block["n_distinct_values"] = 0
+    # ...and the MODE PAIR beside it (contract Q18, plan P4-D4.11), on
+    # the same three roles.  Both keys are always present on a block
+    # that carries a ladder; a withheld mode is `null` beside a count
+    # of nought, which is what a column with no dominant value
+    # publishes and what every case in this file publishes, because
+    # none of them turns on the fact.  It is REPORT-ONLY and steers no
+    # rule of the method, so it costs no word and moves no cell.
+    if "percentiles" in block and "mode" not in block:
+        block["mode"] = None
+        block["mode_count"] = 0
+    # The census of which form each parsed date wore (contract C6-25),
+    # on every column of dates and on no other role.  A column read
+    # under one format wore that format in every cell that parsed, so
+    # its census is that one name beside that one count; the joint ISO
+    # reading is the only shape with two names in it, and no case in
+    # this file takes that reading.  The census is REPORT-ONLY and
+    # steers no rule of the method: it is written because every block
+    # of dates carries it and a loader refuses a block that does not.
+    if role == "datetime":
+        parsed = block["n_present"] - block["n_unparsed"]
+        block["resolution_mix"] = {block["format"]: parsed}
     if block["n_missing"]:
         block["missing_by_class"] = dict(block["missing_by_class"])
         block["missing_by_class"]["(withheld)"] = block["n_missing"]
         if role not in ("identifier", "free_text", "numeric_unrepresentable"):
             block["n_missing_withheld"] = block["n_missing"]
     return block
+
+
+def clock_repair(ordinal, last, ceiling):
+    """G7A.4's all-different repair: step up, THEN clamp.
+
+    The order is the rule and not an accident.  Stepping up is what
+    makes two ranks that interpolated onto one time different -- the
+    later one takes the next ordinal, which is what the source column
+    itself did -- and the clamp is what keeps that step inside the
+    published `latest`.  Clamping first and stepping after would carry
+    a rank past the published end.
+    """
+    if ordinal <= last:
+        ordinal = last + 1
+    if ordinal > ceiling:
+        ordinal = ceiling
+    return ordinal
+
+
+def _field_value(published):
+    """The binary64 a published field stands for.
+
+    Every float this file publishes is written as a field -- its exact
+    decimal, its rational, and the binary64 it rounds to -- so that the
+    proof layer can show the rounding. Arithmetic takes the binary64,
+    because that is the number the shipped code holds.
+    """
+    if isinstance(published, dict):
+        return published[FLOAT64]
+    return float(published)
+
+
+def joined_part_view(column, place):
+    """One position of a joined column, as a numeric column (G6B.2).
+
+    The same trick the affixed core view plays, for the same reason: a
+    cell reading `120/80` is not itself a number, so the universal
+    counts say the column holds none, while the block for a position
+    answers for that position's numbers alone.  Distinctness is NOT
+    swapped -- the numeric machinery reads the whole column's, which is
+    what the shipped part view leaves in place.
+    """
+    view = dict(column)
+    view.update(column["parts"][place])
+    view["n_present"] = column["n_joined"]
+    view["n_numeric"] = column["n_joined"]
+    view["n_not_numeric"] = 0
+    view["n_out_of_range"] = 0
+    view["n_contradictory"] = 0
+    return view
+
+
+def joined_ranks(values):
+    """Zero-based ranks, ties sharing the average of the ranks they span.
+
+    G6B.4 step 4 pins the ORIGIN as well as the tie rule: the smallest
+    value takes rank 0 and the largest takes `T - 1`.  The one-based
+    convention is at least as common and writes different cells.
+    """
+    order = sorted(range(len(values)), key=lambda seat: values[seat])
+    ranks = [0.0] * len(values)
+    at = 0
+    while at < len(order):
+        last = at
+        while (
+            last + 1 < len(order)
+            and values[order[last + 1]] == values[order[at]]
+        ):
+            last = last + 1
+        shared = (at + last) / 2.0
+        for seat in range(at, last + 1):
+            ranks[order[seat]] = shared
+        at = last + 1
+    return ranks
+
+
+def joined_cell(held, column, row):
+    """One finished cell: each position padded, the separator between."""
+    written = ""
+    for place in range(column["n_parts"]):
+        if place:
+            written = written + column["separator"]
+        text = held[place][row]
+        width = column["part_min_widths"][place]
+        while len(text) < width:
+            text = "0" + text
+        written = written + text
+    return written
+
+
+def joined_part_budget(column, place):
+    """The content words one position of a joined column draws (G4.3)."""
+    view = joined_part_view(column, place)
+    view["role"] = "continuous"
+    content, _placement = word_budget(view, column["n_joined"])
+    return content
+
+
+def _joined_content(column):
+    """The content list of a joined column -- method section G6B.
+
+    Each position is built by the numeric rules over its own view, the
+    reserve is what remains, and the pairing walk then decides which
+    number of one position meets which of the next.
+    """
+    n_parts = column["n_parts"]
+    n_joined = column["n_joined"]
+    words = list(column["_content_words"])
+    at = 0
+    drawn = []
+    for place in range(n_parts):
+        view = joined_part_view(column, place)
+        budget = joined_part_budget(column, place)
+        view["_content_words"] = words[at: at + budget]
+        view["_rungs"] = column["_rungs"][place]
+        at = at + budget
+        values, _chain, _missed = _numeric_content(view)
+        drawn.append(values)
+    # THE RESERVE is everything the positions did not take: G4.3 sets
+    # aside `max(n_joined - 1, 0)` for every position after the first.
+    reserve = words[at:]
+    # WHAT THE WALK IS ASKED FOR is not the whole column's count where
+    # any cell did not split: the stand-ins built afterwards are all one
+    # spelling and add exactly one.
+    invented = 1 if column["n_present"] > n_joined else 0
+    wanted = max(column["n_distinct"] - invented, 0)
+    held = repaired_pairing(drawn, column, wanted, reserve)
+    content = [joined_cell(held, column, row) for row in range(n_joined)]
+    stragglers = column["n_present"] - n_joined
+    if stragglers:
+        raise AssertionError(
+            "this case builds no stand-ins; a joined column with cells "
+            "that did not split needs the walk of G6B.5 and a case of "
+            "its own"
+        )
+    return content
+
+
+def repaired_pairing(drawn, column, wanted, words):
+    """Which numbers meet in a row -- method section G6B.4.
+
+    Written from that section and from nothing else.  Every step swaps
+    two rows' numbers within ONE position, so each position keeps its
+    multiset and only the pairing moves.
+    """
+    total = column["n_joined"]
+    last = column["n_parts"] - 1
+    agreements = column["part_agreements"]
+    above_targets = column["part_above"]
+    # STEP 2's mean, computed the way the shipped code computes it: a
+    # binary64 running sum in published order, divided once.  The
+    # mathematical mean is not enough -- three agreements of -0.4 sum
+    # to -1.2000000000000002 and the quotient falls the other side of
+    # the threshold.
+    # A published binary64 arrives here as a FIELD -- the exact decimal
+    # beside the value it rounds to -- so the value is taken out before
+    # any arithmetic. Doing it any other way would compute the mean
+    # from the exact rationals, which is not what the shipped code
+    # does and not what G6B.4 step 2 says.
+    running = 0.0
+    for value in agreements:
+        running = running + _field_value(value)
+    average = running / float(len(agreements)) if agreements else 0.0
+    # STEP 1: each position sorted by (value, spelling).
+    held = []
+    for place in range(column["n_parts"]):
+        pairs = sorted((float(text), text) for text in drawn[place])
+        held.append([pair[1] for pair in pairs])
+    # STEP 2's three starts.
+    if average < -0.4:
+        held[last] = [held[last][total - 1 - seat] for seat in range(total)]
+    elif average < 0.4 and len(words) >= max(total - 1, 0):
+        order = permutation(total, list(words[: max(total - 1, 0)]))
+        held[last] = [held[last][seat] for seat in order]
+    numbers = [[float(text) for text in held[place]]
+               for place in range(column["n_parts"])]
+    ranks = [joined_ranks(numbers[place])
+             for place in range(column["n_parts"])]
+    middle = (total - 1) / 2.0
+    spread = []
+    for place in range(column["n_parts"]):
+        summed = 0.0
+        for row in range(total):
+            away_from = ranks[place][row] - middle
+            summed = summed + away_from * away_from
+        spread.append(summed)
+    # STEP 3: only the pairs whose LATER member is the last position.
+    seats = []
+    firsts = []
+    seat = 0
+    for first in range(column["n_parts"]):
+        for second in range(first + 1, column["n_parts"]):
+            if second == last:
+                seats.append(seat)
+                firsts.append(first)
+            seat = seat + 1
+    tops = []
+    aboves = []
+    for index in range(len(seats)):
+        first = firsts[index]
+        summed = 0.0
+        counted = 0
+        for row in range(total):
+            summed = summed + (ranks[first][row] - middle) * (
+                ranks[last][row] - middle
+            )
+            if numbers[first][row] > numbers[last][row]:
+                counted = counted + 1
+        tops.append(summed)
+        aboves.append(counted)
+    cells = []
+    seen = {}
+    for row in range(total):
+        text = joined_cell(held, column, row)
+        cells.append(text)
+        seen[text] = seen.get(text, 0) + 1
+
+    def distance():
+        out = abs(len(seen) - wanted) / float(total)
+        for index in range(len(seats)):
+            place = seats[index]
+            first = firsts[index]
+            out = out + float(abs(aboves[index] - above_targets[place]))
+            divisor = (spread[first] * spread[last]) ** 0.5
+            agreed = tops[index] / divisor if divisor > 0.0 else 0.0
+            out = out + abs(agreed - _field_value(agreements[place]))
+        return out
+
+    away = distance()
+    tries = 0
+    at = 0
+    ceiling = 200 * total
+    while away > 0.0005 and tries < ceiling and len(words) >= 2:
+        tries = tries + 1
+        # STEP 5's cursor: it starts again at reserve word ZERO, even
+        # where the permutation already consumed some, and returns
+        # there whenever fewer than two words remain.
+        if at + 1 >= len(words):
+            at = 0
+        one = bounded(words[at], total)
+        two = bounded(words[at + 1], total)
+        at = at + 2
+        if one == two or held[last][one] == held[last][two]:
+            continue
+        kept_tops = list(tops)
+        kept_aboves = list(aboves)
+        for index in range(len(seats)):
+            first = firsts[index]
+            tops[index] = tops[index] + (
+                ranks[first][one] - ranks[first][two]
+            ) * (ranks[last][two] - ranks[last][one])
+            for row in (one, two):
+                if numbers[first][row] > numbers[last][row]:
+                    aboves[index] = aboves[index] - 1
+        held[last][one], held[last][two] = held[last][two], held[last][one]
+        numbers[last][one], numbers[last][two] = (
+            numbers[last][two], numbers[last][one])
+        ranks[last][one], ranks[last][two] = (
+            ranks[last][two], ranks[last][one])
+        for index in range(len(seats)):
+            first = firsts[index]
+            for row in (one, two):
+                if numbers[first][row] > numbers[last][row]:
+                    aboves[index] = aboves[index] + 1
+        made_one = joined_cell(held, column, one)
+        made_two = joined_cell(held, column, two)
+        for gone in (cells[one], cells[two]):
+            seen[gone] = seen[gone] - 1
+            if seen[gone] < 1:
+                del seen[gone]
+        for made in (made_one, made_two):
+            seen[made] = seen.get(made, 0) + 1
+        now = distance()
+        # AN EQUAL SWAP IS TAKEN, not only a better one.
+        if now <= away:
+            away = now
+            cells[one] = made_one
+            cells[two] = made_two
+            continue
+        for made in (made_one, made_two):
+            seen[made] = seen[made] - 1
+            if seen[made] < 1:
+                del seen[made]
+        for back in (cells[one], cells[two]):
+            seen[back] = seen.get(back, 0) + 1
+        held[last][one], held[last][two] = held[last][two], held[last][one]
+        numbers[last][one], numbers[last][two] = (
+            numbers[last][two], numbers[last][one])
+        ranks[last][one], ranks[last][two] = (
+            ranks[last][two], ranks[last][one])
+        tops = kept_tops
+        aboves = kept_aboves
+    return held
+
+
+def affixed_core_view(column):
+    """An affixed column as the numeric machinery must see it (G6A.2).
+
+    THE ROLE HAS TWO POPULATIONS and the profile publishes facts about
+    both.  The universal class counts answer for the CELLS -- a cell
+    reading `[12]` is not itself a number, so such a column publishes
+    `n_numeric` of 0 -- while the quantitative block answers for the
+    CORES, the text left when the pair comes off.  An implementer who
+    reads one set as the other builds a column of nothing at all.
+
+    So the cores are handed over as a column in their own right, with
+    the CORE class counts standing where the cell counts were.  Every
+    rule of G5 and G6 then applies unchanged.  Distinctness is NOT
+    swapped: `n_distinct_folded` stays the count over the written
+    cells, which is what the shipped generator's own core view leaves
+    in place, and the numeric spelling budget is read from it.
+    """
+    core = dict(column)
+    core["n_numeric"] = column["n_core_numeric"]
+    core["n_not_numeric"] = column["n_core_not_numeric"]
+    core["n_out_of_range"] = column["n_core_out_of_range"]
+    core["n_contradictory"] = column["n_core_contradictory"]
+    core["n_present"] = column["n_affixed"]
+    return core
+
+
+def _affixed_content(column):
+    """The content list of an affixed column -- method section G6A.
+
+    The cores first, by the numeric rules over the core view, then the
+    pair character for character as published.  A case whose every
+    present cell wore the pair has no stragglers, and this file builds
+    only such a case: the straggler walk of G6A.3 is a second branch
+    with its own refusals and belongs to a case of its own.
+    """
+    core = affixed_core_view(column)
+    cores, _chain, _missed = _numeric_content(core)
+    prefix = column["affix_prefix"]
+    suffix = column["affix_suffix"]
+    stragglers = column["n_present"] - column["n_affixed"]
+    if stragglers:
+        raise AssertionError(
+            "this case builds no stragglers; a column with cells that "
+            "wore no pair needs the walk of G6A.3 and a case of its own"
+        )
+    return [prefix + core_text + suffix for core_text in cores]
+
+
+def _clock_content(column):
+    """The content list of a clock column -- method section G7A.
+
+    The same stratified inverse transform the date role uses, with the
+    ladder read in the form's OWN unit, plus the one repair that belongs
+    to this role alone: where the column's values were all different, so
+    are the twin's, because a closed finite space of times has a place
+    for each of them.
+    """
+    form = column["clock_form"]
+    parsed = column["n_present"] - column["n_unparsed"]
+    rungs = [
+        clock_ordinal_of(column["clock_percentiles"][key], form)
+        for key in LADDER_KEYS
+    ]
+    # G7A.4's condition, stated on the published counts alone.  The
+    # obligation is EXACT for this role where every other shape's
+    # distinctness falls to an envelope.
+    apart = column["n_distinct"] - column["n_unparsed"] >= parsed
+    ceiling = clock_ordinal_of(column["latest"], form)
+    last = clock_ordinal_of(column["earliest"], form)
+    words = iter(column["_content_words"])
+    content = []
+    for rank in range(parsed):
+        # The two ends are the published TEXT and not a re-spelling of
+        # an ordinal, and neither costs a word.
+        if rank == 0:
+            content.append(column["earliest"])
+            continue
+        if rank == parsed - 1 and parsed >= 2:
+            content.append(column["latest"])
+            continue
+        ordinal = interpolated_ordinal(
+            rank * TWO64 + next(words), parsed * TWO64, rungs
+        )
+        if apart:
+            ordinal = clock_repair(ordinal, last, ceiling)
+        last = ordinal
+        content.append(clock_spelling_of(ordinal, form))
+    # G7A.5.  The stand-ins this file builds are `text-N`, which reads
+    # as a clock time in NEITHER form, so the exclusion that belongs to
+    # this role is met by construction rather than by a search.
+    content.extend(text_stand_ins(content, column["n_unparsed"]))
+    return content
 
 
 def _date_only():
@@ -3716,6 +4677,41 @@ def _quarter():
     return {
         "why": "the quarter form of G7.5 and the quarter ordinal, where one "
         "unit is three months and no clock exists to shift.",
+        "column": column,
+        "rows": 12,
+        "identifier_declared": False,
+    }
+
+
+def _month_span():
+    """The second SPAN resolution, added with the month (P4-D4.3).
+
+    Twelve months of one year, so the ordinal walk crosses no year
+    boundary and a reader can check every cell by counting.  The two
+    ends are pinned by G7.3 and, because a month IS its own canonical
+    text, the fields route and the ordinal route of G7.5 write the same
+    characters -- which is the property this case exists to freeze.
+    """
+    column = _universal(
+        "column_1", "datetime", "datetime", "data", "ok",
+        n_present=12, n_missing=0, n_distinct=12, n_distinct_folded=12,
+        n_numeric=0, n_not_numeric=12, n_out_of_range=0, n_contradictory=0,
+        format="iso-month", resolution="month", time_precision="month",
+        subsecond_digits=0, datetimes_read_at="local",
+        earliest="2024-01", latest="2024-12",
+        earliest_utc_offset="(none)", latest_utc_offset="(none)",
+        date_percentiles={
+            "min": "2024-01", "p01": "2024-01", "p05": "2024-02",
+            "p10": "2024-02", "p25": "2024-04", "p50": "2024-06",
+            "p75": "2024-09", "p90": "2024-11", "p95": "2024-12",
+            "p99": "2024-12", "max": "2024-12",
+        },
+        n_unparsed=0, utc_offsets={"(none)": 12},
+    )
+    return {
+        "why": "the month form of G7.5 and the month ordinal of G7.1, "
+        "where one unit is one month, no clock exists to shift, and the "
+        "cell text is the canonical form itself.",
         "column": column,
         "rows": 12,
         "identifier_declared": False,
@@ -3833,7 +4829,7 @@ def _numeric_integer():
     }
     moments = {}
     for name, text in (("mean", "4.25"), ("std", "14.5"), ("skew", "0.5"),
-                       ("numeric_share", "1")):
+                       ("kurtosis", "2.5"), ("numeric_share", "1")):
         field, claim = nearest_field(text)
         moments[name] = field
         claims[("column", name)] = claim
@@ -3897,7 +4893,8 @@ def _numeric_pooled_spelling():
     }
     moments = {}
     for name, text in (("mean", "1e+19"), ("std", "3e+19"),
-                       ("skew", "3"), ("numeric_share", "1")):
+                       ("skew", "3"), ("kurtosis", "2.5"),
+                       ("numeric_share", "1")):
         field, claim = nearest_field(text)
         moments[name] = field
         claims[("column", name)] = claim
@@ -3910,6 +4907,17 @@ def _numeric_pooled_spelling():
         n_used_in_statistics=12, n_left_out_of_statistics=0,
         integer_valued=False, n_rows=12,
         numeric_styles={"plain": 11, "(withheld)": 1},
+        # THE POOLED SIDE OF THE CENSUS. The one cell that carries a
+        # point is the one the floor held back, so no width is named at
+        # all and the census carries the pooled remainder alone -- the
+        # census's own shape for a column whose decimal cells the floor
+        # pooled (contract C6-30's case P5.c). The cell is unsnapped and
+        # written at its own value's spelling, which is the pooled
+        # remainder's rule of G6.4 unchanged.
+        fraction_widths={"(withheld)": 1},
+        # No cell of this case is padded, so the field-width census is
+        # empty and pins nothing.
+        pad_widths={},
         **moments,
     )
     return {
@@ -3944,7 +4952,8 @@ def _numeric_decimal_styles():
     }
     moments = {}
     for name, text in (("mean", "1000000000000"), ("std", "3000000000000"),
-                       ("skew", "4.5"), ("numeric_share", "1")):
+                       ("skew", "4.5"), ("kurtosis", "2.5"),
+                       ("numeric_share", "1")):
         field, claim = nearest_field(text)
         moments[name] = field
         claims[("column", name)] = claim
@@ -4015,16 +5024,141 @@ def _label_variants():
         ],
         suppressed_levels=2, suppressed_rows=10,
         suppressed_level_counts=[3, 7], level_ceiling=20,
+        # The forms this column's cells were written in (P4-D18). The
+        # published and made-up variants would cover 26 cells were the
+        # labels shaped like codes; they are words, so the census here
+        # is WRITTEN rather than derived, and it owes the two stand-ins
+        # ten cells of `@@@-@`, which is exactly what their published
+        # sizes cover -- so this case pins the shaped walk as well as
+        # the variant allocation.
+        shape_forms={"@@@-@": 36, "(withheld)": 12},
     )
     return {
-        "why": "the variant allocation of G8.1, the case flips of G8.2 with "
-        "a candidate skipped because a published variant already spells it, "
-        "the trailing-space family a parent with no letters falls straight "
-        "through to, and the neutral stand-in labels of G8.3 at their "
-        "published sizes. A label column consumes no content word, so every "
-        "byte here is fixed by published counts.",
+        "why": "the variant allocation of G8.1, including the label's own "
+        "spelling offered to the largest held-back group of every level its "
+        "spellings already cover; the case flips of G8.2 with a candidate "
+        "skipped because a published variant already spells it; the "
+        "trailing-space family a parent with no letters falls straight "
+        "through to; and the neutral stand-in labels of G8.3 at their "
+        "published sizes, this column publishing no census of written forms. "
+        "A label column consumes no content word, so every byte here is "
+        "fixed by published counts.",
         "column": column,
         "rows": 50,
+        "identifier_declared": False,
+    }
+
+
+def _long_tail_levels():
+    """The FIRST frozen vector for any role Phase 4 added (R-P4-17).
+
+    Every case in this oracle before it exercises a role Phase 1 to 3
+    built. The four roles Phase 4 added -- `long_tail_labels`,
+    `affixed_number`, `time_of_day` and `joined_numbers` -- had no
+    independent vector at all, so their generator branches were checked
+    only against themselves: a second implementer in another language
+    had nothing to reproduce, and a defect written into the
+    implementation would have been written into its own proof.
+
+    THIS ROLE IS THE ONE THAT COSTS LEAST TO PROVE, and that is why it
+    goes first rather than because it is the most interesting. Contract
+    6.6 states that a long tail "adds no key of its own": it publishes
+    the label roles' four keys and nothing else, and the generator
+    dispatches on `LabelFacts`, which both label roles share. So the
+    method this case pins is G8.1 to G8.4 exactly as `label_variants`
+    pins it -- what is NEW is that the role reaches those sections at
+    all, which nothing outside the implementation had said.
+
+    The shape is a long tail's own: many levels, each covering few
+    rows, with more held back than published. A categorical column of
+    the same counts would have been refused the role by its ceiling,
+    so this case cannot be mistaken for the one above it.
+    """
+    column = _universal(
+        "column_1", "long_tail_labels", "long_tail_labels", "data", "ok",
+        # EVERY LEVEL'S VARIANTS AND HELD-BACK GROUPS SUM TO ITS COUNT,
+        # which is the arithmetic G8.1 is stated over: a level of five
+        # rows whose own spelling is published twice owes three more
+        # spellings, and `variants_withheld` counts them by GROUP SIZE
+        # -- `{"1": 3}` is three groups of one row, not one group of
+        # three.
+        # WHAT MAKES THIS COLUMN A LONG TAIL AND NOT A SET OF
+        # CATEGORIES (invariant LT2): it holds MORE folded identities
+        # than the categorical ceiling of twenty. That is the whole
+        # shape of the role, and the first four drafts of this case did
+        # not have it -- they were categorical columns wearing the
+        # name, and the loader said so.
+        #
+        # The floor these vectors are recorded at is ELEVEN, so a
+        # PUBLISHED level covers eleven rows or more (invariant B5) and
+        # a published VARIANT does too. With forty rows that leaves
+        # room for exactly one published level; the other twenty cover
+        # one or two rows each and are held back. One level named,
+        # twenty suppressed -- which is what a long tail looks like
+        # from the inside.
+        n_present=40, n_missing=0, n_distinct=21, n_distinct_folded=21,
+        n_numeric=0, n_not_numeric=40, n_out_of_range=0, n_contradictory=0,
+        levels=[
+            {
+                "label": "note alpha", "count": 11,
+                "variants": {"Note Alpha": 11}, "variants_withheld": {},
+            },
+        ],
+        suppressed_levels=20, suppressed_rows=29,
+        # NO `level_ceiling`: contract 6.6 gives a long tail the four
+        # SHARED label keys and not categorical's own fifth. Its
+        # invariant -- folded distinctness at or under the ceiling --
+        # is exactly what this role breaks by definition, so the
+        # ceiling it passed is recorded in its evidence sentence
+        # instead. Writing it here was the first thing the loader
+        # refused, and rightly.
+        suppressed_level_counts=[1] * 11 + [2] * 9,
+        # THE FORM CENSUS IS WHAT LETS THE STAND-INS BE WORDS (P4-D18).
+        # Without it the twenty suppressed levels take the neutral
+        # labels of G8.3, which carry a figure -- and a candidate that
+        # could read back as a number or a date is one this file
+        # refuses to reason about rather than reason around. The census
+        # names a letters-and-hyphen form covering all twenty-nine
+        # held-back rows, so every stand-in this case builds is a word.
+        #
+        # IT COVERS TWENTY-NINE OF FORTY CELLS AND NOT ALL FORTY, and
+        # that is the census a profiler writes rather than a rounding
+        # of it. The eleven published cells are spelled `Note Alpha`,
+        # and a cell holding a SPACE has no form at all -- nor would it
+        # if the space were closed up, because a form carries two of
+        # the three kinds and letters alone are one. So those eleven
+        # are not counted, not pooled, and above all not `(withheld)`:
+        # that key means one thing in this format, a group too small to
+        # name, and eleven cells at a floor of eleven are not that. An
+        # earlier draft of this case wrote `"(withheld)": 11` here,
+        # which no profiler could produce; the real one was measured on
+        # a table of this exact shape and reads `{"@@@@-@@": 29}`.
+        shape_forms={"@@@@-@@": 29},
+    )
+    return {
+        "why": "the first frozen case for a role Phase 4 added, and the "
+        "one that proves a long tail of labels reaches G8.1 to G8.4 at "
+        "all. It carries far more rows in its held-back levels than in "
+        "its published one -- twenty-nine against eleven -- which is "
+        "the shape a long tail has and a column of categories cannot: "
+        "its twenty-one folded identities stand above the ceiling of "
+        "twenty this column passed, and that is the admission a rename "
+        "to `categorical` could not survive. At a floor of eleven, "
+        "forty rows leave room for exactly one published level; the "
+        "other twenty cover one or two rows each and are held back. "
+        "The case flips of G8.2 answer the one level carrying a "
+        "published variant, and the twenty suppressed levels take the "
+        "neutral stand-ins of G8.3 at their published sizes -- as "
+        "words rather than as numbered labels, because the form census "
+        "names a letters-and-hyphen form for all twenty-nine held-back "
+        "rows. A label column consumes no content word, so every byte "
+        "here is fixed by published counts. What this case does NOT "
+        "prove is a generator branch of its own: a long tail is "
+        "admitted by rules the categorical role would fail and is then "
+        "written by the shared G8 machinery, so what is pinned here is "
+        "admission and routing, and the cells are the label path's.",
+        "column": column,
+        "rows": 40,
         "identifier_declared": False,
     }
 
@@ -4100,10 +5234,26 @@ def _numeric_point_free_styles():
         n_present=33, n_missing=0, n_distinct=3, n_distinct_folded=3,
         n_numeric=33, n_not_numeric=0, n_out_of_range=0, n_contradictory=0,
         percentiles=ladder, std_unrepresentable=False, skew=None,
+        # No spread, so no tails to weigh: null, as the skewness is.
+        kurtosis=None,
         n_zero=0, n_negative=0, n_negative_unrepresentable=0,
         n_used_in_statistics=33, n_left_out_of_statistics=0,
         integer_valued=True, n_rows=33,
         numeric_styles={"decimal": 11, "leading_plus": 11, "leading_zero": 11},
+        # THE ONE CASE HERE WITH `decimal` CELLS, so the one that
+        # publishes a width for them.  Every decimal cell of this column
+        # writes the point-free spelling of a whole number with one
+        # figure after the point, so the census names ONE width and its
+        # cells already fit it -- no cell is snapped and the committed
+        # bytes are the bytes this case has always carried.
+        fraction_widths={"1": 11},
+        # THE ONE CASE THAT PLACES A PADDED CELL. All eleven leading-zero
+        # cells are `05`, two figures wide, and eleven is the smallest
+        # group size -- so the census names the width rather than
+        # pooling it. The value needs one figure and the field holds
+        # two, so the one zero the style already wrote is the one the
+        # width asks for and the committed bytes do not move (P4-D14).
+        pad_widths={"2": 11},
         **moments,
     )
     return {
@@ -4142,6 +5292,18 @@ def _unrepresentable_joint():
         n_whole=2, n_fraction=1, n_whole_unknown=3,
         n_positive=0, n_negative=3, n_sign_unknown=3,
         n_distinct_by_occurrences={"1": 2, "2": 2},
+        # THE TWO PUBLISHED WIDTHS OF REVISION 4 (P4-D4.4, closing
+        # R-P2-1), and they are the widths a REAL column of these cells
+        # would publish rather than any convenient pair. Three of this
+        # column's six cells carry the contradictory construction of
+        # G10.3, which is four characters long and which the producer
+        # counts -- notation that conflicts with itself is numeric-
+        # LOOKING even though it settles no value -- so the narrowest
+        # numeric-looking cell here is four characters and the
+        # description says four. Publishing a wider floor would freeze
+        # a description no table could produce.
+        min_length=4,
+        max_length=400,
     )
     return {
         "why": "the six-row column of G10.5 step 2, whose three published "
@@ -4182,6 +5344,11 @@ def _free_text_joint():
         length=length, words=words,
         n_all_digits=2, n_code_alphabet=3,
         n_distinct_by_occurrences={"1": 2, "2": 1},
+        # The census of written forms (plan P4-D18). Four cells at the
+        # smallest group size of eleven: no form is shared by enough of
+        # them to be named, so the whole census is the pooled
+        # remainder.
+        shape_forms={"(withheld)": 4},
     )
     return {
         "why": "the joint class-and-alphabet packing of G9.5 steps 3 and 4 on "
@@ -4270,13 +5437,280 @@ NAMED_CASE_BUILDERS = {
     "quarter": _quarter,
 }
 
+def _clock_ladder():
+    """A clock column whose span is exactly as wide as its values."""
+    column = _universal(
+        "column_1", "time_of_day", "time_of_day", "data", "ok",
+        n_present=12, n_missing=0, n_distinct=12, n_distinct_folded=12,
+        n_numeric=0, n_not_numeric=12, n_out_of_range=0, n_contradictory=0,
+        clock_form="hh-mm-ss",
+        clock_percentiles={
+            "min": "08:00:00", "p01": "08:00:00", "p05": "08:00:00",
+            "p10": "08:00:01", "p25": "08:00:02", "p50": "08:00:05",
+            "p75": "08:00:07", "p90": "08:00:09", "p95": "08:00:09",
+            "p99": "08:00:09", "max": "08:00:10",
+        },
+        earliest="08:00:00", latest="08:00:10", n_unparsed=1,
+        detection_evidence=(
+            "11 value(s) are clock times written as hours, minutes and "
+            "seconds, `09:30:00`, and 1 value(s) are not"
+        ),
+    )
+    return {
+        "why": "the first frozen case for the clock role, and the one "
+        "that reaches its own repair rather than only its ladder. "
+        "ELEVEN SECONDS HOLD ELEVEN PARSED CELLS: the ends are "
+        "`08:00:00` and `08:00:10`, the eleven ordinals between them "
+        "inclusive are exactly as many as the cells that parsed, and "
+        "the column publishes every value different. So the all-"
+        "different obligation of G7A.4 -- EXACT for this role where "
+        "every other shape's distinctness falls to an envelope -- has "
+        "no slack at all: each interior rank must land on the one "
+        "ordinal left for it. Measured against the shipped generator "
+        "with the step-up removed, the same column comes out holding "
+        "`08:00:01` and `08:00:06` twice each, so the repair is doing "
+        "the work here and not merely present.\n\n"
+        "It also carries a cell that is not a clock time at all, which "
+        "is what makes `n_unparsed` non-zero and puts a stand-in "
+        "beside the parsed cells (G7A.5). The two ends are the "
+        "published TEXT and cost no word, so the budget is the nine "
+        "interior ranks, and the ladder is read in SECONDS OF DAY -- "
+        "the form's own unit -- which is the whole of what makes this "
+        "role different from the date role it borrows its transform "
+        "from.",
+        "column": column,
+        "rows": 12,
+    }
+
+
+def _affixed_brackets():
+    """A column of numbers each written inside a bracket pair."""
+    ladder, ladder_claims, rungs = _ladder_fields({
+        "min": "12", "p01": "12.33", "p05": "13.65", "p10": "15.3",
+        "p25": "20.25", "p50": "28.5", "p75": "36.75", "p90": "41.7",
+        "p95": "43.35", "p99": "44.67", "max": "45",
+    })
+    claims = {
+        ("column", "percentiles") + key: value
+        for key, value in ladder_claims.items()
+    }
+    moments = {}
+    for name, text in (
+        ("mean", "28.5"),
+        ("std", "10.816653826391969"),
+        ("skew", "0"),
+        ("kurtosis", "1.7832167832167831"),
+        ("numeric_share", "1"),
+    ):
+        field, claim = nearest_field(text)
+        moments[name] = field
+        claims[("column", name)] = claim
+    column = _universal(
+        "column_1", "affixed_number", "affixed_number", "data", "ok",
+        n_present=12, n_missing=0, n_distinct=12, n_distinct_folded=12,
+        # THE CELL COUNTS, and they are the ones an implementer is most
+        # likely to hand to the numeric machinery by mistake.  A cell
+        # reading `[12]` is NOT a number, so this column publishes no
+        # numeric cells at all and twelve cells of ordinary text.
+        n_numeric=0, n_not_numeric=12, n_out_of_range=0, n_contradictory=0,
+        # ...and the CORE counts beside them, which are what G5 and G6
+        # actually consume (G6A.1, G6A.2).
+        n_affixed=12, n_core_numeric=12, n_core_not_numeric=0,
+        n_core_out_of_range=0, n_core_contradictory=0,
+        affix_prefix="[", affix_suffix="]",
+        percentiles=ladder, std_unrepresentable=False,
+        n_zero=0, n_negative=0, n_negative_unrepresentable=0,
+        n_used_in_statistics=12, n_left_out_of_statistics=0,
+        # THE SOURCE COLUMN HELD TWELVE DIFFERENT NUMBERS, and this
+        # says so. The twin built from it holds eleven -- values drawn
+        # to a published ladder repeat more evenly than real ones did --
+        # so this case is the one place in either file where a
+        # conforming generator MISSES `n_distinct_values` and has to
+        # say so, which is what that fact being REPORT-ONLY means.
+        n_distinct_values=12,
+        integer_valued=True, n_rows=12, numeric_styles={"plain": 12},
+        # THE REMARK THIS ROLE MUST CARRY (contract invariant AF-R).
+        # A block of this role with no remark, or with any other
+        # sentence in its place, is refused by the loader: the reader
+        # of a profile must be told that the numbers described as
+        # quantities came out of cells wearing shared text, and told
+        # what to run if they are codes instead. The oracle discovered
+        # this by being refused, which is the argument residual
+        # R-P4-17 makes.
+        remarks=[
+            "12 of this column's values are written as '[', a number, "
+            "then ']', and synthtwin described those numbers as "
+            "quantities: their average, their spread and their ends "
+            "are in this profile. If these are codes rather than "
+            "measurements, run the command again with --identifier and "
+            "no value of this column will be published at all"
+        ],
+        **moments,
+    )
+    return {
+        "why": "the first frozen case for the affixed role, and the one "
+        "that pins the rule the role exists for: A COLUMN OF THIS ROLE "
+        "PUBLISHES TWO SETS OF CLASS COUNTS AND THEY ARE NOT THE SAME "
+        "SET. The universal counts answer for the CELLS, and a cell "
+        "reading `[12]` is not a number, so this column publishes "
+        "`n_numeric` of nought and twelve cells of ordinary text. The "
+        "quantitative block answers for the CORES, and there "
+        "`n_core_numeric` is twelve. An implementer who hands the "
+        "numeric machinery the cell counts builds a column of no cells "
+        "at all, which is what this case's mutant does and why it stops "
+        "the oracle rather than moving its bytes. "
+        "The pair is TWO-SIDED and its two characters differ, so the "
+        "committed bytes pin the order of the wrap: `[` before the core "
+        "and `]` after it, character for character as published, with "
+        "no trimming and no normalization of either side. Every present "
+        "cell wore the pair, so this case has no stragglers -- the walk "
+        "of G6A.3, with its ceiling and its three refusals, is a second "
+        "branch and belongs to a case of its own. The word budget is "
+        "the numeric one read over the cores (G4.3): ten content words "
+        "for twelve cells, which is what the shipped generator plans "
+        "for this column as well. "
+        "AND IT IS THE ONE CASE IN EITHER FILE WHERE A CONFORMING "
+        "GENERATOR MISSES A PUBLISHED FACT AND SAYS SO. Its source "
+        "column held twelve different numbers and it publishes twelve; "
+        "the twin holds eleven, because values drawn to a published "
+        "ladder repeat more evenly than real ones did, and `23` comes "
+        "out twice. `n_distinct_values` is REPORT-ONLY for exactly this "
+        "reason (residual R-P4-20), and the shipped generator reports "
+        "it: twelve published, eleven achieved. Every other case "
+        "carrying that key publishes the figure its own twin reaches, "
+        "so none of them can exercise the miss.",
+        "column": column,
+        "rows": 12,
+        "identifier_declared": False,
+        "rungs": rungs,
+        "claims": claims,
+    }
+
+
+def _joined_readings():
+    """Two numbers in one cell, and the walk that decides which meet."""
+    first_ladder, first_claims, first_rungs = _ladder_fields({
+        "min": "24", "p01": "24", "p05": "24", "p10": "24.2",
+        "p25": "29", "p50": "36.5", "p75": "40", "p90": "50.8",
+        "p95": "54.25", "p99": "56.45", "max": "57",
+    })
+    second_ladder, second_claims, second_rungs = _ladder_fields({
+        "min": "25", "p01": "25", "p05": "25", "p10": "25",
+        "p25": "25", "p50": "30", "p75": "40", "p90": "44.5",
+        "p95": "45", "p99": "45", "max": "45",
+    })
+    claims = {}
+    for place, ladder_claims in ((0, first_claims), (1, second_claims)):
+        for key, value in ladder_claims.items():
+            claims[("column", "parts", place, "percentiles") + key] = value
+    parts = []
+    for place, ladder, moments in (
+        (0, first_ladder, (
+            ("mean", "36.666666666666664"),
+            ("std", "10.236595077850778"),
+            ("skew", "0.5765321212279275"),
+            ("kurtosis", "2.645135996997432"),
+            ("numeric_share", "1"))),
+        (1, second_ladder, (
+            ("mean", "32.916666666666664"),
+            ("std", "7.821396449755148"),
+            ("skew", "0.43445149772021224"),
+            ("kurtosis", "1.685945422653337"),
+            ("numeric_share", "1"))),
+    ):
+        block = {
+            "percentiles": ladder, "n_rows": 12, "n_zero": 0,
+            "n_negative": 0, "n_negative_unrepresentable": 0,
+            "n_used_in_statistics": 12, "n_left_out_of_statistics": 0,
+            "integer_valued": True, "numeric_styles": {"plain": 12},
+            "fraction_widths": {}, "pad_widths": {},
+            "std_unrepresentable": False, "value_histogram": {},
+            "n_distinct_values": 9 if place == 0 else 5,
+            # Each position carries the mode pair like any block of
+            # numbers (contract Q18). Both positions of this column
+            # repeat values, so a real profile of it would publish a
+            # mode; this case publishes the withheld pair because the
+            # fact is REPORT-ONLY, steers no rule of the method and
+            # moves no cell, and a case that turns on nothing should
+            # publish nothing about it.
+            "mode": None,
+            "mode_count": 0,
+        }
+        for name, text in moments:
+            field, claim = nearest_field(text)
+            block[name] = field
+            claims[("column", "parts", place, name)] = claim
+        parts.append(block)
+    agreement, agreement_claim = nearest_field("0.4323")
+    claims[("column", "part_agreements", 0)] = agreement_claim
+    column = _universal(
+        "column_1", "joined_numbers", "joined_numbers", "data", "ok",
+        n_present=12, n_missing=0, n_distinct=12, n_distinct_folded=12,
+        n_numeric=0, n_not_numeric=12, n_out_of_range=0, n_contradictory=0,
+        parts=parts, separator="/", n_parts=2, n_joined=12, n_unparsed=0,
+        part_min_widths=[2, 2], part_agreements=[agreement],
+        part_above=[7],
+    )
+    return {
+        "why": "the first frozen case for the joined role, and the one "
+        "that pins the PAIRING WALK of G6B.4 -- the only search in this "
+        "method, and the only place where synthtwin reproduces "
+        "structure between two quantities at all. Each position is "
+        "built by the numeric rules over its own view, and the walk "
+        "then decides which number of one meets which of the other, "
+        "moving only the LAST position so that neither position's "
+        "multiset can change. "
+        "IT IS NOT A COLUMN THE WALK CAN IGNORE, and it was chosen "
+        "against that check rather than assumed. A first draft "
+        "published an agreement of 0.9983, which a rank-for-rank start "
+        "already meets, so removing the walk entirely changed no "
+        "committed byte: that case pinned the sort and the start rule "
+        "and nothing else. This column publishes 0.4323, holds the "
+        "earlier position above the later in only seven of twelve "
+        "rows, and repeats values in both positions. "
+        "WHAT IT PINS, MEASURED RULE BY RULE. Withdrawn one at a time, "
+        "these move its cells: the walk itself, six; the restart of "
+        "the reserve cursor at word zero, six; the VALUE of the 0.4 "
+        "threshold, eleven, because moving it to 0.9 pulls this column "
+        "into the permutation branch; accept-on-equal against strict "
+        "improvement, five; that a try ceiling EXISTS at all, five; "
+        "and the `part_above` term of the distance, five. "
+        "FIVE RULES IT DOES NOT REACH, which stand on the method\'s "
+        "word alone: the ceiling\'s exact value, since 100*T writes "
+        "what 200*T writes; the skip when both drawn seats hold one "
+        "spelling; the 0.0005 stop, since even 0.0 writes the same "
+        "bytes; that a start rule exists AT ALL, since deleting both "
+        "branches is identical at an agreement of 0.4323; and the "
+        "scaling of the distinct-cell term. The rank ORIGIN is in "
+        "neither list on purpose: it is not byte-determining in either "
+        "direction, so no case can pin it. "
+        "AND THE WALK DOES NOT CONVERGE ON THIS COLUMN, which the case "
+        "freezes rather than hides. The twin meets `part_above` "
+        "exactly, seven of twelve, and reaches a rank agreement of "
+        "0.2226 against the 0.4323 published: it stops at its try "
+        "ceiling, never on distance. The twin\'s own report does not "
+        "name the agreement (residual R-P4-44); `synthtwin validate` "
+        "does.",
+        "column": column,
+        "rows": 12,
+        "identifier_declared": False,
+        "rungs": [first_rungs, second_rungs],
+        "claims": claims,
+    }
+
+
 BRANCH_CASE_BUILDERS = {
     "free_text_joint": _free_text_joint,
     "numeric_pooled_spelling": _numeric_pooled_spelling,
     "identifier_edge_spacing": _identifier_edge_spacing,
     "leap_second_endpoint": _leap_second_endpoint,
+    "month_span": _month_span,
     "numeric_point_free_styles": _numeric_point_free_styles,
     "unrepresentable_joint": _unrepresentable_joint,
+    "long_tail_levels": _long_tail_levels,
+    "clock_ladder": _clock_ladder,
+    "affixed_brackets": _affixed_brackets,
+    "joined_readings": _joined_readings,
 }
 
 CASE_SETS = {
@@ -4290,19 +5724,25 @@ CASE_BUILDERS = {**NAMED_CASE_BUILDERS, **BRANCH_CASE_BUILDERS}
 # whole of the oracle and neither hides the other.
 CASE_SET_ACCOUNTS = {
     NAMED_PART: "The nine cases method section G14.3 names, committed as "
-    "tests/reference/generation-reference-vectors.json. The five cases that "
+    "tests/reference/generation-reference-vectors.json. The seven cases that "
     "reach the branches these nine leave unexercised (review items P2-C3-F3 "
-    "and P2-C4-C3) are the same oracle's second file, "
+    "and P2-C4-C3, owner decision 11, and the month resolution of plan "
+    "P4-D4.3) are the same oracle's second file, "
     "tests/reference/generation-branch-vectors.json: one transform, one proof "
     "layer, two files, because a committed fixture must stay under the "
     "provenance manifest's byte cap and these nine already spend most of it.",
-    BRANCH_PART: "The six cases method section G14.3 adds for the branches "
-    "its first nine leave unexercised (review items P2-C3-F3 and P2-C4-C3): "
+    BRANCH_PART: "The eight cases method section G14.3 adds for the "
+    "branches its first nine leave unexercised (review items P2-C3-F3 and "
+    "P2-C4-C3, owner decision 11, plan P4-D4.3, and residual R-P4-17 for "
+    "the last of them): "
     "the joint class-and-sign packing of an unrepresentable column, the joint "
     "class-and-alphabet packing of free text, a fold collision no case change "
     "can build, the literal decimal, leading-zero and leading-plus style "
-    "placements, and the published end whose seconds field is 60, which the "
-    "ordinal space cannot hold and the endpoint-fields route writes exactly. "
+    "placements, the published end whose seconds field is 60, which the "
+    "ordinal space cannot hold and the endpoint-fields route writes exactly, "
+    "the pooled remainder written by its own value beside a whole number "
+    "wider than the fixed-point window, and the month, which is the second "
+    "resolution naming a SPAN rather than an instant. "
     "They are computed by the same oracle and the same proof "
     "layer as tests/reference/generation-reference-vectors.json, and live in "
     "their own file only because a committed fixture must stay under the "
@@ -4341,6 +5781,59 @@ GIVEN_WORDS = {
         6117593865009646518, 11054268929625209901, 3587914545536121365,
         2793628182718251330, 9295060879584016278, 10009843322027634450,
         18435849063748089958, 18148993397754231745,
+    ),
+    # Thirty-nine words, which is a forty-row label column's placement
+    # budget and its whole budget: the role consumes no content word,
+    # so every cell of the twin is fixed by published counts and these
+    # decide only the ORDER the rows come out in.
+    "joined_readings": (
+        15748752049046439706, 1052754991355682497, 4631623576966815744,
+        12064659840558517754, 10657191057255707380, 10378248564851026865,
+        10021198239630938960, 6883748916460414070, 18067353361653053739,
+        11892363277122465327, 602886262687784400, 8704353156322424958,
+        6379347427865422855, 3598830946331392386, 10329267094791843675,
+        6649749446851944564, 9555332664539838988, 1525621960858135254,
+        2224251045539429228, 16128073529113414212, 2556883604043696129,
+        3134567652162207724, 7622991860140729128, 4021366232906136322,
+        16488111908451590613, 11196021744312784249, 11554654619999588298,
+        7340016323151300764, 14290091057079116538, 6838773607184501349,
+        2127311776424462157, 16897824151333146762, 12419665989193173379,
+        5574751419839220782, 448177247989247182, 2572030107802451391,
+        7226625725583478954, 4675396337978475975, 5276709886071411467,
+        4587383225195023053, 3413080460610791867, 3363974449913449302,
+    ),
+    "affixed_brackets": (
+        17639521920205238616, 13505086616814382279, 15108206413291935612,
+        2648109655521823620, 13957488783681493234, 440424866904614487,
+        10392828958468768899, 307661453259722614, 10328600741271277179,
+        18028049770950982553, 2493915044553599588, 16250571819090705811,
+        3648116078256326511, 12380433607203903270, 11280011279662351746,
+        6666421730586177324, 2346116348095104722, 3316129054665061780,
+        4395871943553304390, 17732992366768506823, 9781242035145962743,
+    ),
+    "clock_ladder": (
+        17168193686452184398, 17294964732501811759, 5119971829015185418,
+        3974762115987730418, 9783861565524925563, 676574683570638621,
+        12408121771224495461, 17120944728125855256, 8074603130316608142,
+        16171205420250064347, 1348050307520104417, 14805382045011159389,
+        12528853194802204718, 7870325075990001275, 8800084849072185159,
+        11241460431909986162, 9287835057163713957, 11122896599893611155,
+        15231939135091175662, 12051230916723616950,
+    ),
+    "long_tail_levels": (
+        16141117999568644869, 2912390137437105406, 11142961259136265613,
+        6649429050765924510, 9469698730514687439, 5579144964475137875,
+        12872973492368199229, 7223177790597929199, 3344454729737302937,
+        10285472521140763709, 15899452662498998082, 5815724960036124325,
+        41521252156152542, 16244079925127836306, 16602194588370141660,
+        15590272638216937006, 12261121709717609306, 5959776043330656727,
+        8749314566909052889, 1838166636128818935, 16830835450031427436,
+        2394200286403428241, 13014561226645067534, 13850225979970345509,
+        1491081199983217612, 7888999454250188185, 754576511652955794,
+        13319788797896474011, 1161974799008428245, 14280985510514793536,
+        7512075171393035397, 472393997099740481, 13756099177883521641,
+        629654845121351311, 3416056298896993148, 17989065697282896171,
+        15281512689324940288, 17576893266494880556, 5388882302899227045,
     ),
     "label_variants": (
         11963376127784481471, 8811798785216892889, 9273867820551118783,
@@ -4459,6 +5952,15 @@ GIVEN_WORDS = {
         2834551707271871843, 3123094663624302558, 9333394219979397357,
         12140150428679393766, 14159367994340888644,
     ),
+    "month_span": (
+        3179660957074219929, 16176357821278490312, 17656820539994292342,
+        17540219834124380146, 9365132703411629466, 11037237009629682836,
+        5537033287795020884, 10091697982931758559, 5772994017682272647,
+        9256936461562489083, 5846245697595079916, 3288170915282709302,
+        17570781254895321736, 17342232991728644533, 424412772268271036,
+        5101176902256472994, 17483310722792023123, 11776508763375653527,
+        11238713790439917190, 2349096050734119258, 14187853255911556467,
+    ),
     "quarter": (
         2951315705954145492, 10808750059907510011, 15197106187201647244,
         5483483510807493621, 12634166190170755924, 8557152385012124240,
@@ -4478,6 +5980,28 @@ def word_budget(column, rows):
     if role == "datetime":
         parsed = column["n_present"] - column["n_unparsed"]
         return max(parsed - 2, 0), placement
+    # The clock role budgets by the same shape and for the same reason
+    # (G4.3, G7A.4): both ends are pinned by fixed rule and cost no
+    # word, every stand-in is stepped past its neighbours and costs
+    # none, and each rank between the ends takes exactly one.
+    if role == "time_of_day":
+        parsed = column["n_present"] - column["n_unparsed"]
+        return max(parsed - 2, 0), placement
+    if role == "joined_numbers":
+        # G4.3: each position's numeric budget, plus a reserve of
+        # `max(n_joined - 1, 0)` for every position after the first.
+        total = 0
+        for place in range(column["n_parts"]):
+            total = total + joined_part_budget(column, place)
+            if place:
+                total = total + max(column["n_joined"] - 1, 0)
+        return total, placement
+    if role == "affixed_number":
+        # G4.3: the numeric budget read over the CORES.  The pair is
+        # fixed text and costs no word.
+        return word_budget(
+            {**affixed_core_view(column), "role": "continuous"}, rows
+        )
     if role in ("count", "continuous"):
         numeric = column["n_numeric"]
         negatives = column["n_negative"] - column["n_negative_unrepresentable"]
@@ -4513,17 +6037,48 @@ INTEGER_COLUMN_KEYS = frozenset({
     "n_numeric", "n_not_numeric", "n_out_of_range", "n_contradictory",
     "n_sentinel_candidates_unpublished", "n_zero", "n_negative",
     "n_negative_unrepresentable", "n_used_in_statistics",
+    "n_distinct_values",
     "n_left_out_of_statistics", "n_rows", "suppressed_levels",
     "suppressed_rows", "level_ceiling", "subsecond_digits", "n_unparsed",
     "min_length", "max_length", "n_all_digits", "n_code_alphabet", "count",
     "n_occurrences", "n_whole", "n_fraction", "n_whole_unknown",
     "n_positive", "n_sign_unknown",
+    # How many cells held the commonest number (contract Q18). The
+    # mode's VALUE beside it is a published binary64 and is proved as
+    # one, or `null` where the pair is withheld.
+    "mode_count",
+    # The affixed role's own five counts (contract 6.12, method G6A.1):
+    # how many cells wore the pair, and the four class counts read over
+    # the CORES rather than over the cells.
+    "n_affixed", "n_core_numeric", "n_core_not_numeric",
+    "n_core_out_of_range", "n_core_contradictory",
+    # The joined role's own whole numbers (contract 6.13, method
+    # G6B.1): how many positions, and how many cells split that way.
+    # `part_above` and `part_min_widths` are ARRAYS and are named only
+    # in INTEGER_COLUMN_ARRAYS -- naming `part_above` here as well let
+    # a scalar stand where an array belongs and the proof layer
+    # certified it. `part_agreements` is a binary64 and is proved as
+    # one.
+    "n_parts", "n_joined",
 })
 INTEGER_COLUMN_MAPS = frozenset({
     "missing_by_class", "missing_by_source", "numeric_styles", "utc_offsets",
     "variants", "variants_withheld", "n_distinct_by_occurrences",
+    "fraction_widths", "pad_widths", "resolution_mix", "shape_forms",
 })
-INTEGER_COLUMN_ARRAYS = frozenset({"suppressed_level_counts"})
+# The whole-number keys a NUMERIC PART of a joined column may carry
+# (contract 6.7 read at that depth).  It is deliberately narrower than
+# INTEGER_COLUMN_KEYS: a part is a block of numbers, so the universal
+# census keys, the label keys and the joined block's own keys have no
+# place inside one.
+NUMERIC_PART_KEYS = frozenset({
+    "n_rows", "n_zero", "n_negative", "n_negative_unrepresentable",
+    "n_used_in_statistics", "n_left_out_of_statistics",
+    "n_distinct_values", "mode_count",
+})
+INTEGER_COLUMN_ARRAYS = frozenset({
+    "suppressed_level_counts", "part_min_widths", "part_above",
+})
 # The two blocks of a free-text column whose own two ends are whole
 # numbers while the statistics beside them are proved binary64 values.
 INTEGER_COLUMN_ENDS = frozenset({"length", "words"})
@@ -4595,6 +6150,30 @@ def whole_number_fields(document):
             ):
                 allowed.add(path)
                 continue
+            # ONE POSITION OF A JOINED COLUMN is a numeric block of its
+            # own (method G6B.1), so its whole numbers are the same
+            # whole numbers a column carries, one level deeper.
+            # ONE POSITION OF A JOINED COLUMN is a numeric block of its
+            # own (method G6B.1), so its whole numbers are the column's
+            # whole numbers one level deeper -- and ONLY those. The
+            # lengths are exact rather than `>=`: a review found that a
+            # loose rule certified `parts[0]["n_rows"]` replaced by a
+            # mapping, and a key belonging to the joined block itself
+            # written inside a part.
+            if (
+                len(inside) == 3
+                and inside[0] == "parts"
+                and inside[2] in NUMERIC_PART_KEYS
+            ):
+                allowed.add(path)
+                continue
+            if (
+                len(inside) == 4
+                and inside[0] == "parts"
+                and inside[2] in INTEGER_COLUMN_MAPS
+            ):
+                allowed.add(path)
+                continue
         raise AssertionError(
             f"{_where(path)} publishes the whole number {value!r} at a place "
             "this document has no rule for. Name the field among the "
@@ -4632,6 +6211,12 @@ def build_case(name):
     chain = []
     if column["role"] == "datetime":
         content = _datetime_content(working)
+    elif column["role"] == "time_of_day":
+        content = _clock_content(working)
+    elif column["role"] == "affixed_number":
+        content = _affixed_content(working)
+    elif column["role"] == "joined_numbers":
+        content = _joined_content(working)
     elif column["role"] in ("count", "continuous"):
         content, chain, _missed = _numeric_content(working)
     elif column["role"] == "identifier":
@@ -4646,6 +6231,28 @@ def build_case(name):
         raise AssertionError(
             f"{name} built {len(content)} present cells and the column "
             f"publishes {column['n_present']}"
+        )
+    # HOW MANY DIFFERENT NUMBERS the finished content holds (contract
+    # Q17, plan P4-D4.9).  Counted off the cells this oracle built,
+    # because it is a fact ABOUT those cells and a hand-written figure
+    # would be a second answer: `01E+16` and `1e+16` are two spellings
+    # of one number, and a case whose cells hold both publishes one
+    # number for the two.  Computed only where the role carries the
+    # key, which is the three that carry a ladder.
+    # A CASE MAY PUBLISH ITS OWN, and where it does that figure stands.
+    # The placeholder is 0, which no conforming block can carry: Q17
+    # requires at least one different number wherever the statistics
+    # used a value, and every column reaching here used one. So a
+    # non-zero figure is one the case CHOSE, describing the source
+    # column it stands for, and overwriting it would publish a fact
+    # about the twin where a profiler publishes a fact about the table
+    # -- which is how a case comes to describe a different column from
+    # the one its own account names.
+    if column.get("n_distinct_values") == 0:
+        column["n_distinct_values"] = _distinct_numbers_of(
+            content,
+            column.get("affix_prefix", ""),
+            column.get("affix_suffix", ""),
         )
     cells = place(content, column["n_missing"], rows, words[content_words:])
     one_column = True

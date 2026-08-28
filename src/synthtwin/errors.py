@@ -1216,9 +1216,32 @@ def floor_not_positive(given: str) -> str:
     return (
         f"The smallest group size must be a whole number of 1 or more, "
         f"but {given} was given. Give a whole number, or leave the "
-        f"option out altogether to use the default of 11: any value "
-        f"shared by fewer than 11 rows is then left out of the profile, "
-        f"so that a rare value cannot point back at anybody."
+        f"option out altogether to use the default of 1: every value "
+        f"your table holds is then named in the profile, together with "
+        f"how many rows shared it. Raise it -- for instance to 11 -- "
+        f"where no group named in the profile may be small enough to "
+        f"point at one person."
+    )
+
+
+def column_declared_twice(name: str) -> str:
+    """Message for a column named as BOTH a record number and a code.
+
+    The two declarations ask for opposite things -- one publishes none
+    of the column's values, the other publishes its distribution -- so
+    the pair is refused rather than ranked. Ranking them would mean
+    guessing which the person meant, and the guess would be invisible
+    in the profile that came out.
+    """
+    return (
+        f"The column '{_shown(name)}' was named with both --identifier "
+        f"and --code, and those ask for opposite things. --identifier "
+        f"publishes none of a column's values, which is what a record "
+        f"number needs. --code publishes which values are common and how "
+        f"many rows carried each, which is what a coding system needs. "
+        f"synthtwin will not choose between them for you. Name the "
+        f"column once, with whichever of the two you meant, and run the "
+        f"command again. Nothing was written."
     )
 
 
@@ -1366,8 +1389,14 @@ def profile_version_is_older(found: int, reads: int) -> str:
     value" the person named -- and what to do, which is to describe the
     table again UNDER THE SAME OPTIONS.
 
-    IT NAMES FIVE OPTIONS AND NAMED TWO UNTIL 2026-08-17, AND THE TWO
-    COULD DISCLOSE (review item P3-V9-F6; plan amendment A-P3-36). The
+    IT NAMES SEVEN OPTIONS. It named two until 2026-08-17, five after
+    that, and gained `--code` on 2026-08-25 with the declaration itself
+    (plan amendment A-P4-38). `--code` belongs here by the same test as
+    every other name on the list: leaving it out of a re-run moves a
+    column off the label roles and back onto the numeric ones, and the
+    new description then publishes a ladder of real codes the old one
+    never named. THE TWO ORIGINALS COULD DISCLOSE (review item
+    P3-V9-F6; plan amendment A-P3-36). The
     retired wording named `--keep-value` and `--missing-value` only.
     Follow it to the letter -- which is what a person who does not
     program will do, because it is the whole of what they were told --
@@ -1436,28 +1465,38 @@ def profile_version_is_older(found: int, reads: int) -> str:
     return (
         f"This description was written by an older version of synthtwin: "
         f"it says it is version {found}, and this synthtwin reads "
-        f"version {reads}. A version {reads} description records which "
-        f"of synthtwin's own words for \"no value\" you named on the "
-        f"command line, and a version {found} description does not, so "
-        f"this file cannot be read back exactly. Please make the "
+        f"version {reads}. A version {reads} description records things "
+        f"an older description does not \u2014 which of synthtwin's own "
+        f"words for \"no value\" you named on the command line, and how "
+        f"dates whose day and month are both numbers were read "
+        f"\u2014 so this file cannot be read back "
+        f"exactly. Please make the "
         f"description again by running 'synthtwin profile' on your "
         f"table, giving it every option you gave the first time: "
-        f"--keep-value, --missing-value, --identifier, --smallest-group "
-        f"and --first-row. Every one of them changes what the "
+        f"--keep-value, --missing-value, --identifier, --code, "
+        f"--measurement, --smallest-group, --first-row and --day-first. "
+        f"Every one of them changes what the "
         f"description PUBLISHES about your table, so any option you "
         f"leave out can put something into the new description that the "
         f"old one held back: without the --smallest-group you gave, a "
         f"value that fewer rows share can be named; without the "
         f"--identifier you gave, a column of record numbers is "
-        f"described like any other column; without the --missing-value "
+        f"described like any other column; without the --code you gave, a column of codes is described as measurements, so its smallest and largest values \u2014 which are real codes \u2014 are published and its twin loses any leading zeros; without the --measurement you gave, a column of readings written as two numbers in one cell, such as a blood pressure, is described as text and its twin holds no readings at all; without the --missing-value "
         f"you gave, a stand-in is read as a real reading, and the "
         f"stand-in itself can be published as the column's smallest "
         f"value; without the --keep-value you gave, a word you had "
         f"counted as an ordinary value becomes a gap, which can change "
         f"what kind of column synthtwin sees and publish both that word "
-        f"and the column's own numbers; and without the --first-row you "
+        f"and the column's own numbers; without the --first-row you "
         f"gave, the first line of your file is read as the column names "
-        f"and published as them. Read the summary page synthtwin writes "
+        f"and published as them; and without the --day-first you gave, "
+        f"a date whose day and month are both written as numbers \u2014 "
+        f"with slashes, with dots, or with a two-figure year \u2014 can "
+        f"be read the other way round, which changes "
+        f"the dates the description publishes and can leave the column "
+        f"described as text instead. If you do not hold the table "
+        f"yourself, ask whoever made this description to run it again "
+        f"for you. Read the summary page synthtwin writes "
         f"beside the new description before either file goes anywhere, "
         f"and use the description exactly as synthtwin writes it."
     )
@@ -1809,4 +1848,20 @@ def outputs_already_there(
         f"seed -- add --replace to the command. If not, move or rename "
         f"what is there, or give --out-dir a different folder to write "
         f"into, then run the command again."
+    )
+
+
+def the_questions_were_not_finished() -> str:
+    """Message for a person who ended the run at a question.
+
+    Ctrl-C and Ctrl-D at a prompt mean stop. A profile built on half an
+    interview would record some columns as the person described them
+    and the rest as synthtwin guessed, with nothing on its face saying
+    which were which -- so nothing is written and the run says so.
+    """
+    return (
+        "You ended the run before answering every question, so nothing "
+        "was written. Run the command again to answer them, or name the "
+        "columns yourself with --code and --identifier and no questions "
+        "will be asked."
     )

@@ -8,9 +8,20 @@ import json
 
 import pytest
 
+import fixtures
 from synthtwin import parsing, profile, taxonomy
 
-SETTINGS = taxonomy.Settings()
+# THE FLOOR THIS FILE IS WRITTEN AGAINST, NAMED RATHER THAN INHERITED.
+# Plan amendment A-P4-37 lowered the default `small_cell_floor` from
+# eleven to one, and at a floor of one NOTHING is held back: no pooled
+# label, no `(withheld)` spelling, no suppressed level, no unpublished
+# sentinel candidate. Every case below whose subject is what a
+# description WITHHOLDS was measured against a floor of eleven, so the
+# floor is stated here instead of being inherited from a default that
+# has since moved. What the default IS is asserted elsewhere; this
+# constant is what the cases below are about.
+SMALL_CELL_FLOOR = 11
+SETTINGS = taxonomy.Settings(small_cell_floor=SMALL_CELL_FLOOR)
 
 
 def describe(
@@ -67,9 +78,7 @@ def test_a_column_one_value_below_the_line_publishes_nothing() -> None:
 
 def test_a_minority_numeric_column_is_not_described_as_numbers() -> None:
     # The neighbour on the other side of the majority line.
-    values = [str(index) for index in range(40)] + [
-        f"note {index} in words" for index in range(60)
-    ]
+    values = [str(index) for index in range(40)] + fixtures.prose(60)
     described = describe(values)
     assert described.role not in (taxonomy.ROLE_COUNT, taxonomy.ROLE_CONTINUOUS)
 
@@ -90,7 +99,7 @@ def test_unsupported_measurement_syntax_is_not_called_an_identifier(
     # words that synthtwin cannot parse. Calling them record numbers was
     # a false claim about their meaning.
     described = describe(values)
-    assert described.role == taxonomy.ROLE_TEXT
+    assert described.role != taxonomy.ROLE_IDENTIFIER
     assert any("--identifier" in remark for remark in described.remarks)
 
 
@@ -110,7 +119,7 @@ def test_all_different_code_words_are_declined_and_declarable() -> None:
     protected -- that such a column publishes nothing -- is unchanged,
     and the identifier role is exercised through the declared path.
     """
-    values = [f"code{index}" for index in range(50)]
+    values = fixtures.prose(50)
     described = describe(values)
     assert described.role == taxonomy.ROLE_TEXT
     assert described.n_distinct == 50
@@ -175,11 +184,16 @@ def test_the_ceiling_is_a_share_of_the_column_and_says_so() -> None:
     somebody to discover, and the column that loses the role publishes
     nothing rather than a part of itself.
     """
-    labels = [f"label{index}" for index in range(9)]
+    # Prose rather than `label0`..`label8`: that family is a number
+    # wearing shared text, so the affixed rule reads the short column
+    # and the sentence this test is about belongs to another role.
+    # What is being tested is the CEILING, and it is the same ceiling
+    # whatever the values are.
+    labels = fixtures.prose(9)
     short = describe((labels * 6)[:50])
     long = describe((labels * 12)[:100])
     assert long.role == taxonomy.ROLE_CATEGORICAL
-    assert short.role == taxonomy.ROLE_TEXT
+    assert short.role != taxonomy.ROLE_CATEGORICAL
     assert short.n_distinct == long.n_distinct == 9
     assert "levels" not in short.details
     said = " ".join(short.remarks)
@@ -199,15 +213,20 @@ def test_more_labels_than_the_cap_are_not_a_set_of_categories() -> None:
     be anything but zero is a field a reader has to learn to ignore.
     """
     values: list[str] = []
+    sentences = fixtures.prose(1001)
     for index in range(1001):
-        values = values + [f"label{index:04d}"] * 20
+        values = values + [sentences[index]] * 20
     described = describe(values)
-    assert described.role == taxonomy.ROLE_TEXT
+    assert described.role != taxonomy.ROLE_CATEGORICAL
     assert described.n_distinct == 1001
-    assert "levels" not in described.details
-    said = " ".join(described.remarks)
-    assert "1001 different values" in said
-    assert "at most 1000" in said
+    # Since plan P4-D5 the column past the ceiling is a LONG TAIL where
+    # its levels repeat -- each of these covers twenty rows -- and the
+    # ceiling it passed is recorded in the evidence rather than in a
+    # remark. The ceiling's own job is unchanged and is what the first
+    # assertion above holds it to.
+    assert described.role == taxonomy.ROLE_LONG_TAIL
+    assert "1001 different values" in described.detection_evidence
+    assert "more than the 1000" in described.detection_evidence
 
 
 def test_one_label_below_the_thousand_cap_is_still_a_set_of_categories(
@@ -224,7 +243,7 @@ def test_one_label_below_the_thousand_cap_is_still_a_set_of_categories(
 
 
 def test_values_that_hardly_repeat_are_not_a_set_of_categories() -> None:
-    described = describe([f"note {index}" for index in range(50)])
+    described = describe(fixtures.prose(50))
     assert described.role != taxonomy.ROLE_CATEGORICAL
 
 
@@ -319,7 +338,12 @@ def test_too_many_values_no_format_can_hold_publish_nothing() -> None:
 def test_a_legitimate_text_code_can_be_kept(  ) -> None:
     values = ["north"] * 40 + ["south"] * 40 + ["NA"] * 40
     assert describe(values).role == taxonomy.ROLE_BINARY
-    kept = describe(values, settings=taxonomy.Settings(kept_values=("NA",)))
+    kept = describe(
+        values,
+        settings=taxonomy.Settings(
+            small_cell_floor=SMALL_CELL_FLOOR, kept_values=("NA",)
+        ),
+    )
     assert kept.role == taxonomy.ROLE_CATEGORICAL
     assert kept.n_present == 120
     assert kept.n_missing == 0
@@ -329,7 +353,10 @@ def test_a_spelling_can_be_declared_missing() -> None:
     values = ["north"] * 40 + ["south"] * 40 + ["unknown"] * 40
     declared = describe(
         values,
-        settings=taxonomy.Settings(declared_missing_values=("unknown",)),
+        settings=taxonomy.Settings(
+            small_cell_floor=SMALL_CELL_FLOOR,
+            declared_missing_values=("unknown",),
+        ),
     )
     assert declared.n_missing == 40
     assert declared.missing_by_class[parsing.MISSING_DECLARED] == 40
@@ -370,11 +397,15 @@ def test_a_withheld_sentinel_is_not_named_in_the_output() -> None:
 
 def test_a_withholding_role_publishes_no_missing_spelling() -> None:
     values = (
-        [f"a sentence number {index} in words" for index in range(50)]
+        fixtures.prose(50)
         + ["-9.99e2"]
     )
     described = describe(
-        values, settings=taxonomy.Settings(declared_missing_values=("-9.99e2",))
+        values,
+        settings=taxonomy.Settings(
+            small_cell_floor=SMALL_CELL_FLOOR,
+            declared_missing_values=("-9.99e2",),
+        ),
     )
     assert described.role == taxonomy.ROLE_TEXT
     assert described.missing_by_source == {}
@@ -518,7 +549,13 @@ EVERY_ROLE = {
     taxonomy.ROLE_CONTINUOUS: [f"{index}.5" for index in range(60)],
     taxonomy.ROLE_CATEGORICAL: ["a"] * 40 + ["b"] * 40 + ["c"] * 40,
     taxonomy.ROLE_IDENTIFIER: [f"code{index}" for index in range(50)],
-    taxonomy.ROLE_TEXT: [f"a sentence number {i} here" for i in range(50)],
+    # A number wearing one shared piece of text, which is the role.
+    taxonomy.ROLE_AFFIXED: [f"{index} mg" for index in range(20, 80)],
+    # Text no rule reads. It has to be prose rather than a template:
+    # `a sentence number 7 here` IS a number wearing shared text, so
+    # the affixed rule reads it and the fixture would exercise the
+    # wrong role.
+    taxonomy.ROLE_TEXT: fixtures.prose(50),
 }
 
 # The one role no column reaches by itself. Its fixture is profiled with

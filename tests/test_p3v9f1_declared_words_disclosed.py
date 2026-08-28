@@ -208,8 +208,17 @@ def test_the_help_says_the_word_itself_is_written(
     # would regret naming, in those words, because "a spelling" is not
     # what a person is deciding about.
     assert "a diagnosis, a code or an identifier named here travels" in shown
-    # The bound is stated beside the exposure, not instead of it.
-    assert f"at least {FLOOR} rows hold it" in shown
+    # THE BOUND IS STATED BESIDE THE EXPOSURE, NOT INSTEAD OF IT, and
+    # what the bound IS moved on 2026-08-25 (plan amendment A-P4-37).
+    # The help used to say "at least 11 rows hold it", which was the
+    # default. The default is 1, at which the sentence would have read
+    # "at least 1 rows hold it" -- bad English, and worse, it would
+    # have understated nothing while sounding like a threshold. The
+    # help says how wide the exposure actually is instead, and both
+    # halves are asserted: that a bound is named at all, and that the
+    # default one is named exactly.
+    assert "where enough rows hold it" in shown
+    assert "by default one row is enough" in shown
 
 
 # -- 2. before either file exists --------------------------------------

@@ -14,7 +14,16 @@ import pytest
 import fixtures
 from synthtwin import errors, profile, reading, taxonomy
 
-SETTINGS = taxonomy.Settings()
+# THE FLOOR IS DECLARED RATHER THAN INHERITED. Every assertion below
+# about what this document holds back -- the label below the floor, the
+# identifier and free-text values that must not leak, the golden bytes
+# that pin both -- was written against a floor of eleven, which used to
+# be the default. Plan amendment A-P4-37 (the owner's ruling) moved
+# `small_cell_floor`'s default to one, at which nothing is held back at
+# all (contract invariant C5-S13), so this file now says at what floor
+# it is asking. What it asks is unchanged. The default itself is pinned
+# in tests/test_ap311_lowered_floor.py, not here.
+SETTINGS = taxonomy.Settings(small_cell_floor=11)
 
 
 def _document(tmp_path: pathlib.Path, text: str) -> dict:
@@ -55,7 +64,7 @@ def test_columns_keep_the_order_they_had_in_the_file(
     assert positions == list(range(1, len(positions) + 1))
     names = [column["name"] for column in document["columns"]]
     assert names[0] == "record_code"
-    assert names[-1] == "batch"
+    assert names[-1] == "note"
 
 
 def test_every_column_carries_its_evidence_and_counts(
@@ -195,8 +204,50 @@ def test_nothing_that_varies_between_runs_is_written(
 # No count, no statistic, no label, no role and no spelling of any
 # column moved, and no cell of any twin moved with them: the twin's own
 # golden is unchanged.
+#
+# RE-RECORDED 2026-08-21, and the cause is one change with one reach:
+# the demonstration table's free-text column stopped being a template.
+# It held `observation 0 written out in several plain words`,
+# `observation 1 ...` and so on -- which the affixed-number rule of
+# this phase reads as a number wearing shared text, because that is
+# what those strings are. A fixture meant to stand for text NO rule
+# reads had to become text no rule reads, so it is prose that varies
+# at both ends and holds no digit.
+#
+# RE-RECORDED AGAIN THROUGH CODEX ROUNDS 2 AND 3 (2026-08-21), and the
+# cause is NOT the one above: that free-text change is a round-1 record
+# and the column has not moved since. What moved these digests is the
+# `dose` column and the census beside it. `dose` was added to the
+# shared table so the affixed role is walked by every battery, its
+# spread was widened so a twin can carry its distinctness, and its
+# cores were given a decimal point so the fraction-width census is
+# exercised on THIS role rather than only on the plain numeric ones.
+# The census itself is new in that range and publishes two more
+# obligations on `dose` -- `widths.published.1` and
+# `widths.published.2` -- so the quality report carries MORE than it
+# did, which is the direction a re-recording must move in.
+#
+# All four digests moved together, which is what a change to the
+# TABLE looks like: a different column of values makes a different
+# description, a different twin, a different report and a different
+# quality report. A change to the generator alone would have moved the
+# last three and left the first.
+#
+# RE-RECORDED 2026-08-25 for the second declaration (plan P4-D19). ONE
+# line moved and no other: the settings block of every document now
+# carries `forced_codes`, which sorts immediately before
+# `forced_identifiers`, and this run declares none, so the line reads
+# `"forced_codes": [],`. That was CHECKED rather than assumed -- parsing
+# these bytes, deleting that one key and serializing again reproduces
+# the previous digest,
+# baf08b55fea0a72d6e0af2faadd3d88ace03b85b577d1f3d4b439e656a537ffe,
+# character for character. The floor this file describes at is unmoved:
+# it is named at the top of the file now rather than inherited from the
+# default, and eleven is the number the previous digest was recorded at.
+# No count, no statistic, no label, no role and no spelling of any
+# column moved.
 GOLDEN_SHA256 = (
-    "c8e45bca6877060091d58f94ba463acb8f37e08f4eb7877b727f83bf1d03df86"
+    "d130e910e7c539c82cf8a307d3d1e6374b32911a7834d707343f34c9cae4bf46"
 )
 
 

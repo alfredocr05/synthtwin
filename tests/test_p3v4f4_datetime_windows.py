@@ -101,19 +101,24 @@ def _date(index: int) -> str:
     return f"2024-{(index * index) % 12 + 1:02d}-{(index % 27) + 1:02d}"
 
 
+def _month(index: int) -> str:
+    return f"{2018 + (index * index) % 7}-{(index % 12) + 1:02d}"
+
+
 def _quarter(index: int) -> str:
     return f"{2018 + (index * index) % 7}-Q{(index % 4) + 1}"
 
 
 # One builder per PRECISION the producer can publish, which is one per
-# resolution for the two that carry no clock and three for the one that
-# does. The mapping is checked against the producer's own list below
+# resolution for the three that carry no clock and three for the one
+# that does. The mapping is checked against the producer's own list below
 # rather than trusted.
 _BUILDERS = {
     parsing.PRECISION_SUBSECOND: _subsecond,
     parsing.PRECISION_SECOND: _second,
     parsing.PRECISION_MINUTE: _minute,
     parsing.PRECISION_DATE: _date,
+    parsing.PRECISION_MONTH: _month,
     parsing.PRECISION_QUARTER: _quarter,
 }
 

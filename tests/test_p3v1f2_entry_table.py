@@ -34,7 +34,7 @@ counts it excused are taken over the blank split, where the floor's
 worth of cells spelling a missing marker moves all three with the role
 still holding. So: coverage is credited to a registered case and to
 nothing else, which makes the registration total over the shipped sites
-(592 rows over 588 sites, 73 curated and 519 derived); each derived row
+(672 rows over 668 sites, 73 curated and 599 derived); each derived row
 must be an edit aimed
 at the site it covers; the floor is counted over the registration; and
 nothing is excused at all.
@@ -132,6 +132,19 @@ from synthtwin import (
 
 SEED = 20260813
 
+# The floor every fixture below is described at. The sites this file
+# walks include the ones a description reaches only by POOLING -- the
+# withheld variant keys, the suppressed group, the withheld offsets
+# corner -- and at a floor of one nothing is pooled at all, so those
+# sites would simply not exist and the table would be walked with the
+# holes unnoticed. A floor of one became the default under the owner
+# ruling recorded as plan amendment A-P4-37 (contract invariant C5-S13
+# enforces that it withholds nothing), so this file states the floor it
+# means instead of inheriting one: eleven, the number every fixture
+# docstring here counts against.
+SMALL_CELL_FLOOR = 11
+SETTINGS = taxonomy.Settings(small_cell_floor=SMALL_CELL_FLOOR)
+
 # The shipped corner listings, taken before anything here can replace
 # them, so the reinstatement below stands in for exactly one binding.
 _SHIPPED_CORNER_LISTINGS = validation._corner_listings
@@ -191,7 +204,7 @@ def _described(
     table_path = fixtures.write(folder, f"{stem}.csv", text)
     table = reading.read_table(str(table_path), first_row=first_row)
     document = profile.build_document(
-        table, taxonomy.Settings(), declared if declared else []
+        table, SETTINGS, declared if declared else []
     )
     written = fixtures.write_profile(folder, f"{stem}-profile.json", document)
     return contract.load_profile(str(written))
@@ -254,6 +267,74 @@ def _spelled_styles_table() -> str:
     """
     values = [f"{index + 1}e-05" for index in range(40)]
     return fixtures.single_column_table("reading", values)
+
+
+def _shaped_text_table() -> str:
+    """A column of structured codes too many to be categories.
+
+    THE FORM CENSUS HAD NO FREE-TEXT FIXTURE PUBLISHING A NAMED FORM,
+    and a fact no fixture reaches is a fact no test asserts anything
+    about -- which is the whole subject of this file. A laboratory-code
+    column at claims scale is exactly the shape P4-D18 was raised for:
+    far past the categorical ceiling, every value different, and every
+    one of them written the same way. It lands on `free_text`, which
+    publishes no value at all, and its form census is the only thing
+    that says what its twin's cells should look like.
+
+    IT IS THREE COLUMNS. Two for the reason the quarter fixture is: a
+    column of a one-column table cannot be emptied -- the file left
+    behind is no table at all and the reader refuses it before any
+    verdict exists -- so a one-column fixture leaves
+    `axes.quality_state` with no perturbation that can move it.
+
+    THE THIRD IS A CODE COLUMN OF CATEGORIES, and it is here because
+    the census stands on the four LABEL roles too and no other fixture
+    of this file reached one with a form. A form needs at least two of
+    the three kinds -- figure, letter, mark -- so a column of region
+    names publishes nothing; `E11.9` and its rare tail publish
+    `A99.9`, `A99` and `A99.99`, and the tail is what the census was
+    raised for. Five common codes and a tail of rare ones is the
+    diagnosis column a person actually holds.
+    """
+    common = ["E11.9", "I10", "Z00.00", "J45.909", "M54.5"]
+    rare = [f"Q{number:02d}.{number % 3}" for number in range(70, 96)]
+    diagnoses: "list[str]" = []
+    for code, count in zip(common, (62, 45, 34, 28, 22)):
+        diagnoses = diagnoses + [code] * count
+    for place, code in enumerate(rare):
+        diagnoses = diagnoses + [code] * (1 if place % 2 else 2)
+    while len(diagnoses) < 240:
+        diagnoses = diagnoses + [common[0]]
+    return fixtures.rows_to_csv(
+        ["lab_code", "region", "dx_code"],
+        [
+            [
+                f"{4000 + number}-{number % 10}",
+                fixtures.REGIONS[number % 4],
+                diagnoses[number],
+            ]
+            for number in range(240)
+        ],
+    )
+
+
+def _padded_code_table() -> str:
+    """A numeric column of fixed-width codes written with leading zeros.
+
+    THE CENSUS OF FIELD WIDTHS HAD NO FIXTURE PUBLISHING A NAMED WIDTH,
+    and a fact no fixture reaches is a fact no test asserts anything
+    about -- which is the whole subject of this file. Forty cells all
+    five figures wide put `pad_widths` above the publication floor, so
+    the description names the width and the subcheck that binds it
+    exists here with a file it can fail on.
+
+    Five figures is the shape a person actually holds: a procedure
+    code, a zip code whose leading zero matters, an account number. It
+    is the case P4-D14 was built for, so it is the case the coverage
+    identity walks.
+    """
+    values = [f"{index:05d}" for index in range(40)]
+    return fixtures.single_column_table("code", values)
 
 
 def _quarter_table() -> str:
@@ -338,6 +419,18 @@ def runs(
         (
             "quarters",
             _quarter_table(),
+            None,
+            reading.FIRST_ROW_AUTOMATIC,
+        ),
+        (
+            "padded-codes",
+            _padded_code_table(),
+            None,
+            reading.FIRST_ROW_AUTOMATIC,
+        ),
+        (
+            "shaped-text",
+            _shaped_text_table(),
             None,
             reading.FIRST_ROW_AUTOMATIC,
         ),
@@ -782,6 +875,27 @@ def _first_record(described: contract.Profile) -> int:
     return 0
 
 
+def _reshaped(
+    described: contract.Profile, twin: str, index: int
+) -> str:
+    """Append a figure to every present cell of one column.
+
+    The cell keeps its alphabet band and grows by one character, so
+    what moves is the FORM it was written in: `clinic` becomes
+    `clinic1`, whose form is `AAAAAA9` and not `AAAAAA`.
+    """
+    rows = _rows_of(twin)
+    first = _first_record(described)
+    for row in range(first, len(rows)):
+        if index >= len(rows[row]):
+            continue
+        cell = rows[row][index]
+        if not cell:
+            continue
+        rows[row][index] = f"{cell}1"
+    return _rebuilt(rows)
+
+
 # EVERY BUILDER BELOW TAKES A COLUMN INDEX, not a role. The version
 # these replace asked the description for the FIRST column of a role and
 # perturbed that one, so a description carrying two columns of one role
@@ -906,6 +1020,103 @@ def _quartered(described: contract.Profile, text: str, index: int) -> str:
             continue
         rows[row][index] = f"{2030 + (step % 3)}-Q{(step % 4) + 1}"
         step = step + 1
+    return _rebuilt(rows)
+
+
+def _clock_piled(
+    described: contract.Profile,
+    text: str,
+    index: int,
+    at_the_top: bool,
+) -> str:
+    """A clock column with its two ends kept and its middle piled up.
+
+    The clock analogue of the date ladder's own two edits, and it exists
+    for the same reason: a rung's window is the band its own rank can
+    reach, so a rung near the bottom is falsifiable only UPWARD and one
+    near the top only downward. One direction alone leaves half the
+    ladder covered by nothing.
+    """
+    column = described.columns[index]
+    facts = column.facts
+    if not isinstance(facts, contract.ClockFacts):
+        return ""
+    form = facts.clock_form
+    low = parsing.clock_ordinal(facts.earliest, form)
+    high = parsing.clock_ordinal(facts.latest, form)
+    if low is None or high is None:
+        return ""
+    half = (high - low) // 2
+    if half < 4:
+        return ""
+    rows = _rows_of(text)
+    first = _first_record(described)
+    written = [row for row in range(first, len(rows)) if rows[row][index]]
+    if len(written) < 12:
+        return ""
+    keep: "set[int]" = set()
+    for row in written:
+        if rows[row][index] == facts.earliest:
+            keep.add(row)
+            break
+    for row in written:
+        if rows[row][index] == facts.latest and row not in keep:
+            keep.add(row)
+            break
+    corner = high - half if at_the_top else low
+    place = 0
+    for row in written:
+        if row in keep:
+            continue
+        if parsing.clock_form(rows[row][index]) != form:
+            # A stand-in stays a stand-in: moving it would change how
+            # many cells read as clock times, which is a different
+            # check's business.
+            continue
+        rows[row][index] = parsing.clock_spelling(
+            corner + (place % half), form
+        )
+        place = place + 1
+    return _rebuilt(rows)
+
+
+def _clock_crushed(
+    described: contract.Profile, text: str, index: int
+) -> str:
+    """A clock column with its middle piled low."""
+    return _clock_piled(described, text, index, at_the_top=False)
+
+
+def _clock_lifted(
+    described: contract.Profile, text: str, index: int
+) -> str:
+    """The same edit with the middle piled high."""
+    return _clock_piled(described, text, index, at_the_top=True)
+
+
+def _clock_reformed(
+    described: contract.Profile, text: str, index: int
+) -> str:
+    """Every clock cell rewritten in the OTHER of the two forms.
+
+    The one edit that moves the published form without moving a single
+    time: `09:30` and `09:30:00` are the same moment, so the column
+    still reads as clock times and every value it holds is the value it
+    held -- what changes is the shape its own description reads off it.
+    """
+    column = described.columns[index]
+    facts = column.facts
+    if not isinstance(facts, contract.ClockFacts):
+        return ""
+    rows = _rows_of(text)
+    for row in range(_first_record(described), len(rows)):
+        cell = rows[row][index]
+        if parsing.clock_form(cell) != facts.clock_form:
+            continue
+        if facts.clock_form == parsing.CLOCK_HH_MM:
+            rows[row][index] = f"{cell}:00"
+            continue
+        rows[row][index] = cell[0:5]
     return _rebuilt(rows)
 
 
@@ -1228,6 +1439,10 @@ def _one_variant(described: contract.Profile, text: str, index: int) -> str:
     return _rebuilt(rows)
 
 
+_PROSE = fixtures.prose(300)
+_SHORT = fixtures.short_prose(125)
+
+
 def _text_shape(
     described: contract.Profile, text: str, index: int, longer: bool
 ) -> str:
@@ -1245,10 +1460,24 @@ def _text_shape(
             continue
         # Distinct values, because a column whose cells are all the same
         # is a constant column and the gate closes over its whole role.
-        body = f"wo rd {step}"
+        #
+        # Prose rather than `wo rd 0`, `wo rd 1`: that family is a
+        # number wearing shared text, so the perturbed column would
+        # take the affixed-number role and the free-text checks this
+        # case is registered against would not run at all. The filler
+        # goes in the MIDDLE so both ends keep varying and no affix
+        # pair can form.
         if longer:
-            body = f"wo rd {step} " + "and more words " * 12
-        rows[row][index] = body
+            sentence = _PROSE[step % len(_PROSE)]
+            head, rest = sentence.split(" ", 1)
+            sentence = f"{head} " + "and more words " * 12 + rest
+        else:
+            # Shorter than any sentence the column held, and still
+            # distinct enough that the categorical rule does not claim
+            # the perturbed column -- which would stop the free-text
+            # checks running at all.
+            sentence = _SHORT[step % len(_SHORT)]
+        rows[row][index] = sentence
         step = step + 1
     return _rebuilt(rows)
 
@@ -1380,7 +1609,15 @@ CLASS_SPELLING = "re-spelled-number"
 CLASS_CASING = "re-cased-label"
 CLASS_PRECISION = "precision"
 
-NUMERIC_ROLES = ("count", "continuous")
+# THE AFFIXED ROLE IS ONE OF THESE, and the edits reach its CORES.
+# Every numeric edit below is written against cells that parse as
+# numbers, and no cell of an affixed column does -- so applied to the
+# written cells they either skipped the column entirely or destroyed
+# the role, and neither proves anything about a quantitative check. The
+# battery therefore takes the pair off first, edits the column of cores
+# the numeric way, and puts the pair back on: the same edit, aimed at
+# the population the fact is about.
+NUMERIC_ROLES = ("count", "continuous", "affixed_number")
 LABEL_ROLES = ("categorical", "binary", "constant")
 
 # What one written cell can be made into, and the name each edit goes
@@ -1483,6 +1720,120 @@ def _perturbations(
     return [entry for entry in built if entry[2]]
 
 
+def _pair_of(
+    column: contract.ColumnBlock,
+) -> "tuple[str, str] | None":
+    """The two pieces of text an affixed column's cells wear, or None.
+
+    None for every other role, so a caller can ask without first
+    working out which kind of column it holds.
+    """
+    facts = column.facts
+    if not isinstance(facts, contract.AffixedFacts):
+        return None
+    return (facts.affix_prefix, facts.affix_suffix)
+
+
+def _without_pair(
+    described: contract.Profile,
+    text: str,
+    index: int,
+    pair: "tuple[str, str]",
+) -> str:
+    """One affixed column rewritten as the column of cores it holds.
+
+    A cell that does not wear the pair is left exactly as it is: the
+    stragglers a parse line tolerates are not cores, and making one up
+    for them would edit cells the perturbation was not aimed at.
+    """
+    prefix, suffix = pair
+    rows = _rows_of(text)
+    for row in range(_first_record(described), len(rows)):
+        cell = rows[row][index]
+        trimmed = cell.strip()
+        if not trimmed.startswith(prefix) or not trimmed.endswith(suffix):
+            continue
+        core = trimmed[len(prefix) : len(trimmed) - len(suffix)]
+        if core:
+            rows[row][index] = core
+    return _rebuilt(rows)
+
+
+def _wearing_pair(
+    described: contract.Profile,
+    text: str,
+    index: int,
+    pair: "tuple[str, str]",
+) -> str:
+    """One column of cores rewritten as the affixed column they make.
+
+    Every WRITTEN cell wears the pair. A blank cell stays blank -- a
+    hole wearing a unit is not a hole, and an edit that filled every
+    hole would be a presence edit wearing another edit's name.
+    """
+    prefix, suffix = pair
+    rows = _rows_of(text)
+    for row in range(_first_record(described), len(rows)):
+        cell = rows[row][index]
+        if cell:
+            rows[row][index] = f"{prefix}{cell}{suffix}"
+    return _rebuilt(rows)
+
+
+def _pair_perturbations(
+    described: contract.Profile,
+    twin: str,
+    index: int,
+    name: str,
+    pair: "tuple[str, str]",
+) -> "list[tuple[str, str, str | bytes]]":
+    """The edits aimed at the PAIR rather than at the numbers inside it.
+
+    Three, and each moves one thing. A column wearing another piece of
+    text in front moves the published prefix and nothing else; one
+    wearing another piece behind moves the published suffix and nothing
+    else; and the publication floor's worth of cells with the pair
+    taken off moves how many cells wear it, while leaving the pair
+    itself the one the rest of the column still wears.
+
+    THE FLOOR'S WORTH AND NOT ONE CELL, for the reason 7.5.7's style
+    edits are written that way: an edit below the floor is pooled out
+    of the file's own description, and a red case built on a fact no
+    description names shows nothing.
+    """
+    prefix, suffix = pair
+    rows = _rows_of(twin)
+    first = _first_record(described)
+    stripped = _rows_of(twin)
+    taken = 0
+    for row in range(first, len(stripped)):
+        if taken >= described.settings.small_cell_floor:
+            break
+        cell = stripped[row][index].strip()
+        if not cell.startswith(prefix) or not cell.endswith(suffix):
+            continue
+        core = cell[len(prefix) : len(cell) - len(suffix)]
+        if not core:
+            continue
+        stripped[row][index] = core
+        taken = taken + 1
+    front = _rows_of(twin)
+    behind = _rows_of(twin)
+    for row in range(first, len(rows)):
+        if rows[row][index]:
+            front[row][index] = f"x{rows[row][index]}"
+            behind[row][index] = f"{rows[row][index]}x"
+    built: list[tuple[str, str, "str | bytes"]] = [
+        (f"prefixed-{name}", CLASS_SPELLING, _rebuilt(front)),
+        (f"suffixed-{name}", CLASS_SPELLING, _rebuilt(behind)),
+    ]
+    if taken:
+        built = built + [
+            (f"unaffixed-{name}", CLASS_SPELLING, _rebuilt(stripped))
+        ]
+    return built
+
+
 def _column_perturbations(
     described: contract.Profile,
     twin: str,
@@ -1513,6 +1864,17 @@ def _column_perturbations(
             f"marked-{name}",
             CLASS_PRESENCE,
             _floor_cells(described, twin, index, "na"),
+        ),
+        # THE FORM WITHOUT THE VALUE (plan P4-D18). A figure appended
+        # to a cell leaves its alphabet band where it was and moves the
+        # FORM it was written in, which is the one thing the form
+        # census answers for -- so this is the edit that makes a
+        # published form miss and disturbs as little else as an edit
+        # can.
+        (
+            f"reshaped-{name}",
+            CLASS_SPELLING,
+            _reshaped(described, twin, index),
         ),
         (
             f"filled-{name}",
@@ -1552,72 +1914,81 @@ def _column_perturbations(
                 _changed(described, twin, index, True, value),
             ),
         ]
+    # From here the numeric families are built against `source`, which
+    # is the twin itself for a plain numeric column and the twin with
+    # the pair taken off for an affixed one, and `shaped` collects them
+    # so the pair can go back on before they are handed over.
+    pair = _pair_of(column)
+    source = twin if pair is None else _without_pair(described, twin, index, pair)
+    shaped: list[tuple[str, str, "str | bytes"]] = []
+    if pair is not None:
+        built = built + _pair_perturbations(described, twin, index, name, pair)
     if column.role in NUMERIC_ROLES:
         for tag, value in FLOOR_STYLE_VALUES:
-            built = built + [
+            shaped = shaped + [
                 (
                     f"floor-{tag}-{name}",
                     CLASS_SPELLING,
-                    _floor_cells(described, twin, index, value),
+                    _floor_cells(described, source, index, value),
                 )
             ]
     if column.role in NUMERIC_ROLES:
-        built = built + [
-            (f"spread-{name}", CLASS_SHAPE, _numbered(described, twin, index)),
+        shaped = shaped + [
+            (f"spread-{name}", CLASS_SHAPE, _numbered(described, source, index)),
             (
                 f"raised-{name}",
                 CLASS_SHAPE,
-                _raised_end(described, twin, index),
+                _raised_end(described, source, index),
             ),
             (
                 f"crowded-{name}",
                 CLASS_SHAPE,
-                _compressed(described, twin, index),
+                _compressed(described, source, index),
             ),
             (
                 f"enormous-{name}",
                 CLASS_MANY_CELLS,
-                _classed(described, twin, index, "1e200", 2),
+                _classed(described, source, index, "1e200", 2),
             ),
             (
                 f"zeroed-{name}",
                 CLASS_MANY_CELLS,
-                _classed(described, twin, index, "0"),
+                _classed(described, source, index, "0"),
             ),
             (
                 f"negated-{name}",
                 CLASS_MANY_CELLS,
-                _classed(described, twin, index, "-8"),
+                _classed(described, source, index, "-8"),
             ),
             (
                 f"worded-{name}",
                 CLASS_MANY_CELLS,
-                _classed(described, twin, index, "zz"),
+                _classed(described, source, index, "zz"),
             ),
             (
                 f"bracketed-{name}",
                 CLASS_MANY_CELLS,
-                _classed(described, twin, index, "(4)"),
+                _classed(described, source, index, "(4)"),
             ),
             (
                 f"overflowed-{name}",
                 CLASS_MANY_CELLS,
-                _classed(described, twin, index, "9e999"),
+                _classed(described, source, index, "9e999"),
             ),
             (
                 f"underflowed-{name}",
                 CLASS_MANY_CELLS,
-                _classed(described, twin, index, "-9e999"),
+                _classed(described, source, index, "-9e999"),
             ),
             (
                 f"fractioned-{name}",
                 CLASS_MANY_CELLS,
-                _classed(described, twin, index, "1.5"),
+                _classed(described, source, index, "1.5"),
             ),
             (
                 f"contradicted-{name}",
                 CLASS_MANY_CELLS,
-                _classed(described, twin, index, "(-4)"),
+                _classed(described, source, index, "(-4)"),
             ),
         ]
         for style in (
@@ -1628,17 +1999,32 @@ def _column_perturbations(
             "noncanonical",
             "padded",
         ):
-            built = built + [
+            shaped = shaped + [
                 (
                     f"{style}-{name}",
                     CLASS_SPELLING,
-                    _restyled(described, twin, index, style),
+                    _restyled(described, source, index, style),
                 )
             ]
     if column.role in NUMERIC_ROLES or column.role == "numeric_unrepresentable":
-        built = built + [
-            (f"vast-{name}", CLASS_SHAPE, _huge_spread(described, twin, index))
+        shaped = shaped + [
+            (f"vast-{name}", CLASS_SHAPE, _huge_spread(described, source, index))
         ]
+    # The pair goes back on, character for character as the
+    # description publishes it, so what the file carries is the edited
+    # NUMBER wearing the column's own text. A perturbation that came
+    # out empty stays empty: that is the battery's word for "this
+    # column has no such edit", and wrapping it would build a file
+    # identical to the twin and register a red case that can never go
+    # red.
+    if pair is not None:
+        wrapped: list[tuple[str, str, "str | bytes"]] = []
+        for edit_name, edit_class, written in shaped:
+            if isinstance(written, str) and written:
+                written = _wearing_pair(described, written, index, pair)
+            wrapped = wrapped + [(edit_name, edit_class, written)]
+        shaped = wrapped
+    built = built + shaped
     if column.role in LABEL_ROLES:
         built = built + [
             (
@@ -1650,6 +2036,16 @@ def _column_perturbations(
                 f"spaced-{name}",
                 CLASS_CASING,
                 _one_variant(described, twin, index),
+            ),
+        ]
+    if column.role == "time_of_day":
+        built = built + [
+            (f"crushed-{name}", CLASS_DATE, _clock_crushed(described, twin, index)),
+            (f"lifted-{name}", CLASS_DATE, _clock_lifted(described, twin, index)),
+            (
+                f"reformed-{name}",
+                CLASS_PRECISION,
+                _clock_reformed(described, twin, index),
             ),
         ]
     if column.role == "datetime":
@@ -2445,6 +2841,11 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             # edit that still makes it MISS. Both `rewritten-amount` and
             # `worded-amount` make six subchecks miss; the rule above
             # takes the first by name.
+            # The census of fraction widths (plan P4-D4.5). One cell
+            # given a third figure after the point is the narrowest edit
+            # there is: the column still publishes one width, and one
+            # fewer cell wears it.
+            ("one-fractioned-amount", "widths.published.2"),
             ("rewritten-amount", "distinct.n_distinct"),
             ("rewritten-amount", "distinct.n_distinct_folded"),
             ("one-negated-amount", "ladder.min"),
@@ -2458,6 +2859,7 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("crowded-amount", "ladder.p99"),
             ("raised-amount", "moments.mean"),
             ("raised-amount", "moments.skew"),
+            ("raised-amount", "moments.kurtosis"),
             ("raised-amount", "moments.std"),
             ("renamed-amount", "position.at"),
             ("emptied-amount", "presence.n_missing"),
@@ -2539,6 +2941,106 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("one-worded-comment", "words.mean"),
             ("one-worded-comment", "words.min"),
         ),
+        "dose": (
+            # THE AFFIXED ROLE, and the edits divide the way its two
+            # populations do. The pair is moved by three edits of its
+            # own -- another piece of text in front, another behind,
+            # and the floor's worth of cells with the pair taken off
+            # -- and every quantitative site is moved by the numeric
+            # edit the plain numeric columns above use, applied to the
+            # CORES and put back inside the pair. So each row here is
+            # aimed at the population its fact is about, which is the
+            # whole of what this role adds. Its cores carry a POINT,
+            # so the census of fraction widths is walked here too.
+            ("renamed-dose", "position.at"),
+            ("emptied-dose", "presence.n_present"),
+            ("emptied-dose", "presence.n_missing"),
+            ("contradicted-dose", "axes.role"),
+            ("contradicted-dose", "axes.statistical_type"),
+            ("emptied-dose", "axes.quality_state"),
+            ("unaffixed-dose", "counts.n_numeric"),
+            ("unaffixed-dose", "counts.n_not_numeric"),
+            ("one-overflowed-dose", "counts.n_out_of_range"),
+            ("one-contradicted-dose", "counts.n_contradictory"),
+            ("contradicted-dose", "distinct.n_distinct"),
+            ("contradicted-dose", "distinct.n_distinct_folded"),
+            ("one-worded-dose", "counts.n_affixed"),
+            ("prefixed-dose", "counts.affix_prefix"),
+            ("suffixed-dose", "counts.affix_suffix"),
+            ("one-worded-dose", "counts.n_core_numeric"),
+            ("marked-dose", "counts.n_core_out_of_range"),
+            ("marked-dose", "counts.n_core_contradictory"),
+            ("marked-dose", "counts.n_core_not_numeric"),
+            ("zeroed-dose", "counts.n_zero"),
+            ("bracketed-dose", "counts.n_negative"),
+            ("marked-dose", "counts.n_negative_unrepresentable"),
+            ("one-worded-dose", "counts.n_used_in_statistics"),
+            ("one-worded-dose", "counts.n_left_out_of_statistics"),
+            ("vast-dose", "type.integer_valued"),
+            ("vast-dose", "type.std_unrepresentable"),
+            ("one-worded-dose", "counts.numeric_share"),
+            ("fractioned-dose", "ladder.min"),
+            ("raised-dose", "ladder.max"),
+            ("fractioned-dose", "ladder.p01"),
+            ("crowded-dose", "ladder.p05"),
+            ("crowded-dose", "ladder.p10"),
+            ("crowded-dose", "ladder.p25"),
+            ("crowded-dose", "ladder.p50"),
+            ("crowded-dose", "ladder.p75"),
+            ("crowded-dose", "ladder.p90"),
+            ("crowded-dose", "ladder.p95"),
+            ("crowded-dose", "ladder.p99"),
+            ("raised-dose", "moments.mean"),
+            ("raised-dose", "moments.std"),
+            ("raised-dose", "moments.skew"),
+            ("raised-dose", "moments.kurtosis"),
+            ("floor-zero-led-dose", "styles.exact.leading_zero"),
+            ("floor-plussed-dose", "styles.exact.leading_plus"),
+            ("exponent_upper-dose", "styles.exact.exponent_upper"),
+            ("prefixed-dose", "styles.at-least.decimal"),
+            ("prefixed-dose", "styles.spill"),
+            ("zeroed-dose", "styles.remainder"),
+            ("noncanonical-dose", "styles.spelled"),
+            ("exponent_lower-dose", "styles.canonical.exponent_lower"),
+            ("exponent_lower-dose", "styles.published.decimal"),
+            ("spread-dose", "widths.published.1"),
+            ("spread-dose", "widths.published.2"),
+        ),
+        "seen_at": (
+            # THE CLOCK ROLE. Three edits are its own: the two halves
+            # of the ladder, piled low and piled high, because a rung
+            # near the bottom is falsifiable only upward and one near
+            # the top only downward; and every cell rewritten in the
+            # OTHER form, which moves the published form and the four
+            # values written in it without moving a single time.
+            ("renamed-seen_at", "position.at"),
+            ("blanked-seen_at", "presence.n_present"),
+            ("blanked-seen_at", "presence.n_missing"),
+            ("one-worded-seen_at", "axes.role"),
+            ("one-worded-seen_at", "axes.statistical_type"),
+            ("emptied-seen_at", "axes.quality_state"),
+            ("one-bracketed-seen_at", "counts.n_numeric"),
+            ("blanked-seen_at", "counts.n_not_numeric"),
+            ("one-overflowed-seen_at", "counts.n_out_of_range"),
+            ("one-contradicted-seen_at", "counts.n_contradictory"),
+            ("one-worded-seen_at", "distinct.n_distinct"),
+            ("one-worded-seen_at", "distinct.n_distinct_folded"),
+            ("reformed-seen_at", "form.clock_form"),
+            ("reformed-seen_at", "ends.earliest"),
+            ("reformed-seen_at", "ends.latest"),
+            ("marked-seen_at", "counts.n_unparsed"),
+            ("reformed-seen_at", "clock-ladder.min"),
+            ("reformed-seen_at", "clock-ladder.max"),
+            ("lifted-seen_at", "clock-ladder.p01"),
+            ("crushed-seen_at", "clock-ladder.p05"),
+            ("crushed-seen_at", "clock-ladder.p10"),
+            ("crushed-seen_at", "clock-ladder.p25"),
+            ("crushed-seen_at", "clock-ladder.p50"),
+            ("crushed-seen_at", "clock-ladder.p75"),
+            ("crushed-seen_at", "clock-ladder.p90"),
+            ("crushed-seen_at", "clock-ladder.p95"),
+            ("crushed-seen_at", "clock-ladder.p99"),
+        ),
         "reading": (
             ("contradicted-reading", "axes.quality_state"),
             ("one-negated-reading", "axes.role"),
@@ -2568,6 +3070,7 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("enormous-reading", "ladder.p99"),
             ("raised-reading", "moments.mean"),
             ("raised-reading", "moments.skew"),
+            ("raised-reading", "moments.kurtosis"),
             ("raised-reading", "moments.std"),
             ("renamed-reading", "position.at"),
             ("filled-overflowed-reading", "presence.n_missing"),
@@ -2626,6 +3129,37 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("timed-recorded_on", "precision.resolution"),
             ("blanked-recorded_on", "presence.n_missing"),
             ("blanked-recorded_on", "presence.n_present"),
+        ),
+        "note": (
+            # THE LONG-TAIL ROLE (plan P4-D5). It publishes the four
+            # shared label keys and no key of its own, so its
+            # obligations are the label family's -- and each of them
+            # is falsified by an edit to THIS column, never by the
+            # column going missing.
+            ("emptied-note", "axes.quality_state"),
+            ("emptied-note", "axes.role"),
+            ("emptied-note", "axes.statistical_type"),
+            ("one-contradicted-note", "counts.n_contradictory"),
+            ("blanked-note", "counts.n_not_numeric"),
+            ("one-zeroed-note", "counts.n_numeric"),
+            ("one-tiny-note", "counts.n_out_of_range"),
+            ("marked-note", "distinct.n_distinct"),
+            ("marked-note", "distinct.n_distinct_folded"),
+            ("rewritten-note", "levels.clinic.count"),
+            ("rewritten-note", "levels.clinic.label"),
+            ("rewritten-note", "levels.clinic.variants"),
+            ("rewritten-note", "levels.clinic.variants_withheld"),
+            ("marked-note", "levels.referral.count"),
+            ("marked-note", "levels.referral.label"),
+            ("marked-note", "levels.referral.variants"),
+            ("marked-note", "levels.referral.variants_withheld"),
+            ("marked-note", "levels.set"),
+            ("renamed-note", "position.at"),
+            ("blanked-note", "presence.n_missing"),
+            ("blanked-note", "presence.n_present"),
+            ("marked-note", "suppressed.counts"),
+            ("marked-note", "suppressed.suppressed_levels"),
+            ("blanked-note", "suppressed.suppressed_rows"),
         ),
         "region": (
             ("emptied-region", "axes.role"),
@@ -2736,6 +3270,196 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("blanked-overflow", "presence.n_missing"),
         ),
     },
+    # THE PADDED-CODE FIXTURE (P4-D14). Its one column publishes a named
+    # field width, which is what binds `numeric.pad_widths` to an
+    # executable subcheck; before it, that fact was in the registry and
+    # in no check any fixture reached.
+    # THE SHAPED-TEXT FIXTURE (P4-D18). Its free-text column publishes
+    # a named form, which is what binds `free_text.shape_forms` to an
+    # executable subcheck; before it, that fact was in the registry and
+    # in no check any fixture reached.
+    "shaped-text": {
+        "dx_code": (
+            # THE FORM CENSUS ON A LABEL ROLE (plan P4-D18). A
+            # figure appended to every cell moves every form the
+            # column published; the two forms the floor left
+            # standing on the common codes are moved instead by
+            # the edit that pushes a level below the floor.
+            ("emptied-dx_code", "axes.quality_state"),
+            ("emptied-dx_code", "axes.role"),
+            ("emptied-dx_code", "axes.statistical_type"),
+            ("one-contradicted-dx_code", "counts.n_contradictory"),
+            ("blanked-dx_code", "counts.n_not_numeric"),
+            ("one-bracketed-dx_code", "counts.n_numeric"),
+            ("one-overflowed-dx_code", "counts.n_out_of_range"),
+            ("marked-dx_code", "distinct.n_distinct"),
+            ("marked-dx_code", "distinct.n_distinct_folded"),
+            ("marked-dx_code", "forms.published.@%%"),
+            ("marked-dx_code", "forms.published.@%%.%"),
+            ("reshaped-dx_code", "forms.published.@%%.%%"),
+            ("reshaped-dx_code", "forms.published.@%%.%%%"),
+            ("marked-dx_code", "levels.e11.9.count"),
+            ("reshaped-dx_code", "levels.e11.9.label"),
+            ("marked-dx_code", "levels.e11.9.variants"),
+            ("reshaped-dx_code", "levels.e11.9.variants_withheld"),
+            ("marked-dx_code", "levels.i10.count"),
+            ("reshaped-dx_code", "levels.i10.label"),
+            ("marked-dx_code", "levels.i10.variants"),
+            ("reshaped-dx_code", "levels.i10.variants_withheld"),
+            ("reshaped-dx_code", "levels.j45.909.count"),
+            ("reshaped-dx_code", "levels.j45.909.label"),
+            ("reshaped-dx_code", "levels.j45.909.variants"),
+            ("reshaped-dx_code", "levels.j45.909.variants_withheld"),
+            ("marked-dx_code", "levels.m54.5.count"),
+            ("reshaped-dx_code", "levels.m54.5.label"),
+            ("marked-dx_code", "levels.m54.5.variants"),
+            ("reshaped-dx_code", "levels.m54.5.variants_withheld"),
+            ("marked-dx_code", "levels.set"),
+            ("marked-dx_code", "levels.z00.00.count"),
+            ("reshaped-dx_code", "levels.z00.00.label"),
+            ("marked-dx_code", "levels.z00.00.variants"),
+            ("reshaped-dx_code", "levels.z00.00.variants_withheld"),
+            ("renamed-dx_code", "position.at"),
+            ("blanked-dx_code", "presence.n_missing"),
+            ("blanked-dx_code", "presence.n_present"),
+            ("marked-dx_code", "suppressed.counts"),
+            ("marked-dx_code", "suppressed.suppressed_levels"),
+            ("marked-dx_code", "suppressed.suppressed_rows"),
+        ),
+        "": (
+            ("byte-order-mark", "bytes.byte-order-mark"),
+            ("carriage-returns", "bytes.line-endings"),
+            ("no-terminal-newline", "bytes.terminal-newline"),
+            ("not-utf8", "bytes.utf8"),
+            ("added-column", "columns.n_columns"),
+            ("added-column", "columns.order"),
+            ("added-column", "header.names"),
+            ("added-column", "header.presence"),
+            ("added-row", "rows.n_rows"),
+        ),
+        "lab_code": (
+            ("emptied-lab_code", "axes.quality_state"),
+            ("emptied-lab_code", "axes.role"),
+            ("emptied-lab_code", "axes.statistical_type"),
+            ("one-zero-led-lab_code", "counts.n_all_digits"),
+            ("blanked-lab_code", "counts.n_code_alphabet"),
+            ("one-contradicted-lab_code", "counts.n_contradictory"),
+            ("blanked-lab_code", "counts.n_not_numeric"),
+            ("one-bracketed-lab_code", "counts.n_numeric"),
+            ("one-overflowed-lab_code", "counts.n_out_of_range"),
+            ("blanked-lab_code", "distinct.n_distinct"),
+            ("blanked-lab_code", "distinct.n_distinct_by_occurrences"),
+            ("blanked-lab_code", "distinct.n_distinct_folded"),
+            ("blanked-lab_code", "forms.published.%%%%-%"),
+            ("lengthened-lab_code", "length.max"),
+            ("lengthened-lab_code", "length.mean"),
+            ("lengthened-lab_code", "length.min"),
+            ("lengthened-lab_code", "length.p50"),
+            ("renamed-lab_code", "position.at"),
+            ("blanked-lab_code", "presence.n_missing"),
+            ("blanked-lab_code", "presence.n_present"),
+            ("lengthened-lab_code", "words.max"),
+            ("lengthened-lab_code", "words.mean"),
+            ("lengthened-lab_code", "words.min"),
+        ),
+        "region": (
+            ("emptied-region", "axes.quality_state"),
+            ("emptied-region", "axes.role"),
+            ("emptied-region", "axes.statistical_type"),
+            ("one-contradicted-region", "counts.n_contradictory"),
+            ("blanked-region", "counts.n_not_numeric"),
+            ("one-bracketed-region", "counts.n_numeric"),
+            ("one-overflowed-region", "counts.n_out_of_range"),
+            ("emptied-region", "distinct.n_distinct"),
+            ("emptied-region", "distinct.n_distinct_folded"),
+            ("marked-region", "levels.east.count"),
+            ("reshaped-region", "levels.east.label"),
+            ("marked-region", "levels.east.variants"),
+            ("reshaped-region", "levels.east.variants_withheld"),
+            ("blanked-region", "levels.north.count"),
+            ("reshaped-region", "levels.north.label"),
+            ("blanked-region", "levels.north.variants"),
+            ("reshaped-region", "levels.north.variants_withheld"),
+            ("marked-region", "levels.set"),
+            ("marked-region", "levels.south.count"),
+            ("reshaped-region", "levels.south.label"),
+            ("marked-region", "levels.south.variants"),
+            ("reshaped-region", "levels.south.variants_withheld"),
+            ("marked-region", "levels.west.count"),
+            ("reshaped-region", "levels.west.label"),
+            ("marked-region", "levels.west.variants"),
+            ("reshaped-region", "levels.west.variants_withheld"),
+            ("renamed-region", "position.at"),
+            ("blanked-region", "presence.n_missing"),
+            ("blanked-region", "presence.n_present"),
+            ("one-bracketed-region", "suppressed.counts"),
+            ("one-bracketed-region", "suppressed.suppressed_levels"),
+            ("one-bracketed-region", "suppressed.suppressed_rows"),
+        ),
+    },
+    "padded-codes": {
+        "": (
+            ("byte-order-mark", "bytes.byte-order-mark"),
+            ("carriage-returns", "bytes.line-endings"),
+            ("no-terminal-newline", "bytes.terminal-newline"),
+            ("not-utf8", "bytes.utf8"),
+            ("added-column", "columns.n_columns"),
+            ("added-column", "columns.order"),
+            ("added-column", "header.names"),
+            ("added-column", "header.presence"),
+            ("added-row", "rows.n_rows"),
+        ),
+        "code": (
+            # THE CENSUS CATCHES WHAT THE FORMS MAP CANNOT, and this
+            # row is that claim made executable: `leading_zero-code`
+            # writes every cell one figure wider WITHOUT leaving the
+            # leading-zero style, so the forms map still balances and
+            # only the width census goes red (P4-D14).
+            ("contradicted-code", "axes.quality_state"),
+            ("bracketed-code", "axes.role"),
+            ("bracketed-code", "axes.statistical_type"),
+            ("contradicted-code", "counts.n_contradictory"),
+            ("marked-code", "counts.n_left_out_of_statistics"),
+            ("bracketed-code", "counts.n_negative"),
+            ("marked-code", "counts.n_negative_unrepresentable"),
+            ("marked-code", "counts.n_not_numeric"),
+            ("blanked-code", "counts.n_numeric"),
+            ("one-overflowed-code", "counts.n_out_of_range"),
+            ("blanked-code", "counts.n_used_in_statistics"),
+            ("floor-plussed-code", "counts.n_zero"),
+            ("marked-code", "counts.numeric_share"),
+            ("enormous-code", "ladder.max"),
+            ("bracketed-code", "ladder.min"),
+            ("bracketed-code", "ladder.p01"),
+            ("marked-code", "ladder.p05"),
+            ("crowded-code", "ladder.p10"),
+            ("crowded-code", "ladder.p25"),
+            ("crowded-code", "ladder.p50"),
+            ("crowded-code", "ladder.p75"),
+            ("crowded-code", "ladder.p90"),
+            ("crowded-code", "ladder.p95"),
+            ("enormous-code", "ladder.p99"),
+            ("crowded-code", "moments.mean"),
+            ("marked-code", "moments.skew"),
+            ("marked-code", "moments.kurtosis"),
+            ("enormous-code", "moments.std"),
+            ("leading_zero-code", "pads.published.5"),
+            ("renamed-code", "position.at"),
+            ("blanked-code", "presence.n_missing"),
+            ("blanked-code", "presence.n_present"),
+            ("crowded-code", "styles.canonical.decimal"),
+            ("enormous-code", "styles.canonical.exponent_lower"),
+            ("exponent_upper-code", "styles.exact.exponent_upper"),
+            ("floor-plussed-code", "styles.exact.leading_plus"),
+            ("blanked-code", "styles.exact.leading_zero"),
+            ("blanked-code", "styles.published.leading_zero"),
+            ("crowded-code", "styles.remainder"),
+            ("bracketed-code", "styles.spelled"),
+            ("crowded-code", "styles.spill"),
+            ("crowded-code", "type.integer_valued"),
+            ("marked-code", "type.std_unrepresentable"),
+        ),
+    },
     "pooled": {
         "": (
             ("byte-order-mark", "bytes.byte-order-mark"),
@@ -2842,6 +3566,7 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("one-fractioned-reading", "ladder.p99"),
             ("one-fractioned-reading", "moments.mean"),
             ("one-fractioned-reading", "moments.skew"),
+            ("one-fractioned-reading", "moments.kurtosis"),
             ("one-fractioned-reading", "moments.std"),
             ("renamed-reading", "position.at"),
             ("blanked-reading", "presence.n_missing"),
@@ -2967,6 +3692,7 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("raised-column_1", "ladder.p99"),
             ("floor-plussed-column_1", "moments.mean"),
             ("raised-column_1", "moments.skew"),
+            ("raised-column_1", "moments.kurtosis"),
             ("raised-column_1", "moments.std"),
             ("blanked-column_1", "presence.n_missing"),
             ("blanked-column_1", "presence.n_present"),
@@ -3079,6 +3805,13 @@ ROLE_FAMILIES = {
     "binary": "label",
     "categorical": "label",
     "constant": "label",
+    # It publishes the five shared label keys and no key of its own,
+    # so its facts are the label family's (plan P4-D5).
+    "long_tail_labels": "label",
+    # Its quantitative facts are the numeric family's, read over the
+    # cores; the seven keys it adds carry the family name `affixed`.
+    "affixed_number": "numeric",
+    "time_of_day": "clock",
     "continuous": "numeric",
     "count": "numeric",
     "datetime": "datetime",
@@ -3102,7 +3835,10 @@ FIXTURE_ROLES: "dict[str, dict[str, str]]" = {
         "answer": "binary",
         "batch": "constant",
         "comment": "free_text",
+        "dose": "affixed_number",
+        "note": "long_tail_labels",
         "reading": "count",
+        "seen_at": "time_of_day",
         "record_code": "identifier",
         "recorded_on": "datetime",
         "region": "categorical",
@@ -3112,6 +3848,12 @@ FIXTURE_ROLES: "dict[str, dict[str, str]]" = {
     "headerless": {
         "column_1": "count",
         "column_2": "categorical",
+    },
+    "padded-codes": {"code": "count"},
+    "shaped-text": {
+        "lab_code": "free_text",
+        "region": "categorical",
+        "dx_code": "long_tail_labels",
     },
     "pooled": {"reading": "continuous"},
     "quarters": {
@@ -3150,6 +3892,35 @@ PREDICATE_FIXTURES = {
 # a column of each family. Keyed by (family, subcheck); the value is the
 # fact, `group.field`, exactly as the registry spells it.
 SUBCHECK_FACTS: "dict[tuple[str, str], str]" = {
+    # -- clock ------------------------------------------------------------
+    ("clock", "axes.quality_state"): "universal.quality_state",
+    ("clock", "axes.role"): "universal.role",
+    ("clock", "axes.statistical_type"): "universal.statistical_type",
+    ("clock", "axes.structural_role"): "universal.structural_role",
+    ("clock", "counts.n_contradictory"): "universal.n_contradictory",
+    ("clock", "counts.n_not_numeric"): "universal.n_not_numeric",
+    ("clock", "counts.n_numeric"): "universal.n_numeric",
+    ("clock", "counts.n_out_of_range"): "universal.n_out_of_range",
+    ("clock", "counts.n_unparsed"): "clock.n_unparsed",
+    ("clock", "clock-ladder.max"): "clock.clock_percentiles.max",
+    ("clock", "clock-ladder.min"): "clock.clock_percentiles.min",
+    ("clock", "distinct.n_distinct"): "clock.n_distinct",
+    ("clock", "distinct.n_distinct_folded"): "clock.n_distinct_folded",
+    ("clock", "ends.earliest"): "clock.earliest",
+    ("clock", "ends.latest"): "clock.latest",
+    ("clock", "form.clock_form"): "clock.clock_form",
+    ("clock", "position.at"): "universal.position",
+    ("clock", "presence.n_missing"): "universal.n_missing",
+    ("clock", "presence.n_present"): "universal.n_present",
+    ("clock", "clock-ladder.p01"): "clock.clock_percentiles",
+    ("clock", "clock-ladder.p05"): "clock.clock_percentiles",
+    ("clock", "clock-ladder.p10"): "clock.clock_percentiles",
+    ("clock", "clock-ladder.p25"): "clock.clock_percentiles",
+    ("clock", "clock-ladder.p50"): "clock.clock_percentiles",
+    ("clock", "clock-ladder.p75"): "clock.clock_percentiles",
+    ("clock", "clock-ladder.p90"): "clock.clock_percentiles",
+    ("clock", "clock-ladder.p95"): "clock.clock_percentiles",
+    ("clock", "clock-ladder.p99"): "clock.clock_percentiles",
     # -- datetime ----------------------------------------------------------
     ("datetime", "axes.quality_state"): "universal.quality_state",
     ("datetime", "axes.role"): "universal.role",
@@ -3275,6 +4046,30 @@ SUBCHECK_FACTS: "dict[tuple[str, str], str]" = {
     ("label", "counts.n_out_of_range"): "universal.n_out_of_range",
     ("label", "distinct.n_distinct"): "label.n_distinct",
     ("label", "distinct.n_distinct_folded"): "label.n_distinct_folded",
+    ("label", "levels.e11.9.count"): "label.count",
+    ("label", "levels.e11.9.label"): "label.label",
+    ("label", "levels.e11.9.variants"): "label.variants",
+    ("label", "levels.e11.9.variants_withheld"): "label.variants_withheld",
+    ("label", "levels.i10.count"): "label.count",
+    ("label", "levels.i10.label"): "label.label",
+    ("label", "levels.i10.variants"): "label.variants",
+    ("label", "levels.i10.variants_withheld"): "label.variants_withheld",
+    ("label", "levels.j45.909.count"): "label.count",
+    ("label", "levels.j45.909.label"): "label.label",
+    ("label", "levels.j45.909.variants"): "label.variants",
+    ("label", "levels.j45.909.variants_withheld"): "label.variants_withheld",
+    ("label", "levels.m54.5.count"): "label.count",
+    ("label", "levels.m54.5.label"): "label.label",
+    ("label", "levels.m54.5.variants"): "label.variants",
+    ("label", "levels.m54.5.variants_withheld"): "label.variants_withheld",
+    ("label", "levels.z00.00.count"): "label.count",
+    ("label", "levels.z00.00.label"): "label.label",
+    ("label", "levels.z00.00.variants"): "label.variants",
+    ("label", "levels.z00.00.variants_withheld"): "label.variants_withheld",
+    ("label", "levels.clinic.count"): "label.count",
+    ("label", "levels.clinic.label"): "label.label",
+    ("label", "levels.clinic.variants"): "label.variants",
+    ("label", "levels.clinic.variants_withheld"): "label.variants_withheld",
     ("label", "levels.east.count"): "label.count",
     ("label", "levels.east.label"): "label.label",
     ("label", "levels.east.variants"): "label.variants",
@@ -3284,6 +4079,12 @@ SUBCHECK_FACTS: "dict[tuple[str, str], str]" = {
     ("label", "levels.no.variants"): "label.variants",
     ("label", "levels.no.variants_withheld"): "label.variants_withheld",
     ("label", "levels.north.count"): "label.count",
+    ("label", "levels.referral.count"): "label.count",
+    ("label", "levels.referral.label"): "label.label",
+    ("label", "levels.referral.variants"): "label.variants",
+    ("label", "levels.referral.variants_withheld"): (
+        "label.variants_withheld"
+    ),
     ("label", "levels.north.label"): "label.label",
     ("label", "levels.north.variants"): "label.variants",
     ("label", "levels.north.variants_withheld"): "label.variants_withheld",
@@ -3311,6 +4112,39 @@ SUBCHECK_FACTS: "dict[tuple[str, str], str]" = {
     ("label", "suppressed.suppressed_levels"): "label.suppressed_levels",
     ("label", "suppressed.suppressed_rows"): "label.suppressed_rows",
     # -- numeric -----------------------------------------------------------
+    # The seven below are emitted only by the affixed role, whose
+    # quantitative facts are the numeric family's read over the cores.
+    # A plain numeric column emits none of them, so no row here says
+    # that one owes them: this map answers which registry fact a
+    # subcheck binds, never which subchecks a column owes.
+    # The census of fraction widths names one subcheck per PUBLISHED
+    # width, so its subcheck names are decided by the description rather
+    # than fixed here. Only the widths the fixtures actually publish
+    # need a row, and a width one of them publishes without a row here
+    # reaches the coverage identity as a dead row and is reported by
+    # name -- which is how a new fixture width is noticed.
+    ("numeric", "widths.published.1"): "numeric.fraction_widths",
+    ("numeric", "widths.published.2"): "numeric.fraction_widths",
+    # The census of FIELD widths names one subcheck per published width
+    # on the same terms, and for the same reason only the widths the
+    # fixtures publish need a row here (P4-D14).
+    ("numeric", "pads.published.5"): "numeric.pad_widths",
+    # The census of written FORMS names one subcheck per published
+    # form, so its subcheck names are decided by the description in
+    # the same way the two width censuses are (P4-D18). Only the forms
+    # the fixtures actually publish need a row.
+    ("free_text", "forms.published.%%%%-%"): "free_text.shape_forms",
+    ("label", "forms.published.@%%"): "label.shape_forms",
+    ("label", "forms.published.@%%.%"): "label.shape_forms",
+    ("label", "forms.published.@%%.%%"): "label.shape_forms",
+    ("label", "forms.published.@%%.%%%"): "label.shape_forms",
+    ("numeric", "counts.affix_prefix"): "affixed.affix_prefix",
+    ("numeric", "counts.affix_suffix"): "affixed.affix_suffix",
+    ("numeric", "counts.n_affixed"): "affixed.n_affixed",
+    ("numeric", "counts.n_core_contradictory"): "affixed.n_core_contradictory",
+    ("numeric", "counts.n_core_not_numeric"): "affixed.n_core_not_numeric",
+    ("numeric", "counts.n_core_numeric"): "affixed.n_core_numeric",
+    ("numeric", "counts.n_core_out_of_range"): "affixed.n_core_out_of_range",
     ("numeric", "axes.quality_state"): "universal.quality_state",
     ("numeric", "axes.role"): "universal.role",
     ("numeric", "axes.statistical_type"): "universal.statistical_type",
@@ -3342,6 +4176,7 @@ SUBCHECK_FACTS: "dict[tuple[str, str], str]" = {
     ("numeric", "ladder.p99"): "numeric.percentiles",
     ("numeric", "moments.mean"): "numeric.mean",
     ("numeric", "moments.skew"): "numeric.skew",
+    ("numeric", "moments.kurtosis"): "numeric.kurtosis",
     ("numeric", "moments.std"): "numeric.std",
     ("numeric", "position.at"): "universal.position",
     ("numeric", "presence.n_missing"): "universal.n_missing",
@@ -3356,6 +4191,7 @@ SUBCHECK_FACTS: "dict[tuple[str, str], str]" = {
     ("numeric", "styles.exact.leading_zero"): "numeric.numeric_styles",
     ("numeric", "styles.published.decimal"): "numeric.numeric_styles",
     ("numeric", "styles.published.exponent_lower"): "numeric.numeric_styles",
+    ("numeric", "styles.published.leading_zero"): "numeric.numeric_styles",
     ("numeric", "styles.published.plain"): "numeric.numeric_styles",
     ("numeric", "styles.remainder"): "numeric.numeric_styles",
     ("numeric", "styles.spelled"): "numeric.numeric_styles",
@@ -3414,8 +4250,22 @@ SUBCHECK_FACTS: "dict[tuple[str, str], str]" = {
 # assertion in this file green while the report duplicated one offset
 # fact and omitted another.
 WHOLE_FACT_LISTINGS: "dict[str, tuple[str, ...]]" = {
+    # The clock role lists the eight universal facts no CSV can
+    # evidence, and nothing of its own: every one of its five keys is
+    # checked.
+    "clock": (
+        "universal.detection_evidence",
+        "universal.missing_by_class",
+        "universal.missing_by_source",
+        "universal.n_missing_blank",
+        "universal.n_missing_withheld",
+        "universal.n_sentinel_candidates_unpublished",
+        "universal.remarks",
+        "universal.sentinel_verdicts",
+    ),
     "datetime": (
         "datetime.format",
+        "datetime.resolution_mix",
         "universal.detection_evidence",
         "universal.missing_by_class",
         "universal.missing_by_source",
@@ -3483,6 +4333,16 @@ WHOLE_FACT_LISTINGS: "dict[str, tuple[str, ...]]" = {
         "universal.sentinel_verdicts",
     ),
     "numeric": (
+        # REPORT-ONLY (plan P4-D4.7): the twin FOLLOWS the published
+        # shape but is not held to it, so the fact is listed whole
+        # rather than checked bin by bin.
+        # REPORT-ONLY (plan P4-D4.11): the pair is listed for the
+        # same reason, since no stratum is sized to a published count
+        # except the zero one.
+        "numeric.mode",
+        "numeric.mode_count",
+        "numeric.n_distinct_values",
+        "numeric.value_histogram",
         "universal.detection_evidence",
         "universal.missing_by_class",
         "universal.missing_by_source",
@@ -4391,8 +5251,8 @@ def test_the_coverage_identity_walks_the_shipped_table(
     which is V8.3's "registered, named" read as though it said
     "reached". And a site could be covered only by an edit that broke
     something else, which is exactly the failure V8.2 refuses one grain
-    up. The registration is now total over the shipped sites: 592 rows
-    over 588 sites, 73 curated and 519 derived, each derived one an edit
+    up. The registration is now total over the shipped sites: 672 rows
+    over 668 sites, 73 curated and 599 derived, each derived one an edit
     aimed at the site it covers. THREE sites carry more than one row on
     purpose: `columns.order` carries three, because it is the whole of
     what the shipped table files for the STRUCTURAL disposition and the
@@ -4400,7 +5260,7 @@ def test_the_coverage_identity_walks_the_shipped_table(
     two, a row taken out and a row added; and the headerless
     `header.presence` carries the plain edit and the compensating one
     that used to defeat it. For those three, deleting one row is not
-    enough to turn this red. Every one of the other 585 is on its own.
+    enough to turn this red. Every one of the other 665 is on its own.
 
     NOTHING IS EXCUSED. There were two exemptions here and both are
     gone. A register of OPEN DEFECTS went with round 2's repairs. The
@@ -4626,3 +5486,5 @@ def test_the_vacuity_floor_counts_classes_per_disposition(
             f"{disposition} fact, which is a listing or input-side entry "
             f"dressed as a check"
         )
+
+

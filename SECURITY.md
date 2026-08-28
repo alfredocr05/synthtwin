@@ -4,8 +4,8 @@ This document states what synthtwin defends against, how each defense is
 built, what it deliberately does not defend against, and how an outside
 auditor can check every claim. It commits only to what the built phases
 can demonstrate - Phase 0's security baseline, Phase 1's profiler,
-Phase 2's generator and Phase 3's validator; anything that arrives in a
-later phase is tagged **[planned]**.
+Phase 2's generator, Phase 3's validator, and what Phase 4 has built so
+far; anything that arrives in a later phase is tagged **[planned]**.
 
 ## Threat model, in plain language
 
@@ -162,14 +162,56 @@ Stated here so that no reader has to discover them independently:
   surface of this project may describe it as present before it is.
 - **The profile is computed from real data.** It holds no row of the
   table, but it is not anonymous: it publishes labels that at least
-  `small_cell_floor` rows share (11 by default), the smallest and
-  largest values of numeric columns and the points between them, and
-  counts about groups nobody is named in. Handle it under your
+  `small_cell_floor` rows share, the smallest and largest values of
+  numeric columns and the points between them, and counts about groups
+  nobody is named in. **`small_cell_floor` is 1 by default** (owner
+  ruling 2026-08-25), so by default it publishes every label the table
+  holds together with how many rows shared it - including a label one
+  row held. What that discloses is that somebody in the table had that
+  value: this version publishes nothing that crosses two columns, so it
+  says nothing about who, or about anything else in that person's row.
+  Where your review board or a data-use agreement requires that no
+  published group can point at one person, `--smallest-group 11` pools
+  everything below eleven rows and the whole workflow runs on the
+  result. Handle it under your
   institution's rules for real-derived material - together with the
   plain-language summary beside it, the twin, the twin's report and the
   quality report, per the entry above. Profile version 4 widened what it
   carries in exactly two ways, and each gets its own entry below rather
   than a clause here.
+- **A column of writing can now publish a sentence it repeats** (plan
+  P4-D5, owner decision 1). Until the `long_tail_labels` rule, a column
+  holding mostly one-off text published no value of itself at all. Now
+  a column past the categorical ceiling that still shares one of its
+  values with at least eleven rows publishes THAT value, spelled as the
+  file wrote it, with its count -- so a free-text column of clinical
+  notes in which eleven rows hold the same sentence names that sentence
+  in the profile and in the summary beside it.
+
+  **Eleven ROWS is not eleven people, and this is where that is said.**
+  The floor counts rows, and the grain of the table is undescribed:
+  eleven repeated cells can be eleven records of one person. The
+  charter states that caveat for every floor-guarded fact; it now
+  guards sentences, which can carry more of a person than a label does.
+  Judge a column of writing on what its repeated sentences say, not on
+  the count alone.
+
+  What the rule does NOT do: it cannot be reached by lowering the
+  floor. The detection line is the floor or eleven, whichever is
+  larger, so a column with no eleven-row value stays free text at every
+  floor, and no VALUE of it is published at any floor. What such a
+  column does publish, since synthtwin gained the written-form census,
+  is the SHAPE its cells were written in where enough of them shared
+  one -- an all-different column of laboratory codes says that four
+  hundred of its cells were four figures, a hyphen and a figure. A
+  shape carries no letter and no figure of any cell: it is spelled from
+  two placeholder characters and a closed list of marks, none of which
+  a cell that has a shape may contain, so a shape is never a spelling
+  any value of yours could wear. It is governed by the same small-cell
+  floor as every other count. Raising the floor can only take
+  columns OUT of the class. And the summary printed before anything is
+  written lists every column whose labels will be visible, long-tail
+  columns included -- read it there, before the files exist.
 - **The quality report withholds numbers from its reader; it does not
   hide them from whoever holds the file** (owner ruling 2026-08-14;
   Phase 3 plan amendment A-P3-13, carried into the validation method as
@@ -277,14 +319,31 @@ Stated here so that no reader has to discover them independently:
   version 4 the settings block carried a declaration as a COUNT and
   never as text, because a declared value is compared against every cell
   of every column and could be data. **From version 5 it also names
-  which members of a thirteen-member list synthtwin publishes in its own
-  contract were among the values you typed** - ten spellings it reads as
-  "no value" (the empty spelling, `-`, `--`, `.`, `?`, `n/a`, `na`,
-  `nan`, `none`, `null`) and three stand-in numbers (`-9999`, `-999`,
-  `9999`).
+  which members of a twenty-three-member list synthtwin publishes in its
+  own contract were among the values you typed** - eighteen spellings it
+  reads as "no value" (the empty spelling, `-`, `--`, `.`, `?`, `n/a`,
+  `na`, `nan`, `none`, `null`, the seven spreadsheet error literals
+  `#DIV/0!`, `#N/A`, `#NAME?`, `#NULL!`, `#NUM!`, `#REF!` and `#VALUE!`,
+  and `NaT`), three stand-in numbers (`-9999`, `-999`, `9999`) and two
+  placeholder days (`1900-01-01`, `9999-12-31`).
+
+  **The list grew from thirteen to twenty-one at Phase 4** (plan
+  P4-D6.2, owner ruling 2026-08-19), and the eight it grew by are
+  machine artifacts: seven spreadsheet error literals and the
+  absent-time literal a common data library writes. Every one of the
+  seven has a folded form no human word collides with, which is the
+  criterion that keeps words like `unknown` out. `NaT` does NOT meet
+  that criterion - its folded form is a person's name - so it is the
+  list's one EXACT-SPELLING member: it reads as "no value" only on a
+  cell that is exactly those three characters, with no spaces around it
+  and the capitals as written, so a column of names cannot be hollowed
+  by it. What the eight buy: a column of numbers with a few artifact
+  cells stops losing its whole distribution, so the twin of it is a
+  column of numbers rather than text. The route for a table where an
+  artifact really is data is unchanged: `--keep-value`.
 
   **What that gives up, at its size.** A reader of the settings block
-  is told which of those thirteen fixed words were typed, and nothing
+  is told which of those twenty-three fixed words were typed, and nothing
   else. The field carries no count of cells, no column and no row; the
   MEMBER's spelling is written and never yours, so if you typed `" N/A "`
   the settings hold `n/a` and your spacing and capitals do not travel;
@@ -294,7 +353,7 @@ Stated here so that no reader has to discover them independently:
   people usually type a word because it is in their table, so a version 5
   settings block makes available a guess a version 4 settings block made
   only coarsely - not "one value was rescued" but "the value rescued was
-  one of these thirteen". **The word guessed at THERE can never be a
+  one of these twenty-three". **The word guessed at THERE can never be a
   name, a code, a diagnosis or a free-text answer, because a value
   outside that list is written nowhere in the settings.** That is a
   statement about the settings block and about nothing else in the
@@ -302,7 +361,7 @@ Stated here so that no reader has to discover them independently:
   it is not a corner case.
 
   **What is not relaxed.** A declared value that is not one of the
-  thirteen is still recorded nowhere IN THE SETTINGS. Every publication
+  twenty-three is still recorded nowhere IN THE SETTINGS. Every publication
   class is unchanged: a column of record numbers, free text or
   unrepresentable numbers still publishes no value of the table. Every
   floor rule is unchanged. No column block publishes a fact version 4 did
@@ -323,7 +382,7 @@ Stated here so that no reader has to discover them independently:
   (review item P3-V9-F1; Phase 3 plan amendment A-P3-31). This is the
   one bullet in this section that corrects a false assurance rather than
   disclosing a new one, so it says the correction first: **a value
-  outside synthtwin's thirteen published words is written nowhere in the
+  outside synthtwin's twenty-three published words is written nowhere in the
   SETTINGS BLOCK, and that was never a statement about the whole
   document.** Two bullets above said it as though it were, and the
   profile's own summary page told the reader the same thing while

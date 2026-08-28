@@ -854,7 +854,11 @@ def test_the_obligation_holds_for_an_undeclared_key_column(
     # An undeclared key column arrives as free text, not as a declared
     # column of record numbers, which is why the obligation is stated
     # for every role rather than for one (P1-D4 item 8, P2-R5-F3).
-    values = [f"case number {index} of the study" for index in range(60)]
+    # Prose rather than `case number 0 of the study`: that family is a
+    # number wearing shared text, which the affixed-number rule reads,
+    # and the obligation this test is about belongs to the invention
+    # roles. An all-different column NO rule reads is what it needs.
+    values = fixtures.prose(60)
     described = _described(tmp_path, fixtures.single_column_table("key", values))
     column = _block(described, "key")
     assert column.n_distinct == column.n_present
@@ -1375,13 +1379,10 @@ def test_a_column_of_free_text_folds_onto_its_own_partners(
     # every invention role, not on record numbers alone.
     folder = tmp_path / "text"
     folder.mkdir(parents=True, exist_ok=True)
-    values = [
-        f"note {index} written out in plain words" for index in range(58)
-    ]
-    values = values + [
-        "NOTE 0 WRITTEN OUT IN PLAIN WORDS",
-        "Note 1 Written Out In Plain Words",
-    ]
+    values = fixtures.prose(58)
+    # Two more that FOLD onto values already there, which is what this
+    # test needs: the same sentences in another case.
+    values = values + [values[0].upper(), values[1].title()]
     described = _described(folder, fixtures.single_column_table("comment", values))
     column = _block(described, "comment")
     assert isinstance(column.facts, contract.TextFacts)
@@ -1611,9 +1612,10 @@ def test_a_column_of_sentences_still_meets_its_code_alphabet_count(
     folder = tmp_path / "sentences"
     folder.mkdir(parents=True, exist_ok=True)
     values: list[str] = []
+    sentences = fixtures.prose(30)
     for index in range(30):
-        values = values + [f"note {index} written out plainly", f"tag{index}"]
-        values = values + [f"note {index} written out plainly", f"tag{index}"]
+        values = values + [sentences[index], f"tag{index}"]
+        values = values + [sentences[index], f"tag{index}"]
     described = _described(
         folder, fixtures.single_column_table("comment", values)
     )

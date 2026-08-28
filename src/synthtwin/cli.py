@@ -90,10 +90,11 @@ enforces the list in CI.
 import argparse
 import dataclasses
 import importlib.metadata
+import os
 import pathlib
 import sys
 
-from synthtwin import errors, parsing
+from synthtwin import asking, errors, parsing
 from synthtwin.paths import PathValidationError, validate_local_path
 
 _REPO_URL = "https://github.com/alfredocr05/synthtwin"
@@ -107,7 +108,17 @@ _REPO_URL = "https://github.com/alfredocr05/synthtwin"
 _FIRST_ROW_AUTOMATIC = "auto"
 _FIRST_ROW_NAMES = "names"
 _FIRST_ROW_DATA = "data"
-_SMALLEST_GROUP = 11
+_SMALLEST_GROUP = 1
+
+# THE LINE UNDER WHICH A NAMED GROUP CAN POINT AT ONE PERSON, mirrored
+# here from `_NOTICE_LINE` for the reason
+# `_SMALLEST_GROUP` is mirrored: the command line is built before any
+# command word is read (plan P2-D1), and the suite compares the two so
+# they cannot drift. It is NOT the default and stopped being it on
+# 2026-08-25 (plan A-P4-37): the default is what a run writes when
+# nobody asks, and this is a fact about people that did not move when
+# the default did.
+_NOTICE_LINE = 11
 
 # THE HELP FOR `--missing-value`, HELD AS A CONSTANT BECAUSE IT IS A
 # CONTROL (review item P3-V9-F1, plan amendment A-P3-31). This is the
@@ -128,7 +139,8 @@ _MISSING_VALUE_HELP = (
     "described. READ THIS BEFORE YOU TYPE A WORD HERE: the word "
     "itself is written into the description, spelled exactly as "
     "your table spells it, in the block describing each column "
-    f"where at least {_SMALLEST_GROUP} rows hold it and that "
+    "where enough rows hold it -- and by default one row is "
+    "enough -- and that "
     "column publishes any values at all -- so a diagnosis, a "
     "code or an identifier named here travels in the description "
     "and in the summary beside it. Below that many rows the "
@@ -424,10 +436,14 @@ class _Options:
     twin: "str | None"
     out_dir: "str | None"
     smallest_group: int
+    floor_chosen: bool
     identifiers: list[str]
+    codes: list[str]
+    measurements: list[str]
     kept_values: list[str]
     missing_values: list[str]
     first_row: str
+    day_first: bool
     seed: str
     replace: bool
 
@@ -540,16 +556,24 @@ def _parse_arguments(argv: "list[str] | None") -> _Options:
     parser.add_argument(
         "--smallest-group",
         type=int,
-        default=_SMALLEST_GROUP,
+        # NONE RATHER THAN THE NUMBER, so that typing the default is
+        # distinguishable from not typing it (plan A-P4-37). The screen
+        # alarm below is for somebody who CHOSE a floor that names small
+        # groups; the written pages state what the description carries
+        # either way, and they are the files that travel.
+        default=None,
         metavar="ROWS",
         help=(
             "advanced: a value shared by fewer rows than this is left out "
-            "of the profile, so that a rare value cannot identify anybody. "
-            "A number below the default is accepted and the whole workflow "
-            "then runs on it -- the profile names groups that small, prints "
-            "how many rows each covers, and every file the run makes says on "
-            "its face that it was built that way "
-            "(default: %(default)s)"
+            "of the profile. THE DEFAULT IS 1, WHICH LEAVES NOTHING OUT: "
+            "every value your table holds is named, together with how many "
+            "rows shared it, so a rare value reaches the twin. Raise it -- "
+            "for instance --smallest-group 11 -- where a review board or a "
+            "data-use agreement requires that no group named anywhere in "
+            "the profile can point at one person; the profile then pools "
+            "everything below that number and every file the run makes says "
+            "on its face that it was built that way "
+            "(default: 1)"
         ),
     )
     parser.add_argument(
@@ -570,6 +594,47 @@ def _parse_arguments(argv: "list[str] | None") -> _Options:
         ),
     )
     parser.add_argument(
+        "--code",
+        action="append",
+        default=None,
+        metavar="COLUMN",
+        help=(
+            "name a column that holds a CODING SYSTEM rather than "
+            "measurements -- vaccine codes, procedure codes, revenue "
+            "codes, provider numbers, risk-group codes. Its values are "
+            "still published, because which codes are common is the point "
+            "of the column; what changes is that synthtwin stops reading "
+            "them as numbers. It keeps each code exactly as written, "
+            "leading zeros and all, and publishes how many rows carried "
+            "each one -- instead of an average, a smallest and a largest, "
+            "which for a code are meaningless and are real codes besides. "
+            "Use this for a column written in digits: one written with a "
+            "letter or a dash is already read as codes. Name a column "
+            "here only if it is codes -- use --identifier for a record "
+            "number nothing should publish, and neither one for a "
+            "measurement. May be given more than once"
+        ),
+    )
+    parser.add_argument(
+        "--measurement",
+        action="append",
+        default=None,
+        metavar="COLUMN",
+        help=(
+            "name a column that holds MEASUREMENTS written as two or "
+            "more whole numbers in one cell -- a blood pressure such as "
+            "120/80, a score written 12-5. synthtwin reads each number "
+            "separately and publishes a range and an average for each "
+            "one, so the twin's cells hold believable readings instead "
+            "of digits in the right shape. Use it only where the "
+            "numbers are QUANTITIES: a lab code such as 1923-1 and a "
+            "drug code such as 00052-0052-52 are written exactly the "
+            "same way and are codes, so name those with --code instead. "
+            "A column of plain single numbers needs nothing: it is "
+            "already read as numbers. May be given more than once"
+        ),
+    )
+    parser.add_argument(
         "--keep-value",
         action="append",
         default=None,
@@ -581,7 +646,10 @@ def _parse_arguments(argv: "list[str] | None") -> _Options:
             "called NA, or -999 as a real reading. A value that reads as "
             "a number is matched as a NUMBER, so -999 also covers "
             "-999.00; anything else is matched as text, ignoring "
-            "surrounding spaces and upper or lower case. In the settings "
+            "surrounding spaces and upper or lower case -- with one "
+            "exception, NaT, which synthtwin matches exactly as written "
+            "because ignoring its capitals would make it a person's "
+            "name. In the settings "
             "block the profile records how many different values you "
             "named, the rule that matched them, and -- where what you "
             "named is one of synthtwin's own words for 'no value', such "
@@ -600,6 +668,27 @@ def _parse_arguments(argv: "list[str] | None") -> _Options:
         default=None,
         metavar="VALUE",
         help=_MISSING_VALUE_HELP,
+    )
+    parser.add_argument(
+        "--day-first",
+        action="store_true",
+        help=(
+            "say that dates in this table are written day first, so "
+            "03/04/2024 is the 3rd of April. It reaches every shape "
+            "whose day and month are both numbers -- written with "
+            "slashes, written with dots, and written with a "
+            "two-figure year -- because each of them leaves the same "
+            "question open. It "
+            "is not a bare order swap: a column whose own values can "
+            "only be read the other way round would then be read "
+            "backwards and its evidence counted as unreadable. So both "
+            "readings are counted for every such column, whichever "
+            "parses more of that column's values is the one used, and "
+            "this option decides only where the two parse exactly as "
+            "many. Every column it touches says in its remarks which "
+            "reading was used and why, and says so again where the "
+            "column's own values point both ways at once"
+        ),
     )
     parser.add_argument(
         "--first-row",
@@ -663,6 +752,8 @@ def _parse_arguments(argv: "list[str] | None") -> _Options:
             "a path if the file to measure is not the twin beside it."
         )
     named = args.identifier if args.identifier is not None else []
+    code_named = args.code if args.code is not None else []
+    measured_named = args.measurement if args.measurement is not None else []
     kept = args.keep_value if args.keep_value is not None else []
     declared_missing = (
         args.missing_value if args.missing_value is not None else []
@@ -673,11 +764,19 @@ def _parse_arguments(argv: "list[str] | None") -> _Options:
         given=args.path,
         twin=args.twin,
         out_dir=args.out_dir,
-        smallest_group=int(args.smallest_group),
+        smallest_group=(
+            _SMALLEST_GROUP
+            if args.smallest_group is None
+            else int(args.smallest_group)
+        ),
+        floor_chosen=args.smallest_group is not None,
         identifiers=list(named),
+        codes=list(code_named),
+        measurements=list(measured_named),
         kept_values=list(kept),
         missing_values=list(declared_missing),
         first_row=f"{args.first_row}",
+        day_first=bool(args.day_first),
         seed=f"{args.seed}",
         replace=bool(args.replace),
     )
@@ -806,6 +905,248 @@ def _declared_words_notice(
     )
 
 
+_ANSWER_KEYS = {
+    "1": asking.ANSWER_MEASUREMENT,
+    "2": asking.ANSWER_CODE,
+    "3": asking.ANSWER_IDENTIFIER,
+    "4": asking.ANSWER_JOINED,
+    "m": asking.ANSWER_MEASUREMENT,
+    "c": asking.ANSWER_CODE,
+    "i": asking.ANSWER_IDENTIFIER,
+    "j": asking.ANSWER_JOINED,
+}
+
+_WHY_SHOWN = {
+    asking.BECAUSE_PADDED: (
+        "some values carry a leading zero, and a measurement is not "
+        "padded"
+    ),
+    asking.BECAUSE_FIXED_WIDTH: (
+        "every value is the same number of digits, which a measurement "
+        "rarely is"
+    ),
+    asking.BECAUSE_JOINED: (
+        "every value is two or more numbers joined by one mark, "
+        "which is how a blood pressure is written and also how a "
+        "laboratory code is"
+    ),
+}
+
+
+def _there_is_somebody_to_ask() -> bool:
+    """True where a person is at the keyboard to answer.
+
+    Guarantees:
+
+    - Determinism: not deterministic -- it reads the environment the
+      command was started in, which is the one thing here that is not
+      a function of the arguments. Nothing it decides reaches the
+      profile: a question that is not asked becomes a printed
+      assumption, and the description is identical either way.
+    - Errors raised: none. A handle that cannot answer `isatty` is
+      taken as nobody there, which is the safe reading.
+
+    BOTH HANDLES ARE TESTED, not just the input. A run whose output is
+    piped to a file is a scripted run even when its input is a
+    terminal, and stopping it to ask a question would hang a pipeline
+    with the question sitting unread in the file.
+    """
+    try:
+        return bool(os.isatty(0)) and bool(os.isatty(1))
+    except (OSError, ValueError):
+        return False
+
+
+def _joined(parts: "list[str]", separator: str) -> str:
+    """Join text the long way round, for the offline audit's reason.
+
+    `str.join` runs the formatting protocol of whatever it is handed,
+    so the audit accepts only literals and values it watched being
+    built. Every part here is gated as text and added one at a time.
+    """
+    out = ""
+    for part in parts:
+        if not isinstance(part, str):
+            raise TypeError("a part must be text")
+        out = out + (separator if out else "") + part
+    return out
+
+
+def _shown_examples(examples: "list[str]") -> str:
+    """A column's example values, escaped, for a screen."""
+    safe: list[str] = []
+    for value in examples:
+        safe = safe + [_shown(value)]
+    return _joined(safe, ", ")
+
+
+def _the_question(question: asking.Question, place: int, total: int) -> str:
+    """One column's question, as the person sees it."""
+    shown = _shown_examples(question.examples)
+    why = _WHY_SHOWN[question.reason]
+    head = (
+        f"\n  Column {place} of {total}: '{_shown(question.name)}'\n"
+        f"    values look like: {shown}\n"
+    )
+    if question.reason == asking.BECAUSE_JOINED:
+        # A COLUMN OF JOINED NUMBERS IS THE SAME QUESTION WITH ONE MORE
+        # ANSWER (plan P4-D21). Read as text it publishes no reading at
+        # all, so the reading it is missing is what the first answer
+        # offers; the other two are the answers a code column and a
+        # record number need, and they are the readings that make a
+        # laboratory code come back whole.
+        return (
+            f"{head}"
+            f"    synthtwin cannot read this on its own, so its twin "
+            f"would hold no readings at all. It is written as {why}.\n"
+            f"    What does this column hold?\n"
+            f"      [4] measurements written as two numbers -- read each "
+            f"number separately, so the twin holds believable readings\n"
+            f"      [2] codes -- keep every value exactly as written, and "
+            f"publish which ones are common\n"
+            f"      [3] record numbers -- publish none of its values\n"
+            f"      [1] leave it as text -- publish no value of it"
+        )
+    return (
+        f"{head}"
+        f"    synthtwin read this as a MEASUREMENT, and would publish an "
+        f"average, a smallest and a largest for it. But {why}.\n"
+        f"    What does this column hold?\n"
+        f"      [1] measurements -- keep reading it as numbers\n"
+        f"      [2] codes -- keep every value exactly as written, and "
+        f"publish which ones are common\n"
+        f"      [3] record numbers -- publish none of its values"
+    )
+
+
+def _assumptions_notice(questions: "list[asking.Question]") -> str:
+    """What is printed where there is nobody to ask.
+
+    The person chose the tool; they did not choose to be guessed at.
+    This says what was assumed and the exact words that correct it, so
+    a scripted run is one rerun away from right rather than silently
+    wrong.
+    """
+    lines = ""
+    parts: list[str] = []
+    for question in questions:
+        shown = _shown_examples(question.examples)
+        lines = lines + f"\n  '{_shown(question.name)}' -- {shown}"
+        parts = parts + [f"--code {_shown(question.name)}"]
+    flags = _joined(parts, " ")
+    return (
+        f"THESE COLUMNS WERE READ AS MEASUREMENTS, AND MIGHT BE CODES."
+        f"{lines}\n\n"
+        f"synthtwin cannot tell a coding system from a measurement: they "
+        f"are written identically, and only you know which this is. Each "
+        f"column above is being described with an average, a smallest and "
+        f"a largest -- which for a code are meaningless, and are real "
+        f"codes besides -- and its twin will lose any leading zeros.\n\n"
+        f"If any of them holds codes, run the command again naming them:\n"
+        f"  {flags}\n"
+        f"Nothing is wrong with this profile if they really are "
+        f"measurements."
+    )
+
+
+def _cleaned(line: str) -> str:
+    """One typed line, trimmed and lowered.
+
+    The type gate is the offline audit's: what `input` returns is not
+    traceable to an allowlisted API, so it is checked as text here
+    before any method of it is called.
+    """
+    if not isinstance(line, str):
+        raise TypeError("a typed line must be text")
+    return line.strip().lower()
+
+
+def _read_one_answer() -> "str | None":
+    """One typed answer, or None where the person ended the run.
+
+    Enter alone keeps the reading synthtwin already made, so a person
+    who does not know can press through and lose nothing they had.
+    Anything unrecognized is asked again rather than assumed: this is
+    the one place a wrong guess would be recorded in the profile as a
+    fact the person had stated.
+    """
+    while True:
+        try:
+            line = input("    > ")
+        except (EOFError, KeyboardInterrupt):
+            return None
+        typed = _cleaned(line)
+        if not typed:
+            return asking.ANSWER_MEASUREMENT
+        if typed in _ANSWER_KEYS:
+            return _ANSWER_KEYS[typed]
+        _say(
+            "    Please type one of the numbers offered, or press Enter "
+            "to keep the reading synthtwin made."
+        )
+
+
+def _put_the_questions(
+    questions: "list[asking.Question]",
+) -> "tuple[list[str], list[str], list[str]] | None":
+    """Put every question; return the columns named as codes and as IDs.
+
+    None where the person ended the run at a prompt: Ctrl-C and Ctrl-D
+    mean stop, and stopping must not write a profile built on half an
+    interview.
+    """
+    total = len(questions)
+    _say(
+        f"\n{'=' * 66}\n"
+        f"{total} COLUMN(S) CAN BE READ MORE THAN ONE WAY\n"
+        f"{'=' * 66}\n"
+        f"synthtwin cannot tell a coding system from a measurement -- "
+        f"they are written identically, and only you know which these "
+        f"are. Press Enter to keep the reading it made. Your answers "
+        f"are recorded in the profile, and the exact "
+        f"options to repeat this run without typing are printed at the "
+        f"end."
+    )
+    codes: list[str] = []
+    identifiers: list[str] = []
+    measurements: list[str] = []
+    place = 0
+    for question in questions:
+        place = place + 1
+        _say(_the_question(question, place, total))
+        answer = _read_one_answer()
+        if answer is None:
+            return None
+        if answer == asking.ANSWER_CODE:
+            codes = codes + [question.name]
+        elif answer == asking.ANSWER_IDENTIFIER:
+            identifiers = identifiers + [question.name]
+        elif answer == asking.ANSWER_JOINED:
+            measurements = measurements + [question.name]
+    return codes, identifiers, measurements
+
+
+def _how_to_repeat(
+    forced_codes: "list[str]",
+    forced_identifiers: "list[str]",
+    forced_measurements: "list[str]",
+) -> str:
+    """The options that repeat this run without asking anything."""
+    parts: list[str] = []
+    for name in sorted(forced_codes):
+        parts = parts + [f"--code {_shown(name)}"]
+    for name in sorted(forced_identifiers):
+        parts = parts + [f"--identifier {_shown(name)}"]
+    for name in sorted(forced_measurements):
+        parts = parts + [f"--measurement {_shown(name)}"]
+    flags = _joined(parts, " ")
+    return (
+        f"\nTO REPEAT THIS RUN WITHOUT THE QUESTIONS, add:\n  "
+        f"{flags}\n"
+        f"Those answers are also recorded inside the profile itself."
+    )
+
+
 def _lowered_floor_warning(given: int) -> str:
     """The warning shown when `--smallest-group` is under the default.
 
@@ -832,7 +1173,17 @@ def _lowered_floor_warning(given: int) -> str:
     THE DEFAULT IS NAMED FROM THIS MODULE'S OWN MIRROR. `_SMALLEST_GROUP`
     is the value `taxonomy.Settings` holds, kept here because the command
     line is built before any command word is read (plan P2-D1), and the
-    suite compares the two so they cannot drift.
+    suite compares the two so they cannot drift. `_NOTICE_LINE` mirrors
+    `contract.SMALL_GROUP_NOTICE_LINE` the same way.
+
+    WHEN THIS IS SHOWN CHANGED ON 2026-08-25 (plan A-P4-37). It used to
+    be shown whenever the floor was under the default, which was the
+    same thing as somebody having typed `--smallest-group`. The default
+    is 1 now, so that test would never fire again. It is shown when the
+    person TYPED a floor under `_NOTICE_LINE` -- a choice they made and
+    should see priced. A default run says the same facts on the written
+    pages, which are the files that travel, and does not alarm the
+    screen about a setting nobody chose.
     """
     # At a floor of one a published group can be a single row, which is
     # the whole of the disclosure said in one sentence -- so it is said,
@@ -850,12 +1201,12 @@ def _lowered_floor_warning(given: int) -> str:
     return (
         f"\n{_ALARM}\n"
         f"READ THIS BEFORE ANY OF THESE FILES GOES ANYWHERE.\n"
-        f"You lowered the smallest group size to {given}. "
-        f"It is normally {_SMALLEST_GROUP}.\n"
+        f"You set the smallest group size to {given}, which names "
+        f"groups small enough to point at one person.\n"
         f"{_ALARM}\n"
         f"\n"
         f"WHAT YOU CHANGED. synthtwin normally leaves a value out of "
-        f"the description unless at least {_SMALLEST_GROUP} rows share "
+        f"the description unless at least {_NOTICE_LINE} rows share "
         f"it. You told it {given}, so this description names values "
         f"that as few as {given} row(s) share, and prints how many rows "
         f"that is.\n"
@@ -867,7 +1218,7 @@ def _lowered_floor_warning(given: int) -> str:
         f"small group that person must be in and read off everything "
         f"else the description says about that group. Nothing has to be "
         f"broken into or decoded for that to happen: the count is the "
-        f"disclosure, and the usual {_SMALLEST_GROUP} is the number "
+        f"disclosure, and {_NOTICE_LINE} is the number "
         f"that keeps a published group too big to point at one person.\n"
         f"\n"
         f"WHERE THOSE COUNTS GO NEXT. Not into the description alone. "
@@ -887,10 +1238,14 @@ def _run_profile(
     table: str,
     out_dir: "str | None",
     smallest_group: int,
+    floor_chosen: bool,
     forced_identifiers: list[str],
+    forced_codes: list[str],
+    forced_measurements: list[str],
     kept_values: list[str],
     missing_values: list[str],
     first_row: str,
+    day_first: bool,
 ) -> int:
     """Do the work of `synthtwin profile`; return the exit code.
 
@@ -935,6 +1290,7 @@ def _run_profile(
         small_cell_floor=smallest_group,
         kept_values=tuple(kept_values),
         declared_missing_values=tuple(missing_values),
+        day_first=day_first,
     )
     read = reading.read_table(table, first_row)
 
@@ -953,7 +1309,93 @@ def _run_profile(
         )
         return 2
 
-    document = profile.build_document(read, settings, forced_identifiers)
+    # The same refusal for the other declaration, and for the same
+    # reason: a misspelt name must not produce a description in which a
+    # coding system was quietly read as a quantity (plan P4-D19).
+    unknown_codes = [
+        name for name in forced_codes if name not in read.column_names
+    ]
+    if unknown_codes:
+        _warn(
+            errors.unknown_column_named(
+                "holding codes", unknown_codes[0], read.column_names
+            )
+        )
+        return 2
+
+    # A column named in BOTH declarations is refused rather than ranked.
+    # `--identifier` publishes nothing and `--code` publishes the
+    # distribution, so there is no reading of the pair that is not a
+    # guess about which the person meant (the rule `profile_column`
+    # applies to a value declared both data and missing).
+    unknown_measured = [
+        name for name in forced_measurements if name not in read.column_names
+    ]
+    if unknown_measured:
+        _warn(
+            errors.unknown_column_named(
+                "holding measurements",
+                unknown_measured[0],
+                read.column_names,
+            )
+        )
+        return 2
+
+    # A column named in two declarations at once is refused rather than
+    # ranked: they ask for different readings and there is no reading of
+    # the pair that is not a guess about which the person meant.
+    both = [name for name in forced_codes if name in forced_identifiers]
+    both = both + [
+        name for name in forced_measurements if name in forced_identifiers
+    ]
+    both = both + [
+        name for name in forced_measurements if name in forced_codes
+    ]
+    if both:
+        _warn(errors.column_declared_twice(both[0]))
+        return 2
+
+    document = profile.build_document(
+        read, settings, forced_identifiers, forced_codes, forced_measurements
+    )
+
+    # THE ONE QUESTION THE VALUES CANNOT SETTLE (plan P4-D19). Asked
+    # after the description is built, because what a column was READ AS
+    # is half the question, and asked BEFORE anything is written, so an
+    # answer never arrives too late to be used. Where nobody is at the
+    # keyboard the same columns are named on screen with the option that
+    # corrects them, and the run goes on: a scripted run must not hang,
+    # and must not be guessed at in silence either.
+    asked_about = asking.questions_for(
+        document, read.columns, settings, forced_identifiers + forced_codes
+    )
+    answered = False
+    if asked_about:
+        if _there_is_somebody_to_ask():
+            given = _put_the_questions(asked_about)
+            if given is None:
+                _warn(errors.the_questions_were_not_finished())
+                return 1
+            new_codes, new_identifiers, new_measured = given
+            if new_codes or new_identifiers or new_measured:
+                forced_codes = sorted(forced_codes + new_codes)
+                forced_identifiers = sorted(
+                    forced_identifiers + new_identifiers
+                )
+                forced_measurements = sorted(
+                    forced_measurements + new_measured
+                )
+                document = profile.build_document(
+                    read,
+                    settings,
+                    forced_identifiers,
+                    forced_codes,
+                    forced_measurements,
+                )
+            answered = True
+        else:
+            _say(f"\n{_assumptions_notice(asked_about)}\n")
+
     # The summary crosses the boundary ONCE, here, and the same text is
     # what reaches the screen and what is written to disk. The two
     # cannot differ, and the file on disk carries the same guarantee the
@@ -1001,10 +1443,18 @@ def _run_profile(
     # has a reminder line of its own after the "Written:" confirmation
     # and reading the two in that order leaves the pointer beside the
     # block it points at.
+    if answered and (
+        forced_codes or forced_identifiers or forced_measurements
+    ):
+        _say(
+            _how_to_repeat(
+                forced_codes, forced_identifiers, forced_measurements
+            )
+        )
     kept_of_yours = summary.words_of_your_own(document)
     if kept_of_yours:
         _warn(_declared_words_notice(kept_of_yours))
-    if smallest_group < taxonomy.Settings().small_cell_floor:
+    if floor_chosen and smallest_group < _NOTICE_LINE:
         _warn(_lowered_floor_warning(smallest_group))
 
     # The return value is the point of the call, not an afterthought:
@@ -1062,7 +1512,7 @@ def _run_profile(
         # the one confirming what already went well.
         _warn(_left_behind_note(left_behind))
     _say(f"\nWritten:\n  {shown_profile_path}\n  {shown_summary_path}")
-    if smallest_group < taxonomy.Settings().small_cell_floor:
+    if floor_chosen and smallest_group < _NOTICE_LINE:
         _warn(f"\n{_LOWERED_FLOOR_REMINDER}")
     return 0
 
@@ -1293,6 +1743,12 @@ def _run_generate(
     report_text = parsing.visible_lines(rendering.report(loaded, twin))
 
     _say(report_text)
+    # ONE LINE ON THE SCREEN NAMING WHAT THE TWIN INVENTED (plan P4-D2
+    # item 2). It is a warning rather than an ordinary line because a
+    # person who reads one thing before opening the twin should read
+    # this one; the exit code does not move for it, because a decline is
+    # not a failure and a run that warned still succeeded.
+    _warn(rendering.made_up_warning(loaded))
     _say(
         f"These two files will be written:\n"
         f"  {shown_twin_path}\n  {shown_report_path}"
@@ -1730,10 +2186,14 @@ def main(argv: "list[str] | None" = None) -> int:
             named,
             options.out_dir,
             options.smallest_group,
+            options.floor_chosen,
             options.identifiers,
+            options.codes,
+            options.measurements,
             options.kept_values,
             options.missing_values,
             options.first_row,
+            options.day_first,
         )
     except PathValidationError as error:
         # The message is treated as a VALUE, not as something synthtwin

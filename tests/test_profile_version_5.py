@@ -43,6 +43,14 @@ exactly one thing version 5 changed:
 
 Every table is built at test time by the seeded neutral builders in
 `fixtures.py`; no data-format file enters the repository (plan D13).
+
+THE FLOOR IS DECLARED, NEVER INHERITED. A test below that asks what a
+description holds back says at what floor it is asking, by building its
+own `Settings(small_cell_floor=11)`. Plan amendment A-P4-37 moved the
+default to one, at which nothing is held back at all (C5-S13) -- so a
+test of the pooled remainder that took the default would be asking
+about a pool that cannot exist, and the three tests that are ABOUT a
+floor of one say `small_cell_floor=1` in as many words.
 """
 
 import copy
@@ -379,7 +387,9 @@ def test_the_floor_falls_on_the_exact_spelling_and_names_fewer_groups(
         folder,
         "merged",
         _numbers(60) + [_RAW] * 6 + [_SHOWN] * 6,
-        taxonomy.Settings(declared_missing_values=(_RAW, _SHOWN)),
+        taxonomy.Settings(
+            small_cell_floor=11, declared_missing_values=(_RAW, _SHOWN)
+        ),
     )
     column = described.loaded.columns[0]
     assert column.n_missing == 12
@@ -397,14 +407,18 @@ def collision(folder: pathlib.Path) -> "tuple[Described, Described]":
         folder,
         "pool-literal",
         _numbers(60) + [_POOL_WORD] * 12,
-        taxonomy.Settings(declared_missing_values=(_POOL_WORD,)),
+        taxonomy.Settings(
+            small_cell_floor=11, declared_missing_values=(_POOL_WORD,)
+        ),
     )
     pooled = _describe(
         folder,
         "pool-really",
         _numbers(60)
         + [" " * (index + 1) + _POOL_WORD for index in range(12)],
-        taxonomy.Settings(declared_missing_values=(_POOL_WORD,)),
+        taxonomy.Settings(
+            small_cell_floor=11, declared_missing_values=(_POOL_WORD,)
+        ),
     )
     return (literal, pooled)
 
@@ -445,7 +459,9 @@ def test_the_two_counts_are_the_numbers_version_four_published(
         folder,
         "blank-and-pool",
         _numbers(60) + [""] * 12 + ["rare"] * 3,
-        taxonomy.Settings(declared_missing_values=("rare",)),
+        taxonomy.Settings(
+            small_cell_floor=11, declared_missing_values=("rare",)
+        ),
     )
     assert column.n_missing == 15
     assert column.n_missing_blank == 12
@@ -467,7 +483,7 @@ def test_the_blank_count_is_under_the_floor_like_every_other_group(
         folder,
         "few-blanks",
         _numbers(60) + [""] * 3 + _numbers(12),
-        taxonomy.Settings(),
+        taxonomy.Settings(small_cell_floor=11),
     )
     assert column.n_missing == 3
     assert column.n_missing_blank == 0
@@ -656,11 +672,20 @@ def test_the_whole_of_the_kept_side_is_recorded(folder: pathlib.Path) -> None:
 def test_the_producer_writes_five_and_the_loader_reads_five(
     declarations: Described,
 ) -> None:
-    """C5-VER and C5-24."""
-    assert profile.PROFILE_VERSION == 5
-    assert contract.PROFILE_VERSION == 5
-    assert declarations.document["profile_version"] == 5
-    assert declarations.loaded.profile_version == 5
+    """C5-VER and C5-24 -- and the number has moved past both.
+
+    This file is the record of what the version 5 landing added, and
+    the additions below are all still true of the producer. The NUMBER
+    is not: Phase 4 carried its own wire changes and the version moved
+    to six with them, so what this test pins is that the move happened
+    and that the producer and the loader moved together. A version
+    number one of them could drift from is a version number nothing
+    pins.
+    """
+    assert profile.PROFILE_VERSION == 6
+    assert contract.PROFILE_VERSION == 6
+    assert declarations.document["profile_version"] == 6
+    assert declarations.loaded.profile_version == 6
 
 
 def test_a_version_four_description_is_refused_in_the_contract_s_words(
@@ -689,28 +714,45 @@ def test_a_version_four_description_is_refused_in_the_contract_s_words(
     said = f"{refused.value}"
     assert said == (
         "This description was written by an older version of synthtwin: "
-        "it says it is version 4, and this synthtwin reads version 5. A "
-        "version 5 description records which of synthtwin's own words "
-        'for "no value" you named on the command line, and a version 4 '
-        "description does not, so this file cannot be read back "
+        "it says it is version 4, and this synthtwin reads version 6. A "
+        "version 6 description records things an older description does "
+        'not \u2014 which of synthtwin\'s own words for "no value" you '
+        "named on the command line, and how dates whose day and month "
+        "are both numbers were read "
+        "\u2014 so this file cannot be read back "
         "exactly. Please make the description again by running "
         "'synthtwin profile' on your table, giving it every option you "
         "gave the first time: --keep-value, --missing-value, "
-        "--identifier, --smallest-group and --first-row. Every one of "
+        "--identifier, --code, --measurement, --smallest-group, "
+        "--first-row and --day-first. Every one of "
         "them changes what the description PUBLISHES about your table, "
         "so any option you leave out can put something into the new "
         "description that the old one held back: without the "
         "--smallest-group you gave, a value that fewer rows share can "
         "be named; without the --identifier you gave, a column of "
         "record numbers is described like any other column; without "
+        "the --code you gave, a column of codes is described as "
+        "measurements, so its smallest and largest values \u2014 which "
+        "are real codes \u2014 are published and its twin loses any "
+        "leading zeros; without the --measurement you gave, a column "
+        "of readings written as two numbers in one cell, such as a "
+        "blood pressure, is described as text and its twin holds no "
+        "readings at all; without "
         "the --missing-value you gave, a stand-in is read as a real "
         "reading, and the stand-in itself can be published as the "
         "column's smallest value; without the --keep-value you gave, a "
         "word you had counted as an ordinary value becomes a gap, "
         "which can change what kind of column synthtwin sees and "
-        "publish both that word and the column's own numbers; and "
+        "publish both that word and the column's own numbers; "
         "without the --first-row you gave, the first line of your file "
-        "is read as the column names and published as them. Read the "
+        "is read as the column names and published as them; and "
+        "without the --day-first you gave, a date whose day and month "
+        "are both written as numbers \u2014 with slashes, with dots, or "
+        "with a two-figure year \u2014 can be read "
+        "the other way round, which changes the dates the description "
+        "publishes and can leave the column described as text instead. "
+        "If you do not hold the table yourself, ask whoever made this "
+        "description to run it again for you. Read the "
         "summary page synthtwin writes beside the new description "
         "before either file goes anywhere, and use the description "
         "exactly as synthtwin writes it."
@@ -771,20 +813,26 @@ def test_the_producer_never_writes_what_its_own_loader_refuses(
     loader.
     """
     shapes = {
-        "none": (_numbers(60), taxonomy.Settings()),
+        "none": (_numbers(60), taxonomy.Settings(small_cell_floor=11)),
         "all-blank": (
-            _numbers(60) + [""] * 12 + _numbers(12), taxonomy.Settings()
+            _numbers(60) + [""] * 12 + _numbers(12),
+            taxonomy.Settings(small_cell_floor=11),
         ),
         "few-blank": (
-            _numbers(60) + [""] * 3 + _numbers(12), taxonomy.Settings()
+            _numbers(60) + [""] * 3 + _numbers(12),
+            taxonomy.Settings(small_cell_floor=11),
         ),
         "pooled": (
             _numbers(60) + ["rare"] * 3,
-            taxonomy.Settings(declared_missing_values=("rare",)),
+            taxonomy.Settings(
+                small_cell_floor=11, declared_missing_values=("rare",)
+            ),
         ),
         "named": (
             _numbers(60) + ["XX"] * 12,
-            taxonomy.Settings(declared_missing_values=("XX",)),
+            taxonomy.Settings(
+                small_cell_floor=11, declared_missing_values=("XX",)
+            ),
         ),
         "floor-of-one": (
             _numbers(60) + [""] * 3 + ["XX"] * 2 + _numbers(12),
@@ -892,7 +940,9 @@ def test_a_spelling_below_the_floor_is_published_nowhere(
         folder,
         "below-floor",
         _numbers(60) + [marker] * 3,
-        taxonomy.Settings(declared_missing_values=(marker,)),
+        taxonomy.Settings(
+            small_cell_floor=11, declared_missing_values=(marker,)
+        ),
     )
     column = described.loaded.columns[0]
     assert column.n_missing == 3
@@ -982,7 +1032,11 @@ def test_the_five_witnesses_of_the_analysis_land_where_it_says(
         folder,
         "w4-literal",
         _numbers(60) + [_POOL_WORD] * 12,
-        taxonomy.Settings(declared_missing_values=(_POOL_WORD,)),
+        # THE SAME FLOOR AS ITS OTHER HALF, so that the two documents
+        # differ over the COLUMN and not over their settings blocks.
+        taxonomy.Settings(
+            small_cell_floor=11, declared_missing_values=(_POOL_WORD,)
+        ),
     )
     rare = _describe(
         folder,
@@ -990,7 +1044,8 @@ def test_the_five_witnesses_of_the_analysis_land_where_it_says(
         _numbers(60)
         + ["r1"] * 3 + ["r2"] * 3 + ["r3"] * 3 + ["r4"] * 3,
         taxonomy.Settings(
-            declared_missing_values=("r1", "r2", "r3", "r4")
+            small_cell_floor=11,
+            declared_missing_values=("r1", "r2", "r3", "r4"),
         ),
     )
     assert literal.loaded.columns[0].missing_by_source == {_POOL_WORD: 12}

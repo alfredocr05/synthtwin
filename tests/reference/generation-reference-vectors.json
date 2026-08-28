@@ -1,5 +1,5 @@
 {
-  "case_set": "The nine cases method section G14.3 names, committed as tests/reference/generation-reference-vectors.json. The five cases that reach the branches these nine leave unexercised (review items P2-C3-F3 and P2-C4-C3) are the same oracle's second file, tests/reference/generation-branch-vectors.json: one transform, one proof layer, two files, because a committed fixture must stay under the provenance manifest's byte cap and these nine already spend most of it.",
+  "case_set": "The nine cases method section G14.3 names, committed as tests/reference/generation-reference-vectors.json. The seven cases that reach the branches these nine leave unexercised (review items P2-C3-F3 and P2-C4-C3, owner decision 11, and the month resolution of plan P4-D4.3) are the same oracle's second file, tests/reference/generation-branch-vectors.json: one transform, one proof layer, two files, because a committed fixture must stay under the provenance manifest's byte cap and these nine already spend most of it.",
   "cases": {
     "date_only": {
       "cells": [
@@ -39,6 +39,7 @@
         "latest_utc_offset": "(none)",
         "missing_by_class": {
           "(blank)": 0,
+          "(date-sentinel)": 0,
           "(declared-missing)": 0,
           "(numeric-sentinel)": 0,
           "(text-code)": 0,
@@ -62,6 +63,9 @@
         "quality_state": "ok",
         "remarks": [],
         "resolution": "date",
+        "resolution_mix": {
+          "iso-date": 12
+        },
         "role": "datetime",
         "sentinel_verdicts": [],
         "statistical_type": "datetime",
@@ -141,6 +145,7 @@
         "min_length": 2,
         "missing_by_class": {
           "(blank)": 0,
+          "(date-sentinel)": 0,
           "(declared-missing)": 0,
           "(numeric-sentinel)": 0,
           "(text-code)": 0,
@@ -233,6 +238,7 @@
         "min_length": 3,
         "missing_by_class": {
           "(blank)": 0,
+          "(date-sentinel)": 0,
           "(declared-missing)": 0,
           "(numeric-sentinel)": 0,
           "(text-code)": 0,
@@ -302,56 +308,56 @@
     },
     "label_variants": {
       "cells": [
-        "group-1",
+        "AAA-A",
         "North",
-        "soUth",
-        "soUth",
+        "south",
+        "south",
+        "7-11",
+        "PUB-Q",
         "7-11 ",
-        "group-2",
+        "north",
+        "",
+        "",
         "7-11  ",
-        "nOrth",
-        "",
-        "",
-        "7-11   ",
-        "soUth",
+        "south",
         "SOuth",
         "South",
-        "7-11   ",
-        "North",
-        "North",
-        "soUth",
-        "7-11 ",
-        "group-2",
-        "NOrth",
         "7-11  ",
         "North",
-        "SoUth",
-        "group-2",
-        "group-2",
+        "North",
+        "south",
+        "7-11",
+        "PUB-Q",
+        "nOrth",
+        "7-11 ",
+        "North",
+        "soUth",
+        "PUB-Q",
+        "PUB-Q",
         "North",
         "sOuth",
-        "7-11 ",
-        "group-1",
-        "7-11 ",
-        "7-11   ",
-        "North",
-        "group-1",
-        "group-2",
-        "SoUth",
-        "group-2",
-        "North",
-        "North",
-        "North",
+        "7-11",
+        "AAA-A",
+        "7-11",
         "7-11  ",
         "North",
-        "group-2",
+        "AAA-A",
+        "PUB-Q",
         "soUth",
+        "PUB-Q",
         "North",
-        "SoUth",
-        "7-11   ",
-        "SoUth",
-        "SoUth",
-        "7-11  "
+        "North",
+        "North",
+        "7-11 ",
+        "North",
+        "PUB-Q",
+        "south",
+        "North",
+        "soUth",
+        "7-11  ",
+        "soUth",
+        "soUth",
+        "7-11 "
       ],
       "column": {
         "detection_evidence": "written by hand in this method specification's own neutral vocabulary; no value here comes from any table.",
@@ -387,6 +393,7 @@
         ],
         "missing_by_class": {
           "(blank)": 0,
+          "(date-sentinel)": 0,
           "(declared-missing)": 0,
           "(numeric-sentinel)": 0,
           "(text-code)": 0,
@@ -410,6 +417,10 @@
         "remarks": [],
         "role": "categorical",
         "sentinel_verdicts": [],
+        "shape_forms": {
+          "(withheld)": 12,
+          "@@@-@": 36
+        },
         "statistical_type": "categorical",
         "structural_role": "data",
         "suppressed_level_counts": [
@@ -431,21 +442,25 @@
         "North",
         "North",
         "North",
+        "north",
         "nOrth",
-        "NOrth",
         "South",
         "sOuth",
         "SOuth",
+        "south",
+        "south",
+        "south",
+        "south",
+        "south",
         "soUth",
         "soUth",
         "soUth",
         "soUth",
         "soUth",
-        "SoUth",
-        "SoUth",
-        "SoUth",
-        "SoUth",
-        "SoUth",
+        "7-11",
+        "7-11",
+        "7-11",
+        "7-11",
         "7-11 ",
         "7-11 ",
         "7-11 ",
@@ -454,24 +469,20 @@
         "7-11  ",
         "7-11  ",
         "7-11  ",
-        "7-11   ",
-        "7-11   ",
-        "7-11   ",
-        "7-11   ",
-        "group-1",
-        "group-1",
-        "group-1",
-        "group-2",
-        "group-2",
-        "group-2",
-        "group-2",
-        "group-2",
-        "group-2",
-        "group-2"
+        "AAA-A",
+        "AAA-A",
+        "AAA-A",
+        "PUB-Q",
+        "PUB-Q",
+        "PUB-Q",
+        "PUB-Q",
+        "PUB-Q",
+        "PUB-Q",
+        "PUB-Q"
       ],
-      "csv_bytes": "group-1\nNorth\nsoUth\nsoUth\n7-11 \ngroup-2\n7-11  \nnOrth\n\"\"\n\"\"\n7-11   \nsoUth\nSOuth\nSouth\n7-11   \nNorth\nNorth\nsoUth\n7-11 \ngroup-2\nNOrth\n7-11  \nNorth\nSoUth\ngroup-2\ngroup-2\nNorth\nsOuth\n7-11 \ngroup-1\n7-11 \n7-11   \nNorth\ngroup-1\ngroup-2\nSoUth\ngroup-2\nNorth\nNorth\nNorth\n7-11  \nNorth\ngroup-2\nsoUth\nNorth\nSoUth\n7-11   \nSoUth\nSoUth\n7-11  \n",
+      "csv_bytes": "AAA-A\nNorth\nsouth\nsouth\n7-11\nPUB-Q\n7-11 \nnorth\n\"\"\n\"\"\n7-11  \nsouth\nSOuth\nSouth\n7-11  \nNorth\nNorth\nsouth\n7-11\nPUB-Q\nnOrth\n7-11 \nNorth\nsoUth\nPUB-Q\nPUB-Q\nNorth\nsOuth\n7-11\nAAA-A\n7-11\n7-11  \nNorth\nAAA-A\nPUB-Q\nsoUth\nPUB-Q\nNorth\nNorth\nNorth\n7-11 \nNorth\nPUB-Q\nsouth\nNorth\nsoUth\n7-11  \nsoUth\nsoUth\n7-11 \n",
       "float64": [],
-      "why": "the variant allocation of G8.1, the case flips of G8.2 with a candidate skipped because a published variant already spells it, the trailing-space family a parent with no letters falls straight through to, and the neutral stand-in labels of G8.3 at their published sizes. A label column consumes no content word, so every byte here is fixed by published counts.",
+      "why": "the variant allocation of G8.1, including the label's own spelling offered to the largest held-back group of every level its spellings already cover; the case flips of G8.2 with a candidate skipped because a published variant already spells it; the trailing-space family a parent with no letters falls straight through to; and the neutral stand-in labels of G8.3 at their published sizes, this column publishing no census of written forms. A label column consumes no content word, so every byte here is fixed by published counts.",
       "word_budget": {
         "content": 0,
         "placement": 49
@@ -570,6 +581,7 @@
         "latest_utc_offset": "(none)",
         "missing_by_class": {
           "(blank)": 0,
+          "(date-sentinel)": 0,
           "(declared-missing)": 0,
           "(numeric-sentinel)": 0,
           "(text-code)": 0,
@@ -593,6 +605,9 @@
         "quality_state": "ok",
         "remarks": [],
         "resolution": "date",
+        "resolution_mix": {
+          "iso-date": 11
+        },
         "role": "datetime",
         "sentinel_verdicts": [],
         "statistical_type": "datetime",
@@ -683,7 +698,14 @@
       ],
       "column": {
         "detection_evidence": "written by hand in this method specification's own neutral vocabulary; no value here comes from any table.",
+        "fraction_widths": {},
         "integer_valued": false,
+        "kurtosis": {
+          "decimal": "2.5",
+          "exact": "5/2",
+          "float64": 2.5,
+          "proof": "nearest"
+        },
         "mean": {
           "decimal": "1000000000000",
           "exact": "1000000000000",
@@ -692,15 +714,19 @@
         },
         "missing_by_class": {
           "(blank)": 0,
+          "(date-sentinel)": 0,
           "(declared-missing)": 0,
           "(numeric-sentinel)": 0,
           "(text-code)": 0,
           "(withheld)": 0
         },
         "missing_by_source": {},
+        "mode": null,
+        "mode_count": 0,
         "n_contradictory": 0,
         "n_distinct": 24,
         "n_distinct_folded": 23,
+        "n_distinct_values": 20,
         "n_left_out_of_statistics": 0,
         "n_missing": 0,
         "n_missing_blank": 0,
@@ -727,6 +753,7 @@
           "exponent_lower": 11,
           "exponent_upper": 11
         },
+        "pad_widths": {},
         "percentiles": {
           "max": {
             "decimal": "1e+16",
@@ -814,7 +841,8 @@
           "proof": "nearest"
         },
         "std_unrepresentable": false,
-        "structural_role": "data"
+        "structural_role": "data",
+        "value_histogram": {}
       },
       "content": [
         "1e-05",
@@ -1661,7 +1689,14 @@
       ],
       "column": {
         "detection_evidence": "written by hand in this method specification's own neutral vocabulary; no value here comes from any table.",
+        "fraction_widths": {},
         "integer_valued": true,
+        "kurtosis": {
+          "decimal": "2.5",
+          "exact": "5/2",
+          "float64": 2.5,
+          "proof": "nearest"
+        },
         "mean": {
           "decimal": "4.25",
           "exact": "17/4",
@@ -1670,15 +1705,19 @@
         },
         "missing_by_class": {
           "(blank)": 0,
+          "(date-sentinel)": 0,
           "(declared-missing)": 0,
           "(numeric-sentinel)": 0,
           "(text-code)": 0,
           "(withheld)": 2
         },
         "missing_by_source": {},
+        "mode": null,
+        "mode_count": 0,
         "n_contradictory": 0,
         "n_distinct": 12,
         "n_distinct_folded": 12,
+        "n_distinct_values": 8,
         "n_left_out_of_statistics": 0,
         "n_missing": 2,
         "n_missing_blank": 0,
@@ -1703,6 +1742,7 @@
         "numeric_styles": {
           "plain": 20
         },
+        "pad_widths": {},
         "percentiles": {
           "max": {
             "decimal": "34",
@@ -1790,7 +1830,8 @@
           "proof": "nearest"
         },
         "std_unrepresentable": false,
-        "structural_role": "data"
+        "structural_role": "data",
+        "value_histogram": {}
       },
       "content": [
         "-8",
@@ -2220,6 +2261,7 @@
         "latest_utc_offset": "+02:00",
         "missing_by_class": {
           "(blank)": 0,
+          "(date-sentinel)": 0,
           "(declared-missing)": 0,
           "(numeric-sentinel)": 0,
           "(text-code)": 0,
@@ -2243,6 +2285,9 @@
         "quality_state": "ok",
         "remarks": [],
         "resolution": "datetime",
+        "resolution_mix": {
+          "iso-datetime": 24
+        },
         "role": "datetime",
         "sentinel_verdicts": [],
         "statistical_type": "datetime",
@@ -2373,6 +2418,7 @@
         "latest_utc_offset": "(none)",
         "missing_by_class": {
           "(blank)": 0,
+          "(date-sentinel)": 0,
           "(declared-missing)": 0,
           "(numeric-sentinel)": 0,
           "(text-code)": 0,
@@ -2396,6 +2442,9 @@
         "quality_state": "ok",
         "remarks": [],
         "resolution": "quarter",
+        "resolution_mix": {
+          "year-quarter": 12
+        },
         "role": "datetime",
         "sentinel_verdicts": [],
         "statistical_type": "datetime",

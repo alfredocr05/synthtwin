@@ -120,6 +120,7 @@ def _generator():
 gen = _generator()
 
 
+
 def _document() -> dict:
     return json.loads(VECTORS.read_text(encoding="utf-8"))
 
@@ -141,14 +142,41 @@ REQUIRED_CASES = (
     "quarter",
 )
 
-# The six that section adds for the branches those nine leave
+# The eight that section adds for the branches those nine leave
 # unexercised (review items P2-C3-F3 and P2-C4-C3, and owner decision
 # 11's pooled-spelling case), which are the second committed file of the
 # same oracle.
 BRANCH_CASES = (
+    # THE THIRD FROZEN CASE FOR A ROLE PHASE 4 ADDED (residual
+    # R-P4-17). It pins the rule the affixed role exists for: the
+    # universal class counts answer for the CELLS and the quantitative
+    # block for the CORES, and they are not the same set.
+    "affixed_brackets",
+    # THE SECOND FROZEN CASE FOR A ROLE PHASE 4 ADDED (residual
+    # R-P4-17), and the first for a role whose method section did not
+    # exist until 2026-08-27. Eleven seconds hold eleven parsed cells,
+    # so the all-different repair of G7A.4 has no slack and every
+    # interior rank must land on the one ordinal left for it.
+    "clock_ladder",
     "free_text_joint",
     "identifier_edge_spacing",
+    # THE FOURTH AND LAST OF THE ROLES PHASE 4 ADDED (residual
+    # R-P4-17). It pins the pairing walk of G6B.4, the only search in
+    # the method and the only place synthtwin reproduces structure
+    # between two quantities at all.
+    "joined_readings",
     "leap_second_endpoint",
+    # THE FIRST FROZEN CASE FOR A ROLE PHASE 4 ADDED (residual
+    # R-P4-17). Every other case here exercises a role Phase 1 to 3
+    # built; the four Phase 4 roles had no independent vector at all,
+    # so their generator branches were checked only against
+    # themselves. This is one of the four.
+    "long_tail_levels",
+    # The month, added with the second SPAN resolution (plan P4-D4.3
+    # item 2). A new transform reaching the twin without an independent
+    # frozen case is a transform the generator and the validator agree
+    # about with nobody else in the room (review item P4-DATE3-F1).
+    "month_span",
     "numeric_point_free_styles",
     "numeric_pooled_spelling",
     "unrepresentable_joint",
@@ -175,6 +203,11 @@ SEEDS = {
     "identifier_edge_spacing": 113,
     "leap_second_endpoint": 114,
     "numeric_pooled_spelling": 115,
+    "month_span": 116,
+    "long_tail_levels": 117,
+    "clock_ladder": 118,
+    "affixed_brackets": 119,
+    "joined_readings": 120,
 }
 
 # The cases whose column was declared with --identifier, which the
@@ -224,18 +257,31 @@ def _settings(declared: list) -> dict:
             "n_declared": 0,
             "values_recorded": False,
             "built_in_texts": [],
+            "built_in_dates": [],
             "built_in_numbers": [],
         },
         "declared_missing_values": {
             "n_declared": 0,
             "values_recorded": False,
             "built_in_texts": [],
+            "built_in_dates": [],
             "built_in_numbers": [],
         },
         "declaration_matching": "exact_number_when_it_reads_as_one_else_spelling",
         "declaration_publication": "settings_counts_only_columns_unchanged",
         "near_threshold_slack": 0,
+        "day_first": False,
+        "long_tail_minimum_level": 11,
         "forced_identifiers": declared,
+        # The second declaration (plan P4-D19). The oracle declares no
+        # code column: every case here is built from the generation
+        # method's own text, and none of them turns on the reading a
+        # declaration changes.
+        "forced_codes": [],
+        # The third declaration (plan P4-D21). The oracle declares no
+        # measurement column: every case here is built from the
+        # generation method's own text.
+        "forced_measurements": [],
     }
 
 
@@ -266,7 +312,7 @@ def _profile_document(case: dict, name: str) -> dict:
         "created_with": "0+unknown",
         "n_columns": 1,
         "n_rows": len(case["cells"]),
-        "profile_version": 5,
+        "profile_version": 6,
         "publication_notes": [],
         "relationships": _relationships(),
         "settings": _settings(declared),
@@ -917,6 +963,20 @@ def _zero_based_quarter(ordinal, resolution, time_precision, subsecond_digits):
     return _precision_form(ordinal, resolution, time_precision, subsecond_digits)
 
 
+def _month_as_a_day(ordinal, resolution, time_precision, subsecond_digits):
+    """G7.1's month row withdrawn: the month read in the DAY space.
+
+    The one mistake a month invites, because both spaces count from the
+    same origin and both write four figures, a dash and two more: an
+    implementation that let the month fall through to the day branch
+    would put a value in the column that no cell of it holds. Every
+    cell moves.
+    """
+    if resolution == "month":
+        return f"{1970 + ordinal // 12:04d}-{ordinal % 12 + 1:02d}-01"
+    return _precision_form(ordinal, resolution, time_precision, subsecond_digits)
+
+
 _offset_form = gen.offset_form
 
 
@@ -959,6 +1019,47 @@ def _a_one_digit_exponent(digits, decpt, marker):
     body = digits[0] + ("." + digits[1:] if len(digits) > 1 else "")
     power = decpt - 1
     return f"{body}{marker}{'-' if power < 0 else '+'}{abs(power)}"
+
+
+def _levels_from_the_second_spelling(used, sizes, census=None, written=()):
+    """G8.3's stand-in walk, started one spelling along.
+
+    The method enumerates a form's spellings IN ORDER and takes the
+    first that survives the collision skips and the four neutrality
+    tests. This starts at the second instead. Every other property of
+    the walk is left exactly as stated -- the skips, the tests, the
+    debt the census owes -- so what moves is which spelling each
+    suppressed level gets, and nothing else.
+
+    An earlier mutant here turned the LEVEL ORDER over instead, and the
+    vacuity check caught it: the spelling comes from a running counter
+    and not from the level's size, so reordering the levels changed no
+    byte and the branch it named was not one this case holds up.
+    """
+    seen = set(used)
+    folds = {gen.folded(text) for text in used}
+    owing = gen.forms_owed(census or {}, written)
+    produced: list = []
+    counter = 0
+    for size in sizes:
+        form = gen.neediest_form(owing)
+        while True:
+            counter += 1
+            if form:
+                candidate = gen.filled_form(form, counter)
+            else:
+                candidate = f"group-{counter + 1}"
+            if candidate in seen or gen.folded(candidate) in folds:
+                continue
+            if not gen.usable_stand_in(candidate):
+                continue
+            seen.add(candidate)
+            folds.add(gen.folded(candidate))
+            produced.append((candidate, size))
+            break
+        if form:
+            owing[form] = max(0, owing[form] - size)
+    return produced
 
 
 def _spaces_before_flips(parent, used, wanted):
@@ -1065,6 +1166,65 @@ def _one_style_for_the_whole_map(published):
     }
 
 
+def _clamp_without_the_step(ordinal, last, ceiling):
+    """G7A.4's repair with its step-up withdrawn: the clamp alone.
+
+    The clamp keeps a rank inside the published `latest` and does
+    nothing whatever about two ranks landing on one time, so a column
+    with no slack between its ends comes out holding a time twice.
+    """
+    if ordinal > ceiling:
+        ordinal = ceiling
+    return ordinal
+
+
+def _the_cell_counts_as_if_they_were_the_cores(column):
+    """G6A.2's core view withdrawn: the CELL counts handed over instead.
+
+    An affixed column publishes `n_numeric` about its CELLS. On the
+    bracket case no cell is itself a number, so that count is nought
+    and handing it to the numeric machinery builds no values at all.
+    That is a property of the CASE and not of the role: a column whose
+    pair is `0` holds cells such as `0191` that wear the pair and read
+    as numbers too, so this substitution is not nought everywhere.
+    """
+    core = dict(column)
+    core["n_present"] = column["n_affixed"]
+    return core
+
+
+def _the_sorted_start_and_no_walk(drawn, column, wanted, words):
+    """G6B.4 step 5 withdrawn: the sorted start kept, the walk removed.
+
+    Steps 1 and 2 still run -- each position sorted, and the last one
+    reversed, permuted or left rank for rank by the mean of the
+    published agreements -- and nothing after them.
+
+    The walk moves a rank-for-rank pairing, which agrees at about 1.0,
+    TOWARD the agreement the column published. It does not arrive: on
+    this column it stops at its try ceiling at 0.2226 against a
+    published 0.4323, and calling that reaching the target would be a
+    claim the committed bytes contradict.
+    """
+    total = column["n_joined"]
+    last = column["n_parts"] - 1
+    running = 0.0
+    for value in column["part_agreements"]:
+        running = running + gen._field_value(value)
+    agreements = column["part_agreements"]
+    average = running / float(len(agreements)) if agreements else 0.0
+    held = []
+    for place in range(column["n_parts"]):
+        pairs = sorted((float(text), text) for text in drawn[place])
+        held.append([pair[1] for pair in pairs])
+    if average < -0.4:
+        held[last] = [held[last][total - 1 - seat] for seat in range(total)]
+    elif average < 0.4 and len(words) >= max(total - 1, 0):
+        order = gen.permutation(total, list(words[: max(total - 1, 0)]))
+        held[last] = [held[last][seat] for seat in order]
+    return held
+
+
 # Each row: the case, the branch it exists for, and the rule the method
 # rules out put back in its place.
 CASE_MUTANTS = {
@@ -1108,6 +1268,58 @@ CASE_MUTANTS = {
         attribute="identifier_family",
         replacement=_every_band_from_the_figures,
         outcome="recount n_all_digits as 12 and the case publishes 4",
+    ),
+    "joined_readings": Mutant(
+        branch="G6B.4 step 5, the pairing walk itself; the mutant keeps "
+        "the sorted start of steps 1 and 2 and removes the search "
+        "after it. A rank-for-rank start pairs largest with largest "
+        "and agrees at about 1.0, while this column publishes 0.4323 "
+        "and holds the earlier position above the later in only seven "
+        "of twelve rows, so the walk has real work here -- measured, "
+        "six of its twelve cells move. The walk does NOT reach the "
+        "published agreement even so: it stops at its try ceiling at "
+        "0.2226, which the case records rather than hides",
+        attribute="repaired_pairing",
+        replacement=_the_sorted_start_and_no_walk,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "affixed_brackets": Mutant(
+        branch="G6A.2's core view, which hands the numeric machinery "
+        "the CORE class counts and not the cell counts; the mutant "
+        "hands over the cell counts. On THIS column no cell is itself "
+        "a number -- every one wears a bracket pair -- so the cell "
+        "count is nought and the column comes out with nothing in it. "
+        "The oracle stops at the WORD BUDGET, which is the first place "
+        "the swap shows: G4.3 reads that budget over the cores too, so "
+        "a nought cell count asks for no content words at all. This is "
+        "a property of the CASE and not of the role: a column whose "
+        "pair is `0` can hold cells such as `0191` that wear the pair "
+        "AND read as numbers, so an affixed column's cell `n_numeric` "
+        "is not nought in general",
+        attribute="affixed_core_view",
+        replacement=_the_cell_counts_as_if_they_were_the_cores,
+        outcome="asks for 0 content words",
+    ),
+    "clock_ladder": Mutant(
+        branch="G7A.4's all-different repair, which steps a rank that "
+        "landed on the previous rank's time up to the next ordinal "
+        "before clamping it to the published latest; the mutant keeps "
+        "the clamp and withdraws the step, and this column has no "
+        "slack to absorb it -- eleven seconds for eleven parsed cells "
+        "-- so two times come out written twice",
+        attribute="clock_repair",
+        replacement=_clamp_without_the_step,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "long_tail_levels": Mutant(
+        branch="G8.3's stand-in walk, which enumerates a form's "
+        "spellings IN ORDER and takes the first that survives the "
+        "collision skips; the mutant starts one spelling along, so "
+        "every one of the twenty suppressed levels gets a different "
+        "stand-in",
+        attribute="invented_levels",
+        replacement=_levels_from_the_second_spelling,
+        outcome=CHANGES_THE_CELLS,
     ),
     "label_variants": Mutant(
         branch="G8.2's order, case flips before trailing spaces; the "
@@ -1180,6 +1392,15 @@ CASE_MUTANTS = {
         "counts the quarter from nought and every cell moves",
         attribute="precision_form",
         replacement=_zero_based_quarter,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "month_span": Mutant(
+        branch="G7.1's month ordinal and G7.5's month cell form; the "
+        "mutant writes the month as the first day of that month, which "
+        "is the day space the month must not fall into, and every cell "
+        "moves",
+        attribute="precision_form",
+        replacement=_month_as_a_day,
         outcome=CHANGES_THE_CELLS,
     ),
     "unrepresentable_joint": Mutant(

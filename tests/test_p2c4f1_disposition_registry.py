@@ -117,15 +117,20 @@ DOCUMENTS = (("contract", CONTRACT), ("method", METHOD), ("plan", PLAN))
 # registry's obligation-parsing walks the three Phase 2 documents
 # above, and the seal covers all four.
 PLAN3 = REPO_ROOT / "docs" / "plans" / "phase-3-product.md"
+PLAN4 = REPO_ROOT / "docs" / "plans" / "phase-4-columns.md"
+PLAN4 = REPO_ROOT / "docs" / "plans" / "phase-4-columns.md"
 VALIDATION = REPO_ROOT / "docs" / "spec" / "validation-method-v1.md"
 CONTRACT5 = REPO_ROOT / "docs" / "spec" / "profile-contract-v5.md"
+CONTRACT6 = REPO_ROOT / "docs" / "spec" / "profile-contract-v6.md"
 RELATIVE = {
     "docs/spec/profile-contract-v4.md": CONTRACT,
     "docs/spec/profile-contract-v5.md": CONTRACT5,
+    "docs/spec/profile-contract-v6.md": CONTRACT6,
     "docs/spec/generation-method-v1.md": METHOD,
     "docs/spec/validation-method-v1.md": VALIDATION,
     "docs/plans/phase-2-generator.md": PLAN,
     "docs/plans/phase-3-product.md": PLAN3,
+    "docs/plans/phase-4-columns.md": PLAN4,
 }
 
 
@@ -197,6 +202,11 @@ def _plan_regions() -> "dict[str, str]":
         at = later.index(mark)
         rest = later.find("## ", at + len(mark))
         regions[name] = later[at : rest if rest > 0 else len(later)]
+    fourth = _flat(PLAN4)
+    for name, mark in dispositions.PLAN4_REGIONS.items():
+        at = fourth.index(mark)
+        rest = fourth.find("### P4-D", at + len(mark))
+        regions[name] = fourth[at : rest if rest > 0 else len(fourth)]
     return regions
 
 
@@ -319,6 +329,67 @@ def test_no_passage_of_a_governing_document_is_unsealed() -> None:
     )
 
 
+def test_no_sealed_passage_has_been_deleted_from_its_document() -> None:
+    """The seal is checked in BOTH directions, and one was missing.
+
+    ROUND 4 ITEM 1. `_unsealed` asks whether every passage of a
+    document is in the seal. That catches a passage WRITTEN or CHANGED
+    -- an edit changes the digest, so the new text is unsealed -- and
+    it does not catch a passage DELETED. A deleted obligation simply
+    orphans its digest, the remaining passages are all still known, and
+    nothing turns red.
+
+    So a governing obligation could be removed inside a large repair
+    without anybody deciding to remove it, which is precisely what this
+    seal exists to prevent and what its own docstring claims it does.
+    Measured before the repair: deleting the `part_above` disposition
+    row left zero unsealed passages.
+
+    THE CURE IS RE-SEALING, exactly as it is for a written passage: a
+    counted edit whose diff shows one line per passage, so a reviewer
+    reads "one obligation removed" off it.
+    """
+    orphaned: dict[str, str] = {}
+    for name, path in sorted(RELATIVE.items()):
+        # COUNTED, NOT SET-COMPARED, and round 5 is why. Both the seal
+        # generator and the first draft of this check reduced passages
+        # to a SET, so a document carrying the same sentence twice --
+        # and the contract carries many, an exactness row repeated
+        # under two roles being the plain case -- could lose one copy
+        # with nothing to notice. The forward check saw no unknown
+        # passage and this one saw no orphaned digest.
+        #
+        # The seal cannot hold multiplicity: it is a set of digests by
+        # construction. So the COUNT of passages is held beside it, and
+        # a document that loses a repeated sentence changes its count
+        # while its set stands still.
+        held = [
+            dispositions.digest(passage)
+            for passage in dispositions.passages(path)
+        ]
+        gone = [
+            sealed
+            for sealed in disposition_seal.SEALED[name]
+            if sealed not in set(held)
+        ]
+        if gone:
+            orphaned[name] = f"{len(gone)} sealed passage(s) no longer present"
+            continue
+        counted = disposition_seal.COUNTED.get(name)
+        if counted is not None and counted != len(held):
+            orphaned[name] = (
+                f"{counted} passages were sealed and the document now "
+                f"holds {len(held)}, so a REPEATED sentence was added "
+                "or removed while the set of distinct ones stood still"
+            )
+    assert not orphaned, (
+        "these documents no longer contain passages the seal holds, so "
+        "an obligation was removed without being re-sealed -- run "
+        "`.venv/bin/python tools/dispositions/seal.py --write` and read "
+        f"the counted diff before believing it: {orphaned}"
+    )
+
+
 def test_the_seal_covers_every_governing_document_and_is_not_empty() -> None:
     """The vacuity floor for the seal.
 
@@ -365,6 +436,12 @@ def test_no_fourth_governing_document_can_appear_unsealed() -> None:
         "generation-method-v1.md",
         "profile-contract-v4.md",
         "profile-contract-v5.md",
+        # The version 6 contract, which GOVERNS: `PROFILE_VERSION` is 6
+        # in the producer and the loader, and every description this
+        # tree writes is a version 6 one. It was carried here as a
+        # draft for longer than that was true, and joined GOVERNING and
+        # the seal on 2026-08-26.
+        "profile-contract-v6.md",
         "validation-method-v1.md",
     ], specifications
     plans = sorted(
@@ -375,6 +452,13 @@ def test_no_fourth_governing_document_can_appear_unsealed() -> None:
         "phase-1-profiler.md",
         "phase-2-generator.md",
         "phase-3-product.md",
+        # The Phase 4 plan, DRAFT under adversarial review: listed here
+        # so the tree stays green while the rounds run, on the phase-0/1
+        # precedent of listed-but-not-governing plans. It joins
+        # dispositions.GOVERNING (and the seal, and the claim
+        # inventory's surfaces) at its ratification, per its own
+        # sequencing item 1.
+        "phase-4-columns.md",
     ], plans
     for relative in dispositions.GOVERNING:
         assert (REPO_ROOT / relative).exists(), relative
@@ -571,11 +655,17 @@ def test_every_authorization_quotes_the_plan() -> None:
     the authorization list itself is sealed, so a genuine sentence
     quoted beside a fact it says nothing about no longer buys anything.
     """
-    plan = _flat(PLAN)
+    # EVERY PLAN THAT AUTHORIZES ANYTHING, not the Phase 2 plan alone.
+    # Phase 4 authorizes one lesser outcome of its own -- the judged
+    # pass's keys under the version 6 write rule -- and the older plans
+    # are not edited to carry a later phase's sentence, so a check that
+    # read only the first of them would have made the newer
+    # authorization unquotable rather than unauthorized.
+    plans = _flat(PLAN) + " " + _flat(PLAN3) + " " + _flat(PLAN4)
     seen = 0
     for fact in dispositions.REGISTRY:
         for _phrase, words in fact.authorized:
-            assert words in plan, f"{fact.group}/{fact.field}: {words[:60]}"
+            assert words in plans, f"{fact.group}/{fact.field}: {words[:60]}"
             seen = seen + 1
     assert seen >= 4, seen
 
@@ -751,7 +841,13 @@ def _matrix_violations(
     for group, section in dispositions.CONTRACT_SECTIONS.items():
         rows = matrix[section]
         stated = {name for names, _text in rows for name in names}
-        owed = {fact.field for fact in registry if fact.group == group}
+        owed = {
+            fact.field
+            for fact in registry
+            if fact.group == group
+            and (fact.group, fact.field)
+            not in dispositions.FACTS_OUTSIDE_THE_VERSION_4_MATRIX
+        }
         if stated != owed:
             broken.append(
                 f"{group}: the contract states {sorted(stated - owed)} that "
@@ -762,6 +858,15 @@ def _matrix_violations(
             for name in names:
                 fact = by_key.get((group, name))
                 if fact is None:
+                    continue
+                if (group, name) in (
+                    dispositions.FACTS_A_LATER_VERSION_REDISPOSES
+                ):
+                    # The older matrix states this fact and is checked
+                    # for stating it; the CLASS it gives is the class
+                    # that version required, and a later version gave
+                    # the fact another. Comparing them here would call
+                    # the older document wrong about its own version.
                     continue
                 if not said or said[0] != fact.disposition:
                     broken.append(
@@ -1006,6 +1111,7 @@ def test_no_document_states_a_lesser_outcome_for_an_exact_fact() -> None:
         key: statements
         for key, statements in caught.items()
         if key not in dispositions.OPEN
+        and key not in dispositions.HISTORICAL
     }
     assert not undecided, {
         key: [one[:200] for one in statements]
@@ -1900,7 +2006,13 @@ def test_the_scan_reaches_every_exact_fact_and_all_three_documents(
         if fact.disposition in dispositions.EXACT
     ]
     assert len(exact) >= 70, len(exact)
-    assert len({fact.group for fact in exact}) == 9
+    # Ten groups: Phase 2's nine, plus `affixed`, whose own facts the
+    # Phase 4 plan disposes because the role did not exist when the
+    # Phase 2 matrix was written.
+    # Eleven since the clock role joined: its four exactly observable
+    # facts are a group of their own, disposed by the Phase 4 plan
+    # rather than by the version 4 matrix, which predates the role.
+    assert len({fact.group for fact in exact}) == 11
     for _name, path in DOCUMENTS:
         assert len(_statements(path)) > 150, path.name
     # ...and every document is really opened by the scan, which a
@@ -1926,5 +2038,37 @@ def test_the_registry_reaches_every_key_the_producer_emits() -> None:
     for group, section in dispositions.CONTRACT_SECTIONS.items():
         assert matrix[section], f"{group}: {section} has no rows"
     assert set(dispositions.CONTRACT_SECTIONS) == {
-        fact.group for fact in dispositions.REGISTRY
+        fact.group
+        for fact in dispositions.REGISTRY
+        if fact.group not in dispositions.GROUPS_OUTSIDE_THE_VERSION_4_MATRIX
     }
+
+
+def test_the_phase_cannot_close_while_the_seal_is_paused() -> None:
+    """A paused control may not outlive the phase that paused it.
+
+    Owner ruling 2026-08-26 (plan amendment A-P4-46.2) paused the
+    counted re-seal for the rest of Phase 4 and required it re-sealed
+    once at the close. `dispositions.PAUSED_UNTIL_PHASE_CLOSE` says so
+    in a comment, and a comment is not a control -- which is the defect
+    this repository has now met often enough to stop writing.
+
+    So the flag is READ. While it is True, no surface may describe
+    Phase 4 as complete: the close is the act that lifts the pause, and
+    a phase that closed with the pause still standing would leave a
+    governing document unsealed with nothing recording it.
+    """
+    if not dispositions.PAUSED_UNTIL_PHASE_CLOSE:
+        return
+    charter = (REPO_ROOT / "CLAUDE.md").read_text(encoding="utf-8")
+    claimed = [
+        line
+        for line in charter.splitlines()
+        if "Phase 4" in line and ("*Complete*" in line or "*Closed*" in line)
+    ]
+    assert not claimed, (
+        "Phase 4 is described as finished while the disposition seal is "
+        "still paused. Re-seal the whole tree and set "
+        "PAUSED_UNTIL_PHASE_CLOSE to False before closing the phase: "
+        + repr(claimed)
+    )

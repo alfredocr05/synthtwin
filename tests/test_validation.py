@@ -66,6 +66,18 @@ def _reinstated(monkeypatch: pytest.MonkeyPatch) -> None:
         exact_equality_wins.reinstate(monkeypatch)
 
 
+# The floor every description in this file is written at. Disclosure is
+# this module's third subject, and a description withholds nothing at a
+# floor of one -- which is what the default became under the owner
+# ruling recorded as plan amendment A-P4-37, and what contract
+# invariant C5-S13 now enforces. So the file says its floor out loud
+# rather than reading it off a default that no longer pools anything:
+# eleven is the number every pooling assertion below was written
+# against, and the number the sub-floor wording prints.
+SMALL_CELL_FLOOR = 11
+SETTINGS = taxonomy.Settings(small_cell_floor=SMALL_CELL_FLOOR)
+
+
 # -- building one whole run -------------------------------------------
 
 
@@ -102,7 +114,7 @@ def _described(
     table_path = fixtures.write(folder, f"{stem}.csv", text)
     table = reading.read_table(str(table_path), first_row=first_row)
     document = profile.build_document(
-        table, taxonomy.Settings(), declared if declared else []
+        table, SETTINGS, declared if declared else []
     )
     written = fixtures.write_profile(folder, f"{stem}-profile.json", document)
     return (
@@ -635,9 +647,19 @@ def _with_styles(
     loader, because a description an attacker submits is a file and has
     to survive every invariant that loader enforces -- which is what
     keeps this search honest about what can actually be asked.
+
+    THE FRACTION CENSUS MOVES WITH THE STYLE MAP, because P5 ties the
+    two together: a candidate naming a `decimal` count has to carry a
+    census summing to it, and one that does not is refused before any
+    subcheck of it can be reached. Moving it is what keeps the search
+    walking the candidates it means to walk -- a candidate refused at
+    the door settles nothing, which is the assertion this feeds, but it
+    would prove it for the wrong reason.
     """
     document = json.loads(written)
     document["columns"][0]["numeric_styles"] = styles
+    named = styles[parsing.STYLE_DECIMAL] if parsing.STYLE_DECIMAL in styles else 0
+    document["columns"][0]["fraction_widths"] = {"1": named} if named else {}
     target = fixtures.write_profile(folder, f"{stem}.json", document)
     return contract.load_profile(str(target))
 
@@ -1469,6 +1491,19 @@ def test_no_string_from_the_measured_file_reaches_any_check(
     result named is the description's own published text, which is the
     one thing V5.4 permits. A spelling that exists only in the measured
     file may appear nowhere.
+
+    FIGURES INSIDE A LONGER NUMBER ARE NOT THAT CELL APPEARING, and
+    saying so is a repair to how this test READS its own subject rather
+    than a narrowing of what it asserts. A column written to two figures
+    after the point holds cells like `9.63`, and the achieved mean of
+    that column prints as `49.630125` -- which holds those four
+    characters and says nothing whatever about any cell. The rule V5.4
+    states is about a SPELLING appearing; the sibling test below states
+    the same boundary the other way round, that an achieved field
+    matching a measured cell has to be a number. So an occurrence
+    flanked by a figure or a point on either side is not counted, and an
+    occurrence standing on its own still is -- which is every way a
+    spelling could actually be printed.
     """
     described, twin, written = every_role_bytes
     outcome = _measure(tmp_path, described, twin)
@@ -1484,9 +1519,29 @@ def test_no_string_from_the_measured_file_reaches_any_check(
             body = cell.strip()
             if len(body) < 4 or body in written:
                 continue
-            if body in whole:
+            if _stands_alone(body, whole):
                 leaked.append(body)
     assert leaked == []
+
+
+def _stands_alone(body: str, whole: str) -> bool:
+    """Whether one cell's text appears in a report as itself.
+
+    An occurrence with a figure or a decimal point on either side of it
+    is part of a longer number and is not this cell; any other
+    occurrence is.
+    """
+    figures = "0123456789."
+    at = whole.find(body)
+    while at >= 0:
+        before = whole[at - 1] if at > 0 else " "
+        after = whole[at + len(body) :][:1]
+        if not after:
+            after = " "
+        if before not in figures and after not in figures:
+            return True
+        at = whole.find(body, at + 1)
+    return False
 
 
 def test_no_measured_value_reaches_the_achieved_side_as_text(
@@ -2518,6 +2573,27 @@ def _apart_from_bytes(
     ]
 
 
+def _sized_text(length: int, step: int, words: int) -> str:
+    """One distinct cell of exactly ``length`` characters and ``words`` words.
+
+    Letters only, and no digit anywhere: a cell carrying a number would
+    be read as an affixed number, the perturbed column would change
+    role, and the length checks this case is about would not run at
+    all.
+    """
+    alphabet = "abcdefghijklmnopqrstuvwxyz"
+    tag = ""
+    place = step
+    for _ in range(4):
+        tag = tag + alphabet[place % len(alphabet)]
+        place = place // len(alphabet)
+    head = " ".join(["aa"] * (words - 1))
+    tail = tag + "z" * (length - len(head) - 1 - len(tag))
+    body = f"{head} {tail}"
+    assert len(body) == length, (length, len(body))
+    return body
+
+
 def test_red_a_reshaped_text_column_misses_the_length_average(
     tmp_path: pathlib.Path,
     every_role: "tuple[contract.Profile, str]",
@@ -2546,8 +2622,14 @@ def test_red_a_reshaped_text_column_misses_the_length_average(
     assert column is not None
     facts = column.facts
     assert isinstance(facts, contract.TextFacts)
-    assert facts.length.minimum == 48
-    assert facts.length.maximum == 50
+    # Read from the description rather than written in. The point of
+    # this case is the SHAPE of the reshaping -- both published ends
+    # kept, the average moved -- and that is the same case whatever
+    # lengths the fixture happens to publish. Hard numbers here meant
+    # the case stopped testing anything the day the fixture changed.
+    shortest = facts.length.minimum
+    longest = facts.length.maximum
+    assert shortest < longest, "the case needs two ends to alternate"
     green = _measure(tmp_path, described, twin, "text-green.csv")
     # The conforming twin's walk lands on the published average EXACTLY,
     # so its verdict is HELD rather than WITHIN-BOUND (review item
@@ -2565,11 +2647,8 @@ def test_red_a_reshaped_text_column_misses_the_length_average(
     for row in range(1, len(rows)):
         if not rows[row][index]:
             continue
-        wanted = 48 if step % 2 == 0 else 50
-        body = f"aa bb cc dd ee ff gg h{step:04d}"
-        body = body + "z" * (wanted - len(body))
-        assert len(body) == wanted
-        rows[row][index] = body
+        wanted = shortest if step % 2 == 0 else longest
+        rows[row][index] = _sized_text(wanted, step, facts.words.minimum)
         step = step + 1
     out = io.StringIO()
     csv.writer(out, lineterminator="\n").writerows(rows)

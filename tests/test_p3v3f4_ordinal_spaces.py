@@ -83,6 +83,21 @@ def _quarter_values(count: int) -> "list[str]":
     return sorted(values)
 
 
+def _month_values(count: int) -> "list[str]":
+    """Months over seven years, lopsided the same way as the quarters.
+
+    A month is the second span the producer publishes -- it names a
+    stretch of days rather than one instant -- so it needs its own
+    ordinal space for exactly the reason the quarter needed one, and
+    this is the fixture that shows the validator reads it there.
+    """
+    values = []
+    for index in range(count):
+        year = 2018 + (index * index) % 7
+        values = values + [f"{year}-{(index % 12) + 1:02d}"]
+    return sorted(values)
+
+
 def _date_values(count: int) -> "list[str]":
     """Whole dates over one year, lopsided the same way."""
     values = []
@@ -107,6 +122,7 @@ def _datetime_values(count: int) -> "list[str]":
 # checked against `taxonomy.RESOLUTIONS` below rather than trusted.
 _BUILDERS = {
     taxonomy.RESOLUTION_QUARTER: _quarter_values,
+    taxonomy.RESOLUTION_MONTH: _month_values,
     taxonomy.RESOLUTION_DATE: _date_values,
     taxonomy.RESOLUTION_DATETIME: _datetime_values,
 }
@@ -376,6 +392,7 @@ def test_the_quarter_space_is_the_method_s_arithmetic() -> None:
         "2024-Q5",
         "2024-QX",
         "2024-01-01",
+        "0000-Q1",
         "20240-Q1",
         "202a-Q1",
         "2024/Q1",
@@ -384,6 +401,48 @@ def test_the_quarter_space_is_the_method_s_arithmetic() -> None:
         assert (
             validation._instant_of(refused, taxonomy.RESOLUTION_QUARTER)
             is None
+        ), refused
+
+
+def test_the_month_space_is_the_method_s_arithmetic() -> None:
+    """`12 * (year - 1970) + (MM - 1)`, and nothing near it accepted.
+
+    The second SPAN resolution needs this for the quarter's reason,
+    with one edge of its own: a month is written `YYYY-MM`, and so is
+    the first seven characters of a whole date. A reader that took
+    those seven and answered would put a cell that is a DAY into the
+    month space, where its ordinal would be compared against a ladder
+    of months.
+
+    Year zero is refused here too. The contract's canonical form runs
+    from `0001` up, and the two span readers accepted `0000` until the
+    month made the hole visible (review item P4-DATE3-F4).
+    """
+    assert validation._instant_of("1970-01", taxonomy.RESOLUTION_MONTH) == 0
+    assert validation._instant_of("1970-12", taxonomy.RESOLUTION_MONTH) == 11
+    assert validation._instant_of("1971-01", taxonomy.RESOLUTION_MONTH) == 12
+    assert validation._instant_of("1969-12", taxonomy.RESOLUTION_MONTH) == -1
+    assert (
+        validation._instant_of("2024-12", taxonomy.RESOLUTION_MONTH)
+        == 12 * (2024 - 1970) + 11
+    )
+    for refused in (
+        "",
+        "2024-",
+        "2024-00",
+        "2024-13",
+        "2024-1",
+        "2024-XX",
+        "2024-01-01",
+        "20240-01",
+        "202a-01",
+        "2024/01",
+        " 2024-01",
+        "2024-Q1",
+        "0000-01",
+    ):
+        assert (
+            validation._instant_of(refused, taxonomy.RESOLUTION_MONTH) is None
         ), refused
 
 

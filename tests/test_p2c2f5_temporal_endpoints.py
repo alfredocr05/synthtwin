@@ -801,6 +801,19 @@ METHOD_PASSAGES = {
         "G11's inventory of every deviation, which a reader checks the "
         "report against"
     ),
+    "with one exception, and it keeps an exact fact": (
+        "G7.5's separator rule, where a cell whose fixed spelling is "
+        "one the column publishes among its ABSENT cells is written "
+        "with the other separator instead. It is the only passage of "
+        "either document that speaks of an end and an exception in one "
+        "breath while RAISING what the twin holds: the two spellings "
+        "are the same instant at the same precision on the same clock, "
+        "and without it an exact end walks out of the twin over a "
+        "separator nobody chose (review item P4-DATE-F2). Where both "
+        "spellings are declared absent it declines to invent a third "
+        "and G12 names the loss, which is the behaviour every other "
+        "passage here describes"
+    ),
 }
 
 # Exceptions of the kind that have twice been written into these

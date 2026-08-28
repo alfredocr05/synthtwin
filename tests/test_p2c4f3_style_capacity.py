@@ -148,6 +148,16 @@ BATTERY = (
 LADDER_LEAVES_NO_ROOM = frozenset({"a ladder with no room for a whole number"})
 
 
+# The floor this file describes at, stated rather than inherited. Every
+# claim below is about the ANONYMOUS POOLED REMAINDER of `numeric_styles`
+# -- the `(withheld)` key -- and a style is pooled only when fewer than
+# `small_cell_floor` cells wore it. The default floor is now 1 (owner
+# ruling A-P4-37), at which nothing is ever pooled and the whole subject
+# of this file disappears; 11 is the floor these cases were built for and
+# the one at which a pool exists to compete with a named count.
+SETTINGS = taxonomy.Settings(small_cell_floor=11)
+
+
 def _described(
     folder: pathlib.Path, values: "list[str]"
 ) -> "tuple[dict, contract.Profile]":
@@ -156,7 +166,7 @@ def _described(
         folder, "table.csv", fixtures.single_column_table("amount", values)
     )
     table = reading.read_table(str(path))
-    document = profile.build_document(table, taxonomy.Settings(), [])
+    document = profile.build_document(table, SETTINGS, [])
     target = fixtures.write_profile(folder, "table-profile.json", document)
     return document, contract.load_profile(str(target))
 
@@ -537,7 +547,55 @@ def test_the_crowded_ladder_of_p2c5f3_writes_its_published_map(
         assert len({parsing.folded(cell) for cell in present}) == (
             column["n_distinct_folded"]
         ), seed
-        assert list(twin.deviations) == [], seed
+        # THE ONE THING THIS COLUMN CANNOT CARRY, and it is named
+        # rather than silent (plan amendment A-P4-15). Its census
+        # publishes thirty cells at three figures after the point and
+        # fourteen at two, and its twin's own strata are sized 11, 11,
+        # 10, 11, 4 and 1 -- no assignment of whole values reaches
+        # either quota, and the walk refuses to split a value across two
+        # widths because that would spend the count of different
+        # spellings this test recounts one line above. So a width goes
+        # unplaced, the report says which, and nothing else moves.
+        other = [
+            note
+            for note in twin.deviations
+            if note.fact not in ("fraction_widths", "n_distinct_values")
+        ]
+        assert other == [], seed
+        # AND THE SECOND THING IT CANNOT ALWAYS CARRY, which this
+        # column is the clearest demonstration of in the suite (plan
+        # P4-D4.9, closing residual R-P4-20). At seeds 3 and 17 the
+        # twin writes `-46` AND `-46.0`: two spellings of ONE number.
+        # The published count of different SPELLINGS is met exactly --
+        # the assertion four lines above proves it -- while the column
+        # holds seven numbers where the description publishes eight.
+        # Until `n_distinct_values` existed nothing anywhere said so,
+        # and a reader grouping these rows by value met seven groups
+        # with every check green.
+        numbers = len({parsing.exact_of_spelling(cell) for cell in present})
+        spoken_values = [
+            note
+            for note in twin.deviations
+            if note.fact == "n_distinct_values"
+        ]
+        if numbers != column["n_distinct_values"]:
+            assert spoken_values, seed
+        else:
+            assert spoken_values == [], seed
+        # ...AND THE WIDTH THAT WENT UNPLACED IS NAMED, which is the
+        # half a filter alone does not assert. A test that only
+        # subtracts the deviation it expects would stay green if the
+        # report fell silent -- and silence is exactly what A-P4-15
+        # trades the quota for, so silence is the thing to pin.
+        spoken = [
+            note for note in twin.deviations if note.fact == "fraction_widths"
+        ]
+        assert spoken, seed
+        for note in spoken:
+            assert note.column == "amount", seed
+            assert "figure(s) after the point" in note.published, seed
+            assert note.achieved.isdigit(), (seed, note.achieved)
+            assert note.published != note.achieved, seed
 
 
 def test_the_reach_step_is_what_places_the_crowded_ladder(

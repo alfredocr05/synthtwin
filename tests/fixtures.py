@@ -95,7 +95,16 @@ def every_role_table(seed: int = 20260807, n_rows: int = 240) -> str:
     that the small-cell floor must withhold; whole numbers with blank
     cells; whole numbers using -999 as a stand-in for "no value"; a
     measured number; an ISO date; a two-value column; free text; a
-    column that is entirely blank; and a column with one repeated value.
+    column that is entirely blank; a column with one repeated value;
+    a column of numbers each wearing one shared piece of text; and a
+    long tail of labels -- mostly one-off notes, with two words enough
+    rows share to publish.
+
+    The last of those is here because the battery is what stops the
+    roles rotting: a role missing from this table is a role whose
+    generator branch, validator checks and dispositions nothing walks,
+    and every fix to it could be undone silently while the suite
+    stayed green.
     """
     rng = random.Random(seed)
     header = [
@@ -109,6 +118,9 @@ def every_role_table(seed: int = 20260807, n_rows: int = 240) -> str:
         "comment",
         "unused",
         "batch",
+        "dose",
+        "seen_at",
+        "note",
     ]
     rows = []
     for index in range(n_rows):
@@ -119,11 +131,82 @@ def every_role_table(seed: int = 20260807, n_rows: int = 240) -> str:
         amount = f"{rng.uniform(0.5, 99.5):.2f}"
         recorded = f"2024-{(index % 12) + 1:02d}-{(index % 28) + 1:02d}"
         answer = "yes" if rng.random() < 0.3 else "no"
-        comment = (
-            ""
-            if index % 3
-            else f"observation {index} written out in several plain words"
-        )
+        # Drawn from a pool SMALLER than the number of filled cells, so
+        # the column's repetition map holds more than one group size.
+        # A column of eighty singletons has a map nothing can perturb --
+        # every edit leaves it eighty singletons -- and the family
+        # stops being reachable by any red case.
+        # ALL DIFFERENT, which several batteries depend on: this is
+        # one of the two columns that carry the all-different
+        # obligation, and the length statistics of a column of unique
+        # sentences are what the approximation bounds are calibrated
+        # against. A column that REPEATS -- which the free-text
+        # repetition family needs to be able to miss -- is built in the
+        # battery that needs it, not here.
+        comment = "" if index % 3 else _PROSE_POOL[index % len(_PROSE_POOL)]
+        # A number wearing one shared piece of text. Whole cores, so
+        # the role's own `integer_valued` is exercised, and a spread
+        # wide enough for a ladder with distinct rungs.
+        # THE CORES REPEAT ON PURPOSE, and the two reasons are
+        # different sides of the same fact. Two hundred and forty whole
+        # numbers ALL DIFFERENT inside a range two hundred and forty
+        # wide is the one permutation of that range, so no twin could
+        # carry the published distinctness except by drawing it
+        # exactly. Widening the range fixes that and leaves the second
+        # reason standing: an all-different column publishes a distinct
+        # count equal to its own present count, G12.8's envelope then
+        # reaches from one value to every value the column can hold,
+        # and the check is dropped as proving nothing. A column whose
+        # cores repeat publishes a count the envelope can bracket, so
+        # the affixed role's distinctness is CHECKED here rather than
+        # listed as uncheckable.
+        # ...AND THE CORES CARRY A POINT, so the census of fraction
+        # widths is exercised on THIS role and not only on the plain
+        # numeric columns. Whole cores left the affixed half of that
+        # machinery unwitnessed: the code that strips the pair before
+        # recounting a width could be deleted and every battery stayed
+        # green, which is the state this shared table exists to prevent.
+        # Two widths, both clearing the floor, so the census names two
+        # keys rather than pooling one away.
+        dose = f"{10 + (index * 37) % 180}.{index % 10}"
+        if index % 3 == 0:
+            dose = f"{10 + (index * 37) % 180}.{index % 10}0"
+        dose = f"{dose} mg"
+        # A COLUMN OF CLOCK TIMES, shaped against four things the
+        # affixed column had to be reshaped three times to satisfy.
+        # Its values come from `index` alone, so no draw of the shared
+        # generator moves when this column is added. They REPEAT --
+        # a hundred and twenty different times over two hundred and
+        # forty rows -- because that is the shape whose distinctness
+        # falls to the envelope of amendment A-P4-20, and a fixture
+        # that only ever held all-different values would never walk it.
+        # The all-different case is exact and is pinned in the role's
+        # own test file, where the construction is held to carrying
+        # every value. And two rows hold text no clock reading accepts, so
+        # `n_unparsed` is exercised rather than sitting at zero: two is
+        # the most a hundred-and-ninety-nine-hundredths parse line
+        # leaves room for at this length.
+        seen_at = f"{7 + (index % 120) // 60:02d}:{(index % 120) % 60:02d}"
+        if index in (100, 200):
+            seen_at = "not recorded"
+        # A LONG TAIL OF LABELS: two sentences enough rows share to
+        # clear the publication floor, and a one-off for every other
+        # row. Free text is what this column was before plan P4-D5, and
+        # the whole point of the role is that such a column is not the
+        # same thing as a column of names -- so the battery needs one,
+        # or its generator branch, its validator checks and its
+        # dispositions are walked by nothing.
+        # The one-offs come from the prose pool, whose sentences vary
+        # at BOTH ends: a family sharing a first or last word would
+        # wear an affix pair, and the affixed rule -- which is tested
+        # before this one -- would read the column instead. The two
+        # shared labels are single words, which is what keeps the
+        # entry table's subcheck names readable.
+        note_text = _PROSE_POOL[index % len(_PROSE_POOL)]
+        if index % 20 == 0:
+            note_text = "clinic"
+        elif index % 21 == 0:
+            note_text = "referral"
         rows.append(
             [
                 record,
@@ -136,6 +219,9 @@ def every_role_table(seed: int = 20260807, n_rows: int = 240) -> str:
                 comment,
                 "",
                 "one",
+                dose,
+                seen_at,
+                note_text,
             ]
         )
     return rows_to_csv(header, rows)
@@ -236,13 +322,101 @@ def every_withholding_table(seed: int = 20260814, n_rows: int = 240) -> str:
                 (
                     ""
                     if index % 3
-                    else f"observation {index} written out in plain words"
+                    else _PROSE_POOL[index % len(_PROSE_POOL)]
                 ),
                 "",
                 "one",
             ]
         )
     return rows_to_csv(header, rows)
+
+
+# Text NO RULE READS, for the many tests that need a column which
+# publishes nothing.
+#
+# It is here rather than written out at each site because the shape
+# that stands for "free text" moved once and would otherwise have to
+# move in a dozen files again. Every such fixture used to be a
+# template with a counter in it -- `note 0`, `note 1`, `code7` -- and
+# the affixed-number rule reads exactly that: a number wearing one
+# shared piece of text, which is what those strings are. A template
+# cannot stand for prose any more.
+#
+# What this returns instead varies at both ends and holds no digit, so
+# no rule claims it: not the numeric rules, which find no number; not
+# the date rules; not the affixed rule, which finds no core; and not
+# the categorical rule, given enough of them to clear the ceiling.
+# Every part is ONE word, so a sentence is always five words long
+# while its LENGTH varies. That split matters to the red-case battery:
+# a perturbation that writes a one-word cell has to move the word
+# average decisively, which it cannot do if the average is already
+# ragged, and a perturbation that lengthens every cell has to move the
+# length statistics without touching the word count.
+_PROSE_PARTS = (
+    ("seen", "review", "pending", "noted", "checked"),
+    ("clinic", "telephone", "home", "ward", "consultation"),
+    ("with", "without", "after", "before", "despite"),
+    ("nurse", "doctor", "family", "physiotherapist", "team"),
+    ("unchanged", "improving", "worse", "unclear", "resolved"),
+)
+
+
+def prose(count: int) -> list[str]:
+    """``count`` sentences that no reading rule claims.
+
+    Every sentence is distinct up to 3,125 of them, which is past the
+    categorical ceiling of any table these tests build. The parts vary
+    at BOTH ends on purpose: a family sharing a first or last word
+    would wear an affix pair, and the affixed-number rule would read
+    it -- which is exactly the trap the templates these replaced fell
+    into.
+    """
+    built: list[str] = []
+    for index in range(count):
+        place = index
+        words: list[str] = []
+        for part in _PROSE_PARTS:
+            words = words + [part[place % len(part)]]
+            place = place // len(part)
+        built = built + [" ".join(words)]
+    return built
+
+
+# Short sentences that are still text no rule reads. The red-case
+# battery needs a perturbation that writes cells SHORTER than any the
+# column held, without collapsing the column onto so few distinct
+# values that the categorical rule claims it -- five two-word cells in
+# eighty rows is a set of categories, not free text, and the free-text
+# checks would stop running.
+_SHORT_PARTS = (
+    ("ok", "up", "in", "on", "at"),
+    ("now", "soon", "late", "next", "past"),
+    ("here", "there", "home", "ward", "desk"),
+)
+
+
+def short_prose(count: int) -> list[str]:
+    """``count`` short sentences that no reading rule claims.
+
+    Distinct up to 125, and every one is shorter than any `prose`
+    sentence, which is what makes it usable as the short end of a
+    length perturbation.
+    """
+    built: list[str] = []
+    for index in range(count):
+        place = index
+        words: list[str] = []
+        for part in _SHORT_PARTS:
+            words = words + [part[place % len(part)]]
+            place = place // len(part)
+        built = built + [" ".join(words)]
+    return built
+
+
+# Built once, after `prose` is defined, and read by the two tables
+# above at call time. Rebuilding it per row was measurably wasteful and
+# said nothing extra.
+_PROSE_POOL = prose(200)
 
 
 def single_column_table(name: str, values: list[str]) -> str:

@@ -134,7 +134,16 @@ _SHOWN = "X\\x01Y"
 _POOL_WORD = "(withheld)"
 _CLASS_WORD = "(declared-missing)"
 
-_FLOOR = taxonomy.Settings().small_cell_floor
+# THE PUBLICATION FLOOR THIS FILE IS WRITTEN AT, declared rather than
+# taken from the default. Route 3 is a statement ABOUT the floor -- a
+# declared spelling worn by fewer cells than it is pooled, unnamed, into
+# the withheld remainder -- so a witness for it only exists where the
+# floor is above one. The shipped default is 1 since the owner ruling of
+# 2026-08-25 (plan amendment A-P4-37), and at a floor of 1 nothing is
+# ever held back at all (contract invariant C5-S13), so every witness
+# below names the floor it is built against and every route is measured
+# under the same rules it was written under.
+_FLOOR = 11
 
 
 def _kept_the_version_four_way(
@@ -306,7 +315,7 @@ def _witnesses(folder: pathlib.Path) -> "dict[str, Witness]":
         "rescued",
         "rescued",
         fixtures.single_column_table("reading", _numbers(200) + ["n/a"]),
-        taxonomy.Settings(kept_values=("n/a",)),
+        taxonomy.Settings(small_cell_floor=_FLOOR, kept_values=("n/a",)),
         "n/a",
     )
     # Route 2: a declaration holding an invisible character.
@@ -314,7 +323,7 @@ def _witnesses(folder: pathlib.Path) -> "dict[str, Witness]":
         "escaped",
         "escaped",
         _numeric_table([_RAW] * 12),
-        taxonomy.Settings(declared_missing_values=(_RAW,)),
+        taxonomy.Settings(small_cell_floor=_FLOOR, declared_missing_values=(_RAW,)),
         _RAW,
     )
     # Route 3: declarations whose cells all sit below the floor.
@@ -323,6 +332,7 @@ def _witnesses(folder: pathlib.Path) -> "dict[str, Witness]":
         "pooled",
         _numeric_table(["rare1"] * 3 + ["rare2"] * 3 + ["rare3"] * 3),
         taxonomy.Settings(
+            small_cell_floor=_FLOOR,
             declared_missing_values=("rare1", "rare2", "rare3")
         ),
         "rare1",
@@ -332,7 +342,7 @@ def _witnesses(folder: pathlib.Path) -> "dict[str, Witness]":
         "free-text",
         "free-text",
         _text_table(["ZZZ"] * 12),
-        taxonomy.Settings(declared_missing_values=("ZZZ",)),
+        taxonomy.Settings(small_cell_floor=_FLOOR, declared_missing_values=("ZZZ",)),
         "ZZZ",
     )
     # Route 5: the person's own text spelling one of this package's own
@@ -341,7 +351,10 @@ def _witnesses(folder: pathlib.Path) -> "dict[str, Witness]":
         "class-word",
         "class-word",
         _numeric_table([_CLASS_WORD] * 12),
-        taxonomy.Settings(declared_missing_values=(_CLASS_WORD,)),
+        taxonomy.Settings(
+            small_cell_floor=_FLOOR,
+            declared_missing_values=(_CLASS_WORD,),
+        ),
         _CLASS_WORD,
     )
     # Route 5, the confidentiality form: a cell literally spelling the
@@ -350,7 +363,10 @@ def _witnesses(folder: pathlib.Path) -> "dict[str, Witness]":
         "pool-word",
         "pool-word",
         _numeric_table([_POOL_WORD] * 12),
-        taxonomy.Settings(declared_missing_values=(_POOL_WORD,)),
+        taxonomy.Settings(
+            small_cell_floor=_FLOOR,
+            declared_missing_values=(_POOL_WORD,),
+        ),
         _POOL_WORD,
     )
     # The partial loss: one named word published, another pooled. This
@@ -359,7 +375,10 @@ def _witnesses(folder: pathlib.Path) -> "dict[str, Witness]":
         "partial",
         "partial",
         _numeric_table(["XX"] * 12 + ["YY"] * 5),
-        taxonomy.Settings(declared_missing_values=("XX", "YY")),
+        taxonomy.Settings(
+            small_cell_floor=_FLOOR,
+            declared_missing_values=("XX", "YY"),
+        ),
         "YY",
     )
     # CONTROL: the spelling comes back cleanly.
@@ -367,7 +386,7 @@ def _witnesses(folder: pathlib.Path) -> "dict[str, Witness]":
         "recovered",
         "recovered",
         _numeric_table(["XX"] * 12),
-        taxonomy.Settings(declared_missing_values=("XX",)),
+        taxonomy.Settings(small_cell_floor=_FLOOR, declared_missing_values=("XX",)),
         "XX",
     )
     # CONTROL: no word named at all.
@@ -375,7 +394,7 @@ def _witnesses(folder: pathlib.Path) -> "dict[str, Witness]":
         "nothing-named",
         "nothing-named",
         _numeric_table([""] * 12),
-        taxonomy.Settings(),
+        taxonomy.Settings(small_cell_floor=_FLOOR),
         "",
     )
     # THE OVER-FIRE, asserted rather than hoped away: a word named that
@@ -384,7 +403,10 @@ def _witnesses(folder: pathlib.Path) -> "dict[str, Witness]":
         "named-but-absent",
         "named-but-absent",
         _numeric_table(["XX"] * 12),
-        taxonomy.Settings(declared_missing_values=("XX", "NEVERHERE")),
+        taxonomy.Settings(
+            small_cell_floor=_FLOOR,
+            declared_missing_values=("XX", "NEVERHERE"),
+        ),
         "NEVERHERE",
     )
     return built
@@ -657,7 +679,7 @@ def test_a_column_no_declared_word_reached_keeps_every_check(
         tmp_path,
         "two-columns",
         fixtures.rows_to_csv(["reading", "note"], rows),
-        taxonomy.Settings(declared_missing_values=("ZZZ",)),
+        taxonomy.Settings(small_cell_floor=_FLOOR, declared_missing_values=("ZZZ",)),
     )
     readings, note = described.columns
     assert readings.missing_by_class.declared_missing == 0
@@ -707,7 +729,10 @@ def test_the_two_worlds_of_the_pool_word_now_describe_differently(
         tmp_path,
         "world-a",
         _numeric_table([_POOL_WORD] * 12),
-        taxonomy.Settings(declared_missing_values=(_POOL_WORD,)),
+        taxonomy.Settings(
+            small_cell_floor=_FLOOR,
+            declared_missing_values=(_POOL_WORD,),
+        ),
     )
     second, second_path, second_document = _described(
         tmp_path,
@@ -716,7 +741,10 @@ def test_the_two_worlds_of_the_pool_word_now_describe_differently(
         # matches every one of them, and each is worn by a single cell,
         # so every one is below the floor and all twelve are pooled.
         _numeric_table([" " * (index + 1) + _POOL_WORD for index in range(12)]),
-        taxonomy.Settings(declared_missing_values=(_POOL_WORD,)),
+        taxonomy.Settings(
+            small_cell_floor=_FLOOR,
+            declared_missing_values=(_POOL_WORD,),
+        ),
     )
     assert canonical.serialize(first_document) != canonical.serialize(
         second_document

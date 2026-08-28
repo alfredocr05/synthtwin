@@ -60,11 +60,19 @@ def numeric_column(parsing_count: int, total: int = 100) -> list[str]:
     column either: what is being tested is the numeric line alone.
     """
     numbers = [str(index) for index in range(parsing_count)]
-    notes = [
-        f"note {index} written out in words"
-        for index in range(total - parsing_count)
-    ]
+    notes = fixtures.prose(total - parsing_count)
     return numbers + notes
+
+
+_PROSE = fixtures.prose(40)
+
+# The labels these ceiling tests count. They have to be values no rule
+# reads on their own: `label0`, `label1` and the rest are a number
+# wearing the word `label`, which the affixed-number rule reads -- so a
+# column PAST the ceiling would take that role instead of falling to
+# free text, and the sentence these tests are about belongs to free
+# text. The ceiling is the same ceiling whatever the values are.
+_LABELS = fixtures.prose(1100)
 
 
 def ceiling_of(values: list[str]) -> int:
@@ -109,7 +117,12 @@ def test_the_column_at_the_line_is_described_as_numbers() -> None:
 def test_the_deleted_majority_rule_leaves_no_trace_in_the_settings() -> None:
     # A profile has to say what policy produced it, so a threshold that
     # no longer decides anything must not be recorded as though it did.
-    recorded = profile._settings_block(SETTINGS, [])
+    #
+    # The block records two lists of declared columns now -- the record
+    # numbers named with `--identifier` and the codes named with
+    # `--code` (plan P4-D19) -- and this run declares neither: what is
+    # asked about here is the THRESHOLDS, and a declaration is not one.
+    recorded = profile._settings_block(SETTINGS, [], [], [])
     for gone in (
         "numeric_majority",
         "categorical_repetition",
@@ -130,9 +143,7 @@ def test_the_reviewers_own_worst_example_publishes_nothing() -> None:
     # Sixty numeric cells and forty two-word notes were published as
     # role `count` with `min: 0`, `max: 59` and `mean: 29.5`, with the
     # forty in no distribution at all.
-    values = [str(index) for index in range(60)] + [
-        f"note {index}" for index in range(40)
-    ]
+    values = [str(index) for index in range(60)] + fixtures.prose(40)
     described = describe(values)
     assert described.role == taxonomy.ROLE_TEXT
     block = whole_block(described)
@@ -176,7 +187,7 @@ def test_a_column_written_as_numbers_but_unholdable_is_named_for_it() -> None:
 def test_a_column_at_or_under_the_ceiling_is_a_set_of_categories(
     distinct: int,
 ) -> None:
-    values = [f"label{index % distinct}" for index in range(100)]
+    values = [_LABELS[index % distinct] for index in range(100)]
     described = describe(values)
     assert ceiling_of(values) == 10
     assert described.role == taxonomy.ROLE_CATEGORICAL
@@ -184,7 +195,7 @@ def test_a_column_at_or_under_the_ceiling_is_a_set_of_categories(
 
 
 def test_a_column_one_value_over_the_ceiling_publishes_nothing() -> None:
-    values = [f"label{index % 11}" for index in range(100)]
+    values = [_LABELS[index % 11] for index in range(100)]
     described = describe(values)
     assert ceiling_of(values) == 10
     assert described.role == taxonomy.ROLE_TEXT
@@ -198,17 +209,17 @@ def test_the_ceiling_is_a_tenth_of_the_values_present() -> None:
     # Stated as counts on both sides of a value that does not divide by
     # ten: a tenth of 95 is 9.5, and nine is the most a set of
     # categories may hold.
-    values = [f"label{index % 9}" for index in range(95)]
+    values = [_LABELS[index % 9] for index in range(95)]
     assert ceiling_of(values) == 9
     assert describe(values).role == taxonomy.ROLE_CATEGORICAL
-    over = [f"label{index % 10}" for index in range(95)]
+    over = [_LABELS[index % 10] for index in range(95)]
     assert describe(over).role == taxonomy.ROLE_TEXT
 
 
 def test_the_thousand_cap_is_a_ceiling_on_the_role() -> None:
     under: list[str] = []
     for index in range(1000):
-        under = under + [f"label{index:04d}"] * 20
+        under = under + [_LABELS[index]] * 20
     described = describe(under)
     assert ceiling_of(under) == 1000, "a tenth of 20000 is capped at 1000"
     assert described.role == taxonomy.ROLE_CATEGORICAL
@@ -216,13 +227,19 @@ def test_the_thousand_cap_is_a_ceiling_on_the_role() -> None:
 
     over: list[str] = []
     for index in range(1001):
-        over = over + [f"label{index:04d}"] * 20
+        over = over + [_LABELS[index]] * 20
     beyond = describe(over)
-    assert beyond.role == taxonomy.ROLE_TEXT
-    assert "levels" not in beyond.details
-    said = " ".join(beyond.remarks)
-    assert "1001 different values" in said
-    assert "at most 1000" in said
+    # THE CEILING IS STILL A CEILING ON THE CATEGORICAL ROLE, which is
+    # what this test exists for. What changed under plan P4-D5 is where
+    # the column lands after it: every one of its 1001 levels covers
+    # twenty rows, so it is a long tail of labels rather than free
+    # text, and the numbers this test read out of a remark are in the
+    # evidence sentence of the rule that claimed it.
+    assert beyond.role != taxonomy.ROLE_CATEGORICAL
+    assert beyond.role == taxonomy.ROLE_LONG_TAIL
+    assert len(beyond.details["levels"]) == 1001
+    assert "1001 different values" in beyond.detection_evidence
+    assert "more than the 1000" in beyond.detection_evidence
 
 
 def test_the_floor_keeps_a_categorical_path_in_a_tiny_table() -> None:
@@ -299,11 +316,15 @@ def test_the_policy_reaches_the_written_profile(
         rows.append(
             [
                 # 60 numbers and 40 notes: below the numeric line.
-                str(index) if index < 60 else f"note {index} in words",
+                str(index) if index < 60 else _PROSE[index % len(_PROSE)],
                 # 11 labels in 100 rows: above the category ceiling.
-                f"label{index % 11}",
+                # Prose rather than `label0`..`label10`, so the column
+                # past the ceiling falls to free text as this test
+                # means it to, instead of being read as a number
+                # wearing the word `label`.
+                _LABELS[index % 11],
                 # 9 labels in 100 rows: within it.
-                f"group{index % 9}",
+                _LABELS[20 + index % 9],
                 # A zero-padded code column, read by the ordinary rules.
                 f"{index:06d}",
             ]

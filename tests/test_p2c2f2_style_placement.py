@@ -41,6 +41,17 @@ from synthtwin import (
 )
 
 
+# The publication floor these fixtures were counted against. A floor of
+# one became the default under the owner ruling recorded as plan
+# amendment A-P4-37 -- contract invariant C5-S13 says that at a floor of
+# one nothing whatever is held back -- and pooling is a SUBJECT here:
+# the counts below are the counts a description publishes when a form
+# carried by fewer than eleven cells is pooled into `(withheld)`. So the
+# floor is stated rather than inherited, and it is the eleven every
+# docstring in this file counts against.
+SMALL_CELL_FLOOR = 11
+
+
 def _described(
     folder: pathlib.Path, values: "list[str]"
 ) -> "tuple[dict, contract.Profile]":
@@ -49,7 +60,9 @@ def _described(
         folder, "table.csv", fixtures.single_column_table("amount", values)
     )
     table = reading.read_table(str(path))
-    document = profile.build_document(table, taxonomy.Settings(), [])
+    document = profile.build_document(
+        table, taxonomy.Settings(small_cell_floor=SMALL_CELL_FLOOR), []
+    )
     target = fixtures.write_profile(folder, "table-profile.json", document)
     return document, contract.load_profile(str(target))
 
@@ -246,6 +259,12 @@ def test_a_style_with_nowhere_to_go_is_still_named(
     assert named == [], [note.published for note in named]
 
     document["columns"][0]["numeric_styles"] = {"leading_plus": 46}
+    # The census of widths moves with the forms map, because P5 ties the
+    # two together: a map that names no `decimal` cells is a map whose
+    # census names no width, and a hand-edited document that kept the
+    # old census would be refused at the door instead of reaching the
+    # placement this test is about.
+    document["columns"][0]["fraction_widths"] = {}
     target = fixtures.write_profile(tmp_path, "edited-profile.json", document)
     edited = contract.load_profile(str(target))
     twin = generation.generate(edited, 0)

@@ -1,6 +1,6 @@
 # synthtwin
 
-> **Status: early (Phase 3).** synthtwin is **not on PyPI**. What
+> **Status: early (Phase 4).** synthtwin is **not on PyPI**. What
 > exists today is the whole workflow -- the profiler, which reads a CSV
 > table on your computer and describes it; the generator, which builds
 > the synthetic twin from that description and nothing else; and the
@@ -105,21 +105,27 @@ ID codes and a column of measurements can look identical, and getting
 that wrong either publishes identifiers or destroys a distribution the
 twin exists to reproduce. So no rule anywhere in synthtwin can reach
 that reading from the values in a column -- it comes only from you,
-through `--identifier`, and it is described below with the rest of the
-options.
+through `--identifier` and `--code`, and both are described below with
+the rest of the options. Where synthtwin meets a column it cannot read
+on its own, it asks you rather than guessing.
 
 **Read that last part before you move the profile anywhere.** The
 profile is computed from your real data. It contains no rows of your
 table, and it never contains a value from a column you named with
-`--identifier`, a line of free text, or a label shared by fewer than
-eleven rows -- but it does contain the smallest and largest values of
-your numeric and date columns, the points in between that describe their
-shape, and, for each label it names, the exact spellings your file used
-for that label wherever eleven rows or more wrote it that way. Eleven is
-the default and it is the only number in this paragraph you can change:
-`--smallest-group` moves it, the whole workflow runs on whatever you set,
-and setting it lower publishes smaller groups. What that costs is written
-out under the options below. It is
+`--identifier` or a line of free text -- but it does contain the
+smallest and largest values of your numeric and date columns, the points
+in between that describe their shape, and, for each label, the exact
+spellings your file used for it together with how many rows wrote it
+that way. **By default that includes labels only one row held.** A twin
+is not a twin if a rare finding never reaches it, so synthtwin names
+every value and says how many rows shared it. What a named rare value
+tells anybody is that somebody in your table had it -- synthtwin
+publishes nothing that crosses two columns, so it says nothing about
+who, or about anything else that person's row holds. If your review
+board or a data-use agreement needs groups kept above a size,
+`--smallest-group 11` pools everything under eleven rows and the whole
+workflow runs on the result. What each setting costs is written out
+under the options below. It is
 real-derived material, and your institution's rules for such material
 apply to it. The same is true of every other file a full run produces:
 the profile, the plain-language summary beside it, the twin, the twin's
@@ -167,7 +173,9 @@ Six for `profile`, for the things the rules cannot settle on their own:
 ```
 synthtwin profile my-table.csv --out-dir reports
 synthtwin profile my-table.csv --identifier participant_number
-synthtwin profile my-table.csv --smallest-group 20
+synthtwin profile my-table.csv --code vaccine_code
+synthtwin profile my-table.csv --measurement blood_pressure
+synthtwin profile my-table.csv --smallest-group 11
 synthtwin profile my-table.csv --keep-value -999
 synthtwin profile my-table.csv --missing-value NA
 synthtwin profile my-table.csv --first-row data
@@ -183,13 +191,73 @@ that column holds -- and it is the only way a column is ever read that
 way. Repeat it to name more than one column. A name that is not in your
 table stops the run before anything is written.
 
-**`--smallest-group`, and what lowering it costs.** It changes the
-eleven-row rule above, in either direction, and any whole number of 1 or
-more is accepted end to end: `profile`, `generate` and `validate` all run
-on the file it produces. Raising it publishes less. **Lowering it below
-eleven publishes small groups and their counts**, and that is worth
-reading slowly, because the count is the disclosure rather than a route
-to one. At a smallest group size of two, the profile names values that
+`--measurement` names a column that holds **measurements written as two
+or more numbers in one cell** -- a blood pressure such as `120/80`, a
+ventilator ratio such as `1:1.5`.
+synthtwin reads each number separately and publishes a range and an
+average for each one, so the twin's cells hold believable readings
+instead of digits in the right shape. Without it such a column is
+described as text and its twin carries no readings at all. Use it only
+where the numbers are quantities: a lab code such as `1923-1` and a drug
+code such as `00052-0052-52` are written exactly the same way and are
+codes, so name those with `--code`. A column of plain single numbers
+needs nothing.
+
+**The numbers move together, and you are not asked about that.** How
+strongly a reading's two numbers rise and fall together, and whether the
+first is always the larger, are things your data says plainly -- so
+synthtwin measures them and builds the twin to match, rather than asking
+you. On a real blood-pressure column that is the difference between a
+twin of believable readings and one holding a diastolic above its
+systolic.
+
+`--code` names a column that holds a **coding system** rather than
+measurements -- vaccine codes, procedure codes, revenue codes, provider
+numbers, risk-group codes. Its values are still published, because which
+codes are common is the point of the column; what changes is that
+synthtwin stops reading them as numbers, so `08` stays `08` instead of
+coming back as `8`, and the column gets a count per code instead of an
+average, a smallest and a largest -- which for a code are meaningless
+and are real codes besides. You need it only for a column written in
+**digits alone**: one written with a letter or a dash, like `E11.9` or
+`0002-8215-01`, is already read as codes. Repeat it to name more than
+one column, and use `--identifier` instead for a record number nothing
+should publish.
+
+**Naming a column here also makes it publish at all.** A column of many
+different codes, none of them repeated much -- a laboratory code, a drug
+code, a gene variant -- is otherwise read as free text, which publishes
+no value whatever. Named with `--code` it publishes every code with the
+number of rows that held it, and the twin holds the same codes in the
+same proportions. That is what makes counting on the twin come out
+right: because it holds the same codes the same number of times, **every
+rollup of that column reproduces exactly** -- the prefix a hierarchy
+groups by, the segment a reader splits on, the length. synthtwin knows
+no coding system and does not need to.
+
+**synthtwin asks you about this rather than guessing.** A column of
+`08`, `20`, `213` is vaccine codes or it is counts, and the two are
+written identically -- nothing in the values can settle it, so synthtwin
+does not try. When it meets a column of digits that looks like it could
+be codes (some value padded with a leading zero, or every value the same
+width), it stops and asks you, showing you a few of the values. Your
+answers go into the profile, and the exact options to repeat the run
+without the questions are printed at the end. Where nobody is at the
+keyboard -- a script, a pipeline, CI -- it never stops: it names those
+columns on screen, says what it assumed, and prints the `--code` line
+that corrects it.
+
+**`--smallest-group`, and what raising it does.** It changes how many
+rows a group needs before the profile names it. **The default is 1,
+which holds nothing back**: every value your table holds is named,
+together with how many rows shared it, so a rare finding reaches your
+twin. Any whole number of 1 or more is accepted end to end: `profile`, `generate` and `validate` all run
+on the file it produces. Raising it publishes less -- `--smallest-group
+11` pools every group under eleven rows, which is what a review board or
+a data-use agreement usually means by a small-cell rule. **At the
+default of 1 the profile publishes small groups and their counts**, and
+that is worth reading slowly, because the count is the disclosure rather
+than a route to one. At a smallest group size of two, the profile names values that
 two rows shared and says that two rows shared them; at one, it names a
 value one row held and says that one row held it. If one row of your
 table is one person, somebody who already knows one true thing about
@@ -214,9 +282,10 @@ value". A value that reads as a number is matched as a number, so `-999`
 also covers `-999.00`; anything else is matched as text, ignoring
 surrounding spaces and capitals. The profile records how many values you
 named each way and the rule that matched them. Where the value you named
-is one of synthtwin's own thirteen published words for "no value" -- the
-ten spellings such as `NA` and `null`, and the three stand-in numbers
-`-9999`, `-999` and `9999` -- it also records which of those words it
+is one of synthtwin's own twenty-three published words for "no value" --
+the eighteen spellings such as `NA`, `null` and the spreadsheet error
+literals like `#N/A`, the three stand-in numbers `-9999`, `-999` and
+`9999`, and the two placeholder days `1900-01-01` and `9999-12-31` -- it also records which of those words it
 was, because a check of your own table against its own description has
 to read those cells the way the description read them. **A word of your
 own is written nowhere in the settings**, no count, column or row goes
@@ -351,8 +420,11 @@ run, whether or not anything else went wrong.
   describes each column on its own, and the twin therefore carries no
   cross-column structure at all; how columns move together arrives in a
   later phase (Phase 5).
-- **[planned]** PyPI publication - earliest at the end of Phase 3, with
-  signed, reproducible, attested releases.
+- **[planned]** PyPI publication - with signed, reproducible, attested
+  releases. Phase 3 named it that phase's earliest-possible deliverable
+  and Phase 3 closed on 2026-08-19 without it, so no phase carries it
+  now: it is release engineering, waiting on its own checklist in
+  `docs/plans/phase-3-product.md` and on the owner's go decision.
 
 ## The security architecture, in plain language
 
@@ -444,6 +516,18 @@ an architecture in which the real table never has to move, plus a
 written account, in `SECURITY.md` and in the run's own report, of
 exactly which real facts each file carries.
 
+**What that settles, and what it does not.** The thing synthtwin buys
+you is that your rows never have to travel: you develop your analysis
+against a table worked out from a description, so the real table stays
+inside the environment that already holds it and never reaches an
+assistant. That is a strong claim and it is the one to make. What it
+does not buy is a finding about your obligations -- being synthetic is
+not by itself the answer to a privacy rule, to your institution's own
+rules, or to an approval your study needed, and the five files above
+are the reason. Whether an obligation is met is for the people who set
+it to say, and what this project gives them to decide with is the
+written account of exactly which real facts each file carries.
+
 ## Honest limits
 
 These are design limits, stated up front so nobody discovers them late:
@@ -454,7 +538,7 @@ These are design limits, stated up front so nobody discovers them late:
 | One column at a time | The twin reproduces what the description publishes about each column on its own. It carries **no cross-column structure** at all -- no correlation, no formula between two columns, no shared pattern of empty cells, no ordering between two event dates. Cross-column structure arrives in a later phase (Phase 5). See "What the twin does not carry" above. |
 | One row at a time | Rows are treated as independent and the grain is undescribed: the description never says what one row of your table is, so a table with several rows per subject yields a twin that misdescribes the subject-level picture. |
 | Only what the description publishes is reproduced | A pattern the profiler does not publish is not in the twin, whether or not the profiler could in principle have seen it. |
-| No free text | Narrative or note columns are described by their length and word counts only; their values are never published, and the twin will not invent sentences. |
+| No free text | Narrative or note columns are described by their length and word counts only; their values are never published, and the twin will not invent sentences. A column of CODES that reaches this role -- short cells, no spaces, marks from a small list -- also publishes the SHAPE its values were written in, so its twin's cells split and measure the way the real ones do. A shape carries no letter and no figure of any value: `4548-4` says `9999-9`. |
 | CSV only, for now | The profiler reads comma-separated files saved as UTF-8 (or, as a fallback, Western European text). Spreadsheets, databases and columnar formats come later. |
 | The table has to fit in memory | A table is read into memory whole; reading very large files in pieces is planned but not built. A file of a few hundred megabytes is comfortable on an ordinary machine; several gigabytes is not, and you are told so in words rather than by a crash. |
 | The file is read twice | Once to check its shape and once to read its values, by two different readers whose results must agree. That costs a second pass over the file and buys the guarantee that a malformed row is refused rather than quietly turned into missing values. |
