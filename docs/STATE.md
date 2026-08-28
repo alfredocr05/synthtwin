@@ -28,7 +28,7 @@ without the same help.
 | branch | `phase-4-plan` (never merged; `main` is pull-request only) |
 | phase | **Phase 4 — comprehensive column handling.** Current. |
 | plan | `docs/plans/phase-4-columns.md` |
-| suite | 3,999 collected / 48 skipped |
+| suite | 4,003 collected / 48 skipped |
 | lint | clean (`ruff check .`), under the rule set pinned in `pyproject.toml` |
 
 ## What is being built right now
@@ -481,7 +481,7 @@ reviewer's ruling of 2026-08-26.
 |---|---|---|
 | **R-P4-42 — CLOSED 2026-08-27** | the window was cited as `docs/plans/phase-4-columns.md P4-D25` while every other envelope of the method cites a section of it, so an implementer working from the specification could not find it and a reader could not find the rule a verdict rests on. It is now **G12.9** of the generation method — the two-sided 0.02 window, why it is a window and not an exactness, and what it does NOT excuse — and the report cites that | closed |
 | **R-P4-43 — CLOSED 2026-08-27** | it checked a position's endpoints, average and whole-number test and not its styles or either width census. Each position now carries the style identity read over its own numbers, named per position. The residual's own example had gone stale — `200` rewritten as `200.0` is already caught — so the red case is half a position zero-padded, which moves the census and leaves the widths held | closed |
-| **R-P4-44** | the twin's report names NO approximation of this role, so it says the twin gave nothing up while every position's ladder is approximated. A repair was built and WITHDRAWN — it printed per-position counts the profile publishes for no position, both positions as one unnamed column, and a stand-in measured into position two | L7 |
+| **R-P4-44 — CLOSED 2026-08-27** | the report now names every approximated fact of every position — nine rungs and four moments each — and the rank agreement beside them, against G12.9's window. All four faults that withdrew the first attempt are answered by name: no per-position count the profile publishes for no position (distinctness is suppressed for a position and a test pins that), every record names its position in the identifier AND in the sentence, a cell counts for a position only where it splits into exactly the published pieces AND every piece reads as a number (the hyphen-separator trap, with its own red case), and `part_agreements` is measured. Twenty-seven records where the role named none | closed |
 | (unnumbered) | a THREE-part column cannot honour its (1,2) pair — the repair walk permutes only the last position. Two-part columns are unaffected, which is why five reads did not meet it | L7 |
 
 ## What is broken right now

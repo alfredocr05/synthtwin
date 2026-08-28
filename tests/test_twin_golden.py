@@ -595,7 +595,7 @@ def test_the_same_description_and_seed_give_the_same_twin_twice(
 # which is what says this is the page and not the run: stage 2 changes
 # no wire, no generation rule and no twin byte.
 GOLDEN_REPORT_SHA256 = (
-    "45d73b40dc87708a671491e7a17259e41ba24d9cadab13c758a4c8db4daf0206"
+    "744a214479f4a30178f908ad673739cb5657b68486cbbf97a4b72b016189891e"
 )
 
 

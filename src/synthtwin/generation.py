@@ -13920,11 +13920,219 @@ def _numeric_cardinalities(
     return found
 
 
+def _joined_approximations(
+    column: contract.ColumnBlock,
+    facts: contract.JoinedFacts,
+    plan: "_ColumnPlan",
+    written: "list[str]",
+) -> "list[Approximation]":
+    """Every approximated fact of a joined column (residual R-P4-44).
+
+    THE DEFECT THIS CLOSES. A twin of this role carried a report saying
+    it gave nothing up, while every position's ladder is approximated
+    by construction and the role's own decision calls `part_agreements`
+    approximated too. A plain numeric column of the same values names
+    fifteen approximations; this role named none.
+
+    THE FIRST ATTEMPT WAS WITHDRAWN FOR FOUR FAULTS, and each is
+    answered here rather than hoped past:
+
+    * it printed per-position comparisons of facts the profile
+      publishes for NO position. Only the rungs and the four moments
+      are built here, and every one of those is published by each
+      position's own block;
+    * both positions printed as "this column", with `percentiles.p01`
+      appearing twice at different values and nothing to tell them
+      apart. Every record now NAMES its position, in the identifier a
+      reader greps for and in the sentence they read;
+    * an unsplit stand-in `text-1` splits on `-` into two pieces and
+      was measured into position two. A cell counts for a position only
+      where it splits into exactly the published number of pieces AND
+      every piece reads as a number, which a stand-in never does;
+    * `part_agreements`, the one fact this role's own decision calls
+      approximated, was not measured at all. It is measured here,
+      against the window of method G12.9.
+    """
+    found: "list[Approximation]" = []
+    for place in range(facts.n_parts):
+        view = _part_view(column, place)
+        layout, _notes, _content = _numeric_layout(view, facts.parts[place])
+        part_plan = dataclasses.replace(plan, column=view, layout=layout)
+        mine = _joined_position_numbers(written, facts, place)
+        named = _position_words(place)
+        for one in _numeric_approximations(
+            view, facts.parts[place], part_plan, mine, named, False
+        ):
+            found = found + [
+                dataclasses.replace(
+                    one,
+                    column=column.name,
+                    fact=f"parts[{place}].{one.fact}",
+                )
+            ]
+    return found + _agreement_approximations(column, facts, written)
+
+
+def _agreement_approximations(
+    column: contract.ColumnBlock,
+    facts: contract.JoinedFacts,
+    written: "list[str]",
+) -> "list[Approximation]":
+    """How strongly two positions moved together, measured (G12.9).
+
+    The window is the method's, cited rather than invented here: two
+    hundredths either side of the published value. `part_above` beside
+    it carries no window and is not an approximation at all -- a row of
+    it is a reading that cannot happen -- so it is not measured here.
+    """
+    found: "list[Approximation]" = []
+    columns: "list[list[float]]" = []
+    for place in range(facts.n_parts):
+        numbers: "list[float]" = []
+        for text in _joined_position_numbers(written, facts, place):
+            value = parsing.parse_number(text)
+            if value is not None:
+                numbers = numbers + [value]
+        columns = columns + [numbers]
+    seat = 0
+    for first in range(facts.n_parts):
+        for second in range(first + 1, facts.n_parts):
+            if seat >= len(facts.part_agreements):
+                break
+            published = facts.part_agreements[seat]
+            achieved = _rank_agreement(columns[first], columns[second])
+            lowest = published - _AGREEMENT_REACH
+            highest = published + _AGREEMENT_REACH
+            found = found + [
+                Approximation(
+                    column=column.name,
+                    fact=f"part_agreements[{seat}]",
+                    published=_figure(published),
+                    achieved="nothing" if achieved is None else _figure(achieved),
+                    lowest=_figure(lowest),
+                    highest=_figure(highest),
+                    inside=(
+                        False
+                        if achieved is None
+                        else _inside(achieved, lowest, highest)
+                    ),
+                    note=(
+                        f"how strongly {_position_words(first)} and "
+                        f"{_position_words(second)} rise and fall together"
+                    ),
+                    covers_published=True,
+                )
+            ]
+            seat = seat + 1
+    return found
+
+
+def _rank_agreement(
+    first: "list[float]", second: "list[float]"
+) -> "float | None":
+    """The rank agreement of two positions, by the method's own rule.
+
+    Zero-based ranks with ties sharing the average of the ranks they
+    span, taken about `(T - 1) / 2` -- the convention G6B.4 step 4
+    fixes -- so the number measured here and the number the pairing
+    walk aimed at are the same number.
+    """
+    total = len(first)
+    if total != len(second) or total < 2:
+        return None
+    # THE RANKS THE PAIRING WALK ITSELF USES (G6B.4 step 4), read from
+    # the one place they are computed rather than worked out again: the
+    # number this measures and the number the walk aimed at have to be
+    # the same number, and two implementations of one convention are
+    # two chances to disagree.
+    left = _ranks_of(first)
+    right = _ranks_of(second)
+    middle = (total - 1) / 2.0
+    top = 0.0
+    spread_left = 0.0
+    spread_right = 0.0
+    for row in range(total):
+        away_left = left[row] - middle
+        away_right = right[row] - middle
+        top = top + away_left * away_right
+        spread_left = spread_left + away_left * away_left
+        spread_right = spread_right + away_right * away_right
+    divisor = (spread_left * spread_right) ** 0.5
+    if not divisor > 0.0:
+        return None
+    return top / divisor
+
+
+_INTERNAL_NOT_TEXT = "internal check: a twin's cell was not text"
+
+# The window a joined column's rank agreement is approximated inside,
+# stated by method G12.9 and read from there rather than chosen here.
+# The validator holds a checked file to the same number, and the two
+# must not drift: a report that promised one reach while the check used
+# another would call a twin sound and a file of the same numbers not.
+_AGREEMENT_REACH = 0.02
+
+_POSITION_WORDS = (
+    "the first number in each cell",
+    "the second number in each cell",
+    "the third number in each cell",
+    "the fourth number in each cell",
+)
+
+
+def _position_words(place: int) -> str:
+    """How a position is named to a reader, and never by index alone."""
+    if place < len(_POSITION_WORDS):
+        return _POSITION_WORDS[place]
+    return f"number {place + 1} in each cell"
+
+
+def _joined_position_numbers(
+    written: "list[str]", facts: contract.JoinedFacts, place: int
+) -> "list[str]":
+    """The numbers ONE position of a joined column actually wrote.
+
+    A CELL THAT DID NOT SPLIT BELONGS TO NO POSITION, and getting that
+    wrong is one of the four faults that withdrew the first attempt at
+    this: an unsplit stand-in `text-1` splits on `-` into two pieces,
+    and where the separator IS `-` it was measured into position two as
+    the number one. So splitting is not enough -- every piece must read
+    as a number before the cell counts, which a stand-in never does.
+    """
+    found: "list[str]" = []
+    for cell in written:
+        trimmed = parsing.trimmed(cell)
+        if not trimmed:
+            continue
+        pieces = _cut_at(trimmed, facts.separator)
+        if len(pieces) != facts.n_parts:
+            continue
+        every = True
+        for piece in pieces:
+            if parsing.classify_number(piece) != parsing.NUMBER:
+                every = False
+        if not every:
+            continue
+        found = found + [pieces[place]]
+    return found
+
+
+def _cut_at(cell: str, separator: str) -> "list[str]":
+    """One cell cut at its separator, behind the audit's type gate."""
+    if not isinstance(cell, str):
+        raise TypeError(_INTERNAL_NOT_TEXT)
+    if not isinstance(separator, str):
+        raise TypeError(_INTERNAL_NOT_TEXT)
+    return cell.split(separator)
+
+
 def _numeric_approximations(
     column: contract.ColumnBlock,
     facts: contract.NumericFacts,
     plan: "_ColumnPlan",
     written: "list[str]",
+    subject: str = "this column",
+    cardinalities: bool = True,
 ) -> "list[Approximation]":
     """The four approximated families of a column of numbers (G12.2, G12.3).
 
@@ -13958,6 +14166,8 @@ def _numeric_approximations(
     held = len(values)
     rungs = _filled_rungs(facts.percentiles.rungs)
     if held < 1 or rungs is None:
+        if not cardinalities:
+            return []
         return _numeric_cardinalities(column, plan, written)
     layout = plan.layout
     widest = held
@@ -14001,7 +14211,7 @@ def _numeric_approximations(
                 inside=_inside(achieved, lowest, highest),
                 note=(
                     "the value that stands "
-                    f"{percent} percent of the way up this column"
+                    f"{percent} percent of the way up {subject}"
                 ),
                 covers_published=_inside(rung, lowest, highest),
             )
@@ -14019,7 +14229,7 @@ def _numeric_approximations(
                 lowest=_figure(lowest),
                 highest=_figure(highest),
                 inside=_inside(mean, lowest, highest),
-                note="this column's average",
+                note=f"the average of {subject}",
                 covers_published=_inside(facts.mean, lowest, highest),
             )
         ]
@@ -14046,7 +14256,7 @@ def _numeric_approximations(
                 lowest=_figure(lowest),
                 highest=_figure(highest),
                 inside=_inside(deviation, lowest, highest),
-                note="how far this column's values spread out",
+                note=f"how far the values of {subject} spread out",
                 covers_published=_inside(facts.std, lowest, highest),
             )
         ]
@@ -14061,7 +14271,10 @@ def _numeric_approximations(
                 lowest=_figure(lowest),
                 highest=_figure(highest),
                 inside=_inside(shape, lowest, highest),
-                note="which side of this column's average is the longer tail",
+                note=(
+                    f"which side of the average of {subject} the longer "
+                    "tail falls"
+                ),
                 covers_published=_inside(facts.skew, lowest, highest),
             )
         ]
@@ -14076,10 +14289,19 @@ def _numeric_approximations(
                 lowest=_figure(lowest),
                 highest=_figure(highest),
                 inside=_inside(tails, lowest, highest),
-                note="how heavy this column's tails are",
+                note=f"how heavy the tails of {subject} are",
                 covers_published=_inside(facts.kurtosis, lowest, highest),
             )
         ]
+    if not cardinalities:
+        # A POSITION OF A JOINED COLUMN PUBLISHES NO DISTINCTNESS OF ITS
+        # OWN (residual R-P4-44). `n_distinct` and `n_distinct_folded`
+        # are facts about the whole CELL, and `_part_view` hands a
+        # position the cell's counts so the numeric rules have
+        # something to work with -- printing them back as that
+        # position's own is the first of the four faults that withdrew
+        # the earlier attempt at this report.
+        return found
     return found + _numeric_cardinalities(column, plan, written)
 
 
@@ -14911,28 +15133,20 @@ def _approximations(
             _core_view(column), facts.numbers, plan, cores
         )
     if isinstance(facts, contract.JoinedFacts):
-        # THIS ROLE REPORTS NO APPROXIMATION, AND THAT IS A KNOWN
-        # DEFECT rather than a decision -- residual R-P4-44. A twin of
-        # a joined column carries a report saying it gave nothing up
-        # while every position's ladder is approximated by
-        # construction, which is the same defect the affixed branch
-        # above records and repairs one role earlier.
+        # RESIDUAL R-P4-44, CLOSED. This role reported no approximation
+        # at all, so a twin of a joined column carried a report saying
+        # it gave nothing up while every position's ladder is
+        # approximated by construction and this role's own decision
+        # calls `part_agreements` approximated too.
         #
-        # A BRANCH THAT MEASURED EACH POSITION WAS BUILT HERE AND
-        # WITHDRAWN, and what it cost is why: `_part_view` hands a
-        # position the WHOLE CELL's distinctness counts, so the report
-        # printed per-position comparisons of facts the profile
-        # publishes for no position; the renderer has no way to say
-        # WHICH position a record belongs to, so both printed as "this
-        # column" with `percentiles.p01` appearing twice at different
-        # values; an unsplit stand-in `text-1` splits on `-` and was
-        # measured into position two; and `part_agreements`, the one
-        # fact this role's own decision calls approximated, was not
-        # measured at all. Measured on three columns before the
-        # withdrawal. A report that prints ambiguous numbers is worse
-        # than one that prints none, so the honest state is the silent
-        # one until the role's landing does it properly.
-        return []
+        # A first attempt was built and WITHDRAWN for four faults, and
+        # `_joined_approximations` answers each of them by name rather
+        # than hoping past it: only per-position facts are built, every
+        # record names its position in the identifier and in the
+        # sentence, a cell counts for a position only where it splits
+        # into exactly the published pieces AND every piece reads as a
+        # number, and the agreement is measured against G12.9's window.
+        return _joined_approximations(column, facts, plan, written)
     if isinstance(facts, contract.NumericFacts):
         return _numeric_approximations(column, facts, plan, written)
     if isinstance(facts, contract.ClockFacts):

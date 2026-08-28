@@ -6469,6 +6469,36 @@ reproduces every published pairing fact.
 
 ## Residuals R-P4-42 and R-P4-43 — the joined role's own gaps (2026-08-26)
 
+**R-P4-44 CLOSED 2026-08-27, by answering each of the four faults that
+withdrew the first attempt rather than hoping past them.**
+
+A plain numeric column of the same values names fifteen approximated
+facts; this role named NONE, so a twin of a joined column carried a
+report saying it gave nothing up while every position's ladder is
+approximated by construction. It now names twenty-seven on a
+two-position column: nine rungs and four moments for each position,
+and the rank agreement beside them.
+
+* **A count the profile publishes for no position.** `_part_view`
+  hands a position the whole CELL's distinctness so the numeric rules
+  have something to work with; those counts are now suppressed for a
+  position, and a test fails if they come back.
+* **Both positions as one unnamed column.** Every record names its
+  position twice over -- `parts[1].percentiles.p50` for a reader
+  grepping, and "the value that stands 50 percent of the way up the
+  second number in each cell" for a reader reading. The renderer
+  needed no change; the four notes that carried a possessive were
+  reworded so they read for a position as well as for a column, which
+  moves the demonstration report's golden hash.
+* **A stand-in measured into position two.** The trap is a column
+  whose separator IS a hyphen: `text-1` splits into two pieces there.
+  Splitting is not enough -- every piece must read as a NUMBER, which
+  a stand-in never does. Its red case builds exactly that column.
+* **`part_agreements` not measured at all**, though it is the one fact
+  this role's own decision calls approximated. It is measured now, by
+  the same zero-based rank convention G6B.4 fixes, against G12.9's
+  window.
+
 **R-P4-42 CLOSED 2026-08-27.** The window a joined column's rank
 agreement is approximated inside now lives in the generation method as
 **G12.9**, and the quality report cites that instead of this plan. The

@@ -27,6 +27,7 @@ from synthtwin import (
     contract,
     errors,
     generation,
+    parsing,
     profile,
     reading,
     taxonomy,
@@ -711,3 +712,118 @@ def test_the_file_a_position_census_was_measured_from_still_passes() -> None:
         if check.verdict == "MISSED" and check.fact.startswith("joined.")
     ]
     assert not missed, missed
+
+
+# -- residual R-P4-44: the twin's report names its approximations -----
+
+
+def test_the_report_names_every_position_it_approximated() -> None:
+    """The role reported NO approximation, so it said it gave nothing up.
+
+    RESIDUAL R-P4-44. A plain numeric column of the same values names
+    fifteen approximated facts; a joined column named none, while every
+    position's ladder is approximated by construction and this role's
+    own decision calls `part_agreements` approximated too.
+    """
+    document, folder = _described(_readings(400, seed=5))
+    described = _loaded(document, folder)
+    twin = generation.generate(described, 7)
+    assert twin.approximations, "the role reports nothing again"
+
+    facts = {found.fact for found in twin.approximations}
+    for place in (0, 1):
+        assert f"parts[{place}].percentiles.p50" in facts, place
+        assert f"parts[{place}].mean" in facts, place
+    assert "part_agreements[0]" in facts, (
+        "the one fact this role's own decision calls approximated is "
+        "the one the withdrawn attempt did not measure"
+    )
+
+
+def test_each_record_names_which_position_it_belongs_to() -> None:
+    """Two positions under one identity is two facts a reader cannot tell
+    apart, which is the second fault that withdrew the first attempt.
+    """
+    document, folder = _described(_readings(400, seed=5))
+    described = _loaded(document, folder)
+    twin = generation.generate(described, 7)
+    rungs = [
+        found
+        for found in twin.approximations
+        if found.fact.endswith("percentiles.p50")
+    ]
+    assert len(rungs) == 2, "a two-position column has two such rungs"
+    assert {found.fact for found in rungs} == {
+        "parts[0].percentiles.p50",
+        "parts[1].percentiles.p50",
+    }
+    for found in rungs:
+        assert "number in each cell" in found.note, found.note
+    assert rungs[0].note != rungs[1].note
+
+
+def test_a_position_reports_no_distinctness_of_its_own() -> None:
+    """`n_distinct` is a fact about the CELL and about no position.
+
+    The first fault that withdrew the earlier attempt: `_part_view`
+    hands a position the whole cell's counts so the numeric rules have
+    something to work with, and printing them back as that position's
+    own reports a comparison the profile publishes for nobody.
+    """
+    document, folder = _described(_readings(400, seed=5))
+    described = _loaded(document, folder)
+    twin = generation.generate(described, 7)
+    leaked = [
+        found.fact
+        for found in twin.approximations
+        if "n_distinct" in found.fact
+    ]
+    assert not leaked, leaked
+
+
+def test_a_stand_in_is_not_measured_into_a_position() -> None:
+    """The trap: a stand-in splits on a HYPHEN separator.
+
+    The third fault that withdrew the earlier attempt. An unsplit
+    stand-in `text-1` splits on `-` into two pieces, so a column whose
+    separator IS a hyphen measured the word `text` into position one
+    and the number one into position two. Splitting is not enough:
+    every piece must read as a number, which a stand-in never does.
+    """
+    generator = random.Random(17)
+    values = [
+        f"{generator.randrange(1000, 9999)}-{generator.randrange(1, 9)}"
+        for _each in range(398)
+    ]
+    values = values + ["no reading", "none"]
+    folder = pathlib.Path(tempfile.mkdtemp())
+    table = fixtures.write(
+        folder, "t.csv", fixtures.single_column_table("code", values)
+    )
+    document = profile.build_document(
+        reading.read_table(f"{table}"), taxonomy.Settings(), [], [], ["code"]
+    )
+    column = document["columns"][0]
+    assert column["role"] == "joined_numbers"
+    assert column["separator"] == "-", "this fixture must use the trap"
+    assert column["n_unparsed"] >= 1, "and must carry a stand-in"
+
+    described = contract.load_profile(
+        f"{fixtures.write_profile(folder, 't.json', document)}"
+    )
+    twin = generation.generate(described, 5)
+    written = [cell for cell in twin.columns[0]]
+    standins = [
+        cell
+        for cell in written
+        if cell and "-" in cell and not cell.replace("-", "").isdigit()
+    ]
+    assert standins, "the twin must write a stand-in that splits on the hyphen"
+
+    for place in (0, 1):
+        gathered = generation._joined_position_numbers(
+            written, described.columns[0].facts, place
+        )
+        assert len(gathered) == column["n_joined"], (place, len(gathered))
+        for piece in gathered:
+            assert parsing.classify_number(piece) == parsing.NUMBER, piece
