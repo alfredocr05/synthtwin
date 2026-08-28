@@ -732,7 +732,7 @@ value whose number depends on the grammar is refused beside
 `--decimal-comma`. The reviewer had been pointing at that for two
 rounds before I took it.
 
-## THE FINER LADDER IS MERGED AND THE ALLOTMENT IS NOT — READ THIS FIRST
+## THE FINER LADDER AND ITS ALLOTMENT — READ THIS FIRST
 
 **Branch `phase-4-allotment`. The suite is RED on purpose, and the red
 is the point.** The owner ruled on 2026-08-28 that statistical fidelity
@@ -746,30 +746,49 @@ facts had no plain-language name in the not-checkable census, three red
 cases named perturbations that no longer make their check miss, and an
 internal check raised a built-in the offline audit cannot trace.
 
-**FOUR TESTS THEN FAIL, and every one of them is the symptom R-P4-49
-names.** The plan predicted it in as many words: the finer ladder helps
-a column whose values are SPREAD and hurts one whose values are heavily
-REPEATED, because it places the twin on the column's real plateaus
-while `G5.2` still shares the cells out by an EVEN SPLIT. A column of
-230 cells holding 27 numbers — five of them about forty cells each, the
-rest about one — gets 27 strata of eight or nine, which can represent
-neither. The four:
+**FOUR TESTS FAILED WHEN THE LADDER WENT IN ALONE, and every one was
+the symptom R-P4-49 names.** The plan predicted it in as many words:
+the finer ladder helps a column whose values are SPREAD and hurts one
+whose values are heavily REPEATED, because it places the twin on the
+column's real plateaus while `G5.2` still shared the cells out by an
+EVEN SPLIT.
 
-* `test_p2c4f3_style_capacity` and `test_p2c5f3_style_reach` — named
-  style counts stop coming out exactly;
-* `test_p3v7f2_corner_parity` — `n_distinct` returns an
-  AUTHORIZED-DEVIATION where it was HELD;
-* `test_p4d18_shape_forms` — a long-tail code column loses cells, 215
-  where 230 are published.
+**THE ALLOTMENT IS NOW BUILT AND SPECIFIED**, as method **G5.2a** (how
+a band's cells divide) and **G5.2b** (how many strata each band gets).
+The sizes are the lengths of the ladder's plateaus at the band's ranks;
+the share of strata between the sign bands follows how many VALUES the
+ladder gives each band rather than how many CELLS. Measured on the
+witnesses that drove it:
 
-**WHAT CLOSES THEM IS THE ALLOTMENT, and that is the next landing.**
-The sizes of the strata must follow the published shape instead of an
-even share — and the finer ladder is exactly what supplies that shape,
-because a value that occupies seventeen of the hundred and one rungs
-occupies seventeen per cent of the column. The ladder both fixes WHICH
-values the twin holds and, once the allotment reads it, HOW MANY cells
-each of them gets. Until that lands, do not re-record the five goldens:
-they will move again.
+* a long-tail code column: **211 of 230** cells correctly shaped under
+  the even split, **229** under this;
+* the crowded family: every named style count now written, where one
+  column wrote 28 point-free cells against a published 38;
+* a flat-ladder column: the twin comes out **exact** — 4×30, 9.5×10,
+  12.5×8, the real column cell for cell.
+
+`test_p2c5f3_style_reach` and `test_p3v7f2_corner_parity` pass.
+`test_p4d18_shape_forms` is at 239 of 240 — one cell wears a
+manufactured spelling.
+
+**THE MERGE RULE TOOK FOUR TRIES AND EACH WAS MEASURED**, which is why
+G5.2a states all three parts of its key and what each one costs when
+dropped. Merging by smallest PAIR joins two interpolation artifacts and
+loses a real value; by nearest VALUE walks a whole number into the
+fraction below it and leaves a published `plain` count unwritable;
+absorbing the smallest run alone merged a plateau of thirteen cells
+into one of four.
+
+**WHAT IS STILL OWED HERE.** The independent oracle is being rebuilt
+FROM THE SPECIFICATION ALONE — the charter asks for the spec before the
+implementation and this went the other way round, so the oracle is the
+only thing that can still catch a method text that says something
+different from what the code does. Three mutation tests in
+`test_p2c4f3_style_capacity` are vacuous because the repairs they pin
+are redundant on their own witnesses; that is being measured across
+hundreds of columns before anything is deleted, because "redundant on
+its witness" is not "dead everywhere". The five goldens are untouched
+and must stay so until the above settles.
 
 ## What is broken right now
 

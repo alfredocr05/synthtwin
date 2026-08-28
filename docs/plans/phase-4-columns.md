@@ -1001,7 +1001,22 @@ next move. It raises the distinct count from 12 to 20 and destroys the
 thing the finer ladder was built for: the threshold errors go from nil
 to −68, −82 and −56 cells. It is not a trade worth making.
 
-**SO THE BLOCKER IS THE ALLOTMENT, AND IT IS ALREADY OPEN AS
+**R-P4-49 IS ANSWERED AND BUILT (owner ruling 2026-08-28: statistical
+fidelity is the priority).** The allotment follows the ladder's own
+shape, stated as method G5.2a and G5.2b: the sizes are the lengths of
+the ladder's plateaus at the band's ranks, and the share of strata
+between the sign bands follows how many values the ladder gives each
+band rather than how many cells. Measured on the witnesses that drove
+the design -- a long-tail code column goes from 211 of 230 cells
+correctly shaped to 229; every named style count of the crowded family
+is written; a flat-ladder column comes out exact. The cost the owner
+accepted is that `numeric_styles` may become approximate; measured, it
+has not had to.
+
+The paragraph below is the diagnosis that opened the residual and is
+kept because it is what the answer answers.
+
+**THE BLOCKER WAS THE ALLOTMENT, AND IT WAS ALREADY OPEN AS
 R-P4-49.** Look at what the column asks for. Two hundred and thirty
 cells hold twenty-seven numbers: five of them about forty cells each,
 the other twenty-two about one cell each. G5.2 divides the cells into

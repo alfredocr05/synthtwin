@@ -3850,8 +3850,9 @@ def _shape_sizes(
     it comes from the distinctness facts and the eleven named rungs,
     which is the line plan P4-D4.10 draws and this keeps. Where the
     ladder's plateaus and that count disagree, the runs are split or
-    merged until they agree -- deterministically, leftmost on a tie --
-    so the count the description publishes is the count the twin holds.
+    merged until they agree, by a fixed rule with the leftmost pair
+    winning a tie, so the count the description publishes is the count
+    the twin holds.
 
     Guarantees: accepts the band's first rank, how many cells it holds,
     how many strata it is to have, the ladder, the column's numeric
