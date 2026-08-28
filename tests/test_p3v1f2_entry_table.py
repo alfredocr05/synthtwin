@@ -3075,13 +3075,17 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("renamed-reading", "position.at"),
             ("filled-overflowed-reading", "presence.n_missing"),
             ("filled-overflowed-reading", "presence.n_present"),
-            ("one-plussed-reading", "styles.at-least.plain"),
+            # One plussed cell no longer moves the plain floor on
+            # this column: the finer ladder writes a different set
+            # of values and the one cell is absorbed. `crowded`
+            # moves it, and moves the published count with it.
+            ("crowded-reading", "styles.at-least.plain"),
             ("noncanonical-reading", "styles.canonical.decimal"),
             ("exponent_lower-reading", "styles.canonical.exponent_lower"),
             ("exponent_upper-reading", "styles.exact.exponent_upper"),
             ("leading_plus-reading", "styles.exact.leading_plus"),
             ("leading_zero-reading", "styles.exact.leading_zero"),
-            ("one-plussed-reading", "styles.published.plain"),
+            ("crowded-reading", "styles.published.plain"),
             ("one-plussed-reading", "styles.remainder"),
             ("exponent_lower-reading", "styles.spill"),
             ("one-fractioned-reading", "type.integer_valued"),
@@ -3513,12 +3517,18 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("renamed-reading", "position.at"),
             ("blanked-reading", "presence.n_missing"),
             ("blanked-reading", "presence.n_present"),
-            ("fractioned-reading", "styles.at-least.plain"),
+            # `fractioned` stopped moving the plain styles when the
+            # ladder went to a hundred and one rungs: it places the
+            # column's values so much more exactly that one
+            # fractioned cell no longer changes which forms the
+            # twin needs. `crowded` moves both, and is what the
+            # named table beside this one now uses too.
+            ("crowded-reading", "styles.at-least.plain"),
             ("exponent_lower-reading", "styles.canonical.exponent_lower"),
             ("exponent_upper-reading", "styles.exact.exponent_upper"),
             ("leading_plus-reading", "styles.exact.leading_plus"),
             ("leading_zero-reading", "styles.exact.leading_zero"),
-            ("fractioned-reading", "styles.published.plain"),
+            ("crowded-reading", "styles.published.plain"),
             ("leading_plus-reading", "styles.remainder"),
             ("exponent_lower-reading", "styles.spill"),
             ("vast-reading", "type.integer_valued"),
@@ -3686,7 +3696,13 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("zeroed-column_1", "ladder.p05"),
             ("floor-plussed-column_1", "ladder.p10"),
             ("floor-plussed-column_1", "ladder.p50"),
-            ("floor-plussed-column_1", "ladder.p75"),
+            # `floor-plussed` reached p75 while the ladder had
+            # eleven rungs; on a hundred and one it moves p10,
+            # p25 and p50 and no further, because the finer ladder
+            # places the upper rungs on the column's own values.
+            # `crowded` is the witness now, and it is already the
+            # one registered for p90 and p95.
+            ("crowded-column_1", "ladder.p75"),
             ("crowded-column_1", "ladder.p90"),
             ("crowded-column_1", "ladder.p95"),
             ("raised-column_1", "ladder.p99"),
@@ -4341,6 +4357,9 @@ WHOLE_FACT_LISTINGS: "dict[str, tuple[str, ...]]" = {
         # except the zero one.
         "numeric.mode",
         "numeric.mode_count",
+        # REPORT-ONLY (plan P4-D4.10): one fact, ninety rungs, no file
+        # held to any of them.
+        "numeric.percentiles_between",
         "numeric.n_distinct_values",
         "numeric.value_histogram",
         "universal.detection_evidence",

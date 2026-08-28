@@ -927,7 +927,7 @@ mode equals the published `min` or `max`, that endpoint's own stratum
 is sized to `mode_count` and no second stratum is made — exactly as the
 zero stratum absorbs the mode when the mode is zero.
 
-### P4-D4.10 The finer percentile ladder — DESIGNED, NOT BUILT
+### P4-D4.10 The finer percentile ladder
 
 The owner's second ask of 2026-08-26 was "every p value (1 to 100)".
 This decision records what was measured about it and what shape it has
@@ -950,6 +950,120 @@ Reconstructing that column from its rungs alone:
 So the owner's ask and that residual are one piece of work, and the
 finer ladder is not a refinement of a working thing but the repair of a
 measured one.
+
+**BUILT AND NOT LANDED, 2026-08-27. It breaks an EXACT published
+obligation and must not ship until that is repaired.** What follows
+records the whole of it: what works, what breaks, why, and the shape of
+the repair.
+
+**THE FAILURE, stated first.** `numeric_styles` is EXACT-OBSERVABLE:
+every published count is met or exceeded. On one 68-cell mixed-style
+column publishing `leading_plus: 15`, the finer-ladder twin writes
+**ten**. Three tests fail on this and its neighbours; with the eleven-
+rung ladder restored, all ninety of those tests pass. So this is not a
+fixture that needs updating — it is a published exact fact the change
+misses.
+
+**THE MECHANISM, and it is not a surprise once seen.** Where a column
+repeats values, its hundred-and-one-rung ladder is a STEP function, and
+the twin lands on the steps rather than on invented points between
+them. That is the fidelity the fact was built for. But the numeric
+machinery gives ONE SPELLING FORM PER STRATUM (G6.4), so when several
+strata land on the same value the twin has fewer distinct values than
+strata, and the style walk cannot place every published form.
+
+Measured on a long-tailed code column of 230 cells holding 27 different
+numbers, five of them common:
+
+| | eleven rungs | hundred and one |
+|---|---|---|
+| distinct rungs the ladder carries | 10 | **24** |
+| distinct numbers the twin holds | 27 | **12** |
+| cells wearing invented leading zeros | 0 | 15 |
+
+The finer ladder carries more than twice the real values and the twin
+uses half as many. The coarse ladder reaches twenty-seven by
+INTERPOLATING ACROSS the plateaus — making up values the column does
+not hold — and that accident is what was meeting the spelling count.
+
+**THE REPAIR I PROPOSED DOES NOT WORK, and finding that out is the
+useful part of this entry.** The obvious fix is the clock role's
+step-and-clamp (G7A.4): where a stratum's value equals its
+predecessor's, step it to the next distinct value the ladder can supply
+INSIDE that stratum's own span. It was built and measured, and it moved
+a value in **none** of thirty numeric columns of three shapes. The
+reason is plain once seen: a collapse means the stratum's whole span
+IS one plateau, so there is no higher rung inside it to step onto. The
+code was dead and is removed.
+
+Stepping OUTSIDE the span was measured too, since it is the obvious
+next move. It raises the distinct count from 12 to 20 and destroys the
+thing the finer ladder was built for: the threshold errors go from nil
+to −68, −82 and −56 cells. It is not a trade worth making.
+
+**SO THE BLOCKER IS THE ALLOTMENT, AND IT IS ALREADY OPEN AS
+R-P4-49.** Look at what the column asks for. Two hundred and thirty
+cells hold twenty-seven numbers: five of them about forty cells each,
+the other twenty-two about one cell each. G5.2 divides the cells into
+strata by an EVEN SPLIT, so twenty-seven strata of eight or nine cells
+— a shape that can represent neither "forty cells of one value" nor
+"one cell of another". No ladder can repair that, because the ladder
+decides WHICH values a stratum takes and the allotment decides HOW MANY
+CELLS each gets.
+
+The finer ladder makes the twin land on the right values — the
+plateaus, which are real values of the column — where the eleven-rung
+ladder interpolated across them and manufactured values the column does
+not hold. What it cannot do is give those values their real
+multiplicities, and `numeric_styles`' one-form-per-stratum rule then
+runs short.
+
+**What this fact is waiting on, therefore, is R-P4-49**: the allotment
+following the published shape. Until that lands, the finer ladder helps
+every column whose values are spread and hurts every column whose
+values are heavily repeated, and the second is not a trade this project
+makes with an EXACT fact.
+
+**BUILT 2026-08-27, on the owner's instruction to build it.** The
+disclosure question below was put to them and they answered by asking
+for the work. What landed: one key `percentiles_between` holding **the
+ninety rungs the named ladder does not carry**, disposed once as
+REPORT-ONLY, with the generator interpolating over all hundred and one.
+Measured after building, on 400-row columns with a threshold at 1000
+and the share below it varied — the error in the twin's count of cells
+below the threshold:
+
+| share below | eleven rungs | hundred and one |
+|---|---|---|
+| 11% | −2 | **0** |
+| 24% | −9 | **0** |
+| 37% | −31 | **0** |
+| 62% | −39 | **0** |
+| 85% | −37 | **0** |
+
+The eleven-rung error grows to a tenth of the column where the
+threshold falls mid-gap; the finer ladder is EXACT at every one of
+them.
+
+The first run of this table read `+2` throughout, and that was a defect
+in this landing rather than a property of the method: the `L[10]` sites
+below. A flat residual across five very different shapes is a
+structural fault, not a bias, and reading it as one cost an hour.
+
+**Two latent assumptions the length change exposed**, both of the same
+shape and both now fixed: eight places in the generator and five in the
+independent oracle reached for `L[10]` meaning "the top of the ladder",
+which on a hundred-and-one-rung ladder is `p10`; and the oracle chose
+its segment against the ELEVEN percents while indexing the finer
+ladder, so it never read above the tenth percentile. The second was
+caught by the frozen vectors disagreeing with the generator, which is
+what they are for.
+
+**And one thing was tried and reverted.** The LAYOUT — how many strata
+a band gets, and which can carry a point-free spelling — still reads
+the eleven named rungs. Handing it the finer ladder changes the strata
+counts, so a column comes out a different shape rather than the same
+shape more finely placed.
 
 **IT MUST LAND AS ONE FACT AND NOT AS A HUNDRED AND ONE KEYS**, and
 this is the constraint that decides the shape. Every published rung is

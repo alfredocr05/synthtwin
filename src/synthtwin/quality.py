@@ -652,6 +652,17 @@ _LISTING_WORDS = {
         "how many different numbers your column holds, as distinct from "
         "how many different ways of writing them"
     ),
+    "numeric.percentiles_between": (
+        "the ninety percentile rungs between the eleven your "
+        "description names, which say where your numbers sit between "
+        "them"
+    ),
+    "numeric.mode": (
+        "the number your column held most often"
+    ),
+    "numeric.mode_count": (
+        "how many cells held the number your column held most often"
+    ),
     "numeric.value_histogram": (
         "the shape of your numbers -- how many of them fall between "
         "each pair of edges"
