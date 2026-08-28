@@ -1010,25 +1010,44 @@ deviation, because none of those facts can tell. That landing then
 BUILT a histogram-consuming value walk, measured it, and withdrew it
 because it fought every other fact in the block.
 
-Measured again on 2026-08-28, on one column of two gaussian
-populations at 20 and 80, over six seeds, before and after this
-landing:
+Measured again on 2026-08-28 across eight shapes, 300 rows each, four
+seeds each, before and after this landing. The number is how many of
+the twin's cells land in a bin the SOURCE leaves empty -- values the
+real column has none of:
 
-| | cells landing in the gap the source leaves empty |
-|---|---|
-| eleven rungs, even split | 99, 99, 99, 100, 99, 99 of 300 |
-| a hundred and one rungs, shape allotment | 5, 5, 5, 4, 5, 4 of 300 |
+| shape | bins the source leaves empty | eleven rungs, even split | this landing |
+|---|---|---|---|
+| two populations, far apart | 16 of 32 | 99–100 | **4–5** |
+| two populations, close together | 4 of 32 | 31–33 | **2–3** |
+| three populations | 19 of 32 | 104–105 | **5–6** |
+| one spike in a uniform spread | 9 of 32 | 12–17 | **6–10** |
+| heavy tail | 5 of 32 | 2–5 | 3–4 |
+| uniform | 0 of 32 | 0 | 0 |
+| gaussian | 4 of 32 | 1–2 | 2–3 |
+| seven values, heavily repeated | 28 of 32 | 75 | **0** |
 
-**A third of the column fell in the gap; now about one and a half per
-cent does** -- and nothing consumes the histogram to do it. The ladder
-carries the shape and the allotment gives it the multiplicities, which
-is what a histogram was wanted for. Before any further histogram
-fidelity work is built, that measurement should be repeated across more
-shapes: the remaining question is not "can the histogram be consumed"
-but "is there a shape left that the ladder and the allotment still get
-wrong", and it is cheaper to look for one than to build a mechanism for
-a defect that has mostly gone. This is the ask-what-consumes-the-fact
-rule the phase has already paid for twice.
+**THE SHAPES THE HISTOGRAM WAS WANTED FOR ARE THE ONES THIS FIXES.** A
+third of a bimodal column fell in its gap and now one and a half per
+cent does; a trimodal column was worse and is now the same; and the
+hardest shape of all -- seven values with twenty-eight of thirty-two
+bins empty, which is what a real code column looks like -- went from
+seventy-five stray cells to NONE. Nothing consumes the histogram to do
+any of it: the ladder carries the shape and the allotment gives it the
+multiplicities, which is what a histogram was wanted for.
+
+Two shapes moved the other way by one or two cells of three hundred --
+the heavy tail and the plain gaussian -- and both are columns whose
+source leaves few bins empty in the first place. That is inside the
+noise of a single seed and is recorded rather than smoothed over.
+
+**WHAT THIS MEANS FOR THE HISTOGRAM LANDING.** Its FACT is built and
+landed on `phase-4-histogram`. Its FIDELITY was built, measured and
+withdrawn there because it fought every other fact in the block. The
+measurement above says the defect it was to have repaired has largely
+gone without it, so the question to answer before building it again is
+not "can the histogram be consumed" but "which shape is still wrong",
+and eight shapes have now been asked. This is the
+ask-what-consumes-the-fact rule the phase has already paid for twice.
 
 **R-P4-49 IS ANSWERED AND BUILT (owner ruling 2026-08-28: statistical
 fidelity is the priority).** The allotment follows the ladder's own
