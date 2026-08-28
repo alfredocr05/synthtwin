@@ -160,7 +160,8 @@ rule and the refusal in the loader section.
 (owner ruling 2026-08-26, plan amendment A-P4-41). Keys and a role
 were added to version 6 after it was declared -- `kurtosis`,
 `n_distinct_values`, `value_histogram`, `pad_widths`,
-`forced_codes`, `forced_measurements`, the census of written forms,
+`forced_codes`, `forced_measurements`, `forced_decimal_commas`,
+the census of written forms,
 `min_length` and `max_length` on the unrepresentable role,
 `value_histogram` on the numeric roles, and the joined-numbers role -- each time on the argument that no version 6
 description exists outside this repository. The owner accepted that
@@ -641,7 +642,7 @@ written" hides a warning the profile is carrying (plan P2-D6).
 
 ### 4.4 `settings`
 
-An object with exactly these seventeen keys. Its whole subtree is
+An object with exactly these twenty keys. Its whole subtree is
 LOADER-ONLY: nothing in it is an output obligation, and the generator
 reads it only to interpret floor-governed facts elsewhere in the
 document.
@@ -660,9 +661,10 @@ claim.
 | `declaration_matching` | string | exactly `exact_number_when_it_reads_as_one_else_spelling` | the one rule that says which cells a declared value matches: a declared value that reads as a number this format can hold matches every cell holding that EXACT NUMBER, whatever either is spelled like, so `-999` covers a file that writes `-999.00`; any other declared value matches by spelling, after trimming and case folding |
 | `declaration_publication` | string | exactly `settings_counts_only_columns_unchanged` | what this block publishes about a declaration and what it does not: counts and synthtwin's own words here, and the columns unchanged |
 | `declared_missing_values` | object | exactly the five keys below | the declaration record for `--missing-value` |
-| `forced_measurements` | array of strings | — | the names the person passed to `--measurement`, sorted ascending, pairwise distinct. A column named here whose cells hold two or more numbers joined by one repeated separator takes the `joined_numbers` role of section 6.15; a column named here whose cells do not are read by the ordinary rules, so the declaration decides nothing on its own. A name may not appear in more than one of the three declaration arrays |
 | `forced_codes` | array of strings | — | the names the person passed to `--code`, sorted ascending, pairwise distinct. A column named here is read as LABELS: the rules that read a cell as a number, a date, a clock time or a number wearing an affix are silenced for it, so the roles left are the five that publish spellings. Unlike `forced_identifiers` this does NOT suppress the column — its distribution is why it was declared. A name may not appear in both arrays |
+| `forced_decimal_commas` | array of strings | — | the names the person passed to `--decimal-comma`, sorted ascending, pairwise distinct. A column named here, AND READ AS PLAIN NUMBERS, has its numbers READ with the comma as the decimal point and the point dropped, so `1,5` is one and a half and `1.234,56` is one thousand two hundred and thirty-four and fifty-six hundredths; and the twin WRITES that column's numbers the same way, because a column declared this way and reproduced with points hands a person cells their own tools read as thousands separators. TWO QUESTIONS LIVE HERE AND THEY HAVE DIFFERENT ANSWERS, which an earlier revision of this row ran together. **Where the declaration is HONOURED** — where the published description differs because it was made — is `binary`, `constant`, `continuous`, `count` and `numeric_unrepresentable`. The profiler swaps a declared column's cells BEFORE it chooses a role, so `constant` and `binary`, which are chosen ahead of the numeric roles, read with the comma exactly as the numeric ones do; an earlier revision named only the last three and the tool told those columns' owners their numbers were "NOT read" that way about a description whose profiler had read exactly that way. **Where the GENERATOR must spell the numbers itself** is narrower: the numeric and unrepresentable roles, whose cells it writes as numbers. A `constant` column's twin writes the published spelling straight out, so there is nothing to swap and swapping would corrupt it. Every OTHER role is unhonoured, because its cells carry the number inside a larger spelling — an affix around it, a separator between several, or a label published character for character — and which mark of that spelling is the decimal point is a question this declaration does not answer (residual R-P4-52). A declaration that lands on such a column is honoured for nothing, and `synthtwin profile` SAYS SO on the screen, naming the column and the role it took; the array still records what was declared, because what a person asked for is part of how the description was made. THIS IS NOT ONE OF THE THREE ROLE DECLARATIONS and does not share their exclusion rule: they are three answers to the question *what does this column hold* and no column may carry two of them, while this answers *how are its numbers spelled*. A column may therefore be named here AND in `forced_measurements` — that pairing is the commonest true thing a person has to say about a European file. It may NOT be named here and in `forced_identifiers` or `forced_codes`: both of those silence the numeric reading, so the declaration would be accepted and then ignored, and a declaration a tool quietly ignores is worse than one it refuses. No heuristic ever adds a name to this array (P4-D26) |
 | `forced_identifiers` | array of strings | — | the names the person passed to `--identifier`, sorted ascending, pairwise distinct |
+| `forced_measurements` | array of strings | — | the names the person passed to `--measurement`, sorted ascending, pairwise distinct. A column named here whose cells hold two or more numbers joined by one repeated separator takes the `joined_numbers` role of section 6.15; a column named here whose cells do not are read by the ordinary rules, so the declaration decides nothing on its own. A name may not appear in more than one of the three declaration arrays |
 | `identifier_minimum_rows` | integer | ≥ 0 | below this many rows nothing is said about a column being all-different, because in a short column almost every measurement is. It decides no role |
 | `identifier_uniqueness` | number | 0.0 ≤ x ≤ 1.0 | how different a column's values have to be before synthtwin SAYS SO. It decides no role: nothing decides the identifier role but the person who owns the table |
 | `kept_values` | object | exactly the five keys below | the declaration record for `--keep-value` |
@@ -673,9 +675,9 @@ claim.
 | `sentinel_outlier_iqr_multiple` | number | ≥ 0.0 | how many interquartile ranges beyond the quartiles of the column's other numbers a stand-in candidate must lie to count as an outlier |
 | `small_cell_floor` | integer | ≥ 1 | the disclosure floor: the smallest number of rows a group may cover and still be NAMED anywhere in this description |
 
-**C6-20 (membership).** All NINETEEN keys are REQUIRED. No other key
+**C6-20 (membership).** All TWENTY keys are REQUIRED. No other key
 may appear under `settings`; a loader refuses one that does, naming
-it. A block of eighteen keys or of twenty — one of the nineteen
+it. A block of nineteen keys or of twenty-one — one of the twenty
 skipped, or a key of somebody's own added — is a document this
 contract does not describe.
 
@@ -875,14 +877,31 @@ description was written from.
 
 #### The remaining settings invariants
 
-**Invariant S8.** Every name in `forced_identifiers` AND every name in
-`forced_codes` is the `name` of some column block. A name that matches
-no column is a refusal: it means the profile and the schema disagree
-about which columns were declared. The two arrays are checked
-separately and by the same rule, so a misspelt `--code` name is
-refused exactly as a misspelt `--identifier` name is — and for the
+**Invariant S8.** Every name in EACH of the four declaration arrays —
+`forced_identifiers`, `forced_codes`, `forced_measurements` and
+`forced_decimal_commas` — is the `name` of some column block. A name
+that matches no column is a refusal: it means the profile and the
+schema disagree about which columns were declared. The arrays are
+checked separately and by the same rule, so a misspelt `--code` name
+is refused exactly as a misspelt `--identifier` name is — and for the
 same reason, which is that a description in which a coding system was
 quietly read as a quantity must not be produced by a typo.
+
+**Invariant S8a (no column carries two readings).** No name appears in
+`forced_decimal_commas` and also in `forced_codes` or in
+`forced_identifiers`. THIS IS A DIFFERENT FAULT FROM S8 AND CARRIES ITS
+OWN CODE, because the two say different things to a reader: S8 says a
+declared name is not a column of this table, and this says the name IS
+a column and has been given two readings that cannot both be acted on.
+A column read as codes or as record numbers is not read as numbers at
+all, so the comma reading could never be used, and a document carrying
+both would have the declaration recorded and silently ignored. The
+command line refuses the pair when both are typed; this is where a
+document that carries it anyway is refused.
+
+The three ROLE declarations are governed separately and more strictly,
+because they are three answers to one question: no column may carry two
+of them at all. That rule is stated with them in 4.4.
 
 **Invariant S9.** `categorical_floor <= categorical_ceiling`.
 
@@ -6391,14 +6410,15 @@ a document, so no document can violate it.
 | S5 | `source.used_fallback_encoding` is true exactly when `source.encoding == "latin-1"` | yes |
 | S6 | `source.header_by_convention` true implies `source.header_source == "file"`; generated names are not a convention about somebody's first record | yes |
 | S7 | `values_recorded` is `false` in both declaration records — neither carries the text the person typed; `true` is refused, naming an older profile that recorded spellings under this key | yes |
-| S8 | every name in `settings.forced_identifiers` and every name in `settings.forced_codes` is some column's `name`; a name matching no column means the profile and the schema disagree | yes |
+| S8 | every name in each of the four declaration arrays — `forced_identifiers`, `forced_codes`, `forced_measurements`, `forced_decimal_commas` — is some column's `name`; a name matching no column means the profile and the schema disagree | yes |
+| S8a | no name is in `forced_decimal_commas` and also in `forced_codes` or `forced_identifiers`; those two silence the numeric reading, so the comma declaration could never be used and would be recorded and ignored | yes |
 | S9 | `settings.categorical_floor <= settings.categorical_ceiling` | yes |
 | S10 | every `publication_notes[i].column` is some column's `name` | yes |
 | S11 | `publication_notes` is grouped by column in schema order, and within one column in producer emission order; the grouping is decidable, the within-column order canonical bytes a loader does not re-derive | yes |
 | S12 | `relationships` has exactly the eight reserved keys, no ninth, every value exactly `null` | yes |
 | S13 | at `small_cell_floor` 1 every field carrying what the floor held back is empty or zero, over 4.4's closed list; on `missing_by_class`, `utc_offsets`, `numeric_styles` and `fraction_widths` the `(withheld)` ENTRY goes, never the map. Checked before any column block is read | yes |
 | S14 | each declaration record has exactly five keys | yes |
-| C6-20 | `settings` has exactly its seventeen keys; sixteen or eighteen is a document this contract does not describe | yes |
+| C6-20 | `settings` has exactly its twenty keys; nineteen or twenty-one is a document this contract does not describe | yes |
 | C6-53 | a column block's key set is exactly the twenty-two universal keys plus the marked cells of its role's column in the forbidden-key matrix; every other key is FORBIDDEN, and refused by name | yes |
 
 **Four membership rules of this part carry no identifier**, so no list
@@ -6923,19 +6943,21 @@ together on 2026-08-26.
 | `separator` | EXACT-OBSERVABLE. The twin writes the same mark with the same spacing around it, so a reader splitting on it reads the twin as it reads the table (P4-D24) |
 | `n_parts` | EXACT-OBSERVABLE over the SPLIT cells. The `n_joined` cells hold this many numbers each; the `n_unparsed` cells are counted stand-ins and hold none, so a rule stated over every PRESENT cell would be false of them |
 | `n_joined`, `n_unparsed` | EXACT-OBSERVABLE. Counts of the cells the reading took and the cells it did not; the unsplit remainder is written as counted stand-ins |
-| `parts[]` | EACH POSITION CARRIES A QUANTITATIVE BLOCK AND TAKES 9.4's DISPOSITIONS, because the generator hands each position to the same machinery: its endpoints and ladder rungs, its moments, its sign and zero counts and its censuses are disposed exactly as `count` and `continuous` are. **What the VALIDATOR checks of a position is narrower than what this row disposes** — the two endpoints and the whole-number test, not the styles or the fraction census — so a checked file may carry a position whose spellings disagree with the description and pass. That gap is residual R-P4-43 and is named here rather than left for a reader to infer from a green report |
+| `parts[]` | EACH POSITION CARRIES A QUANTITATIVE BLOCK AND TAKES 9.4's DISPOSITIONS, because the generator hands each position to the same machinery: its endpoints and ladder rungs, its moments, its sign and zero counts and its censuses are disposed exactly as `count` and `continuous` are. The validator checks a position's spellings as well as its endpoints (residual R-P4-43, closed 2026-08-27), and counts a cell into a position only where the cell splits into exactly `n_parts` pieces AND every piece reads as a number — the profiler's own test, so a stand-in the parse line tolerated is never measured into a position it does not belong to |
 | `part_min_widths` | EXACT-OBSERVABLE per position — the SMALLEST written width of that position's cells, one number per position and no maximum. A count of characters, never a value. The key names what it holds: there is no published upper width for a position |
 | `part_above` | EXACT-OBSERVABLE per PAIR. It is a number of rows, and a row out of it is a cell holding a reading that cannot happen — a diastolic above its systolic — so it is pinned rather than windowed |
-| `part_agreements` | APPROXIMATED per pair. It is published rounded and reached by a walk that stops when it is close enough. **The twin's report does NOT name it** — see R-P4-44 above; the quality report does. **The window is fixed by plan P4-D25 and NOT by either method specification**, which carry no joined-agreement clause at all — recorded here rather than stated as though a specification held it (residual R-P4-42) |
+| `part_agreements` | APPROXIMATED per SCORED pair, and the qualifier is load-bearing. The window is method G12.9's — two hundredths either side, published there rather than in a plan (residual R-P4-42, closed 2026-08-27) — and both the twin's report and the quality report name the fact and measure it at the same precision the description publishes it at. A pair is SCORED only where the last position is one of its two, because the pairing walk moves the last position and no other; a pair between two earlier positions is not aimed at, is not approximated, and G12.9 states that its window does not reach such a pair. Where such a pair misses, the twin's report names it as a deviation with no closeness claimed for it (residual R-P4-51) |
 
-**NO APPROXIMATED FACT OF THIS ROLE REACHES THE TWIN'S REPORT, and
-that is a defect this document states rather than a rule it makes**
-(residual R-P4-44). `_approximations` returns an empty list for the
-role, so a twin of a joined column carries a report saying "This twin
-has no approximated fact at all" while every position's ladder and
-both pairing aggregates are approximated by construction. The same
-defect was found and repaired one role earlier, on `affixed_number`,
-and was not carried across.
+**THE APPROXIMATED FACTS OF THIS ROLE REACH THE TWIN'S REPORT**
+(residual R-P4-44, closed 2026-08-27). Until they did, a twin of a
+joined column carried a report saying "This twin has no approximated
+fact at all" while every position's ladder and the pairing's agreement
+were approximated by construction — the same defect found and repaired
+one role earlier, on `affixed_number`, and not carried across. Each
+record NAMES its position, in the identifier and in the sentence, so
+two positions' rungs are told apart; and only facts each position's own
+block publishes are compared, so no per-position line appears for a
+fact the description publishes for whole cells alone.
 
 **What this role does NOT hold exactly, stated here rather than left to
 be discovered.** The count of different CELLS is not always reached:
@@ -7498,38 +7520,42 @@ version 5 document reads "version 5":
 > 6 description records things an older description does not — which
 > of synthtwin's own words for "no value" you named on the command
 > line, and how dates whose day and month are both numbers were read —
-> so this file cannot be read back exactly. Please make the description again by running
-> 'synthtwin profile' on your table, giving it every option you gave
-> the first time: --keep-value, --missing-value, --identifier, --code,
-> --measurement, --smallest-group, --first-row and --day-first. Every
-> one of them
-> changes what the description PUBLISHES about your table, so any
-> option you leave out can put something into the new description that
-> the old one held back: without the --smallest-group you gave, a
-> value that fewer rows share can be named; without the --identifier
-> you gave, a column of record numbers is described like any other
-> column; without the --code you gave, a column of codes is described
-> as measurements, so its smallest and largest values — which are real
-> codes — are published and its twin loses any leading zeros; without
-> the --measurement you gave, a column of readings written as two
-> numbers in one cell, such as a blood pressure, is described as text
-> and its twin holds no readings at all; without
-> the --missing-value you gave, a stand-in is read as
-> a real reading, and the stand-in itself can be published as the
-> column's smallest value; without the --keep-value you gave, a word
-> you had counted as an ordinary value becomes a gap, which can change
-> what kind of column synthtwin sees and publish both that word and
-> the column's own numbers; without the --first-row you gave, the
-> first line of your file is read as the column names and published as
-> them; and without the --day-first you gave, a date whose day and
-> month are both written as numbers — with slashes, with dots, or with
-> a two-figure year — can be read the other way round, which changes
-> the dates the description publishes and can leave the column
-> described as text instead. If you
-> do not hold the table yourself, ask whoever made this description to
-> run it again for you. Read the summary page synthtwin writes beside
-> the new description before either file goes anywhere, and use the
-> description exactly as synthtwin writes it.
+> so this file cannot be read back exactly. Please make the
+> description again by running 'synthtwin profile' on your table,
+> giving it every option you gave the first time: --keep-value,
+> --missing-value, --identifier, --code, --measurement,
+> --decimal-comma, --smallest-group, --first-row and --day-first.
+> Every one of them changes what the description PUBLISHES about your
+> table, so any option you leave out can put something into the new
+> description that the old one held back: without the --smallest-group
+> you gave, a value that fewer rows share can be named; without the
+> --identifier you gave, a column of record numbers is described like
+> any other column; without the --code you gave, a column of codes is
+> described as measurements, so its smallest and largest values —
+> which are real codes — are published and its twin loses any leading
+> zeros; without the --measurement you gave, a column of readings
+> written as two numbers in one cell, such as a blood pressure, is
+> described as text and its twin holds no readings at all; without the
+> --decimal-comma you gave, a column whose numbers are written with a
+> comma where the decimal point goes is read by the ordinary rules, so
+> a column of quantities is described as text and every number in it
+> is lost, or a value such as 1,234 is published as one thousand two
+> hundred and thirty-four; without the --missing-value you gave, a
+> stand-in is read as a real reading, and the stand-in itself can be
+> published as the column's smallest value; without the --keep-value
+> you gave, a word you had counted as an ordinary value becomes a gap,
+> which can change what kind of column synthtwin sees and publish both
+> that word and the column's own numbers; without the --first-row you
+> gave, the first line of your file is read as the column names and
+> published as them; and without the --day-first you gave, a date
+> whose day and month are both written as numbers — with slashes, with
+> dots, or with a two-figure year — can be read the other way round,
+> which changes the dates the description publishes and can leave the
+> column described as text instead. If you do not hold the table
+> yourself, ask whoever made this description to run it again for you.
+> Read the summary page synthtwin writes beside the new description
+> before either file goes anywhere, and use the description exactly as
+> synthtwin writes it.
 
 **Why it names eight options and prices each.** `--measurement` joined
 them on 2026-08-26 with the fourteenth role (plan P4-D21): a re-run
@@ -8402,11 +8428,12 @@ cells, defined in 6.11. Not reproduced here; a matrix is not a list.
 
 ### 14.3 Settings and declarations
 
-**`settings` keys — 19** (4.4), in the ascending code-point order every
+**`settings` keys — 20** (4.4), in the ascending code-point order every
 object of a canonical document takes: `categorical_ceiling`,
 `categorical_floor`, `categorical_share`, `day_first`,
 `declaration_matching`, `declaration_publication`,
-`declared_missing_values`, `forced_codes`, `forced_identifiers`,
+`declared_missing_values`, `forced_codes`, `forced_decimal_commas`,
+`forced_identifiers`,
 `forced_measurements`,
 `identifier_minimum_rows`, `identifier_uniqueness`, `kept_values`,
 `long_tail_minimum_level`, `minimum_parse_rate`,

@@ -785,7 +785,18 @@ def test_a_range_that_misses_the_published_value_says_so_where_it_happens(
             f"value and the report says so {run.report.count(sentence)} "
             f"time(s)"
         )
-        assert "THE RANGE IS NOT A MARGIN" in run.report
+        # THE PREAMBLE'S CLAIM, at the width it can actually carry
+        # (review item P4-G3-R1-F7). It used to read "THE RANGE IS NOT
+        # A MARGIN AROUND THE DESCRIPTION'S VALUE", which stopped being
+        # true when method G12.9 gave the joined rank agreement a
+        # window of two hundredths either side of the published value.
+        # What the paragraph is FOR is unchanged and is what this
+        # pins: a reader must not take "inside the range" for "the two
+        # numbers are close".
+        assert "A RANGE IS NOT ALWAYS A MARGIN" in run.report
+        assert (
+            "it does not mean the two values are" in run.report
+        ), "the warning the paragraph exists for has gone"
 
 
 def _subcheck_of(fact: str) -> str:

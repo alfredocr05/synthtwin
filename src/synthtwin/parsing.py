@@ -1129,6 +1129,47 @@ def carries_a_group_comma(text: str) -> bool:
     return classify_number(text.strip()) == NUMBER
 
 
+def written_with_a_decimal_comma(text: str) -> str:
+    """One cell of a decimal-comma column, written the way this reads.
+
+    A person whose file writes `1,5` for one and a half is telling this
+    tool two things at once: the COMMA is their decimal point, and the
+    POINT is their thousands separator. Both roles swap, so the
+    transform is one pass -- drop every point, then read every comma as
+    a point -- and `1.234,56` becomes `1234.56`.
+
+    WHY THIS EXISTS AT ALL (plan P4-D26, residual R-P4-31). Without a
+    declaration such a file is not merely unread, it is read WRONG:
+    `1,5` is not a number to this reader at all, so the value is lost,
+    and `1,234` IS one -- a valid thousands group -- so it reads as one
+    thousand two hundred thirty-four where the person meant one and a
+    quarter. The second is the dangerous one, because nothing about it
+    looks like a failure.
+
+    THIS IS A TEXT TRANSFORM AND NOT A READING. It says what the cell
+    would have looked like written the way this tool reads, so every
+    rule downstream is the rule it always was. It is applied only to
+    columns a person NAMED, because a comma inside an address or a
+    note is not a decimal point and no rule here can tell the
+    difference -- which is exactly why the declaration exists.
+
+    Guarantees: accepts any string; returns a string; raises TypeError
+    if handed anything that is not a string instance. Determinism: a
+    function of the text. No I/O of any kind.
+    """
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT)
+    out = ""
+    for character in text:
+        if character == ".":
+            continue
+        if character == ",":
+            out = out + "."
+            continue
+        out = out + character
+    return out
+
+
 def parse_number(text: str) -> "float | None":
     """Read ``text`` as a number, or return None if it is not one.
 
@@ -2871,6 +2912,66 @@ def rank_agreement(first: "list[float]", second: "list[float]") -> float:
     if spread_left <= 0.0 or spread_right <= 0.0:
         return 0.0
     return float(top / ((spread_left * spread_right) ** 0.5))
+
+
+
+def reads_as_two_numbers(text: str) -> bool:
+    """Whether this spelling denotes a DIFFERENT number under the two
+    numeric grammars this tool can read a column with.
+
+    THE ONE PLACE A PER-COLUMN READING AND A TABLE-WIDE DECLARATION
+    COLLIDE (plan amendment for P4-D26; review items P4-G3-R6-F1, F2
+    and F5). `--decimal-comma` names COLUMNS; `--keep-value` and
+    `--missing-value` name VALUES and reach the whole table. A spelling
+    whose number depends on which grammar reads it therefore means one
+    thing on a declared column and another everywhere else, and the
+    description has one settings block in which to record it. That is
+    not a bug in any one function -- it is a fact about the two
+    declarations, and it cannot be recorded truthfully.
+
+    Most spellings are safe: `NA`, `unknown` and `-999` read the same
+    way under both, because neither carries a mark the two grammars
+    disagree about. `-9.99`, `1,234` and `-999,0` do not.
+
+    Guarantees: accepts one spelling; returns whether its number
+    differs between the two readings, counting "no number at all" as a
+    reading of its own. Determinism: a fixed function of the text.
+    Errors raised: TypeError if handed anything that is not a string.
+    No I/O of any kind.
+    """
+    if not isinstance(text, str):
+        raise TypeError("reads_as_two_numbers needs text")
+    swapped = written_with_a_decimal_comma(text)
+    if swapped == text:
+        return False
+    return exact_of_spelling(text) != exact_of_spelling(swapped)
+
+# HOW CLOSE A TWIN'S RANK AGREEMENT HAS TO COME, method G12.9, kept
+# HERE rather than beside either reader of it.
+#
+# Two places hold a twin to this number and they must never drift: the
+# generation report, which measures the twin it just wrote, and the
+# validator, which re-describes a file and checks it. If the report
+# promised one reach while the check used another, one of them would
+# call a twin sound and the other would call a file of the very same
+# numbers missed -- and which of the two a person believed would depend
+# on which command they happened to run.
+#
+# It cannot live in `generation`: the validator may not import the
+# generator, so that its verdicts cannot inherit the planner's own
+# defects. It cannot live in `validation` for the mirror reason. This
+# module is imported by both and already owns `rank_agreement`, the
+# function that computes the very quantity the window bounds, so the
+# number and its meaning stay in one place.
+RANK_AGREEMENT_WINDOW = 0.02
+
+# The places a published rank agreement is written to, so the number a
+# report prints and the number a re-description would find are the same
+# number. `profile` rounds the published value here; anything measuring
+# a twin against it has to round the same way or the two disagree at
+# the edge of the window -- 0.020018 is outside a reach of 0.02 raw and
+# inside it once rounded, and a fact cannot be both.
+RANK_AGREEMENT_PLACES = 4
 
 
 # HOW MANY BINS A HISTOGRAM OF NUMBERS HAS, and it is a fixed count on

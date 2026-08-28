@@ -212,6 +212,33 @@ CASES: "dict[str, tuple[object, ...]]" = {
     # nothing at all: a run ended at a question has no particulars, and
     # the same words are owed to everybody who ends one.
     "column_declared_twice": ("record_code",),
+    # The refusal of the FOURTH declaration beside a declaration that
+    # would silence it (plan P4-D26). It takes the column name the
+    # person typed and the OTHER option they typed it with -- both
+    # already theirs, and both needed, because the sentence has to say
+    # which pair it is refusing and there are two such pairs.
+    "comma_declaration_would_be_ignored": ("weight", "--code"),
+    # NOT a refusal: the loud remark for a declaration that was
+    # accepted and then could not be honoured, because the column's
+    # role was not known until the table had been read (R-P4-52). It
+    # takes the column name the person typed and the role synthtwin
+    # read it as -- the second is synthtwin's own word and is the
+    # whole reason the sentence is worth printing.
+    "the_comma_declaration_did_not_reach": ("price", "free_text"),
+    # Also not a refusal: an ANSWER to a question can create the pair
+    # the flags refuse, and the answer is the newer statement, so the
+    # comma declaration is dropped rather than the run stopped. It
+    # takes the column name alone: which of the two other declarations
+    # the answer made is not what the person needs to be told, and the
+    # sentence says what was done and how to undo it.
+    "the_comma_declaration_was_answered_away": ("account",),
+    # The refusal of a declared VALUE whose number depends on which
+    # grammar reads it, beside `--decimal-comma` (R-P4-54). It takes
+    # the spelling the person typed and the option they typed it with:
+    # both are already theirs, and the sentence has to name which of
+    # the two value options it is refusing, because they mean opposite
+    # things and the advice differs by neither.
+    "a_declared_value_reads_two_ways": ("1,234", "--missing-value"),
     "the_questions_were_not_finished": (),
 }
 

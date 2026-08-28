@@ -1245,6 +1245,142 @@ def column_declared_twice(name: str) -> str:
     )
 
 
+def a_declared_value_reads_two_ways(spelling: str, option: str) -> str:
+    """Message for a declared VALUE whose number depends on the grammar.
+
+    THE ONE COMBINATION `--decimal-comma` CANNOT BE HONEST ABOUT (plan
+    amendment for P4-D26; review item P4-G3-R7-F1). `--decimal-comma`
+    names COLUMNS. `--keep-value` and `--missing-value` name VALUES and
+    reach every column in the table. A spelling whose number depends on
+    which grammar reads it therefore means one thing on a declared
+    column and another everywhere else -- and the description has one
+    settings block in which to record what was declared.
+
+    That is not a defect in any one function. It was carried for a
+    while as a residual on the argument that the consequence was
+    conservative -- a column's obligations withheld rather than
+    checked -- and THAT ARGUMENT WAS WRONG, which is why this refusal
+    exists. The count can fall on either side: two spellings that are
+    one number under the ordinary grammar and two under the comma one
+    make the recovery look complete when it is not, and the checked
+    file then receives MISSED verdicts on presence, role and its
+    numbers, against a description that is correct about all three.
+
+    So the pair is refused. What a person loses is the ability to name
+    a "no value" word that is itself grammar-dependent; what they keep
+    is every word that is not -- `NA`, `unknown`, `-999`, and any
+    spelling reading the same way under both.
+    """
+    return (
+        f"You named the value '{_shown(spelling)}' with {option}, and "
+        f"you also used --decimal-comma. Those cannot both be acted "
+        f"on: '{_shown(spelling)}' is one number when a column's "
+        f"numbers are written with a comma for the decimal point and a "
+        f"different number everywhere else, so synthtwin cannot record "
+        f"what you meant by it. The description has one place to say "
+        f"what a declared value is, and this value would need two. "
+        f"Choose a word that means the same thing either way -- a word "
+        f"with no digits in it, such as 'NA' or 'unknown', or a whole "
+        f"number such as -999 -- and run the command again. Nothing "
+        f"was written."
+    )
+
+
+def the_comma_declaration_was_answered_away(name: str) -> str:
+    """Message when an ANSWER withdraws a `--decimal-comma` column.
+
+    The command line refuses `--decimal-comma` beside `--code` or
+    `--identifier`, because both silence the numeric reading and the
+    declaration would be accepted and then ignored. A question answered
+    after the table is read can create the same pair, and the answer is
+    the newer statement -- the person has just been asked directly what
+    the column holds. So the comma declaration is dropped rather than
+    the run refused, and it is said out loud, because a declaration
+    that quietly stops applying is the thing this whole family of
+    checks exists to prevent.
+    """
+    return (
+        f"You named the column '{_shown(name)}' with --decimal-comma, "
+        f"and then answered that it holds codes or record numbers. "
+        f"Those cannot both be acted on: the comma reading is only "
+        f"used for columns read as numbers, and your answer says this "
+        f"column is not read as numbers. synthtwin has taken your "
+        f"answer and dropped the --decimal-comma for this column, so "
+        f"its values are kept exactly as your file writes them. If "
+        f"that is wrong, run the command again with --decimal-comma "
+        f"and answer that the column holds measurements."
+    )
+
+
+def the_comma_declaration_did_not_reach(name: str, role: str) -> str:
+    """Message when `--decimal-comma` lands on a role it cannot help.
+
+    NOT A REFUSAL, because nothing has gone wrong with the person's
+    file and a description was written. It is the loud remark
+    principle 5 asks for: a column is never silently miscast, and this
+    is the one case where a declaration is accepted and then cannot be
+    honoured (residual R-P4-52).
+
+    Which columns a declaration REACHES cannot be known before the
+    table is read, because it depends on the role the values take. So
+    the refusals that can be made early are made early -- a name the
+    table does not hold, a declaration beside one that would silence it
+    -- and this one is said afterwards, naming the column and the role
+    it landed on.
+    """
+    return (
+        f"The column '{_shown(name)}' was named with --decimal-comma, "
+        f"but synthtwin read it as {role}, and the comma reading is "
+        f"only used for columns read as plain numbers. Its numbers "
+        f"were NOT read with the comma as a decimal point, and its "
+        f"twin will not be written with one. This happens where a "
+        f"cell holds a number inside a larger spelling -- a unit or a "
+        f"currency mark around it, or a separator between two numbers "
+        f"-- because then synthtwin cannot tell which mark in the cell "
+        f"is the decimal point. The description that was written is "
+        f"correct about everything else, and says which columns were "
+        f"declared. If this column really does hold plain numbers, "
+        f"check whether something else in each cell -- a unit, a "
+        f"currency mark, a second number after a slash or a dash -- is "
+        f"being read as part of it, and run the command again with "
+        f"that column as it should be. If the cells really are that "
+        f"shape, leave the option off for this column: synthtwin "
+        f"cannot yet read a comma inside one of them, and the "
+        f"description is the same either way."
+    )
+
+
+def comma_declaration_would_be_ignored(name: str, other: str) -> str:
+    """Message for `--decimal-comma` on a column already silenced.
+
+    REFUSED BECAUSE IT WOULD BE IGNORED, which is the whole reason
+    (plan P4-D26). `--decimal-comma` says how a column's NUMBERS are
+    spelled, and both `--identifier` and `--code` stop the column being
+    read as numbers at all -- so accepting the pair would take an
+    instruction, do nothing with it, and leave the person believing
+    they had corrected their file's reading. A declaration a tool
+    quietly ignores is worse than one it refuses, because only the
+    refusal is visible.
+
+    `--measurement` is NOT refused beside it: that pair is coherent and
+    is the commonest true thing a person has to say about a file whose
+    quantities are written with commas.
+    """
+    return (
+        f"The column '{_shown(name)}' was named with both "
+        f"--decimal-comma and {other}, and synthtwin would have to "
+        f"ignore one of them. --decimal-comma says the numbers in a "
+        f"column are written with a comma where the decimal point "
+        f"goes, so '1,5' means one and a half. {other} stops the "
+        f"column being read as numbers at all, so there would be no "
+        f"number left for the comma to be part of. Decide which one "
+        f"this column needs -- if its cells really are quantities, "
+        f"drop {other}; if they are codes or record numbers, drop "
+        f"--decimal-comma -- and run the command again. Nothing was "
+        f"written."
+    )
+
+
 # -- reading a description back: the strict loader's refusals ---------
 #
 # Nineteen ways reading a profile document can fail, one message each,
@@ -1474,14 +1610,15 @@ def profile_version_is_older(found: int, reads: int) -> str:
         f"description again by running 'synthtwin profile' on your "
         f"table, giving it every option you gave the first time: "
         f"--keep-value, --missing-value, --identifier, --code, "
-        f"--measurement, --smallest-group, --first-row and --day-first. "
+        f"--measurement, --decimal-comma, --smallest-group, --first-row "
+        f"and --day-first. "
         f"Every one of them changes what the "
         f"description PUBLISHES about your table, so any option you "
         f"leave out can put something into the new description that the "
         f"old one held back: without the --smallest-group you gave, a "
         f"value that fewer rows share can be named; without the "
         f"--identifier you gave, a column of record numbers is "
-        f"described like any other column; without the --code you gave, a column of codes is described as measurements, so its smallest and largest values \u2014 which are real codes \u2014 are published and its twin loses any leading zeros; without the --measurement you gave, a column of readings written as two numbers in one cell, such as a blood pressure, is described as text and its twin holds no readings at all; without the --missing-value "
+        f"described like any other column; without the --code you gave, a column of codes is described as measurements, so its smallest and largest values \u2014 which are real codes \u2014 are published and its twin loses any leading zeros; without the --measurement you gave, a column of readings written as two numbers in one cell, such as a blood pressure, is described as text and its twin holds no readings at all; without the --decimal-comma you gave, a column whose numbers are written with a comma where the decimal point goes is read by the ordinary rules, so a column of quantities is described as text and every number in it is lost, or a value such as 1,234 is published as one thousand two hundred and thirty-four; without the --missing-value "
         f"you gave, a stand-in is read as a real reading, and the "
         f"stand-in itself can be published as the column's smallest "
         f"value; without the --keep-value you gave, a word you had "

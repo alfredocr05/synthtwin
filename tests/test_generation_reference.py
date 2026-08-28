@@ -282,6 +282,7 @@ def _settings(declared: list) -> dict:
         # measurement column: every case here is built from the
         # generation method's own text.
         "forced_measurements": [],
+        "forced_decimal_commas": [],
     }
 
 

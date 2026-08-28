@@ -440,6 +440,7 @@ class _Options:
     identifiers: list[str]
     codes: list[str]
     measurements: list[str]
+    decimal_commas: list[str]
     kept_values: list[str]
     missing_values: list[str]
     first_row: str
@@ -616,6 +617,33 @@ def _parse_arguments(argv: "list[str] | None") -> _Options:
         ),
     )
     parser.add_argument(
+        "--decimal-comma",
+        action="append",
+        default=None,
+        metavar="COLUMN",
+        help=(
+            "name a column whose numbers are written with a COMMA where "
+            "the decimal point goes, as they are in much of Europe: "
+            "'1,5' for one and a half, '1.234,56' for one thousand two "
+            "hundred and thirty-four and fifty-six hundredths. Without "
+            "this, synthtwin reads such a column by its own default and "
+            "gets it wrong in one of two ways -- '1,5' is not a number "
+            "at all and the column is described as text, or '1,234' "
+            "reads as one thousand two hundred and thirty-four. The "
+            "twin also WRITES that column's numbers with a comma, so "
+            "your own tools read the twin as they read your table. "
+            "synthtwin never guesses this: a comma inside an address or "
+            "a note is not a decimal point, so it changes the reading "
+            "only for the columns you name. It reaches a column read as "
+            "PLAIN NUMBERS, and not one whose cells hold a number "
+            "inside a larger spelling -- a unit or a currency mark "
+            "around it, or a separator between two numbers -- because "
+            "then synthtwin cannot tell which mark is the decimal "
+            "point; where that happens it says so and reads the column "
+            "as it otherwise would. May be given more than once"
+        ),
+    )
+    parser.add_argument(
         "--measurement",
         action="append",
         default=None,
@@ -754,6 +782,9 @@ def _parse_arguments(argv: "list[str] | None") -> _Options:
     named = args.identifier if args.identifier is not None else []
     code_named = args.code if args.code is not None else []
     measured_named = args.measurement if args.measurement is not None else []
+    comma_named = (
+        args.decimal_comma if args.decimal_comma is not None else []
+    )
     kept = args.keep_value if args.keep_value is not None else []
     declared_missing = (
         args.missing_value if args.missing_value is not None else []
@@ -773,6 +804,7 @@ def _parse_arguments(argv: "list[str] | None") -> _Options:
         identifiers=list(named),
         codes=list(code_named),
         measurements=list(measured_named),
+        decimal_commas=list(comma_named),
         kept_values=list(kept),
         missing_values=list(declared_missing),
         first_row=f"{args.first_row}",
@@ -1242,6 +1274,7 @@ def _run_profile(
     forced_identifiers: list[str],
     forced_codes: list[str],
     forced_measurements: list[str],
+    forced_decimal_commas: list[str],
     kept_values: list[str],
     missing_values: list[str],
     first_row: str,
@@ -1269,13 +1302,40 @@ def _run_profile(
     run that must never touch it (plan P2-D1). This is the only place in
     the package where the reader is reached from the command line.
     """
-    from synthtwin import profile, reading, summary, taxonomy
+    from synthtwin import contract, profile, reading, summary, taxonomy
 
     if smallest_group < 1:
         _warn(errors.floor_not_positive(f"{smallest_group}"))
         return 2
+    # UNDER BOTH READINGS WHERE EITHER IS IN PLAY (review item
+    # P4-G3-R6-F2). `--decimal-comma` names columns and these two name
+    # values that reach the whole table, so a pair that is one number
+    # on a declared column and two numbers elsewhere is still a pair
+    # the person cannot have meant both halves of.
+    # A DECLARED VALUE WHOSE NUMBER DEPENDS ON THE GRAMMAR IS REFUSED
+    # BESIDE `--decimal-comma` (plan amendment; review item
+    # P4-G3-R7-F1). The two kinds of declaration disagree about scope
+    # -- one names columns, the other names values and reaches the
+    # whole table -- and the settings block has one place to record
+    # what a value means. Carried as a residual for a round on the
+    # argument that the consequence was merely conservative; the
+    # argument was refuted with a case where a checked file receives
+    # MISSED verdicts on presence, role and its numbers against a
+    # description correct about all three.
+    if forced_decimal_commas:
+        for spelling, option in (
+            [(one, "--keep-value") for one in kept_values]
+            + [(one, "--missing-value") for one in missing_values]
+        ):
+            if not parsing.reads_as_two_numbers(spelling):
+                continue
+            _warn(errors.a_declared_value_reads_two_ways(spelling, option))
+            return 2
+
     clashes = taxonomy.contradictory_declarations(
-        tuple(kept_values), tuple(missing_values)
+        tuple(kept_values),
+        tuple(missing_values),
+        bool(forced_decimal_commas),
     )
     if clashes:
         _warn(
@@ -1341,6 +1401,44 @@ def _run_profile(
         )
         return 2
 
+    unknown_commas = [
+        name
+        for name in forced_decimal_commas
+        if name not in read.column_names
+    ]
+    if unknown_commas:
+        _warn(
+            errors.unknown_column_named(
+                "writing its numbers with a comma",
+                unknown_commas[0],
+                read.column_names,
+            )
+        )
+        return 2
+
+    # THE FOURTH DECLARATION IS NOT ONE OF THE THREE, and its refusals
+    # are its own (plan P4-D26). It says how a column's numbers are
+    # SPELLED, where the three below say what a column HOLDS, so it
+    # does not join their mutual exclusion: `--measurement dose
+    # --decimal-comma dose` is coherent and is the pairing this
+    # declaration exists for. What it cannot stand beside is a
+    # declaration that stops the column being read as numbers at all --
+    # then synthtwin would take the instruction and ignore it, and the
+    # person would never learn that it had.
+    for name in forced_decimal_commas:
+        if name in forced_identifiers:
+            _warn(
+                errors.comma_declaration_would_be_ignored(
+                    name, "--identifier"
+                )
+            )
+            return 2
+        if name in forced_codes:
+            _warn(
+                errors.comma_declaration_would_be_ignored(name, "--code")
+            )
+            return 2
+
     # A column named in two declarations at once is refused rather than
     # ranked: they ask for different readings and there is no reading of
     # the pair that is not a guess about which the person meant.
@@ -1356,7 +1454,12 @@ def _run_profile(
         return 2
 
     document = profile.build_document(
-        read, settings, forced_identifiers, forced_codes, forced_measurements
+        read,
+        settings,
+        forced_identifiers,
+        forced_codes,
+        forced_measurements,
+        forced_decimal_commas,
     )
 
     # THE ONE QUESTION THE VALUES CANNOT SETTLE (plan P4-D19). Asked
@@ -1366,6 +1469,28 @@ def _run_profile(
     # keyboard the same columns are named on screen with the option that
     # corrects them, and the run goes on: a scripted run must not hang,
     # and must not be guessed at in silence either.
+    # A DECLARATION THAT COULD NOT BE HONOURED IS SAID OUT LOUD
+    # (residual R-P4-52; review item P4-G3-R2-F4). Which columns
+    # `--decimal-comma` reaches depends on the ROLE the values take,
+    # which is not known until the table has been read -- so the
+    # refusals that can be made early were made early, and this one is
+    # said here. Without it a person who declares the comma on a
+    # column of `1,5/2,5` or `EUR 1,5` gets a description that read
+    # those numbers by the ordinary rules, with nothing on the screen
+    # saying so: principle 5's silent miscast, arriving through a
+    # declaration rather than through a guess.
+    for name in sorted(forced_decimal_commas):
+        for described_column in document["columns"]:
+            if described_column["name"] != name:
+                continue
+            if described_column["role"] in contract.DECIMAL_COMMA_HONOURED_ROLES:
+                continue
+            _warn(
+                errors.the_comma_declaration_did_not_reach(
+                    name, f"{described_column['role']}"
+                )
+            )
+
     asked_about = asking.questions_for(
         document, read.columns, settings, forced_identifiers + forced_codes
     )
@@ -1385,13 +1510,73 @@ def _run_profile(
                 forced_measurements = sorted(
                     forced_measurements + new_measured
                 )
+                # THE THREE ROLE DECLARATIONS ARE STILL THREE ANSWERS
+                # TO ONE QUESTION, and an answer replaces the earlier
+                # one rather than joining it (review item P4-G3-R4-F3).
+                # The questions are suppressed for a column already
+                # declared a code or a record number, but NOT for one
+                # declared a measurement -- so `--measurement dose`
+                # answered "code" put `dose` into both arrays, which
+                # the command line refuses when both are typed and the
+                # contract forbids outright. The newer statement wins,
+                # exactly as it does for the comma declaration below.
+                spoken_for = new_codes + new_identifiers
+                forced_measurements = [
+                    named
+                    for named in forced_measurements
+                    if named not in spoken_for
+                ]
+                forced_codes = [
+                    named
+                    for named in forced_codes
+                    if named not in new_identifiers
+                ]
+                # AN ANSWER CAN CREATE THE PAIR THE FLAGS REFUSE
+                # (review item P4-G3-R3-F3). The conflict checks above
+                # run on what was TYPED, and a question answered "this
+                # column holds codes" can put a column into
+                # `forced_codes` that `--decimal-comma` already names
+                # -- the pair that is refused on the command line,
+                # arriving by a route that never rechecked. The
+                # declaration would then be recorded and silently
+                # ignored. So the same rule is applied to the answer,
+                # and here it drops the comma declaration rather than
+                # refusing the run: the person has just said, in
+                # answer to a direct question, what the column holds,
+                # and that is the newer and better-informed statement.
+                dropped: "list[str]" = []
+                kept_commas: "list[str]" = []
+                for named in forced_decimal_commas:
+                    if named in forced_codes or named in forced_identifiers:
+                        dropped = dropped + [named]
+                        continue
+                    kept_commas = kept_commas + [named]
+                forced_decimal_commas = kept_commas
+                for named in dropped:
+                    _warn(
+                        errors.the_comma_declaration_was_answered_away(named)
+                    )
                 document = profile.build_document(
                     read,
                     settings,
                     forced_identifiers,
                     forced_codes,
                     forced_measurements,
+                    forced_decimal_commas,
                 )
+                # And the role check is asked again of the rebuilt
+                # description, for the same reason.
+                for name in sorted(forced_decimal_commas):
+                    for rebuilt in document["columns"]:
+                        if rebuilt["name"] != name:
+                            continue
+                        if rebuilt["role"] in contract.DECIMAL_COMMA_HONOURED_ROLES:
+                            continue
+                        _warn(
+                            errors.the_comma_declaration_did_not_reach(
+                                name, f"{rebuilt['role']}"
+                            )
+                        )
             answered = True
         else:
             _say(f"\n{_assumptions_notice(asked_about)}\n")
@@ -2190,6 +2375,7 @@ def main(argv: "list[str] | None" = None) -> int:
             options.identifiers,
             options.codes,
             options.measurements,
+            options.decimal_commas,
             options.kept_values,
             options.missing_values,
             options.first_row,

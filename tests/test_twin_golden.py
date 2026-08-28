@@ -269,8 +269,25 @@ def test_the_golden_run_is_the_shape_this_file_says_it_is(
 # fixture now ASKS for the eleven that used to be the default (plan
 # amendment A-P4-37 lowered it to one), so the description this file
 # pins describes the same table under the same rules it always did.
+#
+# RE-RECORDED FOR THE FOURTH DECLARATION (2026-08-27, plan P4-D26), and
+# THIS ONE MOVED WITH THE TWO REPORTS AND NOT WITH THE TWIN. The
+# settings block gained one key -- `forced_decimal_commas`, the columns
+# declared with `--decimal-comma`, empty in this run -- and nothing
+# else in the document moved. HOW IT WAS CHECKED, by this file's own
+# procedure: the new document was written out again with that one key
+# deleted from its settings block, and hashed; the result is the digest
+# this one replaces --
+# 21b0cf0a92fbf0d5911a288e47eff11e0c2048b2eac77015ce3cbeb3165dee0a
+# -- so the single added key is the whole of the difference.
+#
+# GOLDEN_TWIN_SHA256 BELOW DID NOT MOVE, and that is the load-bearing
+# observation of this re-recording. The same landing changed the
+# numeric-spelling censuses, the rank-agreement helper and the joined
+# approximations; if any of them had reached a cell of an UNDECLARED
+# column, the twin's own bytes would have moved. They did not.
 GOLDEN_DESCRIPTION_SHA256 = (
-    "21b0cf0a92fbf0d5911a288e47eff11e0c2048b2eac77015ce3cbeb3165dee0a"
+    "67f4d06386fc2dae9fc40f3fd15c028937218ff4381576ba2fb63f0f65a19fc9"
 )
 
 
@@ -594,8 +611,24 @@ def test_the_same_description_and_seed_give_the_same_twin_twice(
 # review item P4-C2-F5.) The description and twin digests both held,
 # which is what says this is the page and not the run: stage 2 changes
 # no wire, no generation rule and no twin byte.
+#
+# RE-RECORDED 2026-08-27 (review item P4-G3-R1-F7). ONE PARAGRAPH of
+# the preamble was reworded and nothing else: the page used to open the
+# approximation section with "THE RANGE IS NOT A MARGIN AROUND THE
+# DESCRIPTION'S VALUE", which stopped being true when method G12.9 gave
+# the joined rank agreement a window of two hundredths either side of
+# the published value -- a margin, exactly. The sentence now says a
+# range is not ALWAYS a margin and keeps the warning the paragraph
+# exists for: "inside the range" means the method kept its promise and
+# never that the two numbers are close.
+#
+# CHECKED rather than assumed: the report was rendered before and after
+# and the two diffed. Nineteen lines differ and every one of them is
+# inside that paragraph. No count, no verdict, no fact and no order
+# moved, and the description and twin digests were both untouched by
+# this edit.
 GOLDEN_REPORT_SHA256 = (
-    "744a214479f4a30178f908ad673739cb5657b68486cbbf97a4b72b016189891e"
+    "842cbbd1b831e2d2df1cd35a82c9f9345ffb136d38e552f61faff1eb0b88afe8"
 )
 
 
@@ -970,8 +1003,27 @@ def test_the_report_names_the_seed_the_twin_was_built_at(
 # of the three kinds -- figure, letter, mark -- appear, so `A9999`
 # stands and `AAAAAA` does not. Fewer obligations here is the point of
 # that rule and not a census that quietly shrank.
+#
+# RE-RECORDED 2026-08-27 (review item P4-G3-R1-F5). TEN LINES moved and
+# all ten are the same line: a clock column's rung and distinctness
+# verdicts print where their window comes from, and both cited
+# `generation-method-v1.md G12.9` -- a section that did not exist when
+# the clock role landed, and that, once it was written, turned out to
+# be about rank agreement between the positions of a JOINED column,
+# with a window of 0.02 that means nothing for a time of day. A reader
+# following either citation from this very page first found nothing and
+# then found the wrong rule. G12.10 and G12.11 now state the two clock
+# envelopes and the citations point at them.
+#
+# CHECKED rather than assumed: the page was rendered before and after
+# and the two diffed. Twenty lines differ, which is the ten citations
+# in their before and after form, and NOTHING ELSE -- no verdict moved,
+# no obligation was gained or lost, and the census carries what it
+# carried. `tests/test_method_citations_resolve.py` now refuses any
+# citation that names a section the method does not define, so this
+# cannot happen again silently.
 GOLDEN_QUALITY_SHA256 = (
-    "c64524c74ef3bc0269fea995f5a6674e535e9e22c0dba53a53cdca4c0ce55087"
+    "4037158e846d35bfe87d8b1531d5f91bcc00aceacc3097bc66bd68dd4a4c9aa7"
 )
 
 

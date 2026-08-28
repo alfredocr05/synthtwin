@@ -560,6 +560,21 @@ CONTRADICTORY_DECLARATION = (
     "the same value cannot be both kept as data and read as 'no value'"
 )
 
+# What the PRODUCER says when a declared value's number depends on
+# which grammar reads it, beside a `--decimal-comma` column. The
+# command says it in its own words, because it can name the option the
+# person typed; this is what any other caller of `build_document` gets.
+#
+# IT IS REFUSED AT THE PRODUCER AND NOT ONLY AT THE COMMAND LINE
+# (review item P4-G3-R8-F2). `build_document` is a public entry point
+# and accepted the pair, so the same wrong presence, role and numeric
+# verdicts were one call away for anybody not going through the CLI.
+AMBIGUOUS_DECLARED_VALUE = (
+    "a declared value whose number depends on whether a column's "
+    "numbers are written with a comma cannot be used together with a "
+    "decimal-comma column"
+)
+
 
 # -- THE NOTE GRAMMAR: every sentence the profile publishes ------------
 #
@@ -2649,6 +2664,23 @@ class _Cell:
     """
 
     text: str
+    # THE SPELLING THE NUMBER RULES READ, which is `text` itself on
+    # every undeclared column and the swapped spelling on one declared
+    # `--decimal-comma` (plan P4-D26). The two are separate fields
+    # because they answer different questions and a single field got
+    # one of them wrong: `text` is what the FILE holds, and the label
+    # roles publish it, so a declaration about numbers must never
+    # rewrite a level, a code or a note; this is how the NUMBER is
+    # written, and every census of numeric spelling reads it.
+    #
+    # Reading the censuses off `text` on a declared column made the
+    # twin lose the fraction altogether. `1,5` carries no point, so its
+    # style counted as `plain`, the whole column published `plain` and
+    # `integer_valued: false` together, and the twin wrote `222` for a
+    # column running from 2.89 to 300.23 -- the defect P4-D26 exists to
+    # prevent, arriving through the census rather than through the
+    # reading.
+    numeric_text: str
     # One of parsing.NUMBER, NUMBER_OUT_OF_RANGE, NUMBER_CONTRADICTORY,
     # NOT_A_NUMBER.
     kind: str
@@ -2697,8 +2729,16 @@ def _written_negative(text: str) -> bool:
     return negative
 
 
-def _classify(text: str) -> _Cell:
+def _classify(text: str, decimal_comma: bool = False) -> _Cell:
     """Classify one present cell, once, into the record every rule reads.
+
+    ``decimal_comma`` says this column was DECLARED as writing its
+    numbers with a comma for the point (plan P4-D26). Only the NUMERIC
+    reading is taken from the swapped text; `text`, `folded` and the
+    two alphabet tests keep the cell exactly as the file wrote it,
+    because a declaration about numbers must not rewrite a level, a
+    code or a note. Undeclared columns pass `False` and nothing about
+    them moves.
 
     The parser is asked what the cell is exactly once. Everything else
     is derived from that answer:
@@ -2722,14 +2762,17 @@ def _classify(text: str) -> _Cell:
     if handed anything that is not a string instance. The record depends
     on the text and nothing else. No I/O of any kind.
     """
-    kind = parsing.classify_number(text)
+    # THE TEXT THE NUMBER RULES READ, which is the cell itself on every
+    # undeclared column and the swapped spelling on a declared one.
+    read = parsing.written_with_a_decimal_comma(text) if decimal_comma else text
+    kind = parsing.classify_number(read)
     value: float | None = None
     exact: tuple[int, tuple[str, ...], int] | None = None
     sign = parsing.SIGN_UNKNOWN
     whole = parsing.WHOLE_UNKNOWN
     if kind == parsing.NUMBER:
-        value = parsing.parse_number(text)
-        exact = parsing.exact_of_accepted_number(text)
+        value = parsing.parse_number(read)
+        exact = parsing.exact_of_accepted_number(read)
         if value is not None:
             if value < 0.0:
                 sign = parsing.SIGN_NEGATIVE
@@ -2742,17 +2785,18 @@ def _classify(text: str) -> _Cell:
             else:
                 whole = parsing.WHOLE_NO
     elif kind == parsing.NUMBER_OUT_OF_RANGE:
-        if parsing.overflowed(text):
+        if parsing.overflowed(read):
             whole = parsing.WHOLE_YES
         else:
             whole = parsing.WHOLE_NO
-        if _written_negative(text):
+        if _written_negative(read):
             sign = parsing.SIGN_NEGATIVE
         else:
             sign = parsing.SIGN_POSITIVE
     trimmed = parsing.trimmed(text)
     return _Cell(
         text=text,
+        numeric_text=read,
         kind=kind,
         value=value,
         exact=exact,
@@ -2781,6 +2825,20 @@ class _Cells:
     present: list[str]
     n_rows: int
     settings: Settings
+    # WHETHER THIS COLUMN WAS DECLARED `--decimal-comma`, carried on
+    # the tally for the same reason `_Cell` carries `numeric_text`: the
+    # rules below read this record and never the column, so a rule that
+    # has to interpret a DECLARATION as a number -- the kept values of
+    # the stand-in judgement, above all -- can only get the reading
+    # right if the record hands it over (review item P4-G3-R6-F1).
+    #
+    # Without it `--decimal-comma amount --keep-value -999,0` read the
+    # cells as the sentinel minus nine hundred and ninety-nine and the
+    # KEPT declaration under the ordinary grammar, where it is no
+    # number at all and matches nothing -- so the outlier pass carried
+    # off forty cells the person had explicitly said to keep, and the
+    # column's presence, statistics and role moved with them.
+    decimal_comma: bool
     numbers: list[float]
     n_out_of_range: int
     n_contradictory: int
@@ -2817,13 +2875,18 @@ class _Cells:
     code_alphabet: int
 
 
-def _classify_all(present: list[str]) -> list[_Cell]:
+def _classify_all(
+    present: list[str], decimal_comma: bool = False
+) -> list[_Cell]:
     """Classify every present cell exactly once, in row order."""
-    return [_classify(value) for value in present]
+    return [_classify(value, decimal_comma) for value in present]
 
 
 def _tally(
-    classified: list[_Cell], n_rows: int, settings: Settings
+    classified: list[_Cell],
+    n_rows: int,
+    settings: Settings,
+    decimal_comma: bool = False,
 ) -> _Cells:
     """Count the one classification of each cell, in one pass.
 
@@ -2917,6 +2980,7 @@ def _tally(
         else:
             spellings[cell.text] = 1
     return _Cells(
+        decimal_comma=decimal_comma,
         classified=classified,
         present=present,
         n_rows=n_rows,
@@ -3051,9 +3115,19 @@ def _numeric_looking_widths(cells: _Cells) -> "tuple[int, int]":
     straggler's length published as a bound would be read as magnitude
     by anybody who trusted the pair.
 
-    Each is a count of characters of the cell's text AS THE FILE SPELLS
-    IT, so a padded cell counts its zeros and a signed one counts its
-    sign.
+    Each is a count of characters of the cell's text AS THE NUMBER IS
+    SPELLED, so a padded cell counts its zeros and a signed one counts
+    its sign. On every column but a declared `--decimal-comma` one that
+    is the file's own text, character for character.
+
+    ON A DECLARED COLUMN IT IS THE SPELLING THE DESCRIPTION IS MADE
+    FROM, and this clause used to say "as the file spells it" while
+    measuring exactly that (review item P4-G3-R2-F2). The two differ:
+    `1.234,5e-400` is twelve characters in the file and eleven once the
+    grouping mark is dropped. ELEVEN is the number this pair owes,
+    because the twin writes `1234,5e-400` -- the width a person meets
+    is the twin's, and a bound measured on a spelling the twin never
+    writes is a bound it cannot hold.
 
     Guarantees: accepts the tally; returns a pair with the smaller
     first, both at least 1. Where the role is reached with no
@@ -3065,7 +3139,7 @@ def _numeric_looking_widths(cells: _Cells) -> "tuple[int, int]":
     for cell in cells.classified:
         if cell.kind == parsing.NOT_A_NUMBER:
             continue
-        widths = widths + [len(cell.text)]
+        widths = widths + [len(cell.numeric_text)]
     if not widths:
         return (1, 1)
     shortest = widths[0]
@@ -3112,20 +3186,44 @@ class _Declaration:
     exact: "tuple[int, tuple[str, ...], int] | None"
 
 
-def _declarations(spellings: tuple[str, ...]) -> "list[_Declaration]":
+def _declarations(
+    spellings: tuple[str, ...], decimal_comma: bool = False
+) -> "list[_Declaration]":
     """Read each declared value once, into the record the rules compare.
 
-    Guarantees: accepts the spellings a person typed; returns one record
-    per spelling, in the order given. Raises TypeError if handed
-    anything that is not text. No I/O of any kind.
+    ``decimal_comma`` says this COLUMN was declared as writing its
+    numbers with a comma. Only the NUMBER a declaration denotes is read
+    that way; `text` and `folded` keep the spelling the person typed,
+    because the spelling half of the matching rule compares a
+    declaration with a cell as the file writes it.
+
+    THE TWO HALVES USED TO BE READ UNDER DIFFERENT GRAMMARS (review
+    item P4-G3-R5-F1). `--decimal-comma amount --missing-value 1,234`
+    read the cells with the comma, making `1,234` one and
+    two-hundred-and-thirty-four thousandths, and read the DECLARATION
+    ordinarily, making it one thousand two hundred and thirty-four.
+    The rule is `exact_number_when_it_reads_as_one_else_spelling`, so a
+    declaration that reads as a number is matched BY NUMBER and never
+    by spelling -- and those two numbers are not equal. Every cell the
+    person had explicitly called "no value" was counted as a
+    measurement instead, and the column's presence, ladder, moments and
+    role all moved with them, in silence.
+
+    Guarantees: accepts the spellings a person typed and whether this
+    column was declared; returns one record per spelling, in the order
+    given. Raises TypeError if handed anything that is not text. No I/O
+    of any kind.
     """
     made: list[_Declaration] = []
     for spelling in spellings:
+        read = spelling
+        if decimal_comma:
+            read = parsing.written_with_a_decimal_comma(spelling)
         made += [
             _Declaration(
                 text=spelling,
                 folded=parsing.folded(spelling),
-                exact=exact_of_spelling(spelling),
+                exact=exact_of_spelling(read),
             )
         ]
     return made
@@ -3190,7 +3288,9 @@ def declarations_named(spellings: "tuple[str, ...]") -> int:
 
 
 def contradictory_declarations(
-    kept_values: "tuple[str, ...]", declared_missing_values: "tuple[str, ...]"
+    kept_values: "tuple[str, ...]",
+    declared_missing_values: "tuple[str, ...]",
+    decimal_comma: bool = False,
 ) -> "list[str]":
     """Every value named BOTH as data and as "no value", said in words.
 
@@ -3208,19 +3308,52 @@ def contradictory_declarations(
     reported as one: the pair reported here is a pair that is equal, not
     a pair that rounds to one binary64 value (review item P1-R7-F3).
 
-    Guarantees: accepts the two lists of declared values; returns one
-    plain sentence per clashing pair, in the order the kept values were
-    given, and an empty list when nothing clashes. Raises TypeError if
-    handed anything that is not text. No I/O of any kind.
+    ``decimal_comma`` says the table has at least one column declared
+    that way, and then the pair is tested under BOTH readings -- the
+    ordinary one and the comma one -- because a clash under either is a
+    clash (review item P4-G3-R6-F2). `--decimal-comma amount
+    --keep-value 1,234 --missing-value 1,2340` names one number twice
+    on that column and two different numbers everywhere else; tested
+    under the ordinary grammar alone the pair looks innocent, the
+    command is accepted, and the missing declaration then quietly
+    defeats the keep declaration on the very column the person
+    declared. A refusal is the only honest answer, because no order of
+    precedence turns two opposite instructions into one.
+
+    Guarantees: accepts the two lists of declared values and whether
+    any column is declared; returns one plain sentence per clashing
+    pair, in the order the kept values were given, and an empty list
+    when nothing clashes. Raises TypeError if handed anything that is
+    not text. No I/O of any kind.
     """
     kept = _declarations(kept_values)
     missing = _declarations(declared_missing_values)
+    swapped_kept = _declarations(kept_values, decimal_comma)
+    swapped_missing = _declarations(declared_missing_values, decimal_comma)
     named: list[str] = []
-    for one in kept:
-        for other in missing:
-            if not _same_declaration(one, other):
+    for place in range(len(kept)):
+        one = kept[place]
+        for seat in range(len(missing)):
+            other = missing[seat]
+            clashes = _same_declaration(one, other)
+            # WHICH READING FOUND THE CLASH DECIDES HOW IT IS NAMED
+            # (review item P4-G3-R7-F5). A pair caught only under the
+            # comma reading was described with the ORDINARY parse of
+            # the kept value, so `1,2340` beside `1,234` -- two visibly
+            # different spellings, one number on a declared column --
+            # was refused with the words "the same spelling", and a
+            # refusal whose reason is visibly untrue is a refusal a
+            # person cannot act on.
+            one_said = one
+            if decimal_comma and not clashes:
+                clashes = _same_declaration(
+                    swapped_kept[place], swapped_missing[seat]
+                )
+                if clashes:
+                    one_said = swapped_kept[place]
+            if not clashes:
                 continue
-            if one.exact is None:
+            if one_said.exact is None:
                 how = "the same spelling"
             else:
                 how = "the same number"
@@ -3431,7 +3564,9 @@ def _declared_number(
 
 
 def split_missing(
-    values: list[str], settings: Settings
+    values: list[str],
+    settings: Settings,
+    decimal_comma: bool = False,
 ) -> "tuple[list[str], list[tuple[str, str]]]":
     """Split values into (present, [(exact spelling, named class), ...]).
 
@@ -3455,8 +3590,10 @@ def split_missing(
     that are present and the pairs that are not, in row order. Raises
     TypeError if a value is not text. No I/O of any kind.
     """
-    kept = _declarations(settings.kept_values)
-    declared_missing = _declarations(settings.declared_missing_values)
+    kept = _declarations(settings.kept_values, decimal_comma)
+    declared_missing = _declarations(
+        settings.declared_missing_values, decimal_comma
+    )
     present: list[str] = []
     missing: list[tuple[str, str]] = []
     for value in values:
@@ -3478,7 +3615,9 @@ def split_missing(
 
 
 def _declared_numbers_removed(
-    classified: "list[_Cell]", settings: Settings
+    classified: "list[_Cell]",
+    settings: Settings,
+    decimal_comma: bool = False,
 ) -> "tuple[list[_Cell], list[tuple[str, str]]]":
     """Take out the cells whose NUMBER the person declared to be missing.
 
@@ -3504,7 +3643,9 @@ def _declared_numbers_removed(
     returns the cells that survive, in row order, and the pairs that
     left. Raises nothing. No I/O of any kind.
     """
-    declared_missing = _declarations(settings.declared_missing_values)
+    declared_missing = _declarations(
+        settings.declared_missing_values, decimal_comma
+    )
     numeric = [
         declaration
         for declaration in declared_missing
@@ -3666,7 +3807,7 @@ def _sentinel_verdicts(
     Returns candidate -> (is missing, reason code, occurrences).
     """
     settings = cells.settings
-    kept = _declarations(settings.kept_values)
+    kept = _declarations(settings.kept_values, cells.decimal_comma)
     verdicts: dict[float, tuple[bool, str, int]] = {}
     candidates: list[float] = []
     # The exact number of each candidate this column actually holds,
@@ -3734,6 +3875,7 @@ def _placeholder_verdicts(
     present: "list[str]",
     format_name: str,
     settings: Settings,
+    decimal_comma: bool = False,
 ) -> "dict[str, tuple[bool, str, int]]":
     """Decide, for each placeholder day present, whether it means "missing".
 
@@ -3760,7 +3902,7 @@ def _placeholder_verdicts(
 
     Returns placeholder -> (is missing, reason code, occurrences).
     """
-    kept = _declarations(settings.kept_values)
+    kept = _declarations(settings.kept_values, decimal_comma)
     verdicts: dict[str, tuple[bool, str, int]] = {}
     occurrences_of: dict[str, int] = {}
     days: dict[str, int] = {}
@@ -4221,7 +4363,7 @@ def _numeric_styles(cells: _Cells) -> dict[str, int]:
     for cell in cells.classified:
         if cell.kind != parsing.NUMBER:
             continue
-        style = numeric_style(cell.text)
+        style = numeric_style(cell.numeric_text)
         if style in counts:
             counts[style] = counts[style] + 1
         else:
@@ -4288,9 +4430,9 @@ def _fraction_widths(cells: _Cells) -> dict[str, int]:
     for cell in cells.classified:
         if cell.kind != parsing.NUMBER:
             continue
-        if numeric_style(cell.text) != parsing.STYLE_DECIMAL:
+        if numeric_style(cell.numeric_text) != parsing.STYLE_DECIMAL:
             continue
-        width = fraction_width(cell.text)
+        width = fraction_width(cell.numeric_text)
         if width in counts:
             counts[width] = counts[width] + 1
         else:
@@ -4462,7 +4604,7 @@ def _group_comma_cells(cells: _Cells) -> "tuple[int, int]":
     unsettled = 0
     settled = 0
     for cell in cells.classified:
-        reading = parsing.comma_reading(cell.text)
+        reading = parsing.comma_reading(cell.numeric_text)
         if reading == parsing.COMMA_DECIMAL:
             settled = settled + 1
             continue
@@ -4485,7 +4627,7 @@ def _padded_cells(cells: _Cells) -> int:
     for cell in cells.classified:
         if cell.kind != parsing.NUMBER:
             continue
-        if numeric_style(cell.text) != parsing.STYLE_LEADING_ZERO:
+        if numeric_style(cell.numeric_text) != parsing.STYLE_LEADING_ZERO:
             continue
         counted = counted + 1
     return counted
@@ -4526,9 +4668,9 @@ def _pad_widths(cells: _Cells) -> dict[str, int]:
     for cell in cells.classified:
         if cell.kind != parsing.NUMBER:
             continue
-        if numeric_style(cell.text) != parsing.STYLE_LEADING_ZERO:
+        if numeric_style(cell.numeric_text) != parsing.STYLE_LEADING_ZERO:
             continue
-        width = pad_width(cell.text)
+        width = pad_width(cell.numeric_text)
         if width in counts:
             counts[width] = counts[width] + 1
         else:
@@ -5590,7 +5732,10 @@ def _joined_details(
     for first in range(joined.n_parts):
         for second in range(first + 1, joined.n_parts):
             agreements = agreements + [
-                round(parsing.rank_agreement(numbers[first], numbers[second]), 4)
+                round(
+                    parsing.rank_agreement(numbers[first], numbers[second]),
+                    parsing.RANK_AGREEMENT_PLACES,
+                )
             ]
             counted = 0
             for seat in range(joined.n_joined):
@@ -7372,6 +7517,7 @@ def profile_column(
     forced_identifier: bool = False,
     forced_code: bool = False,
     forced_measurement: bool = False,
+    forced_decimal_comma: bool = False,
 ) -> ColumnProfile:
     """Describe one column: its role, its statistics, what was withheld.
 
@@ -7417,23 +7563,29 @@ def profile_column(
       two rows and so on -- and keeps not one spelling of a value.
     """
     clashes = contradictory_declarations(
-        settings.kept_values, settings.declared_missing_values
+        settings.kept_values,
+        settings.declared_missing_values,
+        forced_decimal_comma,
     )
     if clashes:
         raise ValueError(f"{CONTRADICTORY_DECLARATION}: {clashes[0]}")
-    present, missing = split_missing(values, settings)
+    present, missing = split_missing(
+        values, settings, forced_decimal_comma
+    )
     # THE one classification of this column's cells. Everything below
     # reads these records; not one line of it reads the column again.
-    classified = _classify_all(present)
+    classified = _classify_all(present, forced_decimal_comma)
     # The second half of what the person declared, and the half that has
     # to wait for the classification: a declared NUMBER is compared with
     # the number a cell holds, not with the way the file spells it
     # (review item P1-R6-F9). It runs before the cells are counted, so
     # no rule and no statistic ever sees a value the person called "no
     # value".
-    classified, declared = _declared_numbers_removed(classified, settings)
+    classified, declared = _declared_numbers_removed(
+        classified, settings, forced_decimal_comma
+    )
     missing = missing + declared
-    cells = _tally(classified, n_rows, settings)
+    cells = _tally(classified, n_rows, settings, forced_decimal_comma)
     # One list of what is present, rebuilt from the surviving records.
     # Keeping the pre-declaration list here would have counted values
     # the person removed towards every share below it.
@@ -7475,7 +7627,9 @@ def profile_column(
             # Reading the column a second time here was the last place
             # where two readings of one cell could have differed
             # (review item P1-R6-F10).
-            cells = _tally(classified, n_rows, settings)
+            cells = _tally(
+                classified, n_rows, settings, forced_decimal_comma
+            )
             present = cells.present
     # THE SAME JUDGEMENT, OVER THE PLACEHOLDER DAYS (plan amendment
     # A-P4-1 item 3). A column whose open-ended rows are filled with
@@ -7515,7 +7669,7 @@ def profile_column(
             reading = _remainder_reading(present, settings)
             if reading is not None:
                 day_verdicts = _placeholder_verdicts(
-                    present, reading, settings
+                    present, reading, settings, forced_decimal_comma
                 )
                 withheld_days = sorted(
                     candidate
@@ -7536,7 +7690,9 @@ def profile_column(
                         else:
                             kept_cells += [cell]
                     classified = kept_cells
-                    cells = _tally(classified, n_rows, settings)
+                    cells = _tally(
+                classified, n_rows, settings, forced_decimal_comma
+            )
                     present = cells.present
                     judged_over_days = True
 
@@ -7567,7 +7723,9 @@ def profile_column(
             classified, missing, verdicts = _cores_judged(
                 cells, classified, missing, verdicts
             )
-            cells = _tally(classified, n_rows, settings)
+            cells = _tally(
+                classified, n_rows, settings, forced_decimal_comma
+            )
             present = cells.present
             # HOW MANY THE CORE PASS TOOK, carried to the verdict below.
             # Removal can move a column across the detection line -- a

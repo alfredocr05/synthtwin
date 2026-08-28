@@ -913,6 +913,14 @@ def test_a_folded_count_that_cannot_be_held_is_named_and_named_truly(
             column.n_distinct,
             column.n_distinct_folded + 1,
         ),
+        # THE CELLS AS WRITTEN, which the presence notes beside this
+        # one read to tell a real collision from a judged stand-in that
+        # will not re-fire (review item P4-G3-R6-F4). This test is
+        # about the DISTINCTNESS note and hands over no cells, so no
+        # cell wears a published hole spelling, no collision is found,
+        # and the presence half stays silent -- which is what leaves
+        # exactly one note for the assertion below to be about.
+        [],
     )
     assert [note.fact for note in notes] == ["n_distinct_folded"]
     said = notes[0].note
