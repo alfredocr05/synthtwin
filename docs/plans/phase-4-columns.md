@@ -6469,6 +6469,35 @@ reproduces every published pairing fact.
 
 ## Residuals R-P4-42 and R-P4-43 — the joined role's own gaps (2026-08-26)
 
+**R-P4-42 CLOSED 2026-08-27.** The window a joined column's rank
+agreement is approximated inside now lives in the generation method as
+**G12.9**, and the quality report cites that instead of this plan. The
+section states the two-sided 0.02 bound, that `part_above` beside it
+carries no window at all, why a window is right here — three published
+facts pull against each other inside a bounded search — and, in terms,
+that it does NOT cover a pair between two earlier positions of a
+three-position column, which is R-P4-51 and outside any envelope.
+
+The validation method needed no change and must not have one: V3 says
+every APPROXIMATED bound lives in the generation method and is CITED
+there, never restated.
+
+**R-P4-43 CLOSED 2026-08-27, and its own example had gone stale.** The
+residual said a file whose first position rewrites `200` as `200.0`
+"keeps every checked number and passes". That is no longer true and was
+not true when this was picked up: such a file is already caught, by
+`joined.part_min_widths[0]` and `joined.parts[0].integer_valued`. The
+HOLE was real all the same -- the censuses were unchecked -- and
+finding the residual's example already covered is why the repair needed
+a perturbation of its own rather than the one written down.
+
+The one that reaches the census and no neighbour: **zero-pad HALF the
+cells of a position**. The smallest width of that position is then
+unchanged, so `part_min_widths` stays held -- which it does not when
+every cell is padded -- and only the census of forms moves. Withdrawn,
+the new check leaves that file reported clean; restored, it names
+`joined.parts[0].numeric_styles`. Both directions are pinned.
+
 Both were opened by the fourth adversarial read of the obligations
 landing, and **neither was caused by it**: they arrived with the role
 (P4-D21, P4-D23, P4-D25) and were invisible until section 9.4a wrote
@@ -6477,7 +6506,7 @@ the role's dispositions down and a reviewer held the code to them.
 | # | what is open | why it is not closed here | what closes it |
 |---|---|---|---|
 | **R-P4-42** | The rank-agreement window is fixed by plan P4-D25 and appears in NEITHER method specification. The generation method has no joined-agreement clause and the validation method has no Phase 4 text at all. | Writing it is stage L10's work, where the method amendments are owed together; writing one clause here would leave the other eleven branches undocumented and imply the rest were covered. | L10, with the other method amendments. |
-| **R-P4-43** | `validation._joined_part_checks` checks each position's two endpoints and its whole-number test, and NOT its styles or its fraction census — while section 9.4a disposes the position's whole quantitative block. A checked file whose first position rewrites `200` as `200.0` keeps every checked number and passes. | It is a validator widening with its own red cases, and it belongs beside L7's distinctness work where the joined role is already being opened. | L7, or its own landing. |
+| **R-P4-43 — CLOSED 2026-08-27** | it checked each position's two endpoints, its average and its whole-number test and NOT its styles or either width census, so a checked file could write every number of one position in another form and be reported clean. Now each position carries the style identity of contract 7.5.7 read over its own numbers, named per position so a reader can tell WHICH one missed. | closed |
 
 **R-P4-44, added after the fifth read: THE TWIN'S REPORT NAMES NO
 APPROXIMATION OF THIS ROLE.** `_approximations` returns an empty list

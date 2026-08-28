@@ -28,7 +28,7 @@ without the same help.
 | branch | `phase-4-plan` (never merged; `main` is pull-request only) |
 | phase | **Phase 4 — comprehensive column handling.** Current. |
 | plan | `docs/plans/phase-4-columns.md` |
-| suite | 3,997 collected / 48 skipped |
+| suite | 3,999 collected / 48 skipped |
 | lint | clean (`ruff check .`), under the rule set pinned in `pyproject.toml` |
 
 ## What is being built right now
@@ -479,8 +479,8 @@ reviewer's ruling of 2026-08-26.
 
 | # | gap | goes to |
 |---|---|---|
-| **R-P4-42** | the rank-agreement window is in the plan and in NEITHER method specification | L10 |
-| **R-P4-43** | the validator checks a position's endpoints and whole-number test, not its styles or fraction census | L7 |
+| **R-P4-42 — CLOSED 2026-08-27** | the window was cited as `docs/plans/phase-4-columns.md P4-D25` while every other envelope of the method cites a section of it, so an implementer working from the specification could not find it and a reader could not find the rule a verdict rests on. It is now **G12.9** of the generation method — the two-sided 0.02 window, why it is a window and not an exactness, and what it does NOT excuse — and the report cites that | closed |
+| **R-P4-43 — CLOSED 2026-08-27** | it checked a position's endpoints, average and whole-number test and not its styles or either width census. Each position now carries the style identity read over its own numbers, named per position. The residual's own example had gone stale — `200` rewritten as `200.0` is already caught — so the red case is half a position zero-padded, which moves the census and leaves the widths held | closed |
 | **R-P4-44** | the twin's report names NO approximation of this role, so it says the twin gave nothing up while every position's ladder is approximated. A repair was built and WITHDRAWN — it printed per-position counts the profile publishes for no position, both positions as one unnamed column, and a stand-in measured into position two | L7 |
 | (unnumbered) | a THREE-part column cannot honour its (1,2) pair — the repair walk permutes only the last position. Two-part columns are unaffected, which is why five reads did not meet it | L7 |
 

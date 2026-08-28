@@ -4424,6 +4424,45 @@ the published count beside the achieved one under the recount of G12 as
 well. The bound is able to fail: a twin that wrote one spelling where
 its own cells could have carried two lands outside it.
 
+### G12.9 The envelope on a joined column's rank agreement
+
+`part_agreements` is APPROXIMATED, and until this section existed the
+window it is approximated inside was written **only in a plan**
+(P4-D25). Every other envelope of this method is stated here and cited
+here; that one was cited as `docs/plans/phase-4-columns.md`, so an
+implementer working from the specification alone could not know how
+close a twin has to come, and a reader of a quality report could not
+find the rule the verdict rests on. That is residual R-P4-42, and this
+closes it.
+
+**The window.** For each published pair, the twin's own rank agreement
+must lie within **0.02** of the published value, two-sided:
+
+```
+|agreement(twin) - part_agreements[pair]|  <=  0.02
+```
+
+`part_above` beside it carries NO window. It is a count of rows and the
+walk of G6B.4 weights one row of it above the whole agreement, so a
+twin either holds it or has missed it.
+
+**Why a window and not an exactness.** The pairing is chosen by a
+bounded search (G6B.4), and three published facts pull against each
+other inside it: the agreement, the above-count, and how many different
+whole CELLS the pairing makes. The search stops at `0.0005` of its own
+combined distance or at its try ceiling of `200 * n_joined`, whichever
+comes first, and on a column whose three targets conflict it stops at
+the ceiling with the agreement short. Measured on a 400-row two-position
+column published at 0.9613, the twin reached 0.8994.
+
+**What the window does NOT excuse.** It is a bound on a SCORED pair.
+Where a column has three or more positions the walk moves only its last
+one, so a pair between two earlier positions is neither moved nor
+scored and can come out at `+1` against a published `-1` — far outside
+this window, and not an approximation of anything. That is residual
+R-P4-51, it is named in G6B.4 step 3, and this envelope must never be
+read as covering it.
+
 ## G13. Residuals this method carries
 
 - **R-P2-1 — CLOSED in revision 4.** Unrepresentable values now publish
