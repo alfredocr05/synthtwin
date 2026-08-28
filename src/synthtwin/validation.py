@@ -254,7 +254,11 @@ ENVELOPE_CLOCK_DISTINCT = "docs/spec/generation-method-v1.md G12.9"
 # once it is close enough, so it is approximated and not exact -- and
 # the window says by how much, rather than leaving a reader to guess
 # from a number that nearly matches (plan P4-D25).
-ENVELOPE_JOINED_AGREEMENT = "docs/plans/phase-4-columns.md P4-D25"
+# The window a joined column's rank agreement is approximated inside.
+# It cited a PLAN until 2026-08-27, which is residual R-P4-42: every
+# other envelope here names a section of the generation method, and an
+# implementer working from that method alone could not find this one.
+ENVELOPE_JOINED_AGREEMENT = "docs/spec/generation-method-v1.md G12.9"
 _AGREEMENT_SLACK = 0.02
 
 ENVELOPE_TEXT_SHAPE = "docs/spec/generation-method-v1.md G12.6"
@@ -6528,7 +6532,7 @@ def _role_checks(
     """Everything the column's own role adds."""
     facts = column.facts
     if isinstance(facts, contract.JoinedFacts):
-        return _joined_checks(column, facts, block)
+        return _joined_checks(column, facts, block, cells, floor)
     if isinstance(facts, contract.ClockFacts):
         return _clock_checks(column, facts, block)
     if isinstance(facts, contract.AffixedFacts):
@@ -6573,6 +6577,8 @@ def _joined_checks(
     column: contract.ColumnBlock,
     facts: contract.JoinedFacts,
     block: "dict[str, object]",
+    cells: "list[str]",
+    floor: int,
 ) -> "list[Check]":
     """A column of two or more numbers written in one cell.
 
@@ -6677,7 +6683,96 @@ def _joined_checks(
                 agreed,
             )
         ]
-    checks = checks + _joined_part_checks(column, facts, block)
+    checks = checks + _joined_part_checks(
+        column, facts, block, cells, floor
+    )
+    checks = checks + _position_styles(
+        column, facts, block, cells, floor
+    )
+    return checks
+
+
+def _position_cells(
+    cells: "list[str]", separator: str, parts: int, place: int
+) -> "list[str]":
+    """The numbers one POSITION of a joined column wrote.
+
+    A cell that does not split into exactly the published number of
+    positions is a stand-in the parse line tolerated, and it belongs to
+    no position, so it is left out rather than counted into one.
+    """
+    found: "list[str]" = []
+    for cell in cells:
+        pieces = _cut_at_separator(cell, separator)
+        if len(pieces) != parts:
+            continue
+        found = found + [pieces[place]]
+    return found
+
+
+def _cut_at_separator(cell: str, separator: str) -> "list[str]":
+    """One cell cut into the positions its separator makes.
+
+    The offline audit's type gate (plan D6.2) at the top of the
+    function that calls a method on the value, which is why this is a
+    function of its own rather than a line inside the walk above.
+    """
+    if not isinstance(cell, str):
+        raise TypeError("internal check: a file's cell was not text")
+    if not isinstance(separator, str):
+        raise TypeError("internal check: a separator was not text")
+    return cell.split(separator)
+
+
+def _position_styles(
+    column: contract.ColumnBlock,
+    facts: contract.JoinedFacts,
+    block: "dict[str, object]",
+    cells: "list[str]",
+    floor: int,
+) -> "list[Check]":
+    """Each position's own style and width censuses (residual R-P4-43).
+
+    THE HOLE THIS CLOSES. A position of a joined column publishes the
+    whole quantitative block -- its styles map and both of its width
+    censuses among them -- and the validator checked its two endpoints,
+    its average and its whole-number test and nothing else. So a
+    checked file could rewrite every number of a position in another
+    form and keep every checked number, which is a published EXACT fact
+    nobody measured.
+
+    The identity is the one a plain numeric column is held to (contract
+    7.5.7), read over that position's numbers, so the rule is not
+    written twice. What the position adds is the NAME: a subcheck
+    called `numeric.numeric_styles` on a two-position column would be
+    two obligations under one identity, and a reader could not tell
+    which position missed.
+    """
+    checks: "list[Check]" = []
+    for place in range(len(facts.parts)):
+        held = _at_place(block, "parts", place)
+        inner: "dict[str, object]" = {}
+        if isinstance(held, dict):
+            for key in held:
+                if isinstance(key, str):
+                    inner[key] = held[key]
+        mine = _position_cells(
+            cells, facts.separator, facts.n_parts, place
+        )
+        for check in _style_checks(
+            column, facts.parts[place], inner, mine, floor
+        ):
+            fact = check.fact
+            head = "numeric."
+            if fact[: len(head)] == head:
+                fact = f"joined.parts[{place}].{fact[len(head):]}"
+            checks = checks + [
+                dataclasses.replace(
+                    check,
+                    fact=fact,
+                    subcheck=f"number {place + 1} {check.subcheck}",
+                )
+            ]
     return checks
 
 
@@ -6685,6 +6780,8 @@ def _joined_part_checks(
     column: contract.ColumnBlock,
     facts: contract.JoinedFacts,
     block: "dict[str, object]",
+    cells: "list[str]",
+    floor: int,
 ) -> "list[Check]":
     """Each position's own numbers, position by position.
 

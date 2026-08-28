@@ -30,6 +30,7 @@ from synthtwin import (
     profile,
     reading,
     taxonomy,
+    validation,
 )
 
 
@@ -643,3 +644,70 @@ def test_the_pairing_is_asked_for_the_count_the_pairs_can_carry() -> None:
         "the column holds every different value the description "
         f"publishes, and its own report says it missed: {missed}"
     )
+
+
+# -- residual R-P4-43: a position's own style and width censuses ------
+
+
+def test_a_positions_style_census_is_checked_and_not_only_its_ends() -> None:
+    """A position could be rewritten in another form and pass.
+
+    RESIDUAL R-P4-43. A position of a joined column publishes the whole
+    quantitative block -- its styles map and both width censuses among
+    them -- and the validator checked its two endpoints, its average
+    and its whole-number test. Nothing else. So a checked file could
+    write every number of one position in a different form, keep every
+    checked number, and be reported clean.
+
+    The perturbation here is chosen to reach THAT check and no
+    neighbour: half of position one is zero-padded, so the SMALLEST
+    width of the position is unchanged -- `part_min_widths` stays held,
+    which it does not when every cell is padded -- and only the census
+    of forms moves.
+    """
+    values = _readings(400, seed=5)
+    document, folder = _described(values)
+    described = _loaded(document, folder)
+    assert document["columns"][0]["parts"][0]["numeric_styles"] == {
+        "plain": 400
+    }
+
+    padded: "list[str]" = []
+    for index, cell in enumerate(values):
+        first, second = cell.split("/")
+        padded = padded + [
+            f"{'0' if index % 2 else ''}{first}/{second}"
+        ]
+    written = fixtures.write(
+        folder, "padded.csv", fixtures.single_column_table("bp", padded)
+    )
+    outcome = validation.measure(described, f"{written}")
+    missed = {
+        check.fact for check in outcome.checks if check.verdict == "MISSED"
+    }
+    assert "joined.parts[0].numeric_styles" in missed, (
+        "half of the first position is written with a redundant leading "
+        "zero and the published census names none, and the report says "
+        f"nothing about it: {sorted(missed)}"
+    )
+    assert "joined.part_min_widths[0]" not in missed, (
+        "this perturbation must reach the census and not the widths, "
+        "or it does not show that the census is checked"
+    )
+
+
+def test_the_file_a_position_census_was_measured_from_still_passes() -> None:
+    """The vacuity check: the source of a description meets it."""
+    values = _readings(400, seed=5)
+    document, folder = _described(values)
+    described = _loaded(document, folder)
+    written = fixtures.write(
+        folder, "same.csv", fixtures.single_column_table("bp", values)
+    )
+    outcome = validation.measure(described, f"{written}")
+    missed = [
+        check.fact
+        for check in outcome.checks
+        if check.verdict == "MISSED" and check.fact.startswith("joined.")
+    ]
+    assert not missed, missed
