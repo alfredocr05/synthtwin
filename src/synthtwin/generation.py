@@ -3690,35 +3690,286 @@ def _first_variant(
 # -- columns of numbers (method G5, G6) -------------------------------
 
 
+def _runs_of(
+    values: "list[float]",
+) -> "tuple[list[int], list[float]]":
+    """The runs of equal values: how long each is, and what it holds.
+
+    A run is a PLATEAU of the ladder -- consecutive ranks the ladder
+    gives the same value -- and its length is how many cells of the
+    column hold that value.
+    """
+    lengths: "list[int]" = []
+    held: "list[float]" = []
+    for place in range(len(values)):
+        if place > 0 and values[place] == values[place - 1]:
+            lengths[len(lengths) - 1] = lengths[len(lengths) - 1] + 1
+            continue
+        lengths = lengths + [1]
+        held = held + [values[place]]
+    return lengths, held
+
+
+def _split_widest(
+    lengths: "list[int]", held: "list[float]"
+) -> "tuple[list[int], list[float]]":
+    """Divide the longest run in two, leftmost on a tie.
+
+    Used where the ladder distinguishes fewer values than the
+    distinctness facts allow: the twin may hold more different values
+    than the ladder's plateaus name, and the extra ones come from
+    inside the longest plateau, where there is most room.
+    """
+    widest = 0
+    for place in range(len(lengths)):
+        if lengths[place] > lengths[widest]:
+            widest = place
+    lower = lengths[widest] // 2
+    return (
+        lengths[:widest]
+        + [lower, lengths[widest] - lower]
+        + lengths[widest + 1 :],
+        held[: widest + 1] + held[widest:],
+    )
+
+
+def _merge_nearest(
+    lengths: "list[int]", held: "list[float]"
+) -> "tuple[list[int], list[float]]":
+    """Join the adjacent pair whose VALUES are closest, leftmost on a tie.
+
+    NOT the pair whose cells are fewest, and the difference decides
+    whether a column keeps its own values. Interpolating a ladder over
+    a column's ranks puts a one-rank TRANSITION between each pair of
+    real plateaus -- a value the column does not hold, sitting between
+    two it does. Merging by SIZE joins two transitions, because they
+    are the smallest pair; they are two different values and neither is
+    spurious, so a value the column holds is lost, and the twin then
+    needs a manufactured spelling to make its distinctness count up.
+    Merging by VALUE takes each transition into the plateau it is
+    nearest to, which is where its cells belong and what the ladder was
+    saying about them.
+
+    The gap is compared RELATIVELY, against the pair's own size, so a
+    column of thousands and a column of thousandths are judged the same
+    way. Leftmost wins a tie, which is what makes this an answer rather
+    than an implementation's habit.
+    """
+    #
+    # AND IT WILL NOT MERGE A WHOLE NUMBER INTO A FRACTION while any
+    # pair of the same kind is left. Which cells can be written without
+    # a point is `numeric_styles`, an EXACT-OBSERVABLE fact, and a
+    # whole value's nearest neighbour is very often the fraction just
+    # below it -- 4 and 3.875 are closer than 4 and 5 -- so a merge
+    # that looked only at distance took the column's whole-number
+    # plateaus into fractional ones and left the published `plain`
+    # count unwritable. Measured on one crowded column: 28 plain cells
+    # written against a published 38.
+    # THE ORDER OF PREFERENCE, and all three parts of it earn their
+    # place. A merge is chosen by, in this order:
+    #
+    #   1. the SMALLER side being smallest -- absorb the least. A
+    #      transition is one rank wide and a plateau is many, so this
+    #      takes the artifact into the real value beside it and never
+    #      the reverse. Without it the walk merged a column's thirteen
+    #      cells of -49 into its four of -57.5 and left the one-cell
+    #      transition standing on its own, which cost ten of the
+    #      thirty-eight point-free cells the style map publishes;
+    #   2. both sides being whole or both fractional. Which cells can
+    #      be written without a point is `numeric_styles`, an
+    #      EXACT-OBSERVABLE fact, and a whole value's nearest
+    #      neighbour is very often the fraction just below it -- 4 and
+    #      3.875 are closer than 4 and 5 -- so distance alone walks
+    #      the whole numbers away;
+    #   3. the values being closest, measured RELATIVELY against the
+    #      pair's own size so a column of thousands and a column of
+    #      thousandths are judged the same way.
+    #
+    # Leftmost wins a tie, which is what makes this an answer rather
+    # than an implementation's habit.
+    best = 0
+    best_key: "tuple[int, int, float] | None" = None
+    for place in range(len(lengths) - 1):
+        low = held[place]
+        high = held[place + 1]
+        span = abs(high) + abs(low)
+        gap = abs(high - low)
+        if span > 0.0:
+            gap = gap / span
+        alike = parsing.is_whole_number(low) == parsing.is_whole_number(
+            high
+        )
+        key = (
+            min(lengths[place], lengths[place + 1]),
+            0 if alike else 1,
+            gap,
+        )
+        if best_key is None or key < best_key:
+            best = place
+            best_key = key
+    return (
+        lengths[:best]
+        + [lengths[best] + lengths[best + 1]]
+        + lengths[best + 2 :],
+        held[: best + 1] + held[best + 2 :],
+    )
+
+
+def _shape_sizes(
+    start: int,
+    cells: int,
+    strata: int,
+    rungs: "tuple[float, ...] | None",
+    numbers: int,
+    whole_valued: bool,
+) -> "list[int]":
+    """One band's stratum sizes, following the shape the ladder publishes.
+
+    **THIS IS RESIDUAL R-P4-49, AND IT IS THE HALF THE FINER LADDER
+    COULD NOT BUY ON ITS OWN.** A ladder decides WHICH values a twin
+    holds; an allotment decides HOW MANY CELLS each of them gets. The
+    even split of G5.2 gave every stratum the same share, so a column
+    of two hundred and thirty cells holding twenty-seven numbers --
+    five of them about forty cells each, the rest about one -- came out
+    as twenty-seven strata of eight or nine, a shape that can represent
+    neither. The hundred-and-one-rung ladder made the twin land on the
+    column's real values and could not give them their real
+    multiplicities, so `numeric_styles`' one-form-per-stratum rule ran
+    short and named style counts stopped coming out exactly.
+
+    **The ladder already knows the shape.** A value that occupies
+    seventeen of the hundred and one rungs occupies seventeen per cent
+    of the column, because the rungs stand at the percentiles. So the
+    sizes are read off it: the value the ladder gives at each RANK of
+    this band, the runs of equal values, and one stratum per run sized
+    to its run. A stratum whose rank range lies inside one plateau then
+    takes that plateau's value whatever word is drawn for it, which is
+    what makes the count exact rather than approximate.
+
+    The strata COUNT is not decided here and is not changed by this:
+    it comes from the distinctness facts and the eleven named rungs,
+    which is the line plan P4-D4.10 draws and this keeps. Where the
+    ladder's plateaus and that count disagree, the runs are split or
+    merged until they agree -- deterministically, leftmost on a tie --
+    so the count the description publishes is the count the twin holds.
+
+    Guarantees: accepts the band's first rank, how many cells it holds,
+    how many strata it is to have, the ladder, the column's numeric
+    cell count and whether its values are whole; returns that many
+    sizes, each at least one, summing to `cells`. Determinism: a fixed
+    function of those six. Raises nothing. No I/O of any kind.
+    """
+    if strata <= 0:
+        return []
+    if cells <= 0:
+        return [0] * strata
+    if rungs is None or strata >= cells:
+        return [
+            (step + 1) * cells // strata - step * cells // strata
+            for step in range(strata)
+        ]
+    held: "list[float]" = []
+    for step in range(cells):
+        found = _interpolated(
+            rungs, (start + step) * _WORD_SCALE, numbers * _WORD_SCALE
+        )
+        if whole_valued:
+            found = _whole_valued(found)
+        held = held + [found]
+    lengths, values = _runs_of(held)
+    while len(lengths) > strata:
+        lengths, values = _merge_nearest(lengths, values)
+    while len(lengths) < strata:
+        lengths, values = _split_widest(lengths, values)
+    return lengths
+
+
+def _band_plateaus(
+    start: int,
+    cells: int,
+    rungs: "tuple[float, ...] | None",
+    numbers: int,
+    whole_valued: bool,
+) -> int:
+    """How many different values the ladder gives one band of cells.
+
+    The count the SHARE of strata should follow, and the second half of
+    residual R-P4-49. The first half sized each stratum by its plateau;
+    this decides how many strata a band gets at all, which the sizes
+    cannot fix from underneath.
+
+    THE SHARE USED TO FOLLOW CELLS, and cells are the wrong thing to
+    follow. A column whose thirteen negative cells hold TWO values and
+    whose forty-eight positive cells hold five got one negative stratum
+    out of seven, because thirteen of sixty-one cells is a seventh --
+    so its ten cells of `-30` and its three of `-55.5` collapsed into
+    one value, and ten of the eighteen point-free cells the style map
+    publishes went with them. Following the ladder gives the negatives
+    two of the seven, which is what the column holds.
+
+    Guarantees: accepts the band's first rank, its cell count, the
+    ladder, the column's numeric cell count and whether its values are
+    whole; returns how many different values the ladder gives that
+    band, at least one where it holds a cell. Determinism: a fixed
+    function of the five. Raises nothing. No I/O of any kind.
+    """
+    if cells <= 0:
+        return 0
+    if rungs is None:
+        return cells
+    held: "list[float]" = []
+    for step in range(cells):
+        found = _interpolated(
+            rungs, (start + step) * _WORD_SCALE, numbers * _WORD_SCALE
+        )
+        if whole_valued:
+            found = _whole_valued(found)
+        held = held + [found]
+    lengths, _values = _runs_of(held)
+    return len(lengths)
+
+
 def _band_sizes(
     negatives: int,
     zeros: int,
     positives: int,
     negative_strata: int,
     positive_strata: int,
+    rungs: "tuple[float, ...] | None" = None,
+    numbers: int = 0,
+    whole_valued: bool = False,
 ) -> "tuple[list[int], list[str]]":
-    """The even split of method G5.2, band by band.
+    """How the cells of each band divide between its strata (G5.2).
 
     Negatives ascending, then the zero stratum, then positives
     ascending, because that is the sorted order of the column's own
     values and the ladder is a statement about sorted order.
+
+    THE SIZES FOLLOW THE LADDER'S OWN SHAPE where one is handed over
+    (residual R-P4-49; `_shape_sizes` carries the reasoning), and fall
+    back to the even split where it is not -- which is what every
+    caller that does not place values wants, and what a column with no
+    ladder gets.
     """
     sizes: list[int] = []
     bands: list[str] = []
-    for step in range(negative_strata):
-        sizes = sizes + [
-            (step + 1) * negatives // negative_strata
-            - step * negatives // negative_strata
-        ]
+    for size in _shape_sizes(
+        0, negatives, negative_strata, rungs, numbers, whole_valued
+    ):
+        sizes = sizes + [size]
         bands = bands + [_BAND_NEGATIVE]
     if zeros > 0:
         sizes = sizes + [zeros]
         bands = bands + [_BAND_ZERO]
-    for step in range(positive_strata):
-        sizes = sizes + [
-            (step + 1) * positives // positive_strata
-            - step * positives // positive_strata
-        ]
+    for size in _shape_sizes(
+        negatives + zeros,
+        positives,
+        positive_strata,
+        rungs,
+        numbers,
+        whole_valued,
+    ):
+        sizes = sizes + [size]
         bands = bands + [_BAND_POSITIVE]
     return sizes, bands
 
@@ -4537,8 +4788,31 @@ def _numeric_layout(
             )
         ]
     if negatives > 0 and positives > 0:
+        # THE SHARE FOLLOWS THE LADDER'S OWN VALUES WHERE THERE IS ONE,
+        # and the cells only where there is not (residual R-P4-49;
+        # `_band_plateaus` carries the reasoning). Two bands holding
+        # the same number of cells need not hold the same number of
+        # values, and it is the values a stratum count is about.
+        shape = _filled_rungs(_merged_rungs(facts))
+        negative_share = negatives
         share = negatives + positives
-        negative_strata = (2 * rest * negatives + share) // (2 * share)
+        if shape is not None:
+            negative_share = _band_plateaus(
+                0, negatives, shape, numbers, facts.integer_valued
+            )
+            share = negative_share + _band_plateaus(
+                negatives + zeros,
+                positives,
+                shape,
+                numbers,
+                facts.integer_valued,
+            )
+        if share <= 0:
+            negative_share = negatives
+            share = negatives + positives
+        negative_strata = (
+            2 * rest * negative_share + share
+        ) // (2 * share)
         negative_strata = max(1, min(negative_strata, rest - 1))
     elif negatives > 0:
         negative_strata = rest
@@ -4578,8 +4852,21 @@ def _numeric_layout(
             demand,
             min(quotas["leading_plus"], zeros + positives),
         )
+    # AND THE SIZES FOLLOW THE FINER LADDER, which is the other half of
+    # residual R-P4-49. The COUNTS above come from the named eleven,
+    # which is the line P4-D4.10 draws and this keeps; the SHAPE comes
+    # from the hundred and one, because that is what knows how many
+    # cells sit on each of a column's values.
+    fine = _merged_rungs(facts)
     sizes, bands = _band_sizes(
-        negatives, zeros, positives, negative_strata, positive_strata
+        negatives,
+        zeros,
+        positives,
+        negative_strata,
+        positive_strata,
+        _filled_rungs(fine) if fine is not None else rungs,
+        numbers,
+        facts.integer_valued,
     )
     if demand > 0:
         flags = _carrier_flags(sizes, bands, rungs, facts.integer_valued)
