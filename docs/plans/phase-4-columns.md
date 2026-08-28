@@ -1001,6 +1001,35 @@ next move. It raises the distinct count from 12 to 20 and destroys the
 thing the finer ladder was built for: the threshold errors go from nil
 to −68, −82 and −56 cells. It is not a trade worth making.
 
+**AND IT LARGELY ANSWERS THE BIMODAL COLUMN, WHICH IS WHAT THE OWNER
+ASKED THE HISTOGRAM FOR.** The histogram landing measured the defect
+this way: a 300-row column of two populations leaves fifteen of
+thirty-two bins empty and the twin fills every one of them, meeting the
+ladder, the mean, the spread and the skew exactly and raising no
+deviation, because none of those facts can tell. That landing then
+BUILT a histogram-consuming value walk, measured it, and withdrew it
+because it fought every other fact in the block.
+
+Measured again on 2026-08-28, on one column of two gaussian
+populations at 20 and 80, over six seeds, before and after this
+landing:
+
+| | cells landing in the gap the source leaves empty |
+|---|---|
+| eleven rungs, even split | 99, 99, 99, 100, 99, 99 of 300 |
+| a hundred and one rungs, shape allotment | 5, 5, 5, 4, 5, 4 of 300 |
+
+**A third of the column fell in the gap; now about one and a half per
+cent does** -- and nothing consumes the histogram to do it. The ladder
+carries the shape and the allotment gives it the multiplicities, which
+is what a histogram was wanted for. Before any further histogram
+fidelity work is built, that measurement should be repeated across more
+shapes: the remaining question is not "can the histogram be consumed"
+but "is there a shape left that the ladder and the allotment still get
+wrong", and it is cheaper to look for one than to build a mechanism for
+a defect that has mostly gone. This is the ask-what-consumes-the-fact
+rule the phase has already paid for twice.
+
 **R-P4-49 IS ANSWERED AND BUILT (owner ruling 2026-08-28: statistical
 fidelity is the priority).** The allotment follows the ladder's own
 shape, stated as method G5.2a and G5.2b: the sizes are the lengths of
