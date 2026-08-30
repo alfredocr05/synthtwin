@@ -28,7 +28,7 @@ without the same help.
 | branch | `phase-4-allotment` (never merged; `main` is pull-request only) |
 | phase | **Phase 4 — comprehensive column handling.** Current. |
 | plan | `docs/plans/phase-4-columns.md` |
-| suite | 4,106 collected / 48 skipped |
+| suite | 4,110 collected / 48 skipped |
 | lint | clean (`ruff check .`), under the rule set pinned in `pyproject.toml` |
 
 ## What is being built right now
@@ -836,8 +836,30 @@ comment and the fourth corrected this page. The rule that keeps
 earning: a claim about floating point is worth what it was RUN on, not
 what was argued for it.
 
-**THREE REVIEW ROUNDS, TEN ARITHMETIC SITES, AND THE LESSON IS WHERE A
-GUARD BELONGS.** Rounds 1, 2 and 3 each returned REJECT and every item
+**FOUR REVIEW ROUNDS, TWELVE SITES, AND NOT ONE WORDING ITEM.** Rounds
+1, 2, 3 and 4 each returned REJECT and every item of all four was real.
+
+**Round 4 corrected a conclusion round 3 let me record, and that is the
+single most useful thing on this page.** I reported that a site round 3
+named in the GENERATOR did not reproduce, having tried seven column
+shapes and searched both reports for a word that is not a number. It
+does reproduce, and its symptom is SILENCE: `_moments_of` multiplied
+before it divided, the variance of a column whose deviation is an
+ordinary 8.5e307 is 7.2e615, and the function returned None for the
+spread, the shape and the tails. The twin report files an approximation
+only where the value is not None, so three published obligations were
+simply ABSENT. Nothing printed, so nothing for the scanner to find.
+Repairing it then UNMASKED the infinity round 3 had predicted in the
+same function. **A defect can be hidden behind another defect, and "I
+could not reproduce it" is only as good as the rest of the system.**
+
+Then the assertion added for that item -- every moment the description
+publishes is named somewhere -- went red on a SUBNORMAL column, which
+no round had found: a deviation near the smallest number this format
+holds, squared, IS zero. Three rounds looked at a square with nowhere
+to go and this is the same expression at the other end of the range.
+
+**AND THE LESSON ABOUT WHERE A GUARD BELONGS.** Rounds 1, 2 and 3 each returned REJECT and every item
 was real. Rounds 1 and 2 each guarded the INPUTS to a computation and
 round 3 found the overflow one step further along -- in the widening
 factor, after the scaled displacement had come out finite. The guard is

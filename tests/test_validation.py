@@ -27,6 +27,7 @@ import json
 import math
 import os
 import pathlib
+import random
 
 import pytest
 
@@ -3341,6 +3342,26 @@ def test_no_extreme_column_takes_the_validator_down(
         ]
         assert not offending, (shape, name, offending[:3])
 
+    # AND EVERY MOMENT THE DESCRIPTION PUBLISHES IS NAMED SOMEWHERE
+    # (review item P4-G6-R4-F2). This is the claim the scanner above
+    # cannot make. The generator's variance overflowed on a column
+    # whose DEVIATION is an ordinary number, `_moments_of` returned
+    # None for the spread, the shape and the tails, and the report --
+    # which files an approximation only where the value is not None --
+    # said nothing at all about three published obligations. Nothing
+    # printed, so nothing to scan for. A fact absent from a report is
+    # the defect two of these rounds already found; this asserts the
+    # absence cannot happen rather than that it prints badly.
+    column = described.columns[0]
+    if isinstance(column.facts, contract.NumericFacts):
+        named = {step.fact for step in generation.generate(
+            described, SEED
+        ).approximations}
+        for field in ("mean", "std", "skew", "kurtosis"):
+            if getattr(column.facts, field) is None:
+                continue
+            assert field in named, (shape, field, sorted(named))
+
 
 @pytest.mark.parametrize("shape", sorted(EXTREME_COLUMNS))
 def test_no_window_drawn_for_an_extreme_column_is_an_infinity(
@@ -3370,3 +3391,130 @@ def test_no_window_drawn_for_an_extreme_column_is_an_infinity(
         assert math.isfinite(low), (shape, name, low, high)
         assert math.isfinite(high), (shape, name, low, high)
         assert low <= high, (shape, name, low, high)
+
+
+# ---------------------------------------------------------------------
+# The fourth adversarial round on the allotment landing (P4-G6-R4). All
+# four items were about the SAME thing said two ways: a published fact
+# that no check measures and no census names is a fact the report has
+# lost, and the report claims to account for every one.
+
+
+def test_an_affixed_column_gets_the_numeric_census_its_cores_are_checked_by(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Checked by one path, listed by another, and the paths disagreed.
+
+    `_affixed_checks` hands the CORES to the same numeric machinery a
+    plain numeric column goes through, so every quantitative obligation
+    is measured. The census asked `isinstance(facts, NumericFacts)` of
+    the OUTER facts, which an affixed column is not, so none of those
+    obligations was ever listed -- and on a description whose windows
+    cannot be drawn they were named nowhere at all.
+    """
+    rows = [f"${100 + step % 40}" for step in range(120)]
+    described = _describe(tmp_path, "amount\n" + "\n".join(rows) + "\n")
+    column = described.columns[0]
+    assert isinstance(column.facts, contract.AffixedFacts), column.facts
+    outcome = _measure(tmp_path, described, _twin_text(described))
+    listed = {str(one.fact) for one in outcome.listings}
+    # The two a quantitative block always owes. The histogram and the
+    # mode pair are published only on some columns, so requiring them
+    # here would make the witness about this column's shape rather than
+    # about the unwrapping.
+    for owed in ("numeric.n_distinct_values", "numeric.percentiles_between"):
+        assert owed in listed, (owed, sorted(listed))
+    if described.columns[0].facts.numbers.value_histogram:
+        assert "numeric.value_histogram" in listed, sorted(listed)
+
+
+def test_the_count_of_different_numbers_is_listed_without_a_histogram(
+    tmp_path: pathlib.Path,
+) -> None:
+    """It is published on its own terms, so it is listed on its own.
+
+    The listing used to sit inside the histogram's condition. A
+    description that publishes the count and carries an empty histogram
+    named the count nowhere.
+    """
+    rows = [str(step) for step in range(120)]
+    described = _describe(tmp_path, "amount\n" + "\n".join(rows) + "\n")
+    facts = described.columns[0].facts
+    assert isinstance(facts, contract.NumericFacts)
+    assert not facts.value_histogram, "this witness needs an empty histogram"
+    outcome = _measure(tmp_path, described, _twin_text(described))
+    listed = {str(one.fact) for one in outcome.listings}
+    assert "numeric.n_distinct_values" in listed, sorted(listed)
+
+
+def test_no_moment_is_both_checked_and_listed_on_a_finer_only_ladder(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The census asks the rungs the window is actually drawn from.
+
+    `_windows_of` reads all hundred and one rungs; the census asked
+    whether the ELEVEN named ones held anything. The contract admits a
+    description whose named rungs are null beside finer rungs that are
+    not, and on one of those the mean and the spread were CHECKED
+    against real windows and listed as having no ladder at the same
+    time -- each obligation counted twice, under two reasons that
+    contradict each other.
+    """
+    rng = random.Random(4)
+    rows = [repr(round(rng.uniform(1, 100), 3)) for _each in range(120)]
+    text = "amount\n" + "\n".join(rows) + "\n"
+    table_path = fixtures.write(tmp_path, "finer.csv", text)
+    table = reading.read_table(
+        str(table_path), first_row=reading.FIRST_ROW_AUTOMATIC
+    )
+    document = profile.build_document(table, SETTINGS, [])
+    block = document["columns"][0]
+    for rung in list(block["percentiles"]):
+        block["percentiles"][rung] = None
+    for rung in list(block["percentiles_between"]):
+        block["percentiles_between"][rung] = 7.0
+    written = fixtures.write_profile(tmp_path, "finer-profile.json", document)
+    described = contract.load_profile(str(written))
+
+    outcome = _measure(tmp_path, described, _twin_text(described))
+    moments = ("mean", "std", "skew", "kurtosis")
+    checked = {
+        one.fact for one in outcome.checks
+        if one.fact.split(".")[-1] in moments
+    }
+    listed = {
+        str(one.fact) for one in outcome.listings
+        if str(one.fact).split(".")[-1] in moments
+    }
+    assert not (checked & listed), sorted(checked & listed)
+    assert checked, "no moment was checked, so this witness reaches nothing"
+    assert listed, "no moment was listed, so this witness reaches nothing"
+
+
+def test_a_subnormal_column_has_a_spread_and_the_twin_reports_it() -> None:
+    """The other end of the overflow family, and it underflows.
+
+    Three rounds looked at a square with nowhere to go. The same
+    expression at the bottom of the range gives zero: a deviation near
+    the smallest number this format holds, squared, IS zero, so the sum
+    of them is zero for a column whose real spread is 5e-324. The twin
+    reported a spread of nothing and said nothing at all about its
+    shape or its tails.
+
+    A spread of zero has two causes and only one of them is a fact, so
+    they are told apart before anything is squared.
+    """
+    values = [0.0] * 40 + [5e-324] * 10 + [1e-323] * 10
+    mean, spread, shape, tails = generation._moments_of(values)
+    assert spread == 5e-324, spread
+    assert shape is not None and tails is not None
+
+    # The arithmetic that failed, beside the one that answers.
+    middle = generation._mean_of(values)
+    assert generation._summed(
+        [(one - middle) * (one - middle) / len(values) for one in values]
+    ) == 0.0
+
+    # AND A COLUMN OF ONE NUMBER STILL HAS NO SHAPE TO REPORT, which is
+    # the cause this must not be confused with.
+    assert generation._moments_of([7.0] * 5) == (7.0, 0.0, None, None)

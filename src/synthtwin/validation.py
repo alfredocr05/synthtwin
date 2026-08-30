@@ -10912,97 +10912,22 @@ def _listings(
                 ),
             ]
             listings = listings + _endpoint_listings(column, facts, corners)
-        if isinstance(facts, contract.NumericFacts) and facts.value_histogram:
-            # REPORT-ONLY, and LISTED rather than silent (P4-D4.7). A
-            # published fact that appears in no check and no listing is
-            # one a reader cannot tell was never measured, which is the
-            # defect review item P3-V1-F3 opened.
-            listings = listings + [
-                Listing(
-                    column.name,
-                    "numeric.value_histogram",
-                    "",
-                    _NOT_CHECKABLE_HISTOGRAM,
-                ),
-                Listing(
-                    column.name,
-                    "numeric.n_distinct_values",
-                    "",
-                    _NOT_CHECKABLE_VALUE_COUNT,
-                ),
-            ]
-        # THE MODE PAIR, LISTED and never silent (plan P4-D4.11). It is
-        # published on every column of this role that has one, so its
-        # listing does not hang off the histogram beside it; a column
-        # with no dominant value publishes no pair and gets no listing.
-        if isinstance(facts, contract.NumericFacts):
-            listings = listings + [
-                Listing(
-                    column.name,
-                    "numeric.percentiles_between",
-                    "",
-                    _NOT_CHECKABLE_FINER_LADDER,
-                ),
-            ]
-        if isinstance(facts, contract.NumericFacts) and facts.mode is not None:
-            listings = listings + [
-                Listing(column.name, "numeric.mode", "", _NOT_CHECKABLE_MODE),
-                Listing(
-                    column.name,
-                    "numeric.mode_count",
-                    "",
-                    _NOT_CHECKABLE_MODE,
-                ),
-            ]
-        # EVERY MOMENT THE DESCRIPTION PUBLISHES AND NO WINDOW REACHES,
-        # under the reason that applies to it (review items P4-G6-R3-F2
-        # and P4-G6-R3-F3). This used to be a fixed list of three under
-        # one reason, and both halves of that were wrong.
-        #
-        # The LIST was wrong because the tail weight arrived a phase
-        # later and was never added to it, so a column whose ladder is
-        # null at every rung published a kurtosis that appeared in
-        # neither the checks nor this census -- the same omission item
-        # F1 of the previous round found on the whole-range path, in a
-        # second place. Naming the fields is what let one of them be
-        # forgotten; reading them off what the description PUBLISHES is
-        # what stops it happening again.
-        #
-        # The REASON was wrong because a window can be missing for more
-        # than one cause. A null ladder carries no shape at all. A
-        # ladder that reaches across the whole range of the format
-        # carries plenty of shape and still has no window, because the
-        # window's own ends are not numbers this format can write --
-        # and those facts used to come out as WITHHELD checks under a
-        # sentence saying the file's description would not publish
-        # them, which is false: describing that file publishes all
-        # four.
-        if isinstance(facts, contract.NumericFacts):
-            has_ladder = bool(_ladder_points(facts.percentiles.rungs))
-            drawn = _windows_of(column, facts) if has_ladder else {}
-            reason = (
-                _NOT_CHECKABLE_NO_WINDOW
-                if has_ladder
-                else _NOT_CHECKABLE_NO_LADDER
-            )
-            for field, value in (
-                ("mean", facts.mean),
-                ("std", facts.std),
-                ("skew", facts.skew),
-                ("kurtosis", facts.kurtosis),
-            ):
-                if value is None or field in drawn:
-                    continue
-                listings = listings + [
-                    Listing(
-                        column.name,
-                        f"numeric.{field}",
-                        f"moments.{field}",
-                        reason,
-                    )
-                ]
-        if isinstance(facts, contract.NumericFacts):
-            listings = listings + _unbounded_style_listings(column, facts)
+        # EVERY ROLE THAT CARRIES A QUANTITATIVE BLOCK, AND NOT ONLY
+        # THE TWO THAT ARE ONE (review item P4-G6-R4-F1). These
+        # branches each tested the OUTER facts for `NumericFacts`,
+        # while `_affixed_checks` hands `facts.numbers` to the same
+        # numeric machinery the checks use. So an affixed column --
+        # any column whose cells wear one fixed piece of text around a
+        # number -- had every numeric obligation CHECKED and none
+        # listed,
+        # and on a description whose windows cannot be drawn they were
+        # named nowhere at all. `_quantitative_of` is the unwrapping
+        # the rest of this module already uses; the census uses it now
+        # too, so a role added later cannot be forgotten here.
+        numbers = _quantitative_of(facts)
+        if numbers is not None:
+            listings = listings + _numeric_listings(column, numbers)
+
         listings = listings + _corner_listings(
             column, _corner_names(corners, column.name)
         )
@@ -11047,6 +10972,98 @@ def _endpoint_listings(
             )
         ]
     return listings
+
+
+def _numeric_listings(
+    column: contract.ColumnBlock, facts: contract.NumericFacts
+) -> "list[Listing]":
+    """The not-checkable census of one quantitative block.
+
+    Reached for EVERY role that carries one -- the two numeric roles
+    directly and the affixed role over its cores -- through the same
+    unwrapping the checks take, so a fact cannot be checked by one path
+    and listed by another (review item P4-G6-R4-F1).
+    """
+    listings: list[Listing] = []
+    if facts.value_histogram:
+        # REPORT-ONLY, and LISTED rather than silent (P4-D4.7). A
+        # published fact that appears in no check and no listing is
+        # one a reader cannot tell was never measured, which is the
+        # defect review item P3-V1-F3 opened.
+        listings = listings + [
+            Listing(
+                column.name,
+                "numeric.value_histogram",
+                "",
+                _NOT_CHECKABLE_HISTOGRAM,
+            )
+        ]
+    # AND THE COUNT OF DIFFERENT NUMBERS DOES NOT HANG OFF THE
+    # HISTOGRAM BESIDE IT (review item P4-G6-R4-F4). It is published on
+    # its own terms, and a description at a raised floor can carry the
+    # count with an empty histogram -- on which this fact was named
+    # nowhere while the report claimed the census accounts for every
+    # obligation.
+    listings = listings + [
+        Listing(
+            column.name,
+            "numeric.n_distinct_values",
+            "",
+            _NOT_CHECKABLE_VALUE_COUNT,
+        ),
+        Listing(
+            column.name,
+            "numeric.percentiles_between",
+            "",
+            _NOT_CHECKABLE_FINER_LADDER,
+        ),
+    ]
+    # THE MODE PAIR, LISTED and never silent (plan P4-D4.11). It is
+    # published on every column of this role that has one, so its
+    # listing does not hang off the histogram beside it; a column with
+    # no dominant value publishes no pair and gets no listing.
+    if facts.mode is not None:
+        listings = listings + [
+            Listing(column.name, "numeric.mode", "", _NOT_CHECKABLE_MODE),
+            Listing(
+                column.name,
+                "numeric.mode_count",
+                "",
+                _NOT_CHECKABLE_MODE,
+            ),
+        ]
+    # EVERY MOMENT THE DESCRIPTION PUBLISHES AND NO WINDOW REACHES,
+    # under the reason that applies to it (review items P4-G6-R3-F2,
+    # P4-G6-R3-F3 and P4-G6-R4-F3).
+    #
+    # Naming the fields in a written-out list is what let the tail
+    # weight be forgotten when it arrived a phase later, so they are
+    # read off what the description PUBLISHES.
+    #
+    # AND WHETHER A LADDER EXISTS IS ASKED OF THE RUNGS THE WINDOW IS
+    # ACTUALLY DRAWN FROM. This asked the ELEVEN named rungs while
+    # `_windows_of` reads all hundred and one, and the contract admits
+    # a description whose named rungs are null beside finer rungs that
+    # are not: its mean and spread were then CHECKED against real
+    # windows and listed here as having no ladder at the same time,
+    # each obligation counted twice under contradictory reasons.
+    has_ladder = bool(_fine_ladder_points(facts))
+    drawn = _windows_of(column, facts) if has_ladder else {}
+    reason = (
+        _NOT_CHECKABLE_NO_WINDOW if has_ladder else _NOT_CHECKABLE_NO_LADDER
+    )
+    for field, value in (
+        ("mean", facts.mean),
+        ("std", facts.std),
+        ("skew", facts.skew),
+        ("kurtosis", facts.kurtosis),
+    ):
+        if value is None or field in drawn:
+            continue
+        listings = listings + [
+            Listing(column.name, f"numeric.{field}", f"moments.{field}", reason)
+        ]
+    return listings + _unbounded_style_listings(column, facts)
 
 
 def _unbounded_style_listings(
