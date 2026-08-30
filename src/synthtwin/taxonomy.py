@@ -2415,6 +2415,47 @@ def _date_ladder(ordered: list[str]) -> dict[str, str]:
 
 
 
+def spread_of(numbers: "list[float]") -> "float | None":
+    """The sample standard deviation of ``numbers``, exactly (P1-D11).
+
+    THE ONE IMPLEMENTATION OF THIS STATISTIC, published as a function
+    so that nothing has to write a second one (review item
+    P4-G6-R1-F5). The validator draws its moment windows around the
+    spread of a reconstructed ladder, and it computed that spread with
+    `sum((x - mean) ** 2)` in binary64 -- which agrees with this on
+    ordinary columns and, on a column of values near 1e300, raises
+    `OverflowError` out of `synthtwin validate` instead. The square of
+    a large value has nowhere to go; `_moments` never forms one,
+    working over whole numbers scaled by a shared power of two.
+
+    Guarantees:
+
+    - Inputs: a list of finite numbers, in any order. The result
+      depends on the multiset and nothing else.
+    - Returns: the correctly rounded binary64 sample deviation, or
+      None where there is no such number -- fewer than two values, or
+      an exact spread larger than binary64 can hold.
+    - A column whose values are ALL ONE NUMBER returns 0.0 and not
+      None, which is the one place this differs from the published
+      `std` field. That field is null there because the profile writes
+      null for "no shape to report", and the same test serves it for
+      the undefined skewness; but the DEVIATION of a column of
+      identical values is not undefined, it is zero, and a caller
+      drawing a window around it needs the zero. Returning None here
+      withheld every moment window on a flat ladder.
+    - Errors raised: none. No I/O of any kind.
+    """
+    if len(numbers) < 2:
+        return None
+    moments = _moments(list(numbers))
+    if moments["std_unrepresentable"]:
+        return None
+    spread = moments["std"]
+    if spread is None:
+        return 0.0
+    return spread
+
+
 def _moments(numbers: list[float]) -> dict[str, "float | None"]:
     """Mean, standard deviation and skewness of ``numbers``.
 

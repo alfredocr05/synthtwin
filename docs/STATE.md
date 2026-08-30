@@ -25,10 +25,10 @@ without the same help.
 
 | | |
 |---|---|
-| branch | `phase-4-plan` (never merged; `main` is pull-request only) |
+| branch | `phase-4-allotment` (never merged; `main` is pull-request only) |
 | phase | **Phase 4 — comprehensive column handling.** Current. |
 | plan | `docs/plans/phase-4-columns.md` |
-| suite | 4,077 collected / 48 skipped |
+| suite | 4,086 collected / 48 skipped |
 | lint | clean (`ruff check .`), under the rule set pinned in `pyproject.toml` |
 
 ## What is being built right now
@@ -815,12 +815,85 @@ never the right ceiling.
 FROM THE SPECIFICATION ALONE — the charter asks for the spec before the
 implementation and this went the other way round, so the oracle is the
 only thing that can still catch a method text that says something
-different from what the code does. Three mutation tests in
-`test_p2c4f3_style_capacity` are vacuous because the repairs they pin
-are redundant on their own witnesses; that is being measured across
-hundreds of columns before anything is deleted, because "redundant on
-its witness" is not "dead everywhere". The five goldens are untouched
+different from what the code does. The five goldens are untouched
 and must stay so until the above settles.
+
+**THE FIRST ADVERSARIAL ROUND ON THIS LANDING RETURNED REJECT WITH
+FOUR ITEMS, AND ALL FOUR WERE REAL** (P4-G6-R1, in the register). Two
+were overflows in arithmetic I had already written a paragraph about,
+and in one case the paragraph was written by the repair that MOVED the
+overflow instead of removing it: G5.2a divides before it subtracts so
+the numerator cannot overflow, and its DIVISOR then overflowed on two
+large rungs of one sign, tying every gap at zero and handing the choice
+back to iteration order. The other put an infinity inside the validator
+on a description holding nothing but finite numbers, because
+`_ladder_at` said "the convex form" and computed the difference form
+the generator's own docstring rules out. Both are repaired with a red
+case each; the third item corrected an overstatement in R-P4-55's own
+comment and the fourth corrected this page. The rule that keeps
+earning: a claim about floating point is worth what it was RUN on, not
+what was argued for it.
+
+**AND SEARCHING FOR THAT ROUND'S SIBLINGS FOUND THE WORST DEFECT OF
+THE DAY: `synthtwin validate` CRASHED** (R-P4-57). Sixty ordinary
+readings between 1e280 and 1e300 in one column. `synthtwin profile`
+wrote a description with a finite spread; `synthtwin generate` wrote a
+twin; `synthtwin validate` came out as an `OverflowError` traceback
+naming internal functions. `_sample_deviation` is described as "the
+standard deviation the profiler's own formula computes" and computed
+`sum((x - mean) ** 2)` in binary64 instead -- a second implementation
+of a published statistic, on a table nothing was wrong with.
+
+Under the crash was a quieter one: the spread the moment windows are
+drawn from came out an infinity, so the standard-deviation window was
+`(0, inf)` -- a bound every twin ever written satisfies, reported HELD
+with no word about having gone quiet. That is a FALSE PASS and not a
+conservative one, and the three windows are now withheld in words
+where the spread cannot be held.
+
+**Four sites, one family, and its first member was fixed months ago.**
+The tail-weight window already carries the rule -- divide each
+deviation by the spread BEFORE raising it -- with the item number that
+found it. The rule was applied where that round pointed and at none of
+its siblings. **Where a review names a site, search for the siblings**
+is the standing lesson of this project and it paid again: the round
+named four items and the fifth, found by looking, was the only one
+that took a shipped command down.
+
+**AND THE THREE VACUOUS MUTATION TESTS ARE ANSWERED — ALL THREE
+REPAIRS ARE ALIVE.** They looked dead because each was redundant on
+its own witness after the allotment moved the strata. "Redundant on
+its witness" is not "dead everywhere", so each was measured before
+anything was touched, and nothing was deleted:
+
+* `_whole_inside`'s share walk. On the old fixture it was called ZERO
+  times across 19 seeds. Its new witness — `1.5`×6, `8.5`×7, `9`×15 —
+  calls it 18 times across those seeds, and every call returns `8.0`
+  with the walk and nothing without it. The twin writes its published
+  15 plain cells at all 19 seeds; mutated it writes 14 at 18 of them.
+* `_carrier_bands`' band step. The old 58-cell column gave its
+  negatives two strata outright under the new share, so the step had
+  nothing to fetch. Its new witness is 33 cells whose ladder reads the
+  negative band as 3 plateaus against the positive band's 8, so the
+  share rounds that side down to ONE stratum — the pinned `min` of
+  `-20.5`, which carries a point and can wear no point-free form. The
+  step is entered at (1, 4) and returns (2, 3). Unmutated the twin
+  writes its published 12 `leading_zero` and 20 `plain` exactly;
+  neutralised it writes 7 and 15.
+* `_held_later`'s bar. The strongest of the three, and the one that
+  shows why none of them could be deleted on a single witness: over
+  600 producer columns at six seeds the bar is consulted 399 times and
+  decides the answer 247 times, across 58 different columns — about
+  one column in ten. The old fixture reached it not once, because the
+  allotment made the contended whole number land INSIDE the earlier
+  stratum's own share, where the stratum has the older claim and the
+  bar is never asked. The whole 20-case battery had drifted the same
+  way: one call, no decision.
+
+The lesson is the one already written above the measurement rules: a
+test that stops failing when its repair is removed has told you
+something about the TEST, and only a measurement over many columns can
+say which.
 
 ## What is broken right now
 
@@ -835,6 +908,22 @@ and must stay so until the above settles.
   unless the checks actually ran on the STAGED tree**, because the
   scanners walk the tracked tree and will silently skip a file you have
   not added yet.
+- **R-P4-56, opened 2026-08-30 and the most serious thing open here.**
+  A numeric column with a PINNED fraction width -- a code column, a
+  rounded measurement -- can get two strata that hold different
+  numbers but round onto one spelling. The count of different values
+  then comes out short, which the twin's report NAMES, and the
+  leading-zero raise supplies the missing spelling by writing one
+  number a second way, which nothing reports. Measured over two
+  families of 80 columns: 13 of 80 grid-spaced columns collide and 12
+  of those write an integer field wider than any source cell's, the
+  worst being seven figures where the source had four; 0 of 80
+  ordinary full-precision columns do. A person parsing a fixed-width
+  code column against the twin gets a cell their code cannot read, and
+  is not told. The repair is written down in the register: step a
+  colliding stratum to the next free point on the published width's
+  own grid, inside its own share. Not built during the allotment
+  landing because it is the same surface.
 - The open defects of Phase 4 are the residual register at the foot of
   `docs/plans/phase-4-columns.md`. The 2026-08-26 triage sorted them:
   15 deliberate scope declines, 11 real landings, 7 owner questions.
