@@ -3176,8 +3176,8 @@ declaration for only one of them.
     second left the case the repair was for untouched.
 
     Rewritten to work the gap out on the side being moved toward, and
-    checked against `math.nextafter` over 400024 steps with both module
-    copies: none wrong. That check lives in `tests/`, which is where a
+    checked against `math.nextafter` with both module copies: 200018
+    values, both directions, 800072 comparisons, none wrong. That check lives in `tests/`, which is where a
     hand-rolled stand-in for a library call the offline audit does not
     allow should be held to the library call.
 
@@ -3193,9 +3193,12 @@ declaration for only one of them.
     now state the widening, including the trap F1 of the round before
     fell into: outward is not away from zero.
 
-  * **AND I CAUGHT MY OWN DOUBLE STEP while fixing F3**: the
-    generator's skew pair was widened at the ceiling AND again at the
-    return, which is a bound two places looser than the method states.
+  * **AND I CAUGHT MY OWN DOUBLE STEP while fixing F3** -- in ONE of
+    the two places it lived. The generator's skew pair was widened at
+    the ceiling and again at the return, and removing it from the main
+    return left it in the FALLBACK branch beside it. This entry said
+    the double step had been caught; round 8 read the code and found
+    that it had not. See P4-G6-R8.
 
 - **R-P4-61 (opened here, 2026-08-30, PRE-EXISTING, and MEASURED before
   it was written down).** THE GENERATOR AND THE VALIDATOR PRINT
@@ -3220,6 +3223,45 @@ declaration for only one of them.
   at the tail of another one. The number a reader sees differs in its
   last two digits between two reports; the verdict either report gives
   has not been seen to differ, and R-P4-61 owes that measurement too.
+
+- **P4-G6-R8, the eighth and last round (2026-08-30). One item, and an
+  AUDIT OF THIS REGISTER that found two of its claims overstated.**
+
+  The round was asked three questions besides its items -- whether the
+  landing is safe to stop on, what the highest-value work left is, and
+  whether anything written here outruns the code. The third was asked
+  because seven rounds had each found something written confidently and
+  wrongly, and the register is what a future reader will trust.
+
+  * **The item: the generator's skew fallback still widened twice.**
+    The round before removed the double step from the main return and
+    left it in the branch beside it, so on the three cells `-1e20`,
+    `0` and `1` the twin report printed a range two places wide where
+    the validator printed one. Closed, with a test that asserts the
+    ENDPOINTS of both modules' windows rather than only that a correct
+    twin lies inside them -- which is what the previous round's test
+    checked, and why it could not see this.
+
+  * **The audit's first item: this register said the double step had
+    been caught.** It had been caught in one of the two places it
+    lived. Corrected above.
+
+  * **The audit's second item: the `math.nextafter` coverage was cited
+    from a console run and not from the committed file.** The number
+    written here was 400024; the test held 20018 values, which is
+    40036 comparisons per module. The test now holds 200018 values and
+    asserts its own size, so the figure is one the file can be made to
+    produce: 800072 comparisons across both copies.
+
+  * **What the round says is left, recorded because it is not my
+    judgement alone.** It says the landing is NOT safe to stop on while
+    R-P4-58 and R-P4-59 omit published facts from a report and R-P4-60
+    can pass a file that misses an exact obligation -- all three
+    deliberately opened rather than fixed. And it names **R-P4-56 as
+    the highest-value work left of everything it saw**, on the ground
+    that a twin writing fixed-width cells wider than any source cell
+    breaks analysis code developed against it, which is worse than two
+    reports disagreeing in their last digits.
 
 - **R-P4-58 (opened here, 2026-08-30, PRE-EXISTING and not from this
   landing).** A JOINED COLUMN'S POSITIONS CARRY A FULL QUANTITATIVE

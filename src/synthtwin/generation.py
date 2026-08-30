@@ -15629,7 +15629,17 @@ def _shape_window(
     low_cube = low_root * low_root * low_root
     high_cube = high_root * high_root * high_root
     if low_cube <= 0 or not math.isfinite(high_cube):
-        return (_lowered(-ceiling), _raised(ceiling))
+        # THE CEILING IS ALREADY WIDENED and is not widened again
+        # (review item P4-G6-R8). The round before this one removed the
+        # double step from the branch below and left it here, and the
+        # register then said the double step had been caught. It had
+        # been caught in one of the two places it lived: on the three
+        # cells `-1e20`, `0` and `1` this fallback printed a range two
+        # places wide where the validator's own fallback prints one, so
+        # one run of `generate` beside `validate` stated two
+        # versions of G12.3
+        # again -- the very thing the step was added to stop.
+        return (-ceiling, ceiling)
     lowest = lowest_shape / (low_cube if lowest_shape < 0 else high_cube)
     highest = highest_shape / (high_cube if highest_shape < 0 else low_cube)
     # THE SAME OUTWARD STEP THE VALIDATOR'S COPY OF THIS WINDOW TAKES
