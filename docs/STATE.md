@@ -28,7 +28,7 @@ without the same help.
 | branch | `phase-4-allotment` (never merged; `main` is pull-request only) |
 | phase | **Phase 4 — comprehensive column handling.** Current. |
 | plan | `docs/plans/phase-4-columns.md` |
-| suite | 4,112 collected / 48 skipped |
+| suite | 4,113 collected / 48 skipped |
 | lint | clean (`ruff check .`), under the rule set pinned in `pyproject.toml` |
 
 ## What is being built right now
@@ -836,8 +836,32 @@ comment and the fourth corrected this page. The rule that keeps
 earning: a claim about floating point is worth what it was RUN on, not
 what was argued for it.
 
-**SIX REVIEW ROUNDS, EVERY ITEM OF ALL SIX REAL, AND NOT ONE WORDING
-ITEM.** Round 6 found the worst report defect of the landing: a bound
+**SEVEN REVIEW ROUNDS, EVERY ITEM OF ALL SEVEN REAL, AND NOT ONE
+WORDING ITEM.** Round 7 found that the outward step round 6 introduced
+was not a step to the ADJACENT number -- and I had written it while
+fixing round 6's own bound. The gap below a value on the edge of its
+binade is HALF the gap above it, so it stepped two places there; the
+gap it computed for a subnormal underflows, so no subnormal moved at
+all, which is exactly the case a one-place widening exists for; and the
+largest number the format holds raised `OverflowError`. It is checked
+against `math.nextafter` over 400024 steps now, in `tests/`, which is
+where a hand-rolled stand-in for a call the offline audit forbids
+belongs.
+
+Round 7 also found the joined agreement window rounding inward the same
+way, and that the ratified METHOD had not been amended for any of the
+widening -- blocking on its own under the reviewer brief. Both closed.
+
+**AND ITS FOURTH ITEM WAS MEASURED RATHER THAN GUESSED AT.** The
+generator and the validator print different moment windows for one
+column, so one run of the two commands states two numerical versions of
+one method. Nine windows built at the commit BEFORE this branch and
+again at its head: 8 of 9 differed before, 7 of 9 differ now. It is
+pre-existing, this landing improved it slightly, and closing it means
+stating the window's arithmetic operation by operation in the method
+and making both implementations follow that text. Opened as R-P4-61.
+
+**SIX ROUNDS BEFORE THAT, EVERY ITEM REAL.** Round 6 found the worst report defect of the landing: a bound
 stated as a limit that did not ADMIT the limit. The largest skew a
 sample of three values can take is one over the square root of two,
 whose correctly rounded value is 0.7071067811865476; computed as

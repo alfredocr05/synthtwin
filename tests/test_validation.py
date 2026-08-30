@@ -3607,3 +3607,54 @@ def test_a_statistic_on_its_own_ceiling_is_not_called_a_miss(
     # window are positive, so widening its low end must move it DOWN.
     assert generation._lowered(2.3333333333333335) < 2.3333333333333335
     assert generation._raised(2.3333333333333335) > 2.3333333333333335
+
+
+def test_the_outward_step_is_the_number_next_to_the_one_it_was_given(
+) -> None:
+    """Checked against `math.nextafter`, which `src/` may not call.
+
+    The offline audit allows five names from `math` and `nextafter` is
+    not one of them, so the two modules build the step from `frexp` and
+    `ldexp`. That is a line of arithmetic standing in for a library
+    call, and the way to be sure it says the same thing is to ASK the
+    library call -- here, where the audit does not reach.
+
+    THE FIRST VERSION OF THAT ARITHMETIC WAS WRONG IN THREE WAYS
+    (review item P4-G6-R7-F2), and every one is in the list below: the
+    gap below a value sitting exactly on the edge of its binade is HALF
+    the gap above it, so `_lowered(1.0)` stepped two places; the gap it
+    computed for a subnormal underflows to nothing, so the smallest
+    bounds -- the ones the widening exists for -- did not move at all;
+    and the largest number the format holds raised `OverflowError`.
+    """
+    edges = [
+        1.0, 0.5, 2.0, 4.0, 0.25,
+        0.7071067811865475, 2.3333333333333335,
+        5e-324, 1e-323, 1e-320, 2.2250738585072014e-308,
+        0.0, -0.0,
+        -1.0, -0.5, -2.0,
+        1.7976931348623157e308, -1.7976931348623157e308,
+    ]
+    spread = random.Random(3)
+    for _each in range(20000):
+        edges.append(
+            spread.uniform(-10, 10) * 10.0 ** spread.randint(-320, 300)
+        )
+
+    for value in edges:
+        for upward, toward in ((True, math.inf), (False, -math.inf)):
+            wanted = math.nextafter(value, toward)
+            if not math.isfinite(wanted):
+                # There is no number beyond the edge of the range, and a
+                # bound already there admits everything this format can
+                # write, so it is returned unchanged rather than raising.
+                wanted = value
+            assert generation._stepped(value, upward) == wanted, (
+                value, upward, generation._stepped(value, upward), wanted
+            )
+            # AND THE VALIDATOR'S COPY SAYS THE SAME THING. The two
+            # modules may not import each other, so the only thing
+            # holding them together is being written alike.
+            assert validation._stepped(value, upward) == wanted, (
+                value, upward
+            )

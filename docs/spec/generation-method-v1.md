@@ -4513,6 +4513,28 @@ are:
 -(K - 2) / sqrt(K - 1)   <=   skew   <=   +(K - 2) / sqrt(K - 1)
 ```
 
+**AND EVERY LIMIT WRITTEN IN THIS SECTION IS WIDENED ONE PLACE OUTWARD
+BEFORE ANYTHING IS COMPARED AGAINST IT** (review item P4-G6-R7-F1,
+opened by the shape P4-G6-R6-F1 found). A limit stated as a closed form
+and computed in binary64 can land one place INSIDE itself: on three
+values `(K - 2) / sqrt(K - 1)` is one over the square root of two,
+whose correctly rounded value is 0.7071067811865476, and the division
+and the square root each round, so the expression gives ...75. A column
+whose skew IS the maximum then falls outside a bound it exactly meets,
+and the report tells its reader that an exactly reproduced fact was not
+reproduced.
+
+So each end of each of these bounds -- the skew range here, the tail
+weight's range in G12.3a, and the inclusive agreement window of G12.9
+-- is moved to the number this format holds NEXT TO IT, away from the
+middle of the bound: the lower end downward, the upper end upward.
+Outward, and not away from zero: the tail weight's two ends are both
+positive, and moving its lower end away from zero moves it UP, past the
+value the bound was drawn to admit. The widening can never turn a real
+miss into a pass, because it admits exactly the values the limit itself
+admits and no others. A limit already at the edge of the range is left
+as it is, there being no number beyond it.
+
 The published bound is the INTERSECTION of the quotient with that
 range, so it is finite on both sides for every column, and it narrows
 to the quotient exactly when the ladder's own spread exceeds the
@@ -4836,6 +4858,16 @@ published value, two-sided:
 ```
 |agreement(twin) - part_agreements[pair]|  <=  0.02
 ```
+
+**THE COMPARISON IS INCLUSIVE AND THE SUBTRACTION ROUNDS**, so both
+ends of that window are widened one place outward before anything is
+compared against them, exactly as G12.3's limits are (review item
+P4-G6-R7-F1). On a published agreement of `0.2487` the lower end
+`published - 0.02` comes out `0.22870000000000001` in binary64, so a
+file agreeing at exactly `0.2287` -- which this rule admits, the
+comparison being `<=` -- was reported MISSED against it. Widening
+outward admits exactly what the rule admits and nothing else.
+
 
 Both sides are measured at the precision the description PUBLISHES the
 agreement at, which is four decimal places. A twin measured raw can sit
