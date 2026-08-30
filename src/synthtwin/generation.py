@@ -1785,7 +1785,7 @@ def _merged_rungs(
 
 
 def _filled_rungs(
-    rungs: "tuple[float | None, ...]",
+    rungs: "tuple[float | None, ...] | None",
 ) -> "tuple[float, ...] | None":
     """The eleven rungs with every empty one filled in, or None.
 
@@ -1800,6 +1800,19 @@ def _filled_rungs(
     the caller falls back to the sign counts. Nothing is read but the
     rungs given.
     """
+    # A LADDER THAT IS NOT THERE AT ALL, which is not the same as one
+    # whose rungs are all null and reaches here the same way (review
+    # item P4-G6-R3, found while building a witness for F2). This
+    # function and `_merged_rungs` BOTH document returning None where
+    # the ladder holds nothing anywhere, and the unified-ladder landing
+    # composed them -- `_filled_rungs(_merged_rungs(facts))` -- without
+    # guarding the join. On a description whose rungs are null at every
+    # one of the hundred and one, which the loader accepts,
+    # `synthtwin generate` came out as `TypeError: object of type
+    # 'NoneType' has no len()`. The caller already handles the None
+    # this returns; it was only the way in that had no answer.
+    if rungs is None:
+        return None
     holds = [place for place in range(len(rungs)) if rungs[place] is not None]
     if not holds:
         return None

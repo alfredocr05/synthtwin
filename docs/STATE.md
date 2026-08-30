@@ -28,7 +28,7 @@ without the same help.
 | branch | `phase-4-allotment` (never merged; `main` is pull-request only) |
 | phase | **Phase 4 — comprehensive column handling.** Current. |
 | plan | `docs/plans/phase-4-columns.md` |
-| suite | 4,102 collected / 48 skipped |
+| suite | 4,106 collected / 48 skipped |
 | lint | clean (`ruff check .`), under the rule set pinned in `pyproject.toml` |
 
 ## What is being built right now
@@ -836,8 +836,43 @@ comment and the fourth corrected this page. The rule that keeps
 earning: a claim about floating point is worth what it was RUN on, not
 what was argued for it.
 
-**AND SEARCHING FOR THAT ROUND'S SIBLINGS FOUND THE WORST DEFECT OF
-THE DAY: `synthtwin validate` CRASHED** (R-P4-57 -- and round 2 then
+**THREE REVIEW ROUNDS, TEN ARITHMETIC SITES, AND THE LESSON IS WHERE A
+GUARD BELONGS.** Rounds 1, 2 and 3 each returned REJECT and every item
+was real. Rounds 1 and 2 each guarded the INPUTS to a computation and
+round 3 found the overflow one step further along -- in the widening
+factor, after the scaled displacement had come out finite. The guard is
+now at the point a window is FILED, not at its inputs: one function
+that records a window where both ends are numbers and withholds it
+otherwise. A guard on the products of an expression covers one
+expression; a guard where the result is recorded covers every product,
+including the ones nobody has written yet. Two of the ten sites were
+found by searching for the siblings of a named one, and one was a
+composition I had written myself -- `_filled_rungs(_merged_rungs(...))`,
+two functions that both document returning None, joined without a guard,
+which took `synthtwin generate` down with a `TypeError` on a
+description the loader accepts.
+
+Round 3 also found the kurtosis missing from the census a SECOND time,
+on a different path, because both listings were built from a typed-out
+list of field names. They read the moments off what the description
+PUBLISHES now, so a fact cannot go missing by not being typed.
+
+And it found that round 2's withholding filed those facts under a
+sentence that is FALSE -- "describing this file would not publish what
+this check measures", of a file whose description publishes all four
+moments. What is missing is the window, not the fact. They are
+not-checkable census lines now, with a reason that is true.
+
+**One claim of round 3 did NOT reproduce and is recorded as such**: the
+same multiplication in the GENERATOR, tried against seven column
+shapes, never printed an infinity, because its reach is bounded by the
+ladder's rank windows rather than by the column's range. No unwitnessed
+guard was added there -- silently dropping a fact from a report is the
+very defect class two of these rounds found. A DETECTOR was added
+instead, over both reports.
+
+**AND SEARCHING FOR AN EARLIER ROUND'S SIBLINGS FOUND THE WORST DEFECT
+OF THE DAY: `synthtwin validate` CRASHED** (R-P4-57 -- and round 2 then
 found that the first repair for it had MOVED the crash rather than
 removed it, which is P4-G6-R2 in the register and the reason the
 repair is now an eight-shape BATTERY and not another guard). Sixty ordinary

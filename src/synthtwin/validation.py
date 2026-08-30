@@ -436,6 +436,12 @@ _NOT_CHECKABLE_NO_LADDER = (
     "carries no shape for these values and there is no window to "
     "measure against"
 )
+_NOT_CHECKABLE_NO_WINDOW = (
+    "the published ladder for this column reaches so far across the "
+    "range of numbers this format holds that the window the generation "
+    "method draws has no end this format can write, so there is "
+    "nothing here a file could be compared against"
+)
 _NOT_CHECKABLE_DECLARED_AXIS = (
     "this says whether the person who owns the table declared this "
     "column as a record number when the description was written. It is "
@@ -7626,6 +7632,18 @@ def _moment_checks(
         # take, a comparison against it admits every file there is.
         if field == "kurtosis" and _tails_admit_every_value(column, facts):
             continue
+        # AND A MOMENT WITH NO WINDOW IS A CENSUS LINE, NOT A WITHHELD
+        # CHECK (review item P4-G6-R3-F3). `_within` turns a missing
+        # window into WITHHELD under the sentence that says describing
+        # this file would not publish what the check measures -- which
+        # is false here: describing it publishes all four moments, and
+        # what is missing is the window, because the column reaches so
+        # far across the range that the window's own ends are not
+        # numbers. `_listings` files those with the reason that is
+        # true, so leaving the check out here is what stops the same
+        # obligation being counted twice under two different reasons.
+        if field not in windows:
+            continue
         found = _number_at(block, field)
         checks = checks + [
             _within(
@@ -7721,13 +7739,37 @@ def _moment_windows(
         # cannot be drawn, which the census then names, rather than
         # handing back a bound every twin satisfies.
         return found
+    # A WINDOW IS FILED ONLY WHERE BOTH OF ITS ENDS ARE NUMBERS
+    # (review item P4-G6-R3-F1). Guarding the INPUTS to a window is not
+    # the same as guarding the window, and this is the ninth site of
+    # the family to prove it: the scaled displacement above comes out
+    # finite near 1.47e308 on the three cells `0`, `8.5e307` and
+    # `1.7e308`, and then the widening factor of `sqrt(n / (n - 1))`
+    # -- about 1.22 on three values -- carries it past the end of the
+    # range. The quality report printed "between 0.0 and inf", which is
+    # the vacuous pass this whole family keeps producing.
+    #
+    # So every window from here down goes through `_bounded`, which
+    # files it where both ends are numbers and withholds it where
+    # either is not. A guard on the products of an expression is a
+    # guard on one expression; a guard at the point of FILING covers
+    # every product, including the ones nobody has written yet.
+    def _bounded(name: str, low: float, high: float) -> bool:
+        if not math.isfinite(low) or not math.isfinite(high):
+            return False
+        found[name] = (low, high)
+        return True
+
     widen = displacement * math.sqrt(numbers / (numbers - 1))
-    found["std"] = (max(0.0, sample - widen), sample + widen)
+    if not _bounded("std", max(0.0, sample - widen), sample + widen):
+        return found
     if numbers < 3:
         return found
     population = _population_deviation(ladder, numbers)
     low_end = max(0.0, population - displacement)
     high_end = population + displacement
+    if not math.isfinite(low_end) or not math.isfinite(high_end):
+        return found
     # AND THE CUBES ARE DIVIDED BEFORE THEY ARE RAISED, the third
     # member of the same family. `(lows[rank] - mean_high) ** 3` on a
     # column around 1e300 is a number with nowhere to go, and the four
@@ -7769,7 +7811,8 @@ def _moment_windows(
         if numbers >= 4:
             found["kurtosis"] = (1.0, ceiling)
         return found
-    found["skew"] = (max(-reach, min(ends)), min(reach, max(ends)))
+    if not _bounded("skew", max(-reach, min(ends)), min(reach, max(ends))):
+        return found
     if numbers < 4:
         return found
     # THE TAIL WEIGHT, on the same terms one moment along (G12.3a). Two
@@ -7810,9 +7853,9 @@ def _moment_windows(
     lowest = max(1.0, tails_low)
     highest = min(ceiling, tails_high)
     if lowest > highest:
-        found["kurtosis"] = (highest, lowest)
+        _bounded("kurtosis", highest, lowest)
         return found
-    found["kurtosis"] = (lowest, highest)
+    _bounded("kurtosis", lowest, highest)
     return found
 
 
@@ -10911,18 +10954,53 @@ def _listings(
                     _NOT_CHECKABLE_MODE,
                 ),
             ]
-        if isinstance(facts, contract.NumericFacts) and not _ladder_points(
-            facts.percentiles.rungs
-        ):
-            listings = listings + [
-                Listing(
-                    column.name,
-                    f"numeric.{field}",
-                    f"moments.{field}",
-                    _NOT_CHECKABLE_NO_LADDER,
-                )
-                for field in ("mean", "std", "skew")
-            ]
+        # EVERY MOMENT THE DESCRIPTION PUBLISHES AND NO WINDOW REACHES,
+        # under the reason that applies to it (review items P4-G6-R3-F2
+        # and P4-G6-R3-F3). This used to be a fixed list of three under
+        # one reason, and both halves of that were wrong.
+        #
+        # The LIST was wrong because the tail weight arrived a phase
+        # later and was never added to it, so a column whose ladder is
+        # null at every rung published a kurtosis that appeared in
+        # neither the checks nor this census -- the same omission item
+        # F1 of the previous round found on the whole-range path, in a
+        # second place. Naming the fields is what let one of them be
+        # forgotten; reading them off what the description PUBLISHES is
+        # what stops it happening again.
+        #
+        # The REASON was wrong because a window can be missing for more
+        # than one cause. A null ladder carries no shape at all. A
+        # ladder that reaches across the whole range of the format
+        # carries plenty of shape and still has no window, because the
+        # window's own ends are not numbers this format can write --
+        # and those facts used to come out as WITHHELD checks under a
+        # sentence saying the file's description would not publish
+        # them, which is false: describing that file publishes all
+        # four.
+        if isinstance(facts, contract.NumericFacts):
+            has_ladder = bool(_ladder_points(facts.percentiles.rungs))
+            drawn = _windows_of(column, facts) if has_ladder else {}
+            reason = (
+                _NOT_CHECKABLE_NO_WINDOW
+                if has_ladder
+                else _NOT_CHECKABLE_NO_LADDER
+            )
+            for field, value in (
+                ("mean", facts.mean),
+                ("std", facts.std),
+                ("skew", facts.skew),
+                ("kurtosis", facts.kurtosis),
+            ):
+                if value is None or field in drawn:
+                    continue
+                listings = listings + [
+                    Listing(
+                        column.name,
+                        f"numeric.{field}",
+                        f"moments.{field}",
+                        reason,
+                    )
+                ]
         if isinstance(facts, contract.NumericFacts):
             listings = listings + _unbounded_style_listings(column, facts)
         listings = listings + _corner_listings(
