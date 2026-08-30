@@ -1831,3 +1831,143 @@ def test_the_twins_cells_read_back_unchanged_through_the_shipped_reader(
     assert read_back.n_rows == twin.n_rows
     for index, name in enumerate(twin.names):
         assert list(read_back.columns[index]) == list(twin.columns[index]), name
+
+
+# ---------------------------------------------------------------------
+# The two arithmetics a column of very large numbers reaches (review
+# items P4-G6-R1-F1 and P4-G6-R1-F2, both opened by the first
+# adversarial round on the allotment landing).
+#
+# Neither of these is reachable through a fixture the rest of this file
+# builds, because both need rungs within a factor of ten of the largest
+# number a binary64 holds. They are asserted against the two functions
+# directly, and each carries the arithmetic that failed beside the one
+# that answers, so the assertion says what it is protecting.
+
+
+def test_the_merge_key_survives_two_large_rungs_of_one_sign() -> None:
+    """G5.2a's gap, on the pair that made its divisor an infinity.
+
+    The rule normalises a pair's distance by the pair's own size so
+    that a column of thousands and a column of thousandths are judged
+    alike, and it divides before it subtracts so `|high - low|` cannot
+    overflow. That moved the overflow into the DIVISOR: two large rungs
+    of the same sign make `|high| + |low|` an infinity, both quotients
+    come out zero, every gap ties at zero, and the leftmost pair wins a
+    comparison it should have lost -- the choice decided by iteration
+    order, which is the exact outcome the guard was written to stop.
+
+    Here the true gaps are about 0.032 for the left pair and 0.015 for
+    the right, so the RIGHT pair is the nearer one and must be the one
+    that merges.
+    """
+    lengths, held = generation._merge_nearest(
+        [1, 1, 1], [1e308, 1.0667e308, 1.1e308]
+    )
+    assert lengths == [1, 2], (
+        "the two rungs the key must part on tied at zero, so the "
+        "leftmost pair was taken by default"
+    )
+    assert held == [1e308, 1.0667e308]
+
+    # AND THE SHIPPED ARITHMETIC IS SHOWN TO TIE, so this test cannot
+    # go quiet if the branch is removed: it is the divisor that
+    # overflows, not the difference.
+    gaps = []
+    for low, high in ((1e308, 1.0667e308), (1.0667e308, 1.1e308)):
+        span = abs(high) + abs(low)
+        gaps.append(abs(high / span - low / span) if span > 0.0 else 0.0)
+    assert gaps == [0.0, 0.0], gaps
+
+
+def test_the_merge_key_is_unchanged_wherever_its_divisor_was_finite() -> None:
+    """The second branch is taken only where the first has no answer.
+
+    The scaled form computes the same quantity in real arithmetic and
+    NOT the same binary64 -- it parts from the plain form by one unit
+    in the last place on about two pairs in a hundred. A ratified rule
+    should not shift under a repair aimed at something else, so the
+    scaled form is reached only where `|high| + |low|` is not finite.
+    This walks a spread of pairs the plain divisor can represent and
+    holds the function to the plain key on every one.
+    """
+    rungs = [
+        [1.0, 2.0, 10.0],
+        [-5.0, 0.5, 0.75, 900.0],
+        [1e-300, 2e-300, 3e-300, 4.5e-300],
+        [-1e200, -1e100, 1e100, 1e200],
+        [0.001, 0.002, 0.004, 0.008, 3.0],
+        [-7.5, -7.0, -6.5, 12.0, 12.5],
+    ]
+    for held in rungs:
+        lengths = [3, 1, 4, 1, 5, 9][: len(held)]
+        best, best_key = 0, None
+        for place in range(len(held) - 1):
+            low, high = held[place], held[place + 1]
+            span = abs(high) + abs(low)
+            assert span != float("inf")
+            gap = abs(high / span - low / span) if span > 0.0 else 0.0
+            alike = parsing.is_whole_number(low) == parsing.is_whole_number(
+                high
+            )
+            key = (min(lengths[place], lengths[place + 1]),
+                   0 if alike else 1, gap)
+            if best_key is None or key < best_key:
+                best, best_key = place, key
+        want = (
+            lengths[:best]
+            + [lengths[best] + lengths[best + 1]]
+            + lengths[best + 2:]
+        )
+        got, _values = generation._merge_nearest(list(lengths), list(held))
+        assert got == want, (held, got, want)
+
+
+def test_the_validator_reads_the_ladder_the_way_the_generator_writes_it(
+) -> None:
+    """One description, two modules, and they may not disagree (G5.3).
+
+    The validator may not import the generator, so the only thing
+    holding their arithmetic together is that both are written the way
+    the method states. `_ladder_at` said "the convex form" and computed
+    the DIFFERENCE form, which is the one `_interpolated`'s docstring
+    rules out: two rungs at opposite ends of the representable range
+    make `high - low` an infinity. Every number in this description is
+    finite, and the reading the validator took was not -- and that
+    reading feeds the widest stratum and every rung and moment window,
+    so a conforming twin could be reported MISSED.
+    """
+    from synthtwin import validation
+
+    points = [(0.0, -1.5e308), (0.49, -1.5e308), (0.50, 1.5e308),
+              (1.0, 1.5e308)]
+    reading_taken = validation._ladder_at(points, 0.495)
+    assert reading_taken == 0.0, reading_taken
+
+    # The arithmetic that failed, shown beside it: this is what the
+    # module computed, and it is why the assertion above is not
+    # self-evident.
+    low_value, high_value = -1.5e308, 1.5e308
+    part = (0.495 - 0.49) / (0.50 - 0.49)
+    assert low_value + (high_value - low_value) * part == float("inf")
+
+    # AND IT AGREES WITH THE GENERATOR'S OWN READING at the same share.
+    rest = 1 - part
+    assert reading_taken == rest * low_value + part * high_value
+
+
+def test_every_reading_of_the_ladder_stays_inside_its_own_segment() -> None:
+    """The clamp, which is not decoration (G5.3).
+
+    `1 - part` rounds, so the convex pair can leave the segment by one
+    unit in the last place, and a reading outside the published rungs
+    is a reading of a ladder the description never named.
+    """
+    from synthtwin import validation
+
+    points = [(0.0, -3.25), (0.25, 1.0), (0.5, 1.0), (0.75, 2.5),
+              (1.0, 1e300)]
+    for step in range(0, 1001):
+        share = step / 1000.0
+        value = validation._ladder_at(points, share)
+        assert points[0][1] <= value <= points[-1][1], (share, value)

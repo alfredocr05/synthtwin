@@ -57,33 +57,35 @@ SEEDS = (0, 1, 2, 3, 63, 12345) + tuple(range(101, 114))
 # test that needs it is looking at the same fifty-one cells.
 REVIEWED = ["1.5"] * 11 + ["100"] * 20 + ["200.5"] * 20
 
-# A column whose negative side holds ten cells and, under the even
-# share of G5.2, ONE stratum -- the pinned `min` of `-45.5`, which
-# carries a point. Every negative cell is stuck on it until the band
-# step of the carrier rule gives that side a second stratum.
+# A column whose negative side holds eleven cells over TWO values and,
+# under the ladder share of G5.2, ONE stratum -- the pinned `min` of
+# `-20.5`, which carries a point. The ladder reads that band as three
+# plateaus against the positive side's eight, so the five strata shared
+# in that proportion leave the negatives one, and every negative cell is
+# stuck on the fractional end until the band step of the carrier rule
+# gives that side a second stratum.
 BAND = (
-    ["023"] * 20
-    + ["-044"] * 6
-    + ["45"] * 5
-    + ["00"] * 15
-    + ["-45.5"] * 4
-    + ["42"] * 4
-    + ["38"] * 4
+    ["-20.5"]
+    + ["-20"] * 10
+    + ["00"] * 12
+    + ["1"] * 4
+    + ["6"] * 3
+    + ["9"] * 3
 )
 
-# A 54-cell column on which two neighbouring strata can reach the same
-# whole number: the one sitting under the flat rung at `4` rounds onto
-# it, and the stratum whose share IS that rung has no other. Which of
-# them got it used to turn on a drawn value, so the published `plain`
-# count came out 26 on some seeds and 20 on others.
+# A 22-cell column on which two strata can reach the same whole number
+# and only one of them has another. Its ladder is FLAT at `6` from the
+# third quartile up, so the pinned top stratum holds `6` and the nine
+# cells under it -- whose share runs (4.91, 6.0) -- have `5` as the one
+# whole number left inside their reach. The two cells below sit in
+# (4.0, 4.91) and round ONTO that same `5` whenever the draw puts them
+# above 4.5. Which of the two gets it used to turn on the draw, so the
+# published `plain` count came out 11 on some seeds and 9 on others.
 CONTENDED = (
-    ["-44.5"] * 2
-    + ["-7"] * 9
-    + ["3.125"] * 6
-    + ["3.25"] * 10
-    + ["3.375"] * 7
-    + ["4"] * 17
-    + ["32.75"] * 3
+    ["2.5"] * 3
+    + ["4"] * 3
+    + ["5.25"] * 8
+    + ["6"] * 8
 )
 
 # A column whose ladder crowds four different values between 17 and 18.
@@ -642,14 +644,45 @@ def test_the_flat_rung_claim_is_what_keeps_the_map_seed_free(
     A stratum sitting just under a flat rung rounds ONTO that rung's
     number, which is the only one the stratum whose share IS that rung
     can ever be given. Without the bar in `_held_later` which of them
-    got a form turned on a drawn value, and a 54-cell producer column
-    published 26 point-free cells while writing 26 on some seeds and 20
-    on others. The mutant restores that, and the column must part
+    got a form turns on a drawn value, and the count comes apart along
+    the seed. The mutant restores that, and the column must part
     company with its own published count on at least one seed.
+
+    THE SHAPE, AND WHY IT REACHES THE BAR, so the next person does not
+    have to rediscover it. `_held_later` is consulted only where the
+    whole number a stratum wants lies OUTSIDE its own share of the
+    ladder -- inside it, the stratum has the older claim and the bar is
+    never asked. So the column needs THREE things at once: a stratum
+    whose nearest whole number sits just past the top of its share; a
+    LATER stratum whose share holds that number and which has no other
+    whole number within half a unit of its own share; and a point-free
+    demand large enough that the walk reaches both. Twenty-two cells
+    over four values do it. The ladder is flat at `6` from the third
+    quartile up, which pins `6` on the top stratum and leaves the nine
+    cells below it -- share (4.91, 6.0) -- with `5` as their only
+    reachable whole number, `4` being more than half a unit under their
+    share. The two cells below THAT sit in (4.0, 4.91), and on the
+    seeds where the draw puts them above 4.5 -- 101, 104, 106, 108 and
+    110 of this file's seeds -- their nearest whole number is that same
+    `5`, half a unit outside their own share. Held back, they step to
+    `4` inside their share and both strata are written point-free;
+    unheld, they take `5`, the nine-cell stratum is left with no
+    candidate at all and keeps `5.25`, and eleven published `plain`
+    cells come out as nine.
+
+    THE VALUES ARE THE FIXTURE, NOT THE SIZES: nothing publishes the
+    stratum sizes, and since method G5.2a the allotment reads them off
+    the ladder's plateaus, so the four sizes above are what these four
+    values and these four counts produce. That is also why the review
+    item's own 54-cell column no longer reaches this bar and this one
+    replaces it: under the plateau allotment its two contending strata
+    meet AT the number they contend for, which puts the number inside
+    both shares, and a number inside a stratum's own share is one the
+    bar is never asked about.
     """
     document, loaded = _described(tmp_path, CONTENDED)
     published = _named(document["columns"][0]["numeric_styles"])
-    assert published == {"plain": 26, "decimal": 28}
+    assert published == {"plain": 11, "decimal": 11}
     before = [_styles(generation.generate(loaded, seed)) for seed in SEEDS]
     for step in range(len(SEEDS)):
         for style, count in published.items():
@@ -849,18 +882,25 @@ def test_the_band_step_is_what_reaches_a_stranded_sign_band(
 ) -> None:
     """Mutant 2: leave the band share alone, and two NAMED counts fall.
 
-    This column's ten negative cells sit under one stratum, because the
-    even share of G5.2 gives the negative side one -- and that one is
-    the pinned `min` of `-45.5`, which carries a point. Without the band
-    step no cell of that band can be written point-free, and the twin
-    misses BOTH published counts, not only the pooled remainder.
+    THE SHAPE, AND WHY IT STILL REACHES THE STEP. The share of strata
+    between the two sign bands follows the LADDER'S PLATEAUS now and no
+    longer the cells (residual R-P4-49), so a band is stranded only
+    where the ladder gives it FEW different values beside the other
+    band's many. This column's eleven negative cells hold two -- the
+    published `min` of `-20.5` and a run of `-20` -- which the ladder
+    reads as THREE plateaus, against EIGHT over the ten positive cells;
+    five strata shared in that proportion leave the negative side ONE.
+    That one is the pinned `min`, and it carries a point, so no cell of
+    the band can be written point-free at all: without the band step all
+    eleven come out `-20.5`, and the twin misses BOTH published counts,
+    not only the pooled remainder.
     """
     document, loaded = _described(tmp_path, BAND)
     published = document["columns"][0]["numeric_styles"]
-    assert published == {"plain": 13, "leading_zero": 41, "(withheld)": 4}
+    assert published == {"plain": 20, "leading_zero": 12, "(withheld)": 1}
     written = _styles(generation.generate(loaded, 0))
-    assert written["leading_zero"] == 41
-    assert written["plain"] >= 13
+    assert written["leading_zero"] == 12
+    assert written["plain"] >= 20
 
     monkeypatch.setattr(
         generation,
@@ -869,8 +909,8 @@ def test_the_band_step_is_what_reaches_a_stranded_sign_band(
         plus_demand: (low, high),
     )
     after = _styles(generation.generate(loaded, 0))
-    assert after.get("leading_zero", 0) < 41, after
-    assert after.get("plain", 0) < 13, after
+    assert after.get("leading_zero", 0) < 12, after
+    assert after.get("plain", 0) < 20, after
 
 
 def test_the_share_walk_is_what_places_a_flat_ladder(
@@ -878,14 +918,37 @@ def test_the_share_walk_is_what_places_a_flat_ladder(
 ) -> None:
     """Mutant 2: refuse the step inside the share, and a flat half fails.
 
-    Where a column's commonest value IS its published minimum, the
-    ladder's lower half is flat and the interior stratum rounds onto the
+    Where a column's commonest value IS one of its published ends, the
+    ladder is flat on that side and the interior stratum rounds onto the
     pinned end's own number. The repair steps to the next whole number
     inside that stratum's own share; this mutant gives up instead, which
     is what the code did before, and the published `plain` count goes
     unwritten.
+
+    THE SHAPE, AND WHY IT REACHES THE REPAIR. Twenty-eight cells over
+    three different values: a fractional minimum of `1.5`, seven cells
+    of `8.5`, and fifteen of `9`, which is both the commonest value and
+    the published maximum. Three different values give three strata, and
+    the two ends are pinned, so exactly ONE stratum is free -- the
+    smallest arrangement in which this walk can be the thing that
+    decides. The ladder is flat at `9` from `p50` up, which puts that
+    one stratum's share at `7.0` to `9.0` and its own value at `8.5` or
+    above. Every such value rounds to `9` by the ties rule of G5.4, and
+    `9` is the pinned maximum's number, already taken -- so the NEAREST
+    whole number can never answer here and only the walk can. It steps
+    one unit down to `8`, which is inside the stratum's own share, and
+    the fifteenth point-free cell is written. The mutant, which has the
+    walk removed, hands back nothing and the twin writes fourteen.
+
+    A FIXTURE THAT REACHES A REPAIR IS NOT THE SAME AS ONE THAT ONCE
+    DID. This test drew on `["4"] * 30 + ["9.5"] * 10 + ["12.5"] * 8`
+    until the share-out of a column's cells stopped being an even split
+    and began following the runs of the ladder (method G5.2a/G5.2b);
+    under the runs, that column's strata carry enough whole numbers on
+    their own and `_whole_inside` is called ZERO times on every seed
+    here, so the mutant changed nothing and the test asserted nothing.
     """
-    values = ["4"] * 30 + ["9.5"] * 10 + ["12.5"] * 8
+    values = ["1.5"] * 6 + ["8.5"] * 7 + ["9"] * 15
     _document, loaded = _described(tmp_path, values)
     keep = generation._whole_inside
     seeds = [seed for seed in SEEDS]
@@ -898,8 +961,8 @@ def test_the_share_walk_is_what_places_a_flat_ladder(
     monkeypatch.setattr(generation, "_whole_inside", nearest)
     after = [_styles(generation.generate(loaded, seed)) for seed in seeds]
 
-    assert all(one.get("plain", 0) == 30 for one in before), before
-    assert any(one.get("plain", 0) < 30 for one in after), after
+    assert all(one.get("plain", 0) == 15 for one in before), before
+    assert any(one.get("plain", 0) < 15 for one in after), after
 
 
 def test_the_pool_gives_way_before_a_named_count(

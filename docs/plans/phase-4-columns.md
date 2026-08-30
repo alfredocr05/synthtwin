@@ -2809,6 +2809,195 @@ declaration for only one of them.
   remaining hole, and it is written down here rather than closed by a
   rule that might be worse than the gap.
 
+- **P4-G6-R1, the first adversarial round on the allotment landing
+  (2026-08-30). Four items, all four real, three repaired here and one
+  already open.** Worth recording as a class: BOTH high items were an
+  overflow I had already thought about and written a paragraph about,
+  and the paragraph was wrong.
+
+  * **F1 — `_merge_nearest`'s divisor overflows.** G5.2a divides before
+    it subtracts so `|high - low|` cannot become an infinity, and the
+    method says in as many words that "nothing can overflow". The
+    divisor `|H[j]| + |H[j+1]|` overflows on two LARGE rungs of the
+    SAME sign, which is not an exotic column: on `1e308` beside
+    `1.1e308` both quotients come out zero, every gap ties, and the
+    leftmost pair wins by iteration order -- the outcome the guard
+    exists to stop. Repaired by scaling both rungs by the larger
+    magnitude, and taken ONLY where the plain divisor has no answer,
+    because the two forms part by one unit in the last place on about
+    two pairs in a hundred and that would move the choice on about 7
+    merges in every 10000. Measured over 300000 merges: zero move.
+  * **F2 — the validator computed the form the generator forbids.**
+    `_ladder_at` says "the convex form of method G5.3" and computed
+    `low + (high - low) * t`, which is exactly what `_interpolated`'s
+    docstring rules out. On an accepted description holding only finite
+    numbers -- `p49` at `-1.5e308`, `p50` at `1.5e308` -- the generator
+    reads 0.0 at share 0.495 and the validator read an infinity, which
+    then reached the widest stratum and every rung and moment window.
+    The two modules are independent by charter, so nothing but writing
+    them the same way can hold them together; the previous commit
+    brought the validator level on WHICH rungs it reads and left it
+    reading them with the wrong arithmetic.
+  * **F3 — R-P4-55's two counts are upper bounds, not counts.** They
+    are pairs of value and style taken BEFORE any width is applied, and
+    two strata holding different numbers can round onto one text at a
+    published fraction width. The comment and G6.4 called the second
+    one "the folded supply", which is more than it is. Corrected to say
+    what it is and why an upper bound is the right side to be wrong on
+    for this guard. The consequence is R-P4-56 and stays open. The
+    round also confirms what R-P4-55 assumes: the exponent case pair is
+    the only pair among the six styles differing by case alone.
+  * **F4 — the current-state page named the wrong branch**, and its
+    suite size was two behind. Both corrected.
+  * **F5 — NOT FOUND BY THE ROUND. Found by searching for the siblings
+    of F2, and it is the worst thing here: `synthtwin validate`
+    CRASHED.** See R-P4-57 below.
+
+  **THE PATTERN, and it is the one the memory of this project already
+  names.** Reasoning your way to a defensible arithmetic is not the
+  same as measuring it. Both F1 and F2 were places where a paragraph
+  argued the hazard was closed and the code still had it; in F1 the
+  paragraph was written by the repair that moved the overflow rather
+  than removing it. A claim about floating point is worth what it was
+  RUN on at the extreme values, and nothing at all otherwise.
+
+- **R-P4-57 (opened and CLOSED here, 2026-08-30).** `synthtwin
+  validate` DIED ON A COLUMN OF LARGE NUMBERS, with a Python traceback
+  and not one of this package's own messages.
+
+  Reproduced through the shipped command, on sixty ordinary readings
+  between 1e280 and 1e300 in one column: `synthtwin profile` wrote a
+  description with a finite `std` and `std_unrepresentable` false,
+  `synthtwin generate` wrote a twin, and `synthtwin validate` came out
+  as `OverflowError: (34, 'Result too large')` from
+  `validation._sample_deviation`. Nothing about that table is
+  malformed. It is only the SQUARE of such a value that has nowhere to
+  go.
+
+  **THE DOCSTRING SAID THE REPAIR AND THE CODE DID NOT.**
+  `_sample_deviation` is described as "the standard deviation the
+  profiler's own formula computes", and the profiler's own formula is
+  the exact one: `taxonomy._moments` works the variance out in whole
+  numbers over a shared power of two and rounds once, for exactly this
+  reason. What that function actually computed was
+  `sum((x - mean) ** 2)` in binary64 -- a second implementation of a
+  published statistic, which is the shape the charter's independence
+  is meant to make visible and instead produced a crash.
+
+  **AND IT WAS THE FOURTH MEMBER OF A FAMILY WHOSE FIRST WAS ALREADY
+  FIXED.** The tail-weight window carries a comment naming item
+  P4-K-R1-F1 -- "a hundred ordinary values around 1e79 made this raise
+  `OverflowError` where a report was owed" -- and the rule it states,
+  each deviation divided by the spread BEFORE it is raised. That rule
+  was applied where the round named it and at none of its siblings.
+  All four sites are now the same:
+
+  * `_sample_deviation` and `_population_deviation` call the
+    profiler's exact moments rather than squaring in binary64;
+  * the displacement sum divides each reach by the largest before
+    squaring;
+  * the skewness cubes are formed as ratios rather than divided after
+    being raised;
+  * the tail weight, which already did this.
+
+  **A SECOND DEFECT UNDER THE FIRST, and it does not crash.** Before
+  the crash the displacement sum came out an infinity, which made the
+  standard-deviation window `(0, inf)`. A window with no width admits
+  every twin that was ever written and reports HELD without saying it
+  went quiet -- a false pass, not a conservative one. Where the spread
+  cannot be held the three windows are now WITHHELD, which the census
+  names in words, and the mean window still stands.
+
+  Measured on the reproduction: all four windows are drawn, all four
+  are finite, and each contains its published value -- so the repair
+  withholds nothing this column could actually be checked for.
+
+  **AND WHAT IT COSTS AN ORDINARY COLUMN, measured rather than
+  assumed.** Over 120 built columns of five shapes -- fractions, a
+  normal spread, twelve orders of magnitude, all-negative, and mixed
+  signs across twelve orders -- the deviation the windows are centred
+  on moves at all on 23, and the largest move is 2.2e-16 relative, one
+  unit in the last place. Where it moves, the value it moves TO is the
+  correctly rounded one, because that is what the profiler's exact
+  method computes and the binary64 sum was only ever an approximation
+  of it. So the repair is not a trade: it removes a crash, closes a
+  false pass, and is more accurate on the columns that already worked.
+
+- **R-P4-56 (opened here, 2026-08-30, and this is the DECISION the
+  239-of-240 case was waiting for).** TWO STRATA THAT ROUND ONTO ONE
+  SPELLING COST A VALUE COUNT AND BREAK A SHAPE, and the second of
+  those is silent.
+
+  `tests/test_p4d18_shape_forms` walks ten code systems through the
+  real producer. `scheme01` is 240 cells of `NNN.N` -- 99 different
+  values, integer parts 250 to 348, one figure after the point. The
+  twin writes 239 of them in that shape and one as `0250.4`, four
+  figures before the point where no source cell had more than three.
+
+  **MEASURED, and the cause is not where the earlier note put it.** It
+  is not a `pad_widths` gap. The layout builds 99 strata and all 99
+  hold DIFFERENT numbers; two of them are 252.96704532913995 and
+  253.02741326459255, six hundredths apart, in a column whose real
+  values near there are 252.2, 253.3 and 254.4 -- more than a unit
+  apart. `fraction_widths` publishes one figure after the point for
+  every cell, so both strata are written `253.0` and the column's
+  spellings fall to 98. The leading-zero raise of G6.5 then supplies
+  the 99th, and the spelling it supplies is `0250.4`.
+
+  **WHAT EACH PUBLISHED COUNT DOES.** `n_distinct` 99 comes out
+  exactly. `numeric_styles` comes out exactly -- `0250.4` classifies
+  `decimal` under the contract's first-match ladder, because the point
+  is matched before the zero. `pad_widths` is empty and stays empty by
+  its own definition. `n_distinct_values` comes out 98 against a
+  published 99, and the twin's own report NAMES that miss.
+
+  **SO THE RAISE BUYS A SPELLING FOR A VALUE THE COLUMN HAS TWICE.**
+  It cannot do otherwise: a leading zero writes the same number a
+  second way, so it can never close a shortfall in the count of
+  different NUMBERS. The miss is reported either way, and the price is
+  a cell whose shape no source cell wore and which NOTHING reports --
+  a width check, a slice or a join against a three-figure code fails
+  on it, and the report says nothing.
+
+  **AND IT IS NOT ONE CELL IN ONE TEST COLUMN.** Measured over two
+  families of 80 built columns each, through the real reader, producer,
+  loader and generator:
+
+  * columns on a fixed decimal grid -- a pinned `fraction_widths` with
+    the values spaced wider than the grid, which is what a code column
+    or a rounded measurement looks like: **13 of 80** have two strata
+    rounding onto one spelling, and **12 of those 13** then write an
+    integer part wider than any source cell's. The worst seen is SEVEN
+    figures where the source had four; three extra figures happened
+    more than once. The value miss was reported on every one of them.
+    The width was reported on none.
+  * ordinary continuous readings at full precision, where no fraction
+    width is pinned: **0 of 80**. There is nothing to round together,
+    so the collision cannot arise.
+
+  The second family is why the first number means something. It is the
+  pinned width that does this, not the ladder on its own -- and a
+  pinned width is exactly what a person analysing a code column parses
+  against. A width check, a slice or a fixed-width read against a
+  three-figure field fails on a seven-figure cell, and the twin's
+  report says nothing about it.
+
+  **THE REPAIR THIS POINTS AT** is the analogue, one place lower, of
+  the share walk `_whole_inside` already runs: where two strata round
+  onto one spelling at the published fraction width, step one of them
+  to the next free point on that width's own grid, inside its own
+  share of the ladder. Here the grid is tenths and the neighbours are
+  more than a unit away, so there is room. That closes both at once --
+  the value count becomes exact and no cell leaves the shape -- and it
+  closes them at the place the collision happens rather than papering
+  over the symptom.
+
+  Not built here: it is a change to how a stratum's value is settled,
+  which is the same surface as R-P4-49, and it belongs beside the
+  histogram work rather than in the middle of the allotment landing.
+  Until then the test names `scheme01` beside `scheme09` with its
+  bound stated, and the bound is the measured one.
+
 - **R-P4-55 (opened and CLOSED here, 2026-08-30).** THE STRATUM
   PACKING CHARGED A RAW SUPPLY TO A FOLDED CEILING. `_style_strata` is
   the exception G6.4 makes to the cell walk: where the walk would spend

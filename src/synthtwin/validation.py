@@ -3303,6 +3303,20 @@ def _ladder_at(points: "list[tuple[float, float]]", share: float) -> float:
     The convex form of method G5.3: between two published rungs the
     ladder is a straight line, and outside the published ends it is
     flat, because no rung beyond them says otherwise.
+
+    THE CONVEX FORM, AND NOT THE DIFFERENCE FORM (review item
+    P4-G6-R1-F2). This function said "convex" and computed `low + (high
+    - low) * t`, which is the form the generator's own `_interpolated`
+    docstring rules out in as many words: two rungs at opposite ends of
+    the representable range make that difference an infinity. An
+    accepted description whose `p49` is `-1.5e308` and whose `p50` is
+    `1.5e308` holds nothing but finite numbers, and at share 0.495 the
+    generator returns a value near zero while this returned an infinity
+    -- which then reached `_longest_plateau` and every rung and moment
+    window, so a conforming twin could be reported MISSED and a wrong
+    one given a bound with no width to it. The validator may not import
+    the generator, so the two arithmetics can only be held together by
+    being written the same way; this is now written the same way.
     """
     if share <= points[0][0]:
         return points[0][1]
@@ -3317,9 +3331,14 @@ def _ladder_at(points: "list[tuple[float, float]]", share: float) -> float:
             width = high_share - low_share
             if width <= 0.0:
                 return high_value
-            return low_value + (high_value - low_value) * (
-                (share - low_share) / width
-            )
+            part = (share - low_share) / width
+            rest = 1 - part
+            value = rest * low_value + part * high_value
+            # The same clamp `_interpolated` takes, and for the same
+            # reason: `1 - part` rounds, so the pair can leave the
+            # segment by one unit in the last place.
+            value = max(value, min(low_value, high_value))
+            return min(value, max(low_value, high_value))
         index = index + 1
     return points[last][1]
 
@@ -7653,14 +7672,30 @@ def _moment_windows(
     found["mean"] = (mean_low, mean_high)
     if numbers < 2:
         return found
-    spread = 0.0
-    for rank in range(numbers):
-        reach = max(
-            ladder[rank] - lows[rank], highs[rank] - ladder[rank]
-        )
-        spread = spread + reach * reach
-    displacement = math.sqrt(spread / numbers)
+    # EACH REACH IS DIVIDED BY THE LARGEST BEFORE IT IS SQUARED, for
+    # the reason the tail weight below already states (item
+    # P4-K-R1-F1, and this is its sibling, item P4-G6-R1-F5): raising
+    # first is the same number in exact arithmetic and not the same
+    # computation in binary64. A column of values around 1e300 has
+    # reaches whose squares have nowhere to go, and this sum came out
+    # an infinity, which made the whole window `(0, inf)` -- a check
+    # that can never report a miss and never says it went quiet.
+    reaches = [
+        max(ladder[rank] - lows[rank], highs[rank] - ladder[rank])
+        for rank in range(numbers)
+    ]
+    widest = max(reaches)
+    displacement = 0.0
+    if widest > 0.0:
+        parts = math.fsum([(reach / widest) ** 2 for reach in reaches])
+        displacement = widest * math.sqrt(parts / numbers)
     sample = _sample_deviation(ladder, numbers)
+    if not math.isfinite(sample) or not math.isfinite(displacement):
+        # A SPREAD THE FORMAT CANNOT HOLD IS NOT A WINDOW OF NO WIDTH.
+        # Returning the mean window alone withholds the three that
+        # cannot be drawn, which the census then names, rather than
+        # handing back a bound every twin satisfies.
+        return found
     widen = displacement * math.sqrt(numbers / (numbers - 1))
     found["std"] = (max(0.0, sample - widen), sample + widen)
     if numbers < 3:
@@ -7668,12 +7703,15 @@ def _moment_windows(
     population = _population_deviation(ladder, numbers)
     low_end = max(0.0, population - displacement)
     high_end = population + displacement
-    cubed_low = math.fsum(
-        [(lows[rank] - mean_high) ** 3 for rank in range(numbers)]
-    ) / numbers
-    cubed_high = math.fsum(
-        [(highs[rank] - mean_low) ** 3 for rank in range(numbers)]
-    ) / numbers
+    # AND THE CUBES ARE DIVIDED BEFORE THEY ARE RAISED, the third
+    # member of the same family. `(lows[rank] - mean_high) ** 3` on a
+    # column around 1e300 is a number with nowhere to go, and the four
+    # ratios below are what the cubes were only ever wanted for.
+    def cubed(edges: "list[float]", centre: float, spread: float) -> float:
+        return math.fsum(
+            [((edges[rank] - centre) / spread) ** 3
+             for rank in range(numbers)]
+        ) / numbers
     reach = (numbers - 2) / math.sqrt(numbers - 1)
     ceiling = numbers - 2 + 1 / (numbers - 1)
     if low_end <= 0.0:
@@ -7688,10 +7726,10 @@ def _moment_windows(
             found["kurtosis"] = (1.0, ceiling)
         return found
     ends = [
-        cubed_low / (low_end**3),
-        cubed_low / (high_end**3),
-        cubed_high / (low_end**3),
-        cubed_high / (high_end**3),
+        cubed(lows, mean_high, low_end),
+        cubed(lows, mean_high, high_end),
+        cubed(highs, mean_low, low_end),
+        cubed(highs, mean_low, high_end),
     ]
     found["skew"] = (max(-reach, min(ends)), min(reach, max(ends)))
     if numbers < 4:
@@ -7741,17 +7779,52 @@ def _moment_windows(
 
 
 def _sample_deviation(values: "list[float]", count: int) -> float:
-    """The standard deviation the profiler's own formula computes."""
-    mean = math.fsum(values) / count
-    total = math.fsum([(value - mean) ** 2 for value in values])
-    return math.sqrt(total / (count - 1))
+    """The standard deviation the profiler's own formula computes.
+
+    THE PROFILER'S OWN FORMULA, AND NOT A SECOND ONE THAT AGREES ON
+    ORDINARY COLUMNS (review item P4-G6-R1-F5). This said what it says
+    above and then computed `sum((x - mean) ** 2)` in binary64, which
+    is not what the profiler computes at all: `taxonomy._moments`
+    works the exact variance out in whole numbers over a shared power
+    of two and rounds once, for the stated reason that the square of a
+    large value has nowhere to go. Sixty ordinary values around 1e300
+    made this raise `OverflowError` -- out of `synthtwin validate`, as
+    a Python traceback rather than one of this package's own messages,
+    on a table `synthtwin profile` and `synthtwin generate` had both
+    just handled without complaint.
+
+    So it calls that function. The validator may not import the
+    GENERATOR, which is the independence the charter names; the
+    profiler is the module whose published numbers this one is
+    checking, and computing the same statistic a second way is how the
+    two come to disagree.
+
+    A spread larger than the format can hold has no deviation to
+    return, and the caller withholds its windows rather than drawing
+    one around a number that does not exist.
+    """
+    if count < 2:
+        return 0.0
+    spread = taxonomy.spread_of(list(values))
+    if spread is None or not math.isfinite(spread):
+        return float("inf")
+    return spread
 
 
 def _population_deviation(values: "list[float]", count: int) -> float:
-    """The population deviation the skewness divides by."""
-    mean = math.fsum(values) / count
-    total = math.fsum([(value - mean) ** 2 for value in values])
-    return math.sqrt(total / count)
+    """The population deviation the skewness divides by.
+
+    The same exact variance one factor along: the population deviation
+    is the sample one times the square root of `(n - 1) / n`, which is
+    exact in the ratio and cannot overflow, since the sample deviation
+    is a number the format already holds.
+    """
+    if count < 2:
+        return 0.0
+    spread = _sample_deviation(values, count)
+    if not math.isfinite(spread):
+        return float("inf")
+    return spread * math.sqrt((count - 1) / count)
 
 
 # The two forms a value's canonical text can carry a decimal point in,

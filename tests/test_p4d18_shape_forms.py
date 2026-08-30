@@ -811,7 +811,30 @@ def test_every_named_code_system_survives_both_shapes() -> None:
     # their WIDTH is published nowhere and the twin may write one two
     # figures wide. It is a gap in `pad_widths`, not in the form
     # census, and closing it is that census's landing.
-    short_of_it = {("scheme09", "long tail")}
+    #
+    # THE SECOND ONE, AND IT IS A DIFFERENT DEFECT (residual R-P4-56).
+    # The first column runs `250.0` to `348.8`, 99 different values one
+    # figure after the point. The layout builds 99 strata and all 99
+    # hold different NUMBERS -- but two of them, 252.967 and 253.027,
+    # sit six hundredths apart where the real values near there are
+    # more than a unit apart, so at the published fraction width both
+    # are written `253.0` and the column's spellings fall to 98. The
+    # leading-zero raise of G6.5 supplies the 99th, and it can only
+    # supply it by writing one number a second way: `0250.4`, four
+    # figures before the point. `n_distinct` and `numeric_styles` then
+    # come out exactly and `n_distinct_values` comes out 98 of 99,
+    # which the twin's own report NAMES. The shape it broke to do that
+    # is what nothing reports, and the repair is in R-P4-56.
+    #
+    # EACH CARRIES ITS OWN MEASURED BOUND, and the bound is the number
+    # of cells that actually leave the shape today, not a round number
+    # with room in it. One bound of eight covered both while `scheme01`
+    # loses ONE cell, which would have let a seven-cell regression pass
+    # here without a word.
+    short_of_it = {
+        ("scheme09", "long tail"): 8,
+        ("scheme01", "all different"): 1,
+    }
     for name, values, pattern, parts in schemes:
         random.Random(4).shuffle(values)
         for shape, column in (
@@ -827,8 +850,12 @@ def test_every_named_code_system_survives_both_shapes() -> None:
             ]
             if (name, shape) in short_of_it:
                 # It is still MOSTLY right, and a regression past this
-                # would turn the test red rather than pass quietly.
-                assert len(shaped) >= len(cells) - 8, (name, shape)
+                # turns the test red rather than passing quietly.
+                allowed = short_of_it[(name, shape)]
+                assert len(shaped) >= len(cells) - allowed, (
+                    name, shape, allowed,
+                    sorted(set(cells) - set(shaped))[:4],
+                )
                 continue
             assert len(shaped) == len(cells), (
                 name, shape, sorted(set(cells) - set(shaped))[:4]

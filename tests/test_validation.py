@@ -24,6 +24,7 @@ import csv
 import dataclasses
 import io
 import json
+import math
 import os
 import pathlib
 
@@ -3123,3 +3124,104 @@ def test_the_ladder_window_accepts_the_twin_of_the_steep_column(
     )
     for rung in ("ladder.p10", "ladder.p50", "ladder.p90"):
         assert _verdicts(outcome, rung) != [validation.MISSED]
+
+
+# ---------------------------------------------------------------------
+# A column of very large numbers, which `synthtwin validate` used to
+# die on (review item P4-G6-R1-F5, the sibling search that came out of
+# the first adversarial round on the allotment landing).
+
+
+def _large_valued_table() -> str:
+    """Sixty ordinary readings between 1e280 and 1e300.
+
+    Nothing about this table is malformed: `synthtwin profile` and
+    `synthtwin generate` both handled it before this repair and the
+    published `std` is a finite number the format holds. It is only
+    the SQUARE of a value that has nowhere to go.
+    """
+    import random
+
+    rows = random.Random(5)
+    values = [
+        repr(rows.uniform(1, 9) * 10.0 ** rows.randint(280, 300))
+        for _each in range(60)
+    ]
+    return "amount\n" + "\n".join(values) + "\n"
+
+
+def test_a_column_of_very_large_numbers_is_measured_rather_than_crashed(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The whole command, end to end, on the table that raised.
+
+    `_sample_deviation` computed `sum((x - mean) ** 2)` in binary64.
+    Around 1e300 that square is not representable, so `measure` came
+    out of `synthtwin validate` as an `OverflowError` traceback naming
+    internal functions -- not one of this package's own messages, and
+    not a report at all -- on a description the other two commands had
+    just written without complaint.
+    """
+    described = _describe(tmp_path, _large_valued_table())
+    outcome = _measure(tmp_path, described, _twin_text(described))
+    assert outcome is not None
+    published = described.columns[0]
+    assert published.n_numeric == 60
+
+
+def test_the_two_deviations_are_the_profilers_own_and_not_a_second_formula(
+) -> None:
+    """One statistic, one implementation, on values of any size.
+
+    The producer works the exact variance out in whole numbers over a
+    shared power of two and rounds once. A validator computing the
+    same statistic a second way is how the two come to disagree, and
+    on large values the second way does not merely disagree -- it has
+    no answer at all.
+    """
+    values = [1e300, 2e300, 3.5e300, 9e299, 4.25e300]
+    count = len(values)
+    assert validation._sample_deviation(values, count) == taxonomy.spread_of(
+        list(values)
+    )
+
+    # The arithmetic that failed, shown beside the one that answers, so
+    # this test cannot go quiet if the repair is reverted.
+    mean = math.fsum(values) / count
+    with pytest.raises(OverflowError):
+        math.fsum([(value - mean) ** 2 for value in values])
+
+    # And the population deviation is the sample one by the exact
+    # factor, which is what the skewness divides by.
+    sample = validation._sample_deviation(values, count)
+    population = validation._population_deviation(values, count)
+    assert population == sample * math.sqrt((count - 1) / count)
+
+    # AND A FLAT LADDER STILL HAS A SPREAD, which is zero and not
+    # "no answer". The published `std` field is null for a column of
+    # identical values because there is no shape to report; a window
+    # drawn around the deviation needs the zero, and withholding it
+    # would take every moment check off every constant column.
+    assert taxonomy.spread_of([7.0] * 5) == 0.0
+    assert validation._sample_deviation([7.0] * 5, 5) == 0.0
+
+
+def test_no_moment_window_is_an_infinity_on_a_large_valued_column(
+    tmp_path: pathlib.Path,
+) -> None:
+    """A window with no width is a check that can never report a miss.
+
+    The spread the three moment windows are drawn from summed
+    `reach * reach` over the ranks. On this column each reach is near
+    1e300, so the sum came out an infinity and every window with it --
+    `(0, inf)` admits every twin ever written and says nothing about
+    having gone quiet. Withholding is the honest answer where the
+    spread cannot be held; an unbounded bound is not.
+    """
+    described = _describe(tmp_path, _large_valued_table())
+    column = described.columns[0]
+    windows = validation._windows_of(column, column.facts)
+    assert windows, "no window was drawn at all"
+    for name, (low, high) in windows.items():
+        assert math.isfinite(low), (name, low, high)
+        assert math.isfinite(high), (name, low, high)
