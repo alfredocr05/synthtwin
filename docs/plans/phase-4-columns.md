@@ -3156,6 +3156,71 @@ declaration for only one of them.
     compared, none flips. **A tool that exists to make claims checkable
     is held to the standard it was built to enforce.**
 
+- **P4-G6-R7, the seventh adversarial round (2026-08-30). Four items,
+  all real. Two closed, one closed in the specification, and one
+  MEASURED and opened as R-P4-61 rather than guessed at.**
+
+  * **F2 — the outward step of the round before was not a step to the
+    adjacent number, and I wrote it while fixing that round's bound.**
+    Three ways wrong, and the round names all three. The gap BELOW a
+    value sitting exactly on the edge of its binade is HALF the gap
+    above it, so `_lowered(1.0)` returned 0.9999999999999998 where the
+    number next to 1.0 is 0.9999999999999999 -- two places, not one.
+    The gap computed for a SUBNORMAL underflows to nothing, so no
+    subnormal moved at all, and the smallest bounds are exactly the
+    ones a one-place widening exists for. And the largest number the
+    format holds raised `OverflowError`.
+
+    Two of those only ever widened a bound further than intended, which
+    weakens a check without breaking it; the third was a crash and the
+    second left the case the repair was for untouched.
+
+    Rewritten to work the gap out on the side being moved toward, and
+    checked against `math.nextafter` over 400024 steps with both module
+    copies: none wrong. That check lives in `tests/`, which is where a
+    hand-rolled stand-in for a library call the offline audit does not
+    allow should be held to the library call.
+
+  * **F1 — the joined agreement window rounded inward too.** G12.9
+    holds an unscored pair to `<= 0.02`, and `published - 0.02` in
+    binary64 can land a hair ABOVE the value exactly 0.02 below it: on
+    a published 0.2487 the difference comes out 0.22870000000000001,
+    so a file agreeing at exactly 0.2287 was reported MISSED against a
+    rule that admits it. Both ends step outward now, in both modules.
+
+  * **F4 — the ratified method had not been amended for any of this,**
+    which the reviewer brief makes blocking on its own. G12.3 and G12.9
+    now state the widening, including the trap F1 of the round before
+    fell into: outward is not away from zero.
+
+  * **AND I CAUGHT MY OWN DOUBLE STEP while fixing F3**: the
+    generator's skew pair was widened at the ceiling AND again at the
+    return, which is a bound two places looser than the method states.
+
+- **R-P4-61 (opened here, 2026-08-30, PRE-EXISTING, and MEASURED before
+  it was written down).** THE GENERATOR AND THE VALIDATOR PRINT
+  DIFFERENT MOMENT WINDOWS FOR ONE COLUMN. On the values 1 to 60 at
+  seed 7 the twin report gives the skew range as -2.282203333063573 to
+  2.2822033330635745 and the quality report gives -2.282203333063573 to
+  2.2822033330635754. Both cite one method, so one run of the two
+  commands states two numerical versions of it.
+
+  **It is not from this landing, and the measurement is what says so.**
+  Nine windows over three column shapes, built at the commit BEFORE
+  this branch and again at its head: 8 of 9 differed before, 7 of 9
+  differ now. The two modules are independent implementations by
+  charter -- the validator may not import the generator -- so nothing
+  but writing them alike can make them agree, and they were never
+  written alike at this precision.
+
+  Closing it means stating the window's arithmetic operation by
+  operation in G12.3 and G12.3a, in the order the operations are to be
+  performed, and making both implementations follow that text. That is
+  a specification landing of its own and it is not a thing to attempt
+  at the tail of another one. The number a reader sees differs in its
+  last two digits between two reports; the verdict either report gives
+  has not been seen to differ, and R-P4-61 owes that measurement too.
+
 - **R-P4-58 (opened here, 2026-08-30, PRE-EXISTING and not from this
   landing).** A JOINED COLUMN'S POSITIONS CARRY A FULL QUANTITATIVE
   BLOCK THAT NOTHING CHECKS AND NOTHING LISTS. `JoinedFacts.parts`

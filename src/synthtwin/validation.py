@@ -184,19 +184,59 @@ from synthtwin import contract, errors, parsing, profile, reading, taxonomy
 # `math.nextafter` is not among the names this package's offline audit
 # allows, and widening the audit to admit one is the wrong way round --
 # `frexp` and `ldexp` are allowed and say the same thing.
-_ONE_PLACE = 2 ** -53
+# The smallest positive number this format holds, which is also the gap
+# between any two neighbouring subnormals.
+_SMALLEST = math.ldexp(1.0, -1074)
 
 
 def _stepped(bound: float, upward: bool) -> float:
-    """``bound`` moved one place toward an infinity, or itself."""
+    """The number this format holds next to ``bound``, in one direction.
+
+    THE GAP IS NOT THE SAME ON BOTH SIDES OF A VALUE, and the first
+    version of this function assumed it was (review item P4-G6-R7-F2).
+    It added a fixed `2 ** -53` to the fraction `frexp` returns, which
+    is the gap ABOVE a value whose fraction is exactly one half and
+    twice the gap BELOW it -- so `_lowered(1.0)` returned
+    0.9999999999999998 where the number next to 1.0 is
+    0.9999999999999999, stepping two places instead of one. It also
+    moved no subnormal at all, because the gap it computed there
+    underflows to nothing, and it raised `OverflowError` on the largest
+    number the format holds.
+
+    Two of those three only ever widened a bound further than intended,
+    which weakens a check without breaking it; the third was a crash
+    and the second left the very smallest bounds unwidened, which is
+    the case the widening exists for.
+
+    So the gap is worked out on the side being moved toward: `2 ** (e -
+    53)` going away from zero, and half of that going toward zero from
+    a value sitting exactly on the edge of its binade. Subnormals take
+    the one gap they have. A bound already at the edge of the range is
+    returned unchanged, since there is no number beyond it to widen to
+    and it already admits everything this format can write.
+
+    `math.nextafter` says all of this in one call and is not among the
+    names this package's offline audit allows. Widening that audit to
+    admit one would be the wrong way round; `frexp` and `ldexp` are
+    allowed and say the same thing. `tests/` checks this against
+    `math.nextafter` over the whole range, which is what an audit's
+    allowlist costing a line of arithmetic is supposed to look like.
+    """
     if not math.isfinite(bound):
         return bound
     if bound == 0.0:
-        return math.ldexp(_ONE_PLACE, -1021) * (1.0 if upward else -1.0)
-    away = (bound > 0.0) == upward
-    fraction, exponent = math.frexp(abs(bound))
-    step = _ONE_PLACE if away else -_ONE_PLACE
-    stepped = math.ldexp(fraction + step, exponent)
+        return _SMALLEST if upward else -_SMALLEST
+    magnitude = abs(bound)
+    growing = (bound > 0.0) == upward
+    fraction, exponent = math.frexp(magnitude)
+    gap = math.ldexp(1.0, exponent - 53)
+    if not growing and fraction == 0.5:
+        gap = math.ldexp(1.0, exponent - 54)
+    if gap < _SMALLEST:
+        gap = _SMALLEST
+    stepped = magnitude + gap if growing else magnitude - gap
+    if not math.isfinite(stepped):
+        return bound
     if bound < 0.0:
         return -stepped
     return stepped
@@ -6991,7 +7031,13 @@ def _joined_checks(
                     subcheck,
                     f"{agreed}",
                     measured_agreement,
-                    (agreed - _AGREEMENT_SLACK, agreed + _AGREEMENT_SLACK),
+                    (
+                        # Inclusive by G12.9, and subtraction rounds:
+                        # the generator's copy of this bound takes the
+                        # same outward step (item P4-G6-R7-F1).
+                        _lowered(agreed - _AGREEMENT_SLACK),
+                        _raised(agreed + _AGREEMENT_SLACK),
+                    ),
                     ENVELOPE_JOINED_AGREEMENT,
                     agreed,
                 )
