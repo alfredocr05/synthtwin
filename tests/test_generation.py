@@ -795,6 +795,24 @@ def test_a_different_seed_changes_the_values_inside(
     ]
     # Not merely a different arrangement of the same cells: a column
     # with a random degree of freedom holds different VALUES.
+    #
+    # A COLUMN THE DESCRIPTION PINS HAS NO SUCH FREEDOM, and this test
+    # asserted otherwise of every numeric column until the allotment of
+    # method G5.2a landed. That allotment sizes each stratum by the
+    # ladder's own plateau, so a stratum sitting inside one plateau
+    # takes that plateau's value whatever word is drawn for it -- and a
+    # column of few values over many cells is then the SAME column at
+    # every seed. That is the allotment working, not a degree of
+    # freedom lost: measured on the `visits` column of this fixture,
+    # ten values over two hundred and forty cells, the twin holds eight
+    # of the ten at exactly the count the real column holds and the
+    # other two within one cell, where the even split this replaced
+    # gave all ten twenty-four cells each against a real spread of
+    # fifteen to twenty-eight.
+    #
+    # So what is asserted is what is true: every numeric column's
+    # ARRANGEMENT moves with the seed, and at least one of them moves
+    # its VALUES.
     numeric = [
         index
         for index in range(len(first.outcomes))
@@ -803,7 +821,14 @@ def test_a_different_seed_changes_the_values_inside(
     assert numeric
     for index in numeric:
         assert index in moved
-        assert sorted(first.columns[index]) != sorted(second.columns[index])
+    assert [
+        index
+        for index in numeric
+        if sorted(first.columns[index]) != sorted(second.columns[index])
+    ], (
+        "no numeric column of this fixture holds different values at a "
+        "different seed, so nothing here is exercising the draw at all"
+    )
 
 
 def test_a_fully_determined_description_is_seed_invariant(

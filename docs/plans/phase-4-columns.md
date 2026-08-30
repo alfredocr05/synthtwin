@@ -1038,7 +1038,7 @@ multiplicities, which is what a histogram was wanted for.
 Two shapes moved the other way by one or two cells of three hundred --
 the heavy tail and the plain gaussian -- and both are columns whose
 source leaves few bins empty in the first place. That is inside the
-noise of a single seed and is recorded rather than smoothed over.
+noise of a single seed, and is recorded here rather than left out.
 
 **WHAT THIS MEANS FOR THE HISTOGRAM LANDING.** Its FACT is built and
 landed on `phase-4-histogram`. Its FIDELITY was built, measured and

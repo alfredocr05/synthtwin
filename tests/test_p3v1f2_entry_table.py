@@ -2852,7 +2852,14 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("negated-amount", "ladder.p01"),
             ("fractioned-amount", "ladder.p05"),
             ("fractioned-amount", "ladder.p10"),
-            ("spread-amount", "ladder.p25"),
+            # `spread` stopped moving p25 when the rung window began
+            # to be drawn through all hundred and one published rungs
+            # rather than the eleven named ones: the finer reading
+            # no longer invents a rise between rungs for a spread to
+            # fall inside. It still moves p75, below. Nine other
+            # perturbations of this column still move p25 --
+            # measured, not guessed -- and `fractioned` is one.
+            ("fractioned-amount", "ladder.p25"),
             ("floor-plussed-amount", "ladder.p50"),
             ("spread-amount", "ladder.p75"),
             ("crowded-amount", "ladder.p95"),
@@ -3065,7 +3072,13 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("zeroed-reading", "ladder.p25"),
             ("zeroed-reading", "ladder.p50"),
             ("enormous-reading", "ladder.p75"),
-            ("spread-reading", "ladder.p90"),
+            # `spread` stopped moving p90 when the rung window began to
+            # be drawn through all hundred and one published rungs
+            # rather than the eleven named ones: the finer reading no
+            # longer invents a rise between rungs for a spread to fall
+            # inside. Six other perturbations of this column still move
+            # it -- measured, not guessed.
+            ("crowded-reading", "ladder.p90"),
             ("enormous-reading", "ladder.p95"),
             ("enormous-reading", "ladder.p99"),
             ("raised-reading", "moments.mean"),

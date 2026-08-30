@@ -606,7 +606,7 @@ def test_the_swap_cannot_quietly_turn_a_value_into_a_hole() -> None:
     loaded = contract.load_profile(
         f"{fixtures.write_profile(folder, 't.json', document)}"
     )
-    twin = generation.generate(loaded, 20)
+    twin = generation.generate(loaded, 25)
     held = len([cell for cell in twin.columns[0] if cell == "7.5"])
     assert held > published["missing_by_source"]["7.5"], (
         "this fixture no longer produces the collision it was built "
@@ -642,7 +642,7 @@ def test_the_twin_report_and_the_quality_report_agree_on_presence() -> None:
     loaded = contract.load_profile(
         f"{fixtures.write_profile(folder, 't.json', document)}"
     )
-    twin = generation.generate(loaded, 20)
+    twin = generation.generate(loaded, 25)
     written = fixtures.write(
         folder, "twin.csv", rendering.twin_csv(twin)
     )
