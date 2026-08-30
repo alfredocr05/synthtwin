@@ -3518,3 +3518,44 @@ def test_a_subnormal_column_has_a_spread_and_the_twin_reports_it() -> None:
     # AND A COLUMN OF ONE NUMBER STILL HAS NO SHAPE TO REPORT, which is
     # the cause this must not be confused with.
     assert generation._moments_of([7.0] * 5) == (7.0, 0.0, None, None)
+
+
+def test_the_twin_recounts_its_moments_the_way_the_description_states_them(
+) -> None:
+    """One implementation of four statistics (P4-G6-R5-F1 and F2).
+
+    The report puts two numbers side by side -- what the description
+    says and what the twin holds -- and they are the same statistic
+    only if they are computed the same way. The recount used a
+    compensated sum in binary64 and the description's own numbers come
+    from an exact whole-number method, and five rounds of this landing
+    kept turning up the shapes where the two part company.
+
+    These four are the shapes that beat the four repairs before this
+    one. Each has a mean, a spread, a shape and a tail weight the
+    format holds, and on each the recount returned three nothings.
+    """
+    beat_the_repairs = {
+        "squares that underflow": [0.0] * 4 + [5e-324],
+        "a difference that overflows": (
+            [-1.7976931348623157e308]
+            + [1e308 + step * 1e305 for step in range(119)]
+        ),
+        "a variance with nowhere to go": [
+            0.0, 9.208874310759778e307, 1.7e308
+        ],
+        "subnormal beside subnormal": (
+            [0.0] * 40 + [5e-324] * 10 + [1e-323] * 10
+        ),
+    }
+    for shape, values in beat_the_repairs.items():
+        got = generation._moments_of(values)
+        assert got == taxonomy.moments_of(values), shape
+        for place, name in enumerate(("mean", "std", "skew", "kurtosis")):
+            if place == 3 and len(values) < 4:
+                continue
+            assert got[place] is not None, (shape, name)
+
+    # AND A COLUMN OF ONE NUMBER STILL HAS NO SHAPE TO REPORT, which is
+    # the answer that must not be confused with any of the above.
+    assert generation._moments_of([7.0] * 5) == (7.0, 0.0, None, None)

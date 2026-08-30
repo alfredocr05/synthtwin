@@ -2415,6 +2415,53 @@ def _date_ladder(ordered: list[str]) -> dict[str, str]:
 
 
 
+def moments_of(
+    numbers: "list[float]",
+) -> "tuple[float | None, float | None, float | None, float | None]":
+    """The four moments of ``numbers``, exactly (plan P1-D11).
+
+    THE ONE IMPLEMENTATION OF THESE FOUR STATISTICS, published so that
+    nothing in this package writes a second (review items P4-G6-R5-F1
+    and P4-G6-R5-F2). The generator's twin report used to recount them
+    from the finished cells with a compensated sum in binary64, which
+    agrees with this on ordinary columns and has no answer at either
+    end of the range:
+
+    - four zeroes beside one `5e-324` have a skew of 1.5 and a tail
+      weight of 3.25, and every square of a deviation that small
+      UNDERFLOWS to nothing, so the recount returned no spread, no
+      shape and no tails at all;
+    - one value at the bottom of the range beside a hundred and
+      nineteen near the top has a finite mean and a finite spread, and
+      `value - mean` on the first of them OVERFLOWS, so the recount
+      returned the same three nothings.
+
+    In both cases the report then said nothing whatever about three
+    facts the description publishes, which is the defect four separate
+    review rounds of this landing kept turning up in other places.
+    `_moments` forms neither the square nor the difference: it works
+    over whole numbers scaled by a shared power of two.
+
+    Guarantees:
+
+    - Inputs: a list of finite numbers, in any order. The result
+      depends on the multiset and nothing else.
+    - Returns: mean, sample standard deviation, skewness and tail
+      weight, each the correctly rounded binary64 value of the exact
+      statistic, or None where that statistic is undefined -- an empty
+      list, a spread the format cannot hold, fewer values than the
+      statistic needs, or a column whose values are all one number.
+    - Errors raised: none. No I/O of any kind.
+    """
+    if not numbers:
+        return (None, None, None, None)
+    found = _moments(list(numbers))
+    spread = found["std"]
+    if found["std_unrepresentable"]:
+        spread = None
+    return (found["mean"], spread, found["skew"], found["kurtosis"])
+
+
 def average_of(numbers: "list[float]") -> "float | None":
     """The mean of ``numbers``, exactly (plan P1-D11).
 

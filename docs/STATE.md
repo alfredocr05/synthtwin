@@ -28,7 +28,7 @@ without the same help.
 | branch | `phase-4-allotment` (never merged; `main` is pull-request only) |
 | phase | **Phase 4 — comprehensive column handling.** Current. |
 | plan | `docs/plans/phase-4-columns.md` |
-| suite | 4,110 collected / 48 skipped |
+| suite | 4,111 collected / 48 skipped |
 | lint | clean (`ruff check .`), under the rule set pinned in `pyproject.toml` |
 
 ## What is being built right now
@@ -836,7 +836,38 @@ comment and the fourth corrected this page. The rule that keeps
 earning: a claim about floating point is worth what it was RUN on, not
 what was argued for it.
 
-**FOUR REVIEW ROUNDS, TWELVE SITES, AND NOT ONE WORDING ITEM.** Rounds
+**FIVE REVIEW ROUNDS, EVERY ITEM OF ALL FIVE REAL, AND NOT ONE WORDING
+ITEM.** Round 5 found that the round-4 repair answered two column
+shapes and not the third and fourth: the scaled root UNDERFLOWS on four
+zeroes beside one `5e-324`, and `value - mean` OVERFLOWS before the
+scaling can reach it on one value at the bottom of the range beside a
+hundred and nineteen near the top.
+
+**Four rounds of chasing that expression is what was wrong.**
+`generation._moments_of` now asks `taxonomy.moments_of`, the same exact
+whole-number computation the description's own numbers come from. It
+forms neither the square nor the difference, so there is no column
+shape left for it to be wrong on -- and the number printed beside the
+published one is the correctly rounded value of the SAME statistic
+rather than a second approximation of it, which is what a report
+putting two numbers side by side was always claiming.
+
+The profile/generator boundary was CHECKED rather than assumed: what
+the charter forbids is a module that opens a table being in the
+generator's import graph, and `taxonomy` imports `math` and `parsing`
+and reads no file.
+
+**AND ROUND 5 FOUND THREE PRE-EXISTING GAPS OF THE SAME SHAPE IN OTHER
+ROLES**, opened as R-P4-58, R-P4-59 and R-P4-60 and NOT fixed here
+because each is a different role's landing: a joined column's positions
+carry a full quantitative block nothing checks and nothing lists; a
+`numeric_unrepresentable` column publishes two widths that are neither
+checked nor listed; and `missing_by_source` is filed report-only by the
+validator while the disposition registry calls it EXACT-OBSERVABLE, so
+a file that drops a required missing spelling passes with no miss. Read
+the register before starting any of them.
+
+**FOUR REVIEW ROUNDS BEFORE THAT, TWELVE SITES.** Rounds
 1, 2, 3 and 4 each returned REJECT and every item of all four was real.
 
 **Round 4 corrected a conclusion round 3 let me record, and that is the

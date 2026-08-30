@@ -3072,6 +3072,85 @@ declaration for only one of them.
   and round 4 found the same class in a second module and at the
   opposite end of the range. Nothing here was a wording item.
 
+- **P4-G6-R5, the fifth adversarial round (2026-08-30). Five items,
+  all real. TWO were mine and are closed; THREE are pre-existing gaps
+  in other roles and are opened as R-P4-58, R-P4-59 and R-P4-60.**
+
+  * **F1 and F2 — the round-4 repair answered two column shapes and
+    not the third and fourth.** Four zeroes beside one `5e-324` have a
+    skew of 1.5 and a tail weight of 3.25, and the SCALED root
+    underflows to nothing just as the plain one did. One value at the
+    bottom of the range beside a hundred and nineteen near the top has
+    a finite mean and a finite spread, and `value - mean` on the first
+    of them OVERFLOWS before the scaling can reach it. Both returned
+    None for the spread, the shape and the tails, and the twin report
+    prints a line only where the value is not None -- so three
+    published facts were absent again, in two more shapes.
+
+    **CHASING THE EXPRESSION IS WHAT WAS WRONG, and four rounds of it
+    is enough.** `_moments_of` now asks `taxonomy.moments_of`, which
+    is the computation the description's own numbers come from: it
+    forms neither the square nor the difference, working over whole
+    numbers scaled by a shared power of two. There is no column shape
+    left for it to be wrong on, and the number printed beside the
+    published one is the correctly rounded value of the SAME exact
+    statistic rather than a second approximation of it -- which is what
+    the two-numbers-side-by-side report was always claiming to be.
+
+    The profile/generator boundary is untouched and was checked rather
+    than assumed: what the charter forbids is a module that opens a
+    table being in the generator's import graph at any instant, and
+    `taxonomy` imports `math` and `parsing` and reads no file. No table
+    reader appears in that graph.
+
+    Measured over 150 built columns of five ordinary shapes
+    (`tools/measurements/p4_g6_r5_exact_moments.py`): 357 of 600
+    reported moments move, by at most 7.0e-14 relative, and every move
+    is toward the correctly rounded value. Nothing the old recount
+    could answer is lost.
+
+- **R-P4-58 (opened here, 2026-08-30, PRE-EXISTING and not from this
+  landing).** A JOINED COLUMN'S POSITIONS CARRY A FULL QUANTITATIVE
+  BLOCK THAT NOTHING CHECKS AND NOTHING LISTS. `JoinedFacts.parts`
+  holds a `NumericFacts` per position -- its own ladder, its own
+  moments, its own count of different numbers -- and
+  `_joined_part_checks` measures only each endpoint and
+  `integer_valued`, while `_quantitative_of` deliberately returns None
+  for a joined block. Its docstring says the parts "are checked in
+  their own right", and they are not. On the shipped joined witness the
+  first position publishes a mean, a tail weight, a count of different
+  numbers and ninety finer rungs, and none of them appears as a check
+  or as a census line.
+
+- **R-P4-59 (opened here, 2026-08-30, PRE-EXISTING).** A
+  `numeric_unrepresentable` COLUMN PUBLISHES `min_length` AND
+  `max_length` AND NEITHER IS CHECKED OR LISTED. Reproduced: twelve
+  whole numerals too large for this format, half 399 characters wide
+  and half 401, publish `min_length` 399 and `max_length` 401, and the
+  quality report carries no line of either kind for them. A file of
+  twelve 400-character numerals agrees on role, signs, distinctness and
+  every count, violates both published widths, and can be reported with
+  no miss at all.
+
+- **R-P4-60 (opened here, 2026-08-30, PRE-EXISTING, and it contradicts
+  the registry).** `missing_by_source` IS FILED AS REPORT-ONLY BY THE
+  VALIDATOR AND AS EXACT-OBSERVABLE BY THE DISPOSITION REGISTRY. The
+  registry's own words are "each `missing_by_source` spelling at
+  exactly its count", with an authorized deviation for the judged
+  passes alone (plan P4-D6.1, contract C6-115); version 5 wrote every
+  absent cell empty and the field owed the twin nothing, version 6
+  writes each spelling at its published count. `_listings` still files
+  the whole field as not-checkable unconditionally and no check reads
+  it, so a file that drops a required missing spelling passes with zero
+  misses on a fact the registry calls an obligation.
+
+  These three are one shape and it is the shape four rounds of this
+  landing have been closing in the numeric roles: a published fact that
+  no check measures and no census names is a fact the report has lost.
+  They are opened rather than fixed here because each is a different
+  role's landing -- a check, its red case, its registry row and its
+  spec clause -- and none was introduced by this branch.
+
 - **R-P4-57 (opened and CLOSED here, 2026-08-30).** `synthtwin
   validate` DIED ON A COLUMN OF LARGE NUMBERS, with a Python traceback
   and not one of this package's own messages.

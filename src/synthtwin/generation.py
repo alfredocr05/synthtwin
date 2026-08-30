@@ -143,7 +143,7 @@ import math
 
 import numpy.random
 
-from synthtwin import contract, errors, parsing
+from synthtwin import contract, errors, parsing, taxonomy
 
 # The one draw form of method G3.2, written out so the numbers are
 # checkable against the specification: the whole of 0 .. 2**64 - 1,
@@ -14639,121 +14639,38 @@ def _moments_of(
 ) -> "tuple[float, float | None, float | None, float | None]":
     """The four moments the description publishes, from the twin's cells.
 
-    The FORMULAS are the profiler's, so that the two numbers the report
-    puts side by side are the same statistic: the arithmetic mean; the
-    SAMPLE standard deviation, divided by one less than the count; and
-    the moment skewness, the average cubed deviation over the cube of
-    the POPULATION standard deviation. The standard deviation is None
-    for fewer than two values and the skewness is None for fewer than
-    three or where every value is identical, exactly as the contract's
-    Q4 and Q5 say the published fields are.
+    ONE IMPLEMENTATION, AND IT IS THE PROFILER'S (review items
+    P4-G6-R5-F1 and P4-G6-R5-F2). The two numbers this report puts side
+    by side -- what the description says and what the twin holds -- are
+    only the same statistic if they are computed the same way, and this
+    function recounted them from the finished cells in binary64 while
+    the description's own were worked out exactly over whole numbers.
 
-    The arithmetic is ordinary binary64 in a fixed order, with the sum's
-    lost part carried.
+    Five review rounds of this landing kept finding the gap between
+    those two arithmetics, one column shape at a time: a variance whose
+    square has nowhere to go, a difference that overflows before it can
+    be scaled, a deviation so small its square underflows to nothing.
+    Each time the recount returned None and the report -- which prints
+    a line only where the value is not None -- said NOTHING AT ALL
+    about three facts the description publishes. Chasing that one
+    expression at a time is what four of those rounds did.
 
-    THE VARIANCE IS NOT THE DEVIATION, AND ONLY THE SECOND OF THEM IS
-    ALWAYS A NUMBER (review item P4-G6-R4-F2). The paragraph that stood
-    here said the deviations were scaled as they were summed. The
-    skewness and the tail weight did scale theirs; the SPREAD they are
-    both derived from did not, and its square is the one place a column
-    of large values has nowhere to go. A three-cell column pinned at
-    `0`, `8.5e307` and `1.7e308` has an exact sample deviation of
-    8.5e307 -- an ordinary number -- and a variance of 7.2e615, which is
-    not one.
+    `taxonomy.moments_of` forms neither the square nor the difference,
+    so there is no column shape left for this to be wrong on, and the
+    number printed beside the published one is now the correctly
+    rounded value of the same exact statistic rather than a second
+    approximation of it.
 
-    So this returned None for the spread AND the shape AND the tails,
-    and the twin report, which files an approximation only where the
-    value is not None, said NOTHING ABOUT ANY OF THEM. Not a wrong
-    number and not a withheld line: three published obligations simply
-    absent, on a twin that reproduced all three. The round before this
-    one looked for that site by searching both reports for a word that
-    is not a number, which is the one symptom it does not have.
-
-    The population deviation is now reached without the variance ever
-    being formed, by scaling each deviation by the largest before it is
-    squared and multiplying the root back afterwards. The plain form is
-    kept wherever it answers, so no column that already had a spread
-    changes a byte.
+    THE PROFILE/GENERATOR BOUNDARY IS UNTOUCHED. What the charter
+    forbids is a module that opens a table being in this one's import
+    graph at any instant; `taxonomy` imports `math` and `parsing` and
+    nothing else, and reads no file. It is the module whose published
+    numbers this report is measured against.
     """
-    held = len(values)
-    mean = _mean_of(values)
-    if held < 2:
-        return (mean, None, None, None)
-    # A SPREAD OF ZERO IS TWO DIFFERENT ANSWERS AND ONLY ONE OF THEM IS
-    # TRUE (found by the assertion this round's item F2 added, which is
-    # the other end of the same family). A column whose values are all
-    # ONE NUMBER has a spread of nothing, and that is a fact. A column
-    # of SUBNORMAL values does not: `(value - mean)` there is already
-    # near the smallest number the format holds, and its square
-    # UNDERFLOWS to zero, so the sum is zero for a column whose real
-    # spread is 5e-324. The twin then reported a spread of 0.0 against
-    # a published 5e-324 and said nothing at all about its shape or its
-    # tails. Overflow was the half three rounds looked at; this is the
-    # same arithmetic at the other end of the range.
-    #
-    # So the two are told apart before anything is squared, and the
-    # scaled form answers both a sum that has grown past the range and
-    # one that has fallen out of the bottom of it.
-    if len(set(values)) == 1:
-        return (mean, 0.0, None, None)
-    spread = _summed(
-        [(value - mean) * (value - mean) / held for value in values]
-    )
-    root = 0.0
-    if math.isfinite(spread) and spread > 0:
-        root = math.sqrt(spread)
-    else:
-        widest = 0.0
-        for value in values:
-            step = abs(value - mean)
-            if math.isfinite(step) and step > widest:
-                widest = step
-        if widest <= 0.0:
-            return (mean, None, None, None)
-        parts = _summed(
-            [
-                ((value - mean) / widest)
-                * ((value - mean) / widest)
-                / held
-                for value in values
-            ]
-        )
-        if not math.isfinite(parts) or parts <= 0.0:
-            return (mean, None, None, None)
-        root = widest * math.sqrt(parts)
-    if not math.isfinite(root) or root <= 0.0:
-        return (mean, None, None, None)
-    deviation = root * math.sqrt(held / (held - 1))
-    if not math.isfinite(deviation):
-        return (mean, None, None, None)
-    if held < 3:
-        return (mean, deviation, None, None)
-    shape = _summed(
-        [
-            ((value - mean) / root)
-            * ((value - mean) / root)
-            * ((value - mean) / root)
-            / held
-            for value in values
-        ]
-    )
-    if held < 4:
-        return (mean, deviation, shape, None)
-    # The weight of the tails, recounted the same way and scaled the
-    # same way: each deviation is divided by the population spread
-    # before it is raised, so a column whose spread the format can hold
-    # cannot overflow on the way to its own kurtosis either.
-    tails = _summed(
-        [
-            ((value - mean) / root)
-            * ((value - mean) / root)
-            * ((value - mean) / root)
-            * ((value - mean) / root)
-            / held
-            for value in values
-        ]
-    )
-    return (mean, deviation, shape, tails)
+    mean, spread, shape, tails = taxonomy.moments_of(values)
+    if mean is None:
+        return (0.0, None, None, None)
+    return (mean, spread, shape, tails)
 
 
 def _rung_of(ordered: "list[float]", percent: int) -> float:
