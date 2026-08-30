@@ -14649,23 +14649,85 @@ def _moments_of(
     Q4 and Q5 say the published fields are.
 
     The arithmetic is ordinary binary64 in a fixed order, with the sum's
-    lost part carried; the deviations are scaled as they are summed, so
-    a column whose spread the format can hold cannot overflow on the way
-    to its own spread.
+    lost part carried.
+
+    THE VARIANCE IS NOT THE DEVIATION, AND ONLY THE SECOND OF THEM IS
+    ALWAYS A NUMBER (review item P4-G6-R4-F2). The paragraph that stood
+    here said the deviations were scaled as they were summed. The
+    skewness and the tail weight did scale theirs; the SPREAD they are
+    both derived from did not, and its square is the one place a column
+    of large values has nowhere to go. A three-cell column pinned at
+    `0`, `8.5e307` and `1.7e308` has an exact sample deviation of
+    8.5e307 -- an ordinary number -- and a variance of 7.2e615, which is
+    not one.
+
+    So this returned None for the spread AND the shape AND the tails,
+    and the twin report, which files an approximation only where the
+    value is not None, said NOTHING ABOUT ANY OF THEM. Not a wrong
+    number and not a withheld line: three published obligations simply
+    absent, on a twin that reproduced all three. The round before this
+    one looked for that site by searching both reports for a word that
+    is not a number, which is the one symptom it does not have.
+
+    The population deviation is now reached without the variance ever
+    being formed, by scaling each deviation by the largest before it is
+    squared and multiplying the root back afterwards. The plain form is
+    kept wherever it answers, so no column that already had a spread
+    changes a byte.
     """
     held = len(values)
     mean = _mean_of(values)
     if held < 2:
         return (mean, None, None, None)
+    # A SPREAD OF ZERO IS TWO DIFFERENT ANSWERS AND ONLY ONE OF THEM IS
+    # TRUE (found by the assertion this round's item F2 added, which is
+    # the other end of the same family). A column whose values are all
+    # ONE NUMBER has a spread of nothing, and that is a fact. A column
+    # of SUBNORMAL values does not: `(value - mean)` there is already
+    # near the smallest number the format holds, and its square
+    # UNDERFLOWS to zero, so the sum is zero for a column whose real
+    # spread is 5e-324. The twin then reported a spread of 0.0 against
+    # a published 5e-324 and said nothing at all about its shape or its
+    # tails. Overflow was the half three rounds looked at; this is the
+    # same arithmetic at the other end of the range.
+    #
+    # So the two are told apart before anything is squared, and the
+    # scaled form answers both a sum that has grown past the range and
+    # one that has fallen out of the bottom of it.
+    if len(set(values)) == 1:
+        return (mean, 0.0, None, None)
     spread = _summed(
         [(value - mean) * (value - mean) / held for value in values]
     )
-    if not math.isfinite(spread) or spread <= 0:
-        return (mean, 0.0 if spread == 0 else None, None, None)
-    deviation = math.sqrt(spread) * math.sqrt(held / (held - 1))
+    root = 0.0
+    if math.isfinite(spread) and spread > 0:
+        root = math.sqrt(spread)
+    else:
+        widest = 0.0
+        for value in values:
+            step = abs(value - mean)
+            if math.isfinite(step) and step > widest:
+                widest = step
+        if widest <= 0.0:
+            return (mean, None, None, None)
+        parts = _summed(
+            [
+                ((value - mean) / widest)
+                * ((value - mean) / widest)
+                / held
+                for value in values
+            ]
+        )
+        if not math.isfinite(parts) or parts <= 0.0:
+            return (mean, None, None, None)
+        root = widest * math.sqrt(parts)
+    if not math.isfinite(root) or root <= 0.0:
+        return (mean, None, None, None)
+    deviation = root * math.sqrt(held / (held - 1))
+    if not math.isfinite(deviation):
+        return (mean, None, None, None)
     if held < 3:
         return (mean, deviation, None, None)
-    root = math.sqrt(spread)
     shape = _summed(
         [
             ((value - mean) / root)
@@ -14720,6 +14782,31 @@ def _rung_of(ordered: "list[float]", percent: int) -> float:
 
 def _figure(value: float) -> str:
     """One measured number written for the report, shortest round trip."""
+    return f"{value}"
+
+
+# WHAT A BOUND WITH NO END READS AS. Method G12 fixes a two-sided bound
+# for every APPROXIMATED fact, and on a column that reaches across the
+# whole range of this format one of those two ends can be a number the
+# format cannot write. `inf` is not a bound a reader can act on, and
+# printing it says the opposite of what is true: a bound with no end
+# admits every value there is, so it proves nothing about the twin.
+_NO_END = "any value this format can write"
+
+
+def _bound_figure(value: float) -> str:
+    """One END of a bound, written for the report (item P4-G6-R4-F1).
+
+    THE SAME PLACE THE VALIDATOR PUTS ITS OWN GUARD, and for the same
+    reason. Three review rounds each guarded the arithmetic that
+    produces a bound and the next round found the overflow one step
+    further along; what closes it is guarding the point where the
+    number is RECORDED. Every end of every bound in the twin report
+    goes through here, so an end that is not a number cannot reach the
+    page whatever expression produced it.
+    """
+    if not math.isfinite(value):
+        return _NO_END
     return f"{value}"
 
 
@@ -15051,8 +15138,8 @@ def _agreement_approximations(
                         fact=f"part_agreements[{seat}]",
                         published=_figure(published),
                         achieved=_figure(achieved),
-                        lowest=_figure(lowest),
-                        highest=_figure(highest),
+                        lowest=_bound_figure(lowest),
+                        highest=_bound_figure(highest),
                         inside=_inside(achieved, lowest, highest),
                         note=moving,
                         covers_published=True,
@@ -15348,8 +15435,8 @@ def _numeric_approximations(
                 fact=f"percentiles.p{percent:02d}",
                 published=_figure(rung),
                 achieved=_figure(achieved),
-                lowest=_figure(lowest),
-                highest=_figure(highest),
+                lowest=_bound_figure(lowest),
+                highest=_bound_figure(highest),
                 inside=_inside(achieved, lowest, highest),
                 note=(
                     "the value that stands "
@@ -15368,8 +15455,8 @@ def _numeric_approximations(
                 fact="mean",
                 published=_figure(facts.mean),
                 achieved=_figure(mean),
-                lowest=_figure(lowest),
-                highest=_figure(highest),
+                lowest=_bound_figure(lowest),
+                highest=_bound_figure(highest),
                 inside=_inside(mean, lowest, highest),
                 note=f"the average of {subject}",
                 covers_published=_inside(facts.mean, lowest, highest),
@@ -15415,8 +15502,8 @@ def _numeric_approximations(
                 fact="std",
                 published=_figure(facts.std),
                 achieved=_figure(deviation),
-                lowest=_figure(lowest),
-                highest=_figure(highest),
+                lowest=_bound_figure(lowest),
+                highest=_bound_figure(highest),
                 inside=_inside(deviation, lowest, highest),
                 note=f"how far the values of {subject} spread out",
                 covers_published=_inside(facts.std, lowest, highest),
@@ -15430,8 +15517,8 @@ def _numeric_approximations(
                 fact="skew",
                 published=_figure(facts.skew),
                 achieved=_figure(shape),
-                lowest=_figure(lowest),
-                highest=_figure(highest),
+                lowest=_bound_figure(lowest),
+                highest=_bound_figure(highest),
                 inside=_inside(shape, lowest, highest),
                 note=(
                     f"which side of the average of {subject} the longer "
@@ -15448,8 +15535,8 @@ def _numeric_approximations(
                 fact="kurtosis",
                 published=_figure(facts.kurtosis),
                 achieved=_figure(tails),
-                lowest=_figure(lowest),
-                highest=_figure(highest),
+                lowest=_bound_figure(lowest),
+                highest=_bound_figure(highest),
                 inside=_inside(tails, lowest, highest),
                 note=f"how heavy the tails of {subject} are",
                 covers_published=_inside(facts.kurtosis, lowest, highest),
@@ -16032,8 +16119,8 @@ def _text_approximations(
                 fact="length.mean",
                 published=_figure(facts.length.mean),
                 achieved=_figure(achieved / rows),
-                lowest=_figure(lowest / rows),
-                highest=_figure(highest / rows),
+                lowest=_bound_figure(lowest / rows),
+                highest=_bound_figure(highest / rows),
                 inside=lowest <= achieved <= highest,
                 note="how many characters a value holds on average",
                 covers_published=lowest <= wanted <= highest,
@@ -16126,8 +16213,8 @@ def _median_length(
             fact="length.p50",
             published=_figure(facts.length.p50),
             achieved=_figure(achieved),
-            lowest=_figure(float(lowest)),
-            highest=_figure(float(highest)),
+            lowest=_bound_figure(float(lowest)),
+            highest=_bound_figure(float(highest)),
             inside=_inside(achieved, float(lowest), float(highest)),
             note="the middle length: half the values are shorter",
             covers_published=_inside(
@@ -16184,8 +16271,8 @@ def _word_average(
             fact="words.mean",
             published=_figure(facts.words.mean),
             achieved=_figure(achieved / rows),
-            lowest=_figure(lowest / rows),
-            highest=_figure(highest / rows),
+            lowest=_bound_figure(lowest / rows),
+            highest=_bound_figure(highest / rows),
             inside=lowest <= achieved <= highest,
             note="how many words a value holds on average",
             covers_published=lowest <= wanted <= highest,

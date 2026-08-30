@@ -3002,6 +3002,76 @@ declaration for only one of them.
   that make it about a non-quantitative column. What they are not is
   evidence for the repairs, and the plan should not imply they are.
 
+- **P4-G6-R4, the fourth adversarial round (2026-08-30). Four items,
+  all real, and one of them CORRECTS A CONCLUSION THE ROUND BEFORE IT
+  let me record.**
+
+  * **F2 — the generator site round 3 named DOES reproduce, and its
+    symptom is silence.** I reported that half as not reproducing over
+    seven column shapes, because I searched both reports for a word
+    that is not a number. It has no such word: `_moments_of` computes
+    `(value - mean) * (value - mean) / held`, MULTIPLYING before it
+    divides, so on the three cells `0`, `8.5e307` and `1.7e308` -- an
+    exact sample deviation of 8.5e307, an ordinary number -- the
+    variance is 7.2e615 and is not one. It returned None for the
+    spread AND the shape AND the tails, and the twin report files an
+    approximation only where the value is not None, so three published
+    obligations were simply ABSENT from it. Nothing printed, nothing
+    to scan for.
+
+    **A DEFECT CAN BE HIDDEN BY ANOTHER DEFECT, and "I could not
+    reproduce it" is only as good as the rest of the system.** Fixing
+    this one immediately unmasked the infinity round 3 predicted in the
+    same function: with a real deviation to work from, the generator
+    built the window it had been skipping and its end was `inf`. The
+    round-3 note that the generator half did not reproduce was wrong
+    twice over, and both halves are closed here.
+
+    The population deviation is now reached without the variance ever
+    being formed. And every END OF EVERY BOUND in the twin report goes
+    through one function, so an end that is not a number cannot reach
+    the page whatever expression produced it -- the same place the
+    validator's own guard went two rounds ago, for the same reason.
+
+  * **AND THE OTHER END OF THAT ARITHMETIC, which no round found.** The
+    assertion added for F2 -- every moment the description publishes is
+    named somewhere -- went red on the SUBNORMAL shape. A deviation
+    near the smallest number this format holds, squared, IS zero, so
+    the sum of them is zero for a column whose real spread is 5e-324.
+    Three rounds looked at a square with nowhere to go and this is the
+    same expression at the bottom of the range. A spread of zero has
+    two causes -- every value identical, or every square underflowed --
+    and only the first is a fact; they are told apart now before
+    anything is squared.
+
+  * **F1 — an affixed column was CHECKED by one path and listed by
+    none.** `_affixed_checks` hands the cores to the same numeric
+    machinery, while every census branch asked `isinstance(facts,
+    NumericFacts)` of the OUTER facts. `_quantitative_of` is the
+    unwrapping the rest of the module already uses; the census takes it
+    now, so a role added later cannot be forgotten there.
+
+  * **F3 — a moment counted twice under two contradictory reasons.**
+    `_windows_of` reads all hundred and one rungs and the census asked
+    whether the ELEVEN named ones held anything. On a description whose
+    named rungs are null beside finer rungs that are not -- which the
+    contract admits -- the mean and the spread were CHECKED against
+    real windows and listed as having no ladder at the same time. The
+    census asks the rungs the window is drawn from now.
+
+  * **F4 — the count of different numbers vanished with the
+    histogram.** Its listing sat inside the histogram's condition
+    although it is published on its own terms, so a description at a
+    raised floor carrying the count with an empty histogram named it
+    nowhere.
+
+  **FOUR ROUNDS, AND EVERY ITEM OF ALL FOUR WAS REAL.** The tally is
+  worth keeping beside the rule that produced it: rounds 1 and 2 each
+  guarded the inputs to a computation, round 3 found the overflow one
+  step past the guard and moved it to the point the value is RECORDED,
+  and round 4 found the same class in a second module and at the
+  opposite end of the range. Nothing here was a wording item.
+
 - **R-P4-57 (opened and CLOSED here, 2026-08-30).** `synthtwin
   validate` DIED ON A COLUMN OF LARGE NUMBERS, with a Python traceback
   and not one of this package's own messages.
