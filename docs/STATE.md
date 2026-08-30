@@ -28,7 +28,7 @@ without the same help.
 | branch | `phase-4-allotment` (never merged; `main` is pull-request only) |
 | phase | **Phase 4 — comprehensive column handling.** Current. |
 | plan | `docs/plans/phase-4-columns.md` |
-| suite | 4,113 collected / 48 skipped |
+| suite | 4,114 collected / 48 skipped |
 | lint | clean (`ruff check .`), under the rule set pinned in `pyproject.toml` |
 
 ## What is being built right now
@@ -836,8 +836,34 @@ comment and the fourth corrected this page. The rule that keeps
 earning: a claim about floating point is worth what it was RUN on, not
 what was argued for it.
 
-**SEVEN REVIEW ROUNDS, EVERY ITEM OF ALL SEVEN REAL, AND NOT ONE
-WORDING ITEM.** Round 7 found that the outward step round 6 introduced
+**EIGHT REVIEW ROUNDS, EVERY ITEM OF ALL EIGHT REAL, AND NOT ONE
+WORDING ITEM.** The eighth was the last under the cap a machinery
+correction gets, and it was asked three questions besides its items,
+because seven rounds had each found something written confidently and
+wrongly and this page is what a new reader will trust.
+
+**IT AUDITED THE REGISTER AND FOUND TWO CLAIMS THAT OUTRAN THE CODE,
+both mine.** The double step round 7 said it had caught was caught in
+ONE of the two places it lived. And the `math.nextafter` coverage cited
+there -- 400024 steps -- came from a console run and not from the
+committed test, which held 20018 values. The test holds 200018 now and
+ASSERTS ITS OWN SIZE, so the figure is one the file can be made to
+produce: 800072 comparisons across both module copies. **A coverage
+claim is worth what the committed code does, not what was measured
+once at a prompt.**
+
+**WHAT THE ROUND SAYS IS LEFT, recorded because it is not my judgement
+alone.** It says this landing is NOT safe to stop on while R-P4-58 and
+R-P4-59 omit published facts from a report and R-P4-60 can pass a file
+that misses an exact obligation. All three are deliberately opened
+rather than fixed, each being a different role's landing. And it names
+**R-P4-56 as the highest-value work left of everything it saw across
+eight rounds**, on the ground that a twin writing fixed-width cells
+wider than any source cell breaks analysis code developed against it --
+worse than two reports disagreeing in their last digits. That is the
+same conclusion this page reached independently, from the other side.
+
+**SEVEN ROUNDS BEFORE THAT, EVERY ITEM REAL.** Round 7 found that the outward step round 6 introduced
 was not a step to the ADJACENT number -- and I had written it while
 fixing round 6's own bound. The gap below a value on the edge of its
 binade is HALF the gap above it, so it stepped two places there; the
@@ -854,7 +880,8 @@ widening -- blocking on its own under the reviewer brief. Both closed.
 
 **AND ITS FOURTH ITEM WAS MEASURED RATHER THAN GUESSED AT.** The
 generator and the validator print different moment windows for one
-column, so one run of the two commands states two numerical versions of
+column, so one run of `generate` beside `validate` states two numerical
+versions of
 one method. Nine windows built at the commit BEFORE this branch and
 again at its head: 8 of 9 differed before, 7 of 9 differ now. It is
 pre-existing, this landing improved it slightly, and closing it means

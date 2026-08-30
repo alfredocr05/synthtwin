@@ -3636,11 +3636,17 @@ def test_the_outward_step_is_the_number_next_to_the_one_it_was_given(
         1.7976931348623157e308, -1.7976931348623157e308,
     ]
     spread = random.Random(3)
-    for _each in range(20000):
+    for _each in range(200000):
         edges.append(
             spread.uniform(-10, 10) * 10.0 ** spread.randint(-320, 300)
         )
 
+    # 200018 values, both directions, both module copies: 800072
+    # comparisons. The count is stated where it can be counted, because
+    # the register first cited a figure from a console run rather than
+    # from this file and a claim about coverage is worth what the
+    # committed code does (review item P4-G6-R8).
+    assert len(edges) == 200018, len(edges)
     for value in edges:
         for upward, toward in ((True, math.inf), (False, -math.inf)):
             wanted = math.nextafter(value, toward)
@@ -3658,3 +3664,36 @@ def test_the_outward_step_is_the_number_next_to_the_one_it_was_given(
             assert validation._stepped(value, upward) == wanted, (
                 value, upward
             )
+
+
+def test_the_two_modules_widen_a_limit_the_same_number_of_places(
+) -> None:
+    """One method, one number of steps (review item P4-G6-R8).
+
+    The universal limits are widened one place outward so a statistic
+    sitting ON a limit is admitted by it. ONE place: the generator
+    widened its skew ceiling and then widened the fallback pair built
+    from it again, so on this column it printed a range two places wide
+    where the validator printed one -- and one run of the two commands
+    stated two versions of G12.3, which is the disagreement the step
+    was added to end.
+
+    The endpoints are asserted here and not merely that a correct twin
+    lies inside them, because the round before this one added a test
+    that checked only the second and the second cannot see this.
+    """
+    ceiling = (3 - 2) / math.sqrt(3 - 1)
+    assert ceiling == 0.7071067811865475
+    once = generation._raised(ceiling)
+    assert once == 0.7071067811865476
+    assert generation._raised(once) != once, "the step must move"
+
+    # A flat set of three ranks: the spread's own lower end reaches
+    # zero, so both windows take their fallback -- the branch where the
+    # second step lived.
+    ranks = [0.0, 0.0, 0.0]
+    made = generation._shape_window(ranks, ranks, ranks, 0.0, 3)
+    assert made == (-once, once), made
+    seen = validation._moment_windows(ranks, ranks, ranks, 3)
+    if "skew" in seen:
+        assert seen["skew"] == made, (seen["skew"], made)
