@@ -732,7 +732,29 @@ value whose number depends on the grammar is refused beside
 `--decimal-comma`. The reviewer had been pointing at that for two
 rounds before I took it.
 
-## THE FINER LADDER AND ITS ALLOTMENT — READ THIS FIRST
+## THE FINER LADDER AND ITS ALLOTMENT — LANDED, AND GREEN
+
+**The suite is GREEN. 4063 passed, 51 skipped, nothing red.** The five
+goldens were held red for the whole landing and are re-recorded, after
+the whole golden run was built at the commit BEFORE this branch and
+again at its head and the two censuses compared obligation by
+obligation: 407 checks both, none lost; 129 listings against 138, NONE
+LOST and nine gained; and two facts moved WITHIN-BOUND to HELD, which
+is the twin landing exactly on a published rung where it used to land
+only inside the rung's bound.
+
+**Eight adversarial rounds, every item of all eight real, not one a
+wording item.** What they found and what closed it is below; the
+register at the foot of `docs/plans/phase-4-columns.md` carries each
+one with its reproduction.
+
+**WHAT IS STILL OPEN, and none of it is from this branch:** R-P4-56,
+R-P4-58, R-P4-59, R-P4-60 and R-P4-61. The eighth round was asked which
+matters most of everything it had seen and named **R-P4-56** -- a twin
+writing fixed-width cells wider than any source cell, which breaks
+analysis code developed against it. Start there.
+
+## THE FINER LADDER AND ITS ALLOTMENT — HOW IT WENT
 
 **Branch `phase-4-allotment`. The suite is RED on purpose, and the red
 is the point.** The owner ruled on 2026-08-28 that statistical fidelity
