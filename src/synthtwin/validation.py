@@ -3216,6 +3216,87 @@ def _ladder_points(
     return points
 
 
+def _fine_ladder_points(
+    facts: contract.NumericFacts,
+) -> "list[tuple[float, float]]":
+    """The published ladder as (share, value) points, ALL of its rungs.
+
+    THE WINDOWS MUST BE DRAWN THROUGH THE LADDER THE TWIN WAS PLACED ON
+    (review item P4-G5-A1). A column publishes eleven NAMED rungs and
+    ninety more beside them, and since the allotment of method G5.2a
+    the construction reads all hundred and one -- so a window drawn
+    through the eleven invents a rise between them that the column does
+    not have, and then accuses a twin that sat exactly where the finer
+    rungs said it should.
+
+    Measured on one two-figure column: the eleven-rung reading gives
+    `5.003667` at share 0.4333 where the hundred-and-one gives `5.0`,
+    which is what the source itself holds there. The window that came
+    out ran from 0.0013 BELOW the published value to 0.0393 above it --
+    thirty times more room on one side than the other -- and the twin,
+    whose own error was never more than 0.0025, was reported MISSED on
+    forty runs of two hundred.
+
+    The nulls are dropped exactly as `_ladder_points` drops them: a
+    rung the format cannot hold carries no obligation (contract rule
+    L3) and is not a point a window may be drawn through.
+    """
+    named: "dict[int, float | None]" = {}
+    for index in range(len(contract.LADDER_PERCENTS)):
+        named[contract.LADDER_PERCENTS[index]] = facts.percentiles.rungs[
+            index
+        ]
+    finer: "dict[int, float | None]" = {}
+    for index in range(len(contract.FINER_LADDER_KEYS)):
+        name = contract.FINER_LADDER_KEYS[index]
+        finer[int(name[1:])] = facts.percentiles_between[index]
+    points: "list[tuple[float, float]]" = []
+    for percent in range(101):
+        value = named[percent] if percent in named else finer[percent]
+        if value is not None:
+            points = points + [(percent / 100.0, float(value))]
+    return points
+
+
+def _longest_plateau(
+    facts: contract.NumericFacts, numbers: int
+) -> int:
+    """The most cells the ladder puts on one value, read off the ladder.
+
+    THE WIDEST STRATUM UNDER THE ALLOTMENT OF G5.2a, which is what the
+    rung window's displacement is made of. That allotment sizes a
+    stratum by the run of ranks the ladder gives one value, so the
+    widest stratum a column can have is its longest such run -- and a
+    column of two hundred and forty cells holding one value thirty
+    times has a stratum of thirty where the even split had two.
+
+    Read from the DESCRIPTION and never from the generator, which this
+    module may not import: the ladder is published and the rank count
+    is published, and between them they say where the plateaus are.
+
+    Used only to WIDEN, never to narrow. A window too wide can fail to
+    catch a twin that missed; a window too narrow accuses a conforming
+    one, and this module may never do the second.
+    """
+    points = _fine_ladder_points(facts)
+    if not points or numbers <= 0:
+        return 0
+    longest = 0
+    run = 0
+    previous: "float | None" = None
+    for rank in range(numbers):
+        share = rank / numbers if numbers > 0 else 0.0
+        value = _ladder_at(points, share)
+        if previous is not None and value == previous:
+            run = run + 1
+        else:
+            run = 1
+        previous = value
+        if run > longest:
+            longest = run
+    return longest
+
+
 def _ladder_at(points: "list[tuple[float, float]]", share: float) -> float:
     """The ladder's value at ``share``, read piecewise-linearly.
 
@@ -7289,7 +7370,14 @@ def _ladder_checks(
         _rung_end(name, "min", published.minimum, measured),
         _rung_end(name, "max", published.maximum, measured),
     ]
-    points = _ladder_points(published.rungs)
+    # THROUGH EVERY PUBLISHED RUNG, not the eleven named ones (review
+    # item P4-G5-A1). The construction places a value on the
+    # hundred-and-one-rung ladder, so a window drawn through eleven
+    # invents a rise the column does not have and accuses a twin that
+    # sat exactly where the finer rungs said.
+    points = _fine_ladder_points(facts)
+    if not points:
+        points = _ladder_points(published.rungs)
     if not points:
         return checks
     reach = _displacement(facts, column.n_present, column.n_distinct_folded)
@@ -7351,7 +7439,19 @@ def _displacement(
     both ends widen by the half unit exactly two rules can spend.
     """
     numbers = _numeric_cells(facts)
-    widest = _largest_stratum(facts, present, distinct_folded)
+    # THE WIDER OF THE TWO READINGS, because this may only widen
+    # (review item P4-G5-A1). `_largest_stratum` works out what the
+    # even split of G5.2 would give; the allotment of G5.2a sizes a
+    # stratum by the ladder's own plateau instead, and on a column
+    # whose commonest value is held by thirty of sixty cells that is a
+    # stratum of thirty where the even split said two. Taking the
+    # larger keeps the promise the displacement is written under: a
+    # window too wide can fail to catch a twin that missed, and a
+    # window too narrow accuses one that did not.
+    widest = max(
+        _largest_stratum(facts, present, distinct_folded),
+        _longest_plateau(facts, _numeric_cells(facts)),
+    )
     return ((widest + 2) / numbers, _half_unit(facts))
 
 
@@ -7384,7 +7484,9 @@ def _windows_of(
       published cell counts and the half unit G12.2 grants.
     - Errors raised: none.
     """
-    points = _ladder_points(facts.percentiles.rungs)
+    points = _fine_ladder_points(facts)
+    if not points:
+        points = _ladder_points(facts.percentiles.rungs)
     if not points:
         return {}
     numbers = _numeric_cells(facts)

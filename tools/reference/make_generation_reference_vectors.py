@@ -802,29 +802,228 @@ def ladder_segment(numerator, denominator, percents=PCT):
 REACHABLE = (("zero", "positive"), ("negative", "zero", "positive"))
 
 
-def band_sizes(negatives, zeros, positives, negative_strata, positive_strata):
-    """The even split of method section G5.2, band by band."""
+def even_split(count, strata):
+    """``floor((i+1)*C/M) - floor(i*C/M)`` -- G5.2a's FALLBACK.
+
+    It was the rule for every column until 2026-08-28, and residual
+    R-P4-49 is what it cost: an even split gives every value the same
+    number of cells, so a column of 230 cells holding 27 numbers --
+    five of them about forty cells each, the other twenty-two about one
+    -- came out 27 strata of eight or nine, a shape that can represent
+    neither.  It is now reached only where there is no ladder to follow
+    or where the band has no more cells than strata.
+    """
+    return [
+        (index + 1) * count // strata - index * count // strata
+        for index in range(strata)
+    ]
+
+
+def ladder_runs(ladder, low, count, numeric, integer_valued):
+    """Steps 1 and 2 of method section G5.2a: the ladder's own plateaus.
+
+    **Step 1, read the ladder at every rank of the band.**  For
+    ``i = 0 .. C - 1`` the value at rank ``lo + i`` is
+    ``Interpolate(Ladder, (lo + i) * 2**53, K * 2**53)`` by the convex
+    form of G5.3, with the whole-number rule of G5.4 applied to it
+    where ``integer_valued`` is published true -- the same value the
+    twin would hold at that rank.  Nothing rounds here that does not
+    round there, because the scale and the segment rule are G5.3's own.
+
+    **Step 2, take the runs.**  A RUN is a maximal block of consecutive
+    ranks whose values are equal, compared as binary64 numbers.  A run
+    is a PLATEAU of the ladder: the cells that hold one value.
+
+    Returns ``(lengths, heights)`` in rank order.
+    """
+    scale = 1 << SIGNIFICAND_BITS
+    denominator = numeric * scale
+    lengths = []
+    heights = []
+    for index in range(count):
+        value = ladder_at(ladder, (low + index) * scale, denominator)
+        if integer_valued:
+            value = integer_rule(value)
+        if lengths and heights[-1] == value:
+            lengths[-1] = lengths[-1] + 1
+        else:
+            lengths.append(1)
+            heights.append(value)
+    return lengths, heights
+
+
+def join_key(lengths, heights, index):
+    """The key G5.2a step 3 joins the SMALLEST of, and the leftmost wins.
+
+    ``(min(L[j], L[j+1]), 0 if Whole(H[j]) == Whole(H[j+1]) else 1,
+    Gap(j))`` with ``Gap(j) = |H[j+1] - H[j]| / (|H[j+1]| + |H[j]|)``
+    and zero where that denominator is.  All three parts earn their
+    place:
+
+    - **the smaller side smallest** -- absorb the least.  A transition
+      is one rank wide and a plateau is many, so this takes the
+      artifact into the real value beside it and never the reverse.
+    - **both whole or both fractional next** -- which cells can be
+      written without a point is ``numeric_styles``, an
+      EXACT-OBSERVABLE fact, and a whole value's nearest neighbour is
+      very often the fraction just below it: ``4`` and ``3.875`` are
+      closer than ``4`` and ``5``.
+    - **nearest in value last**, measured RELATIVELY against the
+      pair's own size, so a column of thousands and a column of
+      thousandths are judged the same way.
+
+    The gap is the exact rational the method's formula names.  G5.3
+    fixes an IEEE operation order where one is meant and this clause
+    fixes none, so the ratio is taken exactly rather than in an
+    arithmetic the text does not ask for.
+    """
+    left = heights[index]
+    right = heights[index + 1]
+    span = F(abs(left)) + F(abs(right))
+    gap = F(0) if span == 0 else abs(F(right) - F(left)) / span
+    return (
+        min(lengths[index], lengths[index + 1]),
+        0 if left.is_integer() == right.is_integer() else 1,
+        gap,
+    )
+
+
+def band_allotment(count, strata, ladder, low, numeric, integer_valued):
+    """How a band's cells divide between its strata -- method G5.2a.
+
+    THE EVEN SPLIT IS THE FALLBACK AND NO LONGER THE RULE.  Where there
+    is no ladder, or where the band has no more cells than strata, the
+    cells divide evenly.  Otherwise the sizes follow the LADDER'S OWN
+    SHAPE, which is what the hundred-and-one-rung ladder of G5.1 knows
+    and the eleven named rungs do not: a value standing at seventeen of
+    the rungs stands at seventeen per cent of the column, because the
+    rungs stand at the percentiles.
+
+    Interpolating a ladder over a column's ranks puts a one-rank
+    TRANSITION between each pair of real plateaus -- a value the column
+    does not hold, standing between two it does -- so the run count is
+    usually larger than the stratum count and never exactly it by
+    accident.  Runs are therefore joined down, or divided up, until
+    there are exactly ``strata`` of them, and the sizes are the run
+    lengths in rank order.  Each is at least one and they sum to
+    ``count``, because every run is at least one rank long and neither
+    the joins nor the divisions change the total.
+    """
+    if strata <= 0:
+        return []
+    if strata > count:
+        # A QUESTION THIS ORACLE REFUSES TO ANSWER BY GUESSING.  G5.2
+        # caps `M_rest` at `G + P` so that no stratum is empty -- "a
+        # stratum with no cell in it is not a value" (P2-C1-F5) -- and
+        # the cell share it capped for could never give one band more
+        # strata than it has cells.  The RUN share of G5.2b can: it is
+        # clamped only into [1, M_rest - 1], and nothing holds `M_neg`
+        # at or below `G` or `M_pos` at or below `P`.  The even split
+        # would then hand back a stratum of nought cells, which G5.2
+        # forbids by name, so the answer is asked for rather than
+        # invented.
+        raise AssertionError(
+            f"a band of {count} cells was given {strata} strata: G5.2b's run "
+            "share can exceed a band's own cell count and the method states "
+            "no clamp that stops it, while G5.2 forbids a stratum with no "
+            "cell in it. The specification does not say which of the two "
+            "gives way"
+        )
+    if ladder is None or strata >= count:
+        return even_split(count, strata)
+    lengths, heights = ladder_runs(ladder, low, count, numeric, integer_valued)
+    # ``min`` and ``max`` both hold the FIRST extremal item, which is
+    # the leftmost-wins-a-tie both halves of step 3 ask for.
+    while len(lengths) > strata:
+        at = min(
+            range(len(lengths) - 1),
+            key=lambda index: join_key(lengths, heights, index),
+        )
+        lengths[at] = lengths[at] + lengths[at + 1]
+        del lengths[at + 1]
+        del heights[at + 1]
+    while len(lengths) < strata:
+        at = max(range(len(lengths)), key=lambda index: lengths[index])
+        whole = lengths[at]
+        lengths[at] = whole // 2
+        lengths.insert(at + 1, whole - whole // 2)
+        # The two strata then hold the same value, and the leading-zero
+        # family of G6.5 is what gives the second of them a spelling.
+        heights.insert(at + 1, heights[at])
+    if sum(lengths) != count or any(size < 1 for size in lengths):
+        raise AssertionError(
+            "a band's allotment must cover its own cells with a stratum of "
+            "at least one cell each, which the joins and the divisions of "
+            "G5.2a step 3 preserve"
+        )
+    return lengths
+
+
+def band_sizes(
+    negatives,
+    zeros,
+    positives,
+    negative_strata,
+    positive_strata,
+    ladder=None,
+    numeric=None,
+    integer_valued=False,
+):
+    """The split of method section G5.2a, band by band.
+
+    The zero stratum, when it exists, has size ``Z``.  Each of the
+    other two bands divides its own cells among its own strata by
+    ``band_allotment``, reading the ladder from the rank its first cell
+    stands at in the sorted column -- ``0`` for the negatives and
+    ``G + Z`` for the positives.  Where no ladder is handed in, every
+    band takes the even split, which is what a caller that reads only
+    the SHAPE of the layout wants.
+    """
     sizes = []
     bands = []
-    for count, strata, band in (
-        (negatives, negative_strata, "negative"),
-        (zeros, 1 if zeros > 0 else 0, "zero"),
-        (positives, positive_strata, "positive"),
+    for count, strata, band, low in (
+        (negatives, negative_strata, "negative", 0),
+        (zeros, 1 if zeros > 0 else 0, "zero", negatives),
+        (positives, positive_strata, "positive", negatives + zeros),
     ):
-        for index in range(strata):
-            sizes.append(
-                (index + 1) * count // strata - index * count // strata
-            )
+        if band == "zero":
+            for _index in range(strata):
+                sizes.append(count)
+                bands.append(band)
+            continue
+        for size in band_allotment(
+            count, strata, ladder, low, numeric, integer_valued
+        ):
+            sizes.append(size)
             bands.append(band)
     return sizes, bands
 
 
-def band_strata(negatives, zeros, positives, values):
-    """How the different values divide between the bands -- G5.2.
+def band_strata(
+    negatives,
+    zeros,
+    positives,
+    values,
+    ladder=None,
+    numeric=None,
+    integer_valued=False,
+):
+    """How many strata each band gets -- method section G5.2b.
 
-    Returns ``(M_neg, M_pos)``.  The share is proportional to the cells
-    on each side, rounded with ties upward and computed exactly in whole
-    numbers, then clamped so that a band holding cells keeps a stratum.
+    Returns ``(M_neg, M_pos)``.  The share follows the LADDER rather
+    than the cells wherever there is one: ``A_neg`` and ``A_pos`` are
+    how many RUNS step 2 of G5.2a finds in each band -- how many
+    different values the ladder gives it -- and they replace the cell
+    counts in the formula.  Cells are the wrong thing to follow here,
+    and this clause followed them until 2026-08-28: two bands holding
+    the same number of cells need not hold the same number of values,
+    and a stratum count is about values.  The share falls back to ``G``
+    and ``P`` where there is no ladder or where ``A_neg + A_pos`` is
+    zero.
+
+    The rounding is to the nearest whole number with ties upward,
+    computed exactly in whole numbers, then clamped so that a band
+    holding cells keeps a stratum.
     """
     rest = values - (1 if zeros > 0 else 0)
     if rest < 0:
@@ -833,8 +1032,22 @@ def band_strata(negatives, zeros, positives, values):
             "requires; this document would be refused by the feasibility stage"
         )
     if negatives > 0 and positives > 0:
-        share = negatives + positives
-        negative_strata = (2 * rest * negatives + share) // (2 * share)
+        share_negative = negatives
+        share_positive = positives
+        if ladder is not None:
+            runs_negative = len(
+                ladder_runs(ladder, 0, negatives, numeric, integer_valued)[0]
+            )
+            runs_positive = len(
+                ladder_runs(
+                    ladder, negatives + zeros, positives, numeric, integer_valued
+                )[0]
+            )
+            if runs_negative + runs_positive > 0:
+                share_negative = runs_negative
+                share_positive = runs_positive
+        share = share_negative + share_positive
+        negative_strata = (2 * rest * share_negative + share) // (2 * share)
         negative_strata = max(1, min(rest - 1, negative_strata))
         return negative_strata, rest - negative_strata
     if negatives > 0:
@@ -844,7 +1057,16 @@ def band_strata(negatives, zeros, positives, values):
     return 0, 0
 
 
-def stratum_layout(numeric, negatives, zeros, positives, values, pair=None):
+def stratum_layout(
+    numeric,
+    negatives,
+    zeros,
+    positives,
+    values,
+    pair=None,
+    ladder=None,
+    integer_valued=False,
+):
     """The strata of method section G5.2: sizes and starting positions.
 
     Returns ``(sizes, starts, bands)`` in the fixed order negatives
@@ -853,11 +1075,26 @@ def stratum_layout(numeric, negatives, zeros, positives, values, pair=None):
     ladder is a statement about.  ``bands`` names each stratum
     ``negative``, ``zero`` or ``positive``, which is what the sign
     repair of G5.5 reads.  ``pair`` overrides the band share, which is
-    what the carrier step's band half of G5.2 hands back.
+    what the carrier step's band half of G5.2b hands back.  ``ladder``
+    is what G5.2a's allotment and G5.2b's share follow; a caller that
+    reads only the SHAPE of the layout -- how many strata there are and
+    which band each is in, which is all G4.3's budget needs -- may
+    leave it out, because neither the total nor the bands depend on it.
     """
     if pair is None:
-        pair = band_strata(negatives, zeros, positives, values)
-    sizes, bands = band_sizes(negatives, zeros, positives, pair[0], pair[1])
+        pair = band_strata(
+            negatives, zeros, positives, values, ladder, numeric, integer_valued
+        )
+    sizes, bands = band_sizes(
+        negatives,
+        zeros,
+        positives,
+        pair[0],
+        pair[1],
+        ladder,
+        numeric,
+        integer_valued,
+    )
     # ``starts[s]`` is the number of cells in all strata before ``s``.
     starts = []
     running = 0
@@ -909,7 +1146,15 @@ def carrier_room(sizes, bands, flags, reachable):
 
 
 def carrier_bands(
-    negatives, zeros, positives, pair, ladder, integer_valued, demand, plus_demand
+    negatives,
+    zeros,
+    positives,
+    pair,
+    ladder,
+    integer_valued,
+    demand,
+    plus_demand,
+    numeric=None,
 ):
     """The BAND half of G5.2's carrier step (review item P2-C4-F3).
 
@@ -929,7 +1174,14 @@ def carrier_bands(
     for wanted, reachable in ((plus_demand, REACHABLE[0]), (demand, REACHABLE[1])):
         for step in range(2):
             sizes, bands = band_sizes(
-                negatives, zeros, positives, pair[0], pair[1]
+                negatives,
+                zeros,
+                positives,
+                pair[0],
+                pair[1],
+                ladder,
+                numeric,
+                integer_valued,
             )
             flags = [
                 can_carry_point_free(index, sizes, bands, ladder, integer_valued)
@@ -946,7 +1198,14 @@ def carrier_bands(
             if moved == pair:
                 continue
             other, other_bands = band_sizes(
-                negatives, zeros, positives, moved[0], moved[1]
+                negatives,
+                zeros,
+                positives,
+                moved[0],
+                moved[1],
+                ladder,
+                numeric,
+                integer_valued,
             )
             other_flags = [
                 can_carry_point_free(
@@ -3939,7 +4198,14 @@ def _numeric_content(column):
     demand = min(
         sum(effective[style] for style in POINT_FREE_STYLES), numeric
     )
-    pair = band_strata(negatives, zeros, positives, values_wanted)
+    # G5.2b: the share between the bands follows how many different
+    # values the LADDER gives each of them, not how many cells each
+    # holds.  Two bands holding the same number of cells need not hold
+    # the same number of values, and a stratum count is about values.
+    pair = band_strata(
+        negatives, zeros, positives, values_wanted, ladder, numeric,
+        integer_valued,
+    )
     if demand > 0:
         # G5.2's carrier step, band half: a band whose only stratum is a
         # pinned end that carries a point can carry no point-free cell,
@@ -3953,9 +4219,20 @@ def _numeric_content(column):
             integer_valued,
             demand,
             min(effective["leading_plus"], zeros + positives),
+            numeric,
         )
+    # G5.2a: the cells of a band divide between its strata by the
+    # ladder's own plateaus, and evenly only where there is no ladder
+    # to follow or the band has no more cells than strata.
     sizes, starts, bands = stratum_layout(
-        numeric, negatives, zeros, positives, values_wanted, pair
+        numeric,
+        negatives,
+        zeros,
+        positives,
+        values_wanted,
+        pair,
+        ladder,
+        integer_valued,
     )
     # G5.2's carrier step, cell half: the cells a published point-free
     # count needs, put where they can be written.  It moves cells
@@ -6152,7 +6429,11 @@ def word_budget(column, rows):
         )
         # G5.2's carrier step moves cells between strata of one band and
         # changes neither how many strata there are nor which band each
-        # is in, so the budget is a function of the even split alone.
+        # is in, so the budget does not read it.  Neither does it read
+        # the ladder: G5.2a decides the SIZES of the strata and G5.2b
+        # only how `M_rest` splits between two bands that each keep at
+        # least one, so the number of strata and the band of each are
+        # what they were, and those are the whole of what this reads.
         sizes, _starts, bands = stratum_layout(
             numeric, negatives, zeros, positives, values
         )
@@ -6447,11 +6728,21 @@ DEFINITIONS = {
     "bounded(next word, i+1) and a[i] and a[j] are swapped, the swap "
     "happening even when j == i. Consumes max(n-1, 0) words (G3.4c).",
     "stratum_layout": "negatives ascending, then the zero stratum, then "
-    "positives ascending. M = min(K, F_num) different values; M_neg is the "
-    "nearest whole number to M_rest*G/(G+P) with ties upward, computed as "
-    "(2*M_rest*G + (G+P)) // (2*(G+P)) and clamped into [1, M_rest-1]; each "
-    "band is divided by the even split floor((i+1)*n/m) - floor(i*n/m) "
-    "(G5.2).",
+    "positives ascending. M = min(K, F_num) different values. M_neg is the "
+    "nearest whole number to M_rest*A_neg/(A_neg+A_pos) with ties upward, "
+    "computed as (2*M_rest*A_neg + (A_neg+A_pos)) // (2*(A_neg+A_pos)) and "
+    "clamped into [1, M_rest-1], where A_neg and A_pos are how many RUNS the "
+    "ladder gives each band and fall back to G and P where there is no "
+    "ladder (G5.2b). The zero stratum holds Z cells; each other band divides "
+    "its C cells by the ladder's own plateaus (G5.2a): the value at every "
+    "rank lo+i is read by Interpolate(Ladder, (lo+i)*2**53, K*2**53) with "
+    "G5.4 applied where integer_valued is true, equal neighbours make a run, "
+    "and runs are joined -- smallest (min(L[j],L[j+1]), 0 if "
+    "Whole(H[j])==Whole(H[j+1]) else 1, |H[j+1]-H[j]|/(|H[j+1]|+|H[j]|)) "
+    "first, leftmost on a tie -- or the longest divided into floor(L/2) and "
+    "L-floor(L/2), leftmost on a tie, until there are M of them. The even "
+    "split floor((i+1)*C/M) - floor(i*C/M) is the FALLBACK, taken only where "
+    "there is no ladder or M >= C.",
     "ladder_segment": "the unique j in 0..9 with PCT[j]*D <= 100*N < "
     "PCT[j+1]*D, scanned upward from zero and stopped at the first that "
     "holds. PCT is (0,1,5,10,25,50,75,90,95,99,100) held as whole numbers "

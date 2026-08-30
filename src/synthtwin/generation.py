@@ -3792,10 +3792,18 @@ def _merge_nearest(
     for place in range(len(lengths) - 1):
         low = held[place]
         high = held[place + 1]
+        # DIVIDED BEFORE IT IS SUBTRACTED, and the order is the whole
+        # of the guard (review item P4-G5-O4). Taking `|high - low|`
+        # first overflows to an infinity where the two rungs sit at
+        # opposite ends of the representable range -- the same hazard
+        # G5.3 spends two paragraphs on -- and `inf / inf` is a NaN,
+        # which makes every `<` below false and hands the choice to
+        # iteration order instead of to the key. Each quotient here is
+        # at most one in magnitude, so nothing can overflow.
         span = abs(high) + abs(low)
-        gap = abs(high - low)
+        gap = 0.0
         if span > 0.0:
-            gap = gap / span
+            gap = abs(high / span - low / span)
         alike = parsing.is_whole_number(low) == parsing.is_whole_number(
             high
         )
@@ -3864,6 +3872,20 @@ def _shape_sizes(
         return []
     if cells <= 0:
         return [0] * strata
+    if strata > cells:
+        # ASSERTED RATHER THAN ASSUMED. This function's guarantee is
+        # that every size it returns is at least one, and the even
+        # split below returns zeros the moment there are more strata
+        # than cells. The band share is clamped by the cell count so
+        # this cannot be reached; it is checked because the clamp is
+        # twenty lines away in another function and a later hand could
+        # move it (review item P4-G5-O1).
+        raise errors.ProfileError(
+            f"synthtwin internal check: a band of {cells} cell(s) was "
+            f"asked for {strata} strata, and a stratum with no cell in "
+            f"it is not a value. This means a mistake in synthtwin; "
+            f"please report it. Nothing has been written."
+        )
     if rungs is None or strata >= cells:
         return [
             (step + 1) * cells // strata - step * cells // strata
@@ -4814,7 +4836,27 @@ def _numeric_layout(
         negative_strata = (
             2 * rest * negative_share + share
         ) // (2 * share)
-        negative_strata = max(1, min(negative_strata, rest - 1))
+        # THE LADDER DECIDES THE SHARE AND THE CELLS DECIDE THE
+        # CEILING (review item P4-G5-O1). The cell-ratio formula this
+        # replaces could never ask a band for more strata than it has
+        # cells -- `rest <= negatives + positives` makes
+        # `rest * negatives / (negatives + positives) <= negatives` an
+        # identity -- and the run ratio has no such bound, because a
+        # run count has nothing to do with a cell count. Measured: a
+        # 102-cell column with two negative cells over two plateaus and
+        # a hundred positive cells over four asked seventeen strata of
+        # the two-cell band, and `_shape_sizes` returned FIFTEEN STRATA
+        # OF NO CELLS -- which G5.2 forbids by name, because a stratum
+        # with no cell in it is not a value (P2-C1-F5), and each of
+        # them would still take an end of the ladder in G5.3 and still
+        # have its sign repaired in G5.5.
+        negative_strata = max(
+            1, min(negative_strata, negatives, rest - 1)
+        )
+        # And the other side of it: what is left for the positives can
+        # be no more than the positives have cells.
+        if rest - negative_strata > positives:
+            negative_strata = rest - positives
     elif negatives > 0:
         negative_strata = rest
     else:
@@ -4831,16 +4873,29 @@ def _numeric_layout(
     # which cells the cell step can then reach.
     quotas = _style_quotas(facts.numeric_styles)
     demand = min(_whole_demand(facts), numbers)
-    # THE LAYOUT READS THE NAMED LADDER AND NOT THE FINER ONE, and the
-    # line between them is the whole design of plan P4-D4.10. How many
-    # strata a band gets, and which of them can carry a point-free
-    # spelling, is fixed by the DISTINCTNESS facts and by the eleven
-    # rungs a reader can name; the finer ladder buys fidelity in where
-    # a value is PLACED, which is the step below. Handing it to the
-    # carrier-band decision as well was tried and changes the strata
-    # counts, so a column comes out with a different shape rather than
-    # the same shape more finely placed.
-    rungs = _filled_rungs(facts.percentiles.rungs)
+    # THE WHOLE LAYOUT READS ONE LADDER, AND IT IS THE FINER ONE
+    # (review item P4-G5-O2). This read the eleven NAMED rungs, on a
+    # measurement taken before R-P4-49: handing the finer ladder to the
+    # carrier-band decision was said to change the strata counts, so a
+    # column came out a different shape rather than the same shape more
+    # finely placed.
+    #
+    # THAT MEASUREMENT NO LONGER HOLDS, and it was re-taken rather than
+    # trusted: over 120 columns of six shapes -- gaussian, heavily
+    # repeated, bimodal, whole numbers, a narrow band around zero, and
+    # a column of mostly zeros -- the layout is IDENTICAL either way,
+    # 0 of 120 differing. What changed is that the sizes and the band
+    # share now read the finer ladder themselves, so the carrier steps
+    # are no longer the only thing standing between the two.
+    #
+    # It is unified because one fact read from two different ladder
+    # lengths is one fact written twice: the shipped generator read the eleven here and the
+    # independent oracle read the hundred and one, and the frozen
+    # vectors agreed only because no committed case separates them.
+    # One ladder cannot be got wrong in two places.
+    rungs = _filled_rungs(_merged_rungs(facts))
+    if rungs is None:
+        rungs = _filled_rungs(facts.percentiles.rungs)
     if demand > 0:
         negative_strata, positive_strata = _carrier_bands(
             negatives,

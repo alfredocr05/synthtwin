@@ -3674,21 +3674,21 @@
       "float64": [
         {
           "interpolated": {
-            "exact": "5",
+            "exact": "11258999068426241/2251799813685248",
             "float64": 5.0,
             "proof": "nearest"
           },
           "repaired_onto_a_sign_fallback": false,
-          "segment": 64,
+          "segment": 71,
           "stratum": 1,
           "t": {
-            "exact": "787590366797607/2251799813685248",
-            "float64": 0.3497603836766703,
+            "exact": "95138488101389/2251799813685248",
+            "float64": 0.042249976007275425,
             "proof": "exact"
           },
           "u": {
-            "exact": "1464209446887641/2251799813685248",
-            "float64": 0.6502396163233297,
+            "exact": "2156661325583859/2251799813685248",
+            "float64": 0.9577500239927246,
             "proof": "exact"
           },
           "value": {
@@ -3697,13 +3697,13 @@
             "proof": "exact"
           },
           "x1": {
-            "exact": "7321047234438205/2251799813685248",
-            "float64": 3.2511980816166486,
+            "exact": "10783306627919295/2251799813685248",
+            "float64": 4.788750119963623,
             "proof": "nearest"
           },
           "x2": {
-            "exact": "3937951833988035/2251799813685248",
-            "float64": 1.7488019183833514,
+            "exact": "475692440506945/2251799813685248",
+            "float64": 0.21124988003637712,
             "proof": "nearest"
           }
         }
@@ -4620,7 +4620,7 @@
     "partner_family": "a fold-collision partner is a case flip, edge spacing, or both, because the shipped fold trims before it turns the case over. One parent's partners are enumerated by ascending TOTAL number of spaces, and within one total the LEADING share ascends, so the spaces go to the end first and are then moved leftward one at a time; within one placement the case flips are taken in ascending binary-counter order with bit 0 the leftmost alphabetic position and k = 0 the placement's own case; the parent itself is stepped over. The case flips of the unspaced parent are therefore the first 2**L - 1 partners. A partner may take only a length its own slot may take (G9.3).",
     "permutation": "a = [0..n-1]; for i from n-1 down to 1, j = bounded(next word, i+1) and a[i] and a[j] are swapped, the swap happening even when j == i. Consumes max(n-1, 0) words (G3.4c).",
     "precision_form": "quarter writes YYYY-Qn, date writes YYYY-MM-DD, and datetime writes YYYY-MM-DDTHH:MM, ...:SS or ...:SS.ddd by the published time_precision, with T as the separator and the fractional digits all zeros because the profile publishes how many digits the finest cell carried and nothing about their values (G7.5).",
-    "stratum_layout": "negatives ascending, then the zero stratum, then positives ascending. M = min(K, F_num) different values; M_neg is the nearest whole number to M_rest*G/(G+P) with ties upward, computed as (2*M_rest*G + (G+P)) // (2*(G+P)) and clamped into [1, M_rest-1]; each band is divided by the even split floor((i+1)*n/m) - floor(i*n/m) (G5.2).",
+    "stratum_layout": "negatives ascending, then the zero stratum, then positives ascending. M = min(K, F_num) different values. M_neg is the nearest whole number to M_rest*A_neg/(A_neg+A_pos) with ties upward, computed as (2*M_rest*A_neg + (A_neg+A_pos)) // (2*(A_neg+A_pos)) and clamped into [1, M_rest-1], where A_neg and A_pos are how many RUNS the ladder gives each band and fall back to G and P where there is no ladder (G5.2b). The zero stratum holds Z cells; each other band divides its C cells by the ladder's own plateaus (G5.2a): the value at every rank lo+i is read by Interpolate(Ladder, (lo+i)*2**53, K*2**53) with G5.4 applied where integer_valued is true, equal neighbours make a run, and runs are joined -- smallest (min(L[j],L[j+1]), 0 if Whole(H[j])==Whole(H[j+1]) else 1, |H[j+1]-H[j]|/(|H[j+1]|+|H[j]|)) first, leftmost on a tie -- or the longest divided into floor(L/2) and L-floor(L/2), leftmost on a tie, until there are M of them. The even split floor((i+1)*C/M) - floor(i*C/M) is the FALLBACK, taken only where there is no ladder or M >= C.",
     "style_allocation": "the VALUES step first: W is the point-free quota of the effective map, and while fewer cells than that hold a value with a point-free spelling the strata are walked in ascending order and the fewest the shortfall needs are taken to the nearest whole number, never the two pinned ends, never one that would cross zero and never one whose rounded value is already another stratum's. Then largest-remaining-quota over the numeric cells in stratum order and, inside a stratum, in ascending cell index, with ties going to the enumeration order plain, leading_zero, leading_plus, decimal, exponent_lower, exponent_upper and the withheld remainder added to plain. A style is offered to a cell only where the finished text would classify back as that style: leading_plus needs a value that is not negative, and plain, leading_zero and leading_plus need a value with a point-free spelling. The look-ahead is part of the rule: a choice is admissible only where it leaves the point-free quotas inside the count of cells after it that can carry them. Zeros are then spent over the WHOLE column at once -- the shortfall of the base spellings' identities against the folded budget is how many cells raise their order, each taking the lowest order whose folded identity is new, inside whatever style it was given, since every style but plain carries the family (G6.3, G6.4, G6.5)."
   },
   "generated_by": "tools/reference/make_generation_reference_vectors.py",

@@ -560,17 +560,32 @@ rungs do not: a value standing at seventeen of the rungs stands at
 seventeen per cent of the column, because the rungs stand at the
 percentiles.
 
-**1. Read the ladder at every rank of the band.** For `i = 0 .. C - 1`,
+**THE ORDER OF THE WHOLE LAYOUT, stated once so it cannot be read
+three ways.** The steps run: (1) read the ladder at every rank of both
+bands and take their runs, which is steps 1 and 2 below; (2) the band
+share of G5.2b, which turns those run counts into `M_neg` and `M_pos`;
+(3) the carrier band step of G5.2, which may move one stratum from one
+band to the other; (4) steps 3 and 4 below, which join or divide each
+band's runs to its final `M` and take the sizes; (5) the carrier cell
+step; (6) the reach step. Steps 1 and 2 are computed ONCE, before the
+band share, and are not re-taken when step 3 moves a stratum — only
+step 4 is redone, against the moved counts.
+
+**1. Read the ladder at every rank of the band.** THE LADDER IS THE
+HUNDRED-AND-ONE-RUNG ONE that G5.3 merges from `percentiles` and
+`percentiles_between`, and every other reader of a ladder in this
+section reads the same one. For `i = 0 .. C - 1`,
 
 ```
-v[i] = Interpolate(Ladder, (lo + i) * 2**53, K * 2**53)
+v[i] = Interpolate(Ladder, (lo + i) * 2**64, K * 2**64)
 ```
 
-by the convex form of G5.3, with the integer-valued rule of G5.4
-applied to it where `integer_valued` is published true — the same value
-the twin would hold at that rank. `K` is the column's numeric cell
-count, and the scale is the one G5.3 uses, so nothing rounds here that
-does not round there.
+by the convex form of G5.3 — its segment rule, its four floating-point
+operations and its clamp — with the integer rule of G5.4 applied
+afterwards where `integer_valued` is published true. `K` is the
+column's numeric cell count and `2**64` is the scale G5.3 itself uses,
+so nothing rounds here that does not round there. G5.5's sign repair is
+NOT applied: the two operations named here are the whole of it.
 
 **2. Take the runs.** A RUN is a maximal block of consecutive ranks
 whose values are equal, compared as binary64 numbers. Write the runs in
@@ -590,9 +605,20 @@ the SMALLEST of this key, and the leftmost pair wins a tie:
 ```
 ( min(L[j], L[j+1]),  0 if Whole(H[j]) == Whole(H[j+1]) else 1,  Gap(j) )
 
-Gap(j) = |H[j+1] - H[j]| / (|H[j+1]| + |H[j]|), and 0 where that
-         denominator is 0
+span   = |H[j]| + |H[j+1]|
+Gap(j) = 0                              where span is 0
+       = | H[j+1]/span - H[j]/span |    otherwise
 ```
+
+in binary64, and **DIVIDED BEFORE IT IS SUBTRACTED, which is the whole
+of the guard.** Taking `|H[j+1] - H[j]|` first overflows to an infinity
+where the two rungs sit at opposite ends of the representable range —
+the same hazard G5.3 spends two paragraphs on — and `inf / inf` is a
+NaN, which makes every comparison against it false and hands the choice
+to iteration order instead of to the key. Each quotient above is at
+most one in magnitude, so nothing can overflow. `Whole(x)` is true
+where `x` is a whole number, by the test of G5.4. The key is recomputed
+after every join, not once for the whole walk.
 
 `Whole(x)` is true where `x` is a whole number. **All three parts of
 the key earn their place, and each was measured against a witness that
@@ -622,9 +648,20 @@ G6.5 is what gives the second of them a spelling of its own.
 one and they sum to `C`, because every run is at least one rank long
 and the joins and divisions above preserve the total.
 
-A stratum whose rank range lies inside one plateau takes that plateau's
-value whatever word G5.3 draws for it, which is what makes a repeated
-value's count exact rather than approximate.
+A stratum whose SHARE `[c/K, (c+g)/K]` lies inside one plateau takes
+that plateau's value for every word, because both rungs of every
+segment its share meets hold that value and G5.3's clamp returns it
+exactly. That is what makes a repeated value's count exact rather than
+approximate.
+
+**THE SHARE AND NOT THE RANK RANGE, and this clause said the rank range
+until 2026-08-28.** A stratum's share runs one rank PAST its last cell,
+so a stratum whose every rank sits inside a plateau can still draw from
+the segment above it: measured, a ladder flat at `7.0` over ranks 10 to
+20 with the next rung at `20.0`, a stratum at `c = 10, g = 11`, and the
+word `2**64 - 1` gives **19.999999999999996** and not `7.0`. The reach
+step of G5.2b already states the criterion correctly — "a stratum whose
+share does not move at all" — so the two were adjacent and disagreed.
 
 #### G5.2b How many strata each band gets
 
@@ -637,11 +674,24 @@ them:
 
 ```
 M_neg = (2 * M_rest * A_neg + (A_neg + A_pos)) // (2 * (A_neg + A_pos))
-then clamp M_neg into [1, M_rest - 1]
+then clamp M_neg into [ max(1, M_rest - P),  min(G, M_rest - 1) ]
 ```
 
 falling back to `G` and `P` where there is no ladder or where
 `A_neg + A_pos` is zero.
+
+**THE LADDER DECIDES THE SHARE AND THE CELLS DECIDE THE CEILING**, and
+the clamp above says so because the formula alone does not. G5.2's
+cell-ratio version could never ask a band for more strata than it has
+cells: `M_rest <= G + P` makes `M_rest * G / (G + P) <= G` an identity,
+so the bound came free. A RUN count has nothing to do with a cell
+count, and the bound does not. Measured before the clamp was added: a
+102-cell column with two negative cells over two plateaus and a hundred
+positive cells over four asked SEVENTEEN strata of the two-cell band,
+and the sizes came back as fifteen strata of no cells — which G5.2
+forbids by name, because a stratum with no cell in it is not a value
+(P2-C1-F5), and each of those would still take an end of the ladder in
+G5.3 and still have its sign repaired in G5.5.
 
 **CELLS ARE THE WRONG THING TO FOLLOW HERE, and this clause followed
 them until 2026-08-28.** Two bands holding the same number of cells
@@ -819,12 +869,28 @@ the allotment, which never saw it. A ladder asks the twin to PLACE a
 value, and placing values by interpolating a ladder is what this
 section already does. No new mechanism was added: the list got longer.
 
-**WHAT DID NOT CHANGE, stated because it was tried and reverted.** The
-LAYOUT — how many strata a band gets and which can carry a point-free
-spelling (G5.2, G6.4) — still reads the eleven NAMED rungs. Handing it
-the finer ladder as well changes the strata counts, so a column comes
-out a different shape rather than the same shape more finely placed,
-and the fidelity this revision buys is in placement.
+**THE WHOLE LAYOUT READS THIS LADDER, and this paragraph said the
+opposite until 2026-08-28.** It said the layout — how many strata a
+band gets and which can carry a point-free spelling — still read the
+eleven NAMED rungs, on a measurement taken before R-P4-49: handing the
+finer ladder to the carrier-band decision was found to change the
+strata counts, so a column came out a different shape rather than the
+same shape more finely placed.
+
+That measurement no longer holds, and it was RE-TAKEN rather than
+trusted. Over 120 columns of six shapes — gaussian, heavily repeated,
+bimodal, whole numbers, a narrow band around zero, and mostly zeros —
+the layout is identical either way, 0 of 120 differing. What changed is
+that G5.2a's sizes and G5.2b's band share now read this ladder
+themselves, so the carrier steps are no longer the only thing standing
+between the two.
+
+**It is unified because one fact read from two different ladder
+lengths is one fact written twice.** While the paragraph above stood, the shipped generator read
+the eleven at the carrier steps and the independent reference oracle
+read the hundred and one, and the frozen vectors agreed only because no
+committed case separates them. Everything in G5.2, G5.2a, G5.2b and
+G6.4 that reads a ladder reads THIS one.
 
 For each stratum `s`, in ascending `s`:
 
