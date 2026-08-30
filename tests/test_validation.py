@@ -3225,3 +3225,110 @@ def test_no_moment_window_is_an_infinity_on_a_large_valued_column(
     for name, (low, high) in windows.items():
         assert math.isfinite(low), (name, low, high)
         assert math.isfinite(high), (name, low, high)
+
+
+# ---------------------------------------------------------------------
+# THE BATTERY, because fixing the site a round names is half a repair
+# (review item P4-G6-R2-F2). Three rounds of this landing each found
+# ONE arithmetic site that overflowed, and each repair put its guard
+# just below the site that had been named, so the next round found the
+# crash one line higher. What follows is not a fifth site: it is every
+# extreme shape a numeric column can take, walked through the whole of
+# `measure`, asserting only that a REPORT comes out.
+
+EXTREME_COLUMNS = {
+    "near the top of the range": [
+        repr((1.0 + step * 0.001) * 1e308) for step in range(60)
+    ],
+    "spanning the whole range": (
+        [repr(-1.5e308 + step * 1e305) for step in range(30)]
+        + [repr(1.5e308 - step * 1e305) for step in range(30)]
+    ),
+    "subnormal": (
+        ["0"] * 40 + ["5e-324"] * 10 + ["1e-323"] * 10
+    ),
+    "one enormous outlier": ["1"] * 59 + ["1.7e308"],
+    "two values, both enormous": ["1e308"] * 30 + ["1.7e308"] * 30,
+    "large and negative": [repr(-(1.0 + step * 0.001) * 1e307)
+                           for step in range(60)],
+    "straddling zero at the extremes": (
+        [repr(-1.7e308 + step * 1e300) for step in range(30)]
+        + [repr(1.7e308 - step * 1e300) for step in range(30)]
+    ),
+    "very small and very large together": (
+        [repr(5e-324 * (step + 1)) for step in range(30)]
+        + [repr(1e307 * (step + 1)) for step in range(30)]
+    ),
+}
+
+
+@pytest.mark.parametrize("shape", sorted(EXTREME_COLUMNS))
+def test_no_extreme_column_takes_the_validator_down(
+    shape: str, tmp_path: pathlib.Path
+) -> None:
+    """A report, on every column of numbers the format can hold.
+
+    Not "the right window" and not "the right verdict" -- only that
+    `synthtwin validate` answers at all. Three separate arithmetic
+    sites in this module have raised `OverflowError` out of that
+    command on tables nothing was wrong with, and each was found by a
+    reviewer reading one line below the last repair. A parametrised
+    battery is what turns "the site we know about" into "the shapes a
+    column can take".
+
+    Where a window cannot honestly be drawn the answer is to WITHHOLD
+    it, which the census names in words. What is never acceptable is a
+    traceback in place of a report.
+    """
+    rows = EXTREME_COLUMNS[shape]
+    text = "amount\n" + "\n".join(rows) + "\n"
+    described = _describe(tmp_path, text, stem=shape.replace(" ", "-"))
+    outcome = _measure(
+        tmp_path, described, _twin_text(described),
+        name=f"{shape.replace(' ', '-')}-twin.csv",
+    )
+    assert outcome is not None, shape
+
+    # AND THE TWIN'S OWN REPORT SAYS NOTHING THAT IS NOT A NUMBER.
+    # The eighth site of this family was in the GENERATOR, not here:
+    # `step * step` over a column around 1e200 is an infinity, the
+    # compensated mean of those is a NaN, and every comparison against
+    # a NaN is false -- so the report stated that the twin had landed
+    # outside a range it had never computed. A withheld window is
+    # honest; `nan to nan` is a sentence that is not true.
+    printed = rendering.report(described, generation.generate(described, SEED))
+    offending = [
+        line for line in printed.splitlines()
+        if "nan" in line.lower().replace("meaning", "").replace("means", "")
+    ]
+    assert not offending, (shape, offending[:3])
+
+
+@pytest.mark.parametrize("shape", sorted(EXTREME_COLUMNS))
+def test_no_window_drawn_for_an_extreme_column_is_an_infinity(
+    shape: str, tmp_path: pathlib.Path
+) -> None:
+    """And a window that IS drawn has two finite ends.
+
+    The companion claim, and the one that catches the quieter defect:
+    a bound of `(0, inf)` never reports a miss and never says it went
+    quiet, so it reads as a pass on every twin ever written. Withheld
+    is honest; unbounded is not.
+    """
+    rows = EXTREME_COLUMNS[shape]
+    text = "amount\n" + "\n".join(rows) + "\n"
+    described = _describe(tmp_path, text, stem=shape.replace(" ", "-"))
+    column = described.columns[0]
+    # Not every one of these shapes lands on a quantitative role -- a
+    # column of one value beside one enormous outlier is a long tail of
+    # labels, and it publishes no ladder for a window to be drawn
+    # through. The battery above still walks it through the whole of
+    # `measure`; this claim is about the columns that HAVE windows.
+    if not isinstance(column.facts, contract.NumericFacts):
+        pytest.skip(f"{shape} is not a quantitative column")
+    windows = validation._windows_of(column, column.facts)
+    assert windows, shape
+    for name, (low, high) in windows.items():
+        assert math.isfinite(low), (shape, name, low, high)
+        assert math.isfinite(high), (shape, name, low, high)
+        assert low <= high, (shape, name, low, high)

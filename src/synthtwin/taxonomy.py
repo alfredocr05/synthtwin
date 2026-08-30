@@ -2415,6 +2415,31 @@ def _date_ladder(ordered: list[str]) -> dict[str, str]:
 
 
 
+def average_of(numbers: "list[float]") -> "float | None":
+    """The mean of ``numbers``, exactly (plan P1-D11).
+
+    THE COMPANION OF `spread_of`, AND FOR THE SAME REASON (review item
+    P4-G6-R2-F2). `math.fsum` is exact until its final rounding and
+    still raises `OverflowError` where the RUNNING TOTAL leaves the
+    representable range, which sixty values near 1e308 do although
+    their mean is an ordinary number. `_moments` never forms that
+    total: it works over whole numbers scaled by a shared power of
+    two, where there is no range to leave.
+
+    Guarantees:
+
+    - Inputs: a list of finite numbers, in any order. The result
+      depends on the multiset and nothing else.
+    - Returns: the correctly rounded binary64 mean, or None for an
+      empty list. A mean is representable whenever the values are, so
+      there is no unrepresentable case to report here.
+    - Errors raised: none. No I/O of any kind.
+    """
+    if not numbers:
+        return None
+    return _moments(list(numbers))["mean"]
+
+
 def spread_of(numbers: "list[float]") -> "float | None":
     """The sample standard deviation of ``numbers``, exactly (P1-D11).
 

@@ -2861,6 +2861,71 @@ declaration for only one of them.
   than removing it. A claim about floating point is worth what it was
   RUN on at the extreme values, and nothing at all otherwise.
 
+- **P4-G6-R2, the second adversarial round (2026-08-30). Three items,
+  all three real, and the first of them says the repair in the commit
+  above did not work.**
+
+  * **F2 — `synthtwin validate` STILL CRASHED, one line higher.** The
+    round-1 repair guarded the spread and put its early return below
+    the mean. `_moment_windows` computes `math.fsum(lows) / numbers`
+    FIRST, and `fsum` is exact until its final rounding and still
+    raises where the RUNNING TOTAL leaves the range: sixty readings
+    from 1.000e308 to 1.059e308 have an ordinary mean and a sum near
+    6e309. Reproduced through the shipped command, which died with
+    `OverflowError: intermediate overflow in fsum` and wrote no report.
+
+    **So the claim in the commit above is too broad and is corrected
+    here**: that repair fixed the column it was measured on and moved
+    the crash on a column one factor further out. This is the second
+    time in one landing that a guard against an overflow relocated it,
+    and it is the reason the repair this time is not another guard. It
+    is a BATTERY: eight extreme column shapes -- the top of the range,
+    the whole range, subnormal, one enormous outlier, two enormous
+    values, large and negative, straddling zero at the extremes, and
+    very small beside very large -- each walked through the whole of
+    `measure` with the assertion that a REPORT comes out. Fixing the
+    site a round names is half a repair; the battery is what turns
+    "the site we know about" into "the shapes a column can take".
+    Beside it, a second claim over the same eight: no window that IS
+    drawn has an end that is not finite.
+
+    The mean is now `taxonomy.average_of`, the exact one, beside
+    `spread_of`. Two more sites were guarded in the same pass without
+    waiting to be named: a reach is a difference of two published
+    values and overflows in its own right, and the skewness cubes fall
+    back to the whole attainable range rather than to an infinity.
+
+  * **F3 — the generator kept a SECOND moment implementation, and it
+    printed a falsehood.** `_summed` is a compensated sum in list
+    order, which is what makes the twin report's bytes a fixed
+    function of that order. On the same sixty values its running total
+    reached an infinity and its compensation term became a NaN, so the
+    twin's own report said `the twin holds: nan` for the mean of a
+    twin whose mean is an ordinary number, with `nan to nan` as the
+    range beside it -- a report saying something FALSE rather than
+    saying nothing. `_mean_of` now divides before it sums where the
+    sum has no answer, and keeps the plain form everywhere it does, so
+    no column that already had a mean changes a byte.
+
+  * **F1 — an obligation appeared in neither the checks nor the
+    census.** `_moment_checks` skips the kurtosis where its window is
+    the whole attainable range, exactly as it skips the skew, and
+    `_unbounded_style_listings` filed only the skew. The tail weight
+    arrived a phase later with G12.3a and its check-skip was built
+    while its listing was not. On 98 zeros beside `5e-324` and
+    `1e-323` the column publishes a kurtosis of 66.1 and named it
+    nowhere, while the report claims the census accounts for every
+    obligation. A fact that is neither checked nor listed is a fact
+    the report has LOST, which is worse than either.
+
+  * **AND THE ROUND'S FOURTH POINT WAS ABOUT THIS DOCUMENT.** Every
+    measured number here was prose with its driver in a scratchpad, so
+    no reader could re-derive one. They are committed now under
+    `tools/measurements/`, one script per claim, each printing what it
+    BUILT and what it REFUSED before any rate, and each cited beside
+    the number it produces. The same standard the oracle and the
+    vacuity guards already hold: a claim is not its own witness.
+
 - **R-P4-57 (opened and CLOSED here, 2026-08-30).** `synthtwin
   validate` DIED ON A COLUMN OF LARGE NUMBERS, with a Python traceback
   and not one of this package's own messages.
