@@ -2092,6 +2092,16 @@ def _canonical_number(value: float, whole_column: bool) -> str:
 _WHOLE_STYLES = ("plain", "leading_zero", "leading_plus")
 
 
+# THE ONE PAIR OF STYLES THAT DIFFER BY CASE ALONE. `1e+15` and `1E+15`
+# are two RAW spellings of one value and one FOLDED identity, and a
+# column publishes both counts. Every other pair of styles changes a
+# figure or a mark, so it costs one of each; naming this pair is what
+# lets a split be charged to the right count. They are folded the way
+# `parsing.folded` folds them: the upper answers to the lower.
+_CASE_ONLY_STYLE = "exponent_upper"
+_FOLDS_ONTO = "exponent_lower"
+
+
 def _point_free(value: float, canonical: str) -> str:
     """The spelling of one value with neither a point nor an exponent.
 
@@ -6660,6 +6670,7 @@ def _style_strata(
     values: "list[float]",
     whole_column: bool,
     wanted: int,
+    raw: int,
     styles: "list[str]",
 ) -> "list[str]":
     """One form per stratum, where two forms would cost a spelling.
@@ -6691,13 +6702,26 @@ def _style_strata(
     # written one way is one spelling however many strata wrote it. A
     # count over strata would see three claims where the column holds
     # three spellings and pack a map that was already exact.
+    # AND THE TWO COUNTS ARE COUNTED APART, because a split does not
+    # always cost both. `exponent_lower` and `exponent_upper` write one
+    # value with the same digits and a different CASE, so the pair is
+    # two raw spellings and one folded identity; a `decimal` beside a
+    # `plain` is two of each. Measured against one ceiling they are one
+    # quantity, and this function repacked a column that had room --
+    # see the paragraph above.
     spent: dict[tuple[float, str], int] = {}
+    folded: dict[tuple[float, str], int] = {}
     at = 0
     for place in range(total):
         for _step in range(layout.sizes[place]):
-            spent[(values[place], styles[at])] = 1
+            style = styles[at]
+            kind = style
+            if kind == _CASE_ONLY_STYLE:
+                kind = _FOLDS_ONTO
+            spent[(values[place], style)] = 1
+            folded[(values[place], kind)] = 1
             at = at + 1
-    if len(spent) <= wanted:
+    if len(spent) <= raw and len(folded) <= wanted:
         return styles
     counts = [quotas[name] for name in contract.NUMERIC_STYLES]
     allowed = [
@@ -6755,7 +6779,13 @@ def _number_cells(
         quotas, holds, facts.integer_valued, _style_pool(facts.numeric_styles)
     )
     styles = _style_strata(
-        quotas, layout, values, facts.integer_valued, wanted, styles
+        quotas,
+        layout,
+        values,
+        facts.integer_valued,
+        wanted,
+        min(layout.raw_budgets[0], column.n_numeric),
+        styles,
     )
     # THE PADDED EXCHANGE RUNS BEFORE ANY WIDTH IS ASSIGNED, and the
     # order is the whole of the rule. `_width_places` assigns a

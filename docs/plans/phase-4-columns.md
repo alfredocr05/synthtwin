@@ -2809,6 +2809,45 @@ declaration for only one of them.
   remaining hole, and it is written down here rather than closed by a
   rule that might be worse than the gap.
 
+- **R-P4-55 (opened and CLOSED here, 2026-08-30).** THE STRATUM
+  PACKING CHARGED A RAW SUPPLY TO A FOLDED CEILING. `_style_strata` is
+  the exception G6.4 makes to the cell walk: where the walk would spend
+  more spellings than the column has, the styles are packed over whole
+  strata so that each stratum keeps one form. It counted the distinct
+  pairs of value and style the walk left standing -- which is the RAW
+  supply -- and compared that number against `n_distinct_folded`.
+
+  Those are two different quantities. `1e+15` and `1E+15` are two raw
+  spellings of one folded identity, and G6.5 names that pair as the
+  ONLY construction a numeric column has for reaching a raw count above
+  a folded one. So the guard fired on the very columns the pair exists
+  for, packed it away, and left the column one raw spelling short of
+  `n_distinct` -- one published count bought with another, which is the
+  outcome this exception was built to stop.
+
+  **FOUND BY THE ORACLE, and it could not have been found any other
+  way.** `numeric_decimal_styles` publishes `n_distinct` 24 against
+  `n_distinct_folded` 23, so it needs exactly one case pair. The
+  reference implementation of G6.4 and G6.5 wrote the pair; this one
+  did not; the committed vector is what put the two answers side by
+  side. Every style count and every folded identity was met by BOTH
+  columns, so no check over published facts alone would have separated
+  them.
+
+  **WHY IT SURFACED NOW.** The allotment of R-P4-49 gives this column
+  21 distinct values where the even split gave 20, which took the raw
+  supply from 23 to 24 -- past a ceiling of 23 that was never the right
+  ceiling. The defect is older than the allotment and the allotment is
+  what reached it.
+
+  Closed by counting the two supplies apart, each against its own
+  ceiling: raw pairs against `R_num`, and the pairs again with
+  `exponent_upper` folded onto `exponent_lower` against `F_num`. G6.4
+  now states which supply answers to which ceiling, since two
+  implementations resolved it in opposite directions. The mutation test
+  for P2-C5-F3 still fails when the exception is reverted, so the
+  narrowing did not disarm it.
+
 - **R-P4-53 (opened 2026-08-27, and it is NOT about the decimal
   comma).** A HOLE SPELLED AS A NUMBER IS COUNTED BY THE STYLE RECOUNT
   AND NOT BY THE DESCRIPTION. A column whose declared missing value is

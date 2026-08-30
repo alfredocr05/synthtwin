@@ -236,6 +236,23 @@ exists).
   the shape of the thing it stands for -- and code developed against
   the twin that runs on the real table.
 
+### Fixed in Phase 4: a number written two ways is written two ways again
+
+- **A column that wrote the same number with both `1e+15` and `1E+15`
+  lost one of the two in its twin.** The count of different spellings
+  your file publishes then came out one short, every time, and your
+  twin's report named the miss. Everything else about the column was
+  right, which is why it took a second implementation of the written
+  method to find at all: both columns met every other published count.
+- **What it needs to have happened to you**: a numeric column whose
+  cells carry exponents, where your file spelled one value's exponent
+  in upper case somewhere and lower case somewhere else. If your file
+  is consistent about the case -- almost all are -- nothing here
+  changes for you.
+- Measured over 140 built columns at three seeds each: the twin is now
+  closer to your published counts on every column that moved, and
+  further on none.
+
 ### Fixed in Phase 4: your twin's report no longer accuses a twin that is fine
 
 - **A column whose empty cells were written with a word -- `-999`,
