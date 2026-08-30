@@ -1619,6 +1619,27 @@ whole strata meets them all, and each stratum keeps one form. It is
 reached for only there, and where no such assignment exists the walk's
 answer stands.
 
+**Which supply, against which ceiling** (R-P4-55). "More spellings than
+the column has" is TWO tests and not one, because a split does not
+always cost both published counts. Take the distinct pairs of VALUE and
+STYLE the cell walk leaves standing: how many there are is the column's
+RAW supply, and it may not exceed `R_num`. Fold `exponent_upper` onto
+`exponent_lower` and count the distinct pairs again: that is the FOLDED
+supply, and it may not exceed `F_num`. The strata are packed only where
+one of the two ceilings is passed.
+
+Charged the other way round -- the raw supply against the folded
+ceiling -- this exception refuses the one construction G6.5 names for
+reaching a raw count above a folded one. The exponent case pair is two
+raw spellings of one folded identity, so it costs `R_num` a spelling
+and costs `F_num` nothing; one form per stratum makes the pair
+impossible. A column publishing `n_distinct` one above
+`n_distinct_folded` therefore had the pair packed away and came out one
+raw spelling short of a count it could have met exactly. That column is
+`numeric_decimal_styles`, and it is a committed vector, which is how
+the disagreement was caught: the reference implementation of this
+section wrote the pair and the shipped one did not.
+
 ### G6.5 Reaching `n_distinct` and `n_distinct_folded`
 
 Raw `n_distinct` counts different SPELLINGS over all present cells;

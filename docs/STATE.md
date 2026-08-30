@@ -769,7 +769,8 @@ witnesses that drove it:
 
 `test_p2c5f3_style_reach` and `test_p3v7f2_corner_parity` pass.
 `test_p4d18_shape_forms` is at 239 of 240 — one cell wears a
-manufactured spelling.
+manufactured spelling. The fourteen frozen vectors all bind
+again, `numeric_decimal_styles` included, after R-P4-55 below.
 
 **THE MERGE RULE TOOK FOUR TRIES AND EACH WAS MEASURED**, which is why
 G5.2a states all three parts of its key and what each one costs when
@@ -778,6 +779,37 @@ loses a real value; by nearest VALUE walks a whole number into the
 fraction below it and leaves a published `plain` count unwritable;
 absorbing the smallest run alone merged a plateau of thirteen cells
 into one of four.
+
+**AND THE ORACLE HAS ALREADY EARNED ITS KEEP: R-P4-55.** The vector
+`numeric_decimal_styles` disagreed after the allotment landed, and the
+disagreement was ten cells that differed only in the CASE of their
+exponent — same values, same places, same style counts, same folded
+identities. It was not a wobble. `_style_strata`, the exception that
+packs styles over whole strata where the cell walk would overspend the
+column's spellings, counted the RAW supply and compared it against the
+FOLDED ceiling. Those are two quantities: `1e+15` and `1E+15` are two
+raw spellings of one folded identity, and G6.5 names that pair as the
+only way a numeric column can hold a raw count above a folded one. So
+the guard fired on exactly the columns the pair exists for and packed
+it away, leaving the twin one raw spelling short of a published
+`n_distinct` it could have met — one published count bought with
+another, which is what that exception exists to prevent.
+
+Measured end to end over 140 built columns and 420 column-seeds, with
+the two guards side by side: they disagree on 9, the new one is closer
+to the published counts on 9, and further on none. 29 of the 140 columns
+publish a raw count above their folded one; 3 of those tripped the
+defect. The reach is narrow and the direction is one-way. It needs a
+source column that wrote one number with both an upper-case and a
+lower-case exponent, which is why no check over published facts alone
+would have caught it — both twins met every count the description
+names. **Only a second implementation of the same text could separate
+them**, and that is the whole argument for the oracle.
+
+The defect is older than the allotment; the allotment is what reached
+it. This column now has 21 distinct values where the even split gave
+20, which took the raw supply from 23 past a ceiling of 23 that was
+never the right ceiling.
 
 **WHAT IS STILL OWED HERE.** The independent oracle is being rebuilt
 FROM THE SPECIFICATION ALONE — the charter asks for the spec before the

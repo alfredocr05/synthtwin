@@ -697,7 +697,7 @@ def test_one_form_per_stratum_is_what_keeps_the_spelling_count(
     monkeypatch.setattr(
         generation,
         "_style_strata",
-        lambda quotas, layout, values, whole, wanted, styles: styles,
+        lambda quotas, layout, values, whole, wanted, raw, styles: styles,
     )
     spent = []
     for seed in SEEDS:
