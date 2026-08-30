@@ -39,6 +39,7 @@ from synthtwin import (
     generation,
     parsing,
     profile,
+    quality,
     reading,
     rendering,
     taxonomy,
@@ -3259,7 +3260,35 @@ EXTREME_COLUMNS = {
         [repr(5e-324 * (step + 1)) for step in range(30)]
         + [repr(1e307 * (step + 1)) for step in range(30)]
     ),
+    # THE SHAPE THE BATTERY DID NOT HAVE (review item P4-G6-R3-F1).
+    # Three distinct values reaching from zero to the top of the range:
+    # the scaled displacement comes out finite near 1.47e308 and the
+    # widening factor of `sqrt(n / (n - 1))` then carries it past the
+    # end, so the quality report printed "between 0.0 and inf". Every
+    # other shape here has either two values or a narrow spread, which
+    # is why eight shapes missed it.
+    "three values across the whole range": ["0", "8.5e307", "1.7e308"],
+    "a hundred rows at both extremes": (
+        ["-1.5e308"] * 49 + ["0"] + ["1.5e308"] * 50
+    ),
 }
+
+
+def _says_not_a_number(line: str) -> bool:
+    """Whether one printed line carries a NaN or an infinity.
+
+    Read over the WORDS of the line, because `inf` and `nan` are inside
+    ordinary English -- "information", "meaning", "infinite" -- and a
+    test that greps the raw text finds those instead of the numbers it
+    is looking for.
+    """
+    for word in line.replace(",", " ").replace("(", " ").replace(
+        ")", " "
+    ).split():
+        stripped = word.strip(".:;'\"").lower().lstrip("+-")
+        if stripped in ("nan", "inf", "infinity"):
+            return True
+    return False
 
 
 @pytest.mark.parametrize("shape", sorted(EXTREME_COLUMNS))
@@ -3296,12 +3325,21 @@ def test_no_extreme_column_takes_the_validator_down(
     # a NaN is false -- so the report stated that the twin had landed
     # outside a range it had never computed. A withheld window is
     # honest; `nan to nan` is a sentence that is not true.
+    # AND NEITHER REPORT PRINTS A WORD THAT IS NOT A NUMBER. `nan`
+    # came from a compensated sum whose total left the range; `inf`
+    # came from a window whose ends were guarded at their INPUTS and
+    # not at the window itself, and the assertion below said only
+    # `nan` until the third round found the second one (item
+    # P4-G6-R3-F1). A range ending in an infinity is not a wide bound:
+    # it is a comparison that admits every file there is.
     printed = rendering.report(described, generation.generate(described, SEED))
-    offending = [
-        line for line in printed.splitlines()
-        if "nan" in line.lower().replace("meaning", "").replace("means", "")
-    ]
-    assert not offending, (shape, offending[:3])
+    for name, text in (("twin report", printed),
+                       ("quality report", quality.quality_report(described, outcome))):
+        offending = [
+            line for line in text.splitlines()
+            if _says_not_a_number(line)
+        ]
+        assert not offending, (shape, name, offending[:3])
 
 
 @pytest.mark.parametrize("shape", sorted(EXTREME_COLUMNS))

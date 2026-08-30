@@ -2926,6 +2926,82 @@ declaration for only one of them.
     the number it produces. The same standard the oracle and the
     vacuity guards already hold: a claim is not its own witness.
 
+- **P4-G6-R3, the third adversarial round (2026-08-30). Three items,
+  and a fourth defect found while building a witness for one of them.**
+
+  * **F1 — the ninth site of the overflow family, and it is the one
+    that shows where the guard belongs.** Every repair so far guarded
+    the INPUTS to a window. On the three cells `0`, `8.5e307` and
+    `1.7e308` the scaled displacement comes out finite near 1.47e308,
+    and then the widening factor `sqrt(n / (n - 1))` -- about 1.22 on
+    three values -- carries it past the end of the range. Reproduced
+    through the shipped command: the quality report printed
+    `between 0.0 and inf`, which is the vacuous pass this whole family
+    keeps producing.
+
+    So the guard moved to the point of FILING. `_moment_windows` now
+    puts every window through one function that files it where both
+    ends are numbers and withholds it otherwise. A guard on the
+    products of an expression covers one expression; a guard where the
+    window is recorded covers every product, including the ones nobody
+    has written yet.
+
+    **THE ROUND ALSO NAMED THE GENERATOR'S COPY OF THAT
+    MULTIPLICATION, AND THAT HALF DID NOT REPRODUCE.** Seven column
+    shapes were tried against it -- the three-cell case itself, sixty
+    rows spanning zero to 1.67e308, an even split at both extremes, a
+    hundred rows at plus and minus 1.5e308, and three more -- and none
+    printed an infinity, because the generator's reach is bounded by
+    the ladder's own rank windows rather than by the column's range.
+    An unwitnessed guard there could silently drop a fact from the
+    report, which is the defect class F2 of the previous round already
+    is, so none was added. What was added is the DETECTOR: the battery
+    now reads both the twin report and the quality report and fails on
+    any line carrying a NaN or an infinity, over the words of the line
+    rather than its raw text, since `inf` and `nan` sit inside
+    ordinary English. If that site is ever reached it goes red with a
+    witness attached.
+
+  * **F2 — the kurtosis vanished from the census a SECOND time**, on
+    the no-ladder path this time, where the listing was built from the
+    fixed list `("mean", "std", "skew")`. Naming the fields is what let
+    one be forgotten when the tail weight arrived a phase later; the
+    listing now reads the moments off what the description PUBLISHES,
+    so a fact cannot go missing by not being typed out.
+
+  * **F3 — the withholding introduced last round filed those facts
+    under the wrong census and gave a reason that is false.** A missing
+    window became a WITHHELD check carrying the sentence "describing
+    this file on its own would not publish what this check measures".
+    Describing that file publishes all four moments. What is missing is
+    the WINDOW, because the column reaches so far across the range that
+    the window's own ends are not numbers -- a property of the
+    description and not of the measured file, which is what the
+    NOT-CHECKABLE census is for. They are census lines now, with a
+    sentence that is true, and `_moment_checks` leaves them alone so
+    the same obligation is not counted twice under two reasons.
+
+  * **AND A TENTH SITE, WHICH NO ROUND FOUND AND WHICH I PUT THERE.**
+    Building the witness for F2 needed a description whose rungs are
+    null at every one of the hundred and one. The loader accepts such
+    a description; `synthtwin generate` came out as
+    `TypeError: object of type 'NoneType' has no len()`. The
+    unified-ladder landing wrote `_filled_rungs(_merged_rungs(facts))`,
+    and BOTH of those functions document returning None where the
+    ladder holds nothing anywhere. The caller already handled the None
+    that comes out; it was the way in that had no answer. One guard.
+
+  **THE BATTERY'S OWN COVERAGE, stated rather than assumed**, because
+  the round asked for it and the answer is not flattering. Of its ten
+  shapes, four reach the window-withholding path, four reach the
+  generator's scaled-reach branch, and THREE reach none of these
+  repairs at all -- a lone enormous outlier and two columns of two
+  values are not quantitative columns, so they carry no ladder and no
+  moment. They are kept because "a report comes out" is a real claim
+  for any shape a loader accepts, and they are the only shapes here
+  that make it about a non-quantitative column. What they are not is
+  evidence for the repairs, and the plan should not imply they are.
+
 - **R-P4-57 (opened and CLOSED here, 2026-08-30).** `synthtwin
   validate` DIED ON A COLUMN OF LARGE NUMBERS, with a Python traceback
   and not one of this package's own messages.
