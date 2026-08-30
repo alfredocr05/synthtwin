@@ -161,6 +161,69 @@ import math
 import pathlib
 
 from synthtwin import contract, errors, parsing, profile, reading, taxonomy
+
+
+# ONE UNIT IN THE LAST PLACE, AWAY FROM ZERO (review item P4-G6-R6-F1).
+#
+# The universal bounds a moment is held to -- the largest skew a sample
+# of this size can take, the largest tail weight -- are stated as exact
+# expressions and computed in binary64, where two roundings can land the
+# endpoint one place INSIDE the true limit. `(3 - 2) / sqrt(3 - 1)`
+# comes out 0.7071067811865475 while the true limit rounds to
+# ...76, so a column whose skew IS the maximum is outside a bound it
+# exactly meets. Reproduced on the three cells `-1e20`, `0` and `1`:
+# the description publishes -0.7071067811865476, the twin holds
+# -0.7071067811865476, and the report said OUTSIDE and told the reader
+# to treat the fact as not reproduced.
+#
+# A bound stated as a limit must therefore be widened by one place
+# before it is compared against anything. The direction is always
+# outward, so the widening can never turn a real miss into a pass: it
+# admits exactly the values the limit itself admits.
+#
+# `math.nextafter` is not among the names this package's offline audit
+# allows, and widening the audit to admit one is the wrong way round --
+# `frexp` and `ldexp` are allowed and say the same thing.
+_ONE_PLACE = 2 ** -53
+
+
+def _stepped(bound: float, upward: bool) -> float:
+    """``bound`` moved one place toward an infinity, or itself."""
+    if not math.isfinite(bound):
+        return bound
+    if bound == 0.0:
+        return math.ldexp(_ONE_PLACE, -1021) * (1.0 if upward else -1.0)
+    away = (bound > 0.0) == upward
+    fraction, exponent = math.frexp(abs(bound))
+    step = _ONE_PLACE if away else -_ONE_PLACE
+    stepped = math.ldexp(fraction + step, exponent)
+    if bound < 0.0:
+        return -stepped
+    return stepped
+
+
+def _raised(bound: float) -> float:
+    """The smallest number this format holds above ``bound``.
+
+    An UPPER limit is widened with this, so a value that is correctly
+    rounded onto the limit itself cannot fall outside it.
+    """
+    return _stepped(bound, True)
+
+
+def _lowered(bound: float) -> float:
+    """The largest number this format holds below ``bound``.
+
+    A LOWER limit is widened with this, for the same reason -- and the
+    direction is what makes it a widening rather than a shift. Moving
+    an upper limit away from zero and a lower limit away from zero are
+    the same thing only when the pair straddles zero, which the skew
+    bound does and the tail weight's does not: its two ends are both
+    positive, and widening its low end AWAY from zero moved that end
+    UP, past the very value the window was drawn to admit.
+    """
+    return _stepped(bound, False)
+
 from synthtwin.paths import validate_local_path
 
 # -- the five verdicts (V6.1) -----------------------------------------
@@ -7587,7 +7650,7 @@ def _skew_admits_every_value(
     numbers = _numeric_cells(facts)
     if numbers < 3:
         return False
-    reach = (numbers - 2) / math.sqrt(numbers - 1)
+    reach = _raised((numbers - 2) / math.sqrt(numbers - 1))
     low, high = windows["skew"]
     return low <= -reach and high >= reach
 
@@ -7679,7 +7742,7 @@ def _tails_admit_every_value(
     used = facts.n_used_in_statistics
     if used < 4:
         return False
-    ceiling = used - 2 + 1 / (used - 1)
+    ceiling = _raised(used - 2 + 1 / (used - 1))
     low, high = windows["kurtosis"]
     return low <= 1.0 and high >= ceiling
 
@@ -7783,8 +7846,8 @@ def _moment_windows(
             if not math.isfinite(part):
                 return float("inf")
         return math.fsum(parts) / numbers
-    reach = (numbers - 2) / math.sqrt(numbers - 1)
-    ceiling = numbers - 2 + 1 / (numbers - 1)
+    reach = _raised((numbers - 2) / math.sqrt(numbers - 1))
+    ceiling = _raised(numbers - 2 + 1 / (numbers - 1))
     if low_end <= 0.0:
         found["skew"] = (-reach, reach)
         # AND THE TAIL WEIGHT'S OWN FALLBACK IN THE SAME BREATH (item
@@ -7811,7 +7874,11 @@ def _moment_windows(
         if numbers >= 4:
             found["kurtosis"] = (1.0, ceiling)
         return found
-    if not _bounded("skew", max(-reach, min(ends)), min(reach, max(ends))):
+    if not _bounded(
+        "skew",
+        _lowered(max(-reach, min(ends))),
+        _raised(min(reach, max(ends))),
+    ):
         return found
     if numbers < 4:
         return found
@@ -7850,12 +7917,19 @@ def _moment_windows(
     if not math.isfinite(tails_low) or not math.isfinite(tails_high):
         found["kurtosis"] = (1.0, ceiling)
         return found
+    # AND EVERY WINDOW THAT CLAMPS TO A UNIVERSAL LIMIT IS WIDENED
+    # OUTWARD AT THE POINT IT IS FILED (review item P4-G6-R6-F1). On
+    # the four-value extreme both ends of this window clamp to the same
+    # ceiling, so once that ceiling is stated correctly the two meet and
+    # the window admits nothing -- while the statistic it was drawn for
+    # sits on the ceiling. The generator's own copy of this window takes
+    # the same step, which is what keeps the two modules agreeing.
     lowest = max(1.0, tails_low)
     highest = min(ceiling, tails_high)
     if lowest > highest:
-        _bounded("kurtosis", highest, lowest)
+        _bounded("kurtosis", _lowered(highest), _raised(lowest))
         return found
-    _bounded("kurtosis", lowest, highest)
+    _bounded("kurtosis", _lowered(lowest), _raised(highest))
     return found
 
 
