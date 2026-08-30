@@ -3559,3 +3559,51 @@ def test_the_twin_recounts_its_moments_the_way_the_description_states_them(
     # AND A COLUMN OF ONE NUMBER STILL HAS NO SHAPE TO REPORT, which is
     # the answer that must not be confused with any of the above.
     assert generation._moments_of([7.0] * 5) == (7.0, 0.0, None, None)
+
+
+def test_a_statistic_on_its_own_ceiling_is_not_called_a_miss(
+    tmp_path: pathlib.Path,
+) -> None:
+    """A bound stated as a limit must ADMIT the limit (P4-G6-R6-F1).
+
+    The largest skew a sample of `n` values can take is
+    `(n - 2) / sqrt(n - 1)`. On three values that is one over the
+    square root of two, whose correctly rounded binary64 value is
+    0.7071067811865476 -- and computing it as written gives
+    0.7071067811865475, one place INSIDE, because the division and the
+    square root each round.
+
+    So a column whose skew IS the maximum was outside a bound it
+    exactly meets. On these three cells the description publishes
+    -0.7071067811865476, the twin holds -0.7071067811865476, and the
+    twin report said OUTSIDE and told the reader to treat an exactly
+    reproduced fact as not reproduced. Accusing a correct twin is the
+    one thing a bound must never do.
+
+    Every universal limit is widened one place OUTWARD before it is
+    compared against anything. Outward, never away from zero: the tail
+    weight's two ends are both positive, and moving its low end away
+    from zero moves it UP, past the value the window was drawn for.
+    """
+    described = _describe(tmp_path, "value\n-1e20\n0\n1\n")
+    facts = described.columns[0].facts
+    assert isinstance(facts, contract.NumericFacts)
+    assert facts.skew == -0.7071067811865476, facts.skew
+
+    twin = generation.generate(described, 7)
+    named = [one for one in twin.approximations if one.fact == "skew"]
+    assert named, "this witness no longer reaches the skew bound"
+    for one in named:
+        assert one.inside, (one.achieved, one.lowest, one.highest)
+        assert one.covers_published, (one.published, one.lowest, one.highest)
+
+    # The arithmetic that made the limit too small, beside the limit.
+    assert (3 - 2) / math.sqrt(3 - 1) == 0.7071067811865475
+    assert generation._raised((3 - 2) / math.sqrt(3 - 1)) == (
+        0.7071067811865476
+    )
+
+    # AND OUTWARD IS NOT AWAY FROM ZERO. Both ends of the tail weight's
+    # window are positive, so widening its low end must move it DOWN.
+    assert generation._lowered(2.3333333333333335) < 2.3333333333333335
+    assert generation._raised(2.3333333333333335) > 2.3333333333333335

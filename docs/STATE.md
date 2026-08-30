@@ -28,7 +28,7 @@ without the same help.
 | branch | `phase-4-allotment` (never merged; `main` is pull-request only) |
 | phase | **Phase 4 — comprehensive column handling.** Current. |
 | plan | `docs/plans/phase-4-columns.md` |
-| suite | 4,111 collected / 48 skipped |
+| suite | 4,112 collected / 48 skipped |
 | lint | clean (`ruff check .`), under the rule set pinned in `pyproject.toml` |
 
 ## What is being built right now
@@ -836,8 +836,36 @@ comment and the fourth corrected this page. The rule that keeps
 earning: a claim about floating point is worth what it was RUN on, not
 what was argued for it.
 
-**FIVE REVIEW ROUNDS, EVERY ITEM OF ALL FIVE REAL, AND NOT ONE WORDING
-ITEM.** Round 5 found that the round-4 repair answered two column
+**SIX REVIEW ROUNDS, EVERY ITEM OF ALL SIX REAL, AND NOT ONE WORDING
+ITEM.** Round 6 found the worst report defect of the landing: a bound
+stated as a limit that did not ADMIT the limit. The largest skew a
+sample of three values can take is one over the square root of two,
+whose correctly rounded value is 0.7071067811865476; computed as
+written it comes out one place INSIDE, so a column whose skew IS the
+maximum fell outside a bound it exactly meets. On the three cells
+`-1e20`, `0` and `1` the description publishes -0.7071067811865476, the
+twin holds -0.7071067811865476, and the report said OUTSIDE and told
+the reader to treat an exactly reproduced fact as not reproduced.
+**Every other round closed a report that said less than it should; this
+one said something FALSE about a correct twin.** The exact moments of
+round 5 are what exposed it -- the recount they replaced never produced
+a value that landed on the limit.
+
+Every universal limit is widened one place OUTWARD now, in both
+modules. Outward and NOT away from zero: the tail weight's two ends are
+both positive, and the first attempt moved its low end away from zero,
+which moved it UP past the value the window was drawn to admit. An
+existing kurtosis test caught that inside a minute.
+
+Round 6's other item was about a measurement driver committed so that a
+claim could be re-derived: its header said it counted the two verdicts
+the report shows a reader and its loop read neither, and its comparator
+was a paraphrase of the predecessor rather than the predecessor. Both
+corrected; 600 verdicts compared, none flips. **A tool that exists to
+make claims checkable is held to the standard it was built to
+enforce.**
+
+**FIVE ROUNDS BEFORE THAT, EVERY ITEM REAL.** Round 5 found that the round-4 repair answered two column
 shapes and not the third and fourth: the scaled root UNDERFLOWS on four
 zeroes beside one `5e-324`, and `value - mean` OVERFLOWS before the
 scaling can reach it on one value at the bottom of the range beside a

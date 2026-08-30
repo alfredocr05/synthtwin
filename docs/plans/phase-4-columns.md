@@ -3104,10 +3104,57 @@ declaration for only one of them.
     reader appears in that graph.
 
     Measured over 150 built columns of five ordinary shapes
-    (`tools/measurements/p4_g6_r5_exact_moments.py`): 357 of 600
-    reported moments move, by at most 7.0e-14 relative, and every move
-    is toward the correctly rounded value. Nothing the old recount
-    could answer is lost.
+    (`tools/measurements/p4_g6_r5_exact_moments.py`): 356 of 600
+    reported moments move, by at most 7.0e-14 relative, every move is
+    toward the correctly rounded value, nothing the old recount could
+    answer is lost, and of 600 report VERDICTS compared -- `inside` and
+    `covers_published`, the two the reader actually sees -- NONE flips.
+    The first version of that driver said in its own header that it
+    counted those verdicts and never read either field, and its
+    comparator was a paraphrase of the predecessor rather than the
+    predecessor; both are corrected and both are why the numbers here
+    moved by one.
+
+- **P4-G6-R6, the sixth adversarial round (2026-08-30). Two items,
+  both real, and the first is the worst kind of report defect: it
+  ACCUSED A CORRECT TWIN.**
+
+  * **F1 — a bound stated as a limit did not admit the limit.** The
+    largest skew a sample of `n` values can take is
+    `(n - 2) / sqrt(n - 1)`. On three values that is one over the square
+    root of two, whose correctly rounded value is 0.7071067811865476 --
+    and computing it as written gives ...75, one place INSIDE, because
+    the division and the square root each round. So a column whose skew
+    IS the maximum fell outside a bound it exactly meets.
+
+    Reproduced on the three cells `-1e20`, `0` and `1`: the description
+    publishes -0.7071067811865476, the twin holds -0.7071067811865476,
+    and the twin report said OUTSIDE and told the reader to treat an
+    exactly reproduced fact as not reproduced. Five rounds of this
+    landing have been closing reports that say LESS than they should;
+    this one said something FALSE about a correct twin, which is worse.
+
+    **The exact moments of round 5 are what exposed it** -- the recount
+    it replaced never produced a value that landed on the limit.
+
+    Every universal limit is now widened one place OUTWARD before it is
+    compared, in both modules, so the two keep agreeing. **Outward, and
+    not away from zero**: the tail weight's two ends are both positive,
+    and the first attempt at this moved its low end away from zero,
+    which moved it UP past the very value the window was drawn to
+    admit. The kurtosis test caught that within the minute, which is
+    what that test is for.
+
+  * **F2 — the measurement driver I committed so that a claim could be
+    re-derived made a claim its own code did not support.** Its header
+    said it counted the two verdicts the report prints beside a moment
+    and the loop never read either field; and its comparator was a
+    paraphrase of the round-4 implementation that omitted the scaled
+    fallback, so it credited round 5 with answers round 4 already gave.
+    The comparator is now copied from commit 8ef1bb7 rather than
+    written again from memory, and the verdicts are counted: 600
+    compared, none flips. **A tool that exists to make claims checkable
+    is held to the standard it was built to enforce.**
 
 - **R-P4-58 (opened here, 2026-08-30, PRE-EXISTING and not from this
   landing).** A JOINED COLUMN'S POSITIONS CARRY A FULL QUANTITATIVE
