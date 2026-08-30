@@ -458,6 +458,13 @@ _NOT_CHECKABLE_SKEW_UNBOUNDED = (
     "they are, so a comparison against it would admit every file and "
     "prove nothing"
 )
+_NOT_CHECKABLE_TAILS_UNBOUNDED = (
+    "the published ladder for this column is too coarse for the "
+    "generation method's own envelope to narrow: its bound falls back "
+    "to the whole range the tail weight of this many values can take, "
+    "so a comparison against it would admit every file and prove "
+    "nothing"
+)
 _NOT_CHECKABLE_STYLE_CEILING = (
     "the description names this form for as many cells as the file has "
     "rows, so every cell the file can carry in it is already accounted "
@@ -7667,8 +7674,18 @@ def _moment_windows(
 ) -> "dict[str, tuple[float, float]]":
     """The three moment windows of method G12.3, from the rank form."""
     found: dict[str, tuple[float, float]] = {}
-    mean_low = math.fsum(lows) / numbers
-    mean_high = math.fsum(highs) / numbers
+    # THE MEAN IS THE PROFILER'S EXACT ONE AND NOT A RUNNING TOTAL
+    # (review item P4-G6-R2-F2). `math.fsum` is exact until its final
+    # rounding and STILL raises where the running total leaves the
+    # representable range, which sixty values near 1e308 do although
+    # their mean is an ordinary number. The first repair of this family
+    # put its guard below this line and the crash simply moved up to
+    # it: `synthtwin validate` went on dying, one line earlier, on a
+    # column nothing was wrong with.
+    mean_low = taxonomy.average_of(list(lows))
+    mean_high = taxonomy.average_of(list(highs))
+    if mean_low is None or mean_high is None:
+        return found
     found["mean"] = (mean_low, mean_high)
     if numbers < 2:
         return found
@@ -7680,10 +7697,18 @@ def _moment_windows(
     # reaches whose squares have nowhere to go, and this sum came out
     # an infinity, which made the whole window `(0, inf)` -- a check
     # that can never report a miss and never says it went quiet.
+    # AND EACH REACH IS A DIFFERENCE OF TWO PUBLISHED VALUES, so it
+    # overflows in its own right where a rank's window has ends at
+    # opposite extremes. A reach that is not finite is a rank this
+    # window cannot be drawn through, and the whole window is withheld
+    # rather than drawn around an infinity.
     reaches = [
         max(ladder[rank] - lows[rank], highs[rank] - ladder[rank])
         for rank in range(numbers)
     ]
+    for reach in reaches:
+        if not math.isfinite(reach):
+            return found
     widest = max(reaches)
     displacement = 0.0
     if widest > 0.0:
@@ -7708,10 +7733,14 @@ def _moment_windows(
     # column around 1e300 is a number with nowhere to go, and the four
     # ratios below are what the cubes were only ever wanted for.
     def cubed(edges: "list[float]", centre: float, spread: float) -> float:
-        return math.fsum(
-            [((edges[rank] - centre) / spread) ** 3
-             for rank in range(numbers)]
-        ) / numbers
+        parts = [
+            ((edges[rank] - centre) / spread) ** 3
+            for rank in range(numbers)
+        ]
+        for part in parts:
+            if not math.isfinite(part):
+                return float("inf")
+        return math.fsum(parts) / numbers
     reach = (numbers - 2) / math.sqrt(numbers - 1)
     ceiling = numbers - 2 + 1 / (numbers - 1)
     if low_end <= 0.0:
@@ -7731,6 +7760,15 @@ def _moment_windows(
         cubed(highs, mean_low, low_end),
         cubed(highs, mean_low, high_end),
     ]
+    if not all(math.isfinite(end) for end in ends):
+        # The same fallback the flat-spread branch above takes: the
+        # window is the whole range this many values can reach, and
+        # `_skew_admits_every_value` files it as a listing rather than
+        # counting a check that cannot fail.
+        found["skew"] = (-reach, reach)
+        if numbers >= 4:
+            found["kurtosis"] = (1.0, ceiling)
+        return found
     found["skew"] = (max(-reach, min(ends)), min(reach, max(ends)))
     if numbers < 4:
         return found
@@ -10938,14 +10976,20 @@ def _unbounded_style_listings(
 ) -> "list[Listing]":
     """The numeric obligations this description leaves nothing to check.
 
-    Two of them, both review items of round 2 and both recorded in plan
-    amendment A-P3-2: the canonical-form ceiling a description licenses
-    every cell against (`_ceilinged_styles`), and the skew whose G12.3
-    window is the statistic's whole attainable range
-    (`_skew_admits_every_value`). Each is an obligation the description
-    states and no file of the length it publishes can be found to miss,
-    so each is a line in the NOT-CHECKABLE census with the sentence that
-    says why, and neither is counted toward a pass.
+    THREE of them now. Two were review items of round 2 and are
+    recorded in plan amendment A-P3-2: the canonical-form ceiling a
+    description licenses every cell against (`_ceilinged_styles`), and
+    the skew whose G12.3 window is the statistic's whole attainable
+    range (`_skew_admits_every_value`). The third is the TAIL WEIGHT on
+    the same grounds (`_tails_admit_every_value`), which arrived a
+    phase later with G12.3a and was skipped as a check without ever
+    being filed as a listing.
+
+    Each is an obligation the description states and no file of the
+    length it publishes can be found to miss, so each is a line in the
+    NOT-CHECKABLE census with the sentence that says why, and none is
+    counted toward a pass. A fact that is neither checked nor listed is
+    a fact the report has lost, which is worse than either.
     """
     listings: list[Listing] = []
     for style in (parsing.STYLE_DECIMAL, parsing.STYLE_EXPONENT_LOWER):
@@ -10966,6 +11010,25 @@ def _unbounded_style_listings(
                 "numeric.skew",
                 "moments.skew",
                 _NOT_CHECKABLE_SKEW_UNBOUNDED,
+            )
+        ]
+    # AND THE TAIL WEIGHT BESIDE IT (review item P4-G6-R2-F1). The
+    # kurtosis arrived a phase after the skew, and `_moment_checks`
+    # learned to SKIP it on the same grounds -- `_tails_admit_every_value`
+    # at the line above its sibling -- while this function was left
+    # filing only the skew. So a column publishing a kurtosis whose
+    # window is the whole attainable range had that obligation appear
+    # in neither the checks nor the census, and the report claims the
+    # census accounts for every one. Reproduced on 98 zeros beside
+    # `5e-324` and `1e-323`, which publishes a kurtosis of 66.1 and
+    # named it nowhere.
+    if _tails_admit_every_value(column, facts):
+        listings = listings + [
+            Listing(
+                column.name,
+                "numeric.kurtosis",
+                "moments.kurtosis",
+                _NOT_CHECKABLE_TAILS_UNBOUNDED,
             )
         ]
     return listings

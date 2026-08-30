@@ -28,7 +28,7 @@ without the same help.
 | branch | `phase-4-allotment` (never merged; `main` is pull-request only) |
 | phase | **Phase 4 — comprehensive column handling.** Current. |
 | plan | `docs/plans/phase-4-columns.md` |
-| suite | 4,086 collected / 48 skipped |
+| suite | 4,102 collected / 48 skipped |
 | lint | clean (`ruff check .`), under the rule set pinned in `pyproject.toml` |
 
 ## What is being built right now
@@ -796,7 +796,9 @@ it away, leaving the twin one raw spelling short of a published
 another, which is what that exception exists to prevent.
 
 Measured end to end over 140 built columns and 420 column-seeds, with
-the two guards side by side: they disagree on 9, the new one is closer
+the two guards side by side
+(`tools/measurements/r_p4_55_case_pair.py` -- every measured number on
+this page now has a driver in that directory): they disagree on 9, the new one is closer
 to the published counts on 9, and further on none. 29 of the 140 columns
 publish a raw count above their folded one; 3 of those tripped the
 defect. The reach is narrow and the direction is one-way. It needs a
@@ -835,7 +837,10 @@ earning: a claim about floating point is worth what it was RUN on, not
 what was argued for it.
 
 **AND SEARCHING FOR THAT ROUND'S SIBLINGS FOUND THE WORST DEFECT OF
-THE DAY: `synthtwin validate` CRASHED** (R-P4-57). Sixty ordinary
+THE DAY: `synthtwin validate` CRASHED** (R-P4-57 -- and round 2 then
+found that the first repair for it had MOVED the crash rather than
+removed it, which is P4-G6-R2 in the register and the reason the
+repair is now an eight-shape BATTERY and not another guard). Sixty ordinary
 readings between 1e280 and 1e300 in one column. `synthtwin profile`
 wrote a description with a finite spread; `synthtwin generate` wrote a
 twin; `synthtwin validate` came out as an `OverflowError` traceback

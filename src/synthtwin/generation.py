@@ -14597,8 +14597,28 @@ def _summed(values: "list[float]") -> float:
 
 
 def _mean_of(values: "list[float]") -> float:
-    """The arithmetic mean of a non-empty list, in list order."""
-    return _summed(values) / len(values)
+    """The arithmetic mean of a non-empty list, in list order.
+
+    DIVIDED BEFORE IT IS SUMMED WHERE THE SUM HAS NO ANSWER (review
+    item P4-G6-R2-F3). A column's mean can sit well inside the
+    representable range while the TOTAL of its values does not: sixty
+    readings near 1e308 have a mean near 1e308 and a sum near 6e309.
+    `_summed` then carried an infinity, its compensation term became a
+    NaN, and the twin's own report printed `the twin holds: nan` for
+    the mean of a twin whose mean is an ordinary number -- and a range
+    of `nan to nan` beside it, which is a report saying something
+    false rather than saying nothing.
+
+    The plain form is kept wherever it answers, so every column that
+    already had a mean keeps exactly the bytes it had; the divided form
+    is reached only where the other has none. Both are a fixed function
+    of the list order, which is what the report's bytes rest on.
+    """
+    held = len(values)
+    total = _summed(values)
+    if math.isfinite(total):
+        return total / held
+    return _summed([value / held for value in values])
 
 
 def _moments_of(
@@ -15349,7 +15369,27 @@ def _numeric_approximations(
         max(middles[rank] - lows[rank], highs[rank] - middles[rank])
         for rank in range(held)
     ]
+    # THE SAME SCALING THE VALIDATOR'S OWN DISPLACEMENT TAKES, and it
+    # is here because this is the eighth site of one family and the
+    # first that no review round named -- it was found by looking for
+    # the siblings of the seven that were. `step * step` on a column
+    # around 1e200 is an infinity, `_mean_of` of a list of them is a
+    # NaN, and every comparison against a NaN window is false: the twin
+    # report would have said the twin landed OUTSIDE a range it never
+    # computed, which is a false sentence and not a withheld one.
+    #
+    # The plain form is kept wherever it answers, so no column that
+    # already had a window changes a byte, and the scaled form is
+    # reached only where the other has none.
     reach = math.sqrt(_mean_of([step * step for step in steps]))
+    if not math.isfinite(reach):
+        widest = max(steps)
+        reach = 0.0
+        if math.isfinite(widest) and widest > 0.0:
+            scaled = [
+                (step / widest) * (step / widest) for step in steps
+            ]
+            reach = widest * math.sqrt(_mean_of(scaled))
     centre = _moments_of(middles)
     if facts.std is not None and deviation is not None:
         room = reach * math.sqrt(held / (held - 1))
