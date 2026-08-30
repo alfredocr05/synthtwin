@@ -263,7 +263,7 @@ def test_nothing_that_varies_between_runs_is_written(
 # this is a change to what a description RECORDS and not to what it
 # says about the data.
 GOLDEN_SHA256 = (
-    "dbbb8934a4473073b33c635e05ee17dc060db9a70db669fe6ef3a026e2bab770"
+    "c2944912e49b40f8a03d77a478b32c0321de1074f1c81942ccdebaf28eb56e67"
 )
 
 

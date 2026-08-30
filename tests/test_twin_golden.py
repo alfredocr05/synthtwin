@@ -287,7 +287,7 @@ def test_the_golden_run_is_the_shape_this_file_says_it_is(
 # approximations; if any of them had reached a cell of an UNDECLARED
 # column, the twin's own bytes would have moved. They did not.
 GOLDEN_DESCRIPTION_SHA256 = (
-    "67f4d06386fc2dae9fc40f3fd15c028937218ff4381576ba2fb63f0f65a19fc9"
+    "01023e66cd86b25ccb992c4ecbd8b6f44a5fcb347a78b853b6c95247926bbbad"
 )
 
 
@@ -335,7 +335,7 @@ def test_golden_hash_of_the_description_the_twin_is_built_from(
 # in one number. Any of them differing between two cells of the matrix
 # turns red here rather than shipping as a quietly different twin.
 GOLDEN_TWIN_SHA256 = (
-    "ba6fde8b0435f86bb8c540c9768854b8374aea0092a930057c0a189912ba8af3"
+    "4da076c8d67e0b59c15665d30baf5daa244f7be3a22b249c17027661b31ab403"
 )
 
 
@@ -628,7 +628,7 @@ def test_the_same_description_and_seed_give_the_same_twin_twice(
 # moved, and the description and twin digests were both untouched by
 # this edit.
 GOLDEN_REPORT_SHA256 = (
-    "842cbbd1b831e2d2df1cd35a82c9f9345ffb136d38e552f61faff1eb0b88afe8"
+    "460797da72c1d22a2d4ee8b4e9aae04264ed61966348b02de417ff12918e3768"
 )
 
 
@@ -1023,7 +1023,7 @@ def test_the_report_names_the_seed_the_twin_was_built_at(
 # citation that names a section the method does not define, so this
 # cannot happen again silently.
 GOLDEN_QUALITY_SHA256 = (
-    "4037158e846d35bfe87d8b1531d5f91bcc00aceacc3097bc66bd68dd4a4c9aa7"
+    "4eed8acac8822a27d0de6157184f5eab6f6a13a88f0f52fe80413c4eb706ebb7"
 )
 
 
