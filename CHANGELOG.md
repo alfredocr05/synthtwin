@@ -6,6 +6,36 @@ exists).
 
 ## [Unreleased]
 
+### Fixed: a column that stops being read as numbers is told why
+
+- **The address decline was silent** (residual R-P4-39, contract
+  NF50). synthtwin refuses to read a column of `user12345@example.org`
+  as a number wrapped in text, and that refusal is right: the average
+  of a column of real addresses is the average of whatever numbers
+  those addresses were given. But it said NOTHING. The column simply
+  stopped carrying an average, a spread, its ends and its ladder, and
+  no sentence in the profile, in the summary beside it or in the
+  twin's report told its owner why. It carries one now, naming the
+  shape it declined for -- an at sign, a host, a dot label -- so a
+  person recognizes their own column.
+- **And it names all three declarations, not one.** The remark beside
+  it offered `--identifier`, which publishes no value at all and is
+  the wrong answer for somebody who wants the column's distribution.
+  All three are named with what each publishes: `--identifier` no
+  value, `--code` each spelling with how many rows carried it,
+  `--measurement` the distribution over the numbers inside. **It
+  decides nothing** -- no role, no published fact and no cell of the
+  twin moves because of it, which is measured rather than promised.
+- **A declared measurement wearing an address had its stand-ins
+  ignored.** The pass that judges "no value" numbers inside an affixed
+  column's cells re-derived that column's reading WITHOUT the person's
+  declaration, while the role had been decided WITH it -- so on a
+  column carried past the address rule by `--measurement`, not one
+  cell was judged. Measured on 200 readings between 50 and 70 with
+  eleven cells spelled `-999`: no verdict was published, `-999` stood
+  as the column's smallest reading, and the average came out 1.785
+  where the same column written any other way reads 60.03.
+
 ### Fixed: a blood-pressure column's own facts are checked and named
 
 - **The role that carries a blood pressure was the one role no

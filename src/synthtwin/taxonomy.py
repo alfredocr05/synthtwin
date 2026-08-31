@@ -706,6 +706,15 @@ REMARK_PADDED_NUMBERS = "remark_padded_numbers_may_be_codes"
 REMARK_GROUP_COMMAS = "remark_commas_read_as_thousands"
 REMARK_SPREAD_OUT_OF_RANGE = "remark_spread_out_of_range"
 REMARK_ALL_DIFFERENT_TEXT = "remark_every_value_is_different"
+# THE AFFIXED ROLE'S DECLINE, SAID OUT LOUD (plan P4-D27, residual
+# R-P4-39, contract NF50). `_wrapped_in_an_address` refuses to read
+# `user12345@example.org` as a number wearing affixes, and the refusal
+# was SILENT: a column that had been publishing a mean, a spread and a
+# ladder stopped doing so and no sentence anywhere said why or what the
+# owner could do about it. Principle 5 says a column is either handled
+# or declined with a plain-language explanation, and this decline had
+# none.
+REMARK_ADDRESS_NOT_A_QUANTITY = "remark_an_address_is_not_a_quantity"
 
 # The header verdict, which the reader settles and the profile
 # publishes. The sentences live in this table with every other
@@ -772,6 +781,15 @@ NOTE_ARITY: "dict[str, int]" = {
     REMARK_GROUP_COMMAS: 2,
     REMARK_SPREAD_OUT_OF_RANGE: 0,
     REMARK_ALL_DIFFERENT_TEXT: 0,
+    # IT CARRIES NO ARGUMENT ON PURPOSE. A count of the cells that wore
+    # the address would be a count of a reading this column does NOT
+    # publish -- the block that would have held `n_affixed` is the one
+    # the decline refused to write -- and the affix pair itself is the
+    # fourth argument class, admitted only where the same block
+    # publishes the spelling. Neither is available here, so the
+    # sentence says the shape in its own fixed words and names no
+    # number of this column at all.
+    REMARK_ADDRESS_NOT_A_QUANTITY: 0,
     HEADER_NAMES_BY_OPTION: 0,
     HEADER_DATA_BY_OPTION: 0,
     HEADER_NAMES_BY_CONVENTION: 0,
@@ -1491,6 +1509,43 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
             "unit in the column name -- and their distribution will be "
             "described. Do not use --identifier on a measurement: it "
             "withholds the column entirely"
+        )
+    if form == REMARK_ADDRESS_NOT_A_QUANTITY:
+        # IT ROUTES NOTHING, and every clause of it is written to say
+        # so. The decline is what moved this column; the sentence only
+        # tells its owner that the decline happened, what shape caused
+        # it, and which three declarations settle a question no rule of
+        # this package may settle from the values (P1-R6-F8).
+        #
+        # THE THREE ROUTES EACH SAY A DIFFERENT THING, and the sentence
+        # says which, because a list of three flags with no consequence
+        # beside them is a list nobody can choose from. Each one was
+        # measured on this exact column before being named here:
+        # --identifier gives the `identifier` role and publishes no
+        # value; --code gives `long_tail_labels` and publishes each
+        # spelling with its count; --measurement restores the
+        # `affixed_number` reading with its distribution over the
+        # cores.
+        return (
+            "the values in this column are a number wrapped in an "
+            "electronic address -- some text, then the number, then an "
+            "at sign, a host and a dot label -- and synthtwin did NOT "
+            "read them as a number wearing a shared piece of text. "
+            "Reading them that way publishes an average, a spread and "
+            "two ends over the numbers inside real addresses, which "
+            "are whatever numbers those addresses were given and are "
+            "not a quantity of anything. THIS SENTENCE DECIDES "
+            "NOTHING, and no rule of synthtwin can decide it either: "
+            "it is here so that you can recognize your own column and "
+            "say what it holds. Three declarations say it, each a "
+            "different thing. Run the command again with --identifier "
+            "NAME to say these are record numbers, and no value of "
+            "this column is published at all; with --code NAME to say "
+            "they are a coding system, and each spelling is published "
+            "with how many rows carried it; or with --measurement NAME "
+            "to say the number inside is a quantity after all, and the "
+            "column is described as numbers wearing that address. NAME "
+            "is this column's name"
         )
     if form == HEADER_NAMES_BY_OPTION:
         return (
@@ -6107,6 +6162,63 @@ def _affixed_reading(
 ) -> "_Affixed | None":
     """The one affix pair this column wears, or None if it wears none.
 
+    This is `_affixed_before_the_address_test` with the address decline
+    applied, and the two are kept apart for one reason: so that "did
+    this column decline BECAUSE it was an address?" is answered from
+    the SAME computation rather than from a second copy of the pair
+    walk. A fact worked out twice in this project drifts, and the
+    remedy this repository has settled on is to work it out once
+    (`_declined_as_an_address` is the other caller).
+
+    Guarantees: as `_affixed_before_the_address_test`, and one more --
+    a pair that is an electronic address around its number is refused
+    unless the person declared the column a measurement. That refusal
+    is not silent: `_decide` asks `_declined_as_an_address` and the
+    column carries `REMARK_ADDRESS_NOT_A_QUANTITY` (contract NF50).
+    """
+    reading = _affixed_before_the_address_test(cells)
+    if reading is None:
+        return None
+    if not forced_measurement and _wrapped_in_an_address(
+        (reading.prefix, reading.suffix)
+    ):
+        return None
+    return reading
+
+
+def _declined_as_an_address(cells: _Cells) -> bool:
+    """Whether the affix reading was refused for being an address.
+
+    TRUE only where every other test of the role PASSED and the winning
+    pair is an electronic address. A column that wears no pair, wears
+    two, or wears one too few cells wore did not decline for this
+    reason and gets no sentence about addresses.
+
+    It asks the same function `_affixed_reading` asks, so the two can
+    never disagree about which pair won; what it does not do is repeat
+    the walk. The declaration is deliberately NOT a parameter: where
+    `--measurement` is given there is no decline to speak about,
+    because `_affixed_reading` returns the reading and `_decide` never
+    reaches this question.
+
+    Guarantees: accepts a tally; returns a truth value depending on
+    that tally alone. No I/O, no randomness, and no value of the
+    column is published by anything here or by the sentence it leads
+    to -- the remark it raises carries no argument at all.
+    """
+    reading = _affixed_before_the_address_test(cells)
+    if reading is None:
+        return False
+    return _wrapped_in_an_address((reading.prefix, reading.suffix))
+
+
+def _affixed_before_the_address_test(cells: _Cells) -> "_Affixed | None":
+    """The one affix pair this column wears, address or not.
+
+    Every rule of the role except the address decline. Two callers ask
+    it and each applies that last rule for itself, which is what keeps
+    the reading and the reason for refusing it one computation.
+
     Guarantees:
 
     - Determinism: every cell is split by `affixed_split`, which is a
@@ -6204,8 +6316,6 @@ def _affixed_reading(
     # PUBLISHED, so being able to publish a floor-clearing spelling is
     # constitutive of the role.
     if n_affixed < settings.small_cell_floor:
-        return None
-    if not forced_measurement and _wrapped_in_an_address(pair):
         return None
     return _Affixed(
         prefix=prefix, suffix=suffix, cores=cores, n_affixed=n_affixed
@@ -6427,6 +6537,7 @@ def _cores_judged(
     classified: "list[_Cell]",
     missing: "list[tuple[str, str]]",
     verdicts: "dict[float, tuple[bool, str, int]]",
+    forced_measurement: bool = False,
 ) -> "tuple[list[_Cell], list[tuple[str, str]], dict[float, tuple[bool, str, int]]]":
     """Judge this column's stand-ins over its CORES, and remove them.
 
@@ -6439,8 +6550,22 @@ def _cores_judged(
     added, and the verdicts to publish. The candidates are published
     exactly as they are on a numeric column: as the number, through the
     standing verdict machinery.
+
+    IT TAKES THE DECLARATION BECAUSE ITS CALLER DECIDED THE ROLE WITH
+    ONE, and asking the reading a different question than the caller
+    asked was a defect. `--measurement` carries an address-shaped
+    column past the address decline, so it holds the affixed role --
+    and this function re-derived the reading WITHOUT the declaration,
+    got the decline, and returned every cell unjudged. Measured on 200
+    cells of `user<core>@example.org`, 189 cores between 50 and 70
+    beside eleven spelled `-999`: no verdict published, `-999` kept as
+    the column's smallest reading, and the mean 1.785 where the same
+    column wearing an ordinary pair reads 60.03 and publishes
+    `read_as_missing` / `outlier_and_frequent`. That is the silent
+    statistical wrongness C6-5's core pass exists to prevent, reached
+    through the one declaration that says the numbers are real.
     """
-    reading = _affixed_reading(cells)
+    reading = _affixed_reading(cells, forced_measurement)
     if reading is None:
         return classified, missing, verdicts
     # A DECLARATION MATCHES A WHOLE CELL, HERE AS EVERYWHERE, and the
@@ -6923,6 +7048,29 @@ def _decide(
     )
     if affixed is not None:
         return _affixed_verdict(cells, affixed, notes, remarks)
+
+    # ...AND WHERE THE RULE DECLINED BECAUSE THE PAIR IS AN ADDRESS,
+    # THE COLUMN SAYS SO (contract NF50, residual R-P4-39). The decline
+    # itself is right and is not touched here: publishing a mean over
+    # the numbers inside `user12345@example.org` is publishing the
+    # average of real identifiers, which was measured at 53,574.055 on
+    # 400 rows. What was missing is the second half of principle 5 --
+    # a column is either handled or DECLINED WITH A PLAIN-LANGUAGE
+    # EXPLANATION -- and this decline had none: the column stopped
+    # being described as numbers and every surface was silent about it.
+    #
+    # IT ROUTES NOTHING. The remark is added to the list the rules
+    # below carry into whatever role they give this column, so no role,
+    # no published fact and no cell moves because of it. The three
+    # declarations it names are the only things that move any of those,
+    # and each of them is made by whoever holds the table.
+    #
+    # `forced_code` is asked because rule 9 was never run under it: a
+    # declared code column is already being described as labels, and a
+    # sentence proposing three declarations to somebody who has just
+    # made one of them is noise.
+    if not forced_code and _declined_as_an_address(cells):
+        remarks = remarks + [note(REMARK_ADDRESS_NOT_A_QUANTITY)]
 
     # RULE 9b -- a LONG TAIL of labels (plan P4-D5). Past the
     # ceiling, and at least one folded level covers the detection
@@ -7886,7 +8034,11 @@ def profile_column(
         if trial.role == ROLE_AFFIXED:
             before = len(present)
             classified, missing, verdicts = _cores_judged(
-                cells, classified, missing, verdicts
+                cells,
+                classified,
+                missing,
+                verdicts,
+                forced_measurement,
             )
             cells = _tally(
                 classified, n_rows, settings, forced_decimal_comma
