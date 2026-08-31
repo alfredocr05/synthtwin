@@ -113,6 +113,7 @@ import dataclasses
 import io
 import os
 import pathlib
+import re
 import typing
 
 import pytest
@@ -199,12 +200,22 @@ def _described(
     declared: "list[str] | None" = None,
     stem: str = "table",
     first_row: str = reading.FIRST_ROW_AUTOMATIC,
+    measured: "list[str] | None" = None,
 ) -> contract.Profile:
-    """One table through the real producer and the strict loader."""
+    """One table through the real producer and the strict loader.
+
+    `measured` carries `--measurement`, which the JOINED role requires:
+    an undeclared column of `120/80` is not that role, by design (plan
+    P4-D23), so its fixture cannot reach the battery without one.
+    """
     table_path = fixtures.write(folder, f"{stem}.csv", text)
     table = reading.read_table(str(table_path), first_row=first_row)
     document = profile.build_document(
-        table, SETTINGS, declared if declared else []
+        table,
+        SETTINGS,
+        declared if declared else [],
+        [],
+        measured if measured else [],
     )
     written = fixtures.write_profile(folder, f"{stem}-profile.json", document)
     return contract.load_profile(str(written))
@@ -378,6 +389,14 @@ def _quarter_table() -> str:
     )
 
 
+# Which fixtures carry a `--measurement` declaration, by name. Only the
+# joined role needs one, and it needs one absolutely: an undeclared
+# column of `120/80` is not that role (plan P4-D23), so without this
+# the fixture would join the battery wearing a different role and the
+# guard would be blind again in a new way.
+MEASURED_FIXTURES = {"joined": ["reading"]}
+
+
 @pytest.fixture(scope="module")
 def runs(
     tmp_path_factory: pytest.TempPathFactory,
@@ -401,6 +420,21 @@ def runs(
         (
             "unrepresentable",
             _unrepresentable_table(),
+            None,
+            reading.FIRST_ROW_AUTOMATIC,
+        ),
+        # THE ROLE THIS BATTERY COULD NOT REACH (residual R-P4-62). The
+        # every-role fixture has no joined column, so no perturbation
+        # of it could turn a joined check red -- true of the checks
+        # that shipped WITH the role, not only of the ladder and
+        # moments R-P4-58 added. It is a fixture of its own on the
+        # precedent `_unrepresentable_table` set directly above, and
+        # for a second reason besides: the role requires a
+        # `--measurement` declaration, so it cannot be a column of a
+        # shared table every site profiles without one.
+        (
+            "joined",
+            fixtures.joined_numbers_table(),
             None,
             reading.FIRST_ROW_AUTOMATIC,
         ),
@@ -450,7 +484,12 @@ def runs(
         ),
     ):
         described = _described(
-            folder, text, declared, stem=name, first_row=first_row
+            folder,
+            text,
+            declared,
+            stem=name,
+            first_row=first_row,
+            measured=MEASURED_FIXTURES.get(name),
         )
         twin = rendering.twin_csv(generation.generate(described, SEED))
         built = built + [(name, described, twin)]
@@ -499,14 +538,32 @@ def test_every_fact_the_validator_names_is_a_registry_fact(
         outcome = _measured(tmp_path, described, twin, f"{name}.csv")
         for check in outcome.checks:
             assert (
-                check.fact in known
+                _registry_key(check.fact) in known
                 or check.fact in validation.BYTE_RULE_FACTS
             ), f"{name}: {check.fact} is in no registry entry"
         for listing in outcome.listings:
             assert (
-                listing.fact in known
+                _registry_key(listing.fact) in known
                 or listing.fact in validation.BYTE_RULE_FACTS
             ), f"{name}: {listing.fact} is in no registry entry"
+
+
+def _registry_key(fact: str) -> str:
+    """A shipped fact name as the REGISTRY names it.
+
+    A joined column files one entry PER POSITION -- `part_above[0]`,
+    `parts[1].mean` -- because two positions under one identity would
+    be two obligations a reader cannot tell apart, which is the rule
+    residual R-P4-58's repair set. The registry names the FACT and not
+    the position, so the index is dropped here, and a per-position
+    entry evidences its container: `joined.parts[1].mean` is evidence
+    for `joined.parts`.
+    """
+    bare = re.sub(r"\[\d+\]", "", fact)
+    head, _dot, rest = bare.partition(".")
+    if head == "joined" and rest.startswith("parts."):
+        return "joined.parts"
+    return bare
 
 
 def test_every_registry_fact_is_bound_to_one_of_the_three_kinds(
@@ -530,8 +587,10 @@ def test_every_registry_fact_is_bound_to_one_of_the_three_kinds(
         outcome = _measured(tmp_path, described, twin, f"{name}.csv")
         for check in outcome.checks:
             checked.add(check.fact)
+            checked.add(_registry_key(check.fact))
         for listing in outcome.listings:
             listed.add(listing.fact)
+            listed.add(_registry_key(listing.fact))
     input_side = {
         f"{group}.{field}"
         for group, field in validation.INPUT_SIDE_ENTRIES
@@ -617,7 +676,7 @@ def test_the_kind_of_every_entry_follows_from_its_disposition(
         for check in outcome.checks:
             if check.fact in validation.BYTE_RULE_FACTS:
                 continue
-            fact = by_key[check.fact]
+            fact = by_key[_registry_key(check.fact)]
             assert fact.disposition != dispositions.REPORT_ONLY, (
                 f"{name}: {check.subcheck} carries a verdict for a "
                 f"REPORT-ONLY fact, which is a listing entry dressed as "
@@ -630,7 +689,7 @@ def test_the_kind_of_every_entry_follows_from_its_disposition(
         for listing in outcome.listings:
             if listing.fact in validation.BYTE_RULE_FACTS:
                 continue
-            fact = by_key[listing.fact]
+            fact = by_key[_registry_key(listing.fact)]
             assert fact.disposition != dispositions.LOADER_ONLY, (
                 f"{name}: {listing.fact} is listed as an unverified twin "
                 f"fact, which invents an obligation the matrix refuses "
@@ -2315,6 +2374,112 @@ class RedCase(typing.NamedTuple):
 # keep their place because a human chose each one against a finding, and
 # they are preferred over the derived row for the same site.
 NAMED_RED_CASES = (
+    # THE JOINED ROLE'S OWN BATTERY. Every case here was MEASURED
+    # rather than chosen: each perturbation was run against this
+    # fixture and the one that turns each site red is the one
+    # named, preferring an edit that leaves every column in place
+    # so the named check exists to report its own miss. Until
+    # residual R-P4-62 this role had no column in any fixture this
+    # battery walks, so no edit could turn one of its checks red.
+    RedCase("joined", 'not-utf8', '', 'document.columns', 'columns.order'),
+    RedCase("joined", 'byte-order-mark', '', 'document.encoding', 'bytes.byte-order-mark'),
+    RedCase("joined", 'not-utf8', '', 'document.encoding', 'bytes.utf8'),
+    RedCase("joined", 'carriage-returns', '', 'document.line-endings', 'bytes.line-endings'),
+    RedCase("joined", 'no-terminal-newline', '', 'document.line-endings', 'bytes.terminal-newline'),
+    RedCase("joined", 'added-column', '', 'document.n_columns', 'columns.n_columns'),
+    RedCase("joined", 'dropped-row', '', 'document.n_rows', 'rows.n_rows'),
+    RedCase("joined", 'not-utf8', '', 'document.source.header_source', 'header.presence'),
+    RedCase("joined", 'not-utf8', '', 'universal.name', 'header.names'),
+    RedCase("joined", 'dropped-row', 'clinic', 'label.count', 'levels.one.count'),
+    RedCase("joined", 'reshaped-clinic', 'clinic', 'label.label', 'levels.one.label'),
+    RedCase("joined", 'marked-clinic', 'clinic', 'label.levels', 'levels.set'),
+    RedCase("joined", 'marked-clinic', 'clinic', 'label.n_distinct', 'distinct.n_distinct'),
+    RedCase("joined", 'marked-clinic', 'clinic', 'label.n_distinct_folded', 'distinct.n_distinct_folded'),
+    RedCase("joined", 'one-worded-clinic', 'clinic', 'label.suppressed_level_counts', 'suppressed.counts'),
+    RedCase("joined", 'one-worded-clinic', 'clinic', 'label.suppressed_levels', 'suppressed.suppressed_levels'),
+    RedCase("joined", 'one-worded-clinic', 'clinic', 'label.suppressed_rows', 'suppressed.suppressed_rows'),
+    RedCase("joined", 'dropped-row', 'clinic', 'label.variants', 'levels.one.variants'),
+    RedCase("joined", 'reshaped-clinic', 'clinic', 'label.variants_withheld', 'levels.one.variants_withheld'),
+    RedCase("joined", 'one-contradicted-clinic', 'clinic', 'universal.n_contradictory', 'counts.n_contradictory'),
+    RedCase("joined", 'blanked-clinic', 'clinic', 'universal.n_missing', 'presence.n_missing'),
+    RedCase("joined", 'dropped-row', 'clinic', 'universal.n_not_numeric', 'counts.n_not_numeric'),
+    RedCase("joined", 'one-fractioned-clinic', 'clinic', 'universal.n_numeric', 'counts.n_numeric'),
+    RedCase("joined", 'one-overflowed-clinic', 'clinic', 'universal.n_out_of_range', 'counts.n_out_of_range'),
+    RedCase("joined", 'dropped-row', 'clinic', 'universal.n_present', 'presence.n_present'),
+    RedCase("joined", 'dropped-column', 'clinic', 'universal.position', 'position.at'),
+    RedCase("joined", 'emptied-clinic', 'clinic', 'universal.quality_state', 'axes.quality_state'),
+    RedCase("joined", 'emptied-clinic', 'clinic', 'universal.role', 'axes.role'),
+    RedCase("joined", 'emptied-clinic', 'clinic', 'universal.statistical_type', 'axes.statistical_type'),
+    RedCase("joined", 'blanked-cell', 'reading', 'joined.n_joined', 'counts.n_joined'),
+    RedCase("joined", 'marked-reading', 'reading', 'joined.n_parts', 'counts.n_parts'),
+    RedCase("joined", 'moved-cell', 'reading', 'joined.n_unparsed', 'counts.n_unparsed'),
+    RedCase("joined", 'blanked-cell', 'reading', 'joined.part_above[0]', 'together.rows one above the other, pair 1'),
+    RedCase("joined", 'marked-reading', 'reading', 'joined.part_agreements[0]', 'together.how strongly they move, pair 1'),
+    RedCase("joined", 'marked-reading', 'reading', 'joined.part_min_widths[0]', 'widths.number 1'),
+    RedCase("joined", 'marked-reading', 'reading', 'joined.part_min_widths[1]', 'widths.number 2'),
+    RedCase("joined", 'marked-reading', 'reading', 'joined.parts[0].integer_valued', 'type.number 1 is whole'),
+    RedCase("joined", 'marked-reading', 'reading', 'joined.parts[0].kurtosis', 'number 1 moments.kurtosis'),
+    RedCase("joined", 'marked-reading', 'reading', 'joined.parts[0].max', 'ends.number 1 max'),
+    RedCase("joined", 'marked-reading', 'reading', 'joined.parts[0].mean', 'number 1 moments.mean'),
+    RedCase("joined", 'marked-reading', 'reading', 'joined.parts[0].min', 'ends.number 1 min'),
+    RedCase("joined", 'blanked-cell', 'reading', 'joined.parts[0].numeric_styles', 'number 1 styles.at-least.plain'),
+    RedCase("joined", 'marked-reading', 'reading', 'joined.parts[0].numeric_styles', 'number 1 styles.canonical.decimal'),
+    RedCase("joined", 'marked-reading', 'reading', 'joined.parts[0].numeric_styles', 'number 1 styles.canonical.exponent_lower'),
+    RedCase("joined", 'marked-reading', 'reading', 'joined.parts[0].numeric_styles', 'number 1 styles.exact.exponent_upper'),
+    RedCase("joined", 'marked-reading', 'reading', 'joined.parts[0].numeric_styles', 'number 1 styles.exact.leading_plus'),
+    RedCase("joined", 'marked-reading', 'reading', 'joined.parts[0].numeric_styles', 'number 1 styles.exact.leading_zero'),
+    RedCase("joined", 'blanked-cell', 'reading', 'joined.parts[0].numeric_styles', 'number 1 styles.published.plain'),
+    RedCase("joined", 'blanked-cell', 'reading', 'joined.parts[0].numeric_styles', 'number 1 styles.remainder'),
+    RedCase("joined", 'marked-reading', 'reading', 'joined.parts[0].numeric_styles', 'number 1 styles.spelled'),
+    RedCase("joined", 'marked-reading', 'reading', 'joined.parts[0].numeric_styles', 'number 1 styles.spill'),
+    RedCase("joined", 'marked-reading', 'reading', 'joined.parts[0].percentiles', 'number 1 ladder.p01'),
+    RedCase("joined", 'marked-reading', 'reading', 'joined.parts[0].percentiles', 'number 1 ladder.p05'),
+    RedCase("joined", 'marked-reading', 'reading', 'joined.parts[0].percentiles', 'number 1 ladder.p10'),
+    RedCase("joined", 'marked-reading', 'reading', 'joined.parts[0].percentiles', 'number 1 ladder.p25'),
+    RedCase("joined", 'marked-reading', 'reading', 'joined.parts[0].percentiles', 'number 1 ladder.p50'),
+    RedCase("joined", 'marked-reading', 'reading', 'joined.parts[0].percentiles', 'number 1 ladder.p75'),
+    RedCase("joined", 'marked-reading', 'reading', 'joined.parts[0].percentiles', 'number 1 ladder.p90'),
+    RedCase("joined", 'marked-reading', 'reading', 'joined.parts[0].percentiles', 'number 1 ladder.p95'),
+    RedCase("joined", 'marked-reading', 'reading', 'joined.parts[0].percentiles', 'number 1 ladder.p99'),
+    RedCase("joined", 'marked-reading', 'reading', 'joined.parts[0].skew', 'number 1 moments.skew'),
+    RedCase("joined", 'marked-reading', 'reading', 'joined.parts[0].std', 'number 1 moments.std'),
+    RedCase("joined", 'marked-reading', 'reading', 'joined.parts[1].integer_valued', 'type.number 2 is whole'),
+    RedCase("joined", 'marked-reading', 'reading', 'joined.parts[1].kurtosis', 'number 2 moments.kurtosis'),
+    RedCase("joined", 'marked-reading', 'reading', 'joined.parts[1].max', 'ends.number 2 max'),
+    RedCase("joined", 'marked-reading', 'reading', 'joined.parts[1].mean', 'number 2 moments.mean'),
+    RedCase("joined", 'marked-reading', 'reading', 'joined.parts[1].min', 'ends.number 2 min'),
+    RedCase("joined", 'blanked-cell', 'reading', 'joined.parts[1].numeric_styles', 'number 2 styles.at-least.plain'),
+    RedCase("joined", 'marked-reading', 'reading', 'joined.parts[1].numeric_styles', 'number 2 styles.canonical.decimal'),
+    RedCase("joined", 'marked-reading', 'reading', 'joined.parts[1].numeric_styles', 'number 2 styles.canonical.exponent_lower'),
+    RedCase("joined", 'marked-reading', 'reading', 'joined.parts[1].numeric_styles', 'number 2 styles.exact.exponent_upper'),
+    RedCase("joined", 'marked-reading', 'reading', 'joined.parts[1].numeric_styles', 'number 2 styles.exact.leading_plus'),
+    RedCase("joined", 'marked-reading', 'reading', 'joined.parts[1].numeric_styles', 'number 2 styles.exact.leading_zero'),
+    RedCase("joined", 'blanked-cell', 'reading', 'joined.parts[1].numeric_styles', 'number 2 styles.published.plain'),
+    RedCase("joined", 'blanked-cell', 'reading', 'joined.parts[1].numeric_styles', 'number 2 styles.remainder'),
+    RedCase("joined", 'marked-reading', 'reading', 'joined.parts[1].numeric_styles', 'number 2 styles.spelled'),
+    RedCase("joined", 'marked-reading', 'reading', 'joined.parts[1].numeric_styles', 'number 2 styles.spill'),
+    RedCase("joined", 'marked-reading', 'reading', 'joined.parts[1].percentiles', 'number 2 ladder.p01'),
+    RedCase("joined", 'marked-reading', 'reading', 'joined.parts[1].percentiles', 'number 2 ladder.p05'),
+    RedCase("joined", 'marked-reading', 'reading', 'joined.parts[1].percentiles', 'number 2 ladder.p10'),
+    RedCase("joined", 'marked-reading', 'reading', 'joined.parts[1].percentiles', 'number 2 ladder.p25'),
+    RedCase("joined", 'marked-reading', 'reading', 'joined.parts[1].percentiles', 'number 2 ladder.p50'),
+    RedCase("joined", 'marked-reading', 'reading', 'joined.parts[1].percentiles', 'number 2 ladder.p75'),
+    RedCase("joined", 'marked-reading', 'reading', 'joined.parts[1].percentiles', 'number 2 ladder.p90'),
+    RedCase("joined", 'marked-reading', 'reading', 'joined.parts[1].percentiles', 'number 2 ladder.p95'),
+    RedCase("joined", 'marked-reading', 'reading', 'joined.parts[1].percentiles', 'number 2 ladder.p99'),
+    RedCase("joined", 'marked-reading', 'reading', 'joined.parts[1].skew', 'number 2 moments.skew'),
+    RedCase("joined", 'marked-reading', 'reading', 'joined.parts[1].std', 'number 2 moments.std'),
+    RedCase("joined", 'marked-reading', 'reading', 'joined.separator', 'shape.separator'),
+    RedCase("joined", 'one-contradicted-reading', 'reading', 'universal.n_contradictory', 'counts.n_contradictory'),
+    RedCase("joined", 'blanked-cell', 'reading', 'universal.n_missing', 'presence.n_missing'),
+    RedCase("joined", 'blanked-cell', 'reading', 'universal.n_not_numeric', 'counts.n_not_numeric'),
+    RedCase("joined", 'one-fractioned-reading', 'reading', 'universal.n_numeric', 'counts.n_numeric'),
+    RedCase("joined", 'one-overflowed-reading', 'reading', 'universal.n_out_of_range', 'counts.n_out_of_range'),
+    RedCase("joined", 'blanked-cell', 'reading', 'universal.n_present', 'presence.n_present'),
+    RedCase("joined", 'not-utf8', 'reading', 'universal.position', 'position.at'),
+    RedCase("joined", 'emptied-reading', 'reading', 'universal.quality_state', 'axes.quality_state'),
+    RedCase("joined", 'not-utf8', 'reading', 'universal.role', 'axes.role'),
+    RedCase("joined", 'not-utf8', 'reading', 'universal.statistical_type', 'axes.statistical_type'),
     RedCase(
         "every-role",
         "blanked-cell",
@@ -3884,6 +4049,11 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
 # fact name is the thing being checked.
 ROLE_FAMILIES = {
     "binary": "label",
+    # The joined role files under a group of its own, which it did not
+    # have until residual R-P4-62: its eight facts were disposed by
+    # nothing, and its distinctness was reported under the EMPTY
+    # role's identity because the validator's dispatch fell through.
+    "joined_numbers": "joined",
     "categorical": "label",
     "constant": "label",
     # It publishes the five shared label keys and no key of its own,
@@ -3930,6 +4100,8 @@ FIXTURE_ROLES: "dict[str, dict[str, str]]" = {
         "column_1": "count",
         "column_2": "categorical",
     },
+    # The role the battery could not reach until residual R-P4-62.
+    "joined": {"reading": "joined_numbers", "clinic": "constant"},
     "padded-codes": {"code": "count"},
     "shaped-text": {
         "lab_code": "free_text",
@@ -3973,6 +4145,81 @@ PREDICATE_FIXTURES = {
 # a column of each family. Keyed by (family, subcheck); the value is the
 # fact, `group.field`, exactly as the registry spells it.
 SUBCHECK_FACTS: "dict[tuple[str, str], str]" = {
+    # -- joined: the role no fixture reached until residual
+    # R-P4-62. Its positions each file under their own number, so
+    # two positions cannot hide behind one identity, and its
+    # companion column is what makes the quality axis reachable.
+    ("joined", 'axes.quality_state'): 'universal.quality_state',
+    ("joined", 'axes.role'): 'universal.role',
+    ("joined", 'axes.statistical_type'): 'universal.statistical_type',
+    ("joined", 'axes.structural_role'): 'universal.structural_role',
+    ("joined", 'counts.n_contradictory'): 'universal.n_contradictory',
+    ("joined", 'counts.n_joined'): 'joined.n_joined',
+    ("joined", 'counts.n_not_numeric'): 'universal.n_not_numeric',
+    ("joined", 'counts.n_numeric'): 'universal.n_numeric',
+    ("joined", 'counts.n_out_of_range'): 'universal.n_out_of_range',
+    ("joined", 'counts.n_parts'): 'joined.n_parts',
+    ("joined", 'counts.n_unparsed'): 'joined.n_unparsed',
+    ("joined", 'ends.number 1 max'): 'joined.parts[0].max',
+    ("joined", 'ends.number 1 min'): 'joined.parts[0].min',
+    ("joined", 'ends.number 2 max'): 'joined.parts[1].max',
+    ("joined", 'ends.number 2 min'): 'joined.parts[1].min',
+    ("joined", 'number 1 ladder.p01'): 'joined.parts[0].percentiles',
+    ("joined", 'number 1 ladder.p05'): 'joined.parts[0].percentiles',
+    ("joined", 'number 1 ladder.p10'): 'joined.parts[0].percentiles',
+    ("joined", 'number 1 ladder.p25'): 'joined.parts[0].percentiles',
+    ("joined", 'number 1 ladder.p50'): 'joined.parts[0].percentiles',
+    ("joined", 'number 1 ladder.p75'): 'joined.parts[0].percentiles',
+    ("joined", 'number 1 ladder.p90'): 'joined.parts[0].percentiles',
+    ("joined", 'number 1 ladder.p95'): 'joined.parts[0].percentiles',
+    ("joined", 'number 1 ladder.p99'): 'joined.parts[0].percentiles',
+    ("joined", 'number 1 moments.kurtosis'): 'joined.parts[0].kurtosis',
+    ("joined", 'number 1 moments.mean'): 'joined.parts[0].mean',
+    ("joined", 'number 1 moments.skew'): 'joined.parts[0].skew',
+    ("joined", 'number 1 moments.std'): 'joined.parts[0].std',
+    ("joined", 'number 1 styles.at-least.plain'): 'joined.parts[0].numeric_styles',
+    ("joined", 'number 1 styles.canonical.decimal'): 'joined.parts[0].numeric_styles',
+    ("joined", 'number 1 styles.canonical.exponent_lower'): 'joined.parts[0].numeric_styles',
+    ("joined", 'number 1 styles.exact.exponent_upper'): 'joined.parts[0].numeric_styles',
+    ("joined", 'number 1 styles.exact.leading_plus'): 'joined.parts[0].numeric_styles',
+    ("joined", 'number 1 styles.exact.leading_zero'): 'joined.parts[0].numeric_styles',
+    ("joined", 'number 1 styles.published.plain'): 'joined.parts[0].numeric_styles',
+    ("joined", 'number 1 styles.remainder'): 'joined.parts[0].numeric_styles',
+    ("joined", 'number 1 styles.spelled'): 'joined.parts[0].numeric_styles',
+    ("joined", 'number 1 styles.spill'): 'joined.parts[0].numeric_styles',
+    ("joined", 'number 2 ladder.p01'): 'joined.parts[1].percentiles',
+    ("joined", 'number 2 ladder.p05'): 'joined.parts[1].percentiles',
+    ("joined", 'number 2 ladder.p10'): 'joined.parts[1].percentiles',
+    ("joined", 'number 2 ladder.p25'): 'joined.parts[1].percentiles',
+    ("joined", 'number 2 ladder.p50'): 'joined.parts[1].percentiles',
+    ("joined", 'number 2 ladder.p75'): 'joined.parts[1].percentiles',
+    ("joined", 'number 2 ladder.p90'): 'joined.parts[1].percentiles',
+    ("joined", 'number 2 ladder.p95'): 'joined.parts[1].percentiles',
+    ("joined", 'number 2 ladder.p99'): 'joined.parts[1].percentiles',
+    ("joined", 'number 2 moments.kurtosis'): 'joined.parts[1].kurtosis',
+    ("joined", 'number 2 moments.mean'): 'joined.parts[1].mean',
+    ("joined", 'number 2 moments.skew'): 'joined.parts[1].skew',
+    ("joined", 'number 2 moments.std'): 'joined.parts[1].std',
+    ("joined", 'number 2 styles.at-least.plain'): 'joined.parts[1].numeric_styles',
+    ("joined", 'number 2 styles.canonical.decimal'): 'joined.parts[1].numeric_styles',
+    ("joined", 'number 2 styles.canonical.exponent_lower'): 'joined.parts[1].numeric_styles',
+    ("joined", 'number 2 styles.exact.exponent_upper'): 'joined.parts[1].numeric_styles',
+    ("joined", 'number 2 styles.exact.leading_plus'): 'joined.parts[1].numeric_styles',
+    ("joined", 'number 2 styles.exact.leading_zero'): 'joined.parts[1].numeric_styles',
+    ("joined", 'number 2 styles.published.plain'): 'joined.parts[1].numeric_styles',
+    ("joined", 'number 2 styles.remainder'): 'joined.parts[1].numeric_styles',
+    ("joined", 'number 2 styles.spelled'): 'joined.parts[1].numeric_styles',
+    ("joined", 'number 2 styles.spill'): 'joined.parts[1].numeric_styles',
+    ("joined", 'position.at'): 'universal.position',
+    ("joined", 'presence.n_missing'): 'universal.n_missing',
+    ("joined", 'presence.n_present'): 'universal.n_present',
+    ("joined", 'shape.separator'): 'joined.separator',
+    ("joined", 'together.how strongly they move, pair 1'): 'joined.part_agreements[0]',
+    ("joined", 'together.rows one above the other, pair 1'): 'joined.part_above[0]',
+    ("joined", 'type.number 1 is whole'): 'joined.parts[0].integer_valued',
+    ("joined", 'type.number 2 is whole'): 'joined.parts[1].integer_valued',
+    ("joined", 'widths.number 1'): 'joined.part_min_widths[0]',
+    ("joined", 'widths.number 2'): 'joined.part_min_widths[1]',
     # -- clock ------------------------------------------------------------
     ("clock", "axes.quality_state"): "universal.quality_state",
     ("clock", "axes.role"): "universal.role",
@@ -4358,6 +4605,38 @@ WHOLE_FACT_LISTINGS: "dict[str, tuple[str, ...]]" = {
     # The clock role lists the eight universal facts no CSV can
     # evidence, and nothing of its own: every one of its five keys is
     # checked.
+    # The joined role lists the universal eight, its own two
+    # distinctness counts (report-only, plan P4-D29), and every
+    # per-position fact no window can be drawn for -- which were
+    # listed NOWHERE until this landing (review item P4-A1-R2-F2).
+    # The joined role lists the universal eight, its own two
+    # distinctness counts (report-only, plan P4-D29), and the
+    # per-position facts no window can be drawn for -- which were
+    # listed NOWHERE until this landing, because
+    # `_quantitative_of` returns no block for this role so the
+    # census never reached its positions (review item
+    # P4-A1-R2-F2).
+    # The joined role lists the universal seven, its own two
+    # distinctness counts (REPORT-ONLY, plan P4-D29), and the
+    # per-position facts no window can be drawn for -- which were
+    # listed NOWHERE until this landing, because `_quantitative_of`
+    # returns no block for this role so the census never reached its
+    # positions (review item P4-A1-R2-F2).
+    "joined": (
+        "joined.n_distinct",
+        "joined.n_distinct_folded",
+        "joined.parts[0].n_distinct_values",
+        "joined.parts[0].percentiles_between",
+        "joined.parts[1].n_distinct_values",
+        "joined.parts[1].percentiles_between",
+        "universal.detection_evidence",
+        "universal.missing_by_class",
+        "universal.n_missing_blank",
+        "universal.n_missing_withheld",
+        "universal.n_sentinel_candidates_unpublished",
+        "universal.remarks",
+        "universal.sentinel_verdicts",
+    ),
     "clock": (
         "universal.detection_evidence",
         "universal.missing_by_class",
@@ -4668,7 +4947,8 @@ def test_every_fact_this_file_states_is_a_registry_fact() -> None:
         {
             f"{family}/{subcheck}: {fact}"
             for (family, subcheck), fact in SUBCHECK_FACTS.items()
-            if fact not in known and fact not in validation.BYTE_RULE_FACTS
+            if _registry_key(fact) not in known
+            and fact not in validation.BYTE_RULE_FACTS
         }
     )
     assert not unknown, (
@@ -5518,7 +5798,7 @@ def test_the_vacuity_floor_counts_classes_per_disposition(
     def disposition_of(fact: str) -> str:
         if fact in validation.BYTE_RULE_FACTS:
             return "BYTE-RULE"
-        return by_key[fact].disposition
+        return by_key[_registry_key(fact)].disposition
 
     carried: dict[str, int] = {}
     for name, described, twin in runs:

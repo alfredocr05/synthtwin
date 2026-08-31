@@ -2563,10 +2563,34 @@ Opened by this plan, each a limit accepted rather than work forgotten:
   present walk as the fallback. That is a change inside the free-text
   packing and is its own landing.
 
-- **R-P4-50** (found by adversarial review of the kurtosis, 2026-08-27,
-  and NOT caused by it). THE GENERATOR'S OWN MOMENT RECOUNT LOSES
-  FINITE MOMENTS ON EXTREME COLUMNS, so the report omits them in
-  silence. `_moments_of` squares each deviation before scaling it, so a
+- **R-P4-50 — CLOSED 2026-08-31 BY MEASUREMENT, and closed by another
+  landing rather than by one of its own** (found by adversarial review
+  of the kurtosis, 2026-08-27, and NOT caused by it). THE GENERATOR'S
+  OWN MOMENT RECOUNT LOSES FINITE MOMENTS ON EXTREME COLUMNS, so the
+  report omits them in silence.
+
+  **Re-measured before closing, because this register closes a
+  residual on a measurement and never on a reading.**
+  `generation._moments_of` is called directly on all three witnesses
+  and loses nothing:
+
+  | witness | std | skew | kurtosis |
+  |---|---|---|---|
+  | `[-1e300, -1e-300, 1e-300, 1e300]` | 8.164965809277261e+299 | 0.0 | 2.0 |
+  | four subnormals | 5e-324 | 0.0 | 1.64 |
+  | a spread of 8.5e307 | 6.94e+307 | -1.25e-308 | 2.0 |
+
+  The first two are this entry's own witnesses and the third is round
+  4's. Each value equals the one the producer publishes, and the
+  twin's report names all three on every one.
+
+  **What closed it was round 5 of the allotment landing**, which
+  replaced the recount's binary64 arithmetic with
+  `taxonomy.moments_of` -- the producer's own exact whole-number
+  computation, which forms neither the square nor the difference, so
+  no column shape is left for it to be wrong on. This entry predicted
+  a repair "scaling its deviations before it squares them"; what
+  landed is stronger, because it squares nothing. `_moments_of` squares each deviation before scaling it, so a
   column whose spread the format CAN hold still overflows on the way to
   it: on `[-1e300, -1e-300, 1e-300, 1e300]` the producer publishes
   `std = 8.16e299`, `skew = 0` and `kurtosis = 2.0` from exact integer
@@ -3444,7 +3468,61 @@ declaration for only one of them.
   on prose that says MORE rather than less. Its own landing, with the
   method work.
 
-- **R-P4-62 — OPEN (opened here, 2026-08-30, WIDENED 2026-08-30 and 2026-08-31).** EVERY
+- **R-P4-62 — CLOSED 2026-08-31, every guard now reaches the role** (opened here, 2026-08-30, WIDENED 2026-08-30 and 2026-08-31).
+
+  **Closed by measurement, and by six repairs rather than the three
+  this entry opened with.**
+
+  * **The disposition registry has a `joined` group**, written from
+    contract 9.4a: ten facts where there were none. `parts` is
+    STRUCTURAL on the precedent `length` and `words` set on
+    `free_text` -- the container carries no value obligation and each
+    position inside it takes 9.4's dispositions.
+  * **`ROLE_SECTIONS` names the role and the completeness walk reaches
+    it**, through a document of its own. The walk closed with
+    `reached == set(ROLE_SECTIONS)`, so it was satisfied by a fixture
+    that never built the role; it compares against the contract now.
+  * **The entry table's red battery has a joined fixture**, with
+    **ninety-nine registered red cases, every one MEASURED**: each
+    perturbation was run against the fixture and the one that turns
+    each site red is the one named.
+  * **`validation._group_of` has a `JoinedFacts` branch.** It had
+    none, so a joined column fell through to `return "empty"` and its
+    distinctness was reported as `empty.n_distinct` -- the identity of
+    a role that publishes both counts as 0 and exactly observable.
+    Found by measuring a blood-pressure column, not by any guard.
+  * **Contract 9.4a disposes the two counts it never disposed**,
+    REPORT-ONLY under plan P4-D29, with the measurement beside them.
+  * **A joined position's report-only facts are LISTED** (review item
+    P4-A1-R2-F2). `_quantitative_of` returns no block for this role,
+    so the census never reached its positions: per-position
+    `n_distinct_values` and `percentiles_between` were neither checked
+    nor listed. `_joined_listings` names them, each under its own
+    position. The dead `mine = _position_cells(...)` that residual
+    R-P4-58's drafting left at `validation.py:7438` went with it.
+
+  **THE FIXTURE IS ITS OWN, NOT A FOURTEENTH COLUMN of
+  `every_role_table`, and that is a change from what this entry
+  assumed.** Two measured reasons. The role REQUIRES a `--measurement`
+  declaration -- an undeclared `120/80` column is not this role, by
+  design (P4-D23) -- so all forty-nine of the shared table's call
+  sites would have to pass one, and any that missed it would give the
+  column another role in silence, which is this residual's own defect
+  in a new place. And the entry table already answers exactly this for
+  `numeric_unrepresentable` with a dedicated fixture in its own list.
+
+  **Its shape is measured, not chosen.** TWO positions, because a
+  three-position column cannot honour its (1,2) pair (R-P4-51) and
+  would build a known miss into a battery that requires none. ALL
+  DIFFERENT, because a repeating column overshoots its published count
+  badly. Bands that never overlap, so `part_above` is pinned at the
+  joined count. And a COMPANION COLUMN, because the battery's quality
+  axis moves only when a whole column is emptied and that edit is not
+  built for a one-column table -- without it, `axes.quality_state`
+  would be a site no edit could turn red, and this battery excuses
+  nothing.
+
+  The original entry, kept: EVERY
   COMPLETENESS GUARD THIS PROJECT HAS IS BLIND TO THE JOINED ROLE, and
   it is the role that carries a blood pressure. Three of them,
   measured:
@@ -7528,6 +7606,63 @@ inside a stated window of 0.02 rather than pinned.
 is worth nothing, so the suite builds a file holding every number the
 twin holds with only the PAIRING shuffled, and asserts it is caught. It
 is, on `part_agreements`. It passed everything before.
+
+## Decision P4-D29 — a joined column's distinctness is report-only (closes part of R-P4-62, 2026-08-31)
+
+**WHAT WAS MISSING, and it was missing in two places at once.** A
+joined column publishes `n_distinct` and `n_distinct_folded` like every
+other role, and NOTHING disposed them: contract 9.2 sets both "per role
+group, in 9.3 to 9.7", and 9.4a — the table this role got when the role
+itself was found undisposed — set neither. So the validator filed them
+under the group its own dispatch fell through to, which is `empty`, a
+role whose registry says both counts are 0 and exactly observable. A
+blood-pressure column's distinctness was reported as `empty.n_distinct`
+on a shipped surface.
+
+**THE DECISION: REPORT-ONLY, with the achieved count named**, which is
+the disposition `n_distinct_values` already carries (P4-D4.9) and for
+the same reason. The count of different CELLS is a CONSEQUENCE of the
+construction rather than a target: the pairing walk of P4-D23 moves the
+last position to meet `part_agreements` and `part_above`, and how many
+different pairs that leaves is not aimed at.
+
+**MEASURED BEFORE DECIDING, end to end through the real reader,
+producer, loader, generator and validator.** Two positions, bands that
+do not overlap, seed fixed unless stated:
+
+| rows | different cells published | twin holds | |
+|---|---|---|---|
+| 400 | 388 | 388 | reached |
+| 400 | 293 | 351 | overshoots |
+| 400 | 197 | 354 | overshoots |
+| 400 | 59 | 330 | overshoots |
+| 240 | 79 | 210 | overshoots |
+| 120 | 120 | 120 at seed 7, **119 at seeds 11 and 20260807** | seed-dependent |
+
+Two things settle it. **Every column whose cells repeat overshoots**,
+because each position is drawn to its own ladder and the pairing then
+makes more distinct pairs than a repeating source had — the opposite
+direction from R-P4-40, which records the undershoot of the same
+mechanism. And **even an all-different column is seed-dependent**, so
+an exact obligation would be met or missed according to which seed a
+battery happened to use, which is a guard whose green says nothing.
+
+**NOTHING IS HIDDEN BY NOT CHECKING IT, and that was measured too**
+rather than assumed. The generator's own report already prints, in
+words, before anybody runs `synthtwin validate`:
+
+    the description says: 120 different value(s)
+    the twin holds:       119 different value(s)
+
+So what report-only changes is that the quality report LISTS the fact
+instead of failing a file on it. The person is told either way. That is
+the ask-what-consumes-it rule applied before choosing a class, and it
+reversed the recommendation this decision started with.
+
+**IT MAY BE RAISED LATER.** Residual R-P4-40 names the description
+change that would make the count reachable — publish how many different
+values each position held and have the draw meet it — and a landing
+that builds it can raise this row to exact.
 
 ## Decision P4-D24 — the two shapes the joined role could not read (2026-08-26)
 

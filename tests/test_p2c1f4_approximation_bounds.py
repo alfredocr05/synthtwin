@@ -224,8 +224,15 @@ _QUALIFIER = re.compile(r"\(`[a-z_]+` only\)")
 
 
 def _unqualified(cell: str) -> str:
-    """The first cell of a row with any role qualifier removed."""
-    return _QUALIFIER.sub("", cell)
+    """The first cell of a row, as KEY NAMES.
+
+    Two things are stripped, and neither is part of a key. A role
+    named in a parenthetical qualifier -- "`level_ceiling`
+    (`categorical` only)" -- is a scope note. And a trailing `[]`
+    is ARRAY NOTATION: 9.4a writes `parts[]` for the key the
+    producer emits as `parts`, one block per position.
+    """
+    return _QUALIFIER.sub("", cell).replace("[]`", "`")
 
 
 def _sub_table(line: str, heading: str) -> "str | None":
@@ -317,6 +324,12 @@ APPROXIMATED = {
         # nothing else, so it owes what they owe, read from their
         # section (plan P4-D5).
         "long_tail_labels": LABEL_SECTION,
+        # The joined role's own table, whose one approximated fact is
+        # the rank agreement between a scored pair (contract 9.4a,
+        # plan P4-D25). Each position's own ladder and its moments are
+        # approximated too, but under the NUMERIC group's dispositions
+        # read per position, which is where they are checked.
+        "joined_numbers": "9.4a The joined role: `joined_numbers`",
         # READ, not stated. Version 6 gives this role its own table --
         # `clock_form`, both ladder ends, the interior rungs, the
         # unparsed count and the two distinctness counts -- so the
@@ -444,6 +457,12 @@ ROLE_SECTIONS = {
     # roles' keys, under the same invariants, and it publishes none of
     # its own (plan P4-D5). Version 6's heading names it outright.
     "long_tail_labels": LABEL_SECTION,
+    # The joined role reads its OWN table, 9.4a -- which the contract
+    # gained when the role was found to have none, and which this map
+    # did not name until residual R-P4-62's landing. Its positions each
+    # carry a numeric block and take 9.4's dispositions read over that
+    # position; the keys below are the role's own.
+    "joined_numbers": "9.4a The joined role: `joined_numbers`",
 }
 
 
@@ -1071,6 +1090,34 @@ def wide_numbers(
 
 
 @pytest.fixture(scope="module")
+def joined_numbers_document(
+    tmp_path_factory: pytest.TempPathFactory,
+) -> "dict[str, typing.Any]":
+    """A description holding the role NO completeness walk reached.
+
+    Residual R-P4-62: this walk enumerated thirteen roles and closed
+    with `reached == set(ROLE_SECTIONS)`, so it was satisfied by a
+    fixture that never built `joined_numbers` -- the role that carries
+    a blood pressure. The map and the fixtures agreed with each other
+    and neither was compared against the contract.
+
+    The role needs a DECLARATION: an undeclared `120/80` column is not
+    this role, by design (plan P4-D23), so it cannot simply be a
+    fourteenth column of the shared table -- any site profiling that
+    table without the declaration would give the column another role
+    and the guard would be blind again in a new way.
+    """
+    folder = tmp_path_factory.mktemp("f4-joined")
+    path = fixtures.write(
+        folder, "joined.csv", fixtures.joined_numbers_table()
+    )
+    table = reading.read_table(str(path))
+    return profile.build_document(
+        table, taxonomy.Settings(), [], [], ["reading"]
+    )
+
+
+@pytest.fixture(scope="module")
 def every_role_document(
     tmp_path_factory: pytest.TempPathFactory,
 ) -> "dict[str, typing.Any]":
@@ -1084,6 +1131,7 @@ def every_role_document(
 def test_every_key_the_producer_emits_has_a_disposition(
     every_role_document: "dict[str, typing.Any]",
     wide_numbers: "dict[str, typing.Any]",
+    joined_numbers_document: "dict[str, typing.Any]",
 ) -> None:
     """The completeness assertion the plan promised (P2-D12, contract 9).
 
@@ -1104,7 +1152,7 @@ def test_every_key_the_producer_emits_has_a_disposition(
                 names = names + [f"source.{inner}"]
     assert _undisposed(names, top, {}) == []
     reached: set[str] = set()
-    for document in (every_role_document, wide_numbers):
+    for document in (every_role_document, wide_numbers, joined_numbers_document):
         for block in document["columns"]:
             role = block["role"]
             reached.add(role)

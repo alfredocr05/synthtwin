@@ -856,8 +856,15 @@ _QUALIFIER = re.compile(r"\(`[a-z_]+` only\)")
 
 
 def _unqualified(cell: str) -> str:
-    """The first cell of a row with any role qualifier removed."""
-    return _QUALIFIER.sub("", cell)
+    """The first cell of a row, as KEY NAMES.
+
+    Two things are stripped, and neither is part of a key. A role
+    named in a parenthetical qualifier -- "`level_ceiling`
+    (`categorical` only)" -- is a scope note. And a trailing `[]`
+    is ARRAY NOTATION: 9.4a writes `parts[]` for the key the
+    producer emits as `parts`, one block per position.
+    """
+    return _QUALIFIER.sub("", cell).replace("[]`", "`")
 
 
 # A bold line that names ONE role and nothing else, which is how the
@@ -2221,7 +2228,11 @@ def test_the_scan_reaches_every_exact_fact_and_all_three_documents(
     # Eleven since the clock role joined: its four exactly observable
     # facts are a group of their own, disposed by the Phase 4 plan
     # rather than by the version 4 matrix, which predates the role.
-    assert len({fact.group for fact in exact}) == 11
+    # TWELVE since the JOINED role got a group at all (residual
+    # R-P4-62): seven of its facts are exactly observable, and until
+    # that landing this file registered none of them, so the role that
+    # carries a blood pressure was bound by nothing here.
+    assert len({fact.group for fact in exact}) == 12
     for _name, path in DOCUMENTS:
         assert len(_statements(path)) > 150, path.name
     # ...and every document is really opened by the scan, which a
