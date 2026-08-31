@@ -28,7 +28,7 @@ without the same help.
 | branch | `phase-4-allotment` (never merged; `main` is pull-request only) |
 | phase | **Phase 4 — comprehensive column handling.** Current. |
 | plan | `docs/plans/phase-4-columns.md` |
-| suite | 4,199 collected / 51 skipped |
+| suite | 4,200 collected / 51 skipped |
 | lint | **9 pre-existing errors** (`ruff check .`) under the rule set pinned in `pyproject.toml`, re-measured 2026-08-31 on this tree: 2 mid-file imports in `src/` (`generation.py`, `validation.py`) and 7 in `tools/measurements/`. It said 10 until the dead recount named below went with the joined role's landing and this line did not move with it. Re-measured again on the advisory-remark landing: still 9, none of them in the one file of `src/` that landing touches |
 
 ## What is being built right now
@@ -1083,6 +1083,43 @@ by subscript, and a remainder compared with zero. No test saw any of
 them -- the audit is the only surface that does, and it walks the
 TRACKED tree, so the guard that found them found them only after
 `git add`.
+
+**ROUND 5, THE LAST AUTHORISED ONE, FOUND THE NINTH SURFACE AND
+CORRECTED TWO OF THIS LANDING'S OWN DECISIONS.**
+
+* **The contract was stating something false, and a transparent
+  exclusion did not fix that.** When the joined role turned out not to
+  hold the all-different obligation, this landing excluded it from the
+  generator's test and cited R-P4-71 -- deliberately NOT letting the
+  contract grow a fourth exemption. But the GENERATION METHOD has said
+  "the four known instances" since the role landed, while contract 9.8
+  said three, so the two governing documents contradicted each other
+  and the exclusion made the gap visible without making the contract
+  true. 9.8 names the fourth instance now. The two counts stay
+  EXACT-OBSERVABLE, so a file that misses them is still reported and
+  the twin's report still names the shortfall -- which is the
+  difference between an obligation withdrawn and one the generator has
+  not yet learned to meet.
+
+* **The identity guard built in round 4 proved less than it claimed.**
+  It compared the narrow and wide runs AT RUNTIME, both from the same
+  implementation -- so a landing that dropped a check from both left
+  the subset assertion equal and the fresh digest blessing the
+  regression. The baseline is FROZEN AS DATA now: 407 checks and 126
+  listings by digest, and a byte digest for each of the thirteen
+  original twin columns. A frozen baseline cannot move with the code.
+  **That is the third time in this landing that comparing two things
+  which move together proved nothing.**
+
+* **The ninth surface.** The publication guard says it passes "every
+  shape the producer writes" and its helper could not pass a
+  measurement declaration, so it never built the role. A publication
+  rule that stopped admitting a joined path would have left it green
+  while `synthtwin profile --measurement` stopped before writing.
+
+**NINE SURFACES, against a residual that named three.** Each was found
+only after the one before it closed, and three of the nine were found
+by this landing's own reviews rather than by the residual.
 
 ## What the owner has decided, and must not be re-asked
 

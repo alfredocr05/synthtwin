@@ -3663,9 +3663,18 @@ declaration for only one of them.
 
   Contract 9.8 binds it on EVERY role: where a column publishes
   `n_distinct == n_present` its present values are all different, and
-  three places it cannot bind are named and tested. This role is a
-  fourth and was not known to be, because no fixture that reaches
-  method G11's check ever built it.
+  the places it cannot bind are named and tested. This role was not
+  among them and had to be, because no fixture that reaches method
+  G11's check ever built it.
+
+  **THE TWO GOVERNING DOCUMENTS DISAGREED, and the contract was the
+  stale one** (review item P4-A2-R5-F1). The generation method has
+  carried this as its FOURTH instance since the role landed; contract
+  9.8 said three. Excluding the role from a test made the exclusion
+  visible without making the contract true, so 9.8 names the fourth
+  instance now -- with the two counts still EXACT-OBSERVABLE, so a
+  file that misses them is still reported and the twin's own report
+  still names the shortfall.
 
   **Measured** on the every-role description the generator's own tests
   use, once the joined column was added to it (review item

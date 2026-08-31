@@ -97,76 +97,107 @@ GOLDEN_SEED = 20260811
 NORMALIZED_VERSION = "(version normalized for the golden test)"
 
 
-def test_widening_the_demonstration_lost_no_obligation() -> None:
-    """The golden's own table gained a column; nothing may have LEFT.
+# THE PRE-WIDEN RUN, FROZEN AS DATA. These are what the demonstration
+# carried BEFORE the joined column joined it, recorded once and never
+# recomputed. Comparing the narrow run against the wide one at runtime
+# proved only that appending a column does not perturb TODAY's
+# implementation: a landing that removed a check from both runs, or
+# changed an original column in both, left every subset assertion equal
+# and the fresh digest blessing the regression (review item
+# P4-A2-R5-F2). A frozen baseline cannot move with the code.
+NARROW_CHECK_COUNT = 407
+NARROW_CHECK_DIGEST = (
+    "092371c4fead2ac71a787d56f71b070d5e65b4ce8dfb2c0cda84883448bc2a63"
+)
+NARROW_LISTING_COUNT = 126
+NARROW_LISTING_DIGEST = (
+    "90feb6ab2bc50119ea0f59417c383a3d4474343b4e5a559aa9dbb07b45e1d09f"
+)
+NARROW_COLUMN_DIGESTS = {
+    "record_code": "f6d74ac3a099e5713338c9baff476924",
+    "region": "48583e2c694ee365c884cd8b99719dd1",
+    "visits": "fac456b2607b807ffa636be2068ed181",
+    "reading": "037fc52e83598de4e97f0346e624ea06",
+    "amount": "80f0de5f1bd829c54464ba0e53f17ca7",
+    "recorded_on": "275356366d05346ada86307a49d4467c",
+    "answer": "780ad3693f49d90a1fd2273eb91a6dc7",
+    "comment": "8ec45aed18839baa03592651323aa6f6",
+    "unused": "73be54e263565328cf0122ffc4c15570",
+    "batch": "3a209af377e49829fb4ef147725677ca",
+    "dose": "25d2ba15a194061e09be2bbf1d43912d",
+    "seen_at": "709ae313baf6da42b0b359c1bc43cc3f",
+    "note": "0b99ebde93cbd5fedc30a0d2b7fa9516",
+}
 
-    Review item P4-A2-R4-F6. When the joined column joined this
-    demonstration the four digests moved, and what justified re-recording
-    them was a COUNT: 407 checks became 479, 126 listings became 138.
-    A count is cardinality and not identity -- an obligation of the
-    original thirteen columns could have gone while a pressure one
-    arrived, the total would still have risen, the run would still show
-    no miss because an absent check files none, and the new digest
-    would have blessed the exchange.
 
-    That is the lesson this repository already wrote down for its
-    suite-size guard, under residual R-P4-65, and then repeated here.
-    So the comparison is by IDENTITY: every obligation the narrower
-    table carried is still carried, and every original column's twin
-    cells are byte-identical.
+def test_widening_the_demonstration_lost_no_obligation(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Every obligation the NARROW demonstration carried is still carried.
+
+    When the joined column joined this demonstration the four digests
+    moved, and what justified re-recording them was a COUNT: 407 checks
+    became 479. A count is cardinality and not identity -- an
+    obligation of the original thirteen columns could have gone while a
+    pressure one arrived, the total still rise, the run still show no
+    miss because an absent check files none, and the new digest bless
+    the exchange.
+
+    The first repair compared the narrow run against the wide one at
+    RUNTIME, and that proves less than it looks: both runs come from
+    the same implementation, so a landing that dropped a check from
+    both left the comparison equal (review item P4-A2-R5-F2). The
+    baseline above is FROZEN, so it cannot move with the code.
     """
-    import tempfile
+    described = _described_narrow(tmp_path)
+    twin = generation.generate(described, GOLDEN_SEED)
+    twin_path = fixtures.write(
+        tmp_path, "narrow-twin.csv", rendering.twin_csv(twin)
+    )
+    outcome = validation.measure(described, str(twin_path))
+    checks = sorted(
+        f"{c.column}|{c.fact}|{c.subcheck}" for c in outcome.checks
+    )
+    listings = sorted(
+        f"{entry.column}|{entry.fact}|{entry.subcheck}"
+        for entry in outcome.listings
+    )
+    assert len(checks) == NARROW_CHECK_COUNT, len(checks)
+    assert (
+        hashlib.sha256("\n".join(checks).encode("utf-8")).hexdigest()
+        == NARROW_CHECK_DIGEST
+    ), (
+        "the demonstration's own obligations changed. That is not a "
+        "widening -- the narrow table is untouched -- so a check was "
+        "added, removed or renamed. Read which before moving this."
+    )
+    assert len(listings) == NARROW_LISTING_COUNT, len(listings)
+    assert (
+        hashlib.sha256("\n".join(listings).encode("utf-8")).hexdigest()
+        == NARROW_LISTING_DIGEST
+    )
+    for name, digest in NARROW_COLUMN_DIGESTS.items():
+        cells = twin.columns[twin.names.index(name)]
+        found = hashlib.sha256(
+            "\n".join(cells).encode("utf-8")
+        ).hexdigest()[:32]
+        assert found == digest, (
+            f"the twin's {name!r} column changed against the frozen "
+            "baseline, so the demonstration's cells moved for a reason "
+            "that has nothing to do with the column added beside them"
+        )
 
-    def measured(text: str, declared: "list[str]") -> object:
-        folder = pathlib.Path(tempfile.mkdtemp())
-        path = fixtures.write(folder, "table.csv", text)
-        table = reading.read_table(str(path))
-        document = profile.build_document(
-            table,
-            taxonomy.Settings(small_cell_floor=11),
-            ["record_code"],
-            [],
-            declared,
-        )
-        document["created_with"] = NORMALIZED_VERSION
-        written = fixtures.write_profile(folder, "p.json", document)
-        loaded = contract.load_profile(str(written))
-        twin = generation.generate(loaded, GOLDEN_SEED)
-        twin_path = fixtures.write(
-            folder, "twin.csv", rendering.twin_csv(twin)
-        )
-        outcome = validation.measure(loaded, str(twin_path))
-        return (
-            {(c.column, c.fact, c.subcheck) for c in outcome.checks},
-            {
-                (entry.column, entry.fact, entry.subcheck)
-                for entry in outcome.listings
-            },
-            twin,
-        )
 
-    narrow_checks, narrow_listings, narrow_twin = measured(
-        fixtures.every_role_table(), []
+def _described_narrow(folder: pathlib.Path) -> contract.Profile:
+    """The demonstration as it stood BEFORE the joined column joined."""
+    path = fixtures.write(folder, "narrow.csv", fixtures.every_role_table())
+    table = reading.read_table(str(path))
+    document = profile.build_document(
+        table, taxonomy.Settings(small_cell_floor=11), ["record_code"]
     )
-    wide_checks, wide_listings, wide_twin = measured(
-        fixtures.every_role_and_joined_table(), [fixtures.JOINED_COLUMN]
-    )
-    assert not narrow_checks - wide_checks, (
-        "the widened demonstration no longer carries these checks: "
-        f"{sorted(narrow_checks - wide_checks)}"
-    )
-    assert not narrow_listings - wide_listings, (
-        "the widened demonstration no longer carries these listings: "
-        f"{sorted(narrow_listings - wide_listings)}"
-    )
-    for name in narrow_twin.names:
-        before = narrow_twin.columns[narrow_twin.names.index(name)]
-        after = wide_twin.columns[wide_twin.names.index(name)]
-        assert list(before) == list(after), (
-            f"the twin's {name!r} column changed when a column was added "
-            "beside it, so the draw order moved and every digest below "
-            "describes a different run than it says"
-        )
+    document["created_with"] = NORMALIZED_VERSION
+    written = fixtures.write_profile(folder, "narrow-profile.json", document)
+    return contract.load_profile(str(written))
 
 
 @pytest.fixture(scope="module")

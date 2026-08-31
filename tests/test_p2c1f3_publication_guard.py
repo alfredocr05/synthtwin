@@ -49,12 +49,17 @@ WITHHELD_LABEL = "outlying"
 
 
 def _document(
-    tmp_path: pathlib.Path, text: str = "", forced: "list[str] | None" = None
+    tmp_path: pathlib.Path,
+    text: str = "",
+    forced: "list[str] | None" = None,
+    measured: "list[str] | None" = None,
 ) -> dict:
     table = reading.read_table(
         str(fixtures.write(tmp_path, "t.csv", text or fixtures.every_role_table()))
     )
-    return profile.build_document(table, SETTINGS, forced or [])
+    return profile.build_document(
+        table, SETTINGS, forced or [], [], measured or []
+    )
 
 
 def _note_places(document: dict) -> list[dict]:
@@ -91,6 +96,34 @@ def test_the_guard_passes_on_every_shape_the_producer_writes(
     # And again with a declared record-number column, which publishes
     # nothing and takes a different note.
     profile.check_publication(_document(tmp_path, text, ["a"]))
+
+
+def test_the_guard_passes_on_a_column_of_two_numbers_in_one_cell(
+    tmp_path: pathlib.Path,
+) -> None:
+    """THE SHAPE THIS BATTERY COULD NOT WRITE (review item P4-A2-R5-F3).
+
+    The test above says it passes on every shape the producer writes,
+    and its helper could not pass a measurement declaration -- so it
+    never built a `JoinedFacts` block at all. A publication rule that
+    stopped admitting a joined path would leave this guard green while
+    `synthtwin profile --measurement pressure` stopped before writing
+    anything, which is the one thing this guard exists to prevent.
+
+    The role needs the declaration: an undeclared column of two numbers
+    in one cell is not this role, by design (plan P4-D23).
+    """
+    # The single-column fixture names its column `reading`;
+    # `JOINED_COLUMN` is the name the COMBINED table gives it, and
+    # declaring a name the table does not hold is a different refusal.
+    document = _document(
+        tmp_path,
+        fixtures.joined_numbers_table(),
+        measured=["reading"],
+    )
+    roles = {column["role"] for column in document["columns"]}
+    assert "joined_numbers" in roles, sorted(roles)
+    profile.check_publication(document)
 
 
 def test_the_guard_passes_where_a_block_withholds_its_own_candidate(
