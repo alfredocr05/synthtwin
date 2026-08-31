@@ -3492,7 +3492,12 @@ declaration for only one of them.
     a role that publishes both counts as 0 and exactly observable.
     Found by measuring a blood-pressure column, not by any guard.
   * **Contract 9.4a disposes the two counts it never disposed**,
-    REPORT-ONLY under plan P4-D29, with the measurement beside them.
+    EXACT-OBSERVABLE under plan P4-D29. That decision was made
+    REPORT-ONLY first and reversed by adversarial round P4-A2-R1,
+    which built the counter-example: a file keeping each position's
+    multiset and re-pairing the numbers holds twice the different
+    cells and, with the counts unchecked, PASSES with no miss at all.
+    Measured both ways -- 0 misses before, 2 after.
   * **A joined position's report-only facts are LISTED** (review item
     P4-A1-R2-F2). `_quantitative_of` returns no block for this role,
     so the census never reached its positions: per-position
@@ -7607,28 +7612,57 @@ is worth nothing, so the suite builds a file holding every number the
 twin holds with only the PAIRING shuffled, and asserts it is caught. It
 is, on `part_agreements`. It passed everything before.
 
-## Decision P4-D29 — a joined column's distinctness is report-only (closes part of R-P4-62, 2026-08-31)
+## Decision P4-D29 — a joined column's distinctness is EXACT (closes part of R-P4-62, 2026-08-31)
 
 **WHAT WAS MISSING, and it was missing in two places at once.** A
 joined column publishes `n_distinct` and `n_distinct_folded` like every
 other role, and NOTHING disposed them: contract 9.2 sets both "per role
-group, in 9.3 to 9.7", and 9.4a — the table this role got when the role
-itself was found undisposed — set neither. So the validator filed them
-under the group its own dispatch fell through to, which is `empty`, a
-role whose registry says both counts are 0 and exactly observable. A
-blood-pressure column's distinctness was reported as `empty.n_distinct`
-on a shipped surface.
+group, in 9.3 to 9.7", and 9.4a set neither. So the validator filed
+them under the group its own dispatch fell through to, which is
+`empty` — a role whose registry says both counts are 0 and exactly
+observable. A blood-pressure column's distinctness was reported as
+`empty.n_distinct` on a shipped surface.
 
-**THE DECISION: REPORT-ONLY, with the achieved count named**, which is
-the disposition `n_distinct_values` already carries (P4-D4.9) and for
-the same reason. The count of different CELLS is a CONSEQUENCE of the
-construction rather than a target: the pairing walk of P4-D23 moves the
-last position to meet `part_agreements` and `part_above`, and how many
-different pairs that leaves is not aimed at.
+**THE DECISION: EXACT-OBSERVABLE — AND IT REVERSES THIS DECISION'S OWN
+FIRST ANSWER, which was REPORT-ONLY.** The reversal is the useful part
+of this entry, so it is written down rather than tidied away.
 
-**MEASURED BEFORE DECIDING, end to end through the real reader,
-producer, loader, generator and validator.** Two positions, bands that
-do not overlap, seed fixed unless stated:
+**The argument for report-only, and why it was wrong.** The generator
+does not always reach the count: a column whose cells REPEAT overshoots
+badly (80 published against 210 held, 293 against 351), and even an
+all-different column reaches it at one seed and misses by one at
+another. From that it seemed to follow that no file should be held to
+it, and that nothing was hidden by listing it, because the generator's
+own report already prints "the description says: 120 different value(s)
+/ the twin holds: 119".
+
+**Adversarial round P4-A2-R1 refuted both halves, and the
+counter-example was built and run.** `synthtwin validate` measures ANY
+file a person names — not the twin this run happened to make. Take a
+240-row source of 120 `100/60` and 120 `101/61`: it publishes two
+different cells. Now hand it a file that keeps each position's multiset
+exactly and re-pairs the numbers — 119 `100/60`, one `100/61`, 119
+`101/61`, one `101/60`. Every position's endpoints, moments, widths and
+styles are identical, the separator and part count are identical, the
+above-count is identical, the rank agreement moves inside G12.9's
+window — and the file holds FOUR different cells against a published
+two. **Measured: with the counts report-only that file passes with 74
+HELD, one WITHIN-BOUND and NOT ONE MISS.** So report-only does not
+merely decline to hold a file to a fact; it removes the only
+verdict-bearing check that fact has. The generation report cannot stand
+in for it, because that report passes no verdict at all and this
+repository's charter says so in as many words.
+
+**And the seed-dependence is a fact about the GENERATOR, not about
+observability.** That a twin sometimes misses an obligation is what
+residual R-P4-40 records and prices; it is not a reason to stop
+checking files. Measured on the battery's own fixture at the battery's
+own seed, the twin holds all 120 different cells and misses nothing.
+
+**THE GENERATOR'S OWN LIMIT, measured end to end and kept here
+because it is evidence R-P4-40 needs even though it did not decide
+this class.** Two positions, bands that do not overlap, seed fixed
+unless stated:
 
 | rows | different cells published | twin holds | |
 |---|---|---|---|
@@ -7637,32 +7671,18 @@ do not overlap, seed fixed unless stated:
 | 400 | 197 | 354 | overshoots |
 | 400 | 59 | 330 | overshoots |
 | 240 | 79 | 210 | overshoots |
-| 120 | 120 | 120 at seed 7, **119 at seeds 11 and 20260807** | seed-dependent |
+| 120 | 120 | 120 at seeds 7 and 20260813, 119 at seeds 11 and 20260807 | seed-dependent |
 
-Two things settle it. **Every column whose cells repeat overshoots**,
-because each position is drawn to its own ladder and the pairing then
-makes more distinct pairs than a repeating source had — the opposite
-direction from R-P4-40, which records the undershoot of the same
-mechanism. And **even an all-different column is seed-dependent**, so
-an exact obligation would be met or missed according to which seed a
-battery happened to use, which is a guard whose green says nothing.
+Every column whose cells repeat overshoots, because each position is
+drawn to its own ladder and the pairing then makes more distinct pairs
+than a repeating source had — the opposite direction from R-P4-40,
+which records the undershoot of the same mechanism and not this.
 
-**NOTHING IS HIDDEN BY NOT CHECKING IT, and that was measured too**
-rather than assumed. The generator's own report already prints, in
-words, before anybody runs `synthtwin validate`:
-
-    the description says: 120 different value(s)
-    the twin holds:       119 different value(s)
-
-So what report-only changes is that the quality report LISTS the fact
-instead of failing a file on it. The person is told either way. That is
-the ask-what-consumes-it rule applied before choosing a class, and it
-reversed the recommendation this decision started with.
-
-**IT MAY BE RAISED LATER.** Residual R-P4-40 names the description
-change that would make the count reachable — publish how many different
-values each position held and have the draw meet it — and a landing
-that builds it can raise this row to exact.
+**What is owed, and it is owed by R-P4-40 rather than by this
+decision:** the per-position distinct counts that would let the draw
+meet the cell count on a repeating column. Until that lands, a twin of
+a repeating joined column reports a miss of its own — honestly, and in
+both pages.
 
 ## Decision P4-D24 — the two shapes the joined role could not read (2026-08-26)
 

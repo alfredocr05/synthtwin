@@ -485,6 +485,11 @@ INPUT_SIDE_ENTRIES = (
     ("label", "level_ceiling"),
     ("free_text", "length"),
     ("free_text", "words"),
+    # The joined role's own container, on the same terms as the two
+    # above: the key carries no VALUE obligation of its own and each
+    # position inside it takes 9.4's dispositions, which are checked
+    # per position under their own numeric names.
+    ("joined", "parts"),
 )
 
 # -- what a listing entry says, in one fixed sentence each ------------
@@ -6420,18 +6425,6 @@ def _distinctness_checks(
                 )
             ]
             continue
-        if isinstance(facts, contract.JoinedFacts):
-            # REPORT-ONLY (plan P4-D29, contract 9.4a). The count of
-            # different CELLS is a consequence of the pairing rather
-            # than a target: the walk moves the last position to meet
-            # the agreement and the above-count, and how many different
-            # pairs that leaves is not aimed at. Measured, a repeating
-            # column overshoots badly and an all-different one is
-            # seed-dependent, so an exact obligation would be met or
-            # missed by the seed. `_joined_distinct_listings` names
-            # both in the census, and the generator's own report prints
-            # the achieved count beside the published one.
-            continue
         corner = _distinct_corner(facts, mine, field)
         if corner == CORNER_IDENTIFIER_INFEASIBLE:
             # REPORT-ONLY in this corner, so it is a listing entry and
@@ -11451,17 +11444,7 @@ def _joined_listings(
     own number, exactly as its checks are, so two positions cannot
     hide behind one identity.
     """
-    listings = [
-        Listing(
-            column.name,
-            f"joined.{field}",
-            "",
-            "the count of different cells is a consequence of the "
-            "pairing rather than a target, so the twin is not held to "
-            "it; the report names the count it reached",
-        )
-        for field in (_RAW_DISTINCT, _FOLDED_DISTINCT)
-    ]
+    listings: "list[Listing]" = []
     for place, numbers in enumerate(facts.parts):
         for entry in _numeric_listings(column, numbers):
             fact = entry.fact
