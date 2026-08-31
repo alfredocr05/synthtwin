@@ -2064,6 +2064,57 @@ The standing machinery, extended — nothing bespoke:
 - The quality report's pass still means one thing — no checkable
   obligation was missed — and its scope statements do not widen here.
 
+## Amendment A-P4-47 — the per-level form census is RULED IN (owner ruling 2026-08-31)
+
+**THE OWNER'S WORDS.** "We need to reproduce this kind of categories!
+If i raise that a rare category is there, i'm saying nothing about that
+rare category besides attesting it's presence (which is fine).
+Sometimes we develop codes over the assumption made on category
+columns, so category columns are important for statistical analysis and
+we don't need to be worried about the fact of bring on rare value up
+... it's just a rare category that is there present and that maybe will
+affect the analysis."
+
+**THE QUESTION THEY WERE ASKED.** R-P4-34's closure needs the form
+census published PER LEVEL. The landing that measured it stopped and
+put a disclosure question to the owner rather than deciding: a
+per-level census is one number per level, and subtracting the published
+spellings' own form cells leaves which held-back group was written a
+particular way -- a spelling property attached to an identified
+below-floor group, where section 12 records the held-back facts as
+publishing the sizes and counts of UNNAMED groups. The assistant
+recommended NOT building it.
+
+**THE RULING OVERRIDES THAT RECOMMENDATION, and the reasoning is
+recorded because it generalises.** The owner's ground is that a code's
+SHAPE identifies nobody: it says a rare category is present and says
+nothing else about whoever holds it -- no name, no record number, no
+other value, no link to another column. Against that they weigh what
+category columns are FOR: analysis code is written against the
+assumption that a column's codes have a shape, and a twin whose
+invented codes wear the wrong shape breaks that code silently.
+
+This is consistent with A-P4-36 and with the ruling of 2026-08-24: the
+owner has now answered the same family of question three times the same
+way, and the standing position is that a rare value REACHING the twin
+matters more than the disclosure of its presence.
+
+**WHAT THIS DOES NOT LICENSE.** Presence and shape, not content. No
+rule here publishes the spelling of a held-back value, and the
+small-cell floor keeps governing which values are NAMED. A landing that
+found itself naming a held-back value would be outside this ruling and
+needs its own.
+
+**AND THE DESIGN QUESTION IS SEPARATE AND STILL OPEN (R-P4-80).** The
+brief that landing was given said the column census would be "kept as
+their sum", and that is false: the frozen reference vector
+`label_variants` publishes a form no published level's label wears, and
+recounting its own frozen cells disagrees with its published count. So
+the per-level censuses are FACTS OF THEIR OWN beside the column census,
+not a decomposition of it, and no sum invariant may be written. That is
+an engineering question, not an owner question, and it is settled in
+the landing rather than here.
+
 ## P4-D13. Residuals
 
 Opened by this plan, each a limit accepted rather than work forgotten:
