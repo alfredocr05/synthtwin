@@ -167,6 +167,9 @@ import numpy.random
 # `frexp` and `ldexp` are allowed and say the same thing.
 # The smallest positive number this format holds, which is also the gap
 # between any two neighbouring subnormals.
+# The ten figures a published width is written with.
+_DIGITS = "0123456789"
+
 _SMALLEST = math.ldexp(1.0, -1074)
 
 
@@ -6372,6 +6375,10 @@ def _numeric_content(
     values, endpoint_notes = _stratum_values(column, facts, layout, rungs, words)
     notes = notes + endpoint_notes
     values = _whole_enough(column, facts, layout, rungs, values)
+    # AND TWO STRATA ARE NOT WRITTEN AS ONE CELL (residual R-P4-56).
+    # After the carrier walk, because that walk moves values onto whole
+    # numbers and could itself land two strata on one text.
+    values = _apart_enough(column, facts, layout, rungs, values)
     cells, style_notes = _number_cells(column, facts, layout, values)
     notes = notes + style_notes
     used: dict[str, int] = {cell: 1 for cell in cells}
@@ -6660,6 +6667,256 @@ def _held_later(
         if share[0] <= candidate <= share[1]:
             return True
     return False
+
+
+def _pinned_fraction(
+    column: contract.ColumnBlock, facts: contract.NumericFacts
+) -> int:
+    """The one width every numeric cell is written at, or -1 (R-P4-56).
+
+    `fraction_widths` is a census: how many cells carry each count of
+    figures after the point. Where it names ONE width and that width
+    covers every numeric cell, the column is written on a fixed grid --
+    tenths, hundredths -- and two values a tenth apart are two different
+    cells while two values a hundredth apart are one. That is the case
+    a fixed-shape code column is, and the only case this rule acts on.
+
+    Where the census names several widths, which cell gets which is
+    settled later by `_width_places`, after the styles; a value cannot
+    know here what grid it will be written on, and -1 says so.
+    """
+    census = facts.fraction_widths
+    if len(census) != 1:
+        return -1
+    for figures in census:
+        # THE POOLED KEY IS NOT A WIDTH (review item P4-R56-R1-F2). A
+        # census whose every width is used by fewer cells than the
+        # publication floor names none of them: it publishes one
+        # withheld total instead, under this package's own word. Reading
+        # that word as a number raised `ValueError` out of
+        # `synthtwin generate` on a column of 110 decimal cells spread
+        # over eleven widths -- a crash, on a description the loader
+        # accepts.
+        # Asked without a method call, because the offline audit cannot
+        # trace a census key to an allowlisted API and refuses one --
+        # rightly: a caller-supplied object may define a method of any
+        # name to do anything.
+        if not figures:
+            return -1
+        for letter in figures:
+            if letter not in _DIGITS:
+                return -1
+        if census[figures] != column.n_numeric:
+            return -1
+        return int(figures)
+    return -1
+
+
+def _grid_text(value: float, figures: int) -> str:
+    """One value as the writer will write it at ``figures`` (R-P4-56).
+
+    THE WRITER'S OWN FUNCTION AND NOT A SECOND ONE. `_styled_number`
+    settles a `decimal` cell at a published width through `_at_width`,
+    so this asks `_at_width`. A rule that predicts what another function
+    will write, by writing it a second way, is the shape five review
+    rounds of this landing kept finding.
+    """
+    parts = _digits_and_point(value)
+    return _at_width(parts[0], parts[1], parts[2], figures)
+
+
+def _apart_inside(
+    value: float,
+    figures: int,
+    band: str,
+    share: "tuple[float, float] | None",
+    ends: "tuple[float, float] | None",
+    written: "dict[str, int]",
+) -> "float | None":
+    """The nearest free point of the grid inside this stratum's share.
+
+    THE ANALOGUE OF `_whole_inside`, ONE PLACE FURTHER DOWN. That walk
+    moves a stratum onto a whole number inside its own share so a
+    published point-free count can be written; this one moves a stratum
+    onto a free point of the PUBLISHED WIDTH'S OWN GRID so that two
+    strata holding different numbers are not written as one cell.
+
+    Walked outward from the value a grid step at a time, the LOWER of
+    two equally distant candidates first, so two implementations reading
+    this text choose the same point. A candidate is refused where its
+    text is already written, where it leaves the stratum's own share of
+    the ladder, where it leaves the published ends, or where it would
+    cross into another sign band -- the counts of negative, zero and
+    positive cells are published facts and no repair may move one.
+
+    None where the share holds no free point at all, which leaves the
+    twin exactly as it was.
+    """
+    unit = math.ldexp(1.0, 0)
+    for _step in range(figures):
+        unit = unit / 10.0
+    if unit <= 0.0 or not math.isfinite(unit):
+        return None
+    # THE ANCHOR IS WHAT THE WRITER WILL WRITE, and not a second
+    # rounding of the same value (review item P4-R56-R1-F4). This
+    # rounded with `_whole_valued`, which takes a tie upward, while the
+    # writer's `_at_width` takes a tie the way the format does; on 1.25
+    # at one figure the two part company, the walk anchored on 1.3 and
+    # stepped to 1.2 and 1.4, and 1.3 -- the free point the rule asks
+    # for -- was never tried. Reading the anchor back off the writer's
+    # own text cannot disagree with the writer.
+    nearest = value
+    anchor = _grid_text(value, figures)
+    try:
+        nearest = float(anchor)
+    except ValueError:
+        return None
+    reach = 1
+    while reach <= _GRID_REACH:
+        for step in (-reach, reach):
+            candidate = nearest + step * unit
+            if not math.isfinite(candidate):
+                continue
+            if _grid_text(candidate, figures) in written:
+                continue
+            if band == _BAND_NEGATIVE and candidate >= 0.0:
+                continue
+            if band == _BAND_POSITIVE and candidate <= 0.0:
+                continue
+            if band == _BAND_ZERO:
+                return None
+            if share is not None:
+                low = min(share[0], share[1])
+                high = max(share[0], share[1])
+                if candidate < low or candidate > high:
+                    continue
+            if ends is not None:
+                if candidate < ends[0] or candidate > ends[1]:
+                    continue
+            return candidate
+        reach = reach + 1
+    return None
+
+
+# HOW FAR THE GRID WALK LOOKS. A stratum's share of the ladder is the
+# room it has, and a share wider than this many grid steps has a free
+# point within the first few of them or holds none at all -- every
+# point in between is another stratum's, and there are not more strata
+# than cells. The bound is stated rather than left to the share so the
+# walk cannot run long on a column whose published width is very fine.
+_GRID_REACH = 64
+
+
+def _apart_enough(
+    column: contract.ColumnBlock,
+    facts: contract.NumericFacts,
+    layout: "_NumericLayout",
+    rungs: "tuple[float, ...] | None",
+    values: "list[float]",
+) -> "list[float]":
+    """Two strata are two cells, so they are written two ways (R-P4-56).
+
+    THE COUNT OF DIFFERENT NUMBERS IS A PUBLISHED FACT AND THE WIDTH IS
+    A VISIBLE ONE, and before this rule a column could lose both at
+    once. On a fixed-shape code column -- 240 cells of `NNN.N`, 99
+    different values -- the ladder hands back 99 different numbers and
+    two of them, 252.96704532913995 and 253.02741326459255, are six
+    hundredths apart where the real values near there are more than a
+    unit apart. Written at the published one figure they are both
+    `253.0`, so the twin holds 98 numbers against a published 99. The
+    leading-zero rule of G6.5 then supplies the 99th SPELLING the only
+    way it can, by writing one number a second way: `0250.4`, four
+    figures before the point where no source cell had more than three.
+    The count of different values was still missed, and the width was
+    broken to miss it.
+
+    So a stratum whose text another stratum has already written is
+    moved to the nearest free point of the grid the published width
+    fixes, inside its own share of the ladder. Nothing published is
+    traded for it: the two pinned ends and the zero stratum never move,
+    a candidate that would change a sign count is refused, and a
+    candidate outside the stratum's own share is refused, so the rung
+    windows of G12.2 are as good as they were.
+
+    ONLY WHERE ONE WIDTH COVERS THE WHOLE COLUMN. Where the census
+    names several, which cell is written at which is settled after the
+    styles are, and a value cannot know here what grid it will land on
+    (`_pinned_fraction` says so with -1). Those columns keep the
+    behaviour above and R-P4-56 stays open for them.
+    """
+    figures = _pinned_fraction(column, facts)
+    if figures < 1:
+        return values
+    total = len(values)
+    if total < 2:
+        return values
+    moved = [value for value in values]
+    # EVERY TEXT THE WHOLE COLUMN WOULD WRITE, COUNTED BEFORE ANYTHING
+    # MOVES (review item P4-R56-R2-F2). This counted only the texts the
+    # walk had reached so far -- the two ends, the zero stratum, and
+    # whatever prefix it had already passed -- and compared THAT against
+    # the published count of different numbers. A column whose later
+    # strata hold values the prefix had not reached yet was separated
+    # past its own ceiling: four spellings of three numbers came out as
+    # four numbers, and the twin reported `n_distinct_values` 4 against
+    # a published 3, a miss made by the repair for another.
+    #
+    # Counting every stratum's text up front is what makes `count` the
+    # column's own number rather than the walk's progress, and it
+    # removes the reservation loop with it: a text held by more than one
+    # stratum is the collision, and the two pinned ends and the zero
+    # stratum are simply never the ones that move.
+    texts = [_grid_text(value, figures) for value in moved]
+    held: dict[str, int] = {}
+    for text in texts:
+        seen = 0
+        if text in held:
+            seen = held[text]
+        held[text] = seen + 1
+    count = len(held)
+    wanted = facts.n_distinct_values
+    for place in range(total):
+        if wanted is not None and count >= wanted:
+            break
+        text = texts[place]
+        if held[text] <= 1:
+            continue
+        if place == 0 or (place == total - 1 and total >= 2):
+            continue
+        if layout.bands[place] == _BAND_ZERO:
+            continue
+        share = None
+        ends = None
+        if rungs is not None:
+            share = (
+                _interpolated(rungs, layout.starts[place], column.n_numeric),
+                _interpolated(
+                    rungs,
+                    layout.starts[place] + layout.sizes[place],
+                    column.n_numeric,
+                ),
+            )
+            ends = (rungs[0], rungs[-1])
+        want = _apart_inside(
+            moved[place],
+            figures,
+            layout.bands[place],
+            share,
+            ends,
+            held,
+        )
+        if want is None:
+            continue
+        fresh = _grid_text(want, figures)
+        held[text] = held[text] - 1
+        before = 0
+        if fresh in held:
+            before = held[fresh]
+        held[fresh] = before + 1
+        texts[place] = fresh
+        moved[place] = want
+        count = count + 1
+    return moved
 
 
 def _whole_enough(
@@ -15691,7 +15948,19 @@ def _tails_window(
     finite on both sides even where the spread's own lower end reaches
     zero, which is what the contract asks an approximated fact for.
     """
+    # BOTH LIMITS ARE WIDENED ONCE, HERE, AND NOWHERE ELSE (review
+    # items P4-G6-R6-F1 and P4-G6-R8). The tail weight of any sample
+    # lies between 1 and `held - 2 + 1 / (held - 1)`, and each of
+    # those two is a limit a statistic can sit exactly ON, so each is
+    # moved one place outward before anything is compared against it.
+    # Widening them HERE is what lets every path below -- the two
+    # fallbacks and the clamped pair alike -- use the same two
+    # numbers: this function used to return a bare `1.0` from its
+    # fallbacks and a widened one from its main path, so the low end
+    # of the window had two different widths depending on which
+    # branch a column took.
     ceiling = _raised(held - 2 + 1 / (held - 1))
+    floor = _lowered(1.0)
     floor_mean = _mean_of(lows)
     ceiling_mean = _mean_of(highs)
     spread = _moments_of(middles)
@@ -15701,7 +15970,7 @@ def _tails_window(
     low_root = max(0.0, root - reach)
     high_root = root + reach
     if low_root <= 0.0 or not math.isfinite(high_root):
-        return (1.0, ceiling)
+        return (floor, ceiling)
     # EACH DEVIATION IS DIVIDED BY THE SPREAD BEFORE IT IS RAISED, and
     # that ordering is the whole of this repair (review item
     # P4-K-R1-F1). Raising first and dividing after is the same number
@@ -15737,27 +16006,36 @@ def _tails_window(
     lowest = _summed(low_fourths)
     highest = _summed(high_fourths)
     if not math.isfinite(lowest) or not math.isfinite(highest):
-        return (1.0, ceiling)
+        return (floor, ceiling)
     # AND THE TWO ENDS ARE ORDERED BEFORE THEY ARE RETURNED. On the
     # four-value extreme the two clamps can cross by one unit in the
     # last place, and a window whose low end is above its high end
     # excludes the very statistic it was drawn for (item P4-K-R1-F5).
-    lowest = max(1.0, lowest)
+    lowest = max(floor, lowest)
     highest = min(ceiling, highest)
-    # AND THE TWO ENDS ARE ORDERED BEFORE THEY ARE RETURNED. On the
+    # AND THE CLAMPED PAIR IS NOT WIDENED AGAIN. Both limits were moved
+    # one place outward where they were formed, so a window touching a
+    # limit already contains it; stepping the clamped pair as well is a
+    # bound TWO places looser than the method states, and the point of
+    # the step is to admit exactly what the limit admits and nothing
+    # further (review item P4-G6-R8, which found this after the same
+    # double step had been taken out of the skewness beside it).
+    #
+    # The two ends are still ORDERED before they are returned: on the
     # four-value extreme the two clamps can cross by one unit in the
     # last place, and a window whose low end is above its high end
     # excludes the very statistic it was drawn for.
-    # AND THE PAIR IS WIDENED OUTWARD AT THE POINT IT IS RETURNED
-    # (review item P4-G6-R6-F1). Both ends of this window clamp to the
-    # same universal ceiling on the four-value extreme, so once that
-    # ceiling is stated correctly the two meet and the window admits
-    # exactly nothing -- while the statistic it was drawn for sits on
-    # the ceiling. One place outward on each side is what makes a
-    # window that touches a limit contain it.
-    if lowest > highest:
-        return (_lowered(highest), _raised(lowest))
-    return (_lowered(lowest), _raised(highest))
+    if lowest >= highest:
+        # AND ONLY A WINDOW WHOSE ENDS HAVE MET IS WIDENED FURTHER. The
+        # round that found the double step was right that it was two
+        # places on EVERY path and wrong that taking it out is safe: on
+        # the four-value extreme both ends clamp onto the same limit,
+        # and a window of no width sits one place above the statistic
+        # it was drawn for, so `test_the_window_is_never_the_wrong_way_
+        # round` went red the moment the second step came out. The
+        # second step is load-bearing exactly here and nowhere else.
+        return (_lowered(min(lowest, highest)), _raised(max(lowest, highest)))
+    return (lowest, highest)
 
 
 def _written_ordinal(

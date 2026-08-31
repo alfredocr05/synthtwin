@@ -628,7 +628,7 @@ def test_the_same_description_and_seed_give_the_same_twin_twice(
 # moved, and the description and twin digests were both untouched by
 # this edit.
 GOLDEN_REPORT_SHA256 = (
-    "460797da72c1d22a2d4ee8b4e9aae04264ed61966348b02de417ff12918e3768"
+    "8839c5f1fd51d95115a17325c12bd2c280a84e14c2e9c39ba611b75bdcb2f5b0"
 )
 
 
@@ -1023,7 +1023,7 @@ def test_the_report_names_the_seed_the_twin_was_built_at(
 # citation that names a section the method does not define, so this
 # cannot happen again silently.
 GOLDEN_QUALITY_SHA256 = (
-    "4eed8acac8822a27d0de6157184f5eab6f6a13a88f0f52fe80413c4eb706ebb7"
+    "91ce6395d05e73c50b63080d808d8fd26c5812a82c01b41dcb76331773aea748"
 )
 
 

@@ -831,9 +831,11 @@ def test_every_named_code_system_survives_both_shapes() -> None:
     # with room in it. One bound of eight covered both while `scheme01`
     # loses ONE cell, which would have let a seven-cell regression pass
     # here without a word.
+    # `scheme01` came off this list when R-P4-56 was built: the grid
+    # walk keeps its two colliding strata apart, so all 240 cells wear
+    # `NNN.N` and the count of different numbers comes out exact.
     short_of_it = {
         ("scheme09", "long tail"): 8,
-        ("scheme01", "all different"): 1,
     }
     for name, values, pattern, parts in schemes:
         random.Random(4).shuffle(values)

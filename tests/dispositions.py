@@ -325,6 +325,14 @@ PLAN4_REGIONS = {
         "(closes R-P3-12's route)"
     ),
     "padding": "### P4-D14 The padded-field width fact",
+    # The two widths of the unrepresentable role. Version 4's matrix has
+    # no row for them -- version 4 had no such key, and they were what
+    # settled R-P2-1 -- so they are held to the Phase 4 decision that
+    # introduced them, exactly as the fraction census is.
+    "unrepresentable-widths": (
+        "### P4-D4.4 Width facts for unrepresentable numbers "
+        "(settles R-P2-1)"
+    ),
     "histogram": "### P4-D4.7 The value histogram (owner instruction 2026-08-26)",
     "kurtosis": "### P4-D4.8 The kurtosis (owner instruction 2026-08-26)",
     "mode": (
@@ -368,6 +376,11 @@ FACTS_OUTSIDE_THE_VERSION_4_MATRIX = (
     ("datetime", "resolution_mix"),
     ("free_text", "shape_forms"),
     ("label", "shape_forms"),
+    # The two widths version 4 never published, which settled R-P2-1
+    # and which nothing measured until residual R-P4-59. They are held
+    # to P4-D4.4 by `PLAN4_REGIONS` above.
+    ("numeric_unrepresentable", "min_length"),
+    ("numeric_unrepresentable", "max_length"),
 )
 
 # THE ONE FACT WHOSE DISPOSITION A VERSION CHANGED, and the reason it
@@ -1076,6 +1089,27 @@ REGISTRY += [
 ]
 
 # `numeric_unrepresentable`.
+#
+# THE TWO WIDTHS WERE MISSING FROM THIS GROUP (residual R-P4-59). The
+# contract's own matrix disposes them EXACT-OBSERVABLE -- "the twin's
+# numerals are written inside the published range with both ends
+# carried" -- and this registry, which is what holds the validator to
+# that matrix, did not carry them. So nothing named them: no check
+# measured them, no census line said they could not be measured, and
+# the entry table had no row to bind. A file of twelve 400-character
+# numerals against a description publishing 399 and 401 was reported
+# with no miss at all.
+REGISTRY += [
+    Fact(
+        "numeric_unrepresentable",
+        field,
+        EXACT_OBSERVABLE,
+        plan_region="unrepresentable-widths",
+        plan_words="writes within the published range, end carriers "
+        "pinned",
+    )
+    for field in ("min_length", "max_length")
+]
 REGISTRY += _facts(
     "numeric_unrepresentable",
     EXACT_OBSERVABLE,

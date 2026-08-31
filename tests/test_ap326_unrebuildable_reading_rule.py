@@ -854,13 +854,17 @@ def test_what_moves_on_the_free_text_witness_is_written_out(
     outcome = validation.measure(witness.described, witness.path)
     assert len(outcome.checks) == 10
     assert len(_unsupported(outcome)) == 21
-    # THIRTY-FOUR, AND THE TWO THAT ARRIVED ARE NOT THIS RULING'S. The
-    # census also carries every REPORT-ONLY fact of the description, and
-    # contract version 5 added two of them to every column --
+    # THIRTY-THREE, AND NONE OF THE MOVEMENT IS THIS RULING'S. The
+    # census also carries every REPORT-ONLY fact of the description.
+    # Contract version 5 added two of them to every column --
     # `n_missing_blank` and `n_missing_withheld`, which the twin owes
-    # nothing (plan amendment A-P3-28). The numbers this ruling is
+    # nothing (plan amendment A-P3-28) -- and version 6 took one AWAY
+    # again: `missing_by_source` became an obligation, so it is a check
+    # where a spelling is named and a census line only for the one key
+    # a judged pass put there (residual R-P4-60). This column names no
+    # spelling, so it carries neither. The numbers this ruling is
     # measured by are the two above: ten checks left, twenty-one moved.
-    assert outcome.census.not_checkable == 34
+    assert outcome.census.not_checkable == 33
     assert outcome.census.missed == 0
 
 

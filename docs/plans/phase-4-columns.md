@@ -2421,7 +2421,7 @@ Opened by this plan, each a limit accepted rather than work forgotten:
   picks them up from A-P4-30's own text.
 - **R-P4-25** (opened by amendment A-P4-33, 2026-08-22). THE
   DISPOSITION MACHINERY STILL READS VERSION 4'S TABLES. Since the wire
-  flip, version 6 governs all one hundred and thirty registered facts;
+  flip, version 6 governs all one hundred and thirty-nine registered facts;
   the matrix comparison in `tests/test_p2c4f1_disposition_registry.py`
   reads version 4's section 9 for the hundred and twenty-nine version
   6 did not re-dispose. The two agree about every one of them today,
@@ -3263,7 +3263,7 @@ declaration for only one of them.
     breaks analysis code developed against it, which is worse than two
     reports disagreeing in their last digits.
 
-- **R-P4-58 (opened here, 2026-08-30, PRE-EXISTING and not from this
+- **R-P4-58 (opened 2026-08-30, CLOSED 2026-08-30; PRE-EXISTING and not from this
   landing).** A JOINED COLUMN'S POSITIONS CARRY A FULL QUANTITATIVE
   BLOCK THAT NOTHING CHECKS AND NOTHING LISTS. `JoinedFacts.parts`
   holds a `NumericFacts` per position -- its own ladder, its own
@@ -3276,7 +3276,14 @@ declaration for only one of them.
   numbers and ninety finer rungs, and none of them appears as a check
   or as a census line.
 
-- **R-P4-59 (opened here, 2026-08-30, PRE-EXISTING).** A
+- **R-P4-59 (opened 2026-08-30, CLOSED 2026-08-30; PRE-EXISTING).**
+  Built: `min_length` and `max_length` are checked beside the sign and
+  whole counts they always sat next to, two lines added to a list of
+  six. The witness below now reports both MISSED where it reported
+  nothing, and the honest twin holds both. Rare in the tables this tool
+  is for -- an identifier out of a sequencing pipeline, at most -- which
+  is why it waited behind the code-column width defect, and rare is not
+  never. The defect as it stood: a
   `numeric_unrepresentable` COLUMN PUBLISHES `min_length` AND
   `max_length` AND NEITHER IS CHECKED OR LISTED. Reproduced: twelve
   whole numerals too large for this format, half 399 characters wide
@@ -3301,9 +3308,85 @@ declaration for only one of them.
   These three are one shape and it is the shape four rounds of this
   landing have been closing in the numeric roles: a published fact that
   no check measures and no census names is a fact the report has lost.
-  They are opened rather than fixed here because each is a different
-  role's landing -- a check, its red case, its registry row and its
-  spec clause -- and none was introduced by this branch.
+
+  **R-P4-58 IS BUILT** (2026-08-30, on the owner's ruling that nothing
+  is left open). `_joined_number_checks` hands each position's block to
+  the same numeric machinery a plain numeric column goes through and
+  renames what comes back, exactly as `_joined_style_checks` already
+  did for the style census: the registry fact from `numeric.X` to
+  `joined.parts[N].X`, and the subcheck with the position in front of
+  it, so two positions cannot hide behind one identity.
+
+  On a blood-pressure column of 120 readings the checks go from 51 to
+  81, and 26 of the new ones are the interior of each position's ladder
+  and its four moments. Shifting every systolic reading by twenty in an
+  otherwise correct twin now reports 12 misses; most of that edit used
+  to be invisible.
+
+  **AND IT MADE THE SAME MISTAKE ONCE BEFORE IT WAS CAUGHT.** The
+  ladder walk re-filed `ladder.min` and `ladder.max`, which this role
+  already measures as `ends.number N min` and `max` -- one obligation
+  under two identities, which is the defect this residual IS an
+  instance of, made a second time by its own repair. Filtered, with the
+  reason beside the filter.
+
+  **THE ENTRY TABLE'S RED BATTERY DOES NOT REACH THIS ROLE AT ALL**,
+  and that is worth its own line. Its `every-role` fixture carries
+  thirteen columns and none of them is joined, so no perturbation there
+  can turn a joined check red -- which was true of the checks that
+  shipped WITH the role, not only of these. The red cases for the new
+  ones are written in `tests/test_p4r58_joined_numbers.py` against a
+  tampered twin instead. Widening that fixture would move every golden
+  and every fixture-derived count in the suite, so it is recorded here
+  rather than done in passing: **R-P4-62**.
+
+- **R-P4-62 (opened here, 2026-08-30, WIDENED the same day).** EVERY
+  COMPLETENESS GUARD THIS PROJECT HAS IS BLIND TO THE JOINED ROLE, and
+  it is the role that carries a blood pressure. Three of them,
+  measured:
+
+  * **The disposition registry does not dispose it at all.**
+    `part_agreements`, `part_above` and `part_min_widths` occur ZERO
+    times in `tests/dispositions.py`, and `len(REGISTRY)` is 139
+    facts. Contract §9.4a disposes eight facts for this role --
+    `separator`, `n_parts`, `n_joined`, `n_unparsed`, `parts[]`,
+    `part_min_widths` and `part_above` EXACT-OBSERVABLE, and
+    `part_agreements` APPROXIMATED against G12.9's window -- and
+    nothing holds the code to any of it.
+  * **The completeness chain enumerates thirteen roles and this is not
+    one.** `test_p2c1f4_approximation_bounds.ROLE_SECTIONS` lists
+    `affixed_number`, `binary`, `categorical`, `constant`,
+    `continuous`, `count`, `datetime`, `empty`, `free_text`,
+    `identifier`, `long_tail_labels`, `numeric_unrepresentable` and
+    `time_of_day`. `joined_numbers` is not exempted with a reason the
+    way two of those are; it is simply absent, and the test closes with
+    `assert reached == set(ROLE_SECTIONS)` -- so it is satisfied by a
+    fixture that never builds the role.
+  * **The entry table's red battery has no joined column.**
+    `fixtures.every_role_table` carries thirteen columns and none is
+    joined, so no perturbation there can turn a joined check red --
+    which was true of the checks that shipped WITH the role, not only
+    of the ladder and moments R-P4-58 added.
+
+  **ONE FIXTURE IS WHY ALL THREE ARE BLIND.** Each guard proves its own
+  completeness against a table that does not contain the role, so each
+  passes by never looking. That is the shape this phase has spent
+  itself closing, one level up: a guard whose green says nothing.
+
+  Closing it means widening that fixture, which moves every golden and
+  every fixture-derived count in the suite, and writing the registry
+  group the contract already has a section for. A landing of its own,
+  and it should come before the phase closes.
+
+  The original entry, kept: THE ENTRY TABLE'S RED BATTERY
+  HAS NO JOINED COLUMN. `fixtures.every_role_table` carries thirteen
+  columns and no joined one, so every check the joined role files --
+  its endpoints, its style census, its `n_parts`, its two together
+  facts, and the ladder and moments R-P4-58 added -- sits outside the
+  battery that proves a check can fail. The role's own tests carry red
+  cases; the table's coverage identity does not see them. Closing it
+  means widening that fixture, which moves every golden and every
+  fixture-derived count, so it is a landing of its own.
 
 - **R-P4-57 (opened and CLOSED here, 2026-08-30).** `synthtwin
   validate` DIED ON A COLUMN OF LARGE NUMBERS, with a Python traceback
@@ -3367,7 +3450,8 @@ declaration for only one of them.
   of it. So the repair is not a trade: it removes a crash, closes a
   false pass, and is more accurate on the columns that already worked.
 
-- **R-P4-56 (opened here, 2026-08-30, and this is the DECISION the
+- **R-P4-56 (opened 2026-08-30; CLOSED for a column of ONE width and
+  NARROWED to columns of several, 2026-08-30). This is also the DECISION the
   239-of-240 case was waiting for).** TWO STRATA THAT ROUND ONTO ONE
   SPELLING COST A VALUE COUNT AND BREAK A SHAPE, and the second of
   those is silent.
@@ -3436,11 +3520,75 @@ declaration for only one of them.
   closes them at the place the collision happens rather than papering
   over the symptom.
 
-  Not built here: it is a change to how a stratum's value is settled,
-  which is the same surface as R-P4-49, and it belongs beside the
-  histogram work rather than in the middle of the allotment landing.
-  Until then the test names `scheme01` beside `scheme09` with its
-  bound stated, and the bound is the measured one.
+  **THE HEADING SAYS BOTH BECAUSE BOTH ARE TRUE** (review item
+  P4-R56-R1-F5, which found it saying only the first). A fixed-width
+  column is repaired; a column whose census names several widths is
+  not, and is not repairable at this step, because which cell is
+  written at which width is settled after the styles are.
+
+  **BUILT, on the owner's ruling that nothing is left open.**
+  `_apart_enough` runs after the carrier walk and before the cells are
+  written: a stratum whose text another stratum has already written
+  moves to the nearest free point of the published width's own grid,
+  inside its own share of the ladder, the lower of two equally distant
+  candidates first. It asks the WRITER's own `_at_width` what a value
+  will be written as rather than predicting it a second way.
+
+  Nothing published is traded for it. The two pinned ends and the zero
+  stratum never move, a candidate that would change a sign count is
+  refused, and a candidate outside the stratum's own share of the
+  ladder is refused, so G12.2's rung windows are as good as they were.
+
+  **ONLY WHERE ONE WIDTH COVERS THE WHOLE COLUMN**, which is what a
+  fixed-shape code column is and the case that matters. Where the
+  census names several widths, which cell is written at which is
+  settled after the styles are, and a value cannot know here what grid
+  it will land on; `_pinned_fraction` returns -1 and those columns keep
+  the old behaviour. R-P4-56 stays open for THEM, narrowed to that,
+  rather than closed by a rule that guesses.
+
+  Measured over 90 fixed-width columns built through the real reader,
+  producer, loader and generator, with the rule on and off
+  (`tools/measurements/r_p4_56_grid_separation.py`):
+
+  * cells wider before the point than any source cell: **200 with the
+    rule off, 0 with it on**;
+  * deviations the twin filed against itself: **53 off, 1 on**;
+  * the count of different numbers is CLOSER to the published one on
+    45 of 90 columns and further on **none**.
+
+  On the witness this residual was opened with -- 240 cells of `NNN.N`,
+  99 different values -- the twin now holds 99 of 99, every cell wears
+  `NNN.N`, and it files nothing against itself. It held 98 and wrote
+  `0250.4` before.
+
+  **THE FIRST ADVERSARIAL ROUND ON IT (P4-R56-R1) RETURNED FOUR REAL
+  ITEMS, and one was a crash.**
+
+  * **F2 — a pooled width census crashed `synthtwin generate`.** A
+    census whose every width falls under the publication floor names
+    none of them and publishes one withheld total under this package's
+    own word; the gate read that word as a number and raised
+    `ValueError`. 110 decimal cells over eleven widths at floor 11 is
+    such a column, and the loader accepts it.
+  * **F3 — the published MAXIMUM could lose its own text.** The walk
+    ran forward and let whichever stratum reached a text first keep it,
+    so an interior stratum could take the text the maximum needs -- and
+    the maximum, reached later, is one this rule may never move. The
+    two ends and the zero stratum claim their texts BEFORE anything
+    moves now.
+  * **F1 — the published count is a CEILING, not a floor.** A collision
+    is a defect only while the twin holds fewer different numbers than
+    the description publishes. Where a source number was written two
+    ways its two strata are MEANT to come out as one, and separating
+    them carries the count past the published one -- a miss in the
+    other direction, made by the repair for the first.
+  * **F4 — the anchor was a second rounding of the same value.**
+    `_whole_valued` takes a tie upward and the writer's `_at_width`
+    takes the tie the format takes; on 1.25 at one figure the walk
+    anchored on 1.3, stepped to 1.2 and 1.4, and never tried 1.3, which
+    was the free point the rule asks for. The anchor is read off the
+    writer's own text now, so it cannot disagree with the writer.
 
 - **R-P4-55 (opened and CLOSED here, 2026-08-30).** THE STRATUM
   PACKING CHARGED A RAW SUPPLY TO A FOLDED CEILING. `_style_strata` is
@@ -6130,7 +6278,7 @@ the rule review item P3-V10-F1 established and which was written after
 that document.
 
 **Residual R-P4-25 is opened by this landing.** Since the flip,
-version 6 governs all one hundred and thirty registered facts, and the
+version 6 governs all one hundred and thirty-nine registered facts, and the
 disposition machinery still reads version 4's tables for the hundred
 and twenty-nine it did not re-dispose. That is not wrong today -- the
 older matrix and version 6 agree about every one of them -- but it is
