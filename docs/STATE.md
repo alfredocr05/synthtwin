@@ -28,7 +28,7 @@ without the same help.
 | branch | `phase-4-allotment` (never merged; `main` is pull-request only) |
 | phase | **Phase 4 — comprehensive column handling.** Current. |
 | plan | `docs/plans/phase-4-columns.md` |
-| suite | 4,133 collected / 51 skipped |
+| suite | 4,134 collected / 51 skipped |
 | lint | **10 pre-existing errors** (`ruff check .`) under the rule set pinned in `pyproject.toml`, measured 2026-08-31 at `c10f5f6`; every file this landing touched is clean |
 
 ## What is being built right now
@@ -1312,6 +1312,44 @@ say which.
 - The open defects of Phase 4 are the residual register at the foot of
   `docs/plans/phase-4-columns.md`. The 2026-08-26 triage sorted them:
   15 deliberate scope declines, 11 real landings, 7 owner questions.
+
+**ROUND 5, THE LAST AUTHORIZED ONE, RETURNED SIX CONTROL GAPS AND NO
+WORDING ITEMS -- AND SAID THE NARROW DEFECT IS HONESTLY CLOSED.** Both
+matrix readers derive the governing contract from
+`contract.PROFILE_VERSION`, and so does the claim inventory's positive
+guard, so R-P4-25 itself is shut. What the round found was the
+STRENGTH of the guards around it. Three were surfaces this landing
+wrote and are fixed here; three are older controls and are recorded as
+R-P4-64, R-P4-65 and R-P4-66 rather than done in passing.
+
+* **The closed syntax protected the CELLS and left the PROSE open.** A
+  sentence in the sub-table's head paragraph reaches every row below
+  it -- "For affixed cores, `mean` need only be mentioned in the
+  report" -- and it names no class, so neither the disposition guard
+  nor the lowering scan could see it. That is round 4's attack moved
+  one paragraph up, which is the fifth time this one surface has been
+  beaten. **The region is pinned WHOLE by its digest now**, prose and
+  table together, so changing it is a deliberate act with a counted
+  difference. Two mutations verify it.
+* **Residual state was inferred from a blacklist, and "FIXED" is not a
+  word anybody had listed.** The heading must now SAY `— OPEN`; a
+  positive token cannot be defeated by reaching for another word.
+* **The name and region tests were not exact.** `R-P4-62-a`,
+  `R-P4-62.1` and `R-P4-62_extra` all answered for `R-P4-62`, and an
+  earlier duplicate `## P4-D13. Residuals` section would have shadowed
+  the real register. The identifier grammar is declared, and exactly
+  one anchored register heading is required. Five mutations verify
+  both.
+
+**FIVE ROUNDS, TWENTY-THREE ITEMS, EVERY ONE A CONTROL GAP AND NOT ONE
+A WORDING ITEM.** The cap is five for governance machinery, so this
+landing stops here with three residuals carried by name rather than by
+omission. The pattern is the thing to carry forward: **one surface was
+beaten five times, each time by a subtler sentence, and every repair
+that tried to read the sentence more cleverly was beaten by the next
+one.** What finally held was refusing to parse: a cell that must equal
+a fixed string, a state that must be asserted rather than inferred, a
+region pinned by digest.
 
 **AND THE SUITE-SIZE GUARD CAUGHT ME DELETING A TEST.** Repairing
 round 3's residual check, I cut a region of a test file by index

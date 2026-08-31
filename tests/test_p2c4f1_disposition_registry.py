@@ -87,6 +87,7 @@ time a review stops rejecting the phase.
 """
 
 import functools
+import hashlib
 import pathlib
 import re
 import typing
@@ -1001,6 +1002,35 @@ def _numeric_classes(
             if said:
                 found[name] = said
     return found
+
+
+# The affixed delegation region's digest, moved deliberately and only
+# after reading what changed. It covers the head prose as well as the
+# table, because the prose governs every row below it and four rounds
+# showed that no vocabulary check can see a lowering written in
+# ordinary words (review item P4-A1-R5-F1).
+AFFIXED_REGION_DIGEST = (
+    "4fb4d395b91b9e059909509f585eac215768f45b9a857318102547ff863c0a6f"
+)
+
+
+def _affixed_region() -> str:
+    """The affixed sub-table's whole region: its prose AND its table.
+
+    Review item P4-A1-R5-F1. Closing the CELLS left the head prose
+    open, and a sentence there reaches every cell below it: "For
+    affixed cores, `mean` need only be mentioned in the report" names
+    no disposition and matches no lowering phrase, so both guards
+    stayed green one paragraph above the rows they govern. That is
+    round 4's free-prose attack moved up a level.
+
+    So the region is pinned WHOLE, from the bold that opens it to the
+    next heading. Any edit to it -- prose or table -- has to be made
+    deliberately here, where a reviewer reads the counted difference.
+    """
+    text = MATRIX_CONTRACT.read_text(encoding="utf-8")
+    start = text.index("**`affixed_number`.**")
+    return text[start : text.index("### 9.4a", start)].strip()
 
 
 def _restatement_violations(
@@ -2264,15 +2294,44 @@ def test_the_phase_cannot_close_while_the_seal_is_paused() -> None:
     )
 
 
+# The identifier grammar, declared rather than guessed at. A residual
+# name ends where a character outside this set begins; `.`, `-` and `_`
+# are INSIDE it, so `R-P4-62.1`, `R-P4-62-a` and `R-P4-62_extra` are
+# different names from `R-P4-62` and cannot answer for it. A one
+# character `isalnum()` test admitted all three (review item
+# P4-A1-R5-F3).
+_NAME_CONTINUES = "-_."
+
+# The state a register entry must SAY it is in. Inferring openness from
+# the absence of enumerated closure synonyms was beaten by "FIXED",
+# which is not a synonym anybody had listed -- and the next word would
+# have beaten the list again (review item P4-A1-R5-F2). A positive
+# token cannot be defeated by reaching for another word.
+_OPEN_TOKEN = "— OPEN"
+
+
 def _residual_register() -> str:
     """The Phase 4 plan's residual register, and nothing else.
 
     Scanning the whole plan let a bullet written anywhere in it answer
     for a register entry (review item P4-A1-R4-F4). The register is the
     P4-D13 section; it ends at the next top-level heading.
+
+    EXACTLY ONE such heading may exist. An earlier duplicate section
+    would shadow the real register, since this stops at the first one
+    (review item P4-A1-R5-F3).
     """
     plan = PLAN4.read_text(encoding="utf-8")
-    start = plan.index("## P4-D13. Residuals")
+    heading = "## P4-D13. Residuals"
+    found = [
+        line for line in plan.splitlines() if line.strip() == heading
+    ]
+    assert len(found) == 1, (
+        f"the plan carries {len(found)} '{heading}' headings; the residual "
+        "register has to be one anchored section, or an earlier duplicate "
+        "shadows the real one"
+    )
+    start = plan.index(heading)
     return plan[start : plan.index("\n## ", start + 10)]
 
 
@@ -2297,13 +2356,43 @@ def _register_entries(register: str, residual: str) -> "list[str]":
         if not whole.startswith(opening):
             continue
         rest = whole[len(opening) :]
-        if rest[:1].isalnum():
-            # `R-P4-62a` is a different name from `R-P4-62`.
+        if rest[:1].isalnum() or rest[:1] in _NAME_CONTINUES:
+            # `R-P4-62a`, `R-P4-62-a`, `R-P4-62_extra` and `R-P4-62.1`
+            # are all different names from `R-P4-62`.
             continue
         close = whole.find("**", len("- **"))
         heading = whole if close == -1 else whole[: close + 2]
         found.append(" ".join(heading.split()))
     return found
+
+
+def test_the_affixed_delegation_region_is_pinned_whole() -> None:
+    """The delegation's PROSE is as normative as its cells, so it is pinned.
+
+    Four rounds beat four checks on the cells (names, head class word,
+    ordered class sequence, free prose beside the delegation), and the
+    cells were closed to exactly the delegation phrase. Round 5 then
+    put the same attack one paragraph up: a sentence in the head prose
+    that lowers every row below it while naming no class at all.
+
+    A vocabulary check cannot see that sentence -- that is what the
+    previous four rounds demonstrated -- so the region is pinned by its
+    own digest instead. Changing it is a deliberate act with a counted
+    difference, which is exactly what the disposition seal asks of
+    every governing passage; this is the same discipline applied to one
+    region that has repeatedly been the target.
+    """
+    digest = hashlib.sha256(
+        _affixed_region().encode("utf-8")
+    ).hexdigest()
+    assert digest == AFFIXED_REGION_DIGEST, (
+        "the affixed delegation region changed. Its CELLS are checked "
+        "mechanically, but its prose governs every row below it and no "
+        "vocabulary check can see a lowering written in ordinary words "
+        "(review item P4-A1-R5-F1). Read the difference, satisfy "
+        "yourself it states no less than the numeric table it delegates "
+        f"to, then move this digest in the same commit: {digest}"
+    )
 
 
 def test_every_matrix_table_is_claimed_by_a_registry_group() -> None:
@@ -2361,13 +2450,20 @@ def test_every_matrix_table_is_claimed_by_a_registry_group() -> None:
             "has to point at one canonical entry, or a closed one can "
             "answer for an open one"
         )
+        assert _OPEN_TOKEN in entries[0], (
+            f"{heading} is excused by {residual}, whose register entry "
+            f"does not SAY it is open. Its heading is {entries[0][:90]!r} "
+            f"and it has to carry {_OPEN_TOKEN!r}. Openness is asserted "
+            "rather than inferred: reading the absence of closure words "
+            "was beaten by a word nobody had listed"
+        )
         settled = [
             word for word in _CLOSURE_WORDS if word in entries[0].upper()
         ]
         assert not settled, (
             f"{heading} is excused by {residual}, whose register entry is "
-            f"marked {settled} -- the excuse has outlived its reason, so "
-            "either reopen the residual or claim the table with a group"
+            f"marked {settled} while also claiming to be open -- the "
+            "heading contradicts itself"
         )
     """A paused control may not outlive the phase that paused it.
 
