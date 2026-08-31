@@ -6936,19 +6936,30 @@ for the CELLS on this role as on every other. The keys below describe
 the CORES, and every quantitative disposition above is read here over
 the cores and over `n_core_numeric` in place of `n_numeric`.
 
+**A KEY THIS ROLE SHARES WITH THE NUMERIC ROLES IS DELEGATED, NEVER
+RESTATED.** Its row says "as on `count` and `continuous` above" and
+names no class of its own, so there is exactly one place a shared
+disposition is written and nothing here can drift from it. Only the
+keys this role ADDS carry a class below, because those are disposed
+here and nowhere else. Three adversarial rounds beat three successive
+checks that tried to compare a restatement against what it restated --
+by the second class word in a row, then by a conditional clause
+attached to it -- and the answer was to stop having two statements to
+compare (review item P4-A1-R3-F1).
+
 | field | disposition |
 |---|---|
 | `affix_prefix`, `affix_suffix` | EXACT-OBSERVABLE — written byte-for-byte around every counted cell's core, and recounted from the written twin |
 | `n_affixed` | EXACT-OBSERVABLE — the twin writes exactly this many cells wearing the pair; the remaining present cells are reproduced by class through the straggler constructions |
 | `n_core_numeric`, `n_core_out_of_range`, `n_core_contradictory`, `n_core_not_numeric` | EXACT-OBSERVABLE by class-preserving construction over the cores |
-| `percentiles.min`, `percentiles.max` | EXACT-OBSERVABLE — exact values of real cores |
-| `percentiles` interior rungs | APPROXIMATED, the G12.2 envelope read over the cores |
-| `mean`, `std`, `skew` | APPROXIMATED, the G12.3 bounds read over the cores |
-| `n_zero`, `n_negative`, `std_unrepresentable`, `n_negative_unrepresentable`, `n_used_in_statistics`, `n_left_out_of_statistics`, `numeric_share` | EXACT-OBSERVABLE over the cores |
-| `integer_valued` | EXACT-OBSERVABLE, computed over the cores and routed on as the published FACT, never inferred from the role name (AF6) |
-| `numeric_styles`, `fraction_widths`, `pad_widths` | EXACT-OBSERVABLE against the same three recount identities, read over the cores |
+| `percentiles.min`, `percentiles.max` | as on `count` and `continuous` above, read over the cores, which are exact values of real cores |
+| `percentiles` interior rungs | as on `count` and `continuous` above, the G12.2 envelope read over the cores |
+| `mean`, `std`, `skew` | as on `count` and `continuous` above, the G12.3 bounds read over the cores |
+| `n_zero`, `n_negative`, `std_unrepresentable`, `n_negative_unrepresentable`, `n_used_in_statistics`, `n_left_out_of_statistics`, `numeric_share` | as on `count` and `continuous` above, read over the cores |
+| `integer_valued` | as on `count` and `continuous` above, computed over the cores and routed on as the published FACT, never inferred from the role name (AF6) |
+| `numeric_styles`, `fraction_widths`, `pad_widths` | as on `count` and `continuous` above, against the same three recount identities, read over the cores |
 | `n_distinct`, `n_distinct_folded` | as on `count` and `continuous` above, the numeric mechanism supplying the spellings over the cores while the affix pair is constant across every counted cell |
-| `n_rows` (echo) | LOADER-ONLY |
+| `n_rows` (echo) | as on `count` and `continuous` above |
 
 ### 9.4a The joined role: `joined_numbers`
 

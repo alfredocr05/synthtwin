@@ -481,7 +481,51 @@ Two were HIGH:
   appears or if the excuse outlives R-P4-62. **That residual is the
   next landing's whole subject.**
 
-The other two: the landing had not moved this page or the plan (both
+**ROUND 3 REJECTED IT AGAIN with three HIGH items, and the first one
+is the most useful thing on this page.** THREE CHECKS DIED TRYING TO
+COMPARE A RESTATEMENT AGAINST WHAT IT RESTATED, each beaten by a
+subtler lowering than the last:
+
+1. round 1 checked the extra NAMES were numeric keys -- lowering the
+   restated `mean`, `std`, `skew` row passed;
+2. round 2 compared the class each row HEADS with -- appending
+   "REPORT-ONLY in this corner" passed;
+3. round 3 compared the whole ordered SEQUENCE of classes -- writing
+   "EXACT-OBSERVABLE (the class named by the numeric citation);
+   APPROXIMATED for every affixed column" passed, because it is the
+   same sequence with the CONDITION inverted, from "only where
+   spellings cannot supply the count" to "always".
+
+**The answer was to stop having two statements to compare.** Version
+6's affixed sub-table DELEGATES every key it shares with the numeric
+roles -- "as on `count` and `continuous` above" -- and states no class
+of its own for any of them. Only the seven keys the role ADDS carry a
+class, because those are disposed there and nowhere else. The guard
+now checks the delegation is TOTAL and PURE: every shared numeric key
+is delegated, no delegated row smuggles a class word back, and none
+goes missing. Five mutations verify it, including all three rounds'
+own attacks. This is the project's standing lesson arriving one level
+up: **a fact written twice will drift, and the fix is to stop writing
+it twice rather than to compare the copies harder.**
+
+**Round 3's other two were siblings I had already been warned about.**
+FOUR more current-contract readers were still pinned to a literal
+`profile-contract-v6.md` -- the producer-membership guard, the role
+topology guard, the note-grammar guard and the loader-message
+comparison -- so a version bump that edited the producer and the
+loader would have left them certifying a document that no longer
+governs, which is R-P4-25 itself. There is now ONE derivation,
+`fixtures.GOVERNING_CONTRACT`, taken from `contract.PROFILE_VERSION`,
+and every current-contract reader uses it; only deliberately
+historical readers name a version. And the open-residual guard
+accepted any heading merely lacking the word CLOSED, so "RESOLVED"
+would have defeated it, as would the register's real duplicate
+headings, where a closed historical entry sits beside an open one. It
+requires exactly ONE canonical entry per cited name now, whose heading
+carries none of this register's closure words. Three mutations verify
+it.
+
+The other two of round 2: the landing had not moved this page or the plan (both
 done here), and **R-P4-63** -- the loader's own docstring said version
 5 was normative with `PROFILE_VERSION` at 6, which is fixed here, plus
 two specification-text guards still reading version 4, which are NOT

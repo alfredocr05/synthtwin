@@ -68,11 +68,7 @@ SPEC = pathlib.Path(__file__).resolve().parent.parent / "docs" / "spec"
 # governance checks went on reading an older document, agreeing by
 # luck. Deriving it means a version bump moves this reader with the
 # code or fails loudly (review item P4-A1-R2-F6).
-MATRIX_CONTRACT = SPEC / f"profile-contract-v{contract.PROFILE_VERSION}.md"
-assert MATRIX_CONTRACT.is_file(), (
-    f"the contract that governs is version {contract.PROFILE_VERSION} and "
-    f"{MATRIX_CONTRACT.name} is not in the tree (residual R-P4-25)"
-)
+MATRIX_CONTRACT = fixtures.GOVERNING_CONTRACT
 
 
 def _described(

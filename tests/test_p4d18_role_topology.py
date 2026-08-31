@@ -17,14 +17,13 @@ loader actually requires -- for all thirteen roles. After this, section
 disagree with it.
 """
 
-import pathlib
 
 from synthtwin import contract
 
-CONTRACT = (
-    pathlib.Path(__file__).resolve().parent.parent
-    / "docs" / "spec" / "profile-contract-v6.md"
-)
+import fixtures
+
+# Derived, never named: review item P4-A1-R3-F2.
+CONTRACT = fixtures.GOVERNING_CONTRACT
 
 # The matrix abbreviates the FOURTEEN roles for width; section 6.11
 # states the expansion and this is it, in the matrix's own order.

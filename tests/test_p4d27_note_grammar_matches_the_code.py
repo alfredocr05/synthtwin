@@ -38,17 +38,14 @@ the producer") is satisfied by a producer that emits forms nobody
 wrote down, which is exactly the state four roles were in.
 """
 
-import pathlib
 import re
 
 from synthtwin import parsing, taxonomy
 
-CONTRACT = (
-    pathlib.Path(__file__).resolve().parents[1]
-    / "docs"
-    / "spec"
-    / "profile-contract-v6.md"
-)
+import fixtures
+
+# Derived, never named: review item P4-A1-R3-F2.
+CONTRACT = fixtures.GOVERNING_CONTRACT
 
 # THE FIVE THAT AMENDMENT A-P4-30 ACCOUNTS FOR, each with the arity the
 # contract states, the arity the producer emits, and the landing that

@@ -26,8 +26,11 @@ import re
 
 from synthtwin import contract
 
+import fixtures
+
 REPO = pathlib.Path(__file__).resolve().parent.parent
-CONTRACT = REPO / "docs" / "spec" / "profile-contract-v6.md"
+# Derived, never named: review item P4-A1-R3-F2.
+CONTRACT = fixtures.GOVERNING_CONTRACT
 
 _WORDS = {
     13: "thirteen",
