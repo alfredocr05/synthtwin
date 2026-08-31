@@ -3430,6 +3430,45 @@ declaration for only one of them.
   removal in that edit. Closing it means an inventory of governance
   node identities compared set against set, not a total.
 
+- **R-P4-70 — OPEN (opened 2026-08-31 while closing R-P4-53;
+  PRE-EXISTING).** THE TWIN'S OWN REPORT TELLS A READER THE PERSON'S
+  "NO VALUE" SPELLING DID NOT TRAVEL, AND IT DID. `rendering.
+  _missing_lines` prints, for every column with an absent cell, "The
+  twin writes every one of them as an empty cell, so how your table
+  wrote them is here rather than in the twin", and its docstring says
+  the same thing as a promise citing residual R-P2-2. That was true
+  when it was written. **P4-D6.1 closed R-P2-2** -- version 6 writes
+  each published `missing_by_source` spelling into the twin at its
+  count, which is the obligation R-P4-60 then made checkable -- and
+  the sentence was not moved with it.
+
+  **MEASURED, four twins built through `synthtwin generate` at seed
+  7.** A declared `-9.99` column: 0 blank cells in the twin and 20
+  wearing `-9.99`. A joined column declaring `-1/-1`: 0 and 20. An
+  affixed column declaring `EUR 0.00`: 0 and 20. All three print the
+  sentence. The fourth -- a judged `-999` stand-in, which contract
+  C6-116 does write blank -- prints it truthfully, which is why it
+  survived: the one case the reports are read on is the one the
+  sentence still fits.
+
+  **WHY IT IS WORSE THAN A STALE LINE.** It is a DISCLOSURE statement
+  and it points the wrong way. A researcher reading it is told their
+  own spelling stayed behind in the description; the twin they are
+  about to move is holding it, twenty times over, character for
+  character as their table wrote it. The five-file rule this project
+  states everywhere depends on a person knowing which file carries
+  what.
+
+  Not fixed here for two reasons, both of them about scope rather than
+  difficulty. The sentence has to distinguish the spellings the twin
+  REPRODUCES from those it writes blank, and which of the two a
+  spelling is, is a generator rule (`missing_by_source` versus the
+  judged-stand-in exception), so the report needs that split rather
+  than a reworded sentence. And moving any line of the twin's report
+  moves the five golden reports, which this branch is holding still on
+  purpose until the oracle rebuild settles. It goes with the landing
+  that touches them.
+
 - **R-P4-66 — OPEN (opened 2026-08-31 by adversarial round P4-A1-R5,
   item 6; PRE-EXISTING).** A CI CONTROL CAN REMOVE ITSELF UNNOTICED.
   `.github/workflows/ci.yml` carries a `sensitive-paths` job whose
@@ -3936,7 +3975,8 @@ declaration for only one of them.
   for P2-C5-F3 still fails when the exception is reverted, so the
   narrowing did not disarm it.
 
-- **R-P4-53 (opened 2026-08-27, and it is NOT about the decimal
+- **R-P4-53 (opened 2026-08-27, CLOSED 2026-08-31, and it is NOT about
+  the decimal
   comma).** A HOLE SPELLED AS A NUMBER IS COUNTED BY THE STYLE RECOUNT
   AND NOT BY THE DESCRIPTION. A column whose declared missing value is
   `-9.99` publishes `numeric_styles` over its 180 present cells; the
@@ -3958,8 +3998,76 @@ declaration for only one of them.
   never runs and there is nothing to disagree about. An earlier draft
   of this entry said "any column" and was wrong at that width.
 
-  Not fixed here, because the fix is to the recount's population and
-  that is a change to a check every quantitative column runs.
+  **THAT WIDTH HELD UNDER MEASUREMENT, AND THE ENTRY WAS STILL TOO
+  NARROW IN TWO OTHER DIRECTIONS.** The constant column was built and
+  run: no style census, nothing missed, nothing withheld. The two the
+  entry did not name were found by searching for the named site's
+  siblings:
+
+  * **NO DECLARATION IS NEEDED.** Twenty `-999` cells the column's own
+    stand-in rule judges are read as holes by the description and as
+    numbers by the recount, exactly as a declared spelling is. On a
+    correct file that took SIX style obligations to WITHHELD -- no
+    miss, so no exit code moved, and the report simply went quiet about
+    six facts its own description publishes exactly at a floor of one.
+    The entry's own sentence about "no declaration" meant no
+    `--decimal-comma`, which is a different thing.
+  * **A JOINED COLUMN MISSES AT EVERY POSITION.** `--missing-value
+    -1/-1` on a two-position column produced `number 1
+    styles.remainder` and `number 2 styles.remainder` MISSED, exit 3.
+    It needed a second repair: a position's style subchecks carry the
+    position in their name, so they are outside
+    `_MEASURED_FROM_THE_CELLS` and `_governed` takes the SPLIT side's
+    verdict, which the first repair did not reach. The affixed role
+    reaches the same defect through its cores (six withheld).
+
+  **AND IT REACHES THE TWIN THE TOOL WRITES ITSELF**, which is worse
+  than the entry says. Contract 6 writes each published hole spelling
+  into the twin at its count (P4-D6.1), so `synthtwin generate` on the
+  declared description writes a twin holding the same twenty `-9.99`
+  cells, and `synthtwin validate` then hands its own twin
+  `styles.remainder` MISSED, five withholdings and exit 3. The joined
+  twin gets two misses. Measured at both entry points before anything
+  was changed.
+
+  **CLOSED BY GIVING EACH SIDE ITS OWN POPULATION.** The description
+  publishes its census over the cells IT counts as values, so each side
+  of `_governed` now recounts that same set:
+  `_cells_that_description_reads` under the file's own description for
+  the gated side, and under the description taken over the blank split
+  for the measured side, each asked through its own
+  `taxonomy.Settings`. The machinery is amendment A-P3-5's own and was
+  already written; what kept this open is that it ran only where the
+  description POOLS its missing sources, because the confidentiality
+  leak it was built for needs a pool. The population question is not
+  the leak question and does not need one.
+
+  What that repair is worth, measured on the same five columns:
+  1 missed and 5 withheld to 0 and 0 on the declared column; 6 withheld
+  to 0 on the judged one; 2 missed to 0 on the joined one; 6 withheld
+  to 0 on the affixed one; and the constant column unchanged at 0 and
+  0. Each witness is read against a control -- the same table with its
+  twenty holes written BLANK, which is absent under both readings -- so
+  the assertion is that spelling a hole cannot move a verdict, not
+  merely that nothing was missed.
+
+  Three mutations verify it, and they separate the two halves:
+  reverting the gated half alone turns five cases red, reverting the
+  measured half alone turns the joined case red, and reverting both
+  turns six red. `tests/test_p4r53_recount_population.py`.
+
+  **AND THE CHECK STILL BITES, asserted rather than argued**, because a
+  narrower population would satisfy every case above by leaving the
+  style clauses with nothing to reach a verdict on. Three perturbations
+  of the same witness are registered: every present cell in exponent
+  form misses `styles.at-least.decimal` and `styles.published.decimal`,
+  every cell widened to three fraction places misses `styles.spelled`
+  and `widths.published.2`, and the declared hole spelling dropped for
+  a blank misses `holes.by_source.-9.99`. A fourth is recorded as
+  proving NOTHING rather than dropped: `+51.71` and `051.71` are both
+  the DECIMAL form to `parsing.numeric_style`, so a file rewritten
+  either way is described byte for byte alike and no check can catch
+  it.
 
 - **R-P4-52 (opened here, 2026-08-27).** THE SWAP REACHES THE ROLES
   WHOSE CELLS ARE NUMBERS AND NO OTHERS. Two questions with two

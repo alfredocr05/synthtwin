@@ -28,8 +28,8 @@ without the same help.
 | branch | `phase-4-allotment` (never merged; `main` is pull-request only) |
 | phase | **Phase 4 — comprehensive column handling.** Current. |
 | plan | `docs/plans/phase-4-columns.md` |
-| suite | 4,153 collected / 51 skipped |
-| lint | **10 pre-existing errors** (`ruff check .`) under the rule set pinned in `pyproject.toml`, measured 2026-08-31 at `c10f5f6`; every file this landing touched is clean |
+| suite | 4,160 collected / 51 skipped |
+| lint | **9 pre-existing errors** (`ruff check .`) under the rule set pinned in `pyproject.toml`, re-measured 2026-08-31 on this tree: 2 mid-file imports in `src/` (`generation.py`, `validation.py`) and 7 in `tools/measurements/`. It said 10 until the dead recount named below went with the joined role's landing and this line did not move with it. This landing adds none, and the one file of `src/` it touches carries one of the two that were already there |
 
 ## What is being built right now
 
@@ -763,6 +763,90 @@ reproduce.
   trial could not build. **R-P4-69:** a `continuous` column's twin
   holds whole numbers, so it re-describes as `count` with
   `integer_valued` true — a twin that reads back as a different ROLE.
+**R-P4-53 IS CLOSED (2026-08-31, landing A3). A CORRECT FILE WAS TOLD
+IT MISSED, and the twin the tool writes itself was one of them.** A
+description publishes its style census over the cells IT counts as
+values. The validator's style clauses do not read that census back off
+a re-description — they RECOUNT the written cells — and the recount
+walked every non-blank cell that reads as a number. On a column whose
+declared "no value" word is `-9.99` those are two sets: the description
+counts 180, the recount finds 200.
+
+**Reproduced through `profile`, `generate` and `validate` at their real
+entry points before anything was touched**, which is what this register
+requires and what two closure claims in an earlier triage skipped. 180
+readings and twenty `-9.99` cells, described with `--missing-value`,
+then checked against that same table: `styles.remainder` MISSED, five
+more style obligations WITHHELD, exit 3. The same twenty holes written
+blank: nothing missed, nothing withheld. **And it is not confined to
+checking your own source table** — contract 6 writes each published
+hole spelling into the twin at its count, so `synthtwin generate`
+writes a twin holding those same twenty cells and `synthtwin validate`
+then hands its own twin the same false miss and the same exit 3.
+
+**THE SIBLING SEARCH FOUND TWO MORE AND THE REGISTER NAMED NEITHER**,
+which is this project's standing lesson paying again:
+
+* **it needs no declaration at all.** Twenty `-999` cells the column's
+  own stand-in rule judges take SIX style obligations to WITHHELD on a
+  correct file — no miss, so no exit code moves, and the report simply
+  goes quiet about six facts its own description publishes exactly at
+  a floor of one.
+* **a joined column misses at BOTH positions.** Declaring `-1/-1` on a
+  two-position column produced `number 1 styles.remainder` and
+  `number 2 styles.remainder` MISSED. It needed the OTHER half of the
+  fix: a position's style subchecks carry the position in their name,
+  so they are not in `_MEASURED_FROM_THE_CELLS` and `_governed` takes
+  the SPLIT side's verdict, which was still recounting raw cells.
+* the affixed role reaches it through its cores (six withheld), and
+  the register's stated non-reach holds under measurement: a CONSTANT
+  column beside the same twenty holes publishes no style census, so no
+  recount runs and its report is clean.
+
+**The fix is the POPULATION and it is symmetrical.** Each side of
+`_governed` now recounts the cells ITS OWN reading counts as values —
+the gated side under the file's own description, the measured side
+under the description taken over the blank split, each asked through
+its own `taxonomy.Settings`. The machinery already existed:
+`_cells_that_description_reads` was built for amendment A-P3-5 and was
+run only where the description POOLS its missing sources, because the
+leak IT was written for needs a pool. **The population question is not
+the leak question and does not need one** — that narrowing is what left
+this open.
+
+Three mutations verify it, and they separate the two halves: reverting
+the gated half alone turns five cases red, reverting the measured half
+alone turns the joined case red, reverting both turns six red. The
+width case stays green in all three, because it asserts a boundary
+rather than the repair.
+
+**AND THE CHECKS STILL BITE**, which a repair that stops a correct file
+being failed has to be shown to do rather than asserted: rewriting
+every present cell in exponent form misses `styles.at-least.decimal`
+and `styles.published.decimal`, widening every cell to three fraction
+places misses `styles.spelled` and `widths.published.2`, and dropping
+the declared hole spelling misses `holes.by_source.-9.99`. A fourth
+perturbation proved nothing and the test says so rather than hiding it:
+`+51.71` and `051.71` are BOTH the decimal form to
+`parsing.numeric_style`, so a file rewritten either way is described
+byte for byte alike and there is nothing for a check to catch.
+
+**AND BUILDING THE WITNESSES FOUND A DEFECT IN THE OTHER REPORT, WHICH
+IS OPENED AND NOT FIXED (R-P4-70).** The twin's own report prints "The
+twin writes every one of them as an empty cell, so how your table wrote
+them is here rather than in the twin" for every column with an absent
+cell. P4-D6.1 stopped that being true — version 6 writes each published
+missing spelling into the twin at its count, closing R-P2-2 — and the
+sentence did not move with it. Measured on four twins at seed 7: the
+declared, joined and affixed columns each leave 0 blank cells and write
+their spelling 20 times, and all three print the sentence; only the
+judged `-999` stand-in, which IS written blank, prints it truthfully.
+**It points the wrong way as a disclosure**: a person is told their own
+"no value" word stayed behind in the description while the twin they
+are about to move is holding it. Not fixed here because the fix needs
+the generator's reproduce-or-blank split rather than a reworded
+sentence, and because moving any line of that report moves the five
+goldens this branch is holding still.
 
 ## What the owner has decided, and must not be re-asked
 
@@ -1430,16 +1514,23 @@ say which.
 
 ## What is broken right now
 
-- **LINT IS NOT CLEAN: ten errors stand** (`ruff check .` under the
-  pinned rule set, measured 2026-08-31 at `c10f5f6` with a throwaway
-  stash, so the count is the tree's and not this landing's). Two are
-  in `src/` -- a mid-file import in `generation.py`, and in
-  `validation.py` a mid-file import plus a dead `mine =
-  _position_cells(...)` at line 7438 that residual R-P4-58's drafting
-  left behind. Seven are in `tools/measurements/`. **The dead recount
-  is measured BENIGN rather than a wrong population**: the joined
-  ladder and moment checks read the profiler's re-description, not a
-  recount there. It goes with the joined role's own landing.
+- **LINT IS NOT CLEAN: nine errors stand** (`ruff check .` under the
+  pinned rule set, re-measured 2026-08-31 on this tree, so the count is
+  the tree's and not this landing's). Two are in `src/` -- a mid-file
+  import in `generation.py` and one in `validation.py`. Seven are in
+  `tools/measurements/`: four `E401`, two unused imports and one
+  unused local.
+
+  **It said TEN here until the R-P4-53 landing counted them again**,
+  and the tenth was the dead `mine = _position_cells(...)` that
+  residual R-P4-58's drafting left in `validation.py`. The joined
+  role's landing removed it and this line did not move with it -- which
+  is the same class of defect as the paragraph below, a count of a
+  check that was not re-run on the tree being described, in the other
+  direction. The measurement behind it stands as it was written: the
+  dead recount was BENIGN rather than a wrong population, because the
+  joined ladder and moment checks read the profiler's re-description
+  and not a recount there.
 
   This page said lint was CLEAN until 2026-08-31, which is the same
   defect as the commit messages below: a green claim about a check
