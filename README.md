@@ -203,6 +203,13 @@ code such as `00052-0052-52` are written exactly the same way and are
 codes, so name those with `--code`. A column of plain single numbers
 needs nothing.
 
+**It also settles a second shape.** A column whose number sits inside
+an electronic address -- `user12345@example.org` -- is described by a
+later rule instead, because the average of a column of real addresses
+is the average of whatever numbers those addresses were given. Such a
+column says so in its own description, and naming it here says the
+number inside is a quantity after all.
+
 **The numbers move together, and you are not asked about that.** How
 strongly a reading's two numbers rise and fall together, and whether the
 first is always the larger, are things your data says plainly -- so
