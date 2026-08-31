@@ -546,9 +546,12 @@ rulings stand at the recommendations the owner accepted as defaults:
 the recoverable-distribution advice is TIGHTENED rather than softened
 (L1).
 
-What is owed to the owner rather than from them is a decision about the
-183 lint errors below — whether to pin a rule set or edit — and that
-does not stop any landing.
+What is owed to the owner rather than from them is a decision about
+the TEN lint errors this tree carries — whether to fix them or record
+them — and that does not stop any landing. (The 183 that stood here
+were a different matter and were closed by pinning the rule set; the
+ten are what remains under that pinned set. See "What is broken right
+now".)
 
 ## The joined role's own gaps, all opened by review and all owed
 
@@ -1162,11 +1165,23 @@ say which.
 
 ## What is broken right now
 
-- **Lint is clean and CI is running again.** Both were broken and both
-  were fixed in this gap run: `pyproject.toml` now pins the ruff rule
-  set (the 183 errors were 120 quoted type annotations, a deliberate
-  style here, plus tooling import order), and CI had not run for 86
-  commits. When it did, all three of its failures were checks that had
+- **LINT IS NOT CLEAN: ten errors stand** (`ruff check .` under the
+  pinned rule set, measured 2026-08-31 at `c10f5f6` with a throwaway
+  stash, so the count is the tree's and not this landing's). Two are
+  in `src/` -- a mid-file import in `generation.py`, and in
+  `validation.py` a mid-file import plus a dead `mine =
+  _position_cells(...)` at line 7438 that residual R-P4-58's drafting
+  left behind. Seven are in `tools/measurements/`. **The dead recount
+  is measured BENIGN rather than a wrong population**: the joined
+  ladder and moment checks read the profiler's re-description, not a
+  recount there. It goes with the joined role's own landing.
+
+  This page said lint was CLEAN until 2026-08-31, which is the same
+  defect as the commit messages below: a green claim about a check
+  that was not run on the tree being described.
+- **CI ran again after 86 commits.** `pyproject.toml` pins the ruff
+  rule set (the 183 errors that stood before it were 120 quoted type
+  annotations, a deliberate style here, plus tooling import order). When it did, all three of its failures were checks that had
   outlived their rules -- a column count, a suppressed-level count and
   an inverted membership test -- and not product defects. The lesson
   worth keeping: **no commit message may claim "every check clean"
