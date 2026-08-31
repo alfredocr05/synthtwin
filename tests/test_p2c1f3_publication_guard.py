@@ -575,7 +575,14 @@ def _plausible_arguments(form: str) -> "tuple[object, ...]":
     if form == taxonomy.REMARK_NO_READING_FITS:
         # Seven since the affixed role shipped: how far the affix
         # reading got, and how many cells stand-in judging removed.
-        return (fragment, dates, 9, 4, 5, 6, 7)
+        # NINE since the advisory remarks landed (residual R-P4-24):
+        # how far a clock reading got, and how many rows one
+        # `--missing-value` would recover a distribution from. Both
+        # are given NONZERO here on purpose -- the arguments that
+        # write a clause are the ones that exercise the composition,
+        # and a zero would leave two branches of this form unwritten
+        # by the walk over every enumerated sentence.
+        return (fragment, dates, 9, 4, 5, 6, 7, 8, 9)
     if form == taxonomy.EVIDENCE_CLOCK:
         # Its middle argument is a clock FORM word, not a date format:
         # the two vocabularies are both this package's own and the

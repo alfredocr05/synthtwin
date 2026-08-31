@@ -715,6 +715,46 @@ REMARK_ALL_DIFFERENT_TEXT = "remark_every_value_is_different"
 # or declined with a plain-language explanation, and this decline had
 # none.
 REMARK_ADDRESS_NOT_A_QUANTITY = "remark_an_address_is_not_a_quantity"
+# A LABEL COLUMN PUBLISHING ONE OF THIS PACKAGE'S OWN STAND-IN NUMBERS
+# AS A LEVEL (plan P4-D4.7, amendment A-P4-30 item 1, contract NF37).
+# The stand-in judgement runs only above the numeric parse line, so a
+# column of labels publishes `-999` as an ordinary level with an
+# ordinary count and nothing anywhere said that the same number on a
+# numeric column would have been read as a gap. Advisory: it routes
+# nothing, and `--missing-value` is the person's own to make.
+REMARK_LABEL_IS_A_STAND_IN = "remark_a_label_is_a_built_in_stand_in"
+# A COLUMN OF WHOLE NUMBERS WHOSE EVERY VALUE LIES IN THE BAND A
+# MOMENT IN TIME IS COUNTED INTO (residual R-P4-9, contract NF51).
+# Such a column is read as a count and stays one -- no rule of this
+# package reads a number as a time and no declaration makes one -- so
+# the remark exists for the one thing that WAS missing: being told.
+REMARK_EPOCH_BAND = "remark_whole_numbers_could_be_times"
+
+# THE TWO BANDS, and there is no third. A moment in time is counted
+# into a whole number in one of two units a person meets: seconds from
+# the 1st of January 1970, or milliseconds from the same instant. The
+# argument NAMES the band by its place in that pair, so the remark's
+# rendering is a lookup rather than a spelling.
+EPOCH_BAND_SECONDS = 1
+EPOCH_BAND_MILLISECONDS = 2
+
+# HOW WIDE EACH BAND IS, STATED AS TWO CALENDAR YEARS AND NOT AS TWO
+# LARGE NUMBERS. The band runs from the first day of `EPOCH_BAND_FROM`
+# up to, and not including, the first day of `EPOCH_BAND_UNTIL`; the
+# whole numbers themselves are worked out from those days by
+# `parsing.days_from_civil`, so nothing here is a constant somebody
+# would have to check against a calendar.
+#
+# WHY THE BAND HAS A LOWER END AT ALL, and why it is this one. Zero is
+# the 1st of January 1970, so a band that started there would cover
+# every ordinary count a table holds -- ages, tallies, row counts -- and
+# the remark would fire on almost every column of whole numbers, which
+# is the noise a routing-nothing sentence can least afford. Starting
+# at the year 2000 puts the band's floor at 946,684,800 in seconds:
+# a count column reaching that is already unusual, and one whose
+# EVERY value does is the shape this remark exists for.
+EPOCH_BAND_FROM = 2000
+EPOCH_BAND_UNTIL = 2051
 
 # The header verdict, which the reader settles and the profile
 # publishes. The sentences live in this table with every other
@@ -766,14 +806,27 @@ NOTE_ARITY: "dict[str, int]" = {
     REMARK_UNREPRESENTABLE: 2,
     REMARK_CASE_ONLY_TWO: 0,
     REMARK_TWO_ALSO_NUMBERS: 0,
-    REMARK_DATES_ALSO_NUMBERS: 0,
+    # BOTH COUNTS, BECAUSE THE READING WAS A CHOICE (contract NF25,
+    # plan P4-D4.7, amendment A-P4-30 item 1). Argument 1 is what the
+    # chosen date format parsed and argument 2 is the numeric-looking
+    # count; the compact family is where the two readings compete most
+    # often, and a sentence saying only which one won leaves its
+    # reader no way to see how close the other came.
+    REMARK_DATES_ALSO_NUMBERS: 2,
     REMARK_MONTH_FIRST: 0,
     REMARK_TWO_DIGIT_YEAR: 0,
     # Contract NF36 fixes the order: D, M, X, Y, then the reading used.
     REMARK_SLASHED_EVIDENCE: 5,
     REMARK_CASE_ONLY_MANY: 0,
     REMARK_NEAR_CATEGORY_LINE: 2,
-    REMARK_NO_READING_FITS: 7,
+    # NINE SINCE THE ADVISORY REMARKS LANDED (contract NF29). Seven
+    # shipped: the two readings, the parse line, the different values,
+    # the ceiling, the affix reading's reach and what stand-in judging
+    # removed. Argument 8 is how far a CLOCK reading got -- the one
+    # reading a declined column stayed silent about -- and argument 9
+    # is the recoverable-distribution advice of amendment A-P4-1 item
+    # 4. Each is 0 where its clause is not written.
+    REMARK_NO_READING_FITS: 9,
     REMARK_SOME_NOT_NUMBERS: 1,
     REMARK_NEAR_NUMERIC_LINE: 3,
     REMARK_ALL_DIFFERENT_NUMBERS: 0,
@@ -790,6 +843,19 @@ NOTE_ARITY: "dict[str, int]" = {
     # sentence says the shape in its own fixed words and names no
     # number of this column at all.
     REMARK_ADDRESS_NOT_A_QUANTITY: 0,
+    # WHICH stand-in number, as its one-based place in this package's
+    # own three-member list -- so 1, 2 or 3 and nothing else (contract
+    # NF37). The NUMBER is written from that place through a fixed
+    # table, so no spelling of the column reaches the sentence: the
+    # level itself is published in the block beside the remark and the
+    # reader finds it there.
+    REMARK_LABEL_IS_A_STAND_IN: 1,
+    # WHICH BAND, then the two ends read as calendar dates: the year,
+    # the month and the day of the smallest value, then of the largest
+    # (contract NF51). Seven whole numbers and no spelling of any kind
+    # -- the two ends are the `min` and `max` this block already
+    # publishes, said a second way.
+    REMARK_EPOCH_BAND: 7,
     HEADER_NAMES_BY_OPTION: 0,
     HEADER_DATA_BY_OPTION: 0,
     HEADER_NAMES_BY_CONVENTION: 0,
@@ -921,6 +987,57 @@ def _whole(arguments: "tuple[object, ...]", place: int) -> int:
     if not isinstance(argument, int):
         raise TypeError(UNAUTHORIZED_NOTE_ARGUMENT)
     return argument
+
+
+def _stand_in_spelling(place_in_list: int) -> str:
+    """One built-in stand-in number, from its one-based place.
+
+    Contract NF37's fixed table, DERIVED rather than typed: the list a
+    cell is judged against is `parsing.NUMERIC_SENTINELS`, and a table
+    written out beside it would be the same fact in two places -- the
+    shape this project keeps finding drifted apart. Every member is a
+    whole number, so the spelling is the number without a fraction.
+
+    Guarantees: accepts 1, 2 or 3; returns this package's own spelling
+    of that member. Raises ValueError for any other position, which is
+    an internal check -- `note` refuses an argument no producer built.
+    No value of any table can reach it. No I/O of any kind.
+    """
+    if place_in_list < 1 or place_in_list > len(parsing.NUMERIC_SENTINELS):
+        raise ValueError(UNAUTHORIZED_NOTE_ARGUMENT)
+    return f"{int(parsing.NUMERIC_SENTINELS[place_in_list - 1])}"
+
+
+def _epoch_band_word(band: int) -> str:
+    """The unit one of the two time bands counts in.
+
+    Contract NF51's fixed table: 1 is seconds and 2 is milliseconds.
+    Two bands and no third, so the word is a lookup and never a
+    spelling of anybody's column.
+
+    Guarantees: accepts 1 or 2; returns the word. Raises ValueError
+    otherwise, which is an internal check. No I/O of any kind.
+    """
+    if band == EPOCH_BAND_SECONDS:
+        return "seconds"
+    if band == EPOCH_BAND_MILLISECONDS:
+        return "milliseconds"
+    raise ValueError(UNAUTHORIZED_NOTE_ARGUMENT)
+
+
+def _written_day(arguments: "tuple[object, ...]", place: int) -> str:
+    """Three whole numbers as one calendar day, `YYYY-MM-DD`.
+
+    The year is written in four figures and the month and day in two,
+    each padded with zeros on the left, which is the one spelling this
+    package writes a day in anywhere. The three numbers are arguments
+    of the form, so nothing is read from a column here.
+    """
+    return (
+        f"{_whole(arguments, place):04d}-"
+        f"{_whole(arguments, place + 1):02d}-"
+        f"{_whole(arguments, place + 2):02d}"
+    )
 
 
 def _word(arguments: "tuple[object, ...]", place: int) -> str:
@@ -1259,9 +1376,18 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
             "which describes the column exactly"
         )
     if form == REMARK_DATES_ALSO_NUMBERS:
+        # BOTH COUNTS ARE IN THE SENTENCE BECAUSE THE READING WAS A
+        # CHOICE (contract NF25). Eight digits are a date and a number
+        # at once, so the compact family is where the two readings
+        # compete most often -- and a remark that says only which
+        # reading won leaves its reader no way to see how close the
+        # other one came. Stating both counts is what lets somebody
+        # recognize a column that should have been read the other way.
         return (
-            "the values in this column read both as dates and as "
-            "plain numbers; they were read as dates"
+            f"the values in this column read both as dates and as "
+            f"plain numbers: {_whole(arguments, 0)} of them read as "
+            f"dates and {_whole(arguments, 1)} of them are written as "
+            f"numbers. They were read as dates"
         )
     if form == REMARK_MONTH_FIRST:
         # THE SENTENCE NAMES NO PUNCTUATION, and that is the change
@@ -1370,6 +1496,7 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
             f"{_whole(arguments, 5)} of its values are numbers wearing "
             f"one shared piece of text, which is the reading that came "
             f"closest{_removed_said(arguments, 6)}"
+            f"{_later_clauses(arguments, 7, 8)}"
         )
     if form == REMARK_SOME_NOT_NUMBERS:
         return (
@@ -1546,6 +1673,64 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
             "to say the number inside is a quantity after all, and the "
             "column is described as numbers wearing that address. NAME "
             "is this column's name"
+        )
+    if form == REMARK_LABEL_IS_A_STAND_IN:
+        # THE NUMBER IS WRITTEN FROM THE ARGUMENT, NOT CARRIED IN IT
+        # (contract NF37). Argument 1 is a POSITION in this package's
+        # own three-member list, so the sentence names one of this
+        # package's own numbers and never a spelling taken out of the
+        # column. The level itself is published in the block beside
+        # this remark, and a reader who wants to see it looks there.
+        #
+        # It is spelled from `parsing.NUMERIC_SENTINELS` rather than
+        # typed, so the sentence and the list a cell is judged against
+        # cannot drift apart -- the standing lesson of this project,
+        # applied to a table small enough to look safe.
+        number = _stand_in_spelling(_whole(arguments, 0))
+        return (
+            f"one of the values this column publishes is {number}, "
+            f"which is one of the three numbers synthtwin treats as a "
+            f"stand-in for 'no value' when a column's own numbers make "
+            f"it one. This column holds labels rather than numbers, so "
+            f"that value is published as a label and counted as a real "
+            f"one. If it means 'no value' in your table, run the "
+            f"command again with --missing-value {number} and it will "
+            f"be counted as a gap instead."
+        )
+    if form == REMARK_EPOCH_BAND:
+        # IT ROUTES NOTHING AND THERE IS NOTHING FOR IT TO ROUTE TO.
+        # No rule of this package reads a number as a moment in time
+        # and no declaration makes one, so unlike the address decline
+        # beside it this sentence names no flag at all. What it does
+        # is tell somebody that the column they are holding may be
+        # times, which nothing in the document said before.
+        #
+        # AND IT SAYS PLAINLY THAT THE TWIN IS UNAFFECTED, because
+        # that is the question a reader of a fidelity report asks
+        # next. The numeric reading keeps every value's place and the
+        # distance between any two of them, so converting the twin's
+        # column to dates the way the source column would be converted
+        # gives dates over the same span. What was missing is the
+        # person being told, and this sentence is the whole of it.
+        unit = _epoch_band_word(_whole(arguments, 0))
+        first = _written_day(arguments, 1)
+        last = _written_day(arguments, 4)
+        return (
+            f"every value in this column is a whole number, and every "
+            f"one of them sits in the band a computer writes a moment "
+            f"in time into when it counts {unit} from the 1st of "
+            f"January 1970. Read that way this column runs from "
+            f"{first} to {last}. synthtwin read them as plain numbers "
+            f"and describes them as a count of things. THIS SENTENCE "
+            f"DECIDES NOTHING and moves nothing: no rule of synthtwin "
+            f"reads a number as a moment in time, and no declaration "
+            f"makes one. It changes nothing about your twin either -- "
+            f"reading the column as plain numbers keeps every value "
+            f"where it was and every distance between two of them, so "
+            f"turning the twin's column into dates the way you would "
+            f"turn your own gives dates over the same span. What was "
+            f"missing is being told, so that you can recognize your "
+            f"own column and say in its name what it holds"
         )
     if form == HEADER_NAMES_BY_OPTION:
         return (
@@ -4436,6 +4621,52 @@ def _levels_covering(counts: "dict[str, int]", settings: Settings) -> int:
     return found
 
 
+def _stand_in_level_remarks(levels: _Levels) -> "list[Note]":
+    """One remark per built-in stand-in number published as a level.
+
+    Contract NF37; plan P4-D4.7, withdrawn by amendment A-P4-30 item 1
+    and built now under residual R-P4-24. The stand-in judgement runs
+    only where a column's numbers reach the parse line, so a column of
+    LABELS publishes `-999` as an ordinary level with an ordinary
+    count, and nothing in the document told its owner that the same
+    number one column over would have been read as a gap.
+
+    IT ROUTES NOTHING. The role is already decided, the level is
+    already published at its own count, and `--missing-value` is the
+    person's to type or not. What the sentence adds is that they know
+    the choice exists.
+
+    THE MATCH IS BY NUMBER AND NOT BY SPELLING, which is the rule every
+    other declaration in this module is matched under: `-999`,
+    `-999.0` and `-999.00` are one number, and a column publishing any
+    of them publishes the stand-in. Only levels that were PUBLISHED are
+    looked at -- a level the floor held back is a level the remark may
+    not describe, since the sentence says "one of the values this
+    column publishes".
+
+    Guarantees: accepts the published levels of one label column;
+    returns a sentence for each built-in stand-in among them, in this
+    package's own order, so a column publishing two of them is told
+    about both. No spelling of the column reaches a sentence: each
+    carries the candidate's PLACE in the built-in list and nothing
+    else. Raises nothing. No I/O of any kind.
+    """
+    said: "list[Note]" = []
+    labels = [
+        entry["label"]
+        for entry in levels.published
+        if isinstance(entry["label"], str)
+    ]
+    exact = [exact_of_spelling(f"{label}") for label in labels]
+    for place, candidate in enumerate(parsing.NUMERIC_SENTINELS, start=1):
+        wanted = exact_of_number(candidate)
+        for held in exact:
+            if held is not None and held == wanted:
+                said = said + [note(REMARK_LABEL_IS_A_STAND_IN, (place,))]
+                break
+    return said
+
+
 def _level_details(levels: _Levels, cells: _Cells) -> dict[str, object]:
     """The published block a label-publishing role carries.
 
@@ -6668,8 +6899,16 @@ def _decide(
     after_days: bool = False,
     forced_code: bool = False,
     forced_measurement: bool = False,
+    probing: bool = False,
 ) -> _Verdict:
     """Pick the one role, testing the rules in the documented order.
+
+    ``probing`` says this run is the recoverable-distribution advice
+    asking what a smaller version of this column would be described as
+    (contract NF29 argument 9). It suppresses the advice itself and
+    nothing else, so the question is asked exactly once and this
+    function cannot call itself without end. Every other caller leaves
+    it false and gets the ordinary reading.
 
     Every rule here routes a column to a role decided by its VALUES.
     Exactly one role is not on that list: `identifier` comes from
@@ -6874,6 +7113,11 @@ def _decide(
                         (settings.small_cell_floor,),
                     )
                 ]
+            # A CONSTANT COLUMN OF `-999` IS THE LOUDEST CASE OF ALL
+            # (contract NF37): every row of it is the number this
+            # package would have called a gap, and the description says
+            # only that the column holds one value.
+            remarks = remarks + _stand_in_level_remarks(levels)
             return _Verdict(
                 role=ROLE_CONSTANT,
                 evidence=note(EVIDENCE_ONE_VALUE, (n_present,)),
@@ -6902,6 +7146,7 @@ def _decide(
                 present, settings
             ):
                 remarks = remarks + [note(REMARK_TWO_ALSO_NUMBERS)]
+            remarks = remarks + _stand_in_level_remarks(levels)
             return _Verdict(
                 role=ROLE_BINARY,
                 evidence=note(EVIDENCE_TWO_VALUES),
@@ -6931,7 +7176,18 @@ def _decide(
                 format_name, pairs, sources, unparsed, settings
             )
             if numeric_looking >= strict_needed:
-                remarks = remarks + [note(REMARK_DATES_ALSO_NUMBERS)]
+                # BOTH COUNTS, AND THEY ARE ALREADY COMPUTED HERE
+                # (contract NF25, plan P4-D4.7). `pairs` is what the
+                # chosen format parsed and `numeric_looking` is the
+                # count the numeric line was compared against three
+                # lines up, so the sentence states the two readings'
+                # own numbers rather than a third measurement of them.
+                remarks = remarks + [
+                    note(
+                        REMARK_DATES_ALSO_NUMBERS,
+                        (len(pairs), numeric_looking),
+                    )
+                ]
             # THE STAMP MEMBER CARRIES THE SAME QUESTION AS THE DATE
             # MEMBER, so it carries the same remark (plan amendment
             # A-P4-1 item 2, which says ambiguity handling is
@@ -7009,6 +7265,7 @@ def _decide(
                 remarks = remarks + [
                     note(REMARK_NEAR_CATEGORY_LINE, (folded_distinct, ceiling))
                 ]
+            remarks = remarks + _stand_in_level_remarks(levels)
             return _Verdict(
                 role=ROLE_CATEGORICAL,
                 evidence=note(
@@ -7131,6 +7388,7 @@ def _decide(
             notes = notes + [_pooled_note(levels, settings)]
         if cells.raw_distinct != folded_distinct:
             remarks = remarks + [note(REMARK_CASE_ONLY_MANY)]
+        remarks = remarks + _stand_in_level_remarks(levels)
         return _Verdict(
             role=ROLE_LONG_TAIL,
             evidence=note(
@@ -7180,7 +7438,28 @@ def _decide(
     dates_said = _read_as_dates(present)
     remarks = remarks + [
         _competing_readings(
-            cells, ceiling, numbers_said, dates_said, removed
+            cells,
+            ceiling,
+            numbers_said,
+            dates_said,
+            removed,
+            # THE FOURTH READING, WHICH THIS COLUMN USED TO BE SILENT
+            # ABOUT (contract NF29 argument 8). The remark named the
+            # numeric reading, the date reading and the affix reading;
+            # a column of clock times in a shape this version does not
+            # describe was told that nothing fitted and never told
+            # which reading came closest.
+            clock_reach(cells),
+            # ...AND THE ONE DECLARATION THAT WOULD CHANGE THE ANSWER
+            # (contract NF29 argument 9, amendment A-P4-1 item 4). The
+            # DECLARATIONS ARE PASSED IN because the advice is false
+            # under `--code`: that declaration silences every rule that
+            # reads a cell as a number, so no `--missing-value` can
+            # give this column a distribution, and a sentence promising
+            # one would send its reader to a command that cannot help.
+            _recoverable_reach(
+                cells, forced_code, forced_measurement, probing
+            ),
         )
     ]
     return _free_text_verdict(
@@ -7249,12 +7528,75 @@ def _removed_said(arguments: "tuple[object, ...]", place: int) -> str:
     )
 
 
+def _later_clauses(
+    arguments: "tuple[object, ...]", clock_place: int, advice_place: int
+) -> str:
+    """NF29's last two clauses, composed exactly as the contract says.
+
+    Argument 8 is how far a CLOCK reading got. The competing-readings
+    remark named the numeric reading, the date reading and the affix
+    reading, and stayed silent about the fourth -- so a column of clock
+    times in a shape this version does not describe was told that no
+    reading fitted it and never told which reading came closest.
+
+    Argument 9 is the recoverable-distribution advice (amendment A-P4-1
+    item 4). Where a declined column's repeated non-numeric spellings
+    are what held it below the parse line, one `--missing-value`
+    brings its distribution back, and the remark said nothing about it.
+    IT IS ADVISORY AND ROUTES NOTHING: the count is the rows those
+    spellings cover and the declaration is the person's own to make.
+    Its trigger is a PRODUCER obligation and is stated where the
+    producer computes it (`_recoverable_reach`), not here.
+
+    THE COMPOSITION IS THE CONTRACT'S AND IT IS WRITTEN ONCE. 4.5.1
+    says a clause is written if and only if its own argument is
+    nonzero, in argument order, each ending in a full stop and
+    separated from the next by ONE space, with a full stop and one
+    space after what came before. Two functions each prefixing their
+    own ". " wrote `describe.. 9 more` the first time this was built,
+    which is why the join lives in one place: a guard rebuilding the
+    sentence has one candidate string to compare, not a family of
+    them.
+    """
+    written: "list[str]" = []
+    reach = _whole(arguments, clock_place)
+    if reach:
+        written += [
+            f"{reach} of these values read as a clock time, in a shape "
+            f"synthtwin does not describe."
+        ]
+    covered = _whole(arguments, advice_place)
+    if covered:
+        written += [
+            f"{covered} more are written one of a few ways that repeat "
+            f"often enough to name. If those {covered} mean 'no "
+            f"value', run the command again with --missing-value and "
+            f"this column's distribution will be described."
+        ]
+    if not written:
+        return ""
+    # BUILT BY ADDITION AND NOT BY `join`. The offline audit refuses a
+    # data method handed a value it cannot resolve under its own eyes,
+    # because the receiver's protocol then runs on that value -- and a
+    # list built here is not one of the shapes it can trace. Adding
+    # strings has no such reach, and the separator is still stated once.
+    tail = ""
+    for clause in written:
+        if tail:
+            tail = tail + " " + clause
+        else:
+            tail = clause
+    return ". " + tail
+
+
 def _competing_readings(
     cells: _Cells,
     ceiling: int,
     numbers_said: "tuple[str, tuple[object, ...]]",
     dates_said: "tuple[str, tuple[object, ...]]",
     removed: int,
+    clock_said: int,
+    recoverable: int,
 ) -> Note:
     """Why no reading fitted this column, with the rate each one reached.
 
@@ -7284,8 +7626,168 @@ def _competing_readings(
             ceiling,
             affixed_reach(cells),
             removed,
+            clock_said,
+            recoverable,
         ),
     )
+
+
+# THE ROLES THE RECOVERABLE-DISTRIBUTION ADVICE MAY PROMISE. The advice
+# tells its reader that one `--missing-value` will get "this column's
+# distribution described", so the roles that make that sentence TRUE
+# are the ones that publish an average, a spread and a ladder over
+# numbers. Written out rather than derived from a wider predicate on
+# purpose: `numeric_unrepresentable` publishes no statistic at all,
+# `constant` and `binary` publish labels and counts, and residual
+# R-P4-16 was opened because the plan's arithmetic promised a
+# distribution on exactly those three.
+_ROLES_WITH_A_DISTRIBUTION = (ROLE_COUNT, ROLE_CONTINUOUS, ROLE_AFFIXED)
+
+
+def _recoverable_reach(
+    cells: _Cells,
+    forced_code: bool,
+    forced_measurement: bool,
+    probing: bool,
+) -> int:
+    """Rows one `--missing-value` would recover a distribution from.
+
+    Contract NF29 argument 9; amendment A-P4-1 item 4, under the
+    TIGHTENED trigger residual R-P4-16 asked for and the owner
+    accepted. Zero means no advice is written, and the remark then says
+    nothing about a declaration.
+
+    THE TRIGGER IS A RE-RUN AND NOT AN ARITHMETIC, and that is the
+    whole of what R-P4-16 settles. The plan's original trigger was
+    "removing the floor-clearing non-numeric folded spellings lifts the
+    survivors past the parse line", which is whole-number arithmetic
+    over counts this remark already carries -- and it does not deliver
+    the clause's own promise. Survivors can clear the line on cells
+    that merely LOOK numeric without one of them being a number this
+    format can hold, in which case the column takes
+    `numeric_unrepresentable` and publishes no statistic; or they can
+    collapse to one or two different values, which `constant` and
+    `binary` claim ahead of every numeric rule. In both cases the
+    advice promised a distribution the re-run would not describe.
+
+    So the producer RE-READS the column over the survivors and writes
+    the sentence only where that reading lands on a role that publishes
+    a distribution. **A loader cannot check this** -- it holds a
+    description and not the cells -- which is why R-P4-16 records it as
+    a producer obligation and not as a wire invariant, and why this
+    function is where the rule lives.
+
+    THE DECLARATIONS ARE ASKED, because they decide whether the advice
+    is true at all. Under `--code` every rule that reads a cell as a
+    number is silenced, so no `--missing-value` can give this column a
+    distribution and the advice must stay quiet.
+
+    ``probing`` is the re-run asking this same question one level down.
+    It answers zero, which is what bounds the recursion at one step:
+    the advice is decided by the FIRST reading of the survivors, and a
+    survivor column that would itself have carried advice is a column
+    the reader will meet after making the declaration this sentence
+    proposes.
+
+    Guarantees: accepts the tally of one column that fell to free text,
+    the two declarations that were in force, and whether this is the
+    probe; returns a count of that column's present cells, or zero.
+    Determinism: a function of those arguments alone. Raises nothing.
+    No I/O of any kind, and no spelling of the column travels out
+    through it -- the answer is a count.
+
+    ONE LIMIT, STATED WHERE IT LIVES. The re-run is this module's role
+    reading. The stand-in and placeholder judgements sit ABOVE it in
+    `profile_column` and are not repeated here, so a column whose
+    survivors those passes would collapse to two values could still be
+    given hopeful advice. It is recorded with R-P4-16 rather than
+    argued away: closing it means re-running those passes too, and the
+    two shapes R-P4-16 names are both closed by this reading.
+    """
+    if probing or forced_code:
+        return 0
+    settings = cells.settings
+    offending = _floor_clearing_non_numeric(cells)
+    if not offending:
+        return 0
+    survivors = [
+        cell for cell in cells.classified if cell.folded not in offending
+    ]
+    covered = len(cells.classified) - len(survivors)
+    if not survivors or covered == 0:
+        return 0
+    reading = _decide(
+        _tally(survivors, cells.n_rows, settings, cells.decimal_comma),
+        False,
+        forced_measurement=forced_measurement,
+        probing=True,
+    )
+    if reading.role in _ROLES_WITH_A_DISTRIBUTION:
+        return covered
+    return 0
+
+
+def _floor_clearing_non_numeric(cells: _Cells) -> "tuple[str, ...]":
+    """Folded spellings that repeat often enough to name and hold no number.
+
+    "Often enough to name" is the publication floor and not a rule of
+    this remark's own: a spelling the floor would hold back is a
+    spelling the advice may not describe, so the two lines are the same
+    line. "Holds no number" is asked of the CELLS rather than of the
+    folded key, because the key is a trimmed and case-folded string and
+    asking it a second time would be a second reading of a cell this
+    module reads once.
+
+    TWO THINGS ARE NARROWER THAN THE FLOOR, and both are here so the
+    contract's own sentence is TRUE of the column it is written on.
+    NF29's clause 9 says the covered cells "are written one of a few
+    ways that repeat often enough to name", and neither half of that
+    survives the floor alone:
+
+    * **A spelling has to REPEAT**, which at the default floor of one
+      it need not (amendment A-P4-37 lowered the floor to 1, four
+      amendments after A-P4-1 wrote this trigger against it). Without
+      this, a column of a hundred numbers beside a hundred ALL
+      DIFFERENT words would have every word counted as a "way that
+      repeats", and the sentence would call a hundred one-off
+      spellings a few repeated ones.
+    * **There have to be A FEW WAYS**, which is the categorical
+      ceiling -- this document's own line for "a small set of values in
+      this column", computed and not invented. Without it a column
+      whose gaps wear fifty different spellings is told they are "a
+      few".
+
+    Both narrow the advice rather than widening it, so no column gains
+    a sentence by them; some columns that would have been told
+    something loosely true are told nothing, which is the direction an
+    advisory remark should err in.
+
+    Guarantees: accepts the tally of one column; returns the folded
+    identities in sorted order, which is the order every walk over them
+    is taken in, and returns none at all where there are more of them
+    than the ceiling admits. Raises nothing. No I/O of any kind.
+    """
+    # A MAPPING RATHER THAN A SET, and the offline audit is why: a set
+    # is filled by a METHOD CALL on a value that audit cannot trace to
+    # an allowlisted API, and no method call on an untraced value is
+    # accepted. Subscript assignment is what `_tally` above builds its
+    # own folded map with, for the same reason.
+    numeric_somewhere: "dict[str, bool]" = {}
+    for cell in cells.classified:
+        if cell.kind != parsing.NOT_A_NUMBER:
+            numeric_somewhere[cell.folded] = True
+    floor = cells.settings.small_cell_floor
+    if floor < 2:
+        floor = 2
+    found = tuple(
+        folded
+        for folded in sorted(cells.folded_counts)
+        if cells.folded_counts[folded] >= floor
+        and folded not in numeric_somewhere
+    )
+    if len(found) > _categorical_ceiling(cells):
+        return ()
+    return found
 
 
 def _free_text_verdict(
@@ -7565,6 +8067,79 @@ def _identifier_verdict(
     )
 
 
+# How many of each unit a day holds. The seconds figure is the one
+# `parsing` already counts a day in; the milliseconds figure is that
+# one a thousand times over, computed here rather than typed.
+_SECONDS_IN_A_DAY = 24 * 60 * 60
+_EPOCH_BAND_UNITS_IN_A_DAY = {
+    EPOCH_BAND_SECONDS: _SECONDS_IN_A_DAY,
+    EPOCH_BAND_MILLISECONDS: _SECONDS_IN_A_DAY * 1000,
+}
+
+
+def _epoch_band_reading(cells: _Cells) -> "tuple[object, ...] | None":
+    """This column read as moments in time, or None if it cannot be.
+
+    Residual R-P4-9, contract NF51. Returns the arguments NF51 takes --
+    which band, then the year, month and day of the smallest value and
+    of the largest, read in that band -- or None where the column is
+    not in either band.
+
+    THE WALK IS OVER EVERY VALUE, AND WHAT THAT DOES AND DOES NOT BUY
+    IS MEASURED RATHER THAN CLAIMED. A band is one interval, so on the
+    role this is asked of -- where every value is a whole number by the
+    role's own rule -- asking `min` and `max` answers the same question
+    as asking every value. Rewriting the walk that way was run as a
+    mutation and turned nothing red, which is the honest result: it is
+    an equivalent rewrite and not an escaped defect. The walk stays
+    because it makes this function right on ITS OWN terms rather than
+    on its caller's -- a band ever written as two intervals, or a
+    caller that ever asks this of a role admitting a value whose text
+    does not settle it as whole, breaks the equivalence and not the
+    walk. What the walk DOES rule out, on any role, is a column holding
+    a number this format cannot hold: `len(numbers) != numeric_looking`
+    above refuses it, because a cell too large to hold has no place in
+    a band at all.
+
+    WHY THE BAND STARTS IN THE YEAR 2000 rather than at zero is written
+    where `EPOCH_BAND_FROM` is set: zero is the 1st of January 1970, so
+    a band beginning there covers every ordinary count.
+
+    Guarantees: accepts the tally of one column; returns NF51's
+    arguments or None. Determinism: a function of the tallied numbers
+    alone, and the bands are worked out from two calendar years by
+    `parsing.days_from_civil`. Raises nothing. No I/O of any kind.
+    """
+    numbers = cells.numbers
+    if not numbers or len(numbers) != _numeric_looking(cells):
+        return None
+    first_day = parsing.days_from_civil(EPOCH_BAND_FROM, 1, 1)
+    last_day = parsing.days_from_civil(EPOCH_BAND_UNTIL, 1, 1)
+    for band in (EPOCH_BAND_SECONDS, EPOCH_BAND_MILLISECONDS):
+        each_day = _EPOCH_BAND_UNITS_IN_A_DAY[band]
+        low = first_day * each_day
+        high = last_day * each_day
+        inside = True
+        for value in numbers:
+            # WHOLENESS BY ARITHMETIC, NOT BY `is_integer`, which is a
+            # method call the offline audit refuses on a value it
+            # cannot trace. The remainder is also the safer test at the
+            # ends of the format: anything that is not a finite whole
+            # number leaves a remainder that is not zero, so the same
+            # line refuses it.
+            if value % 1 != 0:
+                inside = False
+                break
+            if value < low or value >= high:
+                inside = False
+                break
+        if inside:
+            smallest = parsing.civil_from_days(int(min(numbers)) // each_day)
+            largest = parsing.civil_from_days(int(max(numbers)) // each_day)
+            return (band,) + smallest + largest
+    return None
+
+
 def _numeric_verdict(
     cells: _Cells, notes: list[Note], remarks: list[Note]
 ) -> _Verdict:
@@ -7640,6 +8215,17 @@ def _numeric_verdict(
     role = ROLE_COUNT if counts_things else ROLE_CONTINUOUS
     if role == ROLE_COUNT:
         evidence = note(EVIDENCE_COUNTS, (numeric_looking,))
+        # ...AND A COLUMN OF WHOLE NUMBERS THAT ARE ALL MOMENTS IN TIME
+        # SAYS SO (residual R-P4-9, contract NF51). It is asked only of
+        # this role because the band is a band of whole non-negative
+        # numbers, which is what this role means. The remark ROUTES
+        # NOTHING and there is nothing for it to route to: no rule here
+        # reads a number as a time and no declaration makes one, so the
+        # column stays a count either way and every published fact of
+        # it is the same fact. What changes is that its owner is told.
+        band = _epoch_band_reading(cells)
+        if band is not None:
+            remarks = remarks + [note(REMARK_EPOCH_BAND, band)]
     else:
         evidence = note(EVIDENCE_NUMBERS, (numeric_looking, n_present))
     details = _numeric_details(cells, whole_everywhere)

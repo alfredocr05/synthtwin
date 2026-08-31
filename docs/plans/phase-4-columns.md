@@ -2100,9 +2100,42 @@ Opened by this plan, each a limit accepted rather than work forgotten:
   description.
 - **R-P4-8.** Non-ASCII digits and alternate numeric notations stay
   unread; the classifier stays single and closed.
-- **R-P4-9.** Epoch-second integer columns read as counts; a remark
-  names the alternative reading when the range is epoch-shaped, routing
-  nothing.
+- **R-P4-9 — CLOSED 2026-08-31, the remark is built (contract NF51).**
+  Epoch-second integer columns are still read as counts, which is the
+  right reading and is untouched: no rule of this package reads a
+  number as a moment in time and no declaration makes one. What was
+  missing was the SENTENCE. A `count` column whose every value lies in
+  the seconds band, or in the milliseconds band, now carries
+  `remark_whole_numbers_could_be_times` — which band, its two ends said
+  as calendar dates, and the plain statement that the column was read
+  as plain numbers.
+
+  **It says the twin is unaffected, and that is the half a fidelity
+  report has to carry.** The numeric reading keeps the range and the
+  spacing, which is what every published fact of a `count` column is
+  about, so converting the twin's column to dates the way the source
+  column would be converted gives dates over the same span. Measured
+  block for block with the remark's own question answered None: the
+  description is identical key for key and role for role, and only the
+  sentence is gone.
+
+  **The band begins in the year 2000 and not at zero**, because zero is
+  the 1st of January 1970 and a band starting there covers every
+  ordinary count a table holds. The bound is two calendar years put
+  through `parsing.days_from_civil`, so it is derived and not a large
+  number anybody typed.
+
+  **ONE CLAIM MADE WHILE BUILDING IT WAS FALSE AND IS WITHDRAWN.** The
+  first draft of NF51 said the definition runs over every value rather
+  than over the two ends because "a column whose ends fall in a band
+  while its middle does not is not a column of moments in time". A band
+  is ONE INTERVAL, so that column cannot exist, and on a role whose
+  every value is whole the two ends answer the same question — measured
+  by running the ends-only rewrite as a mutation, which turned nothing
+  red. The contract sentence is corrected and the test that claimed to
+  pin it is renamed to what it really pins. The walk over every value
+  stays, because it makes the reading right on its own terms rather
+  than on its caller's.
 - **R-P4-10.** The below-floor tail of every reproduced or published
   fact — hole spellings, sentinel candidates, long-tail levels — stays
   unwritten in the twin and unnamed everywhere, by the floor's own
@@ -2184,6 +2217,47 @@ Opened by this plan, each a limit accepted rather than work forgotten:
   a remark that is occasionally hopeful, to soften its promise to
   something always true, or to make the extra condition a producer
   obligation. Nothing else waits on this.
+
+  **CLOSED 2026-08-31 at the THIRD option, which is the one the owner
+  accepted (close plan L1): the extra condition is a PRODUCER
+  OBLIGATION.** And it is stronger than the distinctness rule this
+  entry proposed. Counting survivors cannot answer the question at all
+  — what the clause promises is that a reading of the survivors
+  PUBLISHES A DISTRIBUTION, and only a reading can say so — so
+  `taxonomy._recoverable_reach` re-runs this module's own role rules
+  over the survivors and writes the sentence only where that run lands
+  on `count`, `continuous` or `affixed_number`. The loader still cannot
+  check it, which is why the obligation is named in the producer's
+  docstring and pinned by tests rather than by an invariant.
+
+  **Both shapes this entry named have a red case of their own**
+  (`tests/test_p4r24_advisory_remarks.py`): survivors of `1e400`
+  upward, which are numeric-LOOKING and take `numeric_unrepresentable`
+  with no statistic at all; and survivors of two repeated numbers,
+  which `binary` claims ahead of every numeric rule. Each test also
+  runs the declaration the advice would have proposed and asserts the
+  role it really produces, so the silence is measured rather than
+  argued.
+
+  **TWO NARROWINGS THE ENTRY DID NOT ASK FOR, because the clause's own
+  words were false without them.** NF29's clause 9 calls the covered
+  cells "one of a few ways that repeat often enough to name", and
+  amendment A-P4-37 lowered the small-cell floor to 1 four amendments
+  after A-P4-1 wrote this trigger against it — so at the default floor
+  an all-different word "clears the floor" and a hundred one-off
+  spellings would be called a few repeated ones. A spelling must now be
+  shared by at least two rows, and there may be at most the categorical
+  ceiling of them, which is this document's own line for a small set of
+  values in a column. Both narrow the advice; neither can make it fire
+  where it did not.
+
+  **ONE LIMIT STAYS, and it is stated rather than argued away.** The
+  re-run is the role reading. The stand-in and placeholder judgements
+  sit ABOVE it in `profile_column` and are not repeated, so a column
+  whose survivors those passes would collapse to two values could still
+  be given hopeful advice. Closing it means re-running those passes
+  too; the two shapes this entry names are both closed by the reading
+  as it stands.
 - **R-P4-17** (opened by amendment A-P4-13, 2026-08-21). The frozen
   reference vectors for the new roles are recorded FROM the
   implementation rather than written before it. A vector written
@@ -2413,12 +2487,41 @@ Opened by this plan, each a limit accepted rather than work forgotten:
   contract is silent, and a reader following the declaration-matching
   rule alone would expect spelling-granular rescue that the wire
   cannot represent.
-- **R-P4-24** (opened by amendment A-P4-30, 2026-08-22). THE ADVISORY
-  REMARKS OF P4-D4.7 AND A-P4-1 ITEM 4 ARE NOT BUILT, by owner
-  decision, with their cost priced in that amendment. Every one of them
-  routes nothing, so nothing published moves and no reader is misled;
-  what is missing is help a reader would have acted on. A later phase
-  picks them up from A-P4-30's own text.
+- **R-P4-24 — CLOSED 2026-08-31, three of the four remarks built and
+  the fourth carried forward as R-P4-71** (opened by amendment A-P4-30,
+  2026-08-22). THE ADVISORY REMARKS OF P4-D4.7 AND A-P4-1 ITEM 4 WERE
+  NOT BUILT, by owner decision, with their cost priced in that
+  amendment. Every one of them routes nothing, so nothing published
+  moved and no reader was misled; what was missing was help a reader
+  would have acted on.
+
+  **Built here, under close plan L1, together with R-P4-9's remark:**
+
+  * **NF25 at arity 2.** The compact-date remark states BOTH counts —
+    what the chosen format parsed and what the numeric reading reached
+    — because eight digits are a date and a number at once and a
+    sentence saying only which reading won leaves no way to see how
+    close the other came. Both counts were already computed at the site
+    that raises it, so the sentence states the two readings' own
+    numbers rather than a third measurement of them.
+  * **NF29 arguments 8 and 9.** The clock clause, and A-P4-1 item 4's
+    recoverable-distribution advice under the tightened trigger — see
+    R-P4-16, which closes with it.
+  * **NF37.** A label column publishing one of the three built-in
+    stand-in numbers as a level is told `--missing-value` exists for
+    it, on all four label roles, once per such level, and only for
+    levels the block PUBLISHES.
+
+  **WHAT IS NOT BUILT, and it is a scope decision rather than a
+  transcription: R-P4-71**, the code-shaped remark firing on repeating
+  code columns (NF32 and NF34 at arity 1). Its two rows stay in
+  `KNOWN_MISMATCHES` with the reason written on them.
+
+  **Every one of the three was measured against the other half of its
+  own claim**, which is what an advisory remark is worth: the advice's
+  route is run and the role it really produces is asserted, and each
+  remark that claims to move nothing is compared block for block with
+  the same column described without it.
 - **R-P4-25 — CLOSED 2026-08-31, both readers moved to version 6** (opened by amendment A-P4-33, 2026-08-22). THE
   DISPOSITION MACHINERY STILL READS VERSION 4'S TABLES.
 
@@ -3482,6 +3585,45 @@ declaration for only one of them.
   workflow's job topology and gate dependency set, whose own identity
   is covered by R-P4-65's inventory.
 
+- **R-P4-72 — OPEN (opened 2026-08-31 while closing R-P4-24).** THE
+  CODE-SHAPED REMARK STILL FIRES ONLY WHERE EVERY VALUE DIFFERS.
+  P4-D4.7's first widening -- `remark_every_number_is_different` (NF32)
+  and `remark_every_value_is_different` (NF34) firing on REPEATING code
+  columns too, at arity 1 -- is the one advisory remark of that
+  decision the R-P4-24 landing did not take. Its two rows stay in
+  `KNOWN_MISMATCHES` in
+  `tests/test_p4d27_note_grammar_matches_the_code.py`, with the reason
+  written on them there as well as here.
+
+  **Why it is not an arity to reconcile.** The contract's argument 1
+  counts the present cells that share a value with another row, and its
+  SECOND rendering exists for exactly the columns the widened trigger
+  would reach. The producer raises both forms only where every value
+  differs, so that argument would be zero at every call site and the
+  second rendering could never be written -- a rendering nothing can
+  reach, which is the "a check that cannot fail" shape this repository
+  refuses. Adding the argument without the trigger buys nothing and
+  hides the gap.
+
+  **Why the trigger is an owner-sized decision.** P4-D4.7 gives the
+  code-shape test as "all-whole, nearly-never-repeating, or fixed-width
+  leading-zero digit strings". EVERY `count` column is all-whole by
+  that role's own definition -- `whole_everywhere` in
+  `taxonomy._numeric_verdict` is what decides the role -- so the plan's
+  first test alone would put this sentence on every count column in
+  every profile. Which columns carry a sentence is a published fact of
+  the document and moves the goldens, so the shape of the trigger needs
+  a decision rather than a transcription. The other two limbs already
+  have sentences of their own: the nearly-never-repeating limb IS
+  today's trigger, and the leading-zero limb is NF43
+  (`remark_padded_numbers_may_be_codes`), which has shipped since
+  P4-D16.
+
+  What it costs to leave open is what A-P4-30 priced: a person whose
+  column of repeating padded codes is described as numbers is told
+  about `--identifier` by NF43 and, where the codes are not padded, by
+  nothing at all.
+
 - **R-P4-67 — OPEN (opened 2026-08-31 while adding contract NF50;
   PRE-EXISTING).** THE NOTE GRAMMAR'S GUARD COMPARES NAMES AND
   ARITIES AND NEVER THE WORDS. `tests/test_p4d27_note_grammar_matches_
@@ -3546,6 +3688,45 @@ declaration for only one of them.
   profile does not publish, and this profile publishes the count.
   Deciding whether this role joins that list, or whether the draw is
   made to meet the count, is work R-P4-40 already owns.
+  **ONE OF THE TWO DRIFTS IS CLOSED, AND A THIRD IS NAMED, both by the
+  advisory-remark landing of 2026-08-31 (R-P4-24).**
+  `remark_dates_also_read_as_numbers` was rewritten to the contract's
+  arity-2 rendering, `numbers:` included, so that drift is gone. The
+  em-dash drift on `histogram_publishes_no_shape` stands.
+
+  **The third is `remark_no_reading_fits` (NF29), measured while
+  building its arguments 8 and 9, and it is the largest drift found so
+  far** -- which is what the "thirty forms are not compared at all"
+  sentence above was warning about. The contract writes clauses 6 and 7
+  as separate sentences, each written if and only if its own argument
+  is nonzero, each ending in a full stop: "Read as a prefix, a number
+  and a suffix, «6» of these values wear one shared pair, and a reading
+  needs «3»." and "«7» value(s) were read as stand-ins for 'no value'
+  and taken out before this decision, which is what moved this column
+  across a line." The producer writes neither. It writes clause 6
+  UNCONDITIONALLY, as "«6» of its values are numbers wearing one shared
+  piece of text, which is the reading that came closest" -- so a column
+  the affix reading never touched is told "0 of its values are numbers
+  wearing one shared piece of text" -- and clause 7 as a comma
+  continuation of it. A second implementer working from 4.5.1 would
+  write a different sentence on every declined column this tool
+  describes.
+
+  Arguments 8 and 9 are written to the contract's own words and
+  composition and are not part of the drift; the two older clauses are
+  left as they are, because moving them moves the five goldens and
+  every exact-shape test over the declined column, which is its own
+  landing.
+
+  **AND EVERY RENDERING THAT LANDING ADDED WAS CHECKED AGAINST THIS
+  MEASUREMENT, as NF50's was.** Five comparisons, each substituting the
+  «*k*» placeholders and the two fixed tables by hand and collapsing
+  whitespace the way the seal does: NF51 at both bands, NF25 at arity
+  2, NF37, and NF29's clauses 8 and 9 composed together. **All five are
+  character for character what `taxonomy.rendered` writes.** That is
+  five of the thirty argument-taking forms this residual says nothing
+  compares -- done by hand, which is exactly why it is a residual and
+  not a guard.
 
 - **R-P4-68 — OPEN (opened 2026-08-31 by adversarial round P4-A2-R2,
   item 2; PRE-EXISTING, and found the moment a guard was asked for its
