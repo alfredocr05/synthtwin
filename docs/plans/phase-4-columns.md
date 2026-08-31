@@ -2793,22 +2793,144 @@ Opened by this plan, each a limit accepted rather than work forgotten:
   P4-D18's to fix: the shape census does not reach numeric roles, and
   it should not — a number's spelling is `numeric_styles`' subject.
 
-- **R-P4-34** (opened by P4-D18, 2026-08-25). THE FORM CENSUS CAN FALL
-  ONE GROUP SHORT WHEN A PUBLISHED LABEL'S HELD-BACK SPELLINGS RUN OUT
-  OF FORM-KEEPING ONES. A made-up spelling of a published label must
-  fold onto that label, and the fold-preserving supply is the case
-  flips and then edge spaces (G8.2) — of which only the case flips keep
-  the written form. `E11.9` has one letter, so it has one case flip; if
-  that flip is already published, the next spelling is `E11.9 `, which
-  is a different form, and the census goes short by that group's rows.
+- **R-P4-34 — OPEN (opened by P4-D18, 2026-08-25; MEASURED 2026-08-31,
+  and the entry understated its own defect).** THE FORM CENSUS MISSES
+  WHEN A PUBLISHED LABEL HAS MORE THAN ONE HELD-BACK SPELLING, AND IT
+  MISSES IN BOTH DIRECTIONS.
 
-  Two things narrow it and are built: the label's own spelling is
-  offered where nothing else of the level needs it, and it is offered
-  to the LARGEST held-back group. Beyond that the description does not
-  say which held-back spelling wore which form, and no generator can
-  recover it. What would close it is publishing the forms PER LEVEL
-  rather than per column, which is more disclosure than the owner was
-  asked for and is not obviously worth it.
+  A made-up spelling of a published label must fold onto that label,
+  and the fold-preserving supply is the case flips and then edge spaces
+  (G8.2) — of which only the case flips keep the written form. `E11.9`
+  has one letter, so it has one case flip; where that flip is already
+  published the next spelling is `E11.9 `, which has no form at all,
+  and the census goes short by that group's rows.
+
+  **REPRODUCED END TO END through the real reader, producer, loader,
+  generator and validator**, and the reproduction is a pair rather than
+  a column, because the pair is the argument. Two 209-row source
+  columns differ only in WHICH held-back spelling of one level wore the
+  form — five rows and three, then three and five. Their published
+  level entries are identical key for key,
+  `{'label': 'e11.9', 'count': 28, 'variants': {'e11.9': 20},
+  'variants_withheld': {'3': 1, '5': 1}}`, so every rule reading the
+  description reaches the same answer for both; their twins are
+  identical cell for cell, which is asserted rather than argued. **And
+  their censuses differ: `@%%.%` at 206 and at 204.** So one of the two
+  verdicts is wrong whatever the rule is, and `synthtwin validate`
+  says `forms.published.@%%.% MISSED 206 -> 204` on the first and
+  `HELD 204 -> 204` on the second.
+
+  **THE OTHER DIRECTION IS AS COMMON AND THIS ENTRY DID NOT NAME IT.**
+  The label's own spelling is offered to the LARGEST held-back group
+  (G8.1). Where the source's form-bearing held-back spelling was a
+  SMALLER group, the twin writes MORE cells in that form than any
+  source cell wore: with `E11.9` published instead of `e11.9`, the same
+  pair reads `MISSED 204 -> 206`. Over 120 built columns of this shape
+  at a floor of eleven — one level written two or three ways beside
+  four ordinary levels — **57 met the census, 31 fell short and 32 ran
+  past it**. What that trial covers is that family and nothing else;
+  it says the defect is present and says nothing about its absence
+  elsewhere.
+
+  **THE TWIN'S OWN REPORT NAMES BOTH**, which is the one claim beside
+  this residual that is true as written: the deviation carries the
+  published count and the achieved one, and its sentence says "a
+  different number of them that way", so it is right in both
+  directions. The disposition table's own gloss on `shape_forms` was
+  not, and is corrected with this measurement.
+
+  **WHAT WOULD CLOSE IT, and it is one number per level.** A spelling
+  belongs to a level when trimming and case folding it gives the label.
+  A spelling that HAS a form holds only letters, digits and marks — no
+  space, so trimming changes nothing — and case folding an ASCII letter
+  leaves a letter, so the form is untouched. **Every form-bearing
+  spelling of a level therefore wears exactly `shape_form(label)`**, so
+  a per-level census can name at most that one form and the fact is a
+  count, not a map. Given it, the walk chooses the subset of held-back
+  group sizes whose total is the level's own outstanding form debt;
+  such a subset always exists, because the debt is a sum of those very
+  sizes by construction, and the case-flip supply is always sufficient,
+  because the source itself spelled them. The closure is therefore
+  EXACT rather than approximate.
+
+  **WHY IT IS NOT BUILT HERE, and the first reason is not the cost.**
+
+  1. **It attaches a spelling property to an IDENTIFIED below-floor
+     group.** With the level census beside `variants` and
+     `variants_withheld`, a reader subtracts the published spellings'
+     own form cells, and which held-back group was written without
+     surrounding whitespace falls out — a fact about a group the floor
+     holds back, attached to its size. Section 12 records the held-back
+     facts as publishing "SIZES and COUNTS of unnamed groups"; this
+     would widen that. The column census reached the owner as amendment
+     A-P4-36 and P4-D18 took five adversarial rounds over questions of
+     exactly this kind, two of which found real leaks. It is an owner
+     question, not a landing.
+  2. **The column census is not the sum of the per-level ones**, so the
+     obvious invariant does not hold — R-P4-80 states the three reasons
+     and the committed artifact that proves it.
+  3. **It moves the independent oracle.** `long_tail_levels` and
+     `_label_variants` are written from the method text in
+     `tools/reference/make_generation_reference_vectors.py`, which never
+     imports synthtwin; a new G8.2 allocation rule has to be written
+     there by hand and its cells re-derived, and every published level
+     of every frozen and golden description gains a key.
+
+     **The floor of the cost is measured rather than guessed.** Wiring
+     the key through the producer, the description schema and the
+     loader ALONE -- no generator rule, no validator subcheck, no
+     contract passage, no disposition -- turns NINE tests red: four of
+     them the two frozen vectors above, which the loader refuses
+     outright because their hand-written level entries carry no such
+     key; two goldens; and three plain expectations. Everything the
+     landing actually needs is on top of that.
+
+  Until it is ruled on, the defect is a WITNESS rather than a silence:
+  `tests/test_p4r34_form_census_per_level.py` pins both directions at
+  their exact published and achieved counts, and the indistinguishable
+  pair that says no rule can close it.
+
+- **R-P4-80 — OPEN (opened 2026-08-31 while measuring R-P4-34).** A
+  PER-LEVEL FORM CENSUS CANNOT BE SUMMED INTO THE COLUMN'S, AND THE
+  COMMITTED ARTIFACT THAT SETTLES IT IS ALREADY IN THE TREE.
+
+  The natural invariant for the R-P4-34 closure is that the column's
+  `shape_forms` is the sum of the published levels' own. It is false
+  three times over, and each has to be answered before the key is
+  written:
+
+  1. **Suppressed levels' cells belong to no published level.** The
+     column census counts every present cell that has a form; a level
+     the floor held back publishes nothing, so its cells are in the
+     column total and in no level's.
+  2. **The floor applies to a smaller population.** A form shared by
+     fewer than `small_cell_floor` cells OF ONE LEVEL pools there while
+     the same form clears the floor column-wide, so the named per-level
+     counts sum to less than the named column count.
+  3. **The room refusal is column-wide.** `form_room(form)` is compared
+     against `n_distinct` plus the floor (7.9), which is a fact about
+     the COLUMN. A level census applying its own smaller bound would
+     name a form the column refuses, which reopens the leak the fifth
+     read of P4-D18 closed; applying the column's bound makes a level's
+     key depend on a fact outside it.
+
+  **The committed artifact.** `_label_variants` in
+  `tools/reference/make_generation_reference_vectors.py` publishes
+  `shape_forms={"@@@-@": 36, "(withheld)": 12}` over three published
+  levels labelled `north`, `south` and `7-11` and two suppressed levels
+  covering ten rows. `north` and `south` are all letters, so they have
+  no form at all; `7-11` wears `%-%%`. **No published level can supply
+  a single cell of `@@@-@`, and recounting the vector's own frozen
+  cells finds ten of them beside four of `%-%%`, which the census does
+  not name at all.** The vector's own comment says the census there is
+  "WRITTEN rather than derived", which is what a hand-written case is
+  for. A sum invariant would refuse it, so closing R-P4-34 means either
+  rewriting a frozen reference vector or writing an invariant that is
+  an inequality — and an inequality that admits every arrangement is
+  not much of an invariant.
+
+  Not decided here, because the decision belongs beside the owner
+  question R-P4-34 records rather than under it.
 
 - **R-P4-33** (opened at the third read of P4-D17, 2026-08-25). A
   DECIMAL COMMA THE AFFIX RULE HAS SWALLOWED IS NOT DETECTED, AND THE

@@ -6479,12 +6479,21 @@ label must fold onto that label, and the fold-preserving supply is the
 case flips and then edge spaces (G8.2) — of which only the case flips
 keep the written form. A label with few letters whose flips are already
 published therefore has few form-preserving spellings, and the census
-can go one group short. Two things narrow it: the label's own spelling
-is offered where nothing else of the level needs it, and it is offered
-to the LARGEST held-back group, since that is where the scarce
-form-keeping spelling covers the most cells. Beyond that the description
-does not say which held-back spelling wore which form, and no generator
-can recover it. Residual R-P4-34.
+can go short by a held-back group's rows.
+
+**AND IT CAN RUN PAST THE PUBLISHED COUNT, BY THE SAME RULE READ THE
+OTHER WAY.** The label's own spelling is offered where nothing else of
+the level needs it, and it is offered to the LARGEST held-back group,
+since that is where the scarce form-keeping spelling covers the most
+cells. Where the source's own form-bearing held-back spelling covered a
+SMALLER group, that offer writes the form MORE often than any source
+cell wore it. So the offer narrows the miss in one direction and widens
+it in the other, and this passage claimed only the first until both
+were measured. Which of the two happens turns on which held-back
+spelling wore the form — and the description does not say, because
+`variants_withheld` publishes group SIZES and names no spelling. No
+generator can recover it. Residual R-P4-34 carries the measurement of
+both directions and the count of columns each was seen on.
 
 ---
 
@@ -7197,7 +7206,7 @@ and names the description change that would close it.
 | `n_distinct_folded` | EXACT-OBSERVABLE |
 | `n_distinct` | EXACT-OBSERVABLE where the published variants and the withheld-variant map supply enough spellings — the ordinary case; APPROXIMATED under the two-sided envelope only where they do not, with the report naming the profile's count beside the twin's. The envelope is G12.7 |
 | `level_ceiling` (`categorical` only) | LOADER-ONLY |
-| `shape_forms` (all four label roles) | EXACT-OBSERVABLE against the recount identity 7.9 states: cells recounted at a named form number at least the published count and at most that count plus the pooled `(withheld)` value. It is met by the published spellings, which wear their own forms, and then by the STAND-INS; where the spelling supply for a published label's held-back variants cannot keep that label's form, the census can fall one group short and the report names it (residual R-P4-34) |
+| `shape_forms` (all four label roles) | EXACT-OBSERVABLE against the recount identity 7.9 states: cells recounted at a named form number at least the published count and at most that count plus the pooled `(withheld)` value. It is met by the published spellings, which wear their own forms, and then by the STAND-INS; where the floor holds back more than one spelling of a published label the description does not say which of them wore that label's form, so the census can fall short of the published count OR run past it, and the report names either (residual R-P4-34) |
 
 The first five rows bind `long_tail_labels` exactly as they bind the
 other three label roles: it publishes the five shared label keys under
