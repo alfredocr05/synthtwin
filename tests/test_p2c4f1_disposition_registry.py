@@ -1046,19 +1046,24 @@ def _restatement_violations(
                 f"affixed: the sub-table states {unknown}, which is neither "
                 f"a key of this role nor a numeric key it delegates"
             )
-        if _DELEGATES not in text:
+        # A CLOSED SYNTAX, and nothing weaker survived. Checking that
+        # the cell CONTAINS the phrase and no class WORD was beaten by
+        # free prose carrying no class at all -- "as on `count` and
+        # `continuous` above; for affixed cores this value need only be
+        # mentioned in the report" (review item P4-A1-R4-F1). Hunting
+        # the vocabulary instead restarts the contest one synonym, one
+        # lower-case spelling or one Markdown split at a time.
+        #
+        # So the cell must EQUAL the delegation. There is then no room
+        # in it for a second statement of any kind, whatever words it
+        # would have used.
+        if text.strip() != _DELEGATES:
             broken.append(
-                f"affixed/{sorted(shared)}: a key shared with the numeric "
-                f"roles must DELEGATE -- its row has to say "
-                f"{_DELEGATES!r} and this one does not"
-            )
-        said = _classes_said(text)
-        if said:
-            broken.append(
-                f"affixed/{sorted(shared)}: a delegated row states "
-                f"{list(said)} of its own. A shared disposition is written "
-                f"in ONE place, the numeric table; a class word here is a "
-                f"second statement that can drift from it"
+                f"affixed/{sorted(shared)}: the disposition cell of a "
+                f"delegated row must be exactly {_DELEGATES!r} and this "
+                f"one is {text.strip()!r}. Anything beside the delegation "
+                f"is a second statement about a class written in one "
+                f"place, and it can qualify or contradict it"
             )
     absent = sorted(numeric - seen)
     if absent:
@@ -2229,6 +2234,78 @@ def test_the_registry_reaches_every_key_the_producer_emits() -> None:
 _CLOSURE_WORDS = ("CLOSED", "RESOLVED", "SETTLED", "WITHDRAWN", "SUPERSEDED")
 
 
+def test_the_phase_cannot_close_while_the_seal_is_paused() -> None:
+    """A paused control may not outlive the phase that paused it.
+
+    Owner ruling 2026-08-26 (plan amendment A-P4-46.2) paused the
+    counted re-seal for the rest of Phase 4 and required it re-sealed
+    once at the close. `dispositions.PAUSED_UNTIL_PHASE_CLOSE` says so
+    in a comment, and a comment is not a control -- which is the defect
+    this repository has now met often enough to stop writing.
+
+    So the flag is READ. While it is True, no surface may describe
+    Phase 4 as complete: the close is the act that lifts the pause, and
+    a phase that closed with the pause still standing would leave a
+    governing document unsealed with nothing recording it.
+    """
+    if not dispositions.PAUSED_UNTIL_PHASE_CLOSE:
+        return
+    charter = (REPO_ROOT / "CLAUDE.md").read_text(encoding="utf-8")
+    claimed = [
+        line
+        for line in charter.splitlines()
+        if "Phase 4" in line and ("*Complete*" in line or "*Closed*" in line)
+    ]
+    assert not claimed, (
+        "Phase 4 is described as finished while the disposition seal is "
+        "still paused. Re-seal the whole tree and set "
+        "PAUSED_UNTIL_PHASE_CLOSE to False before closing the phase: "
+        + repr(claimed)
+    )
+
+
+def _residual_register() -> str:
+    """The Phase 4 plan's residual register, and nothing else.
+
+    Scanning the whole plan let a bullet written anywhere in it answer
+    for a register entry (review item P4-A1-R4-F4). The register is the
+    P4-D13 section; it ends at the next top-level heading.
+    """
+    plan = PLAN4.read_text(encoding="utf-8")
+    start = plan.index("## P4-D13. Residuals")
+    return plan[start : plan.index("\n## ", start + 10)]
+
+
+def _register_entries(register: str, residual: str) -> "list[str]":
+    """Every WHOLE entry of the register opening with this exact name.
+
+    What comes back is each entry's HEADING -- the bold run the entry
+    opens with, read across line breaks, which is where this register
+    puts an entry's state. Reading the whole block instead is wrong in
+    the other direction: an entry's body legitimately says that OTHER
+    residuals are closed, and that is not this entry's state.
+
+    A heading split over two lines is still read whole, which is the
+    bypass a line-anchored capture had (review item P4-A1-R4-F4). The
+    name boundary is exact, so `R-P4-62a` cannot answer for
+    `R-P4-62`.
+    """
+    found: list[str] = []
+    opening = f"- **{residual}"
+    for piece in register.split("\n- **")[1:]:
+        whole = "- **" + piece
+        if not whole.startswith(opening):
+            continue
+        rest = whole[len(opening) :]
+        if rest[:1].isalnum():
+            # `R-P4-62a` is a different name from `R-P4-62`.
+            continue
+        close = whole.find("**", len("- **"))
+        heading = whole if close == -1 else whole[: close + 2]
+        found.append(" ".join(heading.split()))
+    return found
+
+
 def test_every_matrix_table_is_claimed_by_a_registry_group() -> None:
     """A table the readers parse and nothing visits is not coverage.
 
@@ -2257,30 +2334,31 @@ def test_every_matrix_table_is_claimed_by_a_registry_group() -> None:
         f"{sorted(orphaned - named)}; and these are named as unclaimed "
         f"but are not: {sorted(named - orphaned)}"
     )
-    # Every excuse cites a residual that is still OPEN, and the test
-    # for that is STRICT about both identity and state (review item
-    # P4-A1-R3-F3). Two weaker versions were beaten first: checking
-    # that the number appears anywhere stayed green forever, because a
-    # closure here rewrites the entry's heading and leaves the original
-    # text underneath; and then checking the heading for the word
-    # CLOSED was beaten by "RESOLVED" and by the register's real
-    # duplicate headings, where a closed historical entry sits beside
-    # an open one and either could answer for the other.
+    # Every excuse cites a residual that is still OPEN, and this is
+    # STRICT about the region, the identity and the state. Four
+    # versions were beaten first (review items P4-A1-R2-F5,
+    # P4-A1-R3-F3, P4-A1-R4-F4):
     #
-    # So: exactly ONE canonical entry may open with the cited name, and
-    # its heading must carry none of the words this register closes an
-    # entry with.
-    plan = PLAN4.read_text(encoding="utf-8")
+    #   * checking the number appears anywhere stayed green forever,
+    #     because a closure rewrites the heading and leaves the
+    #     original text underneath;
+    #   * checking the heading for "CLOSED" was beaten by "RESOLVED";
+    #   * scanning the WHOLE PLAN let an open-looking bullet anywhere
+    #     answer for a register entry that had been closed, and
+    #     capturing one physical line let a heading split across two
+    #     lines hide its own closure word;
+    #   * a bare name boundary let `R-P4-62a` answer for `R-P4-62`.
+    #
+    # So: the P4-D13 register REGION only, the WHOLE bullet block, an
+    # exact identifier boundary, and exactly one canonical entry whose
+    # state must be OPEN.
+    register = _residual_register()
     for heading, residual in dispositions.SECTIONS_NO_GROUP_CLAIMS.items():
-        entries = re.findall(
-            rf"^- \*\*{re.escape(residual)}(?![0-9])(.*)$",
-            plan,
-            re.MULTILINE,
-        )
+        entries = _register_entries(register, residual)
         assert len(entries) == 1, (
-            f"{heading} is excused by {residual}, and the register carries "
-            f"{len(entries)} entries opening with that name. An excuse has "
-            "to point at exactly one canonical entry, or a closed one can "
+            f"{heading} is excused by {residual}, and the P4-D13 register "
+            f"carries {len(entries)} entries for that exact name. An excuse "
+            "has to point at one canonical entry, or a closed one can "
             "answer for an open one"
         )
         settled = [
@@ -2291,9 +2369,6 @@ def test_every_matrix_table_is_claimed_by_a_registry_group() -> None:
             f"marked {settled} -- the excuse has outlived its reason, so "
             "either reopen the residual or claim the table with a group"
         )
-
-
-def test_the_phase_cannot_close_while_the_seal_is_paused() -> None:
     """A paused control may not outlive the phase that paused it.
 
     Owner ruling 2026-08-26 (plan amendment A-P4-46.2) paused the

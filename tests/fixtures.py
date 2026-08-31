@@ -31,21 +31,41 @@ REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent
 # producer and the loader moved to version 6 and the governance checks
 # went on reading version 4, agreeing by luck rather than by design.
 # Six readers were pinned to a literal when that residual closed, and
-# review items P4-A1-R2-F6 and P4-A1-R3-F2 found them in two passes --
-# so a bump that edits the producer and the loader alone would have
-# left them certifying a document that no longer governs.
+# three review rounds found them in three passes -- so a bump that
+# edited the producer and the loader alone would have left them
+# certifying a document that no longer governs.
+#
+# THE PATH IS BUILT AT IMPORT AND CHECKED WHEN IT IS READ, not when it
+# is built. The source distribution ships `tests` and `tools` and does
+# NOT ship `docs`, and several measurement tools import this module
+# without ever opening the contract; asserting at import time made
+# `import fixtures` raise in an unpacked distribution for a tool that
+# had no use for the document (review item P4-A1-R4-F3).
 GOVERNING_CONTRACT = (
     REPO_ROOT
     / "docs"
     / "spec"
     / f"profile-contract-v{_contract.PROFILE_VERSION}.md"
 )
-assert GOVERNING_CONTRACT.is_file(), (
-    f"the contract that governs is version {_contract.PROFILE_VERSION} and "
-    f"{GOVERNING_CONTRACT.name} is not in the tree: a version bump moves "
-    "the producer, the loader and every current-contract reader together "
-    "(residual R-P4-25)"
-)
+
+
+def governing_contract_text() -> str:
+    """The governing contract's text, or a refusal that says why.
+
+    The check lives HERE, where the document is actually wanted, so a
+    caller that never reads it is never stopped.
+    """
+    if not GOVERNING_CONTRACT.is_file():
+        raise AssertionError(
+            f"the contract that governs is version "
+            f"{_contract.PROFILE_VERSION} and {GOVERNING_CONTRACT.name} is "
+            "not in the tree: a version bump moves the producer, the loader "
+            "and every current-contract reader together, or the governance "
+            "checks go back to reading a document that governs nothing "
+            "(residual R-P4-25). In a source distribution, note that `docs` "
+            "is not shipped."
+        )
+    return GOVERNING_CONTRACT.read_text(encoding="utf-8")
 
 # Neutral label pools. Small, plain words with no meaning outside these
 # tests.

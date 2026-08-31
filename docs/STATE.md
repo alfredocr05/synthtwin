@@ -508,6 +508,57 @@ own attacks. This is the project's standing lesson arriving one level
 up: **a fact written twice will drift, and the fix is to stop writing
 it twice rather than to compare the copies harder.**
 
+**ROUND 4 REJECTED IT AGAIN with four items, ALL CONTROL GAPS, and the
+first says the delegation was not yet pure.** A delegated cell held
+the phrase and no class WORD, and free prose beside it could still say
+the opposite: "as on `count` and `continuous` above; for affixed cores
+this value need only be mentioned in the report" passed. So would a
+lower-case `report-only`, a Markdown-split `REPORT-**ONLY**`, or a
+Unicode hyphen -- hunting the vocabulary restarts the contest one
+spelling at a time. **The cell is now EXACTLY the delegation phrase
+and nothing else**, so there is no room in it for a second statement
+whatever words it would have used. Everything the rows used to say
+moved into the sub-table's head paragraph, where it is the scope of
+the table rather than a per-key rule -- AF6's "never inferred from the
+role name" included. Five mutations verify it, the synonym and
+formatting family among them.
+
+**That is FOUR checks beaten in four rounds on one surface**, each by
+a subtler lowering: names, then the head class word, then the ordered
+class sequence, then prose carrying no class at all. The lesson is
+worth more than the fix: **when a control keeps being beaten by a
+cleverer sentence, stop parsing sentences.** A closed syntax -- this
+cell equals this string -- ends what a vocabulary check cannot.
+
+**A POSITIVE guard still named version 5 as "the contract that governs
+the format".** `KEPT_BEARING` in `tests/test_claim_inventory.py` lists
+the six surfaces that must SAY the person's own word travels, and its
+contract member was a literal: deleting the disclosure from version 6
+left the guard green because it was reading version 5. It derives from
+`fixtures.GOVERNING_CONTRACT` now, and the deletion turns it red --
+measured. This is R-P4-25's own shape in the one place the inventory
+makes a positive assertion rather than a negative scan.
+
+**And the import-time assertion was unsound in a context this
+repository itself ships.** The source distribution includes `tests`
+and `tools` and does NOT include `docs`, and several measurement tools
+import `fixtures` without ever opening the contract -- so `import
+fixtures` would raise in an unpacked distribution over a document that
+tool had no use for. The check is LAZY now, in
+`fixtures.governing_contract_text()`, where the document is actually
+wanted.
+
+**The residual guard needed a fourth version.** Scanning the whole
+plan let an open-looking bullet written anywhere answer for a register
+entry that had been closed; capturing one physical line let a heading
+split across two lines hide its own closure word; and the name
+boundary let `R-P4-62a` answer for `R-P4-62`. It reads the **P4-D13
+register region only**, takes each entry's whole bold HEADING across
+line breaks, and requires an exact name boundary and exactly one
+canonical entry. Four mutations verify it. Reading the whole entry
+BODY was wrong in the other direction and was tried first: an entry
+legitimately says that OTHER residuals are closed.
+
 **Round 3's other two were siblings I had already been warned about.**
 FOUR more current-contract readers were still pinned to a literal
 `profile-contract-v6.md` -- the producer-membership guard, the role
@@ -1261,6 +1312,22 @@ say which.
 - The open defects of Phase 4 are the residual register at the foot of
   `docs/plans/phase-4-columns.md`. The 2026-08-26 triage sorted them:
   15 deliberate scope declines, 11 real landings, 7 owner questions.
+
+**AND THE SUITE-SIZE GUARD CAUGHT ME DELETING A TEST.** Repairing
+round 3's residual check, I cut a region of a test file by index
+arithmetic -- find the start, find a marker, jump past it, cut to the
+next newline -- and the jump swallowed the whole of
+`test_the_phase_cannot_close_while_the_seal_is_paused`, the control
+that stops this phase closing while the disposition seal is paused. No
+test failed, because the deleted test was the one that would have.
+Only `test_the_state_page_states_the_suite_size_it_was_written_against`
+noticed, by counting: 4,133 written on this page, 4,132 collected.
+
+It is restored, and the lesson is not "be careful with slicing". It is
+that **the only control that can see a deleted control is one that
+counts them**, and this repository has exactly one. Prefer replacing a
+NAMED, ANCHORED block over cutting between computed offsets, and read
+the collected count after any edit that removes lines.
 
 ## The rules an assistant breaks first here
 

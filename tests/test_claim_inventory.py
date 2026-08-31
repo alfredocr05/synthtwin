@@ -4789,10 +4789,20 @@ def test_no_surface_denies_what_the_description_keeps_of_your_words() -> None:
 # weighs, the contract that governs the format, the command line that
 # takes the word, the page printed beside the description, and the
 # producer that writes it.
+# The contract member is DERIVED, never named. It described itself as
+# "the contract that governs the format" and named version 5 while
+# `PROFILE_VERSION` was 6, so deleting the required disclosure from the
+# governing contract left this positive guard green (review item
+# P4-A1-R4-F2). That is residual R-P4-25's own shape, in the one place
+# a positive assertion is made rather than a negative scan.
 KEPT_BEARING = (
     "README.md",
     "SECURITY.md",
-    "docs/spec/profile-contract-v5.md",
+    str(
+        fixtures.GOVERNING_CONTRACT.relative_to(
+            fixtures.REPO_ROOT
+        )
+    ).replace("\\", "/"),
     "src/synthtwin/cli.py",
     "src/synthtwin/summary.py",
     "src/synthtwin/profile.py",
