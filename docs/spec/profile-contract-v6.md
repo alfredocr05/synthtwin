@@ -1246,7 +1246,7 @@ contract:
    widening it to arbitrary strings would be exactly the hole that lets
    a source-derived value into a sentence and be rebuilt successfully.
 
-**The census.** The table holds 49 forms and 79 argument positions.
+**The census.** The table holds 50 forms and 79 argument positions.
 Of those, 66 are whole numbers, 4 are package words, 4 are nested
 forms, and 5 are bound affix strings. No position is a string of any
 other kind.
@@ -2070,6 +2070,73 @@ way here is wrong by a factor of a thousand, and every statistic
 published about it is wrong by that factor. A sentence that hedged
 would be a sentence a reader could pass over.
 
+**NF50. `remark_an_address_is_not_a_quantity`** — arity 0. Carried on
+the column the affixed-number rule declined BECAUSE its winning affix
+pair is an electronic address — every other test of that role having
+passed — and on no other column. It carries no argument: see below.
+
+> the values in this column are a number wrapped in an electronic
+> address -- some text, then the number, then an at sign, a host and a
+> dot label -- and synthtwin did NOT read them as a number wearing a
+> shared piece of text. Reading them that way publishes an average, a
+> spread and two ends over the numbers inside real addresses, which
+> are whatever numbers those addresses were given and are not a
+> quantity of anything. THIS SENTENCE DECIDES NOTHING, and no rule of
+> synthtwin can decide it either: it is here so that you can recognize
+> your own column and say what it holds. Three declarations say it,
+> each a different thing. Run the command again with --identifier NAME
+> to say these are record numbers, and no value of this column is
+> published at all; with --code NAME to say they are a coding system,
+> and each spelling is published with how many rows carried it; or
+> with --measurement NAME to say the number inside is a quantity after
+> all, and the column is described as numbers wearing that address.
+> NAME is this column's name
+
+**Its number is appended, on the NF45–NF48 precedent.** A form number
+is an IDENTIFIER and not a position, so a remark added after the
+header-verdict group is numbered after everything rather than inserted
+among the remarks of group D and renumbering every clause behind it.
+Group D's stated size is NF19 through NF37 and does not move; NF42,
+NF43 and NF44 are remarks appended the same way before this one.
+
+**WHY IT EXISTS: the decline had no words** (plan P4-D27, residual
+R-P4-39). `user12345@example.org` was read as a number wearing the
+affix pair `user` / `@example.org` and published a mean of 53,574.055
+over 400 rows — the average of real identifiers. The rule that stops
+that shipped without a sentence: the column simply stopped being
+described as numbers, and the profile, the summary beside it and the
+twin's report all said nothing about why. The second half of
+principle 5 is that a column is either handled or **declined with a
+plain-language explanation**, and this decline had none.
+
+**IT ROUTES NOTHING, and that is a property of this clause rather than
+a hope about the producer.** The remark is carried into whatever role
+the later rules give the column, and its presence changes no role, no
+published fact and no cell of the twin. What decides this column is
+one of the three declarations it names. A declaration is made by
+whoever holds the table, and no rule here may arrive at that decision
+by reading the column (the standing ruling of review item P1-R6-F8).
+
+**IT NAMES ALL THREE ROUTES, WITH WHAT EACH ONE DOES.** A list of
+flags with no consequence beside them is a list nobody can choose
+from, so each is stated with its outcome, and each outcome was
+measured on the column this form exists for: `--identifier` gives the
+`identifier` role and publishes no value of the column; `--code` gives
+`long_tail_labels` and publishes each spelling with how many rows
+carried it; `--measurement` restores the `affixed_number` reading,
+whose block describes the cores.
+
+**ARITY 0, AND THE TWO CANDIDATE ARGUMENTS ARE BOTH REFUSED.** A count
+of the cells that wore the pair is a count of a reading this column
+does NOT publish — the block that would have held `n_affixed` is
+exactly the block the decline refused to write — so it would be the
+one whole number in this grammar that no key beside it answers for.
+And the pair itself is the fourth argument class of 4.5.1, admitted
+only where the SAME block publishes the spelling under `affix_prefix`
+and `affix_suffix`; this block publishes neither. The sentence
+therefore names the shape in its own fixed words and no number and no
+spelling of this column reaches it.
+
 **Why the header verdict is a form at all.** A verdict built anywhere
 else would be the one string in the document with no form behind it, and
 one exception is all a guard needs to stop meaning anything.
@@ -2180,7 +2247,7 @@ names:
 
 | id | statement |
 |---|---|
-| NG14 | the form is one of the 49 in section 4.5.1 |
+| NG14 | the form is one of the 50 in section 4.5.1 |
 | NG15 | the argument count equals that form's arity |
 | NG16 | every argument is of one of C6-119's four classes |
 | NG17 | re-rendering the form with those arguments writes the leaf's text character for character |
@@ -6755,7 +6822,7 @@ month-first parsed.
 | NG11 | on `remark_affixed_numbers_may_be_codes`: argument 3 equals the named block's `n_affixed` |
 | NG12 | argument 1 is character-for-character that block's `affix_prefix` and argument 2 its `affix_suffix`, AT THOSE POSITIONS, not merely as members of the pair |
 | NG13 | on `remark_a_label_is_a_built_in_stand_in`: argument 1 is 1, 2 or 3 |
-| NG14 | for every form: one of the 49 the note grammar enumerates |
+| NG14 | for every form: one of the 50 the note grammar enumerates |
 | NG15 | the argument count equals that form's arity |
 | NG16 | every argument is of one of the four argument classes |
 | NG17 | re-rendering the form with those arguments writes the leaf's text character for character |
@@ -7765,7 +7832,7 @@ this document, and the battery the plan requires turns red on it.
 | nothing-class blocks (`numeric_unrepresentable`, `identifier`, `free_text`) | lengths, word statistics, digit and code-alphabet counts, the whole-number test, the repetition multiset, on `numeric_unrepresentable` the whole-number and sign counts, and on `free_text` the census of WRITTEN FORMS its cells wore (`shape_forms`) | no value, no spelling, no fragment of one — the form census included, whose every key is built from `%`, `@` and thirteen named marks -- characters no cell that has a form may contain, so a key can carry no letter and no figure of any cell; the multiplicity map publishes SIZES of unnamed groups under no floor, the form census under the floor with a `(withheld)` pool |
 | `empty` columns nobody declared | the absent SPELLINGS their cells wore and the two absence counts, exactly as any column that is not nothing-publishing | floor-governed |
 | `settings` | the rules the run applied, the floor's own value, how many values each declaration named, and which of THIS package's published words were among them | carries no cell, no column and no count of the table; a person's own spelling never enters |
-| `source.header_evidence`, `publication_notes[].note`, `detection_evidence`, `remarks` | sentences of the 49 closed forms: 79 argument positions, of which 66 are whole numbers, 4 package words, 4 nested forms and 5 bound affix strings | the whole numbers are counts the block beside them already publishes, EXCEPT the positions priced at rows 16 and 18 |
+| `source.header_evidence`, `publication_notes[].note`, `detection_evidence`, `remarks` | sentences of the 50 closed forms: 79 argument positions, of which 66 are whole numbers, 4 package words, 4 nested forms and 5 bound affix strings | the whole numbers are counts the block beside them already publishes, EXCEPT the positions priced at rows 16 and 18 |
 | `relationships` | nothing: eight nulls | — |
 
 ### 12.3 The rows, each priced
@@ -8608,7 +8675,7 @@ way, with one difference: the width is at least TWO (`2`, `3`, `10`),
 a padded cell writing at least one zero in front of at least one figure
 (C6-29b). `(withheld)` is again the only non-numeric key permitted.
 
-### 14.8 The note grammar — 49 forms
+### 14.8 The note grammar — 50 forms
 
 Defined in 4.5.1, which is the authority on every rendering and every
 argument. 79 argument positions: 66 whole numbers, 4 package words, 4
@@ -8665,6 +8732,7 @@ nested forms, 5 bound affix strings.
 | NG47 | `evidence_numbers_joined_in_one_cell` | 3 |
 | NG48 | `evidence_numbers_wearing_one_affix` | 3 |
 | NG49 | `histogram_publishes_no_shape` | 0 |
+| NG50 | `remark_an_address_is_not_a_quantity` | 0 |
 
 **The package-word vocabulary — 21**, the whole of the second argument
 class (4.5.1): the seventeen `format` members of 14.6, plus `day-first`

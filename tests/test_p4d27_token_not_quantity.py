@@ -175,10 +175,13 @@ def test_the_declining_column_is_not_silent(tmp_path: pathlib.Path) -> None:
     """A column that stops being described must say something.
 
     It falls to free text, whose remarks tell the person that nothing
-    was assumed and that `--identifier` exists. **They do not yet name
-    `--measurement`**, which is recorded in P4-D27 and rides with the
-    advisory-remarks landing; this test pins what IS said so that the
-    day it changes, it changes on purpose.
+    was assumed and that `--identifier` exists. **AND THE DECLINE
+    ITSELF NOW SPEAKS**: contract NF50 says what shape was refused and
+    names all three declarations, `--measurement` among them. That
+    sentence had no form at all when this test was written -- the
+    decline was silent and this file said so -- and it is pinned in
+    `tests/test_p4d27_address_remark.py`. What is asserted here is that
+    the free-text remarks beside it still say what they said.
     """
     from synthtwin import profile, reading
 
@@ -195,3 +198,6 @@ def test_the_declining_column_is_not_silent(tmp_path: pathlib.Path) -> None:
     said = " ".join(column["remarks"])
     assert "--identifier" in said
     assert "did NOT assume" in said
+    # And the decline's own sentence stands beside them, naming the
+    # third route the free-text remarks never had (contract NF50).
+    assert "--measurement" in said

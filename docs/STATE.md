@@ -28,7 +28,7 @@ without the same help.
 | branch | `phase-4-allotment` (never merged; `main` is pull-request only) |
 | phase | **Phase 4 — comprehensive column handling.** Current. |
 | plan | `docs/plans/phase-4-columns.md` |
-| suite | 4,134 collected / 51 skipped |
+| suite | 4,152 collected / 51 skipped |
 | lint | **10 pre-existing errors** (`ruff check .`) under the rule set pinned in `pyproject.toml`, measured 2026-08-31 at `c10f5f6`; every file this landing touched is clean |
 
 ## What is being built right now
@@ -41,6 +41,63 @@ are still ahead. The gap list itself is at the foot of this page.
 
 * **Gap 1 — the address rule.** An affixed-number column no longer
   reads an e-mail address as a number wrapped in affixes.
+
+  **AND SINCE 2026-08-31 THE DECLINE SPEAKS.** The rule was right and
+  is untouched; what was wrong is that it was SILENT. A person whose
+  column stopped being described as numbers — losing its average, its
+  spread, its ends and its ladder — was told nothing, because
+  `taxonomy.NOTE_ARITY` carried no address form at all and every
+  surface builds its sentences from that table. Principle 5 does not
+  say a column is either handled or declined; it says handled or
+  **declined with a plain-language explanation**.
+
+  It is contract **NF50**, `remark_an_address_is_not_a_quantity`,
+  arity 0. It names the SHAPE — an at sign, a host, a dot label — so a
+  person recognizes their own column, and it names all THREE
+  declarations where the free-text remark beside it offered only
+  `--identifier`, each with what it does and each outcome measured on
+  that column rather than read off the flag's help: `--identifier`
+  gives `identifier` and publishes no value, `--code` gives
+  `long_tail_labels` and publishes each spelling with its count,
+  `--measurement` restores `affixed_number` and its distribution.
+
+  **It routes nothing, measured rather than asserted:** with the
+  decline's own question answered False the block is identical key for
+  key and role for role, and only the sentence is gone. Arity 0 is
+  deliberate — a count of the cells that wore the pair is a count of a
+  reading this column does not publish, and the pair itself is the
+  fourth argument class, admitted only where the same block publishes
+  the spelling.
+
+  **AND LOOKING AT THE DECLINE'S SIBLINGS FOUND A SILENT STATISTICAL
+  DEFECT**, which is this project's standing lesson paying again.
+  `_cores_judged` — the pass that judges stand-ins over an affixed
+  column's CORES (C6-5) — re-derived the affix reading WITHOUT the
+  person's declarations, while its own caller decided the role WITH
+  them. The two therefore disagreed on every column that is affixed
+  only BECAUSE of a declaration, and there is exactly one such shape:
+  an address column carried past the decline by `--measurement`. The
+  caller saw the role, the pass saw the decline, and every cell went
+  unjudged. Measured on 200 cells of `user<core>@example.org`, 189
+  cores between 50 and 70 beside eleven spelled `-999`: **no verdict
+  published, `-999` standing as the column's smallest reading, and the
+  mean 1.785 where the same column wearing an ordinary pair reads
+  60.03**. Fixed by handing the pass the declaration its caller used;
+  the two now agree cell for cell, and a test turns red when that
+  alone is reverted.
+
+  **AND ONE CONTROL GAP IS OPENED RATHER THAN CLOSED: R-P4-67.**
+  Adding a form meant reading the guard that holds the note grammar
+  together, and every one of its three directions is about a NAME or a
+  COUNT. The contract also writes each form's rendering out character
+  for character — it says so in as many words — and **nothing compares
+  those blockquotes against what `taxonomy.rendered` writes**, which
+  is the one thing a second implementer would build from. Measured
+  over the twenty arity-0 forms, where the comparison is exact:
+  seventeen identical, **two really drifted** (an em dash for `--`,
+  and `numbers:` for `numbers;`), and the other thirty forms take
+  arguments and are not compared at all. NF50's own rendering was
+  checked against that measurement and is identical.
 * **Gap 2 — the fold-collision partner walk.** The walk prefers a
   parent that keeps the folded level under the long-tail line, and
   where a crossing happens anyway the report NAMES it. Four adversarial
@@ -1493,6 +1550,20 @@ Kept short on purpose. Each of these cost at least half a day.
   from one source and check every site that states it.
 - **Run the guards AFTER `git add`.** The decontamination scanner
   walks the TRACKED tree, so an uncommitted file is not scanned.
+- **A GIT WORKTREE HAS NO `.venv`, AND BORROWING THE SHARED ONE TESTS
+  THE WRONG SOURCE.** The checkout's venv installs this package
+  EDITABLE from its own `src`, so a worktree that reaches for
+  `../../.venv/bin/python` imports the product code of the SHARED
+  checkout while the tests, the contract and the plan come from the
+  worktree. Nothing announces it. Measured on 2026-08-31: a landing
+  that adds a note form ran green for its author and the note-grammar
+  guard then reported `clause 0, appendix 0, producer None` for
+  somebody else -- the guard was reading the worktree's contract and
+  comparing it against the shared checkout's `NOTE_ARITY`, and the
+  same seventy tests went 60/10 for one runner and 70/0 for the other.
+  Give the worktree a `.venv` of its own whose `bin/python` exports
+  `PYTHONPATH=<this worktree>/src` -- not an env var remembered at the
+  call site, because the next person will not know to set it.
 - **A repair that prints ambiguous numbers is worse than the silence
   it replaced.** Withdraw it and record the defect instead.
 
