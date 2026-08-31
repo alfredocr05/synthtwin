@@ -229,11 +229,14 @@ def test_the_folded_pair_leaves_the_column_checked_in_full(
     )
     assert _unsupported(outcome) == []
     assert outcome.census.missed == 0
-    # Fifty-five: fifty-four since the census of fraction widths
+    # Fifty-six: fifty-four since the census of fraction widths
     # shipped (plan P4-D4.5), because this column names one width and
-    # so carries one `widths.published.*` obligation of its own, and
-    # one more since the kurtosis joined the moments (P4-D4.8).
-    assert len(outcome.checks) == 55
+    # so carries one `widths.published.*` obligation of its own; one
+    # more since the kurtosis joined the moments (P4-D4.8); and one
+    # more since `missing_by_source` became an obligation at contract
+    # version 6 and the validator started checking each named hole
+    # spelling at its published count (residual R-P4-60).
+    assert len(outcome.checks) == 56
 
 
 def test_the_witness_really_is_reconstructible(
@@ -289,8 +292,10 @@ def test_the_other_over_fire_stays_and_is_a_different_shape(
     outcome = validation.measure(case.described, case.path)
     assert outcome.census.missed == 0
     # Forty-four for the census's own width obligation
-    # (plan P4-D4.5), and one more for the kurtosis (P4-D4.8).
-    assert len(_unsupported(outcome)) == 45
+    # (plan P4-D4.5), one more for the kurtosis (P4-D4.8), and one more
+    # for the hole spelling this column names, which became a checked
+    # obligation with R-P4-60.
+    assert len(_unsupported(outcome)) == 46
 
 
 def test_two_words_of_your_own_spelled_two_ways_each_still_come_back(

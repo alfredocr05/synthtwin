@@ -294,6 +294,8 @@ CORNER_IDENTIFIER_INFEASIBLE = "identifier-infeasible"
 CORNER_DATETIME_OFFSETS_WITHHELD = "datetime-offsets-withheld"
 CORNER_LABEL_VARIANTS_SHORT = "label-variants-short"
 CORNER_NUMERIC_SPELLINGS_SHORT = "numeric-spellings-short"
+# THE ONE KEY OF `missing_by_source` A TWIN MAY NOT WRITE (R-P4-60).
+CORNER_JUDGED_HOLE = "judged-hole"
 
 CORNERS = (
     CORNER_IDENTIFIER_INFEASIBLE,
@@ -326,6 +328,13 @@ CORNER_CITATIONS = {
         "two-sided envelope only where the published variants and the "
         "withheld-variant multiset do not supply enough spellings "
         "(docs/spec/generation-method-v1.md G12.7)"
+    ),
+    CORNER_JUDGED_HOLE: (
+        "phase-4 plan P4-D6.1 and contract C6-116, as the disposition "
+        "registry cites it: a spelling a JUDGED PASS put there is "
+        "REPORT-ONLY for that key, because the twin writes it blank -- "
+        "reproducing it would make the twin's own measurement depend "
+        "on a re-judgement of the same number"
     ),
     CORNER_NUMERIC_SPELLINGS_SHORT: (
         "phase-2 plan P2-D6: falling back to the two-sided envelope "
@@ -510,9 +519,10 @@ _NOT_CHECKABLE_FINER_LADDER = (
 _NOT_CHECKABLE_MODE = (
     "the description records which number the real column held most "
     "often and how many cells held it, and it asks no file to hold "
-    "that many: a twin divides its cells between values by the even "
-    "share the distinctness facts fix, and the only value given a "
-    "group of its own sized to a published count is zero. A file whose "
+    "that many: a twin allots its cells to values by the runs of the "
+    "published ladder rather than by any published count of them, and "
+    "the only value given a group of its own sized to a published "
+    "count is zero. A file whose "
     "commonest number differs, or whose count of it differs, misses no "
     "obligation this description makes"
 )
@@ -521,9 +531,9 @@ _NOT_CHECKABLE_HISTOGRAM = (
     "how many of them fall between each pair of edges -- and the twin "
     "follows that shape without being held to it: meeting a bin's "
     "count exactly would mean the cells being allotted to values by "
-    "the histogram, and they are allotted by the even share the "
-    "distinctness facts fix. A file whose numbers fall in different "
-    "bins misses no obligation this description makes"
+    "the histogram, and they are allotted by the runs of the published "
+    "ladder instead. A file whose numbers fall in different bins "
+    "misses no obligation this description makes"
 )
 _NOT_CHECKABLE_HEADERLESS_ORDER = (
     "the description says the column names were generated, so the file "
@@ -538,6 +548,14 @@ _NOT_CHECKABLE_NO_LADDER = (
     "the published ladder is null at every rung, so the description "
     "carries no shape for these values and there is no window to "
     "measure against"
+)
+_NOT_CHECKABLE_JUDGED_HOLE = (
+    "this spelling is one synthtwin JUDGED to be a stand-in for 'no "
+    "value' rather than one your description names outright, so the "
+    "twin writes those cells empty: reproducing the number would make "
+    "the twin's own reading of it depend on judging it the same way a "
+    "second time. Every other spelling of an absent cell is written at "
+    "exactly its published count and is checked"
 )
 _NOT_CHECKABLE_NO_WINDOW = (
     "the published ladder for this column reaches so far across the "
@@ -5208,6 +5226,9 @@ def _obligations(
             _shown_count(missing),
         ),
     ]
+    checks = checks + _hole_spelling_checks(
+        column, cells, description
+    )
     # THE FOUR AXES, and all four rather than one (review item
     # P3-V1-F3). The re-description publishes each of them for the file's
     # own column, so each is a read-back a file can evidence: the twin
@@ -5855,6 +5876,158 @@ def _cells_of(
     if position < 1 or position > len(table.columns):
         return None
     return table.columns[position - 1]
+
+
+def _judged_hole_spellings(
+    column: contract.ColumnBlock, description: contract.Profile
+) -> "tuple[str, ...]":
+    """The `missing_by_source` keys a judged pass put there (R-P4-60).
+
+    Where the profiler judged a number to be a stand-in for "no value"
+    -- a `-999` among readings -- the twin writes those cells BLANK,
+    because reproducing the number would make the twin's own
+    measurement depend on a re-judgement of it (contract C6-116). Every
+    other key is written at its published count and is checked.
+    """
+    # THE COLUMN'S OWN DECLARATION, and not the ROLES a declaration
+    # would be honoured on. `a_decimal_comma_reaches` answers the
+    # second question and returns true for every plain numeric column,
+    # declared or not; reading an ordinary `-999.0` under a comma
+    # grammar makes it no number at all, so the value test failed and
+    # the text test it replaced was reinstated by accident. The
+    # generator asks `forced_decimal_commas` and so does this.
+    comma = False
+    for named in description.settings.forced_decimal_commas:
+        if named == column.name:
+            comma = True
+    found: list[str] = []
+    for spelling in sorted(column.missing_by_source):
+        if _one_judged_candidate(column, spelling, comma):
+            found = found + [spelling]
+    return tuple(found)
+
+
+def _one_judged_candidate(
+    column: contract.ColumnBlock, spelling: str, comma: bool
+) -> bool:
+    """Whether a judged pass is what made cells of this spelling absent.
+
+    THE SAME RULE THE GENERATOR APPLIES, WRITTEN THE SAME WAY (review
+    item P4-R60-R2-F1). This asked whether the published spelling and
+    the verdict's candidate were the same TEXT, and the generator asks
+    whether they are the same NUMBER -- which is how the producer
+    counted the candidate's rows in the first place. A column whose
+    twelve outlier cells are spelled `-999.0` publishes that spelling
+    and a candidate of `-999`: the generator writes twelve blanks, the
+    text test did not match, and a check was built that reported a
+    CORRECT twin MISSED, twelve published against nothing written.
+    Calendar placeholders part the same way, an alternate date form
+    against the canonical one, and so does a declared decimal comma.
+
+    The validator may not import the generator, so the rule is written
+    out here from the same two modules the generator uses -- `parsing`
+    for what a spelling denotes and `contract` for the verdicts -- and
+    the two are held together by a test that walks both.
+    """
+    for verdict in column.sentinel_verdicts:
+        if verdict.verdict != contract.VERDICT_MISSING:
+            continue
+        if verdict.candidate == contract.WITHHELD:
+            continue
+        candidate = verdict.candidate
+        if candidate in parsing.calendar_placeholders():
+            for name in parsing.DATE_FORMATS:
+                if parsing.placeholder_day_of(spelling, name) == candidate:
+                    return True
+            continue
+        read = spelling
+        if comma:
+            read = parsing.written_with_a_decimal_comma(spelling)
+        held = parsing.exact_of_spelling(read)
+        if held is None:
+            continue
+        if held == parsing.exact_of_spelling(candidate):
+            return True
+    return False
+
+
+def _hole_spelling_checks(
+    column: contract.ColumnBlock,
+    cells: "list[str]",
+    description: contract.Profile,
+) -> "list[Check]":
+    """Each `missing_by_source` spelling at exactly its count (R-P4-60).
+
+    THE FIELD STOPPED BEING REPORT-ONLY AT CONTRACT VERSION 6 AND THIS
+    MODULE DID NOT NOTICE. Version 5 wrote every absent cell empty, so
+    the field owed a twin nothing and the census listed it as a fact no
+    file could evidence. Version 6 writes each spelling at its published
+    count (plan P4-D6.1, contract C6-115), the disposition registry has
+    said EXACT-OBSERVABLE ever since -- "each `missing_by_source`
+    spelling at exactly its count" -- and the validator went on filing
+    the whole field as not-checkable and building no check at all.
+
+    So a file that dropped a required spelling passed with no miss.
+    Reproduced: a 36-row column publishing `missing_by_source` of
+    `{"n/a": 12}` was checked twice, once as written and once with every
+    `n/a` replaced by a blank. Both came back 49 checks and 0 missed.
+    For a table of medical records that is the wrong answer twice over:
+    the convention a column uses for "no value" is a fact somebody's
+    analysis branches on, and a twin that quietly drops it teaches that
+    analysis the wrong shape.
+
+    THE ONE KEY THAT IS NOT CHECKED, and the registry names it: a
+    spelling a JUDGED PASS put there. Where the profiler judged a
+    number to be a stand-in for "no value" -- a `-999` among readings --
+    the twin writes those cells BLANK, because reproducing the number
+    would make the twin's own measurement depend on a re-judgement of
+    it (contract C6-116). That key is an AUTHORIZED-DEVIATION with the
+    achieved zero named beside the published count, which is what the
+    registry authorizes and no more.
+
+    Guarantees:
+
+    - Inputs: one published column and the measured file's cells for it.
+    - Determinism: a fixed function of both, walked in sorted spelling
+      order.
+    - Errors raised: none. No I/O.
+    """
+    judged = set(_judged_hole_spellings(column, description))
+    checks: list[Check] = []
+    for spelling in sorted(column.missing_by_source):
+        published = column.missing_by_source[spelling]
+        written = 0
+        for cell in cells:
+            if cell == spelling:
+                written = written + 1
+        # THE RAW SPELLING NAMES THE SUBCHECK, and the renderer is what
+        # makes it printable. This escaped it here first, out of a fear
+        # that a control character in somebody's table would reach a
+        # report -- and `tests/test_p3v9f3_escaping_is_display_only`
+        # turned red, because a comparison is not a screen and this
+        # module has no screen. The fear was already answered one layer
+        # down: `quality.py` prints every subcheck through `_shown`,
+        # which crosses the display boundary once, where it belongs.
+        subcheck = f"holes.by_source.{spelling}"
+        if spelling in judged:
+            # A JUDGED KEY IS REPORT-ONLY, WHICH IS A CENSUS LINE AND
+            # NOT A CHECK. The registry's own word for it is
+            # "REPORT-ONLY for that key", and a check that can only
+            # ever come back AUTHORIZED-DEVIATION is a check nothing
+            # can make miss -- which the entry table's red battery
+            # refuses by name, and rightly. `_judged_hole_listings`
+            # files it where a fact no file can evidence belongs.
+            continue
+        checks = checks + [
+            _exact(
+                column.name,
+                "universal.missing_by_source",
+                subcheck,
+                _shown_count(published),
+                _shown_count(written),
+            )
+        ]
+    return checks
 
 
 def _presence_over_the_split(
@@ -7054,6 +7227,14 @@ def _joined_checks(
     checks = checks + _position_styles(
         column, facts, block, cells, floor
     )
+    # AND EVERYTHING BETWEEN THE TWO ENDS OF EACH POSITION'S LADDER
+    # (residual R-P4-58). The ends and the style census were measured
+    # and the ladder's interior, the four moments and the count of
+    # different numbers were not -- about thirty obligations on a
+    # two-position column, checked nowhere and listed nowhere.
+    checks = checks + _joined_number_checks(
+        column, facts, block, cells, floor
+    )
     return checks
 
 
@@ -7194,6 +7375,82 @@ def _position_styles(
         for check in _style_checks(
             column, facts.parts[place], inner, mine, floor
         ):
+            fact = check.fact
+            head = "numeric."
+            if fact[: len(head)] == head:
+                fact = f"joined.parts[{place}].{fact[len(head):]}"
+            checks = checks + [
+                dataclasses.replace(
+                    check,
+                    fact=fact,
+                    subcheck=f"number {place + 1} {check.subcheck}",
+                )
+            ]
+    return checks
+
+
+# The two rungs `_joined_part_checks` measures under its own names.
+_LADDER_ENDS = ("ladder.min", "ladder.max")
+
+
+def _joined_number_checks(
+    column: contract.ColumnBlock,
+    facts: contract.JoinedFacts,
+    block: "dict[str, object]",
+    cells: "list[str]",
+    floor: int,
+) -> "list[Check]":
+    """Each position's ladder and moments, position by position (R-P4-58).
+
+    A JOINED POSITION CARRIES A WHOLE QUANTITATIVE BLOCK AND NOTHING
+    MEASURED IT. `JoinedFacts.parts` holds a full `NumericFacts` for
+    each position -- its own hundred-and-one-rung ladder, its own mean,
+    spread, shape and tail weight, its own count of different numbers.
+    `_joined_part_checks` measured the two ENDS of each ladder and
+    whether the position is whole; `_joined_style_checks` measured its
+    style census. Everything between was checked nowhere and listed
+    nowhere, while `_quantitative_of`'s own docstring said a joined
+    column's parts "are checked in their own right".
+
+    On a blood-pressure column of 120 readings that is about thirty
+    obligations named nowhere: the systolic average, spread, shape and
+    tail weight, its nine interior rungs, its ninety finer rungs and
+    its count of different numbers, and the same again for the
+    diastolic. A person analysing those two numbers on the twin had no
+    assurance any of it matched.
+
+    THE SAME REWRITE THE STYLE CHECKS ALREADY TAKE. Each position's
+    block is handed to the code that measures a plain numeric column,
+    and every check that comes back is renamed: the registry fact from
+    `numeric.X` to `joined.parts[N].X`, and the subcheck with the
+    position in front of it. Two positions checked under one identity
+    would be two obligations a reader could not tell apart, which is
+    the reason `_joined_style_checks` gives for doing the same.
+    """
+    checks: "list[Check]" = []
+    for place in range(len(facts.parts)):
+        held = _at_place(block, "parts", place)
+        inner: "dict[str, object]" = {}
+        if isinstance(held, dict):
+            for key in held:
+                if isinstance(key, str):
+                    inner[key] = held[key]
+        mine = _position_cells(
+            cells, facts.separator, facts.n_parts, place
+        )
+        numbers = facts.parts[place]
+        made = _ladder_checks(column, numbers, inner)
+        made = made + _moment_checks(column, numbers, inner)
+        for check in made:
+            # THE TWO ENDS ARE ALREADY MEASURED, by
+            # `_joined_part_checks`, under the names the entry table
+            # has carried since the role shipped. Letting the ladder
+            # walk file them again would name one obligation twice --
+            # `ends.number 1 min` and `number 1 ladder.min` for one
+            # published value -- which is the defect this residual is
+            # an instance of, made a second time by its own repair.
+            if check.subcheck in _LADDER_ENDS:
+                continue
             fact = check.fact
             head = "numeric."
             if fact[: len(head)] == head:
@@ -7903,7 +8160,7 @@ def _moment_windows(
         # description that publishes it and a generator that draws its
         # full window.
         if numbers >= 4:
-            found["kurtosis"] = (1.0, ceiling)
+            found["kurtosis"] = (_lowered(1.0), ceiling)
         return found
     ends = [
         cubed(lows, mean_high, low_end),
@@ -7918,7 +8175,7 @@ def _moment_windows(
         # counting a check that cannot fail.
         found["skew"] = (-reach, reach)
         if numbers >= 4:
-            found["kurtosis"] = (1.0, ceiling)
+            found["kurtosis"] = (_lowered(1.0), ceiling)
         return found
     if not _bounded(
         "skew",
@@ -7961,7 +8218,7 @@ def _moment_windows(
     tails_low = math.fsum(low_fourths) / numbers
     tails_high = math.fsum(high_fourths) / numbers
     if not math.isfinite(tails_low) or not math.isfinite(tails_high):
-        found["kurtosis"] = (1.0, ceiling)
+        found["kurtosis"] = (_lowered(1.0), ceiling)
         return found
     # AND EVERY WINDOW THAT CLAMPS TO A UNIVERSAL LIMIT IS WIDENED
     # OUTWARD AT THE POINT IT IS FILED (review item P4-G6-R6-F1). On
@@ -7970,12 +8227,24 @@ def _moment_windows(
     # the window admits nothing -- while the statistic it was drawn for
     # sits on the ceiling. The generator's own copy of this window takes
     # the same step, which is what keeps the two modules agreeing.
-    lowest = max(1.0, tails_low)
+    # THE SAME ONE STEP THE GENERATOR'S COPY TAKES (review item
+    # P4-G6-R8). Both limits are widened where they are formed and the
+    # clamped pair is not widened again: two steps is a bound two
+    # places looser than the method states.
+    lowest = max(_lowered(1.0), tails_low)
     highest = min(ceiling, tails_high)
-    if lowest > highest:
-        _bounded("kurtosis", _lowered(highest), _raised(lowest))
+    if lowest >= highest:
+        # Only a window whose ends have MET is widened further, and the
+        # generator's copy takes the same step for the same reason: a
+        # window of no width sits one place above the statistic it was
+        # drawn for (review item P4-G6-R8).
+        _bounded(
+            "kurtosis",
+            _lowered(min(lowest, highest)),
+            _raised(max(lowest, highest)),
+        )
         return found
-    _bounded("kurtosis", _lowered(lowest), _raised(highest))
+    _bounded("kurtosis", lowest, highest)
     return found
 
 
@@ -10860,10 +11129,33 @@ def _unrepresentable_checks(
     facts: contract.UnrepresentableFacts,
     block: "dict[str, object]",
 ) -> "list[Check]":
-    """A column of numbers too large or too small to hold."""
+    """A column of numbers too large or too small to hold.
+
+    THE TWO WIDTHS ARE OBLIGATIONS AND WERE MEASURED BY NOTHING
+    (residual R-P4-59). `min_length` and `max_length` say how long the
+    shortest and the longest of these numbers are, in characters. They
+    are published on every column of this role, they are exactly
+    evidencible -- count the characters of the written cells -- and no
+    check named them and no census line did either.
+
+    Reproduced: twelve whole numerals too large for this format, half
+    399 characters wide and half 401, publish `min_length` 399 and
+    `max_length` 401. A file of twelve 400-character numerals agrees on
+    the role, on every sign and whole count, on distinctness and on the
+    repetition pattern, violates BOTH published widths, and was
+    reported with no miss at all.
+
+    A column of numbers this long is rare in the tables this tool is
+    for -- an identifier from a sequencing pipeline, at most -- which is
+    why it stayed open while the width defect of a code column did not.
+    Rare is not the same as never, and an obligation nothing measures
+    is the shape this phase has spent itself closing.
+    """
     name = column.name
     checks: list[Check] = []
     for field, published in (
+        ("min_length", facts.min_length),
+        ("max_length", facts.max_length),
         ("n_whole", facts.n_whole),
         ("n_fraction", facts.n_fraction),
         ("n_whole_unknown", facts.n_whole_unknown),
@@ -10969,9 +11261,28 @@ def _listings(
         ]
     corners = corners_of(description)
     for column in description.columns:
+        # AND THE KEYS A JUDGED PASS PUT THERE, one line each. The
+        # field as a whole is an obligation now; these single keys are
+        # not, and naming them here is what keeps the census's own
+        # claim true -- that every fact no file can evidence is on it.
+        for spelling in _judged_hole_spellings(column, description):
+            listings = listings + [
+                Listing(
+                    column.name,
+                    "universal.missing_by_source",
+                    f"holes.by_source.{spelling}",
+                    _NOT_CHECKABLE_JUDGED_HOLE,
+                )
+            ]
+        # `missing_by_source` IS NOT ON THIS LIST ANY MORE (R-P4-60).
+        # It stopped being report-only at contract version 6, which
+        # writes each spelling at its published count; the disposition
+        # registry has said EXACT-OBSERVABLE since, and
+        # `_hole_spelling_checks` builds one check per spelling. Listing
+        # it here as well would name one obligation twice, under two
+        # answers that contradict each other.
         for field in (
             "missing_by_class",
-            "missing_by_source",
             # The two counts contract version 5 moved out of the map
             # above (its section 5). They are REPORT-ONLY for the map's
             # own reason -- the twin writes every absent cell empty --

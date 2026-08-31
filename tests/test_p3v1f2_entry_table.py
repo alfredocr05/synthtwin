@@ -1390,6 +1390,33 @@ def _one_figure_more(cell: str) -> str:
     return f"{cell}.00"
 
 
+def _wider_numerals(
+    described: contract.Profile, text: str, index: int
+) -> str:
+    """Every numeral of one unrepresentable column given a figure more.
+
+    THE EDIT THE TWO WIDTHS OWE (residual R-P4-59). `min_length` and
+    `max_length` are character counts of this role's numerals, and the
+    narrowest edit that moves BOTH is one more figure on every cell:
+    the column keeps its role -- the numbers are still too large for
+    the format to hold -- every sign and whole count is what it was,
+    and only the two lengths move.
+    """
+    rows = _rows_of(text)
+    first = _first_record(described)
+    for row in range(first, len(rows)):
+        cell = rows[row][index]
+        if not cell:
+            continue
+        sign = ""
+        figures = cell
+        if figures[:1] == "-":
+            sign = "-"
+            figures = figures[1:]
+        rows[row][index] = f"{sign}9{figures}"
+    return _rebuilt(rows)
+
+
 def _huge_spread(described: contract.Profile, text: str, index: int) -> str:
     """One numeric column written at both ends of what a number can hold.
 
@@ -2009,6 +2036,14 @@ def _column_perturbations(
     if column.role in NUMERIC_ROLES or column.role == "numeric_unrepresentable":
         shaped = shaped + [
             (f"vast-{name}", CLASS_SHAPE, _huge_spread(described, source, index))
+        ]
+    if column.role == "numeric_unrepresentable":
+        shaped = shaped + [
+            (
+                f"widened-{name}",
+                CLASS_SHAPE,
+                _wider_numerals(described, source, index),
+            )
         ]
     # The pair goes back on, character for character as the
     # description publishes it, so what the file carries is the edited
@@ -2661,6 +2696,23 @@ NAMED_RED_CASES = (
         "region",
         "universal.quality_state",
         "axes.quality_state",
+    ),
+    # The two widths, which the contract's matrix disposes
+    # EXACT-OBSERVABLE and nothing measured until residual R-P4-59. One
+    # more figure on every numeral moves both and nothing else.
+    RedCase(
+        "unrepresentable",
+        "widened-overflow",
+        "overflow",
+        "numeric_unrepresentable.min_length",
+        "counts.min_length",
+    ),
+    RedCase(
+        "unrepresentable",
+        "widened-overflow",
+        "overflow",
+        "numeric_unrepresentable.max_length",
+        "counts.max_length",
     ),
     RedCase(
         "unrepresentable",
@@ -4207,6 +4259,21 @@ SUBCHECK_FACTS: "dict[tuple[str, str], str]" = {
     ("numeric", "moments.skew"): "numeric.skew",
     ("numeric", "moments.kurtosis"): "numeric.kurtosis",
     ("numeric", "moments.std"): "numeric.std",
+    # THE ONE `missing_by_source` KEY THAT IS NOT CHECKED (R-P4-60).
+    # The field is EXACT-OBSERVABLE since contract version 6 and every
+    # other spelling is written at its published count and checked as
+    # `holes.by_source.<spelling>`. A spelling a JUDGED PASS put there
+    # is written blank instead -- reproducing it would make the twin's
+    # own reading depend on judging the same number twice (C6-116) --
+    # so that key alone is a census line, and this row is what binds it.
+    # The two widths of the unrepresentable role, which the contract's
+    # matrix disposes EXACT-OBSERVABLE and nothing measured until
+    # residual R-P4-59.
+    ("numeric_unrepresentable", "counts.min_length"):
+        "numeric_unrepresentable.min_length",
+    ("numeric_unrepresentable", "counts.max_length"):
+        "numeric_unrepresentable.max_length",
+    ("numeric", "holes.by_source.-999"): "universal.missing_by_source",
     ("numeric", "position.at"): "universal.position",
     ("numeric", "presence.n_missing"): "universal.n_missing",
     ("numeric", "presence.n_present"): "universal.n_present",
@@ -4278,6 +4345,15 @@ SUBCHECK_FACTS: "dict[tuple[str, str], str]" = {
 # `offsets.map` to another registry fact of the same column left every
 # assertion in this file green while the report duplicated one offset
 # fact and omitted another.
+#
+# `universal.missing_by_source` CAME OFF EVERY ROLE'S LIST when R-P4-60
+# was built. It was a whole-fact listing on every role while the
+# validator called the field report-only; contract version 6 writes
+# each spelling at its published count and the disposition registry
+# calls it EXACT-OBSERVABLE, so the field is CHECKED now, one subcheck
+# per spelling. What remains not-checkable is the single key a JUDGED
+# pass put there, and that is a subchecked listing rather than a whole
+# one -- it names a key, not the field.
 WHOLE_FACT_LISTINGS: "dict[str, tuple[str, ...]]" = {
     # The clock role lists the eight universal facts no CSV can
     # evidence, and nothing of its own: every one of its five keys is
@@ -4285,7 +4361,6 @@ WHOLE_FACT_LISTINGS: "dict[str, tuple[str, ...]]" = {
     "clock": (
         "universal.detection_evidence",
         "universal.missing_by_class",
-        "universal.missing_by_source",
         "universal.n_missing_blank",
         "universal.n_missing_withheld",
         "universal.n_sentinel_candidates_unpublished",
@@ -4297,7 +4372,6 @@ WHOLE_FACT_LISTINGS: "dict[str, tuple[str, ...]]" = {
         "datetime.resolution_mix",
         "universal.detection_evidence",
         "universal.missing_by_class",
-        "universal.missing_by_source",
         "universal.n_missing_blank",
         "universal.n_missing_withheld",
         "universal.n_sentinel_candidates_unpublished",
@@ -4324,7 +4398,6 @@ WHOLE_FACT_LISTINGS: "dict[str, tuple[str, ...]]" = {
     "empty": (
         "universal.detection_evidence",
         "universal.missing_by_class",
-        "universal.missing_by_source",
         "universal.n_missing_blank",
         "universal.n_missing_withheld",
         "universal.n_sentinel_candidates_unpublished",
@@ -4334,7 +4407,6 @@ WHOLE_FACT_LISTINGS: "dict[str, tuple[str, ...]]" = {
     "free_text": (
         "universal.detection_evidence",
         "universal.missing_by_class",
-        "universal.missing_by_source",
         "universal.n_missing_blank",
         "universal.n_missing_withheld",
         "universal.n_sentinel_candidates_unpublished",
@@ -4344,7 +4416,6 @@ WHOLE_FACT_LISTINGS: "dict[str, tuple[str, ...]]" = {
     "identifier": (
         "universal.detection_evidence",
         "universal.missing_by_class",
-        "universal.missing_by_source",
         "universal.n_missing_blank",
         "universal.n_missing_withheld",
         "universal.n_sentinel_candidates_unpublished",
@@ -4354,7 +4425,6 @@ WHOLE_FACT_LISTINGS: "dict[str, tuple[str, ...]]" = {
     "label": (
         "universal.detection_evidence",
         "universal.missing_by_class",
-        "universal.missing_by_source",
         "universal.n_missing_blank",
         "universal.n_missing_withheld",
         "universal.n_sentinel_candidates_unpublished",
@@ -4377,7 +4447,6 @@ WHOLE_FACT_LISTINGS: "dict[str, tuple[str, ...]]" = {
         "numeric.value_histogram",
         "universal.detection_evidence",
         "universal.missing_by_class",
-        "universal.missing_by_source",
         "universal.n_missing_blank",
         "universal.n_missing_withheld",
         "universal.n_sentinel_candidates_unpublished",
@@ -4387,7 +4456,6 @@ WHOLE_FACT_LISTINGS: "dict[str, tuple[str, ...]]" = {
     "numeric_unrepresentable": (
         "universal.detection_evidence",
         "universal.missing_by_class",
-        "universal.missing_by_source",
         "universal.n_missing_blank",
         "universal.n_missing_withheld",
         "universal.n_sentinel_candidates_unpublished",

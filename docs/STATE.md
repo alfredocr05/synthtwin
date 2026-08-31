@@ -28,7 +28,7 @@ without the same help.
 | branch | `phase-4-allotment` (never merged; `main` is pull-request only) |
 | phase | **Phase 4 — comprehensive column handling.** Current. |
 | plan | `docs/plans/phase-4-columns.md` |
-| suite | 4,114 collected / 48 skipped |
+| suite | 4,132 collected / 48 skipped |
 | lint | clean (`ruff check .`), under the rule set pinned in `pyproject.toml` |
 
 ## What is being built right now
@@ -416,7 +416,7 @@ adversarial rounds behind it.
 
 **R-P4-25 is HALF closed, and the half that was safety-critical is the
 one that landed.** Version 6 is now in the sealed governing set, so the
-1,987 distinct passages of the contract that governs every description this tree
+2,016 distinct passages of the contract that governs every description this tree
 writes are under the seal — they were outside it, carried as a "draft
 under adversarial review", while `PROFILE_VERSION` had been 6 in the
 producer and the loader for days. A disposition quietly lowered in it
@@ -1102,7 +1102,17 @@ say which.
   unless the checks actually ran on the STAGED tree**, because the
   scanners walk the tracked tree and will silently skip a file you have
   not added yet.
-- **R-P4-56, opened 2026-08-30 and the most serious thing open here.**
+- **R-P4-56 — CLOSED for a fixed-width column, 2026-08-30, and
+  NARROWED to columns whose width census names several widths.** It was
+  the most serious thing open here and it is built: where two strata
+  would be written as one cell at the column's published width, the
+  later moves to the nearest free point of that width's own grid,
+  inside its own share of the ladder. Measured over 90 fixed-width
+  columns: cells wider before the point than any source cell go from
+  200 to 0, deviations the twin files against itself from 53 to 1, and
+  the count of different numbers is closer to the published one on 45
+  columns and further on none. The original defect, restated for the
+  next reader:
   A numeric column with a PINNED fraction width -- a code column, a
   rounded measurement -- can get two strata that hold different
   numbers but round onto one spelling. The count of different values
