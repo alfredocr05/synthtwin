@@ -555,9 +555,15 @@ def _registry_key(fact: str) -> str:
     `parts[1].mean` -- because two positions under one identity would
     be two obligations a reader cannot tell apart, which is the rule
     residual R-P4-58's repair set. The registry names the FACT and not
-    the position, so the index is dropped here, and a per-position
-    entry evidences its container: `joined.parts[1].mean` is evidence
-    for `joined.parts`.
+    the position, so the index is dropped here.
+
+    A NESTED fact then takes its NUMERIC disposition -- what contract
+    9.4a means by "each position takes 9.4's dispositions" -- rather
+    than the STRUCTURAL container's. Resolving it to the container said
+    only that the container exists, so a nested fact could change class
+    with the guard still calling the site structural (review item
+    P4-A2-R1-F2). The container itself is an input-side entry, as
+    `free_text`'s `length` and `words` are.
     """
     bare = re.sub(r"\[\d+\]", "", fact)
     head, _dot, rest = bare.partition(".")
@@ -5627,6 +5633,98 @@ def test_a_registered_case_is_aimed_at_the_site_it_covers(
                 f"column {other!r} and is registered against the "
                 f"document-level {case.subcheck}"
             )
+
+
+# THE FIXTURES WHOSE GREEN RUN IS ALREADY RED, each against the
+# residual that owes it. Asking this battery for its own premise found
+# both the moment the question was asked, and neither is this landing's
+# to fix -- they belong to the unrepresentable and numeric roles. They
+# are NAMED so the hole is loud: a third fixture going red fails the
+# guard, and closing either residual without emptying its entry here
+# fails it too.
+#
+# This is the shape the note-grammar guard used for the same reason: a
+# guard that cannot be landed green is a guard nobody lands, and the
+# alternative is not adding it, which is how both of these survived.
+KNOWN_RED_PREMISES = {
+    ("unrepresentable", "counts.min_length"): "R-P4-68",
+    ("unrepresentable", "counts.max_length"): "R-P4-68",
+    ("pooled", "axes.role"): "R-P4-69",
+    ("pooled", "axes.statistical_type"): "R-P4-69",
+    ("pooled", "type.integer_valued"): "R-P4-69",
+}
+
+
+def test_every_fixture_is_GREEN_before_it_is_perturbed(
+    runs: "list[tuple[str, contract.Profile, str]]",
+    tmp_path: pathlib.Path,
+) -> None:
+    """The premise the whole red battery rests on, and it was unstated.
+
+    Review item P4-A2-R2-F2. The battery proves two things: that each
+    registered perturbation makes its named site MISS, and that every
+    site has some registered case. It never required the UNPERTURBED
+    twin to hold anything, and `_sites_of` collects checks whatever
+    their verdict -- so a fixture whose green run is ALREADY RED
+    satisfies every one of those assertions.
+
+    The reviewer's own witness: replace the `part_above` measurement
+    with `n_joined`. The untouched fixture then misses (120 measured
+    against 102 published) and its registered `blanked-cell` case still
+    misses (119 against 102), so binding, coverage and every red case
+    stay green while the witness they are all measured against is
+    broken. A distinctness regression survives the same way.
+
+    A twin built from its own description misses nothing. That is the
+    product's headline claim, and this is the battery that should have
+    been asserting it all along.
+    """
+    broken: list[str] = []
+    for name, described, twin in runs:
+        outcome = _measured(tmp_path, described, twin, f"{name}-premise.csv")
+        missed = [
+            f"{name}: {check.column}: {check.subcheck} "
+            f"(published {check.published}, achieved {check.achieved})"
+            for check in outcome.checks
+            if check.verdict == validation.MISSED
+            and (name, check.subcheck) not in KNOWN_RED_PREMISES
+        ]
+        broken = broken + missed
+    assert not broken, (
+        "a fixture this battery calls its GREEN witness already misses "
+        "an obligation, so every red case measured against it proves "
+        "nothing about the edit it names:\n  " + "\n  ".join(broken)
+    )
+    # ...and every NAMED exception is still red, and still owed. An
+    # entry that has stopped being red is a residual that closed
+    # without anybody removing its excuse, which is how an excuse
+    # outlives its reason.
+    plan = (
+        pathlib.Path(__file__).resolve().parents[1]
+        / "docs" / "plans" / "phase-4-columns.md"
+    ).read_text(encoding="utf-8")
+    stale: list[str] = []
+    for name, described, twin in runs:
+        outcome = _measured(tmp_path, described, twin, f"{name}-named.csv")
+        red = {
+            check.subcheck
+            for check in outcome.checks
+            if check.verdict == validation.MISSED
+        }
+        for (fixture, subcheck), residual in KNOWN_RED_PREMISES.items():
+            if fixture != name:
+                continue
+            if subcheck not in red:
+                stale = stale + [
+                    f"{fixture}/{subcheck} is excused by {residual} and no "
+                    "longer misses -- delete the entry"
+                ]
+            if f"**{residual} — OPEN" not in plan:
+                stale = stale + [
+                    f"{fixture}/{subcheck} cites {residual}, which the "
+                    "register does not carry as OPEN"
+                ]
+    assert not stale, "\n  ".join(sorted(set(stale)))
 
 
 def test_the_coverage_identity_walks_the_shipped_table(
