@@ -1246,8 +1246,8 @@ contract:
    widening it to arbitrary strings would be exactly the hole that lets
    a source-derived value into a sentence and be rebuilt successfully.
 
-**The census.** The table holds 50 forms and 79 argument positions.
-Of those, 66 are whole numbers, 4 are package words, 4 are nested
+**The census.** The table holds 51 forms and 86 argument positions.
+Of those, 73 are whole numbers, 4 are package words, 4 are nested
 forms, and 5 are bound affix strings. No position is a string of any
 other kind.
 
@@ -1873,6 +1873,20 @@ ordinary level with an ordinary count, and nothing else in the document
 tells its owner that synthtwin would have read that number as a gap on a
 numeric column. It is advisory and routes nothing.
 
+**Carried once for each such level, in the order of the three-member
+list, and only for levels the block PUBLISHES.** A column publishing
+both `-999` and `9999` carries two of these remarks, because a form
+naming only the first would leave the reader's other level unexplained
+— and the one left out is the one they had not thought of. A level the
+small-cell floor held back is not published, so no remark describes it:
+a sentence naming a value the same block promises to withhold is the
+contradiction 6.4's floor exists to prevent.
+
+**The level is matched by NUMBER and not by spelling**, which is the
+rule `settings.declaration_matching` states for a declared value: `-999`, `-999.0` and `-999.00`
+are one number, and a column spelling it with a fraction is exactly the
+column whose owner has not noticed.
+
 ---
 
 ##### E. The header-verdict forms (four forms)
@@ -2137,6 +2151,92 @@ and `affix_suffix`; this block publishes neither. The sentence
 therefore names the shape in its own fixed words and no number and no
 spelling of this column reaches it.
 
+**NF51. `remark_whole_numbers_could_be_times` — the time-band remark**
+— arity 7. Carried on a `count` column, and on no other role, when
+every number it holds lies in one of the two bands below. Its number is
+appended, on the NF45–NF48 and NF50 precedent.
+
+| # | class | meaning |
+|---|---|---|
+| 1 | whole number | which band: 1 for seconds, 2 for milliseconds, and nothing else |
+| 2 | whole number | the year of the smallest value, read in that band |
+| 3 | whole number | its month |
+| 4 | whole number | its day |
+| 5 | whole number | the year of the largest value, read in that band |
+| 6 | whole number | its month |
+| 7 | whole number | its day |
+
+**The two bands, stated as calendar years and not as large numbers.** A
+band runs from the first day of the year 2000 up to, and not including,
+the first day of the year 2051. The whole numbers themselves are that
+pair of days multiplied by how many units the band counts in a day —
+86,400 for seconds, 86,400,000 for milliseconds — so the bound is
+derived from the calendar and is not a constant anybody types. A column
+is IN a band when every number it holds is a whole number this format
+can hold and lies at or above the band's first value and below its
+last.
+
+**Why the band does not begin at zero.** Zero is the 1st of January
+1970, so a band starting there covers every ordinary count a table
+holds — ages, tallies, row counts — and the remark would fire on nearly
+every column of whole numbers. A remark that routes nothing can afford
+that least of all.
+
+The rendering writes UNIT from argument 1 through this fixed table:
+
+| «1» | UNIT |
+|---|---|
+| 1 | `seconds` |
+| 2 | `milliseconds` |
+
+and writes each of the two days as «*year*»-«*month*»-«*day*» with the
+year in four figures and the month and the day in two, each padded with
+zeros on the left:
+
+> every value in this column is a whole number, and every one of them
+> sits in the band a computer writes a moment in time into when it
+> counts UNIT from the 1st of January 1970. Read that way this column
+> runs from «2»-«3»-«4» to «5»-«6»-«7». synthtwin read them as plain
+> numbers and describes them as a count of things. THIS SENTENCE
+> DECIDES NOTHING and moves nothing: no rule of synthtwin reads a
+> number as a moment in time, and no declaration makes one. It changes
+> nothing about your twin either -- reading the column as plain numbers
+> keeps every value where it was and every distance between two of
+> them, so turning the twin's column into dates the way you would turn
+> your own gives dates over the same span. What was missing is being
+> told, so that you can recognize your own column and say in its name
+> what it holds
+
+**IT NAMES NO DECLARATION, and that is not an omission.** Every other
+advisory remark of this grammar ends by naming the flag that would
+change the reading. There is none here: no rule of this version reads a
+number as a moment in time, and no declaration makes one. A sentence
+naming a flag that does not exist would be worse than silence, so the
+remark says what the column looks like, says the twin is unaffected,
+and stops.
+
+**Why the twin is unaffected, stated in the sentence itself.** The
+numeric reading keeps the column's range and the spacing of its values,
+which is what every published fact of a `count` column is about — so
+converting the twin's column to dates the way the source column would
+be converted gives dates over the same span. What was missing was never
+fidelity; it was the person being told (residual R-P4-9).
+
+**Both ends are facts the block already publishes.** They are `min` and
+`max` of the same block, written a second way, so the sentence
+discloses nothing the description does not already hold.
+
+**Why the definition is over every value, stated exactly.** A band is
+one interval, so on this role — where every value is a whole number —
+asking the two ends answers the same question as asking every value,
+and both were run against each other. The definition is written over
+every value because that is the property the sentence asserts, and
+because it survives what the equivalence does not: a band ever written
+as two intervals, or a role ever admitting a value whose text does not
+settle it as whole, breaks the equivalence and leaves the definition
+standing. A producer may compute it either way and write the same
+sentence.
+
 **Why the header verdict is a form at all.** A verdict built anywhere
 else would be the one string in the document with no form behind it, and
 one exception is all a guard needs to stop meaning anything.
@@ -2247,7 +2347,7 @@ names:
 
 | id | statement |
 |---|---|
-| NG14 | the form is one of the 50 in section 4.5.1 |
+| NG14 | the form is one of the 51 in section 4.5.1 |
 | NG15 | the argument count equals that form's arity |
 | NG16 | every argument is of one of C6-119's four classes |
 | NG17 | re-rendering the form with those arguments writes the leaf's text character for character |
@@ -6822,7 +6922,7 @@ month-first parsed.
 | NG11 | on `remark_affixed_numbers_may_be_codes`: argument 3 equals the named block's `n_affixed` |
 | NG12 | argument 1 is character-for-character that block's `affix_prefix` and argument 2 its `affix_suffix`, AT THOSE POSITIONS, not merely as members of the pair |
 | NG13 | on `remark_a_label_is_a_built_in_stand_in`: argument 1 is 1, 2 or 3 |
-| NG14 | for every form: one of the 50 the note grammar enumerates |
+| NG14 | for every form: one of the 51 the note grammar enumerates |
 | NG15 | the argument count equals that form's arity |
 | NG16 | every argument is of one of the four argument classes |
 | NG17 | re-rendering the form with those arguments writes the leaf's text character for character |
@@ -7832,7 +7932,7 @@ this document, and the battery the plan requires turns red on it.
 | nothing-class blocks (`numeric_unrepresentable`, `identifier`, `free_text`) | lengths, word statistics, digit and code-alphabet counts, the whole-number test, the repetition multiset, on `numeric_unrepresentable` the whole-number and sign counts, and on `free_text` the census of WRITTEN FORMS its cells wore (`shape_forms`) | no value, no spelling, no fragment of one — the form census included, whose every key is built from `%`, `@` and thirteen named marks -- characters no cell that has a form may contain, so a key can carry no letter and no figure of any cell; the multiplicity map publishes SIZES of unnamed groups under no floor, the form census under the floor with a `(withheld)` pool |
 | `empty` columns nobody declared | the absent SPELLINGS their cells wore and the two absence counts, exactly as any column that is not nothing-publishing | floor-governed |
 | `settings` | the rules the run applied, the floor's own value, how many values each declaration named, and which of THIS package's published words were among them | carries no cell, no column and no count of the table; a person's own spelling never enters |
-| `source.header_evidence`, `publication_notes[].note`, `detection_evidence`, `remarks` | sentences of the 50 closed forms: 79 argument positions, of which 66 are whole numbers, 4 package words, 4 nested forms and 5 bound affix strings | the whole numbers are counts the block beside them already publishes, EXCEPT the positions priced at rows 16 and 18 |
+| `source.header_evidence`, `publication_notes[].note`, `detection_evidence`, `remarks` | sentences of the 51 closed forms: 86 argument positions, of which 73 are whole numbers, 4 package words, 4 nested forms and 5 bound affix strings | the whole numbers are counts the block beside them already publishes, EXCEPT the positions priced at rows 16 and 18 |
 | `relationships` | nothing: eight nulls | — |
 
 ### 12.3 The rows, each priced
@@ -8675,10 +8775,10 @@ way, with one difference: the width is at least TWO (`2`, `3`, `10`),
 a padded cell writing at least one zero in front of at least one figure
 (C6-29b). `(withheld)` is again the only non-numeric key permitted.
 
-### 14.8 The note grammar — 50 forms
+### 14.8 The note grammar — 51 forms
 
 Defined in 4.5.1, which is the authority on every rendering and every
-argument. 79 argument positions: 66 whole numbers, 4 package words, 4
+argument. 86 argument positions: 73 whole numbers, 4 package words, 4
 nested forms, 5 bound affix strings.
 
 | # | form | arity |
@@ -8733,6 +8833,7 @@ nested forms, 5 bound affix strings.
 | NG48 | `evidence_numbers_wearing_one_affix` | 3 |
 | NG49 | `histogram_publishes_no_shape` | 0 |
 | NG50 | `remark_an_address_is_not_a_quantity` | 0 |
+| NG51 | `remark_whole_numbers_could_be_times` | 7 |
 
 **The package-word vocabulary — 21**, the whole of the second argument
 class (4.5.1): the seventeen `format` members of 14.6, plus `day-first`

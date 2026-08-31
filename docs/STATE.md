@@ -28,8 +28,8 @@ without the same help.
 | branch | `phase-4-allotment` (never merged; `main` is pull-request only) |
 | phase | **Phase 4 — comprehensive column handling.** Current. |
 | plan | `docs/plans/phase-4-columns.md` |
-| suite | 4,163 collected / 51 skipped |
-| lint | **9 pre-existing errors** (`ruff check .`) under the rule set pinned in `pyproject.toml`, re-measured 2026-08-31 on this tree: 2 mid-file imports in `src/` (`generation.py`, `validation.py`) and 7 in `tools/measurements/`. It said 10 until the dead recount named below went with the joined role's landing and this line did not move with it. This landing adds none, and the one file of `src/` it touches carries one of the two that were already there |
+| suite | 4,199 collected / 51 skipped |
+| lint | **9 pre-existing errors** (`ruff check .`) under the rule set pinned in `pyproject.toml`, re-measured 2026-08-31 on this tree: 2 mid-file imports in `src/` (`generation.py`, `validation.py`) and 7 in `tools/measurements/`. It said 10 until the dead recount named below went with the joined role's landing and this line did not move with it. Re-measured again on the advisory-remark landing: still 9, none of them in the one file of `src/` that landing touches |
 
 ## What is being built right now
 
@@ -949,6 +949,140 @@ generator's own test excludes the role citing the residual rather than
 excusing it in the contract.
 
 **EIGHT SURFACES, against a residual that named three.**
+**R-P4-24 IS CLOSED (2026-08-31, landing L1). THE ADVISORY REMARKS
+SPEAK.** Amendment A-P4-30 cut four remarks to finish the phase and
+priced the cut honestly: every one routes nothing, so nobody was
+misled, "but they are not helped either". Three of the four are built,
+with R-P4-9's fourth beside them, and each is measured against the
+other half of its own claim rather than checked for appearing.
+
+* **NF51, the time-band remark (R-P4-9 CLOSED).** A `count` column
+  whose every value lies in the seconds band -- or the milliseconds
+  band -- is told so, with its two ends said as calendar dates. It
+  names no declaration, and that is not an omission: **no rule of this
+  package reads a number as a moment in time and none can be made to**,
+  so a sentence naming a flag that does not exist would be worse than
+  silence. What it does say is that the twin is unaffected -- the
+  numeric reading keeps the range and the spacing, so the same
+  conversion gives the same span -- because that is the question a
+  reader of a fidelity report asks next.
+
+  **The band begins in the year 2000 and not at zero.** Zero is the 1st
+  of January 1970, so a band starting there covers every ordinary
+  count a table holds and the remark would fire on nearly every column
+  of whole numbers. The bound is two calendar years put through
+  `parsing.days_from_civil`, not a large number anybody typed.
+
+* **NF29 arguments 8 and 9.** The competing-readings remark named
+  three readings and stayed silent about the FOURTH: a column of clock
+  times in a shape this version does not describe was told nothing
+  fitted it and never told which reading came closest. And A-P4-1 item
+  4's recoverable-distribution advice now fires.
+
+* **NF25 at arity 2** states both counts, and **NF37** tells a label
+  column publishing `-999` as a level that `--missing-value` exists
+  for it -- on all four label roles, once per such level, and only for
+  levels the block PUBLISHES, because a sentence naming a value the
+  same block promises to withhold is the contradiction the floor
+  exists to prevent.
+
+**R-P4-16 CLOSES AT THE OWNER'S THIRD OPTION, AND THE PRODUCER
+OBLIGATION IS STRONGER THAN THE ONE THAT ENTRY PROPOSED.** A-P4-1's
+trigger was arithmetic -- removing the repeated non-numeric spellings
+lifts the survivors past the parse line -- and it promises a
+distribution on three column shapes that publish none. The entry
+proposed adding survivor distinctness of at least three. **Counting
+cannot answer the question at all**: what the clause promises is that a
+READING of the survivors publishes a distribution, so the producer
+re-runs its own role rules over them and writes the sentence only where
+that run lands on `count`, `continuous` or `affixed_number`. The loader
+cannot check it -- it holds a description and not the cells -- which is
+why it is a producer obligation with tests behind it and not a wire
+invariant.
+
+**TWO NARROWINGS NOBODY ASKED FOR, because the clause's own words were
+false without them.** NF29 calls the covered cells "one of a few ways
+that repeat often enough to name" -- and **A-P4-37 lowered the
+small-cell floor to 1 four amendments after A-P4-1 wrote this trigger
+against it**, so at the default floor an all-different word "clears the
+floor" and a hundred one-off spellings would be called a few repeated
+ones. A spelling must now be shared by at least two rows, and there may
+be at most the categorical ceiling of them. Both narrow the advice;
+neither can make it fire where it did not. *A constant is a
+measurement in disguise, and so is a threshold another amendment
+moved underneath you.*
+
+**THE FOURTH REMARK IS OPENED RATHER THAN BUILT: R-P4-72**, the
+code-shaped remark firing on repeating code columns (NF32, NF34). It is
+not an arity to reconcile -- the producer raises both forms only where
+every value differs, so the contract's argument would be zero at every
+call site and its second rendering could never be written, which is the
+"a check that cannot fail" shape this repository refuses. And the
+trigger is a scope decision: P4-D4.7 gives the code-shape test as
+"all-whole, nearly-never-repeating, or fixed-width leading-zero digit
+strings", and **every `count` column is all-whole by that role's own
+definition**, so the plan's first limb alone would put the sentence on
+every count column in every profile. `KNOWN_MISMATCHES` therefore holds
+two rows where it held five, each with its reason written on it.
+
+**AND BUILDING NF29's TWO ARGUMENTS FOUND THE LARGEST RENDERING DRIFT
+YET, WHICH IS R-P4-67's OWN SUBJECT** and is recorded there rather than
+fixed. That residual measured the twenty arity-0 forms and said the
+thirty argument-taking forms "are not compared at all". NF29 is one of
+them: the contract writes its clauses 6 and 7 as separate sentences,
+each written only when its own argument is nonzero; **the producer
+writes clause 6 UNCONDITIONALLY**, so a column the affix reading never
+touched is told "0 of its values are numbers wearing one shared piece
+of text", and writes clause 7 as a comma continuation of it. Arguments
+8 and 9 are written to the contract's own words and composition. The
+two older clauses are left alone because moving them moves the five
+goldens.
+
+**ONE OF THE TWO DRIFTS R-P4-67 NAMED IS CLOSED** in passing:
+`remark_dates_also_read_as_numbers` was rewritten to the contract's
+arity-2 rendering, `numbers:` included. **And every rendering this
+landing added was checked against that residual's own measurement and
+is character for character what the producer writes** -- NF51 at both
+bands, NF25, NF37, and NF29's two clauses composed together. Five of
+the thirty argument-taking forms, done by hand, which is why R-P4-67
+stays open.
+
+**AND THE FIRST BUILD OF THE TWO NEW CLAUSES WROTE `describe.. 9
+more`.** Two functions each prefixed their own full stop. The join is
+one function now and a test asserts all four combinations, which is
+the smallest possible instance of this project's standing lesson: a
+fact written twice will drift, and the fix is to stop writing it
+twice.
+
+**SEVEN MUTATIONS RUN, SIX RED, AND THE SEVENTH IS THE USEFUL ONE.**
+Reverting the advice's re-run to the plan's arithmetic, dropping the
+repetition rule, dropping the ceiling bound, writing one date count
+twice, silencing one label role, and restoring the double full stop
+each turn a NAMED test red. The seventh -- reading `min` and `max`
+instead of walking every value for the time band -- turned NOTHING
+red, and the reason is that it is an EQUIVALENT REWRITE rather than an
+escaped defect: a band is one interval, so on a role whose every value
+is whole the two ends answer the same question, and the column the
+test claimed to build cannot exist. **The contract said otherwise in
+as many words** -- "a remark raised on the ends alone would send
+somebody to look at a column that is nothing of the kind" -- and that
+sentence is corrected, along with the test's own name and docstring.
+The walk is kept because it makes the function right on its own terms
+rather than on its caller's. *A test that passes is not a guard, and
+the first thing to ask of a surviving mutation is whether it changed
+anything at all.*
+
+**AND THE OFFLINE AUDIT REFUSED THREE CONSTRUCTS IN THE NEW CODE**, which
+is priority 1 of the reviewer brief doing its job on ordinary-looking
+lines. A separator joining a list the audit cannot trace, a set filled
+by its own method, and a whole-number test written as a method call are
+each refused: a data method invokes the protocol of whatever it is
+handed, and a method call on a value the audit cannot trace can be
+anything at all. The three are now an addition loop, a mapping filled
+by subscript, and a remainder compared with zero. No test saw any of
+them -- the audit is the only surface that does, and it walks the
+TRACKED tree, so the guard that found them found them only after
+`git add`.
 
 ## What the owner has decided, and must not be re-asked
 
