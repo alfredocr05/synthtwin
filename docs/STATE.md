@@ -628,18 +628,32 @@ were not in the residual when it was opened.
   R-P4-58 closed only the half of its own scope that said "nothing
   checks".
 
-**THE DISPOSITION WAS DECIDED BY MEASUREMENT, and it reversed the
-recommendation it started from.** EXACT-OBSERVABLE looked right --
-the check already fires and report-only would silence a verdict. Two
-measurements said otherwise. Every joined column whose cells REPEAT
-overshoots its published count (80 published, 210 held), and even an
-all-different column reaches it at one seed and misses by one at
-another, so an exact obligation would be met or missed BY THE SEED --
-a guard whose green says nothing. And the twin's own report already
-prints "the description says 120 different value(s) / the twin holds
-119" before anybody runs `validate`, so report-only hides nothing from
-a person. That is the ask-what-consumes-it rule applied before
-choosing a class rather than after.
+**THE DISPOSITION WAS DECIDED TWICE, AND THE SECOND TIME WAS RIGHT.**
+It was made REPORT-ONLY on two measurements: every joined column whose
+cells REPEAT overshoots its published count (80 published, 210 held),
+and even an all-different column reaches it at one seed and misses by
+one at another -- so an exact obligation looked like one met or missed
+BY THE SEED. And the twin's own report already prints "the description
+says 120 / the twin holds 119", so nothing seemed hidden.
+
+**Adversarial round P4-A2-R1 refuted both halves and built the
+counter-example.** `synthtwin validate` measures ANY file a person
+names, not the twin this run happened to make. A 240-row source of 120
+`100/60` and 120 `101/61` publishes two different cells; hand it a file
+that keeps each position's multiset and re-pairs the numbers and it
+holds FOUR, with every endpoint, moment, width, style, count and
+above-count identical and the agreement inside G12.9's window.
+**Measured: with the counts report-only that file passed with 74 HELD
+and NOT ONE MISS. It now reports two.** So report-only did not decline
+to hold a file to a fact; it removed the only verdict-bearing check
+that fact had, and the generation report cannot stand in, because it
+passes no verdict at all and the charter says so.
+
+**The seed-dependence is a fact about the GENERATOR, not about
+observability** -- that is R-P4-40, and it is not a reason to stop
+checking files. The lesson is sharper than the fix: **"the twin cannot
+always meet it" and "no file can be held to it" are different claims,
+and I ran the first into the second.**
 
 **THE FIXTURE IS ITS OWN, and the register assumed otherwise.** The
 role REQUIRES a `--measurement` declaration, so it cannot be a

@@ -355,8 +355,8 @@ PLAN4_REGIONS = {
     # role's table set neither, so the validator filed them under the
     # group its dispatch fell through to.
     "joined-distinct": (
-        "## Decision P4-D29 — a joined column's distinctness is "
-        "report-only (closes part of R-P4-62, 2026-08-31)"
+        "## Decision P4-D29 — a joined column's distinctness is EXACT "
+        "(closes part of R-P4-62, 2026-08-31)"
     ),
 }
 
@@ -784,8 +784,8 @@ REGISTRY += [
     Fact(
         "joined",
         field,
-        REPORT_ONLY,
-        plan_words="of the construction rather than a target",
+        EXACT_OBSERVABLE,
+        plan_words="THE DECISION: EXACT-OBSERVABLE",
         plan_region="joined-distinct",
     )
     for field in ("n_distinct", "n_distinct_folded")

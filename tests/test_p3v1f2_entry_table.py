@@ -562,8 +562,27 @@ def _registry_key(fact: str) -> str:
     bare = re.sub(r"\[\d+\]", "", fact)
     head, _dot, rest = bare.partition(".")
     if head == "joined" and rest.startswith("parts."):
-        return "joined.parts"
+        # A NESTED numeric fact takes the NUMERIC group's disposition,
+        # which is what contract 9.4a means by "each position takes
+        # 9.4's dispositions". Collapsing it to the STRUCTURAL
+        # container instead said only that the container exists, so a
+        # nested fact could change class -- an approximated rung made
+        # exact, a report-only histogram made verdict-bearing -- with
+        # the entry table still evaluating the site as STRUCTURAL
+        # (review item P4-A2-R1-F2).
+        field = rest[len("parts."):]
+        # The two ENDS are filed under their own short names by this
+        # role's endpoint checks, where the numeric group registers
+        # them as rungs of the ladder. Same obligation, two spellings,
+        # so the alias is written out rather than left to collide.
+        field = _PART_ENDS.get(field, field)
+        return f"numeric.{field}"
     return bare
+
+
+# What a joined position calls the two ladder ends, against the names
+# the numeric group registers them under.
+_PART_ENDS = {"min": "percentiles.min", "max": "percentiles.max"}
 
 
 def test_every_registry_fact_is_bound_to_one_of_the_three_kinds(
@@ -2410,6 +2429,8 @@ NAMED_RED_CASES = (
     RedCase("joined", 'emptied-clinic', 'clinic', 'universal.quality_state', 'axes.quality_state'),
     RedCase("joined", 'emptied-clinic', 'clinic', 'universal.role', 'axes.role'),
     RedCase("joined", 'emptied-clinic', 'clinic', 'universal.statistical_type', 'axes.statistical_type'),
+    RedCase("joined", 'blanked-cell', 'reading', 'joined.n_distinct', 'distinct.n_distinct'),
+    RedCase("joined", 'blanked-cell', 'reading', 'joined.n_distinct_folded', 'distinct.n_distinct_folded'),
     RedCase("joined", 'blanked-cell', 'reading', 'joined.n_joined', 'counts.n_joined'),
     RedCase("joined", 'marked-reading', 'reading', 'joined.n_parts', 'counts.n_parts'),
     RedCase("joined", 'moved-cell', 'reading', 'joined.n_unparsed', 'counts.n_unparsed'),
@@ -4160,6 +4181,8 @@ SUBCHECK_FACTS: "dict[tuple[str, str], str]" = {
     ("joined", 'counts.n_out_of_range'): 'universal.n_out_of_range',
     ("joined", 'counts.n_parts'): 'joined.n_parts',
     ("joined", 'counts.n_unparsed'): 'joined.n_unparsed',
+    ("joined", 'distinct.n_distinct'): 'joined.n_distinct',
+    ("joined", 'distinct.n_distinct_folded'): 'joined.n_distinct_folded',
     ("joined", 'ends.number 1 max'): 'joined.parts[0].max',
     ("joined", 'ends.number 1 min'): 'joined.parts[0].min',
     ("joined", 'ends.number 2 max'): 'joined.parts[1].max',
@@ -4622,9 +4645,13 @@ WHOLE_FACT_LISTINGS: "dict[str, tuple[str, ...]]" = {
     # listed NOWHERE until this landing, because `_quantitative_of`
     # returns no block for this role so the census never reached its
     # positions (review item P4-A1-R2-F2).
+    # The joined role lists the universal seven and the
+    # per-position facts no window can be drawn for, which were
+    # listed NOWHERE until this landing (review item
+    # P4-A1-R2-F2). Its own two distinctness counts are CHECKED,
+    # not listed: a file can be wrong about them while every other
+    # published fact holds (review item P4-A2-R1-F1).
     "joined": (
-        "joined.n_distinct",
-        "joined.n_distinct_folded",
         "joined.parts[0].n_distinct_values",
         "joined.parts[0].percentiles_between",
         "joined.parts[1].n_distinct_values",

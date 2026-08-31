@@ -305,9 +305,16 @@ def joined_numbers_table(n_rows: int = 120) -> str:
       210 held on one measured column, because each position is drawn
       to its own ladder and the pairing then makes more distinct pairs
       than a repeating source had.
-    * **Bands that never overlap**, so the upper number is above the
-      lower on every row and `part_above` is pinned at the joined
-      count rather than at a number one edit could reach by accident.
+    * **Bands that OVERLAP, on purpose.** An earlier version put the
+      two numbers in bands that could not meet, so the upper was above
+      the lower on every row and `part_above` equalled `n_joined`
+      exactly. That makes the fact TAUTOLOGICAL: an implementation
+      that returned the joined count without comparing the positions
+      at all would pass the green run, and its registered red case
+      would fire for an unrelated reason (review item P4-A2-R1-F5).
+      The bands overlap now and the count is 102 of 120 -- a number
+      only a real comparison produces, and one the twin still meets
+      along with every other published fact.
     * **A SECOND COLUMN, and it is not decoration.** The battery's
       quality axis moves only when a whole column is emptied, and that
       perturbation is not built for a one-column description, where it
@@ -320,8 +327,8 @@ def joined_numbers_table(n_rows: int = 120) -> str:
     """
     rows = []
     for index in range(n_rows):
-        upper = 100 + index          # 100 to 219
-        lower = 60 + (index % 30)    # 60 to 89, always below the upper
+        upper = 100 + (index % 120)         # 100 to 219
+        lower = 60 + (index * 13) % 100     # 60 to 159, an overlapping band
         rows.append([f"{upper}/{lower}", "one"])
     return rows_to_csv(["reading", "clinic"], rows)
 
