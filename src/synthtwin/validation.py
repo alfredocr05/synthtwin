@@ -11373,7 +11373,10 @@ def _listings(
         # on purpose, because its parts are checked one at a time, and
         # nothing then LISTED what those checks cannot measure (review
         # item P4-A1-R2-F2). Its own two distinctness counts are listed
-        # here too, being report-only (plan P4-D29).
+        # here too. Its own two distinctness counts are CHECKED, not
+        # listed -- they were report-only for one landing and adversarial
+        # round P4-A2-R1 showed a re-paired file passing clean without
+        # them (plan P4-D29).
         if isinstance(facts, contract.JoinedFacts):
             listings = listings + _joined_listings(column, facts)
 

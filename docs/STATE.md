@@ -28,7 +28,7 @@ without the same help.
 | branch | `phase-4-allotment` (never merged; `main` is pull-request only) |
 | phase | **Phase 4 — comprehensive column handling.** Current. |
 | plan | `docs/plans/phase-4-columns.md` |
-| suite | 4,152 collected / 51 skipped |
+| suite | 4,153 collected / 51 skipped |
 | lint | **10 pre-existing errors** (`ruff check .`) under the rule set pinned in `pyproject.toml`, measured 2026-08-31 at `c10f5f6`; every file this landing touched is clean |
 
 ## What is being built right now
@@ -676,8 +676,9 @@ were not in the residual when it was opened.
 * **The contract disposed neither of those counts for this role.**
   9.2 sets them "per role group" and 9.4a set neither, which is why
   the mis-filing could not be noticed: the fact was filed under a
-  group that DOES dispose them. They are REPORT-ONLY now (plan
-  P4-D29).
+  group that DOES dispose them. They are EXACT-OBSERVABLE now (plan
+  P4-D29), after adversarial round P4-A2-R1 showed a wrong file
+  passing clean while they were report-only.
 * **A joined position's report-only facts are LISTED.**
   `_quantitative_of` returns no block for this role, so per-position
   `n_distinct_values` and `percentiles_between` were neither checked
@@ -722,6 +723,46 @@ measured -- two positions (three cannot honour their (1,2) pair,
 R-P4-51), all different, non-overlapping bands, and a companion column
 without which `axes.quality_state` would be a site no edit could turn
 red.
+
+**ROUND 2 FOUND A FOURTH SURFACE BLIND TO THE ROLE, AND A BATTERY
+THAT NEVER CHECKED ITS OWN PREMISE.** It also withdrew two of its round
+1 items plainly, after I measured them and said they did not
+reproduce.
+
+* **A fourth completeness surface.** The generator-disposition battery
+  in `tests/test_p2c4f1_disposition_registry.py` builds descriptions
+  "covering every role the taxonomy has" and its reach check asked for
+  eight roles and a SUBSET of `ROLE_GROUPS` -- so registering the
+  joined group left it green while nothing it built carried the role.
+  It is the battery that promises every exact fact a generator misses
+  is reviewed against the registry. The role is in it now, and the
+  reach check NAMES it rather than counting, so the next role cannot
+  slip in behind a threshold.
+
+* **THE RED BATTERY NEVER ASSERTED THAT ITS GREEN WITNESS IS GREEN.**
+  It proves each perturbation makes its named site miss, and that
+  every site has a case — and `_sites_of` collects checks whatever
+  their verdict, so a fixture whose unperturbed run is ALREADY RED
+  satisfies all of it. Measured with the reviewer's own witness:
+  measure `part_above` as `n_joined` and the fixture misses 120
+  against 102 while its registered case still misses 119 against 102,
+  so every assertion stays green while the witness they rest on is
+  broken. `test_every_fixture_is_GREEN_before_it_is_perturbed` now
+  asserts the premise, and that mutation turns it red while the
+  coverage and red-case tests stay green — which is the measure of
+  what was missing.
+
+* **AND IT FOUND TWO PRE-EXISTING DEFECTS THE MOMENT IT WAS ASKED.**
+  Both are recorded rather than fixed here, because they belong to
+  other roles' landings, and both are carried by NAME in the guard so
+  they cannot be forgotten. **R-P4-68:** a column of `1e400` — five
+  characters — publishes `min_length` 5 and gets a twin of
+  310-character numerals. That is residual R-P2-1's own symptom, which
+  "gap 3" reported closed on 93 randomly built columns; **all 93 were
+  long digit strings**, and a compact exponent spelling is a shape that
+  trial could not build. **R-P4-69:** a `continuous` column's twin
+  holds whole numbers, so it re-describes as `count` with
+  `integer_valued` true — a twin that reads back as a different ROLE.
 
 ## What the owner has decided, and must not be re-asked
 

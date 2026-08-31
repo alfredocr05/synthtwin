@@ -1525,13 +1525,26 @@ def test_the_ratification_gate_is_not_vacuous() -> None:
 
 
 def _described(
-    folder: pathlib.Path, text: str, declared: "list[str] | None" = None
+    folder: pathlib.Path,
+    text: str,
+    declared: "list[str] | None" = None,
+    measured: "list[str] | None" = None,
 ) -> contract.Profile:
-    """Write a table, describe it with the REAL producer, load it back."""
+    """Write a table, describe it with the REAL producer, load it back.
+
+    `measured` carries `--measurement`, which the JOINED role requires:
+    an undeclared column of two numbers in one cell is not that role,
+    by design (plan P4-D23), so it cannot reach this battery without
+    one (review item P4-A2-R2-F1).
+    """
     path = fixtures.write(folder, "table.csv", text)
     table = reading.read_table(str(path))
     document = profile.build_document(
-        table, taxonomy.Settings(), declared if declared else []
+        table,
+        taxonomy.Settings(),
+        declared if declared else [],
+        [],
+        measured if measured else [],
     )
     target = fixtures.write_profile(folder, "table-profile.json", document)
     return contract.load_profile(str(target))
@@ -1553,10 +1566,28 @@ def battery(
     huge.mkdir()
     code = folder / "code"
     code.mkdir()
+    joined = folder / "joined"
+    joined.mkdir()
     return [
         (
             "every role",
             _described(wide, fixtures.every_role_table(), ["record_code"]),
+        ),
+        (
+            # THE FOURTH SURFACE THAT COULD NOT SEE THIS ROLE. Residual
+            # R-P4-62 named three; this battery was the fourth, found by
+            # review item P4-A2-R2-F1 after the other three closed. Its
+            # reach check asked for eight roles and a SUBSET of
+            # `ROLE_GROUPS`, so registering the joined group left it
+            # green while no description it builds carried the role --
+            # and it is the battery that promises every exact fact a
+            # generator misses is reviewed against the registry.
+            "two numbers in one cell",
+            _described(
+                joined,
+                fixtures.joined_numbers_table(),
+                measured=["reading"],
+            ),
         ),
         (
             "numbers too large to hold",
@@ -1671,8 +1702,14 @@ def test_the_producer_battery_really_exercises_the_report(
     roles = {
         column.role for _case, loaded in battery for column in loaded.columns
     }
-    assert len(roles) >= 8, sorted(roles)
+    assert len(roles) >= 9, sorted(roles)
     assert roles <= set(dispositions.ROLE_GROUPS), sorted(roles)
+    # AND THE ROLE THIS BATTERY COULD NOT SEE. A subset test is
+    # satisfied by any battery at all, so registering a new group left
+    # this green while nothing here built the role (review item
+    # P4-A2-R2-F1). Named rather than counted, so a role added later
+    # cannot slip in behind a threshold.
+    assert "joined_numbers" in roles, sorted(roles)
     lines = _reported(battery)
     assert len(lines) >= 8, lines
     reasons = {_permitted(role, fact) for _case, role, fact, _name in lines}

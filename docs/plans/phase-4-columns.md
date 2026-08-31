@@ -3476,6 +3476,47 @@ declaration for only one of them.
   would find are wording rather than obligations. NF50's own rendering
   was checked against this measurement and is identical.
 
+- **R-P4-68 — OPEN (opened 2026-08-31 by adversarial round P4-A2-R2,
+  item 2; PRE-EXISTING, and found the moment a guard was asked for its
+  own premise).** A COLUMN WRITTEN IN COMPACT EXPONENT FORM GETS A TWIN
+  OF THREE-HUNDRED-CHARACTER NUMERALS.
+
+  The entry table's `unrepresentable` fixture holds `1e400` and
+  `-1e400` — five and six characters. Its description publishes
+  `min_length` 5 and `max_length` 6, exactly right. **Its twin writes
+  cells 310 and 311 characters long**, `-4000000…` and the like, and
+  the quality report names both misses.
+
+  So code developed against the twin — `len(x)`, a fixed-width read, a
+  slice — meets a value sixty times wider than anything the real column
+  held. That is the defect residual R-P2-1 was opened for and that
+  "gap 3" reported closed on 2026-08-27, measured "across 93 randomly
+  built unrepresentable columns: both published widths held exactly on
+  all 93". **The 93 were all long digit strings.** A column spelled in
+  scientific notation is a shape that trial could not produce, which is
+  this project's own standing lesson: a randomised trial shows a defect
+  present and never shows one absent, and it covers what its generator
+  could build and nothing else.
+
+  Not fixed here: it is the unrepresentable role's own landing, and this
+  landing is the joined role's. It is carried by name in the
+  green-premise guard so it cannot be forgotten.
+
+- **R-P4-69 — OPEN (opened 2026-08-31 by adversarial round P4-A2-R2,
+  item 2; PRE-EXISTING).** A CONTINUOUS COLUMN'S TWIN READS BACK AS A
+  COLUMN OF COUNTS.
+
+  The entry table's `pooled` fixture publishes `continuous` with
+  `integer_valued` false. Its twin holds `2`, `1`, `7`, `9` — whole
+  numbers — so re-describing it gives `count`, `integer_valued` true,
+  and the quality report misses `axes.role`,
+  `axes.statistical_type` and `type.integer_valued`.
+
+  A twin that reprofiles to a different ROLE is the strongest form of
+  the fidelity claim failing: every downstream reading of that column
+  is a reading of a different kind of column. Not fixed here, for the
+  same reason as R-P4-68, and carried by name in the same guard.
+
 - **R-P4-63 (opened 2026-08-31 by adversarial round P4-A1-R1, item 4;
   PRE-EXISTING).** TWO CURRENT-BEHAVIOUR GUARDS STILL READ VERSION 4,
   AND THE LOADER'S OWN DOCSTRING SAID VERSION 5 GOVERNED.
@@ -3553,8 +3594,9 @@ declaration for only one of them.
   three-position column cannot honour its (1,2) pair (R-P4-51) and
   would build a known miss into a battery that requires none. ALL
   DIFFERENT, because a repeating column overshoots its published count
-  badly. Bands that never overlap, so `part_above` is pinned at the
-  joined count. And a COMPANION COLUMN, because the battery's quality
+  badly. Bands that OVERLAP, so `part_above` is a real count of 102
+  in 120 rather than a number equal to the joined count by
+  construction (review item P4-A2-R1-F5). And a COMPANION COLUMN, because the battery's quality
   axis moves only when a whole column is emptied and that edit is not
   built for a one-column table -- without it, `axes.quality_state`
   would be a site no edit could turn red, and this battery excuses
