@@ -3377,6 +3377,48 @@ declaration for only one of them.
   and every fixture-derived count in the suite, so it is recorded here
   rather than done in passing: **R-P4-62**.
 
+- **R-P4-64 — OPEN (opened 2026-08-31 by adversarial round P4-A1-R5,
+  item 4; PRE-EXISTING).** THE SEAL-PAUSE CONTROL DOES NOT ENFORCE ITS
+  OWN BOUNDARY. `test_the_phase_cannot_close_while_the_seal_is_paused`
+  exists to stop Phase 4 closing while `PAUSED_UNTIL_PHASE_CLOSE`
+  stands, and it recognises only a line of `CLAUDE.md` holding the
+  exact substrings `*Complete*` or `*Closed*`. Writing Phase 4 as
+  `*Complete — closed 2026-09-01*` carries neither, and the phase
+  statements in `STATE.md` and `STATUS.md` are not examined at all.
+  Closing it means one structured phase-status value that every public
+  surface is held to, which is a change to how the phase state is
+  written rather than to this test, and it belongs with the close
+  work.
+
+- **R-P4-65 — OPEN (opened 2026-08-31 by adversarial round P4-A1-R5,
+  item 5; PRE-EXISTING, and this landing is the demonstration).** ONE
+  COUNTING GUARD CANNOT SEE A CONTROL REMOVED. The suite-size
+  comparison on `docs/STATE.md` proves CARDINALITY, not identity: a
+  landing that deletes one load-bearing test and adds one unrelated
+  case leaves the collected total unchanged and the guard green.
+
+  **It caught a real deletion during this very landing** -- an
+  index-arithmetic edit removed
+  `test_the_phase_cannot_close_while_the_seal_is_paused`, no test
+  failed because the deleted test was the one that would have, and
+  only the count noticed. That is the argument FOR the guard and the
+  measure of its limit in one event: it happened to be the only
+  removal in that edit. Closing it means an inventory of governance
+  node identities compared set against set, not a total.
+
+- **R-P4-66 — OPEN (opened 2026-08-31 by adversarial round P4-A1-R5,
+  item 6; PRE-EXISTING).** A CI CONTROL CAN REMOVE ITSELF UNNOTICED.
+  `.github/workflows/ci.yml` carries a `sensitive-paths` job whose
+  purpose is to announce edits to the workflow and checker machinery.
+  Deleting that job, and its entries in the gate's `needs` list and
+  the gate's own `required` list, leaves the single externally
+  required `gate` context green: no test asserts CI job topology and
+  the collected test count does not move. So the control that exists
+  to announce an edit to the checking machinery can be removed by
+  exactly such an edit. Closing it means a source-level guard over the
+  workflow's job topology and gate dependency set, whose own identity
+  is covered by R-P4-65's inventory.
+
 - **R-P4-63 (opened 2026-08-31 by adversarial round P4-A1-R1, item 4;
   PRE-EXISTING).** TWO CURRENT-BEHAVIOUR GUARDS STILL READ VERSION 4,
   AND THE LOADER'S OWN DOCSTRING SAID VERSION 5 GOVERNED.
@@ -3402,7 +3444,7 @@ declaration for only one of them.
   on prose that says MORE rather than less. Its own landing, with the
   method work.
 
-- **R-P4-62 (opened here, 2026-08-30, WIDENED the same day).** EVERY
+- **R-P4-62 — OPEN (opened here, 2026-08-30, WIDENED 2026-08-30 and 2026-08-31).** EVERY
   COMPLETENESS GUARD THIS PROJECT HAS IS BLIND TO THE JOINED ROLE, and
   it is the role that carries a blood pressure. Three of them,
   measured:
