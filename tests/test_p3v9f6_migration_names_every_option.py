@@ -256,12 +256,8 @@ def test_the_message_says_what_leaving_out_each_option_costs() -> None:
 
 def test_the_message_is_the_contract_clause_word_for_word() -> None:
     """C5-26 fixes this text; the two may not drift apart."""
-    document = (
-        pathlib.Path(__file__).resolve().parents[1]
-        / "docs"
-        / "spec"
-        / "profile-contract-v6.md"
-    ).read_text(encoding="utf-8")
+    # Derived, never named: review item P4-A1-R3-F2.
+    document = fixtures.GOVERNING_CONTRACT.read_text(encoding="utf-8")
     opening = "> This description was written by an older version"
     start = document.index(opening)
     quoted = " ".join(

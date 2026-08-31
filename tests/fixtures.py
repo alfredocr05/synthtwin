@@ -19,7 +19,33 @@ anywhere else.
 import pathlib
 import random
 
-from synthtwin import canonical
+from synthtwin import canonical, contract as _contract
+
+REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent
+
+# THE CONTRACT THAT GOVERNS, derived ONCE from the loader's own
+# constant. Every check that reads the CURRENT contract takes it from
+# here; only a reader that is deliberately historical names a version.
+#
+# Residual R-P4-25 is what this exists to stop happening again: the
+# producer and the loader moved to version 6 and the governance checks
+# went on reading version 4, agreeing by luck rather than by design.
+# Six readers were pinned to a literal when that residual closed, and
+# review items P4-A1-R2-F6 and P4-A1-R3-F2 found them in two passes --
+# so a bump that edits the producer and the loader alone would have
+# left them certifying a document that no longer governs.
+GOVERNING_CONTRACT = (
+    REPO_ROOT
+    / "docs"
+    / "spec"
+    / f"profile-contract-v{_contract.PROFILE_VERSION}.md"
+)
+assert GOVERNING_CONTRACT.is_file(), (
+    f"the contract that governs is version {_contract.PROFILE_VERSION} and "
+    f"{GOVERNING_CONTRACT.name} is not in the tree: a version bump moves "
+    "the producer, the loader and every current-contract reader together "
+    "(residual R-P4-25)"
+)
 
 # Neutral label pools. Small, plain words with no meaning outside these
 # tests.

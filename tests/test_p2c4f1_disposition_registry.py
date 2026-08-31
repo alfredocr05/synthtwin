@@ -136,18 +136,7 @@ CONTRACT6 = REPO_ROOT / "docs" / "spec" / "profile-contract-v6.md"
 # below use it as a VEHICLE for the seal and the phrase scan, and it is
 # still a sealed governing document, so attacking it exercises exactly
 # what those tests exist to exercise.
-MATRIX_CONTRACT = (
-    REPO_ROOT
-    / "docs"
-    / "spec"
-    / f"profile-contract-v{contract.PROFILE_VERSION}.md"
-)
-assert MATRIX_CONTRACT.is_file(), (
-    f"the contract that governs is version {contract.PROFILE_VERSION} and "
-    f"{MATRIX_CONTRACT.name} is not in the tree: a version bump moves the "
-    "producer, the loader and this reader together, or the governance "
-    "checks go back to reading a document that governs nothing (R-P4-25)"
-)
+MATRIX_CONTRACT = fixtures.GOVERNING_CONTRACT
 RELATIVE = {
     "docs/spec/profile-contract-v4.md": CONTRACT,
     "docs/spec/profile-contract-v5.md": CONTRACT5,
@@ -1018,59 +1007,64 @@ def _restatement_violations(
     matrix: "dict[str, list[tuple[tuple[str, ...], str]]]",
     registry: "typing.Sequence[dispositions.Fact]",
 ) -> "list[str]":
-    """The affixed sub-table held to the numeric table it restates.
+    """The affixed sub-table's shared keys must DELEGATE, not restate.
 
-    Both directions, because each catches a different edit. A numeric
-    key the sub-table stops stating is a disposition the role quietly
-    loses; a restated row whose class drifts from the numeric row is
-    the LOWERING this file exists for, and it is invisible to the
-    key-by-key walk because those keys are registered under `numeric`
-    (review item P4-A1-R1-F2, reproduced before it was repaired).
+    THREE CHECKS DIED HERE BEFORE THIS ONE, each beaten by a subtler
+    lowering, and the lesson is the one this project keeps relearning:
+    a fact written in two places will drift, and the fix is to stop
+    writing it twice rather than to compare the copies harder.
+
+    * Round 1 checked the extra NAMES were numeric keys. Lowering the
+      restated `mean`, `std`, `skew` row to REPORT-ONLY passed.
+    * Round 2 compared the class each row HEADS with. Appending
+      "REPORT-ONLY in this corner" passed.
+    * Round 3 compared the whole ordered SEQUENCE of classes. Writing
+      "EXACT-OBSERVABLE (the class named by the numeric citation);
+      APPROXIMATED for every affixed column" passed -- the same
+      sequence as the numeric row, with the condition inverted from
+      "only where spellings cannot supply the count" to "always".
+
+    So a shared key's row now states NO class at all and carries the
+    delegation phrase instead. There is one statement, in the numeric
+    table, and nothing here to disagree with it. What is checked is
+    that the delegation is total: every numeric key the contract states
+    is delegated, and no delegated row smuggles a class word back in.
     """
-    numeric = _numeric_classes(matrix)
+    numeric = set(_numeric_classes(matrix))
     rows = matrix[dispositions.CONTRACT_SECTIONS["affixed"]]
     own = {fact.field for fact in registry if fact.group == "affixed"}
     broken: list[str] = []
     seen: set[str] = set()
     for names, text in rows:
+        shared = [name for name in names if name not in own]
+        if not shared:
+            continue
+        seen.update(shared)
+        unknown = sorted(name for name in shared if name not in numeric)
+        if unknown:
+            broken.append(
+                f"affixed: the sub-table states {unknown}, which is neither "
+                f"a key of this role nor a numeric key it delegates"
+            )
+        if _DELEGATES not in text:
+            broken.append(
+                f"affixed/{sorted(shared)}: a key shared with the numeric "
+                f"roles must DELEGATE -- its row has to say "
+                f"{_DELEGATES!r} and this one does not"
+            )
         said = _classes_said(text)
-        delegates = _DELEGATES in text
-        for name in names:
-            if name in own:
-                continue
-            seen.add(name)
-            if name not in numeric:
-                broken.append(
-                    f"affixed: the sub-table states {name!r}, which is "
-                    f"neither a key of this role nor a numeric key it "
-                    f"restates over the cores"
-                )
-                continue
-            if not said:
-                # A PURE delegation states no class of its own and
-                # takes the numeric row's WHOLE sequence, conditional
-                # clauses included.
-                if not delegates:
-                    broken.append(
-                        f"affixed/{name}: the restated row states no class "
-                        f"and does not delegate to the numeric table"
-                    )
-                continue
-            # Stating a class AND delegating is not a delegation: the
-            # stated sequence governs and has to match, or a row could
-            # keep the delegation phrase as cover while writing a
-            # lesser class beside it (review item P4-A1-R2-F1).
-            if said != numeric[name]:
-                broken.append(
-                    f"affixed/{name}: the restatement states "
-                    f"{list(said)}, the numeric row it echoes states "
-                    f"{list(numeric[name])}"
-                )
-    absent = sorted(set(numeric) - seen)
+        if said:
+            broken.append(
+                f"affixed/{sorted(shared)}: a delegated row states "
+                f"{list(said)} of its own. A shared disposition is written "
+                f"in ONE place, the numeric table; a class word here is a "
+                f"second statement that can drift from it"
+            )
+    absent = sorted(numeric - seen)
     if absent:
         broken.append(
-            f"affixed: the sub-table no longer restates {absent}, so those "
-            f"dispositions are stated for the cores nowhere"
+            f"affixed: the sub-table no longer delegates {absent}, so those "
+            f"dispositions reach the cores nowhere"
         )
     return broken
 
@@ -2227,6 +2221,14 @@ def test_the_registry_reaches_every_key_the_producer_emits() -> None:
     }
 
 
+# The words this register settles an entry with. A heading carrying any
+# of them is not an open residual, whatever else it says. Checking for
+# CLOSED alone was defeated by "RESOLVED" in review (P4-A1-R3-F3), so
+# the vocabulary is written out and a heading is matched against all of
+# it rather than against one word somebody happened to use.
+_CLOSURE_WORDS = ("CLOSED", "RESOLVED", "SETTLED", "WITHDRAWN", "SUPERSEDED")
+
+
 def test_every_matrix_table_is_claimed_by_a_registry_group() -> None:
     """A table the readers parse and nothing visits is not coverage.
 
@@ -2255,27 +2257,40 @@ def test_every_matrix_table_is_claimed_by_a_registry_group() -> None:
         f"{sorted(orphaned - named)}; and these are named as unclaimed "
         f"but are not: {sorted(named - orphaned)}"
     )
-    # Every excuse cites a residual that is still OPEN. Checking only
-    # that the number appears somewhere left the excuse able to outlive
-    # its reason: this register marks a closure by rewriting the entry's
-    # heading to "R-P4-NN — CLOSED ...", and the original text stays
-    # underneath, so a name-anywhere test stays green forever after
-    # (review item P4-A1-R2-F5). The entry's own HEADING is read.
+    # Every excuse cites a residual that is still OPEN, and the test
+    # for that is STRICT about both identity and state (review item
+    # P4-A1-R3-F3). Two weaker versions were beaten first: checking
+    # that the number appears anywhere stayed green forever, because a
+    # closure here rewrites the entry's heading and leaves the original
+    # text underneath; and then checking the heading for the word
+    # CLOSED was beaten by "RESOLVED" and by the register's real
+    # duplicate headings, where a closed historical entry sits beside
+    # an open one and either could answer for the other.
+    #
+    # So: exactly ONE canonical entry may open with the cited name, and
+    # its heading must carry none of the words this register closes an
+    # entry with.
     plan = PLAN4.read_text(encoding="utf-8")
     for heading, residual in dispositions.SECTIONS_NO_GROUP_CLAIMS.items():
         entries = re.findall(
-            rf"^- \*\*{re.escape(residual)}\b([^*]*)", plan, re.MULTILINE
+            rf"^- \*\*{re.escape(residual)}(?![0-9])(.*)$",
+            plan,
+            re.MULTILINE,
         )
-        assert entries, (
-            f"{heading} cites {residual}, and the plan's register carries "
-            f"no entry opening with that name"
+        assert len(entries) == 1, (
+            f"{heading} is excused by {residual}, and the register carries "
+            f"{len(entries)} entries opening with that name. An excuse has "
+            "to point at exactly one canonical entry, or a closed one can "
+            "answer for an open one"
         )
-        for opening in entries:
-            assert "CLOSED" not in opening.upper(), (
-                f"{heading} is excused by {residual}, whose register entry "
-                f"is CLOSED -- the excuse has outlived its reason, so "
-                f"either reopen it or claim the table with a group"
-            )
+        settled = [
+            word for word in _CLOSURE_WORDS if word in entries[0].upper()
+        ]
+        assert not settled, (
+            f"{heading} is excused by {residual}, whose register entry is "
+            f"marked {settled} -- the excuse has outlived its reason, so "
+            "either reopen the residual or claim the table with a group"
+        )
 
 
 def test_the_phase_cannot_close_while_the_seal_is_paused() -> None:
