@@ -6,6 +6,26 @@ exists).
 
 ## [Unreleased]
 
+### Fixed: a blood-pressure column's own facts are checked and named
+
+- **The role that carries a blood pressure was the one role no
+  completeness surface reached** (residual R-P4-62). Three guards each
+  proved their own completeness against a table that does not contain
+  it, so each passed by never looking. The disposition registry now
+  carries the role's ten facts, the completeness walk reaches it, and
+  the red battery has a fixture for it with ninety-nine registered
+  cases, every one measured.
+- **A joined column's distinctness was reported under the wrong
+  name.** The validator had no branch for this role, so it fell
+  through to the one for empty columns and a blood-pressure column's
+  count of different readings was reported as an empty column's. It is
+  named correctly now, and the contract disposes it -- which nothing
+  did before.
+- **Each position's report-only facts are named in the report.** A
+  two-number column published a count of different numbers and a
+  finer ladder per position, and the quality report carried neither a
+  check nor a line saying it could not check them.
+
 ### Changed: the governance checks read the contract that governs
 
 - **The disposition machinery reads profile contract version 6.** Both

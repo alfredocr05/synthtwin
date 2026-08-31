@@ -6420,6 +6420,18 @@ def _distinctness_checks(
                 )
             ]
             continue
+        if isinstance(facts, contract.JoinedFacts):
+            # REPORT-ONLY (plan P4-D29, contract 9.4a). The count of
+            # different CELLS is a consequence of the pairing rather
+            # than a target: the walk moves the last position to meet
+            # the agreement and the above-count, and how many different
+            # pairs that leaves is not aimed at. Measured, a repeating
+            # column overshoots badly and an all-different one is
+            # seed-dependent, so an exact obligation would be met or
+            # missed by the seed. `_joined_distinct_listings` names
+            # both in the census, and the generator's own report prints
+            # the achieved count beside the published one.
+            continue
         corner = _distinct_corner(facts, mine, field)
         if corner == CORNER_IDENTIFIER_INFEASIBLE:
             # REPORT-ONLY in this corner, so it is a listing entry and
@@ -7004,6 +7016,14 @@ def _quantitative(facts: contract.ColumnFacts) -> contract.ColumnFacts:
 
 def _group_of(facts: contract.ColumnFacts) -> str:
     """Which registry group a column's role publishes under."""
+    if isinstance(facts, contract.JoinedFacts):
+        # THIS BRANCH WAS MISSING and the fall-through below answered
+        # for it, so a joined column's two distinctness counts were
+        # reported as `empty.n_distinct` -- the identity of a role that
+        # publishes both as 0 and exactly observable. Found by
+        # measuring a blood-pressure column rather than by any guard,
+        # which is residual R-P4-62's own point.
+        return "joined"
     if isinstance(facts, contract.ClockFacts):
         return "clock"
     if isinstance(facts, contract.AffixedFacts):
@@ -7435,9 +7455,6 @@ def _joined_number_checks(
             for key in held:
                 if isinstance(key, str):
                     inner[key] = held[key]
-        mine = _position_cells(
-            cells, facts.separator, facts.n_parts, place
-        )
         numbers = facts.parts[place]
         made = _ladder_checks(column, numbers, inner)
         made = made + _moment_checks(column, numbers, inner)
@@ -11358,6 +11375,14 @@ def _listings(
         numbers = _quantitative_of(facts)
         if numbers is not None:
             listings = listings + _numeric_listings(column, numbers)
+        # AND THE JOINED ROLE, whose positions each carry a block the
+        # census never reached: `_quantitative_of` returns None for it
+        # on purpose, because its parts are checked one at a time, and
+        # nothing then LISTED what those checks cannot measure (review
+        # item P4-A1-R2-F2). Its own two distinctness counts are listed
+        # here too, being report-only (plan P4-D29).
+        if isinstance(facts, contract.JoinedFacts):
+            listings = listings + _joined_listings(column, facts)
 
         listings = listings + _corner_listings(
             column, _corner_names(corners, column.name)
@@ -11402,6 +11427,58 @@ def _endpoint_listings(
                 _NOT_CHECKABLE_ENDPOINT_WITHHELD,
             )
         ]
+    return listings
+
+
+def _joined_listings(
+    column: contract.ColumnBlock, facts: contract.JoinedFacts
+) -> "list[Listing]":
+    """What a joined column publishes and no check can measure.
+
+    TWO KINDS, and both were missing.
+
+    Its own `n_distinct` and `n_distinct_folded` are REPORT-ONLY (plan
+    P4-D29): the count of different CELLS is a consequence of the
+    pairing rather than a target, so no file is held to it and the
+    census names it instead.
+
+    And EACH POSITION carries a whole quantitative block. Residual
+    R-P4-58 gave those blocks their checks and stopped there, so a
+    two-number column published per-position `n_distinct_values` and
+    `percentiles_between` -- and a moment whose window could not be
+    drawn -- with neither a check nor a census line anywhere (review
+    item P4-A1-R2-F2). Each position's listings are renamed with its
+    own number, exactly as its checks are, so two positions cannot
+    hide behind one identity.
+    """
+    listings = [
+        Listing(
+            column.name,
+            f"joined.{field}",
+            "",
+            "the count of different cells is a consequence of the "
+            "pairing rather than a target, so the twin is not held to "
+            "it; the report names the count it reached",
+        )
+        for field in (_RAW_DISTINCT, _FOLDED_DISTINCT)
+    ]
+    for place, numbers in enumerate(facts.parts):
+        for entry in _numeric_listings(column, numbers):
+            fact = entry.fact
+            head = "numeric."
+            if fact[: len(head)] == head:
+                fact = f"joined.parts[{place}].{fact[len(head):]}"
+            listings = listings + [
+                dataclasses.replace(
+                    entry,
+                    fact=fact,
+                    subcheck=(
+                        f"number {place + 1} {entry.subcheck}"
+                        if entry.subcheck
+                        else ""
+                    ),
+                )
+            ]
     return listings
 
 

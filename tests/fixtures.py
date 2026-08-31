@@ -273,6 +273,59 @@ def every_role_table(seed: int = 20260807, n_rows: int = 240) -> str:
     return rows_to_csv(header, rows)
 
 
+def joined_numbers_table(n_rows: int = 120) -> str:
+    """A column of two numbers written in one cell, for the battery.
+
+    THE ROLE NO COMPLETENESS SURFACE REACHED (residual R-P4-62). Three
+    guards proved their own completeness against a table that does not
+    contain this role, so each passed by never looking: the disposition
+    registry disposed none of its eight facts, the approximation walk
+    enumerated thirteen roles without it, and the entry table's red
+    battery had no joined column, so no perturbation there could turn
+    one of its checks red.
+
+    IT IS A FIXTURE OF ITS OWN AND NOT A FOURTEENTH COLUMN of
+    `every_role_table`, on the precedent `_unrepresentable_table` set
+    in the entry table's own file. Two reasons, both measured. The role
+    REQUIRES a `--measurement` declaration -- an undeclared `120/80`
+    column is not this role, by design (plan P4-D23) -- so every one of
+    the shared table's profiling sites would have to pass one, and any
+    that missed it would give the column another role silently, which
+    is the same blindness in a new place. And widening that table moves
+    every golden and every fixture-derived count in the suite.
+
+    THE SHAPE IS CHOSEN, not arbitrary, and each choice was measured:
+
+    * **TWO positions, never three.** A three-position column cannot
+      honour its (1,2) pair -- the pairing walk moves only the last
+      position (residual R-P4-51) -- so it would build a known miss
+      into a battery that requires none.
+    * **All different.** A column whose cells repeat overshoots its
+      published count of different cells badly: 80 published against
+      210 held on one measured column, because each position is drawn
+      to its own ladder and the pairing then makes more distinct pairs
+      than a repeating source had.
+    * **Bands that never overlap**, so the upper number is above the
+      lower on every row and `part_above` is pinned at the joined
+      count rather than at a number one edit could reach by accident.
+    * **A SECOND COLUMN, and it is not decoration.** The battery's
+      quality axis moves only when a whole column is emptied, and that
+      perturbation is not built for a one-column description, where it
+      would leave a file holding no table at all. Without a second
+      column the joined column's `axes.quality_state` would be a site
+      no edit could turn red -- and this battery excuses nothing, on
+      the ground that an exemption argued rather than constructed is
+      how its last hole was made. The companion is a constant, which
+      is the cheapest column that carries one.
+    """
+    rows = []
+    for index in range(n_rows):
+        upper = 100 + index          # 100 to 219
+        lower = 60 + (index % 30)    # 60 to 89, always below the upper
+        rows.append([f"{upper}/{lower}", "one"])
+    return rows_to_csv(["reading", "clinic"], rows)
+
+
 def every_withholding_table(seed: int = 20260814, n_rows: int = 240) -> str:
     """A table that makes the floor hold something back in every way.
 

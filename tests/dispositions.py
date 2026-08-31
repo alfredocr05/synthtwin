@@ -344,6 +344,20 @@ PLAN4_REGIONS = {
         "### P4-D4.9 The count of different numbers (closes R-P4-20)"
     ),
     "forms": "### P4-D18 A held-back value gets a stand-in that looks like one",
+    # The joined role's own eight facts, disposed when the role was
+    # found to have no table at all.
+    "joined": (
+        "## Decision P4-D25 — the joined role is checked like every other "
+        "(2026-08-26)"
+    ),
+    # ...and the two distinctness counts, which NOTHING disposed until
+    # residual R-P4-62's landing: 9.2 sets them per role group and this
+    # role's table set neither, so the validator filed them under the
+    # group its dispatch fell through to.
+    "joined-distinct": (
+        "## Decision P4-D29 — a joined column's distinctness is "
+        "report-only (closes part of R-P4-62, 2026-08-31)"
+    ),
 }
 
 # THE ROLE SUB-TABLES OF THE CONTRACT MATRIX. Version 6's section 9
@@ -712,6 +726,67 @@ REGISTRY += [
         APPROXIMATED,
         plan_words="Both distinctness counts on a `time_of_day` column",
         plan_region="clock-cardinality",
+    )
+    for field in ("n_distinct", "n_distinct_folded")
+]
+# THE JOINED ROLE (plan P4-D25, contract 9.4a). It had no group here at
+# all until residual R-P4-62's landing: `part_agreements`, `part_above`
+# and `part_min_widths` occurred zero times in this file, so the eight
+# facts contract 9.4a disposes were held to nothing. The role that
+# carries a blood pressure was the one role no completeness surface
+# reached.
+REGISTRY += [
+    Fact(
+        "joined",
+        field,
+        EXACT_OBSERVABLE,
+        plan_words="FOUR KINDS OF OBLIGATION, each checked as its kind",
+        plan_region="joined",
+    )
+    for field in (
+        "separator",
+        "n_parts",
+        "n_joined",
+        "n_unparsed",
+        "part_min_widths",
+        "part_above",
+    )
+]
+# The container itself, on the precedent of `length` and `words` on
+# `free_text`: the key carries no VALUE obligation of its own, and each
+# position inside it takes 9.4's dispositions read over that position.
+REGISTRY += [
+    Fact(
+        "joined",
+        "parts",
+        STRUCTURAL,
+        plan_words="FOUR KINDS OF OBLIGATION, each checked as its kind",
+        plan_region="joined",
+    ),
+]
+REGISTRY += [
+    Fact(
+        "joined",
+        "part_agreements",
+        APPROXIMATED,
+        plan_words="rank agreement is APPROXIMATED",
+        plan_region="joined",
+    ),
+]
+# ...and the two counts NOTHING disposed until 2026-08-31. Contract 9.2
+# sets both "per role group, in 9.3 to 9.7" and 9.4a set neither, so the
+# validator filed them under the group its own dispatch fell through to
+# -- `empty`, whose registry says both are 0 and exactly observable. A
+# blood-pressure column's distinctness was reported as
+# `empty.n_distinct` on a shipped surface. REPORT-ONLY on the measured
+# ground plan P4-D29 states.
+REGISTRY += [
+    Fact(
+        "joined",
+        field,
+        REPORT_ONLY,
+        plan_words="of the construction rather than a target",
+        plan_region="joined-distinct",
     )
     for field in ("n_distinct", "n_distinct_folded")
 ]
@@ -1196,6 +1271,7 @@ CONTRACT_SECTIONS = {
         "9.4 The numeric roles: `count`, `continuous`, `affixed_number`"
     ),
     "affixed": "9.4 affixed_number",
+    "joined": "9.4a The joined role: `joined_numbers`",
     "label": (
         "9.5 The label roles: `constant`, `binary`, `categorical`, "
         "`long_tail_labels`"
@@ -1218,9 +1294,7 @@ CONTRACT_SECTIONS = {
 #
 # It is residual R-P4-62, and closing it is the next landing's whole
 # subject. When the joined group is registered this goes to empty.
-SECTIONS_NO_GROUP_CLAIMS = {
-    "9.4a The joined role: `joined_numbers`": "R-P4-62",
-}
+SECTIONS_NO_GROUP_CLAIMS: "dict[str, str]" = {}
 
 # Every role of the taxonomy, used to decide whether a bold line in
 # the contract opens a role's SUB-TABLE. It is deliberately not used to
@@ -1253,6 +1327,7 @@ RUNGS = ("p01", "p05", "p10", "p25", "p50", "p75", "p90", "p95", "p99")
 # of this file. A fact a role does not carry falls back to the universal
 # and top-level groups, which every role shares.
 ROLE_GROUPS = {
+    "joined_numbers": "joined",
     "time_of_day": "clock",
     "count": "numeric",
     "continuous": "numeric",

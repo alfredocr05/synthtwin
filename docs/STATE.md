@@ -594,6 +594,64 @@ had been written outside that folder minutes earlier. **Commit early,
 and keep a copy of uncommitted work outside the synced tree**; a green
 suite is not durable here until it is committed.
 
+**R-P4-62 IS CLOSED (2026-08-31, landing A2). Every completeness guard
+reaches the joined role.** It was the role that carries a blood
+pressure and the one role no surface looked at: three guards each
+proved their own completeness against a table that does not contain
+it, so each passed by never looking. Six repairs, and three of them
+were not in the residual when it was opened.
+
+* **The registry has a `joined` group** -- ten facts where there were
+  none -- written from contract 9.4a. `parts` is STRUCTURAL, on the
+  precedent `length` and `words` set on `free_text`.
+* **The completeness walk reaches the role**, through a document of
+  its own; it used to close with `reached == set(ROLE_SECTIONS)`,
+  which a fixture that never built the role satisfies.
+* **The red battery has a joined fixture with NINETY-NINE registered
+  red cases, every one MEASURED** -- each perturbation run against the
+  fixture, and the one that turns each site red is the one named.
+* **`validation._group_of` had no `JoinedFacts` branch**, so a joined
+  column fell through to `return "empty"` and its distinctness was
+  reported as `empty.n_distinct`, under the identity of a role that
+  publishes both counts as 0 and exactly observable. **Found by
+  measuring a blood-pressure column through the real pipeline, not by
+  any guard**, which is this residual's own point made once more.
+* **The contract disposed neither of those counts for this role.**
+  9.2 sets them "per role group" and 9.4a set neither, which is why
+  the mis-filing could not be noticed: the fact was filed under a
+  group that DOES dispose them. They are REPORT-ONLY now (plan
+  P4-D29).
+* **A joined position's report-only facts are LISTED.**
+  `_quantitative_of` returns no block for this role, so per-position
+  `n_distinct_values` and `percentiles_between` were neither checked
+  nor listed. That was review item P4-A1-R2-F2, and it means residual
+  R-P4-58 closed only the half of its own scope that said "nothing
+  checks".
+
+**THE DISPOSITION WAS DECIDED BY MEASUREMENT, and it reversed the
+recommendation it started from.** EXACT-OBSERVABLE looked right --
+the check already fires and report-only would silence a verdict. Two
+measurements said otherwise. Every joined column whose cells REPEAT
+overshoots its published count (80 published, 210 held), and even an
+all-different column reaches it at one seed and misses by one at
+another, so an exact obligation would be met or missed BY THE SEED --
+a guard whose green says nothing. And the twin's own report already
+prints "the description says 120 different value(s) / the twin holds
+119" before anybody runs `validate`, so report-only hides nothing from
+a person. That is the ask-what-consumes-it rule applied before
+choosing a class rather than after.
+
+**THE FIXTURE IS ITS OWN, and the register assumed otherwise.** The
+role REQUIRES a `--measurement` declaration, so it cannot be a
+fourteenth column of `every_role_table`: all forty-nine call sites
+would have to pass one and any that missed it would give the column
+another role in silence. The entry table already answers this for
+`numeric_unrepresentable` with a dedicated fixture. Its shape is
+measured -- two positions (three cannot honour their (1,2) pair,
+R-P4-51), all different, non-overlapping bands, and a companion column
+without which `axes.quality_state` would be a site no edit could turn
+red.
+
 ## What the owner has decided, and must not be re-asked
 
 These are settled. A new conversation that re-opens one is wasting the
