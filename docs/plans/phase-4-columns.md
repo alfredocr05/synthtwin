@@ -3443,6 +3443,39 @@ declaration for only one of them.
   workflow's job topology and gate dependency set, whose own identity
   is covered by R-P4-65's inventory.
 
+- **R-P4-67 — OPEN (opened 2026-08-31 while adding contract NF50;
+  PRE-EXISTING).** THE NOTE GRAMMAR'S GUARD COMPARES NAMES AND
+  ARITIES AND NEVER THE WORDS. `tests/test_p4d27_note_grammar_matches_
+  the_code.py` holds the defining clause, the 14.8 appendix row and
+  `taxonomy.NOTE_ARITY` against each other in three directions, and
+  every one of those directions is about a NAME or a COUNT. The
+  contract also writes each form's rendering out character for
+  character -- 4.5.1 says so in as many words, "Renderings are given
+  character for character, including the double hyphen `--` where the
+  text carries one" -- and **nothing compares those blockquotes against
+  what `taxonomy.rendered` writes.** A second implementer working from
+  the contract, which is the whole reason the renderings are written
+  down, would produce different bytes and the suite would stay green.
+
+  **MEASURED rather than asserted, over the twenty arity-0 forms**,
+  where a clause carries one blockquote and no argument placeholder so
+  the comparison is exact: seventeen are identical to the producer's
+  text and **two have really drifted**. `histogram_publishes_no_shape`
+  is written with an em dash where the producer writes `--`, which is
+  the one difference 4.5.1's own notation sentence names; and
+  `remark_dates_also_read_as_numbers` reads `numbers:` in the contract
+  against `numbers;` in the code. (A third, `remark_every_number_is_
+  different`, is a two-rendering clause and not a drift.) The other
+  thirty forms take arguments, so comparing them needs the «*k*»
+  substitution and the two-rendering clauses handled, and NONE of them
+  is compared at all today.
+
+  It is not closed here because closing it is a guard of its own --
+  a parser for the clause renderings, a rule for «*k*», and a decision
+  per drift about which side is right -- and because the drifts it
+  would find are wording rather than obligations. NF50's own rendering
+  was checked against this measurement and is identical.
+
 - **R-P4-63 (opened 2026-08-31 by adversarial round P4-A1-R1, item 4;
   PRE-EXISTING).** TWO CURRENT-BEHAVIOUR GUARDS STILL READ VERSION 4,
   AND THE LOADER'S OWN DOCSTRING SAID VERSION 5 GOVERNED.
@@ -7426,6 +7459,13 @@ is at fault; what is missing is any test that the core is a QUANTITY
 rather than the middle of an opaque token. `--identifier` and `--code`
 both describe such a column correctly today. Not closed.
 
+**WHERE IT STANDS AFTER 2026-08-31.** The address half is built and it
+now SPEAKS: the rule that refuses the reading landed with P4-D27, and
+the sentence that gives the reason for it is contract NF50, which names
+the shape and all three declarations. What remains open is the half
+this entry always said was open and no reading of values can close --
+`ACC00012345` against `USD100` -- whose answer is a declaration.
+
 ## Decision P4-D23 — the two numbers of a reading move together (2026-08-26)
 
 **THE OWNER'S WORDS.** "It should somehow move together! And the same
@@ -8155,6 +8195,82 @@ a quantity and cannot be told from `USD100` by any property of the
 values. Its answer is a declaration, which is P1-R6-F8's own
 conclusion. It is pinned as a PASSING test so the next person to meet
 it does not reopen it, find it easy, and write the fifth defeated rule.
+
+**AND THE DECLINE WAS SILENT UNTIL 2026-08-31, which is the other half
+of principle 5.** That principle does not say a column is either
+handled or declined; it says a column is either handled or **declined
+with a plain-language explanation**. This one had none: `NOTE_ARITY`
+carried no address form at all, so a person whose column stopped being
+described as numbers -- losing its average, its spread, its ends and
+its ladder -- was told nothing by the profile, nothing by the summary
+beside it and nothing by the twin's report. Every other decline in this
+package carries a sentence; this one shipped without one.
+
+**IT IS NOW `remark_an_address_is_not_a_quantity`, contract NF50.**
+The form names the SHAPE it declined for -- an at sign, a host, a dot
+label -- so a person can recognize their own column, and it names all
+THREE declarations rather than the one `--identifier` the free-text
+remark beside it already offered. Each is named with what it does, and
+each outcome was measured on the column the form exists for rather
+than described from the flag's help text:
+
+| declaration | role | what the block then publishes |
+| --- | --- | --- |
+| none | `free_text` | nothing -- no value, no distribution |
+| `--identifier` | `identifier` | no value of the column |
+| `--code` | `long_tail_labels` | each spelling with how many rows carried it |
+| `--measurement` | `affixed_number` | the distribution over the cores |
+
+**IT ROUTES NOTHING, and that is measured rather than asserted.** With
+the decline's own question answered False the block is identical key
+for key and role for role, and the only difference is that the
+sentence is gone. Its arity is 0: a count of the cells that wore the
+pair would be a count of a reading this column does NOT publish -- the
+block that would have held `n_affixed` is exactly the block the decline
+refused to write -- and the pair itself is the fourth argument class,
+admitted only where the same block publishes the spelling. So no number
+and no spelling of the column reaches the sentence.
+
+**THE SENTENCE IS CARRIED ONLY WHERE THE DECLINE IS THE ADDRESS
+RULE'S**, and that boundary has a test of its own, because it is the
+one silent case the control flow does not give for free. A column of
+addresses at MANY hosts declines for a different reason -- no single
+pair reaches the parse line -- and says nothing. A rule asking "does
+any cell look like an address?" instead of "is the WINNING PAIR an
+address?" speaks there, and its sentence would name a decline that did
+not happen.
+
+## The core stand-in pass did not reach a DECLARED address column (found and fixed 2026-08-31)
+
+Found by looking at the siblings of the function the sentence above was
+built around, which is this project's standing lesson paying again. It
+is not a residual: it is closed, with a test that turns red when the
+fix alone is reverted.
+
+**`_cores_judged` ASKED A DIFFERENT QUESTION THAN ITS OWN CALLER.** The
+pass that judges stand-ins over the CORES of an affixed column (C6-5)
+runs where the role was decided as `affixed_number` -- and the role is
+decided WITH the person's declarations, while the pass re-derived the
+reading WITHOUT them. On every column that is only affixed BECAUSE of a
+declaration the two disagreed, and there is exactly one such shape:
+an address-shaped column carried past the address decline by
+`--measurement`. The caller saw the affixed role, the pass saw the
+decline, and every cell went unjudged.
+
+**MEASURED, on 200 cells of `user<core>@example.org` whose 189 real
+cores lie between 50 and 70 beside eleven spelled `-999`:**
+
+| | declared address column | same column, ordinary pair |
+| --- | --- | --- |
+| stand-in verdicts | **none published** | `read_as_missing` / `outlier_and_frequent` |
+| present / missing | 200 / 0 | 189 / 11 |
+| smallest | **-999.0** | 50.0 |
+| mean | **1.785** | 60.03 |
+
+After the fix the two agree cell for cell, verdict for verdict. That
+is the silent statistical wrongness this project puts ahead of every
+ordinary bug, reached through the one declaration whose whole meaning
+is that these numbers are real.
 
 ## Decision P4-D28 — a free-text twin says when it changed kind (closes R-P4-36, 2026-08-26)
 

@@ -659,7 +659,14 @@ def _parse_arguments(argv: "list[str] | None") -> _Options:
             "drug code such as 00052-0052-52 are written exactly the "
             "same way and are codes, so name those with --code instead. "
             "A column of plain single numbers needs nothing: it is "
-            "already read as numbers. May be given more than once"
+            "already read as numbers. IT ALSO SETTLES A SECOND SHAPE. "
+            "A column whose number sits inside an electronic address, "
+            "such as user12345@example.org, is described by a later "
+            "rule instead, because the average of a column of real "
+            "addresses means nothing as a quantity. Naming such a "
+            "column here says the number inside is a quantity after "
+            "all, and it is described as one. May be given more than "
+            "once"
         ),
     )
     parser.add_argument(
