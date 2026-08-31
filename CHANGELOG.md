@@ -6,6 +6,23 @@ exists).
 
 ## [Unreleased]
 
+### Changed: the governance checks read the contract that governs
+
+- **The disposition machinery reads profile contract version 6.** Both
+  matrix readers took version 4's tables merged with version 5's
+  delta -- the record of what two superseded versions required -- while
+  the version every description is written to has been 6. Nothing was
+  wrong in what they compared; a governance surface pointed at a
+  document that governs nothing shipped is one whose agreement is luck
+  rather than design (residual R-P4-25).
+- Two role groups and seven facts that had to stand outside a matrix
+  are read from the contract's own tables now, and the clock role's
+  approximated inventory is read rather than written out by hand.
+- The loader's own module documentation said version 5 was normative
+  and that a description must carry version 5, with the code requiring
+  6. A contributor following it would have prepared a file the shipped
+  loader refuses (residual R-P4-63).
+
 ### Added: two more ways a reading can be written
 
 - **`120 / 80`, with spaces around the mark**, is now read as the same

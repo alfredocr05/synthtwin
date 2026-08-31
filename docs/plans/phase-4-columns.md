@@ -2419,8 +2419,45 @@ Opened by this plan, each a limit accepted rather than work forgotten:
   routes nothing, so nothing published moves and no reader is misled;
   what is missing is help a reader would have acted on. A later phase
   picks them up from A-P4-30's own text.
-- **R-P4-25** (opened by amendment A-P4-33, 2026-08-22). THE
-  DISPOSITION MACHINERY STILL READS VERSION 4'S TABLES. Since the wire
+- **R-P4-25 — CLOSED 2026-08-31, both readers moved to version 6** (opened by amendment A-P4-33, 2026-08-22). THE
+  DISPOSITION MACHINERY STILL READS VERSION 4'S TABLES.
+
+  **Closed by measurement.** BOTH matrix readers take version 6 alone
+  now -- `_matrix` in `tests/test_p2c4f1_disposition_registry.py` and
+  `_matrix_rows` / `_matrix_sections` in
+  `tests/test_p2c1f4_approximation_bounds.py`. The second reader was
+  not in this entry and was found by looking for the first one's
+  siblings, which is this project's standing lesson paying again.
+
+  What the migration DELETED is the measure of it: the two groups that
+  stood outside a matrix entirely (`affixed`, `clock`), the carve-out
+  list from thirteen rows to six, the `missing_by_source` class
+  exception, six families of exemption in the second reader, the
+  version 5 delta reader, and the clock role's approximated inventory,
+  which is READ from the contract now and comes out character for
+  character the list that had been written by hand. What remains
+  excused is exactly the family that landed after A-P4-46 froze the
+  contract.
+
+  One contract edit rode with it under a counted diff: version 6's 9.6
+  row for the clock ladder ends names `clock_percentiles.min` and
+  `.max` instead of describing them in prose, as the datetime table
+  beside it already did. One passage out, one in, 2,016 both sides,
+  the class unchanged.
+
+  **Adversarial round P4-A1-R1 returned REJECT with four items and
+  every one was real.** Two were HIGH and both are closed here. The
+  affixed sub-table's RESTATED rows were checked for their names and
+  not their classes, so lowering the restated `mean`, `std`, `skew`
+  row to REPORT-ONLY left both readers green and only the SEAL went
+  red -- and a seal is re-written whenever an edit is intended, so it
+  is not the net for a lowering. And section 9.4a was newly PARSED and
+  claimed by no group, which looks like coverage and is not. The first
+  is closed by holding the restatement to the numeric table in both
+  directions; the second by a totality guard that names 9.4a with the
+  residual that owes it. R-P4-63 below is its fourth item.
+
+  The original entry, kept: Since the wire
   flip, version 6 governs all one hundred and thirty-nine registered facts;
   the matrix comparison in `tests/test_p2c4f1_disposition_registry.py`
   reads version 4's section 9 for the hundred and twenty-nine version
@@ -3339,6 +3376,31 @@ declaration for only one of them.
   tampered twin instead. Widening that fixture would move every golden
   and every fixture-derived count in the suite, so it is recorded here
   rather than done in passing: **R-P4-62**.
+
+- **R-P4-63 (opened 2026-08-31 by adversarial round P4-A1-R1, item 4;
+  PRE-EXISTING).** TWO CURRENT-BEHAVIOUR GUARDS STILL READ VERSION 4,
+  AND THE LOADER'S OWN DOCSTRING SAID VERSION 5 GOVERNED.
+
+  The docstring is fixed here, because it was plainly false and it is a
+  public module's stated word: `src/synthtwin/contract.py` opened "the
+  normative text is `docs/spec/profile-contract-v5.md`" and listed step
+  5 as "`profile_version`, which must be 5", while `PROFILE_VERSION`
+  has been 6 for days. A contributor following it would have prepared a
+  version 5 description the shipped loader refuses.
+
+  What is NOT fixed here, and why. `tests/test_p2c1f8_specification_
+  agreement.py` and `tests/test_p2c2f5_temporal_endpoints.py` pin
+  obligations by reading the SPECIFICATION TEXT, and both read version
+  4 -- so a rule version 6 lowered would leave them proving compliance
+  with a document that governs nothing. **Measured before pricing it:**
+  version 6 carries seven of the nine passages the temporal guard pins
+  character for character and REWORDS the other two -- "left standing
+  beside it is refused" becomes "three pairs beside it are refused, not
+  reported", the same obligation stated WIDER. So this is not a path
+  substitution; it needs a judgement per passage about whether version
+  6 kept, widened or dropped each one, and a blanket check would go red
+  on prose that says MORE rather than less. Its own landing, with the
+  method work.
 
 - **R-P4-62 (opened here, 2026-08-30, WIDENED the same day).** EVERY
   COMPLETENESS GUARD THIS PROJECT HAS IS BLIND TO THE JOINED ROLE, and

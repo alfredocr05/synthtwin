@@ -122,6 +122,16 @@ PLAN4 = REPO_ROOT / "docs" / "plans" / "phase-4-columns.md"
 VALIDATION = REPO_ROOT / "docs" / "spec" / "validation-method-v1.md"
 CONTRACT5 = REPO_ROOT / "docs" / "spec" / "profile-contract-v5.md"
 CONTRACT6 = REPO_ROOT / "docs" / "spec" / "profile-contract-v6.md"
+
+# THE CONTRACT THE MATRIX IS READ FROM, and it is the one that GOVERNS.
+# `PROFILE_VERSION` is 6, so version 6 is what every description this
+# tree writes is written to and what its dispositions have to be
+# checked against. `CONTRACT` above stays version 4 on purpose: the
+# mutation attacks below use it as a VEHICLE for the seal and the
+# phrase scan, and it is still a sealed governing document, so
+# attacking it still exercises exactly what those tests exist to
+# exercise (residual R-P4-25).
+MATRIX_CONTRACT = CONTRACT6
 RELATIVE = {
     "docs/spec/profile-contract-v4.md": CONTRACT,
     "docs/spec/profile-contract-v5.md": CONTRACT5,
@@ -778,17 +788,28 @@ def test_the_raising_sentences_are_a_real_inventory() -> None:
 
 
 def _matrix() -> "dict[str, list[tuple[tuple[str, ...], str]]]":
-    """The disposition matrix, read from both versions together.
+    """The disposition matrix, read from the contract that GOVERNS.
 
-    Version 4's section 9 is the whole matrix; version 5 carries it by
-    reference and states only the rows it changes or adds, in its
-    section 11 (its C5-30). Reading version 4 alone would leave every
-    version 5 field undisposed, and reading version 5 alone would leave
-    the other nine tables empty. `dispositions.CONTRACT5_SECTIONS` says
-    which version 4 table each delta row belongs to, and a delta row it
-    does not name stops this reader rather than being filed by guess.
+    That is version 6: `PROFILE_VERSION` is 6, every description this
+    tree writes is a version 6 one, and its section 9 carries the whole
+    matrix rather than a delta. Residual R-P4-25 is what this closes.
+    Until it did, this read version 4's section 9 -- the record of what
+    version 4 disposed, governing nothing shipped -- merged with
+    version 5's delta table, so the agreement it asserted was luck
+    rather than design, and the next fact a version re-disposed would
+    have met it again. Version 4 and version 5 stay in the tree as
+    history, sealed, and are read by nothing that governs.
+
+    Two headings are not `###` lines. A role that shares a numbered
+    section with another states its keys under a bold line naming it
+    alone -- `**``affixed_number``.**` under 9.4, `**``datetime``**`
+    and `**``time_of_day``**` under 9.6, and the three invention roles
+    under 9.7. A bold line naming SEVERAL roles (9.4's
+    "`count` and `continuous`") opens no sub-table, so those rows stay
+    under the numbered heading, which is where `CONTRACT_SECTIONS`
+    looks for them.
     """
-    text = CONTRACT.read_text(encoding="utf-8")
+    text = MATRIX_CONTRACT.read_text(encoding="utf-8")
     start = text.index("## 9. The disposition matrix")
     body = text[start : text.index("\n## ", start + 10)]
     sections: dict[str, list[tuple[tuple[str, ...], str]]] = {}
@@ -796,11 +817,12 @@ def _matrix() -> "dict[str, list[tuple[tuple[str, ...], str]]]":
     for line in body.split("\n"):
         if line.startswith("### "):
             heading = line[4:].strip()
-            sections[heading] = []
+            sections.setdefault(heading, [])
             continue
-        if line.startswith("**`") and heading.startswith("9.7"):
-            heading = f"9.7 {line.strip().strip('*').strip('`')}"
-            sections[heading] = []
+        opened = _sub_table(line, heading)
+        if opened is not None:
+            heading = opened
+            sections.setdefault(heading, [])
             continue
         if not line.startswith("|") or not heading:
             continue
@@ -809,21 +831,53 @@ def _matrix() -> "dict[str, list[tuple[tuple[str, ...], str]]]":
             continue
         names = tuple(
             name
-            for name in re.findall(r"`([^`]+)`", cells[0])
+            for name in re.findall(r"`([^`]+)`", _unqualified(cells[0]))
             if name not in dispositions.RUNGS
         )
         if names:
             sections[heading].append((names, cells[1]))
-    for names, said in dispositions.contract5_delta(CONTRACT5):
-        for name in names:
-            where = dispositions.CONTRACT5_SECTIONS.get(name)
-            if where is None:
-                continue
-            rows = sections[where]
-            sections[where] = [
-                (kept, text) for kept, text in rows if name not in kept
-            ] + [((name,), said)]
     return sections
+
+
+# A role named in a parenthetical qualifier is not a field. Version 6's
+# 9.5 reads "`level_ceiling` (`categorical` only)", and reading that
+# cell for backticks names a ROLE as a key of the label group. Only the
+# qualifier is stripped, and it is matched on its own shape rather than
+# on a list of role names -- `count` is both a role and a real sub-key
+# of the `levels` row, so a name-based filter drops a fact the matrix
+# does dispose. That is measured: it did.
+_QUALIFIER = re.compile(r"\(`[a-z_]+` only\)")
+
+
+def _unqualified(cell: str) -> str:
+    """The first cell of a row with any role qualifier removed."""
+    return _QUALIFIER.sub("", cell)
+
+
+# A bold line that names ONE role and nothing else, which is how the
+# contract opens a role's sub-table inside a shared numbered section.
+# The bold may LEAD a paragraph rather than stand alone -- 9.4's
+# affixed block is `**`affixed_number`.**` followed by its own prose
+# on the same line -- so this matches a prefix. A bold naming two
+# roles does not match it, because the second backtick is not
+# followed by the closing stars.
+_SUB_TABLE = re.compile(r"^\*\*`([a-z_]+)`\.?\*\*")
+
+
+def _sub_table(line: str, heading: str) -> "str | None":
+    """The heading a bold role line opens, or None if it opens nothing.
+
+    The name has to be a role this taxonomy actually has. A bold line
+    naming two roles, or naming something that is not a role, leaves
+    the rows where they are rather than opening a table under a
+    heading no `CONTRACT_SECTIONS` entry could match.
+    """
+    if not heading:
+        return None
+    found = _SUB_TABLE.match(line.strip())
+    if found is None or found.group(1) not in dispositions.ROLES:
+        return None
+    return f"{heading.split()[0]} {found.group(1)}"
 
 
 def _matrix_violations(
@@ -846,8 +900,26 @@ def _matrix_violations(
             for fact in registry
             if fact.group == group
             and (fact.group, fact.field)
-            not in dispositions.FACTS_OUTSIDE_THE_VERSION_4_MATRIX
+            not in dispositions.FACTS_OUTSIDE_THE_CONTRACT_MATRIX
         }
+        # THE AFFIXED SUB-TABLE RESTATES THE NUMERIC DISPOSITIONS read
+        # over the cores, and those keys stay registered under `numeric`
+        # where the distribution machinery checks them. A first version
+        # of this checked only that each extra NAME was a numeric key,
+        # and review item P4-A1-R1-F2 showed what that misses: lowering
+        # the restated `mean`, `std`, `skew` row to REPORT-ONLY left
+        # both readers green, because the class comparison below looks
+        # up `("affixed", "mean")`, finds nothing and skips the row.
+        # Only the SEAL went red -- and a seal is re-written whenever an
+        # edit is intended, so it is not the net for a LOWERING.
+        #
+        # So the restatement is held to the thing it restates, in both
+        # directions: it must state EVERY numeric key the contract
+        # states, and each restated row must carry the class of the
+        # numeric row it echoes.
+        if group == "affixed":
+            broken = broken + _restatement_violations(matrix, registry)
+            stated = stated - set(_numeric_classes(matrix))
         if stated != owed:
             broken.append(
                 f"{group}: the contract states {sorted(stated - owed)} that "
@@ -858,15 +930,6 @@ def _matrix_violations(
             for name in names:
                 fact = by_key.get((group, name))
                 if fact is None:
-                    continue
-                if (group, name) in (
-                    dispositions.FACTS_A_LATER_VERSION_REDISPOSES
-                ):
-                    # The older matrix states this fact and is checked
-                    # for stating it; the CLASS it gives is the class
-                    # that version required, and a later version gave
-                    # the fact another. Comparing them here would call
-                    # the older document wrong about its own version.
                     continue
                 if not said or said[0] != fact.disposition:
                     broken.append(
@@ -892,6 +955,82 @@ def _matrix_violations(
                             f"{other}, which is not the class the plan's "
                             f"own authorization names"
                         )
+    return broken
+
+
+# The affixed sub-table's cross-reference rows. Two of them carry no
+# disposition word at all and DELEGATE -- "as on `count` and
+# `continuous` above" -- which is the contract keeping ONE source for a
+# class rather than writing it twice. The delegation is resolved
+# mechanically, and losing the phrase is itself a violation, so it
+# cannot quietly become a row that states nothing.
+_DELEGATES = "as on `count` and `continuous` above"
+
+
+def _numeric_classes(
+    matrix: "dict[str, list[tuple[tuple[str, ...], str]]]",
+) -> "dict[str, str]":
+    """Every numeric key the contract states, against its class word."""
+    found: dict[str, str] = {}
+    for names, text in matrix[dispositions.CONTRACT_SECTIONS["numeric"]]:
+        said = [word for word in dispositions.DISPOSITIONS if word in text]
+        for name in names:
+            if said:
+                found[name] = said[0]
+    return found
+
+
+def _restatement_violations(
+    matrix: "dict[str, list[tuple[tuple[str, ...], str]]]",
+    registry: "typing.Sequence[dispositions.Fact]",
+) -> "list[str]":
+    """The affixed sub-table held to the numeric table it restates.
+
+    Both directions, because each catches a different edit. A numeric
+    key the sub-table stops stating is a disposition the role quietly
+    loses; a restated row whose class drifts from the numeric row is
+    the LOWERING this file exists for, and it is invisible to the
+    key-by-key walk because those keys are registered under `numeric`
+    (review item P4-A1-R1-F2, reproduced before it was repaired).
+    """
+    numeric = _numeric_classes(matrix)
+    rows = matrix[dispositions.CONTRACT_SECTIONS["affixed"]]
+    own = {fact.field for fact in registry if fact.group == "affixed"}
+    broken: list[str] = []
+    seen: set[str] = set()
+    for names, text in rows:
+        said = [word for word in dispositions.DISPOSITIONS if word in text]
+        delegates = _DELEGATES in text
+        for name in names:
+            if name in own:
+                continue
+            seen.add(name)
+            if name not in numeric:
+                broken.append(
+                    f"affixed: the sub-table states {name!r}, which is "
+                    f"neither a key of this role nor a numeric key it "
+                    f"restates over the cores"
+                )
+                continue
+            if not said:
+                if not delegates:
+                    broken.append(
+                        f"affixed/{name}: the restated row states no class "
+                        f"and does not delegate to the numeric table"
+                    )
+                continue
+            if said[0] != numeric[name]:
+                broken.append(
+                    f"affixed/{name}: the restatement heads with "
+                    f"{said[0]}, the numeric row it echoes says "
+                    f"{numeric[name]}"
+                )
+    absent = sorted(set(numeric) - seen)
+    if absent:
+        broken.append(
+            f"affixed: the sub-table no longer restates {absent}, so those "
+            f"dispositions are stated for the cores nowhere"
+        )
     return broken
 
 
@@ -2037,11 +2176,51 @@ def test_the_registry_reaches_every_key_the_producer_emits() -> None:
     matrix = _matrix()
     for group, section in dispositions.CONTRACT_SECTIONS.items():
         assert matrix[section], f"{group}: {section} has no rows"
+    # EVERY registered group, with no group standing outside a matrix.
+    # Until residual R-P4-25 closed, `affixed` and `clock` did: version
+    # 4 had neither role, so both were excused here and held to the
+    # Phase 4 plan alone. Version 6 gives each a sub-table and this set
+    # is now the whole registry.
     assert set(dispositions.CONTRACT_SECTIONS) == {
-        fact.group
-        for fact in dispositions.REGISTRY
-        if fact.group not in dispositions.GROUPS_OUTSIDE_THE_VERSION_4_MATRIX
+        fact.group for fact in dispositions.REGISTRY
     }
+
+
+def test_every_matrix_table_is_claimed_by_a_registry_group() -> None:
+    """A table the readers parse and nothing visits is not coverage.
+
+    Review item P4-A1-R1-F1. Pointing the readers at version 6 made
+    them parse section 9.4a, the joined role's own table -- and no
+    group maps to it, so its eight rows are read and then checked by
+    nothing. Deleting its `part_agreements` row, or lowering it from
+    APPROXIMATED, moves no guard. The completeness walk cannot expose
+    it either, because `reached == set(ROLE_SECTIONS)` compares the
+    fixture against the map rather than against the contract.
+
+    Before the migration the section was not parsed at all and the hole
+    was equally open; what changed is that it now LOOKS covered. So the
+    gap is named, with the residual that owes it, and this test is what
+    stops a second one being added in silence.
+    """
+    claimed = set(dispositions.CONTRACT_SECTIONS.values())
+    named = set(dispositions.SECTIONS_NO_GROUP_CLAIMS)
+    orphaned = {
+        heading
+        for heading, rows in _matrix().items()
+        if rows and heading not in claimed
+    }
+    assert orphaned == named, (
+        "a matrix table is parsed and visited by no registry group: "
+        f"{sorted(orphaned - named)}; and these are named as unclaimed "
+        f"but are not: {sorted(named - orphaned)}"
+    )
+    # Every excuse cites the residual that owes it, and that residual
+    # stands in the plan -- so an excuse cannot outlive its reason.
+    plan = PLAN4.read_text(encoding="utf-8")
+    for heading, residual in dispositions.SECTIONS_NO_GROUP_CLAIMS.items():
+        assert f"**{residual} " in plan or f"**{residual}(" in plan, (
+            f"{heading} cites {residual}, which the plan does not carry"
+        )
 
 
 def test_the_phase_cannot_close_while_the_seal_is_paused() -> None:

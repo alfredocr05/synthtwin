@@ -1,14 +1,17 @@
 """The strict profile loader: the only way generation gets a profile.
 
-The normative text is `docs/spec/profile-contract-v5.md`, which carries
-`docs/spec/profile-contract-v4.md` by reference: every rule version 5
-does not supersede is a rule of version 5 at its version 4 wording, and
-a superseding clause is written into version 5 with the version 4 rule
-it names. This module carries both out rule for rule. Nothing here
-decides anything either contract left open; where a contract states a
-fact, the check below cites it by its own identifier so a reader can
-hold the two side by side -- an identifier beginning `C5-` is version
-5's, and every other is version 4's, carried.
+The normative text is `docs/spec/profile-contract-v6.md`, and
+`PROFILE_VERSION` below is 6: a description this tree writes is a
+version 6 one, and this loader accepts no other. Version 6 states the
+whole contract, and it stands on the two documents it supersedes --
+version 5, which carried version 4 by reference. This module carries
+the rules out one for one. Nothing here decides anything the contract
+left open; where it states a fact, the check below cites it by its own
+identifier so a reader can hold the two side by side. An identifier
+beginning `C6-` is version 6's own, one beginning `C5-` is a version 5
+rule version 6 keeps, and every other is a version 4 rule carried
+through both -- the identifier records where a rule was WRITTEN, not
+which document governs, and the document that governs is version 6.
 
 WHAT THIS MODULE IS FOR. A twin is built from a profile and a seed, and
 from nothing else (plan P2-D1). That makes the profile the whole of what
@@ -35,7 +38,7 @@ one way, and the most useful message is the one nearest the cause:
   2. read the bytes and decode them as UTF-8       R4, R19
   3. the bounded structural pre-scan over the TEXT R8, R9
   4. parse with a plain JSON parse                 R5
-  5. read `profile_version`, which must be 5       R11, R12
+  5. read `profile_version`, which must be 6       R11, R12
   6. the canonical round trip                      R6, R7, R10
   7. schema and invariant validation               R13 - R18
   8. build and return typed objects                --
