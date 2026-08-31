@@ -1702,14 +1702,28 @@ def test_the_producer_battery_really_exercises_the_report(
     roles = {
         column.role for _case, loaded in battery for column in loaded.columns
     }
-    assert len(roles) >= 9, sorted(roles)
-    assert roles <= set(dispositions.ROLE_GROUPS), sorted(roles)
-    # AND THE ROLE THIS BATTERY COULD NOT SEE. A subset test is
-    # satisfied by any battery at all, so registering a new group left
-    # this green while nothing here built the role (review item
-    # P4-A2-R2-F1). Named rather than counted, so a role added later
-    # cannot slip in behind a threshold.
-    assert "joined_numbers" in roles, sorted(roles)
+    # EXACT EQUALITY AGAINST THE AUTHORITATIVE SET, not a floor and a
+    # named member. A count with a subset test is satisfied by any
+    # battery at all -- that is how registering the joined group left
+    # this green while nothing here built the role -- and naming that
+    # one role fixed the case in front of us while leaving the NEXT
+    # role free to be registered with no fixture behind it (review
+    # items P4-A2-R2-F1 and P4-A2-R3-F5).
+    #
+    # `identifier` is reached through a declaration rather than by any
+    # rule, and `empty` needs a column of nothing; both are in the
+    # every-role table, so the equality below is over the whole
+    # taxonomy and not a chosen subset of it.
+    owed = {
+        role
+        for role in dispositions.ROLES
+        if role in set(dispositions.ROLE_GROUPS)
+    }
+    assert roles == owed, (
+        "this battery says it covers every role the taxonomy has, and "
+        f"it does not: missing {sorted(owed - roles)}, unexpected "
+        f"{sorted(roles - owed)}"
+    )
     lines = _reported(battery)
     assert len(lines) >= 8, lines
     reasons = {_permitted(role, fact) for _case, role, fact, _name in lines}

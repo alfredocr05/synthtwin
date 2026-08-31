@@ -273,6 +273,40 @@ def every_role_table(seed: int = 20260807, n_rows: int = 240) -> str:
     return rows_to_csv(header, rows)
 
 
+# The column name the joined role needs declared, so no caller has to
+# remember the pair. It is NOT `reading`: the shared table already has
+# a column of that name, and two columns cannot share one.
+JOINED_COLUMN = "pressure"
+
+
+def every_role_and_joined_table(n_rows: int = 240) -> str:
+    """`every_role_table` with a JOINED column beside it.
+
+    THE SHARED TABLE CANNOT CARRY THIS ROLE ON ITS OWN. An undeclared
+    column of two numbers in one cell is not `joined_numbers` (plan
+    P4-D23), so every one of that table's call sites would have to pass
+    `--measurement` and any that missed it would give the column
+    another role in silence -- which is residual R-P4-62's own defect
+    in a new place. So the joined column is added HERE, for the
+    surfaces that claim to cover every role, and those surfaces declare
+    `JOINED_COLUMN`.
+
+    Without this, the no-regression run and the whole-product surfaces
+    said "every role in the taxonomy" while excluding the one that
+    carries a blood pressure (review item P4-A2-R3-F4).
+    """
+    lines = [line for line in every_role_table(n_rows=n_rows).split("\n") if line]
+    joined = [
+        line.split(",")[0]
+        for line in joined_numbers_table(n_rows=n_rows).split("\n")[1:]
+        if line
+    ]
+    rows = [f"{lines[0]},{JOINED_COLUMN}"]
+    for index, line in enumerate(lines[1:]):
+        rows.append(f"{line},{joined[index]}")
+    return "\n".join(rows) + "\n"
+
+
 def joined_numbers_table(n_rows: int = 120) -> str:
     """A column of two numbers written in one cell, for the battery.
 

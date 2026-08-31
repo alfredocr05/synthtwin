@@ -229,9 +229,18 @@ def _unrepresentable_table() -> str:
     group is bound by nothing on any fixture, and the totality assertion
     below would pass while nine facts went unchecked.
     """
+    # LONG DIGIT STRINGS, not compact exponents, and the difference is
+    # a defect rather than a preference. `1e400` is five characters and
+    # its twin is written three hundred and ten wide, which is residual
+    # R-P4-68 -- so a battery built on that shape has a GREEN witness
+    # that is already red, and every red case measured against it
+    # proves nothing (review item P4-A2-R3-F1). The exponent shape is
+    # asserted red in its own test, against its residual, which says
+    # more than excusing it here ever did.
     values = []
     for index in range(60):
-        values = values + [f"{index % 7 + 1}e400", f"-{index % 5 + 1}e400"]
+        body = "9" * (320 + index % 3)
+        values = values + [body, "-" + body]
     return fixtures.single_column_table("overflow", values)
 
 
@@ -262,7 +271,19 @@ def _pooled_styles_table() -> str:
     rather than repeated. Nothing else about it moved: the two fractions
     are still one cell each and still pooled.
     """
-    values = [f"{index % 9 + 1}" for index in range(34)] + ["1.5", "2.5"]
+    # A PUBLISHED fraction beside a POOLED one, and the published one
+    # is what keeps this witness green. With both fractions under the
+    # floor the twin held whole numbers only, so the column re-described
+    # as `count` -- residual R-P4-69 -- and a red battery measured
+    # against an already-red witness proves nothing (review item
+    # P4-A2-R3-F1). Twelve decimal cells hold the role; the single
+    # exponent cell is still pooled, so the canonical-split subcheck
+    # this fixture exists for still has its shape.
+    values = (
+        [f"{index % 9 + 1}" for index in range(34)]
+        + ["1.5"] * 12
+        + ["2.5e0"]
+    )
     return fixtures.single_column_table("reading", values)
 
 
@@ -2507,6 +2528,95 @@ NAMED_RED_CASES = (
     RedCase("joined", 'emptied-reading', 'reading', 'universal.quality_state', 'axes.quality_state'),
     RedCase("joined", 'not-utf8', 'reading', 'universal.role', 'axes.role'),
     RedCase("joined", 'not-utf8', 'reading', 'universal.statistical_type', 'axes.statistical_type'),
+    # The unrepresentable and pooled fixtures changed shape when
+    # their green witnesses were made genuinely green (review item
+    # P4-A2-R3-F1), so their cases are regenerated against the new
+    # shapes -- every one measured, none uncovered.
+    RedCase('unrepresentable', 'not-utf8', '', 'document.columns', 'columns.order'),
+    RedCase('unrepresentable', 'byte-order-mark', '', 'document.encoding', 'bytes.byte-order-mark'),
+    RedCase('unrepresentable', 'not-utf8', '', 'document.encoding', 'bytes.utf8'),
+    RedCase('unrepresentable', 'carriage-returns', '', 'document.line-endings', 'bytes.line-endings'),
+    RedCase('unrepresentable', 'no-terminal-newline', '', 'document.line-endings', 'bytes.terminal-newline'),
+    RedCase('unrepresentable', 'added-column', '', 'document.n_columns', 'columns.n_columns'),
+    RedCase('unrepresentable', 'dropped-row', '', 'document.n_rows', 'rows.n_rows'),
+    RedCase('unrepresentable', 'not-utf8', '', 'document.source.header_source', 'header.presence'),
+    RedCase('unrepresentable', 'not-utf8', '', 'universal.name', 'header.names'),
+    RedCase('unrepresentable', 'reshaped-overflow', 'overflow', 'numeric_unrepresentable.max_length', 'counts.max_length'),
+    RedCase('unrepresentable', 'reshaped-overflow', 'overflow', 'numeric_unrepresentable.min_length', 'counts.min_length'),
+    RedCase('unrepresentable', 'moved-cell', 'overflow', 'numeric_unrepresentable.n_distinct', 'distinct.n_distinct'),
+    RedCase('unrepresentable', 'blanked-cell', 'overflow', 'numeric_unrepresentable.n_distinct_by_occurrences', 'distinct.n_distinct_by_occurrences'),
+    RedCase('unrepresentable', 'moved-cell', 'overflow', 'numeric_unrepresentable.n_distinct_folded', 'distinct.n_distinct_folded'),
+    RedCase('unrepresentable', 'one-fractioned-overflow', 'overflow', 'numeric_unrepresentable.n_fraction', 'counts.n_fraction'),
+    RedCase('unrepresentable', 'blanked-cell', 'overflow', 'numeric_unrepresentable.n_negative', 'counts.n_negative'),
+    RedCase('unrepresentable', 'dropped-row', 'overflow', 'numeric_unrepresentable.n_positive', 'counts.n_positive'),
+    RedCase('unrepresentable', 'moved-cell', 'overflow', 'numeric_unrepresentable.n_sign_unknown', 'counts.n_sign_unknown'),
+    RedCase('unrepresentable', 'blanked-cell', 'overflow', 'numeric_unrepresentable.n_whole', 'counts.n_whole'),
+    RedCase('unrepresentable', 'moved-cell', 'overflow', 'numeric_unrepresentable.n_whole_unknown', 'counts.n_whole_unknown'),
+    RedCase('unrepresentable', 'one-contradicted-overflow', 'overflow', 'universal.n_contradictory', 'counts.n_contradictory'),
+    RedCase('unrepresentable', 'blanked-cell', 'overflow', 'universal.n_missing', 'presence.n_missing'),
+    RedCase('unrepresentable', 'moved-cell', 'overflow', 'universal.n_not_numeric', 'counts.n_not_numeric'),
+    RedCase('unrepresentable', 'one-fractioned-overflow', 'overflow', 'universal.n_numeric', 'counts.n_numeric'),
+    RedCase('unrepresentable', 'blanked-cell', 'overflow', 'universal.n_out_of_range', 'counts.n_out_of_range'),
+    RedCase('unrepresentable', 'blanked-cell', 'overflow', 'universal.n_present', 'presence.n_present'),
+    RedCase('unrepresentable', 'not-utf8', 'overflow', 'universal.position', 'position.at'),
+    RedCase('unrepresentable', 'rewritten-overflow', 'overflow', 'universal.quality_state', 'axes.quality_state'),
+    RedCase('unrepresentable', 'rewritten-overflow', 'overflow', 'universal.role', 'axes.role'),
+    RedCase('unrepresentable', 'rewritten-overflow', 'overflow', 'universal.statistical_type', 'axes.statistical_type'),
+    RedCase('pooled', 'not-utf8', '', 'document.columns', 'columns.order'),
+    RedCase('pooled', 'byte-order-mark', '', 'document.encoding', 'bytes.byte-order-mark'),
+    RedCase('pooled', 'not-utf8', '', 'document.encoding', 'bytes.utf8'),
+    RedCase('pooled', 'carriage-returns', '', 'document.line-endings', 'bytes.line-endings'),
+    RedCase('pooled', 'no-terminal-newline', '', 'document.line-endings', 'bytes.terminal-newline'),
+    RedCase('pooled', 'added-column', '', 'document.n_columns', 'columns.n_columns'),
+    RedCase('pooled', 'dropped-row', '', 'document.n_rows', 'rows.n_rows'),
+    RedCase('pooled', 'not-utf8', '', 'document.source.header_source', 'header.presence'),
+    RedCase('pooled', 'not-utf8', '', 'universal.name', 'header.names'),
+    RedCase('pooled', 'blanked-cell', 'reading', 'numeric.fraction_widths', 'widths.published.1'),
+    RedCase('pooled', 'marked-reading', 'reading', 'numeric.integer_valued', 'type.integer_valued'),
+    RedCase('pooled', 'marked-reading', 'reading', 'numeric.mean', 'moments.mean'),
+    RedCase('pooled', 'rewritten-reading', 'reading', 'numeric.n_distinct', 'distinct.n_distinct'),
+    RedCase('pooled', 'rewritten-reading', 'reading', 'numeric.n_distinct_folded', 'distinct.n_distinct_folded'),
+    RedCase('pooled', 'marked-reading', 'reading', 'numeric.n_left_out_of_statistics', 'counts.n_left_out_of_statistics'),
+    RedCase('pooled', 'marked-reading', 'reading', 'numeric.n_negative', 'counts.n_negative'),
+    RedCase('pooled', 'marked-reading', 'reading', 'numeric.n_negative_unrepresentable', 'counts.n_negative_unrepresentable'),
+    RedCase('pooled', 'blanked-cell', 'reading', 'numeric.n_used_in_statistics', 'counts.n_used_in_statistics'),
+    RedCase('pooled', 'marked-reading', 'reading', 'numeric.n_zero', 'counts.n_zero'),
+    RedCase('pooled', 'marked-reading', 'reading', 'numeric.numeric_share', 'counts.numeric_share'),
+    RedCase('pooled', 'blanked-cell', 'reading', 'numeric.numeric_styles', 'styles.at-least.decimal'),
+    RedCase('pooled', 'marked-reading', 'reading', 'numeric.numeric_styles', 'styles.at-least.plain'),
+    RedCase('pooled', 'noncanonical-reading', 'reading', 'numeric.numeric_styles', 'styles.canonical.decimal'),
+    RedCase('pooled', 'enormous-reading', 'reading', 'numeric.numeric_styles', 'styles.canonical.exponent_lower'),
+    RedCase('pooled', 'floor-upper-reading', 'reading', 'numeric.numeric_styles', 'styles.exact.exponent_upper'),
+    RedCase('pooled', 'floor-plussed-reading', 'reading', 'numeric.numeric_styles', 'styles.exact.leading_plus'),
+    RedCase('pooled', 'floor-zero-led-reading', 'reading', 'numeric.numeric_styles', 'styles.exact.leading_zero'),
+    RedCase('pooled', 'blanked-cell', 'reading', 'numeric.numeric_styles', 'styles.published.decimal'),
+    RedCase('pooled', 'added-row', 'reading', 'numeric.numeric_styles', 'styles.published.plain'),
+    RedCase('pooled', 'dropped-row', 'reading', 'numeric.numeric_styles', 'styles.remainder'),
+    RedCase('pooled', 'one-bracketed-reading', 'reading', 'numeric.numeric_styles', 'styles.spelled'),
+    RedCase('pooled', 'blanked-cell', 'reading', 'numeric.numeric_styles', 'styles.spill'),
+    RedCase('pooled', 'marked-reading', 'reading', 'numeric.percentiles', 'ladder.p01'),
+    RedCase('pooled', 'marked-reading', 'reading', 'numeric.percentiles', 'ladder.p05'),
+    RedCase('pooled', 'marked-reading', 'reading', 'numeric.percentiles', 'ladder.p10'),
+    RedCase('pooled', 'marked-reading', 'reading', 'numeric.percentiles', 'ladder.p25'),
+    RedCase('pooled', 'marked-reading', 'reading', 'numeric.percentiles', 'ladder.p50'),
+    RedCase('pooled', 'marked-reading', 'reading', 'numeric.percentiles', 'ladder.p75'),
+    RedCase('pooled', 'marked-reading', 'reading', 'numeric.percentiles', 'ladder.p90'),
+    RedCase('pooled', 'marked-reading', 'reading', 'numeric.percentiles', 'ladder.p95'),
+    RedCase('pooled', 'marked-reading', 'reading', 'numeric.percentiles', 'ladder.p99'),
+    RedCase('pooled', 'marked-reading', 'reading', 'numeric.percentiles.max', 'ladder.max'),
+    RedCase('pooled', 'marked-reading', 'reading', 'numeric.percentiles.min', 'ladder.min'),
+    RedCase('pooled', 'marked-reading', 'reading', 'numeric.std', 'moments.std'),
+    RedCase('pooled', 'marked-reading', 'reading', 'numeric.std_unrepresentable', 'type.std_unrepresentable'),
+    RedCase('pooled', 'one-contradicted-reading', 'reading', 'universal.n_contradictory', 'counts.n_contradictory'),
+    RedCase('pooled', 'blanked-cell', 'reading', 'universal.n_missing', 'presence.n_missing'),
+    RedCase('pooled', 'moved-cell', 'reading', 'universal.n_not_numeric', 'counts.n_not_numeric'),
+    RedCase('pooled', 'blanked-cell', 'reading', 'universal.n_numeric', 'counts.n_numeric'),
+    RedCase('pooled', 'one-overflowed-reading', 'reading', 'universal.n_out_of_range', 'counts.n_out_of_range'),
+    RedCase('pooled', 'blanked-cell', 'reading', 'universal.n_present', 'presence.n_present'),
+    RedCase('pooled', 'not-utf8', 'reading', 'universal.position', 'position.at'),
+    RedCase('pooled', 'one-overflowed-reading', 'reading', 'universal.quality_state', 'axes.quality_state'),
+    RedCase('pooled', 'moved-cell', 'reading', 'universal.role', 'axes.role'),
+    RedCase('pooled', 'moved-cell', 'reading', 'universal.statistical_type', 'axes.statistical_type'),
     RedCase(
         "every-role",
         "blanked-cell",
@@ -2635,13 +2745,6 @@ NAMED_RED_CASES = (
         "amount",
         "numeric.numeric_styles",
         f"styles.exact.{parsing.STYLE_LEADING_PLUS}",
-    ),
-    RedCase(
-        "pooled",
-        "noncanonical-reading",
-        "reading",
-        "numeric.numeric_styles",
-        f"styles.canonical.{parsing.STYLE_DECIMAL}",
     ),
     RedCase(
         "spelled",
@@ -2892,34 +2995,6 @@ NAMED_RED_CASES = (
     # The two widths, which the contract's matrix disposes
     # EXACT-OBSERVABLE and nothing measured until residual R-P4-59. One
     # more figure on every numeral moves both and nothing else.
-    RedCase(
-        "unrepresentable",
-        "widened-overflow",
-        "overflow",
-        "numeric_unrepresentable.min_length",
-        "counts.min_length",
-    ),
-    RedCase(
-        "unrepresentable",
-        "widened-overflow",
-        "overflow",
-        "numeric_unrepresentable.max_length",
-        "counts.max_length",
-    ),
-    RedCase(
-        "unrepresentable",
-        "rewritten-overflow",
-        "overflow",
-        "universal.role",
-        "axes.role",
-    ),
-    RedCase(
-        "unrepresentable",
-        "blanked-overflow",
-        "overflow",
-        "universal.n_present",
-        "presence.n_present",
-    ),
     # ...and the three the register carried on the invention role, all
     # three of them one cell of the hundred and twenty (review item
     # P3-V2-B-F5). The last two are one edit: a bracketed negative is a
@@ -2927,27 +3002,6 @@ NAMED_RED_CASES = (
     # register said an edit that changes a cell's class here changes the
     # role the file's own description reads the column as, which this
     # one does not.
-    RedCase(
-        "unrepresentable",
-        "one-fractioned-overflow",
-        "overflow",
-        "numeric_unrepresentable.n_fraction",
-        "counts.n_fraction",
-    ),
-    RedCase(
-        "unrepresentable",
-        "one-contradicted-overflow",
-        "overflow",
-        "numeric_unrepresentable.n_sign_unknown",
-        "counts.n_sign_unknown",
-    ),
-    RedCase(
-        "unrepresentable",
-        "one-contradicted-overflow",
-        "overflow",
-        "numeric_unrepresentable.n_whole_unknown",
-        "counts.n_whole_unknown",
-    ),
     RedCase(
         "headerless",
         "written-header",
@@ -3007,13 +3061,6 @@ NAMED_RED_CASES = (
         "every-role",
         "padded-amount",
         "amount",
-        "numeric.numeric_styles",
-        "styles.spelled",
-    ),
-    RedCase(
-        "pooled",
-        "padded-reading",
-        "reading",
         "numeric.numeric_styles",
         "styles.spelled",
     ),
@@ -3503,32 +3550,39 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
         ),
     },
     "unrepresentable": {
-        "": (
-            ("byte-order-mark", "bytes.byte-order-mark"),
-            ("carriage-returns", "bytes.line-endings"),
-            ("no-terminal-newline", "bytes.terminal-newline"),
-            ("not-utf8", "bytes.utf8"),
-            ("added-column", "columns.n_columns"),
-            ("added-column", "columns.order"),
-            ("added-column", "header.names"),
-            ("added-column", "header.presence"),
-            ("added-row", "rows.n_rows"),
+        '': (
+            ('byte-order-mark', 'bytes.byte-order-mark'),
+            ('carriage-returns', 'bytes.line-endings'),
+            ('no-terminal-newline', 'bytes.terminal-newline'),
+            ('not-utf8', 'bytes.utf8'),
+            ('added-column', 'columns.n_columns'),
+            ('not-utf8', 'columns.order'),
+            ('not-utf8', 'header.names'),
+            ('not-utf8', 'header.presence'),
+            ('dropped-row', 'rows.n_rows'),
         ),
-        "overflow": (
-            ("rewritten-overflow", "axes.quality_state"),
-            ("rewritten-overflow", "axes.statistical_type"),
-            ("one-contradicted-overflow", "counts.n_contradictory"),
-            ("marked-overflow", "counts.n_negative"),
-            ("one-worded-overflow", "counts.n_not_numeric"),
-            ("one-bracketed-overflow", "counts.n_numeric"),
-            ("marked-overflow", "counts.n_out_of_range"),
-            ("marked-overflow", "counts.n_positive"),
-            ("marked-overflow", "counts.n_whole"),
-            ("one-underflowed-overflow", "distinct.n_distinct"),
-            ("one-underflowed-overflow", "distinct.n_distinct_by_occurrences"),
-            ("one-underflowed-overflow", "distinct.n_distinct_folded"),
-            ("renamed-overflow", "position.at"),
-            ("blanked-overflow", "presence.n_missing"),
+        'overflow': (
+            ('rewritten-overflow', 'axes.quality_state'),
+            ('rewritten-overflow', 'axes.role'),
+            ('rewritten-overflow', 'axes.statistical_type'),
+            ('reshaped-overflow', 'counts.max_length'),
+            ('reshaped-overflow', 'counts.min_length'),
+            ('one-contradicted-overflow', 'counts.n_contradictory'),
+            ('one-fractioned-overflow', 'counts.n_fraction'),
+            ('blanked-cell', 'counts.n_negative'),
+            ('moved-cell', 'counts.n_not_numeric'),
+            ('one-fractioned-overflow', 'counts.n_numeric'),
+            ('blanked-cell', 'counts.n_out_of_range'),
+            ('dropped-row', 'counts.n_positive'),
+            ('moved-cell', 'counts.n_sign_unknown'),
+            ('blanked-cell', 'counts.n_whole'),
+            ('moved-cell', 'counts.n_whole_unknown'),
+            ('moved-cell', 'distinct.n_distinct'),
+            ('blanked-cell', 'distinct.n_distinct_by_occurrences'),
+            ('moved-cell', 'distinct.n_distinct_folded'),
+            ('not-utf8', 'position.at'),
+            ('blanked-cell', 'presence.n_missing'),
+            ('blanked-cell', 'presence.n_present'),
         ),
     },
     # THE PADDED-CODE FIXTURE (P4-D14). Its one column publishes a named
@@ -3722,74 +3776,64 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
         ),
     },
     "pooled": {
-        "": (
-            ("byte-order-mark", "bytes.byte-order-mark"),
-            ("carriage-returns", "bytes.line-endings"),
-            ("no-terminal-newline", "bytes.terminal-newline"),
-            ("not-utf8", "bytes.utf8"),
-            ("added-column", "columns.n_columns"),
-            ("added-column", "columns.order"),
-            ("added-column", "header.names"),
-            ("added-column", "header.presence"),
-            ("added-row", "rows.n_rows"),
+        '': (
+            ('byte-order-mark', 'bytes.byte-order-mark'),
+            ('carriage-returns', 'bytes.line-endings'),
+            ('no-terminal-newline', 'bytes.terminal-newline'),
+            ('not-utf8', 'bytes.utf8'),
+            ('added-column', 'columns.n_columns'),
+            ('not-utf8', 'columns.order'),
+            ('not-utf8', 'header.names'),
+            ('not-utf8', 'header.presence'),
+            ('dropped-row', 'rows.n_rows'),
         ),
-        "reading": (
-            ("contradicted-reading", "axes.quality_state"),
-            ("one-worded-reading", "axes.role"),
-            ("one-worded-reading", "axes.statistical_type"),
-            ("contradicted-reading", "counts.n_contradictory"),
-            ("marked-reading", "counts.n_left_out_of_statistics"),
-            ("one-negated-reading", "counts.n_negative"),
-            ("marked-reading", "counts.n_negative_unrepresentable"),
-            ("one-worded-reading", "counts.n_not_numeric"),
-            ("one-worded-reading", "counts.n_numeric"),
-            ("one-overflowed-reading", "counts.n_out_of_range"),
-            ("blanked-reading", "counts.n_used_in_statistics"),
-            ("one-zeroed-reading", "counts.n_zero"),
-            ("marked-reading", "counts.numeric_share"),
-            # WHY THESE TWO ROWS MOVED OFF `fractioned-reading` (plan
-            # amendment A-P3-18 clause 2). This column's style map is
-            # partly pooled -- two cells whose form the floor held back
-            # -- so its own permitted spellings settle the count of
-            # different values no closer than a range, and G12.8's
-            # envelope is what the two facts owe. Writing fractions into
-            # some cells lands inside that range; the even spread and
-            # the compression do not, and the rule above takes the
-            # narrower of the two.
-            ("spread-reading", "distinct.n_distinct"),
-            ("spread-reading", "distinct.n_distinct_folded"),
-            ("raised-reading", "ladder.max"),
-            ("one-negated-reading", "ladder.min"),
-            ("one-negated-reading", "ladder.p01"),
-            ("negated-reading", "ladder.p05"),
-            ("vast-reading", "ladder.p10"),
-            ("enormous-reading", "ladder.p25"),
-            ("crowded-reading", "ladder.p50"),
-            ("crowded-reading", "ladder.p75"),
-            ("enormous-reading", "ladder.p90"),
-            ("enormous-reading", "ladder.p95"),
-            ("raised-reading", "ladder.p99"),
-            ("raised-reading", "moments.mean"),
-            ("raised-reading", "moments.std"),
-            ("renamed-reading", "position.at"),
-            ("blanked-reading", "presence.n_missing"),
-            ("blanked-reading", "presence.n_present"),
-            # `fractioned` stopped moving the plain styles when the
-            # ladder went to a hundred and one rungs: it places the
-            # column's values so much more exactly that one
-            # fractioned cell no longer changes which forms the
-            # twin needs. `crowded` moves both, and is what the
-            # named table beside this one now uses too.
-            ("crowded-reading", "styles.at-least.plain"),
-            ("exponent_lower-reading", "styles.canonical.exponent_lower"),
-            ("exponent_upper-reading", "styles.exact.exponent_upper"),
-            ("leading_plus-reading", "styles.exact.leading_plus"),
-            ("leading_zero-reading", "styles.exact.leading_zero"),
-            ("crowded-reading", "styles.published.plain"),
-            ("leading_plus-reading", "styles.remainder"),
-            ("exponent_lower-reading", "styles.spill"),
-            ("vast-reading", "type.integer_valued"),
-            ("vast-reading", "type.std_unrepresentable"),
+        'reading': (
+            ('one-overflowed-reading', 'axes.quality_state'),
+            ('moved-cell', 'axes.role'),
+            ('moved-cell', 'axes.statistical_type'),
+            ('one-contradicted-reading', 'counts.n_contradictory'),
+            ('marked-reading', 'counts.n_left_out_of_statistics'),
+            ('marked-reading', 'counts.n_negative'),
+            ('marked-reading', 'counts.n_negative_unrepresentable'),
+            ('moved-cell', 'counts.n_not_numeric'),
+            ('blanked-cell', 'counts.n_numeric'),
+            ('one-overflowed-reading', 'counts.n_out_of_range'),
+            ('blanked-cell', 'counts.n_used_in_statistics'),
+            ('marked-reading', 'counts.n_zero'),
+            ('marked-reading', 'counts.numeric_share'),
+            ('rewritten-reading', 'distinct.n_distinct'),
+            ('rewritten-reading', 'distinct.n_distinct_folded'),
+            ('marked-reading', 'ladder.max'),
+            ('marked-reading', 'ladder.min'),
+            ('marked-reading', 'ladder.p01'),
+            ('marked-reading', 'ladder.p05'),
+            ('marked-reading', 'ladder.p10'),
+            ('marked-reading', 'ladder.p25'),
+            ('marked-reading', 'ladder.p50'),
+            ('marked-reading', 'ladder.p75'),
+            ('marked-reading', 'ladder.p90'),
+            ('marked-reading', 'ladder.p95'),
+            ('marked-reading', 'ladder.p99'),
+            ('marked-reading', 'moments.mean'),
+            ('marked-reading', 'moments.std'),
+            ('not-utf8', 'position.at'),
+            ('blanked-cell', 'presence.n_missing'),
+            ('blanked-cell', 'presence.n_present'),
+            ('blanked-cell', 'styles.at-least.decimal'),
+            ('marked-reading', 'styles.at-least.plain'),
+            ('noncanonical-reading', 'styles.canonical.decimal'),
+            ('enormous-reading', 'styles.canonical.exponent_lower'),
+            ('floor-upper-reading', 'styles.exact.exponent_upper'),
+            ('floor-plussed-reading', 'styles.exact.leading_plus'),
+            ('floor-zero-led-reading', 'styles.exact.leading_zero'),
+            ('blanked-cell', 'styles.published.decimal'),
+            ('added-row', 'styles.published.plain'),
+            ('dropped-row', 'styles.remainder'),
+            ('one-bracketed-reading', 'styles.spelled'),
+            ('blanked-cell', 'styles.spill'),
+            ('marked-reading', 'type.integer_valued'),
+            ('marked-reading', 'type.std_unrepresentable'),
+            ('blanked-cell', 'widths.published.1'),
         ),
     },
     "spelled": {
@@ -4634,29 +4678,12 @@ WHOLE_FACT_LISTINGS: "dict[str, tuple[str, ...]]" = {
     # The clock role lists the eight universal facts no CSV can
     # evidence, and nothing of its own: every one of its five keys is
     # checked.
-    # The joined role lists the universal eight, its own two
-    # distinctness counts (report-only, plan P4-D29), and every
-    # per-position fact no window can be drawn for -- which were
-    # listed NOWHERE until this landing (review item P4-A1-R2-F2).
-    # The joined role lists the universal eight, its own two
-    # distinctness counts (report-only, plan P4-D29), and the
-    # per-position facts no window can be drawn for -- which were
-    # listed NOWHERE until this landing, because
-    # `_quantitative_of` returns no block for this role so the
-    # census never reached its positions (review item
-    # P4-A1-R2-F2).
-    # The joined role lists the universal seven, its own two
-    # distinctness counts (REPORT-ONLY, plan P4-D29), and the
-    # per-position facts no window can be drawn for -- which were
-    # listed NOWHERE until this landing, because `_quantitative_of`
-    # returns no block for this role so the census never reached its
-    # positions (review item P4-A1-R2-F2).
-    # The joined role lists the universal seven and the
-    # per-position facts no window can be drawn for, which were
-    # listed NOWHERE until this landing (review item
-    # P4-A1-R2-F2). Its own two distinctness counts are CHECKED,
-    # not listed: a file can be wrong about them while every other
-    # published fact holds (review item P4-A2-R1-F1).
+    # The joined role lists the universal seven and the per-position
+    # facts no window can be drawn for -- which were listed NOWHERE
+    # until this landing, because `_quantitative_of` returns no block
+    # for this role so the census never reached its positions (review
+    # item P4-A1-R2-F2). Its own two distinctness counts are CHECKED,
+    # not listed (review item P4-A2-R1-F1).
     "joined": (
         "joined.parts[0].n_distinct_values",
         "joined.parts[0].percentiles_between",
@@ -5635,24 +5662,114 @@ def test_a_registered_case_is_aimed_at_the_site_it_covers(
             )
 
 
-# THE FIXTURES WHOSE GREEN RUN IS ALREADY RED, each against the
-# residual that owes it. Asking this battery for its own premise found
-# both the moment the question was asked, and neither is this landing's
-# to fix -- they belong to the unrepresentable and numeric roles. They
-# are NAMED so the hole is loud: a third fixture going red fails the
-# guard, and closing either residual without emptying its entry here
-# fails it too.
-#
-# This is the shape the note-grammar guard used for the same reason: a
-# guard that cannot be landed green is a guard nobody lands, and the
-# alternative is not adding it, which is how both of these survived.
-KNOWN_RED_PREMISES = {
-    ("unrepresentable", "counts.min_length"): "R-P4-68",
-    ("unrepresentable", "counts.max_length"): "R-P4-68",
-    ("pooled", "axes.role"): "R-P4-69",
-    ("pooled", "axes.statistical_type"): "R-P4-69",
-    ("pooled", "type.integer_valued"): "R-P4-69",
-}
+def _residual_is_open(residual: str) -> bool:
+    """Whether the P4-D13 register carries this residual as OPEN.
+
+    THE SAME MACHINERY THE DISPOSITION REGISTRY USES, and not a
+    substring search over the whole plan. A search like that was
+    written here first and repeats a bypass that file already found and
+    repaired twice (review item P4-A2-R3-F3): mark the canonical entry
+    closed, leave the name in historical prose, and the guard stays
+    green. So: the register REGION only, exactly one canonical entry
+    for the name, an exact identifier boundary, and a positive `— OPEN`
+    token rather than the absence of closure words.
+    """
+    plan = (
+        pathlib.Path(__file__).resolve().parents[1]
+        / "docs" / "plans" / "phase-4-columns.md"
+    ).read_text(encoding="utf-8")
+    heading = "## P4-D13. Residuals"
+    if plan.count("\n" + heading + "\n") != 1:
+        return False
+    start = plan.index(heading)
+    register = plan[start : plan.index("\n## ", start + 10)]
+    entries = []
+    opening = f"- **{residual}"
+    for piece in register.split("\n- **")[1:]:
+        whole = "- **" + piece
+        if not whole.startswith(opening):
+            continue
+        rest = whole[len(opening):]
+        if rest[:1].isalnum() or rest[:1] in "-_.":
+            continue
+        close = whole.find("**", len("- **"))
+        entries.append(" ".join(
+            (whole if close == -1 else whole[: close + 2]).split()
+        ))
+    return len(entries) == 1 and "— OPEN" in entries[0]
+
+
+def test_the_compact_exponent_column_is_still_broken(
+    tmp_path: pathlib.Path,
+) -> None:
+    """R-P4-68 asserted as a WITNESS, not excused as an exception.
+
+    A column of `1e400` is five characters and publishes `min_length`
+    5; its twin is written three hundred and ten wide. This shape used
+    to BE the battery's unrepresentable fixture, which made its green
+    witness already red -- and a red case measured against an
+    already-red witness proves nothing about the edit it names (review
+    item P4-A2-R3-F1).
+
+    The fixture moved to long digit strings, which are green. The
+    broken shape is asserted HERE instead, so the defect is watched
+    rather than tolerated: this test fails when R-P4-68 is fixed, which
+    is when it should be deleted, and it fails just as loudly if the
+    defect gets worse.
+    """
+    values = []
+    for index in range(60):
+        values = values + [f"{index % 7 + 1}e400", f"-{index % 5 + 1}e400"]
+    described = _described(
+        tmp_path, fixtures.single_column_table("overflow", values),
+        stem="exponent-witness",
+    )
+    twin = rendering.twin_csv(generation.generate(described, SEED))
+    outcome = _measured(tmp_path, described, twin, "exponent-witness.csv")
+    missed = {
+        check.subcheck
+        for check in outcome.checks
+        if check.verdict == validation.MISSED
+    }
+    assert missed == {"counts.min_length", "counts.max_length"}, missed
+    assert _residual_is_open("R-P4-68"), (
+        "this witness asserts a defect R-P4-68 records; if that residual "
+        "has closed, the witness is what should go"
+    )
+
+
+def test_the_pooled_fraction_column_still_changes_role(
+    tmp_path: pathlib.Path,
+) -> None:
+    """R-P4-69 asserted as a WITNESS, on the same terms.
+
+    A `continuous` column whose only fractions fall under the
+    publication floor has no published form for them, so its twin holds
+    whole numbers and re-describes as `count`. A twin that reads back as
+    a different ROLE is the strongest form of the fidelity claim
+    failing, and it used to be the battery's own pooled fixture.
+    """
+    values = [f"{index % 9 + 1}" for index in range(34)] + ["1.5", "2.5"]
+    described = _described(
+        tmp_path, fixtures.single_column_table("reading", values),
+        stem="pooled-witness",
+    )
+    twin = rendering.twin_csv(generation.generate(described, SEED))
+    outcome = _measured(tmp_path, described, twin, "pooled-witness.csv")
+    missed = {
+        check.subcheck
+        for check in outcome.checks
+        if check.verdict == validation.MISSED
+    }
+    assert missed == {
+        "axes.role",
+        "axes.statistical_type",
+        "type.integer_valued",
+    }, missed
+    assert _residual_is_open("R-P4-69"), (
+        "this witness asserts a defect R-P4-69 records; if that residual "
+        "has closed, the witness is what should go"
+    )
 
 
 def test_every_fixture_is_GREEN_before_it_is_perturbed(
@@ -5682,12 +5799,18 @@ def test_every_fixture_is_GREEN_before_it_is_perturbed(
     broken: list[str] = []
     for name, described, twin in runs:
         outcome = _measured(tmp_path, described, twin, f"{name}-premise.csv")
+        # BOTH VERDICTS, because validation method V8.4 asks a green run
+        # for zero MISSED *and* zero WITHHELD. Rejecting only MISSED
+        # left a comparator that returns WITHHELD when the two agree
+        # and MISSED when they differ: the unperturbed fixture is then
+        # accepted and every registered perturbation is red, so the
+        # whole battery passes while no check decides anything (review
+        # item P4-A2-R3-F2).
         missed = [
-            f"{name}: {check.column}: {check.subcheck} "
+            f"{name}: {check.column}: {check.subcheck} = {check.verdict} "
             f"(published {check.published}, achieved {check.achieved})"
             for check in outcome.checks
-            if check.verdict == validation.MISSED
-            and (name, check.subcheck) not in KNOWN_RED_PREMISES
+            if check.verdict in (validation.MISSED, validation.WITHHELD)
         ]
         broken = broken + missed
     assert not broken, (
@@ -5695,36 +5818,6 @@ def test_every_fixture_is_GREEN_before_it_is_perturbed(
         "an obligation, so every red case measured against it proves "
         "nothing about the edit it names:\n  " + "\n  ".join(broken)
     )
-    # ...and every NAMED exception is still red, and still owed. An
-    # entry that has stopped being red is a residual that closed
-    # without anybody removing its excuse, which is how an excuse
-    # outlives its reason.
-    plan = (
-        pathlib.Path(__file__).resolve().parents[1]
-        / "docs" / "plans" / "phase-4-columns.md"
-    ).read_text(encoding="utf-8")
-    stale: list[str] = []
-    for name, described, twin in runs:
-        outcome = _measured(tmp_path, described, twin, f"{name}-named.csv")
-        red = {
-            check.subcheck
-            for check in outcome.checks
-            if check.verdict == validation.MISSED
-        }
-        for (fixture, subcheck), residual in KNOWN_RED_PREMISES.items():
-            if fixture != name:
-                continue
-            if subcheck not in red:
-                stale = stale + [
-                    f"{fixture}/{subcheck} is excused by {residual} and no "
-                    "longer misses -- delete the entry"
-                ]
-            if f"**{residual} — OPEN" not in plan:
-                stale = stale + [
-                    f"{fixture}/{subcheck} cites {residual}, which the "
-                    "register does not carry as OPEN"
-                ]
-    assert not stale, "\n  ".join(sorted(set(stale)))
 
 
 def test_the_coverage_identity_walks_the_shipped_table(
