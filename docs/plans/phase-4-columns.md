@@ -3430,6 +3430,51 @@ declaration for only one of them.
     which was true of the checks that shipped WITH the role, not only
     of the ladder and moments R-P4-58 added.
 
+  **WIDENED AGAIN 2026-08-31, by two more instances found while
+  landing A1 -- one by adversarial round P4-A1-R2 and one by
+  measurement.** Both are the same shape as the three above and both
+  belong to this residual's landing.
+
+  * **A JOINED COLUMN'S CHECKS ARE FILED UNDER THE `empty` GROUP.**
+    `validation._group_of` tests eight fact types -- clock, affixed,
+    numeric, label, datetime, identifier, text, unrepresentable -- and
+    has NO branch for `JoinedFacts`, so a joined column falls through
+    to its closing `return "empty"`. Measured on a 240-row
+    blood-pressure column through the real pipeline: the quality
+    report names `empty.n_distinct` and `empty.n_distinct_folded` for
+    it. A shipped surface names the wrong fact, and the fact binds to
+    the disposition of the EMPTY role, which publishes both counts as
+    0 and EXACT-OBSERVABLE. Nothing caught it, which is this
+    residual's whole point.
+
+  * **AND THE CONTRACT DISPOSES NEITHER OF THOSE TWO COUNTS FOR THIS
+    ROLE.** Section 9.2 says `n_distinct` and `n_distinct_folded` are
+    universal keys "whose disposition is set per role group, in 9.3 to
+    9.7"; section 9.4a sets neither, and this role has no other table.
+    So the mis-filing above could not be noticed by a completeness
+    check either -- the fact was filed under a group that DOES dispose
+    them. Whatever class the landing gives them, the measurement says
+    it is not EXACT-OBSERVABLE: over seven shapes built through the
+    real reader, producer, loader, generator and validator, EVERY
+    column whose cells repeat misses its published count in the
+    OVERSHOOT direction (240 rows, 80 different cells published, 210
+    achieved), because each position is drawn to its own ladder and
+    the pairing then makes more distinct pairs than a repeating source
+    had. Only an all-different column reaches it. That is the other
+    side of R-P4-40, which records the undershoot of the same
+    mechanism and not the overshoot.
+
+  * **A JOINED POSITION'S REPORT-ONLY FACTS ARE STILL LISTED NOWHERE**
+    (review item P4-A1-R2-F2). `_quantitative_of` deliberately returns
+    no block for `JoinedFacts`, so `_numeric_listings` never runs for
+    a position, and `_joined_number_checks` adds ladder and moment
+    CHECKS only. A two-number column publishes per-position
+    `n_distinct_values` and `percentiles_between` and the quality
+    report carries neither a check nor a not-checkable listing for
+    either; a moment whose window cannot be drawn disappears the same
+    way. Residual R-P4-58 was closed against "nothing checks and
+    nothing lists" and answered only the first half.
+
   **ONE FIXTURE IS WHY ALL THREE ARE BLIND.** Each guard proves its own
   completeness against a table that does not contain the role, so each
   passes by never looking. That is the shape this phase has spent

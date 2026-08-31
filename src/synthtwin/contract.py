@@ -98,11 +98,18 @@ from synthtwin.paths import validate_local_path
 # again, a newer one gets advice to update synthtwin and NEVER to re-run
 # a profiler on a machine that may not hold the table (contract 10.6).
 #
-# IT IS FIVE FROM AMENDMENT A-P3-27, AND THERE IS NO UPGRADE PATH
-# (contract 5 sections 10.1 and 10.2, owner ruling 2026-08-17). A
-# version 4 document is refused, not converted: it records a declaration
+# IT IS SIX, AND THERE IS NO UPGRADE PATH FROM EITHER OLDER VERSION
+# (owner ruling 2026-08-17 for version 5; amendment A-P4-41, which
+# extends version 6 IN PLACE until the first release rather than
+# bumping it each time a key is added). The value is written once,
+# below, and every sentence about it says "this integer" rather than
+# naming a number -- three sites said FIVE while the value was 6, and a
+# contributor following any of them prepares a description the loader
+# refuses (residual R-P4-63).
+#
+# An older document is refused, not converted: it records a declaration
 # only as a count, so converting it would mean making up the facts the
-# older rules did not record, which is the whole reason this version
+# older rules did not record, which is the whole reason a new version
 # exists. The refusal names both versions, says WHY the older file
 # cannot be read back, and tells the person to describe their table
 # again WITH THE SAME `--keep-value` AND `--missing-value` OPTIONS --
@@ -1831,7 +1838,7 @@ class ColumnBlock:
 
 @dataclasses.dataclass(frozen=True)
 class Profile:
-    """A whole conforming version 5 description (contract 10.8).
+    """A whole conforming description at `PROFILE_VERSION` (10.8).
 
     `columns` is in the document's own list order, which IS the schema
     order, the order the twin's columns are written in, and the order
@@ -2123,7 +2130,7 @@ def _parsed(text: str, shown: str) -> object:
 
 
 def _versioned(parsed: object, shown: str) -> "dict[str, object]":
-    """Check `profile_version` is exactly 5, before anything else (10.6).
+    """Check `profile_version` is exactly `PROFILE_VERSION`, first (10.6).
 
     Guarantees:
 
@@ -3142,7 +3149,8 @@ def _declaration(value: object, key: str, where: str) -> DeclarationRecord:
     written before this rule carried an array of spellings under the
     same key, and a consumer must be able to tell the two apart without
     guessing. A description claiming to record the person's own declared
-    spellings is not a version 5 description, whatever else it says.
+    spellings is not a description this loader accepts, whatever else
+    it says.
 
     THE TWO LISTS ARE NOT THAT TEXT, and C5-S7 fixes the wording so the
     flag beside them cannot be read as contradicting them: each holds
@@ -3164,7 +3172,8 @@ def _declaration(value: object, key: str, where: str) -> DeclarationRecord:
             where,
             f"the record '{key}' says the declared values were kept",
             (
-                "in a version 5 description no text of the person's own "
+                "in a description this tool writes no text of the "
+                "person's own "
                 "stands in that block, so the flag reads false in both "
                 "records"
             ),

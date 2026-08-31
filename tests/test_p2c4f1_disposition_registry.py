@@ -124,14 +124,30 @@ CONTRACT5 = REPO_ROOT / "docs" / "spec" / "profile-contract-v5.md"
 CONTRACT6 = REPO_ROOT / "docs" / "spec" / "profile-contract-v6.md"
 
 # THE CONTRACT THE MATRIX IS READ FROM, and it is the one that GOVERNS.
-# `PROFILE_VERSION` is 6, so version 6 is what every description this
-# tree writes is written to and what its dispositions have to be
-# checked against. `CONTRACT` above stays version 4 on purpose: the
-# mutation attacks below use it as a VEHICLE for the seal and the
-# phrase scan, and it is still a sealed governing document, so
-# attacking it still exercises exactly what those tests exist to
-# exercise (residual R-P4-25).
-MATRIX_CONTRACT = CONTRACT6
+# DERIVED FROM `contract.PROFILE_VERSION` rather than named, because a
+# reader pinned to a number is how residual R-P4-25 happened in the
+# first place: the producer and the loader moved to 6 and these
+# governance checks went on reading 4, agreeing by luck. Deriving it
+# means the next version bump moves this reader with the code, or
+# fails loudly because the document is not there (review item
+# P4-A1-R2-F6).
+#
+# `CONTRACT` above stays version 4 on purpose: the mutation attacks
+# below use it as a VEHICLE for the seal and the phrase scan, and it is
+# still a sealed governing document, so attacking it exercises exactly
+# what those tests exist to exercise.
+MATRIX_CONTRACT = (
+    REPO_ROOT
+    / "docs"
+    / "spec"
+    / f"profile-contract-v{contract.PROFILE_VERSION}.md"
+)
+assert MATRIX_CONTRACT.is_file(), (
+    f"the contract that governs is version {contract.PROFILE_VERSION} and "
+    f"{MATRIX_CONTRACT.name} is not in the tree: a version bump moves the "
+    "producer, the loader and this reader together, or the governance "
+    "checks go back to reading a document that governs nothing (R-P4-25)"
+)
 RELATIVE = {
     "docs/spec/profile-contract-v4.md": CONTRACT,
     "docs/spec/profile-contract-v5.md": CONTRACT5,
@@ -967,16 +983,34 @@ def _matrix_violations(
 _DELEGATES = "as on `count` and `continuous` above"
 
 
+def _classes_said(text: str) -> "tuple[str, ...]":
+    """Every disposition class a row states, IN THE ORDER IT STATES THEM.
+
+    The whole sequence, not the head. A row reading "EXACT-OBSERVABLE
+    ... ordinarily; REPORT-ONLY in this corner" states two classes and
+    the second is a lowering; comparing heads alone calls that row
+    equal to a plain EXACT-OBSERVABLE one, which is how review item
+    P4-A1-R2-F1 got a conditional lowering past the first repair.
+    """
+    found: list[tuple[int, str]] = []
+    for word in dispositions.DISPOSITIONS:
+        start = text.find(word)
+        while start != -1:
+            found.append((start, word))
+            start = text.find(word, start + 1)
+    return tuple(word for _where, word in sorted(found))
+
+
 def _numeric_classes(
     matrix: "dict[str, list[tuple[tuple[str, ...], str]]]",
-) -> "dict[str, str]":
-    """Every numeric key the contract states, against its class word."""
-    found: dict[str, str] = {}
+) -> "dict[str, tuple[str, ...]]":
+    """Every numeric key the contract states, against its class sequence."""
+    found: dict[str, tuple[str, ...]] = {}
     for names, text in matrix[dispositions.CONTRACT_SECTIONS["numeric"]]:
-        said = [word for word in dispositions.DISPOSITIONS if word in text]
+        said = _classes_said(text)
         for name in names:
             if said:
-                found[name] = said[0]
+                found[name] = said
     return found
 
 
@@ -999,7 +1033,7 @@ def _restatement_violations(
     broken: list[str] = []
     seen: set[str] = set()
     for names, text in rows:
-        said = [word for word in dispositions.DISPOSITIONS if word in text]
+        said = _classes_said(text)
         delegates = _DELEGATES in text
         for name in names:
             if name in own:
@@ -1013,17 +1047,24 @@ def _restatement_violations(
                 )
                 continue
             if not said:
+                # A PURE delegation states no class of its own and
+                # takes the numeric row's WHOLE sequence, conditional
+                # clauses included.
                 if not delegates:
                     broken.append(
                         f"affixed/{name}: the restated row states no class "
                         f"and does not delegate to the numeric table"
                     )
                 continue
-            if said[0] != numeric[name]:
+            # Stating a class AND delegating is not a delegation: the
+            # stated sequence governs and has to match, or a row could
+            # keep the delegation phrase as cover while writing a
+            # lesser class beside it (review item P4-A1-R2-F1).
+            if said != numeric[name]:
                 broken.append(
-                    f"affixed/{name}: the restatement heads with "
-                    f"{said[0]}, the numeric row it echoes says "
-                    f"{numeric[name]}"
+                    f"affixed/{name}: the restatement states "
+                    f"{list(said)}, the numeric row it echoes states "
+                    f"{list(numeric[name])}"
                 )
     absent = sorted(set(numeric) - seen)
     if absent:
@@ -2214,13 +2255,27 @@ def test_every_matrix_table_is_claimed_by_a_registry_group() -> None:
         f"{sorted(orphaned - named)}; and these are named as unclaimed "
         f"but are not: {sorted(named - orphaned)}"
     )
-    # Every excuse cites the residual that owes it, and that residual
-    # stands in the plan -- so an excuse cannot outlive its reason.
+    # Every excuse cites a residual that is still OPEN. Checking only
+    # that the number appears somewhere left the excuse able to outlive
+    # its reason: this register marks a closure by rewriting the entry's
+    # heading to "R-P4-NN — CLOSED ...", and the original text stays
+    # underneath, so a name-anywhere test stays green forever after
+    # (review item P4-A1-R2-F5). The entry's own HEADING is read.
     plan = PLAN4.read_text(encoding="utf-8")
     for heading, residual in dispositions.SECTIONS_NO_GROUP_CLAIMS.items():
-        assert f"**{residual} " in plan or f"**{residual}(" in plan, (
-            f"{heading} cites {residual}, which the plan does not carry"
+        entries = re.findall(
+            rf"^- \*\*{re.escape(residual)}\b([^*]*)", plan, re.MULTILINE
         )
+        assert entries, (
+            f"{heading} cites {residual}, and the plan's register carries "
+            f"no entry opening with that name"
+        )
+        for opening in entries:
+            assert "CLOSED" not in opening.upper(), (
+                f"{heading} is excused by {residual}, whose register entry "
+                f"is CLOSED -- the excuse has outlived its reason, so "
+                f"either reopen it or claim the table with a group"
+            )
 
 
 def test_the_phase_cannot_close_while_the_seal_is_paused() -> None:

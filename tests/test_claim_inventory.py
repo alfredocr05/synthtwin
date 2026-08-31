@@ -6168,8 +6168,8 @@ def test_the_census_would_report_this_tree_and_that_is_its_bound() -> None:
 # joined into one sentence by the shipped template, which is the thing
 # the first census could not read.
 _A_CLAUSE_OF_A_REFUSAL_A_PERSON_MEETS = (
-    "in a version 5 description no text of the person's own stands in "
-    "that block"
+    "in a description this tool writes no text of the person's own "
+    "stands in that block"
 )
 
 

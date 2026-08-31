@@ -62,6 +62,18 @@ from synthtwin import (
 
 SPEC = pathlib.Path(__file__).resolve().parent.parent / "docs" / "spec"
 
+# THE CONTRACT THAT GOVERNS, derived from the loader's own constant
+# rather than named. A reader pinned to a number is how residual
+# R-P4-25 happened: the producer and the loader moved and these
+# governance checks went on reading an older document, agreeing by
+# luck. Deriving it means a version bump moves this reader with the
+# code or fails loudly (review item P4-A1-R2-F6).
+MATRIX_CONTRACT = SPEC / f"profile-contract-v{contract.PROFILE_VERSION}.md"
+assert MATRIX_CONTRACT.is_file(), (
+    f"the contract that governs is version {contract.PROFILE_VERSION} and "
+    f"{MATRIX_CONTRACT.name} is not in the tree (residual R-P4-25)"
+)
+
 
 def _described(
     folder: pathlib.Path, text: str, declared: "list[str] | None" = None
@@ -238,7 +250,7 @@ def _matrix_rows() -> "dict[str, list[tuple[tuple[str, ...], str]]]":
     Order matters here: the inventory below is derived from it, and the
     run emits its measurements in the same order.
     """
-    text = (SPEC / "profile-contract-v6.md").read_text(encoding="utf-8")
+    text = MATRIX_CONTRACT.read_text(encoding="utf-8")
     start = text.index("## 9. The disposition matrix")
     body = text[start:text.index("\n## ", start + 10)]
     sections: dict[str, list[tuple[tuple[str, ...], str]]] = {}
@@ -344,7 +356,7 @@ def _matrix_sections() -> "dict[str, dict[str, str]]":
     version 4 merged with version 5's delta table -- the record of what
     two superseded versions required -- which is residual R-P4-25.
     """
-    text = (SPEC / "profile-contract-v6.md").read_text(encoding="utf-8")
+    text = MATRIX_CONTRACT.read_text(encoding="utf-8")
     start = text.index("## 9. The disposition matrix")
     body = text[start:text.index("\n## ", start + 10)]
     sections: dict[str, dict[str, str]] = {}
