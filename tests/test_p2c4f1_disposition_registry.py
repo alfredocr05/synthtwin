@@ -1714,15 +1714,25 @@ def test_the_producer_battery_really_exercises_the_report(
     # rule, and `empty` needs a column of nothing; both are in the
     # every-role table, so the equality below is over the whole
     # taxonomy and not a chosen subset of it.
-    owed = {
-        role
-        for role in dispositions.ROLES
-        if role in set(dispositions.ROLE_GROUPS)
-    }
+    # THE AUTHORITATIVE SET IS THE TAXONOMY'S OWN, not a list beside it.
+    # Deriving `owed` from `dispositions.ROLES` filtered by
+    # `ROLE_GROUPS` compared two hand-maintained structures against a
+    # third: a role added to the taxonomy and left out of all three
+    # kept every side equal and the check green (review item
+    # P4-A2-R4-F2). `taxonomy.ROLES` is what the product decides roles
+    # from, so it is what this is held to.
+    owed = set(taxonomy.ROLES)
     assert roles == owed, (
         "this battery says it covers every role the taxonomy has, and "
         f"it does not: missing {sorted(owed - roles)}, unexpected "
         f"{sorted(roles - owed)}"
+    )
+    # ...and the map this file reads is TOTAL over that same set, so a
+    # role cannot be added to the taxonomy and left undisposed here.
+    assert set(dispositions.ROLE_GROUPS) == owed, (
+        "`ROLE_GROUPS` is not total over the taxonomy: missing "
+        f"{sorted(owed - set(dispositions.ROLE_GROUPS))}, unexpected "
+        f"{sorted(set(dispositions.ROLE_GROUPS) - owed)}"
     )
     lines = _reported(battery)
     assert len(lines) >= 8, lines
