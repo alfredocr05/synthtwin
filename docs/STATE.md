@@ -1226,6 +1226,28 @@ owner's time; the reasoning is in the plan at the amendment named.
   rule, an institution's own rules or an approval. Guarded by the
   seventh family of `tests/test_claim_inventory.py`.
 
+## What the owner ruled on 2026-08-31, and it reverses a recommendation
+
+**THE PER-LEVEL FORM CENSUS IS RULED IN** (amendment A-P4-47). The
+landing that measured R-P4-34 stopped and asked, because a per-level
+census attaches a spelling property to an identified below-floor group
+and section 12 records the held-back facts as publishing the sizes and
+counts of UNNAMED groups. The assistant recommended NOT building it.
+
+The owner ruled the other way, and the ground is worth carrying: a
+code's SHAPE identifies nobody -- it says a rare category is present
+and nothing else about whoever holds it, no name, no record number, no
+other value, no link across columns -- while category columns are what
+analysis code is written against, so a twin whose invented codes wear
+the wrong shape breaks that code silently.
+
+**That is the third time this owner has answered this family the same
+way** (A-P4-36, the ruling of 2026-08-24, and now this): a rare value
+REACHING the twin matters more than the disclosure of its presence. An
+assistant meeting this question again should not re-ask it; what still
+needs asking is anything that would publish the CONTENT of a held-back
+value, which no ruling covers.
+
 ## What is waiting on the owner
 
 **Nothing blocks the close sequence.** The go decision was given on
