@@ -5291,18 +5291,52 @@ def _obligations(
     # becoming seventeen misses and seven withholdings. The reviewer's
     # witness named the presence counts; repairing only those would have
     # left this half of the same class open.
-    own_cells = cells
-    if not split_published:
-        own_cells = _cells_that_description_reads(
-            block,
-            cells,
-            kept_spellings(description),
-            declared_spellings(description),
-        )
+    #
+    # AND EACH SIDE COUNTS THE CELLS ITS OWN READING COUNTS, WHATEVER
+    # THE SPLIT PUBLISHES (residual R-P4-53). The narrowing above ran
+    # this rule only where the description POOLS its missing sources,
+    # because the leak it was written for needs a pool. The POPULATION
+    # question is not the leak question and does not need one: a
+    # description publishes its style census over the cells IT counts as
+    # values, and a recount that walks every written cell is answering a
+    # different question about a different set. A column declaring
+    # `-9.99` as its "no value" word publishes `numeric_styles` over 180
+    # present cells; the recount found 200, because `-9.99` reads as a
+    # number -- and the file the description was WRITTEN FROM was told
+    # it missed `numeric.numeric_styles`, with five more style
+    # obligations withheld beside it. Measured through `profile` and
+    # `validate` on the source table itself: 1 missed and 5 withheld
+    # with the hole spelled `-9.99`, 0 and 0 with the same twenty holes
+    # written blank. It needs no declaration either -- twenty `-999`
+    # cells the column's own stand-in rule judges take six of the same
+    # obligations to withheld -- and it reaches every role that recounts
+    # cells: a joined column declaring `-1/-1` was told it missed a
+    # style census at BOTH of its positions.
+    #
+    # The two sides get two populations because they read the same cells
+    # under two rules: `settings_over_the_split` names this package's
+    # own built-in words as data where the description passes no verdict
+    # on them, so a cell absent to one reading can be a value to the
+    # other. Asking each side's own settings is what keeps a recount
+    # standing beside the census it is compared with.
+    own_settings = settings_for(description)
+    split_settings = settings_over_the_split(description)
+    own_cells = _cells_that_description_reads(
+        block,
+        cells,
+        own_settings.kept_values,
+        own_settings.declared_missing_values,
+    )
+    split_cells = _cells_that_description_reads(
+        split,
+        cells,
+        split_settings.kept_values,
+        split_settings.declared_missing_values,
+    )
     gated = _universal_checks(column, block, mine)
     gated = gated + _role_checks(column, block, own_cells, floor, mine)
     measured = _universal_checks(column, split, mine)
-    measured = measured + _role_checks(column, split, cells, floor, mine)
+    measured = measured + _role_checks(column, split, split_cells, floor, mine)
     return checks + _governed(gated, measured, split_published)
 
 
@@ -5320,6 +5354,20 @@ def _cells_that_description_reads(
     be the cells that description counts -- otherwise two files the
     producer describes byte for byte alike are recounted differently and
     the report tells them apart, which V5.1 forbids.
+
+    AND IT IS WHAT EVERY RECOUNT IS HANDED, ON BOTH SIDES AND ALWAYS
+    (residual R-P4-53). It used to run only where the description POOLS
+    its missing sources, because the leak above needs a pool. But a
+    census is published over the cells a description counts as values
+    whether or not anything is pooled, so a recount over any other set
+    is answering a different question -- and a column declaring `-9.99`
+    as its "no value" word had its census published over 180 cells,
+    recounted over 200, and the file the description was written from
+    was told it MISSED. `_obligations` now calls this twice, once per
+    reading: `block` with the file's own settings for the gated side,
+    `split` with the settings taken over the blank split for the
+    measured one. Passing one side's settings to the other block would
+    put a recount beside a census neither of them made.
 
     AND A CELL THAT DESCRIPTION READS AS DATA STAYS (review item
     P3-V4-F1). The version this replaces dropped every cell wearing a
@@ -6263,8 +6311,18 @@ def _governed(
       the split's number is not shown, because showing it is what the
       gate exists to prevent.
     * The gate is open and this subcheck measures the WRITTEN CELLS
-      rather than a re-description (`_MEASURED_FROM_THE_CELLS`). Either
-      side's measurement is the same one; the gated side's is taken.
+      rather than a re-description (`_MEASURED_FROM_THE_CELLS`). The
+      GATED side's is taken, and it is taken because it is the one
+      settled against the description the gate itself reads. It is no
+      longer safe to say the two sides measure the same thing here, and
+      that sentence stood in this docstring after it had stopped being
+      true: since residual R-P4-53 each side recounts the cells ITS OWN
+      reading counts as values, and the two readings differ on a
+      built-in missing word the submitted description passes no verdict
+      on -- which the split pins to data and the file's own description
+      does not. The subchecks named in that tuple are the ones whose
+      window comes off the file's own published style map, so the gated
+      side is the side that has both halves of the comparison.
     * The gate is open and the split has the measurement. The split's
       verdict, which is the only one taken over the right set of cells.
     * The gate is open and the split has NO measurement of that kind:
@@ -8340,9 +8398,21 @@ def _unread_cells(block: "dict[str, object]", cells: "list[str]") -> int:
     widens the room the window below leaves and never narrows it: a
     count the description does not carry may not be settled from it.
 
+    WHAT THIS IS NOW HANDED, AND IT IS NOT EVERY WRITTEN CELL (residual
+    R-P4-53). The caller filters the column's cells to the ones that
+    description READS as values before any of this runs, so the number
+    returned here is the disagreement that survives the filter rather
+    than the whole of it. That is deliberate: this was a WIDENING to
+    keep a mismatched population from settling a verdict, and a widening
+    is a poor substitute for counting the right cells -- it turned a
+    correct file's misses into withholdings and left one miss standing.
+    What is left for it is the corner the filter itself cannot settle:
+    a candidate the file's own description publishes no verdict for.
+
     Guarantees:
 
-    - Inputs: one re-described block and the column's written cells.
+    - Inputs: one re-described block and the cells that description
+      reads as values, in the caller's order.
     - Determinism: a fixed function of the two.
     - Errors raised: none.
     """
@@ -8463,6 +8533,17 @@ def _style_checks(
     one it must fail. The recount is per cell, through the profiler's
     own `parsing.numeric_style`, so it is the same classification the
     description was made with.
+
+    AND OVER THE SAME POPULATION, which is the other half of that
+    sentence and was missing (residual R-P4-53). A description publishes
+    this census over the cells IT counts as values; ``cells`` here is
+    that same set, filtered by `_cells_that_description_reads` before it
+    arrives. Recounting every written cell instead made the two sides
+    answer about different sets, and a column whose declared "no value"
+    word reads as a number -- `-9.99` among readings -- had its census
+    published over 180 cells and recounted over 200, so the file the
+    description was written from was told it MISSED
+    `numeric.numeric_styles`.
 
     AND EVERY CLAUSE IS READ THROUGH THE FILE'S OWN DESCRIPTION (review
     item P3-V2-D-F2; V5.1, V5.3 and V5.4). The counts were never printed
