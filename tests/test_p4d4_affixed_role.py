@@ -410,7 +410,7 @@ def test_the_removal_clause_is_silent_where_nothing_was_removed(
     assert "were read as stand-ins for 'no value' and taken out" not in said
 
 
-def test_the_remark_carries_seven_arguments_and_the_grammar_says_so(
+def test_the_remark_carries_nine_arguments_and_the_grammar_says_so(
     tmp_path: pathlib.Path,
 ) -> None:
     """The arity is the contract's, and the note grammar is where it lives.
@@ -419,8 +419,15 @@ def test_the_remark_carries_seven_arguments_and_the_grammar_says_so(
     is a form the publication guard cannot check, so the count is
     asserted against the shipped grammar rather than against the
     sentence.
+
+    IT READ SEVEN UNTIL 2026-08-31. The affixed role's landing added
+    the affix reach and what stand-in judging removed; the
+    advisory-remark landing (residual R-P4-24) added the two the
+    contract had already written down and the producer had never sent
+    -- how far a CLOCK reading got, and the recoverable-distribution
+    advice of amendment A-P4-1 item 4.
     """
-    assert taxonomy.NOTE_ARITY[taxonomy.REMARK_NO_READING_FITS] == 7
+    assert taxonomy.NOTE_ARITY[taxonomy.REMARK_NO_READING_FITS] == 9
 
 
 def test_every_affixed_document_this_file_builds_round_trips(
