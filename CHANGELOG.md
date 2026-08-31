@@ -6,6 +6,46 @@ exists).
 
 ## [Unreleased]
 
+### Added: four columns that were described correctly and silently now speak
+
+Each of these adds a SENTENCE and nothing else. No role changes, no
+published number moves, and no cell of any twin is different -- which
+is measured, block for block, and not promised.
+
+- **A column of whole numbers that are all moments in time is told so**
+  (residual R-P4-9). A column of `1600000000` is a column of counts
+  and stays one; what was missing was anybody saying that read as
+  seconds since the 1st of January 1970 it runs from one calendar day
+  to another. The remark says which unit the numbers are counted in --
+  seconds or milliseconds, which matters by a factor of a thousand --
+  and says the twin is unaffected, because reading them as plain
+  numbers keeps the range and the spacing, so converting the twin
+  gives the same span. It names no flag, because there is none: nothing
+  in synthtwin reads a number as a time.
+- **A declined column says how far a CLOCK reading got.** The sentence
+  that says why no reading fitted named the numeric reading, the
+  date reading and the affix reading, and was silent about the fourth
+  -- so a column of clock times in a shape synthtwin does not describe
+  was told nothing fitted it and never told which reading came
+  closest.
+- **A declined column whose gaps are a few repeated words is told one
+  declaration would recover its distribution.** It is written only
+  where it is TRUE: synthtwin reads the column again over what is left
+  and writes the sentence only when that reading really publishes a
+  distribution. Where the survivors are numbers too large to hold, or
+  collapse to two values, nothing is said -- those columns publish no
+  distribution and a promise of one would be false.
+- **A column of dates that also read as numbers states both counts.**
+  Eight digits are a date and a whole number at once; a sentence
+  saying only which reading won left no way to see how close the other
+  came.
+- **A label column publishing `-999` as one of its values is told
+  `--missing-value` exists for it.** synthtwin reads that number as
+  "no value" on a column of numbers and cannot on a column of labels,
+  so it was published as an ordinary value with an ordinary count and
+  nothing said so. All three of the built-in stand-in numbers are
+  covered, and a column publishing two of them is told about both.
+
 ### Fixed: a column that stops being read as numbers is told why
 
 - **The address decline was silent** (residual R-P4-39, contract

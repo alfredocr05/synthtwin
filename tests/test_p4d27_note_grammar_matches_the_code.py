@@ -25,12 +25,18 @@ of them were worse in kind than the five recorded:
   the clock evidence sentence outright.
 
 Both are closed by the landing that adds this file. The remaining five
-are the arity mismatches R-P4-29 named, they are held below as
-NAMED EXCEPTIONS, and every one of them is the same thing: **four
-advisory remarks that amendment A-P4-30 withdrew from this phase's
-scope, transcribed into the contract before the withdrawal.** They
-close when those remarks are built, and the exception list is how this
-guard says so out loud instead of being weakened to accommodate them.
+were the arity mismatches R-P4-29 named, held below as NAMED
+EXCEPTIONS, and every one of them was the same thing: **four advisory
+remarks that amendment A-P4-30 withdrew from this phase's scope,
+transcribed into the contract before the withdrawal.** They close when
+those remarks are built, and the exception list is how this guard says
+so out loud instead of being weakened to accommodate them.
+
+**THREE OF THE FIVE ARE NOW CLOSED (residual R-P4-24).** The advisory
+remarks landed and their rows left this table because the contract and
+the producer agree again, not because the table was relaxed. Two rows
+remain, both of the code-shaped family, and the reason each one cannot
+be reconciled by arity alone is written on it.
 
 THE GUARD RUNS IN BOTH DIRECTIONS, and the direction that was missing
 is the one that mattered. A one-way check ("every contract form is in
@@ -47,30 +53,43 @@ import fixtures
 # Derived, never named: review item P4-A1-R3-F2.
 CONTRACT = fixtures.GOVERNING_CONTRACT
 
-# THE FIVE THAT AMENDMENT A-P4-30 ACCOUNTS FOR, each with the arity the
-# contract states, the arity the producer emits, and the landing that
-# closes it. A form leaving this table must leave because it was
-# RECONCILED, and a form joining it is a decision somebody records --
-# which is why the reason is written per row rather than as a comment
-# over the whole table.
+# WHAT AMENDMENT A-P4-30 ACCOUNTS FOR AND HAS NOT YET GIVEN BACK, each
+# with the arity the contract states, the arity the producer emits, and
+# the landing that closes it. A form leaving this table must leave
+# because it was RECONCILED, and a form joining it is a decision
+# somebody records -- which is why the reason is written per row rather
+# than as a comment over the whole table.
+#
+# **IT HELD FIVE ROWS UNTIL THE ADVISORY-REMARK LANDING (residual
+# R-P4-24) AND HOLDS TWO.** Three were reconciled by building the form
+# the contract had already written down, and the rows went with them:
+# `remark_dates_also_read_as_numbers` states both counts (NF25),
+# `remark_no_reading_fits` carries the clock clause and the
+# recoverable-distribution advice at arguments 8 and 9 (NF29), and
+# `remark_a_label_is_a_built_in_stand_in` is emitted (NF37).
 KNOWN_MISMATCHES = {
-    # The compact-date-versus-number remark states both counts in the
-    # contract and neither in the producer. A-P4-30 item 1 withdrew the
-    # widening; the counts are already computed where it fires.
-    "remark_dates_also_read_as_numbers": (2, 0),
-    # Arguments 8 and 9 -- the clock clause's count and the
-    # recoverable-distribution advice's count -- are specified as "0
-    # where no such clause is written" and the producer emits neither.
-    "remark_no_reading_fits": (9, 7),
-    # The code-shaped remarks gained an argument when A-P4-1 widened
-    # them to fire on REPEATING code columns too, which A-P4-30 item 1
-    # then withdrew. The producer still writes only the all-different
-    # rendering, which needs no argument.
+    # THE CODE-SHAPED REMARKS, AND THEY ARE A SCOPE DECISION RATHER
+    # THAN AN ARITY TO RECONCILE -- which is why they stayed here when
+    # the other three left (residual R-P4-71). The contract's argument
+    # 1 counts the present cells that share a value with another row,
+    # and its second rendering exists for REPEATING code columns; the
+    # producer raises these two only where every value differs, so the
+    # argument would be zero at every call site and the second
+    # rendering could not be reached. Adding the argument alone would
+    # therefore build a rendering nothing can ever write, which is the
+    # "a check that cannot fail" shape this repository refuses.
+    #
+    # AND THE WIDENING ITSELF IS NOT A TRANSCRIPTION. P4-D4.7 gives
+    # the code-shape test as "all-whole, nearly-never-repeating, or
+    # fixed-width leading-zero digit strings", and EVERY `count`
+    # column is all-whole by that role's own definition
+    # (`whole_everywhere` in `taxonomy._numeric_verdict`), so the
+    # plan's first test would put this sentence on every count column
+    # in every profile. Which columns carry a sentence is a published
+    # fact of the document, so that is an owner-sized decision and not
+    # this landing's to take.
     "remark_every_number_is_different": (1, 0),
     "remark_every_value_is_different": (1, 0),
-    # The label column publishing a built-in stand-in number as a
-    # level. A-P4-30 item 1 withdrew it; the producer has no such form.
-    "remark_a_label_is_a_built_in_stand_in": (1, None),
 }
 
 _DEFINING = re.compile(
