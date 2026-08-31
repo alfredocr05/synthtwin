@@ -28,8 +28,7 @@ without the same help.
 | branch | `phase-4-allotment` (never merged; `main` is pull-request only) |
 | phase | **Phase 4 — comprehensive column handling.** Current. |
 | plan | `docs/plans/phase-4-columns.md` |
-| suite | 4,200 collected / 51 skipped |
-| lint | **9 pre-existing errors** (`ruff check .`) under the rule set pinned in `pyproject.toml`, re-measured 2026-08-31 on this tree: 2 mid-file imports in `src/` (`generation.py`, `validation.py`) and 7 in `tools/measurements/`. It said 10 until the dead recount named below went with the joined role's landing and this line did not move with it. Re-measured again on the advisory-remark landing: still 9, none of them in the one file of `src/` that landing touches |
+| suite | 4,205 collected / 51 skipped || lint | **9 pre-existing errors** (`ruff check .`) under the rule set pinned in `pyproject.toml`, re-measured 2026-08-31 on this tree: 2 mid-file imports in `src/` (`generation.py`, `validation.py`) and 7 in `tools/measurements/`. It said 10 until the dead recount named below went with the joined role's landing and this line did not move with it. Re-measured again on the advisory-remark landing: still 9, none of them in the one file of `src/` that landing touches |
 
 ## What is being built right now
 
@@ -1120,6 +1119,75 @@ CORRECTED TWO OF THIS LANDING'S OWN DECISIONS.**
 **NINE SURFACES, against a residual that named three.** Each was found
 only after the one before it closed, and three of the nine were found
 by this landing's own reviews rather than by the residual.
+**R-P4-34 IS MEASURED AND NOT CLOSED (2026-08-31), AND THE MEASUREMENT
+SAYS THE RESIDUAL UNDERSTATED ITSELF AND THE CONTRACT SAID SOMETHING
+FALSE.** The landing set out to publish `shape_forms` PER LEVEL. What
+it produced is the reproduction, two corrected passages of the
+governing contract, and a written price -- because the closure turns
+out to need an owner ruling rather than an implementer.
+
+**THE REPRODUCTION IS A PAIR, and the pair is the whole argument.** Two
+209-row source columns differ only in WHICH held-back spelling of one
+level wore the written form -- five rows and three, then three and
+five. Run through the real reader, producer, loader, generator and
+validator, their published level entries come out IDENTICAL key for
+key (`variants {'e11.9': 20}`, `variants_withheld {'3': 1, '5': 1}`),
+their twins IDENTICAL cell for cell, **and their censuses different:
+`@%%.%` at 206 and at 204.** So one of the two verdicts is wrong
+whatever rule the generator uses, and `synthtwin validate` says
+`MISSED 206 -> 204` on the first and `HELD 204 -> 204` on the second.
+No reordering closes it; the description does not carry the fact.
+
+**AND IT MISSES IN BOTH DIRECTIONS, WHICH NOTHING SAID.** The residual
+said the census "can fall one group short". Publish the OTHER case of
+the same label and the same pair reads `MISSED 204 -> 206`: the twin
+writes MORE cells in a form than any source cell wore. Over 120 built
+columns of that family at a floor of eleven: **57 met the census, 31
+fell short, 32 ran past it.** (What the trial covers is that family and
+nothing else.)
+
+**TWO PASSAGES OF THE CONTRACT ARE CORRECTED, and the second is the
+better finding.** Section 7.9.1 named the label's-own-spelling offer as
+one of "two things that narrow it" -- and measurement says that rule is
+exactly what produces the overshoot, because it hands the scarce
+form-keeping spelling to the LARGEST held-back group whether or not
+that is the group the source wrote in the form. A narrowing in one
+direction is a widening in the other, and the document claimed only the
+first. The section 9 disposition row carried the same half-truth.
+Neither correction moves a class or an obligation; both state a bound
+the tool already had.
+
+**WHY THE FACT WAS NOT BUILT, and the first reason is not the cost.**
+A per-level census would be ONE NUMBER per level, not a map -- every
+form-bearing spelling of a level wears exactly its label's form, which
+is proved rather than assumed and is asserted in the witness file. But
+publishing it puts a SPELLING PROPERTY on an IDENTIFIED below-floor
+group: subtract the published spellings' own form cells from it and
+which held-back group was written without surrounding whitespace falls
+out. Section 12 records the held-back facts as publishing
+"SIZES and COUNTS of unnamed groups"; this widens that, and the column
+census itself reached the owner as amendment A-P4-36. **It is an owner
+question, not a landing.** Two more costs are recorded with it: the
+column census is NOT the sum of the per-level ones (R-P4-80, three
+reasons and a committed frozen vector that settles it), and the
+independent oracle would have to implement a new G8.2 allocation by
+hand and re-derive its cells.
+
+**AND THE WIRING'S OWN BLAST RADIUS IS MEASURED, so the next reader
+prices it from a number.** Adding the key to the producer, the
+description schema and the loader ALONE -- no generator rule, no
+validator subcheck, no contract, no disposition -- turns **nine tests
+red**: four of them the two FROZEN reference vectors (`label_variants`
+and `long_tail_levels`, each failing two tests, refused by the loader
+because their hand-written level entries carry no such key), two
+goldens, and three plain expectations. That is the floor of the cost
+and not the cost.
+
+The defect is a WITNESS rather than a silence:
+`tests/test_p4r34_form_census_per_level.py` pins both directions at
+their exact published and achieved counts, the indistinguishable pair,
+and the one-form-per-level property any closure rests on. Each test
+fails when the defect is repaired, which is when the witness should go.
 
 ## What the owner has decided, and must not be re-asked
 

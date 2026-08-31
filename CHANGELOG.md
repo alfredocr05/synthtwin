@@ -6,6 +6,35 @@ exists).
 
 ## [Unreleased]
 
+### Fixed: the contract said a rule narrowed a shortfall that it also widens
+
+- **The census of written forms misses in BOTH directions, and two
+  passages of the format contract said it misses in one** (residual
+  R-P4-34, measured). A column of codes publishes how many of its cells
+  were written in each shape. Where the disclosure floor holds back
+  more than one spelling of a published label, the description does not
+  say which of them wore that shape -- so the twin has to guess.
+  Measured over 120 built columns of that family: 57 met the published
+  census, 31 wrote too few cells in the shape and 32 wrote too many.
+  What that trial covers is that family and nothing else. The contract
+  named the rule that offers a label's own spelling to its largest
+  held-back group as one of two things that
+  "narrow" the shortfall; measurement says that rule is what produces
+  the overshoot, so it narrows in one direction and widens in the
+  other, and both passages now say so. No published number moves, no
+  twin cell is different and no obligation changes: what changes is
+  that the document states the bound the tool already had.
+
+### Added: the shortfall is a witness rather than a silence
+
+- **Both directions are pinned at their exact counts**
+  (`tests/test_p4r34_form_census_per_level.py`). Two source columns
+  differing only in which held-back spelling wore the shape publish
+  identical level entries, produce identical twins, and publish
+  different censuses -- which is what says no rule reading the
+  description can be right about both. Each test fails when the defect
+  is repaired, which is when it should go.
+
 ### Added: four columns that were described correctly and silently now speak
 
 Each of these adds a SENTENCE and nothing else. No role changes, no
