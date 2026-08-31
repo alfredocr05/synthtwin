@@ -3515,6 +3515,38 @@ declaration for only one of them.
   would find are wording rather than obligations. NF50's own rendering
   was checked against this measurement and is identical.
 
+- **R-P4-71 — OPEN (opened 2026-08-31, found by WIDENING a fixture
+  rather than by a review).** THE JOINED ROLE CANNOT HOLD THE
+  ALL-DIFFERENT OBLIGATION.
+
+  Contract 9.8 binds it on EVERY role: where a column publishes
+  `n_distinct == n_present` its present values are all different, and
+  three places it cannot bind are named and tested. This role is a
+  fourth and was not known to be, because no fixture that reaches
+  method G11's check ever built it.
+
+  **Measured** on the every-role description the generator's own tests
+  use, once the joined column was added to it (review item
+  P4-A2-R4-F1): 240 different readings published, **238 held**. Each
+  position is drawn to its own ladder and the pairing then decides
+  which numbers meet, so how many different CELLS come out is a
+  consequence of the walk rather than a target -- the same mechanism
+  residual R-P4-40 prices, seen through a different obligation.
+
+  **NOTHING IS SILENT, and that is why this is a residual and not a
+  defect being hidden.** The two counts are exactly observable
+  (P4-D29), so `synthtwin validate` reports the shortfall -- measured,
+  `joined.n_distinct` 240 against 238 -- and the twin's own report
+  names it before anybody runs the check. What is missing is the
+  ability to MEET it, which R-P4-40's description change would buy.
+
+  `test_a_column_of_all_different_values_stays_all_different` excludes
+  this role and cites this entry. It is not excused in the contract:
+  9.8's list of places the obligation cannot bind is about facts a
+  profile does not publish, and this profile publishes the count.
+  Deciding whether this role joins that list, or whether the draw is
+  made to meet the count, is work R-P4-40 already owns.
+
 - **R-P4-68 — OPEN (opened 2026-08-31 by adversarial round P4-A2-R2,
   item 2; PRE-EXISTING, and found the moment a guard was asked for its
   own premise).** A COLUMN WRITTEN IN COMPACT EXPONENT FORM GETS A TWIN

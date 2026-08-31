@@ -61,10 +61,17 @@ Change = typing.Callable[[Document], None]
 def table_text() -> str:
     """A neutral table with one column for every role in the taxonomy.
 
-    The builder in `fixtures` covers nine of the ten; a column of
-    numbers no binary64 can hold is added here so that the tenth is
+    The builder in `fixtures` covers most of them; a column of numbers
+    no binary64 can hold is added here so the unrepresentable role is
     covered too, and so that the battery has a block of every shape to
     damage.
+
+    A JOINED column is added for the same reason and needs a
+    declaration to be one. Without it this battery had no `JoinedFacts`
+    block at all, so the loader's own rules about that role -- the
+    range its rank agreements lie in, the length of its per-position
+    widths -- could be deleted with every mutation here still green
+    (review item P4-A2-R4-F3).
 
     A column of dates AND times in two offsets is added for the same
     reason. The builder's own column of dates carries no time of day,
@@ -73,7 +80,8 @@ def table_text() -> str:
     (review item P2-C3-F2).
     """
     lines = [line for line in fixtures.every_role_table().split("\n") if line]
-    rows = [f"{lines[0]},huge,logged_at"]
+    joined = fixtures.joined_column_text()
+    rows = [f"{lines[0]},huge,logged_at,{fixtures.JOINED_COLUMN}"]
     for index, line in enumerate(lines[1:]):
         huge = "1e999" if index % 2 else "-2e400"
         offset = "+02:00" if index % 2 else "-05:00"
@@ -82,7 +90,7 @@ def table_text() -> str:
             f"{index % 24:02d}:{(index * 11) % 60:02d}:"
             f"{(index * 7) % 59 + 1:02d}{offset}"
         )
-        rows.append(f"{line},{huge},{stamp}")
+        rows.append(f"{line},{huge},{stamp},{joined[index]}")
     return "\n".join(rows) + "\n"
 
 
@@ -107,7 +115,11 @@ def base(tmp_path_factory: pytest.TempPathFactory) -> Document:
     path = fixtures.write(folder, "table.csv", table_text())
     table = reading.read_table(str(path))
     document = profile.build_document(
-        table, taxonomy.Settings(small_cell_floor=11), ["record_code"]
+        table,
+        taxonomy.Settings(small_cell_floor=11),
+        ["record_code"],
+        [],
+        [fixtures.JOINED_COLUMN],
     )
     return json.loads(json.dumps(document))
 
@@ -1164,8 +1176,8 @@ def test_the_base_document_loads(
 ) -> None:
     """The description every mutation starts from is accepted as it is."""
     loaded = contract.load_profile(written(tmp_path, base))
-    assert loaded.n_columns == 15
-    assert len(loaded.columns) == 15
+    assert loaded.n_columns == 16
+    assert len(loaded.columns) == 16
 
 
 def test_every_mutation_starts_from_a_document_that_loads(

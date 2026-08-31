@@ -97,6 +97,78 @@ GOLDEN_SEED = 20260811
 NORMALIZED_VERSION = "(version normalized for the golden test)"
 
 
+def test_widening_the_demonstration_lost_no_obligation() -> None:
+    """The golden's own table gained a column; nothing may have LEFT.
+
+    Review item P4-A2-R4-F6. When the joined column joined this
+    demonstration the four digests moved, and what justified re-recording
+    them was a COUNT: 407 checks became 479, 126 listings became 138.
+    A count is cardinality and not identity -- an obligation of the
+    original thirteen columns could have gone while a pressure one
+    arrived, the total would still have risen, the run would still show
+    no miss because an absent check files none, and the new digest
+    would have blessed the exchange.
+
+    That is the lesson this repository already wrote down for its
+    suite-size guard, under residual R-P4-65, and then repeated here.
+    So the comparison is by IDENTITY: every obligation the narrower
+    table carried is still carried, and every original column's twin
+    cells are byte-identical.
+    """
+    import tempfile
+
+    def measured(text: str, declared: "list[str]") -> object:
+        folder = pathlib.Path(tempfile.mkdtemp())
+        path = fixtures.write(folder, "table.csv", text)
+        table = reading.read_table(str(path))
+        document = profile.build_document(
+            table,
+            taxonomy.Settings(small_cell_floor=11),
+            ["record_code"],
+            [],
+            declared,
+        )
+        document["created_with"] = NORMALIZED_VERSION
+        written = fixtures.write_profile(folder, "p.json", document)
+        loaded = contract.load_profile(str(written))
+        twin = generation.generate(loaded, GOLDEN_SEED)
+        twin_path = fixtures.write(
+            folder, "twin.csv", rendering.twin_csv(twin)
+        )
+        outcome = validation.measure(loaded, str(twin_path))
+        return (
+            {(c.column, c.fact, c.subcheck) for c in outcome.checks},
+            {
+                (entry.column, entry.fact, entry.subcheck)
+                for entry in outcome.listings
+            },
+            twin,
+        )
+
+    narrow_checks, narrow_listings, narrow_twin = measured(
+        fixtures.every_role_table(), []
+    )
+    wide_checks, wide_listings, wide_twin = measured(
+        fixtures.every_role_and_joined_table(), [fixtures.JOINED_COLUMN]
+    )
+    assert not narrow_checks - wide_checks, (
+        "the widened demonstration no longer carries these checks: "
+        f"{sorted(narrow_checks - wide_checks)}"
+    )
+    assert not narrow_listings - wide_listings, (
+        "the widened demonstration no longer carries these listings: "
+        f"{sorted(narrow_listings - wide_listings)}"
+    )
+    for name in narrow_twin.names:
+        before = narrow_twin.columns[narrow_twin.names.index(name)]
+        after = wide_twin.columns[wide_twin.names.index(name)]
+        assert list(before) == list(after), (
+            f"the twin's {name!r} column changed when a column was added "
+            "beside it, so the draw order moved and every digest below "
+            "describes a different run than it says"
+        )
+
+
 @pytest.fixture(scope="module")
 def description(tmp_path_factory: pytest.TempPathFactory) -> pathlib.Path:
     """The description the golden twin is built from, written to a file.

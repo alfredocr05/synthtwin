@@ -307,6 +307,23 @@ def every_role_and_joined_table(n_rows: int = 240) -> str:
     return "\n".join(rows) + "\n"
 
 
+def joined_column_text(n_rows: int = 240) -> "list[str]":
+    """Just the joined column's cells, for a caller splicing its own table.
+
+    `test_generation` builds its every-role text by appending a column
+    of its own to the shared table, and a column inserted BEFORE that
+    one shifts its draws: one stream feeds every column in order, so
+    where a column sits decides what it is handed (review item
+    P4-A2-R4-F1). A caller that already appends can append this too and
+    keep its own column last.
+    """
+    return [
+        line.split(",")[0]
+        for line in joined_numbers_table(n_rows=n_rows).split("\n")[1:]
+        if line
+    ]
+
+
 def joined_numbers_table(n_rows: int = 120) -> str:
     """A column of two numbers written in one cell, for the battery.
 

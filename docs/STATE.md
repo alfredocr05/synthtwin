@@ -28,7 +28,7 @@ without the same help.
 | branch | `phase-4-allotment` (never merged; `main` is pull-request only) |
 | phase | **Phase 4 — comprehensive column handling.** Current. |
 | plan | `docs/plans/phase-4-columns.md` |
-| suite | 4,162 collected / 51 skipped |
+| suite | 4,163 collected / 51 skipped |
 | lint | **9 pre-existing errors** (`ruff check .`) under the rule set pinned in `pyproject.toml`, re-measured 2026-08-31 on this tree: 2 mid-file imports in `src/` (`generation.py`, `validation.py`) and 7 in `tools/measurements/`. It said 10 until the dead recount named below went with the joined role's landing and this line did not move with it. This landing adds none, and the one file of `src/` it touches carries one of the two that were already there |
 
 ## What is being built right now
@@ -897,6 +897,58 @@ last round's guard had been landed.** Five control gaps, all real.
 residual named three. That is the shape worth carrying: a completeness
 guard proves its own completeness against a fixture, so the question
 is never "does the guard pass" but "what does its fixture contain".
+
+**ROUND 4 FOUND THE SEVENTH AND EIGHTH SURFACES, and two of my own
+repairs falling short.** Six items, every one a control gap.
+
+* **The round-3 repair to the generator's own tests was incomplete and
+  I reported it done.** The fixture changed to the combined table and
+  its docstring said callers must declare the column -- and the
+  declaration was never threaded through the helpers, so the file had
+  a `pressure` column that was NOT the joined role. It also put that
+  column BEFORE the pre-existing `huge` one, which moves `huge`'s
+  draws, since one stream feeds every column in order. Both repaired:
+  the declaration reaches every call site, and the column is appended
+  LAST so nothing already there moves.
+* **"Exact equality against the taxonomy" was equality against a list
+  beside it.** Two hand-maintained structures compared with each
+  other. It is `taxonomy.ROLES` now, with a separate assertion that
+  `ROLE_GROUPS` is total over the same set.
+* **THE LOADER'S MUTATION BATTERY** says it holds "a block of every
+  shape to damage" and built no `JoinedFacts` at all, so the loader's
+  own rules for that role could be deleted with all 165 mutations
+  green. It has a declared joined block now.
+* **THE COMMAND LINE.** The whole-command test claimed every role the
+  profiler can publish, called `build_document` directly, and never
+  ran `--measurement`. So the wiring from the command line to the
+  producer could be dropped while the direct producer, the generator,
+  the validator and the golden stayed green -- the zero-code route
+  losing the ability to make the role and nothing noticing. It runs
+  the documented command now, and breaking that wiring fails it.
+* **The two witnesses kept only the SET of missed names**, so the
+  defect could WORSEN -- cells a thousand characters wide miss the
+  same two subchecks as cells three hundred wide -- and still pass.
+  They pin the exact published and achieved values now.
+* **I justified re-recording four golden digests by COUNTING.** A
+  count is cardinality, not identity: an obligation of the original
+  thirteen columns could have gone while a new one arrived, the total
+  still rise, and the fresh digest bless the exchange. Measured
+  properly: **zero lost by identity, all thirteen original twin
+  columns byte-identical.** The re-record was sound and the method was
+  not, so the identity comparison is a test now. That is residual
+  R-P4-65's own lesson, which this page records and I then repeated.
+
+**AND WIDENING A FIXTURE FOUND A DEFECT NO REVIEW HAD: R-P4-71.**
+Contract 9.8 binds the all-different obligation on EVERY role, with
+three named places it cannot. The joined role is a fourth: 240
+different readings published, 238 held, because the pairing decides
+which numbers meet and how many different cells result is a
+consequence rather than a target. Nothing is silent -- the counts are
+exactly observable, so both pages report the shortfall -- and the
+generator's own test excludes the role citing the residual rather than
+excusing it in the contract.
+
+**EIGHT SURFACES, against a residual that named three.**
 
 ## What the owner has decided, and must not be re-asked
 

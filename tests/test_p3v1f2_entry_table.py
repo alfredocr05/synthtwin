@@ -5726,12 +5726,20 @@ def test_the_compact_exponent_column_is_still_broken(
     )
     twin = rendering.twin_csv(generation.generate(described, SEED))
     outcome = _measured(tmp_path, described, twin, "exponent-witness.csv")
+    # THE EXACT VALUES, not the set of names. Keeping only the names
+    # let the defect WORSEN and still pass: cells a thousand characters
+    # wide miss the same two subchecks as cells three hundred wide
+    # (review item P4-A2-R4-F5). What is pinned is the shape of the
+    # defect as recorded, so this test moves when the defect does.
     missed = {
-        check.subcheck
+        check.subcheck: (check.published, check.achieved)
         for check in outcome.checks
         if check.verdict == validation.MISSED
     }
-    assert missed == {"counts.min_length", "counts.max_length"}, missed
+    assert missed == {
+        "counts.min_length": ("5", "310"),
+        "counts.max_length": ("6", "311"),
+    }, missed
     assert _residual_is_open("R-P4-68"), (
         "this witness asserts a defect R-P4-68 records; if that residual "
         "has closed, the witness is what should go"
@@ -5756,15 +5764,18 @@ def test_the_pooled_fraction_column_still_changes_role(
     )
     twin = rendering.twin_csv(generation.generate(described, SEED))
     outcome = _measured(tmp_path, described, twin, "pooled-witness.csv")
+    # THE ACHIEVED VALUES TOO, so the witness pins what the twin turns
+    # this column INTO and not merely that something moved (review item
+    # P4-A2-R4-F5).
     missed = {
-        check.subcheck
+        check.subcheck: (check.published, check.achieved)
         for check in outcome.checks
         if check.verdict == validation.MISSED
     }
     assert missed == {
-        "axes.role",
-        "axes.statistical_type",
-        "type.integer_valued",
+        "axes.role": ("continuous", "count"),
+        "axes.statistical_type": ("continuous", "count"),
+        "type.integer_valued": ("no", "yes"),
     }, missed
     assert _residual_is_open("R-P4-69"), (
         "this witness asserts a defect R-P4-69 records; if that residual "
