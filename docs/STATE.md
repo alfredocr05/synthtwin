@@ -28,8 +28,8 @@ without the same help.
 | branch | `phase-4-allotment` (never merged; `main` is pull-request only) |
 | phase | **Phase 4 — comprehensive column handling.** Current. |
 | plan | `docs/plans/phase-4-columns.md` |
-| suite | 4,132 collected / 48 skipped |
-| lint | clean (`ruff check .`), under the rule set pinned in `pyproject.toml` |
+| suite | 4,133 collected / 51 skipped |
+| lint | **10 pre-existing errors** (`ruff check .`) under the rule set pinned in `pyproject.toml`, measured 2026-08-31 at `c10f5f6`; every file this landing touched is clean |
 
 ## What is being built right now
 
@@ -414,19 +414,90 @@ contract had never written for Phase 4's roles, the corrected censuses,
 amendments A-P4-40 and A-P4-41, and the obligations landing with two
 adversarial rounds behind it.
 
-**R-P4-25 is HALF closed, and the half that was safety-critical is the
-one that landed.** Version 6 is now in the sealed governing set, so the
-2,016 distinct passages of the contract that governs every description this tree
-writes are under the seal — they were outside it, carried as a "draft
-under adversarial review", while `PROFILE_VERSION` had been 6 in the
-producer and the loader for days. A disposition quietly lowered in it
-moved nothing red. Found at the third adversarial read.
+**R-P4-25 IS CLOSED (2026-08-31, landing A1). The disposition
+machinery reads the contract that GOVERNS.** The safety-critical half
+landed earlier: version 6 joined the sealed governing set, so the
+contract that governs every description this tree writes is under the
+seal -- it had been outside it, carried as a "draft under adversarial
+review", while `PROFILE_VERSION` was already 6 in the producer and the
+loader.
 
-**What is still owed of R-P4-25:** the disposition-registry MATRIX
-still reads version 4's section 9 plus version 5's deltas. Repointing
-it at version 6 means remapping three sub-table headings that changed
-when the new roles landed, and it is its own commit. The seal no longer
-depends on it.
+The rest landed now. BOTH matrix readers took version 4's section 9
+merged with version 5's delta -- the record of what two superseded
+versions required -- so the agreement they asserted was luck rather
+than design. **The second reader was not named in the residual and was
+found by looking for the first one's siblings**, which is this
+project's standing lesson paying again: `_matrix` in
+`tests/test_p2c4f1_disposition_registry.py`, and `_matrix_rows` /
+`_matrix_sections` in `tests/test_p2c1f4_approximation_bounds.py`.
+
+**What the migration DELETED is the measure of it.** Every one of these
+existed only because a reader was asking a document about roles it
+predates:
+
+* `GROUPS_OUTSIDE_THE_VERSION_4_MATRIX` -- `affixed` and `clock` stood
+  outside a matrix entirely. Version 6 gives each a sub-table, so both
+  bind, and every registered group is in `CONTRACT_SECTIONS` now with
+  no exemption left in the totality assertion.
+* the carve-out list, **13 rows to 6**. What remains is exactly the
+  family that landed AFTER amendment A-P4-46 froze the contract -- the
+  histogram, the kurtosis, the value count, the mode pair and the finer
+  ladder -- each held to the Phase 4 plan.
+* `FACTS_A_LATER_VERSION_REDISPOSES`, the `missing_by_source` class
+  exception; six families of exemption in the second reader; and the
+  version 5 delta reader.
+* **the clock role's approximated inventory stopped being written out
+  by hand.** It is read from version 6's own table -- and what version
+  6 produces is character for character the list that had been written
+  there, which is what says the migration kept the obligation rather
+  than moving it.
+
+**ONE CONTRACT EDIT, under a counted diff read before re-sealing.**
+Version 6's 9.6 row for the clock ladder ends names
+`clock_percentiles.min` and `.max` now instead of describing them in
+prose, as the datetime table beside it already did. One passage out,
+one in, 2,016 both sides, class unchanged.
+
+**ROUND P4-A1-R1 REJECTED IT WITH FOUR ITEMS AND EVERY ONE WAS REAL.**
+Two were HIGH:
+
+* **The affixed sub-table's RESTATED rows were checked by name and not
+  by class.** Version 6 restates the numeric dispositions over the
+  cores, and those keys stay registered under `numeric`, so the
+  key-by-key walk looked up `("affixed", "mean")`, found nothing and
+  skipped the row. Lowering the restated `mean`, `std`, `skew` to
+  REPORT-ONLY left both readers GREEN -- reproduced -- and only the
+  SEAL went red. **A seal is not the net for a lowering**, because a
+  seal is re-written whenever an edit is intended. The restatement is
+  held to the numeric table in both directions now, with the two
+  delegating rows ("as on `count` and `continuous` above") resolved
+  mechanically. Three mutations verify it.
+* **Section 9.4a was newly PARSED and claimed by nothing.** The joined
+  role's table is read and visited by no group, so deleting or
+  lowering `part_agreements` moves no guard. Before the migration it
+  was not parsed at all, so the hole was equally open -- what changed
+  is that it now LOOKS covered, which is worse. It is named, with the
+  residual that owes it, and a totality guard fails if another orphan
+  appears or if the excuse outlives R-P4-62. **That residual is the
+  next landing's whole subject.**
+
+The other two: the landing had not moved this page or the plan (both
+done here), and **R-P4-63** -- the loader's own docstring said version
+5 was normative with `PROFILE_VERSION` at 6, which is fixed here, plus
+two specification-text guards still reading version 4, which are NOT
+fixed and are priced in the register with the measurement behind the
+price.
+
+**AND THE ENVIRONMENT ATE THIS LANDING ONCE, which is worth more than
+the landing.** Mid-way through a full suite run, the eight files this
+work had modified were restored to their committed state -- measured:
+exactly the modified set and their caches, at one timestamp, with no
+`git` reflog entry, which is what an external restore or a
+`git checkout --` leaves. **This repository lives inside a
+cloud-synced folder.** The work was recoverable only because a diff
+had been written outside that folder minutes earlier. **Commit early,
+and keep a copy of uncommitted work outside the synced tree**; a green
+suite is not durable here until it is committed.
 
 ## What the owner has decided, and must not be re-asked
 

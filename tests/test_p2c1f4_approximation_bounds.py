@@ -189,7 +189,45 @@ RUNGS = (
 )
 
 # The containers whose interior rungs the matrix disposes as one row.
-RUNG_HOLDERS = ("percentiles", "date_percentiles")
+# `clock_percentiles` joins now that the clock role is READ out of
+# version 6's own table rather than having its inventory stated.
+NUMERIC_SECTION = (
+    "9.4 The numeric roles: `count`, `continuous`, `affixed_number`"
+)
+LABEL_SECTION = (
+    "9.5 The label roles: `constant`, `binary`, `categorical`, "
+    "`long_tail_labels`"
+)
+
+RUNG_HOLDERS = ("percentiles", "date_percentiles", "clock_percentiles")
+
+
+# A bold line naming ONE role opens that role's sub-table inside a
+# shared numbered section -- 9.4's affixed block, 9.6's two roles, 9.7's
+# three. A bold naming several ("`count` and `continuous`") opens
+# nothing, so those rows stay under the numbered heading.
+_SUB_TABLE = re.compile(r"^\*\*`([a-z_]+)`\.?\*\*")
+
+# A role named in a parenthetical qualifier is not a field: 9.5 reads
+# "`level_ceiling` (`categorical` only)". Matched on shape rather than
+# against a list of role names, because `count` is both a role and a
+# real sub-key of the `levels` row.
+_QUALIFIER = re.compile(r"\(`[a-z_]+` only\)")
+
+
+def _unqualified(cell: str) -> str:
+    """The first cell of a row with any role qualifier removed."""
+    return _QUALIFIER.sub("", cell)
+
+
+def _sub_table(line: str, heading: str) -> "str | None":
+    """The heading a bold role line opens, or None if it opens nothing."""
+    if not heading:
+        return None
+    found = _SUB_TABLE.match(line.strip())
+    if found is None or found.group(1) not in dispositions.ROLES:
+        return None
+    return f"{heading.split()[0]} {found.group(1)}"
 
 
 def _matrix_rows() -> "dict[str, list[tuple[tuple[str, ...], str]]]":
@@ -200,7 +238,7 @@ def _matrix_rows() -> "dict[str, list[tuple[tuple[str, ...], str]]]":
     Order matters here: the inventory below is derived from it, and the
     run emits its measurements in the same order.
     """
-    text = (SPEC / "profile-contract-v4.md").read_text(encoding="utf-8")
+    text = (SPEC / "profile-contract-v6.md").read_text(encoding="utf-8")
     start = text.index("## 9. The disposition matrix")
     body = text[start:text.index("\n## ", start + 10)]
     sections: dict[str, list[tuple[tuple[str, ...], str]]] = {}
@@ -208,11 +246,12 @@ def _matrix_rows() -> "dict[str, list[tuple[tuple[str, ...], str]]]":
     for line in body.split("\n"):
         if line.startswith("### "):
             heading = line[4:].strip()
-            sections[heading] = []
+            sections.setdefault(heading, [])
             continue
-        if line.startswith("**`") and heading.startswith("9.7"):
-            heading = f"9.7 {line.strip().strip('*').strip('`')}"
-            sections[heading] = []
+        opened = _sub_table(line, heading)
+        if opened is not None:
+            heading = opened
+            sections.setdefault(heading, [])
             continue
         if not line.startswith("|") or not heading:
             continue
@@ -220,7 +259,7 @@ def _matrix_rows() -> "dict[str, list[tuple[tuple[str, ...], str]]]":
         if len(cells) < 2 or set(cells[0]) <= set("-: "):
             continue
         sections[heading].append(
-            (tuple(re.findall(r"`([^`]+)`", cells[0])), cells[1])
+            (tuple(re.findall(r"`([^`]+)`", _unqualified(cells[0]))), cells[1])
         )
     return sections
 
@@ -252,43 +291,42 @@ def _approximated_of(rows: "list[tuple[tuple[str, ...], str]]") -> "tuple[str, .
 APPROXIMATED = {
     role: _approximated_of(_matrix_rows()[section])
     for role, section in {
-        "count": "9.4 The numeric roles: `count`, `continuous`",
-        "continuous": "9.4 The numeric roles: `count`, `continuous`",
-        "datetime": "9.6 `datetime`",
+        "count": NUMERIC_SECTION,
+        "continuous": NUMERIC_SECTION,
+        "datetime": "9.6 datetime",
         "free_text": "9.7 free_text",
-        "constant": "9.5 The label roles: `constant`, `binary`, `categorical`",
-        "binary": "9.5 The label roles: `constant`, `binary`, `categorical`",
-        "categorical": (
-            "9.5 The label roles: `constant`, `binary`, `categorical`"
-        ),
-        "affixed_number": "9.4 The numeric roles: `count`, `continuous`",
+        "constant": LABEL_SECTION,
+        "binary": LABEL_SECTION,
+        "categorical": LABEL_SECTION,
+        # The affixed role's quantitative block IS the numeric block
+        # read over the cores, so it owes what the numeric roles owe.
+        # Version 6 restates those rows in its own sub-table; the
+        # inventory is read from the numeric section either way, which
+        # keeps one source for the approximations that carry a
+        # distribution.
+        "affixed_number": NUMERIC_SECTION,
         # A long tail publishes the label roles' own four keys and
         # nothing else, so it owes what they owe, read from their
         # section (plan P4-D5).
-        "long_tail_labels": (
-            "9.5 The label roles: `constant`, `binary`, `categorical`"
-        ),
+        "long_tail_labels": LABEL_SECTION,
+        # READ, not stated. Version 6 gives this role its own table --
+        # `clock_form`, both ladder ends, the interior rungs, the
+        # unparsed count and the two distinctness counts -- so the
+        # inventory comes out of the contract like every other role's.
+        # Version 4 had no such table, which is why it used to be
+        # written out here (residual R-P4-25).
+        "time_of_day": "9.6 time_of_day",
     }.items()
 }
 
-# THE CLOCK ROLE'S INVENTORY IS STATED, because no matrix row carries
-# it. The role borrows the datetime SECTION for the completeness walk
-# -- its ladder is the date ladder's shape in another ordinal space --
-# but the two documents name different keys: version 4 disposes
-# `date_percentiles` and the offset fields, which this role publishes
-# none of, and this role publishes `clock_percentiles`, which version 4
-# never heard of. So the three approximated facts are written out here
-# against the plan clauses that decide them, and the reverse walk over
-# the matrix skips the role rather than demanding it carry rows about
-# somebody else's keys.
-APPROXIMATED["time_of_day"] = tuple(
-    [f"clock_percentiles.{name}" for name in RUNGS]
-    + ["n_distinct", "n_distinct_folded"]
-)
-
-# Roles whose approximated inventory is stated above rather than read
-# out of the version 4 matrix, and why: the matrix predates them.
-ROLES_STATED_RATHER_THAN_READ = ("time_of_day",)
+# NO ROLE'S INVENTORY IS STATED RATHER THAN READ ANY MORE. The clock
+# role's three approximated facts used to be written out here, because
+# the version 4 matrix this file read had no table for a role that
+# version never had. Version 6 has one, so the inventory is read from
+# it -- and the list version 6 produces is character for character the
+# list that used to be written here, which is what says the migration
+# kept the obligation rather than moving it (residual R-P4-25).
+ROLES_STATED_RATHER_THAN_READ: "tuple[str, ...]" = ()
 
 
 def _matrix_sections() -> "dict[str, dict[str, str]]":
@@ -300,13 +338,13 @@ def _matrix_sections() -> "dict[str, dict[str, str]]":
     rather than restating it is the point: a matrix that gains a field,
     loses one, or changes a disposition moves these tests.
 
-    VERSION 5 IS READ WITH IT, because version 5 carries version 4 by
-    reference and states only its delta (its C5-30 requires the
-    completeness assertion to pass against the two read together).
-    `dispositions.CONTRACT5_SECTIONS` says which version 4 table each
-    delta row belongs to.
+    VERSION 6 IS READ ALONE, because it states the whole matrix and is
+    the version that governs: `PROFILE_VERSION` is 6, so every
+    description this tree writes is a version 6 one. This used to read
+    version 4 merged with version 5's delta table -- the record of what
+    two superseded versions required -- which is residual R-P4-25.
     """
-    text = (SPEC / "profile-contract-v4.md").read_text(encoding="utf-8")
+    text = (SPEC / "profile-contract-v6.md").read_text(encoding="utf-8")
     start = text.index("## 9. The disposition matrix")
     body = text[start:text.index("\n## ", start + 10)]
     sections: dict[str, dict[str, str]] = {}
@@ -314,25 +352,20 @@ def _matrix_sections() -> "dict[str, dict[str, str]]":
     for line in body.split("\n"):
         if line.startswith("### "):
             heading = line[4:].strip()
-            sections[heading] = {}
+            sections.setdefault(heading, {})
             continue
-        if line.startswith("**`") and heading.startswith("9.7"):
-            heading = f"9.7 {line.strip().strip('*').strip('`')}"
-            sections[heading] = {}
+        opened = _sub_table(line, heading)
+        if opened is not None:
+            heading = opened
+            sections.setdefault(heading, {})
             continue
         if not line.startswith("|") or not heading:
             continue
         cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
         if len(cells) < 2 or set(cells[0]) <= set("-: "):
             continue
-        for name in re.findall(r"`([^`]+)`", cells[0]):
+        for name in re.findall(r"`([^`]+)`", _unqualified(cells[0])):
             sections[heading][name] = cells[1]
-    delta = dispositions.contract5_delta(SPEC / "profile-contract-v5.md")
-    for names, said in delta:
-        for name in names:
-            where = dispositions.CONTRACT5_SECTIONS.get(name)
-            if where is not None:
-                sections[where][name] = said
     return sections
 
 
@@ -340,23 +373,20 @@ def _matrix_sections() -> "dict[str, dict[str, str]]":
 # `numeric_unrepresentable` are here too, with no approximated field of
 # their own, because a role missing from this map would silently escape
 # the completeness check below.
-# The seven keys the affixed role ADDS. They are counts and spellings,
-# every one of them exactly observable off a written twin, and their
-# disposition is stated in the Phase 4 plan rather than in the version
-# 4 matrix -- which was written before the role existed.
-# ...and the one key the NUMERIC roles gained in the same phase. It
-# stands here for the same reason and no other: the version 4 matrix
-# was written before the census of fraction widths existed, and its
-# disposition is stated in the Phase 4 plan (P4-D4.5) and registered
-# under `numeric` in `tests/dispositions.py`.
-PHASE_4_NUMERIC_KEYS = ("fraction_widths", "pad_widths")
+#
+# SIX FAMILIES OF EXEMPTION USED TO STAND HERE and are gone, because
+# version 6 disposes what version 4 could not (residual R-P4-25): the
+# affixed role's own seven keys, the clock role's own five, both width
+# censuses, `shape_forms`, `resolution_mix`, and the unrepresentable
+# role's two lengths. Every one of them is read out of the contract
+# now. What remains below is exactly the family that landed AFTER
+# amendment A-P4-46 froze the contract, which is disposed in the Phase
+# 4 plan and checked against it by `dispositions.PLAN4_REGIONS`.
 
-# ...and the value histogram, which the owner asked for by name and
-# which version 4's matrix has no row for because version 4 published
-# no such key. It is EXACT-OBSERVABLE the way every census here is: put
-# each of the twin's values in its bin by the published ends, count
-# them, and the published census comes back. Disposed in the Phase 4
-# plan (P4-D4.7).
+# ...the value histogram, which the owner asked for by name. It is
+# EXACT-OBSERVABLE the way every census here is: put each of the twin's
+# values in its bin by the published ends, count them, and the
+# published census comes back. Disposed in the Phase 4 plan (P4-D4.7).
 PHASE_4_HISTOGRAM_KEYS = ("value_histogram",)
 
 # ...and the kurtosis, the owner's own second ask of 2026-08-26. It is
@@ -365,99 +395,47 @@ PHASE_4_HISTOGRAM_KEYS = ("value_histogram",)
 PHASE_4_MOMENT_KEYS = ("kurtosis",)
 
 # ...and the count of different NUMBERS, the owner's fourth ask and the
-# close of residual R-P4-20. EXACT-OBSERVABLE with a named deviation,
-# exactly as `n_distinct` beside it is; disposed in the Phase 4 plan
-# (P4-D4.9).
+# close of residual R-P4-20. Disposed in the Phase 4 plan (P4-D4.9).
 PHASE_4_VALUE_COUNT_KEYS = ("n_distinct_values",)
+
 # Plan P4-D4.11. The mode pair takes the same disposition as the value
 # count beside it and for the same reason: the generator carves no
 # stratum sized to a published count except the zero one, so no file is
 # held to the pair and the quality report LISTS it.
 PHASE_4_MODE_KEYS = ("mode", "mode_count")
+
 # Plan P4-D4.10. The finer ladder is REPORT-ONLY as ONE fact: no rung
 # of it has a subcheck, and the fidelity comes from the generator
 # interpolating it rather than from a file being held to any of them.
 PHASE_4_FINER_LADDER_KEYS = ("percentiles_between",)
 
-# ...and the census of written forms, which version 4's matrix has no
-# row for because version 4 had no such key. It is disposed in the
-# Phase 4 plan (P4-D18) and registered in `tests/dispositions.py`.
-PHASE_4_SHAPE_KEYS = ("shape_forms",)
-
-# ...and the two WIDTHS the unrepresentable role gained when the twin
-# stopped making up a canonical width for it. Version 4's matrix has no
-# row for them under that role because the role published no length at
-# all when the matrix was written. Both are EXACT-OBSERVABLE in the
-# strict sense this repository means by it: the generator recounts the
-# narrowest and widest value it actually wrote and files a deviation
-# naming whichever end it did not land on, so neither is ever missed
-# silently. The Phase 4 plan disposes them (P4-D4.4).
-PHASE_4_WIDTH_KEYS = ("min_length", "max_length")
-
-# ...and the form census a column of dates now carries, for the same
-# reason at one grain finer: version 4 HAS the datetime section, and
-# that section has no row for a key version 4 never published. The
-# Phase 4 plan disposes it (P4-D4.3) and the registry carries it.
-PHASE_4_DATETIME_KEYS = (
-    ("resolution_mix", "REPORT-ONLY (Phase 4 plan, P4-D4.3)"),
-)
-
-# ...and the clock role's own five, for the same reason: the version 4
-# matrix was written before the role existed, and the Phase 4 plan
-# disposes them (P4-D4.2, with A-P4-20 for the ladder).
-CLOCK_OWN_KEYS = (
-    ("clock_form", "EXACT-OBSERVABLE (Phase 4 plan, P4-D4.2)"),
-    ("clock_percentiles", "APPROXIMATED (Phase 4 plan, A-P4-20)"),
-    ("earliest", "EXACT-OBSERVABLE (Phase 4 plan, P4-D4.2)"),
-    ("latest", "EXACT-OBSERVABLE (Phase 4 plan, P4-D4.2)"),
-    ("n_unparsed", "EXACT-OBSERVABLE (Phase 4 plan, P4-D4.2)"),
-)
-
-AFFIXED_OWN_KEYS = (
-    "affix_prefix",
-    "affix_suffix",
-    "n_affixed",
-    "n_core_numeric",
-    "n_core_out_of_range",
-    "n_core_contradictory",
-    "n_core_not_numeric",
-)
-
 ROLE_SECTIONS = {
     "empty": "9.3 `empty`",
-    "count": "9.4 The numeric roles: `count`, `continuous`",
-    "continuous": "9.4 The numeric roles: `count`, `continuous`",
-    "constant": "9.5 The label roles: `constant`, `binary`, `categorical`",
-    "binary": "9.5 The label roles: `constant`, `binary`, `categorical`",
-    "categorical": "9.5 The label roles: `constant`, `binary`, `categorical`",
-    "datetime": "9.6 `datetime`",
+    "count": NUMERIC_SECTION,
+    "continuous": NUMERIC_SECTION,
+    "constant": LABEL_SECTION,
+    "binary": LABEL_SECTION,
+    "categorical": LABEL_SECTION,
+    "datetime": "9.6 datetime",
     "free_text": "9.7 free_text",
     "identifier": "9.7 identifier",
     "numeric_unrepresentable": "9.7 numeric_unrepresentable",
     # The affixed role reads the NUMERIC section, because its
-    # quantitative block IS the numeric block read over the cores (AF7)
-    # and every approximation the numeric roles carry it carries at the
-    # same width. Its own five keys are counts and spellings, none of
-    # them approximated, and they are registered in
-    # `tests/dispositions.py` -- the version 4 matrix this reads
-    # predates the role and states nothing about it.
-    "affixed_number": "9.4 The numeric roles: `count`, `continuous`",
-    # The clock role reads the DATETIME section: its ladder is the date
-    # ladder's shape in another ordinal space, its two ends are exact
-    # the same way, and its two distinctness counts are approximated
-    # for the same reason (plan P4-D4.2 with amendment A-P4-20). Its
-    # own five keys are counts, words and clock text, and they are
-    # registered in `tests/dispositions.py` -- the version 4 matrix
-    # this reads predates the role.
-    "time_of_day": "9.6 `datetime`",
-    # The long tail reads the LABEL section: its four keys ARE the
-    # label roles' four keys, under the same invariants, and it
-    # publishes no key of its own (plan P4-D5). `level_ceiling` is
-    # categorical's alone and this role does not carry it, which is
-    # why it is not simply the categorical row.
-    "long_tail_labels": (
-        "9.5 The label roles: `constant`, `binary`, `categorical`"
-    ),
+    # quantitative block IS the numeric block read over the cores
+    # (AF7). Version 6 also gives it a sub-table of its own for the
+    # seven keys it ADDS, and the walk merges that in -- so both halves
+    # are read from the contract now, where the seven used to be
+    # injected from a constant because version 4 predated the role.
+    "affixed_number": NUMERIC_SECTION,
+    # The clock role has its OWN table in version 6 and reads it. It
+    # used to borrow the datetime section, which disposes the date
+    # ladder and the offset fields it publishes none of, with its own
+    # five keys injected from a constant (residual R-P4-25).
+    "time_of_day": "9.6 time_of_day",
+    # The long tail reads the LABEL section: its keys ARE the label
+    # roles' keys, under the same invariants, and it publishes none of
+    # its own (plan P4-D5). Version 6's heading names it outright.
+    "long_tail_labels": LABEL_SECTION,
 }
 
 
@@ -1123,18 +1101,14 @@ def test_every_key_the_producer_emits_has_a_disposition(
             role = block["role"]
             reached.add(role)
             table = dict(sections[ROLE_SECTIONS[role]])
-            # The affixed role's own seven keys are disposed in the
-            # Phase 4 plan and registered in `tests/dispositions.py`;
-            # the version 4 matrix this reads predates the role and
-            # says nothing about them. Its QUANTITATIVE keys are not
-            # exempt and are checked against the numeric section like
-            # everything else -- which is the point, because those are
-            # the ones that carry a distribution.
+            # Version 6 states the affixed role's own seven keys in
+            # its own sub-table, so they are read rather than injected.
+            # The role's section here stays the NUMERIC one, because
+            # its quantitative block IS the numeric block read over the
+            # cores; the sub-table's own rows are merged in below.
             table = dict(table)
-            for own in AFFIXED_OWN_KEYS:
-                table[own] = "EXACT-OBSERVABLE (Phase 4 plan, P4-D4.1)"
-            for own in PHASE_4_NUMERIC_KEYS:
-                table[own] = "EXACT-OBSERVABLE (Phase 4 plan, P4-D4.5)"
+            if role == "affixed_number":
+                table.update(sections["9.4 affixed_number"])
             for own in PHASE_4_HISTOGRAM_KEYS:
                 table[own] = "EXACT-OBSERVABLE (Phase 4 plan, P4-D4.7)"
             for own in PHASE_4_MOMENT_KEYS:
@@ -1145,19 +1119,6 @@ def test_every_key_the_producer_emits_has_a_disposition(
                 table[own] = "REPORT-ONLY (Phase 4 plan, P4-D4.11)"
             for own in PHASE_4_FINER_LADDER_KEYS:
                 table[own] = "REPORT-ONLY (Phase 4 plan, P4-D4.10)"
-            for own in PHASE_4_SHAPE_KEYS:
-                table[own] = "EXACT-OBSERVABLE (Phase 4 plan, P4-D18)"
-            for own, said in PHASE_4_DATETIME_KEYS:
-                table[own] = said
-            if role == "numeric_unrepresentable":
-                for own in PHASE_4_WIDTH_KEYS:
-                    table[own] = "EXACT-OBSERVABLE (Phase 4 plan, P4-D4.4)"
-            if role == "time_of_day":
-                # The datetime section it borrows disposes the DATE
-                # ladder and the offset fields, none of which this role
-                # publishes; what it does publish is these five.
-                for own, said in CLOCK_OWN_KEYS:
-                    table[own] = said
             missing = _undisposed(_emitted_names(block), table, universal)
             assert missing == [], f"{role}: {missing}"
     assert reached == set(ROLE_SECTIONS)
@@ -1177,8 +1138,6 @@ def test_the_completeness_assertion_refuses_a_key_nobody_disposed(
         if block["role"] != "count":
             continue
         table = dict(sections[ROLE_SECTIONS["count"]])
-        for own in PHASE_4_NUMERIC_KEYS:
-            table[own] = "EXACT-OBSERVABLE (Phase 4 plan, P4-D4.5)"
         for own in PHASE_4_HISTOGRAM_KEYS:
             table[own] = "EXACT-OBSERVABLE (Phase 4 plan, P4-D4.7)"
         for own in PHASE_4_MOMENT_KEYS:

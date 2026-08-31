@@ -80,7 +80,6 @@ entry can excuse a sentence that was not already in the seal.
 
 import hashlib
 import pathlib
-import re
 import typing
 
 # -- the governing documents, and how a passage of one is named --
@@ -347,60 +346,41 @@ PLAN4_REGIONS = {
     "forms": "### P4-D18 A held-back value gets a stand-in that looks like one",
 }
 
-# Groups whose facts are NOT in the version 4 contract matrix, and why.
-# That matrix is the record of what version 4 disposed; it is not
-# edited to carry a role version 4 never had. The affixed role's own
-# seven keys are disposed in the Phase 4 plan and checked against it by
-# `PLAN4_REGIONS` above -- so they are held to a document, just not to
-# that one. Its QUANTITATIVE keys are not here: they are registered
-# under `numeric` and checked against the numeric section like every
-# other numeric fact, which is the half that carries a distribution.
-GROUPS_OUTSIDE_THE_VERSION_4_MATRIX = ("affixed", "clock")
+# THE ROLE SUB-TABLES OF THE CONTRACT MATRIX. Version 6's section 9
+# has a table for every role this tree ships, so the two groups that
+# used to stand outside a matrix -- `affixed` and `clock` -- are read
+# out of their own sub-tables now (9.4's `affixed_number` block and
+# 9.6's `time_of_day` block). Residual R-P4-25 is what this closes:
+# the machinery read version 4's tables, which govern nothing this
+# tree writes, so its agreement was luck rather than design.
+#
+# The affixed sub-table RESTATES the numeric dispositions read over
+# the cores, and those keys stay registered under `numeric` where the
+# distribution machinery checks them. So the sub-table names more than
+# the `affixed` group owns, and the extra names are required to be
+# keys of the numeric group rather than being ignored -- a restatement
+# that drifted from what it restates would otherwise pass unseen.
+AFFIXED_RESTATES_THE_NUMERIC_GROUP = "numeric"
 
-# ...and the same thing one grain finer: a fact registered under a group
-# version 4 DOES have, about something version 4 never published. The
-# census of fraction widths is a numeric fact and belongs in the numeric
-# group, and version 4's matrix has no row for it because version 4 has
-# no such key. Its disposition is decided in the Phase 4 plan and
-# checked against it by `PLAN4_REGIONS`, exactly as the affixed group's
-# own facts are -- held to a document, just not to that one.
-FACTS_OUTSIDE_THE_VERSION_4_MATRIX = (
-    ("numeric", "fraction_widths"),
-    ("numeric", "pad_widths"),
+# Facts registered under a group the contract matrix HAS, about
+# something the matrix does not publish. Every one of these landed
+# after amendment A-P4-46 froze the contract, so its disposition is
+# decided in the Phase 4 plan and checked against it by `PLAN4_REGIONS`
+# above -- held to a document, just not to that one.
+#
+# It was thirteen rows against version 4 and is six against version 6:
+# `fraction_widths`, `pad_widths`, `resolution_mix`, both `shape_forms`
+# and the unrepresentable role's two widths are all disposed in version
+# 6's own tables, so they are checked there rather than excused here.
+# What remains is exactly the post-freeze numeric family.
+FACTS_OUTSIDE_THE_CONTRACT_MATRIX = (
     ("numeric", "value_histogram"),
     ("numeric", "kurtosis"),
     ("numeric", "n_distinct_values"),
     ("numeric", "mode"),
     ("numeric", "mode_count"),
     ("numeric", "percentiles_between"),
-    ("datetime", "resolution_mix"),
-    ("free_text", "shape_forms"),
-    ("label", "shape_forms"),
-    # The two widths version 4 never published, which settled R-P2-1
-    # and which nothing measured until residual R-P4-59. They are held
-    # to P4-D4.4 by `PLAN4_REGIONS` above.
-    ("numeric_unrepresentable", "min_length"),
-    ("numeric_unrepresentable", "max_length"),
 )
-
-# THE ONE FACT WHOSE DISPOSITION A VERSION CHANGED, and the reason it
-# needs a tuple of its own rather than the one above. Version 4 and
-# version 5 both HAVE a row for `missing_by_source` and both say
-# REPORT-ONLY -- and both were right when they said it: their twins
-# wrote every absent cell empty, so the field owed the twin nothing. A
-# version 6 twin writes each spelling at its published count (C6-115),
-# so the field is recounted off the written cells like any other exact
-# fact, and version 6's own 9.2 row says so.
-#
-# The older rows are NOT edited: they are the record of what those
-# versions required. So the matrix still states this fact and is still
-# checked for stating it -- what is not checked against the older
-# matrices is its CLASS, which is version 6's to give.
-#
-# Residual R-P4-25 carries the wider job: since the flip, version 6
-# governs all one hundred and thirty facts, and this machinery still
-# reads version 4's tables for the other hundred and twenty-nine.
-FACTS_A_LATER_VERSION_REDISPOSES = (("universal", "missing_by_source"),)
 
 
 # -- the registry ------------------------------------------------------
@@ -1190,55 +1170,79 @@ AUTHORIZED_BY: "dict[tuple[str, str, str], tuple[str, str]]" = {
     ),
 }
 
-# The rows contract version 5's section 11 adds to the version 4 matrix,
-# and which of that matrix's tables each one belongs to. Version 5
-# carries version 4 by reference and states only its delta, so the two
-# documents are read TOGETHER wherever the matrix is read at all
-# (contract 5 C5-30). A field appearing in that delta with no entry here
-# stops the guard rather than being filed by guesswork.
-CONTRACT5_SECTIONS = {
-    "n_missing_blank": "9.2 Universal per-column fields",
-    "n_missing_withheld": "9.2 Universal per-column fields",
-}
+# VERSION 5'S DELTA READER IS GONE, with residual R-P4-25. Version 5
+# carried version 4 by reference and stated only the rows it changed,
+# so anything reading the matrix had to read the two together. Version
+# 6 states the whole matrix itself and is the version that GOVERNS, so
+# both readers take it alone and neither older document is read by
+# anything that governs. Both stay in the tree, and in the seal, as the
+# record of what they required.
 
 
-def contract5_delta(path: pathlib.Path) -> "list[tuple[tuple[str, ...], str]]":
-    """Section 11 of contract version 5, as rows of names and a class.
-
-    Returns one entry per table row: the backticked names in its first
-    cell, and its second cell's text. The caller decides which of the
-    version 4 tables each row belongs to, using CONTRACT5_SECTIONS
-    above, because the delta table does not repeat the version 4
-    headings.
-    """
-    text = path.read_text(encoding="utf-8")
-    start = text.index("## 11. The disposition matrix")
-    body = text[start : text.index("\n## ", start + 10)]
-    rows: list[tuple[tuple[str, ...], str]] = []
-    for line in body.split("\n"):
-        if not line.startswith("|"):
-            continue
-        cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
-        if len(cells) < 2 or set(cells[0]) <= set("-: "):
-            continue
-        names = tuple(re.findall(r"`([^`]+)`", cells[0]))
-        if names:
-            rows.append((names, cells[1]))
-    return rows
-
-
-# Which contract table states which group.
+# Which contract table states which group. These are version 6's own
+# headings: it is the contract `PROFILE_VERSION` names and the one that
+# governs every description this tree writes, and reading any earlier
+# version here is what residual R-P4-25 opened.
+#
+# `affixed` and `clock` are in this map for the first time. Version 4
+# had neither role, so both used to stand outside the matrix entirely
+# and were held to the Phase 4 plan alone; version 6 gives each a
+# sub-table of its own and they are read out of it.
 CONTRACT_SECTIONS = {
     "document": "9.1 Top level",
     "universal": "9.2 Universal per-column fields",
     "empty": "9.3 `empty`",
-    "numeric": "9.4 The numeric roles: `count`, `continuous`",
-    "label": "9.5 The label roles: `constant`, `binary`, `categorical`",
-    "datetime": "9.6 `datetime`",
+    "numeric": (
+        "9.4 The numeric roles: `count`, `continuous`, `affixed_number`"
+    ),
+    "affixed": "9.4 affixed_number",
+    "label": (
+        "9.5 The label roles: `constant`, `binary`, `categorical`, "
+        "`long_tail_labels`"
+    ),
+    "datetime": "9.6 datetime",
+    "clock": "9.6 time_of_day",
     "free_text": "9.7 free_text",
     "identifier": "9.7 identifier",
     "numeric_unrepresentable": "9.7 numeric_unrepresentable",
 }
+
+# A MATRIX TABLE NO REGISTRY GROUP CLAIMS, and the residual that owes
+# it. Version 6 carries a table for the joined role -- section 9.4a,
+# eight published facts -- and this file registers no `joined` group,
+# so those rows are parsed and then visited by nothing. Before the
+# readers moved to version 6 the section was not read at all; now it is
+# read and unclaimed, which LOOKS like coverage. That is worse, so it
+# is named and asserted rather than left to be noticed (review item
+# P4-A1-R1-F1).
+#
+# It is residual R-P4-62, and closing it is the next landing's whole
+# subject. When the joined group is registered this goes to empty.
+SECTIONS_NO_GROUP_CLAIMS = {
+    "9.4a The joined role: `joined_numbers`": "R-P4-62",
+}
+
+# Every role of the taxonomy, used to decide whether a bold line in
+# the contract opens a role's SUB-TABLE. It is deliberately not used to
+# filter field names: `count` is a role AND a real sub-key of 9.5's
+# `levels` row, so filtering by this list drops a fact the matrix does
+# dispose. A qualifier is stripped by its shape instead.
+ROLES = (
+    "constant",
+    "binary",
+    "categorical",
+    "long_tail_labels",
+    "count",
+    "continuous",
+    "affixed_number",
+    "joined_numbers",
+    "datetime",
+    "time_of_day",
+    "free_text",
+    "identifier",
+    "numeric_unrepresentable",
+    "empty",
+)
 
 # The rung names of a ladder, which the matrix disposes by naming the
 # ladder itself, and which are therefore not fields of their own.
