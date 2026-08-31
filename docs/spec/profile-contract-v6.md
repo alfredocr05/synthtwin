@@ -7380,7 +7380,7 @@ every cell's length, a fold partner may shorten its digit body to make
 room for edge spacing inside the pinned length, so any source whose
 own cells matched the published pattern remains expressible.
 
-### 9.8 The all-different obligation, and the three places it cannot bind
+### 9.8 The all-different obligation, and the four places it cannot bind
 
 Whenever a column publishes `n_distinct == n_present`, its present
 values are all different, on every role, in that column's own notion
@@ -7390,7 +7390,7 @@ only on facts the profile actually publishes.** Where the raw
 distinctness of a column was produced by something the disclosure
 rules WITHHELD, the twin cannot reproduce it without making facts up,
 so raw distinctness is REPORT-ONLY there and the report names the
-achieved count beside the published one. Three instances are known and
+achieved count beside the published one. Four instances are known and
 each is tested:
 
 1. **Declared identifiers** whose published length range cannot supply
@@ -7408,9 +7408,29 @@ each is tested:
    holds only 15 instants and no published way to spell them apart.
    Where the same column's offsets ARE published, the obligation holds
    and the twin uses them.
+4. **Joined columns.** A column of two numbers in one cell publishes
+   `n_distinct == n_present` when every reading it holds is different,
+   and the twin does not always reach it: each position is drawn to
+   its own ladder and the PAIRING then decides which numbers meet, so
+   how many different CELLS result is a consequence of that walk
+   rather than a target it aims at. Measured on the generator's own
+   every-role description: 240 different readings published, 238 held.
+   The generation method has carried this as its fourth instance since
+   the joined role landed; this table said three until 2026-08-31 and
+   was the stale half of the pair (review item P4-A2-R5-F1).
+
+   **IT IS NOT AN EXCUSE, AND THE TWO COUNTS STAY EXACT-OBSERVABLE**
+   (9.4a). A file that misses them is reported by `synthtwin validate`
+   and the twin's own report names the shortfall before anybody runs
+   the check -- which is the difference between an obligation this
+   contract withdraws and one the generator has not yet learned to
+   meet. Residual R-P4-71 carries the shortfall and R-P4-40 the
+   description change that would close it.
 
 Stating the obligation as one rule with named instances is what stops
-a fourth instance arriving undetected.
+a fifth instance arriving undetected -- and the fourth arrived
+undetected exactly because no fixture that reaches the rule ever built
+the role.
 
 **On `long_tail_labels`, `affixed_number` and `time_of_day` the
 obligation BINDS**, through the mechanism each role's own facts
