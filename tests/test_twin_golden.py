@@ -76,10 +76,11 @@ from synthtwin import (
 # reader can reproduce the run by hand:
 #
 #   synthtwin profile table.csv --identifier record_code \
-#       --smallest-group 11
+#       --measurement pressure --smallest-group 11
 #   synthtwin generate table-profile.json --seed 20260811
 #
-# on a table.csv holding exactly `fixtures.every_role_table()`.
+# on a table.csv holding exactly
+# `fixtures.every_role_and_joined_table()`.
 #
 # The smallest group is asked for rather than left to the default, for
 # the reason the description fixture below gives at length: the shipped
@@ -128,12 +129,23 @@ def description(tmp_path_factory: pytest.TempPathFactory) -> pathlib.Path:
     belongs.
     """
     folder = tmp_path_factory.mktemp("twin-golden")
+    # THE JOINED COLUMN IS IN THIS GOLDEN, and it was not until
+    # residual R-P4-62's landing. The shared table excludes the one
+    # role that carries a blood pressure, so a joined-only change in
+    # the twin's BYTES -- the thing this golden exists to catch -- was
+    # outside it (review item P4-A2-R3-F4). The role needs a
+    # declaration, so the combined table is used and the declaration is
+    # passed; the documented command above carries it too.
     table_path = fixtures.write(
-        folder, "table.csv", fixtures.every_role_table()
+        folder, "table.csv", fixtures.every_role_and_joined_table()
     )
     table = reading.read_table(str(table_path))
     document = profile.build_document(
-        table, taxonomy.Settings(small_cell_floor=11), ["record_code"]
+        table,
+        taxonomy.Settings(small_cell_floor=11),
+        ["record_code"],
+        [],
+        [fixtures.JOINED_COLUMN],
     )
     document["created_with"] = NORMALIZED_VERSION
     target = fixtures.write_profile(folder, "table-profile.json", document)
@@ -171,7 +183,11 @@ def test_the_golden_run_is_the_shape_this_file_says_it_is(
     words.
     """
     assert built.n_rows == 240
-    assert len(built.names) == 13
+    # FOURTEEN since the joined column joined this demonstration
+    # (review item P4-A2-R3-F4): the shared table excludes the one role
+    # that carries a blood pressure, so a joined-only change in these
+    # bytes was outside the golden that exists to catch one.
+    assert len(built.names) == 14
     assert built.write_header is True
     assert built.seed == GOLDEN_SEED
     # The word budget is a fixed function of the published facts (method
@@ -179,7 +195,10 @@ def test_the_golden_run_is_the_shape_this_file_says_it_is(
     # Pinned beside the bytes because "the run spends a different number
     # of words" is a different failure from "the run writes different
     # cells", and a reader is owed the difference.
-    assert built.words_drawn == 4179
+    # FIVE THOUSAND ONE HUNDRED AND THIRTY-THREE since the joined
+    # column joined: one stream feeds every column in order, so adding
+    # a column moves the count by exactly what that column draws.
+    assert built.words_drawn == 5133
     assert [column.name for column in loaded.columns] == [
         "record_code",
         "region",
@@ -194,6 +213,7 @@ def test_the_golden_run_is_the_shape_this_file_says_it_is(
         "dose",
         "seen_at",
         "note",
+        "pressure",
     ]
 
 
@@ -287,7 +307,7 @@ def test_the_golden_run_is_the_shape_this_file_says_it_is(
 # approximations; if any of them had reached a cell of an UNDECLARED
 # column, the twin's own bytes would have moved. They did not.
 GOLDEN_DESCRIPTION_SHA256 = (
-    "01023e66cd86b25ccb992c4ecbd8b6f44a5fcb347a78b853b6c95247926bbbad"
+    "e2bd5464232447a1e73535275b4a3f3ca61429939fe95076a362ce4f628b0dcc"
 )
 
 
@@ -335,7 +355,7 @@ def test_golden_hash_of_the_description_the_twin_is_built_from(
 # in one number. Any of them differing between two cells of the matrix
 # turns red here rather than shipping as a quietly different twin.
 GOLDEN_TWIN_SHA256 = (
-    "4da076c8d67e0b59c15665d30baf5daa244f7be3a22b249c17027661b31ab403"
+    "549534639ff30341730d66ffce6524b9b07cd62ba36514c35da010c270af5a0b"
 )
 
 
@@ -628,7 +648,7 @@ def test_the_same_description_and_seed_give_the_same_twin_twice(
 # moved, and the description and twin digests were both untouched by
 # this edit.
 GOLDEN_REPORT_SHA256 = (
-    "8839c5f1fd51d95115a17325c12bd2c280a84e14c2e9c39ba611b75bdcb2f5b0"
+    "d2a47e1f796ac33f025627d2e8b37ca6aa3c14890c599e6b90d81525bff2ad41"
 )
 
 
@@ -1023,7 +1043,7 @@ def test_the_report_names_the_seed_the_twin_was_built_at(
 # citation that names a section the method does not define, so this
 # cannot happen again silently.
 GOLDEN_QUALITY_SHA256 = (
-    "91ce6395d05e73c50b63080d808d8fd26c5812a82c01b41dcb76331773aea748"
+    "9c45808a0eb962a2e78b2468e56c5baff9c916ad5f88b96dd31cfd8ac09eabf5"
 )
 
 

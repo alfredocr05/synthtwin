@@ -90,9 +90,10 @@ def _describe(
     declared: "list[str] | None" = None,
     stem: str = "table",
     first_row: str = reading.FIRST_ROW_AUTOMATIC,
+    measured: "list[str] | None" = None,
 ) -> contract.Profile:
     """Profile one table's text through the real producer and loader."""
-    return _described(folder, text, declared, stem, first_row)[0]
+    return _described(folder, text, declared, stem, first_row, measured)[0]
 
 
 def _described(
@@ -101,6 +102,7 @@ def _described(
     declared: "list[str] | None" = None,
     stem: str = "table",
     first_row: str = reading.FIRST_ROW_AUTOMATIC,
+    measured: "list[str] | None" = None,
 ) -> "tuple[contract.Profile, str]":
     """The same, with the description's own bytes beside it.
 
@@ -117,7 +119,11 @@ def _described(
     table_path = fixtures.write(folder, f"{stem}.csv", text)
     table = reading.read_table(str(table_path), first_row=first_row)
     document = profile.build_document(
-        table, SETTINGS, declared if declared else []
+        table,
+        SETTINGS,
+        declared if declared else [],
+        [],
+        measured if measured else [],
     )
     written = fixtures.write_profile(folder, f"{stem}-profile.json", document)
     return (
@@ -183,8 +189,18 @@ def every_role(
 ) -> "tuple[contract.Profile, str]":
     """The every-role description and its twin, built once."""
     folder = tmp_path_factory.mktemp("every-role")
+    # THE JOINED COLUMN IS HERE ON PURPOSE. This fixture feeds the
+    # no-regression run that says a twin of its own description misses
+    # nothing on EVERY role, and the shared table excludes the one role
+    # that carries a blood pressure -- so that claim was made at a
+    # width it did not hold (review item P4-A2-R3-F4). The role needs a
+    # declaration, which is why the table is a combined one rather than
+    # the shared one widened.
     described = _describe(
-        folder, fixtures.every_role_table(), ["record_code"]
+        folder,
+        fixtures.every_role_and_joined_table(),
+        ["record_code"],
+        measured=[fixtures.JOINED_COLUMN],
     )
     return described, _twin_text(described)
 
@@ -196,7 +212,10 @@ def every_role_bytes(
     """The same run, with the description's own bytes beside it."""
     folder = tmp_path_factory.mktemp("every-role-bytes")
     described, written = _described(
-        folder, fixtures.every_role_table(), ["record_code"]
+        folder,
+        fixtures.every_role_and_joined_table(),
+        ["record_code"],
+        measured=[fixtures.JOINED_COLUMN],
     )
     return described, _twin_text(described), written
 

@@ -13,12 +13,14 @@ was never told about: the systolic average, spread, shape and tail
 weight, its nine interior rungs and its ninety finer ones, and the same
 again for the diastolic.
 
-AND THE ENTRY TABLE'S RED BATTERY DOES NOT REACH THIS ROLE. Its
-`every-role` fixture carries thirteen columns and none of them is
-joined, so no perturbation there can turn a joined check red -- which
-is true of the checks that shipped with the role, not only of these.
-The red cases below are therefore written here, against a tampered
-twin, rather than registered in that table.
+THE ENTRY TABLE'S RED BATTERY NOW REACHES THIS ROLE, and it did not
+when these cases were written. Its `every-role` fixture carries no
+joined column, so no perturbation there could turn a joined check red
+-- true of the checks that shipped with the role, not only of these --
+which is why the red cases below are written here against a tampered
+twin. Residual R-P4-62 closed that gap with a joined fixture of its
+own and a hundred registered cases; these stay because a tampered twin
+reaches shapes a perturbation of a written file cannot.
 """
 
 import pathlib

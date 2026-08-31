@@ -72,8 +72,19 @@ def _loaded(folder: pathlib.Path, document: Document) -> contract.Profile:
 
 
 def _every_role_text() -> str:
-    """A neutral table with one column for every role in the taxonomy."""
-    lines = [line for line in fixtures.every_role_table().split("\n") if line]
+    """A neutral table with one column for every role in the taxonomy.
+
+    The joined column comes with the combined fixture, and it needs
+    `--measurement` -- so a caller of this text must declare
+    `fixtures.JOINED_COLUMN`. Without it the claim in the line above
+    was false: the shared table excludes the one role that carries a
+    blood pressure (review item P4-A2-R3-F4).
+    """
+    lines = [
+        line
+        for line in fixtures.every_role_and_joined_table().split("\n")
+        if line
+    ]
     rows = [f"{lines[0]},huge"]
     for index, line in enumerate(lines[1:]):
         rows.append(f"{line}," + ("1e999" if index % 2 else "-2e400"))

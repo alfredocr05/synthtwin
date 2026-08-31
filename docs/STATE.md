@@ -28,7 +28,7 @@ without the same help.
 | branch | `phase-4-allotment` (never merged; `main` is pull-request only) |
 | phase | **Phase 4 — comprehensive column handling.** Current. |
 | plan | `docs/plans/phase-4-columns.md` |
-| suite | 4,160 collected / 51 skipped |
+| suite | 4,162 collected / 51 skipped |
 | lint | **9 pre-existing errors** (`ruff check .`) under the rule set pinned in `pyproject.toml`, re-measured 2026-08-31 on this tree: 2 mid-file imports in `src/` (`generation.py`, `validation.py`) and 7 in `tools/measurements/`. It said 10 until the dead recount named below went with the joined role's landing and this line did not move with it. This landing adds none, and the one file of `src/` it touches carries one of the two that were already there |
 
 ## What is being built right now
@@ -847,6 +847,56 @@ are about to move is holding it. Not fixed here because the fix needs
 the generator's reproduce-or-blank split rather than a reworded
 sentence, and because moving any line of that report moves the five
 goldens this branch is holding still.
+
+**ROUND 3 FOUND THE FIFTH AND SIXTH SURFACES, and refuted the way the
+last round's guard had been landed.** Five control gaps, all real.
+
+* **AN EXEMPTION LIST HOLLOWED OUT THE GUARD IT WAS ATTACHED TO.** The
+  green-premise check landed with two pre-existing defects excused by
+  name, borrowing the note-grammar guard's own precedent. That
+  precedent does not hold here: if a check ALWAYS returns MISSED, the
+  baseline is red (excused) and the perturbation is red (registered),
+  so coverage passes while the check decides nothing -- and the
+  excused sites were the very sites the red cases were registered
+  against. That is the "exemption argued rather than constructed" this
+  battery says it refuses.
+
+  Both fixtures are GENUINELY GREEN now: the unrepresentable one uses
+  long digit strings past the format's ceiling, and the pooled one
+  keeps a pooled exponent beside a PUBLISHED fraction, so the role
+  holds and the pooled key the fixture exists for is still there. The
+  two defects are asserted as WITNESSES in their own tests -- each
+  fails if the defect is repaired, which is when the witness should
+  go, and fails if it worsens.
+
+* **The premise guard rejected only MISSED**, while validation method
+  V8.4 asks a green run for zero MISSED *and* zero WITHHELD. A
+  comparator returning WITHHELD when two values agree would have
+  passed the baseline and reddened every perturbation.
+
+* **The residual check searched the whole plan for a substring** --
+  the exact bypass the disposition registry had already repaired
+  twice. I fixed that pattern in one file and rebuilt the weak version
+  in another. It uses the region-scoped, uniqueness-checked, positive
+  `— OPEN` machinery now.
+
+* **The reach check was a floor plus a named role**, so a fifteenth
+  role could be registered with no fixture behind it. Exact equality
+  against the taxonomy now.
+
+* **THE FIFTH AND SIXTH SURFACES.** The V8.4 no-regression run, the
+  description-bytes run, `test_generation`'s "every role in the
+  taxonomy" and the BYTE GOLDEN all used a fixture that excludes this
+  role, so a joined-only change in the twin's own bytes was outside
+  the golden that exists to catch one. All four take a combined table
+  with the declaration now. Before the four digests were re-recorded
+  the widened run was measured against the old one: **+72 checks, +12
+  listings, nothing lost, zero missed.**
+
+**SIX SURFACES, EACH FOUND ONLY AFTER THE ONE BEFORE IT CLOSED.** The
+residual named three. That is the shape worth carrying: a completeness
+guard proves its own completeness against a fixture, so the question
+is never "does the guard pass" but "what does its fixture contain".
 
 ## What the owner has decided, and must not be re-asked
 
