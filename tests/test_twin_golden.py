@@ -1249,7 +1249,7 @@ def test_the_report_names_the_seed_the_twin_was_built_at(
 # the census carries nine obligations more than it did and not one
 # fewer, which is the thing this digest exists to make somebody check.
 GOLDEN_QUALITY_SHA256 = (
-    "f5c99e5c05c49c362d23631cc6d5e063a077242acea45308849c3870e3960929"
+    "25451b76a4d6733226b9cfb4e9a78fed6962bc2102fe33efed742a3d0d746138"
 )
 
 

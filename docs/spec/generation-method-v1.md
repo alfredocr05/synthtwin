@@ -1912,11 +1912,26 @@ demand wants. The stratum must be
    count and by nothing else.
 
 The value it takes is the one nearest the value it holds, among the
-whole numbers of the wanted figure count lying STRICTLY INSIDE its own
-share of the ladder — G5.6's share, and amendment A-P4-18's bound:
-**a value moves no further than the stretch of the published ladder its
-own stratum covers.** It never crosses zero, for the reason G6.4's
-searches do not.
+whole numbers of the wanted figure count this stratum could have been
+GIVEN. **Which whole numbers those are is not "the ones strictly inside
+its share", and writing it that way first left a floor-one column two
+cells short of a width it could reach.** G5.3 draws a position inside
+the stratum's share and G5.4 rounds it to the nearest whole number, so
+every whole number within HALF A UNIT of the share is one an ordinary
+run could have produced for this stratum: a share of `(9.18, 11.55)`
+yields 9, 10, 11 and 12, not 10 and 11 alone.
+
+That half unit is G5.4's own, the one G12.2 already widens the rung
+window by, so this rule grants nothing the method had not granted
+already. **It is not a widening of amendment A-P4-18**, which bounds a
+move's REACH by the stratum's stretch: the reach here is half a unit,
+and a stratum whose stretch is narrower than that gets the two whole
+numbers its own rounding could have reached and no others. A share of
+`(99.23, 99.79)` holds no whole number at all and yields exactly 99 and
+100 — which is the case the ladder itself does not settle, a decade
+crossing falling between two rungs, and the census is what settles it.
+
+It never crosses zero, for the reason G6.4's searches do not.
 
 **It may not take a value another stratum holds, EXCEPT where the value
 it gives up is one another stratum also holds.** Then the count of
@@ -1925,17 +1940,10 @@ lands on was there or is new. Drawn values ARE shared — two strata
 either side of a rung can round onto one whole number — so this is a
 case that arises rather than one imagined for it.
 
-**G6.6.4 The one case the stretch does not settle.** A stratum whose
-stretch holds NO whole number has already stepped outside it. The share
-`(99.23, 99.79)` on a column of whole numbers yields 99 or 100; both
-are outside, both are within the half unit G5.4's integer rule already
-spends, and until this census existed nothing preferred one. **The
-census decides between those two neighbours and between no others**: a
-stratum whose stretch holds a whole number is refused this rule
-outright, and so is a stratum standing on neither neighbour. This is
-not a widening of A-P4-18, which forbids a value being moved further
-than its stretch REACHES and says nothing about which of two
-equally-outside neighbours a stratum settles on.
+**G6.6.4 What the half unit buys, measured rather than argued.** The
+rule above was written twice. The first version took only the whole
+numbers strictly inside the share, and the second takes every one the
+stratum's own rounding could reach; the difference is not a nicety.
 
 Measured on a 230-row vaccine-code column running `000` to `199`
 (residual R-P4-35), where the rung above the crossing is interpolated
