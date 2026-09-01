@@ -344,6 +344,17 @@ PLAN4_REGIONS = {
         "### P4-D4.9 The count of different numbers (closes R-P4-20)"
     ),
     "forms": "### P4-D18 A held-back value gets a stand-in that looks like one",
+    # The per-level half of the form census, ruled in by the owner on
+    # 2026-08-31 after the landing that measured R-P4-34 recommended
+    # against it. It is NOT one of the post-freeze exemptions: the
+    # contract's own 9.5 carries a row for it, so the matrix reader
+    # binds it there, and this region binds the AMENDMENT's words
+    # beside that -- the ruling, and the class it names. Both hold, and
+    # a lowering in either turns the registry red.
+    "per-level-forms": (
+        "## Amendment A-P4-47 — the per-level form census is RULED IN "
+        "(owner ruling 2026-08-31)"
+    ),
     # The joined role's own eight facts, disposed when the role was
     # found to have no table at all.
     "joined": (
@@ -1086,6 +1097,22 @@ REGISTRY += [
         plan_words="the count sharing each written form",
         plan_region="forms",
         aliases=("form census", "shape census"),
+    ),
+    # Plan amendment A-P4-47, ruled in by the owner on 2026-08-31 after
+    # the landing that measured R-P4-34 recommended against it. It is
+    # EXACT-OBSERVABLE on exactly the terms the column census is: a
+    # person opens the twin, reads the shape off each cell of one
+    # published label, and gets the published number back. It is a
+    # SEPARATE fact from `shape_forms` beside it and not a part of it --
+    # residual R-P4-80 states the three reasons no sum holds -- which is
+    # why it is registered on its own rather than as a sub-key.
+    Fact(
+        "label",
+        "shape_form_cells",
+        EXACT_OBSERVABLE,
+        plan_words="a code's SHAPE identifies nobody",
+        plan_region="per-level-forms",
+        aliases=("per-level form census", "level form count"),
     ),
 ]
 REGISTRY += _facts(

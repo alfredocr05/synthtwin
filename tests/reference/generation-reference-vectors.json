@@ -366,6 +366,7 @@
           {
             "count": 13,
             "label": "north",
+            "shape_form_cells": 0,
             "variants": {
               "North": 11
             },
@@ -376,6 +377,7 @@
           {
             "count": 13,
             "label": "south",
+            "shape_form_cells": 0,
             "variants": {},
             "variants_withheld": {
               "1": 3,
@@ -385,6 +387,7 @@
           {
             "count": 12,
             "label": "7-11",
+            "shape_form_cells": 4,
             "variants": {},
             "variants_withheld": {
               "4": 3

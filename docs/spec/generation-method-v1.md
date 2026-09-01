@@ -2639,17 +2639,23 @@ cells are filled as follows:
    order — the key is a whole number written in figures, and the order
    is over the NUMBER, so `2` comes before `10` — and for each of its
    distinct spellings, one invented variant spelling is produced (G8.2)
-   and used exactly that many times.
+   and used exactly that many times. **Which form each of those
+   spellings must wear is fixed first, by G8.1a.**
 
    **Where step 3 is not reached, the label's OWN spelling is one of
-   the spellings available to G8.2**, and it is offered to the key
-   naming the LARGEST row count. It is available only then: a level
-   whose published and withheld spellings do not cover its `count` is
-   finished by step 3 writing the label itself, so that spelling is
-   spoken for. It is worth offering because it is the one further
-   spelling that folds onto the label while KEEPING ITS WRITTEN FORM,
-   where a trailing space does not, and the largest group is where that
-   covers the most cells (P4-D18).
+   the spellings available to G8.2**, and it is offered to the LARGEST
+   group whose target form the label's own spelling wears — which is
+   the largest FORM-KEEPING group where the label has a written form of
+   its own, and the largest group of all where it has none, because
+   then every group's target is "no form" and so is the label's. Where
+   the label HAS a form and G8.1a gives it to no group, the label's own
+   spelling is not spent at all. It is available only where step 3 is
+   not reached: a level whose published and withheld spellings do not
+   cover its `count` is finished by step 3 writing the label itself, so
+   that spelling is spoken for. It is worth offering because it is the
+   one further spelling that folds onto the label while KEEPING ITS
+   WRITTEN FORM, where a trailing space does not (P4-D18, amended by
+   A-P4-47).
 3. If the entry publishes neither key, or both are empty, all `count`
    cells are written with the normalized label itself.
 
@@ -2667,11 +2673,64 @@ the all-different obligation for every label role. Owner decision 9
 directed that the variants be published so the twin can keep the values
 distinct; this section is where that is spent.
 
+### G8.1a Which held-back groups keep the label's written form
+
+**Input: the level's `shape_form_cells`** (contract 7.4.8), how many of
+the level's rows wrote the label in the label's own written form. Owner
+ruling of 2026-08-31, plan amendment A-P4-47; before it the description
+did not carry the fact and the walk guessed, missing in both directions
+(residual R-P4-34).
+
+**Step 1 — what the published spellings already cover.** Walk
+`variants` and add up the counts of the keys whose spelling has a form
+under contract 7.9. Those cells are written byte for byte by G8.1 step
+1, so what they wear is read rather than reasoned about. Call the total
+`covered`.
+
+**Step 2 — the debt.** `debt = shape_form_cells - covered`. Where it is
+nought or less, no held-back group keeps the form and this section is
+finished.
+
+**Step 3 — the plain walk.** Take the `variants_withheld` keys in
+DESCENDING numeric order. For each key, take as many of its groups as
+fit under what is still owed — `min(multiplicity, owed // key)` of them
+— and subtract what they cover. Where nothing is left owed, those
+groups are the answer.
+
+**Step 4 — the reachability walk, where step 3 leaves a remainder.**
+Taking the largest size that fits at each step misses arrangements that
+exist: a debt of 6 against groups of 4, 3 and 3 takes the 4 and is left
+with a 2 no group covers, while 3 and 3 settle it exactly. So walk
+every total from 0 up to the debt and record, for each, the FIRST size
+that reaches it, offering the sizes in the same descending order and
+never using a size along one chain more often than the entry holds
+groups of it. Where the debt is reached, follow the record back from it
+to nought and count the sizes taken; that is the answer.
+
+**A SUB-MULTISET SUMMING TO THE DEBT ALWAYS EXISTS ON A DESCRIPTION THE
+PRODUCER WROTE**, because the debt is a sum of those very sizes there,
+by construction: the source's own form-bearing held-back spellings are
+whole groups. So the closure is EXACT and not approximate.
+
+**THE WALK IS BOUNDED**, because its cost is the product of the debt
+and the number of different group sizes and neither is bounded by the
+document. Where the product exceeds the bound, or where the debt is not
+reachable at all, step 3's own partial answer stands and the twin's
+report NAMES what it left unsettled — the same treatment every other
+bounded search in this method gets.
+
+**Each group of a size is then asked in walk order**, and the first
+however-many groups of each size the answer names are the form-keeping
+ones. Which group of one size is which does not matter and cannot: the
+description publishes group SIZES and names no spelling, so two groups
+of one size are indistinguishable in it.
+
 ### G8.2 Invented variant spellings
 
 An invented variant must fold to its parent label, differ from every
-spelling already used in the column, and be produced by a rule that has
-an unbounded supply. In this order:
+spelling already used in the column, WEAR THE FORM G8.1a ALLOTTED IT
+(G8.2a), and be produced by a rule that has an unbounded supply. In
+this order:
 
 1. **Case flips.** Let the parent's alphabetic positions be
    `q[0] .. q[L-1]`, left to right. For `k = 1, 2, 3, ...` write `k` in
@@ -2688,6 +2747,31 @@ an unbounded supply. In this order:
 
 A spelling that is only spaces cannot arise, because a published label
 is not empty — an empty cell is an absent value, not a label.
+
+### G8.2a The form a made-up spelling must wear
+
+**Each held-back group carries a TARGET FORM**: the label's own form
+where G8.1a gives that group the form, and "no form" otherwise. A
+candidate of G8.2 whose form is not the target is stepped past, exactly
+as one already used in the column is.
+
+**The two halves of the supply are the two answers, which is why one
+rule settles it.** A case flip of the label wears the label's own form
+— such a spelling holds no space, so trimming changes nothing, and
+folding an ASCII letter leaves an ASCII letter in the same place. A
+trailing space wears no form at all, since a space is not one of the
+thirteen marks. So a form-keeping group takes a case flip (or the
+label's own spelling, G8.1 step 2), and a form-losing group takes a
+trailing space, or a case flip where the label itself has no form.
+
+**Where the case flips run out with the form still wanted**, the
+trailing space is written and the level falls short of its published
+`shape_form_cells`. A label of one letter has one case flip, so a
+description asking two of its held-back groups to keep the form is
+asking for a spelling that does not exist. No producer writes such a
+description — a source that spelled those groups had the spellings to
+do it — and the loader cannot see it, because the count is inside W8's
+two bounds. The twin's own report names the shortfall.
 
 ### G8.3 Withheld levels
 

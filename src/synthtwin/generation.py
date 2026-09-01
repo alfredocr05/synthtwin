@@ -7805,11 +7805,28 @@ def _label_content(
     made_up = 0
     for entry in facts.levels:
         covered = 0
+        # ...AND HOW MANY OF THOSE CELLS ALREADY WEAR THE LABEL'S OWN
+        # WRITTEN FORM. The published spellings are written byte for
+        # byte, so what they wear is read rather than reasoned about --
+        # the same rule `_forms_owed` follows for the column census.
+        covered_in_form = 0
         for spelling in sorted(entry.variants):
             cells = cells + [spelling for _each in range(entry.variants[spelling])]
             covered = covered + entry.variants[spelling]
+            if parsing.shape_form(spelling):
+                covered_in_form = covered_in_form + entry.variants[spelling]
             used[spelling] = 1
             owners[parsing.folded(spelling)] = entry.label
+        # WHICH HELD-BACK GROUPS KEEP THE LABEL'S WRITTEN FORM (method
+        # G8.1a, plan amendment A-P4-47). The level publishes how many
+        # of its cells wore that form; the published spellings written
+        # just above pay what they can, and the rest is a DEBT that
+        # whole held-back groups have to cover between them. Before
+        # this fact existed the walk guessed -- it handed the scarce
+        # form-keeping spelling to the LARGEST held-back group -- and
+        # missed in both directions, which is residual R-P4-34.
+        own_form = parsing.shape_form(entry.label)
+        keeping = _form_keeping_groups(entry, covered_in_form)
         # WHETHER THE LABEL'S OWN SPELLING IS SPOKEN FOR. A level whose
         # published and held-back spellings do not reach its count is
         # finished below by writing the label itself, so that spelling
@@ -7818,16 +7835,31 @@ def _label_content(
         # spelling is free -- and it is worth having, because it is the
         # one further spelling that folds onto the label while KEEPING
         # ITS WRITTEN FORM, where a trailing space does not (P4-D18).
-        spare = _spare_label_rows(entry)
+        #
+        # It goes to the LARGEST group whose target form it wears --
+        # which is the largest form-keeping group where the label has a
+        # form of its own, and the largest group of all where it has
+        # none, because then every group's target is "no form" and so
+        # is the label's. Where the label has a form and NO group keeps
+        # it, the spelling is not spent at all: spending it there is
+        # exactly the overshoot this amendment repairs.
+        spare = _spare_variant_group(entry, keeping)
+        left: "dict[str, int]" = {}
+        for key in keeping:
+            left[key] = keeping[key]
         for key in _withheld_keys(entry.variants_withheld):
             rows = int(key)
             for _each in range(entry.variants_withheld[key]):
-                take = rows == spare
+                wanted = ""
+                if key in left and left[key] > 0:
+                    wanted = own_form
+                    left[key] = left[key] - 1
+                take = key == spare
                 variant = _variant_spelling(
-                    entry.label, used, owners, take
+                    entry.label, used, owners, wanted, take
                 )
                 if take:
-                    spare = 0
+                    spare = ""
                 made_up = made_up + 1
                 cells = cells + [variant for _row in range(rows)]
                 covered = covered + rows
@@ -7934,38 +7966,200 @@ def _withheld_keys(withheld: "dict[str, int]") -> "list[str]":
     return [pair[1] for pair in sorted(ordered)]
 
 
-def _spare_label_rows(entry: "contract.LevelEntry") -> int:
-    """How many rows the level's own spelling may cover, or 0 for none.
+# How much arithmetic the form-debt search below will do before it
+# settles for what the plain walk already found. The plain walk
+# covers the debt exactly on nearly every level, and the search runs only
+# where it did not; the bound is here so a level with thousands of
+# held-back rows cannot spend an unbounded time on an arrangement the
+# report would name either way.
+_FORM_DEBT_NODES = 250000
+
+
+def _form_keeping_groups(
+    entry: "contract.LevelEntry", covered_in_form: int
+) -> "dict[str, int]":
+    """Which held-back groups of a level keep its written form (G8.1a).
+
+    THE FACT THE DESCRIPTION NOW CARRIES, SPENT. `shape_form_cells`
+    says how many of the level's cells wore the label's own form
+    (7.4.8); the published spellings written already pay
+    ``covered_in_form`` of it, and the rest is a DEBT that whole
+    held-back groups have to cover between them, because a group is one
+    made-up spelling and every cell of it wears that spelling's form.
+
+    THE ANSWER IS A SUB-MULTISET OF THE GROUP SIZES SUMMING TO THE
+    DEBT, and one always exists on a description the producer wrote --
+    the debt IS a sum of those very sizes there, by construction. This
+    returns how many groups of each size keep the form; the walk gives
+    the first that many of each size a form-keeping spelling and the
+    rest a trailing space, which has no form at all.
+
+    **THE LARGEST GROUPS ARE OFFERED FIRST**, in two passes. The plain
+    walk takes each size in turn, largest first, and takes as many of
+    it as fit under what is still owed; on nearly every level that
+    covers the debt exactly and nothing further runs. Where it does not -- a
+    debt of 6 against groups of 4, 3 and 3 is the smallest case -- a
+    reachability walk over the sums decides it exactly, still reaching
+    each sum by the largest size that can, and it is bounded by
+    `_FORM_DEBT_NODES` because its cost is a product of the debt and
+    the number of different sizes and neither is bounded by the
+    document. Past the bound the plain walk's own partial answer
+    stands, and `_level_form_notes` NAMES what it left unpaid, which is
+    what this package does with every other bounded search.
+
+    Guarantees:
+
+    - Inputs: one published level entry and how many of its cells the
+      published spellings already write in the label's form.
+    - Determinism: the answer depends only on those two.
+    - Errors raised: none.
+    - Boundary: the sizes it names are the entry's own held-back group
+      sizes and it never names more groups of a size than the entry
+      holds, so a caller can spend it without checking.
+    """
+    debt = entry.shape_form_cells - covered_in_form
+    keeping: "dict[str, int]" = {}
+    if debt <= 0:
+        return keeping
+    keys = _withheld_keys(entry.variants_withheld)
+    largest_first = [keys[place] for place in range(len(keys) - 1, -1, -1)]
+    owed = debt
+    for key in largest_first:
+        take = min(entry.variants_withheld[key], owed // int(key))
+        if take > 0:
+            keeping[key] = take
+            owed = owed - take * int(key)
+    if owed == 0:
+        return keeping
+    exact = _debt_reached(entry, largest_first, debt)
+    if exact is None:
+        return keeping
+    return exact
+
+
+def _debt_reached(
+    entry: "contract.LevelEntry", largest_first: "list[str]", debt: int
+) -> "dict[str, int] | None":
+    """A sub-multiset of the held-back sizes summing to ``debt`` (G8.1a).
+
+    THE WALK THE PLAIN ONE ABOVE DOES NOT REACH. Taking the largest
+    size that fits at each step misses arrangements that exist: a debt
+    of 6 against groups of 4, 3 and 3 takes the 4 and is left with a 2
+    no group covers, while 3 and 3 pay it exactly. This walks every
+    sum from 0 up to the debt and records the FIRST size that reaches
+    it, the sizes being offered largest first, so a sum is reached the
+    same way every run and by the largest size that can reach it.
+
+    ``entry`` supplies how many groups of each size there are, and no
+    size is used along one chain more often than that. Returns None
+    when the debt is not reachable at all, and when the walk would cost
+    more than `_FORM_DEBT_NODES` steps -- the caller keeps the plain
+    walk's partial answer either way and the report names the rest.
+    """
+    if not largest_first or len(largest_first) * (debt + 1) > _FORM_DEBT_NODES:
+        return None
+    # `reached[total]` is the size whose group closed that total, or 0
+    # for a total nothing has reached yet. Total 0 is reached by taking
+    # nothing, which no size closes, so it carries -1 to tell "reached
+    # by nothing" from "not reached".
+    reached = [0 for _each in range(debt + 1)]
+    reached[0] = -1
+    for key in largest_first:
+        size = int(key)
+        # How many groups of THIS size the chain to each total has
+        # already spent. A total reached before this size began was
+        # reached without it, so its entry stays 0.
+        spent = [0 for _each in range(debt + 1)]
+        for total in range(size, debt + 1):
+            if reached[total]:
+                continue
+            below = total - size
+            if not reached[below]:
+                continue
+            if spent[below] >= entry.variants_withheld[key]:
+                continue
+            reached[total] = size
+            spent[total] = spent[below] + 1
+    if not reached[debt]:
+        return None
+    keeping: "dict[str, int]" = {}
+    total = debt
+    while total > 0:
+        size = reached[total]
+        key = ""
+        for candidate in largest_first:
+            if int(candidate) == size:
+                key = candidate
+                break
+        if not key:
+            return None
+        keeping[key] = keeping[key] + 1 if key in keeping else 1
+        total = total - size
+    return keeping
+
+
+def _spare_variant_group(
+    entry: "contract.LevelEntry",
+    keeping: "dict[str, int]",
+) -> str:
+    """Which held-back group takes the label's own spelling, or "" (G8.1).
 
     THE LABEL'S OWN SPELLING IS ONE MORE SPELLING, and where nothing
     else of the level needs it, it is the only further one that folds
     onto the label while KEEPING ITS WRITTEN FORM -- a case flip may
     already be published and a trailing space changes the form. So it
-    is worth spending where it covers most: on the LARGEST held-back
-    group, whose rows are the most cells that would otherwise be
-    written in a form the column never had.
+    is worth spending where it covers most: on the LARGEST group that
+    can use it.
+
+    WHICH GROUPS CAN USE IT is the half amendment A-P4-47 adds. The
+    spelling wears the label's own form, so it suits a group whose
+    TARGET form is that one. Where the label has a form of its own,
+    that is the form-keeping groups, and where it has none every
+    group's target is "no form" and so is the label's -- so on a
+    formless label this is the largest group of all, exactly as it was
+    before this fact existed. Where the label HAS a form and no group
+    keeps it, the spelling is not spent at all: spending it there wrote
+    one more cell in the form than the source ever held, which is the
+    overshoot half of residual R-P4-34.
 
     It is spare only when the published and held-back spellings already
     cover the level's count. A level they do not cover is finished by
     writing the label itself, so that spelling is spoken for and a
-    variant may not take it.
+    variant may not take it. Invariant W4 makes them cover it on every
+    description a loader accepts; this is the rule for the entry that
+    reaches here another way.
+
+    Guarantees: accepts one level entry and the answer of
+    `_form_keeping_groups` over it; returns one key of
+    `variants_withheld` or "". Determinism: the answer depends only on
+    those two. Raises nothing. It counts the entry's own coverage
+    rather than taking a caller's running total, because the caller's
+    total at the moment it asks is the PUBLISHED spellings alone and
+    reading it there reserved the label's spelling on every level that
+    holds one back at all.
     """
     covered = 0
     for spelling in sorted(entry.variants):
         covered = covered + entry.variants[spelling]
-    largest = 0
     for key in _withheld_keys(entry.variants_withheld):
         covered = covered + int(key) * entry.variants_withheld[key]
-        largest = max(largest, int(key))
     if covered < entry.count:
-        return 0
-    return largest
+        return ""
+    formless = not parsing.shape_form(entry.label)
+    best = ""
+    for key in _withheld_keys(entry.variants_withheld):
+        if not formless and not (key in keeping and keeping[key] > 0):
+            continue
+        if not best or int(key) > int(best):
+            best = key
+    return best
 
 
 def _variant_spelling(
     parent: str,
     used: "dict[str, int]",
     owners: "dict[str, str]",
+    wanted: str,
     spare: bool = False,
 ) -> str:
     """One made-up spelling of a published label (method G8.2).
@@ -7976,6 +8170,17 @@ def _variant_spelling(
     would fold onto a DIFFERENT label -- so the published counts of
     folded identities stay exactly what the description says.
 
+    ``wanted`` IS THE WRITTEN FORM THIS SPELLING MUST WEAR, "" for none
+    (method G8.2a, plan amendment A-P4-47). A case flip of the label
+    wears the label's own form and a trailing space wears none, so the
+    two halves of the supply are the two answers, and a candidate
+    wearing the other one is stepped past. That is what lets the walk
+    give a level exactly the number of form-bearing cells its
+    `shape_form_cells` publishes instead of as many as the supply
+    happened to reach. Where the case flips run out with the form still
+    wanted, the trailing space is written and `_level_form_notes` names
+    the shortfall.
+
     ``spare`` OFFERS THE LABEL'S OWN SPELLING FIRST where nothing else
     of the level needs it. `E11.9` published beside three rows of
     `e11.9` held back is a level with exactly two spellings and one of
@@ -7985,7 +8190,7 @@ def _variant_spelling(
     which is a DIFFERENT WRITTEN FORM. The form census then went
     unpaid, which is how this was found (P4-D18).
     """
-    if spare and parent not in used:
+    if spare and parent not in used and parsing.shape_form(parent) == wanted:
         used[parent] = 1
         owners[parsing.folded(parent)] = parent
         return parent
@@ -7996,6 +8201,8 @@ def _variant_spelling(
         if candidate is None:
             break
         if candidate in used or parsing.folded(candidate) != parent:
+            continue
+        if parsing.shape_form(candidate) != wanted:
             continue
         taken = parsing.folded(candidate) in owners
         if taken and owners[parsing.folded(candidate)] != parent:
@@ -13545,6 +13752,7 @@ def generate(profile: contract.Profile, seed: int) -> Twin:
             )
             + _value_count_notes(column, measured)
             + _form_notes(column, written)
+            + _level_form_notes(column, written)
             + _class_notes(column, measured)
             + _alphabet_notes(column, written)
             + _extreme_notes(column, measured)
@@ -14353,6 +14561,81 @@ def _form_notes(
                 column.name,
                 "shape_forms",
                 f"{census[form]} cell(s) written in the shape {form}",
+                f"{found}",
+                sense,
+            )
+        ]
+    return notes
+
+
+def _level_form_notes(
+    column: contract.ColumnBlock, written: "list[str]"
+) -> "list[Deviation]":
+    """Name a level whose cells did not reach its own form count.
+
+    `shape_form_cells` is EXACT-OBSERVABLE (7.4.8, plan amendment
+    A-P4-47) and the walk that covers it has two bounded places it can
+    fall short: the case flips that keep a label's form run out, or the
+    held-back group sizes cannot be added up to the debt at all. Either
+    way the twin writes a trailing space, whose form is none, and this
+    is the line that says so -- in the file written beside the twin,
+    rather than only in a quality report somebody might not run.
+
+    THIS IS A RECOUNT, taken off the finished text with the same reader
+    the fact itself is measured with, so it names what the twin ACTUALLY
+    wears and not what the walk asked for. `_form_notes` above states
+    the same rule for the column-wide census.
+
+    THE TWO ARE SEPARATE FACTS AND NEITHER IS THE OTHER'S SUM
+    (residual R-P4-80): the column census pools below the floor,
+    refuses a form the column has no room for, and counts the cells of
+    levels the floor held back, none of which any level's own number
+    can see.
+    """
+    facts = column.facts
+    if not isinstance(facts, contract.LabelFacts):
+        return []
+    # THE COLUMN'S OWN ABSENT CELLS ARE NOT PRESENT CELLS, which is the
+    # correction review round 2 finding 11 made to `_form_notes` above
+    # and which this inherits rather than rediscovers: a twin
+    # reproduces the spellings its source's absent cells wore (7.7), and
+    # `shape_form_cells` counts the rows UNDER A PUBLISHED LABEL.
+    holes = _hole_spellings(column)
+    counted: "dict[str, int]" = {}
+    for cell in written:
+        if cell == "":
+            continue
+        if _wears_a_published_hole(cell, holes):
+            continue
+        if not parsing.shape_form(cell):
+            continue
+        key = parsing.folded(cell)
+        if key in counted:
+            counted[key] = counted[key] + 1
+            continue
+        counted[key] = 1
+    sense = (
+        "The description says how many of this label's rows wrote it in "
+        "the label's own SHAPE -- every figure of a cell read as `%`, "
+        "every letter as `@`, the marks between them standing -- and the "
+        "twin wrote a different number of them that way. Code developed "
+        "against the twin that splits a value on a mark, checks the "
+        "width of a part, or matches a pattern can behave differently on "
+        "the real table."
+    )
+    notes: "list[Deviation]" = []
+    for entry in facts.levels:
+        found = counted[entry.label] if entry.label in counted else 0
+        if found == entry.shape_form_cells:
+            continue
+        notes = notes + [
+            _deviation(
+                column.name,
+                "levels -> shape_form_cells",
+                (
+                    f"{entry.shape_form_cells} row(s) of one published "
+                    "label written in that label's own shape"
+                ),
                 f"{found}",
                 sense,
             )

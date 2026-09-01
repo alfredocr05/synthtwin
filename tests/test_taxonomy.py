@@ -62,6 +62,9 @@ def test_one_repeated_value_is_a_constant() -> None:
             "count": 30,
             "variants": {"same": 30},
             "variants_withheld": {},
+            # Letters alone are one kind, so `same` has no written form
+            # and none of its rows wrote it in one (7.4.8, A-P4-47).
+            "shape_form_cells": 0,
         }
     ]
 
