@@ -1726,14 +1726,23 @@ ARITHMETIC** (amendment A-P4-48, closing residual R-P4-117).
 `integer_valued` is EXACT-OBSERVABLE and stays so; it falls back to
 REPORT-ONLY — not APPROXIMATED, because a boolean has no window to
 approximate INSIDE, only a fact the twin either holds or names — where
-no number a double can represent between the published ends carries
-anything after the point. That edge is exact
-rather than a matter of judgement: the gap between one representable
-number and the next reaches one unit at two to the fifty-second and
-passes it at the fifty-third, so a column whose values sit at or above
-about nine quadrillion has nowhere to put a value with a point in it,
-and one below keeps its type. Measured on one column shape at four
-magnitudes.
+no stratum that MAY take a value has a share holding a number a double
+can represent with anything after the point.
+
+**THE CONDITION IS OVER THE SHARES AND NOT THE PUBLISHED ENDS** (round
+5, item 2). A column may run from `1` to two to the fifty-fifth, holding
+countless fractions between those ends, while every stratum that may
+take a value sits high above them: the ends bound the ladder, the shares
+bound what a value may BE. The arithmetic edge is exact — the gap
+between one representable number and the next reaches a WHOLE UNIT at
+two to the fifty-SECOND, about four and a half quadrillion — and the
+search walks in from both ends of a share rather than probing its
+middle, because on a wide share the values with a point in them live at
+the LOW end and the middle is the worst place to look. Round 5 built a
+column whose middle stratum ran from about 3.6 to 7.2 thousand million
+million: the middle of it is whole in every direction, and
+`4053239664633446.5` sits inside it. The twin keeps its type there now
+and names nothing.
 
 This method does not grant that outcome by writing it down — an earlier
 revision said the outcome was "permitted", which a sentence cannot do.

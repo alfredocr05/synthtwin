@@ -4593,16 +4593,37 @@ declaration for only one of them.
   that will be working for ever other number, allowing the code
   development and statistical reliable!"*
 
-  It IS limited to those numbers, and the limit was measured before the
-  ruling was applied. The gap between one number a double can represent
-  and the next reaches one unit at two to the fifty-second and passes it
-  at the fifty-third: **at two to the forty-ninth and the fifty-second
-  the twin keeps its type on this very column shape; at the fifty-third
-  and the fifty-fifth it cannot.** Nine quadrillion is the edge. A cost,
-  a laboratory result, a count of people and every identifier a person
-  would profile as a NUMBER sit many orders below it — and a value that
-  large is read as `numeric_unrepresentable` or `identifier` long before
-  this rule is reached.
+  It IS limited to those numbers. The gap between one number a double
+  can represent and the next reaches a whole unit at two to the
+  fifty-SECOND — about four and a half quadrillion — and doubles that
+  large are the only ones with no room for anything after the point.
+
+  **AND THE CORNER IS NARROWER THAN IT LOOKED WHEN THE RULING WAS
+  GIVEN** (adversarial round 5, items 1 and 2). The search for a value
+  with a point in it probed the MIDDLE of a stratum's share, which on a
+  wide share is the worst place to look: values with a point live at the
+  LOW end. Round 5 built a column — one `1`, one `1.5`, 998 of two to
+  the fifty-fifth — whose middle stratum runs from about 3.6 to 7.2
+  thousand million million and contains `4053239664633446.5`, and the
+  twin named a type it could have kept. The search walks in from both
+  ends of a share now, and that column keeps its type with nothing
+  named at all.
+
+  So the condition is over the SHARES a stratum may take a value in, not
+  over the published ends — a column can run from `1` to two to the
+  fifty-fifth and hold countless fractions between those ends while
+  every eligible share sits above them. Measured after the repair, two
+  shapes at five magnitudes:
+
+  | shape | 2^49 | 2^52 | 2^53 | 2^55 | 2^60 |
+  |---|---|---|---|---|---|
+  | five zeros, one `0.5`, 995 large | kept | kept | kept | NAMED | NAMED |
+  | one `1`, one `1.5`, 998 large | — | kept | kept | kept | NAMED |
+
+  A cost, a laboratory result, a count of people and every identifier a
+  person would profile as a NUMBER sit many orders below any of it — and
+  a value that large is read as `numeric_unrepresentable` or
+  `identifier` long before this rule is reached.
 
   So the ratified plan now reads `integer_valued` EXACT-OBSERVABLE
   "falling back to REPORT-ONLY only where no number a double can
@@ -4621,6 +4642,35 @@ declaration for only one of them.
 
   The twin still names the miss when it happens. What changed is that
   the tool no longer promises what arithmetic will not give it.
+
+- **R-P4-118 — OPEN (opened 2026-09-01 by adversarial round P4-C1-R5,
+  item 3).** THE VALIDATOR DOES NOT KNOW ABOUT A-P4-48, SO IT REPORTS
+  THE AUTHORIZED CORNER AS A PLAIN MISS.
+
+  A-P4-48 makes `integer_valued` REPORT-ONLY in the arithmetic corner,
+  and the registry and the plan both carry that. `validation.py`'s
+  `_numeric_checks` still builds an EXACT `type.integer_valued` check
+  unconditionally, so validating the corner's own twin returns MISSED
+  and the quality verdict counts it against the file. Under the
+  amendment's class it should be a not-checkable listing that does not
+  decide pass or fail.
+
+  **WHY IT IS NOT REPAIRED HERE, and this is a design call worth
+  reading.** The condition is over the STRATA a stratum may take a value
+  in, which is the generator's own division of the cells — the
+  validator has no layout and cannot recompute it without importing the
+  generator. That import is the thing the validator's independence is
+  FOR: a validator that asked the generator whether a miss was excusable
+  would excuse the generator's own bugs. So closing this means either
+  publishing enough for the validator to decide alone, or carrying the
+  answer from the generator to the report as a stated, checkable
+  claim — a design question, not an edit.
+
+  Meanwhile the validator is STRICTER than the plan, which is the safe
+  direction: it names a known corner rather than hiding a real defect,
+  and the twin's own report says why. The battery is where the
+  authorization has to hold, and it does reach this shape: the line it
+  files goes through the authorization, not around it.
 
 - **R-P4-116 — OPEN (opened 2026-09-01 while measuring adversarial
   round P4-C1-R2 item 4; PRE-EXISTING, and nothing to do with the

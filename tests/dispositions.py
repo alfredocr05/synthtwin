@@ -482,8 +482,9 @@ REGISTRY += [
 # region that states it so a softened sentence stops being found.
 _BEYOND_STEPS = "beyond-whole-steps"
 _BEYOND_STEPS_SAID = (
-    "falling back to REPORT-ONLY only where no number a double can "
-    "represent between the published ends carries anything after the point"
+    "falling back to REPORT-ONLY only where no stratum that may take a "
+    "value has a share holding a number a double can represent with "
+    "anything after the point"
 )
 
 _JUDGED_PASS_SAID = (
@@ -601,15 +602,21 @@ REGISTRY += _facts(
 )
 # `integer_valued` IS EXACT EVERYWHERE A DOUBLE CAN CARRY A POINT, and
 # the one place it cannot is arithmetic rather than a choice (owner
-# ruling, amendment A-P4-48; residual R-P4-117). Above two to the
-# fifty-third the gap between one representable number and the next is
-# more than a whole unit -- measured: 1 at two to the fifty-second, 2 at
-# the fifty-third, 8 at the fifty-fifth -- so a share up there holds NO
-# value with anything after the point, and a column whose values all sit
-# there has nowhere to put one that does not break `n_zero`, the rung
-# window, or a published end. Measured on the shape adversarial round 4
-# built: at two to the fifty-second the twin keeps the type, and at the
-# fifty-third and above it cannot and names the miss.
+# ruling, amendment A-P4-48; residual R-P4-117). The gap between one
+# number a double can represent and the next reaches a WHOLE UNIT at two
+# to the fifty-SECOND -- measured: 0.5 at the fifty-first, 1 at the
+# fifty-second, 2 at the fifty-third, 8 at the fifty-fifth -- so a share
+# lying wholly above that holds no value with anything after the point.
+#
+# THE CONDITION IS OVER THE STRATA, NOT THE PUBLISHED ENDS (adversarial
+# round 5, item 2). A column may run from 1 to two to the fifty-fifth
+# and hold plenty of fractions between those ends while every stratum
+# that MAY take a value sits high: the ends bound the ladder, the shares
+# bound what a value may be. Round 5 built exactly that column and it is
+# NOT this corner -- the search reaches its middle stratum now and the
+# twin keeps its type there with nothing named. What remains is a column
+# whose every eligible share is high, and whose only low stratum is the
+# ZERO band, which must hold its published zeros.
 REGISTRY += [
     Fact(
         "numeric",
