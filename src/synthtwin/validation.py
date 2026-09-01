@@ -7259,15 +7259,17 @@ def _joined_checks(
                 None if seen is None else _shown_count(seen),
             )
         ]
-    # WHICH PAIRS THE WINDOW REACHES, and it is not all of them (review
-    # item P4-G3-R2-F3). The generator was corrected to score only the
-    # pairs the pairing walk moves, and this side was left windowing
-    # every pair -- so on a three-position column the twin's own report
-    # called pair (1,2) an unscored deviation with no window while this
-    # report handed the same pair G12.9's range and G12.9's name, which
-    # is the section that excludes it. One landing, two readers, and
-    # only one of them changed.
-    scored = contract.scored_pairs(facts.n_parts)
+    # EVERY PAIR TAKES THE WINDOW, and it did not until landing L7
+    # (residual R-P4-51). The generator scored only the pairs the
+    # pairing walk moved -- those with the LAST position in them -- and
+    # this side was left windowing every pair, so on a three-position
+    # column the twin's own report called pair (1,2) an unscored
+    # deviation with no window while this report handed the same pair
+    # G12.9's range and G12.9's name, which was the section that
+    # excluded it. That disagreement was closed by narrowing this side;
+    # it is closed now by the walk moving every position but the first,
+    # so the two pages agree because the same thing is true of every
+    # pair rather than because both were taught the same exception.
     for place in range(len(facts.part_agreements)):
         agreed = facts.part_agreements[place]
         found_agreement = _at_place(block, "part_agreements", place)
@@ -7278,29 +7280,22 @@ def _joined_checks(
             measured_agreement = float(found_agreement)
         fact = f"joined.part_agreements[{place}]"
         subcheck = f"together.how strongly they move, pair {place + 1}"
-        if place in scored:
-            checks = checks + [
-                _within(
-                    name,
-                    fact,
-                    subcheck,
-                    f"{agreed}",
-                    measured_agreement,
-                    (
-                        # Inclusive by G12.9, and subtraction rounds:
-                        # the generator's copy of this bound takes the
-                        # same outward step (item P4-G6-R7-F1).
-                        _lowered(agreed - _AGREEMENT_SLACK),
-                        _raised(agreed + _AGREEMENT_SLACK),
-                    ),
-                    ENVELOPE_JOINED_AGREEMENT,
-                    agreed,
-                )
-            ]
-            continue
         checks = checks + [
-            _unscored_agreement(
-                name, fact, subcheck, agreed, measured_agreement
+            _within(
+                name,
+                fact,
+                subcheck,
+                f"{agreed}",
+                measured_agreement,
+                (
+                    # Inclusive by G12.9, and subtraction rounds: the
+                    # generator's copy of this bound takes the same
+                    # outward step (item P4-G6-R7-F1).
+                    _lowered(agreed - _AGREEMENT_SLACK),
+                    _raised(agreed + _AGREEMENT_SLACK),
+                ),
+                ENVELOPE_JOINED_AGREEMENT,
+                agreed,
             )
         ]
     checks = checks + _joined_part_checks(
@@ -7318,53 +7313,6 @@ def _joined_checks(
         column, facts, block, cells, floor
     )
     return checks
-
-
-def _unscored_agreement(
-    name: str,
-    fact: str,
-    subcheck: str,
-    published: float,
-    measured: "float | None",
-) -> Check:
-    """A pair between two positions the pairing walk never moves.
-
-    CHECKED EXACTLY, and a disagreement is a MISS.
-
-    WHAT G12.9 WITHHOLDS IS THE WINDOW AND NOT THE OBLIGATION, and a
-    round of this review read it as both (item P4-G3-R3-F2). The
-    section says such a pair "is not an approximation of anything",
-    which settles that no two-hundredths range may be printed beside
-    it and that citing G12.9 for one would cite the section that
-    excludes it. It does NOT say the published value stops being a fact
-    the file either carries or does not.
-
-    So this is an exact check with no citation, and a twin of a
-    three-position column misses it -- which is residual R-P4-51
-    appearing in the report, where an open residual belongs. The
-    alternative was tried and withdrawn: AUTHORIZED-DEVIATION is drawn
-    from the registry of corners a ratified plan or an owner
-    authorizes, reached through `corners_of`, and emitting it straight
-    from here bypassed that classifier to excuse a miss on the
-    strength of a section that authorizes nothing. It also let a file
-    that is not a twin pass: describe 120 cells `r/r/1000` and check
-    `r/(121-r)/1000` against it -- every marginal value, width, style
-    and moment holds, both scored pairs against the constant third
-    position hold, and only the early pair is turned inside out.
-    """
-    if measured is None:
-        return _withheld(name, fact, subcheck, _GATE_CLOSED)
-    # NEGATIVE ZERO IS ZERO, and the two sides must not disagree about
-    # that (review item P4-G3-R4-F2). An agreement of a few
-    # ten-thousandths below zero rounds to `-0.0`, which is EQUAL to
-    # `0.0` as a number and different from it as text. The generator
-    # compares the numbers and stays silent; this used to compare the
-    # spellings and report MISSED, so one page of a run said a fact was
-    # held and the other said it was not, over a difference that is not
-    # one. Adding zero maps `-0.0` to `0.0` and moves nothing else.
-    return _exact(
-        name, fact, subcheck, f"{published + 0.0}", f"{measured + 0.0}"
-    )
 
 
 def _position_cells(

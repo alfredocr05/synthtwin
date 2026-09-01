@@ -36,7 +36,6 @@ import random
 import tempfile
 
 import fixtures
-import pytest
 from synthtwin import (
     contract,
     generation,
@@ -221,12 +220,15 @@ def _three_positions() -> "list[str]":
     return values
 
 
-def test_an_unscored_pair_is_never_dressed_as_an_approximation() -> None:
-    """Goes red if `_agreement_approximations` scores every pair again.
+def test_every_pair_of_a_three_position_column_is_approximated() -> None:
+    """Goes red if `_agreement_approximations` stops scoring a pair.
 
-    The approximated pairs are exactly those the walk moves: the ones
-    the LAST position is part of. For three positions that is two of
-    the three pairs, and the third is not approximated at all.
+    The approximated pairs used to be exactly those the walk moved: the
+    ones the LAST position is part of. For three positions that was two
+    of the three, and the third was not approximated at all -- it was
+    named as a deviation with no window, because no window could be
+    promised for a pair nothing aimed at. The walk now moves every
+    position but the first, so all three are approximated.
     """
     _document, loaded, _folder, _table = _described(_three_positions())
     twin = generation.generate(loaded, 9)
@@ -235,41 +237,41 @@ def test_an_unscored_pair_is_never_dressed_as_an_approximation() -> None:
         for record in twin.approximations
         if "part_agreements" in record.fact
     )
-    assert scored == ["part_agreements[1]", "part_agreements[2]"], (
-        "pair 0 is between the first two positions, which the walk "
-        f"never moves, and it was approximated anyway: {scored}"
-    )
+    assert scored == [
+        "part_agreements[0]",
+        "part_agreements[1]",
+        "part_agreements[2]",
+    ], scored
 
 
-def test_an_unscored_pair_that_misses_is_named_as_a_deviation() -> None:
-    """A fact nothing reports is one a reader cannot know was missed.
+def test_no_pair_is_reported_as_unaimed_at_any_more() -> None:
+    """The sentence that excused a pair is gone with the branch.
 
-    Removing it from the approximations must not remove it from the
-    report. It becomes what it is -- a published fact the twin did not
-    meet -- and the sentence beside it says no closeness was promised,
-    so a reader is not left to infer a bound from silence.
+    While one pair was aimed at by nothing, a miss of it was named as a
+    plain deviation whose sentence said "not aimed at", so a reader was
+    not left to infer a bound from silence. Nothing is unaimed-at now,
+    so a report still carrying that sentence would be describing a walk
+    this tool no longer has.
 
-    Goes red if `_agreement_notes` is dropped from the deviation chain.
+    Goes red if the unaimed-at branch comes back into either report.
     """
     _document, loaded, _folder, _table = _described(_three_positions())
-    twin = generation.generate(loaded, 9)
-    named = [
-        note for note in twin.deviations if note.fact == "part_agreements[0]"
-    ]
-    assert len(named) == 1, (
-        "the pair the walk never moves came out somewhere other than "
-        "published and no line of the report says so"
-    )
-    assert "not aimed at" in named[0].note
+    for seed in (9, 11, 13):
+        twin = generation.generate(loaded, seed)
+        for note in twin.deviations:
+            assert "not aimed at" not in note.note, (seed, note.fact)
+        for record in twin.approximations:
+            assert "not aimed at" not in record.note, (seed, record.fact)
 
 
-def test_a_two_position_column_has_no_unscored_pair() -> None:
+def test_a_two_position_column_reports_one_approximated_pair() -> None:
     """The common case is untouched, and that is worth pinning.
 
-    Two positions make one pair and the walk moves one of them, so
-    every pair of an ordinary joined column is scored. A change that
-    made the ordinary column start reporting deviations here would be
-    a regression this catches.
+    Two positions make one pair and the walk moves one of them, so the
+    ordinary joined column had no pair the walk failed to aim at even
+    before landing L7 -- which is why five reads of the role missed the
+    residual entirely. A change that made the ordinary column start
+    reporting deviations here would be a regression this catches.
     """
     values = [f"{120 + row}/{80 - (row % 30)}" for row in range(120)]
     _document, loaded, _folder, _table = _described(values)
@@ -284,8 +286,9 @@ def test_a_two_position_column_has_no_unscored_pair() -> None:
     # NOT "no deviation at all", because an approximation that lands
     # outside its window already becomes a deviation by the report's
     # own long-standing rule, and this column's does. What must not
-    # appear is the UNSCORED-pair note, which would say the walk never
-    # aimed at the one pair it spends its whole search on.
+    # appear is the sentence that said a pair was not aimed at, which
+    # of the one pair this walk spends its whole search on was never
+    # true and of any pair is no longer true.
     assert not [
         note for note in twin.deviations if "not aimed at" in note.note
     ]
@@ -350,24 +353,35 @@ def _three_position_column() -> "list[str]":
     ]
 
 
-def test_the_scored_rule_has_one_definition() -> None:
-    """Two modules asked which pairs are scored and only one was fixed.
+def test_every_pair_is_aimed_at_which_closes_R_P4_51() -> None:
+    """The rule two modules asked and only one was fixed, now retired.
 
-    The generator decides which pairs it approximates; the validator
-    decides which it holds to G12.9's window. Written separately, only
-    one was corrected in round 1, and the twin's own report then called
-    a pair unscored while the quality report handed the same pair the
-    window of the section that excludes it.
+    `contract.scored_pairs` answered which pairs the pairing walk aims
+    at. While the walk moved the LAST position and no other, that was
+    `(0,)` for two positions, `(1, 2)` for three and `(2, 4, 5)` for
+    four, and a pair between two EARLIER positions was aimed at by
+    nothing: the generator named such a pair as a deviation with no
+    window and the validator checked it exactly with no citation.
+
+    Landing L7 makes the walk move every position but the first, so
+    every pair has a member it moves. The function is gone rather than
+    left returning every seat, and this test is what stands in its
+    place: on a three-position column BOTH pages must treat all three
+    pairs the same way, which is the property the shared rule existed
+    to protect.
     """
-    assert contract.scored_pairs(2) == (0,)
-    assert contract.scored_pairs(3) == (1, 2)
-    assert contract.scored_pairs(4) == (2, 4, 5)
+    assert not hasattr(contract, "scored_pairs"), (
+        "the walk aims at every pair now, so a rule naming a subset of "
+        "them is a rule with no caller and no meaning"
+    )
 
 
-def test_both_pages_say_the_same_thing_about_the_same_twin() -> None:
-    """The pair the walk never moves is named the same way by both.
+def test_both_pages_say_the_same_thing_about_every_pair() -> None:
+    """All three pairs are approximated, and both pages say so.
 
-    Goes red if either side stops reading `contract.scored_pairs`.
+    Goes red if either side starts treating one pair differently from
+    another -- which is the shape of the defect this file was opened
+    on, one landing and two readers with only one of them changed.
     """
     _document, loaded, folder, _table = _described(_three_position_column())
     twin = generation.generate(loaded, 9)
@@ -381,14 +395,17 @@ def test_both_pages_say_the_same_thing_about_the_same_twin() -> None:
         for record in twin.approximations
         if "part_agreements" in record.fact
     }
-    assert approximated == {"part_agreements[1]", "part_agreements[2]"}
+    assert approximated == {
+        "part_agreements[0]",
+        "part_agreements[1]",
+        "part_agreements[2]",
+    }, approximated
 
-    # A SCORED PAIR CARRIES THE ENVELOPE WHERE IT IS WINDOWED, and a
-    # pair that hits its published value exactly is HELD and carries
-    # none -- the citation travels with the lesser verdict, not with
-    # every scored pair. What must never happen is the reverse: an
-    # UNSCORED pair carrying G12.9, which is the section that excludes
-    # it.
+    # EVERY PAIR CARRIES THE ENVELOPE where it is windowed, and a pair
+    # that hits its published value exactly is HELD and carries none --
+    # the citation travels with the lesser verdict. What must never
+    # happen again is one pair being handed a window while another is
+    # checked exactly with no citation, on the same twin.
     windowed = {
         check.fact
         for check in outcome.checks
@@ -397,30 +414,117 @@ def test_both_pages_say_the_same_thing_about_the_same_twin() -> None:
     }
     assert windowed, "no pair was windowed at all, so this pins nothing"
     assert windowed <= {
+        "joined.part_agreements[0]",
         "joined.part_agreements[1]",
         "joined.part_agreements[2]",
-    }, (
-        "the quality report cites the joined-agreement envelope for a "
-        f"pair the pairing walk never moves: {windowed}"
-    )
-
-    unscored = [
+    }, windowed
+    uncited = [
         check
         for check in outcome.checks
-        if check.fact == "joined.part_agreements[0]"
+        if "part_agreements" in check.fact and not check.citation
     ]
-    assert len(unscored) == 1
-    # CHECKED EXACTLY AND NOT EXCUSED. A round of this review made it
-    # an AUTHORIZED-DEVIATION and that was withdrawn (item
-    # P4-G3-R3-F2): G12.9 withholds the WINDOW, not the obligation, and
-    # excusing the miss let a file that is not a twin pass every
-    # verdict-bearing check. The twin does miss it, that is residual
-    # R-P4-51, and an open residual belongs in the report.
-    assert unscored[0].verdict in (validation.HELD, validation.MISSED)
-    assert not unscored[0].citation, (
-        "no window is promised for this pair, so no envelope may be "
-        f"cited beside it: {unscored[0].citation!r}"
+    assert not uncited, (
+        "a pair was checked with no envelope cited beside it, which is "
+        f"the state R-P4-51 left behind: {[c.fact for c in uncited]}"
     )
+
+
+def _twin_positions_of_one_multiset() -> "list[str]":
+    """A three-number column whose LAST TWO positions hold one multiset.
+
+    Both are the same 120 numbers in independently shuffled orders, so
+    every pair's published agreement lands in the walk's shuffle band
+    and both positions are permuted at the start.
+    """
+    generator = random.Random(23)
+    base = [generator.randint(1, 400) for _each in range(120)]
+    second = list(base)
+    generator.shuffle(second)
+    third = list(base)
+    generator.shuffle(third)
+    first = [generator.randint(1, 400) for _each in range(120)]
+    return [
+        f"{first[row]}/{second[row]}/{third[row]}" for row in range(120)
+    ]
+
+
+def test_two_shuffling_positions_take_different_reserve_words() -> None:
+    """Each position after the first takes its OWN slice of the reserve.
+
+    G4.3 sets `n_joined - 1` words aside for every position after the
+    first, and G6B.4 step 2 spends them one slice per position. Two
+    positions drawing the SAME slice are permuted the same way, and on
+    a column whose last two positions hold one multiset that means they
+    start the walk holding equal numbers row for row.
+
+    THE SIGNAL IS STATISTICAL AND BOTH SIDES ARE MEASURED, because the
+    walk moves both positions afterwards and pulls them apart again.
+    Over twenty seeds the honest code leaves **0 to 2** rows of 120
+    holding the same number twice -- about what 106 different values in
+    120 rows collide by chance -- and with both positions drawing the
+    same slice it leaves **4 to 12**, at every seed tried. The bound
+    below is three, between the two, and the four seeds it runs are
+    seeds the mutant fails at 7, 12, 4 and 9.
+    """
+    _document, loaded, _folder, _table = _described(
+        _twin_positions_of_one_multiset()
+    )
+    facts = loaded.columns[0].facts
+    assert facts.n_parts == 3, facts.n_parts
+    # THE FIXTURE REACHES THE SHUFFLE BRANCH, asserted before anything
+    # is asserted about it: a target outside the band takes a different
+    # start and this test would be watching a rule it never reached.
+    for seat in (0, 1):
+        assert -0.4 <= facts.part_agreements[seat] < 0.4, (
+            seat, facts.part_agreements
+        )
+    for seed in (0, 1, 2, 3):
+        twin = generation.generate(loaded, seed)
+        cells = [cell for cell in twin.columns[0] if cell != ""]
+        assert len(cells) == 120, len(cells)
+        twice = len([
+            cell
+            for cell in cells
+            if cell.split("/")[1] == cell.split("/")[2]
+        ])
+        assert twice <= 3, (
+            f"seed {seed}: {twice} rows of 120 hold the same number in "
+            "both of the last two positions, which is what two "
+            "positions permuted by the same reserve words look like"
+        )
+
+
+def test_the_early_pair_of_a_three_position_column_can_be_reached() -> None:
+    """R-P4-51's own column, and the number that WAS the defect.
+
+    25 copies each of `1/4/10`, `2/3/20`, `3/2/30` and `4/1/40`, whose
+    first two positions are perfectly anti-correlated: published -1.0
+    and the twin held **+1.0**, the exact opposite, because the walk
+    moved only the last position and the first two kept the ascending
+    order the sort left them in.
+
+    All three pairs now land inside G12.9's window at every seed here,
+    and every above-count is met.
+    """
+    values: "list[str]" = []
+    for _each in range(25):
+        values = values + ["1/4/10", "2/3/20", "3/2/30", "4/1/40"]
+    _document, loaded, folder, _table = _described(values)
+    facts = loaded.columns[0].facts
+    assert facts.part_agreements == (-1.0, 1.0, -1.0), facts.part_agreements
+    for seed in (0, 1, 2, 3, 7):
+        twin = generation.generate(loaded, seed)
+        written = fixtures.write(
+            folder, f"twin-{seed}.csv", rendering.twin_csv(twin)
+        )
+        outcome = validation.measure(loaded, f"{written}")
+        missed = [
+            check.subcheck
+            for check in outcome.checks
+            if check.verdict == validation.MISSED
+            and ("part_agreements" in check.fact or "part_above" in check.fact)
+        ]
+        assert not missed, (seed, missed)
 
 
 def test_a_missed_above_count_reaches_the_twins_own_report() -> None:
@@ -477,36 +581,30 @@ def test_a_two_position_column_reports_no_above_count_trouble() -> None:
     ]
 
 
-def test_the_walk_starts_from_the_pairs_it_can_actually_move(
-    monkeypatch: "pytest.MonkeyPatch",
+def test_each_position_starts_from_the_pair_it_makes_with_the_anchor(
 ) -> None:
-    """An unaimed-at fact must not steer a choice it cannot affect (F6).
+    """A target another position owns must not decide this one's start.
 
-    The starting arrangement is chosen from the average published
-    agreement, and only the LAST position moves -- so a pair between
-    two earlier positions cannot be helped by any answer, and letting
-    its target into the average lets a fact nothing can reach decide
-    the start for the facts that can.
+    The starting arrangement of a position is chosen from ONE published
+    agreement -- the one it makes with the anchor, which is position
+    one -- and the three branches are a reversal below -0.4, a shuffle
+    between -0.4 and 0.4, and rank for rank above it.
 
-    COMPUTING TWO AVERAGES IN THE TEST PINNED NOTHING, which is what
-    the first version did (review item P4-G3-R3-F5): restoring the old
-    loop over every published agreement left it green, because it never
-    generated a column at all. So this REPLACES the rule the generator
-    reads and watches the twin's own cells move. If the generator stops
-    consulting `contract.scored_pairs` when it picks a start, the two
-    twins come out identical and this goes red.
+    IT WAS AN AVERAGE UNTIL LANDING L7, and it had to be: only the last
+    position moved, so one choice served every pair the walk could
+    reach. Now each position moves on its own and each has a target of
+    its own, so averaging would let a fact one position owns decide
+    another's start.
 
-    Twenty random three-position columns did NOT separate the two rules
-    by their verdicts, which is why this pins the CALL rather than
-    sampling for an improvement I could not measure.
+    A description whose early pair wants -0.68 while both later pairs
+    want +0.4 is the case that separates them: the average over every
+    pair is 0.04 and takes the shuffle, the average over the two pairs
+    the OLD walk scored is 0.4 and takes rank for rank, and the rule
+    here reverses position two against position one and leaves position
+    three rank for rank. Measured on the twin: the early pair lands
+    inside G12.9's window, which no average could reach and the old
+    walk could not reach at all.
     """
-    # A DESCRIPTION WHOSE TARGETS STRADDLE THE BRANCH, because no
-    # ordinary column does. Sixty three-position columns built to lean
-    # the right way were measured and NONE of them put the two
-    # averaging rules on opposite sides of the walk's own threshold --
-    # so the published agreements are set here directly, which is what
-    # the generator consumes and is the whole of what this test is
-    # about. The rest of the description is a real one.
     document, _loaded, folder, _table = _described(_three_position_column())
     forged = copy.deepcopy(document)
     forged["columns"][0]["part_agreements"] = [-0.68, 0.4, 0.4]
@@ -514,43 +612,34 @@ def test_the_walk_starts_from_the_pairs_it_can_actually_move(
         f"{fixtures.write_profile(folder, 'forged.json', forged)}"
     )
     assert loaded.columns[0].facts.part_agreements == (-0.68, 0.4, 0.4)
-
-    honest = generation.generate(loaded, 21)
-
-    # Every seat scored -- the rule the generator used to average over.
-    def every_seat(n_parts: int) -> "tuple[int, ...]":
-        seats: "list[int]" = []
-        place = 0
-        for first in range(n_parts):
-            for second in range(first + 1, n_parts):
-                seats = seats + [place]
-                place = place + 1
-        return tuple(seats)
-
-    monkeypatch.setattr(contract, "scored_pairs", every_seat)
-    widened = generation.generate(loaded, 21)
-
-    assert honest.columns[0] != widened.columns[0], (
-        "replacing the rule that says which pairs the walk aims at "
-        "left the twin's cells unchanged, so the generator is not "
-        "reading it where it chooses a starting arrangement"
+    twin = generation.generate(loaded, 21)
+    written = fixtures.write(folder, "twin.csv", rendering.twin_csv(twin))
+    outcome = validation.measure(loaded, f"{written}")
+    early = [
+        check
+        for check in outcome.checks
+        if check.fact == "joined.part_agreements[0]"
+    ]
+    assert len(early) == 1, early
+    assert early[0].verdict in (validation.HELD, validation.WITHIN_BOUND), (
+        "the pair between the two EARLIER positions was not reached, "
+        f"which is the state R-P4-51 recorded: {early[0].achieved}"
     )
 
 
-def test_the_two_averaging_rules_fall_on_opposite_sides() -> None:
+def test_the_anchor_and_the_average_fall_on_opposite_sides() -> None:
     """The arithmetic the test above depends on, stated once.
 
-    With an early pair at -0.68 and both scored pairs at +0.4,
-    averaging the pairs the walk moves gives 0.400 and starts
-    rank-for-rank, while averaging all three gives 0.040 and starts
-    from a shuffle. If this ever stops holding, the test above is
-    watching two runs that were never going to differ.
+    With an early pair at -0.68 and both later pairs at +0.4, the rule
+    that landed reads -0.68 for position two and reverses it, while an
+    average over all three gives 0.040 and would shuffle. If this ever
+    stops holding, the test above is watching a case that was never
+    going to separate the two rules.
     """
     published = (-0.68, 0.4, 0.4)
-    seats = contract.scored_pairs(3)
-    over_scored = sum(published[seat] for seat in seats) / len(seats)
+    anchored = published[0]
     over_every = sum(published) / len(published)
-    assert over_scored >= 0.4 > over_every
+    assert anchored < -0.4 <= over_every < 0.4
 
 
 # -- round P4-G3-R4 ---------------------------------------------------
@@ -581,19 +670,44 @@ def test_negative_zero_is_zero_on_both_pages() -> None:
         f"{fixtures.write_profile(folder, 'zero.json', forged)}"
     )
     assert loaded.columns[0].facts.part_agreements[0] == 0.0
-    # The check itself, over both spellings of the same number.
-    for measured in (0.0, -0.0):
-        check = validation._unscored_agreement(
-            "bp",
-            "joined.part_agreements[0]",
-            "together.how strongly they move, pair 1",
-            0.0,
-            measured,
+    # THROUGH THE REAL PATH, because the exact check this used to call
+    # directly is gone: landing L7 gives every pair G12.9's window, so
+    # the early pair is measured by `_within` like the rest. The
+    # property is the same one and it is asserted where a reader meets
+    # it -- the two pages of one run, on one twin.
+    agreed = 0
+    for seed in (5, 9, 21):
+        twin = generation.generate(loaded, seed)
+        written = fixtures.write(
+            folder, f"zero-twin-{seed}.csv", rendering.twin_csv(twin)
         )
-        assert check.verdict == validation.HELD, (
-            f"an agreement of {measured!r} against a published 0.0 came "
-            f"back {check.verdict}, and the two numbers are equal"
+        outcome = validation.measure(loaded, f"{written}")
+        early = [
+            check
+            for check in outcome.checks
+            if check.fact == "joined.part_agreements[0]"
+        ]
+        assert len(early) == 1, early
+        said = [
+            note
+            for note in twin.deviations
+            if note.fact == "part_agreements[0]"
+        ]
+        held = early[0].verdict in (
+            validation.HELD, validation.WITHIN_BOUND,
         )
+        assert held == (not said), (
+            f"seed {seed}: the quality report says {early[0].verdict} "
+            f"while the twin's own report names {len(said)} deviation(s) "
+            "for the same pair of the same twin"
+        )
+        if held and early[0].achieved is not None:
+            assert "-0.0" != f"{early[0].achieved}", (
+                "an agreement of -0.0 against a published 0.0 was "
+                "printed as a different number from the one it equals"
+            )
+        agreed = agreed + 1
+    assert agreed == 3
 
 
 def test_the_method_and_the_code_choose_the_start_the_same_way() -> None:
@@ -602,9 +716,14 @@ def test_the_method_and_the_code_choose_the_start_the_same_way() -> None:
     G6B.4 step 2 said to average EVERY published agreement while the
     code averaged only the scored ones, so two implementations -- one
     written from the specification, one from this repository -- could
-    write different twin bytes for the same description and seed. The
-    method is amended; this holds the two together by reading the
-    method's own words.
+    write different twin bytes for the same description and seed.
+
+    THE RULE MOVED AGAIN AT LANDING L7 and this moved with it. There is
+    no mean at all now: every position but the first moves, so each one
+    starts from the pair it makes with the ANCHOR. The same failure is
+    available -- a method that still described a mean would send an
+    implementer to a different starting arrangement -- so the same
+    words are held, against the rule that replaced them.
     """
     method = (
         pathlib.Path(__file__).resolve().parents[1]
@@ -612,12 +731,18 @@ def test_the_method_and_the_code_choose_the_start_the_same_way() -> None:
         / "spec"
         / "generation-method-v1.md"
     ).read_text(encoding="utf-8")
-    step = method[method.index("**2. Choose the start.**") :][:2400]
-    assert "SCORED" in step, (
-        "G6B.4 step 2 no longer says the mean is taken over the scored "
-        "entries, so an implementer working from the method would "
-        "average every entry and choose a different starting "
-        "arrangement from this code"
+    step = method[
+        method.index("**2. Choose each position's start.**") :
+    ][:3600]
+    assert "seat `p - 1`" in step, (
+        "G6B.4 step 2 no longer says which published agreement decides "
+        "a position's start, so an implementer working from the method "
+        "would choose a different starting arrangement from this code"
+    )
+    assert "IT IS THE PAIR WITH THE ANCHOR AND NOT A MEAN" in step, (
+        "the method no longer says the start is NOT a mean over pairs, "
+        "which is the rule this landing replaced and the one an "
+        "implementer reading an older draft would carry forward"
     )
     assert "-0.68, 0.4, 0.4" in step, (
         "the worked example that separates the two rules has gone from "
