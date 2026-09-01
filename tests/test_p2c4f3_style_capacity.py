@@ -1360,6 +1360,47 @@ def test_the_twin_report_is_silent_about_the_joined_style_miss(
     ], facts
 
 
+def test_where_a_double_stops_carrying_a_point_is_where_the_type_goes(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The boundary of amendment A-P4-48, measured on both sides.
+
+    The owner's ruling makes `integer_valued` APPROXIMATED only where no
+    number a double can represent between the published ends carries
+    anything after the point. That is not a judgement about magnitude,
+    it is arithmetic with an exact edge: the gap between one
+    representable number and the next reaches one unit at two to the
+    fifty-second and passes it at the fifty-third.
+
+    THE POINT OF THIS TEST IS THAT THE EXCEPTION IS NARROW. Below the
+    edge the type is KEPT, on the same column shape, so the allowance
+    cannot quietly widen into ordinary columns: every value a person is
+    likely to profile -- a cost, a laboratory result, a count of people
+    -- is many orders below it.
+    """
+    for power, keeps in ((49, True), (52, True), (53, False), (55, False)):
+        values = (
+            ["0"] * 5 + ["0.5"] + [repr(2 ** power)] * 995
+        )
+        document, loaded = _described(tmp_path, values)
+        assert document["columns"][0]["integer_valued"] is False, power
+        twin = generation.generate(loaded, 0)
+        written = [cell for cell in twin.columns[0] if cell != ""]
+        held = [parsing.parse_number(cell) for cell in written]
+        numbers = [one for one in held if one is not None]
+        pointed = len([one for one in numbers if one != int(one)])
+        named = [
+            note for note in twin.deviations
+            if note.fact == "integer_valued"
+        ]
+        if keeps:
+            assert pointed >= 1, (power, sorted(set(written))[:4])
+            assert not named, (power, named)
+        else:
+            assert pointed == 0, (power, sorted(set(written))[:4])
+            assert named, (power, twin.deviations)
+
+
 def test_numbers_too_large_to_hold_a_fraction_are_named_not_hidden(
     tmp_path: pathlib.Path,
 ) -> None:

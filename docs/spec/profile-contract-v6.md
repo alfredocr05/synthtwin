@@ -3937,7 +3937,7 @@ consumer off the role name.
 | `n_used_in_statistics` | integer ≥ 0 | — | how many present cells the statistics were computed from | EXACT-OBSERVABLE |
 | `n_left_out_of_statistics` | integer ≥ 0 | — | how many present cells were not | EXACT-OBSERVABLE |
 | `numeric_share` | number | 0.0 ≤ x ≤ 1.0 | the share of present cells whose writer meant a number | EXACT-OBSERVABLE |
-| `integer_valued` | boolean | — | true when every numeric-looking cell is a whole number | EXACT-OBSERVABLE, routed by the published FACT and not by role |
+| `integer_valued` | boolean | — | true when every numeric-looking cell is a whole number | EXACT-OBSERVABLE, routed by the published FACT and not by role; REPORT-ONLY only where no number a double can represent between the published ends carries anything after the point, which the report then names (A-P4-48, `beyond-whole-steps`) |
 | `n_rows` | integer ≥ 0 | `== n_rows` at the top level | the table's row count, echoed | LOADER-ONLY |
 | `numeric_styles` | object | section 7.5 | how many cells were written in each spelling style, under the floor | EXACT-OBSERVABLE against the recount identity of section 7.5.7 |
 | `fraction_widths` | object | C6-28 to C6-30 below | how many `decimal`-styled cells were written at each fraction width, under the floor | EXACT-OBSERVABLE, under the producer obligation FW-P |
@@ -7187,7 +7187,7 @@ reproduces the recorded spellings there as on any other column.
 | `percentiles.min`, `percentiles.max` | EXACT-OBSERVABLE |
 | `percentiles` interior rungs (`p01` … `p99`) | APPROXIMATED, inside a rung-by-rung two-sided envelope — `docs/spec/generation-method-v1.md` G5.6, restated as G12.2 |
 | `n_zero`, `n_negative`, `std_unrepresentable`, `n_negative_unrepresentable`, `n_used_in_statistics`, `n_left_out_of_statistics`, `numeric_share` | EXACT-OBSERVABLE |
-| `integer_valued` | EXACT-OBSERVABLE, routed by the published FACT and not by role |
+| `integer_valued` | EXACT-OBSERVABLE, routed by the published FACT and not by role; REPORT-ONLY only where no number a double can represent between the published ends carries anything after the point, which the report then names (A-P4-48, `beyond-whole-steps`) |
 | `mean`, `std`, `skew` | APPROXIMATED, fixed formula and two-sided bound — G12.3 |
 | `n_distinct`, `n_distinct_folded` | EXACT-OBSERVABLE using the spellings owner decisions 7, 8 and 10 permit — the ordinary case; APPROXIMATED under the two-sided envelope only where even those cannot supply the count, with the report naming the profile's count beside the twin's. The envelope is G12.8, and BOTH of its ends are measured and printed on every run, because a fallback whose range is never shown is a fallback a reader cannot check (review item P2-C2-F4) |
 | `numeric_styles` | EXACT-OBSERVABLE against the recount identity of section 7.5.7: every published count is met or exceeded, the three forms the remainder cannot reach are exact, and the remainder is spelled by its own cells' values |
