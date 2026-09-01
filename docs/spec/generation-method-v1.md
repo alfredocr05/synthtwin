@@ -1719,10 +1719,28 @@ whole unit there — at two to the fifty-fifth it is eight — so every
 number a share up there can hold is whole, and a column of such numbers
 publishing `integer_valued: false` has nowhere to put a value with a
 point in it. The twin then writes whole numbers throughout and
-re-describes as a column of COUNTS. That outcome is permitted and it is
-NOT permitted to be silent: the twin names `integer_valued` as a fact it
-could not meet, and a reader meets the changed type in the report rather
-than by measuring the twin.
+re-describes as a column of COUNTS.
+
+**THE OWNER'S RULING BOUNDS THAT OUTCOME, AND THE BOUND IS
+ARITHMETIC** (amendment A-P4-48, closing residual R-P4-117).
+`integer_valued` is EXACT-OBSERVABLE and stays so; it falls back to
+REPORT-ONLY — not APPROXIMATED, because a boolean has no window to
+approximate INSIDE, only a fact the twin either holds or names — where
+no number a double can represent between the published ends carries
+anything after the point. That edge is exact
+rather than a matter of judgement: the gap between one representable
+number and the next reaches one unit at two to the fifty-second and
+passes it at the fifty-third, so a column whose values sit at or above
+about nine quadrillion has nowhere to put a value with a point in it,
+and one below keeps its type. Measured on one column shape at four
+magnitudes.
+
+This method does not grant that outcome by writing it down — an earlier
+revision said the outcome was "permitted", which a sentence cannot do.
+The plan grants it, the registry carries the authorization, and the
+twin still NAMES `integer_valued` as a fact it could not meet, so a
+reader meets the changed type in the report rather than by measuring
+the twin.
 
 **A quota that cannot be placed is a MISS, and naming it is not a
 licence to leave it unplaced.** Where a quota's own cells exist, an

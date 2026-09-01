@@ -480,6 +480,12 @@ REGISTRY += [
 ]
 # The version 6 write rule's one authorization, quoted from the plan
 # region that states it so a softened sentence stops being found.
+_BEYOND_STEPS = "beyond-whole-steps"
+_BEYOND_STEPS_SAID = (
+    "falling back to REPORT-ONLY only where no number a double can "
+    "represent between the published ends carries anything after the point"
+)
+
 _JUDGED_PASS_SAID = (
     "**A spelling a JUDGED PASS put there** (P4-D6.1, contract C6-116) "
     "is REPORT-ONLY for that key"
@@ -592,8 +598,26 @@ REGISTRY += _facts(
     "n_used_in_statistics",
     "n_left_out_of_statistics",
     "numeric_share",
-    "integer_valued",
 )
+# `integer_valued` IS EXACT EVERYWHERE A DOUBLE CAN CARRY A POINT, and
+# the one place it cannot is arithmetic rather than a choice (owner
+# ruling, amendment A-P4-48; residual R-P4-117). Above two to the
+# fifty-third the gap between one representable number and the next is
+# more than a whole unit -- measured: 1 at two to the fifty-second, 2 at
+# the fifty-third, 8 at the fifty-fifth -- so a share up there holds NO
+# value with anything after the point, and a column whose values all sit
+# there has nowhere to put one that does not break `n_zero`, the rung
+# window, or a published end. Measured on the shape adversarial round 4
+# built: at two to the fifty-second the twin keeps the type, and at the
+# fifty-third and above it cannot and names the miss.
+REGISTRY += [
+    Fact(
+        "numeric",
+        "integer_valued",
+        EXACT_OBSERVABLE,
+        authorized=((_BEYOND_STEPS, _BEYOND_STEPS_SAID),),
+    )
+]
 REGISTRY += _facts("numeric", APPROXIMATED, "mean", "std", "skew")
 # Plan P4-D4.8. APPROXIMATED as the skewness beside it is, under the
 # window method G12.3a states. Version 4's matrix has no row for it,
@@ -1231,6 +1255,10 @@ BY_KEY = {(fact.group, fact.field): fact for fact in REGISTRY}
 # so writing one takes two edits, in two places, both of them sealed.
 
 AUTHORIZED_BY: "dict[tuple[str, str, str], tuple[str, str]]" = {
+    # The arithmetic corner of A-P4-48: no double between the published
+    # ends carries anything after the point, so the type cannot be held
+    # however the values are chosen. It reaches nothing else.
+    ("numeric", "integer_valued", _BEYOND_STEPS): ("numeric", REPORT_ONLY),
     # Owner decision 7's spellings reach the published count; the
     # envelope is what P2-D6's own numeric paragraph falls back to.
     ("numeric", "n_distinct", _ENVELOPE_SAID): ("numeric", APPROXIMATED),

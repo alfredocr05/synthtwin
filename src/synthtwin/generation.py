@@ -7778,6 +7778,32 @@ def _carrier_cell(
     )
 
 
+def _no_fraction_said(rungs: "tuple[float, ...] | None") -> str:
+    """Why no value with a point in it was placed (round 4, item 2).
+
+    The sentence has to be true in every state it can be said in, and a
+    description whose rungs are ALL empty is one of them: the strict
+    loader accepts it, every share is then None, and a sentence naming
+    "this column's ladder and its published ends" would name two things
+    that do not exist. The reason branches; the claim -- that the twin
+    could not place one -- does not, and stays the weaker claim that a
+    bounded search can honestly make.
+    """
+    if rungs is None:
+        return (
+            "This column's description carries no ladder to place a "
+            "value with anything after the point inside, so every cell "
+            "holds a whole number and the twin re-describes as a column "
+            "of counts."
+        )
+    return (
+        "The twin could not place a value with anything after the point "
+        "that this column's ladder and its published ends both allow, "
+        "so every cell holds a whole number and the twin re-describes "
+        "as a column of counts."
+    )
+
+
 def _pool_enough(
     column: contract.ColumnBlock,
     facts: contract.NumericFacts,
@@ -7950,10 +7976,7 @@ def _pool_enough(
             "integer_valued",
             "no",
             "yes",
-            "The twin could not place a value with anything after the "
-            "point that this column's ladder and its published ends "
-            "both allow, so every cell holds a whole number and the "
-            "twin re-describes as a column of counts.",
+            _no_fraction_said(rungs),
         )
     ]
 

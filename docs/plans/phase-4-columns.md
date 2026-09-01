@@ -4545,6 +4545,83 @@ declaration for only one of them.
   validator, is told the wrong one of the two. Both are asserted as
   witnesses in `tests/test_p2c4f3_style_capacity.py`.
 
+- **R-P4-117 — CLOSED 2026-09-01 by amendment A-P4-48, the owner's own
+  ruling (opened the same day by adversarial round P4-C1-R4, item 1).** A COLUMN OF VERY LARGE NUMBERS
+  CANNOT KEEP `integer_valued: false`, AND NOTHING AUTHORIZES THE MISS.
+
+  Five `0` cells, one `0.5` and 995 cells of two to the fifty-fifth
+  publish `continuous` with `integer_valued: false` at the default
+  floor. Seeds 0, 1 and 2 all write whole numbers throughout and the
+  twin re-describes as `count`. The landing that found it made the miss
+  AUDIBLE — the twin names `integer_valued` as a fact it could not meet
+  — and that is all it did.
+
+  **NO PLACEMENT EXISTS, MEASURED.** Above about two to the fifty-third
+  the gap between one representable number and the next is more than a
+  whole unit; at two to the fifty-fifth it is eight. That column's three
+  strata have shares `(0, 1.8e16)`, `(1.8e16, 2.16e16)` and `(2.16e16,
+  3.6e16)`: the two upper ones hold no value with a point in it at all,
+  and the first is the ZERO band, which must hold exactly the five zeros
+  the description publishes. So there is nowhere to put the half that
+  does not break `n_zero`, the rung window of G5.6, or a published end.
+  An eleven-rung ladder cannot say that the sixth cell of a thousand is
+  a half, and neither can a hundred rungs.
+
+  **AND PROSE CANNOT AUTHORIZE IT.** The method was made to say the
+  outcome was "permitted"; that sentence is withdrawn. `integer_valued`
+  is EXACT-OBSERVABLE, `_permitted("continuous", "integer_valued")`
+  returns nothing, and the registry's three doors do not fit: `OPEN` is
+  for a governing document that STATES a lesser obligation and is scoped
+  to a named review's open items; `REPORTED_NOTES` is for lines that do
+  not say a fact was missed, and this one does; and `authorized` is the
+  plan's own grant, which is the owner's to make.
+
+  **SO THE BATTERY DOES NOT REACH THIS SHAPE, DELIBERATELY.** Adding it
+  turns `test_the_shipped_generator_misses_no_exact_fact_the_plan_holds_
+  it_to` red, which is the honest reading: the tool misses an exact fact
+  and nothing allows it. That the battery could not see the shape is the
+  round's own second point, and it is not repaired by quietly widening
+  the battery around a gap.
+
+  **AMENDMENT A-P4-48 — THE OWNER'S RULING, 2026-09-01.** Asked whether
+  `integer_valued` stays EXACT for every column or becomes APPROXIMATED
+  where no value between the published ends can carry a point, the
+  owner ruled: *"is this limited to these really big numbers? If yes,
+  don't worry, attest the limitation and move on. This is really an
+  exception and i don't think that health data will get to this point
+  you are mentioning. This is a computational limitation! What matter is
+  that will be working for ever other number, allowing the code
+  development and statistical reliable!"*
+
+  It IS limited to those numbers, and the limit was measured before the
+  ruling was applied. The gap between one number a double can represent
+  and the next reaches one unit at two to the fifty-second and passes it
+  at the fifty-third: **at two to the forty-ninth and the fifty-second
+  the twin keeps its type on this very column shape; at the fifty-third
+  and the fifty-fifth it cannot.** Nine quadrillion is the edge. A cost,
+  a laboratory result, a count of people and every identifier a person
+  would profile as a NUMBER sit many orders below it — and a value that
+  large is read as `numeric_unrepresentable` or `identifier` long before
+  this rule is reached.
+
+  So the ratified plan now reads `integer_valued` EXACT-OBSERVABLE
+  "falling back to REPORT-ONLY only where no number a double can
+  represent between the published ends carries anything after the
+  point, which the report then names" — REPORT-ONLY and not
+  APPROXIMATED, which the suite caught: an approximated fact owes a
+  MEASURED window and a boolean has none, only a fact the twin holds or
+  names", the registry carries the
+  authorization bound to those words, the contract's two matrix rows
+  and the disclosure row say the same, and G6.4 states the edge. The
+  battery now REACHES the shape — it could not before, which was the
+  round's own second point — and
+  `test_where_a_double_stops_carrying_a_point_is_where_the_type_goes`
+  holds both sides of the edge, so the exception cannot quietly widen
+  into ordinary columns.
+
+  The twin still names the miss when it happens. What changed is that
+  the tool no longer promises what arithmetic will not give it.
+
 - **R-P4-116 — OPEN (opened 2026-09-01 while measuring adversarial
   round P4-C1-R2 item 4; PRE-EXISTING, and nothing to do with the
   landing that found it).** GENERATION IS SUPERLINEAR IN THE STRATA,

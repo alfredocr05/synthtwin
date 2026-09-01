@@ -1568,6 +1568,8 @@ def battery(
     code.mkdir()
     joined = folder / "joined"
     joined.mkdir()
+    vast = folder / "vast"
+    vast.mkdir()
     return [
         (
             "every role",
@@ -1587,6 +1589,24 @@ def battery(
                 joined,
                 fixtures.joined_numbers_table(),
                 measured=["reading"],
+            ),
+        ),
+        (
+            # THE SHAPE THIS BATTERY COULD NOT SEE (adversarial round
+            # P4-C1-R4, item 1). This file promises every exact fact the
+            # generator misses is reviewed against the registry, and no
+            # description it built reached a column whose values sit
+            # where a double cannot carry a point -- so `integer_valued`
+            # was missed, named in the twin's report, and never brought
+            # to this check at all. Amendment A-P4-48 is what allows the
+            # line; this entry is what makes the allowance do any work.
+            "numbers past the reach of a fraction",
+            _described(
+                vast,
+                fixtures.single_column_table(
+                    "reading",
+                    ["0"] * 5 + ["0.5"] + ["36028797018963968"] * 995,
+                ),
             ),
         ),
         (
