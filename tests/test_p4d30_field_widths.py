@@ -71,6 +71,29 @@ def _dental_rows() -> "list[str]":
     return [rows[(index * 97) % 300] for index in range(300)]
 
 
+def _gap_rows() -> "list[str]":
+    """300 four-figure codes with a WIDE GAP between the two halves.
+
+    THE SHAPE THE PADDED CELLS' OWN DEMAND IS FOR, and the dental
+    column above does not exercise it. There, the twin drew enough
+    small values on its own and what was short was the count at four
+    figures; here the two groups are `D0100`-`D0999` and
+    `D5000`-`D9999`, so the ladder must interpolate across a gap four
+    thousand wide and the ninety-seven cells that need a value below a
+    thousand are what it comes up short of. That is R-P4-30's own
+    measurement in the direction the entry recorded it -- "the twin
+    drew only 78 values below 1000 where 97 are needed".
+
+    Measured: as built, 0 of 20 seeds write a core at another width;
+    with the ceiling demand withdrawn and every other rule left alone,
+    20 of 20 do.
+    """
+    padded = ["D0%03d" % (100 + (index * 9) % 900) for index in range(97)]
+    plain = ["D%04d" % (5000 + (index * 24) % 5000) for index in range(203)]
+    rows = padded + plain
+    return [rows[(index * 97) % 300] for index in range(300)]
+
+
 def _vaccine_rows() -> "list[str]":
     """230 cells `000` to `199`: 127 padded, 103 needing no zero."""
     rows = ["%03d" % (index % 100) for index in range(127)]
@@ -206,6 +229,35 @@ def test_the_dental_codes_keep_their_width_at_every_seed(
         assert _field_widths_of(cells, "D") == {4: 300}, (
             f"seed {seed}: the twin wrote a dental core at a width this "
             "column has nowhere, which is residual R-P4-30 back again"
+        )
+
+
+def test_the_padded_cells_get_values_narrow_enough_to_pad(
+    tmp_path: pathlib.Path,
+) -> None:
+    """R-P4-30 in the direction that entry actually measured it.
+
+    `pad_widths {4: 97}` says ninety-seven cells hold a value of at
+    most THREE figures -- a leading zero is a figure of the field and
+    not of the value -- and that is a constraint on magnitude the draw
+    can honour with no wider disclosure at all. This column is built so
+    that it BINDS: its two groups are a thousand and five thousand
+    apart, so the ladder interpolating across the gap comes up short of
+    small values exactly as the residual records.
+
+    The dental column above does not pin this. Withdraw the ceiling
+    demand and it stays green while this one goes red at every seed.
+    """
+    document, loaded = _described(tmp_path, "gap", "code", _gap_rows())
+    block = document["columns"][0]
+    assert block["pad_widths"] == {"4": 97}
+    assert block["field_widths"] == {"4": 300}
+    for seed in SEEDS:
+        cells, _path, _built = _twin_cells(tmp_path, "gap", loaded, seed)
+        assert _field_widths_of(cells, "D") == {4: 300}, (
+            f"seed {seed}: the twin drew too few values below a "
+            "thousand for the padded cells to be four figures wide, "
+            "which is residual R-P4-30's own measurement"
         )
 
 
