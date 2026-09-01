@@ -5026,6 +5026,18 @@ def _numeric_layout(
     notes: list[Deviation] = []
     raw_budgets = _budget_split(column.n_distinct, counts)
     folded_budgets = _budget_split(column.n_distinct_folded, counts)
+    # HOW MANY STRATA IS A DIFFERENT QUESTION FROM HOW MANY SPELLINGS,
+    # AND BOTH ARE STILL READ OFF THIS ONE COUNT (round 3, item 1;
+    # residual R-P4-112). For a grain inside another role they answer
+    # differently -- a 36-row column of `N/M` publishes 36 different
+    # CELLS while its first position holds 11 different NUMBERS, and a
+    # stratum holds a value, not a spelling. Separating them was built
+    # and MEASURED: with the spelling budgets left at 36 and only the
+    # division taking the grain's 11, the style floor holds and the
+    # count of different cells still falls to 28 of 36. So the spelling
+    # budget was never what carried it, and neither half of this may
+    # move until the pairing walk can build the column's own count from
+    # the strata it is given.
     values = min(numbers, max(folded_budgets[0], 1))
     zero_strata = 1 if zeros > 0 else 0
     rest = values - zero_strata
@@ -5262,6 +5274,32 @@ def _core_view(column: "contract.ColumnBlock") -> "contract.ColumnBlock":
         n_contradictory=facts.n_core_contradictory,
         facts=facts.numbers,
     )
+
+
+def _position_notes(
+    place: int, notes: "list[Deviation]"
+) -> "list[Deviation]":
+    """Name the position every one of these notes is about (R3 item 4).
+
+    A joined column publishes its quantitative facts under
+    `parts[i].<fact>`, and the numeric stages that produce these notes
+    are handed one position as a column of its own, so they name the
+    bare key. Carried up unqualified, a reader is told a fact moved and
+    not which of the numbers it moved for.
+    """
+    named: list[Deviation] = []
+    for step in range(len(notes)):
+        note = notes[step]
+        named = named + [
+            dataclasses.replace(
+                note,
+                fact=f"parts[{place}].{note.fact}",
+                note=(
+                    f"Number {place + 1} of each cell: {note.note}"
+                ),
+            )
+        ]
+    return named
 
 
 def _part_view(
@@ -5673,7 +5711,14 @@ def _joined_content(
         at = at + part_content
         part_plan = dataclasses.replace(plan, column=view, layout=layout)
         values, part_notes = _numeric_content(part_plan, part_words)
-        notes = notes + layout_notes + part_notes
+        # AND A POSITION'S NOTE NAMES THE POSITION (round 3, item 4).
+        # `Deviation.fact` is the description's own key, and a joined
+        # column publishes `parts[0].integer_valued`, not
+        # `integer_valued`: a report carrying the bare key leaves a
+        # reader unable to tell WHICH position changed, and two
+        # positions changing the same fact produce two entries nothing
+        # tells apart.
+        notes = notes + _position_notes(place, layout_notes + part_notes)
         # EVERY POSITION AFTER THE FIRST IS SHUFFLED AGAINST IT, and
         # this is the step that makes a pair a pair. `_numeric_content`
         # places its values by rule, not by chance -- the words decide
@@ -7100,8 +7145,10 @@ def _fraction_inside(
     65, 33, 17, 9, 5, 3, 2` and this answered None though `1.5` was
     there to be had, and the stratum was passed over in silence. The
     middle of the share is tried first, and where the middle is whole
-    the step of at most half a unit added to it is not; the steps then
-    halve, and each is tried ABOVE the middle and BELOW it, because
+    the step of at most half a unit added to it is not -- WHEREVER THAT
+    STEP IS REPRESENTABLE, which the paragraph below is the exception
+    to; the steps then halve, and each is tried ABOVE the middle and
+    BELOW it, because
     probing one side only exhausts on a share whose upper half is taken
     while its lower half is free -- `(1, 2)` with the middle and every
     upper step held answered None with `1.25` available.
@@ -7880,26 +7927,33 @@ def _pool_enough(
             moved[place] = fraction
             pointed = pointed + 1
             return layout, moved, []
-    # AND WHERE NO STRATUM CAN CARRY ONE AT ALL, THE TWIN SAYS SO
-    # (round 2, item 1). Above about two to the fifty-third, the gap
-    # between one representable number and the next is more than a
-    # whole unit -- at two to the fifty-fifth it is eight -- so a share
-    # up there holds NO value with a point in it, and a column of 995
-    # such numbers beside one `0.5` has nowhere to put the half. The
-    # twin then writes a column of whole numbers whatever this rule
-    # does, and the honest outcome is to name it: a re-description reads
-    # `count` where `continuous` was published, and a silent role is the
-    # worst way for a reader to meet that.
+    # AND WHERE NO STRATUM TAKES ONE, THE TWIN SAYS SO (round 2, item
+    # 1). Above about two to the fifty-third the gap between one
+    # representable number and the next is more than a whole unit -- at
+    # two to the fifty-fifth it is eight -- so a share up there holds NO
+    # value with a point in it, and a column of 995 such numbers beside
+    # one `0.5` has nowhere to put the half. The twin then writes a
+    # column of whole numbers whatever this rule does, and a silent role
+    # is the worst way for a reader to meet that.
+    #
+    # WHAT IT SAYS IS WHAT HAPPENED, NOT THAT IT WAS IMPOSSIBLE (round
+    # 3, item 3). The search each stratum makes is bounded, so a share
+    # whose every probed value is already taken answers None while a
+    # free one remains, and a description whose ladder is all empty
+    # rungs has no share to probe at all. Saying "no value can be
+    # written" would be false in both, and would turn a shortfall this
+    # tool could later repair into a claim that there was nothing to
+    # repair.
     return layout, moved, [
         _deviation(
             column.name,
             "integer_valued",
             "no",
             "yes",
-            "No value between this column's published ends can be "
-            "written with anything after the point, so every cell of "
-            "the twin holds a whole number and the twin re-describes "
-            "as a column of counts.",
+            "The twin could not place a value with anything after the "
+            "point that this column's ladder and its published ends "
+            "both allow, so every cell holds a whole number and the "
+            "twin re-describes as a column of counts.",
         )
     ]
 

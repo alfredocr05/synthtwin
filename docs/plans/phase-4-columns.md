@@ -4519,8 +4519,23 @@ declaration for only one of them.
   style floor is the shape this project has been caught by before, and
   the two counts have to move together. That is landing **L7**, which
   retargets the draw for distinct counts and is the very next one; this
-  entry carries both measurements so L7 starts from them rather than
+  entry carries every measurement so L7 starts from them rather than
   rediscovering them.
+
+  **AND THE SECOND ROUTE WAS MEASURED TOO** (adversarial round 3, item
+  1). That round observed that `n_distinct` and `n_distinct_folded`
+  drive TWO controls at once — the raw and folded SPELLING budgets, and
+  the number of numeric STRATA — so the first measurement had changed
+  both and could not isolate the pairing walk. It also observed that 11
+  strata are not intrinsically too few: 11 first-position numbers
+  against 7 second-position numbers give 77 possible pairs for 36 rows.
+  Both observations are right. The separated version was built —
+  spelling budgets left at the column's 36, only the division taking the
+  grain's 11 — and it makes **no difference**: the style floor holds and
+  `distinct.n_distinct` still comes out 28 of 36, and the headline test
+  is still red. The spelling budget was never what carried it. What
+  remains is the pairing walk, which moves only the last position
+  (R-P4-51), and that is L7's.
 
   **AND THE TWIN'S OWN REPORT IS SILENT ABOUT THE STYLE MISS.** On a
   seed writing 14 pointed cells the twin's deviations name `n_distinct`

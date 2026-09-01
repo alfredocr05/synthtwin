@@ -1248,110 +1248,116 @@ def _pieces(cell: str) -> "list[str]":
 # -- 7. what adversarial round 2 reproduced -----------------------------
 
 
+def _joined_witness(
+    folder: pathlib.Path,
+) -> "tuple[dict, contract.Profile]":
+    """The 36-row joined column residual R-P4-112 is recorded on."""
+    rows = [
+        f"{index % 9 + 1}/{index % 7 + 1}" for index in range(34)
+    ] + ["1.5/2", "2.5/3"]
+    return _described(folder, rows, ["amount"])
+
+
 def test_a_grain_is_laid_out_by_the_CELL_count_which_is_R_P4_112(
     tmp_path: pathlib.Path,
 ) -> None:
-    """R-P4-112 asserted as a WITNESS, with its root cause pinned.
+    """R-P4-112 asserted as a WITNESS, on the number that IS the defect.
 
     `_numeric_layout` divides a column's cells into strata by the count
-    of different things it publishes, and for an affixed or joined
-    column that count is over CELLS. A 36-row column of `N/M` holds 36
-    different pairs while its first position holds 11 different numbers,
-    so the position is laid out in 36 strata where a plain column
-    carrying the same numeric facts gets 11.
+    of different things it publishes, and for a joined column that count
+    is over CELLS. This column holds 36 different pairs while its first
+    position holds 11 different numbers, so the position is divided into
+    36 strata where a plain column carrying the same numeric facts is
+    divided into 11.
 
-    THAT IS THE ROOT, and adversarial round 2 found it; the residual's
-    first diagnosis blamed the pairing step, which cannot cause it --
-    each position is finished before pairing runs, and pairing only
-    permutes that position's own multiset.
+    THE STRATUM COUNT IS ASSERTED, not the view's fields (round 3, item
+    5). An earlier form of this checked only that `_part_view` kept the
+    outer counts, which a repair inside `_numeric_layout` would leave
+    untouched while closing the defect: the witness would have gone on
+    passing over a repair it exists to notice.
 
-    IT IS ASSERTED RATHER THAN REPAIRED, and the reason is measured.
-    Handing the grain its own count closes the style floor -- the first
-    position writes 2 cells with a point in them where it wrote 12 to
-    15 -- and costs the column's distinct-cell count, which falls from
-    34 of 36 to 28, because the pairing walk then has fewer
-    combinations to build it from. `distinct.n_distinct` and
-    `distinct.n_distinct_folded` are published facts too, and the twin
-    of the suite's own joined description stopped meeting them: the
-    product's headline claim, that a twin of its own description misses
-    nothing, went red. The two counts have to move together, which is
-    the landing that retargets the draw.
-
-    This witness fails when the root is repaired, which is when it
-    should be rewritten to assert the repair.
+    IT IS ASSERTED RATHER THAN REPAIRED, and the reason is measured
+    TWICE. Dividing by the grain's count closes the position's
+    point-free floor and costs the column's own count of different
+    cells, 34 of 36 falling to 28, because the pairing walk then has
+    fewer combinations to build it from -- and the same happens with the
+    spelling budgets left at the column's 36 and only the division
+    taking 11, so the budget was never what carried it. A twin of its
+    own description then misses facts it used to meet. Both counts move
+    together in the landing that retargets the draw.
     """
-    joined = [
-        f"{index % 9 + 1}/{index % 7 + 1}" for index in range(34)
-    ] + ["1.5/2", "2.5/3"]
-    _document, loaded = _described(tmp_path, joined, ["amount"])
+    _document, loaded = _joined_witness(tmp_path)
     column = loaded.columns[0]
     assert column.role == "joined_numbers", column.role
     part = column.facts.parts[0]
-    # THE FIXTURE SEPARATES THE TWO COUNTS, asserted before anything
-    # rests on it: where they are equal this test measures nothing.
     assert part.n_distinct_values == 11, part.n_distinct_values
     assert column.n_distinct == 36, column.n_distinct
-    view = generation._part_view(column, 0)
-    assert view.n_distinct == column.n_distinct, view.n_distinct
-    assert view.n_distinct_folded == column.n_distinct_folded
+    layout, _notes, _content = generation._numeric_layout(
+        generation._part_view(column, 0), part
+    )
+    assert len(layout.sizes) == column.n_distinct, len(layout.sizes)
+    assert len(layout.sizes) != part.n_distinct_values, len(layout.sizes)
 
 
 def test_the_joined_position_misses_its_plain_floor_which_is_R_P4_112(
     tmp_path: pathlib.Path,
 ) -> None:
-    """The same residual from the other side, and it is REPORTED.
+    """The same residual from the other side, on the exact numbers.
 
     The first position publishes `plain: 34` with a pool of 2 and writes
     many more cells with a point in them than the pool covers, because
-    of the cardinality above.
-
-    AND THE TWIN'S OWN REPORT DOES NOT NAME IT, while `validate` does.
-    Measured: on a seed writing 14 such cells the twin's deviations
-    carry `n_distinct` and nothing about the styles, and the quality
-    report has `number 1 styles.published.plain` MISSED at 22 against a
-    floor of 34. A person who reads the report beside their twin and
-    does not run the validator is told the count of different values
-    moved and is not told the form census did. That silence is recorded
-    in R-P4-112 and is asserted here, so that closing it is noticed.
+    of the division above. The seed this file pins is asserted through
+    the real validator at the count it actually reaches, so a different
+    style defect arriving later cannot stand in for this one (round 3,
+    item 5).
     """
-    joined = [
-        f"{index % 9 + 1}/{index % 7 + 1}" for index in range(34)
-    ] + ["1.5/2", "2.5/3"]
-    _document, loaded = _described(tmp_path, joined, ["amount"])
+    _document, loaded = _joined_witness(tmp_path)
     column = loaded.columns[0]
     assert column.facts.parts[0].numeric_styles == {
         "plain": 34, contract.WITHHELD: 2,
     }
-    over = 0
-    for seed in SEEDS:
-        twin = generation.generate(loaded, seed)
-        written = [cell for cell in twin.columns[0] if cell != ""]
-        firsts = [cell.split("/")[0] for cell in written]
-        held = [parsing.parse_number(piece) for piece in firsts]
-        numbers = [one for one in held if one is not None]
-        pointed = len([one for one in numbers if one != int(one)])
-        # THE TYPE SURVIVES on every seed even while the count does not,
-        # which is the part that must not slip while the residual waits.
-        assert pointed >= 1, (seed, sorted(set(firsts))[:8])
-        if pointed > 2:
-            over = over + 1
-    assert over > 0, "the residual this witness records is not reproducing"
-
-    # THE VALIDATOR NAMES IT, and the twin's own report does not.
-    twin = generation.generate(loaded, SEEDS[0])
-    folder = tmp_path / "joined-witness"
+    twin = generation.generate(loaded, 0)
+    folder = tmp_path / "joined-floor"
     folder.mkdir(exist_ok=True)
     written = fixtures.write(folder, "twin.csv", rendering.twin_csv(twin))
     outcome = validation.measure(loaded, str(written))
     missed = {
-        check.subcheck
+        check.subcheck: check.achieved
         for check in outcome.checks
         if check.verdict == validation.MISSED
     }
-    assert "number 1 styles.published.plain" in missed, sorted(missed)
+    assert missed.get("number 1 styles.published.plain") == "22", missed
+    # AND THE TYPE SURVIVES ON EVERY SEED even while the count does not,
+    # which is the part that must not slip while the residual waits.
+    for seed in SEEDS:
+        each = generation.generate(loaded, seed)
+        firsts = [
+            cell.split("/")[0] for cell in each.columns[0] if cell != ""
+        ]
+        held = [parsing.parse_number(piece) for piece in firsts]
+        numbers = [one for one in held if one is not None]
+        assert any(one != int(one) for one in numbers), (seed, firsts[:6])
+
+
+def test_the_twin_report_is_silent_about_the_joined_style_miss(
+    tmp_path: pathlib.Path,
+) -> None:
+    """A separate witness, because it is a separate failure.
+
+    `validate` reports the position's `plain` floor missed at 22 against
+    34. The twin's OWN report, which is what a person reads beside their
+    twin without running the validator, names `n_distinct` and says
+    nothing about the form census. The reader is told the wrong one of
+    the two facts that moved.
+    """
+    _document, loaded = _joined_witness(tmp_path)
+    twin = generation.generate(loaded, 0)
+    facts = {note.fact for note in twin.deviations}
+    assert "n_distinct" in facts, facts
     assert not [
-        note for note in twin.deviations if note.fact == "numeric_styles"
-    ], twin.deviations
+        note for note in twin.deviations
+        if "numeric_styles" in note.fact
+    ], facts
 
 
 def test_numbers_too_large_to_hold_a_fraction_are_named_not_hidden(

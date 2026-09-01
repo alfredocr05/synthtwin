@@ -1672,16 +1672,27 @@ implementations that both reach them may differ; a description whose
 walk reaches them is one whose twin the report already says is
 approximate.
 
-**A GRAIN INSIDE A ROLE IS LAID OUT BY ITS OWN COUNT OF DIFFERENT
-NUMBERS.** An affixed core and a joined position are handed to this
-method as columns of their own, and the division of cells into strata
-reads the count of different things the column publishes. That count
-answers a different question for those roles: a 36-row column of `N/M`
-holds 36 different CELLS while its first position holds 11 different
-numbers, and dividing by 36 lays the position out in strata no rule of
-this method intends. The grain's own count governs, capped by the
-column's, and where the description carries none for the grain the
-column's stands in.
+**A GRAIN INSIDE A ROLE IS LAID OUT BY THE COLUMN'S COUNT OF
+DIFFERENT CELLS, WHICH IS THE WRONG COUNT, AND THAT IS A RECORDED
+LIMIT** (residual R-P4-112). An affixed core and a joined position are
+handed to this method as columns of their own, and the division of cells
+into strata reads the count of different things the COLUMN publishes.
+That count answers a different question for those roles: a 36-row column
+of `N/M` holds 36 different CELLS while its first position holds 11
+different numbers, so the position is divided into 36 strata where a
+plain column carrying the same numeric facts is divided into 11.
+
+Laying the grain out by its own count is what this method WOULD say, and
+it is not what a conforming implementation may do yet, because the two
+halves of the division cannot move apart. Measured twice: taking the
+grain's count for both the division and the spelling budgets, and taking
+it for the division alone with the budgets left at the column's, give
+the same result -- the point-free floor of the position is met and the
+column's own count of different cells falls from 34 of 36 to 28, because
+the pairing walk of G10.2 has fewer combinations to build it from. A
+twin of its own description then misses facts it used to meet. Both
+counts move together in the landing that retargets the draw, and until
+then this method says what the implementation does.
 
 **THE VALUE A STRATUM TAKES IN EXCHANGE** is chosen from its own share
 of the ladder, so the stratum stays where the ladder put it, and is
@@ -1692,8 +1703,9 @@ STRADDLES zero, and a column of four `-4.5` cells whose negative stratum
 was handed `2.097` came out holding one negative cell against a
 published four. The middle of the cut share is taken where it has no
 point-free spelling; where the middle IS whole, the value is the middle
-plus a step of at most half a unit, which cannot be whole, the step
-halving again only to move around a value another stratum holds — and
+plus a step of at most half a unit, which cannot be whole WHEREVER THAT
+STEP IS REPRESENTABLE, the step halving again only to move around a
+value another stratum holds — and
 each step is tried BOTH above the middle and below it. **Halving alone
 is not enough, and neither is halving upward**: eight halvings of a
 share `(1, 257)` are `129, 65, 33, 17, 9, 5, 3, 2`, every one whole, and
